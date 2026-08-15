@@ -22,6 +22,10 @@ fileConfig(config.config_file_name)
 from app.models import SQLModel  # noqa
 from app.core.config import settings # noqa
 
+# Импорт ради регистрации таблицы в SQLModel.metadata: без него автогенерация
+# не увидит модель, потому что она объявлена вне app/models.py.
+from app.connectors.models import Connector  # noqa
+
 target_metadata = SQLModel.metadata
 
 # other values from the config, defined by the needs of env.py,
