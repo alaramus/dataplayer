@@ -12,5 +12,26 @@ export default defineConfigWithVueTs(
     rules: {
       "vue/multi-word-component-names": "off",
     },
+  },
+  {
+    // Server state belongs in vue-query, not in Pinia. The old frontend spread
+    // server data across stores, each with its own cache and invalidation, and
+    // that is where its desynchronisation came from. A store that talks to the
+    // API is the first step back into it.
+    files: ["src/stores/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/client", "@/client/*", "@/features/*"],
+              message:
+                "Stores hold client state only. Server state goes through vue-query in a feature's api.ts.",
+            },
+          ],
+        },
+      ],
+    },
   }
 )

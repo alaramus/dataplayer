@@ -26,6 +26,7 @@ dependencies = [
 dev = [
     "pytest<10.0.0,>=7.4.3",
     "pytest-asyncio>=1.0.0,<2.0.0",
+    "import-linter>=2.0,<3.0",
     "mypy<3.0.0,>=1.8.0",
     "ty>=0.0.25",
     "ruff<1.0.0,>=0.2.2",
@@ -55,6 +56,8 @@ select = [
     "UP",  # pyupgrade
     "ARG001", # unused arguments in functions
     "T201",   # print statements are not allowed
+    "ASYNC",  # blocking calls inside async functions
+    "S608",   # SQL built by string formatting
 ]
 ignore = [
     "E501",  # line too long, handled by black

@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from app.adapters.routes import router as adapter_types_router
 from app.connectors.routes import router as connectors_router
 from app.core.config import settings
-from app.core.routes import router as utils_router
+from app.system.routes import router as utils_router
 from app.users.auth_routes import router as auth_router
 from app.users.private_routes import router as private_router
 from app.users.routes import router as users_router

@@ -1,0 +1,47 @@
+# Dependencies point one way. Stated as a decision since sub-project 2a and
+# unenforced until now: the check found app.core importing app.users on its
+# first run, in the very refactor whose point was this rule.
+[importlinter]
+root_package = app
+include_external_packages = True
+
+[importlinter:contract:layers]
+name = Layers point inward
+type = layers
+layers =
+    app.api
+    app.system
+    app.connectors
+    app.adapters
+    app.users
+    app.core
+exhaustive = false
+
+[importlinter:contract:core-knows-nobody]
+name = core depends on nothing else in the application
+type = forbidden
+source_modules =
+    app.core
+forbidden_modules =
+    app.users
+    app.adapters
+    app.connectors
+    app.system
+    app.api
+
+[importlinter:contract:driver-sdk-is-contained]
+name = the psycopg driver is imported only by the postgres adapter
+type = forbidden
+source_modules =
+    app.core
+    app.users
+    app.connectors
+    app.system
+    app.api
+    app.adapters.registry
+    app.adapters.protocol
+    app.adapters.catalog
+    app.adapters.fetch
+    app.adapters.routes
+forbidden_modules =
+    psycopg
