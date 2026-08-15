@@ -19,11 +19,13 @@ dependencies = [
     "sentry-sdk[fastapi]>=2.66.1,<3.0.0",
     "pyjwt<3.0.0,>=2.13.0",
     "pwdlib[argon2,bcrypt]>=0.3.0",
+    "cryptography>=44.0.0,<47.0.0",
 ]
 
 [dependency-groups]
 dev = [
     "pytest<10.0.0,>=7.4.3",
+    "pytest-asyncio>=1.0.0,<2.0.0",
     "mypy<3.0.0,>=1.8.0",
     "ty>=0.0.25",
     "ruff<1.0.0,>=0.2.2",
@@ -81,3 +83,7 @@ error-on-warning = true
 
 [tool.fastapi]
 entrypoint = "app.main:app"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"

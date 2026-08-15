@@ -1,27 +1,27 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from sqlmodel import select
 
 from app.backend_pre_start import init, logger
 
 
-def test_init_successful_connection() -> None:
-    engine_mock = MagicMock()
-
+async def test_init_successful_connection() -> None:
     session_mock = MagicMock()
-    session_mock.__enter__.return_value = session_mock
+    session_mock.__aenter__ = AsyncMock(return_value=session_mock)
+    session_mock.__aexit__ = AsyncMock(return_value=None)
+    session_mock.exec = AsyncMock()
 
     select1 = select(1)
 
     with (
-        patch("app.backend_pre_start.Session", return_value=session_mock),
+        patch("app.backend_pre_start.async_session_maker", return_value=session_mock),
         patch("app.backend_pre_start.select", return_value=select1),
         patch.object(logger, "info"),
         patch.object(logger, "error"),
         patch.object(logger, "warn"),
     ):
         try:
-            init(engine_mock)
+            await init()
             connection_successful = True
         except Exception:
             connection_successful = False
