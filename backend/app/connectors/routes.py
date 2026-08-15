@@ -2,9 +2,10 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
 from app.api.deps import CurrentUser, SessionDep
@@ -143,3 +144,57 @@ async def delete_connector(
     connector = await _get_or_404(session, connector_id, current_user)
     await crud.delete(session, connector=connector)
     return Message(message="Connector deleted successfully")
+
+
+class ConnectionCheckRequest(BaseModel):
+    adapter_type: str
+    options: dict[str, Any]
+    connector_id: uuid.UUID | None = None
+
+
+@router.post("/check-draft", response_model=ConnectionCheckResult)
+async def check_draft(
+    session: SessionDep, current_user: CurrentUser, body: ConnectionCheckRequest
+) -> Any:
+    """
+    Check a connection from form values, without storing anything.
+
+    When connector_id is supplied, secret fields missing from the body are taken
+    from the stored connector: the user edits the port without retyping the
+    password.
+    """
+    adapter_type = _resolve_type(body.adapter_type)
+    options = body.options
+    if body.connector_id is not None:
+        connector = await _get_or_404(session, body.connector_id, current_user)
+        options = service.fill_missing_secrets(adapter_type, options, connector.secrets)
+
+    try:
+        adapter = service.build_adapter(adapter_type, options)
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", "options", *error["loc"]],
+                    "msg": error["msg"],
+                    "type": error["type"],
+                }
+                for error in exc.errors()
+            ],
+        )
+    return await adapter.check_connection()
+
+
+@router.post("/{connector_id}/check", response_model=ConnectionCheckResult)
+async def check_connector(
+    session: SessionDep, current_user: CurrentUser, connector_id: uuid.UUID
+) -> Any:
+    """
+    Check the connection of a stored connector.
+    """
+    connector = await _get_or_404(session, connector_id, current_user)
+    adapter_type = _resolve_type(connector.adapter_type)
+    options = service.merge_options(connector.config, connector.secrets)
+    adapter = service.build_adapter(adapter_type, options)
+    return await adapter.check_connection()
