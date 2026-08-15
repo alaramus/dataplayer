@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "build": "vite build",
+    "build:checked": "vue-tsc -b && vite build",
     "type-check": "vue-tsc --noEmit",
     "lint": "eslint . --fix",
     "format": "prettier --write src/",
@@ -44,7 +45,7 @@
     "sass-embedded": "^1.94.1",
     "typescript": "^6.0.3",
     "vite": "^8.2.0",
-    "vitest": "^3.2.4",
+    "vitest": "^4.1.10",
     "vue-tsc": "^3.1.1"
   }
 }
