@@ -1,7 +1,13 @@
 # AGENTS.md
 
-This is the canonical repository guide for coding agents and humans. Other
-instruction files must point here instead of duplicating this content.
+This is the entry point for coding agents and humans: what the project is,
+what has been decided, and what trips people up. Other instruction files point
+here instead of duplicating it.
+
+- [ENGINEERING.md](ENGINEERING.md) — how code is written, with what enforces
+  each rule. **Normative whenever you touch code, whatever the task.**
+- `docs/superpowers/specs/` — the full argument behind each decision, in
+  Russian.
 
 ## What this project is
 
@@ -64,12 +70,12 @@ backend/app/
 │   ├── routes.py        /users
 │   ├── auth_routes.py   /login, /password-recovery, /reset-password
 │   └── private_routes.py
+├── system/              operational routes: /utils health check, test email
 ├── core/                depends on nothing else in the app
 │   ├── crypto.py        AES-GCM for connector secrets
 │   ├── db.py            async engine, session, SessionDep, loop_factory
 │   ├── schemas.py       Message, get_datetime_utc
 │   ├── email.py         sending and templating
-│   ├── routes.py        /utils: health check, test email
 │   ├── config.py        settings
 │   └── security.py      passwords and JWT
 └── api/main.py          router aggregation only
@@ -207,6 +213,7 @@ uv sync                     # install dependencies
 uv run pytest tests/ -q     # tests (needs the db container)
 uv run mypy app             # strict mode, configured in pyproject.toml
 uv run ruff check app tests
+uv run lint-imports         # direction of dependencies between packages
 uv run alembic upgrade head
 uv run alembic revision --autogenerate -m "message"
 ```
@@ -288,18 +295,20 @@ network, not `localhost`.
 
 ## Working rules
 
-1. Read the surrounding module before changing behaviour.
-2. Tests first. Every task in the completed slice went failing test →
-   implementation → passing test → commit.
-3. Never claim something works without running the check and seeing the output.
-4. Secrets never appear in API responses, error messages or logs. There are
-   regression tests for this; keep them passing.
-5. `mypy --strict` and `ruff` must pass on the backend; `vue-tsc` and ESLint on
-   the frontend. No new `type: ignore` without a reason in a comment.
-6. `frontend/src/client` is generated. Never edit it; regenerate instead.
-7. `.env` is not tracked. Add new settings to `.env.example` as well.
-8. When a plan turns out to be wrong during execution, fix the plan document
-   too, not just the code.
+The rules themselves, and what enforces each of them, are in
+[ENGINEERING.md](ENGINEERING.md). Four things worth knowing before the first
+line of code:
+
+1. **Tests first.** Every task so far went failing test → implementation →
+   passing test → commit.
+2. **Never claim something works without running the check and reading the
+   output.** A green unit test is not evidence the user sees the result.
+3. **`frontend/src/client` is generated.** Never edit it; regenerate with
+   `bash scripts/generate-client.sh`.
+4. **`.env` is not tracked.** A new setting goes into `.env.example` too.
+
+A change is ready when every command in "What holds it up" touching the
+affected side is clean.
 
 ## What comes next
 
@@ -315,9 +324,24 @@ From the design document, in order:
 Each sub-project gets its own design document, its own plan and its own
 iteration.
 
-### Known limitation
+## Known deviations
 
-`POST /connectors/check-draft` opens a TCP connection to an address supplied by
-the client, which lets an authenticated user map the internal network by
-response timing and error kind. Mitigated by a hard timeout and uniform error
-messages. A host allow-list is the remaining fix and is not implemented.
+Where the code knowingly differs from what the documents describe, or falls
+short of what it should be. Listed so it is not rediscovered as a surprise.
+
+- **SSRF in `check-draft`.** The endpoint opens a TCP connection to an address
+  supplied by the client, which lets an authenticated user map the internal
+  network by response timing and error kind. Mitigated by a hard timeout and
+  uniform error messages; a host allow-list is the remaining fix.
+- **Every request opens its own connection.** Catalog pages, grid pages and
+  checks each connect and disconnect. Sub-project 4б.
+- **Catalog children are not paginated.** Fine for PostgreSQL, where the count
+  is bounded; an object store will need a cursor, and adding one changes the
+  contract for every adapter.
+- **`.env` is in the git history.** It was tracked before being removed, so the
+  values it held at the time are still recoverable from earlier commits. They
+  are development placeholders, but a real deployment must not reuse them.
+- **D2b — a driver is a session plus capability modules — rests on review.**
+  There is no check that a capability module keeps out of connection handling.
+- **The reuse rules rest on review.** No machine flags the third similar thing
+  in a diff.

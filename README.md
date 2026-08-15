@@ -44,7 +44,9 @@ http://localhost:8000/docs.
 
 ## Documentation
 
-- [AGENTS.md](AGENTS.md) — architecture, decisions, commands and traps. Read
-  this before changing anything.
+- [AGENTS.md](AGENTS.md) — what the project is, decisions, commands and traps.
+  Read this before changing anything.
+- [ENGINEERING.md](ENGINEERING.md) — how code is written here, and what
+  enforces each rule.
 - [development.md](development.md) — day-to-day workflow.
 - `docs/superpowers/` — design documents and implementation plans.
