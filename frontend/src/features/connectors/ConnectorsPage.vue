@@ -3,6 +3,7 @@ import { useQuasar } from "quasar"
 import { computed, ref } from "vue"
 
 import type { ConnectorPublic } from "@/client"
+import ConnectorDialog from "@/features/connectors/ConnectorDialog.vue"
 import ConnectorTable from "@/features/connectors/ConnectorTable.vue"
 import { useCheckConnector, useConnectors, useDeleteConnector } from "@/features/connectors/api"
 import AppLayout from "@/shared/ui/AppLayout.vue"
@@ -72,6 +73,11 @@ function confirmRemove(connector: ConnectorPublic) {
       @edit="openEdit"
       @remove="confirmRemove"
       @check="check"
+    />
+
+    <ConnectorDialog
+      v-model="dialogOpen"
+      :connector="editing"
     />
   </AppLayout>
 </template>
