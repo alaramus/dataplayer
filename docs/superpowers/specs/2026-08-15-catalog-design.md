@@ -72,6 +72,11 @@ class TableNode(BaseNode):
     size_bytes: int | None = None
     is_system: bool = False
 
+class ViewNode(BaseNode):
+    kind: Literal["view"] = "view"
+    is_materialized: bool = False
+    is_system: bool = False
+
 class ColumnNode(BaseNode):
     kind: Literal["column"] = "column"
     data_type: str
@@ -79,7 +84,7 @@ class ColumnNode(BaseNode):
     primary_key: bool = False
 
 CatalogNode = Annotated[
-    SchemaNode | TableNode | ColumnNode, Field(discriminator="kind")
+    SchemaNode | TableNode | ViewNode | ColumnNode, Field(discriminator="kind")
 ]
 ```
 
