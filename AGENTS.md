@@ -34,10 +34,10 @@ strings, test names, commit messages and documentation. The only exception is
 
 ## Current state
 
-The first slice is complete: a user can sign in, register a PostgreSQL
-connection through a form built from the adapter's own schema, check the
-connection before and after saving, and manage the list of connections.
-Credentials are encrypted at rest and never leave the server.
+A user can sign in, register a PostgreSQL connection through a form built from
+the adapter's own schema, check the connection before and after saving, manage
+the list of connections, and browse a connection's catalog down from schemas to
+tables to columns. Credentials are encrypted at rest and never leave the server.
 
 ### What exists
 
@@ -79,6 +79,7 @@ frontend/src/
 ├── stores/              Pinia: client-side state only
 └── features/
     ├── auth/
+    ├── catalog/         lazy tree; treeNodes.ts is a pure mapper
     └── connectors/
         └── SchemaForm/  JSON Schema to form, framework-independent core
 ```
