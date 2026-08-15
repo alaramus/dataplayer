@@ -1,2 +1,2 @@
-# Импорт ради побочного эффекта: драйверы регистрируются в реестре при импорте.
+# Imported for the side effect: drivers register themselves on import.
 from app.adapters import postgres  # noqa: F401

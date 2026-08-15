@@ -65,8 +65,8 @@ async def recover_password(email: str, session: SessionDep) -> Message:
         email_data = generate_reset_password_email(
             email_to=user.email, email=email, token=password_reset_token
         )
-        # send_email блокирует на SMTP: в async-обработчике его нельзя вызывать
-        # напрямую, иначе встанет весь цикл событий.
+        # send_email blocks on SMTP: calling it directly from an async handler
+        # would stall the whole event loop.
         await run_in_threadpool(
             send_email,
             email_to=user.email,

@@ -19,8 +19,8 @@ async def test_email(email_to: EmailStr) -> Message:
     Test emails.
     """
     email_data = generate_test_email(email_to=email_to)
-    # send_email блокирует на SMTP: в async-обработчике его нельзя вызывать
-    # напрямую, иначе встанет весь цикл событий.
+    # send_email blocks on SMTP: calling it directly from an async handler
+    # would stall the whole event loop.
     await run_in_threadpool(
         send_email,
         email_to=email_to,

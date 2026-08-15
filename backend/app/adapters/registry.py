@@ -29,7 +29,7 @@ _registry: dict[str, AdapterType] = {}
 def register(
     *, name: str, title: str, options_schema: type[BaseModel]
 ) -> Callable[[Factory], Factory]:
-    """Зарегистрировать тип источника. Применяется к фабрике драйвера."""
+    """Register a source type. Applied to the driver factory."""
 
     def decorator(factory: Factory) -> Factory:
         if name in _registry:
@@ -54,11 +54,10 @@ def all_types() -> list[AdapterType]:
 
 
 def secret_field_names(schema: type[BaseModel]) -> set[str]:
-    """Имена полей схемы, объявленных как SecretStr.
+    """Names of schema fields declared as SecretStr.
 
-    Единственный источник истины о том, какие значения подлежат шифрованию:
-    отдельного списка секретных полей не существует, поэтому пометить поле
-    и забыть — невозможно.
+    The single source of truth about which values are encrypted: there is no
+    separate list of secret fields, so a field cannot be left out by mistake.
     """
     return {
         name

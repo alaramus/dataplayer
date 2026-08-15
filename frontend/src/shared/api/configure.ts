@@ -8,7 +8,7 @@ import { useAuthStore } from "@/stores/auth"
 export function configureApiClient() {
   client.setConfig({
     baseURL: import.meta.env.VITE_API_URL ?? "",
-    // Клиент сам подставляет схему Bearer по описанию безопасности из OpenAPI.
+    // The client applies the Bearer scheme itself, per the OpenAPI security.
     auth: () => useAuthStore().token ?? "",
   })
 }

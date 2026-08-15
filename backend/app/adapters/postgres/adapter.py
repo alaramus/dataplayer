@@ -9,19 +9,19 @@ from app.adapters.registry import register
 
 CHECK_TIMEOUT_SECONDS = 5.0
 
-# Порядок важен: role "x" does not exist содержит оба набора маркеров, и это
-# ошибка учётных данных, а не конфигурации.
+# Order matters: `role "x" does not exist` matches both sets, and it is a
+# credentials problem rather than a configuration one.
 _AUTH_MARKERS = ("password", "authentication", "role", "permission denied")
 _CONFIG_MARKERS = ("does not exist",)
 
 
 def _classify(exc: BaseException) -> tuple[ErrorKind, str]:
-    """Свести исключение драйвера к безопасной паре (вид, сообщение).
+    """Reduce a driver exception to a safe (kind, message) pair.
 
-    Текст исключения наружу не передаётся: psycopg включает в него строку
-    подключения вместе с паролем.
+    The exception text never reaches the caller: psycopg includes the
+    connection string, password and all, in it.
     """
-    # ConnectionTimeout — подкласс OperationalError, поэтому проверяется раньше.
+    # ConnectionTimeout subclasses OperationalError, so it is checked first.
     if isinstance(exc, TimeoutError | psycopg.errors.ConnectionTimeout):
         return "timeout", "Connection timed out"
     if isinstance(exc, psycopg.OperationalError):
@@ -46,9 +46,10 @@ class PostgresAdapter:
             dbname=options.database,
             user=options.user,
             password=options.password.get_secret_value(),
-            # Без этого psycopg ждёт ответа недостижимого хоста около двух минут.
-            # asyncio.wait_for ниже снял бы ожидание, но соединение продолжало бы
-            # висеть в драйвере, поэтому предел задаётся с обеих сторон.
+            # Without this psycopg waits about two minutes on an unreachable
+            # host. asyncio.wait_for below would drop the wait, but the
+            # connection would keep hanging inside the driver, so the limit is
+            # set on both sides.
             connect_timeout=int(CHECK_TIMEOUT_SECONDS),
         )
 

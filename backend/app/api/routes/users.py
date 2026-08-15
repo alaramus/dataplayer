@@ -70,8 +70,8 @@ async def create_user(*, session: SessionDep, user_in: UserCreate) -> Any:
         email_data = generate_new_account_email(
             email_to=user_in.email, username=user_in.email, password=user_in.password
         )
-        # send_email блокирует на SMTP: в async-обработчике его нельзя вызывать
-        # напрямую, иначе встанет весь цикл событий.
+        # send_email blocks on SMTP: calling it directly from an async handler
+        # would stall the whole event loop.
         await run_in_threadpool(
             send_email,
             email_to=user_in.email,
@@ -232,7 +232,7 @@ async def delete_user(
         raise HTTPException(
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
-    # Связанные записи удаляются каскадом на уровне БД.
+    # Related rows are removed by the database-level cascade.
     await session.delete(user)
     await session.commit()
     return Message(message="User deleted successfully")

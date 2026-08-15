@@ -29,34 +29,34 @@ function mountFields(errors: Record<string, string> = {}) {
 }
 
 describe("SchemaFields", () => {
-  it("отрисовывает по одному элементу управления на поле", () => {
+  it("renders one control per field", () => {
     const wrapper = mountFields()
 
     expect(wrapper.findAll("[data-testid^='field-']")).toHaveLength(4)
   })
 
-  // Quasar пробрасывает неописанные атрибуты на сам <input>, а не на корень
-  // поля, поэтому data-testid адресует элемент ввода напрямую.
-  it("отрисовывает секретное поле как поле пароля", () => {
+  // Quasar forwards undeclared attributes onto the <input> itself rather than
+  // the field root, so data-testid addresses the input directly.
+  it("renders a secret field as a password input", () => {
     const wrapper = mountFields()
 
     const input = wrapper.find("[data-testid='field-password']")
     expect(input.attributes("type")).toBe("password")
   })
 
-  it("отрисовывает булево поле переключателем", () => {
+  it("renders a boolean field as a toggle", () => {
     const wrapper = mountFields()
 
     expect(wrapper.find("[data-testid='field-ssl'] .q-toggle__inner").exists()).toBe(true)
   })
 
-  it("показывает текст ошибки поля", () => {
+  it("shows the error text for a field", () => {
     const wrapper = mountFields({ host: "Host is required" })
 
     expect(wrapper.text()).toContain("Host is required")
   })
 
-  it("сообщает об изменении значения", async () => {
+  it("emits an update when a value changes", async () => {
     const wrapper = mountFields()
 
     await wrapper.find("[data-testid='field-host']").setValue("db.internal")
@@ -66,7 +66,7 @@ describe("SchemaFields", () => {
     expect((emitted!.at(-1)![0] as Record<string, unknown>).host).toBe("db.internal")
   })
 
-  it("приводит значение числового поля к числу", async () => {
+  it("coerces a numeric field value to a number", async () => {
     const wrapper = mountFields()
 
     await wrapper.find("[data-testid='field-port']").setValue("6543")

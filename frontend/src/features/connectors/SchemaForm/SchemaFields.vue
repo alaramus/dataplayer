@@ -22,8 +22,8 @@ function inputType(kind: FieldSpec["kind"]): "password" | "number" | "text" {
   return "text"
 }
 
-// Приведение живёт здесь, а не в шаблоне: разбор Vue принимает вертикальную
-// черту объединения типов за устаревший фильтр.
+// The cast lives here rather than in the template: the Vue parser mistakes the
+// union-type pipe for a deprecated filter.
 function inputValue(name: string): string | number | null {
   return (props.modelValue[name] ?? null) as string | number | null
 }

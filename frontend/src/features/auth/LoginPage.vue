@@ -32,21 +32,21 @@ async function submit() {
         >
           <q-card-section>
             <div class="text-h6">
-              Вход
+              Sign in
             </div>
           </q-card-section>
           <q-form @submit.prevent="submit">
             <q-card-section class="q-gutter-md">
               <q-input
                 v-model="username"
-                label="Электронная почта"
+                label="Email"
                 type="email"
                 autocomplete="username"
                 data-testid="login-email"
               />
               <q-input
                 v-model="password"
-                label="Пароль"
+                label="Password"
                 type="password"
                 autocomplete="current-password"
                 data-testid="login-password"
@@ -57,7 +57,7 @@ async function submit() {
                 class="bg-negative text-white"
                 data-testid="login-error"
               >
-                Не удалось войти. Проверьте почту и пароль.
+                Could not sign in. Check the email and password.
               </q-banner>
             </q-card-section>
             <q-card-actions>
@@ -65,7 +65,7 @@ async function submit() {
                 type="submit"
                 color="primary"
                 class="full-width"
-                label="Войти"
+                label="Sign in"
                 data-testid="login-submit"
                 :loading="login.isPending.value"
               />

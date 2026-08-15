@@ -17,7 +17,7 @@ export function useAdapterTypes() {
   return useQuery({
     queryKey: adapterTypesKey,
     queryFn: async () => (await AdaptersService.readAdapterTypes()).data,
-    // Реестр типов меняется только при развёртывании — перезапрашивать нечего.
+    // The type registry only changes on deployment, so nothing to refetch.
     staleTime: Number.POSITIVE_INFINITY,
   })
 }

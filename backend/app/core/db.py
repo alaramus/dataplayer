@@ -12,11 +12,11 @@ from app.models import User, UserCreate
 
 
 def loop_factory() -> asyncio.AbstractEventLoop:
-    """Цикл событий, пригодный для psycopg в асинхронном режиме.
+    """Event loop usable by psycopg in asynchronous mode.
 
-    На Windows Python по умолчанию создаёт ProactorEventLoop, с которым psycopg 3
-    работать не умеет и падает с InterfaceError. В контейнере (Linux) фабрика
-    возвращает обычный цикл, поэтому поведение в развёртывании не меняется.
+    On Windows Python creates a ProactorEventLoop by default, which psycopg 3
+    cannot work with: it fails with InterfaceError. Inside the container
+    (Linux) the factory returns an ordinary loop, so deployment is unaffected.
     """
     if sys.platform == "win32":
         return asyncio.SelectorEventLoop(selectors.SelectSelector())
@@ -25,8 +25,8 @@ def loop_factory() -> asyncio.AbstractEventLoop:
 
 engine = create_async_engine(str(settings.DATABASE_URL))
 
-# expire_on_commit=False обязателен: иначе обращение к полю объекта после
-# commit() запускает ленивую загрузку, которая в async-режиме падает.
+# expire_on_commit=False is required: otherwise touching an attribute after
+# commit() triggers a lazy load, which fails in async mode.
 async_session_maker = async_sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )
@@ -39,13 +39,6 @@ async_session_maker = async_sessionmaker(
 
 async def init_db(session: AsyncSession) -> None:
     # Tables should be created with Alembic migrations
-    # But if you don't want to use migrations, create
-    # the tables un-commenting the next lines
-    # from sqlmodel import SQLModel
-
-    # This works because the models are already imported and registered from app.models
-    # SQLModel.metadata.create_all(engine)
-
     result = await session.exec(
         select(User).where(User.email == settings.FIRST_SUPERUSER)
     )

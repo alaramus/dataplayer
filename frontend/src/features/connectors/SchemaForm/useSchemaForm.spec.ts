@@ -14,7 +14,7 @@ const SCHEMA: JsonSchema = {
 }
 
 describe("useSchemaForm", () => {
-  it("заполняет значения умолчаниями схемы при сбросе", () => {
+  it("fills values with schema defaults on reset", () => {
     const form = useSchemaForm()
 
     form.reset(schemaToFields(SCHEMA))
@@ -22,7 +22,7 @@ describe("useSchemaForm", () => {
     expect(form.values.value).toEqual({ host: "", port: 5432 })
   })
 
-  it("сообщает об ошибке для пустого обязательного поля", () => {
+  it("reports an error for an empty required field", () => {
     const form = useSchemaForm()
     form.reset(schemaToFields(SCHEMA))
 
@@ -32,7 +32,7 @@ describe("useSchemaForm", () => {
     expect(form.errors.value.host).toBeTruthy()
   })
 
-  it("очищает ошибки, когда значения стали корректными", () => {
+  it("clears errors once the values become valid", () => {
     const form = useSchemaForm()
     form.reset(schemaToFields(SCHEMA))
     form.validate(jsonSchemaToZod(SCHEMA))
@@ -44,7 +44,7 @@ describe("useSchemaForm", () => {
     expect(form.errors.value).toEqual({})
   })
 
-  it("раскладывает серверный ответ 422 по полям", () => {
+  it("maps a server 422 response onto field errors", () => {
     const form = useSchemaForm()
     form.reset(schemaToFields(SCHEMA))
 
@@ -55,7 +55,7 @@ describe("useSchemaForm", () => {
     expect(form.errors.value.host).toBe("Host is unreachable")
   })
 
-  it("игнорирует серверные ошибки, не указывающие на поле", () => {
+  it("ignores server errors that do not point at a field", () => {
     const form = useSchemaForm()
     form.reset(schemaToFields(SCHEMA))
 
@@ -64,7 +64,7 @@ describe("useSchemaForm", () => {
     expect(form.errors.value).toEqual({})
   })
 
-  it("накладывает переданные начальные значения поверх умолчаний", () => {
+  it("applies supplied initial values on top of the defaults", () => {
     const form = useSchemaForm()
 
     form.reset(schemaToFields(SCHEMA), { host: "db.internal" })

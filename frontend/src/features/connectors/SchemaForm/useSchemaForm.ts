@@ -11,10 +11,10 @@ export interface ServerError {
 }
 
 /**
- * Состояние формы, построенной из схемы адаптера в рантайме.
+ * State of a form built from an adapter schema at runtime.
  *
- * Библиотека форм здесь не нужна: её основная ценность — вывод типов из
- * статической схемы, а наша схема известна только во время выполнения.
+ * A form library brings no benefit here: its main value is inferring types
+ * from a static schema, and this schema is only known at runtime.
  */
 export function useSchemaForm() {
   const values = ref<Record<string, unknown>>({})
@@ -46,7 +46,8 @@ export function useSchemaForm() {
   function applyServerErrors(detail: ServerError[]) {
     const collected: Record<string, string> = {}
     for (const error of detail) {
-      // Путь имеет вид ["body", "options", "<поле>"]; всё короче поля не касается.
+      // The path looks like ["body", "options", "<field>"]; anything shorter
+      // does not address a field.
       const name = error.loc.at(-1)
       if (typeof name === "string" && error.loc.length > 2) {
         collected[name] = error.msg

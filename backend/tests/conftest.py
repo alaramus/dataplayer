@@ -17,10 +17,10 @@ from tests.utils.utils import get_superuser_token_headers
 
 @pytest.fixture(scope="session")
 def _asyncio_loop_factory() -> Callable[[], asyncio.AbstractEventLoop]:
-    """Переопределяет фабрику цикла pytest-asyncio.
+    """Override the pytest-asyncio loop factory.
 
-    Нужна на Windows, где цикл по умолчанию несовместим с psycopg. Подменять
-    политику циклов нельзя: в Python 3.14 она объявлена устаревшей.
+    Needed on Windows, where the default loop is incompatible with psycopg.
+    Swapping the loop policy is not an option: Python 3.14 deprecated it.
     """
     return loop_factory
 

@@ -1,138 +1,106 @@
-# FastAPI Project - Development
+# Development
 
-## Local Development
+Architecture and the reasoning behind it live in [AGENTS.md](AGENTS.md). This
+file covers the day-to-day loop.
 
-For local development, run PostgreSQL and Mailcatcher with Docker Compose, and run the FastAPI and Vite development servers locally.
+## Layout
 
-Start the supporting services:
-
-```bash
-docker compose up -d db mailcatcher
+```
+backend/    FastAPI application, Alembic migrations, pytest suite
+frontend/   Vue 3 application, Vitest unit tests, Playwright end-to-end tests
+docs/       design documents and implementation plans
+scripts/    generate-client.sh and the test runners
 ```
 
-Then, from the `backend` directory, install the dependencies and prepare the database:
+## Running
+
+The database and backend always run in Docker. The backend cannot run natively
+on Windows — psycopg 3 in async mode is incompatible with the event loop
+Python selects there.
 
 ```bash
-uv sync
-uv run bash scripts/prestart.sh
+docker compose up -d db backend   # API on :8000, database on :5432
+cd frontend && bun run dev        # dev server on :5173
 ```
 
-Start the FastAPI development server:
+The frontend dev server proxies nothing: it calls the API directly at the
+address in `frontend/.env`.
+
+Useful extras:
 
 ```bash
-uv run fastapi dev
+docker compose logs -f backend
+docker compose up -d adminer      # database UI on :8080
+docker compose up -d mailcatcher  # captured outgoing mail on :1080
 ```
 
-In another terminal, from the project root, install the frontend dependencies and start the Vite development server:
+## Changing the backend
 
 ```bash
-bun install
-bun run dev
+cd backend
+uv run pytest tests/ -q
+uv run mypy app
+uv run ruff check app tests
 ```
 
-Now you can open these URLs:
-
-Frontend development server: <http://localhost:5173>
-
-Backend API: <http://localhost:8000>
-
-Automatic interactive API documentation with Swagger UI: <http://localhost:8000/docs>
-
-Mailcatcher: <http://localhost:1080>
-
-The frontend development server uses the backend at `http://localhost:8000`, as configured in `frontend/.env`.
-
-### Frontend Served by FastAPI
-
-Build the frontend from the `frontend` directory:
+The container watches `backend/` and reloads, so no rebuild is needed for code
+changes. After changing dependencies:
 
 ```bash
-bun run build
+docker compose up -d --build backend
 ```
 
-The build is written to `backend/app/frontend` and served by FastAPI at <http://localhost:8000>. Rebuild the frontend after making frontend changes.
-
-## Full Stack with Docker Compose
-
-To run the backend and built frontend in Docker Compose:
+### Migrations
 
 ```bash
-docker compose run --rm backend bash scripts/prestart.sh
-docker compose watch
+cd backend
+uv run alembic revision --autogenerate -m "add something"
+uv run alembic upgrade head
 ```
 
-Now you can open these URLs:
+Read the generated file before applying it. Autogenerate sees only models that
+are imported by `app/alembic/env.py`, so a model in a new module has to be
+added there.
 
-Application, with the frontend and API served by FastAPI: <http://localhost:8000>
+### After changing routes or schemas
 
-Automatic interactive API documentation with Swagger UI: <http://localhost:8000/docs>
-
-Adminer, database web administration: <http://localhost:8080>
-
-Traefik UI, to see how the routes are being handled by the proxy: <http://localhost:8090>
-
-Mailcatcher: <http://localhost:1080>
-
-Stop a locally running FastAPI server before starting the Compose backend because both use port `8000`.
-
-**Note**: The first time you start the stack, it might take a minute for all the services to be ready. To monitor it, use `docker compose logs`, or `docker compose logs backend` for the backend service.
-
-## Mailcatcher
-
-Mailcatcher captures emails sent during local development instead of delivering them. The local backend connects to it at `localhost:1025`, and the Compose backend connects to the `mailcatcher` service. Captured emails are available at <http://localhost:1080>.
-
-## Docker Compose Files and Environment Variables
-
-The main `compose.yml` file contains the configuration shared by the whole stack. Docker Compose loads it automatically.
-
-The `compose.override.yml` file adds local development settings, such as mounting the source code as a volume. Docker Compose also loads it automatically and applies it on top of `compose.yml`.
-
-The `compose.deploy.yml` file contains the deployment-specific settings, including HTTPS and automatic certificate handling. It is explicitly combined with `compose.yml` when deploying the application.
-
-The backend reads local settings from the `.env` file. Docker Compose also uses it for variable interpolation and passes the settings each container needs.
-
-After changing variables, make sure you restart the stack:
+Regenerate the typed client, otherwise the frontend still sees the old API:
 
 ```bash
-docker compose watch
+bash scripts/generate-client.sh
 ```
 
-## The `.env` File
-
-The tracked `.env` file contains local development defaults, passwords, and other configuration. Its hostnames use `localhost` for processes running on your machine. Docker Compose overrides hostnames such as the database and SMTP server with their Compose service names.
-
-Do not store deployment secrets in `.env`. Configure them as described in the [FastAPI Cloud deployment guide](./deployment.md) or the [Docker Compose deployment guide](./deployment-docker-compose.md).
-
-## Pre-commit Hooks and Code Linting
-
-The project uses [prek](https://prek.j178.dev/), a modern alternative to [pre-commit](https://pre-commit.com/), for code linting and formatting.
-
-You can find a file `.pre-commit-config.yaml` with configurations at the root of the project.
-
-### Install `prek` to Run Automatically
-
-`prek` is already part of the dependencies of the project.
-
-From the project root, install the Git hook so that `prek` runs automatically before each commit:
+## Changing the frontend
 
 ```bash
-uv run prek install -f
+cd frontend
+bun run type-check   # needs real Node, not the bun runtime
+bun run lint
+bun run test:unit
 ```
 
-The `-f` flag forces the installation, in case there was already a `pre-commit` hook previously installed.
-
-Now whenever you try to commit, for example with:
+End-to-end tests need the database, the backend and the dev server running:
 
 ```bash
-git commit
+bunx playwright test
+bunx playwright test --ui   # interactive
 ```
 
-`prek` will check and format the code you are about to commit. If it modifies any files, add those files to Git again before committing.
+## Recovering the superuser
 
-### Run `prek` Manually
-
-You can also run `prek` manually on all files from the project root:
+The backend test suite deletes every user, including the superuser, because it
+shares the development database. After running the suite:
 
 ```bash
-uv run prek run --all-files
+docker compose exec backend python -m app.initial_data
 ```
+
+## Starting from a clean database
+
+```bash
+docker compose down -v
+docker compose up -d db backend
+```
+
+This drops the volume and everything in it. The backend recreates the schema
+and the superuser on start.

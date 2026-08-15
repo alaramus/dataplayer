@@ -30,8 +30,8 @@ const createConnector = useCreateConnector()
 const updateConnector = useUpdateConnector()
 const checkDraft = useCheckDraft()
 
-// Разбираем композабл на отдельные ref-ы: в шаблоне Vue разворачивает только
-// ref-ы верхнего уровня, иначе пришлось бы писать form.values.value.
+// The composable is destructured into individual refs: templates unwrap only
+// top-level refs, otherwise every use would read form.values.value.
 const {
   values: optionValues,
   errors: optionErrors,
@@ -58,8 +58,8 @@ const selectedSchema = computed<JsonSchema | null>(() => {
 
 const fields = computed(() => (selectedSchema.value ? schemaToFields(selectedSchema.value) : []))
 
-// При редактировании секретные поля приходят пустыми: сервер их не отдаёт.
-const secretPlaceholder = computed(() => (isEdit.value ? "Оставить без изменений" : undefined))
+// While editing, secret fields arrive empty: the server never returns them.
+const secretPlaceholder = computed(() => (isEdit.value ? "Leave unchanged" : undefined))
 
 const saving = computed(() => createConnector.isPending.value || updateConnector.isPending.value)
 
@@ -91,7 +91,7 @@ watch(adapterType, () => {
 })
 
 function filledOptions(): Record<string, unknown> {
-  // Пустые секретные поля не отправляются: сервер сохранит прежние значения.
+  // Empty secret fields are not sent: the server keeps the stored values.
   const result: Record<string, unknown> = {}
   for (const field of fields.value) {
     const value = optionValues.value[field.name]
@@ -108,7 +108,7 @@ function serverErrorsFrom(error: unknown): ServerError[] | null {
 }
 
 function validateName(): boolean {
-  nameError.value = name.value.trim() === "" ? "Укажите название" : ""
+  nameError.value = name.value.trim() === "" ? "Name is required" : ""
   return nameError.value === ""
 }
 
@@ -126,7 +126,7 @@ async function check() {
     if (serverErrors) {
       applyServerErrors(serverErrors)
     } else {
-      quasar.notify({ type: "negative", message: "Не удалось выполнить проверку" })
+      quasar.notify({ type: "negative", message: "Could not run the check" })
     }
   }
 }
@@ -134,8 +134,8 @@ async function check() {
 async function submit() {
   if (!adapterType.value || !selectedSchema.value) return
   const nameValid = validateName()
-  // При редактировании пустой пароль допустим, поэтому схема проверяется только
-  // для нового подключения.
+  // While editing an empty password is allowed, so the schema is only enforced
+  // for a new connection.
   const valuesValid = isEdit.value ? true : validateOptions(jsonSchemaToZod(selectedSchema.value))
   if (!nameValid || !valuesValid) return
 
@@ -152,14 +152,14 @@ async function submit() {
         options: filledOptions(),
       })
     }
-    quasar.notify({ type: "positive", message: "Подключение сохранено" })
+    quasar.notify({ type: "positive", message: "Connection saved" })
     emit("update:modelValue", false)
   } catch (error) {
     const serverErrors = serverErrorsFrom(error)
     if (serverErrors) {
       applyServerErrors(serverErrors)
     } else {
-      quasar.notify({ type: "negative", message: "Не удалось сохранить подключение" })
+      quasar.notify({ type: "negative", message: "Could not save the connection" })
     }
   }
 }
@@ -173,14 +173,14 @@ async function submit() {
     <q-card style="width: 520px; max-width: 90vw">
       <q-card-section>
         <div class="text-h6">
-          {{ isEdit ? "Изменить подключение" : "Новое подключение" }}
+          {{ isEdit ? "Edit connection" : "New connection" }}
         </div>
       </q-card-section>
 
       <q-card-section class="q-gutter-md">
         <q-input
           v-model="name"
-          label="Название"
+          label="Name"
           data-testid="connector-name"
           :error="Boolean(nameError)"
           :error-message="nameError"
@@ -193,7 +193,7 @@ async function submit() {
           option-label="label"
           emit-value
           map-options
-          label="Тип источника"
+          label="Source type"
           data-testid="connector-type"
           :disable="isEdit"
           :loading="adapterTypes.isLoading.value"
@@ -213,13 +213,13 @@ async function submit() {
       <q-card-actions align="right">
         <q-btn
           flat
-          label="Отмена"
+          label="Cancel"
           @click="emit('update:modelValue', false)"
         />
         <q-btn
           flat
           color="primary"
-          label="Проверить"
+          label="Check"
           data-testid="check-draft"
           :disable="!adapterType"
           :loading="checkDraft.isPending.value"
@@ -227,7 +227,7 @@ async function submit() {
         />
         <q-btn
           color="primary"
-          label="Сохранить"
+          label="Save"
           data-testid="save-connector"
           :disable="!adapterType"
           :loading="saving"

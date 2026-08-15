@@ -9,8 +9,8 @@ api_router = APIRouter()
 api_router.include_router(login.router)
 api_router.include_router(users.router)
 api_router.include_router(utils.router)
-# Импорт роутера тянет за собой app.adapters, поэтому драйверы регистрируются
-# в реестре при старте приложения.
+# Importing the router pulls in app.adapters, so drivers register themselves
+# when the application starts.
 api_router.include_router(connectors_router)
 api_router.include_router(adapter_types_router)
 

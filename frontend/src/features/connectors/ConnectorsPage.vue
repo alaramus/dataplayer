@@ -32,21 +32,21 @@ async function check(connector: ConnectorPublic) {
   const result = await checkConnector.mutateAsync(connector.id)
   quasar.notify({
     type: result.ok ? "positive" : "negative",
-    message: result.ok ? `${result.message} (${String(result.latency_ms)} мс)` : result.message,
+    message: result.ok ? `${result.message} (${String(result.latency_ms)} ms)` : result.message,
   })
 }
 
 function confirmRemove(connector: ConnectorPublic) {
   quasar
     .dialog({
-      title: "Удалить подключение",
-      message: `Подключение «${connector.name}» будет удалено безвозвратно.`,
+      title: "Delete connection",
+      message: `The connection "${connector.name}" will be deleted permanently.`,
       cancel: true,
-      ok: { label: "Удалить", color: "negative" },
+      ok: { label: "Delete", color: "negative" },
     })
     .onOk(() => {
       void removeConnector.mutateAsync(connector.id).then(() => {
-        quasar.notify({ type: "positive", message: "Подключение удалено" })
+        quasar.notify({ type: "positive", message: "Connection deleted" })
       })
     })
 }
@@ -56,12 +56,12 @@ function confirmRemove(connector: ConnectorPublic) {
   <AppLayout>
     <div class="row items-center justify-between q-mb-md">
       <div class="text-h5">
-        Подключения
+        Connections
       </div>
       <q-btn
         color="primary"
         icon="add"
-        label="Новое подключение"
+        label="New connection"
         data-testid="add-connector"
         @click="openCreate"
       />

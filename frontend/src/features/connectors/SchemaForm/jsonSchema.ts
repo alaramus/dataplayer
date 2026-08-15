@@ -37,7 +37,7 @@ function kindOf(property: JsonSchemaProperty, name: string): FieldKind {
   if (property.enum) return "select"
   switch (property.type) {
     case "string":
-      // Pydantic отдаёт SecretStr как строку с format: password.
+      // Pydantic renders SecretStr as a string with format: password.
       return property.format === "password" ? "password" : "text"
     case "integer":
     case "number":
@@ -45,8 +45,8 @@ function kindOf(property: JsonSchemaProperty, name: string): FieldKind {
     case "boolean":
       return "boolean"
     default:
-      // Падаем громко: молча не отрисованное поле выглядит как потерянная
-      // настройка подключения.
+      // Fail loudly: a field silently left unrendered looks like a lost
+      // connection setting.
       throw new Error(`Unsupported property type "${property.type}" for field "${name}"`)
   }
 }
@@ -81,7 +81,7 @@ function zodForField(field: FieldSpec): z.ZodType {
     }
     default: {
       let schema = z.string()
-      // Обязательное строковое поле не должно проходить проверку пустым.
+      // A required string field must not validate when empty.
       const minLength = field.minLength ?? (field.required ? 1 : 0)
       if (minLength > 0) schema = schema.min(minLength)
       return schema

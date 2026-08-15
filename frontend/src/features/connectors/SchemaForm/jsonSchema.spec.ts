@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest"
 import { defaultValues, jsonSchemaToZod, schemaToFields } from "./jsonSchema"
 import type { JsonSchema } from "./jsonSchema"
 
-// Скопировано с ответа GET /api/v1/adapter-types/ — форма, в которой Pydantic
-// отдаёт схему PostgresOptions.
+// Copied from the GET /api/v1/adapter-types/ response: the exact shape in which
+// Pydantic emits the PostgresOptions schema.
 const POSTGRES_SCHEMA: JsonSchema = {
   type: "object",
   title: "PostgresOptions",
@@ -19,19 +19,19 @@ const POSTGRES_SCHEMA: JsonSchema = {
 }
 
 describe("schemaToFields", () => {
-  it("сохраняет порядок свойств", () => {
+  it("keeps the order of properties", () => {
     const names = schemaToFields(POSTGRES_SCHEMA).map((field) => field.name)
 
     expect(names).toEqual(["host", "port", "database", "user", "password"])
   })
 
-  it("берёт метку из title", () => {
+  it("uses the title as the label", () => {
     const [host] = schemaToFields(POSTGRES_SCHEMA)
 
     expect(host.label).toBe("Host")
   })
 
-  it("при отсутствии title подставляет имя свойства", () => {
+  it("falls back to the property name when there is no title", () => {
     const fields = schemaToFields({
       type: "object",
       properties: { plain_name: { type: "string" } },
@@ -40,20 +40,20 @@ describe("schemaToFields", () => {
     expect(fields[0].label).toBe("plain_name")
   })
 
-  it("распознаёт секретное поле по format password", () => {
+  it("marks password-formatted strings as secret", () => {
     const password = schemaToFields(POSTGRES_SCHEMA).find((f) => f.name === "password")
 
     expect(password?.kind).toBe("password")
   })
 
-  it("отображает целые числа в числовой тип", () => {
+  it("maps integers to the number kind", () => {
     const port = schemaToFields(POSTGRES_SCHEMA).find((f) => f.name === "port")
 
     expect(port?.kind).toBe("number")
     expect(port?.defaultValue).toBe(5432)
   })
 
-  it("отображает булевы значения и перечисления", () => {
+  it("maps booleans and enums", () => {
     const fields = schemaToFields({
       type: "object",
       properties: {
@@ -67,14 +67,14 @@ describe("schemaToFields", () => {
     expect(fields[1].choices).toEqual(["require", "disable"])
   })
 
-  it("помечает обязательные поля", () => {
+  it("marks required fields", () => {
     const fields = schemaToFields(POSTGRES_SCHEMA)
 
     expect(fields.find((f) => f.name === "host")?.required).toBe(true)
     expect(fields.find((f) => f.name === "port")?.required).toBe(false)
   })
 
-  it("падает на неподдерживаемом типе свойства", () => {
+  it("throws on an unsupported property type", () => {
     expect(() =>
       schemaToFields({
         type: "object",
@@ -85,7 +85,7 @@ describe("schemaToFields", () => {
 })
 
 describe("jsonSchemaToZod", () => {
-  it("принимает корректные значения", () => {
+  it("accepts valid values", () => {
     const schema = jsonSchemaToZod(POSTGRES_SCHEMA)
 
     const result = schema.safeParse({
@@ -99,7 +99,7 @@ describe("jsonSchemaToZod", () => {
     expect(result.success).toBe(true)
   })
 
-  it("отклоняет отсутствие обязательного поля", () => {
+  it("rejects a missing required field", () => {
     const schema = jsonSchemaToZod(POSTGRES_SCHEMA)
 
     const result = schema.safeParse({ host: "localhost" })
@@ -107,7 +107,7 @@ describe("jsonSchemaToZod", () => {
     expect(result.success).toBe(false)
   })
 
-  it("отклоняет пустую обязательную строку", () => {
+  it("rejects an empty required string", () => {
     const schema = jsonSchemaToZod(POSTGRES_SCHEMA)
 
     const result = schema.safeParse({
@@ -120,7 +120,7 @@ describe("jsonSchemaToZod", () => {
     expect(result.success).toBe(false)
   })
 
-  it("отклоняет порт вне допустимого диапазона", () => {
+  it("rejects a port outside the allowed range", () => {
     const schema = jsonSchemaToZod(POSTGRES_SCHEMA)
 
     const result = schema.safeParse({
@@ -134,7 +134,7 @@ describe("jsonSchemaToZod", () => {
     expect(result.success).toBe(false)
   })
 
-  it("разрешает опустить необязательное поле", () => {
+  it("allows omitting an optional field", () => {
     const schema = jsonSchemaToZod(POSTGRES_SCHEMA)
 
     const result = schema.safeParse({
@@ -149,7 +149,7 @@ describe("jsonSchemaToZod", () => {
 })
 
 describe("defaultValues", () => {
-  it("берёт значения по умолчанию из схемы, остальные оставляет пустыми", () => {
+  it("uses schema defaults and leaves the rest blank", () => {
     expect(defaultValues(schemaToFields(POSTGRES_SCHEMA))).toEqual({
       host: "",
       port: 5432,
@@ -159,7 +159,7 @@ describe("defaultValues", () => {
     })
   })
 
-  it("для булевых полей подставляет false", () => {
+  it("defaults booleans to false", () => {
     const fields = schemaToFields({
       type: "object",
       properties: { ssl: { type: "boolean" } },

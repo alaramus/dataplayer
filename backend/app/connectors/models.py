@@ -16,8 +16,8 @@ class Connector(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(min_length=1, max_length=255)
-    # Ключ реестра типов адаптеров, а не внешний ключ: реестр живёт в коде,
-    # поэтому новый тип источника не требует миграции.
+    # A key into the adapter type registry, not a foreign key: the registry
+    # lives in code, so a new source type needs no migration.
     adapter_type: str = Field(max_length=64)
     config: dict[str, Any] = Field(
         default_factory=dict, sa_column=Column(JSONB, nullable=False)

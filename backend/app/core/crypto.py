@@ -13,16 +13,16 @@ def _key() -> bytes:
 
 
 def encrypt(plaintext: bytes) -> bytes:
-    """Зашифровать данные. Возвращает nonce, склеенный с шифротекстом."""
+    """Encrypt data. Returns the nonce concatenated with the ciphertext."""
     nonce = os.urandom(NONCE_SIZE)
     return nonce + AESGCM(_key()).encrypt(nonce, plaintext, None)
 
 
 def decrypt(payload: bytes) -> bytes:
-    """Расшифровать данные, полученные из encrypt().
+    """Decrypt data produced by encrypt().
 
-    Бросает cryptography.exceptions.InvalidTag, если данные повреждены или
-    зашифрованы другим ключом.
+    Raises cryptography.exceptions.InvalidTag when the payload was tampered
+    with or was encrypted under a different key.
     """
     nonce, ciphertext = payload[:NONCE_SIZE], payload[NONCE_SIZE:]
     return AESGCM(_key()).decrypt(nonce, ciphertext, None)

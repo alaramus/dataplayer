@@ -13,9 +13,9 @@ defineEmits<{
 }>()
 
 const columns = [
-  { name: "name", label: "Название", field: "name", align: "left" as const, sortable: true },
-  { name: "adapter_type", label: "Тип", field: "adapter_type", align: "left" as const },
-  { name: "host", label: "Хост", field: "host", align: "left" as const },
+  { name: "name", label: "Name", field: "name", align: "left" as const, sortable: true },
+  { name: "adapter_type", label: "Type", field: "adapter_type", align: "left" as const },
+  { name: "host", label: "Host", field: "host", align: "left" as const },
   { name: "actions", label: "", field: "actions", align: "right" as const },
 ]
 
@@ -37,7 +37,7 @@ function hostOf(connector: ConnectorPublic): string {
     flat
     bordered
     data-testid="connector-table"
-    no-data-label="Пока нет ни одного подключения"
+    no-data-label="No connections yet"
   >
     <template #body-cell-host="cellProps">
       <q-td :props="cellProps">
@@ -66,7 +66,7 @@ function hostOf(connector: ConnectorPublic): string {
           :data-testid="`check-${cellProps.row.name}`"
           @click="$emit('check', cellProps.row)"
         >
-          <q-tooltip>Проверить соединение</q-tooltip>
+          <q-tooltip>Check connection</q-tooltip>
         </q-btn>
         <q-btn
           dense
@@ -75,7 +75,7 @@ function hostOf(connector: ConnectorPublic): string {
           :data-testid="`edit-${cellProps.row.name}`"
           @click="$emit('edit', cellProps.row)"
         >
-          <q-tooltip>Изменить</q-tooltip>
+          <q-tooltip>Edit</q-tooltip>
         </q-btn>
         <q-btn
           dense
@@ -85,7 +85,7 @@ function hostOf(connector: ConnectorPublic): string {
           :data-testid="`delete-${cellProps.row.name}`"
           @click="$emit('remove', cellProps.row)"
         >
-          <q-tooltip>Удалить</q-tooltip>
+          <q-tooltip>Delete</q-tooltip>
         </q-btn>
       </q-td>
     </template>

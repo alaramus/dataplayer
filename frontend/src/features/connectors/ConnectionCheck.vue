@@ -8,17 +8,17 @@ const props = defineProps<{
 }>()
 
 const KIND_LABELS: Record<string, string> = {
-  auth: "Ошибка аутентификации",
-  network: "Сервер недоступен",
-  timeout: "Превышено время ожидания",
-  config: "Ошибка в параметрах",
-  unknown: "Неизвестная ошибка",
+  auth: "Authentication failed",
+  network: "Server unreachable",
+  timeout: "Timed out",
+  config: "Invalid parameters",
+  unknown: "Unknown error",
 }
 
 const text = computed(() => {
   if (!props.result) return ""
   if (props.result.ok) {
-    return `${props.result.message} (${String(props.result.latency_ms)} мс)`
+    return `${props.result.message} (${String(props.result.latency_ms)} ms)`
   }
   const kind = props.result.error_kind
   const prefix = kind ? KIND_LABELS[kind] : undefined
@@ -27,8 +27,8 @@ const text = computed(() => {
 </script>
 
 <template>
-  <!-- Результат показывается строкой внутри диалога, а не уведомлением: его
-       читают рядом с полями, которые правят. -->
+  <!-- The result is shown as a line inside the dialog rather than a toast: it
+       is read next to the fields being edited. -->
   <q-banner
     v-if="result"
     dense

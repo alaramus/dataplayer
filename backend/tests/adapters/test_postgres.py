@@ -42,7 +42,7 @@ async def test_unreachable_endpoint_times_out_within_the_budget() -> None:
 
     assert result.ok is False
     assert result.error_kind == "timeout"
-    # Без ограничения psycopg ждёт ответа недостижимого хоста около двух минут.
+    # Unbounded, psycopg waits about two minutes on an unreachable host.
     assert elapsed < CHECK_TIMEOUT_SECONDS + 2
 
 

@@ -7,7 +7,7 @@ from app.adapters import registry
 
 @pytest.fixture
 def isolated_registry() -> Generator[None]:
-    """Изолирует реестр, чтобы регистрации из теста не протекали в другие."""
+    """Isolate the registry so registrations made by a test do not leak."""
     saved = dict(registry._registry)
     try:
         yield

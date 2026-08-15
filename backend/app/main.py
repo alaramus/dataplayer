@@ -34,8 +34,8 @@ app.add_middleware(
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-# Раздача собранного фронтенда включается только при наличии сборки: без
-# проверки app.frontend бросает RuntimeError, и приложение перестаёт
-# импортироваться — в том числе в тестах, которым сборка не нужна.
+# Serving the built frontend is enabled only when a build exists: without the
+# check app.frontend raises RuntimeError and the application stops importing,
+# including in tests, which do not need a build.
 if FRONTEND_DIR.is_dir():
     app.frontend("/", directory=FRONTEND_DIR)

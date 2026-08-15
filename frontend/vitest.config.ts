@@ -6,8 +6,8 @@ import { defineConfig } from "vitest/config"
 export default defineConfig({
   plugins: [
     vue({ template: { transformAssetUrls } }),
-    // Без плагина Vitest подхватывает серверную сборку Quasar, которая в jsdom
-    // не устанавливается.
+    // Without the plugin Vitest picks up the Quasar server build, which cannot
+    // install itself under jsdom.
     quasar({ sassVariables: "src/quasar-variables.sass" }),
   ],
   resolve: {
@@ -29,7 +29,7 @@ export default defineConfig({
         inline: ["quasar"],
       },
     },
-    // Playwright берёт свои файлы только из tests/, наборы не пересекаются.
+    // Playwright only picks files from tests/, so the suites do not overlap.
     include: ["src/**/*.spec.ts"],
   },
 })

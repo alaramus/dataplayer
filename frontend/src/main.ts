@@ -12,8 +12,8 @@ import { configureApiClient, createQueryClient } from "@/shared/api/configure"
 
 const app = createApp(App)
 
-// Pinia устанавливается первой: и настройка клиента, и навигационный сторож
-// обращаются к хранилищу аутентификации.
+// Pinia is installed first: both the client setup and the navigation guard
+// read the auth store.
 app.use(createPinia())
 configureApiClient()
 

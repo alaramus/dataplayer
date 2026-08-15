@@ -4,10 +4,10 @@ import { computed, ref } from "vue"
 const TOKEN_KEY = "access_token"
 
 /**
- * Клиентское состояние аутентификации.
+ * Client-side authentication state.
  *
- * В Pinia хранится только то, чего нет на сервере. Всё остальное живёт в
- * vue-query, чтобы не заводить самодельные кеши с ручной инвалидацией.
+ * Pinia holds only what the server does not. Everything else lives in
+ * vue-query, so there are no hand-rolled caches with manual invalidation.
  */
 export const useAuthStore = defineStore("auth", () => {
   const token = ref<string | null>(localStorage.getItem(TOKEN_KEY))

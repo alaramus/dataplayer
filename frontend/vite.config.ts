@@ -16,9 +16,9 @@ export default defineConfig({
   css: {
     preprocessorOptions: {
       sass: {
-        // node_modules поднят в корень bun-монорепозитория, поэтому quasar
-        // лежит вне frontend/ и не может разрешить относительный импорт
-        // переменных, который добавляет плагин.
+        // node_modules is hoisted to the root of the bun monorepo, so quasar
+        // sits outside frontend/ and cannot resolve the relative variables
+        // import that the plugin injects.
         loadPaths: [fileURLToPath(new URL(".", import.meta.url))],
       },
     },

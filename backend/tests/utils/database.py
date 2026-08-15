@@ -4,10 +4,10 @@ from app.core.config import settings
 
 
 def working_postgres_options() -> dict[str, Any]:
-    """Рабочие параметры подключения к БД, которую поднимает docker compose.
+    """Working connection options for the database started by docker compose.
 
-    DATABASE_URL — это PostgresDsn, то есть multi-host URL: атрибута host у него
-    нет, параметры лежат в hosts().
+    DATABASE_URL is a PostgresDsn, that is a multi-host URL: it has no host
+    attribute, the parts live in hosts().
     """
     url = settings.DATABASE_URL
     host = url.hosts()[0]

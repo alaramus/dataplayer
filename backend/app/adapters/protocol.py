@@ -6,10 +6,10 @@ ErrorKind = Literal["auth", "network", "timeout", "config", "unknown"]
 
 
 class ConnectionCheckResult(BaseModel):
-    """Итог проверки соединения.
+    """Outcome of a connection check.
 
-    Драйверы никогда не выпускают наружу собственные исключения: их текст
-    регулярно содержит строку подключения вместе с паролем.
+    Drivers never let their own exceptions escape: the text of those regularly
+    contains the connection string together with the password.
     """
 
     ok: bool

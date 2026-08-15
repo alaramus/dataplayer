@@ -50,4 +50,4 @@ def test_key_shorter_than_32_bytes_is_rejected() -> None:
 
 def test_key_that_is_not_base64_is_rejected() -> None:
     with pytest.raises(ValidationError, match="base64"):
-        Settings(CONNECTOR_SECRET_KEY="не base64")  # type: ignore[call-arg]
+        Settings(CONNECTOR_SECRET_KEY="not base64 ☃")  # type: ignore[call-arg]

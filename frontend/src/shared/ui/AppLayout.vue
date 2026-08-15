@@ -10,8 +10,8 @@ const queryClient = useQueryClient()
 
 async function logout() {
   auth.clear()
-  // Кеш очищается при выходе: иначе данные предыдущего пользователя останутся
-  // видимыми следующему.
+  // The cache is cleared on sign-out: otherwise the previous user's data stays
+  // visible to the next one.
   queryClient.clear()
   await router.push({ name: "login" })
 }
@@ -25,7 +25,7 @@ async function logout() {
         <q-btn
           flat
           dense
-          label="Выйти"
+          label="Sign out"
           data-testid="logout"
           @click="logout"
         />

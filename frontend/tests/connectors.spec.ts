@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
 
-// Соединение проверяет бэкенд, а не браузер, поэтому адрес указывается так,
-// как его видит контейнер бэкенда: внутри сети compose база — это хост db.
+// The backend runs the check, not the browser, so the address is written as the
+// backend container sees it: inside the compose network the database is host db.
 const DATABASE = {
   host: process.env.POSTGRES_SERVER ?? "db",
   port: process.env.POSTGRES_PORT ?? "5432",
@@ -12,8 +12,8 @@ const DATABASE = {
   password: process.env.POSTGRES_PASSWORD ?? "",
 }
 
-// Quasar пробрасывает data-testid на сам элемент ввода, поэтому идентификаторы
-// полей адресуют input напрямую, без вложенного локатора.
+// Quasar forwards data-testid onto the input element, so field ids address the
+// input directly, without a nested locator.
 async function fillConnectionFields(
   page: import("@playwright/test").Page,
   password: string
@@ -28,7 +28,7 @@ async function fillConnectionFields(
   await page.getByTestId("field-password").fill(password)
 }
 
-test("создание подключения, проверка соединения и удаление", async ({ page }) => {
+test("creates a connection, checks it and deletes it", async ({ page }) => {
   const name = `e2e-postgres-${Date.now()}`
   await login(page)
 
@@ -48,11 +48,11 @@ test("создание подключения, проверка соединен
   await expect(page.locator(".q-notification").first()).toBeVisible()
 
   await page.getByTestId(`delete-${name}`).click()
-  await page.getByRole("button", { name: "Удалить" }).click()
+  await page.getByRole("button", { name: "Delete" }).click()
   await expect(page.getByTestId("connector-table")).not.toContainText(name)
 })
 
-test("неверный пароль показывает ошибку аутентификации без утечки пароля", async ({
+test("a wrong password reports an auth failure without leaking the password", async ({
   page,
 }) => {
   const wrongPassword = "definitely-not-the-password"
@@ -67,11 +67,11 @@ test("неверный пароль показывает ошибку аутен
   const result = page.getByTestId("check-result")
   await expect(result).toBeVisible()
   await expect(result).toHaveClass(/bg-negative/)
-  await expect(result).toContainText("Ошибка аутентификации")
+  await expect(result).toContainText("Authentication failed")
   await expect(result).not.toContainText(wrongPassword)
 })
 
-test("секретное поле при редактировании пустое и не требует повторного ввода", async ({
+test("the secret field is empty while editing and needs no retyping", async ({
   page,
 }) => {
   const name = `e2e-edit-${Date.now()}`
@@ -86,12 +86,13 @@ test("секретное поле при редактировании пусто
   await page.getByTestId(`edit-${name}`).click()
   await expect(page.getByTestId("field-password")).toHaveValue("")
 
-  // Пароль не вводим: сервер подставит сохранённый по connector_id.
+  // The password is left blank: the server substitutes the stored one by
+  // connector_id.
   await page.getByTestId("check-draft").click()
   await expect(page.getByTestId("check-result")).toHaveClass(/bg-positive/)
 
-  await page.getByRole("button", { name: "Отмена" }).click()
+  await page.getByRole("button", { name: "Cancel" }).click()
   await page.getByTestId(`delete-${name}`).click()
-  await page.getByRole("button", { name: "Удалить" }).click()
+  await page.getByRole("button", { name: "Delete" }).click()
   await expect(page.getByTestId("connector-table")).not.toContainText(name)
 })

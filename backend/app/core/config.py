@@ -22,9 +22,9 @@ class Settings(BaseSettings):
     )
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
-    # Ключ шифрования учётных данных коннекторов. Отдельный от SECRET_KEY
-    # намеренно: смена SECRET_KEY лишь разлогинивает всех, а смена этого ключа
-    # требует миграции сохранённых секретов.
+    # Encrypts connector credentials. Deliberately separate from SECRET_KEY:
+    # rotating SECRET_KEY only logs everyone out, while rotating this key
+    # requires migrating the stored secrets.
     CONNECTOR_SECRET_KEY: str
 
     @field_validator("CONNECTOR_SECRET_KEY")

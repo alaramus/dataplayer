@@ -37,8 +37,8 @@ async def get(
     if connector is None:
         return None
     if connector.owner_id != owner.id and not owner.is_superuser:
-        # Чужой коннектор неотличим от несуществующего: иначе перебором
-        # идентификаторов выясняется, какие подключения есть у других.
+        # Someone else's connector is indistinguishable from a missing one:
+        # otherwise enumerating ids reveals which connections others have.
         return None
     return connector
 

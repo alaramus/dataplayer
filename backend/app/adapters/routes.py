@@ -6,11 +6,13 @@ from pydantic import BaseModel
 from app.adapters import registry
 from app.api.deps import get_current_user
 
-# Аутентификация объявлена на уровне роутера: сам обработчик пользователя не
-# использует, а неиспользуемый параметр запрещён правилом ruff ARG001.
-# Тег без дефиса намеренно: генератор клиента образует имя метода, отрезая
-# всё до первого дефиса в идентификаторе операции, и тег adapter-types дал бы
-# метод typesReadAdapterTypes вместо readAdapterTypes.
+# Authentication is declared on the router: the handler itself does not use the
+# user, and an unused argument is rejected by the ruff ARG001 rule.
+#
+# The tag deliberately has no hyphen: the client generator builds the method
+# name by cutting everything up to the first hyphen of the operation id, so the
+# tag "adapter-types" would produce typesReadAdapterTypes instead of
+# readAdapterTypes.
 router = APIRouter(
     prefix="/adapter-types",
     tags=["adapters"],

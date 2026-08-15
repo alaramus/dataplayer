@@ -9,10 +9,10 @@ from app.core import crypto
 def split_options(
     adapter_type: AdapterType, options: dict[str, Any]
 ) -> tuple[dict[str, Any], bytes]:
-    """Разделить опции на несекретную конфигурацию и зашифрованные секреты.
+    """Split options into non-secret configuration and encrypted secrets.
 
-    Разделение выполняется по объявлению схемы — какие поля объявлены как
-    SecretStr, — а не по отдельному списку: забыть пометить поле невозможно.
+    The split follows the schema declaration — which fields are SecretStr —
+    rather than a separate list, so a field cannot be left unmarked.
     """
     model = adapter_type.options_schema.model_validate(options)
     secret_names = secret_field_names(adapter_type.options_schema)
@@ -28,7 +28,7 @@ def split_options(
 
 
 def merge_options(config: dict[str, Any], secrets_blob: bytes) -> dict[str, Any]:
-    """Собрать полный набор опций обратно из конфигурации и секретов."""
+    """Reassemble the full option set from configuration and secrets."""
     secrets = json.loads(crypto.decrypt(secrets_blob))
     return {**config, **secrets}
 
@@ -36,10 +36,10 @@ def merge_options(config: dict[str, Any], secrets_blob: bytes) -> dict[str, Any]
 def fill_missing_secrets(
     adapter_type: AdapterType, options: dict[str, Any], secrets_blob: bytes
 ) -> dict[str, Any]:
-    """Подставить сохранённые секреты вместо непереданных.
+    """Substitute stored secrets for the ones that were not supplied.
 
-    Нужно и для PATCH, и для проверки соединения при редактировании:
-    пользователь правит порт, не вводя пароль заново.
+    Needed both by PATCH and by the connection check while editing: the user
+    changes the port without retyping the password.
     """
     stored = json.loads(crypto.decrypt(secrets_blob))
     filled = dict(options)
