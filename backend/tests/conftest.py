@@ -6,10 +6,11 @@ from httpx import ASGITransport, AsyncClient
 from sqlmodel import delete
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.connectors.models import Connector
 from app.core.config import settings
 from app.core.db import async_session_maker, init_db, loop_factory
 from app.main import app
-from app.models import Item, User
+from app.models import User
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import get_superuser_token_headers
 
@@ -29,7 +30,7 @@ async def db() -> AsyncGenerator[AsyncSession]:
     async with async_session_maker() as session:
         await init_db(session)
         yield session
-        await session.exec(delete(Item))
+        await session.exec(delete(Connector))
         await session.exec(delete(User))
         await session.commit()
 
