@@ -9,6 +9,9 @@ export interface TreeNode {
   caption?: string
   icon: string
   lazy: boolean
+  /** Kept so the dialog can tell which nodes have rows to show. */
+  kind: CatalogNode["kind"]
+  rowEstimate?: number | null
 }
 
 const ICONS: Record<CatalogNode["kind"], string> = {
@@ -46,5 +49,7 @@ export function toTreeNodes(nodes: CatalogNode[]): TreeNode[] {
     caption: captionOf(node),
     icon: ICONS[node.kind],
     lazy: node.has_children,
+    kind: node.kind,
+    rowEstimate: node.kind === "table" ? node.row_count_estimate : null,
   }))
 }

@@ -218,6 +218,98 @@ export type ConnectorsPublic = {
 }
 
 /**
+ * FetchColumn
+ */
+export type FetchColumn = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Data Type
+   */
+  data_type: string
+}
+
+/**
+ * FetchRequest
+ */
+export type FetchRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Limit
+   */
+  limit?: number
+  /**
+   * Offset
+   */
+  offset?: number
+  /**
+   * Filters
+   */
+  filters?: Array<Filter>
+  /**
+   * Sort
+   */
+  sort?: Array<Sort>
+}
+
+/**
+ * FetchResult
+ *
+ * Rows as arrays, with the columns listed once.
+ *
+ * Repeating column names in every row multiplies the size of a wide result,
+ * and the grid addresses cells by index anyway.
+ */
+export type FetchResult = {
+  /**
+   * Columns
+   */
+  columns: Array<FetchColumn>
+  /**
+   * Rows
+   */
+  rows: Array<Array<unknown>>
+  /**
+   * Has More
+   */
+  has_more: boolean
+}
+
+/**
+ * Filter
+ */
+export type Filter = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Op
+   */
+  op:
+    | "eq"
+    | "ne"
+    | "gt"
+    | "gte"
+    | "lt"
+    | "lte"
+    | "contains"
+    | "starts_with"
+    | "in"
+    | "is_null"
+    | "is_not_null"
+  /**
+   * Value
+   */
+  value?: unknown | null
+}
+
+/**
  * HTTPValidationError
  */
 export type HTTPValidationError = {
@@ -297,6 +389,20 @@ export type SchemaNode = {
    * Is System
    */
   is_system?: boolean
+}
+
+/**
+ * Sort
+ */
+export type Sort = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Descending
+   */
+  descending?: boolean
 }
 
 /**
@@ -1201,6 +1307,37 @@ export type connectorsCheckConnectorResponses = {
 
 export type connectorsCheckConnectorResponse =
   connectorsCheckConnectorResponses[keyof connectorsCheckConnectorResponses]
+
+export type connectorsFetchRowsData = {
+  body: FetchRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/fetch"
+}
+
+export type connectorsFetchRowsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsFetchRowsError = connectorsFetchRowsErrors[keyof connectorsFetchRowsErrors]
+
+export type connectorsFetchRowsResponses = {
+  /**
+   * Successful Response
+   */
+  200: FetchResult
+}
+
+export type connectorsFetchRowsResponse =
+  connectorsFetchRowsResponses[keyof connectorsFetchRowsResponses]
 
 export type connectorsReadCatalogData = {
   body?: never

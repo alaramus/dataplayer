@@ -37,7 +37,8 @@ strings, test names, commit messages and documentation. The only exception is
 A user can sign in, register a PostgreSQL connection through a form built from
 the adapter's own schema, check the connection before and after saving, manage
 the list of connections, and browse a connection's catalog down from schemas to
-tables to columns. Credentials are encrypted at rest and never leave the server.
+tables to columns, and read rows of a table with server-side paging and
+sorting. Credentials are encrypted at rest and never leave the server.
 
 ### What exists
 
@@ -46,9 +47,10 @@ backend/app/
 ├── adapters/            source types: contract, registry, drivers
 │   ├── protocol.py      DataAdapter, SupportsCatalog, AdapterError
 │   ├── catalog.py       CatalogNode: a union discriminated by kind
+│   ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
 │   ├── registry.py      type registry, secret_field_names
 │   ├── routes.py        GET /adapter-types
-│   └── postgres/        session.py, catalog.py, adapter.py (facade)
+│   └── postgres/        session.py, catalog.py, fetch.py, adapter.py (facade)
 ├── connectors/          user connections
 │   ├── models.py        Connector + API schemas
 │   ├── crud.py          database access only
@@ -79,7 +81,7 @@ frontend/src/
 ├── stores/              Pinia: client-side state only
 └── features/
     ├── auth/
-    ├── catalog/         lazy tree; treeNodes.ts is a pure mapper
+    ├── catalog/         lazy tree and row grid; treeNodes.ts and rows.ts are pure mappers
     └── connectors/
         └── SchemaForm/  JSON Schema to form, framework-independent core
 ```
@@ -97,6 +99,7 @@ DELETE /api/v1/connectors/{connector_id}
 POST   /api/v1/connectors/{connector_id}/check
 POST   /api/v1/connectors/check-draft
 GET    /api/v1/connectors/{connector_id}/catalog
+POST   /api/v1/connectors/{connector_id}/fetch
 ```
 
 ## Decisions that shape the code
@@ -146,6 +149,18 @@ broke before. One source may contain nodes of several kinds.
 Adding a kind means adding a class to the union. `list_children()` raises
 `AdapterError` rather than returning an empty list on failure: an empty node and
 a broken query must stay distinguishable.
+
+**D2c. A query is never built from client strings.** Filters are a closed set
+of predicates, column names are validated against the relation before anything
+is assembled, identifiers go through `psycopg.sql.Identifier` and values through
+placeholders. `limit` has a default and a ceiling. The old application formatted
+a template with client input and additionally accepted a raw SQL fragment,
+guarded only by a blacklist; it also defaulted to `limit=-1`, meaning no limit.
+
+Paging reports `has_more` by reading one row past the page rather than running
+`COUNT(*)`; the approximate total already arrives on the catalog node. The old
+application smuggled an exact count in as a pseudo-column named
+`____total_count____` that clients had to know to discard.
 
 **D3. The backend is fully asynchronous.** `AsyncSession`, `async def`
 throughout, psycopg 3 in async mode. The application is network-I/O bound by
@@ -292,7 +307,7 @@ From the design document, in order:
 
 | # | Sub-project |
 | --- | --- |
-| 4 | Data fetching: `fetch` with paging, filters, sorting; a connection pool |
+| 4б | Connection pool: every request currently opens its own connection |
 | 5 | Action registry: what each source type can do |
 | 6 | A second, non-SQL adapter (MongoDB or S3) to prove the abstraction does not leak |
 | 7+ | Realtime, AI, data grid |

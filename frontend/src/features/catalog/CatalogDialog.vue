@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { AxiosError } from "axios"
-import { ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 
 import type { ConnectorPublic } from "@/client"
+import RowGrid from "@/features/catalog/RowGrid.vue"
 import { useCatalogLoader } from "@/features/catalog/api"
 import { toTreeNodes } from "@/features/catalog/treeNodes"
 import type { TreeNode } from "@/features/catalog/treeNodes"
@@ -21,6 +22,26 @@ const expanded = ref<string[]>([])
 const loading = ref(false)
 const error = ref("")
 
+// Every node ever loaded, so a selection can be resolved to its kind without
+// walking the tree.
+const nodesById = ref(new Map<string, TreeNode>())
+const selectedId = ref<string | null>(null)
+
+const selected = computed(() =>
+  selectedId.value ? (nodesById.value.get(selectedId.value) ?? null) : null
+)
+
+// Only relations carry rows; selecting a schema or a column shows nothing.
+const selectedRelation = computed(() =>
+  selected.value && (selected.value.kind === "table" || selected.value.kind === "view")
+    ? selected.value
+    : null
+)
+
+function remember(nodes: TreeNode[]) {
+  for (const node of nodes) nodesById.value.set(node.id, node)
+}
+
 function messageOf(cause: unknown): string {
   if (cause instanceof AxiosError) {
     const detail = cause.response?.data?.detail
@@ -37,10 +58,13 @@ watch(
     if (!open || !props.connector) return
     roots.value = []
     expanded.value = []
+    nodesById.value = new Map()
+    selectedId.value = null
     error.value = ""
     loading.value = true
     try {
       roots.value = toTreeNodes(await loadChildren(props.connector.id, null))
+      remember(roots.value)
     } catch (cause) {
       error.value = messageOf(cause)
     } finally {
@@ -60,7 +84,9 @@ async function onLazyLoad({
 }) {
   if (!props.connector) return fail()
   try {
-    done(toTreeNodes(await loadChildren(props.connector.id, node.id)))
+    const children = toTreeNodes(await loadChildren(props.connector.id, node.id))
+    remember(children)
+    done(children)
   } catch (cause) {
     error.value = messageOf(cause)
     fail()
@@ -73,7 +99,7 @@ async function onLazyLoad({
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card style="width: 560px; max-width: 90vw">
+    <q-card style="width: 900px; max-width: 95vw">
       <q-card-section>
         <div class="text-h6">
           {{ connector?.name }}
@@ -103,6 +129,7 @@ async function onLazyLoad({
         <q-tree
           v-else-if="roots.length"
           v-model:expanded="expanded"
+          v-model:selected="selectedId"
           :nodes="roots"
           node-key="id"
           data-testid="catalog-tree"
@@ -130,6 +157,22 @@ async function onLazyLoad({
         >
           Nothing to show
         </div>
+      </q-card-section>
+
+      <q-separator v-if="selectedRelation" />
+
+      <q-card-section
+        v-if="selectedRelation && connector"
+        style="max-height: 50vh; overflow: auto"
+      >
+        <div class="text-subtitle2 q-mb-sm">
+          {{ selectedRelation.label }}
+        </div>
+        <RowGrid
+          :connector-id="connector.id"
+          :node-id="selectedRelation.id"
+          :row-estimate="selectedRelation.rowEstimate"
+        />
       </q-card-section>
 
       <q-card-actions align="right">

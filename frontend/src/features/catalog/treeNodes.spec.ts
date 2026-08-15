@@ -104,9 +104,7 @@ describe("toTreeNodes", () => {
   })
 
   it("distinguishes a materialized view from a plain one", () => {
-    const [plain] = toTreeNodes([
-      { kind: "view", id: "v", name: "v", has_children: true },
-    ])
+    const [plain] = toTreeNodes([{ kind: "view", id: "v", name: "v", has_children: true }])
     const [materialized] = toTreeNodes([
       { kind: "view", id: "m", name: "m", has_children: true, is_materialized: true },
     ])
@@ -130,5 +128,26 @@ describe("toTreeNodes", () => {
     ]).map((node) => node.icon)
 
     expect(new Set(icons).size).toBe(4)
+  })
+})
+
+describe("node kind passthrough", () => {
+  it("keeps the kind so callers can tell rows-bearing nodes apart", () => {
+    const kinds = toTreeNodes([
+      { kind: "schema", id: "s", name: "s", has_children: true },
+      { kind: "table", id: "t", name: "t", has_children: true, row_count_estimate: 12 },
+    ]).map((node) => node.kind)
+
+    expect(kinds).toEqual(["schema", "table"])
+  })
+
+  it("carries the row estimate only for tables", () => {
+    const [schema, table] = toTreeNodes([
+      { kind: "schema", id: "s", name: "s", has_children: true },
+      { kind: "table", id: "t", name: "t", has_children: true, row_count_estimate: 12 },
+    ])
+
+    expect(schema.rowEstimate).toBeNull()
+    expect(table.rowEstimate).toBe(12)
   })
 })

@@ -22,6 +22,9 @@ import type {
   connectorsDeleteConnectorData,
   connectorsDeleteConnectorErrors,
   connectorsDeleteConnectorResponses,
+  connectorsFetchRowsData,
+  connectorsFetchRowsErrors,
+  connectorsFetchRowsResponses,
   connectorsReadCatalogData,
   connectorsReadCatalogErrors,
   connectorsReadCatalogResponses,
@@ -610,6 +613,30 @@ export class ConnectorsService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/check",
       ...options,
+    })
+  }
+
+  /**
+   * Fetch Rows
+   *
+   * Read a page of rows from a relation named by request.node_id.
+   */
+  public static fetchRows<ThrowOnError extends boolean = true>(
+    options: Options<connectorsFetchRowsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsFetchRowsResponses,
+      connectorsFetchRowsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/fetch",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 

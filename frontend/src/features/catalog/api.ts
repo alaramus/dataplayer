@@ -1,6 +1,7 @@
-import { useQueryClient } from "@tanstack/vue-query"
+import { useMutation, useQueryClient } from "@tanstack/vue-query"
 
 import { ConnectorsService } from "@/client"
+import type { FetchRequest } from "@/client"
 import type { CatalogNode } from "./treeNodes"
 
 export const catalogKey = (connectorId: string, nodeId: string | null) =>
@@ -32,4 +33,23 @@ export function useCatalogLoader() {
       staleTime: 60_000,
     })
   }
+}
+
+/**
+ * Reading a page of rows.
+ *
+ * A mutation rather than a query: the request is a POST with a structured
+ * body, and pages are asked for in response to user action rather than cached
+ * by key. The result is short-lived — the grid holds the page it is showing.
+ */
+export function useFetchRows() {
+  return useMutation({
+    mutationFn: async (payload: { connectorId: string; request: FetchRequest }) =>
+      (
+        await ConnectorsService.fetchRows({
+          path: { connector_id: payload.connectorId },
+          body: payload.request,
+        })
+      ).data,
+  })
 }
