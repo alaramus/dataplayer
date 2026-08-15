@@ -4,7 +4,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_password_hash, verify_password
-from app.models import User, UserCreate, UserUpdate
+from app.users.models import User, UserCreate, UserUpdate
 
 
 async def create_user(*, session: AsyncSession, user_create: UserCreate) -> User:
@@ -63,5 +63,3 @@ async def authenticate(
         await session.commit()
         await session.refresh(db_user)
     return db_user
-
-

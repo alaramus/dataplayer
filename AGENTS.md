@@ -53,14 +53,24 @@ backend/app/
 │   ├── crud.py          database access only
 │   ├── service.py       option splitting, adapter construction
 │   └── routes.py        CRUD + connection checks
-├── core/
+├── users/               users and authentication
+│   ├── models.py        User, User* schemas, Token, NewPassword
+│   ├── crud.py          database access only
+│   ├── deps.py          CurrentUser, get_current_active_superuser
+│   ├── tokens.py        password reset tokens
+│   ├── bootstrap.py     init_db: creates the first superuser
+│   ├── routes.py        /users
+│   ├── auth_routes.py   /login, /password-recovery, /reset-password
+│   └── private_routes.py
+├── core/                depends on nothing else in the app
 │   ├── crypto.py        AES-GCM for connector secrets
-│   ├── db.py            async engine, session, loop_factory
+│   ├── db.py            async engine, session, SessionDep, loop_factory
+│   ├── schemas.py       Message, get_datetime_utc
+│   ├── email.py         sending and templating
+│   ├── routes.py        /utils: health check, test email
 │   ├── config.py        settings
 │   └── security.py      passwords and JWT
-├── models.py            User and shared API schemas (flat, see D5)
-├── crud.py              user CRUD (flat, see D5)
-└── api/routes/          login, users, utils, private (flat, see D5)
+└── api/main.py          router aggregation only
 
 frontend/src/
 ├── client/              generated from OpenAPI, never edited by hand
@@ -115,11 +125,14 @@ so a field cannot be forgotten. `CONNECTOR_SECRET_KEY` is deliberately separate
 from `SECRET_KEY`: rotating the latter only logs everyone out, rotating the
 former requires migrating stored data.
 
-**D5. New code goes in feature modules; the flat template files stay for now.**
-`app/adapters/` and `app/connectors/` are modules. `app/models.py`,
-`app/crud.py` and `app/api/routes/` are still flat because breaking them up
-touches users and login without adding anything to the current work. That is
-sub-project 2a below. New code is written as modules.
+**D5. Everything lives in feature modules, and dependencies point one way.**
+The flat layer inherited from the template — `app/models.py`, `app/crud.py`,
+`app/utils.py`, `app/api/deps.py`, `app/api/routes/` — is gone. `core` depends
+on nothing else in the application, `users` depends on `core`, and `connectors`
+and `adapters` depend on `core` and `users`. There are no arrows back. That is
+why `init_db` lives in `app/users/bootstrap.py` rather than in `core/db.py`:
+creating the first superuser is a users concern, and keeping it in core would
+have made core import users.
 
 **D6. Server state lives in vue-query; Pinia holds only client state.** The old
 frontend spread server data across Pinia stores, each with its own cache and
@@ -195,6 +208,10 @@ because the tests share the development database. Restore it with:
 docker compose exec backend python -m app.initial_data
 ```
 
+**Alembic only sees models whose module is imported by `app/alembic/env.py`.**
+A model in a new module has to be added to the import list there, or
+autogenerate will quietly propose dropping its table.
+
 **Quasar forwards `data-testid` onto the `<input>` element**, not onto the
 field root. Test selectors address the input directly; a nested `input`
 locator finds nothing.
@@ -228,7 +245,6 @@ From the design document, in order:
 
 | # | Sub-project |
 | --- | --- |
-| 2a | Break up `models.py`, `crud.py` and `api/routes/` into an `app/users/` module |
 | 3 | Catalog: `get_catalog` and `refresh_model` with real types |
 | 4 | Data fetching: `fetch` with paging, filters, sorting; a connection pool |
 | 5 | Action registry: what each source type can do |

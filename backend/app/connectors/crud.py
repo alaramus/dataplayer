@@ -5,7 +5,7 @@ from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.connectors.models import Connector
-from app.models import User
+from app.users.models import User
 
 
 async def create(

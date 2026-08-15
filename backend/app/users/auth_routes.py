@@ -6,15 +6,16 @@ from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from starlette.concurrency import run_in_threadpool
 
-from app import crud
-from app.api.deps import CurrentUser, SessionDep, get_current_active_superuser
 from app.core import security
 from app.core.config import settings
-from app.models import Message, NewPassword, Token, UserPublic, UserUpdate
-from app.utils import (
+from app.core.db import SessionDep
+from app.core.email import generate_reset_password_email, send_email
+from app.core.schemas import Message
+from app.users import crud
+from app.users.deps import CurrentUser, get_current_active_superuser
+from app.users.models import NewPassword, Token, UserPublic, UserUpdate
+from app.users.tokens import (
     generate_password_reset_token,
-    generate_reset_password_email,
-    send_email,
     verify_password_reset_token,
 )
 

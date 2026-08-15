@@ -6,7 +6,7 @@ from sqlalchemy import Column, DateTime, LargeBinary, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
-from app.models import get_datetime_utc
+from app.core.schemas import get_datetime_utc
 
 
 class Connector(SQLModel, table=True):

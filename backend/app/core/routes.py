@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends
 from pydantic.networks import EmailStr
 from starlette.concurrency import run_in_threadpool
 
-from app.api.deps import get_current_active_superuser
-from app.models import Message
-from app.utils import generate_test_email, send_email
+from app.core.email import generate_test_email, send_email
+from app.core.schemas import Message
+from app.users.deps import get_current_active_superuser
 
 router = APIRouter(prefix="/utils", tags=["utils"])
 

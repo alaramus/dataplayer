@@ -1,4 +1,3 @@
-from collections.abc import AsyncGenerator
 from typing import Annotated
 
 import jwt
@@ -6,24 +5,16 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core import security
 from app.core.config import settings
-from app.core.db import async_session_maker
-from app.models import TokenPayload, User
+from app.core.db import SessionDep
+from app.users.models import TokenPayload, User
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/access-token"
 )
 
-
-async def get_db() -> AsyncGenerator[AsyncSession]:
-    async with async_session_maker() as session:
-        yield session
-
-
-SessionDep = Annotated[AsyncSession, Depends(get_db)]
 TokenDep = Annotated[str, Depends(reusable_oauth2)]
 
 

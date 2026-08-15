@@ -6,9 +6,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.core.security import get_password_hash, verify_password
-from app.crud import create_user
-from app.models import User, UserCreate
-from app.utils import generate_password_reset_token
+from app.users.crud import create_user
+from app.users.models import User, UserCreate
+from app.users.tokens import generate_password_reset_token
 from tests.utils.user import user_authentication_headers
 from tests.utils.utils import random_email, random_lower_string
 

@@ -1,9 +1,9 @@
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app import crud
 from app.core.config import settings
-from app.models import User, UserCreate, UserUpdate
+from app.users import crud
+from app.users.models import User, UserCreate, UserUpdate
 from tests.utils.utils import random_email, random_lower_string
 
 

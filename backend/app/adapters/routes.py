@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.adapters import registry
-from app.api.deps import get_current_user
+from app.users.deps import get_current_user
 
 # Authentication is declared on the router: the handler itself does not use the
 # user, and an unused argument is rejected by the ruff ARG001 rule.

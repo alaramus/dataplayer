@@ -5,16 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import col, func, select
 from starlette.concurrency import run_in_threadpool
 
-from app import crud
-from app.api.deps import (
-    CurrentUser,
-    SessionDep,
-    get_current_active_superuser,
-)
 from app.core.config import settings
+from app.core.db import SessionDep
+from app.core.email import generate_new_account_email, send_email
+from app.core.schemas import Message
 from app.core.security import get_password_hash, verify_password
-from app.models import (
-    Message,
+from app.users import crud
+from app.users.deps import CurrentUser, get_current_active_superuser
+from app.users.models import (
     UpdatePassword,
     User,
     UserCreate,
@@ -24,7 +22,6 @@ from app.models import (
     UserUpdate,
     UserUpdateMe,
 )
-from app.utils import generate_new_account_email, send_email
 
 router = APIRouter(prefix="/users", tags=["users"])
 

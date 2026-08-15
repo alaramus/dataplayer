@@ -1,14 +1,14 @@
 import asyncio
 import selectors
 import sys
+from collections.abc import AsyncGenerator
+from typing import Annotated
 
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app import crud
 from app.core.config import settings
-from app.models import User, UserCreate
 
 
 def loop_factory() -> asyncio.AbstractEventLoop:
@@ -32,21 +32,9 @@ async_session_maker = async_sessionmaker(
 )
 
 
-# make sure all SQLModel models are imported (app.models) before initializing DB
-# otherwise, SQLModel might fail to initialize relationships properly
-# for more details: https://github.com/fastapi/full-stack-fastapi-template/issues/28
+async def get_db() -> AsyncGenerator[AsyncSession]:
+    async with async_session_maker() as session:
+        yield session
 
 
-async def init_db(session: AsyncSession) -> None:
-    # Tables should be created with Alembic migrations
-    result = await session.exec(
-        select(User).where(User.email == settings.FIRST_SUPERUSER)
-    )
-    user = result.first()
-    if not user:
-        user_in = UserCreate(
-            email=settings.FIRST_SUPERUSER,
-            password=settings.FIRST_SUPERUSER_PASSWORD,
-            is_superuser=True,
-        )
-        user = await crud.create_user(session=session, user_create=user_in)
+SessionDep = Annotated[AsyncSession, Depends(get_db)]

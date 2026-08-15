@@ -19,11 +19,13 @@ fileConfig(config.config_file_name)
 # target_metadata = mymodel.Base.metadata
 # target_metadata = None
 
-from app.models import SQLModel  # noqa
+from sqlmodel import SQLModel  # noqa
 from app.core.config import settings # noqa
 
-# Imported so the table registers in SQLModel.metadata: without it autogenerate
-# would not see the model, which is declared outside app/models.py.
+# Every model module must be imported here: a table registers in
+# SQLModel.metadata only when its module is loaded, and autogenerate compares
+# against that metadata. A model in a new module has to be added to this list.
+from app.users.models import User  # noqa
 from app.connectors.models import Connector  # noqa
 
 target_metadata = SQLModel.metadata

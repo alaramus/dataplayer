@@ -8,7 +8,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
-from app.api.deps import CurrentUser, SessionDep
 from app.connectors import crud, service
 from app.connectors.models import (
     Connector,
@@ -17,7 +16,10 @@ from app.connectors.models import (
     ConnectorsPublic,
     ConnectorUpdate,
 )
-from app.models import Message, User, get_datetime_utc
+from app.core.db import SessionDep
+from app.core.schemas import Message, get_datetime_utc
+from app.users.deps import CurrentUser
+from app.users.models import User
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
 
