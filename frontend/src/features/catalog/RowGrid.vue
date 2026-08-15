@@ -119,7 +119,7 @@ watch(
           {{ cellProps.col.label }}
           <q-icon
             v-if="sort[0]?.column === cellProps.col.name"
-            :name="sort[0].descending ? 'arrow_downward' : 'arrow_upward'"
+            :name="sort[0]?.descending ? 'arrow_downward' : 'arrow_upward'"
             size="14px"
           />
         </q-th>

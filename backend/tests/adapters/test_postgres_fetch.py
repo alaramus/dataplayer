@@ -2,11 +2,26 @@ import pytest
 
 from app.adapters.fetch import FetchRequest, Filter, Sort
 from app.adapters.postgres.adapter import PostgresAdapter
+from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.options import PostgresOptions
 from app.adapters.protocol import AdapterError
 from tests.utils.database import working_postgres_options
 
 CONNECTOR_TABLE = "public.connector"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (b"hello", "0x68656C6C6F"),
+        (bytearray(b"binary"), "0x62696E617279"),
+        (memoryview(b"view"), "0x76696577"),
+        (None, None),
+        ("text", "text"),
+    ],
+)
+def test_binary_values_are_encoded_as_hex(value: object, expected: object) -> None:
+    assert PostgresFetch._encode_binary(value) == expected
 
 
 def _adapter() -> PostgresAdapter:

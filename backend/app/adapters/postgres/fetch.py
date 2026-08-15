@@ -58,9 +58,18 @@ class PostgresFetch:
         order = [column.name for column in columns]
         return FetchResult(
             columns=columns,
-            rows=[[row[name] for name in order] for row in page],
+            rows=[
+                [self._encode_binary(row[name]) for name in order] for row in page
+            ],
             has_more=has_more,
         )
+
+    @staticmethod
+    def _encode_binary(value: Any) -> Any:
+        """Convert PostgreSQL binary values to the hex representation."""
+        if isinstance(value, bytes | bytearray | memoryview):
+            return f"0x{bytes(value).hex().upper()}"
+        return value
 
     @staticmethod
     def _reject_unknown_columns(request: FetchRequest, known: set[str]) -> None:
