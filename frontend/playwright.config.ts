@@ -34,15 +34,13 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
-    { name: 'setup', testMatch: /.*\.setup\.ts/ },
-
+    // Отдельного проекта setup нет: вход выполняется внутри сценария, поэтому
+    // сохранённое состояние сессии не используется.
     {
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        storageState: 'playwright/.auth/user.json',
       },
-      dependencies: ['setup'],
     },
 
     // {
