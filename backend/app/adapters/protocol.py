@@ -3,6 +3,7 @@ from typing import Literal, Protocol, runtime_checkable
 from pydantic import BaseModel
 
 from app.adapters.catalog import CatalogNode
+from app.adapters.fetch import FetchRequest, FetchResult
 
 ErrorKind = Literal["auth", "network", "timeout", "config", "unknown"]
 
@@ -55,5 +56,17 @@ class SupportsCatalog(Protocol):
 
         Raises AdapterError. An empty list means an empty node, never a
         failure — the old application returned an empty result for both.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsFetch(Protocol):
+    async def fetch(self, request: FetchRequest) -> FetchResult:
+        """Read a page of rows.
+
+        Raises AdapterError for source failures and ValueError for a request
+        that names a column the relation does not have — that check happens
+        before any SQL is built.
         """
         ...

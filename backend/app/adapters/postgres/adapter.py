@@ -1,5 +1,7 @@
 from app.adapters.catalog import CatalogNode
+from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.postgres.catalog import PostgresCatalog
+from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.options import PostgresOptions
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import ConnectionCheckResult
@@ -16,12 +18,16 @@ class PostgresAdapter:
     def __init__(self, options: PostgresOptions) -> None:
         self._session = PostgresSession(options)
         self._catalog = PostgresCatalog(self._session)
+        self._fetch = PostgresFetch(self._session)
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         return await self._catalog.list_children(node_id)
+
+    async def fetch(self, request: FetchRequest) -> FetchResult:
+        return await self._fetch.fetch(request)
 
 
 @register(name="postgres", title="PostgreSQL", options_schema=PostgresOptions)
