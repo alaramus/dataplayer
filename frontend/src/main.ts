@@ -8,12 +8,17 @@ import "quasar/src/css/index.sass"
 
 import App from "@/App.vue"
 import { router } from "@/router"
+import { configureApiClient, createQueryClient } from "@/shared/api/configure"
 
-createApp(App)
-  // Pinia устанавливается до маршрутизатора: навигационный сторож обращается
-  // к хранилищу аутентификации.
-  .use(createPinia())
+const app = createApp(App)
+
+// Pinia устанавливается первой: и настройка клиента, и навигационный сторож
+// обращаются к хранилищу аутентификации.
+app.use(createPinia())
+configureApiClient()
+
+app
   .use(Quasar, { plugins: { Notify, Dialog } })
   .use(router)
-  .use(VueQueryPlugin)
+  .use(VueQueryPlugin, { queryClient: createQueryClient() })
   .mount("#app")

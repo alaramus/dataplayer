@@ -8,4 +8,6 @@ FASTAPI_ENV=development uv run python -c "import app.main; import json; print(js
 cd ..
 mv openapi.json frontend/
 bun run --filter frontend generate-client
-bun run lint
+# Только форматирование: линтер игнорирует src/client, а прогонять его по
+# всему проекту при генерации клиента незачем.
+bun run --filter frontend format

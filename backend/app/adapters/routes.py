@@ -8,9 +8,12 @@ from app.api.deps import get_current_user
 
 # Аутентификация объявлена на уровне роутера: сам обработчик пользователя не
 # использует, а неиспользуемый параметр запрещён правилом ruff ARG001.
+# Тег без дефиса намеренно: генератор клиента образует имя метода, отрезая
+# всё до первого дефиса в идентификаторе операции, и тег adapter-types дал бы
+# метод typesReadAdapterTypes вместо readAdapterTypes.
 router = APIRouter(
     prefix="/adapter-types",
-    tags=["adapter-types"],
+    tags=["adapters"],
     dependencies=[Depends(get_current_user)],
 )
 
