@@ -6,7 +6,11 @@ from pydantic import BaseModel, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters.catalog import CatalogNode
-from app.adapters.protocol import AdapterError, ConnectionCheckResult
+from app.adapters.protocol import (
+    AdapterError,
+    ConnectionCheckResult,
+    SupportsCatalog,
+)
 from app.adapters.registry import AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
 from app.connectors import crud, service
@@ -219,6 +223,16 @@ async def read_catalog(
     adapter_type = _resolve_type(connector.adapter_type)
     options = service.merge_options(connector.config, connector.secrets)
     adapter = service.build_adapter(adapter_type, options)
+    if not isinstance(adapter, SupportsCatalog):
+        # Browsing is an optional capability: a queue or a plain HTTP source
+        # has no catalog to walk.
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": f"{adapter_type.title} does not support browsing",
+                "error_kind": "config",
+            },
+        )
     try:
         return await adapter.list_children(node_id)
     except AdapterError as exc:

@@ -1,11 +1,12 @@
 import asyncio
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator, Callable, Generator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlmodel import delete
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters import registry
 from app.connectors.models import Connector
 from app.core.config import settings
 from app.core.db import async_session_maker, loop_factory
@@ -14,6 +15,17 @@ from app.users.bootstrap import init_db
 from app.users.models import User
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import get_superuser_token_headers
+
+
+@pytest.fixture
+def isolated_registry() -> Generator[None]:
+    """Isolate the adapter registry so registrations in a test do not leak."""
+    saved = dict(registry._registry)
+    try:
+        yield
+    finally:
+        registry._registry.clear()
+        registry._registry.update(saved)
 
 
 @pytest.fixture(scope="session")

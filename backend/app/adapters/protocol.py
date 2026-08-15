@@ -35,8 +35,21 @@ class ConnectionCheckResult(BaseModel):
 
 @runtime_checkable
 class DataAdapter(Protocol):
+    """What every source can do, whatever it is.
+
+    Kept to the minimum on purpose. Everything else is an optional capability
+    below, because capabilities are independent: a queue has no columns, an
+    object store has no SQL. A single contract that demanded all of them would
+    force meaningless implementations, and a single inheritance chain would
+    force them into one line — which is how the old application ended up with
+    four levels of base classes.
+    """
+
     async def check_connection(self) -> ConnectionCheckResult: ...
 
+
+@runtime_checkable
+class SupportsCatalog(Protocol):
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         """Children of a catalog node; the root when node_id is None.
 

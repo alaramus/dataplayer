@@ -1,5 +1,6 @@
 import uuid
 
+import pytest
 from httpx import AsyncClient
 
 from app.core.config import settings
@@ -128,3 +129,44 @@ async def test_unauthenticated_request_is_rejected(client: AsyncClient) -> None:
     response = await client.get(f"{BASE}/{uuid.uuid4()}/catalog")
 
     assert response.status_code == 401
+
+
+@pytest.mark.usefixtures("isolated_registry")
+async def test_adapter_without_catalog_support_returns_501(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Browsing is optional: a source with no catalog must not be forced to fake one."""
+    from pydantic import BaseModel
+
+    from app.adapters import registry
+    from app.adapters.protocol import ConnectionCheckResult
+
+    class PingOptions(BaseModel):
+        url: str
+
+    class PingAdapter:
+        def __init__(self, options: PingOptions) -> None:
+            self.options = options
+
+        async def check_connection(self) -> ConnectionCheckResult:
+            return ConnectionCheckResult(ok=True, message="pong", latency_ms=1)
+
+    registry.register(name="ping", title="Ping", options_schema=PingOptions)(PingAdapter)
+
+    created = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={
+            "name": f"ping {uuid.uuid4()}",
+            "adapter_type": "ping",
+            "options": {"url": "https://example.com"},
+        },
+    )
+    assert created.status_code == 200
+
+    response = await client.get(
+        f"{BASE}/{created.json()['id']}/catalog", headers=normal_user_token_headers
+    )
+
+    assert response.status_code == 501
+    assert "does not support browsing" in response.json()["detail"]["message"]

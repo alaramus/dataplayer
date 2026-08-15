@@ -44,11 +44,11 @@ tables to columns. Credentials are encrypted at rest and never leave the server.
 ```
 backend/app/
 ├── adapters/            source types: contract, registry, drivers
-│   ├── protocol.py      DataAdapter Protocol, ConnectionCheckResult, AdapterError
+│   ├── protocol.py      DataAdapter, SupportsCatalog, AdapterError
 │   ├── catalog.py       CatalogNode: a union discriminated by kind
 │   ├── registry.py      type registry, secret_field_names
 │   ├── routes.py        GET /adapter-types
-│   └── postgres/        the only driver so far
+│   └── postgres/        session.py, catalog.py, adapter.py (facade)
 ├── connectors/          user connections
 │   ├── models.py        Connector + API schemas
 │   ├── crud.py          database access only
@@ -111,10 +111,27 @@ is a plain string key. Adding a source type needs no migration. The old
 application stored a driver class name in a row and resolved it dynamically,
 which is exactly why it has no typing and a 3685-line options file.
 
-**D2. The adapter contract is a `typing.Protocol`, not a base class.** A driver
-inherits nothing; conformance is checked structurally by mypy. It has two
-methods so far: `check_connection()` and `list_children()`. Further methods
-arrive only when their return types are understood.
+**D2. The adapter contract is a `typing.Protocol`, not a base class, and
+capabilities are optional.** `DataAdapter` requires only
+`check_connection()`. Everything else is a separate `runtime_checkable`
+protocol — `SupportsCatalog` today — that a route checks before using; an
+adapter that lacks the capability answers 501 instead of faking it. A queue has
+no columns, an object store has no SQL, so a contract demanding everything
+would force meaningless implementations.
+
+**D2b. A driver is a session plus capability modules, composed.**
+`postgres/session.py` knows how to reach the server and nothing else;
+`postgres/catalog.py` knows what to ask and nothing about connections;
+`postgres/adapter.py` is a thin facade. A new capability is a new module, not
+more lines in one class.
+
+Inheritance was considered — a base driver with business logic layered on top,
+as in the old application — and rejected on the evidence of that application:
+it split exactly that way, moved backups, monitoring, extensions, replication
+and the producer into their own files, and `postgres_extended_adaptor.py` still
+reached 1243 lines. One cut cannot absorb growth that happens along many
+capability axes at once, and a single inheritance chain forces them into one
+line: that is how the old code ended up four base classes deep.
 
 **D2a. Sources differ by node kind, not by source family.** `list_children()`
 walks a tree one level at a time, which suits an SQL database and an object

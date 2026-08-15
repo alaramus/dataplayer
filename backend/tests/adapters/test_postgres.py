@@ -3,8 +3,9 @@ import time
 from pydantic import SecretStr
 
 from app.adapters import registry
-from app.adapters.postgres.adapter import CHECK_TIMEOUT_SECONDS, PostgresAdapter
+from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.options import PostgresOptions
+from app.adapters.postgres.session import CHECK_TIMEOUT_SECONDS
 from tests.utils.database import working_postgres_options
 
 WRONG_PASSWORD = "definitely-not-the-password"
