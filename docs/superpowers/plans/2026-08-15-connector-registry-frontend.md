@@ -2263,18 +2263,7 @@ Expected: сообщение без трассировки.
 Run: `cd backend && uv run pytest tests/ -q`
 Expected: PASS целиком.
 
-Если `app.frontend` отсутствует в установленной версии FastAPI, вместо него использовать монтирование статики:
-
-```python
-from fastapi.staticfiles import StaticFiles
-
-FRONTEND_DIR = Path(__file__).parent / "frontend"
-
-if FRONTEND_DIR.is_dir():
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
-```
-
-Монтирование объявляется после `app.include_router(...)`, иначе оно перехватит запросы к API.
+Метод `app.frontend()` в установленной версии FastAPI (0.141.1) присутствует — это проверено при выполнении задачи 1 плана бэкенда. Там же выяснено, что он бросает `RuntimeError`, если директории нет; именно поэтому здесь стоит проверка `is_dir()`.
 
 - [ ] **Step 8: Проверить типы и стиль**
 
