@@ -36,16 +36,15 @@ strings, test names, commit messages and documentation. The only exception is
 
 A user can sign in, register a PostgreSQL connection through a form built from
 the adapter's own schema, check the connection before and after saving, manage
-the list of connections, and browse a connection's catalog down from schemas to
-tables to columns, and read rows of a table with server-side paging and
-sorting. Credentials are encrypted at rest and never leave the server.
+the list of connections, browse a connection's catalog from schemas down to
+columns, and read rows of a table with server-side paging and sorting. Credentials are encrypted at rest and never leave the server.
 
 ### What exists
 
 ```
 backend/app/
 ├── adapters/            source types: contract, registry, drivers
-│   ├── protocol.py      DataAdapter, SupportsCatalog, AdapterError
+│   ├── protocol.py      DataAdapter, SupportsCatalog, SupportsFetch, AdapterError
 │   ├── catalog.py       CatalogNode: a union discriminated by kind
 │   ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
 │   ├── registry.py      type registry, secret_field_names
@@ -117,8 +116,9 @@ which is exactly why it has no typing and a 3685-line options file.
 **D2. The adapter contract is a `typing.Protocol`, not a base class, and
 capabilities are optional.** `DataAdapter` requires only
 `check_connection()`. Everything else is a separate `runtime_checkable`
-protocol — `SupportsCatalog` today — that a route checks before using; an
-adapter that lacks the capability answers 501 instead of faking it. A queue has
+protocol — `SupportsCatalog` and `SupportsFetch` today — that a route checks
+before using; an adapter that lacks the capability answers 501 instead of
+faking it. A queue has
 no columns, an object store has no SQL, so a contract demanding everything
 would force meaningless implementations.
 
