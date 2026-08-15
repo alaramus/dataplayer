@@ -1,10 +1,8 @@
-import path from "node:path"
-import tailwindcss from "@tailwindcss/vite"
-import { tanstackRouter } from "@tanstack/router-plugin/vite"
-import react from "@vitejs/plugin-react-swc"
+import { fileURLToPath, URL } from "node:url"
+import { quasar, transformAssetUrls } from "@quasar/vite-plugin"
+import vue from "@vitejs/plugin-vue"
 import { defineConfig } from "vite"
 
-// https://vitejs.dev/config/
 export default defineConfig({
   build: {
     outDir: "../backend/app/frontend",
@@ -12,15 +10,24 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "./src"),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
+  },
+  css: {
+    preprocessorOptions: {
+      sass: {
+        // node_modules поднят в корень bun-монорепозитория, поэтому quasar
+        // лежит вне frontend/ и не может разрешить относительный импорт
+        // переменных, который добавляет плагин.
+        loadPaths: [fileURLToPath(new URL(".", import.meta.url))],
+      },
     },
   },
   plugins: [
-    tanstackRouter({
-      target: "react",
-      autoCodeSplitting: true,
-    }),
-    react(),
-    tailwindcss(),
+    vue({ template: { transformAssetUrls } }),
+    quasar({ sassVariables: "src/quasar-variables.sass" }),
   ],
+  server: {
+    port: 5173,
+  },
 })
