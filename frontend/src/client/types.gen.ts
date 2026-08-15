@@ -55,6 +55,40 @@ export type Body_login_login_access_token = {
 }
 
 /**
+ * ColumnNode
+ */
+export type ColumnNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Kind
+   */
+  kind?: "column"
+  /**
+   * Data Type
+   */
+  data_type: string
+  /**
+   * Nullable
+   */
+  nullable: boolean
+  /**
+   * Primary Key
+   */
+  primary_key?: boolean
+}
+
+/**
  * ConnectionCheckRequest
  */
 export type ConnectionCheckRequest = {
@@ -77,10 +111,10 @@ export type ConnectionCheckRequest = {
 /**
  * ConnectionCheckResult
  *
- * Итог проверки соединения.
+ * Outcome of a connection check.
  *
- * Драйверы никогда не выпускают наружу собственные исключения: их текст
- * регулярно содержит строку подключения вместе с паролем.
+ * Drivers never let their own exceptions escape: the text of those regularly
+ * contains the connection string together with the password.
  */
 export type ConnectionCheckResult = {
   /**
@@ -237,6 +271,66 @@ export type PrivateUserCreate = {
    * Is Verified
    */
   is_verified?: boolean
+}
+
+/**
+ * SchemaNode
+ */
+export type SchemaNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children: boolean
+  /**
+   * Kind
+   */
+  kind?: "schema"
+  /**
+   * Is System
+   */
+  is_system?: boolean
+}
+
+/**
+ * TableNode
+ */
+export type TableNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children: boolean
+  /**
+   * Kind
+   */
+  kind?: "table"
+  /**
+   * Row Count Estimate
+   */
+  row_count_estimate?: number | null
+  /**
+   * Size Bytes
+   */
+  size_bytes?: number | null
+  /**
+   * Is System
+   */
+  is_system?: boolean
 }
 
 /**
@@ -421,6 +515,36 @@ export type ValidationError = {
   ctx?: {
     [key: string]: unknown
   }
+}
+
+/**
+ * ViewNode
+ */
+export type ViewNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children: boolean
+  /**
+   * Kind
+   */
+  kind?: "view"
+  /**
+   * Is Materialized
+   */
+  is_materialized?: boolean
+  /**
+   * Is System
+   */
+  is_system?: boolean
 }
 
 export type loginLoginAccessTokenData = {
@@ -1077,6 +1201,58 @@ export type connectorsCheckConnectorResponses = {
 
 export type connectorsCheckConnectorResponse =
   connectorsCheckConnectorResponses[keyof connectorsCheckConnectorResponses]
+
+export type connectorsReadCatalogData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: {
+    /**
+     * Node Id
+     */
+    node_id?: string | null
+  }
+  url: "/api/v1/connectors/{connector_id}/catalog"
+}
+
+export type connectorsReadCatalogErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsReadCatalogError =
+  connectorsReadCatalogErrors[keyof connectorsReadCatalogErrors]
+
+export type connectorsReadCatalogResponses = {
+  /**
+   * Response Connectors-Read Catalog
+   *
+   * Successful Response
+   */
+  200: Array<
+    | ({
+        kind: "schema"
+      } & SchemaNode)
+    | ({
+        kind: "table"
+      } & TableNode)
+    | ({
+        kind: "view"
+      } & ViewNode)
+    | ({
+        kind: "column"
+      } & ColumnNode)
+  >
+}
+
+export type connectorsReadCatalogResponse =
+  connectorsReadCatalogResponses[keyof connectorsReadCatalogResponses]
 
 export type adaptersReadAdapterTypesData = {
   body?: never

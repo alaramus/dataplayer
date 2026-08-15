@@ -22,6 +22,9 @@ import type {
   connectorsDeleteConnectorData,
   connectorsDeleteConnectorErrors,
   connectorsDeleteConnectorResponses,
+  connectorsReadCatalogData,
+  connectorsReadCatalogErrors,
+  connectorsReadCatalogResponses,
   connectorsReadConnectorData,
   connectorsReadConnectorErrors,
   connectorsReadConnectorResponses,
@@ -606,6 +609,28 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/check",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Catalog
+   *
+   * List the children of a catalog node, or the root when node_id is omitted.
+   *
+   * node_id is opaque: only the adapter that produced it knows how to read it.
+   */
+  public static readCatalog<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadCatalogData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      connectorsReadCatalogResponses,
+      connectorsReadCatalogErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/catalog",
       ...options,
     })
   }

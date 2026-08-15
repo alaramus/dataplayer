@@ -10,6 +10,7 @@ defineEmits<{
   edit: [connector: ConnectorPublic]
   remove: [connector: ConnectorPublic]
   check: [connector: ConnectorPublic]
+  browse: [connector: ConnectorPublic]
 }>()
 
 const columns = [
@@ -59,6 +60,15 @@ function hostOf(connector: ConnectorPublic): string {
         :props="cellProps"
         class="q-gutter-xs"
       >
+        <q-btn
+          dense
+          flat
+          icon="account_tree"
+          :data-testid="`browse-${cellProps.row.name}`"
+          @click="$emit('browse', cellProps.row)"
+        >
+          <q-tooltip>Browse catalog</q-tooltip>
+        </q-btn>
         <q-btn
           dense
           flat

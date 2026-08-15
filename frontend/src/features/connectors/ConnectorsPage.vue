@@ -3,6 +3,7 @@ import { useQuasar } from "quasar"
 import { computed, ref } from "vue"
 
 import type { ConnectorPublic } from "@/client"
+import CatalogDialog from "@/features/catalog/CatalogDialog.vue"
 import ConnectorDialog from "@/features/connectors/ConnectorDialog.vue"
 import ConnectorTable from "@/features/connectors/ConnectorTable.vue"
 import { useCheckConnector, useConnectors, useDeleteConnector } from "@/features/connectors/api"
@@ -15,6 +16,8 @@ const checkConnector = useCheckConnector()
 
 const dialogOpen = ref(false)
 const editing = ref<ConnectorPublic | null>(null)
+const catalogOpen = ref(false)
+const browsing = ref<ConnectorPublic | null>(null)
 
 const rows = computed(() => connectors.data.value?.data ?? [])
 
@@ -26,6 +29,11 @@ function openCreate() {
 function openEdit(connector: ConnectorPublic) {
   editing.value = connector
   dialogOpen.value = true
+}
+
+function openCatalog(connector: ConnectorPublic) {
+  browsing.value = connector
+  catalogOpen.value = true
 }
 
 async function check(connector: ConnectorPublic) {
@@ -73,11 +81,16 @@ function confirmRemove(connector: ConnectorPublic) {
       @edit="openEdit"
       @remove="confirmRemove"
       @check="check"
+      @browse="openCatalog"
     />
 
     <ConnectorDialog
       v-model="dialogOpen"
       :connector="editing"
+    />
+    <CatalogDialog
+      v-model="catalogOpen"
+      :connector="browsing"
     />
   </AppLayout>
 </template>

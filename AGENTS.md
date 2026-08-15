@@ -44,7 +44,8 @@ Credentials are encrypted at rest and never leave the server.
 ```
 backend/app/
 ├── adapters/            source types: contract, registry, drivers
-│   ├── protocol.py      DataAdapter Protocol, ConnectionCheckResult
+│   ├── protocol.py      DataAdapter Protocol, ConnectionCheckResult, AdapterError
+│   ├── catalog.py       CatalogNode: a union discriminated by kind
 │   ├── registry.py      type registry, secret_field_names
 │   ├── routes.py        GET /adapter-types
 │   └── postgres/        the only driver so far
@@ -94,6 +95,7 @@ PATCH  /api/v1/connectors/{connector_id}
 DELETE /api/v1/connectors/{connector_id}
 POST   /api/v1/connectors/{connector_id}/check
 POST   /api/v1/connectors/check-draft
+GET    /api/v1/connectors/{connector_id}/catalog
 ```
 
 ## Decisions that shape the code
@@ -109,10 +111,23 @@ application stored a driver class name in a row and resolved it dynamically,
 which is exactly why it has no typing and a 3685-line options file.
 
 **D2. The adapter contract is a `typing.Protocol`, not a base class.** A driver
-inherits nothing; conformance is checked structurally by mypy. The contract
-currently has one method, `check_connection()`. The rest arrive when their
-return types are understood — the old application returns bare `dict` from
-`get_catalog`, and that is what we are not repeating.
+inherits nothing; conformance is checked structurally by mypy. It has two
+methods so far: `check_connection()` and `list_children()`. Further methods
+arrive only when their return types are understood.
+
+**D2a. Sources differ by node kind, not by source family.** `list_children()`
+walks a tree one level at a time, which suits an SQL database and an object
+store equally. What varies is the node, and `CatalogNode` is a discriminated
+union: only `id`, `name` and `has_children` are shared, so a key cannot pick up
+a second meaning — in the old application `schema` held a database schema name
+for PostgreSQL and the literal `"directory"` for S3. Grouping sources into
+families was considered and rejected: the boundary is arbitrary for ClickHouse,
+Kafka, Sheets or parquet-on-S3, and misclassifying a source is exactly what
+broke before. One source may contain nodes of several kinds.
+
+Adding a kind means adding a class to the union. `list_children()` raises
+`AdapterError` rather than returning an empty list on failure: an empty node and
+a broken query must stay distinguishable.
 
 **D3. The backend is fully asynchronous.** `AsyncSession`, `async def`
 throughout, psycopg 3 in async mode. The application is network-I/O bound by
@@ -212,6 +227,20 @@ docker compose exec backend python -m app.initial_data
 A model in a new module has to be added to the import list there, or
 autogenerate will quietly propose dropping its table.
 
+**`docker compose up -d` does not pick up backend code changes.** The
+`develop.watch` block in `compose.override.yml` only applies under
+`docker compose watch`; with a plain `up` the code is baked into the image.
+After changing the backend, rebuild — otherwise the container keeps serving an
+older API and the failure looks like a routing bug:
+
+```bash
+docker compose up -d --build backend
+```
+
+**psycopg reads a literal `%` as a placeholder whenever parameters are
+supplied**, even an empty tuple. A query with `LIKE 'pg_%'` and no bindings
+must pass no parameters at all, not `()`.
+
 **Quasar forwards `data-testid` onto the `<input>` element**, not onto the
 field root. Test selectors address the input directly; a nested `input`
 locator finds nothing.
@@ -245,7 +274,6 @@ From the design document, in order:
 
 | # | Sub-project |
 | --- | --- |
-| 3 | Catalog: `get_catalog` and `refresh_model` with real types |
 | 4 | Data fetching: `fetch` with paging, filters, sorting; a connection pool |
 | 5 | Action registry: what each source type can do |
 | 6 | A second, non-SQL adapter (MongoDB or S3) to prove the abstraction does not leak |
