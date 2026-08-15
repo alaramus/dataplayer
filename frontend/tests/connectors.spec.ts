@@ -2,8 +2,10 @@ import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
 
+// Соединение проверяет бэкенд, а не браузер, поэтому адрес указывается так,
+// как его видит контейнер бэкенда: внутри сети compose база — это хост db.
 const DATABASE = {
-  host: process.env.POSTGRES_SERVER ?? "localhost",
+  host: process.env.POSTGRES_SERVER ?? "db",
   port: process.env.POSTGRES_PORT ?? "5432",
   database: process.env.POSTGRES_DB ?? "app",
   user: process.env.POSTGRES_USER ?? "postgres",
