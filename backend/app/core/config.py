@@ -1,3 +1,4 @@
+import base64
 import warnings
 from typing import Literal, Self
 
@@ -21,6 +22,22 @@ class Settings(BaseSettings):
     )
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: str
+    # Ключ шифрования учётных данных коннекторов. Отдельный от SECRET_KEY
+    # намеренно: смена SECRET_KEY лишь разлогинивает всех, а смена этого ключа
+    # требует миграции сохранённых секретов.
+    CONNECTOR_SECRET_KEY: str
+
+    @field_validator("CONNECTOR_SECRET_KEY")
+    @classmethod
+    def _validate_connector_secret_key(cls, value: str) -> str:
+        try:
+            raw = base64.urlsafe_b64decode(value)
+        except Exception:
+            raise ValueError("CONNECTOR_SECRET_KEY must be urlsafe base64") from None
+        if len(raw) != 32:
+            raise ValueError("CONNECTOR_SECRET_KEY must decode to exactly 32 bytes")
+        return value
+
     # 60 minutes * 24 hours * 8 days = 8 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
     FRONTEND_HOST: str = "http://localhost:5173"
