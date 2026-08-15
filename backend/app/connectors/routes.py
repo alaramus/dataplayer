@@ -6,10 +6,13 @@ from pydantic import BaseModel, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters.catalog import CatalogNode
+from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
+    DataAdapter,
     SupportsCatalog,
+    SupportsFetch,
 )
 from app.adapters.registry import AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
@@ -71,6 +74,16 @@ async def _get_or_404(
     if connector is None:
         raise HTTPException(status_code=404, detail="Connector not found")
     return connector
+
+
+async def _adapter_for(
+    session: AsyncSession, connector_id: uuid.UUID, current_user: User
+) -> DataAdapter:
+    """Resolve a stored connector into a live adapter."""
+    connector = await _get_or_404(session, connector_id, current_user)
+    adapter_type = _resolve_type(connector.adapter_type)
+    options = service.merge_options(connector.config, connector.secrets)
+    return service.build_adapter(adapter_type, options)
 
 
 @router.post("/", response_model=ConnectorPublic)
@@ -200,11 +213,43 @@ async def check_connector(
     """
     Check the connection of a stored connector.
     """
-    connector = await _get_or_404(session, connector_id, current_user)
-    adapter_type = _resolve_type(connector.adapter_type)
-    options = service.merge_options(connector.config, connector.secrets)
-    adapter = service.build_adapter(adapter_type, options)
+    adapter = await _adapter_for(session, connector_id, current_user)
     return await adapter.check_connection()
+
+
+@router.post("/{connector_id}/fetch", response_model=FetchResult)
+async def fetch_rows(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    request: FetchRequest,
+) -> Any:
+    """
+    Read a page of rows from a relation named by request.node_id.
+    """
+    adapter = await _adapter_for(session, connector_id, current_user)
+    if not isinstance(adapter, SupportsFetch):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support reading rows",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.fetch(request)
+    except ValueError as exc:
+        # A column the relation does not have. Caught before any SQL is built,
+        # so this is a bad request rather than an upstream failure.
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        )
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        )
 
 
 @router.get("/{connector_id}/catalog", response_model=list[CatalogNode])
@@ -219,17 +264,14 @@ async def read_catalog(
 
     node_id is opaque: only the adapter that produced it knows how to read it.
     """
-    connector = await _get_or_404(session, connector_id, current_user)
-    adapter_type = _resolve_type(connector.adapter_type)
-    options = service.merge_options(connector.config, connector.secrets)
-    adapter = service.build_adapter(adapter_type, options)
+    adapter = await _adapter_for(session, connector_id, current_user)
     if not isinstance(adapter, SupportsCatalog):
         # Browsing is an optional capability: a queue or a plain HTTP source
         # has no catalog to walk.
         raise HTTPException(
             status_code=501,
             detail={
-                "message": f"{adapter_type.title} does not support browsing",
+                "message": "This source does not support browsing",
                 "error_kind": "config",
             },
         )
