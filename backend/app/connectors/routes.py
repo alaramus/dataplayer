@@ -5,7 +5,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.catalog import CatalogNode
+from app.adapters.protocol import AdapterError, ConnectionCheckResult
 from app.adapters.registry import AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
 from app.connectors import crud, service
@@ -200,3 +201,30 @@ async def check_connector(
     options = service.merge_options(connector.config, connector.secrets)
     adapter = service.build_adapter(adapter_type, options)
     return await adapter.check_connection()
+
+
+@router.get("/{connector_id}/catalog", response_model=list[CatalogNode])
+async def read_catalog(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    node_id: str | None = None,
+) -> Any:
+    """
+    List the children of a catalog node, or the root when node_id is omitted.
+
+    node_id is opaque: only the adapter that produced it knows how to read it.
+    """
+    connector = await _get_or_404(session, connector_id, current_user)
+    adapter_type = _resolve_type(connector.adapter_type)
+    options = service.merge_options(connector.config, connector.secrets)
+    adapter = service.build_adapter(adapter_type, options)
+    try:
+        return await adapter.list_children(node_id)
+    except AdapterError as exc:
+        # 502: the request was valid, the upstream source failed. An empty list
+        # would hide the difference between an empty node and a broken query.
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        )
