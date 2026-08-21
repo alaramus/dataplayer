@@ -61,3 +61,9 @@ class FetchResult(BaseModel):
     columns: list[FetchColumn]
     rows: list[list[Any]]
     has_more: bool
+    # Not every source can order or filter: a file has no index, and the
+    # columns of a CSV have no types. Stating it in the answer keeps the grid
+    # from offering what the source cannot do, without the frontend ever
+    # branching on the type of the source.
+    sortable: bool = True
+    filterable: bool = True

@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -52,8 +53,27 @@ class ColumnNode(BaseNode):
     primary_key: bool = False
 
 
+class DirectoryNode(BaseNode):
+    kind: Literal["directory"] = "directory"
+    modified_at: datetime | None = None
+
+
+# What a reader can make of a file, decided from its name alone: reading the
+# first bytes of every entry would cost one open per file in a listing.
+ContentKind = Literal["table", "text", "opaque"]
+
+
+class FileNode(BaseNode):
+    kind: Literal["file"] = "file"
+    has_children: bool = False
+    size_bytes: int
+    modified_at: datetime | None = None
+    content_kind: ContentKind
+
+
 # Adding a kind means adding a class here. The friction is intended: a key can
 # be added to a dict silently, a class cannot.
 CatalogNode = Annotated[
-    SchemaNode | TableNode | ViewNode | ColumnNode, Field(discriminator="kind")
+    SchemaNode | TableNode | ViewNode | ColumnNode | DirectoryNode | FileNode,
+    Field(discriminator="kind"),
 ]
