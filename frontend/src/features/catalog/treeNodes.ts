@@ -102,7 +102,9 @@ export function toTreeNodes(nodes: CatalogNode[]): TreeNode[] {
     label: node.name,
     caption: captionOf(node),
     icon: iconOf(node),
-    lazy: node.has_children,
+    // A kind that declares a default for has_children makes it optional in the
+    // schema, so the generated type admits undefined. Absent means no children.
+    lazy: node.has_children ?? false,
     kind: node.kind,
     readable: isReadable(node),
     // Only a table knows roughly how many rows it holds. A file would have to

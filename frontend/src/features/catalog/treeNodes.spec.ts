@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 
+import { at, first } from "@/shared/testing/collections"
 import { toTreeNodes } from "./treeNodes"
 import type { CatalogNode } from "./treeNodes"
 
@@ -9,7 +10,7 @@ describe("toTreeNodes", () => {
       { kind: "schema", id: "public", name: "public", has_children: true },
     ]
 
-    const [tree] = toTreeNodes(nodes)
+    const tree = first(toTreeNodes(nodes))
 
     expect(tree.id).toBe("public")
     expect(tree.label).toBe("public")
@@ -28,7 +29,7 @@ describe("toTreeNodes", () => {
       },
     ]
 
-    const [tree] = toTreeNodes(nodes)
+    const tree = first(toTreeNodes(nodes))
 
     expect(tree.lazy).toBe(false)
   })
@@ -45,13 +46,13 @@ describe("toTreeNodes", () => {
       },
     ]
 
-    const [tree] = toTreeNodes(nodes)
+    const tree = first(toTreeNodes(nodes))
 
     expect(tree.caption).toContain("character varying(255)")
   })
 
   it("marks a nullable column so the caption differs from a required one", () => {
-    const [nullable] = toTreeNodes([
+    const nullable = first(toTreeNodes([
       {
         kind: "column",
         id: "a",
@@ -60,8 +61,8 @@ describe("toTreeNodes", () => {
         data_type: "text",
         nullable: true,
       },
-    ])
-    const [required] = toTreeNodes([
+    ]))
+    const required = first(toTreeNodes([
       {
         kind: "column",
         id: "b",
@@ -70,13 +71,13 @@ describe("toTreeNodes", () => {
         data_type: "text",
         nullable: false,
       },
-    ])
+    ]))
 
     expect(nullable.caption).not.toBe(required.caption)
   })
 
   it("shows the row estimate of a table as the caption", () => {
-    const [tree] = toTreeNodes([
+    const tree = first(toTreeNodes([
       {
         kind: "table",
         id: "public.users",
@@ -84,13 +85,13 @@ describe("toTreeNodes", () => {
         has_children: true,
         row_count_estimate: 1234,
       },
-    ])
+    ]))
 
     expect(tree.caption).toContain("1234")
   })
 
   it("omits the caption when a table has no estimate yet", () => {
-    const [tree] = toTreeNodes([
+    const tree = first(toTreeNodes([
       {
         kind: "table",
         id: "public.users",
@@ -98,16 +99,16 @@ describe("toTreeNodes", () => {
         has_children: true,
         row_count_estimate: null,
       },
-    ])
+    ]))
 
     expect(tree.caption).toBeUndefined()
   })
 
   it("distinguishes a materialized view from a plain one", () => {
-    const [plain] = toTreeNodes([{ kind: "view", id: "v", name: "v", has_children: true }])
-    const [materialized] = toTreeNodes([
+    const plain = first(toTreeNodes([{ kind: "view", id: "v", name: "v", has_children: true }]))
+    const materialized = first(toTreeNodes([
       { kind: "view", id: "m", name: "m", has_children: true, is_materialized: true },
-    ])
+    ]))
 
     expect(plain.caption).not.toBe(materialized.caption)
   })
@@ -142,10 +143,12 @@ describe("node kind passthrough", () => {
   })
 
   it("carries the row estimate only for tables", () => {
-    const [schema, table] = toTreeNodes([
+    const mapped = toTreeNodes([
       { kind: "schema", id: "s", name: "s", has_children: true },
       { kind: "table", id: "t", name: "t", has_children: true, row_count_estimate: 12 },
     ])
+    const schema = at(mapped, 0)
+    const table = at(mapped, 1)
 
     expect(schema.rowEstimate).toBeNull()
     expect(table.rowEstimate).toBe(12)
@@ -154,9 +157,9 @@ describe("node kind passthrough", () => {
 
 describe("file sources", () => {
   it("labels a directory and lets it be expanded", () => {
-    const [tree] = toTreeNodes([
+    const tree = first(toTreeNodes([
       { kind: "directory", id: "reports", name: "reports", has_children: true },
-    ])
+    ]))
 
     expect(tree.label).toBe("reports")
     expect(tree.lazy).toBe(true)
@@ -164,7 +167,7 @@ describe("file sources", () => {
   })
 
   it("shows the size of a file as the caption", () => {
-    const [tree] = toTreeNodes([
+    const tree = first(toTreeNodes([
       {
         kind: "file",
         id: "reports/q3.csv",
@@ -173,14 +176,14 @@ describe("file sources", () => {
         size_bytes: 2048,
         content_kind: "table",
       },
-    ])
+    ]))
 
     expect(tree.caption).toContain("2")
     expect(tree.caption).toMatch(/KB/i)
   })
 
   it("marks a readable file as readable and an opaque one as not", () => {
-    const [table, text, opaque] = toTreeNodes([
+    const mapped = toTreeNodes([
       {
         kind: "file",
         id: "a.csv",
@@ -206,6 +209,9 @@ describe("file sources", () => {
         content_kind: "opaque",
       },
     ])
+    const table = at(mapped, 0)
+    const text = at(mapped, 1)
+    const opaque = at(mapped, 2)
 
     expect(table.readable).toBe(true)
     expect(text.readable).toBe(true)
@@ -213,7 +219,7 @@ describe("file sources", () => {
   })
 
   it("has no row estimate for a file: counting rows means reading it", () => {
-    const [tree] = toTreeNodes([
+    const tree = first(toTreeNodes([
       {
         kind: "file",
         id: "a.csv",
@@ -222,7 +228,7 @@ describe("file sources", () => {
         size_bytes: 1,
         content_kind: "table",
       },
-    ])
+    ]))
 
     expect(tree.rowEstimate).toBeNull()
   })
@@ -259,11 +265,14 @@ describe("file sources", () => {
   })
 
   it("marks a table and a view as readable", () => {
-    const [table, view, schema] = toTreeNodes([
+    const mapped = toTreeNodes([
       { kind: "table", id: "t", name: "t", has_children: true },
       { kind: "view", id: "v", name: "v", has_children: true },
       { kind: "schema", id: "s", name: "s", has_children: true },
     ])
+    const table = at(mapped, 0)
+    const view = at(mapped, 1)
+    const schema = at(mapped, 2)
 
     expect(table.readable).toBe(true)
     expect(view.readable).toBe(true)

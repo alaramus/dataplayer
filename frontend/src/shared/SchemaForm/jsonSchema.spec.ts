@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { at, first } from "@/shared/testing/collections"
+
 import { defaultValues, jsonSchemaToZod, schemaToFields } from "./jsonSchema"
 import type { JsonSchema } from "./jsonSchema"
 
@@ -26,7 +28,7 @@ describe("schemaToFields", () => {
   })
 
   it("uses the title as the label", () => {
-    const [host] = schemaToFields(POSTGRES_SCHEMA)
+    const host = first(schemaToFields(POSTGRES_SCHEMA))
 
     expect(host.label).toBe("Host")
   })
@@ -37,7 +39,7 @@ describe("schemaToFields", () => {
       properties: { plain_name: { type: "string" } },
     })
 
-    expect(fields[0].label).toBe("plain_name")
+    expect(at(fields, 0).label).toBe("plain_name")
   })
 
   it("marks password-formatted strings as secret", () => {
@@ -62,9 +64,9 @@ describe("schemaToFields", () => {
       },
     })
 
-    expect(fields[0].kind).toBe("boolean")
-    expect(fields[1].kind).toBe("select")
-    expect(fields[1].choices).toEqual(["require", "disable"])
+    expect(at(fields, 0).kind).toBe("boolean")
+    expect(at(fields, 1).kind).toBe("select")
+    expect(at(fields, 1).choices).toEqual(["require", "disable"])
   })
 
   it("marks required fields", () => {

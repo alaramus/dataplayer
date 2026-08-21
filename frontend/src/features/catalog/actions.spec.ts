@@ -1,20 +1,10 @@
 import { describe, expect, it } from "vitest"
 
 import type { ActionInfo } from "@/client"
+import { at, first } from "@/shared/testing/collections"
 import { toCommands } from "./actions"
-import type { ActionCommand } from "./actions"
 
-function only(actions: ActionInfo[]): ActionCommand {
-  const [command] = toCommands(actions)
-  if (!command) throw new Error("no command was built")
-  return command
-}
-
-function fieldOf(command: ActionCommand, index: number) {
-  const field = command.fields[index]
-  if (!field) throw new Error(`no field at ${index}`)
-  return field
-}
+const only = (actions: ActionInfo[]) => first(toCommands(actions))
 
 const createFolder: ActionInfo = {
   name: "create_folder",
@@ -67,11 +57,11 @@ describe("toCommands", () => {
     const command = only([createFolder])
 
     expect(command.fields.map((field) => field.name)).toEqual(["name"])
-    expect(fieldOf(command, 0).required).toBe(true)
+    expect(at(command.fields, 0).required).toBe(true)
   })
 
   it("reads a boolean parameter as a checkbox", () => {
-    expect(fieldOf(only([remove]), 0).kind).toBe("boolean")
+    expect(at(only([remove]).fields, 0).kind).toBe("boolean")
   })
 
   it("marks what destroys something, so the dialog can ask twice", () => {

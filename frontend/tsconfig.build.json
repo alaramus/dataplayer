@@ -2,6 +2,10 @@
   "extends": "@vue/tsconfig/tsconfig.dom.json",
   "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
   "compilerOptions": {
+    // The Vue base config stops at ES2020 to match the Vite target and leaves
+    // newer built-ins to the project. Array.prototype.at is used here and has
+    // been in every browser Vue 3 supports since 2022.
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "composite": true,
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.build.tsbuildinfo",
