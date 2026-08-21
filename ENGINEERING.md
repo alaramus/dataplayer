@@ -61,8 +61,10 @@ accepted on another.
 - A capability is a `runtime_checkable` Protocol, and a route checks for it.
   An adapter that lacks one answers 501 rather than implementing a stub.
 
-**Enforced:** by tests that a source without a capability answers 501, for both
-catalog and fetch. The absence of `elif` chains rests on review.
+**Enforced:** by tests that a source without a capability answers 501, for
+catalog, fetch and actions. An action is reachable only through the registry
+that holds it: a test asks the API for a method of the driver by name and
+expects 404. The absence of `elif` chains rests on review.
 
 ## Reuse and abstraction
 
@@ -98,7 +100,9 @@ separately from general typing.
   resolves every path against its root and refuses anything that lands outside,
   symlinks followed; a path segment must be a plain name by the rules of both
   platforms, so a Windows drive reference is refused rather than silently
-  dropped by a join. The root itself is never named by a client.
+  dropped by a join. The root itself is never named by a client. A name typed
+  into a form and the filename inside a multipart upload are the same kind of
+  string and go through the same rule — there is no second one.
 
 **Enforced:** ruff `S608` flags SQL built by string formatting; tests attempt
 injection through a column name and through an operator and expect rejection;
@@ -197,7 +201,7 @@ the way to a green run.
 | `uv run mypy app` | types, strict | works |
 | `uv run ruff check app tests` | style, blocking calls in async, string-built SQL | works |
 | `uv run lint-imports` | direction of dependencies between packages | works |
-| `bun run type-check` | frontend types (needs Node, not bun) | works |
+| `bun run type-check` | frontend types (build mode, needs Node, not bun) | works |
 | `bun run lint` | frontend style, stores not reaching the API | works |
 | `bun run test:unit` | pure frontend logic | works |
 | `bunx playwright test` | end-to-end, needs db + backend + dev server | works |

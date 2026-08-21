@@ -64,7 +64,7 @@ class Action[P: BaseModel](ABC):
     destructive: ClassVar[bool] = False
     params_model: type[P]
 
-    async def __call__(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
+    async def perform(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
         return await self.run(node_id, self.params_model.model_validate(raw))
 
     @abstractmethod
@@ -84,7 +84,7 @@ class Action[P: BaseModel](ABC):
 @runtime_checkable
 class SupportsActions(Protocol):
     async def available(self, node_id: str | None) -> list[Action[Any]]: ...
-    async def run(self, name: str, node_id: str | None, params: Mapping[str, Any]) -> ActionResult: ...
+    def action(self, name: str) -> Action[Any]: ...
 ```
 
 Рядом с `SupportsCatalog` и `SupportsFetch`, по тому же правилу: маршрут
@@ -93,6 +93,12 @@ class SupportsActions(Protocol):
 
 `available` возвращает объекты действий, а не имена: заголовок и схему
 параметров маршрут получает из них же, а не из второго источника правды.
+
+**Уточнено при реализации.** В протоколе задумывался третий метод — `run`,
+которым адаптер выполнял бы действие по имени. Он оказался лишним слоем: раз
+`action(name)` уже возвращает сам объект, маршрут вызывает его напрямую, и
+разрешать имя во второй раз негде. Меньше методов — меньше мест, где имя может
+быть разрешено иначе.
 
 ### Р3. Применимость спрашивается у сервера по конкретному узлу
 
@@ -125,7 +131,7 @@ class FilePayload(Protocol):
 
 @runtime_checkable
 class TakesFile(Protocol):
-    async def run_with_file(
+    async def perform_with_file(
         self, node_id: str | None, raw: Mapping[str, Any], payload: FilePayload
     ) -> ActionResult: ...
 ```
@@ -157,8 +163,9 @@ class ActionResult(BaseModel):
 
 `create_folder` принимает `name`, `rename` — `new_name`, загрузка приносит
 `filename` внутри multipart. Все три — строки от клиента, и все три проходят
-через `_is_plain_name` из `file/session.py`, после чего результат разрешается
-через `session.resolve`. Новых правил пути не заводится: граница остаётся
+через `is_plain_name` из `file/session.py` — правило заодно стало публичным и
+строже: сегмент с разделителем любой из двух платформ теперь тоже
+отклоняется, — после чего результат разрешается через `session.resolve`. Новых правил пути не заводится: граница остаётся
 одна, как и обещано решением D8.
 
 Отдельно про загрузку: имя файла из multipart — это тоже клиентская строка, и

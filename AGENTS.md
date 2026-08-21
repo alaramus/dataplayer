@@ -46,8 +46,11 @@ list of connections, browse a connection's catalog and read rows in a paged
 grid. Two source types exist: PostgreSQL — schemas down to columns, with
 server-side paging and sorting — and the personal file storage every user
 owns, where the catalog is directories and files and a delimited file becomes
-columns while anything else readable becomes numbered lines. Credentials are
-encrypted at rest and never leave the server.
+columns while anything else readable becomes numbered lines. In that storage a
+user can also create a folder, rename, delete and upload a file: the buttons
+offered for a node come from the server, so the screen has no knowledge of any
+particular source. Credentials are encrypted at rest and never leave the
+server.
 
 ### What exists
 
@@ -55,13 +58,14 @@ encrypted at rest and never leave the server.
 backend/app/
 ├── adapters/            source types: contract, registry, drivers
 │   ├── protocol.py      DataAdapter, SupportsCatalog, SupportsFetch, AdapterError
-│   ├── catalog.py       CatalogNode: a union discriminated by kind
+│   ├── catalog.py       CatalogNode: a union discriminated by kind; NodeKind
 │   ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
+│   ├── actions.py       Action, ActionSet, SupportsActions, transports, refusals
 │   ├── registry.py      type registry, AdapterContext, secret_field_names
 │   ├── routes.py        GET /adapter-types
 │   ├── postgres/        session.py, catalog.py, fetch.py, adapter.py (facade)
 │   └── file/            session.py (root and containment), catalog.py,
-│                        fetch.py, readers.py, adapter.py (facade)
+│                        fetch.py, readers.py, actions.py, adapter.py (facade)
 ├── connectors/          user connections
 │   ├── models.py        Connector + API schemas
 │   ├── crud.py          database access only
@@ -91,12 +95,14 @@ backend/app/
 frontend/src/
 ├── client/              generated from OpenAPI, never edited by hand
 ├── shared/              api client setup, layout
+│   ├── SchemaForm/      JSON Schema to form, framework-independent core
+│   └── testing/         helpers for tests, not shipped by any screen
 ├── stores/              Pinia: client-side state only
 └── features/
     ├── auth/
-    ├── catalog/         lazy tree and row grid; treeNodes.ts and rows.ts are pure mappers
+    ├── catalog/         lazy tree, row grid, and the actions a node admits;
+    │                    treeNodes.ts, rows.ts and actions.ts are pure mappers
     └── connectors/
-        └── SchemaForm/  JSON Schema to form, framework-independent core
 ```
 
 ### API
@@ -113,6 +119,9 @@ POST   /api/v1/connectors/{connector_id}/check
 POST   /api/v1/connectors/check-draft
 GET    /api/v1/connectors/{connector_id}/catalog
 POST   /api/v1/connectors/{connector_id}/fetch
+GET    /api/v1/connectors/{connector_id}/actions
+POST   /api/v1/connectors/{connector_id}/actions/{action_name}
+POST   /api/v1/connectors/{connector_id}/actions/{action_name}/file
 ```
 
 ## Decisions that shape the code
@@ -197,6 +206,35 @@ one rule, in one place. The old application checked containment in one branch
 of one method, and the check let through any ancestor of the root, so the tree
 could be walked up to `/`.
 
+**D9. An action is one object, and the declaration is the callable.** A name,
+a title, the kinds of node it applies to, a Pydantic model of its parameters
+and the implementation live in one class; a driver hands out those objects and
+a route calls them. Nothing that is not in the set resolves. Full reasoning in
+`docs/superpowers/specs/2026-08-21-action-registry-design.md`.
+
+The old application dispatched `getattr(connector, action)(**request_body)`
+guarded only by `hasattr`, so every public method of a driver was callable by
+name from a client, and its 765-line table of supported actions took no part in
+the guard — it decorated the interface while the guard let through anything
+that happened to exist.
+
+Three consequences worth stating separately:
+
+- **What a node admits is asked of the server, per node.** `GET
+  /connectors/{id}/actions?node_id=…`; the same call decides what the client is
+  offered and what the server allows, so the two cannot drift. Applicability
+  depends on state as well as kind: the root of a connector is an ordinary
+  directory that may not be renamed or removed, and the driver leaves those
+  actions out of the answer.
+- **The transport is a protocol, not a flag.** An action that carries a file
+  satisfies `TakesFile`; `takes_file` in the API answer is an `isinstance`
+  check, derived the way secret fields are derived from `SecretStr`. There are
+  two routes because HTTP has two shapes of body, and each refuses an action of
+  the other transport with 415.
+- **What to re-read is in the answer.** `ActionResult.reload_node_id` names the
+  branch that changed, rather than the client inferring it from the name of the
+  action.
+
 **D3. The backend is fully asynchronous.** `AsyncSession`, `async def`
 throughout, psycopg 3 in async mode. The application is network-I/O bound by
 definition.
@@ -277,13 +315,17 @@ mode is incompatible with `ProactorEventLoop`, which Python selects by default
 on Windows. `app/core/db.py` exposes `loop_factory` and it is wired into the
 standalone scripts and into pytest, but uvicorn has no such hook. Use Docker.
 
-**`vue-tsc` does not work under the bun runtime.** It fails to register the
-`.vue` extension, so every component silently drops out of the compiler
-program and imports like `@/App.vue` appear to be missing. Measured: 4 files
-under Node, 0 under bun. On Windows `bun run type-check` happens to work
-because the `.cmd` shim invokes Node. The `oven/bun:1` image has no real Node
-at all, which is why `bun run build` performs only `vite build`; type checking
-lives in `type-check` and `build:checked`.
+**`vue-tsc` has two ways of checking nothing at all, and both look clean.**
+Under the bun runtime it fails to register the `.vue` extension, so every
+component drops out of the compiler program and imports like `@/App.vue` appear
+missing — measured: 4 files under Node, 0 under bun. On Windows the `.cmd` shim
+invokes Node, so that half is hidden. The other half is the configuration:
+`vue-tsc --noEmit` against `tsconfig.json`, which lists project references and
+`"files": []`, reads no file at all and exits 0. `type-check` therefore runs
+`vue-tsc -b --force`, which follows the references. If a check has never been
+seen to fail, break something on purpose and confirm that it does. The
+`oven/bun:1` image has no real Node, which is why `bun run build` performs only
+`vite build`.
 
 **Running the backend test suite wipes all users**, including the superuser,
 because the tests share the development database. Restore it with:
@@ -292,10 +334,9 @@ because the tests share the development database. Restore it with:
 docker compose exec backend python -m app.initial_data
 ```
 
-**A personal directory starts empty, and nothing can write to it yet.** There is
-no upload in this sub-project, so the file source has nothing to show until the
-samples are seeded. The end-to-end scenario `frontend/tests/files.spec.ts`
-depends on it:
+**A personal directory starts empty.** Uploading now exists, but the
+end-to-end scenario `frontend/tests/files.spec.ts` expects a known set of
+samples rather than whatever a previous run left behind:
 
 ```bash
 docker compose exec backend python -m app.seed_storage
@@ -354,7 +395,6 @@ From the design document, in order:
 
 | # | Sub-project |
 | --- | --- |
-| 5 | Action registry: what each source type can do — writing to personal storage is its first real set of actions |
 | 4б | Connection pool: every request currently opens its own connection |
 | 7+ | Realtime, AI, data grid |
 
@@ -363,6 +403,14 @@ deliberately not SQL. What it exposed is recorded above as D2d, and one thing
 it settled belongs to 4б: a file source has no connection at all, so pooling
 cannot be a mechanism above all adapters — it belongs to the session module of
 a driver that has one.
+
+Sub-project 5 is done: actions are a registry (D9), and personal storage got
+the first four. Two things it settled are worth carrying forward. A capability
+protocol is now the way a source says what it cannot do — 501 for the whole
+capability, and per-node applicability inside it — which is the shape any later
+capability should take. And an action that carries bytes needed a second route
+rather than a second body type; download in sub-project 7 answers with bytes
+and will need the same treatment in the other direction.
 
 Each sub-project gets its own design document, its own plan and its own
 iteration.
@@ -385,9 +433,22 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
 - **A deep offset over a file costs a full scan.** Paging a file means skipping
   `offset` lines every time, because a file has no index. Bounded by the limit
   ceiling, and acceptable while pages are read in order.
-- **Nothing writes to personal storage.** Uploading, creating a folder, renaming
-  and deleting are the first real actions for the registry of sub-project 5.
-  Until then a directory can only be filled from the server.
+- **A file can be uploaded but not downloaded.** Reading bytes back out is
+  sub-project 7, so a picture put into personal storage can be listed and
+  deleted but not opened.
+- **Nothing moves or copies.** An action works inside one node of one
+  connector; moving a file to another folder means downloading and uploading it
+  again.
+- **Personal storage has no quota.** Nothing counts what a user has stored;
+  only a single upload is bounded, by `MAX_UPLOAD_BYTES`.
+- **A conflict is detected, then acted upon.** `create_folder`, `rename` and
+  `upload` check that a name is free and then use it; another writer in that
+  gap wins. The window is small and the directory belongs to one user, so it is
+  left rather than papered over with a lock.
+- **An upload gives no progress and cannot be resumed.** A large file is one
+  request that either finishes or leaves nothing behind.
+- **Nothing records what was done.** Actions change files without an audit
+  trail; there is no history to show a user what they deleted.
 - **`.env` is in the git history.** It was tracked before being removed, so the
   values it held at the time are still recoverable from earlier commits. They
   are development placeholders, but a real deployment must not reuse them.
