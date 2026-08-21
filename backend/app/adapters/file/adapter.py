@@ -1,7 +1,10 @@
 from pathlib import Path, PurePosixPath
+from typing import Any
 
+from app.adapters.actions import Action
 from app.adapters.catalog import CatalogNode
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.file.actions import FileActions
 from app.adapters.file.catalog import FileCatalog
 from app.adapters.file.fetch import FileFetch
 from app.adapters.file.options import FileOptions
@@ -22,6 +25,7 @@ class FileAdapter:
         self._session = FileSession(root)
         self._catalog = FileCatalog(self._session)
         self._fetch = FileFetch(self._session)
+        self._actions = FileActions(self._session)
 
     @property
     def root(self) -> Path:
@@ -35,6 +39,12 @@ class FileAdapter:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        return await self._actions.available(node_id)
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.action(name)
 
 
 @register(name="file", title="Files", options_schema=FileOptions)

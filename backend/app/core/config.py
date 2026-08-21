@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     # inside the directory of its owner.
     USER_STORAGE_ROOT: Path = Path("/data/users")
 
+    # Ceiling for one upload, counted as the bytes arrive: the length a client
+    # declares is a claim, not a fact.
+    MAX_UPLOAD_BYTES: int = 100 * 1024 * 1024
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def _use_psycopg_driver(cls, value: str | PostgresDsn) -> str:

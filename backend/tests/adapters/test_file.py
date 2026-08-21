@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.adapters import registry
+from app.adapters.actions import SupportsActions
 from app.adapters.file.adapter import FileAdapter
 from app.adapters.file.options import FileOptions
 from app.adapters.protocol import SupportsCatalog, SupportsFetch
@@ -60,3 +61,9 @@ async def test_check_connection_reports_the_missing_home(tmp_path: Path) -> None
     result = await adapter.check_connection()
 
     assert result.ok is False
+
+
+def test_a_file_source_can_be_asked_to_change_things() -> None:
+    adapter = FileAdapter(FileOptions(), _context(Path("/data/users/someone")))
+
+    assert isinstance(adapter, SupportsActions)

@@ -80,3 +80,10 @@ async def test_adapter_type_is_registered() -> None:
 
     assert adapter_type.title == "PostgreSQL"
     assert adapter_type.options_schema is PostgresOptions
+
+
+def test_a_postgres_source_offers_no_actions() -> None:
+    """Not a gap: a source without the capability must say so, not pretend."""
+    from app.adapters.actions import SupportsActions
+
+    assert not isinstance(PostgresAdapter(_working_options()), SupportsActions)

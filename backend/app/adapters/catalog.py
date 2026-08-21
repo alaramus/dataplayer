@@ -77,3 +77,10 @@ CatalogNode = Annotated[
     SchemaNode | TableNode | ViewNode | ColumnNode | DirectoryNode | FileNode,
     Field(discriminator="kind"),
 ]
+
+
+# The kinds themselves, as a closed set. A route needs to speak about the kind
+# of a node without holding one — deciding which actions a directory admits,
+# for instance — and a bare string there would let a typo through silently.
+# The test that this matches the union keeps the two from drifting apart.
+NodeKind = Literal["schema", "table", "view", "column", "directory", "file"]

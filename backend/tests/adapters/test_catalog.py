@@ -142,3 +142,21 @@ def test_unknown_content_kind_is_rejected() -> None:
                 }
             ]
         )
+
+
+def test_the_kind_literal_lists_exactly_the_kinds_of_the_union() -> None:
+    """Adding a node class without adding its kind must not pass unnoticed.
+
+    NodeKind is what a route matches an action against, so a kind missing from
+    it would quietly make every action inapplicable to that node.
+    """
+    from typing import get_args
+
+    from app.adapters.catalog import NodeKind
+
+    in_union = {
+        get_args(node.model_fields["kind"].annotation)[0]
+        for node in get_args(get_args(CatalogNode)[0])
+    }
+
+    assert set(get_args(NodeKind)) == in_union

@@ -1,10 +1,22 @@
+import json
 import uuid
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters.actions import (
+    Action,
+    ActionRefused,
+    ActionResult,
+    RefusalReason,
+    SupportsActions,
+    TakesFile,
+    TakesParams,
+    UnknownAction,
+)
 from app.adapters.catalog import CatalogNode
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.protocol import (
@@ -298,3 +310,201 @@ async def read_catalog(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         )
+
+
+class ActionInfo(BaseModel):
+    """One action, as much as a client needs to offer and perform it."""
+
+    name: str
+    title: str
+    destructive: bool
+    # Derived from the action itself rather than declared beside it: a flag and
+    # an implementation can disagree, an isinstance check cannot.
+    takes_file: bool
+    params_schema: dict[str, Any]
+
+
+class ActionRequest(BaseModel):
+    node_id: str | None = None
+    params: dict[str, Any] = {}
+
+
+# One status per reason for refusing, in one place. A conflict is not a failure
+# of the source, so none of these is a 502.
+REFUSAL_STATUS: dict[RefusalReason, int] = {
+    "conflict": 409,
+    "not_applicable": 422,
+    "too_large": 413,
+}
+
+
+def _describe(action: Action[Any]) -> ActionInfo:
+    return ActionInfo(
+        name=action.name,
+        title=action.title,
+        destructive=action.destructive,
+        takes_file=isinstance(action, TakesFile),
+        params_schema=action.params_schema(),
+    )
+
+
+def _acting_or_501(adapter: DataAdapter) -> SupportsActions:
+    if not isinstance(adapter, SupportsActions):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support actions",
+                "error_kind": "config",
+            },
+        )
+    return adapter
+
+
+async def _available_or_422(
+    adapter: SupportsActions, node_id: str | None
+) -> list[Action[Any]]:
+    try:
+        return await adapter.available(node_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"message": str(exc)}) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+async def _action_for_node(
+    adapter: SupportsActions, action_name: str, node_id: str | None
+) -> Action[Any]:
+    """The action to perform, or the reason it may not be performed here.
+
+    Applicability is decided by the same call that lists what a node offers,
+    so what the client is shown and what the server allows cannot drift apart.
+    """
+    try:
+        action = adapter.action(action_name)
+    except UnknownAction as exc:
+        raise HTTPException(
+            status_code=404, detail={"message": f"Unknown action: {action_name}"}
+        ) from exc
+
+    available = await _available_or_422(adapter, node_id)
+    if action.name not in {offered.name for offered in available}:
+        raise HTTPException(
+            status_code=422,
+            detail={"message": f"{action.title} cannot be done to this node"},
+        )
+    return action
+
+
+async def _perform(run: Callable[[], Awaitable[ActionResult]]) -> ActionResult:
+    try:
+        return await run()
+    except ValidationError as exc:
+        # ValidationError before ValueError on purpose: it is one of those, and
+        # only it can say which field was wrong.
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", "params", *error["loc"]],
+                    "msg": error["msg"],
+                    "type": error["type"],
+                }
+                for error in exc.errors()
+            ],
+        ) from exc
+    except ActionRefused as exc:
+        raise HTTPException(
+            status_code=REFUSAL_STATUS[exc.reason],
+            detail={"message": exc.message, "reason": exc.reason},
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"message": str(exc)}) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.get("/{connector_id}/actions", response_model=list[ActionInfo])
+async def read_actions(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    node_id: str | None = None,
+) -> Any:
+    """
+    List the actions this node admits, with the schema of their parameters.
+
+    Asked per node rather than per source type: whether a node may be renamed
+    depends on its state as well as its kind — the root of a connector is an
+    ordinary directory that may not be removed.
+    """
+    adapter = _acting_or_501(await _adapter_for(session, connector_id, current_user))
+    return [_describe(action) for action in await _available_or_422(adapter, node_id)]
+
+
+@router.post("/{connector_id}/actions/{action_name}", response_model=ActionResult)
+async def run_action(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    action_name: str,
+    body: ActionRequest,
+) -> Any:
+    """
+    Perform an action that needs nothing but its parameters.
+    """
+    adapter = _acting_or_501(await _adapter_for(session, connector_id, current_user))
+    action = await _action_for_node(adapter, action_name, body.node_id)
+    if not isinstance(action, TakesParams):
+        raise HTTPException(
+            status_code=415,
+            detail={"message": f"{action.title} needs a file to be sent with it"},
+        )
+    return await _perform(lambda: action.perform(body.node_id, body.params))
+
+
+@router.post("/{connector_id}/actions/{action_name}/file", response_model=ActionResult)
+async def run_action_with_file(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    action_name: str,
+    file: Annotated[UploadFile, File()],
+    node_id: Annotated[str, Form()] = "",
+    params: Annotated[str, Form()] = "{}",
+) -> Any:
+    """
+    Perform an action that carries a file.
+
+    A second route rather than a second body type on the first: HTTP has two
+    shapes of request body, and each refuses an action of the other transport.
+    Parameters travel as a JSON field of the form, so the action validates them
+    by the same model either way.
+    """
+    adapter = _acting_or_501(await _adapter_for(session, connector_id, current_user))
+    target = node_id or None
+    action = await _action_for_node(adapter, action_name, target)
+    if not isinstance(action, TakesFile):
+        raise HTTPException(
+            status_code=415,
+            detail={"message": f"{action.title} does not take a file"},
+        )
+
+    try:
+        given = json.loads(params)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "The params field is not valid JSON"},
+        ) from exc
+    if not isinstance(given, dict):
+        raise HTTPException(
+            status_code=422, detail={"message": "The params field must be an object"}
+        )
+
+    return await _perform(lambda: action.perform_with_file(target, given, file))

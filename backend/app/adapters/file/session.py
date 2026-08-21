@@ -14,18 +14,25 @@ from anyio import to_thread
 from app.adapters.protocol import ConnectionCheckResult
 
 
-def _is_plain_name(part: str) -> bool:
-    """A path segment that names one entry and nothing else.
+def is_plain_name(part: str) -> bool:
+    """A string that names one entry and nothing else.
 
     Judged by the rules of both platforms at once, so a node id means the same
     thing everywhere. On Windows a segment like "C:" is a drive reference and
     joining silently drops everything before it, turning one path into another
-    without any error — the segment is refused instead.
+    without any error — the segment is refused instead. A separator of either
+    platform makes it more than one entry, which is equally refused.
+
+    Public because a name typed into a form — a new folder, the target of a
+    rename, the name of an uploaded file — is the same kind of string as a
+    path segment and must not get a second rule.
     """
     return (
         part not in {"", ".", ".."}
         and not PureWindowsPath(part).drive
         and not PureWindowsPath(part).root
+        and len(PureWindowsPath(part).parts) == 1
+        and len(PurePosixPath(part).parts) == 1
     )
 
 
@@ -36,7 +43,7 @@ def stays_inside_root(relative: str) -> bool:
     folder a connector points at, so both judge a path by one rule.
     """
     path = PurePosixPath(relative)
-    return not path.is_absolute() and all(map(_is_plain_name, path.parts))
+    return not path.is_absolute() and all(map(is_plain_name, path.parts))
 
 
 class FileSession:
