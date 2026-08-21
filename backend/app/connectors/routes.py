@@ -14,7 +14,7 @@ from app.adapters.protocol import (
     SupportsCatalog,
     SupportsFetch,
 )
-from app.adapters.registry import AdapterType, UnknownAdapterType
+from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
 from app.connectors import crud, service
 from app.connectors.models import (
@@ -26,6 +26,7 @@ from app.connectors.models import (
 )
 from app.core.db import SessionDep
 from app.core.schemas import Message, get_datetime_utc
+from app.users import storage
 from app.users.deps import CurrentUser
 from app.users.models import User
 
@@ -76,6 +77,11 @@ async def _get_or_404(
     return connector
 
 
+def _context_for(owner_id: uuid.UUID) -> AdapterContext:
+    """What the driver may reach, decided here rather than by the request."""
+    return AdapterContext(home_dir=storage.home_dir(owner_id))
+
+
 async def _adapter_for(
     session: AsyncSession, connector_id: uuid.UUID, current_user: User
 ) -> DataAdapter:
@@ -83,7 +89,9 @@ async def _adapter_for(
     connector = await _get_or_404(session, connector_id, current_user)
     adapter_type = _resolve_type(connector.adapter_type)
     options = service.merge_options(connector.config, connector.secrets)
-    return service.build_adapter(adapter_type, options)
+    return service.build_adapter(
+        adapter_type, options, _context_for(connector.owner_id)
+    )
 
 
 @router.post("/", response_model=ConnectorPublic)
@@ -190,7 +198,9 @@ async def check_draft(
         options = service.fill_missing_secrets(adapter_type, options, connector.secrets)
 
     try:
-        adapter = service.build_adapter(adapter_type, options)
+        adapter = service.build_adapter(
+            adapter_type, options, _context_for(current_user.id)
+        )
     except ValidationError as exc:
         raise HTTPException(
             status_code=422,

@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 from app.adapters.protocol import DataAdapter
-from app.adapters.registry import AdapterType, secret_field_names
+from app.adapters.registry import AdapterContext, AdapterType, secret_field_names
 from app.core import crypto
 
 
@@ -49,6 +49,8 @@ def fill_missing_secrets(
     return filled
 
 
-def build_adapter(adapter_type: AdapterType, options: dict[str, Any]) -> DataAdapter:
+def build_adapter(
+    adapter_type: AdapterType, options: dict[str, Any], context: AdapterContext
+) -> DataAdapter:
     model = adapter_type.options_schema.model_validate(options)
-    return adapter_type.factory(model)
+    return adapter_type.factory(model, context)

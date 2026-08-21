@@ -5,7 +5,7 @@ from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.options import PostgresOptions
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import ConnectionCheckResult
-from app.adapters.registry import register
+from app.adapters.registry import AdapterContext, register
 
 
 class PostgresAdapter:
@@ -31,5 +31,5 @@ class PostgresAdapter:
 
 
 @register(name="postgres", title="PostgreSQL", options_schema=PostgresOptions)
-def _build(options: PostgresOptions) -> PostgresAdapter:
+def _build(options: PostgresOptions, _context: AdapterContext) -> PostgresAdapter:
     return PostgresAdapter(options)

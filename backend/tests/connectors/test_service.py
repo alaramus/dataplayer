@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -77,7 +78,9 @@ def test_fill_missing_secrets_prefers_supplied_value() -> None:
 
 
 def test_build_adapter_returns_driver_instance() -> None:
-    adapter = service.build_adapter(_postgres_type(), OPTIONS)
+    context = registry.AdapterContext(home_dir=Path("/data/users/someone"))
+
+    adapter = service.build_adapter(_postgres_type(), OPTIONS, context)
 
     assert isinstance(adapter, PostgresAdapter)
 

@@ -145,7 +145,9 @@ async def test_adapter_without_catalog_support_returns_501(
         url: str
 
     class PingAdapter:
-        def __init__(self, options: PingOptions) -> None:
+        def __init__(
+            self, options: PingOptions, _context: registry.AdapterContext
+        ) -> None:
             self.options = options
 
         async def check_connection(self) -> ConnectionCheckResult:

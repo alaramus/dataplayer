@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, SecretStr
@@ -14,14 +15,26 @@ class UnknownAdapterType(Exception):
 
 
 @dataclass(frozen=True)
+class AdapterContext:
+    """What the server knows about the caller and the client must not name.
+
+    Handed to every driver at construction. PostgreSQL ignores it; a file
+    source cannot exist without it, and letting the root travel in the options
+    would put it into the connector form and into stored configuration.
+    """
+
+    home_dir: Path
+
+
+Factory = Callable[[Any, AdapterContext], DataAdapter]
+
+
+@dataclass(frozen=True)
 class AdapterType:
     name: str
     title: str
     options_schema: type[BaseModel]
-    factory: Callable[[Any], DataAdapter]
-
-
-Factory = Callable[[Any], DataAdapter]
+    factory: Factory
 
 _registry: dict[str, AdapterType] = {}
 
