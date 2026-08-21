@@ -218,6 +218,32 @@ export type ConnectorsPublic = {
 }
 
 /**
+ * DirectoryNode
+ */
+export type DirectoryNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children: boolean
+  /**
+   * Kind
+   */
+  kind?: "directory"
+  /**
+   * Modified At
+   */
+  modified_at?: string | null
+}
+
+/**
  * FetchColumn
  */
 export type FetchColumn = {
@@ -278,6 +304,48 @@ export type FetchResult = {
    * Has More
    */
   has_more: boolean
+  /**
+   * Sortable
+   */
+  sortable?: boolean
+  /**
+   * Filterable
+   */
+  filterable?: boolean
+}
+
+/**
+ * FileNode
+ */
+export type FileNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Kind
+   */
+  kind?: "file"
+  /**
+   * Size Bytes
+   */
+  size_bytes: number
+  /**
+   * Modified At
+   */
+  modified_at?: string | null
+  /**
+   * Content Kind
+   */
+  content_kind: "table" | "text" | "opaque"
 }
 
 /**
@@ -1385,6 +1453,12 @@ export type connectorsReadCatalogResponses = {
     | ({
         kind: "column"
       } & ColumnNode)
+    | ({
+        kind: "directory"
+      } & DirectoryNode)
+    | ({
+        kind: "file"
+      } & FileNode)
   >
 }
 

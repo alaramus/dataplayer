@@ -31,9 +31,15 @@ const selected = computed(() =>
   selectedId.value ? (nodesById.value.get(selectedId.value) ?? null) : null
 )
 
-// Only relations carry rows; selecting a schema or a column shows nothing.
-const selectedRelation = computed(() =>
-  selected.value && (selected.value.kind === "table" || selected.value.kind === "view")
+// What carries rows is decided by the mapper, not here: a table, a view and a
+// readable file all show a grid; a schema, a column and a directory show
+// nothing.
+const selectedRelation = computed(() => (selected.value?.readable ? selected.value : null))
+
+// A picture or an archive deserves a word rather than a blank panel that
+// looks like nothing was selected.
+const selectedOpaque = computed(() =>
+  selected.value && selected.value.kind === "file" && !selected.value.readable
     ? selected.value
     : null
 )
@@ -159,7 +165,15 @@ async function onLazyLoad({
         </div>
       </q-card-section>
 
-      <q-separator v-if="selectedRelation" />
+      <q-separator v-if="selectedRelation || selectedOpaque" />
+
+      <q-card-section
+        v-if="selectedOpaque"
+        class="text-grey"
+        data-testid="opaque-file"
+      >
+        {{ selectedOpaque.label }} cannot be read as rows.
+      </q-card-section>
 
       <q-card-section
         v-if="selectedRelation && connector"

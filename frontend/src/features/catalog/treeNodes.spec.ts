@@ -151,3 +151,122 @@ describe("node kind passthrough", () => {
     expect(table.rowEstimate).toBe(12)
   })
 })
+
+describe("file sources", () => {
+  it("labels a directory and lets it be expanded", () => {
+    const [tree] = toTreeNodes([
+      { kind: "directory", id: "reports", name: "reports", has_children: true },
+    ])
+
+    expect(tree.label).toBe("reports")
+    expect(tree.lazy).toBe(true)
+    expect(tree.readable).toBe(false)
+  })
+
+  it("shows the size of a file as the caption", () => {
+    const [tree] = toTreeNodes([
+      {
+        kind: "file",
+        id: "reports/q3.csv",
+        name: "q3.csv",
+        has_children: false,
+        size_bytes: 2048,
+        content_kind: "table",
+      },
+    ])
+
+    expect(tree.caption).toContain("2")
+    expect(tree.caption).toMatch(/KB/i)
+  })
+
+  it("marks a readable file as readable and an opaque one as not", () => {
+    const [table, text, opaque] = toTreeNodes([
+      {
+        kind: "file",
+        id: "a.csv",
+        name: "a.csv",
+        has_children: false,
+        size_bytes: 1,
+        content_kind: "table",
+      },
+      {
+        kind: "file",
+        id: "b.txt",
+        name: "b.txt",
+        has_children: false,
+        size_bytes: 1,
+        content_kind: "text",
+      },
+      {
+        kind: "file",
+        id: "c.png",
+        name: "c.png",
+        has_children: false,
+        size_bytes: 1,
+        content_kind: "opaque",
+      },
+    ])
+
+    expect(table.readable).toBe(true)
+    expect(text.readable).toBe(true)
+    expect(opaque.readable).toBe(false)
+  })
+
+  it("has no row estimate for a file: counting rows means reading it", () => {
+    const [tree] = toTreeNodes([
+      {
+        kind: "file",
+        id: "a.csv",
+        name: "a.csv",
+        has_children: false,
+        size_bytes: 1,
+        content_kind: "table",
+      },
+    ])
+
+    expect(tree.rowEstimate).toBeNull()
+  })
+
+  it("tells the three kinds of file apart by icon", () => {
+    const icons = toTreeNodes([
+      {
+        kind: "file",
+        id: "a.csv",
+        name: "a.csv",
+        has_children: false,
+        size_bytes: 1,
+        content_kind: "table",
+      },
+      {
+        kind: "file",
+        id: "b.txt",
+        name: "b.txt",
+        has_children: false,
+        size_bytes: 1,
+        content_kind: "text",
+      },
+      {
+        kind: "file",
+        id: "c.png",
+        name: "c.png",
+        has_children: false,
+        size_bytes: 1,
+        content_kind: "opaque",
+      },
+    ]).map((node) => node.icon)
+
+    expect(new Set(icons).size).toBe(3)
+  })
+
+  it("marks a table and a view as readable", () => {
+    const [table, view, schema] = toTreeNodes([
+      { kind: "table", id: "t", name: "t", has_children: true },
+      { kind: "view", id: "v", name: "v", has_children: true },
+      { kind: "schema", id: "s", name: "s", has_children: true },
+    ])
+
+    expect(table.readable).toBe(true)
+    expect(view.readable).toBe(true)
+    expect(schema.readable).toBe(false)
+  })
+})

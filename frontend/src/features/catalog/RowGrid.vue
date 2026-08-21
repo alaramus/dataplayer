@@ -22,6 +22,9 @@ const columns = ref<GridColumn[]>([])
 const rows = ref<Record<string, unknown>[]>([])
 const page = ref(0)
 const hasMore = ref(false)
+// What the source said it can do in its last answer. A file has no index to
+// order by, so the header must stop inviting a click the server will refuse.
+const sortable = ref(true)
 const sort = ref<Sort[]>([])
 const error = ref("")
 
@@ -52,6 +55,7 @@ async function load() {
     columns.value = toGridColumns(result)
     rows.value = toGridRows(result)
     hasMore.value = result.has_more
+    sortable.value = result.sortable !== false
   } catch (cause) {
     error.value = messageOf(cause)
     columns.value = []
@@ -61,6 +65,7 @@ async function load() {
 }
 
 function sortBy(column: string) {
+  if (!sortable.value) return
   const current = sort.value[0]
   sort.value =
     current && current.column === column && !current.descending
@@ -113,7 +118,7 @@ watch(
       <template #header-cell="cellProps">
         <q-th
           :props="cellProps"
-          class="cursor-pointer"
+          :class="{ 'cursor-pointer': sortable }"
           @click="sortBy(cellProps.col.name)"
         >
           {{ cellProps.col.label }}
