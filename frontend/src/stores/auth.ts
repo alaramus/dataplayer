@@ -1,7 +1,7 @@
 import { defineStore } from "pinia"
 import { computed, ref } from "vue"
 
-const TOKEN_KEY = "access_token"
+export const TOKEN_KEY = "access_token"
 
 /**
  * Client-side authentication state.
@@ -23,5 +23,16 @@ export const useAuthStore = defineStore("auth", () => {
     localStorage.removeItem(TOKEN_KEY)
   }
 
-  return { token, isLoggedIn, setToken, clear }
+  /**
+   * Take over whatever storage now says.
+   *
+   * The token is read once when the store is created, so another tab signing
+   * out leaves this one holding a token that is gone from storage — and one
+   * the server would still accept, so no request would ever reveal it.
+   */
+  function syncFromStorage() {
+    token.value = localStorage.getItem(TOKEN_KEY)
+  }
+
+  return { token, isLoggedIn, setToken, clear, syncFromStorage }
 })

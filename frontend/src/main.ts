@@ -9,6 +9,7 @@ import "quasar/src/css/index.sass"
 import App from "@/App.vue"
 import { router } from "@/router"
 import { configureApiClient, createQueryClient } from "@/shared/api/configure"
+import { watchSessionAcrossTabs } from "@/shared/auth/session"
 
 const app = createApp(App)
 
@@ -17,8 +18,11 @@ const app = createApp(App)
 app.use(createPinia())
 configureApiClient()
 
+const queryClient = createQueryClient()
+watchSessionAcrossTabs(queryClient)
+
 app
   .use(Quasar, { plugins: { Notify, Dialog } })
   .use(router)
-  .use(VueQueryPlugin, { queryClient: createQueryClient() })
+  .use(VueQueryPlugin, { queryClient })
   .mount("#app")
