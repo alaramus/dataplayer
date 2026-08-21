@@ -467,6 +467,11 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   connection, the session connects once more to find out why, so that a wrong
   password is not reported as an unreachable host. The successful path pays
   nothing; a broken one may wait up to twice the connection timeout.
+- **A pool outlives the connector it belonged to.** Editing the options or
+  deleting the connector leaves the old pool holding open connections until it
+  ages out — up to `POOL_MAX_IDLE_SECONDS`. That is the price of having no
+  invalidation step to forget; nothing can be read through it, because
+  reaching it needs a key nobody composes any more.
 - **Pools are per process and per connector.** Four workers may hold four times
   `POOL_MAX_SIZE` connections to the same database, and nothing coordinates
   them. There is also no limit on how many requests one user may have in
