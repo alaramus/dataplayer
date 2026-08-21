@@ -5,6 +5,72 @@ export type ClientOptions = {
 }
 
 /**
+ * ActionInfo
+ *
+ * One action, as much as a client needs to offer and perform it.
+ */
+export type ActionInfo = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Destructive
+   */
+  destructive: boolean
+  /**
+   * Takes File
+   */
+  takes_file: boolean
+  /**
+   * Params Schema
+   */
+  params_schema: {
+    [key: string]: unknown
+  }
+}
+
+/**
+ * ActionRequest
+ */
+export type ActionRequest = {
+  /**
+   * Node Id
+   */
+  node_id?: string | null
+  /**
+   * Params
+   */
+  params?: {
+    [key: string]: unknown
+  }
+}
+
+/**
+ * ActionResult
+ *
+ * What happened, and what the client should re-read because of it.
+ *
+ * Which branch of the catalog changed is known to whoever performed the
+ * action; deriving it on the client from the name of the action would put
+ * the same rule in two places.
+ */
+export type ActionResult = {
+  /**
+   * Message
+   */
+  message: string
+  /**
+   * Reload Node Id
+   */
+  reload_node_id?: string | null
+}
+
+/**
  * AdapterTypeInfo
  */
 export type AdapterTypeInfo = {
@@ -22,6 +88,24 @@ export type AdapterTypeInfo = {
   options_schema: {
     [key: string]: unknown
   }
+}
+
+/**
+ * Body_connectors-run_action_with_file
+ */
+export type Body_connectors_run_action_with_file = {
+  /**
+   * File
+   */
+  file: Blob | File
+  /**
+   * Node Id
+   */
+  node_id?: string
+  /**
+   * Params
+   */
+  params?: string
 }
 
 /**
@@ -1464,6 +1548,116 @@ export type connectorsReadCatalogResponses = {
 
 export type connectorsReadCatalogResponse =
   connectorsReadCatalogResponses[keyof connectorsReadCatalogResponses]
+
+export type connectorsReadActionsData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: {
+    /**
+     * Node Id
+     */
+    node_id?: string | null
+  }
+  url: "/api/v1/connectors/{connector_id}/actions"
+}
+
+export type connectorsReadActionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsReadActionsError =
+  connectorsReadActionsErrors[keyof connectorsReadActionsErrors]
+
+export type connectorsReadActionsResponses = {
+  /**
+   * Response Connectors-Read Actions
+   *
+   * Successful Response
+   */
+  200: Array<ActionInfo>
+}
+
+export type connectorsReadActionsResponse =
+  connectorsReadActionsResponses[keyof connectorsReadActionsResponses]
+
+export type connectorsRunActionData = {
+  body: ActionRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+    /**
+     * Action Name
+     */
+    action_name: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/actions/{action_name}"
+}
+
+export type connectorsRunActionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsRunActionError = connectorsRunActionErrors[keyof connectorsRunActionErrors]
+
+export type connectorsRunActionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActionResult
+}
+
+export type connectorsRunActionResponse =
+  connectorsRunActionResponses[keyof connectorsRunActionResponses]
+
+export type connectorsRunActionWithFileData = {
+  body: Body_connectors_run_action_with_file
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+    /**
+     * Action Name
+     */
+    action_name: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/actions/{action_name}/file"
+}
+
+export type connectorsRunActionWithFileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsRunActionWithFileError =
+  connectorsRunActionWithFileErrors[keyof connectorsRunActionWithFileErrors]
+
+export type connectorsRunActionWithFileResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActionResult
+}
+
+export type connectorsRunActionWithFileResponse =
+  connectorsRunActionWithFileResponses[keyof connectorsRunActionWithFileResponses]
 
 export type adaptersReadAdapterTypesData = {
   body?: never

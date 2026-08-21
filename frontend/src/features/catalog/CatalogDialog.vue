@@ -3,6 +3,7 @@ import { AxiosError } from "axios"
 import { computed, ref, watch } from "vue"
 
 import type { ConnectorPublic } from "@/client"
+import ActionBar from "@/features/catalog/ActionBar.vue"
 import RowGrid from "@/features/catalog/RowGrid.vue"
 import { useCatalogLoader } from "@/features/catalog/api"
 import { toTreeNodes } from "@/features/catalog/treeNodes"
@@ -79,6 +80,40 @@ watch(
   }
 )
 
+// The node an action is aimed at: the selected one, or the root of the
+// connector when nothing is selected.
+const targetLabel = computed(() => selected.value?.label ?? "Whole connection")
+
+/**
+ * Re-read one branch after something changed it.
+ *
+ * Invalidating the query is not enough on its own: QTree keeps the children on
+ * the node object, so they have to be put back as well.
+ */
+async function reload(nodeId: string | null) {
+  if (!props.connector) return
+  const node = nodeId === null ? null : (nodesById.value.get(nodeId) ?? null)
+  const previous = node ? (node.children ?? []) : roots.value
+
+  const wasHere = previous.some((child) => child.id === selectedId.value)
+  const children = toTreeNodes(await loadChildren(props.connector.id, nodeId))
+  remember(children)
+
+  if (node) {
+    node.children = children
+    node.lazy = false
+    if (!expanded.value.includes(node.id)) expanded.value = [...expanded.value, node.id]
+  } else {
+    roots.value = children
+  }
+
+  // A selection that was removed by the action must not linger: it would name
+  // a node that is no longer there.
+  if (wasHere && !children.some((child) => child.id === selectedId.value)) {
+    selectedId.value = null
+  }
+}
+
 async function onLazyLoad({
   node,
   done,
@@ -121,6 +156,14 @@ async function onLazyLoad({
         >
           {{ error }}
         </q-banner>
+
+        <ActionBar
+          v-if="connector && !loading"
+          :connector-id="connector.id"
+          :node-id="selectedId"
+          :node-label="targetLabel"
+          @done="reload"
+        />
 
         <div
           v-if="loading"

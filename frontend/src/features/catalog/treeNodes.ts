@@ -18,6 +18,12 @@ export interface TreeNode {
    */
   readable: boolean
   rowEstimate?: number | null
+  /**
+   * Filled in by QTree when a branch is loaded, and replaced when an action
+   * changes what is in it. Invalidating the query alone would not show it:
+   * the tree reads its children from here.
+   */
+  children?: TreeNode[]
 }
 
 const ICONS: Record<CatalogNode["kind"], string> = {

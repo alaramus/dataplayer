@@ -5,11 +5,11 @@ import { computed, ref, watch } from "vue"
 
 import type { ConnectionCheckResult, ConnectorPublic } from "@/client"
 import ConnectionCheck from "@/features/connectors/ConnectionCheck.vue"
-import SchemaFields from "@/features/connectors/SchemaForm/SchemaFields.vue"
-import { jsonSchemaToZod, schemaToFields } from "@/features/connectors/SchemaForm/jsonSchema"
-import type { JsonSchema } from "@/features/connectors/SchemaForm/jsonSchema"
-import { useSchemaForm } from "@/features/connectors/SchemaForm/useSchemaForm"
-import type { ServerError } from "@/features/connectors/SchemaForm/useSchemaForm"
+import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
+import { jsonSchemaToZod, schemaToFields } from "@/shared/SchemaForm/jsonSchema"
+import type { JsonSchema } from "@/shared/SchemaForm/jsonSchema"
+import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
+import type { ServerError } from "@/shared/SchemaForm/useSchemaForm"
 import {
   useAdapterTypes,
   useCheckDraft,

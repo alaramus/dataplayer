@@ -1,7 +1,9 @@
-import { useMutation, useQueryClient } from "@tanstack/vue-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
+import { computed } from "vue"
+import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
-import type { FetchRequest } from "@/client"
+import type { ActionResult, FetchRequest } from "@/client"
 import type { CatalogNode } from "./treeNodes"
 
 export const catalogKey = (connectorId: string, nodeId: string | null) =>
@@ -51,5 +53,85 @@ export function useFetchRows() {
           body: payload.request,
         })
       ).data,
+  })
+}
+
+export const actionsKey = (connectorId: string, nodeId: string | null) =>
+  ["actions", connectorId, nodeId] as const
+
+/**
+ * What the selected node can be asked to do.
+ *
+ * Asked per node rather than per source type: whether a node may be renamed
+ * depends on its state as well as its kind, and the server is the one that
+ * knows. A source with no actions at all answers 501, which is a settled
+ * answer rather than a failure to retry.
+ */
+export function useNodeActions(
+  connectorId: Ref<string | null>,
+  nodeId: Ref<string | null>
+) {
+  return useQuery({
+    queryKey: computed(() => actionsKey(connectorId.value ?? "", nodeId.value)),
+    queryFn: async () =>
+      (
+        await ConnectorsService.readActions({
+          path: { connector_id: connectorId.value as string },
+          query: nodeId.value === null ? {} : { node_id: nodeId.value },
+        })
+      ).data,
+    enabled: computed(() => connectorId.value !== null),
+    retry: false,
+    staleTime: 60_000,
+  })
+}
+
+export interface ActionInput {
+  connectorId: string
+  name: string
+  nodeId: string | null
+  params: Record<string, unknown>
+  file?: File | null
+}
+
+/**
+ * Performing an action.
+ *
+ * Two transports, one mutation: which one is used follows from whether a file
+ * was chosen, and the action itself declared that in the listing.
+ */
+export function useRunAction() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: ActionInput): Promise<ActionResult> => {
+      const path = { connector_id: input.connectorId, action_name: input.name }
+      if (input.file) {
+        return (
+          await ConnectorsService.runActionWithFile({
+            path,
+            body: {
+              file: input.file,
+              node_id: input.nodeId ?? "",
+              params: JSON.stringify(input.params),
+            },
+          })
+        ).data
+      }
+      return (
+        await ConnectorsService.runAction({
+          path,
+          body: { node_id: input.nodeId, params: input.params },
+        })
+      ).data
+    },
+    onSuccess: async (result, input) => {
+      // The server says which branch changed; the client does not derive it
+      // from the name of the action.
+      await queryClient.invalidateQueries({
+        queryKey: catalogKey(input.connectorId, result.reload_node_id ?? null),
+      })
+      await queryClient.invalidateQueries({ queryKey: ["actions", input.connectorId] })
+    },
   })
 }

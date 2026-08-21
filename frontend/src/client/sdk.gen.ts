@@ -2,6 +2,7 @@
 
 import {
   type Client,
+  formDataBodySerializer,
   type Options as Options2,
   type TDataShape,
   urlSearchParamsBodySerializer,
@@ -25,6 +26,9 @@ import type {
   connectorsFetchRowsData,
   connectorsFetchRowsErrors,
   connectorsFetchRowsResponses,
+  connectorsReadActionsData,
+  connectorsReadActionsErrors,
+  connectorsReadActionsResponses,
   connectorsReadCatalogData,
   connectorsReadCatalogErrors,
   connectorsReadCatalogResponses,
@@ -34,6 +38,12 @@ import type {
   connectorsReadConnectorsData,
   connectorsReadConnectorsErrors,
   connectorsReadConnectorsResponses,
+  connectorsRunActionData,
+  connectorsRunActionErrors,
+  connectorsRunActionResponses,
+  connectorsRunActionWithFileData,
+  connectorsRunActionWithFileErrors,
+  connectorsRunActionWithFileResponses,
   connectorsUpdateConnectorData,
   connectorsUpdateConnectorErrors,
   connectorsUpdateConnectorResponses,
@@ -659,6 +669,84 @@ export class ConnectorsService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/catalog",
       ...options,
+    })
+  }
+
+  /**
+   * Read Actions
+   *
+   * List the actions this node admits, with the schema of their parameters.
+   *
+   * Asked per node rather than per source type: whether a node may be renamed
+   * depends on its state as well as its kind — the root of a connector is an
+   * ordinary directory that may not be removed.
+   */
+  public static readActions<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadActionsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      connectorsReadActionsResponses,
+      connectorsReadActionsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/actions",
+      ...options,
+    })
+  }
+
+  /**
+   * Run Action
+   *
+   * Perform an action that needs nothing but its parameters.
+   */
+  public static runAction<ThrowOnError extends boolean = true>(
+    options: Options<connectorsRunActionData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsRunActionResponses,
+      connectorsRunActionErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/actions/{action_name}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Run Action With File
+   *
+   * Perform an action that carries a file.
+   *
+   * A second route rather than a second body type on the first: HTTP has two
+   * shapes of request body, and each refuses an action of the other transport.
+   * Parameters travel as a JSON field of the form, so the action validates them
+   * by the same model either way.
+   */
+  public static runActionWithFile<ThrowOnError extends boolean = true>(
+    options: Options<connectorsRunActionWithFileData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsRunActionWithFileResponses,
+      connectorsRunActionWithFileErrors,
+      ThrowOnError
+    >({
+      ...formDataBodySerializer,
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/actions/{action_name}/file",
+      ...options,
+      headers: {
+        "Content-Type": null,
+        ...options.headers,
+      },
     })
   }
 }
