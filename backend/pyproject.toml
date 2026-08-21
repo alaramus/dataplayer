@@ -20,6 +20,7 @@ dependencies = [
     "pyjwt<3.0.0,>=2.13.0",
     "pwdlib[argon2,bcrypt]>=0.3.0",
     "cryptography>=44.0.0,<47.0.0",
+    "psycopg-pool>=3.3.1",
 ]
 
 [dependency-groups]
@@ -90,3 +91,8 @@ entrypoint = "app.main:app"
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
+# Tests share one loop as well, not just fixtures. A connection pool belongs to
+# the loop that created it, and the application has exactly one loop per
+# process; a loop per test would make a pool built in one test unusable in the
+# next, which is a property of the test harness rather than of the code.
+asyncio_default_test_loop_scope = "session"

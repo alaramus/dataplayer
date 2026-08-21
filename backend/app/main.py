@@ -1,3 +1,5 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import sentry_sdk
@@ -5,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
 
+from app.adapters.resources import ResourceStore
 from app.api.main import api_router
 from app.core.config import settings
 
@@ -18,10 +21,30 @@ def custom_generate_unique_id(route: APIRoute) -> str:
 if settings.SENTRY_DSN and settings.FASTAPI_ENV != "development":
     sentry_sdk.init(dsn=str(settings.SENTRY_DSN), enable_tracing=True)
 
+@asynccontextmanager
+async def lifespan(application: FastAPI) -> AsyncIterator[None]:
+    """What outlives a request is created here and closed here.
+
+    An adapter is built per request, so a connection pool cannot belong to
+    one. It belongs to the application, and this is the only place that knows
+    it exists — the container names no driver, and no driver reaches for a
+    module global.
+    """
+    application.state.resources = ResourceStore(
+        max_entries=settings.POOL_MAX_POOLS,
+        max_idle_seconds=settings.POOL_MAX_IDLE_SECONDS,
+    )
+    try:
+        yield
+    finally:
+        await application.state.resources.aclose()
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     generate_unique_id_function=custom_generate_unique_id,
+    lifespan=lifespan,
 )
 
 app.add_middleware(

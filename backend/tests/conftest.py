@@ -64,10 +64,15 @@ async def db(_user_storage_root: Path) -> AsyncGenerator[AsyncSession]:
 
 @pytest.fixture(scope="session")
 async def client() -> AsyncGenerator[AsyncClient]:
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as c:
-        yield c
+    # The lifespan is entered explicitly: ASGITransport does not run it, and
+    # without it the application has no resource store, so every request would
+    # quietly fall back to opening its own connection — the very thing the
+    # pooling tests are there to catch.
+    async with app.router.lifespan_context(app):
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as c:
+            yield c
 
 
 @pytest.fixture(scope="session")

@@ -29,6 +29,9 @@ forbidden_modules =
     app.system
     app.api
 
+# psycopg_pool is named separately from psycopg: it is a different
+# distribution, so a rule that only said "psycopg" would let the pool leak into
+# the rest of the application unnoticed.
 [importlinter:contract:driver-sdk-is-contained]
 name = the psycopg driver is imported only by the postgres adapter
 type = forbidden
@@ -43,5 +46,9 @@ source_modules =
     app.adapters.catalog
     app.adapters.fetch
     app.adapters.routes
+    app.adapters.actions
+    app.adapters.resources
+    app.adapters.file
 forbidden_modules =
     psycopg
+    psycopg_pool

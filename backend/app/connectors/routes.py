@@ -28,6 +28,7 @@ from app.adapters.protocol import (
 )
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
+from app.adapters.resources import Pooling, ResourcesDep, ResourceStore
 from app.connectors import crud, service
 from app.connectors.models import (
     Connector,
@@ -89,20 +90,37 @@ async def _get_or_404(
     return connector
 
 
-def _context_for(owner_id: uuid.UUID) -> AdapterContext:
+def _context_for(
+    owner_id: uuid.UUID,
+    *,
+    pooling: Pooling | None = None,
+) -> AdapterContext:
     """What the driver may reach, decided here rather than by the request."""
-    return AdapterContext(home_dir=storage.home_dir(owner_id))
+    return AdapterContext(home_dir=storage.home_dir(owner_id), pooling=pooling)
 
 
 async def _adapter_for(
-    session: AsyncSession, connector_id: uuid.UUID, current_user: User
+    session: AsyncSession,
+    connector_id: uuid.UUID,
+    current_user: User,
+    resources: ResourceStore | None = None,
 ) -> DataAdapter:
-    """Resolve a stored connector into a live adapter."""
+    """Resolve a stored connector into a live adapter.
+
+    A stored connector has an identity, so whatever it keeps between requests
+    can be found again. Without a store — a check, which is meant to exercise
+    the credentials — the driver connects on its own.
+    """
     connector = await _get_or_404(session, connector_id, current_user)
     adapter_type = _resolve_type(connector.adapter_type)
     options = service.merge_options(connector.config, connector.secrets)
+    pooling = (
+        Pooling(store=resources, connector_id=connector.id)
+        if resources is not None
+        else None
+    )
     return service.build_adapter(
-        adapter_type, options, _context_for(connector.owner_id)
+        adapter_type, options, _context_for(connector.owner_id, pooling=pooling)
     )
 
 
@@ -243,13 +261,14 @@ async def check_connector(
 async def fetch_rows(
     session: SessionDep,
     current_user: CurrentUser,
+    resources: ResourcesDep,
     connector_id: uuid.UUID,
     request: FetchRequest,
 ) -> Any:
     """
     Read a page of rows from a relation named by request.node_id.
     """
-    adapter = await _adapter_for(session, connector_id, current_user)
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
     if not isinstance(adapter, SupportsFetch):
         raise HTTPException(
             status_code=501,
@@ -278,6 +297,7 @@ async def fetch_rows(
 async def read_catalog(
     session: SessionDep,
     current_user: CurrentUser,
+    resources: ResourcesDep,
     connector_id: uuid.UUID,
     node_id: str | None = None,
 ) -> Any:
@@ -286,7 +306,7 @@ async def read_catalog(
 
     node_id is opaque: only the adapter that produced it knows how to read it.
     """
-    adapter = await _adapter_for(session, connector_id, current_user)
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
     if not isinstance(adapter, SupportsCatalog):
         # Browsing is an optional capability: a queue or a plain HTTP source
         # has no catalog to walk.
@@ -433,6 +453,7 @@ async def _perform(run: Callable[[], Awaitable[ActionResult]]) -> ActionResult:
 async def read_actions(
     session: SessionDep,
     current_user: CurrentUser,
+    resources: ResourcesDep,
     connector_id: uuid.UUID,
     node_id: str | None = None,
 ) -> Any:
@@ -443,7 +464,9 @@ async def read_actions(
     depends on its state as well as its kind — the root of a connector is an
     ordinary directory that may not be removed.
     """
-    adapter = _acting_or_501(await _adapter_for(session, connector_id, current_user))
+    adapter = _acting_or_501(
+        await _adapter_for(session, connector_id, current_user, resources)
+    )
     return [_describe(action) for action in await _available_or_422(adapter, node_id)]
 
 
@@ -451,6 +474,7 @@ async def read_actions(
 async def run_action(
     session: SessionDep,
     current_user: CurrentUser,
+    resources: ResourcesDep,
     connector_id: uuid.UUID,
     action_name: str,
     body: ActionRequest,
@@ -458,7 +482,9 @@ async def run_action(
     """
     Perform an action that needs nothing but its parameters.
     """
-    adapter = _acting_or_501(await _adapter_for(session, connector_id, current_user))
+    adapter = _acting_or_501(
+        await _adapter_for(session, connector_id, current_user, resources)
+    )
     action = await _action_for_node(adapter, action_name, body.node_id)
     if not isinstance(action, TakesParams):
         raise HTTPException(
@@ -472,6 +498,7 @@ async def run_action(
 async def run_action_with_file(
     session: SessionDep,
     current_user: CurrentUser,
+    resources: ResourcesDep,
     connector_id: uuid.UUID,
     action_name: str,
     file: Annotated[UploadFile, File()],
@@ -486,7 +513,9 @@ async def run_action_with_file(
     Parameters travel as a JSON field of the form, so the action validates them
     by the same model either way.
     """
-    adapter = _acting_or_501(await _adapter_for(session, connector_id, current_user))
+    adapter = _acting_or_501(
+        await _adapter_for(session, connector_id, current_user, resources)
+    )
     target = node_id or None
     action = await _action_for_node(adapter, action_name, target)
     if not isinstance(action, TakesFile):

@@ -1,14 +1,22 @@
 import asyncio
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 import psycopg
 from psycopg.rows import dict_row
+from psycopg_pool import PoolTimeout
 
 from app.adapters.postgres.options import PostgresOptions
+from app.adapters.postgres.pool import pool_for
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
+from app.adapters.resources import Pooling
 
 CHECK_TIMEOUT_SECONDS = 5.0
+
+# How this application introduces itself to the server it connects to.
+APPLICATION_NAME = "dataplayer"
 
 # Order matters: `role "x" does not exist` matches both sets, and it is a
 # credentials problem rather than a configuration one.
@@ -51,8 +59,12 @@ class PostgresSession:
     extensions had already been moved out of it.
     """
 
-    def __init__(self, options: PostgresOptions) -> None:
+    def __init__(self, options: PostgresOptions, pooling: Pooling | None = None) -> None:
         self._options = options
+        # Absent for a draft being checked, and for a session a test builds by
+        # hand: then every query connects on its own, as everything did before
+        # sub-project 4b.
+        self._pooling = pooling
 
     def conninfo(self) -> str:
         options = self._options
@@ -67,6 +79,9 @@ class PostgresSession:
             # connection would keep hanging inside the driver, so the limit is
             # set on both sides.
             connect_timeout=int(CHECK_TIMEOUT_SECONDS),
+            # Since connections now outlive a request, someone looking at
+            # pg_stat_activity should be able to tell whose they are.
+            application_name=APPLICATION_NAME,
         )
 
     async def check(self) -> ConnectionCheckResult:
@@ -88,6 +103,22 @@ class PostgresSession:
             ok=True, message="Connection successful", latency_ms=latency_ms
         )
 
+    @asynccontextmanager
+    async def _connection(self) -> AsyncIterator[psycopg.AsyncConnection[Any]]:
+        """A connection to work on: from the pool when there is one."""
+        if self._pooling is None:
+            connection = await asyncio.wait_for(
+                psycopg.AsyncConnection.connect(self.conninfo()),
+                CHECK_TIMEOUT_SECONDS,
+            )
+            async with connection:
+                yield connection
+            return
+
+        pool = await pool_for(self._pooling, self.conninfo())
+        async with pool.connection() as connection:
+            yield connection
+
     async def query(
         self, sql: str, params: tuple[object, ...] | None = None
     ) -> list[dict[str, Any]]:
@@ -99,15 +130,36 @@ class PostgresSession:
         as a placeholder.
         """
         try:
+            async with self._connection() as connection:
+                cursor = await connection.cursor(row_factory=dict_row).execute(
+                    sql, params
+                )
+                return await cursor.fetchall()
+        except PoolTimeout:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except Exception as exc:
+            error_kind, message = classify(exc, fallback_message="Query failed")
+            raise AdapterError(error_kind, message) from None
+
+    async def _why_no_connection(self) -> tuple[ErrorKind, str]:
+        """Ask the server once, on the failure path, what is actually wrong.
+
+        A pool that cannot connect reports only that it had nothing to hand
+        out; the reason the attempt failed stays inside it. Reporting a typo in
+        a password as an unreachable host would send the user to check the
+        wrong thing, so one direct attempt buys the real answer. Nothing on the
+        successful path pays for this.
+        """
+        try:
             connection = await asyncio.wait_for(
                 psycopg.AsyncConnection.connect(self.conninfo()),
                 CHECK_TIMEOUT_SECONDS,
             )
             async with connection:
-                cursor = await connection.cursor(row_factory=dict_row).execute(
-                    sql, params
-                )
-                return await cursor.fetchall()
+                pass
         except Exception as exc:
-            error_kind, message = classify(exc, fallback_message="Query failed")
-            raise AdapterError(error_kind, message) from None
+            return classify(exc, fallback_message="Query failed")
+        # The server is reachable and the credentials work, so the wait was for
+        # a free connection rather than for the server.
+        return "unknown", "All connections to this source are busy"

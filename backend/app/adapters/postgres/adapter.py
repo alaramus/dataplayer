@@ -6,6 +6,7 @@ from app.adapters.postgres.options import PostgresOptions
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
+from app.adapters.resources import Pooling
 
 
 class PostgresAdapter:
@@ -15,8 +16,8 @@ class PostgresAdapter:
     another hundred lines in this class.
     """
 
-    def __init__(self, options: PostgresOptions) -> None:
-        self._session = PostgresSession(options)
+    def __init__(self, options: PostgresOptions, pooling: Pooling | None = None) -> None:
+        self._session = PostgresSession(options, pooling)
         self._catalog = PostgresCatalog(self._session)
         self._fetch = PostgresFetch(self._session)
 
@@ -31,5 +32,5 @@ class PostgresAdapter:
 
 
 @register(name="postgres", title="PostgreSQL", options_schema=PostgresOptions)
-def _build(options: PostgresOptions, _context: AdapterContext) -> PostgresAdapter:
-    return PostgresAdapter(options)
+def _build(options: PostgresOptions, context: AdapterContext) -> PostgresAdapter:
+    return PostgresAdapter(options, context.pooling)

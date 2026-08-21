@@ -56,6 +56,13 @@ class Settings(BaseSettings):
     # declares is a claim, not a fact.
     MAX_UPLOAD_BYTES: int = 100 * 1024 * 1024
 
+    # Connections a source keeps between requests. Per process: every worker
+    # has its own pools, so a server with four workers may hold four times
+    # POOL_MAX_SIZE connections to one database.
+    POOL_MAX_SIZE: int = 5
+    POOL_MAX_POOLS: int = 20
+    POOL_MAX_IDLE_SECONDS: float = 300.0
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def _use_psycopg_driver(cls, value: str | PostgresDsn) -> str:

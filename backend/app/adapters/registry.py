@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, SecretStr
 
 from app.adapters.protocol import DataAdapter
+from app.adapters.resources import Pooling
 
 
 class UnknownAdapterType(Exception):
@@ -16,14 +17,18 @@ class UnknownAdapterType(Exception):
 
 @dataclass(frozen=True)
 class AdapterContext:
-    """What the server knows about the caller and the client must not name.
+    """What the server supplies and the client must not name.
 
-    Handed to every driver at construction. PostgreSQL ignores it; a file
-    source cannot exist without it, and letting the root travel in the options
-    would put it into the connector form and into stored configuration.
+    Handed to every driver at construction, and every driver takes only what
+    it needs: a file source cannot exist without a root, and letting that root
+    travel in the options would put it into the connector form and into stored
+    configuration; PostgreSQL ignores the root and uses the pooling instead.
     """
 
     home_dir: Path
+    # Absent for a draft: it has no identity to key long-lived things by, and
+    # a check is meant to exercise credentials rather than reuse a connection.
+    pooling: Pooling | None = None
 
 
 Factory = Callable[[Any, AdapterContext], DataAdapter]
