@@ -94,9 +94,18 @@ separately from general typing.
   kind and a safe message; driver messages carry the connection string,
   password included.
 
+- **A path from a client is judged by one containment rule.** A file source
+  resolves every path against its root and refuses anything that lands outside,
+  symlinks followed; a path segment must be a plain name by the rules of both
+  platforms, so a Windows drive reference is refused rather than silently
+  dropped by a join. The root itself is never named by a client.
+
 **Enforced:** ruff `S608` flags SQL built by string formatting; tests attempt
 injection through a column name and through an operator and expect rejection;
 a regression test asserts the password does not appear in an error message.
+Path containment is covered by tests for `..`, for an absolute path, for a
+drive-bearing segment and for a symlink out of the root, in the adapter and
+through the API.
 
 ## Asynchrony
 

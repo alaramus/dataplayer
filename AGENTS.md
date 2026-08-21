@@ -40,10 +40,14 @@ strings, test names, commit messages and documentation. The only exception is
 
 ## Current state
 
-A user can sign in, register a PostgreSQL connection through a form built from
-the adapter's own schema, check the connection before and after saving, manage
-the list of connections, browse a connection's catalog from schemas down to
-columns, and read rows of a table with server-side paging and sorting. Credentials are encrypted at rest and never leave the server.
+A user can sign in, register a connection through a form built from the
+adapter's own schema, check the connection before and after saving, manage the
+list of connections, browse a connection's catalog and read rows in a paged
+grid. Two source types exist: PostgreSQL — schemas down to columns, with
+server-side paging and sorting — and the personal file storage every user
+owns, where the catalog is directories and files and a delimited file becomes
+columns while anything else readable becomes numbered lines. Credentials are
+encrypted at rest and never leave the server.
 
 ### What exists
 
@@ -53,9 +57,11 @@ backend/app/
 │   ├── protocol.py      DataAdapter, SupportsCatalog, SupportsFetch, AdapterError
 │   ├── catalog.py       CatalogNode: a union discriminated by kind
 │   ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
-│   ├── registry.py      type registry, secret_field_names
+│   ├── registry.py      type registry, AdapterContext, secret_field_names
 │   ├── routes.py        GET /adapter-types
-│   └── postgres/        session.py, catalog.py, fetch.py, adapter.py (facade)
+│   ├── postgres/        session.py, catalog.py, fetch.py, adapter.py (facade)
+│   └── file/            session.py (root and containment), catalog.py,
+│                        fetch.py, readers.py, adapter.py (facade)
 ├── connectors/          user connections
 │   ├── models.py        Connector + API schemas
 │   ├── crud.py          database access only
@@ -66,11 +72,13 @@ backend/app/
 │   ├── crud.py          database access only
 │   ├── deps.py          CurrentUser, get_current_active_superuser
 │   ├── tokens.py        password reset tokens
+│   ├── storage.py       personal directory of a user
 │   ├── bootstrap.py     init_db: creates the first superuser
 │   ├── routes.py        /users
 │   ├── auth_routes.py   /login, /password-recovery, /reset-password
 │   └── private_routes.py
 ├── system/              operational routes: /utils health check, test email
+├── seed_storage.py     dev tool: sample files into a personal directory
 ├── core/                depends on nothing else in the app
 │   ├── crypto.py        AES-GCM for connector secrets
 │   ├── db.py            async engine, session, SessionDep, loop_factory
@@ -168,6 +176,27 @@ Paging reports `has_more` by reading one row past the page rather than running
 application smuggled an exact count in as a pseudo-column named
 `____total_count____` that clients had to know to discard.
 
+**D2d. What a source cannot do is stated in the answer.** `FetchResult`
+carries `sortable` and `filterable`. A file has no index to order by and the
+columns of a CSV have no types, so the file source answers `false` and refuses
+a request that asks for either. The grid learns from the first answer and stops
+offering what the source cannot do — without the frontend ever branching on the
+type of the source. The same reasoning covers the missing row estimate: a file
+has none, so the grid pages by `has_more` alone.
+
+Sorting a page in memory and calling it sorted was rejected: the order would
+depend on where the reader stopped. Reading the whole file up to a size ceiling
+was rejected too — the answer would then depend on the size of the file.
+
+**D8. Every user owns one directory, and a file connector cannot leave it.**
+`USER_STORAGE_ROOT / <user_id>` is created when the user is created. The root
+of a file connector is composed by the server from the owner of the connector;
+the only option is a folder inside it. A client can name a path but never a
+root, and every path is checked against the root before anything is opened —
+one rule, in one place. The old application checked containment in one branch
+of one method, and the check let through any ancestor of the root, so the tree
+could be walked up to `/`.
+
 **D3. The backend is fully asynchronous.** `AsyncSession`, `async def`
 throughout, psycopg 3 in async mode. The application is network-I/O bound by
 definition.
@@ -263,6 +292,15 @@ because the tests share the development database. Restore it with:
 docker compose exec backend python -m app.initial_data
 ```
 
+**A personal directory starts empty, and nothing can write to it yet.** There is
+no upload in this sub-project, so the file source has nothing to show until the
+samples are seeded. The end-to-end scenario `frontend/tests/files.spec.ts`
+depends on it:
+
+```bash
+docker compose exec backend python -m app.seed_storage
+```
+
 **Alembic only sees models whose module is imported by `app/alembic/env.py`.**
 A model in a new module has to be added to the import list there, or
 autogenerate will quietly propose dropping its table.
@@ -316,10 +354,15 @@ From the design document, in order:
 
 | # | Sub-project |
 | --- | --- |
+| 5 | Action registry: what each source type can do — writing to personal storage is its first real set of actions |
 | 4б | Connection pool: every request currently opens its own connection |
-| 5 | Action registry: what each source type can do |
-| 6 | A second, non-SQL adapter (MongoDB or S3) to prove the abstraction does not leak |
 | 7+ | Realtime, AI, data grid |
+
+Sub-project 6 is done: the file source is the second type, and it was
+deliberately not SQL. What it exposed is recorded above as D2d, and one thing
+it settled belongs to 4б: a file source has no connection at all, so pooling
+cannot be a mechanism above all adapters — it belongs to the session module of
+a driver that has one.
 
 Each sub-project gets its own design document, its own plan and its own
 iteration.
@@ -336,8 +379,15 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
 - **Every request opens its own connection.** Catalog pages, grid pages and
   checks each connect and disconnect. Sub-project 4б.
 - **Catalog children are not paginated.** Fine for PostgreSQL, where the count
-  is bounded; an object store will need a cursor, and adding one changes the
-  contract for every adapter.
+  is bounded. A directory is not bounded, so the file source refuses to list one
+  holding more than 2000 entries rather than truncating it silently. Adding a
+  cursor changes the contract for every adapter.
+- **A deep offset over a file costs a full scan.** Paging a file means skipping
+  `offset` lines every time, because a file has no index. Bounded by the limit
+  ceiling, and acceptable while pages are read in order.
+- **Nothing writes to personal storage.** Uploading, creating a folder, renaming
+  and deleting are the first real actions for the registry of sub-project 5.
+  Until then a directory can only be filled from the server.
 - **`.env` is in the git history.** It was tracked before being removed, so the
   values it held at the time are still recoverable from earlier commits. They
   are development placeholders, but a real deployment must not reuse them.
