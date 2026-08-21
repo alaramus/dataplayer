@@ -1,5 +1,6 @@
 import asyncio
 from collections.abc import AsyncGenerator, Callable, Generator
+from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -39,7 +40,20 @@ def _asyncio_loop_factory() -> Callable[[], asyncio.AbstractEventLoop]:
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def db() -> AsyncGenerator[AsyncSession]:
+def _user_storage_root(tmp_path_factory: pytest.TempPathFactory) -> Generator[Path]:
+    """Keep the personal directories of test users out of the real root.
+
+    Creating a user creates their directory, so without this every run would
+    leave stray directories in USER_STORAGE_ROOT.
+    """
+    root = tmp_path_factory.mktemp("user-storage")
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(settings, "USER_STORAGE_ROOT", root)
+        yield root
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def db(_user_storage_root: Path) -> AsyncGenerator[AsyncSession]:
     async with async_session_maker() as session:
         await init_db(session)
         yield session

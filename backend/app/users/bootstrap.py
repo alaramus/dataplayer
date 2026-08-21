@@ -1,8 +1,9 @@
+from anyio import to_thread
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
-from app.users import crud
+from app.users import crud, storage
 from app.users.models import User, UserCreate
 
 
@@ -23,3 +24,6 @@ async def init_db(session: AsyncSession) -> None:
             is_superuser=True,
         )
         user = await crud.create_user(session=session, user_create=user_in)
+    # Unconditional: the superuser predates personal storage, so an existing
+    # one has no directory yet.
+    await to_thread.run_sync(storage.create_home, user.id)

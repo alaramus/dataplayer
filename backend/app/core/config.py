@@ -1,5 +1,6 @@
 import base64
 import warnings
+from pathlib import Path
 from typing import Literal, Self
 
 from pydantic import (
@@ -46,6 +47,10 @@ class Settings(BaseSettings):
     PROJECT_NAME: str
     SENTRY_DSN: HttpUrl | None = None
     DATABASE_URL: PostgresDsn
+
+    # Holds one directory per user. A file connector can only ever reach
+    # inside the directory of its owner.
+    USER_STORAGE_ROOT: Path = Path("/data/users")
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

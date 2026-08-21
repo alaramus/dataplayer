@@ -1,9 +1,11 @@
 from typing import Any
 
+from anyio import to_thread
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import get_password_hash, verify_password
+from app.users import storage
 from app.users.models import User, UserCreate, UserUpdate
 
 
@@ -14,6 +16,9 @@ async def create_user(*, session: AsyncSession, user_create: UserCreate) -> User
     session.add(db_obj)
     await session.commit()
     await session.refresh(db_obj)
+    # A user without their directory would have a file connector that cannot
+    # reach anything. Creating files is blocking work, hence the thread.
+    await to_thread.run_sync(storage.create_home, db_obj.id)
     return db_obj
 
 

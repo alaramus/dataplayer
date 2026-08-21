@@ -1,9 +1,12 @@
+from pathlib import Path
+
+import pytest
 from fastapi.encoders import jsonable_encoder
 from pwdlib.hashers.bcrypt import BcryptHasher
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.security import verify_password
-from app.users import crud
+from app.users import crud, storage
 from app.users.models import User, UserCreate, UserUpdate
 from tests.utils.utils import random_email, random_lower_string
 
@@ -128,3 +131,14 @@ async def test_authenticate_user_with_bcrypt_upgrades_to_argon2(db: AsyncSession
     assert verified
     # Should not need another update since it's already argon2
     assert updated_hash is None
+
+
+async def test_create_user_creates_their_home_directory(
+    db: AsyncSession, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(storage.settings, "USER_STORAGE_ROOT", tmp_path)
+    user_in = UserCreate(email=random_email(), password=random_lower_string())
+
+    user = await crud.create_user(session=db, user_create=user_in)
+
+    assert storage.home_dir(user.id).is_dir()
