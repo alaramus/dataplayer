@@ -117,6 +117,9 @@ through the API.
   definition.
 - **A blocking call inside an async handler stalls the whole event loop.**
   Blocking work goes through `run_in_threadpool`.
+- **Anything holding connections belongs to one event loop.** A pool is bound
+  to the loop that created it, so it is created by the application lifespan and
+  never by a module at import time.
 
 **Enforced:** ruff `ASYNC` rules. This was found the hard way once — `send_email`
 talks to SMTP synchronously and was safe only while handlers ran in a

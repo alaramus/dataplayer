@@ -50,7 +50,7 @@ columns while anything else readable becomes numbered lines. In that storage a
 user can also create a folder, rename, delete and upload a file: the buttons
 offered for a node come from the server, so the screen has no knowledge of any
 particular source. Credentials are encrypted at rest and never leave the
-server.
+server, and a source that has connections keeps them between requests.
 
 ### What exists
 
@@ -61,9 +61,11 @@ backend/app/
 │   ├── catalog.py       CatalogNode: a union discriminated by kind; NodeKind
 │   ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
 │   ├── actions.py       Action, ActionSet, SupportsActions, transports, refusals
+│   ├── resources.py     ResourceStore: what outlives a request; Pooling
 │   ├── registry.py      type registry, AdapterContext, secret_field_names
 │   ├── routes.py        GET /adapter-types
-│   ├── postgres/        session.py, catalog.py, fetch.py, adapter.py (facade)
+│   ├── postgres/        session.py, pool.py, catalog.py, fetch.py,
+│   │                    adapter.py (facade)
 │   └── file/            session.py (root and containment), catalog.py,
 │                        fetch.py, readers.py, actions.py, adapter.py (facade)
 ├── connectors/          user connections
@@ -90,7 +92,8 @@ backend/app/
 │   ├── email.py         sending and templating
 │   ├── config.py        settings
 │   └── security.py      passwords and JWT
-└── api/main.py          router aggregation only
+├── api/main.py          router aggregation only
+└── main.py              application assembly; the lifespan owns the store
 
 frontend/src/
 ├── client/              generated from OpenAPI, never edited by hand
@@ -235,6 +238,30 @@ Three consequences worth stating separately:
   branch that changed, rather than the client inferring it from the name of the
   action.
 
+**D10. What outlives a request belongs to the application; what it holds
+belongs to a driver.** An adapter is built per request and cannot own a
+connection pool. `adapters/resources.py` is a container of long-lived objects
+that names no driver, created and closed by the lifespan and handed to drivers
+through `AdapterContext.pooling`; `postgres/pool.py` holds every psycopg
+decision about pooling. Full reasoning in
+`docs/superpowers/specs/2026-08-21-connection-pool-design.md`.
+
+A module-level dictionary inside the driver was rejected: the application would
+reach for it rather than be handed it, and closing it at shutdown would make
+application assembly name one driver by hand. Pooling above all adapters was
+rejected earlier, by sub-project 6 — a file source has no connection at all.
+
+- **The key is the connector plus a hash of its options**, so editing a
+  password produces a different pool by itself. An invalidation step elsewhere
+  is a step that can be forgotten, and a forgotten one means working with
+  credentials the user has already changed.
+- **A pool loses the reason it could not connect.** It reports only that it had
+  nothing to hand out, which would turn a wrong password into "could not reach
+  the server". On the failure path, and only there, the session connects once
+  directly to learn the real reason.
+- **Checks are never pooled.** A check is meant to exercise the credentials,
+  and a draft has no identity to key anything by.
+
 **D3. The backend is fully asynchronous.** `AsyncSession`, `async def`
 throughout, psycopg 3 in async mode. The application is network-I/O bound by
 definition.
@@ -314,6 +341,14 @@ Each of these cost time to find. They are not obvious from the code.
 mode is incompatible with `ProactorEventLoop`, which Python selects by default
 on Windows. `app/core/db.py` exposes `loop_factory` and it is wired into the
 standalone scripts and into pytest, but uvicorn has no such hook. Use Docker.
+
+**A connection pool belongs to the event loop that created it.** The
+application has one loop per process, so this never shows in production; pytest
+used to give every test its own loop, and a pool built in one test then failed
+inside the driver in the next. Tests share one loop
+(`asyncio_default_test_loop_scope = "session"` in `pyproject.toml`), matching
+how the application runs. A background script that opens its own loop must not
+be handed a store built in another.
 
 **`vue-tsc` has two ways of checking nothing at all, and both look clean.**
 Under the bun runtime it fails to register the `.vue` extension, so every
@@ -395,7 +430,6 @@ From the design document, in order:
 
 | # | Sub-project |
 | --- | --- |
-| 4б | Connection pool: every request currently opens its own connection |
 | 7+ | Realtime, AI, data grid |
 
 Sub-project 6 is done: the file source is the second type, and it was
@@ -403,6 +437,11 @@ deliberately not SQL. What it exposed is recorded above as D2d, and one thing
 it settled belongs to 4б: a file source has no connection at all, so pooling
 cannot be a mechanism above all adapters — it belongs to the session module of
 a driver that has one.
+
+Sub-project 4b is done: PostgreSQL keeps its connections between requests
+(D10). The place it created — a container the application owns and drivers ask
+for things by key — is where anything else that must outlive a request belongs:
+a websocket registry, a running agent, a cached model.
 
 Sub-project 5 is done: actions are a registry (D9), and personal storage got
 the first four. Two things it settled are worth carrying forward. A capability
@@ -424,8 +463,17 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   supplied by the client, which lets an authenticated user map the internal
   network by response timing and error kind. Mitigated by a hard timeout and
   uniform error messages; a host allow-list is the remaining fix.
-- **Every request opens its own connection.** Catalog pages, grid pages and
-  checks each connect and disconnect. Sub-project 4б.
+- **A broken connector can wait two timeouts.** When the pool cannot hand out a
+  connection, the session connects once more to find out why, so that a wrong
+  password is not reported as an unreachable host. The successful path pays
+  nothing; a broken one may wait up to twice the connection timeout.
+- **Pools are per process and per connector.** Four workers may hold four times
+  `POOL_MAX_SIZE` connections to the same database, and nothing coordinates
+  them. There is also no limit on how many requests one user may have in
+  flight.
+- **Nothing reports on the pools.** How many exist, how busy they are and what
+  was evicted is invisible; `application_name` in `pg_stat_activity` is the
+  only way to see them from outside.
 - **Catalog children are not paginated.** Fine for PostgreSQL, where the count
   is bounded. A directory is not bounded, so the file source refuses to list one
   holding more than 2000 entries rather than truncating it silently. Adding a
