@@ -287,6 +287,10 @@ async def read_catalog(
         )
     try:
         return await adapter.list_children(node_id)
+    except ValueError as exc:
+        # 422: the node id names something this source may not or cannot
+        # reach. That is the request being wrong, not the source failing.
+        raise HTTPException(status_code=422, detail={"message": str(exc)}) from exc
     except AdapterError as exc:
         # 502: the request was valid, the upstream source failed. An empty list
         # would hide the difference between an empty node and a broken query.

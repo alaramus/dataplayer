@@ -54,8 +54,10 @@ class SupportsCatalog(Protocol):
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         """Children of a catalog node; the root when node_id is None.
 
-        Raises AdapterError. An empty list means an empty node, never a
-        failure — the old application returned an empty result for both.
+        Raises AdapterError for source failures and ValueError for a node_id
+        the source cannot or may not reach — a path leaving the root of a file
+        source, for instance. An empty list means an empty node, never a
+        failure: the old application returned an empty result for both.
         """
         ...
 
