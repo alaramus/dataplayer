@@ -24,6 +24,7 @@ export { default as AppSpinner } from "./AppSpinner.vue"
 export { default as AppTable } from "./AppTable.vue"
 export { default as AppToggle } from "./AppToggle.vue"
 export { default as AppTooltip } from "./AppTooltip.vue"
+export { default as AppTree } from "./AppTree.vue"
 
 export { useConfirm } from "./useConfirm"
 export type { ConfirmRequest } from "./useConfirm"

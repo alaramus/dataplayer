@@ -21,6 +21,7 @@ import {
   AppTable,
   AppToggle,
   AppTooltip,
+  AppTree,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -59,6 +60,12 @@ const plain = ref("prefer")
 const flag = ref(true)
 const file = ref<File | null>(null)
 const loading = ref(false)
+
+const treeNodes = [
+  { id: "public", label: "public", children: [{ id: "orders", label: "orders" }] },
+]
+const treeExpanded = ref<string[]>(["public"])
+const treeSelected = ref<string | null>(null)
 
 function openDialog(size: PanelSize) {
   dialogSize.value = size
@@ -289,6 +296,24 @@ function flash() {
           A footer is AppActions; inside a dialog it is the actions slot.
         </span>
       </AppActions>
+    </AppCard>
+
+    <AppCard
+      title="Tree"
+      subtitle="the catalog tree, wrapped so screens ask the kit for it"
+    >
+      <AppSection>
+        <AppTree
+          v-model:expanded="treeExpanded"
+          v-model:selected="treeSelected"
+          :nodes="treeNodes"
+          node-key="id"
+        >
+          <template #default-header="{ node }">
+            <span>{{ node.label }}</span>
+          </template>
+        </AppTree>
+      </AppSection>
     </AppCard>
 
     <AppDialog

@@ -6,6 +6,8 @@ import { useAuthStore } from "@/stores/auth"
 
 import AppButton from "./AppButton.vue"
 
+defineProps<{ fill?: boolean }>()
+
 const auth = useAuthStore()
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -34,9 +36,16 @@ async function logout() {
       </q-toolbar>
     </q-header>
     <q-page-container>
-      <q-page padding>
+      <q-page :padding="!fill">
         <slot />
       </q-page>
     </q-page-container>
   </q-layout>
 </template>
+
+<style scoped>
+:deep(.q-page) {
+  display: flex;
+  flex-direction: column;
+}
+</style>
