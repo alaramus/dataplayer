@@ -2255,6 +2255,35 @@ test("opens a panel as a tab and closes it again", async ({ page }) => {
   await page.getByTestId("workspace-close-demo-1").click()
   await expect(tab).toHaveCount(0)
 })
+
+test("drags a tab to an edge and gets a new section", async ({ page }) => {
+  await page.goto("/workspace-demo")
+  await page.getByTestId("reset-workspace").click()
+
+  const sections = page.locator('[data-testid^="workspace-leaf-"]')
+  await expect(sections).toHaveCount(2)
+
+  // Gamma shares a section with beta, so the section it leaves survives and
+  // the one it lands in is new. Nothing here is provable in jsdom: the drop
+  // zone is decided from a measured rectangle under a captured pointer.
+  const tab = page.getByTestId("workspace-tab-gamma")
+  const main = page.getByTestId("workspace-leaf-main")
+  const from = await tab.boundingBox()
+  const onto = await main.boundingBox()
+  if (from === null || onto === null) throw new Error("the tab or the section has no box")
+
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  // Into the left quarter, and well clear of the top and bottom quarters, so
+  // the zone is the left edge and not a corner.
+  await page.mouse.move(onto.x + onto.width * 0.1, onto.y + onto.height * 0.6, { steps: 12 })
+  await page.mouse.up()
+
+  await expect(sections).toHaveCount(3)
+  await expect(main.getByTestId("workspace-tab-gamma")).toHaveCount(0)
+  await expect(page.getByTestId("workspace-tab-gamma")).toBeVisible()
+  await expect(main.getByTestId("workspace-tab-beta")).toBeVisible()
+})
 ```
 
 - [ ] **Step 2: Run it to verify it fails**
@@ -2374,7 +2403,7 @@ function openOne() {
 - [ ] **Step 5: Run the scenario to verify it passes**
 
 Run: `bunx playwright test tests/workspace.spec.ts`
-Expected: PASS, 2 сценария. Если браузер не установлен: `bunx playwright install chromium`.
+Expected: PASS, 3 сценария. Если браузер не установлен: `bunx playwright install chromium`.
 
 - [ ] **Step 6: Full frontend check**
 
@@ -2399,7 +2428,6 @@ git commit -m "feat(workspace): show the engine at /workspace-demo and prove it 
 - Create: `frontend/src/shared/ui/AppTree.vue`
 - Modify: `frontend/src/shared/ui/index.ts`
 - Modify: `frontend/src/features/dev/UiKitPage.vue`
-- Modify: `frontend/eslint.config.js`
 
 **Interfaces:**
 - Produces:
@@ -2531,26 +2559,20 @@ const treeSelected = ref<string | null>(null)
 
 Импорты `AppCard`, `AppSection`, `AppTree` добавить в существующий блок импорта из `@/shared/ui`.
 
-- [ ] **Step 5: Forbid q-tree outside the kit**
+- [ ] **Step 5: Run the checks**
 
-В `frontend/eslint.config.js`, в массив пар правила `vue/no-restricted-html-elements`, после `["q-spinner", "AppSpinner"]`:
+Run: `bun run test:unit && bun run lint && bun run type-check`
+Expected: всё чисто.
 
-```js
-          ["q-tree", "AppTree"],
-```
+Запрет `q-tree` вне кита сознательно не здесь, а в задаче 12: пока
+`CatalogDialog.vue` жив, правило оставило бы линтер красным на три коммита, а
+красная проверка, которую договорились временно терпеть, — это проверка,
+которую перестают читать.
 
-- [ ] **Step 6: Run the checks**
-
-Run: `bun run test:unit -- src/features/dev/kit.spec.ts && bun run type-check`
-Expected: чисто.
-
-Run: `bun run lint`
-Expected: ровно одна ошибка — `q-tree` в `src/features/catalog/CatalogDialog.vue`, файле, который удаляется задачей 12. Это и есть доказательство, что новое правило работает: убедиться, что ошибка названа, и идти дальше. Если ошибок больше одной или нет ни одной — правило написано не так, разбираться здесь, а не позже.
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add frontend/src/shared/ui/AppTree.vue frontend/src/shared/ui/index.ts frontend/src/shared/ui/AppLayout.vue frontend/src/features/dev/UiKitPage.vue frontend/eslint.config.js
+git add frontend/src/shared/ui/AppTree.vue frontend/src/shared/ui/index.ts frontend/src/shared/ui/AppLayout.vue frontend/src/features/dev/UiKitPage.vue
 git commit -m "feat(ui): the catalog tree joins the kit, and the layout can fill the screen"
 ```
 
@@ -3283,13 +3305,26 @@ export function componentOf(panel: Panel): Component {
 }
 ```
 
-- [ ] **Step 6: Delete the dialog**
+- [ ] **Step 6: Delete the dialog and close the rule behind it**
 
 ```bash
 git rm frontend/src/features/catalog/CatalogDialog.vue
 ```
 
 `ConnectorsPage.vue` пока на него ссылается и сломается — чинится задачей 13, которая идёт в том же коммите.
+
+Последний потребитель `q-tree` вне кита исчез вместе с диалогом, поэтому
+теперь — и только теперь — в `frontend/eslint.config.js`, в массив пар правила
+`vue/no-restricted-html-elements`, после `["q-spinner", "AppSpinner"]`:
+
+```js
+          ["q-tree", "AppTree"],
+```
+
+Правило проверяется тем же способом, что и остальные: временно вернуть
+`<q-tree>` в `CatalogPanel.vue` вместо `<AppTree>`, убедиться, что `bun run
+lint` называет именно эту строку, и вернуть как было. Правило, которое ни разу
+не было красным, ничего не доказывает.
 
 - [ ] **Step 7: Run the registry test**
 
