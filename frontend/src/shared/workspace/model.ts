@@ -43,11 +43,16 @@ export const MIN_PANEL_PX = 120
 export const COLLAPSED_PX = 28
 
 export function makeLeaf(id: NodeId, panels: PanelId[], activePanel?: PanelId): LeafNode {
+  const [first] = panels
+  // A section with nothing in it is not a thing that can be built: it is a
+  // state normalize() repairs. Refusing it here is what lets activePanel be a
+  // PanelId rather than a PanelId that might be missing.
+  if (first === undefined) throw new Error(`A leaf needs at least one panel: ${id}`)
   return {
     kind: "leaf",
     id,
     panels,
-    activePanel: activePanel ?? panels[0],
+    activePanel: activePanel ?? first,
     collapsed: false,
   }
 }

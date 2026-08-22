@@ -41,4 +41,8 @@ describe("a leaf", () => {
   it("makes its first panel the active one by default", () => {
     expect(makeLeaf("a", ["p1", "p2"]).activePanel).toBe("p1")
   })
+
+  it("refuses to be built with no panels at all", () => {
+    expect(() => makeLeaf("a", [])).toThrow()
+  })
 })
