@@ -15,6 +15,12 @@ const devRoutes: RouteRecordRaw[] = import.meta.env.DEV
         // running backend.
         component: () => import("@/features/dev/UiKitPage.vue"),
       },
+      {
+        path: "/workspace-demo",
+        name: "workspace-demo",
+        // The engine renders no server data, so it opens without a backend.
+        component: () => import("@/features/dev/WorkspaceDemoPage.vue"),
+      },
     ]
   : []
 

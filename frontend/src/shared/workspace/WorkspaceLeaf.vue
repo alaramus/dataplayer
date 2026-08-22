@@ -183,8 +183,14 @@ const overlayStyle = computed((): CSSProperties => {
   overflow: auto;
 }
 .workspace-leaf__overlay {
+  /* Purely a visual drop-target hint: the leaf's own pointerup/pointermove
+     handlers do the real work, and this sits on top of the whole leaf
+     (tab strip included). Without pointer-events: none it swallows the
+     pointerup/click of whatever it happens to cover the instant a tab
+     press starts a drag - which included the close button on its own tab. */
   position: absolute;
   inset: 0;
+  pointer-events: none;
 }
 .workspace-leaf__zone {
   background: rgba(25, 118, 210, 0.18);
