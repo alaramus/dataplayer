@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { ActionInfo } from "@/client"
 import { at, first } from "@/shared/testing/collections"
-import { toCommands } from "./actions"
+import { reloadedBy, summarize, toCommands } from "./actions"
 
 const only = (actions: ActionInfo[]) => first(toCommands(actions))
 
@@ -95,5 +95,48 @@ describe("toCommands", () => {
 
     expect(command.label).toBe("Extract")
     expect(command.fields).toEqual([])
+  })
+})
+
+describe("what became of a set", () => {
+  const result = (message: string, reload: string | null) => ({
+    message,
+    reload_node_id: reload,
+  })
+
+  it("names each branch to re-read once", () => {
+    const outcome = {
+      done: [result("a gone", "reports"), result("b gone", "reports"), result("c gone", null)],
+      failures: [],
+      total: 3,
+    }
+
+    expect(reloadedBy(outcome)).toEqual(["reports", null])
+  })
+
+  it("says what the server said when one node was acted on", () => {
+    const outcome = { done: [result("notes.txt deleted", null)], failures: [], total: 1 }
+
+    expect(summarize(outcome, "Delete")).toBe("notes.txt deleted")
+  })
+
+  it("counts when there were several", () => {
+    const outcome = {
+      done: [result("a", null), result("b", null)],
+      failures: [],
+      total: 2,
+    }
+
+    expect(summarize(outcome, "Delete")).toBe("Delete: 2 of 2")
+  })
+
+  it("names what was refused, and by whom", () => {
+    const outcome = {
+      done: [result("a", null)],
+      failures: [{ nodeId: "reports", message: "not empty" }],
+      total: 2,
+    }
+
+    expect(summarize(outcome, "Delete")).toBe("Delete: 1 of 2. reports — not empty")
   })
 })

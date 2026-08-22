@@ -47,6 +47,13 @@ function onTabPointerDown(panelId: string) {
   workspace.startDrag(panelId)
 }
 
+/** What a collapsed handle says it will bring back. */
+const collapsedTitle = computed(() => {
+  const first = props.leaf.activePanel ?? props.leaf.panels[0] ?? null
+  const title = first === null ? null : workspace.lookOf(first).title
+  return props.leaf.collapsed ? `Show ${title ?? "this section"}` : "Hide"
+})
+
 const overlayStyle = computed((): CSSProperties => {
   const box: Record<DropZone, Record<string, string>> = {
     left: { left: "0", top: "0", width: "50%", height: "100%" },
@@ -68,40 +75,48 @@ const overlayStyle = computed((): CSSProperties => {
     @pointerup="onPointerUp"
   >
     <div class="workspace-leaf__strip">
-      <button
-        v-for="panelId in leaf.panels"
-        :key="panelId"
-        type="button"
-        class="workspace-leaf__tab"
-        :class="{ 'workspace-leaf__tab--active': panelId === active }"
-        :data-testid="`workspace-tab-${panelId}`"
-        @pointerdown="onTabPointerDown(panelId)"
-        @click="workspace.activate(panelId)"
+      <!-- A collapsed section is twenty-eight pixels wide, and a tab strip
+           with `overflow: hidden` would push the handle that brings it back
+           off the end of it. So a collapsed section shows the handle and
+           nothing else. See the spec, S11. -->
+      <div
+        v-if="!leaf.collapsed"
+        class="workspace-leaf__tabs"
       >
-        <q-icon
-          :name="workspace.lookOf(panelId).icon"
-          size="16px"
-        />
-        <span class="workspace-leaf__title">{{ workspace.lookOf(panelId).title }}</span>
-        <span
-          v-if="workspace.lookOf(panelId).closable !== false"
-          class="workspace-leaf__close"
-          :data-testid="`workspace-close-${panelId}`"
-          @click.stop="workspace.close(panelId)"
+        <button
+          v-for="panelId in leaf.panels"
+          :key="panelId"
+          type="button"
+          class="workspace-leaf__tab"
+          :class="{ 'workspace-leaf__tab--active': panelId === active }"
+          :data-testid="`workspace-tab-${panelId}`"
+          @pointerdown="onTabPointerDown(panelId)"
+          @click="workspace.activate(panelId)"
         >
           <q-icon
-            name="close"
-            size="14px"
+            :name="workspace.lookOf(panelId).icon"
+            size="16px"
           />
-        </span>
-      </button>
-
-      <span class="workspace-leaf__spacer" />
+          <span class="workspace-leaf__title">{{ workspace.lookOf(panelId).title }}</span>
+          <span
+            v-if="workspace.lookOf(panelId).closable !== false"
+            class="workspace-leaf__close"
+            :data-testid="`workspace-close-${panelId}`"
+            @click.stop="workspace.close(panelId)"
+          >
+            <q-icon
+              name="close"
+              size="14px"
+            />
+          </span>
+        </button>
+      </div>
 
       <button
         v-if="collapsible"
         type="button"
         class="workspace-leaf__collapse"
+        :title="collapsedTitle"
         :data-testid="`workspace-collapse-${leaf.id}`"
         @click="workspace.toggleCollapse(leaf.id)"
       >
@@ -164,6 +179,16 @@ const overlayStyle = computed((): CSSProperties => {
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
   overflow: hidden;
 }
+/* The tabs give way, the handle never does: a narrow section loses the end of
+   a tab title rather than the button that collapses it. */
+.workspace-leaf__tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
 .workspace-leaf__tab {
   display: flex;
   align-items: center;
@@ -186,19 +211,21 @@ const overlayStyle = computed((): CSSProperties => {
   text-overflow: ellipsis;
   max-width: 160px;
 }
-.workspace-leaf__spacer {
-  flex: 1;
-}
 .workspace-leaf__collapse {
   border: none;
   background: transparent;
   cursor: pointer;
   padding: 2px;
+  margin-left: auto;
+  flex: none;
 }
+/* A box of fixed height, not a scroller: what stands and what moves inside a
+   panel is the panel's own business — the engine has no notion of a panel
+   header to keep still. See the spec, S10. */
 .workspace-leaf__body {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 .workspace-leaf__overlay {
   /* Purely a visual drop-target hint: the leaf's own pointerup/pointermove

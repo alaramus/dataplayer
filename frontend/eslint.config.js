@@ -56,6 +56,7 @@ export default defineConfigWithVueTs(
           ["q-input", "AppInput"],
           ["q-select", "AppSelect"],
           ["q-toggle", "AppToggle"],
+          ["q-checkbox", "AppCheckbox"],
           ["q-file", "AppFileInput"],
           ["q-table", "AppTable"],
           ["q-badge", "AppBadge"],

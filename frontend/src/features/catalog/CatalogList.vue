@@ -1,0 +1,181 @@
+<script setup lang="ts">
+import { computed } from "vue"
+
+import type { ListNode } from "@/features/catalog/nodes"
+import { AppCheckbox, AppEmptyState, AppSpinner } from "@/shared/ui"
+
+/**
+ * One level of a catalog, as a list.
+ *
+ * The row says what it is and what it holds; the tick box says what an action
+ * will be done to. Two gestures, because a directory has to be picked without
+ * being walked into — see the spec, S5.
+ */
+const props = defineProps<{
+  items: ListNode[]
+  checked: string[]
+  loading: boolean
+  /**
+   * Whether to name the grouping a row came from. It says nothing while only
+   * one grouping is on, and in a column this narrow it costs the name of the
+   * row it stands beside.
+   */
+  showGroup?: boolean
+  /** What the current node is, so an empty level can say so. */
+  emptyText?: string
+}>()
+
+const emit = defineEmits<{
+  open: [node: ListNode]
+  /**
+   * One row, ticked or unticked. The new set is not computed here: `checked`
+   * is a prop, and a prop only catches up on the next render — two ticks
+   * inside one frame would both be computed from the same stale list and the
+   * first would be lost.
+   */
+  toggle: [id: string, on: boolean]
+  "toggle-all": [on: boolean]
+}>()
+
+const allChecked = computed(
+  () => props.items.length > 0 && props.items.every((node) => props.checked.includes(node.id))
+)
+
+const someChecked = computed(() => props.checked.length > 0 && !allChecked.value)
+
+</script>
+
+<template>
+  <div class="catalog-list">
+    <div class="catalog-list__head">
+      <AppCheckbox
+        :model-value="allChecked"
+        :indeterminate="someChecked"
+        dense
+        data-testid="catalog-check-all"
+        @update:model-value="emit('toggle-all', $event)"
+      />
+      <span class="catalog-list__count">
+        {{ items.length }} {{ items.length === 1 ? "item" : "items" }}
+      </span>
+    </div>
+
+    <AppSpinner v-if="loading" />
+
+    <AppEmptyState
+      v-else-if="items.length === 0"
+      :text="emptyText ?? 'Nothing here'"
+    />
+
+    <div
+      v-else
+      class="catalog-list__rows"
+      data-testid="catalog-list"
+    >
+      <!-- A div and not a button: the row carries a tick box of its own, and a
+           button inside a button is markup no browser agrees about. -->
+      <div
+        v-for="node in items"
+        :key="node.id"
+        role="button"
+        tabindex="0"
+        class="catalog-list__row"
+        :class="{ 'catalog-list__row--checked': checked.includes(node.id) }"
+        :data-testid="`catalog-node-${node.label}`"
+        @click="emit('open', node)"
+        @keydown.enter="emit('open', node)"
+        @keydown.space.prevent="emit('open', node)"
+      >
+        <span @click.stop>
+          <AppCheckbox
+            :model-value="checked.includes(node.id)"
+            dense
+            :data-testid="`catalog-check-${node.label}`"
+            @update:model-value="emit('toggle', node.id, $event)"
+          />
+        </span>
+
+        <q-icon
+          :name="node.icon"
+          size="18px"
+        />
+        <span class="catalog-list__name">{{ node.label }}</span>
+
+        <span
+          v-if="showGroup && node.group"
+          class="catalog-list__group"
+        >
+          {{ node.group }}
+        </span>
+        <span
+          v-if="node.caption"
+          class="catalog-list__caption"
+        >
+          {{ node.caption }}
+        </span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.catalog-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.catalog-list__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px 2px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  flex: none;
+}
+.catalog-list__count {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.54);
+}
+.catalog-list__rows {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.catalog-list__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px;
+  cursor: pointer;
+}
+.catalog-list__row:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.catalog-list__row--checked {
+  background: rgba(25, 118, 210, 0.08);
+}
+/* The name comes first when there is not enough room: it is what the row is
+   about, and the caption beside it is an aside. */
+.catalog-list__name {
+  flex: 1 1 auto;
+  min-width: 5ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.catalog-list__group,
+.catalog-list__caption {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.54);
+  white-space: nowrap;
+}
+.catalog-list__group {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+  padding: 0 4px;
+}
+</style>

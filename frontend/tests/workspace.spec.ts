@@ -4,10 +4,10 @@ import type { Page } from "@playwright/test"
 
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { nodeHeader } from "./utils/tree"
+import { openNode, pickSchema } from "./utils/catalog"
 import {
   catalogTab,
-  connectorAction,
+  deleteConnector,
   connectorRow,
   openConnector,
   rowsTabs,
@@ -136,7 +136,7 @@ test("a connection fills the middle column, and the next one replaces it", async
   await openConnector(page, first)
   await expect(page.getByTestId("navigate-empty")).toHaveCount(0)
   await expect(catalogTab(page)).toContainText(first)
-  await expect(page.getByTestId("catalog-tree")).toContainText("public")
+  await expect(page.getByTestId("catalog-list")).toContainText("connector")
 
   // One catalog at a time: the middle column is a column, not a stack of them.
   await openConnector(page, second)
@@ -152,8 +152,7 @@ test("a connection fills the middle column, and the next one replaces it", async
   await expect(page.getByTestId("navigate-empty")).toBeVisible()
 
   for (const name of [first, second]) {
-    await connectorAction(page, name, "delete")
-    await page.getByTestId("confirm-accept").click()
+    await deleteConnector(page, name)
     await expect(connectorRow(page, name)).toHaveCount(0)
   }
 })
@@ -165,22 +164,63 @@ test("tables stack as tabs in the right column and survive a reload", async ({ p
   await createPostgresConnector(page, name)
   await openConnector(page, name)
 
-  await nodeHeader(page, "pg_catalog").locator(".q-tree__arrow").click()
-  await nodeHeader(page, "pg_class").click()
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
   await expect(rowsTabs(page)).toHaveCount(1)
-  await nodeHeader(page, "pg_namespace").click()
+  await openNode(page, "pg_namespace")
   await expect(rowsTabs(page)).toHaveCount(2)
   await expect(page.getByTestId("work-empty")).toHaveCount(0)
 
   // Three columns still, so the tables went beside each other and not on top
-  // of the tree that opened them.
+  // of the list that opened them.
   await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(3)
 
   await page.reload()
   await expect(rowsTabs(page)).toHaveCount(2)
-  await expect(page.getByTestId("catalog-tree")).toBeVisible()
+  await expect(page.getByTestId("catalog-list")).toBeVisible()
 
-  await connectorAction(page, name, "delete")
-  await page.getByTestId("confirm-accept").click()
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("every column collapses and comes back, and none of them scrolls the page", async ({
+  page,
+}) => {
+  const name = `e2e-collapse-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  // A schema with a hundred and fifty relations in it: a short list would
+  // prove nothing about where the scrolling happens.
+  await pickSchema(page, "pg_catalog")
+  await expect(page.getByTestId("catalog-list")).toContainText("pg_class")
+  await openNode(page, "pg_class")
+  await expect(page.getByTestId("row-grid")).toContainText("relname")
+
+  // Nothing here is taller than the window: each column scrolls inside itself.
+  const scrolls = await page.evaluate(
+    () => document.documentElement.scrollHeight > document.documentElement.clientHeight
+  )
+  expect(scrolls).toBe(false)
+
+  const rows = page.locator(".catalog-list__rows")
+  const inner = await rows.evaluate((el) => el.scrollHeight > el.clientHeight)
+  expect(inner).toBe(true)
+
+  // The handle that brings a section back is never pushed off the end of a
+  // strip twenty-eight pixels wide.
+  for (const id of ["sources", "navigate", "work"]) {
+    const handle = page.getByTestId(`workspace-collapse-${id}`)
+    await handle.click()
+    const leaf = await page.getByTestId(`workspace-leaf-${id}`).boundingBox()
+    expect(leaf?.width ?? 0).toBeLessThan(40)
+    await expect(handle).toBeVisible()
+    await handle.click()
+    expect((await page.getByTestId(`workspace-leaf-${id}`).boundingBox())?.width ?? 0)
+      .toBeGreaterThan(50)
+  }
+
+  await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })

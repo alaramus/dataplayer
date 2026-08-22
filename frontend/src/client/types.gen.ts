@@ -71,6 +71,22 @@ export type ActionResult = {
 }
 
 /**
+ * ActionTargets
+ *
+ * The nodes a question about actions is asked of.
+ *
+ * None is the root. An empty list is refused rather than read as the root:
+ * two ways of saying the same thing is one way for a client to mean something
+ * else. The ceiling bounds the work, since applicability is decided per node.
+ */
+export type ActionTargets = {
+  /**
+   * Node Ids
+   */
+  node_ids?: Array<string> | null
+}
+
+/**
  * AdapterTypeInfo
  */
 export type AdapterTypeInfo = {
@@ -1550,19 +1566,14 @@ export type connectorsReadCatalogResponse =
   connectorsReadCatalogResponses[keyof connectorsReadCatalogResponses]
 
 export type connectorsReadActionsData = {
-  body?: never
+  body: ActionTargets
   path: {
     /**
      * Connector Id
      */
     connector_id: string
   }
-  query?: {
-    /**
-     * Node Id
-     */
-    node_id?: string | null
-  }
+  query?: never
   url: "/api/v1/connectors/{connector_id}/actions"
 }
 

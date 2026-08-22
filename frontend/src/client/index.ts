@@ -13,6 +13,7 @@ export type {
   ActionInfo,
   ActionRequest,
   ActionResult,
+  ActionTargets,
   adaptersReadAdapterTypesData,
   adaptersReadAdapterTypesResponse,
   adaptersReadAdapterTypesResponses,

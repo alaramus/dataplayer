@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue"
 
 import { useRunAction } from "@/features/catalog/api"
+import { reloadedBy, summarize } from "@/features/catalog/actions"
 import type { ActionCommand } from "@/features/catalog/actions"
 import { fieldErrorsFrom, messageOf } from "@/shared/api/errors"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
@@ -12,20 +13,23 @@ import {
   AppDialog,
   AppFileInput,
   AppSection,
+  useToast,
 } from "@/shared/ui"
 
 const props = defineProps<{
   command: ActionCommand | null
   connectorId: string
-  nodeId: string | null
+  /** Everything the filled form is applied to, one node at a time. */
+  nodeIds: (string | null)[]
   nodeLabel: string
 }>()
 
 const emit = defineEmits<{
   "update:command": [value: ActionCommand | null]
-  done: [reloadNodeId: string | null]
+  done: [reloadNodeIds: (string | null)[]]
 }>()
 
+const toast = useToast()
 const runAction = useRunAction()
 const { values, errors, reset, applyServerErrors } = useSchemaForm()
 
@@ -57,14 +61,19 @@ async function submit() {
 
   failure.value = ""
   try {
-    const result = await runAction.mutateAsync({
+    const outcome = await runAction.mutateAsync({
       connectorId: props.connectorId,
       name: command.name,
-      nodeId: props.nodeId,
+      nodeIds: props.nodeIds,
       params: { ...values.value },
       file: file.value,
     })
-    emit("done", result.reload_node_id ?? null)
+    // One line whatever the size of the set: what was done, and what was
+    // refused by whom. A refusal in the middle does not stop the rest.
+    const said = summarize(outcome, command.label)
+    if (outcome.failures.length > 0) toast.error(said)
+    else toast.success(said)
+    emit("done", reloadedBy(outcome))
     close()
   } catch (cause) {
     const fieldErrors = fieldErrorsFrom(cause)

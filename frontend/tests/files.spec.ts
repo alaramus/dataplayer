@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test"
 
+import { openNode } from "./utils/catalog"
 import { createFileConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { nodeHeader } from "./utils/tree"
-import { connectorAction, connectorRow, openConnector, rowsTabs } from "./utils/workspace"
+import { connectorRow, deleteConnector, openConnector, rowsTabs } from "./utils/workspace"
 
 // The samples come from `docker compose exec backend python -m app.seed_storage`:
 // this sub-project cannot write files, so a personal directory is empty until
@@ -15,41 +15,50 @@ test("browses a personal directory and reads files as rows", async ({ page }) =>
 
   await openConnector(page, name)
 
-  const tree = page.getByTestId("catalog-tree")
-  await expect(tree).toContainText("reports")
-  await expect(tree).toContainText("sample.csv")
-  await expect(tree).toContainText("notes.txt")
-  // The size is a caption, and QTree has no caption prop: it only appears
-  // because the header slot renders it. Asserted here because a unit test of
-  // the mapper passed once while nothing reached the screen.
-  await expect(tree).toContainText(/\d+(\.\d+)? KB/)
+  const list = page.getByTestId("catalog-list")
+  await expect(list).toContainText("reports")
+  await expect(list).toContainText("sample.csv")
+  await expect(list).toContainText("notes.txt")
+  // The size is a caption of the row. Asserted here because a unit test of the
+  // mapper passed once while nothing reached the screen.
+  await expect(list).toContainText(/\d+(\.\d+)? KB/)
 
-  await nodeHeader(page, "sample.csv").click()
+  // A directory is walked into, and the path says where we are.
+  await openNode(page, "reports")
+  await expect(page.getByTestId("catalog-path")).toContainText("reports")
+  await expect(list).toContainText("q3.csv")
+
+  await page.getByTestId("catalog-up").click()
+  await expect(list).toContainText("sample.csv")
+
+  await openNode(page, "sample.csv")
   const grid = page.getByTestId("row-grid")
   await expect(grid).toContainText("population")
   await expect(grid.locator("tbody tr")).toHaveCount(50)
   // A file has no row estimate: counting means reading it end to end, so the
   // grid pages without ever claiming a total.
-  await expect(page.getByTestId("row-grid")).toContainText("Rows 1–50")
-  await expect(page.getByTestId("row-grid")).not.toContainText("of ~")
+  await expect(grid).toContainText("Rows 1–50")
+  await expect(grid).not.toContainText("of ~")
 
   await page.getByTestId("grid-next").click()
   await expect(grid).toContainText("Rows 51–100")
 
-  // The tree is a column of its own, so nothing covered it and nothing had to
-  // be clicked to get back to it - and it is still expanded where it was.
-  await nodeHeader(page, "notes.txt").click()
+  // The list is a column of its own, so nothing covered it and nothing had to
+  // be clicked to get back to it.
+  await openNode(page, "notes.txt")
   await expect(grid).toContainText("line_no")
   await expect(grid).toContainText("line 1")
 
-  // A file nothing can read as rows opens no tab: two remain, and the grid
-  // still shows the file that was read last.
-  await nodeHeader(page, "logo.png").click()
-  await expect(page.getByTestId("opaque-file")).toContainText("cannot be read")
+  // A file nothing can read as rows opens no tab, and says so: two remain, and
+  // the grid still shows the file that was read last.
+  await openNode(page, "logo.png")
+  // Named rather than "the notification": several may still be on screen.
+  await expect(
+    page.locator(".q-notification", { hasText: "cannot be read" })
+  ).toBeVisible()
   await expect(rowsTabs(page)).toHaveCount(2)
   await expect(grid).toContainText("line_no")
 
-  await connectorAction(page, name, "delete")
-  await page.getByTestId("confirm-accept").click()
+  await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })

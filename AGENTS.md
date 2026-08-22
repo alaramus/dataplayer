@@ -43,19 +43,27 @@ strings, test names, commit messages and documentation. The only exception is
 A user can sign in, register a connection through a form built from the
 adapter's own schema, check the connection before and after saving, manage the
 list of connections, browse a connection's catalog and read rows in a paged
-grid. Two source types exist: PostgreSQL — schemas down to columns, with
-server-side paging and sorting — and the personal file storage every user
-owns, where the catalog is directories and files and a delimited file becomes
-columns while anything else readable becomes numbered lines. In that storage a
-user can also create a folder, rename, delete and upload a file: the buttons
-offered for a node come from the server, so the screen has no knowledge of any
-particular source. Credentials are encrypted at rest and never leave the
-server, and a source that has connections keeps them between requests. Every
-screen is built from one component kit, and what a screen may not reach for is
-a lint error rather than a convention. All of that now happens in one screen:
-three columns that are always there — the connections, the catalog of the one
-picked, and the rows of a node in tabs beside each other — resizable, and the
-layout a user arrives at is the one they left.
+grid. Two source types exist: PostgreSQL — schemas, relations and server-side
+paging and sorting — and the personal file storage every user owns, where the
+catalog is directories and files and a delimited file becomes columns while
+anything else readable becomes numbered lines. In that storage a user can also
+create a folder, rename, delete and upload a file, one node at a time or
+several at once: what is offered comes from the server for exactly the nodes
+that are ticked, so the screen has no knowledge of any particular source.
+Credentials are encrypted at rest and never leave the server, and a source that
+has connections keeps them between requests. Every screen is built from one
+component kit, and what a screen may not reach for is a lint error rather than
+a convention. All of that happens in one screen: three columns that are always
+there — the connections, the catalog of the one picked, and the rows of a node
+in tabs beside each other — resizable, bounded by the window so each scrolls
+inside itself, and the layout a user arrives at is the one they left.
+
+A connection is a row of three things — the icon of its type, its name, and
+what the last check said — and everything else about it lives in the one window
+that icon opens, from either of the two columns that show it. A catalog is a
+list of one level: a click opens what can be read and walks into what cannot, a
+tick box picks a node out without opening it, and one menu in the head carries
+whatever the server says can be done to what is ticked.
 
 ### What exists
 
@@ -100,6 +108,9 @@ backend/app/
 ├── api/main.py          router aggregation only
 └── main.py              application assembly; the lifespan owns the store
 
+frontend/public/
+└── icons/services/      the logo of a source type, one SVG per type
+
 frontend/src/
 ├── client/              generated from OpenAPI, never edited by hand
 ├── shared/
@@ -119,9 +130,12 @@ frontend/src/
 │                        the last connection check said
 └── features/
     ├── auth/
-    ├── catalog/         lazy tree, row grid, and the actions a node admits;
-    │                    treeNodes.ts, rows.ts and actions.ts are pure mappers;
-    │                    useCatalogTree.ts walks a catalog outside any component
+    ├── catalog/         the list of one level, the row grid, and the menu of
+    │                    what the ticked nodes admit; nodes.ts, rows.ts and
+    │                    actions.ts are pure mappers, and nodes.ts holds the
+    │                    table that says what a kind of node does;
+    │                    useCatalogLevel.ts walks a catalog outside any
+    │                    component
     ├── connectors/      the list of sources and the form that registers one
     ├── workspace/       the panels, the registry that names them and the role
     │                    that puts each in one of the three columns
@@ -142,7 +156,7 @@ POST   /api/v1/connectors/{connector_id}/check
 POST   /api/v1/connectors/check-draft
 GET    /api/v1/connectors/{connector_id}/catalog
 POST   /api/v1/connectors/{connector_id}/fetch
-GET    /api/v1/connectors/{connector_id}/actions
+POST   /api/v1/connectors/{connector_id}/actions
 POST   /api/v1/connectors/{connector_id}/actions/{action_name}
 POST   /api/v1/connectors/{connector_id}/actions/{action_name}/file
 ```
@@ -243,12 +257,22 @@ that happened to exist.
 
 Three consequences worth stating separately:
 
-- **What a node admits is asked of the server, per node.** `GET
-  /connectors/{id}/actions?node_id=…`; the same call decides what the client is
-  offered and what the server allows, so the two cannot drift. Applicability
-  depends on state as well as kind: the root of a connector is an ordinary
-  directory that may not be renamed or removed, and the driver leaves those
-  actions out of the answer.
+- **What a set of nodes admits is asked of the server, in one call.** `POST
+  /connectors/{id}/actions` with a list of node ids; the answer is what every
+  one of them admits, and the same call decides what the client is offered and
+  what the server allows, so the two cannot drift. Applicability depends on
+  state as well as kind: the root of a connector is an ordinary directory that
+  may not be renamed or removed, and the driver leaves those actions out of the
+  answer. A read expressed as a POST for the same reason `fetch` is one — the
+  input is an unbounded list of opaque identifiers, and selecting a directory
+  of five hundred files leaves no room in a query string.
+- **Whether one filled form may be applied to many is the action's own
+  business.** `Action.bulk`; `Delete` says yes, `Rename` cannot, since one name
+  for five files is not five renames. The flag never leaves the server: when
+  more than one node is asked about, the server itself leaves out what did not
+  declare it, so the client still knows only what it may do to what is ticked.
+  Full reasoning in
+  `docs/superpowers/specs/2026-08-22-catalog-list-design.md`.
 - **The transport is a protocol, not a flag.** An action that carries a file
   satisfies `TakesFile`; `takes_file` in the API answer is an `isinstance`
   check, derived the way secret fields are derived from `SecretStr`. There are
@@ -594,6 +618,16 @@ view a later source type brings — a topic browser, a monitor, a query editor �
 is a new panel kind with one of those three roles, and the screen does not
 change to take it.
 
+What the three columns hold was then rebuilt to match how they are worked in.
+The catalog is a list of one level rather than a tree, and what a click means
+follows from the kind of the node — a schema is a grouping and lives in the
+filter above the list, a directory is walked into, a table is opened. Ticking
+replaced selecting, which is what made an action over several nodes possible at
+all, and that turned the question "what can be done here" from one about a node
+into one about a set. A connection lost its row menu to the one window its icon
+opens. Full reasoning in
+`docs/superpowers/specs/2026-08-22-catalog-list-design.md`.
+
 The shared UI kit is done, ahead of 7 rather than as part of it: every screen
 now builds from `shared/ui`, and a lint rule keeps the next one from going
 around it (D11). A new screen starts by looking at `/ui-kit`.
@@ -668,6 +702,25 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   owns it and the lint rule forbids the Quasar one outside `shared/ui`, but the
   types of its nodes and of a lazy load are read off Quasar's props, so
   replacing the tree would change what a screen passes it.
+- **`AppTree` is in the kit and nothing uses it.** The catalog was its only
+  consumer and is now a list. It stays because the kit is built as an alphabet
+  rather than by the count of today's callers, and it is still demonstrated at
+  `/ui-kit` — but nothing but that page renders it.
+- **Where one was in a catalog is not remembered.** The layout survives a
+  reload; the path inside a catalog does not, so a reloaded page is back at the
+  root of the connection.
+- **A set is acted on one call at a time.** Deleting five files is five
+  requests from the browser, run in order; a refusal in the middle is collected
+  and reported rather than stopping the rest. Nothing is transactional: four of
+  five may be gone.
+- **Applicability costs a call per node.** The route asks the driver about
+  every node in the set, so ticking a thousand files means a thousand
+  filesystem checks behind one request. Bounded by a ceiling of a thousand
+  node ids and by the file source refusing to list more than 2000 entries.
+- **The name of a row loses to its captions in a narrow column.** With several
+  groupings on, the row carries the name of its grouping and its size or row
+  estimate, and the name is elided first. The columns are resizable, which is
+  the only answer today.
 - **One catalog at a time.** Opening a connection closes the catalog of the
   previous one, so the expanded tree of the one before is lost on the way
   back. The panel is still identified by its connection, so allowing two

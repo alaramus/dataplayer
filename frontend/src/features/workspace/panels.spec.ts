@@ -17,7 +17,13 @@ const KINDS: PanelKind[] = ["connectors", "catalog", "rows"]
 
 const samples: Record<PanelKind, Panel> = {
   connectors: { id: "connectors", kind: "connectors" },
-  catalog: { id: catalogPanelId("c1"), kind: "catalog", connectorId: "c1", title: "local pg" },
+  catalog: {
+    id: catalogPanelId("c1"),
+    kind: "catalog",
+    connectorId: "c1",
+    title: "local pg",
+    adapterType: "postgres",
+  },
   rows: {
     id: rowsPanelId("c1", "public.orders"),
     kind: "rows",

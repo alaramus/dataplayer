@@ -82,7 +82,10 @@ watch(
 </script>
 
 <template>
-  <div data-testid="row-grid">
+  <div
+    class="row-grid"
+    data-testid="row-grid"
+  >
     <AppBanner
       v-if="error"
       tone="error"
@@ -94,11 +97,13 @@ watch(
 
     <AppTable
       v-else
+      class="row-grid__table"
       :rows="rows"
       :columns="columns"
       :loading="fetchRows.isPending.value"
       row-key="__index"
       compact
+      sticky
       :paged="false"
       empty-text="No rows"
     >
@@ -126,7 +131,7 @@ watch(
       </template>
     </AppTable>
 
-    <div class="row items-center justify-end q-gutter-sm q-mt-sm">
+    <div class="row-grid__pager row items-center justify-end q-gutter-sm q-mt-sm">
       <div class="text-caption text-grey">
         Rows {{ page * PAGE_SIZE + 1 }}–{{ page * PAGE_SIZE + rows.length }}
         <template v-if="rowEstimate !== null && rowEstimate !== undefined">
@@ -150,3 +155,19 @@ watch(
     </div>
   </div>
 </template>
+
+<style scoped>
+.row-grid {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.row-grid__table {
+  flex: 1;
+  min-height: 0;
+}
+.row-grid__pager {
+  flex: none;
+}
+</style>

@@ -8,8 +8,17 @@ withDefaults(
     error?: string
     placeholder?: string
     disable?: boolean
+    /** A field in a toolbar rather than in a form: tighter, and no underline. */
+    compact?: boolean
   }>(),
-  { label: undefined, type: "text", error: "", placeholder: undefined, disable: false }
+  {
+    label: undefined,
+    type: "text",
+    error: "",
+    placeholder: undefined,
+    disable: false,
+    compact: false,
+  }
 )
 
 const emit = defineEmits<{ "update:modelValue": [value: string] }>()
@@ -28,6 +37,8 @@ function report(value: string | number | null) {
     :label="label"
     :type="type"
     :placeholder="placeholder"
+    :dense="compact"
+    :borderless="compact"
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"

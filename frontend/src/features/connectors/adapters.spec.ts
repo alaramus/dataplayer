@@ -7,6 +7,10 @@ describe("the icon of a source type", () => {
     expect(adapterIcon("postgres")).not.toBe(adapterIcon("file"))
   })
 
+  it("names a file under the icons served with the app", () => {
+    expect(adapterIcon("postgres")).toBe("img:/icons/services/postgresql.svg")
+  })
+
   it("falls back for a type the backend gained since this build", () => {
     expect(adapterIcon("kafka")).toBe(UNKNOWN_ADAPTER_ICON)
   })

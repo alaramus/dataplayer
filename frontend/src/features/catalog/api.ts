@@ -4,7 +4,10 @@ import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type { ActionResult, FetchRequest } from "@/client"
-import type { CatalogNode } from "./treeNodes"
+import { messageOf } from "@/shared/api/errors"
+import { reloadedBy } from "./actions"
+import type { ActionFailure, ActionOutcome } from "./actions"
+import type { CatalogNode } from "./nodes"
 
 export const catalogKey = (connectorId: string, nodeId: string | null) =>
   ["catalog", connectorId, nodeId] as const
@@ -56,28 +59,29 @@ export function useFetchRows() {
   })
 }
 
-export const actionsKey = (connectorId: string, nodeId: string | null) =>
-  ["actions", connectorId, nodeId] as const
+export const actionsKey = (connectorId: string, nodeIds: string[] | null) =>
+  ["actions", connectorId, nodeIds] as const
 
 /**
- * What the selected node can be asked to do.
+ * What every one of these nodes can be asked to do.
  *
- * Asked per node rather than per source type: whether a node may be renamed
- * depends on its state as well as its kind, and the server is the one that
- * knows. A source with no actions at all answers 501, which is a settled
- * answer rather than a failure to retry.
+ * Asked of the server rather than worked out here: whether a node may be
+ * renamed depends on its state as well as its kind, and what applies to a set
+ * is what applies to all of it — including whether an action can be applied to
+ * many at once, which only the action knows. A source with no actions at all
+ * answers 501, which is a settled answer rather than a failure to retry.
  */
 export function useNodeActions(
   connectorId: Ref<string | null>,
-  nodeId: Ref<string | null>
+  nodeIds: Ref<string[] | null>
 ) {
   return useQuery({
-    queryKey: computed(() => actionsKey(connectorId.value ?? "", nodeId.value)),
+    queryKey: computed(() => actionsKey(connectorId.value ?? "", nodeIds.value)),
     queryFn: async () =>
       (
         await ConnectorsService.readActions({
           path: { connector_id: connectorId.value as string },
-          query: nodeId.value === null ? {} : { node_id: nodeId.value },
+          body: { node_ids: nodeIds.value },
         })
       ).data,
     enabled: computed(() => connectorId.value !== null),
@@ -89,48 +93,72 @@ export function useNodeActions(
 export interface ActionInput {
   connectorId: string
   name: string
-  nodeId: string | null
+  /** The nodes to act on. One filled form, applied to each in turn. */
+  nodeIds: (string | null)[]
   params: Record<string, unknown>
   file?: File | null
 }
 
+async function performOne(
+  input: ActionInput,
+  nodeId: string | null
+): Promise<ActionResult> {
+  const path = { connector_id: input.connectorId, action_name: input.name }
+  if (input.file) {
+    return (
+      await ConnectorsService.runActionWithFile({
+        path,
+        body: {
+          file: input.file,
+          node_id: nodeId ?? "",
+          params: JSON.stringify(input.params),
+        },
+      })
+    ).data
+  }
+  return (
+    await ConnectorsService.runAction({
+      path,
+      body: { node_id: nodeId, params: input.params },
+    })
+  ).data
+}
+
 /**
- * Performing an action.
+ * Performing an action over everything that was ticked.
  *
  * Two transports, one mutation: which one is used follows from whether a file
- * was chosen, and the action itself declared that in the listing.
+ * was chosen, and the action itself declared that in the listing. A set is
+ * done one at a time and a refusal does not stop the rest — deleting four of
+ * five files and saying which one survived beats stopping at the first.
  */
 export function useRunAction() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: ActionInput): Promise<ActionResult> => {
-      const path = { connector_id: input.connectorId, action_name: input.name }
-      if (input.file) {
-        return (
-          await ConnectorsService.runActionWithFile({
-            path,
-            body: {
-              file: input.file,
-              node_id: input.nodeId ?? "",
-              params: JSON.stringify(input.params),
-            },
-          })
-        ).data
+    mutationFn: async (input: ActionInput): Promise<ActionOutcome> => {
+      const done: ActionResult[] = []
+      const failures: ActionFailure[] = []
+      for (const nodeId of input.nodeIds) {
+        try {
+          done.push(await performOne(input, nodeId))
+        } catch (cause) {
+          // The first refusal is re-raised when it is the only node: a single
+          // action must still be able to show a field error in its form.
+          if (input.nodeIds.length === 1) throw cause
+          failures.push({ nodeId, message: messageOf(cause, "Could not be done") })
+        }
       }
-      return (
-        await ConnectorsService.runAction({
-          path,
-          body: { node_id: input.nodeId, params: input.params },
-        })
-      ).data
+      return { done, failures, total: input.nodeIds.length }
     },
-    onSuccess: async (result, input) => {
+    onSuccess: async (outcome, input) => {
       // The server says which branch changed; the client does not derive it
       // from the name of the action.
-      await queryClient.invalidateQueries({
-        queryKey: catalogKey(input.connectorId, result.reload_node_id ?? null),
-      })
+      for (const nodeId of reloadedBy(outcome)) {
+        await queryClient.invalidateQueries({
+          queryKey: catalogKey(input.connectorId, nodeId),
+        })
+      }
       await queryClient.invalidateQueries({ queryKey: ["actions", input.connectorId] })
     },
   })

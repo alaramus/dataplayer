@@ -14,14 +14,17 @@ import {
   AppInput,
   AppSection,
   AppSelect,
+  useConfirm,
   useToast,
 } from "@/shared/ui"
 import {
   useAdapterTypes,
   useCheckDraft,
   useCreateConnector,
+  useDeleteConnector,
   useUpdateConnector,
 } from "@/features/connectors/api"
+import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
 const props = defineProps<{
   modelValue: boolean
@@ -31,9 +34,12 @@ const props = defineProps<{
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
 
 const toast = useToast()
+const confirm = useConfirm()
+const checks = useConnectorChecksStore()
 const adapterTypes = useAdapterTypes()
 const createConnector = useCreateConnector()
 const updateConnector = useUpdateConnector()
+const removeConnector = useDeleteConnector()
 const checkDraft = useCheckDraft()
 
 // The composable is destructured into individual refs: templates unwrap only
@@ -121,6 +127,9 @@ async function check() {
       options: filledOptions(),
       connector_id: props.connector?.id ?? null,
     })
+    // The dot beside the connection is what a user reads afterwards, and this
+    // is the only check there is: the same values, exercised the same way.
+    if (props.connector) checks.record(props.connector.id, checkResult.value.ok)
   } catch (error) {
     const serverErrors = fieldErrorsFrom(error)
     if (serverErrors) {
@@ -129,6 +138,26 @@ async function check() {
       toast.error("Could not run the check")
     }
   }
+}
+
+async function remove() {
+  const connector = props.connector
+  if (!connector) return
+
+  const answer = await confirm({
+    title: "Delete connection",
+    message: `The connection "${connector.name}" will be deleted permanently.`,
+    confirmLabel: "Delete",
+    danger: true,
+  })
+  if (!answer) return
+
+  await removeConnector.mutateAsync(connector.id)
+  // The dot outlives the row otherwise: an id can be reused by nothing, but a
+  // record nobody prunes is a record that grows for as long as the page lives.
+  checks.forget(connector.id)
+  toast.success("Connection deleted")
+  emit("update:modelValue", false)
 }
 
 async function submit() {
@@ -201,6 +230,18 @@ async function submit() {
     </AppSection>
 
     <template #actions>
+      <!-- Deleting lives here rather than in the list: this window is where a
+           connection is shown, and one home for a command cannot drift from
+           another. It stands apart from the rest, on the left. -->
+      <AppButton
+        v-if="isEdit"
+        variant="danger-quiet"
+        label="Delete"
+        data-testid="delete-connector"
+        :loading="removeConnector.isPending.value"
+        @click="remove"
+      />
+      <q-space />
       <AppButton
         variant="quiet"
         label="Cancel"

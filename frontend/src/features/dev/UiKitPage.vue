@@ -16,6 +16,7 @@ import {
   AppMenu,
   AppNumberInput,
   AppPageHeader,
+  AppCheckbox,
   AppSection,
   AppSelect,
   AppSpinner,
@@ -65,6 +66,7 @@ const secret = ref("")
 const broken = ref<number | null>(null)
 const choice = ref<string | null>("postgres")
 const plain = ref("prefer")
+const several = ref<string[]>(["public"])
 const flag = ref(true)
 const file = ref<File | null>(null)
 const loading = ref(false)
@@ -266,9 +268,25 @@ function flash() {
           label="SSL mode"
           :options="['disable', 'prefer', 'require']"
         />
+        <AppSelect
+          v-model="several"
+          label="Schemas"
+          multiple
+          compact
+          :options="['public', 'sales', 'pg_catalog']"
+        />
         <AppToggle
           v-model="flag"
           label="Recursive"
+        />
+        <AppCheckbox
+          v-model="flag"
+          label="Pick this one"
+        />
+        <AppCheckbox
+          v-model="flag"
+          label="Some of them"
+          indeterminate
         />
         <AppFileInput
           v-model="file"

@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test"
 
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { nodeHeader } from "./utils/tree"
-import { connectorAction, connectorRow, openConnector, rowsTabs } from "./utils/workspace"
+import { openNode, pickSchema } from "./utils/catalog"
+import { connectorRow, deleteConnector, openConnector, rowsTabs } from "./utils/workspace"
 
 test("shows rows of a selected relation and pages through them", async ({ page }) => {
   const name = `e2e-rows-${Date.now()}`
@@ -13,9 +13,9 @@ test("shows rows of a selected relation and pages through them", async ({ page }
   await openConnector(page, name)
   // pg_catalog is used rather than an application table: it always holds
   // hundreds of rows, so paging is real rather than vacuous.
-  await nodeHeader(page, "pg_catalog").locator(".q-tree__arrow").click()
-  // Selecting a relation opens it in a tab of its own.
-  await nodeHeader(page, "pg_class").click()
+  await pickSchema(page, "pg_catalog")
+  // Opening a relation puts it in a tab of its own.
+  await openNode(page, "pg_class")
   await expect(rowsTabs(page)).toHaveCount(1)
 
   const grid = page.getByTestId("row-grid")
@@ -29,7 +29,6 @@ test("shows rows of a selected relation and pages through them", async ({ page }
   await page.getByTestId("grid-prev").click()
   await expect(grid).toContainText("Rows 1–50")
 
-  await connectorAction(page, name, "delete")
-  await page.getByTestId("confirm-accept").click()
+  await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })

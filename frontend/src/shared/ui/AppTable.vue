@@ -16,8 +16,20 @@ withDefaults(
     compact?: boolean
     /** Off when the caller pages the data itself against the server. */
     paged?: boolean
+    /**
+     * Fill the box the caller gave it and scroll inside: the header stays put
+     * while the rows move. Without it the table is as tall as its rows and
+     * whatever holds it has to deal with that.
+     */
+    sticky?: boolean
   }>(),
-  { loading: false, emptyText: "Nothing to show", compact: false, paged: true }
+  {
+    loading: false,
+    emptyText: "Nothing to show",
+    compact: false,
+    paged: true,
+    sticky: false,
+  }
 )
 </script>
 
@@ -25,6 +37,7 @@ withDefaults(
   <q-table
     flat
     bordered
+    :class="sticky ? 'app-table--sticky' : undefined"
     :rows="rows"
     :columns="columns"
     :row-key="rowKey"
@@ -51,3 +64,24 @@ withDefaults(
     </template>
   </q-table>
 </template>
+
+<style scoped>
+/* The rows scroll, the header does not. Quasar builds the table out of nested
+   elements, so the height has to be handed down to the one that scrolls. */
+.app-table--sticky {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.app-table--sticky :deep(.q-table__middle) {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.app-table--sticky :deep(thead tr th) {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fff;
+}
+</style>

@@ -14,8 +14,19 @@ const props = withDefaults(
     error?: string
     loading?: boolean
     disable?: boolean
+    /** Several at once, reported as an array. */
+    multiple?: boolean
+    /** A field in a toolbar rather than in a form: tighter, and no underline. */
+    compact?: boolean
   }>(),
-  { label: undefined, error: "", loading: false, disable: false }
+  {
+    label: undefined,
+    error: "",
+    loading: false,
+    disable: false,
+    multiple: false,
+    compact: false,
+  }
 )
 
 const emit = defineEmits<{ "update:modelValue": [value: unknown] }>()
@@ -36,6 +47,10 @@ const labelled = computed(() => props.options.some((option) => typeof option ===
     :emit-value="labelled"
     :map-options="labelled"
     :loading="loading"
+    :multiple="multiple"
+    :use-chips="multiple"
+    :dense="compact"
+    :borderless="compact"
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"

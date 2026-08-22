@@ -32,10 +32,15 @@ export async function openConnector(page: Page, name: string) {
 }
 
 /**
- * Everything that is not "open this" lives in the menu of the row: the column
- * is too narrow for a button per action.
+ * Everything that is not "open this" lives inside the window the icon opens:
+ * checking the connection, editing it and deleting it.
  */
-export async function connectorAction(page: Page, name: string, action: string) {
-  await page.getByTestId(`connector-menu-${name}`).click()
-  await page.getByTestId(`menu-item-${action}`).click()
+export async function editConnector(page: Page, name: string) {
+  await page.getByTestId(`connector-edit-${name}`).click()
+}
+
+export async function deleteConnector(page: Page, name: string) {
+  await editConnector(page, name)
+  await page.getByTestId("delete-connector").click()
+  await page.getByTestId("confirm-accept").click()
 }

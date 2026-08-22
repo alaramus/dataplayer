@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import { DATABASE } from "./utils/connectors"
 import { login } from "./utils/login"
-import { connectorAction, connectorRow } from "./utils/workspace"
+import { connectorRow, deleteConnector, editConnector } from "./utils/workspace"
 
 
 // Quasar forwards data-testid onto the input element, so field ids address the
@@ -37,11 +37,14 @@ test("creates a connection, checks it and deletes it", async ({ page }) => {
   await page.getByTestId("save-connector").click()
   await expect(connectorRow(page, name)).toBeVisible()
 
-  await connectorAction(page, name, "check")
-  await expect(page.locator(".q-notification").first()).toBeVisible()
+  // Checking a stored connection is the same window and the same button: one
+  // home for the command, so the two cannot drift apart.
+  await editConnector(page, name)
+  await page.getByTestId("check-draft").click()
+  await expect(page.getByTestId("check-result")).toHaveClass(/bg-positive/)
+  await page.getByRole("button", { name: "Cancel" }).click()
 
-  await connectorAction(page, name, "delete")
-  await page.getByTestId("confirm-accept").click()
+  await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
@@ -76,7 +79,7 @@ test("the secret field is empty while editing and needs no retyping", async ({
   await page.getByTestId("save-connector").click()
   await expect(connectorRow(page, name)).toBeVisible()
 
-  await connectorAction(page, name, "edit")
+  await editConnector(page, name)
   await expect(page.getByTestId("field-password")).toHaveValue("")
 
   // The password is left blank: the server substitutes the stored one by
@@ -85,7 +88,6 @@ test("the secret field is empty while editing and needs no retyping", async ({
   await expect(page.getByTestId("check-result")).toHaveClass(/bg-positive/)
 
   await page.getByRole("button", { name: "Cancel" }).click()
-  await connectorAction(page, name, "delete")
-  await page.getByTestId("confirm-accept").click()
+  await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })

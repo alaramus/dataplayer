@@ -3,18 +3,17 @@ import { computed } from "vue"
 
 import type { ConnectorPublic } from "@/client"
 import { adapterIcon } from "@/features/connectors/adapters"
-import { AppEmptyState, AppIconButton, AppMenu, AppSpinner, badgeColor } from "@/shared/ui"
-import type { MenuItem } from "@/shared/ui"
+import { AppEmptyState, AppIconButton, AppSpinner, badgeColor } from "@/shared/ui"
 import { useConnectorChecksStore } from "@/stores/connectorChecks"
 import type { CheckState } from "@/stores/connectorChecks"
 
 /**
  * The sources of the workspace, one per row.
  *
- * A list rather than a table: this is a column of the screen, and four
- * columns of text with four buttons beside them do not fit in one. What was a
- * row of icon buttons is a menu, so the row itself is free to mean "open
- * this" — see the spec, T7.
+ * Three things in a row and nothing else: what kind of source it is, what it
+ * is called, and what the last check said. Everything that can be done to a
+ * connection lives inside the window its icon opens — a menu here would be a
+ * second home for the same commands, and two homes drift. See the spec, S1.
  */
 const props = defineProps<{
   rows: ConnectorPublic[]
@@ -26,17 +25,9 @@ const props = defineProps<{
 const emit = defineEmits<{
   open: [connector: ConnectorPublic]
   edit: [connector: ConnectorPublic]
-  remove: [connector: ConnectorPublic]
-  check: [connector: ConnectorPublic]
 }>()
 
 const checks = useConnectorChecksStore()
-
-const ITEMS: MenuItem[] = [
-  { name: "check", label: "Check connection", icon: "bolt" },
-  { name: "edit", label: "Edit", icon: "edit" },
-  { name: "delete", label: "Delete", icon: "delete", danger: true },
-]
 
 /** Nothing checked has no tone of its own: it is an absence, not a warning. */
 const DOT_CLASS: Record<CheckState, string> = {
@@ -46,12 +37,6 @@ const DOT_CLASS: Record<CheckState, string> = {
 }
 
 const selected = computed(() => props.selectedId ?? null)
-
-function onSelect(name: string, connector: ConnectorPublic) {
-  if (name === "check") emit("check", connector)
-  if (name === "edit") emit("edit", connector)
-  if (name === "delete") emit("remove", connector)
-}
 </script>
 
 <template>
@@ -67,8 +52,9 @@ function onSelect(name: string, connector: ConnectorPublic) {
     class="connector-list"
     data-testid="connector-list"
   >
-    <!-- A div and not a button: the row carries a menu button of its own, and
-         a button inside a button is markup no browser agrees about. -->
+    <!-- A div and not a button: the row carries the icon button that opens the
+         window, and a button inside a button is markup no browser agrees
+         about. -->
     <div
       v-for="connector in rows"
       :key="connector.id"
@@ -81,10 +67,15 @@ function onSelect(name: string, connector: ConnectorPublic) {
       @keydown.enter="emit('open', connector)"
       @keydown.space.prevent="emit('open', connector)"
     >
-      <q-icon
-        :name="adapterIcon(connector.adapter_type)"
-        size="18px"
-      />
+      <span @click.stop>
+        <AppIconButton
+          :icon="adapterIcon(connector.adapter_type)"
+          tooltip="Edit connection"
+          :data-testid="`connector-edit-${connector.name}`"
+          @click="emit('edit', connector)"
+        />
+      </span>
+
       <span class="connector-list__name">{{ connector.name }}</span>
 
       <!-- What the last check said, and nothing more: no check has been made
@@ -95,18 +86,6 @@ function onSelect(name: string, connector: ConnectorPublic) {
         :data-testid="`connector-state-${connector.name}`"
         :data-state="checks.stateOf(connector.id)"
       />
-
-      <span @click.stop>
-        <AppIconButton
-          icon="more_vert"
-          tooltip="Actions"
-          :data-testid="`connector-menu-${connector.name}`"
-        />
-        <AppMenu
-          :items="ITEMS"
-          @select="onSelect($event, connector)"
-        />
-      </span>
     </div>
   </div>
 </template>
@@ -119,9 +98,9 @@ function onSelect(name: string, connector: ConnectorPublic) {
 .connector-list__row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 2px 8px;
+  padding: 1px 8px;
   cursor: pointer;
 }
 .connector-list__row:hover {

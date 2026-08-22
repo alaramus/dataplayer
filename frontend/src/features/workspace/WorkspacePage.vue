@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed, provide } from "vue"
+import { computed, provide, ref } from "vue"
 
+import type { ConnectorPublic } from "@/client"
+import ConnectorDialog from "@/features/connectors/ConnectorDialog.vue"
+import { useConnectors } from "@/features/connectors/api"
 import {
   catalogPanelId,
   componentOf,
@@ -56,13 +59,30 @@ const activeConnectorId = computed(
   () => workspace.panels.value.find((panel) => panel.kind === "catalog")?.connectorId ?? null
 )
 
+/**
+ * The window of a connection, owned by the page.
+ *
+ * Both columns that open it — the list of sources and the head of the catalog
+ * — can be collapsed, and a collapsed column renders nothing at all. A window
+ * living in one of them would vanish with it.
+ */
+const connectors = useConnectors()
+const dialogOpen = ref(false)
+const editing = ref<ConnectorPublic | null>(null)
+
 provide(workspaceActionsKey, {
   activeConnectorId,
-  openCatalog: (connectorId: string, title: string) => {
+  openCatalog: (connector: ConnectorPublic) => {
     // replace: the middle column holds one catalog. Dropping this flag is all
     // that stands between here and two catalogs side by side — see T4.
     workspace.open(
-      { id: catalogPanelId(connectorId), kind: "catalog", connectorId, title },
+      {
+        id: catalogPanelId(connector.id),
+        kind: "catalog",
+        connectorId: connector.id,
+        title: connector.name,
+        adapterType: connector.adapter_type,
+      },
       { replace: true }
     )
   },
@@ -75,11 +95,23 @@ provide(workspaceActionsKey, {
       title,
     })
   },
+  editConnector: (connectorId: string | null) => {
+    editing.value =
+      connectorId === null
+        ? null
+        : ((connectors.data.value?.data ?? []).find((row) => row.id === connectorId) ?? null)
+    dialogOpen.value = true
+  },
 })
 </script>
 
 <template>
   <AppLayout fill>
     <WorkspaceRoot :context="workspace.context" />
+
+    <ConnectorDialog
+      v-model="dialogOpen"
+      :connector="editing"
+    />
   </AppLayout>
 </template>

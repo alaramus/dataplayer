@@ -58,17 +58,6 @@ export function useDeleteConnector() {
   })
 }
 
-export function useCheckConnector() {
-  return useMutation({
-    mutationFn: async (connectorId: string) =>
-      (
-        await ConnectorsService.checkConnector({
-          path: { connector_id: connectorId },
-        })
-      ).data,
-  })
-}
-
 export function useCheckDraft() {
   return useMutation({
     mutationFn: async (body: {

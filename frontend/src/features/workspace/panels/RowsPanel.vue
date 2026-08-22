@@ -21,7 +21,13 @@ defineProps<{ connectorId: string; nodeId: string }>()
 </template>
 
 <style scoped>
+/* A box of the height the section gave it: the grid keeps its own header and
+   its pager still and scrolls the rows between them. See the spec, S10. */
 .rows-panel {
-  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 4px;
 }
 </style>

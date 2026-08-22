@@ -24,6 +24,9 @@ export const panelSchema = z.discriminatedUnion("kind", [
     kind: z.literal("catalog"),
     connectorId: z.string(),
     title: z.string(),
+    // Carried on the panel so a catalog restored from storage can draw the
+    // icon of its source before the list of connections has been read.
+    adapterType: z.string(),
   }),
   z.object({
     id: z.string(),
@@ -132,7 +135,13 @@ export function componentOf(panel: Panel): Component {
     case "catalog":
       // The engine renders a panel with no props of its own, so what a panel
       // needs is bound here, where the panel is still a typed object.
-      return boundComponent(panel.id, () => h(CatalogPanelView, { connectorId: panel.connectorId }))
+      return boundComponent(panel.id, () =>
+        h(CatalogPanelView, {
+          connectorId: panel.connectorId,
+          title: panel.title,
+          adapterType: panel.adapterType,
+        })
+      )
     case "rows":
       return boundComponent(panel.id, () =>
         h(RowsPanelView, { connectorId: panel.connectorId, nodeId: panel.nodeId })

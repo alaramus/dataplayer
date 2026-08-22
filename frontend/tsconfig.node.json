@@ -11,6 +11,9 @@
     "composite": true,
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
+    // The end-to-end tests run code inside the browser through page.evaluate,
+    // so the files checked here speak of `document` as well as of Node.
+    "lib": ["ES2023", "DOM"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "types": ["node"]

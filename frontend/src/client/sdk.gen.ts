@@ -675,16 +675,20 @@ export class ConnectorsService {
   /**
    * Read Actions
    *
-   * List the actions this node admits, with the schema of their parameters.
+   * List what every node in the set admits, with the schema of the parameters.
    *
    * Asked per node rather than per source type: whether a node may be renamed
    * depends on its state as well as its kind — the root of a connector is an
    * ordinary directory that may not be removed.
+   *
+   * A read expressed as a POST for the same reason `fetch` is one: the input is
+   * a list of opaque identifiers with no bound on its length, and selecting a
+   * directory of five hundred files leaves no room in a query string.
    */
   public static readActions<ThrowOnError extends boolean = true>(
     options: Options<connectorsReadActionsData, ThrowOnError>
   ) {
-    return (options.client ?? client).get<
+    return (options.client ?? client).post<
       connectorsReadActionsResponses,
       connectorsReadActionsErrors,
       ThrowOnError
@@ -693,6 +697,10 @@ export class ConnectorsService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/actions",
       ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 
