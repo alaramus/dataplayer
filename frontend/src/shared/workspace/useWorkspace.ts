@@ -46,12 +46,16 @@ export function useWorkspace<P extends { id: string }>(
   const panelOf = (panelId: PanelId): P | undefined =>
     panels.value.find((panel) => panel.id === panelId)
 
+  // Vue's default flush coalesces every change made in one tick into a single
+  // write. flush: "sync" would put a synchronous localStorage write on every
+  // frame of a border drag, which is a price the user pays so that a test can
+  // skip an await.
   watch(
     [tree, panels],
     () => {
       localStorage.setItem(options.storageKey, serializeWorkspace(tree.value, panels.value))
     },
-    { deep: true, flush: "sync" }
+    { deep: true }
   )
 
   function open(panel: P) {
@@ -124,14 +128,12 @@ export function useWorkspace<P extends { id: string }>(
   }
 
   function reset() {
+    // Assign and let the watcher persist, rather than clearing the key and
+    // racing the write that the assignment itself schedules.
     const fresh = options.defaults()
     tree.value = fresh.tree
     panels.value = fresh.panels
     focusedLeaf.value = null
-    // The [tree, panels] watcher above is flush: "sync", so the assignments
-    // just above already wrote the defaults back to storage. Clearing the key
-    // has to happen after them, or the sync write would undo it immediately.
-    localStorage.removeItem(options.storageKey)
   }
 
   return { context, panels, open, reset }

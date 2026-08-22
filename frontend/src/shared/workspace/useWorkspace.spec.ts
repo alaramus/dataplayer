@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest"
-import { defineComponent, h } from "vue"
+import { defineComponent, h, nextTick } from "vue"
 import { z } from "zod"
 
 import { makeLeaf, makeSplit } from "./model"
@@ -67,9 +67,12 @@ describe("a workspace", () => {
     expect(workspace.panels.value).toHaveLength(1)
   })
 
-  it("writes what it has to storage and reads it back", () => {
+  it("writes what it has to storage and reads it back", async () => {
     const first = build()
     first.open({ id: "p3", kind: "rows" })
+    // The watcher persists on the next tick, so several changes in one tick
+    // cost one write rather than one each. The test waits; the drag does not.
+    await nextTick()
     const second = build()
     expect(second.panels.value.map((panel) => panel.id)).toEqual(["p1", "p2", "p3"])
   })
@@ -79,12 +82,15 @@ describe("a workspace", () => {
     expect(build().panels.value).toHaveLength(2)
   })
 
-  it("returns to the defaults on reset", () => {
+  it("returns to the defaults on reset, and stores them", async () => {
     const workspace = build()
     workspace.open({ id: "p3", kind: "rows" })
+    await nextTick()
     workspace.reset()
+    await nextTick()
     expect(workspace.panels.value).toHaveLength(2)
-    expect(localStorage.getItem("test-workspace")).toBeNull()
+    // What is stored is the default layout now, not the one we left behind.
+    expect(build().panels.value).toHaveLength(2)
   })
 
   it("moves a panel where a drag ends", () => {
