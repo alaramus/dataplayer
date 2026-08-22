@@ -5,7 +5,7 @@
  *
  * The old application mutated nodes in place and kept parent back-pointers,
  * which is why it needed a history of layouts and a command language to undo
- * anything. See the spec, Р3.
+ * anything. See the spec, W3.
  */
 
 import type { LayoutNode, LeafNode, NodeId, PanelId, Path } from "./model"

@@ -85,6 +85,10 @@ describe("a leaf", () => {
   it("makes its first panel the active one by default", () => {
     expect(makeLeaf("a", ["p1", "p2"]).activePanel).toBe("p1")
   })
+
+  it("refuses to be built with no panels at all", () => {
+    expect(() => makeLeaf("a", [])).toThrow()
+  })
 })
 ```
 
@@ -143,11 +147,16 @@ export const MIN_PANEL_PX = 120
 export const COLLAPSED_PX = 28
 
 export function makeLeaf(id: NodeId, panels: PanelId[], activePanel?: PanelId): LeafNode {
+  const [first] = panels
+  // A section with nothing in it is not a thing that can be built: it is a
+  // state normalize() repairs. Refusing it here is what lets activePanel be a
+  // PanelId rather than a PanelId that might be missing.
+  if (first === undefined) throw new Error(`A leaf needs at least one panel: ${id}`)
   return {
     kind: "leaf",
     id,
     panels,
-    activePanel: activePanel ?? panels[0],
+    activePanel: activePanel ?? first,
     collapsed: false,
   }
 }
@@ -182,7 +191,7 @@ export function nextId(prefix: string): string {
  *
  * The old application mutated nodes in place and kept parent back-pointers,
  * which is why it needed a history of layouts and a command language to undo
- * anything. See the spec, Р3.
+ * anything. See the spec, W3.
  */
 
 import type { LayoutNode, LeafNode, NodeId, PanelId, Path } from "./model"
@@ -226,7 +235,7 @@ export function leavesOf(root: LayoutNode): LeafNode[] {
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `bun run test:unit -- src/shared/workspace/tree.spec.ts`
-Expected: PASS, 8 tests.
+Expected: PASS, 9 tests.
 
 - [ ] **Step 6: Commit**
 
@@ -283,17 +292,12 @@ describe("normalising a tree", () => {
 
   it("replaces a split holding one child with that child", () => {
     const lonely = makeSplit("root", "row", [makeLeaf("a", ["p1"])], [100])
-    expect(normalize(lonely).id).toBe("a")
+    expect(normalize(lonely)?.id).toBe("a")
   })
 
   it("drops a leaf that holds no panels", () => {
-    const empty = makeSplit(
-      "root",
-      "row",
-      [makeLeaf("a", []), makeLeaf("b", ["p2"])],
-      [50, 50]
-    )
-    expect(normalize(empty).id).toBe("b")
+    const empty = makeSplit("root", "row", [emptyLeaf("a"), makeLeaf("b", ["p2"])], [50, 50])
+    expect(normalize(empty)?.id).toBe("b")
   })
 
   it("flattens a nested split of the same direction into its parent", () => {
@@ -330,7 +334,7 @@ describe("normalising a tree", () => {
   })
 
   it("answers null when nothing is left", () => {
-    expect(normalize(makeLeaf("a", []))).toBeNull()
+    expect(normalize(emptyLeaf("a"))).toBeNull()
   })
 })
 ```
@@ -341,7 +345,22 @@ describe("normalising a tree", () => {
 import type { LeafNode, SplitNode } from "./model"
 ```
 
-и подпись `normalize` в тестах читается как `LayoutNode | null`.
+и добавить рядом с `sample` конструктор недопустимого листа — `makeLeaf` его
+построить отказывается, и это правильно: пустой лист не создают, его чинят.
+
+```ts
+/** A leaf with no panels: not something makeLeaf builds, but what normalize repairs. */
+const emptyLeaf = (id: string): LeafNode => ({
+  kind: "leaf",
+  id,
+  panels: [],
+  activePanel: "",
+  collapsed: false,
+})
+```
+
+`normalize` возвращает `LayoutNode | null`, поэтому обращения к результату в
+тестах идут через `?.`.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -911,7 +930,7 @@ import { leavesOf, pathOfNode } from "./tree"
  *
  * Read from the tree itself rather than from a record of where panels used to
  * live: a record can disagree with the tree, and the tree cannot disagree with
- * itself. See the spec, Р11.
+ * itself. See the spec, W11.
  */
 export function leafForKind(
   root: LayoutNode,
@@ -1074,7 +1093,7 @@ import { leavesOf } from "./tree"
 /**
  * A stored layout is untrusted input, like anything else that comes from
  * outside. It is parsed, cross-checked, and refused whole: half a restored
- * tree is worse than the default one. See the spec, Р9.
+ * tree is worse than the default one. See the spec, W9.
  */
 
 export const WORKSPACE_VERSION = 1
@@ -1157,7 +1176,7 @@ function sizesMatchChildren(node: LayoutNode): boolean {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `bun run test:unit -- src/shared/workspace/persist.spec.ts`
-Expected: PASS, 8 tests.
+Expected: PASS, 9 tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1359,7 +1378,7 @@ export interface PanelLook {
  * The type of a panel does not appear here: a panel is an id, and what it
  * looks like and which component renders it are answered by two functions the
  * feature supplied. That is what keeps the engine free of any knowledge about
- * the application. See the spec, Р1.
+ * the application. See the spec, W1.
  */
 export interface WorkspaceContext {
   tree: Ref<LayoutNode>
@@ -2830,7 +2849,7 @@ import type { PanelLook } from "@/shared/workspace"
  *
  * The union is closed and the registry covers every member, so adding a kind
  * without a component fails to compile and fails the test beside this file.
- * The engine sees none of this — see the spec, Р1.
+ * The engine sees none of this — see the spec, W1.
  */
 
 export const panelSchema = z.discriminatedUnion("kind", [
@@ -3494,17 +3513,17 @@ git commit -m "test(workspace): the browser suite works the workspace, not the m
 
 | Решение спеки | Задача |
 | --- | --- |
-| Р1 движок не знает предметной области | 6 (контекст), 11 (реестр) |
-| Р2 размеченный союз | 1 |
-| Р3 чистые функции | 1–3 |
-| Р4 нормализация | 2 |
-| Р5 minSize в пикселях | 3 (`resizeSplit`), 7 (`WorkspaceNode.onMove`) |
-| Р6 свёрнутость — поле листа | 3, 7 (`styleFor`) |
-| Р7 pointer events и зоны | 4, 7 |
-| Р8 секция это вкладки | 7 (`WorkspaceLeaf`) |
-| Р9 сохранённое — недоверенный ввод | 5 |
-| Р10 панель исчезнувшего объекта | 12 (`RowsPanel` через `RowGrid`), 14 (запись в отклонения) |
-| Р11 куда открывается панель | 4 (`leafForKind`), 6 |
+| W1 движок не знает предметной области | 6 (контекст), 11 (реестр) |
+| W2 размеченный союз | 1 |
+| W3 чистые функции | 1–3 |
+| W4 нормализация | 2 |
+| W5 minSize в пикселях | 3 (`resizeSplit`), 7 (`WorkspaceNode.onMove`) |
+| W6 свёрнутость — поле листа | 3, 7 (`styleFor`) |
+| W7 pointer events и зоны | 4, 7 |
+| W8 секция это вкладки | 7 (`WorkspaceLeaf`) |
+| W9 сохранённое — недоверенный ввод | 5 |
+| W10 панель исчезнувшего объекта | 12 (`RowsPanel` через `RowGrid`), 14 (запись в отклонения) |
+| W11 куда открывается панель | 4 (`leafForKind`), 6 |
 | `AppTree` в ките | 9 |
 | `useCatalogTree` отдельно от диалога | 10 |
 | Удаление `CatalogDialog` | 12 |
