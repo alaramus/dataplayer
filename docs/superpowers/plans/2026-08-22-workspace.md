@@ -1357,15 +1357,19 @@ describe("a workspace", () => {
     expect(build().panels.value).toHaveLength(2)
   })
 
-  it("returns to the defaults on reset, and stores them", async () => {
+  it("stores the defaults on reset, rather than leaving what was there", async () => {
     const workspace = build()
     workspace.open({ id: "p3", kind: "rows" })
     await nextTick()
+    // Storage now names three panels. Without this line the test could not
+    // tell a reset that wrote the defaults from a workspace that never wrote
+    // anything: an empty key falls back to those same defaults.
+    expect(build().panels.value).toHaveLength(3)
+
     workspace.reset()
     await nextTick()
     expect(workspace.panels.value).toHaveLength(2)
-    // What is stored is the default layout now, not the one we left behind.
-    expect(build().panels.value).toHaveLength(2)
+    expect(build().panels.value.map((panel) => panel.id)).toEqual(["p1", "p2"])
   })
 
   it("moves a panel where a drag ends", () => {
@@ -1514,10 +1518,11 @@ export function useWorkspace<P extends { id: string }>(
   }
 
   function close(panelId: PanelId) {
-    // The workspace never empties: a screen with no sections at all offers the
-    // user nothing to act on, and no way back.
-    if (panels.value.length <= 1) return
     const without = removePanel(tree.value, panelId)
+    // The workspace never empties: a screen with no sections at all offers the
+    // user nothing to act on and no way back. removePanel answers null for
+    // exactly that case, so the rule needs no second guard counting panels -
+    // one that could never disagree, and so could never be seen to work.
     if (without === null) return
     tree.value = without
     panels.value = panels.value.filter((panel) => panel.id !== panelId)
@@ -1687,6 +1692,15 @@ describe("a section", () => {
     expect(seen).toEqual(["p2"])
   })
 
+  it("does not activate the panel when its cross is clicked", async () => {
+    // Without @click.stop the cross would bubble to the tab it sits in, so
+    // closing a background panel would activate it on the way out.
+    const activated: string[] = []
+    const wrapper = mountLeaf(contextFor({ activate: (id) => activated.push(id) }))
+    await wrapper.get('[data-testid="workspace-close-p2"]').trigger("click")
+    expect(activated).toEqual([])
+  })
+
   it("offers no collapse handle when it is the only section", () => {
     const wrapper = mountLeaf(contextFor(), false)
     expect(wrapper.find('[data-testid="workspace-collapse-a"]').exists()).toBe(false)
@@ -1725,6 +1739,9 @@ import { ref } from "vue"
 
 import type { Direction } from "./model"
 
+/** Movement under this much reads as a press on the handle, not as a drag. */
+const PRESS_THRESHOLD_PX = 3
+
 const props = defineProps<{ direction: Direction }>()
 const emit = defineEmits<{ move: [deltaPx: number]; toggle: [] }>()
 
@@ -1754,7 +1771,7 @@ function onPointerUp(event: PointerEvent) {
   dragging.value = false
   // A border that was pressed rather than dragged is the handle that brings a
   // collapsed section back, which is why a collapsed section keeps its border.
-  if (moved < 3) emit("toggle")
+  if (moved < PRESS_THRESHOLD_PX) emit("toggle")
 }
 </script>
 
@@ -1817,9 +1834,14 @@ function onPointerUp() {
   zone.value = null
 }
 
+/**
+ * Pressing a tab begins a possible drag, and nothing else. Activating is left
+ * to the click that follows a press which did not become one - which is also
+ * what lets the keyboard reach a tab, since Enter on a button raises click and
+ * never pointerdown.
+ */
 function onTabPointerDown(panelId: string) {
   workspace.focus(props.leaf.id)
-  workspace.activate(panelId)
   workspace.startDrag(panelId)
 }
 
@@ -1977,12 +1999,11 @@ const overlayStyle = computed(() => {
 
 ```vue
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { inject, ref } from "vue"
 
+import { workspaceKey } from "./context"
 import { COLLAPSED_PX, MIN_PANEL_PX } from "./model"
 import type { LayoutNode } from "./model"
-import { inject } from "vue"
-import { workspaceKey } from "./context"
 import WorkspaceLeaf from "./WorkspaceLeaf.vue"
 import WorkspaceSeparator from "./WorkspaceSeparator.vue"
 
@@ -2006,15 +2027,23 @@ function styleFor(child: LayoutNode, index: number) {
   return { flex: `${String(size)} 1 0%` }
 }
 
-const lengthPx = computed(() => {
+/**
+ * The length of this split along its own direction, measured now.
+ *
+ * Deliberately not a computed: getBoundingClientRect is not reactive, so a
+ * memoised value would keep answering with the size the container had when it
+ * first mounted, and every drag after a window resize would convert pixels at
+ * the wrong scale.
+ */
+function lengthPx(): number {
   if (element.value === null) return 0
   const box = element.value.getBoundingClientRect()
   return props.node.kind === "split" && props.node.direction === "row" ? box.width : box.height
-})
+}
 
 function onMove(index: number, deltaPx: number) {
   if (props.node.kind !== "split") return
-  const total = lengthPx.value
+  const total = lengthPx()
   if (total <= 0) return
   workspace.resize(
     props.node.id,
@@ -2146,7 +2175,7 @@ export type { DropZone, LayoutNode, LeafNode, NodeId, PanelId, SplitNode } from 
 - [ ] **Step 7: Run tests to verify they pass**
 
 Run: `bun run test:unit -- src/shared/workspace`
-Expected: PASS, 51 tests.
+Expected: PASS, 76 tests.
 
 - [ ] **Step 8: Check types and style**
 
