@@ -29,6 +29,16 @@ describe("the zone a pointer is over", () => {
     expect(dropZoneAt(rect, 10, 10)).toBe("left")
   })
 
+  it("prefers the vertical edge in the corner of a tall rectangle", () => {
+    // The wide case on its own would pass against a rule that always picks
+    // the horizontal edge, which is the rule this test exists to rule out.
+    expect(dropZoneAt({ left: 0, top: 0, width: 200, height: 400 }, 10, 10)).toBe("top")
+  })
+
+  it("treats the quarter mark itself as the middle rather than the edge", () => {
+    expect(dropZoneAt(rect, 100, 100)).toBe("center")
+  })
+
   it("reads the rectangle's own origin rather than assuming zero", () => {
     expect(dropZoneAt({ left: 1000, top: 500, width: 400, height: 200 }, 1020, 600)).toBe("left")
   })
