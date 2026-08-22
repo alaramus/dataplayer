@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest"
 
+import type { LeafNode, SplitNode } from "./model"
 import { makeLeaf, makeSplit } from "./model"
-import { leavesOf, nodeAt, pathOfNode, pathOfPanel } from "./tree"
+import { leavesOf, nodeAt, normalize, pathOfNode, pathOfPanel, replaceAt } from "./tree"
 
 const sample = () =>
   makeSplit("root", "row", [makeLeaf("a", ["p1"]), makeLeaf("b", ["p2", "p3"])], [30, 70])
+
+/** A leaf with no panels: not something makeLeaf builds, but what normalize repairs. */
+const emptyLeaf = (id: string): LeafNode => ({
+  kind: "leaf",
+  id,
+  panels: [],
+  activePanel: "",
+  collapsed: false,
+})
 
 describe("addressing a node", () => {
   it("finds the root by the empty path", () => {
@@ -44,5 +54,80 @@ describe("a leaf", () => {
 
   it("refuses to be built with no panels at all", () => {
     expect(() => makeLeaf("a", [])).toThrow()
+  })
+})
+
+describe("replacing a node", () => {
+  it("puts a new node in place of the old one and leaves the original alone", () => {
+    const tree = sample()
+    const next = replaceAt(tree, [0], makeLeaf("z", ["p9"]))
+    expect((next as SplitNode).children[0]!.id).toBe("z")
+    expect((tree as SplitNode).children[0]!.id).toBe("a")
+  })
+
+  it("removes a child when handed null", () => {
+    const next = replaceAt(sample(), [0], null) as SplitNode
+    expect(next.children).toHaveLength(1)
+    expect(next.sizes).toHaveLength(1)
+  })
+
+  it("answers null when the whole tree is removed", () => {
+    expect(replaceAt(makeLeaf("a", ["p1"]), [], null)).toBeNull()
+  })
+})
+
+describe("normalising a tree", () => {
+  it("brings the sizes of a split back to a hundred", () => {
+    const odd = makeSplit("root", "row", [makeLeaf("a", ["p1"]), makeLeaf("b", ["p2"])], [10, 30])
+    const sizes = (normalize(odd) as SplitNode).sizes
+    expect(sizes[0]).toBeCloseTo(25)
+    expect(sizes[1]).toBeCloseTo(75)
+  })
+
+  it("replaces a split holding one child with that child", () => {
+    const lonely = makeSplit("root", "row", [makeLeaf("a", ["p1"])], [100])
+    expect(normalize(lonely)?.id).toBe("a")
+  })
+
+  it("drops a leaf that holds no panels", () => {
+    const empty = makeSplit("root", "row", [emptyLeaf("a"), makeLeaf("b", ["p2"])], [50, 50])
+    expect(normalize(empty)?.id).toBe("b")
+  })
+
+  it("flattens a nested split of the same direction into its parent", () => {
+    const nested = makeSplit(
+      "root",
+      "row",
+      [
+        makeLeaf("a", ["p1"]),
+        makeSplit("inner", "row", [makeLeaf("b", ["p2"]), makeLeaf("c", ["p3"])], [50, 50]),
+      ],
+      [50, 50]
+    )
+    const flat = normalize(nested) as SplitNode
+    expect(flat.children.map((child) => child.id)).toEqual(["a", "b", "c"])
+    expect(flat.sizes.map(Math.round)).toEqual([50, 25, 25])
+  })
+
+  it("leaves a nested split of the other direction alone", () => {
+    const nested = makeSplit(
+      "root",
+      "row",
+      [
+        makeLeaf("a", ["p1"]),
+        makeSplit("inner", "column", [makeLeaf("b", ["p2"]), makeLeaf("c", ["p3"])], [50, 50]),
+      ],
+      [50, 50]
+    )
+    expect((normalize(nested) as SplitNode).children[1]!.kind).toBe("split")
+  })
+
+  it("keeps the active panel pointing at a panel the leaf still holds", () => {
+    const stale: LeafNode = { kind: "leaf", id: "a", panels: ["p1"], activePanel: "gone", collapsed: false }
+    expect((normalize(stale) as LeafNode).activePanel).toBe("p1")
+  })
+
+  it("answers null when nothing is left", () => {
+    expect(normalize(emptyLeaf("a"))).toBeNull()
   })
 })
