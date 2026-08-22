@@ -46,3 +46,32 @@ test("opens a panel as a tab and closes it again", async ({ page }) => {
   await page.getByTestId("workspace-close-demo-1").click()
   await expect(tab).toHaveCount(0)
 })
+
+test("drags a tab to an edge and gets a new section", async ({ page }) => {
+  await page.goto("/workspace-demo")
+  await page.getByTestId("reset-workspace").click()
+
+  const sections = page.locator('[data-testid^="workspace-leaf-"]')
+  await expect(sections).toHaveCount(2)
+
+  // Gamma shares a section with beta, so the section it leaves survives and
+  // the one it lands in is new. Nothing here is provable in jsdom: the drop
+  // zone is decided from a measured rectangle under a captured pointer.
+  const tab = page.getByTestId("workspace-tab-gamma")
+  const main = page.getByTestId("workspace-leaf-main")
+  const from = await tab.boundingBox()
+  const onto = await main.boundingBox()
+  if (from === null || onto === null) throw new Error("the tab or the section has no box")
+
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  // Into the left quarter, and well clear of the top and bottom quarters, so
+  // the zone is the left edge and not a corner.
+  await page.mouse.move(onto.x + onto.width * 0.1, onto.y + onto.height * 0.6, { steps: 12 })
+  await page.mouse.up()
+
+  await expect(sections).toHaveCount(3)
+  await expect(main.getByTestId("workspace-tab-gamma")).toHaveCount(0)
+  await expect(page.getByTestId("workspace-tab-gamma")).toBeVisible()
+  await expect(main.getByTestId("workspace-tab-beta")).toBeVisible()
+})
