@@ -271,10 +271,12 @@ describe("replacing a node", () => {
     expect((tree as SplitNode).children[0].id).toBe("a")
   })
 
-  it("removes a child when handed null", () => {
+  it("removes the child the path names, not whichever one is easiest", () => {
     const next = replaceAt(sample(), [0], null) as SplitNode
     expect(next.children).toHaveLength(1)
-    expect(next.sizes).toHaveLength(1)
+    // Asserting the length alone would pass against removing the wrong index.
+    expect(next.children[0]?.id).toBe("b")
+    expect(next.sizes).toEqual([70])
   })
 
   it("answers null when the whole tree is removed", () => {
@@ -703,11 +705,11 @@ export function resizeSplit(
   sizes[index] = clamped
   sizes[index + 1] = room - clamped
 
-  const replaced = replaceAt(root, path, {
-    ...split,
-    sizes,
-  })
-  return replaced === null ? root : replaced
+  const replaced = replaceAt(root, path, { ...split, sizes })
+  // Normalised like every other operation. Resizing cannot on its own leave a
+  // tree that needs repair, but an operation that skips the step is the crack
+  // W4 exists to close: nothing downstream should have to know which ones do.
+  return replaced === null ? root : settle(replaced, root)
 }
 
 const DIRECTION_OF: Record<Exclude<DropZone, "center">, "row" | "column"> = {
@@ -823,6 +825,16 @@ describe("the zone a pointer is over", () => {
 
   it("prefers the horizontal edge in a corner, because the wider side wins", () => {
     expect(dropZoneAt(rect, 10, 10)).toBe("left")
+  })
+
+  it("prefers the vertical edge in the corner of a tall rectangle", () => {
+    // The wide case on its own would pass against a rule that always picks
+    // the horizontal edge, which is the rule this test exists to rule out.
+    expect(dropZoneAt({ left: 0, top: 0, width: 200, height: 400 }, 10, 10)).toBe("top")
+  })
+
+  it("treats the quarter mark itself as the middle rather than the edge", () => {
+    expect(dropZoneAt(rect, 100, 100)).toBe("center")
   })
 
   it("reads the rectangle's own origin rather than assuming zero", () => {
@@ -977,7 +989,7 @@ function weightOf(root: LayoutNode, leafId: NodeId): number {
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `bun run test:unit -- src/shared/workspace`
-Expected: PASS, 44 tests.
+Expected: PASS, 49 tests.
 
 - [ ] **Step 6: Commit**
 
@@ -999,7 +1011,7 @@ git commit -m "feat(workspace): drop zones and where a new panel lands"
 - Produces:
   - `WORKSPACE_VERSION = 1`
   - `serializeWorkspace<P>(tree: LayoutNode, panels: P[]): string`
-  - `parseWorkspace<P>(raw: string | null, panelSchema: ZodType<P>): { tree: LayoutNode; panels: P[] } | null` — null означает «взять раскладку по умолчанию целиком».
+  - `parseWorkspace<P extends { id: string }>(raw: string | null, panelSchema: ZodType<P>): { tree: LayoutNode; panels: P[] } | null` — null означает «взять раскладку по умолчанию целиком». Ограничение на `P` стоит здесь, а не в вызывающем модуле: панель без `id` нельзя сопоставить с деревом, и об этом должен знать компилятор, а не комментарий.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1071,6 +1083,30 @@ describe("a stored workspace", () => {
     const raw = JSON.stringify({ version: WORKSPACE_VERSION, tree: broken, panels })
     expect(parseWorkspace(raw, panelSchema)).toBeNull()
   })
+
+  it("is refused when the split with the wrong sizes is deep in the tree", () => {
+    // The root here is sound, so this fails only if the check recurses.
+    const deep = makeSplit(
+      "root",
+      "row",
+      [
+        makeLeaf("a", ["p1"]),
+        makeSplit(
+          "inner",
+          "column",
+          [makeLeaf("b", ["p2"]), makeLeaf("c", ["p3"])],
+          [34, 33, 33]
+        ),
+      ],
+      [40, 60]
+    )
+    const raw = JSON.stringify({
+      version: WORKSPACE_VERSION,
+      tree: deep,
+      panels: [...panels, { id: "p3", kind: "demo" }],
+    })
+    expect(parseWorkspace(raw, panelSchema)).toBeNull()
+  })
 })
 ```
 
@@ -1123,7 +1159,7 @@ export function serializeWorkspace<P>(tree: LayoutNode, panels: P[]): string {
   return JSON.stringify({ version: WORKSPACE_VERSION, tree, panels })
 }
 
-export function parseWorkspace<P>(
+export function parseWorkspace<P extends { id: string }>(
   raw: string | null,
   panelSchema: ZodType<P>
 ): { tree: LayoutNode; panels: P[] } | null {
@@ -1148,9 +1184,7 @@ export function parseWorkspace<P>(
   const { tree, panels } = envelope.data
   if (!sizesMatchChildren(tree)) return null
 
-  const known = new Set<PanelId>(
-    panels.map((panel) => (panel as { id: string }).id)
-  )
+  const known = new Set<PanelId>(panels.map((panel) => panel.id))
   for (const leaf of leavesOf(tree)) {
     if (!leaf.panels.every((id) => known.has(id))) return null
     if (!leaf.panels.includes(leaf.activePanel)) return null
@@ -1164,13 +1198,6 @@ function sizesMatchChildren(node: LayoutNode): boolean {
   if (node.sizes.length !== node.children.length) return false
   return node.children.every(sizesMatchChildren)
 }
-```
-
-Приведение `panel as { id: string }` — единственное место, где используется допущение «у панели есть id». Оно выражено типом в `useWorkspace` (`P extends { id: string }`, задача 6), и в коде рядом с приведением стоит этот комментарий:
-
-```ts
-  // Every panel carries an id: useWorkspace requires P extends { id: string },
-  // and the schema handed in describes the same type.
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -1247,7 +1274,7 @@ export interface WorkspaceApi<P extends { id: string }> {
 
 ```ts
 import { beforeEach, describe, expect, it } from "vitest"
-import { defineComponent, h } from "vue"
+import { defineComponent, h, nextTick } from "vue"
 import { z } from "zod"
 
 import { makeLeaf, makeSplit } from "./model"
@@ -1315,9 +1342,12 @@ describe("a workspace", () => {
     expect(workspace.panels.value).toHaveLength(1)
   })
 
-  it("writes what it has to storage and reads it back", () => {
+  it("writes what it has to storage and reads it back", async () => {
     const first = build()
     first.open({ id: "p3", kind: "rows" })
+    // The watcher persists on the next tick, so several changes in one tick
+    // cost one write rather than one each. The test waits; the drag does not.
+    await nextTick()
     const second = build()
     expect(second.panels.value.map((panel) => panel.id)).toEqual(["p1", "p2", "p3"])
   })
@@ -1327,12 +1357,15 @@ describe("a workspace", () => {
     expect(build().panels.value).toHaveLength(2)
   })
 
-  it("returns to the defaults on reset", () => {
+  it("returns to the defaults on reset, and stores them", async () => {
     const workspace = build()
     workspace.open({ id: "p3", kind: "rows" })
+    await nextTick()
     workspace.reset()
+    await nextTick()
     expect(workspace.panels.value).toHaveLength(2)
-    expect(localStorage.getItem("test-workspace")).toBeNull()
+    // What is stored is the default layout now, not the one we left behind.
+    expect(build().panels.value).toHaveLength(2)
   })
 
   it("moves a panel where a drag ends", () => {
@@ -1438,6 +1471,9 @@ export function useWorkspace<P extends { id: string }>(
   const restored = parseWorkspace(localStorage.getItem(options.storageKey), options.panelSchema)
   const start = restored ?? options.defaults()
 
+  // ref() rewrites a union into its own unwrapped shape, so the type is
+  // restated: without this the discriminant on tree.value stops narrowing and
+  // every kind check downstream fails to compile.
   const tree = ref<LayoutNode>(start.tree) as Ref<LayoutNode>
   const panels = ref<P[]>(start.panels) as Ref<P[]>
   const focusedLeaf = ref<NodeId | null>(null)
@@ -1446,6 +1482,10 @@ export function useWorkspace<P extends { id: string }>(
   const panelOf = (panelId: PanelId): P | undefined =>
     panels.value.find((panel) => panel.id === panelId)
 
+  // Vue's default flush coalesces every change made in one tick into a single
+  // write. flush: "sync" would put a synchronous localStorage write on every
+  // frame of a border drag, which is a price the user pays so that a test can
+  // skip an await.
   watch(
     [tree, panels],
     () => {
@@ -1524,7 +1564,8 @@ export function useWorkspace<P extends { id: string }>(
   }
 
   function reset() {
-    localStorage.removeItem(options.storageKey)
+    // Assign and let the watcher persist, rather than clearing the key and
+    // racing the write that the assignment itself schedules.
     const fresh = options.defaults()
     tree.value = fresh.tree
     panels.value = fresh.panels
