@@ -16,7 +16,7 @@ async function submit() {
   failed.value = false
   try {
     await login.mutateAsync({ username: username.value, password: password.value })
-    await router.push({ name: "connectors" })
+    await router.push({ name: "workspace" })
   } catch {
     failed.value = true
   }

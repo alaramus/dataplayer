@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test"
 
+import { login } from "./utils/login"
+
 /**
  * The engine is exercised on its own route with placeholder panels: nothing
  * here touches a connector, so a failure is a failure of the layout and not of
@@ -74,4 +76,27 @@ test("drags a tab to an edge and gets a new section", async ({ page }) => {
   await expect(main.getByTestId("workspace-tab-gamma")).toHaveCount(0)
   await expect(page.getByTestId("workspace-tab-gamma")).toBeVisible()
   await expect(main.getByTestId("workspace-tab-beta")).toBeVisible()
+})
+
+test("a signed in user lands on the workspace", async ({ page }) => {
+  await login(page)
+
+  // Whatever a previous run left behind is not the subject here.
+  await page.evaluate(() => {
+    localStorage.removeItem("dataplayer-workspace")
+  })
+  await page.reload()
+
+  await expect(page.getByTestId("workspace-tab-connectors")).toBeVisible()
+  await expect(page.getByTestId("connector-table")).toBeVisible()
+
+  // The sections fill what the toolbar leaves of the window. A page with its
+  // own padding and a height of its own content would leave them floating in
+  // it, and a unit test cannot tell the difference.
+  const viewport = page.viewportSize()
+  if (viewport === null) throw new Error("the page has no viewport")
+  const box = await page.getByTestId("workspace").boundingBox()
+  if (box === null) throw new Error("the workspace has no box")
+  expect(box.width).toBe(viewport.width)
+  expect(box.height).toBeGreaterThan(viewport.height - 80)
 })

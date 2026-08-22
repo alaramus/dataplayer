@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
+import { connectionsTab } from "./utils/workspace"
 
 // The backend runs the queries, not the browser, so the address is written as
 // the backend container sees it: inside the compose network the database is db.
@@ -56,7 +57,9 @@ test("browses a catalog from schema down to column", async ({ page }) => {
   await expect(tree).toContainText("adapter_type")
   await expect(tree).toContainText("character varying")
 
-  await page.getByRole("button", { name: "Close" }).click()
+  // The catalog opened as a tab beside the connections rather than in a modal,
+  // so the way back to the table is its tab.
+  await connectionsTab(page).click()
   await page.getByTestId(`delete-${name}`).click()
   await page.getByRole("button", { name: "Delete" }).click()
   await expect(page.getByTestId("connector-table")).not.toContainText(name)

@@ -3309,6 +3309,14 @@ defineProps<{ connectorId: string; nodeId: string }>()
 
 - [ ] **Step 5: Make the panels receive their props**
 
+Исправлено по ходу выполнения: обёртка запоминается по `panel.id` и создаётся
+через `defineComponent`, а не как функциональный компонент. Движок спрашивает
+компонент активной панели на каждом рендере, а Vue различает компоненты по
+идентичности: обёртка, собранная заново, — каждый раз другой компонент, и
+панель размонтировалась бы на каждом рендере секции. Функциональная обёртка,
+кроме того, не имеет экземпляра, поэтому `<KeepAlive>` в секции нечего хранить,
+и вкладка возвращалась бы перечитанной — на этом падал `actions.spec.ts`.
+
 `WorkspaceLeaf` рендерит `<component :is>` без пропсов, а `CatalogPanel` и `RowsPanel` их требуют. Расширить `componentOf` в `panels.ts` так, чтобы он возвращал компонент с уже привязанными пропсами:
 
 ```ts
@@ -3327,6 +3335,11 @@ export function componentOf(panel: Panel): Component {
   }
 }
 ```
+
+Ещё одно, чего не было в плане: в `CatalogPanel.vue` нужен блок
+`data-testid="opaque-file"` — тот, что был в диалоге. Выбор файла, который
+нечем прочитать, не открывает вкладку, и без единого слова щелчок выглядит
+как ничего не сделавший. Ожидание в `files.spec.ts` на этот блок и опирается.
 
 - [ ] **Step 6: Delete the dialog and close the rule behind it**
 
@@ -3464,6 +3477,11 @@ provide(workspaceActionsKey, {
 
 и в `router.beforeEach` заменить `return { name: "connectors" }` на `return { name: "workspace" }`.
 
+Вхождений три, а не два: `frontend/src/features/auth/LoginPage.vue` тоже
+толкает маршрут по имени. Имена маршрутов не типизированы, так что ни
+`vue-tsc`, ни модульные тесты этого не ловят — вход просто перестаёт
+завершаться, и в браузере падают все сценарии до единого.
+
 - [ ] **Step 3: Delete the old page**
 
 ```bash
@@ -3503,6 +3521,20 @@ Run: `bunx playwright test`
 Expected: FAIL. Сценарии открывают каталог кнопкой `browse-{name}` и закрывают кнопкой `Close` диалога, которой больше нет.
 
 - [ ] **Step 2: Adjust each scenario to the workspace**
+
+Исправлено по ходу выполнения. Закрывать вкладку каталога не нужно и не
+достаточно: обратно к таблице соединений ведёт её собственная вкладка, а
+выбор узла открывает строки поверх дерева, поэтому между двумя выборами
+сценарий возвращается на вкладку каталога. Три локатора вынесены в
+`frontend/tests/utils/workspace.ts` — `connectionsTab`, `catalogTab`,
+`rowsTabs`, — потому что они одни и те же в четырёх файлах.
+
+Кроме того, `fill` у `AppLayout` не работал: страница Quasar получает только
+`min-height`, поэтому ребёнок с `height: 100%` брал высоту своего содержимого —
+рабочая область была 288 пикселей при окне в 720. Стиль теперь навешивается
+классом только в режиме `fill` и раздаёт высоту детям (`flex: 1 1 auto`), а
+сценарий из шага 3 измеряет прямоугольник. Ни один модульный тест этого не
+видит: в jsdom нет раскладки.
 
 Замена, одна и та же в четырёх файлах: `await page.getByRole("button", { name: "Close" }).click()` уходит; вместо него вкладка каталога закрывается своим крестом, а идентификатор вкладки выводится так же, как в `panels.ts`:
 
@@ -3547,10 +3579,14 @@ async function closeCatalogTab(page: import("@playwright/test").Page, name: stri
 
 Дописать в `frontend/tests/workspace.spec.ts`:
 
+Имя теста приведено в соответствие с тем, что он проверяет: полный путь
+«соединение → каталог → таблица» уже покрыт `rows.spec.ts`, а здесь — что
+вошедший пользователь попадает в рабочую область и что она занимает окно.
+
 ```ts
 import { login } from "./utils/login"
 
-test("opens a table beside the connections and keeps it across a reload", async ({ page }) => {
+test("a signed in user lands on the workspace", async ({ page }) => {
   await login(page)
 
   // Whatever the previous run left is not this test's subject.

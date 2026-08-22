@@ -19,6 +19,13 @@ export interface WorkspaceOptions<P extends { id: string }> {
   defaults: () => { tree: LayoutNode; panels: P[] }
   kindOf: (panel: P) => string
   look: (panel: P) => PanelLook
+  /**
+   * What renders a panel.
+   *
+   * Must answer with the same component for the same panel: a tab that is not
+   * showing is kept alive, and Vue tells two components apart by identity, so
+   * a component built afresh on each call is a different one each time.
+   */
   component: (panel: P) => Component
 }
 

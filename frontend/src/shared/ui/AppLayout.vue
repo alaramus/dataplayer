@@ -36,7 +36,10 @@ async function logout() {
       </q-toolbar>
     </q-header>
     <q-page-container>
-      <q-page :padding="!fill">
+      <q-page
+        :padding="!fill"
+        :class="fill ? 'app-layout__page--fill' : undefined"
+      >
         <slot />
       </q-page>
     </q-page-container>
@@ -44,8 +47,17 @@ async function logout() {
 </template>
 
 <style scoped>
-:deep(.q-page) {
+/* A filling page hands its whole height to what it holds: Quasar gives the
+   page a min-height and nothing else, so a child asking for 100% of an
+   auto-height parent gets the height of its own content instead. Scoped to
+   the fill case — an ordinary page is a document that grows downwards. */
+:deep(.app-layout__page--fill) {
   display: flex;
   flex-direction: column;
+}
+
+:deep(.app-layout__page--fill) > * {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 </style>

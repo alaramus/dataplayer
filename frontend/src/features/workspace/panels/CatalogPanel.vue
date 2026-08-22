@@ -18,6 +18,17 @@ onMounted(() => {
 
 const targetLabel = computed(() => tree.selected.value?.label ?? "Whole connection")
 
+/**
+ * A file nothing can read as rows.
+ *
+ * Said here rather than left silent: selecting such a file opens no tab, and
+ * without a word the click looks like it did nothing at all.
+ */
+const selectedOpaque = computed(() => {
+  const node = tree.selected.value
+  return node !== null && node.kind === "file" && !node.readable ? node : null
+})
+
 /** Selecting a readable node opens it in the section that holds rows. */
 function onSelected(nodeId: string | null) {
   tree.selectedId.value = nodeId
@@ -81,6 +92,13 @@ function onSelected(nodeId: string | null) {
       v-else-if="!tree.error.value"
       text="Nothing to show"
     />
+
+    <div
+      v-if="selectedOpaque"
+      data-testid="opaque-file"
+    >
+      <AppEmptyState :text="`${selectedOpaque.label} cannot be read as rows.`" />
+    </div>
   </div>
 </template>
 

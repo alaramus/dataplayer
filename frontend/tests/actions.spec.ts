@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
 import { login } from "./utils/login"
+import { catalogTab, connectionsTab } from "./utils/workspace"
 
 // The backend runs the queries, so the address is the one the backend
 // container sees.
@@ -69,7 +70,8 @@ test("creates, fills, renames and removes a folder in personal storage", async (
   await expect(grid).toContainText("name")
   await expect(grid.locator("tbody tr")).toHaveCount(2)
 
-  // --- rename it
+  // --- rename it, from the tab the tree is on
+  await catalogTab(page).click()
   await page.getByTestId("action-rename").click()
   await page
     .getByTestId("action-dialog")
@@ -92,7 +94,9 @@ test("creates, fills, renames and removes a folder in personal storage", async (
   await page.getByTestId("action-submit").click()
   await expect(tree).not.toContainText(folder)
 
-  await page.getByRole("button", { name: "Close" }).click()
+  // The catalog opened as a tab beside the connections rather than in a modal,
+  // so the way back to the table is its tab.
+  await connectionsTab(page).click()
   await page.getByTestId(`delete-${name}`).click()
   await page.getByRole("button", { name: "Delete" }).click()
   await expect(page.getByTestId("connector-table")).not.toContainText(name)
@@ -121,7 +125,9 @@ test("a database offers no actions at all", async ({ page }) => {
   await expect(page.getByTestId("action-bar")).toHaveCount(0)
   await expect(page.getByTestId("catalog-error")).toHaveCount(0)
 
-  await page.getByRole("button", { name: "Close" }).click()
+  // The catalog opened as a tab beside the connections rather than in a modal,
+  // so the way back to the table is its tab.
+  await connectionsTab(page).click()
   await page.getByTestId(`delete-${name}`).click()
   await page.getByRole("button", { name: "Delete" }).click()
   await expect(page.getByTestId("connector-table")).not.toContainText(name)

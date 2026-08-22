@@ -112,7 +112,16 @@ const overlayStyle = computed((): CSSProperties => {
       v-if="!leaf.collapsed"
       class="workspace-leaf__body"
     >
-      <component :is="workspace.componentOf(active)" />
+      <!-- A tab that is not showing is kept rather than destroyed: switching
+           away and back is not a reason to re-read a catalog or to lose the
+           page a grid was on, which is what a plain <component :is> would
+           do. -->
+      <KeepAlive>
+        <component
+          :is="workspace.componentOf(active)"
+          :key="active"
+        />
+      </KeepAlive>
     </div>
 
     <div

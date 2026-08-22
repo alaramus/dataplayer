@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { defineComponent, h } from "vue"
+import type { Component } from "vue"
 import { z } from "zod"
 
 import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
@@ -14,10 +15,24 @@ import { AppButton } from "@/shared/ui"
 const panelSchema = z.object({ id: z.string(), kind: z.string(), title: z.string() })
 type DemoPanel = z.infer<typeof panelSchema>
 
-const Placeholder = (title: string) =>
-  defineComponent({
+/**
+ * One component per panel, kept.
+ *
+ * The engine asks for the component of the active panel on every render and
+ * keeps a tab that is not showing alive, so the answer has to be the same
+ * component every time — see `WorkspaceOptions.component`.
+ */
+const placeholders = new Map<string, Component>()
+
+const Placeholder = (id: string, title: string) => {
+  const kept = placeholders.get(id)
+  if (kept !== undefined) return kept
+  const made = defineComponent({
     setup: () => () => h("div", { style: "padding: 12px; font-size: 13px;" }, title),
   })
+  placeholders.set(id, made)
+  return made
+}
 
 const workspace = useWorkspace<DemoPanel>({
   storageKey: "dataplayer-workspace-demo",
@@ -37,7 +52,7 @@ const workspace = useWorkspace<DemoPanel>({
   }),
   kindOf: (panel) => panel.kind,
   look: (panel) => ({ title: panel.title, icon: "widgets" }),
-  component: (panel) => Placeholder(panel.title),
+  component: (panel) => Placeholder(panel.id, panel.title),
 })
 
 let opened = 0

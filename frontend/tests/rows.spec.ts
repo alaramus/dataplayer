@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
+import { connectionsTab, rowsTabs } from "./utils/workspace"
 
 const DATABASE = {
   host: process.env.POSTGRES_SERVER ?? "db",
@@ -37,7 +38,9 @@ test("shows rows of a selected relation and pages through them", async ({ page }
   // pg_catalog is used rather than an application table: it always holds
   // hundreds of rows, so paging is real rather than vacuous.
   await nodeHeader(page, "pg_catalog").locator(".q-tree__arrow").click()
+  // Selecting a relation opens it in a tab of its own.
   await nodeHeader(page, "pg_class").click()
+  await expect(rowsTabs(page)).toHaveCount(1)
 
   const grid = page.getByTestId("row-grid")
   await expect(grid).toContainText("relname")
@@ -50,7 +53,9 @@ test("shows rows of a selected relation and pages through them", async ({ page }
   await page.getByTestId("grid-prev").click()
   await expect(grid).toContainText("Rows 1–50")
 
-  await page.getByRole("button", { name: "Close" }).click()
+  // The catalog opened as a tab beside the connections rather than in a modal,
+  // so the way back to the table is its tab.
+  await connectionsTab(page).click()
   await page.getByTestId(`delete-${name}`).click()
   await page.getByRole("button", { name: "Delete" }).click()
   await expect(page.getByTestId("connector-table")).not.toContainText(name)

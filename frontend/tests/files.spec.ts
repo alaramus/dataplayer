@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
 import { login } from "./utils/login"
+import { catalogTab, connectionsTab } from "./utils/workspace"
 
 // The samples come from `docker compose exec backend python -m app.seed_storage`:
 // this sub-project cannot write files, so a personal directory is empty until
@@ -47,15 +48,21 @@ test("browses a personal directory and reads files as rows", async ({ page }) =>
   await page.getByTestId("grid-next").click()
   await expect(grid).toContainText("Rows 51–100")
 
+  // Back to the tree: the rows of the previous file are covering it, and the
+  // tab that comes back is the one that was left, expanded as it was.
+  await catalogTab(page).click()
   await nodeHeader(page, "notes.txt").click()
   await expect(grid).toContainText("line_no")
   await expect(grid).toContainText("line 1")
 
+  await catalogTab(page).click()
   await nodeHeader(page, "logo.png").click()
   await expect(page.getByTestId("opaque-file")).toContainText("cannot be read")
   await expect(page.getByTestId("row-grid")).toHaveCount(0)
 
-  await page.getByRole("button", { name: "Close" }).click()
+  // The catalog opened as a tab beside the connections rather than in a modal,
+  // so the way back to the table is its tab.
+  await connectionsTab(page).click()
   await page.getByTestId(`delete-${name}`).click()
   await page.getByRole("button", { name: "Delete" }).click()
   await expect(page.getByTestId("connector-table")).not.toContainText(name)

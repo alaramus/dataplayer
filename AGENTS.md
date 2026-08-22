@@ -52,7 +52,10 @@ offered for a node come from the server, so the screen has no knowledge of any
 particular source. Credentials are encrypted at rest and never leave the
 server, and a source that has connections keeps them between requests. Every
 screen is built from one component kit, and what a screen may not reach for is
-a lint error rather than a convention.
+a lint error rather than a convention. All of that now happens in one screen:
+a workspace of resizable sections, where connections, a catalog and the rows
+of a node are panels in tabs that can be dragged apart, and the layout a user
+arrives at is the one they left.
 
 ### What exists
 
@@ -107,14 +110,20 @@ frontend/src/
 │   ├── api/             client setup, and one reading of an API error
 │   ├── auth/            the session, watched across tabs
 │   ├── SchemaForm/      JSON Schema to form, framework-independent core
+│   ├── workspace/       the panel engine: a layout tree, tabs, drag and drop;
+│   │                    tree.ts, dropZone.ts, placement.ts and persist.ts are
+│   │                    pure, the components see one injected context
 │   └── testing/         helpers for tests, not shipped by any screen
 ├── stores/              Pinia: client-side state only
 └── features/
     ├── auth/
     ├── catalog/         lazy tree, row grid, and the actions a node admits;
-    │                    treeNodes.ts, rows.ts and actions.ts are pure mappers
+    │                    treeNodes.ts, rows.ts and actions.ts are pure mappers;
+    │                    useCatalogTree.ts walks a catalog outside any component
     ├── connectors/
-    └── dev/             /ui-kit, the showcase of the kit; dev builds only
+    ├── workspace/       the three panels, the registry that names them and
+    │                    what one panel may ask the workspace to open
+    └── dev/             /ui-kit and /workspace-demo, dev builds only
 ```
 
 ### API
@@ -328,6 +337,31 @@ architecture and end-to-end typing; the UI kit was never the problem. The
 typed client generated from OpenAPI is kept — it does not depend on the
 framework.
 
+**D12. The screen is a workspace of sections, and the engine behind it knows
+nothing about the application.** A layout is a tree of sections; every change
+to it is a pure function; a section is a list of panels with one active, and
+that is the only notion of a tab in the application. What a panel is belongs to
+`features/workspace`, which hands the engine a component and a look per panel.
+Full reasoning in `docs/superpowers/specs/2026-08-22-workspace-design.md`.
+
+The old application had such an engine and it grew to 2438 lines: nodes were
+mutated in place and carried parent back-pointers, so undoing anything needed a
+history of layouts and a command language of nine verbs, and a node it could
+not remove had to be left in place marked `fake`.
+
+Two consequences worth stating separately:
+
+- **A tab that is not showing is kept, not destroyed.** Switching away and back
+  is no reason to re-read a catalog or to lose the page a grid was on, so the
+  section wraps the active panel in `<KeepAlive>`. That puts one requirement on
+  the feature: `component(panel)` must answer with the same component for the
+  same panel. A wrapper built afresh on each call is a different component each
+  time — the panel would be remounted on every render, and a functional wrapper
+  cannot be kept alive at all.
+- **Walking a catalog is not logic of a screen.** `useCatalogTree` holds it,
+  and it invalidates the branch it re-reads rather than trusting whoever
+  changed it to have done so.
+
 ## Commands
 
 The database and backend run in Docker. Bring them up first:
@@ -535,6 +569,13 @@ capability should take. And an action that carries bytes needed a second route
 rather than a second body type; download in sub-project 7 answers with bytes
 and will need the same treatment in the other direction.
 
+The workspace is done: one screen of resizable sections with tabs (D12),
+replacing the connections page and the catalog modal. The engine under it knows
+nothing about panels, and what it settled is worth carrying into 7: a section
+keeps the panel of an inactive tab alive, which is what makes a long-running
+panel — a terminal, an agent, a subscription — possible without the layout
+resetting it.
+
 The shared UI kit is done, ahead of 7 rather than as part of it: every screen
 now builds from `shared/ui`, and a lint rule keeps the next one from going
 around it (D11). A new screen starts by looking at `/ui-kit`.
@@ -605,8 +646,27 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
 - **Attribute fall-through is a way around the kit.** Nothing stops a screen
   passing `color="purple"` straight to the Quasar component underneath. Only
   review catches it.
-- **`q-tree` is outside the kit**, so the catalog tree is still Quasar's, and
-  sub-project 7 will have to decide about it again.
+- **`AppTree` is a wrapper over `q-tree`, not a tree of its own.** The kit now
+  owns it and the lint rule forbids the Quasar one outside `shared/ui`, but the
+  types of its nodes and of a lazy load are read off Quasar's props, so
+  replacing the tree would change what a screen passes it.
+- **The default layout is one section, not three.** A workspace opens showing
+  connections alone; the catalog and a table arrive as tabs beside them and are
+  pulled apart by dragging. Seeding three sections would mean seeding panels
+  for a connector the user has not chosen yet — and until they are pulled
+  apart, opening a table covers the tree that opened it.
+- **Tabs cannot be reordered inside a strip.** Dragging a tab moves it to
+  another section or splits one; dropping it back into its own strip does
+  nothing.
+- **The layout is one per browser.** It lives in localStorage, so it does not
+  follow a user to another machine and is not shared between two windows.
+- **A panel of a connector that was deleted stays until it is closed.** It
+  shows the error the server gave rather than disappearing, because the panel
+  cannot tell a deleted connector from a failed request.
+- **A closed panel is still held.** Both the map of bound components in
+  `features/workspace/panels.ts` and the cache inside `<KeepAlive>` keep what
+  they were given for as long as the page lives; nothing prunes them when a tab
+  is closed. Bounded by how many distinct panels one session opens.
 - **There is no dark theme.** Tokens are build-time sass variables; switching
   at runtime needs CSS custom properties and its own task.
 - **D2b — a driver is a session plus capability modules — rests on review.**
