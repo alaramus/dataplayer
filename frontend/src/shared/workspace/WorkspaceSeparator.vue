@@ -3,6 +3,9 @@ import { ref } from "vue"
 
 import type { Direction } from "./model"
 
+/** Movement under this much reads as a press on the handle, not as a drag. */
+const PRESS_THRESHOLD_PX = 3
+
 const props = defineProps<{ direction: Direction }>()
 const emit = defineEmits<{ move: [deltaPx: number]; toggle: [] }>()
 
@@ -32,7 +35,7 @@ function onPointerUp(event: PointerEvent) {
   dragging.value = false
   // A border that was pressed rather than dragged is the handle that brings a
   // collapsed section back, which is why a collapsed section keeps its border.
-  if (moved < 3) emit("toggle")
+  if (moved < PRESS_THRESHOLD_PX) emit("toggle")
 }
 </script>
 

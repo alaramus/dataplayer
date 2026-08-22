@@ -60,6 +60,15 @@ describe("a section", () => {
     expect(seen).toEqual(["p2"])
   })
 
+  it("does not activate the panel when its cross is clicked", async () => {
+    // Without @click.stop the cross would bubble to the tab it sits in, so
+    // closing a background panel would activate it on the way out.
+    const activated: string[] = []
+    const wrapper = mountLeaf(contextFor({ activate: (id) => activated.push(id) }))
+    await wrapper.get('[data-testid="workspace-close-p2"]').trigger("click")
+    expect(activated).toEqual([])
+  })
+
   it("offers no collapse handle when it is the only section", () => {
     const wrapper = mountLeaf(contextFor(), false)
     expect(wrapper.find('[data-testid="workspace-collapse-a"]').exists()).toBe(false)

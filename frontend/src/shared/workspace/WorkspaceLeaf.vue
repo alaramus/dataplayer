@@ -33,9 +33,14 @@ function onPointerUp() {
   zone.value = null
 }
 
+/**
+ * Pressing a tab begins a possible drag, and nothing else. Activating is left
+ * to the click that follows a press which did not become one - which is also
+ * what lets the keyboard reach a tab, since Enter on a button raises click and
+ * never pointerdown.
+ */
 function onTabPointerDown(panelId: string) {
   workspace.focus(props.leaf.id)
-  workspace.activate(panelId)
   workspace.startDrag(panelId)
 }
 

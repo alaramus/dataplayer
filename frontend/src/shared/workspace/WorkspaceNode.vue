@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, ref } from "vue"
+import { inject, ref } from "vue"
 
 import { workspaceKey } from "./context"
 import type { WorkspaceContext } from "./context"
@@ -31,15 +31,23 @@ function styleFor(child: LayoutNode, index: number) {
   return { flex: `${String(size)} 1 0%` }
 }
 
-const lengthPx = computed(() => {
+/**
+ * The length of this split along its own direction, measured now.
+ *
+ * Deliberately not a computed: getBoundingClientRect is not reactive, so a
+ * memoised value would keep answering with the size the container had when it
+ * first mounted, and every drag after a window resize would convert pixels at
+ * the wrong scale.
+ */
+function lengthPx(): number {
   if (element.value === null) return 0
   const box = element.value.getBoundingClientRect()
   return props.node.kind === "split" && props.node.direction === "row" ? box.width : box.height
-})
+}
 
 function onMove(index: number, deltaPx: number) {
   if (props.node.kind !== "split") return
-  const total = lengthPx.value
+  const total = lengthPx()
   if (total <= 0) return
   workspace.resize(
     props.node.id,
