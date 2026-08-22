@@ -3,6 +3,7 @@ import { ref } from "vue"
 import { useRouter } from "vue-router"
 
 import { useLogin } from "@/features/auth/api"
+import { AppActions, AppBanner, AppButton, AppCard, AppInput, AppSection } from "@/shared/ui"
 
 const router = useRouter()
 const login = useLogin()
@@ -26,52 +27,45 @@ async function submit() {
   <q-layout view="hHh lpR fFf">
     <q-page-container>
       <q-page class="flex flex-center">
-        <q-card
-          style="width: 360px"
-          class="q-pa-md"
+        <AppCard
+          size="xs"
+          title="Sign in"
         >
-          <q-card-section>
-            <div class="text-h6">
-              Sign in
-            </div>
-          </q-card-section>
           <q-form @submit.prevent="submit">
-            <q-card-section class="q-gutter-md">
-              <q-input
+            <AppSection gutter>
+              <AppInput
                 v-model="username"
                 label="Email"
                 type="email"
                 autocomplete="username"
                 data-testid="login-email"
               />
-              <q-input
+              <AppInput
                 v-model="password"
                 label="Password"
                 type="password"
                 autocomplete="current-password"
                 data-testid="login-password"
               />
-              <q-banner
+              <AppBanner
                 v-if="failed"
-                dense
-                class="bg-negative text-white"
+                tone="error"
                 data-testid="login-error"
               >
                 Could not sign in. Check the email and password.
-              </q-banner>
-            </q-card-section>
-            <q-card-actions>
-              <q-btn
+              </AppBanner>
+            </AppSection>
+            <AppActions align="left">
+              <AppButton
                 type="submit"
-                color="primary"
-                class="full-width"
                 label="Sign in"
+                class="full-width"
                 data-testid="login-submit"
                 :loading="login.isPending.value"
               />
-            </q-card-actions>
+            </AppActions>
           </q-form>
-        </q-card>
+        </AppCard>
       </q-page>
     </q-page-container>
   </q-layout>

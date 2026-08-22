@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { AxiosError } from "axios"
 import { ref, watch } from "vue"
 
 import type { FetchResult, Sort } from "@/client"
 import { useFetchRows } from "@/features/catalog/api"
 import { displayValue, toGridColumns, toGridRows } from "@/features/catalog/rows"
 import type { GridColumn } from "@/features/catalog/rows"
+import { messageOf } from "@/shared/api/errors"
+import { AppBanner, AppIconButton, AppTable } from "@/shared/ui"
 
 const props = defineProps<{
   connectorId: string
@@ -28,17 +29,6 @@ const sortable = ref(true)
 const sort = ref<Sort[]>([])
 const error = ref("")
 
-function messageOf(cause: unknown): string {
-  if (cause instanceof AxiosError) {
-    const detail = cause.response?.data?.detail
-    if (detail && typeof detail === "object" && "message" in detail) {
-      return String(detail.message)
-    }
-    if (Array.isArray(detail) && detail[0]?.msg) return String(detail[0].msg)
-  }
-  return "Could not read the rows"
-}
-
 async function load() {
   error.value = ""
   try {
@@ -57,7 +47,7 @@ async function load() {
     hasMore.value = result.has_more
     sortable.value = result.sortable !== false
   } catch (cause) {
-    error.value = messageOf(cause)
+    error.value = messageOf(cause, "Could not read the rows")
     columns.value = []
     rows.value = []
     hasMore.value = false
@@ -93,27 +83,24 @@ watch(
 
 <template>
   <div data-testid="row-grid">
-    <q-banner
+    <AppBanner
       v-if="error"
-      dense
-      class="bg-negative text-white q-mb-md"
+      tone="error"
+      class="q-mb-md"
       data-testid="grid-error"
     >
       {{ error }}
-    </q-banner>
+    </AppBanner>
 
-    <q-table
+    <AppTable
       v-else
       :rows="rows"
       :columns="columns"
       :loading="fetchRows.isPending.value"
       row-key="__index"
-      flat
-      bordered
-      dense
-      hide-pagination
-      :rows-per-page-options="[0]"
-      no-data-label="No rows"
+      compact
+      :paged="false"
+      empty-text="No rows"
     >
       <template #header-cell="cellProps">
         <q-th
@@ -137,7 +124,7 @@ watch(
           </span>
         </q-td>
       </template>
-    </q-table>
+    </AppTable>
 
     <div class="row items-center justify-end q-gutter-sm q-mt-sm">
       <div class="text-caption text-grey">
@@ -146,18 +133,16 @@ watch(
           of ~{{ rowEstimate }}
         </template>
       </div>
-      <q-btn
-        dense
-        flat
+      <AppIconButton
         icon="chevron_left"
+        tooltip="Previous page"
         :disable="page === 0"
         data-testid="grid-prev"
         @click="turnPage(-1)"
       />
-      <q-btn
-        dense
-        flat
+      <AppIconButton
         icon="chevron_right"
+        tooltip="Next page"
         :disable="!hasMore"
         data-testid="grid-next"
         @click="turnPage(1)"

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { ConnectorPublic } from "@/client"
+import { AppBadge, AppIconButton, AppTable } from "@/shared/ui"
+import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
 defineProps<{
   rows: ConnectorPublic[]
@@ -13,11 +15,11 @@ defineEmits<{
   browse: [connector: ConnectorPublic]
 }>()
 
-const columns = [
-  { name: "name", label: "Name", field: "name", align: "left" as const, sortable: true },
-  { name: "adapter_type", label: "Type", field: "adapter_type", align: "left" as const },
-  { name: "host", label: "Host", field: "host", align: "left" as const },
-  { name: "actions", label: "", field: "actions", align: "right" as const },
+const columns: TableColumns = [
+  { name: "name", label: "Name", field: "name", align: "left", sortable: true },
+  { name: "adapter_type", label: "Type", field: "adapter_type", align: "left" },
+  { name: "host", label: "Host", field: "host", align: "left" },
+  { name: "actions", label: "", field: "actions", align: "right" },
 ]
 
 function hostOf(connector: ConnectorPublic): string {
@@ -30,15 +32,13 @@ function hostOf(connector: ConnectorPublic): string {
 </script>
 
 <template>
-  <q-table
+  <AppTable
     :rows="rows"
     :columns="columns"
     :loading="loading"
     row-key="id"
-    flat
-    bordered
     data-testid="connector-table"
-    no-data-label="No connections yet"
+    empty-text="No connections yet"
   >
     <template #body-cell-host="cellProps">
       <q-td :props="cellProps">
@@ -48,10 +48,7 @@ function hostOf(connector: ConnectorPublic): string {
 
     <template #body-cell-adapter_type="cellProps">
       <q-td :props="cellProps">
-        <q-badge
-          color="primary"
-          :label="cellProps.row.adapter_type"
-        />
+        <AppBadge :label="cellProps.row.adapter_type" />
       </q-td>
     </template>
 
@@ -60,44 +57,32 @@ function hostOf(connector: ConnectorPublic): string {
         :props="cellProps"
         class="q-gutter-xs"
       >
-        <q-btn
-          dense
-          flat
+        <AppIconButton
           icon="account_tree"
+          tooltip="Browse catalog"
           :data-testid="`browse-${cellProps.row.name}`"
           @click="$emit('browse', cellProps.row)"
-        >
-          <q-tooltip>Browse catalog</q-tooltip>
-        </q-btn>
-        <q-btn
-          dense
-          flat
+        />
+        <AppIconButton
           icon="bolt"
+          tooltip="Check connection"
           :data-testid="`check-${cellProps.row.name}`"
           @click="$emit('check', cellProps.row)"
-        >
-          <q-tooltip>Check connection</q-tooltip>
-        </q-btn>
-        <q-btn
-          dense
-          flat
+        />
+        <AppIconButton
           icon="edit"
+          tooltip="Edit"
           :data-testid="`edit-${cellProps.row.name}`"
           @click="$emit('edit', cellProps.row)"
-        >
-          <q-tooltip>Edit</q-tooltip>
-        </q-btn>
-        <q-btn
-          dense
-          flat
+        />
+        <AppIconButton
           icon="delete"
-          color="negative"
+          tooltip="Delete"
+          variant="danger-quiet"
           :data-testid="`delete-${cellProps.row.name}`"
           @click="$emit('remove', cellProps.row)"
-        >
-          <q-tooltip>Delete</q-tooltip>
-        </q-btn>
+        />
       </q-td>
     </template>
-  </q-table>
+  </AppTable>
 </template>

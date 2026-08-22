@@ -4,6 +4,8 @@ import { useRouter } from "vue-router"
 
 import { useAuthStore } from "@/stores/auth"
 
+import AppButton from "./AppButton.vue"
+
 const auth = useAuthStore()
 const router = useRouter()
 const queryClient = useQueryClient()
@@ -22,9 +24,9 @@ async function logout() {
     <q-header elevated>
       <q-toolbar>
         <q-toolbar-title>DataPlayer</q-toolbar-title>
-        <q-btn
-          flat
-          dense
+        <AppButton
+          variant="quiet"
+          size="sm"
           label="Sign out"
           data-testid="logout"
           @click="logout"

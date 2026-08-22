@@ -5,6 +5,7 @@ import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import { toCommands } from "@/features/catalog/actions"
 import type { ActionCommand } from "@/features/catalog/actions"
 import { useNodeActions } from "@/features/catalog/api"
+import { AppButton } from "@/shared/ui"
 
 const props = defineProps<{
   connectorId: string
@@ -33,13 +34,11 @@ const active = ref<ActionCommand | null>(null)
     data-testid="action-bar"
   >
     <span class="text-caption text-grey">{{ nodeLabel }}</span>
-    <q-btn
+    <AppButton
       v-for="command in commands"
       :key="command.name"
-      dense
-      flat
-      no-caps
-      :color="command.destructive ? 'negative' : 'primary'"
+      size="sm"
+      :variant="command.destructive ? 'danger-quiet' : 'secondary'"
       :label="command.label"
       :data-testid="`action-${command.name}`"
       @click="active = command"

@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { AxiosError } from "axios"
 import { computed, ref, watch } from "vue"
 
 import { useRunAction } from "@/features/catalog/api"
 import type { ActionCommand } from "@/features/catalog/actions"
+import { fieldErrorsFrom, messageOf } from "@/shared/api/errors"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
-import type { ServerError } from "@/shared/SchemaForm/useSchemaForm"
+import {
+  AppBanner,
+  AppButton,
+  AppDialog,
+  AppFileInput,
+  AppSection,
+} from "@/shared/ui"
 
 const props = defineProps<{
   command: ActionCommand | null
@@ -37,22 +43,6 @@ watch(
   }
 )
 
-function messageOf(cause: unknown): string {
-  if (cause instanceof AxiosError) {
-    const detail = cause.response?.data?.detail
-    if (detail && typeof detail === "object" && "message" in detail) {
-      return String(detail.message)
-    }
-  }
-  return "The action could not be performed"
-}
-
-function fieldErrorsFrom(cause: unknown): ServerError[] | null {
-  if (!(cause instanceof AxiosError) || cause.response?.status !== 422) return null
-  const detail = cause.response.data?.detail
-  return Array.isArray(detail) ? (detail as ServerError[]) : null
-}
-
 function close() {
   emit("update:command", null)
 }
@@ -81,81 +71,69 @@ async function submit() {
     if (fieldErrors) {
       applyServerErrors(fieldErrors)
     } else {
-      failure.value = messageOf(cause)
+      failure.value = messageOf(cause, "The action could not be performed")
     }
   }
 }
 </script>
 
 <template>
-  <q-dialog
+  <AppDialog
+    v-if="command"
     :model-value="open"
+    size="sm"
+    :title="command.label"
+    :subtitle="nodeLabel"
+    data-testid="action-dialog"
     @update:model-value="close"
   >
-    <q-card
-      v-if="command"
-      style="width: 460px; max-width: 90vw"
-      data-testid="action-dialog"
-    >
-      <q-card-section>
-        <div class="text-h6">
-          {{ command.label }}
-        </div>
-        <div class="text-caption text-grey">
-          {{ nodeLabel }}
-        </div>
-      </q-card-section>
+    <AppSection gutter>
+      <!-- The warning follows the declared flag, not a list of names kept
+           here: an action that destroys something says so itself. -->
+      <AppBanner
+        v-if="command.destructive"
+        tone="warning"
+        data-testid="action-warning"
+      >
+        This cannot be undone.
+      </AppBanner>
 
-      <q-card-section class="q-gutter-md">
-        <!-- The warning follows the declared flag, not a list of names kept
-             here: an action that destroys something says so itself. -->
-        <q-banner
-          v-if="command.destructive"
-          dense
-          class="bg-orange-1"
-          data-testid="action-warning"
-        >
-          This cannot be undone.
-        </q-banner>
+      <AppBanner
+        v-if="failure"
+        tone="error"
+        data-testid="action-error"
+      >
+        {{ failure }}
+      </AppBanner>
 
-        <q-banner
-          v-if="failure"
-          dense
-          class="bg-negative text-white"
-          data-testid="action-error"
-        >
-          {{ failure }}
-        </q-banner>
+      <AppFileInput
+        v-if="command.takesFile"
+        v-model="file"
+        label="File"
+        data-testid="action-file"
+      />
 
-        <q-file
-          v-if="command.takesFile"
-          v-model="file"
-          label="File"
-          data-testid="action-file"
-        />
+      <SchemaFields
+        v-if="command.fields.length"
+        v-model="values"
+        :fields="command.fields"
+        :errors="errors"
+      />
+    </AppSection>
 
-        <SchemaFields
-          v-if="command.fields.length"
-          v-model="values"
-          :fields="command.fields"
-          :errors="errors"
-        />
-      </q-card-section>
-
-      <q-card-actions align="right">
-        <q-btn
-          flat
-          label="Cancel"
-          @click="close"
-        />
-        <q-btn
-          :color="command.destructive ? 'negative' : 'primary'"
-          :label="command.label"
-          :loading="runAction.isPending.value"
-          data-testid="action-submit"
-          @click="submit"
-        />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
+    <template #actions>
+      <AppButton
+        variant="quiet"
+        label="Cancel"
+        @click="close"
+      />
+      <AppButton
+        :variant="command.destructive ? 'danger' : 'primary'"
+        :label="command.label"
+        :loading="runAction.isPending.value"
+        data-testid="action-submit"
+        @click="submit"
+      />
+    </template>
+  </AppDialog>
 </template>

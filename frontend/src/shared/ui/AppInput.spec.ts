@@ -24,6 +24,15 @@ describe("AppInput", () => {
     expect(mountInput({ type: "password" }).get("input").attributes("type")).toBe("password")
   })
 
+  // The caller holds a string, not the union QInput happens to report.
+  it("reports an empty field as an empty string rather than null", async () => {
+    const wrapper = mountInput()
+
+    await wrapper.get("input").setValue("")
+
+    expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([""])
+  })
+
   it("treats an empty error string as no error", () => {
     expect(mountInput({ error: "" }).find(".q-field--error").exists()).toBe(false)
     expect(mountInput({ error: "Required" }).find(".q-field--error").exists()).toBe(true)

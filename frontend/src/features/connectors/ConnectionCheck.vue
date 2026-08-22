@@ -2,6 +2,7 @@
 import { computed } from "vue"
 
 import type { ConnectionCheckResult } from "@/client"
+import { AppBanner } from "@/shared/ui"
 
 const props = defineProps<{
   result: ConnectionCheckResult | null
@@ -29,16 +30,11 @@ const text = computed(() => {
 <template>
   <!-- The result is shown as a line inside the dialog rather than a toast: it
        is read next to the fields being edited. -->
-  <q-banner
+  <AppBanner
     v-if="result"
-    dense
-    class="text-white"
-    :class="result.ok ? 'bg-positive' : 'bg-negative'"
+    :tone="result.ok ? 'success' : 'error'"
     data-testid="check-result"
   >
-    <template #avatar>
-      <q-icon :name="result.ok ? 'check_circle' : 'error'" />
-    </template>
     {{ text }}
-  </q-banner>
+  </AppBanner>
 </template>

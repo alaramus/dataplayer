@@ -13,6 +13,7 @@ import {
   AppIconButton,
   AppInput,
   AppLayout,
+  AppNumberInput,
   AppPageHeader,
   AppSection,
   AppSelect,
@@ -52,7 +53,7 @@ const dialogSize = ref<PanelSize>("md")
 const dialogOpen = ref(false)
 const text = ref("localhost")
 const secret = ref("")
-const broken = ref("")
+const broken = ref<number | null>(null)
 const choice = ref<string | null>("postgres")
 const plain = ref("prefer")
 const flag = ref(true)
@@ -222,10 +223,9 @@ function flash() {
           type="password"
           placeholder="Leave unchanged"
         />
-        <AppInput
+        <AppNumberInput
           v-model="broken"
           label="Port"
-          type="number"
           error="Must be a number between 1 and 65535"
         />
         <AppSelect

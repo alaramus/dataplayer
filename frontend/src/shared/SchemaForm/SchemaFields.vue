@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import AppInput from "@/shared/ui/AppInput.vue"
+import AppNumberInput from "@/shared/ui/AppNumberInput.vue"
+import AppSelect from "@/shared/ui/AppSelect.vue"
+import AppToggle from "@/shared/ui/AppToggle.vue"
+
 import type { FieldSpec } from "./jsonSchema"
 
 const props = defineProps<{
@@ -16,16 +21,14 @@ function update(name: string, value: unknown) {
   emit("update:modelValue", { ...props.modelValue, [name]: value })
 }
 
-function inputType(kind: FieldSpec["kind"]): "password" | "number" | "text" {
-  if (kind === "password") return "password"
-  if (kind === "number") return "number"
-  return "text"
+function textValue(name: string): string {
+  const value = props.modelValue[name]
+  return value === null || value === undefined ? "" : String(value)
 }
 
-// The cast lives here rather than in the template: the Vue parser mistakes the
-// union-type pipe for a deprecated filter.
-function inputValue(name: string): string | number | null {
-  return (props.modelValue[name] ?? null) as string | number | null
+function numberValue(name: string): number | null {
+  const value = props.modelValue[name]
+  return typeof value === "number" ? value : null
 }
 </script>
 
@@ -35,7 +38,7 @@ function inputValue(name: string): string | number | null {
       v-for="field in fields"
       :key="field.name"
     >
-      <q-toggle
+      <AppToggle
         v-if="field.kind === 'boolean'"
         :data-testid="`field-${field.name}`"
         :model-value="Boolean(modelValue[field.name])"
@@ -43,27 +46,38 @@ function inputValue(name: string): string | number | null {
         @update:model-value="update(field.name, $event)"
       />
 
-      <q-select
+      <!-- choices is optional on FieldSpec, and the untyped q-select used to
+           accept undefined without a word. -->
+      <AppSelect
         v-else-if="field.kind === 'select'"
         :data-testid="`field-${field.name}`"
         :model-value="modelValue[field.name]"
-        :options="field.choices"
+        :options="field.choices ?? []"
         :label="field.label"
-        :error="Boolean(errors[field.name])"
-        :error-message="errors[field.name]"
+        :error="errors[field.name]"
         @update:model-value="update(field.name, $event)"
       />
 
-      <q-input
+      <!-- A number reports a number and an emptied field reports null, so no
+           screen has to coerce what the control gives back. -->
+      <AppNumberInput
+        v-else-if="field.kind === 'number'"
+        :data-testid="`field-${field.name}`"
+        :model-value="numberValue(field.name)"
+        :label="field.label"
+        :error="errors[field.name]"
+        @update:model-value="update(field.name, $event)"
+      />
+
+      <AppInput
         v-else
         :data-testid="`field-${field.name}`"
-        :model-value="inputValue(field.name)"
+        :model-value="textValue(field.name)"
         :label="field.label"
-        :type="inputType(field.kind)"
+        :type="field.kind === 'password' ? 'password' : 'text'"
         :placeholder="field.kind === 'password' ? secretPlaceholder : undefined"
-        :error="Boolean(errors[field.name])"
-        :error-message="errors[field.name]"
-        @update:model-value="update(field.name, field.kind === 'number' ? Number($event) : $event)"
+        :error="errors[field.name]"
+        @update:model-value="update(field.name, $event)"
       />
     </template>
   </div>

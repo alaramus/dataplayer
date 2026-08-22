@@ -1,15 +1,21 @@
 <script setup lang="ts">
-import { AxiosError } from "axios"
-import { useQuasar } from "quasar"
 import { computed, ref, watch } from "vue"
 
 import type { ConnectionCheckResult, ConnectorPublic } from "@/client"
 import ConnectionCheck from "@/features/connectors/ConnectionCheck.vue"
+import { fieldErrorsFrom } from "@/shared/api/errors"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
 import { jsonSchemaToZod, schemaToFields } from "@/shared/SchemaForm/jsonSchema"
 import type { JsonSchema } from "@/shared/SchemaForm/jsonSchema"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
-import type { ServerError } from "@/shared/SchemaForm/useSchemaForm"
+import {
+  AppButton,
+  AppDialog,
+  AppInput,
+  AppSection,
+  AppSelect,
+  useToast,
+} from "@/shared/ui"
 import {
   useAdapterTypes,
   useCheckDraft,
@@ -24,7 +30,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
 
-const quasar = useQuasar()
+const toast = useToast()
 const adapterTypes = useAdapterTypes()
 const createConnector = useCreateConnector()
 const updateConnector = useUpdateConnector()
@@ -101,12 +107,6 @@ function filledOptions(): Record<string, unknown> {
   return result
 }
 
-function serverErrorsFrom(error: unknown): ServerError[] | null {
-  if (!(error instanceof AxiosError) || error.response?.status !== 422) return null
-  const detail = error.response.data?.detail
-  return Array.isArray(detail) ? (detail as ServerError[]) : null
-}
-
 function validateName(): boolean {
   nameError.value = name.value.trim() === "" ? "Name is required" : ""
   return nameError.value === ""
@@ -122,11 +122,11 @@ async function check() {
       connector_id: props.connector?.id ?? null,
     })
   } catch (error) {
-    const serverErrors = serverErrorsFrom(error)
+    const serverErrors = fieldErrorsFrom(error)
     if (serverErrors) {
       applyServerErrors(serverErrors)
     } else {
-      quasar.notify({ type: "negative", message: "Could not run the check" })
+      toast.error("Could not run the check")
     }
   }
 }
@@ -152,88 +152,75 @@ async function submit() {
         options: filledOptions(),
       })
     }
-    quasar.notify({ type: "positive", message: "Connection saved" })
+    toast.success("Connection saved")
     emit("update:modelValue", false)
   } catch (error) {
-    const serverErrors = serverErrorsFrom(error)
+    const serverErrors = fieldErrorsFrom(error)
     if (serverErrors) {
       applyServerErrors(serverErrors)
     } else {
-      quasar.notify({ type: "negative", message: "Could not save the connection" })
+      toast.error("Could not save the connection")
     }
   }
 }
 </script>
 
 <template>
-  <q-dialog
+  <AppDialog
     :model-value="modelValue"
+    size="md"
+    :title="isEdit ? 'Edit connection' : 'New connection'"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <q-card style="width: 520px; max-width: 90vw">
-      <q-card-section>
-        <div class="text-h6">
-          {{ isEdit ? "Edit connection" : "New connection" }}
-        </div>
-      </q-card-section>
+    <AppSection gutter>
+      <AppInput
+        v-model="name"
+        label="Name"
+        data-testid="connector-name"
+        :error="nameError"
+      />
 
-      <q-card-section class="q-gutter-md">
-        <q-input
-          v-model="name"
-          label="Name"
-          data-testid="connector-name"
-          :error="Boolean(nameError)"
-          :error-message="nameError"
-        />
+      <AppSelect
+        v-model="adapterType"
+        :options="typeOptions"
+        label="Source type"
+        data-testid="connector-type"
+        :disable="isEdit"
+        :loading="adapterTypes.isLoading.value"
+      />
 
-        <q-select
-          v-model="adapterType"
-          :options="typeOptions"
-          option-value="value"
-          option-label="label"
-          emit-value
-          map-options
-          label="Source type"
-          data-testid="connector-type"
-          :disable="isEdit"
-          :loading="adapterTypes.isLoading.value"
-        />
+      <SchemaFields
+        v-if="fields.length"
+        v-model="optionValues"
+        :fields="fields"
+        :errors="optionErrors"
+        :secret-placeholder="secretPlaceholder"
+      />
 
-        <SchemaFields
-          v-if="fields.length"
-          v-model="optionValues"
-          :fields="fields"
-          :errors="optionErrors"
-          :secret-placeholder="secretPlaceholder"
-        />
+      <ConnectionCheck :result="checkResult" />
+    </AppSection>
 
-        <ConnectionCheck :result="checkResult" />
-      </q-card-section>
-
-      <q-card-actions align="right">
-        <q-btn
-          flat
-          label="Cancel"
-          @click="emit('update:modelValue', false)"
-        />
-        <q-btn
-          flat
-          color="primary"
-          label="Check"
-          data-testid="check-draft"
-          :disable="!adapterType"
-          :loading="checkDraft.isPending.value"
-          @click="check"
-        />
-        <q-btn
-          color="primary"
-          label="Save"
-          data-testid="save-connector"
-          :disable="!adapterType"
-          :loading="saving"
-          @click="submit"
-        />
-      </q-card-actions>
-    </q-card>
-  </q-dialog>
+    <template #actions>
+      <AppButton
+        variant="quiet"
+        label="Cancel"
+        @click="emit('update:modelValue', false)"
+      />
+      <AppButton
+        variant="secondary"
+        label="Check"
+        data-testid="check-draft"
+        :disable="!adapterType"
+        :loading="checkDraft.isPending.value"
+        @click="check"
+      />
+      <AppButton
+        label="Save"
+        data-testid="save-connector"
+        :disable="!adapterType"
+        :loading="saving"
+        @click="submit"
+      />
+    </template>
+  </AppDialog>
 </template>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 withDefaults(
   defineProps<{
-    modelValue: string | number | null
+    modelValue: string
     label?: string
-    type?: "text" | "password" | "number" | "email"
+    type?: "text" | "password" | "email"
     /** The message, not a boolean: an empty string means no error. */
     error?: string
     placeholder?: string
@@ -12,7 +12,14 @@ withDefaults(
   { label: undefined, type: "text", error: "", placeholder: undefined, disable: false }
 )
 
-const emit = defineEmits<{ "update:modelValue": [value: string | number | null] }>()
+const emit = defineEmits<{ "update:modelValue": [value: string] }>()
+
+// QInput reports string | number | null whatever its type is. A text field
+// deals in strings, so the caller is not made to widen its own state to match
+// a detail of the library. Numbers have their own component.
+function report(value: string | number | null) {
+  emit("update:modelValue", value === null ? "" : String(value))
+}
 </script>
 
 <template>
@@ -24,6 +31,6 @@ const emit = defineEmits<{ "update:modelValue": [value: string | number | null] 
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"
-    @update:model-value="emit('update:modelValue', $event)"
+    @update:model-value="report"
   />
 </template>

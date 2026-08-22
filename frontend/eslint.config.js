@@ -33,5 +33,53 @@ export default defineConfigWithVueTs(
         },
       ],
     },
+  },
+  {
+    // The shared kit owns everything with a choice of appearance, so a screen
+    // asks for meaning ("danger") rather than for a look ("flat color=negative").
+    // Only components the kit replaces are listed: forbidding every q-* would
+    // make the kit a full facade over Quasar, which it deliberately is not.
+    // Reasoning: docs/superpowers/specs/2026-08-22-shared-ui-kit-design.md
+    files: ["src/**/*.vue", "src/**/*.ts"],
+    ignores: ["src/shared/ui/**", "src/client/**"],
+    rules: {
+      "vue/no-restricted-html-elements": [
+        "error",
+        ...[
+          ["q-dialog", "AppDialog"],
+          ["q-card", "AppCard or AppDialog"],
+          ["q-card-section", "AppSection"],
+          ["q-card-actions", "AppActions"],
+          ["q-btn", "AppButton or AppIconButton"],
+          ["q-tooltip", "AppTooltip"],
+          ["q-banner", "AppBanner"],
+          ["q-input", "AppInput"],
+          ["q-select", "AppSelect"],
+          ["q-toggle", "AppToggle"],
+          ["q-file", "AppFileInput"],
+          ["q-table", "AppTable"],
+          ["q-badge", "AppBadge"],
+          ["q-spinner", "AppSpinner"],
+        ].map(([element, replacement]) => ({
+          // The rule matches the raw tag name, so both spellings Vue accepts
+          // are listed. With only the kebab one, <QBtn> walks past the list.
+          element: [element, element.replace(/(^|-)(\w)/g, (_, __, c) => c.toUpperCase())],
+          message: `Use ${replacement} from @/shared/ui instead of <${element}>.`,
+        })),
+      ],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "quasar",
+              importNames: ["useQuasar"],
+              message:
+                "Notifications go through useToast and confirmations through useConfirm, both in @/shared/ui.",
+            },
+          ],
+        },
+      ],
+    },
   }
 )
