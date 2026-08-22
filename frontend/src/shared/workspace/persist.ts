@@ -1,0 +1,80 @@
+import { z } from "zod"
+import type { ZodType } from "zod"
+
+import type { LayoutNode, PanelId } from "./model"
+import { leavesOf } from "./tree"
+
+/**
+ * A stored layout is untrusted input, like anything else that comes from
+ * outside. It is parsed, cross-checked, and refused whole: half a restored
+ * tree is worse than the default one. See the spec, W9.
+ */
+
+export const WORKSPACE_VERSION = 1
+
+const leafSchema = z.object({
+  kind: z.literal("leaf"),
+  id: z.string(),
+  panels: z.array(z.string()).min(1),
+  activePanel: z.string(),
+  collapsed: z.boolean(),
+})
+
+const nodeSchema: ZodType<LayoutNode> = z.lazy(() =>
+  z.union([
+    leafSchema,
+    z.object({
+      kind: z.literal("split"),
+      id: z.string(),
+      direction: z.union([z.literal("row"), z.literal("column")]),
+      children: z.array(nodeSchema).min(2),
+      sizes: z.array(z.number()).min(2),
+    }),
+  ])
+)
+
+export function serializeWorkspace<P>(tree: LayoutNode, panels: P[]): string {
+  return JSON.stringify({ version: WORKSPACE_VERSION, tree, panels })
+}
+
+export function parseWorkspace<P>(
+  raw: string | null,
+  panelSchema: ZodType<P>
+): { tree: LayoutNode; panels: P[] } | null {
+  if (raw === null) return null
+
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return null
+  }
+
+  const envelope = z
+    .object({
+      version: z.literal(WORKSPACE_VERSION),
+      tree: nodeSchema,
+      panels: z.array(panelSchema),
+    })
+    .safeParse(parsed)
+  if (!envelope.success) return null
+
+  const { tree, panels } = envelope.data
+  if (!sizesMatchChildren(tree)) return null
+
+  const known = new Set<PanelId>(
+    panels.map((panel) => (panel as { id: string }).id)
+  )
+  for (const leaf of leavesOf(tree)) {
+    if (!leaf.panels.every((id) => known.has(id))) return null
+    if (!leaf.panels.includes(leaf.activePanel)) return null
+  }
+
+  return { tree, panels }
+}
+
+function sizesMatchChildren(node: LayoutNode): boolean {
+  if (node.kind === "leaf") return true
+  if (node.sizes.length !== node.children.length) return false
+  return node.children.every(sizesMatchChildren)
+}
