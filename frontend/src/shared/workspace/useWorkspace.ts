@@ -27,12 +27,26 @@ export interface WorkspaceOptions<P extends { id: string }> {
    * a component built afresh on each call is a different one each time.
    */
   component: (panel: P) => Component
+  /** What a pinned section shows while empty, by the role it accepts. */
+  empty?: (accepts: string | null) => Component | null
+}
+
+/** How an opened panel treats the ones already there. */
+export interface OpenOptions {
+  /**
+   * Close every other panel of the same kind first.
+   *
+   * What makes the middle column hold one catalog: the rule is stated at the
+   * call site rather than built into the engine, so allowing two later is
+   * dropping the flag. See the spec, T4.
+   */
+  replace?: boolean
 }
 
 export interface WorkspaceApi<P extends { id: string }> {
   context: WorkspaceContext
   panels: Ref<P[]>
-  open: (panel: P) => void
+  open: (panel: P, options?: OpenOptions) => void
   reset: () => void
 }
 
@@ -65,10 +79,16 @@ export function useWorkspace<P extends { id: string }>(
     { deep: true }
   )
 
-  function open(panel: P) {
+  function open(panel: P, { replace = false }: OpenOptions = {}) {
     if (panelOf(panel.id) !== undefined) {
       tree.value = activatePanel(tree.value, panel.id)
       return
+    }
+    if (replace) {
+      const kind = options.kindOf(panel)
+      for (const other of panels.value.filter((one) => options.kindOf(one) === kind)) {
+        close(other.id)
+      }
     }
     const target = leafForKind(
       tree.value,
@@ -108,6 +128,7 @@ export function useWorkspace<P extends { id: string }>(
       if (panel === undefined) throw new Error(`No panel with id ${panelId}`)
       return options.component(panel)
     },
+    emptyOf: (accepts) => options.empty?.(accepts) ?? null,
     activate: (panelId) => {
       tree.value = activatePanel(tree.value, panelId)
     },

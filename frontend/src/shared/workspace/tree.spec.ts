@@ -64,6 +64,14 @@ describe("a leaf", () => {
   it("refuses to be built with no panels at all", () => {
     expect(() => makeLeaf("a", [])).toThrow()
   })
+
+  // A pinned section is the one exception: it is a column that exists whether
+  // or not anything has been opened in it yet. See the spec, T2.
+  it("is built empty when it is pinned, with nothing active", () => {
+    const leaf = makeLeaf("a", [], { pinned: true })
+    expect(leaf.panels).toEqual([])
+    expect(leaf.activePanel).toBeNull()
+  })
 })
 
 describe("replacing a node", () => {
@@ -141,6 +149,26 @@ describe("normalising a tree", () => {
   it("answers null when nothing is left", () => {
     expect(normalize(emptyLeaf("a"))).toBeNull()
   })
+
+  it("keeps an empty leaf that is pinned, and clears what it says is active", () => {
+    const pinned: LeafNode = { ...emptyLeaf("a"), pinned: true, activePanel: "gone" }
+    expect(normalize(pinned)).toEqual({ ...pinned, activePanel: null })
+  })
+
+  it("keeps a split whose other children are empty pinned sections", () => {
+    const tree = makeSplit(
+      "root",
+      "row",
+      [
+        { ...emptyLeaf("a"), pinned: true, activePanel: null },
+        makeLeaf("b", ["p2"]),
+        { ...emptyLeaf("c"), pinned: true, activePanel: null },
+      ],
+      [20, 30, 50]
+    )
+    const next = normalize(tree) as SplitNode
+    expect(next.children.map((child) => child.id)).toEqual(["a", "b", "c"])
+  })
 })
 
 describe("panels in a leaf", () => {
@@ -163,6 +191,28 @@ describe("panels in a leaf", () => {
 
   it("removes the leaf along with its last panel", () => {
     expect(removePanel(sample(), "p1")?.id).toBe("b")
+  })
+
+  it("empties a pinned leaf rather than removing it", () => {
+    const tree = makeSplit(
+      "root",
+      "row",
+      [makeLeaf("a", ["p1"], { pinned: true }), makeLeaf("b", ["p2"])],
+      [30, 70]
+    )
+    const next = removePanel(tree, "p1") as SplitNode
+    const kept = next.children[0] as LeafNode
+    expect(kept.id).toBe("a")
+    expect(kept.panels).toEqual([])
+    expect(kept.activePanel).toBeNull()
+  })
+
+  it("puts a panel back into an emptied pinned leaf and activates it", () => {
+    const emptied = makeLeaf("a", [], { pinned: true })
+    const next = addPanel(makeSplit("root", "row", [emptied, makeLeaf("b", ["p2"])], [30, 70]), "a", "p9") as SplitNode
+    const filled = next.children[0] as LeafNode
+    expect(filled.panels).toEqual(["p9"])
+    expect(filled.activePanel).toBe("p9")
   })
 
   it("activates a panel the leaf already holds", () => {

@@ -6,6 +6,14 @@ import type { DropZone, LayoutNode, NodeId, PanelId } from "./model"
 export interface PanelLook {
   title: string
   icon: string
+  /**
+   * Whether the tab offers a cross. Defaults to true.
+   *
+   * A property of the panel rather than of the section: tabs close in the
+   * pinned column of data just as they do anywhere, while the panel of
+   * connections has no parameters and nothing to say once closed. See T3.
+   */
+  closable?: boolean
 }
 
 /**
@@ -22,6 +30,13 @@ export interface WorkspaceContext {
   dragging: Ref<PanelId | null>
   lookOf: (panelId: PanelId) => PanelLook
   componentOf: (panelId: PanelId) => Component
+  /**
+   * What a pinned section shows while it holds nothing.
+   *
+   * The engine knows the section is empty; what to write there is application
+   * knowledge, so it arrives keyed by the role the section accepts.
+   */
+  emptyOf: (accepts: string | null) => Component | null
   activate: (panelId: PanelId) => void
   close: (panelId: PanelId) => void
   focus: (leafId: NodeId) => void

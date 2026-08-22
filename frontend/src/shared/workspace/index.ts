@@ -7,6 +7,20 @@
  */
 export { default as WorkspaceRoot } from "./WorkspaceRoot.vue"
 export { useWorkspace, workspaceKey } from "./useWorkspace"
-export type { PanelLook, WorkspaceApi, WorkspaceContext, WorkspaceOptions } from "./useWorkspace"
+export type {
+  OpenOptions,
+  PanelLook,
+  WorkspaceApi,
+  WorkspaceContext,
+  WorkspaceOptions,
+} from "./useWorkspace"
 export { COLLAPSED_PX, makeLeaf, makeSplit, MIN_PANEL_PX, nextId } from "./model"
-export type { DropZone, LayoutNode, LeafNode, NodeId, PanelId, SplitNode } from "./model"
+export type {
+  DropZone,
+  LayoutNode,
+  LeafNode,
+  LeafOptions,
+  NodeId,
+  PanelId,
+  SplitNode,
+} from "./model"

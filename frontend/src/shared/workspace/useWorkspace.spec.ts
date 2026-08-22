@@ -105,6 +105,18 @@ describe("a workspace", () => {
     expect((workspace.context.tree.value as LeafNode).panels).toEqual(["p2", "p1"])
   })
 
+  it("closes the panel of the same kind when the new one replaces it", () => {
+    const workspace = build()
+    workspace.open({ id: "p3", kind: "catalog" }, { replace: true })
+    expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p2", "p3"])
+  })
+
+  it("leaves panels of other kinds where they are when replacing", () => {
+    const workspace = build()
+    workspace.open({ id: "p3", kind: "catalog" }, { replace: true })
+    expect(workspace.panels.value.some((panel) => panel.id === "p2")).toBe(true)
+  })
+
   it("leaves the layout alone when a drag ends nowhere", () => {
     const workspace = build()
     const before = workspace.context.tree.value

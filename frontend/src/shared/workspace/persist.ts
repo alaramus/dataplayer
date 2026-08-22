@@ -10,14 +10,22 @@ import { leavesOf } from "./tree"
  * tree is worse than the default one. See the spec, W9.
  */
 
-export const WORKSPACE_VERSION = 1
+/**
+ * 2: sections gained a role and the right to stay empty. A layout written
+ * before that is one section holding everything, so restoring it would leave
+ * the user without the columns the screen now promises. Refused like any other
+ * foreign version — see the spec, T6.
+ */
+export const WORKSPACE_VERSION = 2
 
 const leafSchema = z.object({
   kind: z.literal("leaf"),
   id: z.string(),
-  panels: z.array(z.string()).min(1),
-  activePanel: z.string(),
+  panels: z.array(z.string()),
+  activePanel: z.string().nullable(),
   collapsed: z.boolean(),
+  accepts: z.string().optional(),
+  pinned: z.boolean().optional(),
 })
 
 const nodeSchema: ZodType<LayoutNode> = z.lazy(() =>
@@ -65,7 +73,14 @@ export function parseWorkspace<P extends { id: string }>(
   const known = new Set<PanelId>(panels.map((panel) => panel.id))
   for (const leaf of leavesOf(tree)) {
     if (!leaf.panels.every((id) => known.has(id))) return null
-    if (!leaf.panels.includes(leaf.activePanel)) return null
+    // Emptiness is allowed to a pinned section and to nothing else, and it is
+    // the only case in which nothing is active. The two are checked together
+    // so that neither can be restored without the other.
+    if (leaf.panels.length === 0) {
+      if (leaf.pinned !== true || leaf.activePanel !== null) return null
+      continue
+    }
+    if (leaf.activePanel === null || !leaf.panels.includes(leaf.activePanel)) return null
   }
 
   return { tree, panels }

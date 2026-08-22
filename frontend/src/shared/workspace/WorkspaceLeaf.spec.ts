@@ -9,6 +9,7 @@ import { makeLeaf } from "./model"
 import WorkspaceLeaf from "./WorkspaceLeaf.vue"
 
 const Stub = defineComponent({ setup: () => () => h("div", { class: "stub" }, "panel body") })
+const Hint = defineComponent({ setup: () => () => h("div", { class: "hint" }, "pick a source") })
 
 function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext {
   return {
@@ -17,6 +18,7 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
     dragging: ref(null),
     lookOf: (panelId) => ({ title: `title ${panelId}`, icon: "square" }),
     componentOf: () => Stub,
+    emptyOf: () => Hint,
     activate: () => undefined,
     close: () => undefined,
     focus: () => undefined,
@@ -83,6 +85,20 @@ describe("a section", () => {
     expect(wrapper.find('[data-testid="workspace-collapse-a"]').exists()).toBe(true)
   })
 
+  it("offers no cross on a panel the feature says cannot be closed", () => {
+    const wrapper = mountLeaf(
+      contextFor({
+        lookOf: (panelId) => ({
+          title: `title ${panelId}`,
+          icon: "square",
+          closable: panelId !== "p1",
+        }),
+      })
+    )
+    expect(wrapper.find('[data-testid="workspace-close-p1"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="workspace-close-p2"]').exists()).toBe(true)
+  })
+
   it("shows a drop overlay only while something is being dragged", async () => {
     const dragging = ref<string | null>(null)
     const wrapper = mountLeaf(contextFor({ dragging }))
@@ -90,5 +106,29 @@ describe("a section", () => {
     dragging.value = "p1"
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="workspace-dropzone"]').exists()).toBe(true)
+  })
+})
+
+/** A column of the screen that nothing has been opened in yet. See T2. */
+describe("an empty pinned section", () => {
+  function mountEmpty() {
+    return mount(WorkspaceLeaf, {
+      props: { leaf: makeLeaf("navigate", [], { pinned: true, accepts: "navigate" }), collapsible: true },
+      global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: contextFor() } },
+    })
+  }
+
+  it("shows what the feature says belongs in it", () => {
+    expect(mountEmpty().findAll(".hint")).toHaveLength(1)
+  })
+
+  it("shows no panel and no tab", () => {
+    const wrapper = mountEmpty()
+    expect(wrapper.findAll(".stub")).toHaveLength(0)
+    expect(wrapper.findAll('[data-testid^="workspace-tab-"]')).toHaveLength(0)
+  })
+
+  it("keeps its collapse handle, so a column can still be pushed aside", () => {
+    expect(mountEmpty().find('[data-testid="workspace-collapse-navigate"]').exists()).toBe(true)
   })
 })

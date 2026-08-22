@@ -22,6 +22,9 @@ const zone = ref<DropZone | null>(null)
 
 const active = computed(() => props.leaf.activePanel)
 
+/** A pinned section with nothing in it: the feature says what stands there. */
+const empty = computed(() => (active.value === null ? workspace.emptyOf(props.leaf.accepts ?? null) : null))
+
 function onPointerMove(event: PointerEvent) {
   if (workspace.dragging.value === null || element.value === null) return
   zone.value = dropZoneAt(element.value.getBoundingClientRect(), event.clientX, event.clientY)
@@ -81,6 +84,7 @@ const overlayStyle = computed((): CSSProperties => {
         />
         <span class="workspace-leaf__title">{{ workspace.lookOf(panelId).title }}</span>
         <span
+          v-if="workspace.lookOf(panelId).closable !== false"
           class="workspace-leaf__close"
           :data-testid="`workspace-close-${panelId}`"
           @click.stop="workspace.close(panelId)"
@@ -116,12 +120,17 @@ const overlayStyle = computed((): CSSProperties => {
            away and back is not a reason to re-read a catalog or to lose the
            page a grid was on, which is what a plain <component :is> would
            do. -->
-      <KeepAlive>
+      <KeepAlive v-if="active !== null">
         <component
           :is="workspace.componentOf(active)"
           :key="active"
         />
       </KeepAlive>
+
+      <component
+        :is="empty"
+        v-else-if="empty"
+      />
     </div>
 
     <div

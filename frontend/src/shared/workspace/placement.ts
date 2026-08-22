@@ -17,6 +17,13 @@ export function leafForKind(
   const leaves = leavesOf(root)
   if (leaves.length === 0) return null
 
+  // A section that names the role it takes is asked first, and it is asked
+  // even while it is empty: a column is a role before it holds anything, which
+  // is the one thing reading the panels of a section cannot tell us. See the
+  // spec, T1.
+  const declared = leaves.find((leaf) => leaf.accepts === kind)
+  if (declared !== undefined) return declared.id
+
   const sameKind = leaves.find((leaf) => leaf.panels.some((id) => kindOfPanel(id) === kind))
   if (sameKind !== undefined) return sameKind.id
 

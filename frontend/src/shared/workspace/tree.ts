@@ -91,8 +91,13 @@ export function replaceAt(
  */
 export function normalize(root: LayoutNode): LayoutNode | null {
   if (root.kind === "leaf") {
-    if (root.panels.length === 0) return null
-    if (root.panels.includes(root.activePanel)) return root
+    if (root.panels.length === 0) {
+      // A pinned section is a column of the screen rather than a container of
+      // panels: it outlives the last thing put in it. See the spec, T2.
+      if (root.pinned !== true) return null
+      return root.activePanel === null ? root : { ...root, activePanel: null }
+    }
+    if (root.activePanel !== null && root.panels.includes(root.activePanel)) return root
     const firstPanel = root.panels[0]
     if (firstPanel === undefined) return null
     return { ...root, activePanel: firstPanel }
@@ -165,18 +170,17 @@ export function removePanel(root: LayoutNode, panelId: PanelId): LayoutNode | nu
   if (leaf === null || leaf.kind !== "leaf") return root
 
   const panels = leaf.panels.filter((id) => id !== panelId)
-  if (panels.length === 0) {
+  // An unpinned section goes with its last panel; a pinned one stays and
+  // normalize clears what it thought was active.
+  if (panels.length === 0 && leaf.pinned !== true) {
     const replaced = replaceAt(root, path, null)
     return replaced === null ? null : normalize(replaced)
   }
 
-  const first = panels[0]
-  if (first === undefined) return root
-
   const next: LeafNode = {
     ...leaf,
     panels,
-    activePanel: leaf.activePanel === panelId ? first : leaf.activePanel,
+    activePanel: leaf.activePanel === panelId ? (panels[0] ?? null) : leaf.activePanel,
   }
 
   const replaced = replaceAt(root, path, next)

@@ -21,8 +21,25 @@ export interface LeafNode {
   kind: "leaf"
   id: NodeId
   panels: PanelId[]
-  activePanel: PanelId
+  /** Null only in a pinned section that holds nothing. */
+  activePanel: PanelId | null
   collapsed: boolean
+  /**
+   * The role of panel that lands here by default.
+   *
+   * An opaque string, compared and never parsed: what roles exist is the
+   * business of the feature. Without it a section that holds nothing could
+   * not be a destination, because placement reads the panels a section holds.
+   * See the spec, T1.
+   */
+  accepts?: string
+  /**
+   * A section that stays on screen with nothing in it.
+   *
+   * The one thing that holds up "the three columns are always there": every
+   * other rule would let the last panel take its section with it.
+   */
+  pinned?: boolean
 }
 
 export interface SplitNode {
@@ -42,19 +59,30 @@ export const MIN_PANEL_PX = 120
 /** What a collapsed section leaves behind: enough for the handle and no more. */
 export const COLLAPSED_PX = 28
 
-export function makeLeaf(id: NodeId, panels: PanelId[], activePanel?: PanelId): LeafNode {
+export interface LeafOptions {
+  activePanel?: PanelId
+  accepts?: string
+  pinned?: boolean
+}
+
+export function makeLeaf(id: NodeId, panels: PanelId[], options: LeafOptions = {}): LeafNode {
   const [first] = panels
-  // A section with nothing in it is not a thing that can be built: it is a
-  // state normalize() repairs. Refusing it here is what lets activePanel be a
-  // PanelId rather than a PanelId that might be missing.
-  if (first === undefined) throw new Error(`A leaf needs at least one panel: ${id}`)
-  return {
+  // A section with nothing in it is a state normalize() repairs, not one to
+  // build - unless it is pinned, where emptiness is the whole point: a column
+  // exists before anything has been opened in it.
+  if (first === undefined && options.pinned !== true) {
+    throw new Error(`A leaf needs at least one panel: ${id}`)
+  }
+  const leaf: LeafNode = {
     kind: "leaf",
     id,
     panels,
-    activePanel: activePanel ?? first,
+    activePanel: options.activePanel ?? first ?? null,
     collapsed: false,
   }
+  if (options.accepts !== undefined) leaf.accepts = options.accepts
+  if (options.pinned === true) leaf.pinned = true
+  return leaf
 }
 
 export function makeSplit(

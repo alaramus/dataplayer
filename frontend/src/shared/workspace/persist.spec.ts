@@ -20,6 +20,50 @@ describe("a stored workspace", () => {
     expect(restored?.panels).toEqual(panels)
   })
 
+  it("brings back an empty pinned section with the role it accepts", () => {
+    const columns = makeSplit(
+      "root",
+      "row",
+      [
+        makeLeaf("sources", ["p1"], { accepts: "sources", pinned: true }),
+        makeLeaf("work", [], { accepts: "work", pinned: true }),
+      ],
+      [40, 60]
+    )
+    const restored = parseWorkspace(serializeWorkspace(columns, [panels[0]!]), panelSchema)
+    expect(restored?.tree).toEqual(columns)
+  })
+
+  it("is refused when a section that is not pinned holds no panels", () => {
+    const broken = makeSplit(
+      "root",
+      "row",
+      [{ kind: "leaf", id: "a", panels: [], activePanel: null, collapsed: false }, makeLeaf("b", ["p2"])],
+      [40, 60]
+    )
+    const raw = JSON.stringify({ version: WORKSPACE_VERSION, tree: broken, panels })
+    expect(parseWorkspace(raw, panelSchema)).toBeNull()
+  })
+
+  it("is refused when a section holds panels but says nothing is active", () => {
+    const broken = makeSplit(
+      "root",
+      "row",
+      [{ kind: "leaf", id: "a", panels: ["p1"], activePanel: null, collapsed: false }, makeLeaf("b", ["p2"])],
+      [40, 60]
+    )
+    const raw = JSON.stringify({ version: WORKSPACE_VERSION, tree: broken, panels })
+    expect(parseWorkspace(raw, panelSchema)).toBeNull()
+  })
+
+  // The layout written before columns existed is one section holding
+  // everything. Restoring it would leave the user without the two columns the
+  // screen now promises, so it is refused like any other foreign version.
+  it("is refused when it was written by the version before columns", () => {
+    const raw = JSON.stringify({ version: 1, tree, panels })
+    expect(parseWorkspace(raw, panelSchema)).toBeNull()
+  })
+
   it("is refused when there is nothing stored", () => {
     expect(parseWorkspace(null, panelSchema)).toBeNull()
   })
