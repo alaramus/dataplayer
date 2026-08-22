@@ -146,6 +146,11 @@ encryption key must decode to exactly 32 bytes.
   does not — the token, UI state. The old frontend spread server data across
   stores with hand-rolled caches, and that is where its desynchronisation came
   from.
+- **A screen asks for meaning, not for a look.** Anything with a choice of
+  appearance is wrapped once in `src/shared/ui` and imported from there:
+  `variant="danger"`, not `flat color="negative"`. `tokens.ts` is the only
+  place that turns one into the other. What has no choice (`q-icon`,
+  `q-separator`, `q-td`) stays as it is; the kit is not a facade over Quasar.
 - `src/client` is generated from OpenAPI and never edited by hand. After
   changing routes or schemas, run `bash scripts/generate-client.sh`.
 - Pure logic is separated from components so it can be tested without mounting:
@@ -154,8 +159,14 @@ encryption key must decode to exactly 32 bytes.
   `data-testid` — not by CSS classes and not by snapshots.
 
 **Enforced:** ESLint forbids `src/stores/**` importing the generated client or
-any feature, verified by introducing the import. `vue-tsc` and ESLint cover the
-rest. The pure-logic split rests on review.
+any feature, verified by introducing the import. ESLint also forbids, outside
+`src/shared/ui`, every `q-*` the kit replaces — in both spellings Vue accepts,
+because the rule matches the raw tag name and `<QBtn>` would otherwise walk
+past — and forbids `useQuasar` in screens, which now use `useToast` and
+`useConfirm`. Both were checked by attempting the bypass. A test compares the
+`/ui-kit` showcase against the files in `shared/ui`, so a component cannot be
+added without a demonstration. `vue-tsc` and ESLint cover the rest. The
+pure-logic split rests on review.
 
 ## Tests
 

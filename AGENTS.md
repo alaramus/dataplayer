@@ -50,7 +50,9 @@ columns while anything else readable becomes numbered lines. In that storage a
 user can also create a folder, rename, delete and upload a file: the buttons
 offered for a node come from the server, so the screen has no knowledge of any
 particular source. Credentials are encrypted at rest and never leave the
-server, and a source that has connections keeps them between requests.
+server, and a source that has connections keeps them between requests. Every
+screen is built from one component kit, and what a screen may not reach for is
+a lint error rather than a convention.
 
 ### What exists
 
@@ -97,7 +99,13 @@ backend/app/
 
 frontend/src/
 ├── client/              generated from OpenAPI, never edited by hand
-├── shared/              api client setup, layout
+├── shared/
+│   ├── ui/              the component kit every screen is built from;
+│   │                    tokens.ts turns meaning into Quasar props,
+│   │                    useToast and useConfirm replace $q, index.ts is
+│   │                    the one import path
+│   ├── api/             client setup, and one reading of an API error
+│   ├── auth/            the session, watched across tabs
 │   ├── SchemaForm/      JSON Schema to form, framework-independent core
 │   └── testing/         helpers for tests, not shipped by any screen
 ├── stores/              Pinia: client-side state only
@@ -105,7 +113,8 @@ frontend/src/
     ├── auth/
     ├── catalog/         lazy tree, row grid, and the actions a node admits;
     │                    treeNodes.ts, rows.ts and actions.ts are pure mappers
-    └── connectors/
+    ├── connectors/
+    └── dev/             /ui-kit, the showcase of the kit; dev builds only
 ```
 
 ### API
@@ -286,6 +295,34 @@ have made core import users.
 frontend spread server data across Pinia stores, each with its own cache and
 its own invalidation, and that is where its desynchronisation bugs come from.
 
+**D11. A screen asks the kit for meaning, not Quasar for a look.** Every
+component with a choice of appearance is wrapped once in `shared/ui`, and a
+screen says `variant="danger"` rather than `flat color="negative"`;
+`tokens.ts` is the only place that turns one into the other, and it is plain
+functions, so the mapping is tested without mounting anything. Full reasoning
+in `docs/superpowers/specs/2026-08-22-shared-ui-kit-design.md`.
+
+It is not a facade over Quasar: what has no choice of appearance
+(`q-icon`, `q-separator`, `q-td`, `q-form`) and what has one consumer
+(`q-layout`, `q-tree`) stays as it is. Undeclared attributes fall through, so
+a rare case does not force a change to the kit — and `data-testid` keeps
+landing where Quasar puts it, which is what the existing tests address.
+
+Three consequences worth stating separately:
+
+- **The rule is a lint rule, not a habit.** `vue/no-restricted-html-elements`
+  forbids, outside `shared/ui`, exactly those `q-*` that have a replacement,
+  in both spellings Vue accepts — matching only `q-btn` would let `<QBtn>`
+  walk past. `useQuasar` is forbidden in screens too, now that `useToast` and
+  `useConfirm` exist.
+- **The kit documents itself at `/ui-kit`**, a route registered only under
+  `import.meta.env.DEV`. It renders the real components, so it breaks when one
+  of them does; a test compares the page against the files in `shared/ui` so a
+  component cannot be added without a demonstration.
+- **Reading an API error is one function.** `shared/api/errors.ts` — three
+  screens had their own copy, and they had already drifted: only the grid
+  understood a validation list.
+
 **D7. The frontend is Vue 3 with Quasar.** The value of the rewrite is backend
 architecture and end-to-end typing; the UI kit was never the problem. The
 typed client generated from OpenAPI is kept — it does not depend on the
@@ -451,6 +488,10 @@ capability should take. And an action that carries bytes needed a second route
 rather than a second body type; download in sub-project 7 answers with bytes
 and will need the same treatment in the other direction.
 
+The shared UI kit is done, ahead of 7 rather than as part of it: every screen
+now builds from `shared/ui`, and a lint rule keeps the next one from going
+around it (D11). A new screen starts by looking at `/ui-kit`.
+
 Each sub-project gets its own design document, its own plan and its own
 iteration.
 
@@ -505,6 +546,17 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
 - **`.env` is in the git history.** It was tracked before being removed, so the
   values it held at the time are still recoverable from earlier commits. They
   are development placeholders, but a real deployment must not reuse them.
+- **Part of the UI kit has one consumer** (`AppBadge`, `AppFileInput`,
+  `AppSpinner`, `AppTooltip`). A knowing departure from "generalise on the
+  second or third use": the point of the kit is predictability as the number
+  of screens grows, not the smallest diff today.
+- **Attribute fall-through is a way around the kit.** Nothing stops a screen
+  passing `color="purple"` straight to the Quasar component underneath. Only
+  review catches it.
+- **`q-tree` is outside the kit**, so the catalog tree is still Quasar's, and
+  sub-project 7 will have to decide about it again.
+- **There is no dark theme.** Tokens are build-time sass variables; switching
+  at runtime needs CSS custom properties and its own task.
 - **D2b — a driver is a session plus capability modules — rests on review.**
   There is no check that a capability module keeps out of connection handling.
 - **The reuse rules rest on review.** No machine flags the third similar thing
