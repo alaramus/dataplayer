@@ -1,3 +1,19 @@
+# The environment of anything built from the backend image. Named once so a new
+# variable cannot be added to the application and forgotten in prestart.
+x-backend-environment: &backend-environment
+  PROJECT_NAME: ${PROJECT_NAME:?Variable not set}
+  SECRET_KEY: ${SECRET_KEY:?Variable not set}
+  CONNECTOR_SECRET_KEY: ${CONNECTOR_SECRET_KEY:?Variable not set}
+  FIRST_SUPERUSER: ${FIRST_SUPERUSER:?Variable not set}
+  FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?Variable not set}
+  SMTP_HOST: ${SMTP_HOST}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+  EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL}
+  DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Variable not set}@db:5432/app
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  USER_STORAGE_ROOT: /data/users
+
 services:
 
   proxy:
@@ -46,25 +62,37 @@ services:
       # Define the port inside of the Docker service to use
       - traefik.http.services.adminer.loadbalancer.server.port=8080
 
+  # Everything the database needs before the application may serve a request:
+  # wait for the server, migrate to head, create the first superuser. It runs
+  # to completion and exits, and the backend waits for that exit, so migrations
+  # happen once rather than once per worker process, and a failed migration is
+  # a failed container with a log rather than an application that did not come
+  # up.
+  prestart:
+    image: backend:latest
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    command: ["bash", "scripts/prestart.sh"]
+    environment: *backend-environment
+    # init_db creates the home directory of the first superuser, so this writes
+    # to USER_STORAGE_ROOT and needs the same volume as the application.
+    volumes:
+      - user-storage:/data/users
+
   backend:
     image: backend:latest
     depends_on:
       db:
         condition: service_healthy
         restart: true
-    environment:
-      PROJECT_NAME: ${PROJECT_NAME:?Variable not set}
-      SECRET_KEY: ${SECRET_KEY:?Variable not set}
-      CONNECTOR_SECRET_KEY: ${CONNECTOR_SECRET_KEY:?Variable not set}
-      FIRST_SUPERUSER: ${FIRST_SUPERUSER:?Variable not set}
-      FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?Variable not set}
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
-      EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL}
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Variable not set}@db:5432/app
-      SENTRY_DSN: ${SENTRY_DSN:-}
-      USER_STORAGE_ROOT: /data/users
+      prestart:
+        condition: service_completed_successfully
+    environment: *backend-environment
 
     volumes:
       - user-storage:/data/users

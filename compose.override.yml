@@ -31,6 +31,11 @@ services:
     ports:
       - "8080:8080"
 
+  # Development brings up the sample files too, so the file source has
+  # something to show and files.spec.ts has the set it expects.
+  prestart:
+    command: ["bash", "scripts/prestart-dev.sh"]
+
   backend:
     ports:
       - "8000:8000"

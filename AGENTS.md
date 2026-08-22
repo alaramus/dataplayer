@@ -336,6 +336,22 @@ The database and backend run in Docker. Bring them up first:
 docker compose up -d db backend
 ```
 
+That is the whole startup procedure: nothing has to be migrated or seeded by
+hand. `compose.yml` holds a one-shot `prestart` service that waits for the
+server, runs `alembic upgrade head` and creates the first superuser, and
+`backend` depends on it with `service_completed_successfully`, so the
+application starts only after the database is at head. Compose re-runs the
+service on every `up`, so a new migration is applied by bringing the stack up
+again. In development `compose.override.yml` points it at
+`scripts/prestart-dev.sh`, which additionally writes the sample files.
+
+A failing migration therefore stops the backend from starting rather than
+letting it serve against an older schema. The reason is in one place:
+
+```bash
+docker compose logs prestart
+```
+
 ### Backend
 
 ```bash
@@ -400,19 +416,24 @@ seen to fail, break something on purpose and confirm that it does. The
 `vite build`.
 
 **Running the backend test suite wipes all users**, including the superuser,
-because the tests share the development database. Restore it with:
+because the tests share the development database. Bringing the stack up again
+restores them — `prestart` runs on every `up` and `init_db` is idempotent:
 
 ```bash
-docker compose exec backend python -m app.initial_data
+docker compose up -d db backend
 ```
 
-**A personal directory starts empty.** Uploading now exists, but the
-end-to-end scenario `frontend/tests/files.spec.ts` expects a known set of
-samples rather than whatever a previous run left behind:
+**A personal directory starts empty**, and the end-to-end scenario
+`frontend/tests/files.spec.ts` expects a known set of samples rather than
+whatever a previous run left behind. `scripts/prestart-dev.sh` writes them on
+every `up`, so this is only a manual step when the stack is already running:
 
 ```bash
 docker compose exec backend python -m app.seed_storage
 ```
+
+Seeding is deliberately absent from `scripts/prestart.sh`: sample files have no
+place in a deployment.
 
 **Alembic only sees models whose module is imported by `app/alembic/env.py`.**
 A model in a new module has to be added to the import list there, or
@@ -427,6 +448,19 @@ older API and the failure looks like a routing bug:
 ```bash
 docker compose up -d --build backend
 ```
+
+This covers migrations too. `prestart` runs from the same image, so a new
+revision file is invisible to it until the image is rebuilt, and `up` then
+reports the database as already at head.
+
+**A shell script under `backend/scripts/` must keep LF line endings.** It is
+copied into the image verbatim and run by bash, which reads a trailing `` as
+part of the command: `prestart-dev.sh` rewritten with CRLF failed with
+`bash: scripts/prestart.sh: No such file or directory`, naming a file that was
+plainly there. `.gitattributes` pins `*.sh` to `eol=lf`, but that only applies
+when git writes the file — an editor or a script that rewrites it in the
+working tree on Windows can still break the container. `file backend/scripts/*.sh`
+says which ones are wrong.
 
 **psycopg reads a literal `%` as a placeholder whenever parameters are
 supplied**, even an empty tuple. A query with `LIKE 'pg_%'` and no bindings

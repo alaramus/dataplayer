@@ -35,7 +35,5 @@ jobs:
           persist-credentials: false
       - name: Build
         run: docker compose -f compose.yml -f compose.deploy.yml build
-      - name: Prepare database
-        run: docker compose -f compose.yml -f compose.deploy.yml run --rm backend bash scripts/prestart.sh
       - name: Start application
         run: docker compose -f compose.yml -f compose.deploy.yml up -d
