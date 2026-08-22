@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters.actions import (
@@ -16,6 +16,7 @@ from app.adapters.actions import (
     TakesFile,
     TakesParams,
     UnknownAction,
+    common_actions,
 )
 from app.adapters.catalog import CatalogNode
 from app.adapters.fetch import FetchRequest, FetchResult
@@ -344,6 +345,17 @@ class ActionInfo(BaseModel):
     params_schema: dict[str, Any]
 
 
+class ActionTargets(BaseModel):
+    """The nodes a question about actions is asked of.
+
+    None is the root. An empty list is refused rather than read as the root:
+    two ways of saying the same thing is one way for a client to mean something
+    else. The ceiling bounds the work, since applicability is decided per node.
+    """
+
+    node_ids: Annotated[list[str], Field(min_length=1, max_length=1000)] | None = None
+
+
 class ActionRequest(BaseModel):
     node_id: str | None = None
     params: dict[str, Any] = {}
@@ -449,25 +461,32 @@ async def _perform(run: Callable[[], Awaitable[ActionResult]]) -> ActionResult:
         ) from exc
 
 
-@router.get("/{connector_id}/actions", response_model=list[ActionInfo])
+@router.post("/{connector_id}/actions", response_model=list[ActionInfo])
 async def read_actions(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
     connector_id: uuid.UUID,
-    node_id: str | None = None,
+    body: ActionTargets,
 ) -> Any:
     """
-    List the actions this node admits, with the schema of their parameters.
+    List what every node in the set admits, with the schema of the parameters.
 
     Asked per node rather than per source type: whether a node may be renamed
     depends on its state as well as its kind — the root of a connector is an
     ordinary directory that may not be removed.
+
+    A read expressed as a POST for the same reason `fetch` is one: the input is
+    a list of opaque identifiers with no bound on its length, and selecting a
+    directory of five hundred files leaves no room in a query string.
     """
     adapter = _acting_or_501(
         await _adapter_for(session, connector_id, current_user, resources)
     )
-    return [_describe(action) for action in await _available_or_422(adapter, node_id)]
+    targets: list[str | None] = list(body.node_ids) if body.node_ids else [None]
+    offers = [await _available_or_422(adapter, node_id) for node_id in targets]
+    common = common_actions(offers, bulk_only=len(targets) > 1)
+    return [_describe(action) for action in common]
 
 
 @router.post("/{connector_id}/actions/{action_name}", response_model=ActionResult)

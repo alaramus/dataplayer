@@ -144,6 +144,9 @@ class Delete(_ActsOnNode, JsonAction[DeleteParams]):
     title: ClassVar[str] = "Delete"
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory", "file"})
     destructive: ClassVar[bool] = True
+    # One form, many files: the parameters of a delete say nothing about which
+    # file they are for.
+    bulk: ClassVar[bool] = True
     params_model = DeleteParams
 
     async def run(self, node_id: str | None, params: DeleteParams) -> ActionResult:

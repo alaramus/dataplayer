@@ -15,6 +15,7 @@ from app.adapters.actions import (
     TakesFile,
     TakesParams,
     UnknownAction,
+    common_actions,
 )
 
 
@@ -41,6 +42,7 @@ class DropThing(JsonAction[BaseModel]):
     title = "Drop a thing"
     applies_to = frozenset({"directory", "file"})
     destructive = True
+    bulk = True
     params_model = BaseModel
 
     async def run(self, node_id: str | None, params: BaseModel) -> ActionResult:
@@ -163,3 +165,44 @@ def test_an_action_declares_whether_it_destroys_anything() -> None:
 
     assert by_name["drop_thing"].destructive is True
     assert by_name["create_thing"].destructive is False
+
+
+# --- what a set of nodes has in common ---------------------------------------
+
+
+def test_the_common_actions_are_those_every_node_offers() -> None:
+    create, drop, put = CreateThing(), DropThing(), PutThing()
+
+    common = common_actions([[create, drop, put], [drop, put]], bulk_only=False)
+
+    assert [action.name for action in common] == ["drop_thing", "put_thing"]
+
+
+def test_the_common_actions_keep_the_order_the_driver_gave_them() -> None:
+    create, drop, put = CreateThing(), DropThing(), PutThing()
+
+    common = common_actions([[create, drop, put], [put, drop, create]], bulk_only=False)
+
+    assert [action.name for action in common] == [
+        "create_thing",
+        "drop_thing",
+        "put_thing",
+    ]
+
+
+def test_an_action_that_did_not_declare_itself_bulk_is_left_out_of_a_set() -> None:
+    """Renaming five files to one name is not five renames, so it is not offered."""
+    common = common_actions([[CreateThing(), DropThing()]], bulk_only=True)
+
+    assert [action.name for action in common] == ["drop_thing"]
+
+
+def test_nothing_is_common_to_no_nodes_at_all() -> None:
+    assert common_actions([], bulk_only=False) == []
+
+
+def test_an_action_declares_whether_it_applies_to_many_at_once() -> None:
+    by_name: dict[str, Any] = {action.name: action for action in action_set()}
+
+    assert by_name["drop_thing"].bulk is True
+    assert by_name["create_thing"].bulk is False

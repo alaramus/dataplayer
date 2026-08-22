@@ -73,6 +73,19 @@ async def _run(
     )
 
 
+async def _offered(
+    client: AsyncClient,
+    headers: dict[str, str],
+    connector_id: str,
+    node_ids: list[str] | None = None,
+) -> Response:
+    return await client.post(
+        f"{BASE}/{connector_id}/actions",
+        headers=headers,
+        json={"node_ids": node_ids},
+    )
+
+
 # --- what is offered ---------------------------------------------------------
 
 
@@ -82,10 +95,8 @@ async def test_a_directory_offers_the_actions_that_change_it(
 ) -> None:
     connector_id = await _file_connector(client, normal_user_token_headers)
 
-    response = await client.get(
-        f"{BASE}/{connector_id}/actions",
-        headers=normal_user_token_headers,
-        params={"node_id": "reports"},
+    response = await _offered(
+        client, normal_user_token_headers, connector_id, ["reports"]
     )
 
     assert response.status_code == 200
@@ -103,9 +114,7 @@ async def test_the_root_offers_no_way_to_remove_itself(
 ) -> None:
     connector_id = await _file_connector(client, normal_user_token_headers)
 
-    response = await client.get(
-        f"{BASE}/{connector_id}/actions", headers=normal_user_token_headers
-    )
+    response = await _offered(client, normal_user_token_headers, connector_id)
 
     names = {action["name"] for action in response.json()}
     assert names == {"create_folder", "upload"}
@@ -116,9 +125,7 @@ async def test_a_source_without_actions_says_so(
 ) -> None:
     connector_id = await _postgres_connector(client, normal_user_token_headers)
 
-    response = await client.get(
-        f"{BASE}/{connector_id}/actions", headers=normal_user_token_headers
-    )
+    response = await _offered(client, normal_user_token_headers, connector_id)
 
     assert response.status_code == 501
 
@@ -463,9 +470,7 @@ async def test_a_connector_of_another_user_is_not_found(
 
     assert response.status_code == 404
 
-    listing = await client.get(
-        f"{BASE}/{connector_id}/actions", headers=normal_user_token_headers
-    )
+    listing = await _offered(client, normal_user_token_headers, connector_id)
     assert listing.status_code == 404
 
 
@@ -481,3 +486,74 @@ async def test_an_error_never_names_the_server_layout(
 
     assert response.status_code == 422
     assert str(home) not in response.text
+
+
+# --- what a set of nodes admits ----------------------------------------------
+
+
+@pytest.mark.usefixtures("home")
+async def test_two_files_admit_only_what_can_be_done_to_many(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Delete says it applies to many; rename cannot, one name for two files."""
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _offered(
+        client, normal_user_token_headers, connector_id, ["notes.txt", "reports"]
+    )
+
+    assert response.status_code == 200
+    assert {action["name"] for action in response.json()} == {"delete"}
+
+
+@pytest.mark.usefixtures("home")
+async def test_one_node_in_a_set_admits_everything_it_would_alone(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _offered(
+        client, normal_user_token_headers, connector_id, ["notes.txt"]
+    )
+
+    assert {action["name"] for action in response.json()} == {"rename", "delete"}
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_set_admits_nothing_one_of_its_members_refuses(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The root cannot be deleted, so a set holding it cannot be deleted either."""
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _offered(
+        client, normal_user_token_headers, connector_id, ["", "notes.txt"]
+    )
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+@pytest.mark.usefixtures("home")
+async def test_an_empty_set_of_nodes_is_refused(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Null means the root; an empty list would be a second way of saying it."""
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _offered(client, normal_user_token_headers, connector_id, [])
+
+    assert response.status_code == 422
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_node_that_is_not_there_is_refused_inside_a_set(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _offered(
+        client, normal_user_token_headers, connector_id, ["notes.txt", "nowhere"]
+    )
+
+    assert response.status_code == 422

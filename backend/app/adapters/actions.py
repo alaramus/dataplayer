@@ -12,7 +12,7 @@ resolve.
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel
@@ -82,6 +82,10 @@ class Action[P: BaseModel](ABC):
     # question of state and belongs to the driver.
     applies_to: ClassVar[frozenset[NodeKind]]
     destructive: ClassVar[bool] = False
+    # Whether one filled form may be applied to a set of nodes. Renaming five
+    # files to one name is not five renames, and nothing in the shape of an
+    # action says so — only the action itself knows.
+    bulk: ClassVar[bool] = False
 
     params_model: type[P]
 
@@ -95,7 +99,9 @@ class Action[P: BaseModel](ABC):
 class JsonAction[P: BaseModel](Action[P], ABC):
     """An action whose whole request is its parameters."""
 
-    async def perform(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
+    async def perform(
+        self, node_id: str | None, raw: Mapping[str, Any]
+    ) -> ActionResult:
         return await self.run(node_id, self._validated(raw))
 
     @abstractmethod
@@ -155,6 +161,27 @@ class ActionSet:
 
     def for_kind(self, kind: NodeKind) -> list[Action[Any]]:
         return [action for action in self if kind in action.applies_to]
+
+
+def common_actions(
+    offers: Sequence[Sequence[Action[Any]]], *, bulk_only: bool
+) -> list[Action[Any]]:
+    """What every node in a set admits, in the order the driver gave them.
+
+    A set of nodes is asked about in one call, so the intersection is taken
+    here rather than by the client: which actions a node admits depends on its
+    state, and a client that guessed would offer what the server refuses.
+    """
+    if not offers:
+        return []
+    shared = set[str].intersection(
+        *({action.name for action in group} for group in offers)
+    )
+    return [
+        action
+        for action in offers[0]
+        if action.name in shared and (action.bulk or not bulk_only)
+    ]
 
 
 @runtime_checkable
