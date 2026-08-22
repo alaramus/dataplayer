@@ -226,11 +226,11 @@ export function resizeSplit(
   sizes[index] = clamped
   sizes[index + 1] = room - clamped
 
-  const replaced = replaceAt(root, path, {
-    ...split,
-    sizes,
-  })
-  return replaced === null ? root : replaced
+  const replaced = replaceAt(root, path, { ...split, sizes })
+  // Normalised like every other operation. Resizing cannot on its own leave a
+  // tree that needs repair, but an operation that skips the step is the crack
+  // W4 exists to close: nothing downstream should have to know which ones do.
+  return replaced === null ? root : settle(replaced, root)
 }
 
 const DIRECTION_OF: Record<Exclude<DropZone, "center">, "row" | "column"> = {
