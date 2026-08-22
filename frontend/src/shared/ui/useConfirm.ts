@@ -25,7 +25,10 @@ export function useConfirm(): (request: ConfirmRequest) => Promise<boolean> {
         .dialog({
           title: request.title,
           message: request.message,
-          cancel: true,
+          // Both buttons are spelled out: the plugin's default cancel button
+          // is uppercased, and a dialog with one shouting button and one not
+          // is exactly the inconsistency the kit exists to remove.
+          cancel: { label: "Cancel", flat: true, noCaps: true },
           ok: {
             label: request.confirmLabel ?? "Confirm",
             color: request.danger === true ? "negative" : "primary",

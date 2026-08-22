@@ -35,8 +35,6 @@ describe("AppButton", () => {
     expect(mountButton("primary").get("button").classes()).toContain("q-btn--no-uppercase")
   })
 
-  it("does not let a screen choose the colour through a prop", () => {
-    // @ts-expect-error the kit exposes meaning, not Quasar colours
-    mount(AppButton, { global: { plugins: [Quasar] }, props: { color: "purple" } })
-  })
+  // No test that a screen cannot pass color="purple": attributes fall through
+  // by design, so nothing stops it. That compromise is recorded in the spec.
 })

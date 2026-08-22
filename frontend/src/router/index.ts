@@ -1,10 +1,27 @@
 import { createRouter, createWebHistory } from "vue-router"
 
 import { useAuthStore } from "@/stores/auth"
+import type { RouteRecordRaw } from "vue-router"
+
+// The kit showcase is a development tool and is not part of the application a
+// user gets. Behind import.meta.env.DEV the bundler drops both the route and
+// the page from a production build.
+const devRoutes: RouteRecordRaw[] = import.meta.env.DEV
+  ? [
+      {
+        path: "/ui-kit",
+        name: "ui-kit",
+        // No auth: the showcase renders no server data, so it opens without a
+        // running backend.
+        component: () => import("@/features/dev/UiKitPage.vue"),
+      },
+    ]
+  : []
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
+    ...devRoutes,
     {
       path: "/login",
       name: "login",
