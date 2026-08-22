@@ -65,10 +65,12 @@ describe("replacing a node", () => {
     expect((tree as SplitNode).children[0]!.id).toBe("a")
   })
 
-  it("removes a child when handed null", () => {
+  it("removes the child the path names, not whichever one is easiest", () => {
     const next = replaceAt(sample(), [0], null) as SplitNode
     expect(next.children).toHaveLength(1)
-    expect(next.sizes).toHaveLength(1)
+    // Asserting the length alone would pass against removing the wrong index.
+    expect(next.children[0]?.id).toBe("b")
+    expect(next.sizes).toEqual([70])
   })
 
   it("answers null when the whole tree is removed", () => {
