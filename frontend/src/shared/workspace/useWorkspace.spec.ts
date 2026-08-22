@@ -82,15 +82,19 @@ describe("a workspace", () => {
     expect(build().panels.value).toHaveLength(2)
   })
 
-  it("returns to the defaults on reset, and stores them", async () => {
+  it("stores the defaults on reset, rather than leaving what was there", async () => {
     const workspace = build()
     workspace.open({ id: "p3", kind: "rows" })
     await nextTick()
+    // Storage now names three panels. Without this line the test could not
+    // tell a reset that wrote the defaults from a workspace that never wrote
+    // anything: an empty key falls back to those same defaults.
+    expect(build().panels.value).toHaveLength(3)
+
     workspace.reset()
     await nextTick()
     expect(workspace.panels.value).toHaveLength(2)
-    // What is stored is the default layout now, not the one we left behind.
-    expect(build().panels.value).toHaveLength(2)
+    expect(build().panels.value.map((panel) => panel.id)).toEqual(["p1", "p2"])
   })
 
   it("moves a panel where a drag ends", () => {

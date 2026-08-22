@@ -78,10 +78,11 @@ export function useWorkspace<P extends { id: string }>(
   }
 
   function close(panelId: PanelId) {
-    // The workspace never empties: a screen with no sections at all offers the
-    // user nothing to act on, and no way back.
-    if (panels.value.length <= 1) return
     const without = removePanel(tree.value, panelId)
+    // The workspace never empties: a screen with no sections at all offers the
+    // user nothing to act on and no way back. removePanel answers null for
+    // exactly that case, so the rule needs no second guard counting panels -
+    // one that could never disagree, and so could never be seen to work.
     if (without === null) return
     tree.value = without
     panels.value = panels.value.filter((panel) => panel.id !== panelId)
