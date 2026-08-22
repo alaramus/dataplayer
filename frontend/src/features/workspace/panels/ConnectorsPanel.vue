@@ -2,22 +2,21 @@
 import { computed, ref } from "vue"
 
 import type { ConnectorPublic } from "@/client"
-import CatalogDialog from "@/features/catalog/CatalogDialog.vue"
 import ConnectorDialog from "@/features/connectors/ConnectorDialog.vue"
 import ConnectorTable from "@/features/connectors/ConnectorTable.vue"
 import { useCheckConnector, useConnectors, useDeleteConnector } from "@/features/connectors/api"
-import { AppButton, AppLayout, AppPageHeader, useConfirm, useToast } from "@/shared/ui"
+import { useWorkspaceActions } from "@/features/workspace/state"
+import { AppButton, useConfirm, useToast } from "@/shared/ui"
 
 const confirm = useConfirm()
 const toast = useToast()
+const workspace = useWorkspaceActions()
 const connectors = useConnectors()
 const removeConnector = useDeleteConnector()
 const checkConnector = useCheckConnector()
 
 const dialogOpen = ref(false)
 const editing = ref<ConnectorPublic | null>(null)
-const catalogOpen = ref(false)
-const browsing = ref<ConnectorPublic | null>(null)
 
 const rows = computed(() => connectors.data.value?.data ?? [])
 
@@ -29,11 +28,6 @@ function openCreate() {
 function openEdit(connector: ConnectorPublic) {
   editing.value = connector
   dialogOpen.value = true
-}
-
-function openCatalog(connector: ConnectorPublic) {
-  browsing.value = connector
-  catalogOpen.value = true
 }
 
 async function check(connector: ConnectorPublic) {
@@ -60,17 +54,16 @@ async function confirmRemove(connector: ConnectorPublic) {
 </script>
 
 <template>
-  <AppLayout>
-    <AppPageHeader title="Connections">
-      <template #actions>
-        <AppButton
-          icon="add"
-          label="New connection"
-          data-testid="add-connector"
-          @click="openCreate"
-        />
-      </template>
-    </AppPageHeader>
+  <div class="connectors-panel">
+    <div class="connectors-panel__bar">
+      <AppButton
+        icon="add"
+        size="sm"
+        label="New connection"
+        data-testid="add-connector"
+        @click="openCreate"
+      />
+    </div>
 
     <ConnectorTable
       :rows="rows"
@@ -78,16 +71,21 @@ async function confirmRemove(connector: ConnectorPublic) {
       @edit="openEdit"
       @remove="confirmRemove"
       @check="check"
-      @browse="openCatalog"
+      @browse="workspace.openCatalog($event.id, $event.name)"
     />
 
     <ConnectorDialog
       v-model="dialogOpen"
       :connector="editing"
     />
-    <CatalogDialog
-      v-model="catalogOpen"
-      :connector="browsing"
-    />
-  </AppLayout>
+  </div>
 </template>
+
+<style scoped>
+.connectors-panel {
+  padding: 8px;
+}
+.connectors-panel__bar {
+  margin-bottom: 8px;
+}
+</style>

@@ -60,6 +60,7 @@ export default defineConfigWithVueTs(
           ["q-table", "AppTable"],
           ["q-badge", "AppBadge"],
           ["q-spinner", "AppSpinner"],
+          ["q-tree", "AppTree"],
         ].map(([element, replacement]) => ({
           // The rule matches the raw tag name, so both spellings Vue accepts
           // are listed. With only the kebab one, <QBtn> walks past the list.

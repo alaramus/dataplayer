@@ -35,8 +35,8 @@ export const router = createRouter({
     },
     {
       path: "/",
-      name: "connectors",
-      component: () => import("@/features/connectors/ConnectorsPage.vue"),
+      name: "workspace",
+      component: () => import("@/features/workspace/WorkspacePage.vue"),
       meta: { requiresAuth: true },
     },
   ],
@@ -48,7 +48,7 @@ router.beforeEach((to) => {
     return { name: "login" }
   }
   if (to.name === "login" && auth.isLoggedIn) {
-    return { name: "connectors" }
+    return { name: "workspace" }
   }
   return true
 })

@@ -2432,7 +2432,13 @@ git commit -m "feat(workspace): show the engine at /workspace-demo and prove it 
 **Interfaces:**
 - Produces:
   - `AppLayout` получает необязательный проп `fill?: boolean` — без внутренних отступов и на всю высоту.
-  - `AppTree` props: `{ nodes: unknown[]; nodeKey: string; expanded: string[]; selected: string | null }`, `v-model:expanded`, `v-model:selected`, emit `lazyLoad`, слот `default-header`. Проброс остальных атрибутов включён.
+  - `AppTree` props: `{ nodes: QTreeProps["nodes"]; nodeKey: string; expanded: string[]; selected: string | null }`, `v-model:expanded`, `v-model:selected`, emit `lazyLoad`, слот `default-header`. Проброс остальных атрибутов включён.
+
+Типы `nodes` и полезной нагрузки `lazyLoad` читаются с пропсов Quasar
+(`QTreeProps["nodes"]`, `Parameters<NonNullable<QTreeProps["onLazyLoad"]>>[0]`),
+а не объявляются как `unknown`: `unknown` не примет типизированный обработчик,
+и `CatalogPanel` из задачи 12 падает на `vue-tsc` с TS2322. Приведение в каждом
+экране, у которого есть загрузчик, — цена, которой не надо платить.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2464,7 +2470,7 @@ defineProps<{
 defineEmits<{
   "update:expanded": [value: string[]]
   "update:selected": [value: string | null]
-  lazyLoad: [payload: unknown]
+  lazyLoad: [payload: Parameters<NonNullable<QTreeProps["onLazyLoad"]>>[0]]
 }>()
 </script>
 
@@ -3346,7 +3352,7 @@ lint` называет именно эту строку, и вернуть ка�
 - [ ] **Step 7: Run the registry test**
 
 Run: `bun run test:unit -- src/features/workspace/panels.spec.ts`
-Expected: PASS, 13 тестов.
+Expected: PASS, 15 тестов — четыре `it.each` по три вида плюс три отдельных.
 
 - [ ] **Step 8: Commit with task 13**
 

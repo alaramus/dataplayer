@@ -12,6 +12,14 @@ import type { QTreeProps } from "quasar"
 /** Quasar exports no node type of its own; read off the props, the same way AppTable reads its columns. */
 export type TreeNodes = QTreeProps["nodes"]
 
+/**
+ * The payload of a lazy load, read off the props for the same reason.
+ *
+ * Typed rather than `unknown`: a screen answers this with a real loader, and
+ * an opaque payload would push a cast into every screen that has one.
+ */
+export type TreeLazyLoad = Parameters<NonNullable<QTreeProps["onLazyLoad"]>>[0]
+
 defineProps<{
   nodes: TreeNodes
   nodeKey: string
@@ -22,7 +30,7 @@ defineProps<{
 defineEmits<{
   "update:expanded": [value: string[]]
   "update:selected": [value: string | null]
-  lazyLoad: [payload: unknown]
+  lazyLoad: [payload: TreeLazyLoad]
 }>()
 </script>
 
