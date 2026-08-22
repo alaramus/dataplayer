@@ -2700,11 +2700,21 @@ Expected: FAIL — `Failed to resolve import "./useCatalogTree"`.
 
 Перенести логику из `CatalogDialog.vue` (строки со `roots`, `expanded`, `nodesById`, `selectedId`, `selected`, `remember`, `reload`, `onLazyLoad`) в `frontend/src/features/catalog/useCatalogTree.ts`, заменив `props.connector.id` на `connectorId.value` и обращение к `props.modelValue` на явный вызов `load()`:
 
+`reload` дополнительно сбрасывает кэш своей ветки — этого нет в
+`CatalogDialog.vue`, и это исправление, а не перенос. Загрузчик отвечает из
+кэша `fetchQuery` со `staleTime` 60 секунд, и сегодня ветка перечитывается
+только потому, что `useRunAction` успел объявить ключ несвежим. Композабл,
+который панель зовёт напрямую, не может опираться на то, что кто-то другой
+сделал это до него: без сброса `reload` вернул бы ровно то, что его попросили
+заменить. Тест «drops a selection the reload no longer holds» падает именно на
+этом.
+
 ```ts
+import { useQueryClient } from "@tanstack/vue-query"
 import { computed, ref } from "vue"
 import type { ComputedRef, Ref } from "vue"
 
-import { useCatalogLoader } from "@/features/catalog/api"
+import { catalogKey, useCatalogLoader } from "@/features/catalog/api"
 import { toTreeNodes } from "@/features/catalog/treeNodes"
 import type { TreeNode } from "@/features/catalog/treeNodes"
 import { messageOf } from "@/shared/api/errors"
@@ -2733,6 +2743,7 @@ export interface CatalogTree {
  */
 export function useCatalogTree(connectorId: Ref<string>): CatalogTree {
   const loadChildren = useCatalogLoader()
+  const queryClient = useQueryClient()
 
   const roots = ref<TreeNode[]>([])
   const expanded = ref<string[]>([])
@@ -2772,10 +2783,16 @@ export function useCatalogTree(connectorId: Ref<string>): CatalogTree {
   /**
    * Re-read one branch after something changed it.
    *
-   * Invalidating the query is not enough on its own: the tree keeps the
-   * children on the node object, so they have to be put back as well.
+   * The branch is invalidated here rather than trusted to have been
+   * invalidated by whoever changed it: the loader answers from the cache while
+   * the page is fresh, so a reload that did not say so would hand back exactly
+   * what it was asked to replace. And invalidating is not enough on its own —
+   * the tree keeps the children on the node object, so they have to be put
+   * back as well.
    */
   async function reload(nodeId: string | null) {
+    await queryClient.invalidateQueries({ queryKey: catalogKey(connectorId.value, nodeId) })
+
     const node = nodeId === null ? null : (nodesById.value.get(nodeId) ?? null)
     const previous = node ? (node.children ?? []) : roots.value
     const wasHere = previous.some((child) => child.id === selectedId.value)
