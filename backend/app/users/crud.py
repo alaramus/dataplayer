@@ -1,3 +1,4 @@
+import uuid
 from typing import Any
 
 from anyio import to_thread
@@ -36,6 +37,11 @@ async def update_user(
     await session.commit()
     await session.refresh(db_user)
     return db_user
+
+
+async def get_all_user_ids(*, session: AsyncSession) -> set[uuid.UUID]:
+    result = await session.exec(select(User.id))
+    return set(result.all())
 
 
 async def get_user_by_email(*, session: AsyncSession, email: str) -> User | None:

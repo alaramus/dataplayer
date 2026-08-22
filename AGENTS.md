@@ -432,6 +432,12 @@ every `up`, so this is only a manual step when the stack is already running:
 docker compose exec backend python -m app.seed_storage
 ```
 
+The same script also removes the home directories of users that no longer
+exist. Wiping the user table strands a full directory under an id nobody can
+log in as, and without this the storage root grows by one every test run. Only
+a real directory named after a user id is a candidate; a symlink or any other
+name is reported and left alone.
+
 Seeding is deliberately absent from `scripts/prestart.sh`: sample files have no
 place in a deployment.
 
@@ -454,13 +460,19 @@ revision file is invisible to it until the image is rebuilt, and `up` then
 reports the database as already at head.
 
 **A shell script under `backend/scripts/` must keep LF line endings.** It is
-copied into the image verbatim and run by bash, which reads a trailing `` as
+copied into the image verbatim and run by bash, which reads a trailing `
+` as
 part of the command: `prestart-dev.sh` rewritten with CRLF failed with
 `bash: scripts/prestart.sh: No such file or directory`, naming a file that was
 plainly there. `.gitattributes` pins `*.sh` to `eol=lf`, but that only applies
 when git writes the file — an editor or a script that rewrites it in the
 working tree on Windows can still break the container. `file backend/scripts/*.sh`
 says which ones are wrong.
+
+The same rewrite is worth watching on any tracked text file. `text=auto`
+normally normalises on commit, but AGENTS.md once went in as CRLF anyway and
+turned a five-line edit into a 597-line diff. `git diff --stat` says so before
+the commit; `git show :FILE | file -` says what is actually about to be stored.
 
 **psycopg reads a literal `%` as a placeholder whenever parameters are
 supplied**, even an empty tuple. A query with `LIKE 'pg_%'` and no bindings
@@ -567,6 +579,10 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
 - **Nothing moves or copies.** An action works inside one node of one
   connector; moving a file to another folder means downloading and uploading it
   again.
+- **Deleting a user leaves their files.** The row goes, the home directory
+  stays. `app.seed_storage` sweeps such directories up, but it is a
+  development tool and never runs in a deployment, so there the files remain
+  until something else removes them.
 - **Personal storage has no quota.** Nothing counts what a user has stored;
   only a single upload is bounded, by `MAX_UPLOAD_BYTES`.
 - **A conflict is detected, then acted upon.** `create_folder`, `rename` and
