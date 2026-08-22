@@ -8,8 +8,8 @@
  * anything. See the spec, W3.
  */
 
-import type { LayoutNode, LeafNode, NodeId, PanelId, Path } from "./model"
-import { makeSplit } from "./model"
+import type { LayoutNode, LeafNode, NodeId, PanelId, Path, DropZone } from "./model"
+import { makeSplit, makeLeaf } from "./model"
 
 export function nodeAt(root: LayoutNode, path: Path): LayoutNode | null {
   let node: LayoutNode = root
@@ -130,4 +130,150 @@ export function normalize(root: LayoutNode): LayoutNode | null {
     total > 0 ? sizes.map((value) => (value * 100) / total) : sizes.map(() => 100 / sizes.length)
 
   return makeSplit(root.id, root.direction, children, scaled)
+}
+
+/** Normalise, and fall back to the tree we had when nothing would be left. */
+function settle(root: LayoutNode, previous: LayoutNode): LayoutNode {
+  return normalize(root) ?? previous
+}
+
+function withLeaf(
+  root: LayoutNode,
+  leafId: NodeId,
+  change: (leaf: LeafNode) => LayoutNode | null
+): LayoutNode {
+  const path = pathOfNode(root, leafId)
+  if (path === null) return root
+  const leaf = nodeAt(root, path)
+  if (leaf === null || leaf.kind !== "leaf") return root
+  const replaced = replaceAt(root, path, change(leaf))
+  return replaced === null ? root : settle(replaced, root)
+}
+
+export function addPanel(root: LayoutNode, leafId: NodeId, panelId: PanelId): LayoutNode {
+  return withLeaf(root, leafId, (leaf) =>
+    leaf.panels.includes(panelId)
+      ? { ...leaf, activePanel: panelId }
+      : { ...leaf, panels: [...leaf.panels, panelId], activePanel: panelId }
+  )
+}
+
+export function removePanel(root: LayoutNode, panelId: PanelId): LayoutNode | null {
+  const path = pathOfPanel(root, panelId)
+  if (path === null) return root
+  const leaf = nodeAt(root, path)
+  if (leaf === null || leaf.kind !== "leaf") return root
+
+  const panels = leaf.panels.filter((id) => id !== panelId)
+  if (panels.length === 0) {
+    const replaced = replaceAt(root, path, null)
+    return replaced === null ? null : normalize(replaced)
+  }
+
+  const first = panels[0]
+  if (first === undefined) return root
+
+  const next: LeafNode = {
+    ...leaf,
+    panels,
+    activePanel: leaf.activePanel === panelId ? first : leaf.activePanel,
+  }
+
+  const replaced = replaceAt(root, path, next)
+  return replaced === null ? null : normalize(replaced)
+}
+
+export function activatePanel(root: LayoutNode, panelId: PanelId): LayoutNode {
+  const path = pathOfPanel(root, panelId)
+  if (path === null) return root
+  const leaf = nodeAt(root, path)
+  if (leaf === null || leaf.kind !== "leaf") return root
+  return settle(replaceAt(root, path, { ...leaf, activePanel: panelId }) ?? root, root)
+}
+
+export function setCollapsed(root: LayoutNode, leafId: NodeId, collapsed: boolean): LayoutNode {
+  return withLeaf(root, leafId, (leaf) => ({ ...leaf, collapsed }))
+}
+
+/**
+ * Move the border between `children[index]` and `children[index + 1]`.
+ *
+ * Sizes are percentages and the limit is pixels, so the caller converts: the
+ * component that owns the element knows how wide it is, and this function
+ * knows nothing about the screen.
+ */
+export function resizeSplit(
+  root: LayoutNode,
+  splitId: NodeId,
+  index: number,
+  delta: number,
+  minPercent: number
+): LayoutNode {
+  const path = pathOfNode(root, splitId)
+  if (path === null) return root
+  const split = nodeAt(root, path)
+  if (split === null || split.kind !== "split") return root
+
+  const before = split.sizes[index]
+  const after = split.sizes[index + 1]
+  if (before === undefined || after === undefined) return root
+
+  const room = before + after
+  const clamped = Math.min(Math.max(before + delta, minPercent), room - minPercent)
+  if (!Number.isFinite(clamped) || clamped <= 0) return root
+
+  const sizes = [...split.sizes]
+  sizes[index] = clamped
+  sizes[index + 1] = room - clamped
+
+  const replaced = replaceAt(root, path, {
+    ...split,
+    sizes,
+  })
+  return replaced === null ? root : replaced
+}
+
+const DIRECTION_OF: Record<Exclude<DropZone, "center">, "row" | "column"> = {
+  left: "row",
+  right: "row",
+  top: "column",
+  bottom: "column",
+}
+
+const FIRST: DropZone[] = ["left", "top"]
+
+export function splitLeaf(
+  root: LayoutNode,
+  leafId: NodeId,
+  panelId: PanelId,
+  zone: DropZone,
+  newLeafId: NodeId
+): LayoutNode {
+  if (zone === "center") return addPanel(root, leafId, panelId)
+
+  return withLeaf(root, leafId, (leaf) => {
+    const arrival = makeLeaf(newLeafId, [panelId])
+    const children = FIRST.includes(zone) ? [arrival, leaf] : [leaf, arrival]
+    return makeSplit(`split-${newLeafId}`, DIRECTION_OF[zone], children, [50, 50])
+  })
+}
+
+/**
+ * Take a panel out of wherever it is and put it into a target section.
+ *
+ * The removal happens first, and it may take the target section with it when
+ * the panel was the only thing in it. That is not an error to work around: the
+ * gesture had no destination, so nothing happens at all.
+ */
+export function movePanel(
+  root: LayoutNode,
+  panelId: PanelId,
+  targetLeafId: NodeId,
+  zone: DropZone,
+  newLeafId: NodeId
+): LayoutNode {
+  const without = removePanel(root, panelId)
+  if (without === null) return root
+  if (pathOfNode(without, targetLeafId) === null) return root
+  return splitLeaf(without, targetLeafId, panelId, zone, newLeafId)
 }

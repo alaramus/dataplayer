@@ -3,6 +3,15 @@ import { describe, expect, it } from "vitest"
 import type { LeafNode, SplitNode } from "./model"
 import { makeLeaf, makeSplit } from "./model"
 import { leavesOf, nodeAt, normalize, pathOfNode, pathOfPanel, replaceAt } from "./tree"
+import {
+  activatePanel,
+  addPanel,
+  movePanel,
+  removePanel,
+  resizeSplit,
+  setCollapsed,
+  splitLeaf,
+} from "./tree"
 
 const sample = () =>
   makeSplit("root", "row", [makeLeaf("a", ["p1"]), makeLeaf("b", ["p2", "p3"])], [30, 70])
@@ -131,5 +140,105 @@ describe("normalising a tree", () => {
 
   it("answers null when nothing is left", () => {
     expect(normalize(emptyLeaf("a"))).toBeNull()
+  })
+})
+
+describe("panels in a leaf", () => {
+  it("adds a panel and makes it the active one", () => {
+    const next = addPanel(sample(), "a", "p9") as SplitNode
+    const leaf = next.children[0] as LeafNode
+    expect(leaf.panels).toEqual(["p1", "p9"])
+    expect(leaf.activePanel).toBe("p9")
+  })
+
+  it("ignores a leaf that is not there", () => {
+    const tree = sample()
+    expect(addPanel(tree, "nope", "p9")).toBe(tree)
+  })
+
+  it("removes a panel and leaves the others", () => {
+    const next = removePanel(sample(), "p2") as SplitNode
+    expect((next.children[1] as LeafNode).panels).toEqual(["p3"])
+  })
+
+  it("removes the leaf along with its last panel", () => {
+    expect(removePanel(sample(), "p1")?.id).toBe("b")
+  })
+
+  it("activates a panel the leaf already holds", () => {
+    const next = activatePanel(sample(), "p3") as SplitNode
+    expect((next.children[1] as LeafNode).activePanel).toBe("p3")
+  })
+})
+
+describe("collapsing a section", () => {
+  it("marks the leaf and touches no size", () => {
+    const next = setCollapsed(sample(), "a", true) as SplitNode
+    expect((next.children[0] as LeafNode).collapsed).toBe(true)
+    expect(next.sizes).toEqual([30, 70])
+  })
+})
+
+describe("resizing", () => {
+  it("moves what one side loses to the other", () => {
+    const next = resizeSplit(sample(), "root", 0, 10, 10) as SplitNode
+    expect(next.sizes[0]).toBeCloseTo(40)
+    expect(next.sizes[1]).toBeCloseTo(60)
+  })
+
+  it("stops at the minimum instead of crossing it", () => {
+    const next = resizeSplit(sample(), "root", 0, -100, 10) as SplitNode
+    expect(next.sizes[0]).toBeCloseTo(10)
+    expect(next.sizes[1]).toBeCloseTo(90)
+  })
+
+  it("refuses to move a border that is already at the minimum", () => {
+    const tight = makeSplit("root", "row", [makeLeaf("a", ["p1"]), makeLeaf("b", ["p2"])], [10, 90])
+    const next = resizeSplit(tight, "root", 0, -5, 10) as SplitNode
+    expect(next.sizes[0]).toBeCloseTo(10)
+  })
+})
+
+describe("splitting a leaf", () => {
+  it("puts the panel to the left in a row", () => {
+    const next = splitLeaf(makeLeaf("a", ["p1"]), "a", "p9", "left", "new") as SplitNode
+    expect(next.direction).toBe("row")
+    expect((next.children[0] as LeafNode).panels).toEqual(["p9"])
+    expect((next.children[1] as LeafNode).panels).toEqual(["p1"])
+    expect(next.sizes).toEqual([50, 50])
+  })
+
+  it("puts the panel below in a column", () => {
+    const next = splitLeaf(makeLeaf("a", ["p1"]), "a", "p9", "bottom", "new") as SplitNode
+    expect(next.direction).toBe("column")
+    expect((next.children[1] as LeafNode).panels).toEqual(["p9"])
+  })
+
+  it("adds the panel as a tab when the zone is the centre", () => {
+    const next = splitLeaf(makeLeaf("a", ["p1"]), "a", "p9", "center", "new") as LeafNode
+    expect(next.kind).toBe("leaf")
+    expect(next.panels).toEqual(["p1", "p9"])
+  })
+})
+
+describe("moving a panel", () => {
+  it("takes it out of one leaf and into another as a tab", () => {
+    const next = movePanel(sample(), "p1", "b", "center", "new") as LeafNode
+    expect(next.kind).toBe("leaf")
+    expect(next.panels).toEqual(["p2", "p3", "p1"])
+  })
+
+  it("splits the target when the zone is an edge", () => {
+    const next = movePanel(sample(), "p2", "a", "right", "new") as SplitNode
+    expect(next.children.map((child) => (child as LeafNode).panels)).toEqual([
+      ["p1"],
+      ["p2"],
+      ["p3"],
+    ])
+  })
+
+  it("does nothing when the target leaf disappeared with the panel", () => {
+    const tree = sample()
+    expect(movePanel(tree, "p1", "a", "right", "new")).toBe(tree)
   })
 })
