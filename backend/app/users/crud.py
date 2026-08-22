@@ -39,6 +39,21 @@ async def update_user(
     return db_user
 
 
+async def delete_user(*, session: AsyncSession, user: User) -> None:
+    """Remove the user, the rows that belong to them and their files.
+
+    The row goes first. If removing the files then fails, the user is gone and
+    what is left is a directory nobody owns, which `app.seed_storage` sweeps up.
+    The other order would risk a user who can still log in and finds their
+    files missing.
+    """
+    user_id = user.id
+    # Related rows are removed by the database-level cascade.
+    await session.delete(user)
+    await session.commit()
+    await to_thread.run_sync(storage.remove_home, user_id)
+
+
 async def get_all_user_ids(*, session: AsyncSession) -> set[uuid.UUID]:
     result = await session.exec(select(User.id))
     return set(result.all())

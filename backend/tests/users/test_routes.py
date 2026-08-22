@@ -7,7 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.core.security import verify_password
-from app.users import crud
+from app.users import crud, storage
 from app.users.models import User, UserCreate
 from tests.utils.user import create_random_user
 from tests.utils.utils import random_email, random_lower_string
@@ -478,6 +478,45 @@ async def test_delete_user_super_user(
     assert deleted_user["message"] == "User deleted successfully"
     result = (await db.exec(select(User).where(User.id == user_id))).first()
     assert result is None
+
+
+async def test_delete_user_me_removes_their_files(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """Two routes delete a user, so each is asked separately."""
+    email = random_email()
+    password = random_lower_string()
+    user = await crud.create_user(
+        session=db, user_create=UserCreate(email=email, password=password)
+    )
+    home = storage.home_dir(user.id)
+    (home / "notes.txt").write_text("mine")
+    r = await client.post(
+        f"{settings.API_V1_STR}/login/access-token",
+        data={"username": email, "password": password},
+    )
+    headers = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    r = await client.delete(f"{settings.API_V1_STR}/users/me", headers=headers)
+
+    assert r.status_code == 200
+    assert not home.exists()
+
+
+async def test_delete_user_by_a_superuser_removes_their_files(
+    client: AsyncClient, superuser_token_headers: dict[str, str], db: AsyncSession
+) -> None:
+    user_in = UserCreate(email=random_email(), password=random_lower_string())
+    user = await crud.create_user(session=db, user_create=user_in)
+    home = storage.home_dir(user.id)
+    (home / "notes.txt").write_text("mine")
+
+    r = await client.delete(
+        f"{settings.API_V1_STR}/users/{user.id}", headers=superuser_token_headers
+    )
+
+    assert r.status_code == 200
+    assert not home.exists()
 
 
 async def test_delete_user_not_found(

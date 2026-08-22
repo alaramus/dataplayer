@@ -140,8 +140,7 @@ async def delete_user_me(session: SessionDep, current_user: CurrentUser) -> Any:
         raise HTTPException(
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
-    await session.delete(current_user)
-    await session.commit()
+    await crud.delete_user(session=session, user=current_user)
     return Message(message="User deleted successfully")
 
 
@@ -229,7 +228,5 @@ async def delete_user(
         raise HTTPException(
             status_code=403, detail="Super users are not allowed to delete themselves"
         )
-    # Related rows are removed by the database-level cascade.
-    await session.delete(user)
-    await session.commit()
+    await crud.delete_user(session=session, user=user)
     return Message(message="User deleted successfully")

@@ -142,3 +142,19 @@ async def test_create_user_creates_their_home_directory(
     user = await crud.create_user(session=db, user_create=user_in)
 
     assert storage.home_dir(user.id).is_dir()
+
+
+async def test_delete_user_removes_their_home_directory(
+    db: AsyncSession, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(storage.settings, "USER_STORAGE_ROOT", tmp_path)
+    email = random_email()
+    user_in = UserCreate(email=email, password=random_lower_string())
+    user = await crud.create_user(session=db, user_create=user_in)
+    home = storage.home_dir(user.id)
+    (home / "notes.txt").write_text("mine")
+
+    await crud.delete_user(session=db, user=user)
+
+    assert not home.exists()
+    assert await crud.get_user_by_email(session=db, email=email) is None

@@ -10,7 +10,6 @@ suite leaves behind every time it empties the shared development database.
 
 import asyncio
 import logging
-import shutil
 import sys
 import uuid
 from pathlib import Path
@@ -51,22 +50,23 @@ def write_samples(home: Path) -> None:
     (home / "empty").mkdir(exist_ok=True)
 
 
-def remove_orphan_homes(root: Path, *, keep: set[uuid.UUID]) -> list[Path]:
+def remove_orphan_homes(*, keep: set[uuid.UUID]) -> list[uuid.UUID]:
     """Delete the home directories of users that no longer exist.
 
     The test suite shares the development database and empties the user table,
     so every run strands a full directory under an id nobody can log in as.
 
-    Only a real directory named after a user id is a candidate. Anything else
-    under the root was put there for a reason this script does not know, and
-    guessing about it is the one destructive mistake it could make. A symlink
-    is skipped rather than unlinked for the same reason: it points outside the
-    root by definition, and deleting one hides whatever it was placed for.
+    This decides *which* homes go; `storage.remove_home` is what takes one
+    away, so where a home lives and how it is removed keep one definition. Only
+    a real directory named after a user id is a candidate: anything else under
+    the root was put there for a reason this script does not know, and guessing
+    about it is the one destructive mistake it could make.
     """
+    root = settings.USER_STORAGE_ROOT
     if not root.is_dir():
         return []
 
-    removed: list[Path] = []
+    removed: list[uuid.UUID] = []
     for entry in sorted(root.iterdir()):
         if entry.is_symlink() or not entry.is_dir():
             logger.info("Not a home directory, left alone: %s", entry.name)
@@ -78,8 +78,8 @@ def remove_orphan_homes(root: Path, *, keep: set[uuid.UUID]) -> list[Path]:
             continue
         if user_id in keep:
             continue
-        shutil.rmtree(entry)
-        removed.append(entry)
+        storage.remove_home(user_id)
+        removed.append(user_id)
         logger.info("Removed the home of a user that no longer exists: %s", entry.name)
     return removed
 
@@ -92,7 +92,7 @@ async def main(email: str) -> None:
         logger.error("No such user: %s", email)
         raise SystemExit(1)
 
-    removed = remove_orphan_homes(settings.USER_STORAGE_ROOT, keep=live_ids)
+    removed = remove_orphan_homes(keep=live_ids)
     logger.info("Removed %d orphaned home directories", len(removed))
 
     home = storage.home_dir(user.id)

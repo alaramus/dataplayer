@@ -433,10 +433,11 @@ docker compose exec backend python -m app.seed_storage
 ```
 
 The same script also removes the home directories of users that no longer
-exist. Wiping the user table strands a full directory under an id nobody can
-log in as, and without this the storage root grows by one every test run. Only
-a real directory named after a user id is a candidate; a symlink or any other
-name is reported and left alone.
+exist. Deleting a user through the API takes their directory with it, but
+wiping the table underneath the application does not, so each test run would
+otherwise strand a full directory under an id nobody can log in as. Only a real
+directory named after a user id is a candidate; a symlink or any other name is
+reported and left alone.
 
 Seeding is deliberately absent from `scripts/prestart.sh`: sample files have no
 place in a deployment.
@@ -579,10 +580,11 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
 - **Nothing moves or copies.** An action works inside one node of one
   connector; moving a file to another folder means downloading and uploading it
   again.
-- **Deleting a user leaves their files.** The row goes, the home directory
-  stays. `app.seed_storage` sweeps such directories up, but it is a
-  development tool and never runs in a deployment, so there the files remain
-  until something else removes them.
+- **A home can outlive its user by a failure.** `crud.delete_user` removes the
+  row, commits, then removes the files, so a user is never left able to log in
+  with their files gone. If that last step fails the directory stays, and
+  nothing in a deployment sweeps it up — `app.seed_storage` does, but it is a
+  development tool.
 - **Personal storage has no quota.** Nothing counts what a user has stored;
   only a single upload is bounded, by `MAX_UPLOAD_BYTES`.
 - **A conflict is detected, then acted upon.** `create_folder`, `rename` and
