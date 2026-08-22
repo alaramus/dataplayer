@@ -3,14 +3,16 @@ import { computed, ref } from "vue"
 
 import type { ConnectorPublic } from "@/client"
 import ConnectorDialog from "@/features/connectors/ConnectorDialog.vue"
-import ConnectorTable from "@/features/connectors/ConnectorTable.vue"
+import ConnectorList from "@/features/connectors/ConnectorList.vue"
 import { useCheckConnector, useConnectors, useDeleteConnector } from "@/features/connectors/api"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppButton, useConfirm, useToast } from "@/shared/ui"
+import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
 const confirm = useConfirm()
 const toast = useToast()
 const workspace = useWorkspaceActions()
+const checks = useConnectorChecksStore()
 const connectors = useConnectors()
 const removeConnector = useDeleteConnector()
 const checkConnector = useCheckConnector()
@@ -32,6 +34,7 @@ function openEdit(connector: ConnectorPublic) {
 
 async function check(connector: ConnectorPublic) {
   const result = await checkConnector.mutateAsync(connector.id)
+  checks.record(connector.id, result.ok)
   if (result.ok) {
     toast.success(`${result.message} (${String(result.latency_ms)} ms)`)
   } else {
@@ -49,6 +52,9 @@ async function confirmRemove(connector: ConnectorPublic) {
   if (!answer) return
 
   await removeConnector.mutateAsync(connector.id)
+  // The dot outlives the row otherwise: an id can be reused by nothing, but a
+  // record nobody prunes is a record that grows for as long as the page lives.
+  checks.forget(connector.id)
   toast.success("Connection deleted")
 }
 </script>
@@ -65,13 +71,14 @@ async function confirmRemove(connector: ConnectorPublic) {
       />
     </div>
 
-    <ConnectorTable
+    <ConnectorList
       :rows="rows"
       :loading="connectors.isLoading.value"
+      :selected-id="workspace.activeConnectorId.value"
+      @open="workspace.openCatalog($event.id, $event.name)"
       @edit="openEdit"
       @remove="confirmRemove"
       @check="check"
-      @browse="workspace.openCatalog($event.id, $event.name)"
     />
 
     <ConnectorDialog
@@ -83,9 +90,9 @@ async function confirmRemove(connector: ConnectorPublic) {
 
 <style scoped>
 .connectors-panel {
-  padding: 8px;
+  padding: 8px 0;
 }
 .connectors-panel__bar {
-  margin-bottom: 8px;
+  padding: 0 8px 8px;
 }
 </style>

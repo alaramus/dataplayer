@@ -1,44 +1,70 @@
 <script setup lang="ts">
-import { provide } from "vue"
+import { computed, provide } from "vue"
 
 import {
   catalogPanelId,
   componentOf,
-  kindOf,
+  emptyOf,
   lookOf,
   panelSchema,
+  roleOf,
   rowsPanelId,
 } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
 import { workspaceActionsKey } from "@/features/workspace/state"
 import { AppLayout } from "@/shared/ui"
-import { makeLeaf, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
+import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
 
 /**
  * The workspace: connections, a catalog and the data of one node, side by side.
  *
- * The layout is the user's own from the second visit onwards; the default is
- * only what the first one looks like — and it is a single section, because a
- * catalog panel names a connection the user has not chosen yet. Sections
- * appear as the work goes on: opening a catalog finds no section holding that
- * kind, so it lands beside the connections, and dragging a tab to an edge is
- * what splits them.
+ * Three columns that are always there, because each one is a role rather than
+ * a place something was once dragged to: `accepts` puts a newly opened panel
+ * in the right column, and `pinned` keeps that column when the last thing in
+ * it is closed. Everything else is the user's — widths, which tabs are open,
+ * and a data tab torn off into a section of its own. See the spec, T5.
  */
 const workspace = useWorkspace<Panel>({
   storageKey: "dataplayer-workspace",
   panelSchema,
   defaults: () => ({
-    tree: makeLeaf("connections", ["connectors"]),
+    tree: makeSplit(
+      "root",
+      "row",
+      [
+        makeLeaf("sources", ["connectors"], { accepts: "sources", pinned: true }),
+        makeLeaf("navigate", [], { accepts: "navigate", pinned: true }),
+        makeLeaf("work", [], { accepts: "work", pinned: true }),
+      ],
+      [20, 28, 52]
+    ),
     panels: [{ id: "connectors", kind: "connectors" }],
   }),
-  kindOf,
+  kindOf: roleOf,
   look: lookOf,
   component: componentOf,
+  empty: emptyOf,
 })
 
+/**
+ * Which connection the catalog is showing.
+ *
+ * Read off the panels rather than kept beside them: one catalog is open at a
+ * time by T4, and a second record of which one could disagree with the first.
+ */
+const activeConnectorId = computed(
+  () => workspace.panels.value.find((panel) => panel.kind === "catalog")?.connectorId ?? null
+)
+
 provide(workspaceActionsKey, {
+  activeConnectorId,
   openCatalog: (connectorId: string, title: string) => {
-    workspace.open({ id: catalogPanelId(connectorId), kind: "catalog", connectorId, title })
+    // replace: the middle column holds one catalog. Dropping this flag is all
+    // that stands between here and two catalogs side by side — see T4.
+    workspace.open(
+      { id: catalogPanelId(connectorId), kind: "catalog", connectorId, title },
+      { replace: true }
+    )
   },
   openRows: (connectorId: string, nodeId: string, title: string) => {
     workspace.open({

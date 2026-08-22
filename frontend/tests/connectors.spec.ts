@@ -1,16 +1,9 @@
 import { expect, test } from "@playwright/test"
 
+import { DATABASE } from "./utils/connectors"
 import { login } from "./utils/login"
+import { connectorAction, connectorRow } from "./utils/workspace"
 
-// The backend runs the check, not the browser, so the address is written as the
-// backend container sees it: inside the compose network the database is host db.
-const DATABASE = {
-  host: process.env.POSTGRES_SERVER ?? "db",
-  port: process.env.POSTGRES_PORT ?? "5432",
-  database: process.env.POSTGRES_DB ?? "app",
-  user: process.env.POSTGRES_USER ?? "postgres",
-  password: process.env.POSTGRES_PASSWORD ?? "",
-}
 
 // Quasar forwards data-testid onto the input element, so field ids address the
 // input directly, without a nested locator.
@@ -42,14 +35,14 @@ test("creates a connection, checks it and deletes it", async ({ page }) => {
   await expect(result).toHaveClass(/bg-positive/)
 
   await page.getByTestId("save-connector").click()
-  await expect(page.getByTestId("connector-table")).toContainText(name)
+  await expect(connectorRow(page, name)).toBeVisible()
 
-  await page.getByTestId(`check-${name}`).click()
+  await connectorAction(page, name, "check")
   await expect(page.locator(".q-notification").first()).toBeVisible()
 
-  await page.getByTestId(`delete-${name}`).click()
-  await page.getByRole("button", { name: "Delete" }).click()
-  await expect(page.getByTestId("connector-table")).not.toContainText(name)
+  await connectorAction(page, name, "delete")
+  await page.getByTestId("confirm-accept").click()
+  await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
 test("a wrong password reports an auth failure without leaking the password", async ({
@@ -81,9 +74,9 @@ test("the secret field is empty while editing and needs no retyping", async ({
   await page.getByTestId("connector-name").fill(name)
   await fillConnectionFields(page, DATABASE.password)
   await page.getByTestId("save-connector").click()
-  await expect(page.getByTestId("connector-table")).toContainText(name)
+  await expect(connectorRow(page, name)).toBeVisible()
 
-  await page.getByTestId(`edit-${name}`).click()
+  await connectorAction(page, name, "edit")
   await expect(page.getByTestId("field-password")).toHaveValue("")
 
   // The password is left blank: the server substitutes the stored one by
@@ -92,7 +85,7 @@ test("the secret field is empty while editing and needs no retyping", async ({
   await expect(page.getByTestId("check-result")).toHaveClass(/bg-positive/)
 
   await page.getByRole("button", { name: "Cancel" }).click()
-  await page.getByTestId(`delete-${name}`).click()
-  await page.getByRole("button", { name: "Delete" }).click()
-  await expect(page.getByTestId("connector-table")).not.toContainText(name)
+  await connectorAction(page, name, "delete")
+  await page.getByTestId("confirm-accept").click()
+  await expect(connectorRow(page, name)).toHaveCount(0)
 })

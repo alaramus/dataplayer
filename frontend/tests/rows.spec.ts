@@ -1,40 +1,16 @@
 import { expect, test } from "@playwright/test"
 
+import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { connectionsTab, rowsTabs } from "./utils/workspace"
-
-const DATABASE = {
-  host: process.env.POSTGRES_SERVER ?? "db",
-  port: process.env.POSTGRES_PORT ?? "5432",
-  database: process.env.POSTGRES_DB ?? "app",
-  user: process.env.POSTGRES_USER ?? "postgres",
-  password: process.env.POSTGRES_PASSWORD ?? "",
-}
-
-async function createConnector(page: import("@playwright/test").Page, name: string) {
-  await page.getByTestId("add-connector").click()
-  await page.getByTestId("connector-name").fill(name)
-  await page.getByTestId("connector-type").click()
-  await page.getByRole("option", { name: "PostgreSQL" }).click()
-  await page.getByTestId("field-host").fill(DATABASE.host)
-  await page.getByTestId("field-port").fill(DATABASE.port)
-  await page.getByTestId("field-database").fill(DATABASE.database)
-  await page.getByTestId("field-user").fill(DATABASE.user)
-  await page.getByTestId("field-password").fill(DATABASE.password)
-  await page.getByTestId("save-connector").click()
-  await expect(page.getByTestId("connector-table")).toContainText(name)
-}
-
-function nodeHeader(page: import("@playwright/test").Page, label: string) {
-  return page.locator(".q-tree__node-header", { hasText: label }).first()
-}
+import { nodeHeader } from "./utils/tree"
+import { connectorAction, connectorRow, openConnector, rowsTabs } from "./utils/workspace"
 
 test("shows rows of a selected relation and pages through them", async ({ page }) => {
   const name = `e2e-rows-${Date.now()}`
   await login(page)
-  await createConnector(page, name)
+  await createPostgresConnector(page, name)
 
-  await page.getByTestId(`browse-${name}`).click()
+  await openConnector(page, name)
   // pg_catalog is used rather than an application table: it always holds
   // hundreds of rows, so paging is real rather than vacuous.
   await nodeHeader(page, "pg_catalog").locator(".q-tree__arrow").click()
@@ -53,10 +29,7 @@ test("shows rows of a selected relation and pages through them", async ({ page }
   await page.getByTestId("grid-prev").click()
   await expect(grid).toContainText("Rows 1–50")
 
-  // The catalog opened as a tab beside the connections rather than in a modal,
-  // so the way back to the table is its tab.
-  await connectionsTab(page).click()
-  await page.getByTestId(`delete-${name}`).click()
-  await page.getByRole("button", { name: "Delete" }).click()
-  await expect(page.getByTestId("connector-table")).not.toContainText(name)
+  await connectorAction(page, name, "delete")
+  await page.getByTestId("confirm-accept").click()
+  await expect(connectorRow(page, name)).toHaveCount(0)
 })

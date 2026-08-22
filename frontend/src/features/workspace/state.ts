@@ -1,5 +1,5 @@
 import { inject } from "vue"
-import type { InjectionKey } from "vue"
+import type { InjectionKey, Ref } from "vue"
 
 /**
  * What one panel may ask the workspace to open.
@@ -8,6 +8,8 @@ import type { InjectionKey } from "vue"
  * and a panel has no business reaching into the layout.
  */
 export interface WorkspaceActions {
+  /** The connection whose catalog is open, so a panel can show which it is. */
+  activeConnectorId: Readonly<Ref<string | null>>
   openCatalog: (connectorId: string, title: string) => void
   openRows: (connectorId: string, nodeId: string, title: string) => void
 }

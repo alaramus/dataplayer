@@ -4,6 +4,8 @@ import { z } from "zod"
 
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorsPanelView from "@/features/workspace/panels/ConnectorsPanel.vue"
+import EmptyNavigateView from "@/features/workspace/panels/EmptyNavigate.vue"
+import EmptyWorkView from "@/features/workspace/panels/EmptyWork.vue"
 import RowsPanelView from "@/features/workspace/panels/RowsPanel.vue"
 import type { PanelLook } from "@/shared/workspace"
 
@@ -48,10 +50,50 @@ export function kindOf(panel: Panel): PanelKind {
   return panel.kind
 }
 
+/**
+ * Which column a panel belongs in.
+ *
+ * The engine takes this as the opaque string it places panels by, so a source
+ * type that brings its own view — a topic browser, a replication monitor, a
+ * query editor — is a new kind with an existing role and needs no change to
+ * the layout. Roles are three because the screen has three columns; a kind is
+ * what a panel is, a role is where it goes, and the two stop matching one to
+ * one as soon as the second kind of table exists. See the spec, T1.
+ */
+export const PANEL_ROLES = ["sources", "navigate", "work"] as const
+export type PanelRole = (typeof PANEL_ROLES)[number]
+
+export function roleOf(panel: Panel): PanelRole {
+  switch (panel.kind) {
+    case "connectors":
+      return "sources"
+    case "catalog":
+      return "navigate"
+    case "rows":
+      return "work"
+  }
+}
+
+/** What a column shows before anything has been opened in it. */
+export function emptyOf(accepts: string | null): Component | null {
+  switch (accepts) {
+    case "navigate":
+      return EmptyNavigateView
+    case "work":
+      return EmptyWorkView
+    default:
+      // "sources" among others: its panel cannot be closed, so it is never
+      // empty, and a hint for it would be a hint nobody can reach.
+      return null
+  }
+}
+
 export function lookOf(panel: Panel): PanelLook {
   switch (panel.kind) {
     case "connectors":
-      return { title: "Connections", icon: "lan" }
+      // Not closable: it has no parameters, so a closed one leaves a column
+      // with nothing to say about how to bring it back. See T3.
+      return { title: "Connections", icon: "lan", closable: false }
     case "catalog":
       return { title: panel.title, icon: "account_tree" }
     case "rows":

@@ -61,6 +61,11 @@ export default defineConfigWithVueTs(
           ["q-badge", "AppBadge"],
           ["q-spinner", "AppSpinner"],
           ["q-tree", "AppTree"],
+          ["q-menu", "AppMenu"],
+          // No replacement of their own: they are how AppMenu is built, and a
+          // list of items is not a thing a screen should assemble by hand.
+          ["q-list", "AppMenu"],
+          ["q-item", "AppMenu"],
         ].map(([element, replacement]) => ({
           // The rule matches the raw tag name, so both spellings Vue accepts
           // are listed. With only the kebab one, <QBtn> walks past the list.

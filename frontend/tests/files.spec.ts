@@ -1,31 +1,19 @@
 import { expect, test } from "@playwright/test"
-import type { Page } from "@playwright/test"
 
+import { createFileConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { catalogTab, connectionsTab } from "./utils/workspace"
+import { nodeHeader } from "./utils/tree"
+import { connectorAction, connectorRow, openConnector, rowsTabs } from "./utils/workspace"
 
 // The samples come from `docker compose exec backend python -m app.seed_storage`:
 // this sub-project cannot write files, so a personal directory is empty until
 // that script has run.
-async function createFileConnector(page: Page, name: string) {
-  await page.getByTestId("add-connector").click()
-  await page.getByTestId("connector-name").fill(name)
-  await page.getByTestId("connector-type").click()
-  await page.getByRole("option", { name: "Files" }).click()
-  await page.getByTestId("save-connector").click()
-  await expect(page.getByTestId("connector-table")).toContainText(name)
-}
-
-function nodeHeader(page: Page, label: string) {
-  return page.locator(".q-tree__node-header", { hasText: label }).first()
-}
-
 test("browses a personal directory and reads files as rows", async ({ page }) => {
   const name = `e2e-files-${Date.now()}`
   await login(page)
   await createFileConnector(page, name)
 
-  await page.getByTestId(`browse-${name}`).click()
+  await openConnector(page, name)
 
   const tree = page.getByTestId("catalog-tree")
   await expect(tree).toContainText("reports")
@@ -48,22 +36,20 @@ test("browses a personal directory and reads files as rows", async ({ page }) =>
   await page.getByTestId("grid-next").click()
   await expect(grid).toContainText("Rows 51–100")
 
-  // Back to the tree: the rows of the previous file are covering it, and the
-  // tab that comes back is the one that was left, expanded as it was.
-  await catalogTab(page).click()
+  // The tree is a column of its own, so nothing covered it and nothing had to
+  // be clicked to get back to it - and it is still expanded where it was.
   await nodeHeader(page, "notes.txt").click()
   await expect(grid).toContainText("line_no")
   await expect(grid).toContainText("line 1")
 
-  await catalogTab(page).click()
+  // A file nothing can read as rows opens no tab: two remain, and the grid
+  // still shows the file that was read last.
   await nodeHeader(page, "logo.png").click()
   await expect(page.getByTestId("opaque-file")).toContainText("cannot be read")
-  await expect(page.getByTestId("row-grid")).toHaveCount(0)
+  await expect(rowsTabs(page)).toHaveCount(2)
+  await expect(grid).toContainText("line_no")
 
-  // The catalog opened as a tab beside the connections rather than in a modal,
-  // so the way back to the table is its tab.
-  await connectionsTab(page).click()
-  await page.getByTestId(`delete-${name}`).click()
-  await page.getByRole("button", { name: "Delete" }).click()
-  await expect(page.getByTestId("connector-table")).not.toContainText(name)
+  await connectorAction(page, name, "delete")
+  await page.getByTestId("confirm-accept").click()
+  await expect(connectorRow(page, name)).toHaveCount(0)
 })

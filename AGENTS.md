@@ -53,9 +53,9 @@ particular source. Credentials are encrypted at rest and never leave the
 server, and a source that has connections keeps them between requests. Every
 screen is built from one component kit, and what a screen may not reach for is
 a lint error rather than a convention. All of that now happens in one screen:
-a workspace of resizable sections, where connections, a catalog and the rows
-of a node are panels in tabs that can be dragged apart, and the layout a user
-arrives at is the one they left.
+three columns that are always there — the connections, the catalog of the one
+picked, and the rows of a node in tabs beside each other — resizable, and the
+layout a user arrives at is the one they left.
 
 ### What exists
 
@@ -110,19 +110,21 @@ frontend/src/
 │   ├── api/             client setup, and one reading of an API error
 │   ├── auth/            the session, watched across tabs
 │   ├── SchemaForm/      JSON Schema to form, framework-independent core
-│   ├── workspace/       the panel engine: a layout tree, tabs, drag and drop;
+│   ├── workspace/       the panel engine: a layout tree, tabs, drag and drop,
+│   │                    sections that carry a role and outlive their panels;
 │   │                    tree.ts, dropZone.ts, placement.ts and persist.ts are
 │   │                    pure, the components see one injected context
 │   └── testing/         helpers for tests, not shipped by any screen
-├── stores/              Pinia: client-side state only
+├── stores/              Pinia: client-side state only — the session, and what
+│                        the last connection check said
 └── features/
     ├── auth/
     ├── catalog/         lazy tree, row grid, and the actions a node admits;
     │                    treeNodes.ts, rows.ts and actions.ts are pure mappers;
     │                    useCatalogTree.ts walks a catalog outside any component
-    ├── connectors/
-    ├── workspace/       the three panels, the registry that names them and
-    │                    what one panel may ask the workspace to open
+    ├── connectors/      the list of sources and the form that registers one
+    ├── workspace/       the panels, the registry that names them and the role
+    │                    that puts each in one of the three columns
     └── dev/             /ui-kit and /workspace-demo, dev builds only
 ```
 
@@ -349,8 +351,16 @@ mutated in place and carried parent back-pointers, so undoing anything needed a
 history of layouts and a command language of nine verbs, and a node it could
 not remove had to be left in place marked `fake`.
 
-Two consequences worth stating separately:
+Three consequences worth stating separately:
 
+- **A column is a role, not a place something was dragged to.** A section
+  carries `accepts`, the role of panel that lands in it, and `pinned`, which
+  keeps it on screen when the last thing in it is closed; the engine compares
+  the role and never reads it. That is what makes the screen three columns
+  that are always there while leaving the engine ignorant of what a column
+  means — and what makes a source type that brings its own view a new kind
+  with an existing role rather than a change to the layout. Full reasoning in
+  `docs/superpowers/specs/2026-08-22-three-column-workspace-design.md`.
 - **A tab that is not showing is kept, not destroyed.** Switching away and back
   is no reason to re-read a catalog or to lose the page a grid was on, so the
   section wraps the active panel in `<KeepAlive>`. That puts one requirement on
@@ -576,6 +586,14 @@ keeps the panel of an inactive tab alive, which is what makes a long-running
 panel — a terminal, an agent, a subscription — possible without the layout
 resetting it.
 
+The screen it produced is now three columns that are always there: sources,
+what is being browsed, and what is being worked on. What that settled matters
+more than the shape: a column is a role, and where a panel goes is decided by
+the role it declares rather than by the layout knowing what a catalog is. Every
+view a later source type brings — a topic browser, a monitor, a query editor —
+is a new panel kind with one of those three roles, and the screen does not
+change to take it.
+
 The shared UI kit is done, ahead of 7 rather than as part of it: every screen
 now builds from `shared/ui`, and a lint rule keeps the next one from going
 around it (D11). A new screen starts by looking at `/ui-kit`.
@@ -650,11 +668,21 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   owns it and the lint rule forbids the Quasar one outside `shared/ui`, but the
   types of its nodes and of a lazy load are read off Quasar's props, so
   replacing the tree would change what a screen passes it.
-- **The default layout is one section, not three.** A workspace opens showing
-  connections alone; the catalog and a table arrive as tabs beside them and are
-  pulled apart by dragging. Seeding three sections would mean seeding panels
-  for a connector the user has not chosen yet — and until they are pulled
-  apart, opening a table covers the tree that opened it.
+- **One catalog at a time.** Opening a connection closes the catalog of the
+  previous one, so the expanded tree of the one before is lost on the way
+  back. The panel is still identified by its connection, so allowing two
+  catalogs side by side is dropping one flag at one call site — but nothing
+  offers that today.
+- **A source that has no catalog has not been seen.** Both source types
+  implement every capability, so the middle column has never had to say "this
+  one has nothing to browse". The mechanism does not stand in the way — such a
+  source opens no panel of that role and the column keeps its hint — but the
+  branch is untested, and the server does not report a type's capabilities
+  either.
+- **The state dot only knows about this session.** A connection shows grey
+  until the user checks it; nothing checks in the background, because that
+  would mean opening a connection to every source on every load. The record is
+  not persisted: a dot restored from yesterday would claim more than it knows.
 - **Tabs cannot be reordered inside a strip.** Dragging a tab moves it to
   another section or splits one; dropping it back into its own strip does
   nothing.

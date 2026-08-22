@@ -13,6 +13,7 @@ import {
   AppIconButton,
   AppInput,
   AppLayout,
+  AppMenu,
   AppNumberInput,
   AppPageHeader,
   AppSection,
@@ -25,7 +26,7 @@ import {
   useConfirm,
   useToast,
 } from "@/shared/ui"
-import type { ButtonVariant, PanelSize, Tone } from "@/shared/ui"
+import type { ButtonVariant, MenuItem, PanelSize, Tone } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
 const BUTTON_VARIANTS: ButtonVariant[] = [
@@ -35,6 +36,13 @@ const BUTTON_VARIANTS: ButtonVariant[] = [
   "danger-quiet",
   "quiet",
 ]
+const MENU_ITEMS: MenuItem[] = [
+  { name: "check", label: "Check connection", icon: "bolt" },
+  { name: "edit", label: "Edit", icon: "edit" },
+  { name: "away", label: "Not available here", icon: "block", disable: true },
+  { name: "delete", label: "Delete", icon: "delete", danger: true },
+]
+
 const TONES: Tone[] = ["error", "success", "warning", "info"]
 const SIZES: PanelSize[] = ["xs", "sm", "md", "lg"]
 
@@ -171,6 +179,16 @@ function flash() {
             tooltip="Not available here"
             disable
           />
+          <AppButton
+            variant="secondary"
+            label="Row actions"
+            icon="more_vert"
+          >
+            <AppMenu
+              :items="MENU_ITEMS"
+              @select="toast.success(`chose ${$event}`)"
+            />
+          </AppButton>
           <span class="text-caption text-grey">
             hover for tooltips
             <AppTooltip>A tooltip attaches to whatever contains it.</AppTooltip>

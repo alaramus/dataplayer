@@ -28,11 +28,20 @@ export function useConfirm(): (request: ConfirmRequest) => Promise<boolean> {
           // Both buttons are spelled out: the plugin's default cancel button
           // is uppercased, and a dialog with one shouting button and one not
           // is exactly the inconsistency the kit exists to remove.
-          cancel: { label: "Cancel", flat: true, noCaps: true },
+          cancel: {
+            label: "Cancel",
+            flat: true,
+            noCaps: true,
+            "data-testid": "confirm-cancel",
+          },
+          // Addressed by a test id and not by its label: the label is the name
+          // of the action, and the control that started the action carries the
+          // same word - a scenario looking for "Delete" found both.
           ok: {
             label: request.confirmLabel ?? "Confirm",
             color: request.danger === true ? "negative" : "primary",
             noCaps: true,
+            "data-testid": "confirm-accept",
           },
         })
         .onOk(() => {

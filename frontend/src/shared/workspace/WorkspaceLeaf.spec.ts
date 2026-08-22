@@ -8,6 +8,7 @@ import type { WorkspaceContext } from "./context"
 import { makeLeaf } from "./model"
 import WorkspaceLeaf from "./WorkspaceLeaf.vue"
 
+/* eslint-disable vue/one-component-per-file -- two stand-ins for panel bodies, not components of the application. */
 const Stub = defineComponent({ setup: () => () => h("div", { class: "stub" }, "panel body") })
 const Hint = defineComponent({ setup: () => () => h("div", { class: "hint" }, "pick a source") })
 

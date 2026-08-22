@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest"
 
-import { catalogPanelId, componentOf, kindOf, lookOf, panelSchema, rowsPanelId } from "./panels"
+import {
+  catalogPanelId,
+  componentOf,
+  emptyOf,
+  kindOf,
+  lookOf,
+  panelSchema,
+  PANEL_ROLES,
+  roleOf,
+  rowsPanelId,
+} from "./panels"
 import type { Panel, PanelKind } from "./panels"
 
 const KINDS: PanelKind[] = ["connectors", "catalog", "rows"]
@@ -32,6 +42,20 @@ describe("the panel registry", () => {
     expect(kindOf(samples[kind])).toBe(kind)
   })
 
+  it.each(KINDS)("puts %s into a column that exists", (kind) => {
+    expect(PANEL_ROLES).toContain(roleOf(samples[kind]))
+  })
+
+  // The panel of connections has no parameters: closing it would leave a
+  // column that could say nothing about how to get it back. See T3.
+  it("offers no cross on the panel of connections", () => {
+    expect(lookOf(samples.connectors).closable).toBe(false)
+  })
+
+  it.each(["catalog", "rows"] as PanelKind[])("lets %s be closed", (kind) => {
+    expect(lookOf(samples[kind]).closable).not.toBe(false)
+  })
+
   it.each(KINDS)("accepts a stored %s panel", (kind) => {
     expect(panelSchema.safeParse(samples[kind]).success).toBe(true)
   })
@@ -44,6 +68,15 @@ describe("the panel registry", () => {
     expect(
       panelSchema.safeParse({ id: "x", kind: "rows", connectorId: "c1", title: "t" }).success
     ).toBe(false)
+  })
+
+  it("says what stands in each column that can be empty", () => {
+    expect(emptyOf(roleOf(samples.catalog))).not.toBeNull()
+    expect(emptyOf(roleOf(samples.rows))).not.toBeNull()
+  })
+
+  it("has nothing to say about a role it does not know", () => {
+    expect(emptyOf("sql")).toBeNull()
   })
 
   it("gives the same panel of a table the same id every time", () => {
