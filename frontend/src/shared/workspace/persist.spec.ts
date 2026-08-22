@@ -63,4 +63,28 @@ describe("a stored workspace", () => {
     const raw = JSON.stringify({ version: WORKSPACE_VERSION, tree: broken, panels })
     expect(parseWorkspace(raw, panelSchema)).toBeNull()
   })
+
+  it("is refused when the split with the wrong sizes is deep in the tree", () => {
+    // The root here is sound, so this fails only if the check recurses.
+    const deep = makeSplit(
+      "root",
+      "row",
+      [
+        makeLeaf("a", ["p1"]),
+        makeSplit(
+          "inner",
+          "column",
+          [makeLeaf("b", ["p2"]), makeLeaf("c", ["p3"])],
+          [34, 33, 33]
+        ),
+      ],
+      [40, 60]
+    )
+    const raw = JSON.stringify({
+      version: WORKSPACE_VERSION,
+      tree: deep,
+      panels: [...panels, { id: "p3", kind: "demo" }],
+    })
+    expect(parseWorkspace(raw, panelSchema)).toBeNull()
+  })
 })

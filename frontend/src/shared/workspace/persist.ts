@@ -37,7 +37,7 @@ export function serializeWorkspace<P>(tree: LayoutNode, panels: P[]): string {
   return JSON.stringify({ version: WORKSPACE_VERSION, tree, panels })
 }
 
-export function parseWorkspace<P>(
+export function parseWorkspace<P extends { id: string }>(
   raw: string | null,
   panelSchema: ZodType<P>
 ): { tree: LayoutNode; panels: P[] } | null {
@@ -62,9 +62,7 @@ export function parseWorkspace<P>(
   const { tree, panels } = envelope.data
   if (!sizesMatchChildren(tree)) return null
 
-  const known = new Set<PanelId>(
-    panels.map((panel) => (panel as { id: string }).id)
-  )
+  const known = new Set<PanelId>(panels.map((panel) => panel.id))
   for (const leaf of leavesOf(tree)) {
     if (!leaf.panels.every((id) => known.has(id))) return null
     if (!leaf.panels.includes(leaf.activePanel)) return null
