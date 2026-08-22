@@ -1,0 +1,12 @@
+/**
+ * A workspace of resizable sections holding panels.
+ *
+ * The engine knows nothing about what a panel shows: a feature supplies the
+ * panel type, a component per panel and a look per panel, and gets a layout
+ * that can be resized, collapsed, tabbed and rearranged.
+ */
+export { default as WorkspaceRoot } from "./WorkspaceRoot.vue"
+export { useWorkspace, workspaceKey } from "./useWorkspace"
+export type { PanelLook, WorkspaceApi, WorkspaceContext, WorkspaceOptions } from "./useWorkspace"
+export { COLLAPSED_PX, makeLeaf, makeSplit, MIN_PANEL_PX, nextId } from "./model"
+export type { DropZone, LayoutNode, LeafNode, NodeId, PanelId, SplitNode } from "./model"
