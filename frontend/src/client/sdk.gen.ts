@@ -23,6 +23,9 @@ import type {
   connectorsDeleteConnectorData,
   connectorsDeleteConnectorErrors,
   connectorsDeleteConnectorResponses,
+  connectorsDescribeDraftData,
+  connectorsDescribeDraftErrors,
+  connectorsDescribeDraftResponses,
   connectorsFetchRowsData,
   connectorsFetchRowsErrors,
   connectorsFetchRowsResponses,
@@ -598,6 +601,35 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/check-draft",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Describe Draft
+   *
+   * Compose the connection string of a draft, without connecting to anything.
+   *
+   * Read by the form as it is filled in, so it opens nothing and costs the
+   * server only the string it builds. Composed here rather than on the client
+   * because the rule for building it belongs to the driver, and because this
+   * is already the layer obliged to keep the password out of what it answers.
+   */
+  public static describeDraft<ThrowOnError extends boolean = true>(
+    options: Options<connectorsDescribeDraftData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsDescribeDraftResponses,
+      connectorsDescribeDraftErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/describe-draft",
       ...options,
       headers: {
         "Content-Type": "application/json",

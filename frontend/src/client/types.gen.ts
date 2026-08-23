@@ -278,6 +278,16 @@ export type ConnectionCheckResult = {
 }
 
 /**
+ * ConnectionDescription
+ */
+export type ConnectionDescription = {
+  /**
+   * Connection String
+   */
+  connection_string: string
+}
+
+/**
  * ConnectorCreate
  */
 export type ConnectorCreate = {
@@ -1485,6 +1495,33 @@ export type connectorsCheckDraftResponses = {
 
 export type connectorsCheckDraftResponse =
   connectorsCheckDraftResponses[keyof connectorsCheckDraftResponses]
+
+export type connectorsDescribeDraftData = {
+  body: ConnectionCheckRequest
+  path?: never
+  query?: never
+  url: "/api/v1/connectors/describe-draft"
+}
+
+export type connectorsDescribeDraftErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsDescribeDraftError =
+  connectorsDescribeDraftErrors[keyof connectorsDescribeDraftErrors]
+
+export type connectorsDescribeDraftResponses = {
+  /**
+   * Successful Response
+   */
+  200: ConnectionDescription
+}
+
+export type connectorsDescribeDraftResponse =
+  connectorsDescribeDraftResponses[keyof connectorsDescribeDraftResponses]
 
 export type connectorsCheckConnectorData = {
   body?: never

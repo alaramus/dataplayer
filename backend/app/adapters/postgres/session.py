@@ -3,6 +3,7 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
+from urllib.parse import quote
 
 import psycopg
 from psycopg.rows import dict_row
@@ -83,6 +84,19 @@ class PostgresSession:
             # pg_stat_activity should be able to tell whose they are.
             application_name=APPLICATION_NAME,
         )
+
+    def connection_string(self) -> str:
+        """The same address as `conninfo`, as a URL and without the password.
+
+        Built with `quote` rather than by formatting: a user named `ann@corp`
+        or a database named `a/b` would otherwise move the host or invent a
+        path, and this string is meant to be pasted into other tools.
+        """
+        options = self._options
+        user = quote(options.user, safe="")
+        database = quote(options.database, safe="")
+        host = quote(options.host, safe="")
+        return f"postgresql://{user}@{host}:{options.port}/{database}"
 
     async def check(self) -> ConnectionCheckResult:
         started = time.perf_counter()

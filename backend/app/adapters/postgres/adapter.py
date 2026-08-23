@@ -24,6 +24,9 @@ class PostgresAdapter:
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
 
+    def connection_string(self) -> str:
+        return self._session.connection_string()
+
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         return await self._catalog.list_children(node_id)
 

@@ -26,6 +26,7 @@ from app.adapters.protocol import (
     ConnectionCheckResult,
     DataAdapter,
     SupportsCatalog,
+    SupportsConnectionString,
     SupportsFetch,
 )
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
@@ -212,16 +213,17 @@ class ConnectionCheckRequest(BaseModel):
     connector_id: uuid.UUID | None = None
 
 
-@router.post("/check-draft", response_model=ConnectionCheckResult)
-async def check_draft(
-    session: SessionDep, current_user: CurrentUser, body: ConnectionCheckRequest
-) -> Any:
-    """
-    Check a connection from form values, without storing anything.
+async def _draft_adapter(
+    session: AsyncSession, current_user: User, body: ConnectionCheckRequest
+) -> DataAdapter:
+    """Build an adapter from form values, filling in secrets not retyped.
 
-    When connector_id is supplied, secret fields missing from the body are taken
-    from the stored connector: the user edits the port without retyping the
-    password.
+    Shared by the two routes that read a draft: checking it and describing it
+    ask the same question of the same values, and a second copy of this would
+    be a second place for the secret substitution to be forgotten.
+
+    No pooling: a draft has no identity to key a pool by, and a check is meant
+    to exercise the credentials rather than reuse a connection.
     """
     adapter_type = _resolve_type(body.adapter_type)
     options = body.options
@@ -230,7 +232,7 @@ async def check_draft(
         options = service.fill_missing_secrets(adapter_type, options, connector.secrets)
 
     try:
-        adapter = service.build_adapter(
+        return service.build_adapter(
             adapter_type, options, _context_for(current_user.id)
         )
     except ValidationError as exc:
@@ -245,7 +247,49 @@ async def check_draft(
                 for error in exc.errors()
             ],
         )
+
+
+@router.post("/check-draft", response_model=ConnectionCheckResult)
+async def check_draft(
+    session: SessionDep, current_user: CurrentUser, body: ConnectionCheckRequest
+) -> Any:
+    """
+    Check a connection from form values, without storing anything.
+
+    When connector_id is supplied, secret fields missing from the body are taken
+    from the stored connector: the user edits the port without retyping the
+    password.
+    """
+    adapter = await _draft_adapter(session, current_user, body)
     return await adapter.check_connection()
+
+
+class ConnectionDescription(BaseModel):
+    connection_string: str
+
+
+@router.post("/describe-draft", response_model=ConnectionDescription)
+async def describe_draft(
+    session: SessionDep, current_user: CurrentUser, body: ConnectionCheckRequest
+) -> Any:
+    """
+    Compose the connection string of a draft, without connecting to anything.
+
+    Read by the form as it is filled in, so it opens nothing and costs the
+    server only the string it builds. Composed here rather than on the client
+    because the rule for building it belongs to the driver, and because this
+    is already the layer obliged to keep the password out of what it answers.
+    """
+    adapter = await _draft_adapter(session, current_user, body)
+    if not isinstance(adapter, SupportsConnectionString):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source is not addressed by a connection string",
+                "error_kind": "config",
+            },
+        )
+    return ConnectionDescription(connection_string=adapter.connection_string())
 
 
 @router.post("/{connector_id}/check", response_model=ConnectionCheckResult)

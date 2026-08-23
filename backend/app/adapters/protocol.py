@@ -72,3 +72,19 @@ class SupportsFetch(Protocol):
         before any SQL is built.
         """
         ...
+
+
+@runtime_checkable
+class SupportsConnectionString(Protocol):
+    def connection_string(self) -> str:
+        """How to reach this source, in one line, for a human to copy.
+
+        Never carries the password: it is shown on screen and pasted into
+        other tools, and the one place that composes it is the one place
+        already obliged to keep the password out of anything the caller sees.
+
+        A capability rather than part of the contract because a source may
+        genuinely have none — a personal directory is not addressed by a URL,
+        and answering with an invented one would be worse than answering 501.
+        """
+        ...

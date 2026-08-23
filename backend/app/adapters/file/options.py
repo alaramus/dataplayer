@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, field_validator
 
 from app.adapters.file.session import stays_inside_root
+from app.adapters.layout import layout
 
 
 class FileOptions(BaseModel):
@@ -11,6 +12,7 @@ class FileOptions(BaseModel):
         default="/",
         title="Folder",
         description="Folder inside your personal storage",
+        json_schema_extra=layout(),
         # The default goes through the validator too, so "/" becomes the
         # empty path that means "the home directory itself".
         validate_default=True,

@@ -87,3 +87,47 @@ def test_a_postgres_source_offers_no_actions() -> None:
     from app.adapters.actions import SupportsActions
 
     assert not isinstance(PostgresAdapter(_working_options()), SupportsActions)
+
+
+def test_connection_string_is_a_url_anyone_can_paste() -> None:
+    options = PostgresOptions(
+        host="db.example", port=6543, database="app", user="ann", password=SecretStr("s")
+    )
+
+    assert (
+        PostgresAdapter(options).connection_string()
+        == "postgresql://ann@db.example:6543/app"
+    )
+
+
+def test_connection_string_never_carries_the_password() -> None:
+    """It is shown on screen and copied out; a password in it would travel."""
+    secret = "definitely-not-the-password"
+    options = _working_options().model_copy(update={"password": SecretStr(secret)})
+
+    assert secret not in PostgresAdapter(options).connection_string()
+
+
+def test_connection_string_escapes_what_would_change_the_url() -> None:
+    """A user or a database named with a slash must not invent a new host."""
+    options = PostgresOptions(
+        host="db.example",
+        port=5432,
+        database="a/b",
+        user="ann@corp",
+        password=SecretStr("s"),
+    )
+
+    assert (
+        PostgresAdapter(options).connection_string()
+        == "postgresql://ann%40corp@db.example:5432/a%2Fb"
+    )
+
+
+def test_a_file_source_has_no_connection_string() -> None:
+    """The capability protocol is how a source says it has none."""
+    from app.adapters.file.adapter import FileAdapter
+    from app.adapters.protocol import SupportsConnectionString
+
+    assert not issubclass(FileAdapter, SupportsConnectionString)
+    assert issubclass(PostgresAdapter, SupportsConnectionString)
