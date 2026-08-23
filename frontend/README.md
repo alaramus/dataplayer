@@ -1,39 +1,40 @@
-# Фронтенд
+# Frontend
 
-Vue 3 + TypeScript + Quasar, сборка на Vite. Типизированный клиент API
-генерируется из OpenAPI бэкенда и лежит в `src/client` — руками не правится.
+Vue 3 + TypeScript + Quasar, built with Vite. The typed API client is generated
+from the backend's OpenAPI and lives in `src/client` — it is never edited by
+hand.
 
-## Команды
+## Commands
 
 ```sh
-bun run dev           # сервер разработки на http://localhost:5173
-bun run build         # production-сборка в ../backend/app/frontend
-bun run build:checked # то же, но с предварительной проверкой типов
-bun run type-check    # vue-tsc, требует Node (см. ниже)
-bun run lint          # ESLint с автоисправлением
-bun run format        # Prettier по src/
+bun run dev           # dev server on http://localhost:5173
+bun run build         # production build into ../backend/app/frontend
+bun run build:checked # the same, with a type check first
+bun run type-check    # vue-tsc; needs Node, see below
+bun run lint          # ESLint with auto-fix
+bun run format        # Prettier over src/
 bun run test:unit     # Vitest
 bun run test          # Playwright
 ```
 
-## vue-tsc требует Node, а не bun
+## vue-tsc needs Node, not bun
 
-`vue-tsc` не работает на рантайме bun: он не регистрирует расширение `.vue`,
-поэтому все компоненты молча выпадают из программы компилятора, а импорты
-вида `@/App.vue` начинают выглядеть несуществующими. Проверено замером —
-под Node в программу попадают все `.vue`, под bun ни одного.
+`vue-tsc` does not work under the bun runtime: it fails to register the `.vue`
+extension, so every component silently drops out of the compiler program and
+imports such as `@/App.vue` start to look like they point at nothing. Measured:
+under Node every `.vue` file is in the program, under bun none of them is.
 
-Следствия:
+What follows from that:
 
-- `type-check` и `build:checked` запускайте там, где установлен настоящий
-  Node. На Windows это происходит само: обёртка `.cmd` вызывает Node.
-- В образе `oven/bun:1` настоящего Node нет, поэтому `build` намеренно
-  выполняет только `vite build`. Бандлеру типы не нужны — он их отбрасывает.
+- run `type-check` and `build:checked` where a real Node is installed. On
+  Windows this happens by itself: the `.cmd` shim invokes Node.
+- the `oven/bun:1` image has no real Node, so `build` deliberately runs
+  `vite build` alone. The bundler does not need the types — it strips them.
 
-## Генерация клиента
+## Generating the client
 
 ```sh
-bash scripts/generate-client.sh   # из корня репозитория
+bash scripts/generate-client.sh   # from the repository root
 ```
 
-Скрипт поднимает OpenAPI из бэкенда и перегенерирует `src/client`.
+The script dumps OpenAPI from the backend and regenerates `src/client`.
