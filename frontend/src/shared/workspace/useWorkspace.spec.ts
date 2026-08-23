@@ -58,6 +58,12 @@ function buildDragging() {
   })
 }
 
+/** Press a tab and move far enough that the press became a drag. */
+function beginDrag(workspace: ReturnType<typeof buildDragging>, panelId: string) {
+  workspace.context.press(panelId, 100, 100)
+  workspace.context.pointerMoved(140, 100)
+}
+
 function leafNamed(workspace: ReturnType<typeof buildDragging>, id: string): LeafNode {
   const found = leavesOf(workspace.context.tree.value).find((leaf) => leaf.id === id)
   if (found === undefined) throw new Error(`no section ${id}`)
@@ -187,10 +193,30 @@ describe("a workspace", () => {
 
   it("moves a panel where a drag ends", () => {
     const workspace = buildDragging()
-    workspace.context.startDrag("p3")
+    beginDrag(workspace, "p3")
     workspace.context.endDrag("aside", "center")
     expect(leafNamed(workspace, "aside").panels).toEqual(["p3"])
     expect(leafNamed(workspace, "main").panels).toEqual(["p2"])
+  })
+
+  it("does not begin a drag until the pointer has actually moved", () => {
+    // A tab now leaves its strip the moment a drag begins, so a press that
+    // never became one would make it blink on every click. See G1.
+    const workspace = buildDragging()
+    workspace.context.press("p3", 100, 100)
+    expect(workspace.context.dragging.value).toBeNull()
+    workspace.context.pointerMoved(101, 101)
+    expect(workspace.context.dragging.value).toBeNull()
+    workspace.context.pointerMoved(106, 100)
+    expect(workspace.context.dragging.value).toBe("p3")
+  })
+
+  it("forgets a press that ended without a drag", () => {
+    const workspace = buildDragging()
+    workspace.context.press("p3", 100, 100)
+    workspace.context.endDrag(null, null)
+    workspace.context.pointerMoved(200, 200)
+    expect(workspace.context.dragging.value).toBeNull()
   })
 
   it("refuses a panel a section does not take", () => {
@@ -198,28 +224,28 @@ describe("a workspace", () => {
     // column of connections would break them with no way back. See P1.
     const workspace = buildDragging()
     const before = workspace.context.tree.value
-    workspace.context.startDrag("p3")
+    beginDrag(workspace, "p3")
     workspace.context.endDrag("left", "center")
     expect(workspace.context.tree.value).toBe(before)
   })
 
   it("says of a section whether it takes what is being dragged", () => {
     const workspace = buildDragging()
-    workspace.context.startDrag("p3")
+    beginDrag(workspace, "p3")
     expect(workspace.context.admissionOf("main").accepts).toBe(true)
     expect(workspace.context.admissionOf("left").accepts).toBe(false)
   })
 
   it("counts what a section would keep once the dragged panel has left it", () => {
     const workspace = buildDragging()
-    workspace.context.startDrag("p3")
+    beginDrag(workspace, "p3")
     expect(workspace.context.admissionOf("main").remaining).toBe(1)
     expect(workspace.context.admissionOf("aside").remaining).toBe(0)
   })
 
   it("takes a side that would leave the target empty as a tab instead", () => {
     const workspace = buildDragging()
-    workspace.context.startDrag("p3")
+    beginDrag(workspace, "p3")
     workspace.context.endDrag("aside", "left")
     expect(leavesOf(workspace.context.tree.value).map((leaf) => leaf.id)).toEqual([
       "left",
@@ -231,7 +257,7 @@ describe("a workspace", () => {
 
   it("splits when the target would still hold something", () => {
     const workspace = buildDragging()
-    workspace.context.startDrag("p3")
+    beginDrag(workspace, "p3")
     workspace.context.endDrag("main", "bottom")
     expect(leavesOf(workspace.context.tree.value)).toHaveLength(4)
   })
@@ -251,7 +277,8 @@ describe("a workspace", () => {
   it("leaves the layout alone when a drag ends nowhere", () => {
     const workspace = build()
     const before = workspace.context.tree.value
-    workspace.context.startDrag("p1")
+    workspace.context.press("p1", 0, 0)
+    workspace.context.pointerMoved(40, 0)
     workspace.context.endDrag(null, null)
     expect(workspace.context.tree.value).toBe(before)
     expect(workspace.context.dragging.value).toBeNull()

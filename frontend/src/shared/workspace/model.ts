@@ -64,6 +64,13 @@ export const MIN_PANEL_PX = 120
  */
 export const COLLAPSED_PX = 40
 
+/**
+ * Movement under this much reads as a press rather than as the start of a
+ * drag. One number for the border between two columns and for a tab, because
+ * it answers one question — did the hand mean to move this? See G1.
+ */
+export const PRESS_THRESHOLD_PX = 3
+
 export interface LeafOptions {
   activePanel?: PanelId
   accepts?: string

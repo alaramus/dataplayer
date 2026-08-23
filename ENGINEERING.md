@@ -162,8 +162,12 @@ encryption key must decode to exactly 32 bytes.
 - Elements are found in tests the way a user finds them — by role, text or
   `data-testid` — not by CSS classes and not by snapshots.
 
-**Enforced:** a test reads every `.vue` and `.css` under `src` and fails on a
-`z-index` that is not `var(--dp-layer-…)`, verified by putting a number back.
+**Enforced:** a test reads every `.vue` under `src` — where every component
+style lives — and fails on a `z-index` that is not `var(--dp-layer-…)`. A `.css`
+file cannot be read from a unit test at all: Vite hands back its name and an
+empty string for its contents, so the scale's own order is checked in the
+browser instead, by the Playwright scenario about what floats over a sticky
+heading. Both were verified by breaking them.
 ESLint forbids `src/stores/**` importing the generated client or
 any feature, verified by introducing the import. ESLint also forbids, outside
 `src/shared/ui`, every `q-*` the kit replaces — in both spellings Vue accepts,

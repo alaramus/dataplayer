@@ -43,7 +43,8 @@ function contextFor(): WorkspaceContext {
     focus: () => undefined,
     toggleCollapse: () => undefined,
     resize: () => undefined,
-    startDrag: () => undefined,
+    press: () => undefined,
+    pointerMoved: () => undefined,
     endDrag: () => undefined,
   }
 }

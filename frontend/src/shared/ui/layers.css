@@ -32,4 +32,8 @@
      inside it, under the menus and dialogs that open from the window itself.
      Order within this layer is the order of the array, not a counter. */
   --dp-layer-window: 3000;
+
+  /* What is in the hand: the copy of a tab that follows the pointer. Above
+     everything of ours, because a hand cannot pass under what it carries. */
+  --dp-layer-drag: 4000;
 }

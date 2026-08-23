@@ -29,7 +29,8 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
     focus: () => undefined,
     toggleCollapse: () => undefined,
     resize: () => undefined,
-    startDrag: () => undefined,
+    press: () => undefined,
+    pointerMoved: () => undefined,
     endDrag: () => undefined,
     ...overrides,
   }
@@ -169,6 +170,38 @@ describe("a section", () => {
     const wrapper = mountLeaf(contextFor({ dragging: ref<string | null>("p1") }))
     await wrapper.get('[data-testid="workspace-leaf-a"]').trigger("pointermove")
     expect(wrapper.get(".workspace-leaf__zone").attributes("style")).not.toContain("display: none")
+  })
+
+  it("does not draw the tab that is being dragged", async () => {
+    // It is in the user's hand: leaving it in the strip as well is what made
+    // the gesture hard to read at all. See G2.
+    const wrapper = mountLeaf(contextFor({ dragging: ref<string | null>("p1") }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="workspace-tab-p1"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="workspace-tab-p2"]').exists()).toBe(true)
+  })
+
+  it("marks the strip when the panel would join the tabs there", async () => {
+    const wrapper = mountLeaf(contextFor({ dragging: ref<string | null>("p1") }))
+    await wrapper.get('[data-testid="workspace-leaf-a"]').trigger("pointermove")
+    expect(wrapper.get(".workspace-leaf__zone").classes()).toContain("workspace-leaf__zone--strip")
+  })
+
+  it("marks the whole of a section that holds nothing yet", async () => {
+    const wrapper = mount(WorkspaceLeaf, {
+      props: {
+        leaf: makeLeaf("work", [], { pinned: true, accepts: "work" }),
+        collapsible: true,
+      },
+      global: {
+        plugins: [Quasar],
+        provide: {
+          [workspaceKey as symbol]: contextFor({ dragging: ref<string | null>("p1") }),
+        },
+      },
+    })
+    await wrapper.get('[data-testid="workspace-leaf-work"]').trigger("pointermove")
+    expect(wrapper.get(".workspace-leaf__zone").classes()).toContain("workspace-leaf__zone--whole")
   })
 
   it("marks nothing at all in a section that refuses it", async () => {

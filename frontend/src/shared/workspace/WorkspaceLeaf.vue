@@ -4,7 +4,8 @@ import type { CSSProperties } from "vue"
 
 import { workspaceKey } from "./context"
 import type { WorkspaceContext } from "./context"
-import { dropZoneFor } from "./dropZone"
+import { dropShape, dropZoneFor } from "./dropZone"
+import type { SectionRects } from "./dropZone"
 import type { DropZone, LeafNode } from "./model"
 
 const props = defineProps<{ leaf: LeafNode; collapsible: boolean }>()
@@ -18,9 +19,21 @@ if (injected === undefined) throw new Error("WorkspaceLeaf used outside a Worksp
 const workspace: WorkspaceContext = injected
 
 const element = ref<HTMLElement | null>(null)
+const stripElement = ref<HTMLElement | null>(null)
 const zone = ref<DropZone | null>(null)
+/** Measured while the pointer is over the section, and only used to draw. */
+const stripHeight = ref(0)
 
 const active = computed(() => props.leaf.activePanel)
+
+/**
+ * The tabs that are drawn. The one being dragged is in the user's hand, and
+ * leaving a copy of it in the strip is what made the gesture unreadable.
+ * See G2.
+ */
+const shownTabs = computed(() =>
+  props.leaf.panels.filter((panelId) => panelId !== workspace.dragging.value)
+)
 
 /** A pinned section with nothing in it: the feature says what stands there. */
 const empty = computed(() => (active.value === null ? workspace.emptyOf(props.leaf.accepts ?? null) : null))
@@ -44,13 +57,41 @@ const closableOthers = computed(
     ).length
 )
 
+/**
+ * The section as a drop target: the strip and the body, measured now.
+ *
+ * Not a computed, for the reason WorkspaceNode gives about its own length:
+ * a rectangle is not reactive, so a memoised one would answer with where the
+ * section used to be.
+ */
+function rects(): SectionRects | null {
+  if (element.value === null) return null
+  const leaf = element.value.getBoundingClientRect()
+  const height = stripElement.value?.getBoundingClientRect().height ?? 0
+  stripHeight.value = height
+  return {
+    strip: { left: leaf.left, top: leaf.top, width: leaf.width, height },
+    body: {
+      left: leaf.left,
+      top: leaf.top + height,
+      width: leaf.width,
+      height: leaf.height - height,
+    },
+  }
+}
+
 function onPointerMove(event: PointerEvent) {
-  if (workspace.dragging.value === null || element.value === null) return
+  if (workspace.dragging.value === null) {
+    zone.value = null
+    return
+  }
+  const measured = rects()
+  if (measured === null) return
   // Null for a section that refuses what is being dragged, and the overlay
   // draws nothing for null: the only thing this screen says about a refusal
   // is that it does not offer. See P1.
   zone.value = dropZoneFor(
-    element.value.getBoundingClientRect(),
+    measured,
     event.clientX,
     event.clientY,
     workspace.admissionOf(props.leaf.id)
@@ -58,20 +99,22 @@ function onPointerMove(event: PointerEvent) {
 }
 
 function onPointerUp() {
-  if (workspace.dragging.value === null) return
+  // Unconditional: a press that never became a drag is forgotten here too,
+  // or the next movement of the pointer would begin one with no button held.
   workspace.endDrag(props.leaf.id, zone.value)
   zone.value = null
 }
 
 /**
- * Pressing a tab begins a possible drag, and nothing else. Activating is left
- * to the click that follows a press which did not become one - which is also
- * what lets the keyboard reach a tab, since Enter on a button raises click and
- * never pointerdown.
+ * Pressing a tab begins a possible drag, and nothing else. It becomes one only
+ * once the pointer has moved far enough to mean it - see G1. Activating is
+ * left to the click that follows a press which did not become a drag, which is
+ * also what lets the keyboard reach a tab, since Enter on a button raises
+ * click and never pointerdown.
  */
-function onTabPointerDown(panelId: string) {
+function onTabPointerDown(event: PointerEvent, panelId: string) {
   workspace.focus(props.leaf.id)
-  workspace.startDrag(panelId)
+  workspace.press(panelId, event.clientX, event.clientY)
 }
 
 /** What a collapsed handle says it will bring back. */
@@ -81,7 +124,22 @@ const collapsedTitle = computed(() => {
   return props.leaf.collapsed ? `Show ${title ?? "this section"}` : "Hide"
 })
 
+/** What will be lit: where the panel ends up, not which zone the pointer is in. */
+const shape = computed(() => dropShape(zone.value, props.leaf.panels.length === 0))
+
 const overlayStyle = computed((): CSSProperties => {
+  if (shape.value === "none") return { display: "none" }
+  if (shape.value === "strip") {
+    // The head of the section, exactly as tall as it is drawn: the panel joins
+    // the tabs, so the tabs are what lights up.
+    return {
+      position: "absolute",
+      left: "0",
+      top: "0",
+      width: "100%",
+      height: `${String(stripHeight.value)}px`,
+    }
+  }
   const box: Record<DropZone, Record<string, string>> = {
     left: { left: "0", top: "0", width: "50%", height: "100%" },
     right: { left: "50%", top: "0", width: "50%", height: "100%" },
@@ -89,7 +147,7 @@ const overlayStyle = computed((): CSSProperties => {
     bottom: { left: "0", top: "50%", width: "100%", height: "50%" },
     center: { left: "0", top: "0", width: "100%", height: "100%" },
   }
-  return zone.value === null ? { display: "none" } : { position: "absolute", ...box[zone.value] }
+  return { position: "absolute", ...box[zone.value ?? "center"] }
 })
 </script>
 
@@ -101,7 +159,10 @@ const overlayStyle = computed((): CSSProperties => {
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
   >
-    <div class="workspace-leaf__strip">
+    <div
+      ref="stripElement"
+      class="workspace-leaf__strip"
+    >
       <!-- A collapsed section is twenty-eight pixels wide, and a tab strip
            with `overflow: hidden` would push the handle that brings it back
            off the end of it. So a collapsed section shows the handle and
@@ -111,13 +172,13 @@ const overlayStyle = computed((): CSSProperties => {
         class="workspace-leaf__tabs"
       >
         <button
-          v-for="panelId in leaf.panels"
+          v-for="panelId in shownTabs"
           :key="panelId"
           type="button"
           class="workspace-leaf__tab"
           :class="{ 'workspace-leaf__tab--active': panelId === active }"
           :data-testid="`workspace-tab-${panelId}`"
-          @pointerdown="onTabPointerDown(panelId)"
+          @pointerdown="onTabPointerDown($event, panelId)"
           @click="workspace.activate(panelId)"
         >
           <q-icon
@@ -211,6 +272,7 @@ const overlayStyle = computed((): CSSProperties => {
     >
       <div
         class="workspace-leaf__zone"
+        :class="`workspace-leaf__zone--${shape}`"
         :style="overlayStyle"
       />
     </div>

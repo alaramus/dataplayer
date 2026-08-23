@@ -6,7 +6,7 @@ import { workspaceKey } from "./context"
 import type { PanelLook, WorkspaceContext } from "./context"
 import { admittedZone } from "./dropZone"
 import type { DropAdmission } from "./dropZone"
-import { nextId } from "./model"
+import { nextId, PRESS_THRESHOLD_PX } from "./model"
 import type { LayoutNode, NodeId, PanelId } from "./model"
 import { parseWorkspace, serializeWorkspace } from "./persist"
 import { leafForKind } from "./placement"
@@ -80,6 +80,10 @@ export function useWorkspace<P extends { id: string }>(
   const panels = ref<P[]>(start.panels) as Ref<P[]>
   const focusedLeaf = ref<NodeId | null>(null)
   const dragging = ref<PanelId | null>(null)
+
+  // Not a ref: nothing renders from it, and a press that never becomes a drag
+  // must not make the screen do anything at all.
+  let pressed: { panelId: PanelId; x: number; y: number } | null = null
 
   const panelOf = (panelId: PanelId): P | undefined =>
     panels.value.find((panel) => panel.id === panelId)
@@ -202,12 +206,21 @@ export function useWorkspace<P extends { id: string }>(
     resize: (splitId, beforeIndex, afterIndex, delta, minPercent) => {
       tree.value = resizeSplit(tree.value, splitId, beforeIndex, afterIndex, delta, minPercent)
     },
-    startDrag: (panelId) => {
-      dragging.value = panelId
+    press: (panelId, x, y) => {
+      pressed = { panelId, x, y }
+    },
+    pointerMoved: (x, y) => {
+      if (pressed === null) return
+      if (Math.abs(x - pressed.x) + Math.abs(y - pressed.y) < PRESS_THRESHOLD_PX) return
+      dragging.value = pressed.panelId
+      pressed = null
     },
     endDrag: (targetLeafId, zone) => {
       const panelId = dragging.value
       dragging.value = null
+      // A press that never became a drag ends here too, or the next movement
+      // of the pointer would start one with no button held down.
+      pressed = null
       if (panelId === null || targetLeafId === null || zone === null) return
       // The same two rules the highlight was drawn from, applied to the same
       // answer: what is shown and what happens cannot be allowed to differ.

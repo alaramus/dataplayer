@@ -80,7 +80,18 @@ export interface WorkspaceContext {
     delta: number,
     minPercent: number
   ) => void
-  startDrag: (panelId: PanelId) => void
+  /**
+   * A tab was pressed. Not yet a drag: see `pointerMoved`.
+   */
+  press: (panelId: PanelId, x: number, y: number) => void
+  /**
+   * The pointer moved, wherever it is.
+   *
+   * A press becomes a drag here, once the hand has moved far enough to mean
+   * it. Held by the engine rather than by the section the tab came from: the
+   * pointer leaves that section in the first moment of the gesture. See G1.
+   */
+  pointerMoved: (x: number, y: number) => void
   endDrag: (targetLeafId: NodeId | null, zone: DropZone | null) => void
 }
 

@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { ref } from "vue"
 
+import { PRESS_THRESHOLD_PX } from "./model"
 import type { Direction } from "./model"
-
-/** Movement under this much reads as a press on the handle, not as a drag. */
-const PRESS_THRESHOLD_PX = 3
 
 const props = defineProps<{ direction: Direction }>()
 const emit = defineEmits<{ move: [deltaPx: number]; toggle: [] }>()

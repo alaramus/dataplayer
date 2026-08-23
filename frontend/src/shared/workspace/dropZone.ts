@@ -7,29 +7,57 @@ export interface Rect {
   height: number
 }
 
-/** How much of a side counts as its edge. */
-const EDGE = 0.25
+/**
+ * A section, as a drop target: two rectangles that mean different things.
+ *
+ * The strip of tabs is where a panel joins the ones already there; the body is
+ * where it divides the section. One target per intention — see the spec, G3.
+ */
+export interface SectionRects {
+  strip: Rect
+  body: Rect
+}
+
+function contains(rect: Rect, x: number, y: number): boolean {
+  return (
+    rect.width > 0 &&
+    rect.height > 0 &&
+    x >= rect.left &&
+    x <= rect.left + rect.width &&
+    y >= rect.top &&
+    y <= rect.top + rect.height
+  )
+}
 
 /**
  * Where a dragged panel would land if it were released here.
  *
- * The wider side wins in a corner: with the pointer in the top-left of a wide
- * section, splitting sideways is what the user is more likely to mean, and a
- * rule is better than whichever comparison happens to run first.
+ * In the body the nearest edge wins and there is nothing neutral in between:
+ * "beside the others" is what the strip means, and a body that meant it too
+ * would be a second way to the same result, shown by a highlight describing a
+ * different one. Nearness is a share of the side rather than a distance in
+ * pixels — measured in pixels, the top and bottom of a wide section would
+ * claim almost all of it. A tie goes to the wider side, which is the rule
+ * already written for a corner. See G4.
  */
-export function dropZoneAt(rect: Rect, x: number, y: number): DropZone {
-  if (rect.width <= 0 || rect.height <= 0) return "center"
+export function dropZoneAt(rects: SectionRects, x: number, y: number): DropZone {
+  if (contains(rects.strip, x, y)) return "center"
 
-  const fx = (x - rect.left) / rect.width
-  const fy = (y - rect.top) / rect.height
+  const { body } = rects
+  if (body.width <= 0 || body.height <= 0) return "center"
 
-  const horizontal: DropZone | null = fx < EDGE ? "left" : fx > 1 - EDGE ? "right" : null
-  const vertical: DropZone | null = fy < EDGE ? "top" : fy > 1 - EDGE ? "bottom" : null
+  const fx = (x - body.left) / body.width
+  const fy = (y - body.top) / body.height
 
-  if (horizontal !== null && vertical !== null) {
-    return rect.width >= rect.height ? horizontal : vertical
+  const horizontal: { zone: DropZone; distance: number } =
+    fx <= 0.5 ? { zone: "left", distance: fx } : { zone: "right", distance: 1 - fx }
+  const vertical: { zone: DropZone; distance: number } =
+    fy <= 0.5 ? { zone: "top", distance: fy } : { zone: "bottom", distance: 1 - fy }
+
+  if (horizontal.distance === vertical.distance) {
+    return body.width >= body.height ? horizontal.zone : vertical.zone
   }
-  return horizontal ?? vertical ?? "center"
+  return horizontal.distance < vertical.distance ? horizontal.zone : vertical.zone
 }
 
 /**
@@ -63,10 +91,28 @@ export function admittedZone(zone: DropZone, admission: DropAdmission): DropZone
 
 /** Where a dragged panel would land here, once the section has had its say. */
 export function dropZoneFor(
-  rect: Rect,
+  rects: SectionRects,
   x: number,
   y: number,
   admission: DropAdmission
 ): DropZone | null {
-  return admittedZone(dropZoneAt(rect, x, y), admission)
+  return admittedZone(dropZoneAt(rects, x, y), admission)
+}
+
+/** What is lit up while a panel is held over a section. */
+export type DropShape = "none" | "strip" | "half" | "whole"
+
+/**
+ * The highlight shows where the panel will end up, not which zone the pointer
+ * happens to be in.
+ *
+ * A tab joining the others ends up in the head, so the head lights up; a whole
+ * panel lit for that describes a result that will not happen. The one case
+ * where the whole section is honest is the section that holds nothing: the
+ * panel really will fill it. See G5.
+ */
+export function dropShape(zone: DropZone | null, empty: boolean): DropShape {
+  if (zone === null) return "none"
+  if (zone !== "center") return "half"
+  return empty ? "whole" : "strip"
 }

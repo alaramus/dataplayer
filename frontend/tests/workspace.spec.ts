@@ -313,6 +313,17 @@ test("what floats over a panel is drawn over the sticky heading in it", async ({
   const heading = await layerOf(".app-table--sticky thead th")
   expect(heading).toBeGreaterThan(0)
 
+  // The scale itself, as the browser resolves it. This is the one place it can
+  // be read: a unit test sees an empty string where a `.css` file should be.
+  const scale = await page.evaluate(() => {
+    const style = getComputedStyle(document.documentElement)
+    return ["sticky", "overlay", "popover", "window", "drag"].map((name) =>
+      Number(style.getPropertyValue(`--dp-layer-${name}`).trim())
+    )
+  })
+  expect(scale.every((value) => Number.isFinite(value) && value > 0)).toBe(true)
+  expect([...scale].sort((a, b) => a - b)).toEqual(scale)
+
   // While a tab is being dragged. The heading of a grid declares a layer of
   // its own, so anything covering the panel has to declare a higher one or it
   // is painted over - which is what left the column names standing out of the
@@ -363,6 +374,63 @@ test("the head of every column is one height, whatever is in it", async ({ page 
   await pickSchema(page, "pg_catalog")
   await openNode(page, "pg_class")
   expect(new Set(await heights()).size).toBe(1)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("a tab is carried out of its strip and dropped on another one", async ({ page }) => {
+  const name = `e2e-carry-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+  await openNode(page, "pg_namespace")
+  await expect(rowsTabs(page)).toHaveCount(2)
+
+  const carried = rowsTabs(page).filter({ hasText: "pg_class" })
+  const work = page.getByTestId("workspace-leaf-work")
+  const ghost = page.getByTestId("workspace-drag-ghost")
+  const from = await carried.boundingBox()
+  const onto = await work.boundingBox()
+  if (from === null || onto === null) throw new Error("the tab or the column has no box")
+
+  // Pressed and not yet moved: nothing has happened, and the tab is where it
+  // was. See G1.
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await expect(ghost).toHaveCount(0)
+  await expect(carried).toHaveCount(1)
+
+  // Moved: the tab is in the hand and gone from the strip. See G2.
+  await page.mouse.move(onto.x + onto.width / 2, onto.y + onto.height * 0.6, { steps: 10 })
+  await expect(ghost).toBeVisible()
+  await expect(ghost).toContainText("pg_class")
+  await expect(carried).toHaveCount(0)
+
+  // The body of a section divides it, and the middle of the body is not
+  // neutral: the nearest edge wins. See G4.
+  await page.mouse.up()
+  await expect(ghost).toHaveCount(0)
+  await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(4)
+  await expect(rowsTabs(page)).toHaveCount(2)
+
+  // And back again by the strip: dropped on the head of the section it came
+  // from, it joins the tabs there rather than dividing anything. See G3.
+  const home = page.getByTestId("workspace-leaf-work")
+  const back = rowsTabs(page).filter({ hasText: "pg_class" })
+  const grab = await back.boundingBox()
+  const strip = await home.boundingBox()
+  if (grab === null || strip === null) throw new Error("no box")
+  await page.mouse.move(grab.x + grab.width / 2, grab.y + grab.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(strip.x + strip.width / 2, strip.y + 15, { steps: 10 })
+  await page.mouse.up()
+
+  await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(3)
+  await expect(home.locator('[data-testid^="workspace-tab-rows:"]')).toHaveCount(2)
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

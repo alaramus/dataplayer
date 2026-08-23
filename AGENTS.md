@@ -61,8 +61,11 @@ what to do next and offers the button that does it. A tab of data carries the
 icon of its source and, quietly beside the name of the node, the connection it
 came from; the list of connections marks the ones that are open and, fully, the
 one being read. Columns are resizable and bounded by the window so each scrolls
-inside itself, a tab can only be taken to a column that takes its kind, and the
-layout a user arrives at is the one they left.
+inside itself, and the layout a user arrives at is the one they left. A tab is
+carried the way a browser carries one: it leaves its strip and follows the
+pointer, joins the tabs of another column by being dropped on their head, and
+divides a column by being dropped in its body — and it can only be taken to a
+column that takes its kind.
 
 What a user fills in now follows the way they connect. The options of a source
 type may be a choice of shapes rather than one, and the window draws what every
@@ -600,8 +603,10 @@ Four consequences worth stating separately:
   turned a fix into a rule. Two of the values in that file are Quasar's, not
   ours: its header and footer sit at 2000 and its menus and dialogs at 6000,
   so anything of ours that must clear the first and stay under the second is
-  placed between them. A test reads every `.vue` and `.css` under `src` and
-  fails on a `z-index` that is not one of these names.
+  placed between them. A test reads every `.vue` under `src` and fails on a
+  `z-index` that is not one of these names; that the scale itself ascends is
+  checked in the browser, because a unit test sees an empty string where a
+  `.css` file should be.
 - **The rule is a lint rule, not a habit.** `vue/no-restricted-html-elements`
   forbids, outside `shared/ui`, exactly those `q-*` that have a replacement,
   in both spellings Vue accepts — matching only `q-btn` would let `<QBtn>`
@@ -632,7 +637,7 @@ mutated in place and carried parent back-pointers, so undoing anything needed a
 history of layouts and a command language of nine verbs, and a node it could
 not remove had to be left in place marked `fake`.
 
-Seven consequences worth stating separately:
+Eight consequences worth stating separately:
 
 - **A column is a role, not a place something was dragged to.** A section
   carries `accepts`, the role of panel that lands in it, and `pinned`, which
@@ -678,6 +683,16 @@ Seven consequences worth stating separately:
   it. The list of connections then has two states instead of one, open and
   being read, said with two strengths of the same highlight rather than a
   fourth thing in the row.
+- **A tab is carried, and where it is dropped says what it means.** Pressing
+  a tab does nothing until the pointer has moved far enough to mean it; from
+  then the tab is gone from its strip and a copy of it follows the pointer, so
+  what is being dragged is visible rather than remembered. A section is two
+  targets: its strip is the one way to put a panel beside the ones already
+  there, its body is the one way to divide it, and in the body the nearest edge
+  wins with nothing neutral in the middle. The highlight shows where the panel
+  will end up — the strip, the half it will occupy, or the whole of a section
+  that holds nothing — rather than which zone the pointer is in. Full reasoning
+  in `docs/superpowers/specs/2026-08-23-tab-drag-design.md`.
 - **A column pushed aside may keep something on screen.** The engine knows the
   section is narrow and asks the feature what is worth that width, the way it
   asks what stands in an empty one; only the connections answer, with their
@@ -950,6 +965,14 @@ scene derives its stage from what already exists — the list of connections and
 the catalog being read — and keeps no state of its own, which is the shape any
 later "what now" should take.
 
+The gesture that moves a tab was then rebuilt to the one every browser
+teaches: the tab leaves its strip and is visible in the hand, a strip is what
+merges and a body is what divides, and the highlight describes the result
+rather than the zone. What it settled is worth carrying forward: a target
+should be the thing that will hold the result — the head for a tab, the half
+for a split — because a highlight that describes something else is a promise
+the drop does not keep.
+
 The shared UI kit is done, ahead of 7 rather than as part of it: every screen
 now builds from `shared/ui`, and a lint rule keeps the next one from going
 around it (D11). A new screen starts by looking at `/ui-kit`.
@@ -1095,9 +1118,25 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   different things.
 - **The bar at the bottom of the screen is empty.** It closes the layout and
   holds the room for a status line; nothing puts anything in it yet.
-- **Tabs cannot be reordered inside a strip.** Dragging a tab moves it to
-  another section or splits one; dropping it back into its own strip does
-  nothing.
+- **Tabs cannot be reordered inside a strip.** A tab dropped on a strip is
+  added at the end, and no caret is drawn between tabs; dropped on its own
+  strip it therefore does nothing at all. A position in a strip would put an
+  index into every tree operation and into the chain that reaches them.
+- **The target that merges is a strip thirty-one pixels tall.** It is harder to
+  hit than half a panel, and on a narrow column it is narrow.
+- **A collapsed column is still a target.** Its strip is forty pixels of
+  handles, and a tab dropped there goes where it cannot be seen until the
+  column is brought back.
+- **What is in the hand shows only what a tab shows.** No picture of the panel:
+  two tabs of one node from different connections are told apart by the
+  subtitle and by nothing else.
+- **The ghost hangs from the pointer, not from where the tab was grabbed.** A
+  tab is carried by its middle wherever the press landed on it.
+- **A drag cannot be cancelled from the keyboard.** Escape does nothing;
+  releasing over no target is the only way to change one's mind.
+- **The threshold is three pixels for everyone.** The same number the border
+  between two columns uses; nobody has measured it against a touch screen or an
+  unsteady hand.
 - **The layout is one per browser.** It lives in localStorage, so it does not
   follow a user to another machine and is not shared between two windows.
 - **A panel of a connector that was deleted stays until it is closed.** It
