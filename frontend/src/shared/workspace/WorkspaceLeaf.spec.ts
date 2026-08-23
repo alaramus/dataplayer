@@ -11,6 +11,7 @@ import WorkspaceLeaf from "./WorkspaceLeaf.vue"
 /* eslint-disable vue/one-component-per-file -- two stand-ins for panel bodies, not components of the application. */
 const Stub = defineComponent({ setup: () => () => h("div", { class: "stub" }, "panel body") })
 const Hint = defineComponent({ setup: () => () => h("div", { class: "hint" }, "pick a source") })
+const Rail = defineComponent({ setup: () => () => h("div", { class: "rail" }, "icons") })
 
 function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext {
   return {
@@ -20,8 +21,10 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
     lookOf: (panelId) => ({ title: `title ${panelId}`, icon: "square" }),
     componentOf: () => Stub,
     emptyOf: () => Hint,
+    collapsedOf: () => null,
     activate: () => undefined,
     close: () => undefined,
+    closeOthers: () => undefined,
     focus: () => undefined,
     toggleCollapse: () => undefined,
     resize: () => undefined,
@@ -84,6 +87,46 @@ describe("a section", () => {
     })
     expect(wrapper.findAll(".stub")).toHaveLength(0)
     expect(wrapper.find('[data-testid="workspace-collapse-a"]').exists()).toBe(true)
+  })
+
+  it("shows what the feature keeps at the width of a collapsed section", () => {
+    const wrapper = mount(WorkspaceLeaf, {
+      props: { leaf: { ...makeLeaf("a", ["p1"]), collapsed: true }, collapsible: true },
+      global: {
+        plugins: [Quasar],
+        provide: { [workspaceKey as symbol]: contextFor({ collapsedOf: () => Rail }) },
+      },
+    })
+    expect(wrapper.findAll(".rail")).toHaveLength(1)
+    expect(wrapper.findAll(".stub")).toHaveLength(0)
+  })
+
+  it("closes every tab but the active one when asked", async () => {
+    const seen: string[] = []
+    const wrapper = mountLeaf(contextFor({ closeOthers: (id) => seen.push(id) }))
+    await wrapper.get('[data-testid="workspace-close-others-a"]').trigger("click")
+    expect(seen).toEqual(["a"])
+  })
+
+  it("offers no such command when there is nothing else to close", () => {
+    const wrapper = mount(WorkspaceLeaf, {
+      props: { leaf: makeLeaf("a", ["p1"]), collapsible: true },
+      global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: contextFor() } },
+    })
+    expect(wrapper.find('[data-testid="workspace-close-others-a"]').exists()).toBe(false)
+  })
+
+  it("offers no such command when the other tab has no cross of its own", () => {
+    const wrapper = mountLeaf(
+      contextFor({
+        lookOf: (panelId) => ({
+          title: `title ${panelId}`,
+          icon: "square",
+          closable: panelId !== "p2",
+        }),
+      })
+    )
+    expect(wrapper.find('[data-testid="workspace-close-others-a"]').exists()).toBe(false)
   })
 
   it("offers no cross on a panel the feature says cannot be closed", () => {

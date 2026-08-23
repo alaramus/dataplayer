@@ -3,6 +3,7 @@ import type { Component, VNode } from "vue"
 import { z } from "zod"
 
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
+import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
 import ConnectorsPanelView from "@/features/workspace/panels/ConnectorsPanel.vue"
 import EmptyNavigateView from "@/features/workspace/panels/EmptyNavigate.vue"
 import EmptyWorkView from "@/features/workspace/panels/EmptyWork.vue"
@@ -89,6 +90,18 @@ export function emptyOf(accepts: string | null): Component | null {
       // empty, and a hint for it would be a hint nobody can reach.
       return null
   }
+}
+
+/**
+ * What a panel leaves on screen when its column is pushed aside.
+ *
+ * Only the connections have anything to say at that width: which sources exist
+ * and what the last check said, which is enough to open one of them again. A
+ * catalog and a grid are lists of text and have nothing to show in forty
+ * pixels, so they answer with nothing and the column is just a handle.
+ */
+export function collapsedOf(panel: Panel): Component | null {
+  return panel.kind === "connectors" ? ConnectorRailView : null
 }
 
 export function lookOf(panel: Panel): PanelLook {

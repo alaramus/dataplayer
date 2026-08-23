@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { ActionInfo } from "@/client"
 import { at, first } from "@/shared/testing/collections"
-import { reloadedBy, summarize, toCommands } from "./actions"
+import { reloadedBy, summarize, toCommands, toMenu } from "./actions"
 
 const only = (actions: ActionInfo[]) => first(toCommands(actions))
 
@@ -11,6 +11,8 @@ const createFolder: ActionInfo = {
   title: "New folder",
   destructive: false,
   takes_file: false,
+  acts_on: "children",
+  applicable: true,
   params_schema: {
     type: "object",
     required: ["name"],
@@ -23,6 +25,8 @@ const remove: ActionInfo = {
   title: "Delete",
   destructive: true,
   takes_file: false,
+  acts_on: "node",
+  applicable: true,
   params_schema: {
     type: "object",
     properties: {
@@ -40,6 +44,8 @@ const upload: ActionInfo = {
   title: "Upload a file",
   destructive: false,
   takes_file: true,
+  acts_on: "children",
+  applicable: true,
   params_schema: {
     type: "object",
     properties: {
@@ -88,6 +94,8 @@ describe("toCommands", () => {
       title: "Extract",
       destructive: false,
       takes_file: false,
+      acts_on: "node",
+      applicable: true,
       params_schema: { type: "object", properties: {} },
     }
 
@@ -95,6 +103,68 @@ describe("toCommands", () => {
 
     expect(command.label).toBe("Extract")
     expect(command.fields).toEqual([])
+  })
+})
+
+describe("toMenu", () => {
+  const vocabulary = [createFolder, upload, remove]
+  const named = (commands: { name: string }[]) => commands.map((command) => command.name)
+  const enabled = (commands: { name: string; enabled: boolean }[]) =>
+    named(commands.filter((command) => command.enabled))
+
+  it("lists everything the source can do, whatever is ticked", () => {
+    const menu = toMenu(vocabulary, [], "reports", [])
+
+    expect(named(menu)).toEqual(["create_folder", "upload", "delete"])
+  })
+
+  it("leaves what changes a node greyed out until one is ticked", () => {
+    /* Standing in a folder is not choosing it. */
+    const menu = toMenu(vocabulary, [], "reports", [])
+
+    expect(enabled(menu)).toEqual(["create_folder", "upload"])
+  })
+
+  it("turns on what the server says the ticked nodes admit", () => {
+    const menu = toMenu(vocabulary, [{ ...remove, applicable: true }], "reports", [
+      "reports/q3.csv",
+    ])
+
+    expect(enabled(menu)).toEqual(["create_folder", "upload", "delete"])
+  })
+
+  it("leaves off what the server refuses for the ticked nodes", () => {
+    const menu = toMenu(vocabulary, [{ ...remove, applicable: false }], null, ["", "a"])
+
+    expect(enabled(menu)).toEqual(["create_folder", "upload"])
+  })
+
+  it("greys out what does not apply to the level being looked at", () => {
+    const menu = toMenu(
+      [{ ...createFolder, applicable: false }, upload, remove],
+      [],
+      "notes.txt",
+      []
+    )
+
+    expect(enabled(menu)).toEqual(["upload"])
+  })
+
+  it("sends what changes a node to the ticked ones, and the rest to the level", () => {
+    const menu = toMenu(vocabulary, [remove], "reports", ["reports/q3.csv"])
+    const targets = Object.fromEntries(menu.map((command) => [command.name, command.targets]))
+
+    expect(targets).toEqual({
+      create_folder: ["reports"],
+      upload: ["reports"],
+      delete: ["reports/q3.csv"],
+    })
+  })
+
+  it("names the root as null when that is the level", () => {
+    const menu = toMenu(vocabulary, [], null, [])
+
+    expect(at(menu, 0).targets).toEqual([null])
   })
 })
 

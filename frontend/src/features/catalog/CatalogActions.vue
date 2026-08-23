@@ -2,76 +2,99 @@
 import { computed, ref } from "vue"
 
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
-import { toCommands } from "@/features/catalog/actions"
-import type { ActionCommand } from "@/features/catalog/actions"
+import { toMenu } from "@/features/catalog/actions"
+import type { MenuCommand } from "@/features/catalog/actions"
 import { useNodeActions } from "@/features/catalog/api"
 import { AppIconButton, AppMenu } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
 /**
- * What can be done, in one menu.
+ * What can be done, in one menu that keeps its shape.
  *
- * The target is what is ticked, and the current node when nothing is — that is
- * what makes "New folder" mean the folder being looked at. Which actions are
- * offered comes from the server for exactly that set of nodes, so the menu
- * cannot offer what the server would refuse. See the spec, S6.
+ * Every action the source has is a line, and the server decides which of them
+ * are live: what changes a node waits for a node to be ticked, and what
+ * changes what a node holds — a new folder, an upload — belongs to the level
+ * being looked at. Standing in a folder is not choosing it, so nothing is
+ * renamed or removed because of where the user happens to be. A source that
+ * has no actions at all shows no menu rather than an empty one. See the spec,
+ * S6.
  */
 const props = defineProps<{
   connectorId: string
-  /** The nodes to act on. `[null]` is the root of the connector. */
-  nodeIds: (string | null)[]
-  targetLabel: string
+  /** The level being looked at. `null` is the root of the connector. */
+  levelId: string | null
+  /** The nodes that are ticked. */
+  checkedIds: string[]
+  levelLabel: string
+  checkedLabel: string
 }>()
 
 const emit = defineEmits<{ done: [reloadNodeIds: (string | null)[]] }>()
 
 const connectorId = computed(() => props.connectorId)
 
-// The route takes null for the root and a non-empty list otherwise; a list
-// holding only null is the same question as no list at all.
-const queryIds = computed<string[] | null>(() => {
-  const named = props.nodeIds.filter((id): id is string => id !== null)
-  return named.length === 0 ? null : named
-})
+// The route takes null for the root and a non-empty list otherwise.
+const levelIds = computed<string[] | null>(() =>
+  props.levelId === null || props.levelId === "" ? null : [props.levelId]
+)
+const checkedIds = computed<string[] | null>(() =>
+  props.checkedIds.length === 0 ? null : [...props.checkedIds]
+)
+const anyChecked = computed(() => props.checkedIds.length > 0)
 
-const actions = useNodeActions(connectorId, queryIds)
+// Two questions, because a menu line is about one of two subjects: the level,
+// or what is ticked in it. The vocabulary is the same in both answers, so the
+// first is enough to draw the menu before anything has been ticked.
+const here = useNodeActions(connectorId, levelIds)
+const picked = useNodeActions(connectorId, checkedIds, anyChecked)
 
-const commands = computed(() => toCommands(actions.data.value ?? []))
+const commands = computed(() =>
+  toMenu(here.data.value ?? [], picked.data.value ?? [], props.levelId, props.checkedIds)
+)
 
 const items = computed<MenuItem[]>(() =>
   commands.value.map((command) => ({
     name: command.name,
     label: command.label,
     danger: command.destructive,
+    disable: !command.enabled,
   }))
 )
 
-const active = ref<ActionCommand | null>(null)
+const active = ref<MenuCommand | null>(null)
+
+const targetLabel = computed(() =>
+  active.value?.actsOn === "children" ? props.levelLabel : props.checkedLabel
+)
 
 function pick(name: string) {
-  active.value = commands.value.find((command) => command.name === name) ?? null
+  const command = commands.value.find((one) => one.name === name) ?? null
+  // A disabled item raises no click in Quasar; this is the second guard, so
+  // that nothing opens a form for what the server would refuse anyway.
+  active.value = command !== null && command.enabled ? command : null
 }
 </script>
 
 <template>
-  <span>
+  <span v-if="commands.length">
     <AppIconButton
       icon="more_vert"
       tooltip="Actions"
-      :disable="items.length === 0"
       data-testid="catalog-actions"
     />
     <AppMenu
-      v-if="items.length"
       :items="items"
       @select="pick"
     />
 
+    <!-- Not v-model: the dialog only ever gives the command back closed, and
+         binding it would narrow the menu command to the plainer one it takes. -->
     <ActionDialog
-      v-model:command="active"
+      :command="active"
       :connector-id="connectorId"
-      :node-ids="nodeIds"
+      :node-ids="active?.targets ?? []"
       :node-label="targetLabel"
+      @update:command="active = null"
       @done="emit('done', $event)"
     />
   </span>

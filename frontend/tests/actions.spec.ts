@@ -17,12 +17,20 @@ test("creates, fills, renames and removes a folder in personal storage", async (
   const list = page.getByTestId("catalog-list")
   await expect(list).toContainText("reports")
 
-  // Nothing ticked: the menu offers what the level being looked at admits, and
-  // removing the root of a connector is not among that.
+  // Nothing ticked: the menu keeps its shape and greys out everything that
+  // would change a node. Standing in a folder is not choosing it, so nothing
+  // here can rename or remove the folder being looked at.
   await page.getByTestId("catalog-actions").click()
   await expect(page.getByTestId("menu-item-create_folder")).toBeVisible()
   await expect(page.getByTestId("menu-item-upload")).toBeVisible()
-  await expect(page.getByTestId("menu-item-delete")).toHaveCount(0)
+  await expect(page.getByTestId("menu-item-delete")).toHaveAttribute(
+    "aria-disabled",
+    "true"
+  )
+  await expect(page.getByTestId("menu-item-rename")).toHaveAttribute(
+    "aria-disabled",
+    "true"
+  )
   await page.keyboard.press("Escape")
 
   // --- create a folder, and see it appear without reopening the dialog
@@ -98,10 +106,16 @@ test("two files at once admit only what can be done to many", async ({ page }) =
   await catalogCheck(page, second).click()
 
   // Renaming two folders to one name is not two renames, and the action says
-  // so itself — the server leaves it out of the answer.
+  // so itself — the server marks it as not applying to the set.
   await page.getByTestId("catalog-actions").click()
-  await expect(page.getByTestId("menu-item-delete")).toBeVisible()
-  await expect(page.getByTestId("menu-item-rename")).toHaveCount(0)
+  await expect(page.getByTestId("menu-item-delete")).not.toHaveAttribute(
+    "aria-disabled",
+    "true"
+  )
+  await expect(page.getByTestId("menu-item-rename")).toHaveAttribute(
+    "aria-disabled",
+    "true"
+  )
   await page.getByTestId("menu-item-delete").click()
 
   await page.getByTestId("action-submit").click()
@@ -122,9 +136,9 @@ test("a database offers no actions at all", async ({ page }) => {
 
   await openConnector(page, name)
   await expect(page.getByTestId("catalog-list")).toContainText("connector")
-  // The source does not implement the capability, so the menu has nothing to
-  // show — and the screen says so by offering nothing, not by an error.
-  await expect(page.getByTestId("catalog-actions")).toBeDisabled()
+  // The source does not implement the capability, so there is no menu at all —
+  // and the screen says so by offering nothing, not by an error.
+  await expect(page.getByTestId("catalog-actions")).toHaveCount(0)
   await expect(page.getByTestId("catalog-error")).toHaveCount(0)
 
   await deleteConnector(page, name)

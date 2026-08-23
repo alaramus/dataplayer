@@ -46,10 +46,33 @@ async function logout() {
         <slot />
       </q-page>
     </q-page-container>
+
+    <!-- A bar of the same colour as the header, closing the screen at the
+         bottom. Empty on purpose: what belongs in a status bar - what is
+         connected, what is running, what the last request cost - arrives with
+         the work that produces it, and the room for it is here. -->
+    <q-footer
+      elevated
+      data-testid="app-footer"
+    >
+      <div class="app-layout__status">
+        <slot name="status" />
+      </div>
+    </q-footer>
   </q-layout>
 </template>
 
 <style scoped>
+/* Shorter than the toolbar above it: it is a line, not a second header. */
+.app-layout__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
 /* A filling page hands its whole height to what it holds, and that has to be
    said at every step down from the viewport: Quasar gives the layout and the
    page a min-height and nothing else, and a min-height alone still grows with

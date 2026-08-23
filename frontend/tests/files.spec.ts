@@ -28,7 +28,20 @@ test("browses a personal directory and reads files as rows", async ({ page }) =>
   await expect(page.getByTestId("catalog-path")).toContainText("reports")
   await expect(list).toContainText("q3.csv")
 
+  // The way back is the first row of the list, as it is in any other
+  // explorer, rather than a button in the head.
+  await expect(list.locator("> div").first()).toHaveAttribute(
+    "data-testid",
+    "catalog-up"
+  )
   await page.getByTestId("catalog-up").click()
+  await expect(list).toContainText("sample.csv")
+  await expect(page.getByTestId("catalog-up")).toHaveCount(0)
+
+  // And the path starts at a home button rather than at the name of the
+  // connection, which is already on the tab above it.
+  await openNode(page, "reports")
+  await page.getByTestId("catalog-home").click()
   await expect(list).toContainText("sample.csv")
 
   await openNode(page, "sample.csv")

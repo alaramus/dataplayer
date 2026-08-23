@@ -29,16 +29,16 @@ const groupOptions = computed(() =>
   level.groups.value.map((group) => ({ label: group.label, value: group.id }))
 )
 
-/** What the actions apply to: what is ticked, or the level being looked at. */
-const targets = computed<(string | null)[]>(() =>
-  level.checked.value.length > 0 ? [...level.checked.value] : [level.currentId.value]
+/** What the level is called, for a form that acts on the level itself. */
+const levelLabel = computed(
+  () => level.path.value[level.path.value.length - 1]?.label ?? props.title
 )
 
-const targetLabel = computed(() => {
+/** What is ticked, in one phrase, for a form that acts on the ticked nodes. */
+const checkedLabel = computed(() => {
   const ticked = level.checkedNodes.value
   if (ticked.length === 1) return ticked[0]?.label ?? ""
-  if (ticked.length > 1) return `${String(ticked.length)} items`
-  return level.path.value[level.path.value.length - 1]?.label ?? props.title
+  return `${String(ticked.length)} items`
 })
 
 /** A click opens what can be read and walks into what cannot. */
@@ -79,43 +79,48 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
         />
         <span class="catalog-panel__title">{{ title }}</span>
 
-        <AppIconButton
-          icon="arrow_upward"
-          tooltip="Up one level"
-          :disable="level.path.value.length < 2"
-          data-testid="catalog-up"
-          @click="level.up"
-        />
         <CatalogActions
           :connector-id="connectorId"
-          :node-ids="targets"
-          :target-label="targetLabel"
+          :level-id="level.currentId.value"
+          :checked-ids="level.checked.value"
+          :level-label="levelLabel"
+          :checked-label="checkedLabel"
           @done="afterAction"
         />
       </div>
 
-      <!-- Whether this is a path or a set of groupings follows from the kinds
+      <!-- Where we are, starting at a home button rather than at the name of
+           the connection: the name is already on the tab and in the bar above,
+           and what the first step of a path means is "back to the top".
+           Whether this is a path or a set of groupings follows from the kinds
            of node the level holds, never from the type of the source. -->
       <div
-        v-if="level.path.value.length > 1"
         class="catalog-panel__crumbs"
         data-testid="catalog-path"
       >
+        <AppIconButton
+          icon="home"
+          tooltip="The top of this connection"
+          :disable="level.path.value.length < 2"
+          data-testid="catalog-home"
+          @click="level.goTo(0)"
+        />
         <template
-          v-for="(crumb, index) in level.path.value"
+          v-for="(crumb, index) in level.path.value.slice(1)"
           :key="index"
         >
-          <span
-            v-if="index > 0"
-            class="catalog-panel__slash"
-          >/</span>
+          <q-icon
+            name="chevron_right"
+            size="14px"
+            class="catalog-panel__chevron"
+          />
           <span
             class="catalog-panel__crumb"
-            :class="{ 'catalog-panel__crumb--last': index === level.path.value.length - 1 }"
+            :class="{ 'catalog-panel__crumb--last': index === level.path.value.length - 2 }"
             role="button"
             tabindex="0"
-            @click="level.goTo(index)"
-            @keydown.enter="level.goTo(index)"
+            @click="level.goTo(index + 1)"
+            @keydown.enter="level.goTo(index + 1)"
           >{{ crumb.label }}</span>
         </template>
       </div>
@@ -153,7 +158,9 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
       :checked="level.checked.value"
       :loading="level.loading.value"
       :show-group="level.selectedGroups.value.length > 1"
+      :has-parent="level.path.value.length > 1"
       @open="onOpen"
+      @up="level.up"
       @toggle="onToggle"
       @toggle-all="level.toggleAll"
     />
@@ -190,18 +197,23 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
   flex-wrap: wrap;
   align-items: center;
   gap: 2px;
-  padding: 0 4px 2px;
-  font-size: 11px;
+  margin: 2px 0;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.04);
+  font-size: 12px;
 }
 .catalog-panel__crumb {
   cursor: pointer;
+  padding: 2px 2px;
   color: rgba(25, 118, 210, 0.9);
 }
 .catalog-panel__crumb--last {
   cursor: default;
-  color: rgba(0, 0, 0, 0.6);
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.7);
 }
-.catalog-panel__slash {
+.catalog-panel__chevron {
   color: rgba(0, 0, 0, 0.35);
 }
 .catalog-panel__body {

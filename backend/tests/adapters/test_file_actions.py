@@ -76,6 +76,33 @@ async def test_the_root_of_the_connector_cannot_be_renamed_or_deleted(
     assert names == {"create_folder", "upload"}
 
 
+async def test_the_whole_vocabulary_is_offered_whatever_the_node(
+    actions: FileActions,
+) -> None:
+    """What the source can do at all, apart from what this node admits.
+
+    A menu built from the applicable set alone changes shape as the user walks
+    the tree; one built from the vocabulary stays put and greys out what does
+    not apply here.
+    """
+    names = {action.name for action in actions.all_actions()}
+
+    assert names == {"create_folder", "upload", "rename", "delete"}
+
+
+async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
+    actions: FileActions,
+) -> None:
+    by_name = {action.name: action.acts_on for action in actions.all_actions()}
+
+    assert by_name == {
+        "create_folder": "children",
+        "upload": "children",
+        "rename": "node",
+        "delete": "node",
+    }
+
+
 async def test_a_node_outside_the_root_admits_nothing(actions: FileActions) -> None:
     with pytest.raises(ValueError):
         await actions.available("../..")

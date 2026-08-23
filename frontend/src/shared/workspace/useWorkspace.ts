@@ -8,7 +8,15 @@ import { nextId } from "./model"
 import type { LayoutNode, NodeId, PanelId } from "./model"
 import { parseWorkspace, serializeWorkspace } from "./persist"
 import { leafForKind } from "./placement"
-import { activatePanel, addPanel, movePanel, removePanel, resizeSplit, setCollapsed } from "./tree"
+import {
+  activatePanel,
+  addPanel,
+  leavesOf,
+  movePanel,
+  removePanel,
+  resizeSplit,
+  setCollapsed,
+} from "./tree"
 
 export { workspaceKey }
 export type { PanelLook, WorkspaceContext }
@@ -29,6 +37,13 @@ export interface WorkspaceOptions<P extends { id: string }> {
   component: (panel: P) => Component
   /** What a pinned section shows while empty, by the role it accepts. */
   empty?: (accepts: string | null) => Component | null
+  /**
+   * What a collapsed section shows instead of its panel.
+   *
+   * Same requirement as `component`: the same component for the same panel,
+   * or every render replaces it.
+   */
+  collapsed?: (panel: P) => Component | null
 }
 
 /** How an opened panel treats the ones already there. */
@@ -115,24 +130,43 @@ export function useWorkspace<P extends { id: string }>(
     panels.value = panels.value.filter((panel) => panel.id !== panelId)
   }
 
+  function lookOf(panelId: PanelId): PanelLook {
+    const panel = panelOf(panelId)
+    return panel === undefined ? { title: panelId, icon: "help" } : options.look(panel)
+  }
+
+  function closeOthers(leafId: NodeId) {
+    const leaf = leavesOf(tree.value).find((one) => one.id === leafId)
+    if (leaf === undefined) return
+    for (const panelId of leaf.panels) {
+      if (panelId === leaf.activePanel) continue
+      // A panel with no cross of its own is not closed by a command that means
+      // "the crosses of all the others" - see T3.
+      if (lookOf(panelId).closable === false) continue
+      close(panelId)
+    }
+  }
+
   const context: WorkspaceContext = {
     tree,
     focusedLeaf,
     dragging,
-    lookOf: (panelId) => {
-      const panel = panelOf(panelId)
-      return panel === undefined ? { title: panelId, icon: "help" } : options.look(panel)
-    },
+    lookOf,
     componentOf: (panelId) => {
       const panel = panelOf(panelId)
       if (panel === undefined) throw new Error(`No panel with id ${panelId}`)
       return options.component(panel)
     },
     emptyOf: (accepts) => options.empty?.(accepts) ?? null,
+    collapsedOf: (panelId) => {
+      const panel = panelOf(panelId)
+      return panel === undefined ? null : (options.collapsed?.(panel) ?? null)
+    },
     activate: (panelId) => {
       tree.value = activatePanel(tree.value, panelId)
     },
     close,
+    closeOthers,
     focus: (leafId) => {
       focusedLeaf.value = leafId
     },
@@ -140,7 +174,7 @@ export function useWorkspace<P extends { id: string }>(
       // A workspace of one section has nothing to collapse against, and
       // WorkspaceNode does not offer the handle there either.
       if (tree.value.kind === "leaf") return
-      tree.value = setCollapsed(tree.value, leafId, !collapsedOf(tree.value, leafId))
+      tree.value = setCollapsed(tree.value, leafId, !isCollapsed(tree.value, leafId))
     },
     resize: (splitId, index, delta, minPercent) => {
       tree.value = resizeSplit(tree.value, splitId, index, delta, minPercent)
@@ -168,7 +202,7 @@ export function useWorkspace<P extends { id: string }>(
   return { context, panels, open, reset }
 }
 
-function collapsedOf(root: LayoutNode, leafId: NodeId): boolean {
+function isCollapsed(root: LayoutNode, leafId: NodeId): boolean {
   if (root.kind === "leaf") return root.id === leafId && root.collapsed
-  return root.children.some((child) => collapsedOf(child, leafId))
+  return root.children.some((child) => isCollapsed(child, leafId))
 }

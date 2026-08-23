@@ -675,11 +675,15 @@ export class ConnectorsService {
   /**
    * Read Actions
    *
-   * List what every node in the set admits, with the schema of the parameters.
+   * List everything the source can do, saying which of it every node admits.
    *
-   * Asked per node rather than per source type: whether a node may be renamed
-   * depends on its state as well as its kind — the root of a connector is an
-   * ordinary directory that may not be removed.
+   * Applicability is asked per node rather than per source type: whether a node
+   * may be renamed depends on its state as well as its kind — the root of a
+   * connector is an ordinary directory that may not be removed. It arrives as a
+   * flag on the whole vocabulary rather than as the length of the list, so a
+   * menu built from this keeps its shape as the user walks the catalog and
+   * greys out what does not apply. Nothing is allowed by being listed: running
+   * an action asks `available` again.
    *
    * A read expressed as a POST for the same reason `fetch` is one: the input is
    * a list of opaque identifiers with no bound on its length, and selecting a

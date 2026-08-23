@@ -27,6 +27,7 @@ class CreateThing(JsonAction[Named]):
     name = "create_thing"
     title = "Create a thing"
     applies_to = frozenset({"directory"})
+    acts_on = "children"
     params_model = Named
 
     def __init__(self) -> None:
@@ -41,6 +42,7 @@ class DropThing(JsonAction[BaseModel]):
     name = "drop_thing"
     title = "Drop a thing"
     applies_to = frozenset({"directory", "file"})
+    acts_on = "node"
     destructive = True
     bulk = True
     params_model = BaseModel
@@ -53,6 +55,7 @@ class PutThing(FileAction[Named]):
     name = "put_thing"
     title = "Put a thing"
     applies_to = frozenset({"directory"})
+    acts_on = "children"
     params_model = Named
 
     async def run(
@@ -199,6 +202,19 @@ def test_an_action_that_did_not_declare_itself_bulk_is_left_out_of_a_set() -> No
 
 def test_nothing_is_common_to_no_nodes_at_all() -> None:
     assert common_actions([], bulk_only=False) == []
+
+
+def test_an_action_declares_what_it_changes() -> None:
+    """The node it is given, or what is inside it.
+
+    Renaming changes the node; creating a folder changes what the node holds.
+    A client acting on a set of ticked rows has to tell the two apart without
+    knowing the name of a single action, so the action says which it is.
+    """
+    by_name: dict[str, Any] = {action.name: action for action in action_set()}
+
+    assert by_name["drop_thing"].acts_on == "node"
+    assert by_name["create_thing"].acts_on == "children"
 
 
 def test_an_action_declares_whether_it_applies_to_many_at_once() -> None:

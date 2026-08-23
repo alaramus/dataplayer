@@ -42,7 +42,7 @@ test("resizes, collapses and remembers the layout", async ({ page }) => {
   expect(Math.abs(restored - after)).toBeLessThan(6)
 
   await page.getByTestId("workspace-collapse-left").click()
-  expect((await alpha.boundingBox())?.width ?? 0).toBeLessThan(40)
+  expect((await alpha.boundingBox())?.width ?? 0).toBeLessThan(48)
 
   await page.getByTestId("reset-workspace").click()
   expect((await alpha.boundingBox())?.width ?? 0).toBeGreaterThan(50)
@@ -114,6 +114,10 @@ test("a signed in user lands on three columns, two of them waiting", async ({ pa
   // emptied with no way back is not a column.
   await expect(page.getByTestId("workspace-close-connectors")).toHaveCount(0)
 
+  // The screen is closed at the bottom by a bar of its own, waiting for what
+  // belongs in a status line.
+  await expect(page.getByTestId("app-footer")).toBeVisible()
+
   // The sections fill what the toolbar leaves of the window. A page with its
   // own padding and a height of its own content would leave them floating in
   // it, and a unit test cannot tell the difference.
@@ -183,6 +187,55 @@ test("tables stack as tabs in the right column and survive a reload", async ({ p
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("a pushed-aside column of sources still opens one of them", async ({ page }) => {
+  const name = `e2e-rail-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, name)
+
+  await page.getByTestId("workspace-collapse-sources").click()
+  expect((await page.getByTestId("workspace-leaf-sources").boundingBox())?.width ?? 0)
+    .toBeLessThan(48)
+
+  // What survives the width is the icon of the source and the state dot, and
+  // pressing the icon does what the row does: it opens the catalog.
+  const icon = page.getByTestId(`connector-rail-${name}`)
+  await expect(icon).toBeVisible()
+  await expect(page.getByTestId(`connector-state-${name}`)).toBeVisible()
+  await icon.click()
+
+  await expect(catalogTab(page)).toContainText(name)
+  await expect(page.getByTestId("catalog-list")).toContainText("connector")
+
+  await page.getByTestId("workspace-collapse-sources").click()
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("clears a strip of tabs down to the one being looked at", async ({ page }) => {
+  const name = `e2e-close-others-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+  await openNode(page, "pg_namespace")
+  await expect(rowsTabs(page)).toHaveCount(2)
+
+  await page.getByTestId("workspace-close-others-work").click()
+
+  // The one that was showing is the one that stays: the rest go the way a
+  // cross would have sent them, one at a time.
+  await expect(rowsTabs(page)).toHaveCount(1)
+  await expect(rowsTabs(page)).toContainText("pg_namespace")
+  await expect(page.getByTestId("workspace-close-others-work")).toHaveCount(0)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
 test("every column collapses and comes back, and none of them scrolls the page", async ({
   page,
 }) => {
@@ -214,7 +267,7 @@ test("every column collapses and comes back, and none of them scrolls the page",
     const handle = page.getByTestId(`workspace-collapse-${id}`)
     await handle.click()
     const leaf = await page.getByTestId(`workspace-leaf-${id}`).boundingBox()
-    expect(leaf?.width ?? 0).toBeLessThan(40)
+    expect(leaf?.width ?? 0).toBeLessThan(48)
     await expect(handle).toBeVisible()
     await handle.click()
     expect((await page.getByTestId(`workspace-leaf-${id}`).boundingBox())?.width ?? 0)

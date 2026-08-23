@@ -21,6 +21,7 @@ from app.adapters.actions import (
     ActionRefused,
     ActionResult,
     ActionSet,
+    ActsOn,
     FileAction,
     FilePayload,
     JsonAction,
@@ -97,6 +98,8 @@ class _ActsOnNode(_Bound):
     written, not remembered later.
     """
 
+    acts_on: ClassVar[ActsOn] = "node"
+
     def _target(self, node_id: str | None) -> Path:
         path = self._session.resolve(node_id)
         if path == self._session.resolved_root or node_id in (None, ""):
@@ -112,6 +115,7 @@ class CreateFolder(_Bound, JsonAction[NameParams]):
     name: ClassVar[str] = "create_folder"
     title: ClassVar[str] = "New folder"
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
+    acts_on: ClassVar[ActsOn] = "children"
     params_model = NameParams
 
     async def run(self, node_id: str | None, params: NameParams) -> ActionResult:
@@ -162,6 +166,7 @@ class Upload(_Bound, FileAction[UploadParams]):
     name: ClassVar[str] = "upload"
     title: ClassVar[str] = "Upload a file"
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
+    acts_on: ClassVar[ActsOn] = "children"
     params_model = UploadParams
 
     async def run(
@@ -249,6 +254,9 @@ class FileActions:
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.get(name)
+
+    def all_actions(self) -> list[Action[Any]]:
+        return list(self._actions)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         path = self._session.resolve(node_id)

@@ -23,6 +23,14 @@ const props = defineProps<{
   showGroup?: boolean
   /** What the current node is, so an empty level can say so. */
   emptyText?: string
+  /**
+   * Whether there is a level above this one.
+   *
+   * The way back is the first row of the list, as it is in every other
+   * explorer, rather than a button in the head: it is a place among the
+   * places, and the hand is already in the list. See the spec, S5.
+   */
+  hasParent?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -35,6 +43,7 @@ const emit = defineEmits<{
    */
   toggle: [id: string, on: boolean]
   "toggle-all": [on: boolean]
+  up: []
 }>()
 
 const allChecked = computed(
@@ -62,16 +71,36 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
 
     <AppSpinner v-if="loading" />
 
-    <AppEmptyState
-      v-else-if="items.length === 0"
-      :text="emptyText ?? 'Nothing here'"
-    />
-
     <div
       v-else
       class="catalog-list__rows"
       data-testid="catalog-list"
     >
+      <!-- Above everything, and above the empty state too: a folder with
+           nothing in it is exactly where the way back matters most. -->
+      <div
+        v-if="hasParent"
+        role="button"
+        tabindex="0"
+        class="catalog-list__row catalog-list__row--up"
+        data-testid="catalog-up"
+        @click="emit('up')"
+        @keydown.enter="emit('up')"
+        @keydown.space.prevent="emit('up')"
+      >
+        <span class="catalog-list__tick-space" />
+        <q-icon
+          name="drive_folder_upload"
+          size="18px"
+        />
+        <span class="catalog-list__name">..</span>
+      </div>
+
+      <AppEmptyState
+        v-if="items.length === 0"
+        :text="emptyText ?? 'Nothing here'"
+      />
+
       <!-- A div and not a button: the row carries a tick box of its own, and a
            button inside a button is markup no browser agrees about. -->
       <div
@@ -154,6 +183,12 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
 }
 .catalog-list__row--checked {
   background: rgba(25, 118, 210, 0.08);
+}
+/* The way back is a row, so it lines up with the rows: the space a tick box
+   would take is kept rather than shifting the whole first line left. */
+.catalog-list__tick-space {
+  width: 24px;
+  flex: none;
 }
 /* The name comes first when there is not enough room: it is what the row is
    about, and the caption beside it is an aside. */

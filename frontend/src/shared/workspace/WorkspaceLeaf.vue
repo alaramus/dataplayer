@@ -25,6 +25,25 @@ const active = computed(() => props.leaf.activePanel)
 /** A pinned section with nothing in it: the feature says what stands there. */
 const empty = computed(() => (active.value === null ? workspace.emptyOf(props.leaf.accepts ?? null) : null))
 
+/**
+ * What a collapsed section keeps on screen, if the feature offers anything.
+ *
+ * Asked of the panel that would be showing: a column pushed aside can still be
+ * worth reaching - a strip of connections is a way back into one of them - and
+ * what deserves that width is not the engine's to decide.
+ */
+const collapsedBody = computed(() =>
+  active.value === null ? null : workspace.collapsedOf(active.value)
+)
+
+/** A cross closes one tab; this closes the rest. */
+const closableOthers = computed(
+  () =>
+    props.leaf.panels.filter(
+      (panelId) => panelId !== active.value && workspace.lookOf(panelId).closable !== false
+    ).length
+)
+
 function onPointerMove(event: PointerEvent) {
   if (workspace.dragging.value === null || element.value === null) return
   zone.value = dropZoneAt(element.value.getBoundingClientRect(), event.clientX, event.clientY)
@@ -113,6 +132,20 @@ const overlayStyle = computed((): CSSProperties => {
       </div>
 
       <button
+        v-if="!leaf.collapsed && closableOthers > 0"
+        type="button"
+        class="workspace-leaf__collapse"
+        title="Close the other tabs"
+        :data-testid="`workspace-close-others-${leaf.id}`"
+        @click="workspace.closeOthers(leaf.id)"
+      >
+        <q-icon
+          name="clear_all"
+          size="16px"
+        />
+      </button>
+
+      <button
         v-if="collapsible"
         type="button"
         class="workspace-leaf__collapse"
@@ -127,8 +160,19 @@ const overlayStyle = computed((): CSSProperties => {
       </button>
     </div>
 
+    <!-- Collapsed, and the feature had something for that width. -->
     <div
-      v-if="!leaf.collapsed"
+      v-if="leaf.collapsed"
+      class="workspace-leaf__rail"
+    >
+      <component
+        :is="collapsedBody"
+        v-if="collapsedBody"
+      />
+    </div>
+
+    <div
+      v-else
       class="workspace-leaf__body"
     >
       <!-- A tab that is not showing is kept rather than destroyed: switching
@@ -173,21 +217,22 @@ const overlayStyle = computed((): CSSProperties => {
 }
 .workspace-leaf__strip {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 2px;
   padding: 2px 4px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-  overflow: hidden;
 }
-/* The tabs give way, the handle never does: a narrow section loses the end of
-   a tab title rather than the button that collapses it. */
+/* Tabs wrap onto a second line rather than running off the end of the strip:
+   a tab that cannot be seen cannot be reached, and a section is only ever as
+   wide as the column it is in. The handles keep their place at the end
+   because they are laid out beside the whole block of tabs, not inside it. */
 .workspace-leaf__tabs {
   display: flex;
   align-items: center;
   gap: 2px;
   flex: 1;
   min-width: 0;
-  overflow: hidden;
+  flex-wrap: wrap;
 }
 .workspace-leaf__tab {
   display: flex;
@@ -211,13 +256,20 @@ const overlayStyle = computed((): CSSProperties => {
   text-overflow: ellipsis;
   max-width: 160px;
 }
+/* The tabs take the room, so the handles sit at the end without a margin of
+   their own - which two of them beside each other would fight over. */
 .workspace-leaf__collapse {
   border: none;
   background: transparent;
   cursor: pointer;
   padding: 2px;
-  margin-left: auto;
   flex: none;
+}
+.workspace-leaf__rail {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 /* A box of fixed height, not a scroller: what stands and what moves inside a
    panel is the panel's own business — the engine has no notion of a panel

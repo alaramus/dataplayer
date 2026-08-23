@@ -60,10 +60,16 @@ inside itself, and the layout a user arrives at is the one they left.
 
 A connection is a row of three things — the icon of its type, its name, and
 what the last check said — and everything else about it lives in the one window
-that icon opens, from either of the two columns that show it. A catalog is a
-list of one level: a click opens what can be read and walks into what cannot, a
-tick box picks a node out without opening it, and one menu in the head carries
-whatever the server says can be done to what is ticked.
+that icon opens, from either of the two columns that show it. Pushed aside, the
+column of connections keeps that icon and that dot, and pressing one opens its
+catalog. A catalog is a list of one level: a click opens what can be read and
+walks into what cannot, a tick box picks a node out without opening it, the way
+back is the first row of the list and the path above it starts at a home
+button. One menu in the head carries everything the source can do, live for
+what is ticked and greyed out for the rest — standing in a folder is not
+choosing it, so nothing is renamed or removed because of where the user
+happens to be. Tabs wrap onto a second line rather than running off the end of
+a strip, and a strip can be cleared down to the tab being looked at.
 
 ### What exists
 
@@ -258,14 +264,30 @@ that happened to exist.
 Three consequences worth stating separately:
 
 - **What a set of nodes admits is asked of the server, in one call.** `POST
-  /connectors/{id}/actions` with a list of node ids; the answer is what every
-  one of them admits, and the same call decides what the client is offered and
-  what the server allows, so the two cannot drift. Applicability depends on
-  state as well as kind: the root of a connector is an ordinary directory that
-  may not be renamed or removed, and the driver leaves those actions out of the
-  answer. A read expressed as a POST for the same reason `fetch` is one — the
-  input is an unbounded list of opaque identifiers, and selecting a directory
-  of five hundred files leaves no room in a query string.
+  /connectors/{id}/actions` with a list of node ids; the answer is everything
+  the source can do with `applicable` saying which of it every one of them
+  admits, and the same call decides what the client offers and what the server
+  allows, so the two cannot drift — running an action asks `available` again,
+  so being listed permits nothing. A flag rather than a shorter list because a
+  menu that lost its entries as the user walked the catalog would teach nobody
+  what the source can do. Applicability depends on state as well as kind: the
+  root of a connector is an ordinary directory that may not be renamed or
+  removed, and the driver leaves those actions out of what it admits. A read
+  expressed as a POST for the same reason `fetch` is one — the input is an
+  unbounded list of opaque identifiers, and selecting a directory of five
+  hundred files leaves no room in a query string.
+- **An action says what it changes, so the client knows what to send it.**
+  `acts_on` is `"node"` for what is done to the rows a user ticked and
+  `"children"` for what is made inside the level being looked at. Declared
+  beside `applies_to`, because it is the same sort of statement about the
+  action; without it the screen would have to read the difference off the names
+  of the actions and be taught every one that is ever added. It is also what
+  keeps a folder from being deleted by being stood in: only the ticked nodes
+  reach an action of the first kind. Full reasoning in
+  `docs/superpowers/specs/2026-08-23-explorer-and-strip-design.md`, which also
+  carries the rest of this round: the way back as a row, the home crumb, the
+  strip of icons a collapsed column keeps, wrapped tabs and the bar at the
+  bottom.
 - **Whether one filled form may be applied to many is the action's own
   business.** `Action.bulk`; `Delete` says yes, `Rename` cannot, since one name
   for five files is not five renames. The flag never leaves the server: when
@@ -385,6 +407,13 @@ Three consequences worth stating separately:
   means — and what makes a source type that brings its own view a new kind
   with an existing role rather than a change to the layout. Full reasoning in
   `docs/superpowers/specs/2026-08-22-three-column-workspace-design.md`.
+- **A column pushed aside may keep something on screen.** The engine knows the
+  section is narrow and asks the feature what is worth that width, the way it
+  asks what stands in an empty one; only the connections answer, with their
+  icons and their state dots. Closing every tab but the active one is the
+  engine's too — it is a layout operation, and what a panel is has no bearing
+  on it — and it leaves a panel the feature says has no cross, exactly as its
+  own cross would.
 - **A tab that is not showing is kept, not destroyed.** Switching away and back
   is no reason to re-read a catalog or to lose the page a grid was on, so the
   section wraps the active panel in `<KeepAlive>`. That puts one requirement on
@@ -736,6 +765,12 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   until the user checks it; nothing checks in the background, because that
   would mean opening a connection to every source on every load. The record is
   not persisted: a dot restored from yesterday would claim more than it knows.
+- **The menu of actions costs two calls.** One about the level being looked at,
+  which carries the vocabulary, and one about what is ticked. They could be one
+  call taking two sets of nodes, at the price of a request body that says two
+  different things.
+- **The bar at the bottom of the screen is empty.** It closes the layout and
+  holds the room for a status line; nothing puts anything in it yet.
 - **Tabs cannot be reordered inside a strip.** Dragging a tab moves it to
   another section or splits one; dropping it back into its own strip does
   nothing.

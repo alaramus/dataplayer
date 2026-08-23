@@ -38,6 +38,13 @@ class ActionResult(BaseModel):
 # a failure of the file system, and answering 502 for it would be a lie.
 RefusalReason = Literal["conflict", "not_applicable", "too_large"]
 
+# What an action changes: the node it is given, or what that node holds.
+# Renaming and deleting are done to the rows a user ticked; a new folder and an
+# upload are made inside the level being looked at. A client has to tell the
+# two apart to know what to send an action, and reading it off the names would
+# mean teaching the client every action that is ever added.
+ActsOn = Literal["node", "children"]
+
 
 class ActionRefused(Exception):
     def __init__(self, reason: RefusalReason, message: str) -> None:
@@ -81,6 +88,10 @@ class Action[P: BaseModel](ABC):
     # allowed on one particular node — the root of a connector, say — is a
     # question of state and belongs to the driver.
     applies_to: ClassVar[frozenset[NodeKind]]
+    # Declared beside applies_to because it is the same sort of statement: one
+    # says which kinds of node an action makes sense for, the other says what
+    # of that node it changes.
+    acts_on: ClassVar[ActsOn]
     destructive: ClassVar[bool] = False
     # Whether one filled form may be applied to a set of nodes. Renaming five
     # files to one name is not five renames, and nothing in the shape of an
@@ -188,12 +199,15 @@ def common_actions(
 class SupportsActions(Protocol):
     """A source that can be asked to change something.
 
-    Two questions, answered by the same driver: which actions this node admits,
-    and which action a name refers to. Performing is done by calling the action
-    itself, so there is no third place where a name could be resolved
-    differently.
+    Three questions, answered by the same driver: everything it can do, which
+    of that this node admits, and which action a name refers to. Performing is
+    done by calling the action itself, so there is no fourth place where a name
+    could be resolved differently — and what a client is allowed to do is still
+    decided by `available`, never by the vocabulary.
     """
 
     async def available(self, node_id: str | None) -> list[Action[Any]]: ...
 
     def action(self, name: str) -> Action[Any]: ...
+
+    def all_actions(self) -> list[Action[Any]]: ...

@@ -27,6 +27,14 @@ export type ActionInfo = {
    */
   takes_file: boolean
   /**
+   * Acts On
+   */
+  acts_on: "node" | "children"
+  /**
+   * Applicable
+   */
+  applicable: boolean
+  /**
    * Params Schema
    */
   params_schema: {

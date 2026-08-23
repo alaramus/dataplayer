@@ -63,17 +63,22 @@ export const actionsKey = (connectorId: string, nodeIds: string[] | null) =>
   ["actions", connectorId, nodeIds] as const
 
 /**
- * What every one of these nodes can be asked to do.
+ * Everything this source can do, and which of it these nodes admit.
  *
  * Asked of the server rather than worked out here: whether a node may be
  * renamed depends on its state as well as its kind, and what applies to a set
  * is what applies to all of it — including whether an action can be applied to
  * many at once, which only the action knows. A source with no actions at all
  * answers 501, which is a settled answer rather than a failure to retry.
+ *
+ * `enabled` is for the question that has no subject yet: nothing is ticked, so
+ * there is nothing to ask about, and asking about the root instead would
+ * answer a different question.
  */
 export function useNodeActions(
   connectorId: Ref<string | null>,
-  nodeIds: Ref<string[] | null>
+  nodeIds: Ref<string[] | null>,
+  enabled?: Ref<boolean>
 ) {
   return useQuery({
     queryKey: computed(() => actionsKey(connectorId.value ?? "", nodeIds.value)),
@@ -84,7 +89,7 @@ export function useNodeActions(
           body: { node_ids: nodeIds.value },
         })
       ).data,
-    enabled: computed(() => connectorId.value !== null),
+    enabled: computed(() => connectorId.value !== null && (enabled?.value ?? true)),
     retry: false,
     staleTime: 60_000,
   })

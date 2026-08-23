@@ -11,6 +11,7 @@ from app.adapters.actions import (
     Action,
     ActionRefused,
     ActionResult,
+    ActsOn,
     RefusalReason,
     SupportsActions,
     TakesFile,
@@ -342,6 +343,12 @@ class ActionInfo(BaseModel):
     # Derived from the action itself rather than declared beside it: a flag and
     # an implementation can disagree, an isinstance check cannot.
     takes_file: bool
+    # What the action changes, so a client knows what to send it: the nodes
+    # that were ticked, or the level they are in.
+    acts_on: ActsOn
+    # Whether it can be done to the nodes that were asked about. Every action
+    # the source has is listed; this says which of them apply here.
+    applicable: bool
     params_schema: dict[str, Any]
 
 
@@ -370,12 +377,14 @@ REFUSAL_STATUS: dict[RefusalReason, int] = {
 }
 
 
-def _describe(action: Action[Any]) -> ActionInfo:
+def _describe(action: Action[Any], *, applicable: bool) -> ActionInfo:
     return ActionInfo(
         name=action.name,
         title=action.title,
         destructive=action.destructive,
         takes_file=isinstance(action, TakesFile),
+        acts_on=action.acts_on,
+        applicable=applicable,
         params_schema=action.params_schema(),
     )
 
@@ -470,11 +479,15 @@ async def read_actions(
     body: ActionTargets,
 ) -> Any:
     """
-    List what every node in the set admits, with the schema of the parameters.
+    List everything the source can do, saying which of it every node admits.
 
-    Asked per node rather than per source type: whether a node may be renamed
-    depends on its state as well as its kind — the root of a connector is an
-    ordinary directory that may not be removed.
+    Applicability is asked per node rather than per source type: whether a node
+    may be renamed depends on its state as well as its kind — the root of a
+    connector is an ordinary directory that may not be removed. It arrives as a
+    flag on the whole vocabulary rather than as the length of the list, so a
+    menu built from this keeps its shape as the user walks the catalog and
+    greys out what does not apply. Nothing is allowed by being listed: running
+    an action asks `available` again.
 
     A read expressed as a POST for the same reason `fetch` is one: the input is
     a list of opaque identifiers with no bound on its length, and selecting a
@@ -485,8 +498,13 @@ async def read_actions(
     )
     targets: list[str | None] = list(body.node_ids) if body.node_ids else [None]
     offers = [await _available_or_422(adapter, node_id) for node_id in targets]
-    common = common_actions(offers, bulk_only=len(targets) > 1)
-    return [_describe(action) for action in common]
+    admitted = {
+        action.name for action in common_actions(offers, bulk_only=len(targets) > 1)
+    }
+    return [
+        _describe(action, applicable=action.name in admitted)
+        for action in adapter.all_actions()
+    ]
 
 
 @router.post("/{connector_id}/actions/{action_name}", response_model=ActionResult)

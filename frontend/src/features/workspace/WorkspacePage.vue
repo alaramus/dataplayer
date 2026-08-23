@@ -6,6 +6,7 @@ import ConnectorDialog from "@/features/connectors/ConnectorDialog.vue"
 import { useConnectors } from "@/features/connectors/api"
 import {
   catalogPanelId,
+  collapsedOf,
   componentOf,
   emptyOf,
   lookOf,
@@ -47,6 +48,7 @@ const workspace = useWorkspace<Panel>({
   look: lookOf,
   component: componentOf,
   empty: emptyOf,
+  collapsed: collapsedOf,
 })
 
 /**

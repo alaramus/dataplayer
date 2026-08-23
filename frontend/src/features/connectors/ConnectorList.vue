@@ -2,10 +2,9 @@
 import { computed } from "vue"
 
 import type { ConnectorPublic } from "@/client"
+import ConnectorDot from "@/features/connectors/ConnectorDot.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
-import { AppEmptyState, AppIconButton, AppSpinner, badgeColor } from "@/shared/ui"
-import { useConnectorChecksStore } from "@/stores/connectorChecks"
-import type { CheckState } from "@/stores/connectorChecks"
+import { AppEmptyState, AppIconButton, AppSpinner } from "@/shared/ui"
 
 /**
  * The sources of the workspace, one per row.
@@ -26,15 +25,6 @@ const emit = defineEmits<{
   open: [connector: ConnectorPublic]
   edit: [connector: ConnectorPublic]
 }>()
-
-const checks = useConnectorChecksStore()
-
-/** Nothing checked has no tone of its own: it is an absence, not a warning. */
-const DOT_CLASS: Record<CheckState, string> = {
-  unknown: "connector-list__dot--unknown",
-  ok: `bg-${badgeColor("success")}`,
-  failed: `bg-${badgeColor("error")}`,
-}
 
 const selected = computed(() => props.selectedId ?? null)
 </script>
@@ -80,11 +70,9 @@ const selected = computed(() => props.selectedId ?? null)
 
       <!-- What the last check said, and nothing more: no check has been made
            until the user asks for one. -->
-      <span
-        class="connector-list__dot"
-        :class="DOT_CLASS[checks.stateOf(connector.id)]"
-        :data-testid="`connector-state-${connector.name}`"
-        :data-state="checks.stateOf(connector.id)"
+      <ConnectorDot
+        :connector-id="connector.id"
+        :name="connector.name"
       />
     </div>
   </div>
@@ -115,14 +103,5 @@ const selected = computed(() => props.selectedId ?? null)
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.connector-list__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex: none;
-}
-.connector-list__dot--unknown {
-  background: rgba(0, 0, 0, 0.2);
 }
 </style>

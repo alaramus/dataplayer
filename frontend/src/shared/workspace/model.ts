@@ -56,8 +56,13 @@ export type LayoutNode = SplitNode | LeafNode
 /** The smallest a section may be dragged to. Percentages cannot say this. */
 export const MIN_PANEL_PX = 120
 
-/** What a collapsed section leaves behind: enough for the handle and no more. */
-export const COLLAPSED_PX = 28
+/**
+ * What a collapsed section leaves behind.
+ *
+ * Enough for the handle, and for the strip of icons a feature may put under
+ * it: a column pushed aside is still a way back to what is in it.
+ */
+export const COLLAPSED_PX = 40
 
 export interface LeafOptions {
   activePanel?: PanelId

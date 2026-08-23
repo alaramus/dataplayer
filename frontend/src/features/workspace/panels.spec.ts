@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import {
   catalogPanelId,
+  collapsedOf,
   componentOf,
   emptyOf,
   kindOf,
@@ -83,6 +84,23 @@ describe("the panel registry", () => {
 
   it("has nothing to say about a role it does not know", () => {
     expect(emptyOf("sql")).toBeNull()
+  })
+
+  it("keeps the connections reachable while their column is pushed aside", () => {
+    expect(collapsedOf(samples.connectors)).not.toBeNull()
+  })
+
+  it.each(["catalog", "rows"] as PanelKind[])(
+    "has nothing worth forty pixels for %s",
+    (kind) => {
+      expect(collapsedOf(samples[kind])).toBeNull()
+    }
+  )
+
+  it("answers with the same component every time it is asked", () => {
+    /* The engine renders this on every frame; a fresh wrapper each time would
+       be a different component each time. */
+    expect(collapsedOf(samples.connectors)).toBe(collapsedOf(samples.connectors))
   })
 
   it("gives the same panel of a table the same id every time", () => {

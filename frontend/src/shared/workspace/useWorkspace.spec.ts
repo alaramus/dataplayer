@@ -60,6 +60,49 @@ describe("a workspace", () => {
     expect(workspace.context.tree.value.id).toBe("main")
   })
 
+  it("closes every tab of a section but the active one", () => {
+    const workspace = build()
+    workspace.open({ id: "p3", kind: "rows" })
+    workspace.open({ id: "p4", kind: "rows" })
+
+    workspace.context.closeOthers("main")
+
+    expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p1", "p4"])
+  })
+
+  it("leaves the tabs of every other section alone", () => {
+    const workspace = build()
+    workspace.open({ id: "p3", kind: "rows" })
+
+    workspace.context.closeOthers("main")
+
+    expect(workspace.panels.value.map((panel) => panel.id)).toContain("p1")
+  })
+
+  it("keeps a panel the feature says has no cross", () => {
+    /* The command means "the crosses of all the others", and a panel with no
+       cross of its own has none to press. */
+    const workspace = useWorkspace<DemoPanel>({
+      storageKey: "test-workspace",
+      panelSchema,
+      defaults: () => ({
+        tree: makeSplit("root", "row", [makeLeaf("left", ["p1"]), makeLeaf("main", ["p2"])], [30, 70]),
+        panels: [
+          { id: "p1", kind: "catalog" },
+          { id: "p2", kind: "rows" },
+        ] as DemoPanel[],
+      }),
+      kindOf: (panel) => panel.kind,
+      look: (panel) => ({ title: panel.id, icon: "square", closable: panel.id !== "p2" }),
+      component: () => Stub,
+    })
+    workspace.open({ id: "p3", kind: "rows" })
+
+    workspace.context.closeOthers("main")
+
+    expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p1", "p2", "p3"])
+  })
+
   it("keeps the last panel rather than leaving an empty workspace", () => {
     const workspace = build()
     workspace.context.close("p1")

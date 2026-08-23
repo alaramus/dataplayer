@@ -86,6 +86,16 @@ async def _offered(
     )
 
 
+def _applicable(response: Response) -> set[str]:
+    """What the answer says can be done to the nodes that were asked about.
+
+    The listing carries the whole vocabulary of the source, so a client can
+    show a menu that keeps its shape; which of it applies here is one flag per
+    action rather than the length of the list.
+    """
+    return {action["name"] for action in response.json() if action["applicable"]}
+
+
 # --- what is offered ---------------------------------------------------------
 
 
@@ -101,11 +111,36 @@ async def test_a_directory_offers_the_actions_that_change_it(
 
     assert response.status_code == 200
     offered = {action["name"]: action for action in response.json()}
-    assert set(offered) == {"create_folder", "upload", "rename", "delete"}
+    assert _applicable(response) == {"create_folder", "upload", "rename", "delete"}
     assert offered["delete"]["destructive"] is True
     assert offered["upload"]["takes_file"] is True
     assert offered["create_folder"]["takes_file"] is False
     assert "name" in offered["create_folder"]["params_schema"]["properties"]
+
+
+@pytest.mark.usefixtures("home")
+async def test_an_action_says_whether_it_changes_the_node_or_its_contents(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """What the client acts on follows from this, not from the name.
+
+    Ticked rows are renamed and deleted; a new folder is made inside the level
+    being looked at. A client that read the difference off the names of the
+    actions would have to be taught every new one.
+    """
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _offered(
+        client, normal_user_token_headers, connector_id, ["reports"]
+    )
+
+    scopes = {action["name"]: action["acts_on"] for action in response.json()}
+    assert scopes == {
+        "create_folder": "children",
+        "upload": "children",
+        "rename": "node",
+        "delete": "node",
+    }
 
 
 @pytest.mark.usefixtures("home")
@@ -116,8 +151,24 @@ async def test_the_root_offers_no_way_to_remove_itself(
 
     response = await _offered(client, normal_user_token_headers, connector_id)
 
-    names = {action["name"] for action in response.json()}
-    assert names == {"create_folder", "upload"}
+    assert _applicable(response) == {"create_folder", "upload"}
+
+
+@pytest.mark.usefixtures("home")
+async def test_what_does_not_apply_here_is_listed_and_marked(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The vocabulary of the source, whatever the node it was asked about.
+
+    A menu that only held what applies would change shape at every step; one
+    built from this greys out what cannot be done instead of hiding it.
+    """
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _offered(client, normal_user_token_headers, connector_id)
+
+    listed = {action["name"] for action in response.json()}
+    assert listed == {"create_folder", "upload", "rename", "delete"}
 
 
 async def test_a_source_without_actions_says_so(
@@ -503,7 +554,7 @@ async def test_two_files_admit_only_what_can_be_done_to_many(
     )
 
     assert response.status_code == 200
-    assert {action["name"] for action in response.json()} == {"delete"}
+    assert _applicable(response) == {"delete"}
 
 
 @pytest.mark.usefixtures("home")
@@ -516,7 +567,7 @@ async def test_one_node_in_a_set_admits_everything_it_would_alone(
         client, normal_user_token_headers, connector_id, ["notes.txt"]
     )
 
-    assert {action["name"] for action in response.json()} == {"rename", "delete"}
+    assert _applicable(response) == {"rename", "delete"}
 
 
 @pytest.mark.usefixtures("home")
@@ -531,7 +582,7 @@ async def test_a_set_admits_nothing_one_of_its_members_refuses(
     )
 
     assert response.status_code == 200
-    assert response.json() == []
+    assert _applicable(response) == set()
 
 
 @pytest.mark.usefixtures("home")

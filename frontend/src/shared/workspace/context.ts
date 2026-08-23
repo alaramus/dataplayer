@@ -37,8 +37,24 @@ export interface WorkspaceContext {
    * knowledge, so it arrives keyed by the role the section accepts.
    */
   emptyOf: (accepts: string | null) => Component | null
+  /**
+   * What a collapsed section shows in place of its panel, if anything.
+   *
+   * The engine knows the section is narrow; what is worth keeping at that
+   * width is application knowledge, so it is asked for by panel. Null leaves
+   * the handle alone, which is what a section with nothing to show wants.
+   */
+  collapsedOf: (panelId: PanelId) => Component | null
   activate: (panelId: PanelId) => void
   close: (panelId: PanelId) => void
+  /**
+   * Close every panel of this section but the active one.
+   *
+   * A layout operation and so the engine's: what a panel is has no bearing on
+   * it. A panel the feature says cannot be closed stays, exactly as it does
+   * when its own cross is asked for and there is none.
+   */
+  closeOthers: (leafId: NodeId) => void
   focus: (leafId: NodeId) => void
   toggleCollapse: (leafId: NodeId) => void
   resize: (splitId: NodeId, index: number, delta: number, minPercent: number) => void

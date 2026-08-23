@@ -46,6 +46,9 @@ class FileAdapter:
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
 
+    def all_actions(self) -> list[Action[Any]]:
+        return self._actions.all_actions()
+
 
 @register(name="file", title="Files", options_schema=FileOptions)
 def _build(options: FileOptions, context: AdapterContext) -> FileAdapter:

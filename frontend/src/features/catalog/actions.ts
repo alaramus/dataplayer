@@ -14,6 +14,8 @@ export interface ActionCommand {
   label: string
   destructive: boolean
   takesFile: boolean
+  /** Whether it changes the nodes it is given, or what the one node holds. */
+  actsOn: ActionInfo["acts_on"]
   fields: FieldSpec[]
 }
 
@@ -23,8 +25,50 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
     label: action.title,
     destructive: action.destructive,
     takesFile: action.takes_file,
+    actsOn: action.acts_on,
     fields: schemaToFields(action.params_schema as unknown as JsonSchema),
   }))
+}
+
+/** One line of the menu: what it would be done to, and whether it may be. */
+export interface MenuCommand extends ActionCommand {
+  /** The nodes the filled form is applied to. `[null]` is the root. */
+  targets: (string | null)[]
+  enabled: boolean
+}
+
+/**
+ * The menu of what can be done here, in the order the server listed it.
+ *
+ * Every action the source has is a line, whether or not it applies: a menu
+ * that lost its entries as the user walked the catalog would teach nobody what
+ * the source can do. What decides each line is the answer of the server —
+ * `here` for the level being looked at, `picked` for what is ticked — and
+ * which of the two a line reads follows from `acts_on`, never from its name.
+ * Ticking nothing therefore leaves everything that changes a node greyed out:
+ * standing in a folder is not the same as choosing it.
+ */
+export function toMenu(
+  here: ActionInfo[],
+  picked: ActionInfo[],
+  levelId: string | null,
+  checkedIds: string[]
+): MenuCommand[] {
+  const admitted = new Set(
+    picked.filter((action) => action.applicable).map((action) => action.name)
+  )
+  const applicableHere = new Set(
+    here.filter((action) => action.applicable).map((action) => action.name)
+  )
+  return toCommands(here).map((command) =>
+    command.actsOn === "children"
+      ? { ...command, targets: [levelId], enabled: applicableHere.has(command.name) }
+      : {
+          ...command,
+          targets: [...checkedIds],
+          enabled: checkedIds.length > 0 && admitted.has(command.name),
+        }
+  )
 }
 
 /** One node the action could not be done to, and what the server said. */
