@@ -58,6 +58,14 @@ there — the connections, the catalog of the one picked, and the rows of a node
 in tabs beside each other — resizable, bounded by the window so each scrolls
 inside itself, and the layout a user arrives at is the one they left.
 
+What a user fills in now follows the way they connect. The options of a source
+type may be a choice of shapes rather than one, and the window draws what every
+way has in common once, then the choice, then what that way adds — so switching
+takes the password off the screen and leaves the address where it was. The
+connection string, until now only shown, can also be read: a pasted one is
+taken apart by the driver into these very fields, the way of connecting
+included.
+
 A connection is edited in a floating window, and several of them are open at
 once: one connection is read while another is filled in beside it, which is
 what a modal window forbids. Inside, the layout follows a database tool — the
@@ -92,25 +100,29 @@ a strip, and a strip can be cleared down to the tab being looked at.
 backend/app/
 ├── adapters/            source types: contract, registry, drivers
 │   ├── protocol.py      DataAdapter, SupportsCatalog, SupportsFetch,
-│   │                    SupportsConnectionString, AdapterError
+│   │                    SupportsConnectionString, ParsesConnectionString,
+│   │                    AdapterError
+│   ├── options.py       the one seam over an options schema, model or union:
+│   │                    json_schema / validate / variants /
+│   │                    secret_field_names
 │   ├── layout.py        where a field goes in the window that edits it
 │   ├── catalog.py       CatalogNode: a union discriminated by kind; NodeKind
 │   ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
 │   ├── actions.py       Action, ActionSet, SupportsActions, ActionType,
 │   │                    DeclaresActions, transports, refusals
 │   ├── resources.py     ResourceStore: what outlives a request; Pooling
-│   ├── registry.py      type registry, AdapterContext, secret_field_names,
-│   │                    Category, Capability, capabilities_of
+│   ├── registry.py      type registry, AdapterContext, Category,
+│   │                    Capability, capabilities_of
 │   ├── routes.py        GET /adapter-types
-│   ├── postgres/        session.py, pool.py, catalog.py, fetch.py,
-│   │                    adapter.py (facade)
+│   ├── postgres/        options.py (a union by auth_method), session.py,
+│   │                    pool.py, catalog.py, fetch.py, adapter.py (facade)
 │   └── file/            session.py (root and containment), catalog.py,
 │                        fetch.py, readers.py, actions.py, adapter.py (facade)
 ├── connectors/          user connections
 │   ├── models.py        Connector + API schemas
 │   ├── crud.py          database access only
 │   ├── service.py       option splitting, adapter construction
-│   └── routes.py        CRUD + connection checks
+│   └── routes.py        CRUD, connection checks, reading a pasted DSN
 ├── users/               users and authentication
 │   ├── models.py        User, User* schemas, Token, NewPassword
 │   ├── crud.py          database access only
@@ -146,7 +158,8 @@ frontend/src/
 │   ├── api/             client setup, and one reading of an API error
 │   ├── auth/            the session, watched across tabs
 │   ├── SchemaForm/      JSON Schema to form, framework-independent core;
-│   │                    a field says which tab and which row it belongs to
+│   │                    a field says which tab and which row it belongs to,
+│   │                    and readSchema tells a plain schema from a union
 │   ├── windows/         floating windows: geometry.ts is pure, the frame and
 │   │                    the host see one injected context
 │   ├── workspace/       the panel engine: a layout tree, tabs, drag and drop,
@@ -185,6 +198,7 @@ DELETE /api/v1/connectors/{connector_id}
 POST   /api/v1/connectors/{connector_id}/check
 POST   /api/v1/connectors/check-draft
 POST   /api/v1/connectors/describe-draft
+POST   /api/v1/connectors/parse-url
 GET    /api/v1/connectors/{connector_id}/catalog
 POST   /api/v1/connectors/{connector_id}/fetch
 POST   /api/v1/connectors/{connector_id}/actions
@@ -429,6 +443,69 @@ move the host.
 Composed on the server rather than from a template on the client, at the price
 of a request while the form is typed into: the rule for building a DSN belongs
 to the driver, and stating it twice is what ENGINEERING.md calls a defect.
+
+**D16. A way of connecting is a variant of the options, and the union is
+flat.** `PostgresOptions` is `Annotated[PostgresUserPassword | PostgresNoAuth,
+Field(discriminator="auth_method")]`, and what a user fills in follows the
+variant. The alternative — one model with optional fields — puts the decision
+about which of them matter in the form, and asking each field whether it
+should be showing is exactly where the old application's options file started.
+Full reasoning in
+`docs/superpowers/specs/2026-08-23-connection-variants-design.md`.
+
+Two ways rather than one, because a pick list of one is scenery: `trust` and
+`peer` in `pg_hba.conf` are real, and the difference reaches psycopg — a
+server that wants no password is sent none rather than an empty one.
+
+Four consequences worth stating separately:
+
+- **A schema is no longer necessarily a model.** `Annotated[A | B, ...]` has
+  neither `model_json_schema` nor `model_fields`, so `app/adapters/options.py`
+  answers for both through a `TypeAdapter`, and every consumer goes through
+  it. `secret_field_names` moved there and now reads *every* variant: D4 says
+  which values are encrypted is derived from the declaration, and a field
+  declared `SecretStr` by one variant alone must still reach the encrypted
+  blob. That is the one place where D4 either holds or breaks without a word.
+- **Flat, not nested.** Putting the varying fields in a sub-object would make
+  `config` two levels deep, and with it the secret split, which cuts by
+  top-level name. This way exactly one key is added.
+- **Existing rows needed a data migration.** Pydantic rejects an object that
+  names no variant, so every connector saved before this would have stopped
+  opening, checking and browsing — at the first request, not at startup. One
+  alembic revision, data only; the statement it runs is a named constant and
+  a test runs it against a row of the old shape.
+- **The form is told the shape, not the source type.** `readSchema` marks a
+  schema as plain or as variants; the fields every variant shares are drawn
+  once, in the order of the first variant, which is what stops the host and
+  the port jumping about. The discriminator is built from the `mapping` —
+  Pydantic emits the property itself as a `const`, which would render as a
+  text box holding the name of the variant. A choice therefore carries a code
+  and a wording, since `no_auth` travels to the server and "No auth" is read
+  by a person, and the wording is the `title` the model declared.
+
+**D17. A pasted connection string is taken apart by the driver, and the fields
+stay the only stored form.** `ParsesConnectionString` is a classmethod
+protocol answered by the class, exactly as `action_types` is: an adapter
+cannot be built until there are options, and parsing is what produces them.
+`POST /connectors/parse-url` opens nothing; a source with no such address
+answers 501, as it already does for `describe-draft`.
+
+A real "URL only" mode was rejected. A DSN may carry a password, so by D4 the
+whole string becomes a `SecretStr` and never comes back — changing one port
+would mean retyping the entire string. And it is a second stored form *on top
+of* the variants, so two independent questions would make four shapes, and a
+third question eight. A source that genuinely has no parts — a REST endpoint,
+a queue at an address — declares one `url` field and needs no variant at all.
+
+Two consequences worth stating separately:
+
+- **The driver names the way of connecting, not the form.** A string with a
+  password is `user_password`, one without is `no_auth`. A form inferring that
+  from the presence of a substring is `isFieldShowing` again.
+- **It is a button, not an editable field.** One control that sometimes shows
+  what was composed and sometimes takes what was typed would have to answer
+  "which of the two is true now", and the answer here is settled: the fields
+  are.
 
 **D3. The backend is fully asynchronous.** `AsyncSession`, `async def`
 throughout, psycopg 3 in async mode. The application is network-I/O bound by
@@ -713,8 +790,14 @@ From the design document, in order:
 
 | # | Sub-project |
 | --- | --- |
-| 7-подготовка | Connection variants — the last part of the window. Designed and not built: `docs/superpowers/specs/2026-08-23-connection-variants-design.md`. Authentication becomes a discriminated union so the fields follow the method chosen, and a pasted connection string is parsed by the driver into those fields. Written to be executed from a cold session: it carries what to read first, the order of the work, and three facts verified while designing it — Pydantic emits `oneOf` with `$ref`, which the form does not resolve today; a missing discriminator is rejected, so stored connectors need a data migration; and `conninfo_to_dict` answers `dbname` with a string port. |
 | 7+ | Realtime, AI, data grid |
+
+Sub-project 7-подготовка is done, both halves of it: the window exists and
+what changes inside it now follows the way of connecting. What it settled is
+recorded above as D16 and D17, and one thing is worth carrying forward on its
+own — a schema is no longer necessarily a model. `app/adapters/options.py` is
+the seam every consumer goes through, and any later question about what a
+schema says belongs there rather than in a second `model_fields` call.
 
 Sub-project 6 is done: the file source is the second type, and it was
 deliberately not SQL. What it exposed is recorded above as D2d, and one thing
@@ -926,5 +1009,29 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   a thing you do and then close, not a place you live in.
 - **A window reopened does not return to where it was.** It joins the cascade
   again.
+- **`no_auth` has never reached a server that accepts it.** The compose
+  database requires a password, so the tests prove only that none is sent and
+  that such a server refuses the attempt with `auth`. Proving the other half
+  needs a server configured with `trust`, and there is none in this project.
+- **Reading a string guesses the way of connecting.** A URL without a password
+  comes back as `no auth`, even when the password was simply left out of the
+  string on purpose. Said in the interface rather than worked around: the
+  method can be switched back by hand.
+- **The choice sits below two fields the reference tool puts above it.** The
+  database and the user belong to every variant, so they are drawn with the
+  common fields, and the choice follows them. A field declares a tab and a row
+  but no ordinal, and one line is not worth a third coordinate of layout.
+- **A parsed string travels through the server with its password.** The client
+  sent that very string a moment ago, so nothing new is disclosed, but it
+  passes through a request body and comes back in a response — and no check
+  keeps it out of a log.
+- **There are two variants, and both belong to one source type.** The
+  mechanism takes a union of any width; it has been exercised on the narrowest
+  one there is.
+- **The URL row stays empty while a connection is edited.** The form asks for
+  the string only once its own values pass validation, and a stored password
+  never comes back, so nothing is shown until one is retyped — even though the
+  server would have filled it in from the stored secret. Older than this
+  sub-project and confirmed in a browser, not deduced.
 - **The reuse rules rest on review.** No machine flags the third similar thing
   in a diff.

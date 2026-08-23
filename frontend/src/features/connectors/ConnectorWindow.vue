@@ -446,7 +446,7 @@ async function pasteUrl() {
              driver into these very fields. -->
         <AppIconButton
           icon="content_paste_go"
-          tooltip="Paste a connection string and fill the fields from it."
+          tooltip="Paste a connection string and fill the fields from it. A string with no password sets the method to No auth."
           data-testid="paste-url"
           :loading="parseUrl.isPending.value"
           @click="pasteUrl"
