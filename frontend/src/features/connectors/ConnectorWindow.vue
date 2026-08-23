@@ -10,12 +10,13 @@ import {
   useCreateConnector,
   useDeleteConnector,
   useDescribeDraft,
+  useParseUrl,
   useUpdateConnector,
 } from "@/features/connectors/api"
 import { fieldErrorsFrom, messageOf } from "@/shared/api/errors"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
-import { fieldGroups, jsonSchemaToZod, schemaToFields } from "@/shared/SchemaForm/jsonSchema"
-import type { JsonSchema } from "@/shared/SchemaForm/jsonSchema"
+import { fieldGroups, fieldsToZod, readSchema } from "@/shared/SchemaForm/jsonSchema"
+import type { FieldSpec, JsonSchema } from "@/shared/SchemaForm/jsonSchema"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
 import {
   AppButton,
@@ -66,6 +67,7 @@ const updateConnector = useUpdateConnector()
 const removeConnector = useDeleteConnector()
 const checkDraft = useCheckDraft()
 const describeDraft = useDescribeDraft()
+const parseUrl = useParseUrl()
 
 const {
   values: optionValues,
@@ -99,8 +101,57 @@ const selectedSchema = computed<JsonSchema | null>(
   () => (selectedType.value?.options_schema as unknown as JsonSchema | undefined) ?? null
 )
 
-const fields = computed(() => (selectedSchema.value ? schemaToFields(selectedSchema.value) : []))
-const groups = computed(() => fieldGroups(fields.value))
+// What the schema turns out to be: a plain list of fields, or a choice of
+// ways to connect with the fields that follow from it. The screen never
+// branches on the source type — only on the shape of what it was sent.
+const shape = computed(() => (selectedSchema.value ? readSchema(selectedSchema.value) : null))
+
+/** The code of the chosen variant, or null when there is nothing to choose. */
+const variantTag = computed(() => {
+  const current = shape.value
+  if (current?.kind !== "variants") return null
+  const chosen = optionValues.value[current.discriminator.name]
+  return typeof chosen === "string" ? chosen : String(current.discriminator.defaultValue)
+})
+
+/**
+ * The fields on screen: what every way of connecting has, then the choice
+ * itself, then what this one adds.
+ *
+ * The choice sits below the common fields rather than between the port and
+ * the user, as the reference tool has it, because a field declares a tab and
+ * a row but no ordinal — and one line is not worth a third coordinate.
+ */
+const activeFields = computed<FieldSpec[]>(() => {
+  const current = shape.value
+  if (!current) return []
+  if (current.kind === "plain") return current.fields
+  const tag = variantTag.value ?? ""
+  return [...current.common, current.discriminator, ...(current.byVariant[tag] ?? [])]
+})
+
+/**
+ * Every field the schema can produce, whichever variant is chosen.
+ *
+ * What the form is initialised from: a value typed before the method was
+ * switched is then still there on switching back, and only `activeFields`
+ * decides what is drawn and what is sent.
+ */
+const allFields = computed<FieldSpec[]>(() => {
+  const current = shape.value
+  if (!current) return []
+  if (current.kind === "plain") return current.fields
+  const collected = [
+    ...current.common,
+    current.discriminator,
+    ...Object.values(current.byVariant).flat(),
+  ]
+  return collected.filter(
+    (field, index) => collected.findIndex((one) => one.name === field.name) === index
+  )
+})
+
+const groups = computed(() => fieldGroups(activeFields.value))
 // One tab is not a choice, so the strip only appears once there are two.
 const showTabs = computed(() => groups.value.length > 1)
 const activeGroup = ref("general")
@@ -111,8 +162,8 @@ const saving = computed(() => createConnector.isPending.value || updateConnector
 /** The address, asked of the server whenever the values could compose one. */
 let describeToken = 0
 async function describe() {
-  if (!typeName.value || !selectedSchema.value) return
-  if (!jsonSchemaToZod(selectedSchema.value).safeParse(optionValues.value).success) {
+  if (!typeName.value || !shape.value) return
+  if (!fieldsToZod(activeFields.value).safeParse(optionValues.value).success) {
     // Half-typed values would only produce a half-built address.
     connectionString.value = ""
     return
@@ -153,10 +204,10 @@ function load() {
   saved.value = props.connector
   if (props.connector) {
     name.value = props.connector.name
-    resetOptions(fields.value, props.connector.config as Record<string, unknown>)
+    resetOptions(allFields.value, props.connector.config as Record<string, unknown>)
   } else {
     name.value = ""
-    resetOptions(fields.value)
+    resetOptions(allFields.value)
   }
   describe()
 }
@@ -177,7 +228,9 @@ watch(groups, (list) => {
 function filledOptions(): Record<string, unknown> {
   // An empty secret is not sent: the server keeps the stored value.
   const result: Record<string, unknown> = {}
-  for (const field of fields.value) {
+  // Only the fields of the chosen variant: a password typed before switching
+  // to a way of connecting that has none is kept on screen, not sent.
+  for (const field of activeFields.value) {
     const value = optionValues.value[field.name]
     if (field.kind === "password" && (value === "" || value === null)) continue
     result[field.name] = value
@@ -211,11 +264,11 @@ async function check() {
 
 /** Save and stay. Returns whether it worked, so OK can close on success. */
 async function apply(): Promise<boolean> {
-  if (!typeName.value || !selectedSchema.value) return false
+  if (!typeName.value || !shape.value) return false
   const nameValid = validateName()
   // While editing an empty password is allowed, so the schema is enforced in
   // full only for a connection being created.
-  const valuesValid = isEdit.value ? true : validateOptions(jsonSchemaToZod(selectedSchema.value))
+  const valuesValid = isEdit.value ? true : validateOptions(fieldsToZod(activeFields.value))
   if (!nameValid || !valuesValid) return false
 
   try {
@@ -274,6 +327,34 @@ async function remove() {
 async function copyUrl() {
   await navigator.clipboard.writeText(connectionString.value)
   toast.success("Connection string copied")
+}
+
+/**
+ * Take what is on the clipboard apart into the fields.
+ *
+ * A button rather than an editable field: one control that sometimes shows
+ * what was composed and sometimes takes what was typed would have to answer
+ * "which of the two is true now", and the answer here is settled — the fields
+ * are. The way of connecting comes back with the rest, decided by the driver.
+ */
+async function pasteUrl() {
+  if (!typeName.value) return
+  let text = ""
+  try {
+    text = await navigator.clipboard.readText()
+  } catch {
+    toast.error("Could not read the clipboard")
+    return
+  }
+
+  try {
+    const answer = await parseUrl.mutateAsync({ adapter_type: typeName.value, url: text })
+    resetOptions(allFields.value, answer.options as Record<string, unknown>)
+    dirty.value = true
+    toast.success("Connection string read into the form")
+  } catch (error) {
+    toast.error(messageOf(error, "That is not a connection string this source reads"))
+  }
 }
 </script>
 
@@ -360,6 +441,15 @@ async function copyUrl() {
           data-testid="copy-url"
           :disable="connectionString === ''"
           @click="copyUrl"
+        />
+        <!-- The other direction: what is on the clipboard, taken apart by the
+             driver into these very fields. -->
+        <AppIconButton
+          icon="content_paste_go"
+          tooltip="Paste a connection string and fill the fields from it."
+          data-testid="paste-url"
+          :loading="parseUrl.isPending.value"
+          @click="pasteUrl"
         />
       </div>
 

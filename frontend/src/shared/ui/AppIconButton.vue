@@ -12,8 +12,10 @@ const props = withDefaults(
     tooltip: string
     variant?: Extract<ButtonVariant, "quiet" | "danger-quiet">
     disable?: boolean
+    /** A round trip is under way: the icon gives way to a spinner. */
+    loading?: boolean
   }>(),
-  { variant: "quiet", disable: false }
+  { variant: "quiet", disable: false, loading: false }
 )
 
 const look = computed(() => buttonLook(props.variant))
@@ -26,6 +28,7 @@ const look = computed(() => buttonLook(props.variant))
     :color="look.color"
     :icon="icon"
     :disable="disable"
+    :loading="loading"
   >
     <AppTooltip>{{ tooltip }}</AppTooltip>
   </q-btn>
