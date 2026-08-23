@@ -16,6 +16,7 @@ def _payload(name: str) -> dict[str, object]:
         "name": name,
         "adapter_type": "postgres",
         "options": {
+            "auth_method": "user_password",
             "host": "localhost",
             "port": 5432,
             "database": "app",
@@ -72,7 +73,7 @@ async def test_invalid_options_are_rejected_with_field_path(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     payload = _payload("bad options")
-    payload["options"] = {"host": "localhost"}
+    payload["options"] = {"auth_method": "user_password", "host": "localhost"}
 
     response = await client.post(
         f"{BASE}/", headers=normal_user_token_headers, json=payload
@@ -152,6 +153,7 @@ async def test_patch_with_partial_options_keeps_stored_password(
         headers=normal_user_token_headers,
         json={
             "options": {
+                "auth_method": "user_password",
                 "host": "localhost",
                 "port": 6543,
                 "database": "app",

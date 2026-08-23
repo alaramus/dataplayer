@@ -12,6 +12,9 @@ def working_postgres_options() -> dict[str, Any]:
     url = settings.DATABASE_URL
     host = url.hosts()[0]
     return {
+        # The way of connecting, named: PostgreSQL options are a discriminated
+        # union now, and an object that names no variant is refused outright.
+        "auth_method": "user_password",
         "host": host["host"] or "localhost",
         "port": host["port"] or 5432,
         "database": (url.path or "/app").lstrip("/"),

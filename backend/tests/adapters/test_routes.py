@@ -13,9 +13,40 @@ async def test_lists_postgres_with_json_schema(
     assert response.status_code == 200
     types = {item["name"]: item for item in response.json()}
     assert types["postgres"]["title"] == "PostgreSQL"
-    properties = types["postgres"]["options_schema"]["properties"]
+    schema = types["postgres"]["options_schema"]
+    # A type whose fields depend on the way it is connected to answers with a
+    # union: the variants in $defs, the choice in the discriminator.
+    assert schema["discriminator"]["propertyName"] == "auth_method"
+    assert set(schema["discriminator"]["mapping"]) == {"user_password", "no_auth"}
+    properties = schema["$defs"]["PostgresUserPassword"]["properties"]
     assert properties["host"]["title"] == "Host"
     assert properties["port"]["default"] == 5432
+
+
+async def test_a_variant_is_named_by_the_title_it_declares(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The wording of the pick list, so it is the server that supplies it."""
+    response = await client.get(f"{BASE}/", headers=normal_user_token_headers)
+
+    types = {item["name"]: item for item in response.json()}
+    defs = types["postgres"]["options_schema"]["$defs"]
+
+    assert defs["PostgresUserPassword"]["title"] == "User & Password"
+    assert defs["PostgresNoAuth"]["title"] == "No auth"
+
+
+async def test_a_type_with_one_way_of_connecting_stays_a_plain_schema(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Nothing forces a union on a source that has no choice to offer."""
+    response = await client.get(f"{BASE}/", headers=normal_user_token_headers)
+
+    types = {item["name"]: item for item in response.json()}
+    schema = types["file"]["options_schema"]
+
+    assert "oneOf" not in schema
+    assert "path" in schema["properties"]
 
 
 async def test_secret_fields_are_marked_as_password(
@@ -24,7 +55,8 @@ async def test_secret_fields_are_marked_as_password(
     response = await client.get(f"{BASE}/", headers=normal_user_token_headers)
 
     postgres = next(item for item in response.json() if item["name"] == "postgres")
-    assert postgres["options_schema"]["properties"]["password"]["format"] == "password"
+    variant = postgres["options_schema"]["$defs"]["PostgresUserPassword"]
+    assert variant["properties"]["password"]["format"] == "password"
 
 
 async def test_requires_authentication(client: AsyncClient) -> None:

@@ -3,7 +3,7 @@ import pytest
 from app.adapters.fetch import FetchRequest, Filter, Sort
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.fetch import PostgresFetch
-from app.adapters.postgres.options import PostgresOptions
+from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.protocol import AdapterError
 from tests.utils.database import working_postgres_options
 
@@ -25,7 +25,7 @@ def test_binary_values_are_encoded_as_hex(value: object, expected: object) -> No
 
 
 def _adapter() -> PostgresAdapter:
-    return PostgresAdapter(PostgresOptions(**working_postgres_options()))
+    return PostgresAdapter(PostgresUserPassword(**working_postgres_options()))
 
 
 async def test_returns_columns_and_rows_as_arrays() -> None:

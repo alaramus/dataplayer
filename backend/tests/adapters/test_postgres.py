@@ -4,15 +4,19 @@ from pydantic import SecretStr
 
 from app.adapters import registry
 from app.adapters.postgres.adapter import PostgresAdapter
-from app.adapters.postgres.options import PostgresOptions
-from app.adapters.postgres.session import CHECK_TIMEOUT_SECONDS
+from app.adapters.postgres.options import (
+    PostgresNoAuth,
+    PostgresOptions,
+    PostgresUserPassword,
+)
+from app.adapters.postgres.session import CHECK_TIMEOUT_SECONDS, PostgresSession
 from tests.utils.database import working_postgres_options
 
 WRONG_PASSWORD = "definitely-not-the-password"
 
 
-def _working_options() -> PostgresOptions:
-    return PostgresOptions(**working_postgres_options())
+def _working_options() -> PostgresUserPassword:
+    return PostgresUserPassword(**working_postgres_options())
 
 
 async def test_check_connection_succeeds() -> None:
@@ -90,7 +94,7 @@ def test_a_postgres_source_offers_no_actions() -> None:
 
 
 def test_connection_string_is_a_url_anyone_can_paste() -> None:
-    options = PostgresOptions(
+    options = PostgresUserPassword(
         host="db.example", port=6543, database="app", user="ann", password=SecretStr("s")
     )
 
@@ -110,7 +114,7 @@ def test_connection_string_never_carries_the_password() -> None:
 
 def test_connection_string_escapes_what_would_change_the_url() -> None:
     """A user or a database named with a slash must not invent a new host."""
-    options = PostgresOptions(
+    options = PostgresUserPassword(
         host="db.example",
         port=5432,
         database="a/b",
@@ -131,3 +135,65 @@ def test_a_file_source_has_no_connection_string() -> None:
 
     assert not issubclass(FileAdapter, SupportsConnectionString)
     assert issubclass(PostgresAdapter, SupportsConnectionString)
+
+
+def test_the_variant_that_carries_a_password_sends_it() -> None:
+    options = PostgresUserPassword(
+        host="db.example", database="app", user="ann", password=SecretStr("s3cret")
+    )
+
+    assert "password=s3cret" in PostgresSession(options).conninfo()
+
+
+def test_the_variant_without_a_password_sends_none() -> None:
+    """`trust` and `peer` are real: a password is then not merely empty."""
+    options = PostgresNoAuth(host="db.example", database="app", user="ann")
+
+    assert "password" not in PostgresSession(options).conninfo()
+
+
+def test_the_variant_without_a_password_still_has_an_address() -> None:
+    options = PostgresNoAuth(host="db.example", port=6543, database="app", user="ann")
+
+    assert (
+        PostgresAdapter(options).connection_string()
+        == "postgresql://ann@db.example:6543/app"
+    )
+
+
+async def test_a_server_that_wants_a_password_refuses_the_variant_without_one() -> None:
+    """The compose database requires one, so this is the honest half of D-В4.
+
+    What cannot be shown here is the other half — that `no_auth` succeeds
+    against a server configured with `trust` — because there is no such server
+    in this project. Recorded as a known deviation.
+    """
+    working = working_postgres_options()
+    options = PostgresNoAuth(
+        host=working["host"],
+        port=working["port"],
+        database=working["database"],
+        user=working["user"],
+    )
+
+    result = await PostgresAdapter(options).check_connection()
+
+    assert result.ok is False
+    assert result.error_kind == "auth"
+
+
+def test_the_options_schema_offers_both_ways_of_connecting() -> None:
+    """A pick list of one is scenery; two is a choice."""
+    from app.adapters import options as options_module
+
+    assert options_module.variants(PostgresOptions) == [
+        PostgresUserPassword,
+        PostgresNoAuth,
+    ]
+
+
+def test_the_password_is_a_secret_of_the_union_as_a_whole() -> None:
+    """Declared by one variant, and that is enough to be encrypted."""
+    from app.adapters import options as options_module
+
+    assert options_module.secret_field_names(PostgresOptions) == {"password"}

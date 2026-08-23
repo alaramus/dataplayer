@@ -4,7 +4,7 @@ import uuid
 import pytest
 from pydantic import SecretStr
 
-from app.adapters.postgres.options import PostgresOptions
+from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.postgres.pool import PooledConnections, key_for
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError
@@ -12,8 +12,8 @@ from app.adapters.resources import Pooling, ResourceStore
 from tests.utils.database import working_postgres_options
 
 
-def _options() -> PostgresOptions:
-    return PostgresOptions(**working_postgres_options())
+def _options() -> PostgresUserPassword:
+    return PostgresUserPassword(**working_postgres_options())
 
 
 @pytest.fixture

@@ -5,7 +5,7 @@ import pytest
 
 from app.adapters.catalog import ColumnNode, SchemaNode, TableNode, ViewNode
 from app.adapters.postgres.adapter import PostgresAdapter
-from app.adapters.postgres.options import PostgresOptions
+from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.protocol import AdapterError
 from tests.utils.database import working_postgres_options
 
@@ -13,7 +13,7 @@ VIEW_NAME = "catalog_test_view"
 
 
 def _adapter() -> PostgresAdapter:
-    return PostgresAdapter(PostgresOptions(**working_postgres_options()))
+    return PostgresAdapter(PostgresUserPassword(**working_postgres_options()))
 
 
 @pytest.fixture
@@ -105,7 +105,7 @@ async def test_unknown_table_raises_instead_of_returning_empty() -> None:
 
 
 async def test_unreachable_server_raises_with_a_safe_message() -> None:
-    options = PostgresOptions(**working_postgres_options()).model_copy(
+    options = PostgresUserPassword(**working_postgres_options()).model_copy(
         update={"host": "127.0.0.1", "port": 1}
     )
 

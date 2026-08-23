@@ -9,7 +9,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg_pool import PoolTimeout
 
-from app.adapters.postgres.options import PostgresOptions
+from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
 from app.adapters.postgres.pool import pool_for
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
 from app.adapters.resources import Pooling
@@ -69,21 +69,26 @@ class PostgresSession:
 
     def conninfo(self) -> str:
         options = self._options
-        return psycopg.conninfo.make_conninfo(
-            host=options.host,
-            port=options.port,
-            dbname=options.database,
-            user=options.user,
-            password=options.password.get_secret_value(),
+        parts: dict[str, Any] = {
+            "host": options.host,
+            "port": options.port,
+            "dbname": options.database,
+            "user": options.user,
             # Without this psycopg waits about two minutes on an unreachable
             # host. asyncio.wait_for below would drop the wait, but the
             # connection would keep hanging inside the driver, so the limit is
             # set on both sides.
-            connect_timeout=int(CHECK_TIMEOUT_SECONDS),
+            "connect_timeout": int(CHECK_TIMEOUT_SECONDS),
             # Since connections now outlive a request, someone looking at
             # pg_stat_activity should be able to tell whose they are.
-            application_name=APPLICATION_NAME,
-        )
+            "application_name": APPLICATION_NAME,
+        }
+        # The one place in the driver that knows there are variants at all. A
+        # server configured with `trust` is not sent an empty password; it is
+        # sent no password, which is a different conninfo.
+        if isinstance(options, PostgresUserPassword):
+            parts["password"] = options.password.get_secret_value()
+        return psycopg.conninfo.make_conninfo(**parts)
 
     def connection_string(self) -> str:
         """The same address as `conninfo`, as a URL and without the password.
