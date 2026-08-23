@@ -168,6 +168,13 @@ bash scripts/check-docs.sh
 Every relative link resolves, every decision in the table above has exactly one
 home in `docs/architecture/`, and this file stays under 16 KB.
 
+### Continuous integration
+
+`.gitlab-ci.yml` runs the same commands on a push: the backend checks against a
+postgres service, the frontend checks under Node rather than bun, and the
+documentation check. The end-to-end suite is not in the pipeline — it needs the
+database, the backend and a dev server at once — so it is run locally.
+
 ## Traps
 
 Each of these cost time to find. They are not obvious from the code.
