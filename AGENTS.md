@@ -246,6 +246,25 @@ The same rewrite is worth watching on any tracked text file. AGENTS.md once went
 in as CRLF and turned a five-line edit into a 597-line diff. `git show :FILE |
 file -` says what is actually about to be stored.
 
+**A local test run reads `../.env`, and CI has none.** Settings name that file,
+so anything the developer keeps there — `FASTAPI_ENV`, `SMTP_HOST`,
+`EMAILS_FROM_EMAIL` — silently fills the gaps in a run started from `backend/`.
+Two pipelines went red on variables that a local run appeared to prove present.
+A rehearsal that means anything uses a checkout without `.env`, on Linux:
+
+```bash
+git archive HEAD | tar -x -C /tmp/rehearsal
+docker run --rm --network ci --network-alias … -w /repo/backend \
+  ghcr.io/astral-sh/uv:bookworm-slim bash -c "uv sync --frozen && …"
+```
+
+**A closed port is refused at once on Linux and left hanging on Windows.** A
+test that wants a timeout cannot point at one: it would assert about the
+platform. `tests/utils/network.py` listens without accepting, so the handshake
+completes from the backlog and the client waits for a greeting that never
+comes. The 4 tests that skip on Windows — symlinks, file modes — run in CI, so
+a suite green here is not a suite green there either.
+
 **psycopg reads a literal `%` as a placeholder whenever parameters are
 supplied**, even an empty tuple. A query with `LIKE 'pg_%'` and no bindings must
 pass no parameters at all, not `()`.
