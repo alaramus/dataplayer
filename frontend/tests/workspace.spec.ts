@@ -207,6 +207,14 @@ test("a pushed-aside column of sources still opens one of them", async ({ page }
   await expect(catalogTab(page)).toContainText(name)
   await expect(page.getByTestId("catalog-list")).toContainText("connector")
 
+  // And a new connection can still be started from that width. The same test
+  // id as the wide column carries, because it is the same action: the strip
+  // and the panel stand under v-if/v-else and never exist together.
+  await page.getByTestId("add-connector").click()
+  await expect(page.getByTestId("adapter-catalog")).toBeVisible()
+  await page.keyboard.press("Escape")
+  await expect(page.getByTestId("adapter-catalog")).toHaveCount(0)
+
   await page.getByTestId("workspace-collapse-sources").click()
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
