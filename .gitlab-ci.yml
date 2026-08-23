@@ -46,7 +46,16 @@ backend:
     - uv run ruff check app tests
     - uv run mypy app
     - uv run lint-imports
-    - uv run pytest tests/ -q
+    # The service starts as an empty database. In a running stack the schema is
+    # applied by the prestart container and pytest inherits it; here there is
+    # nothing to inherit, and every test errors with `relation "user" does not
+    # exist`. This is what scripts/prestart.sh does, minus the first superuser,
+    # which the test fixtures create themselves.
+    - uv run python app/tests_pre_start.py
+    - uv run alembic upgrade head
+    # A failure prints one line per test rather than a full traceback: 419
+    # errors at once overran GitLab's 4 MB log limit and hid the cause.
+    - uv run pytest tests/ -q --tb=short
 
 frontend:
   stage: check

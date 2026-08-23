@@ -77,10 +77,17 @@ def test_changed_options_are_a_different_pool() -> None:
 
 
 def test_the_key_does_not_carry_the_password() -> None:
-    session = PostgresSession(_options())
-    password = _options().password.get_secret_value()
+    """The password is named here rather than taken from the environment.
 
-    key = key_for(uuid.uuid4(), session.conninfo())
+    A key looks like `postgres:<uuid>:<digest>`, so with the database password
+    set to "postgres" — which is what a throwaway database in CI is usually
+    given — the assertion failed on the prefix and said nothing about the
+    password. It has to mean the same thing wherever it runs.
+    """
+    password = "a-password-that-appears-nowhere-else"
+    options = _options().model_copy(update={"password": SecretStr(password)})
+
+    key = key_for(uuid.uuid4(), PostgresSession(options).conninfo())
 
     assert password not in key
     assert "host=" not in key
