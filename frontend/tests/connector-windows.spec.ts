@@ -225,3 +225,46 @@ test("asks before throwing away changes that were never applied", async ({ page 
 
   await deleteConnector(page, name)
 })
+
+test("closes without a word when nothing was changed", async ({ page }) => {
+  // Filling the form in is a change made by this window, not by the user, and
+  // a question asked every time one is closed teaches people to answer it
+  // without reading.
+  const name = `e2e-win-clean-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+
+  await editConnector(page, name)
+  await expect(page.getByTestId("connector-name")).toHaveValue(name)
+  // Long enough for everything the window does on its own — reading the
+  // schema, filling the fields, asking for the connection string.
+  await expect(page.getByTestId("connector-url")).not.toHaveValue("")
+
+  // Nor is looking at the password: the stand-in gives way and comes back,
+  // and none of that is a value anybody changed.
+  await page.getByTestId("field-password").click()
+  await page.getByTestId("field-user").click()
+  await expect(page.getByTestId("field-password")).toHaveValue("<hidden>")
+
+  await page.locator('[data-testid^="window-close-connector"]').first().click()
+  await expect(windows(page)).toHaveCount(0)
+  await expect(page.getByTestId("confirm-accept")).toHaveCount(0)
+
+  await deleteConnector(page, name)
+})
+
+test("a value typed and then put back is not a change", async ({ page }) => {
+  const name = `e2e-win-undone-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+
+  await editConnector(page, name)
+  await page.getByTestId("connector-name").fill(`${name}-edited`)
+  await page.getByTestId("connector-name").fill(name)
+
+  await page.locator('[data-testid^="window-close-connector"]').first().click()
+  await expect(windows(page)).toHaveCount(0)
+  await expect(page.getByTestId("confirm-accept")).toHaveCount(0)
+
+  await deleteConnector(page, name)
+})

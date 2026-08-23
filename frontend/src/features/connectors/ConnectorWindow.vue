@@ -92,7 +92,26 @@ const urlError = ref("")
 const urlFocused = ref(false)
 // Null while the source has never been asked; false once it has answered 501.
 const hasConnectionString = ref<boolean | null>(null)
-const dirty = ref(false)
+/**
+ * What the form held when it was last loaded or saved.
+ *
+ * `dirty` is the answer to "does it still hold that", not a flag something
+ * sets. As a flag it was set by the window filling itself in: loading a
+ * connection assigns the name and the values, which is a change to watch, and
+ * every window then asked whether to discard changes nobody had made. A
+ * question asked every time teaches people to answer it without reading.
+ */
+const baseline = ref("")
+
+function snapshot(): string {
+  const values = optionValues.value
+  const ordered = Object.keys(values)
+    .sort()
+    .map((key) => [key, values[key]])
+  return JSON.stringify([name.value, ordered])
+}
+
+const dirty = computed(() => snapshot() !== baseline.value)
 
 // The saved connection this window is on. Held here rather than read off the
 // prop so that Apply on a new connection turns this into an edit window
@@ -226,7 +245,6 @@ function load() {
   urlText.value = ""
   urlError.value = ""
   hasConnectionString.value = null
-  dirty.value = false
   saved.value = props.connector
   if (props.connector) {
     name.value = props.connector.name
@@ -238,16 +256,14 @@ function load() {
     name.value = selectedType.value?.title ?? ""
     resetOptions(allFields.value)
   }
+  baseline.value = snapshot()
   describe()
 }
 
 // The schema arrives with the list of types, which may still be loading when
 // the window opens; the form is filled in as soon as it is there.
 watch([() => props.connector, selectedSchema], load, { immediate: true })
-watch(dirty, (value) => emit("update:dirty", value))
-watch([name, optionValues], () => {
-  dirty.value = true
-})
+watch(dirty, (value) => emit("update:dirty", value), { immediate: true })
 watch(groups, (list) => {
   if (!list.some((group) => group.id === activeGroup.value)) {
     activeGroup.value = list[0]?.id ?? "general"
@@ -315,7 +331,8 @@ async function apply(): Promise<boolean> {
       saved.value = created
       emit("created", created)
     }
-    dirty.value = false
+    // Saved is the new baseline: what is on screen is what is stored.
+    baseline.value = snapshot()
     toast.success("Connection saved")
     return true
   } catch (error) {
@@ -346,7 +363,8 @@ async function remove() {
   // The dot outlives the row otherwise: a record nobody prunes is a record
   // that grows for as long as the page lives.
   checks.forget(connector.id)
-  dirty.value = false
+  // Nothing left to discard, so closing must not ask about it.
+  baseline.value = snapshot()
   toast.success("Connection deleted")
   emit("close")
 }
@@ -395,7 +413,6 @@ async function parseTyped(text: string) {
   try {
     const answer = await parseUrl.mutateAsync({ adapter_type: typeName.value, url: text })
     resetOptions(allFields.value, answer.options as Record<string, unknown>)
-    dirty.value = true
   } catch (error) {
     urlError.value = messageOf(error, "That is not a connection string this source reads")
   }
