@@ -8,7 +8,14 @@ withDefaults(
     error?: string
     placeholder?: string
     disable?: boolean
-    /** A field in a toolbar rather than in a form: tighter, and no underline. */
+    /**
+     * A field in a toolbar rather than in a form: tighter, no underline, and
+     * no room kept below for a message. Quasar reserves that room whether or
+     * not there is anything to put in it, which made a one-line bar 20px
+     * taller than the line it holds. An error still colours the field; only
+     * its wording has nowhere to go, so a compact field is for a toolbar
+     * where nothing is validated.
+     */
     compact?: boolean
     /** Offer a cross that empties the field. A search is the reason it exists:
         a query with no way back is a query the user has to erase by hand. */
@@ -51,6 +58,7 @@ function report(value: string | number | null) {
     :placeholder="placeholder"
     :dense="compact"
     :borderless="compact"
+    :hide-bottom-space="compact"
     :disable="disable"
     :clearable="clearable"
     :error="Boolean(error)"

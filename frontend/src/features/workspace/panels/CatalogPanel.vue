@@ -128,12 +128,17 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
              the level's own nodes give it: a path for a directory, a set of
              groupings for a database. Which of the two shows follows from the
              nodes, never from the type of the source. -->
+        <!-- Named only while nothing is picked. A chosen schema is a chip
+             saying its own name, and the word above it is both a repetition
+             and a second line in a bar that has one — Quasar floats a label
+             out of the field exactly when the field is filled. -->
         <AppSelect
           v-if="groupOptions.length"
           class="catalog-panel__groups"
           :model-value="level.selectedGroups.value"
           :options="groupOptions"
-          label="Schemas"
+          :label="level.selectedGroups.value.length ? undefined : 'Schemas'"
+          aria-label="Schemas"
           multiple
           compact
           data-testid="catalog-groups"

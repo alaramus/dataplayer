@@ -16,7 +16,14 @@ const props = withDefaults(
     disable?: boolean
     /** Several at once, reported as an array. */
     multiple?: boolean
-    /** A field in a toolbar rather than in a form: tighter, and no underline. */
+    /**
+     * A field in a toolbar rather than in a form: tighter, no underline, and
+     * no room kept below for a message. Quasar reserves that room whether or
+     * not there is anything to put in it, which made a one-line bar 20px
+     * taller than the line it holds. An error still colours the field; only
+     * its wording has nowhere to go, so a compact field is for a toolbar
+     * where nothing is validated.
+     */
     compact?: boolean
   }>(),
   {
@@ -51,6 +58,7 @@ const labelled = computed(() => props.options.some((option) => typeof option ===
     :use-chips="multiple"
     :dense="compact"
     :borderless="compact"
+    :hide-bottom-space="compact"
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"
