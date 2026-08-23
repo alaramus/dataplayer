@@ -1,11 +1,19 @@
 import type { Component, InjectionKey, Ref } from "vue"
 
+import type { DropAdmission } from "./dropZone"
 import type { DropZone, LayoutNode, NodeId, PanelId } from "./model"
 
 /** What a panel shows of itself in a tab: nothing else about it is needed. */
 export interface PanelLook {
   title: string
   icon: string
+  /**
+   * A quieter second line beside the title: whose panel this is.
+   *
+   * Beside rather than in front, and the first thing to be given up when the
+   * tab is narrow: the title is what the eye looks for. See P8.
+   */
+  subtitle?: string
   /**
    * Whether the tab offers a cross. Defaults to true.
    *
@@ -45,6 +53,14 @@ export interface WorkspaceContext {
    * the handle alone, which is what a section with nothing to show wants.
    */
   collapsedOf: (panelId: PanelId) => Component | null
+  /**
+   * What this section will take from the drag now in progress.
+   *
+   * Asked of the context rather than worked out by the section, because the
+   * answer needs the panel being dragged and the role the feature gave it —
+   * neither of which a section holds. See P1.
+   */
+  admissionOf: (leafId: NodeId) => DropAdmission
   activate: (panelId: PanelId) => void
   close: (panelId: PanelId) => void
   /**
@@ -57,7 +73,13 @@ export interface WorkspaceContext {
   closeOthers: (leafId: NodeId) => void
   focus: (leafId: NodeId) => void
   toggleCollapse: (leafId: NodeId) => void
-  resize: (splitId: NodeId, index: number, delta: number, minPercent: number) => void
+  resize: (
+    splitId: NodeId,
+    beforeIndex: number,
+    afterIndex: number,
+    delta: number,
+    minPercent: number
+  ) => void
   startDrag: (panelId: PanelId) => void
   endDrag: (targetLeafId: NodeId | null, zone: DropZone | null) => void
 }

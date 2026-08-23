@@ -48,6 +48,7 @@ const rows = computed(() => connectors.data.value?.data ?? [])
       :key="connector.id"
       class="connector-rail__slot"
       :class="{
+        'connector-rail__slot--open': workspace.openConnectorIds.value.has(connector.id),
         'connector-rail__slot--selected': connector.id === workspace.activeConnectorId.value,
       }"
     >
@@ -85,6 +86,10 @@ const rows = computed(() => connectors.data.value?.data ?? [])
   align-items: center;
   justify-content: center;
   border-radius: 4px;
+}
+/* The same two states the wide row carries, at a smaller width. */
+.connector-rail__slot--open {
+  background: var(--dp-selected-quiet);
 }
 .connector-rail__slot--selected {
   background: var(--dp-selected);

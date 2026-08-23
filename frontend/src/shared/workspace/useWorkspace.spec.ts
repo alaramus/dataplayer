@@ -3,6 +3,7 @@ import { defineComponent, h, nextTick } from "vue"
 import { z } from "zod"
 
 import { makeLeaf, makeSplit } from "./model"
+import { leavesOf } from "./tree"
 import type { LeafNode, SplitNode } from "./model"
 import { useWorkspace } from "./useWorkspace"
 
@@ -12,12 +13,56 @@ type DemoPanel = z.infer<typeof panelSchema>
 const Stub = defineComponent({ setup: () => () => h("div") })
 
 const defaults = () => ({
-  tree: makeSplit("root", "row", [makeLeaf("left", ["p1"]), makeLeaf("main", ["p2"])], [30, 70]),
+  tree: makeSplit(
+    "root",
+    "row",
+    [
+      makeLeaf("left", ["p1"], { accepts: "catalog" }),
+      makeLeaf("main", ["p2"], { accepts: "rows" }),
+    ],
+    [30, 70]
+  ),
   panels: [
     { id: "p1", kind: "catalog" },
     { id: "p2", kind: "rows" },
   ] as DemoPanel[],
 })
+
+/** Two sections of one role and one of another: what a drop is judged by. */
+const dragging = () => ({
+  tree: makeSplit(
+    "root",
+    "row",
+    [
+      makeLeaf("left", ["p1"], { accepts: "catalog" }),
+      makeLeaf("main", ["p2", "p3"], { accepts: "rows" }),
+      makeLeaf("aside", [], { accepts: "rows", pinned: true }),
+    ],
+    [30, 40, 30]
+  ),
+  panels: [
+    { id: "p1", kind: "catalog" },
+    { id: "p2", kind: "rows" },
+    { id: "p3", kind: "rows" },
+  ] as DemoPanel[],
+})
+
+function buildDragging() {
+  return useWorkspace<DemoPanel>({
+    storageKey: "test-workspace",
+    panelSchema,
+    defaults: dragging,
+    kindOf: (panel) => panel.kind,
+    look: (panel) => ({ title: panel.id, icon: "square" }),
+    component: () => Stub,
+  })
+}
+
+function leafNamed(workspace: ReturnType<typeof buildDragging>, id: string): LeafNode {
+  const found = leavesOf(workspace.context.tree.value).find((leaf) => leaf.id === id)
+  if (found === undefined) throw new Error(`no section ${id}`)
+  return found
+}
 
 function build() {
   return useWorkspace<DemoPanel>({
@@ -141,11 +186,54 @@ describe("a workspace", () => {
   })
 
   it("moves a panel where a drag ends", () => {
-    const workspace = build()
-    workspace.context.startDrag("p1")
-    workspace.context.endDrag("main", "center")
-    expect(workspace.context.tree.value.kind).toBe("leaf")
-    expect((workspace.context.tree.value as LeafNode).panels).toEqual(["p2", "p1"])
+    const workspace = buildDragging()
+    workspace.context.startDrag("p3")
+    workspace.context.endDrag("aside", "center")
+    expect(leafNamed(workspace, "aside").panels).toEqual(["p3"])
+    expect(leafNamed(workspace, "main").panels).toEqual(["p2"])
+  })
+
+  it("refuses a panel a section does not take", () => {
+    // The three columns are a property of the screen: a grid dropped into the
+    // column of connections would break them with no way back. See P1.
+    const workspace = buildDragging()
+    const before = workspace.context.tree.value
+    workspace.context.startDrag("p3")
+    workspace.context.endDrag("left", "center")
+    expect(workspace.context.tree.value).toBe(before)
+  })
+
+  it("says of a section whether it takes what is being dragged", () => {
+    const workspace = buildDragging()
+    workspace.context.startDrag("p3")
+    expect(workspace.context.admissionOf("main").accepts).toBe(true)
+    expect(workspace.context.admissionOf("left").accepts).toBe(false)
+  })
+
+  it("counts what a section would keep once the dragged panel has left it", () => {
+    const workspace = buildDragging()
+    workspace.context.startDrag("p3")
+    expect(workspace.context.admissionOf("main").remaining).toBe(1)
+    expect(workspace.context.admissionOf("aside").remaining).toBe(0)
+  })
+
+  it("takes a side that would leave the target empty as a tab instead", () => {
+    const workspace = buildDragging()
+    workspace.context.startDrag("p3")
+    workspace.context.endDrag("aside", "left")
+    expect(leavesOf(workspace.context.tree.value).map((leaf) => leaf.id)).toEqual([
+      "left",
+      "main",
+      "aside",
+    ])
+    expect(leafNamed(workspace, "aside").panels).toEqual(["p3"])
+  })
+
+  it("splits when the target would still hold something", () => {
+    const workspace = buildDragging()
+    workspace.context.startDrag("p3")
+    workspace.context.endDrag("main", "bottom")
+    expect(leavesOf(workspace.context.tree.value)).toHaveLength(4)
   })
 
   it("closes the panel of the same kind when the new one replaces it", () => {

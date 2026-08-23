@@ -231,21 +231,38 @@ describe("collapsing a section", () => {
 
 describe("resizing", () => {
   it("moves what one side loses to the other", () => {
-    const next = resizeSplit(sample(), "root", 0, 10, 10) as SplitNode
+    const next = resizeSplit(sample(), "root", 0, 1, 10, 10) as SplitNode
     expect(next.sizes[0]).toBeCloseTo(40)
     expect(next.sizes[1]).toBeCloseTo(60)
   })
 
   it("stops at the minimum instead of crossing it", () => {
-    const next = resizeSplit(sample(), "root", 0, -100, 10) as SplitNode
+    const next = resizeSplit(sample(), "root", 0, 1, -100, 10) as SplitNode
     expect(next.sizes[0]).toBeCloseTo(10)
     expect(next.sizes[1]).toBeCloseTo(90)
   })
 
   it("refuses to move a border that is already at the minimum", () => {
     const tight = makeSplit("root", "row", [makeLeaf("a", ["p1"]), makeLeaf("b", ["p2"])], [10, 90])
-    const next = resizeSplit(tight, "root", 0, -5, 10) as SplitNode
+    const next = resizeSplit(tight, "root", 0, 1, -5, 10) as SplitNode
     expect(next.sizes[0]).toBeCloseTo(10)
+  })
+
+  it("leaves alone a section standing between the two being moved", () => {
+    // The border a user drags is between the two sections they can see, and
+    // with a column off the screen those two are not neighbours in the tree.
+    // Spending the hidden column's width here would lose the one it will come
+    // back at. See P4.
+    const columns = makeSplit(
+      "root",
+      "row",
+      [makeLeaf("a", ["p1"]), makeLeaf("b", ["p2"]), makeLeaf("c", ["p3"])],
+      [20, 28, 52]
+    )
+    const next = resizeSplit(columns, "root", 0, 2, 10, 5) as SplitNode
+    expect(next.sizes[0]).toBeCloseTo(30)
+    expect(next.sizes[1]).toBeCloseTo(28)
+    expect(next.sizes[2]).toBeCloseTo(42)
   })
 })
 
@@ -290,5 +307,33 @@ describe("moving a panel", () => {
   it("does nothing when the target leaf disappeared with the panel", () => {
     const tree = sample()
     expect(movePanel(tree, "p1", "a", "right", "new")).toBe(tree)
+  })
+})
+
+describe("the section a split leaves behind", () => {
+  const split = (zone: "left" | "bottom" = "left") =>
+    splitLeaf(
+      makeLeaf("a", ["p1", "p2"], { accepts: "work", pinned: true }),
+      "a",
+      "p9",
+      zone,
+      "new"
+    ) as SplitNode
+
+  it("takes the role of the section it came from", () => {
+    // Without it the first split makes a section with no role, and a role is
+    // now what a drop is judged by: nothing could ever be brought into it
+    // again, including the panel that made it. See P2.
+    expect((split().children[0] as LeafNode).accepts).toBe("work")
+  })
+
+  it("takes it whichever side of the split it lands on", () => {
+    expect((split("bottom").children[1] as LeafNode).accepts).toBe("work")
+  })
+
+  it("does not take the right to stay on screen with nothing in it", () => {
+    // Staying empty is a property of a column of the screen, not of every
+    // section: an inherited pin would leave a trace behind every split.
+    expect((split().children[0] as LeafNode).pinned).toBeUndefined()
   })
 })

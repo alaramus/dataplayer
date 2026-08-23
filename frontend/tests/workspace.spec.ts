@@ -97,18 +97,20 @@ async function freshLayout(page: Page) {
   await page.reload()
 }
 
-test("a signed in user lands on three columns, two of them waiting", async ({ page }) => {
+test("a signed in user lands on the columns that have something in them", async ({ page }) => {
   await login(page)
   await freshLayout(page)
 
-  await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(3)
+  // Two columns, not three: the middle one appears together with a catalog,
+  // and a screen of blank columns looks broken rather than empty. See P4.
+  await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(2)
+  await expect(page.getByTestId("workspace-leaf-navigate")).toHaveCount(0)
   await expect(page.getByTestId("workspace-tab-connectors")).toBeVisible()
   await expect(page.getByTestId("connector-list")).toBeVisible()
 
-  // The two columns nothing has been opened in are there and say what belongs
-  // in them, which is the whole point of a pinned section.
-  await expect(page.getByTestId("navigate-empty")).toBeVisible()
-  await expect(page.getByTestId("work-empty")).toBeVisible()
+  // The right-hand column is always there, and what stands in it says what to
+  // do next rather than naming the column.
+  await expect(page.getByTestId("workspace-scene")).toBeVisible()
 
   // The panel of connections has nothing to close: a column that could be
   // emptied with no way back is not a column.
@@ -129,7 +131,7 @@ test("a signed in user lands on three columns, two of them waiting", async ({ pa
   expect(box.height).toBeGreaterThan(viewport.height - 80)
 })
 
-test("a connection fills the middle column, and the next one replaces it", async ({ page }) => {
+test("catalogs stand beside each other, and each connection opens once", async ({ page }) => {
   const first = `e2e-cols-a-${Date.now()}`
   const second = `e2e-cols-b-${Date.now()}`
   await login(page)
@@ -137,28 +139,140 @@ test("a connection fills the middle column, and the next one replaces it", async
   await createPostgresConnector(page, first)
   await createPostgresConnector(page, second)
 
+  // The middle column arrives with the first catalog, and the screen is three
+  // columns from there on.
   await openConnector(page, first)
-  await expect(page.getByTestId("navigate-empty")).toHaveCount(0)
+  await expect(page.getByTestId("workspace-leaf-navigate")).toBeVisible()
+  await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(3)
   await expect(catalogTab(page)).toContainText(first)
   await expect(page.getByTestId("catalog-list")).toContainText("connector")
 
-  // One catalog at a time: the middle column is a column, not a stack of them.
-  await openConnector(page, second)
+  // As many catalogs as were opened - see P6.
   const catalogs = page.locator('[data-testid^="workspace-tab-catalog:"]')
-  await expect(catalogs).toHaveCount(1)
-  await expect(catalogs).toContainText(second)
+  await openConnector(page, second)
+  await expect(catalogs).toHaveCount(2)
 
-  // Closing it leaves the column, with the hint back in it.
-  const tab = await catalogTab(page).getAttribute("data-testid")
-  if (tab === null) throw new Error("the catalog tab has no test id")
-  await page.getByTestId(tab.replace("workspace-tab-", "workspace-close-")).click()
-  await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(3)
-  await expect(page.getByTestId("navigate-empty")).toBeVisible()
+  // Pressing the same connection again brings its tab forward rather than
+  // opening a second one: a panel is identified by what it shows.
+  await openConnector(page, first)
+  await expect(catalogs).toHaveCount(2)
+
+  // Where a catalog had got to survives being switched away from: the section
+  // keeps the panel of an inactive tab alive.
+  await pickSchema(page, "pg_catalog")
+  await expect(page.getByTestId("catalog-list")).toContainText("pg_class")
+  await catalogs.filter({ hasText: second }).click()
+  await expect(page.getByTestId("catalog-list")).not.toContainText("pg_class")
+  await catalogs.filter({ hasText: first }).click()
+  await expect(page.getByTestId("catalog-list")).toContainText("pg_class")
+
+  // Closing the last of them takes the column off the screen again.
+  for (const name of [first, second]) {
+    const tab = await catalogs.filter({ hasText: name }).getAttribute("data-testid")
+    if (tab === null) throw new Error("the catalog tab has no test id")
+    await page.getByTestId(tab.replace("workspace-tab-", "workspace-close-")).click()
+  }
+  await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(2)
+  await expect(page.getByTestId("workspace-scene")).toBeVisible()
 
   for (const name of [first, second]) {
     await deleteConnector(page, name)
     await expect(connectorRow(page, name)).toHaveCount(0)
   }
+})
+
+test("the scene says what to do at each stage", async ({ page }) => {
+  const name = `e2e-scene-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+
+  // With nothing to connect to. The list is answered for here rather than
+  // emptied on the server: every scenario shares one account.
+  await page.route(
+    (url) => url.pathname === "/api/v1/connectors/",
+    async (route) => {
+      if (route.request().method() !== "GET") return await route.fallback()
+      await route.fulfill({ json: { data: [], count: 0 } })
+    }
+  )
+  await page.reload()
+  await expect(page.getByTestId("workspace-scene")).toHaveAttribute("data-stage", "no-connections")
+
+  // A real button, here, rather than a line pointing at the plus on the left.
+  await page.getByTestId("scene-add-connector").click()
+  await expect(page.getByTestId("adapter-catalog")).toBeVisible()
+  await page.keyboard.press("Escape")
+
+  await page.unrouteAll({ behavior: "ignoreErrors" })
+  await page.reload()
+  await createPostgresConnector(page, name)
+  await expect(page.getByTestId("workspace-scene")).toHaveAttribute("data-stage", "pick-connection")
+
+  await openConnector(page, name)
+  await expect(page.getByTestId("workspace-scene")).toHaveAttribute("data-stage", "pick-node")
+
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+  await expect(page.getByTestId("workspace-scene")).toHaveCount(0)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("the list says which connections are open and which is being read", async ({ page }) => {
+  const first = `e2e-open-a-${Date.now()}`
+  const second = `e2e-open-b-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, first)
+  await createPostgresConnector(page, second)
+
+  await openConnector(page, first)
+  await openConnector(page, second)
+
+  // Both are open, and the one whose catalog is showing says so fully. See P7.
+  await expect(connectorRow(page, first)).toHaveClass(/connector-list__row--open/)
+  await expect(connectorRow(page, second)).toHaveClass(/connector-list__row--selected/)
+
+  await page.locator('[data-testid^="workspace-tab-catalog:"]').filter({ hasText: first }).click()
+  await expect(connectorRow(page, first)).toHaveClass(/connector-list__row--selected/)
+  await expect(connectorRow(page, second)).not.toHaveClass(/connector-list__row--selected/)
+  await expect(connectorRow(page, second)).toHaveClass(/connector-list__row--open/)
+
+  for (const name of [first, second]) {
+    await deleteConnector(page, name)
+    await expect(connectorRow(page, name)).toHaveCount(0)
+  }
+})
+
+test("the tab of connections cannot be taken to another column", async ({ page }) => {
+  const name = `e2e-drag-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  const tab = page.getByTestId("workspace-tab-connectors")
+  const work = page.getByTestId("workspace-leaf-work")
+  const from = await tab.boundingBox()
+  const onto = await work.boundingBox()
+  if (from === null || onto === null) throw new Error("the tab or the column has no box")
+
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(onto.x + onto.width / 2, onto.y + onto.height / 2, { steps: 12 })
+  // Nothing is offered, so nothing is promised before the button comes up.
+  await expect(work.locator(".workspace-leaf__zone")).toHaveCSS("display", "none")
+  await page.mouse.up()
+
+  // Still where it was, and the screen is still three columns. See P1 and P3.
+  await expect(
+    page.getByTestId("workspace-leaf-sources").getByTestId("workspace-tab-connectors")
+  ).toBeVisible()
+  await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(3)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
 test("tables stack as tabs in the right column and survive a reload", async ({ page }) => {
@@ -173,7 +287,11 @@ test("tables stack as tabs in the right column and survive a reload", async ({ p
   await expect(rowsTabs(page)).toHaveCount(1)
   await openNode(page, "pg_namespace")
   await expect(rowsTabs(page)).toHaveCount(2)
-  await expect(page.getByTestId("work-empty")).toHaveCount(0)
+  await expect(page.getByTestId("workspace-scene")).toHaveCount(0)
+
+  // A data tab says whose it is: two connections of one type are alike, and
+  // the right-hand column now holds tabs from several of them. See P8.
+  await expect(rowsTabs(page).first()).toContainText(name)
 
   // Three columns still, so the tables went beside each other and not on top
   // of the list that opened them.

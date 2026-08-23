@@ -31,3 +31,42 @@ export function dropZoneAt(rect: Rect, x: number, y: number): DropZone {
   }
   return horizontal ?? vertical ?? "center"
 }
+
+/**
+ * What a section will take from the drag now in progress.
+ *
+ * Two facts and no notion of what a panel is: the engine compares two opaque
+ * role strings and counts panels, exactly as `leafForKind` does. See P1.
+ */
+export interface DropAdmission {
+  /** Whether the role of the dragged panel is the role this section takes. */
+  accepts: boolean
+  /** How many panels the section would hold once the dragged one has left it. */
+  remaining: number
+}
+
+/**
+ * The zone a section will honour, or null for one that refuses.
+ *
+ * Null rather than a silent fallback: a zone that is not offered is not
+ * highlighted either, and refusing after the button is released is worse than
+ * never promising. See P1.
+ */
+export function admittedZone(zone: DropZone, admission: DropAdmission): DropZone | null {
+  if (!admission.accepts) return null
+  // A side that would leave the target with nothing is not a split - it is
+  // the same panel in the same place beside an empty half. What the gesture
+  // can still mean is "put it here". See P3.
+  if (zone !== "center" && admission.remaining === 0) return "center"
+  return zone
+}
+
+/** Where a dragged panel would land here, once the section has had its say. */
+export function dropZoneFor(
+  rect: Rect,
+  x: number,
+  y: number,
+  admission: DropAdmission
+): DropZone | null {
+  return admittedZone(dropZoneAt(rect, x, y), admission)
+}

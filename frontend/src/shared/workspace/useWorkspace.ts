@@ -4,6 +4,8 @@ import type { ZodType } from "zod"
 
 import { workspaceKey } from "./context"
 import type { PanelLook, WorkspaceContext } from "./context"
+import { admittedZone } from "./dropZone"
+import type { DropAdmission } from "./dropZone"
 import { nextId } from "./model"
 import type { LayoutNode, NodeId, PanelId } from "./model"
 import { parseWorkspace, serializeWorkspace } from "./persist"
@@ -130,6 +132,26 @@ export function useWorkspace<P extends { id: string }>(
     panels.value = panels.value.filter((panel) => panel.id !== panelId)
   }
 
+  /**
+   * Whether a section takes a panel, and what it would keep without it.
+   *
+   * The panel is a parameter rather than read from `dragging`, so that the
+   * drop applies the very answer the highlight was drawn from: `endDrag`
+   * clears the drag before it decides anything.
+   */
+  function admissionFor(leafId: NodeId, panelId: PanelId | null): DropAdmission {
+    const leaf = leavesOf(tree.value).find((one) => one.id === leafId)
+    const panel = panelId === null ? undefined : panelOf(panelId)
+    if (leaf === undefined || panel === undefined) return { accepts: false, remaining: 0 }
+    return {
+      // Two opaque strings compared, exactly as placement compares them: a
+      // section with no role of its own takes nothing, which is why a split
+      // hands its role on. See P1 and P2.
+      accepts: leaf.accepts === options.kindOf(panel),
+      remaining: leaf.panels.filter((id) => id !== panelId).length,
+    }
+  }
+
   function lookOf(panelId: PanelId): PanelLook {
     const panel = panelOf(panelId)
     return panel === undefined ? { title: panelId, icon: "help" } : options.look(panel)
@@ -158,6 +180,7 @@ export function useWorkspace<P extends { id: string }>(
       return options.component(panel)
     },
     emptyOf: (accepts) => options.empty?.(accepts) ?? null,
+    admissionOf: (leafId) => admissionFor(leafId, dragging.value),
     collapsedOf: (panelId) => {
       const panel = panelOf(panelId)
       return panel === undefined ? null : (options.collapsed?.(panel) ?? null)
@@ -176,8 +199,8 @@ export function useWorkspace<P extends { id: string }>(
       if (tree.value.kind === "leaf") return
       tree.value = setCollapsed(tree.value, leafId, !isCollapsed(tree.value, leafId))
     },
-    resize: (splitId, index, delta, minPercent) => {
-      tree.value = resizeSplit(tree.value, splitId, index, delta, minPercent)
+    resize: (splitId, beforeIndex, afterIndex, delta, minPercent) => {
+      tree.value = resizeSplit(tree.value, splitId, beforeIndex, afterIndex, delta, minPercent)
     },
     startDrag: (panelId) => {
       dragging.value = panelId
@@ -186,7 +209,11 @@ export function useWorkspace<P extends { id: string }>(
       const panelId = dragging.value
       dragging.value = null
       if (panelId === null || targetLeafId === null || zone === null) return
-      tree.value = movePanel(tree.value, panelId, targetLeafId, zone, nextId("leaf"))
+      // The same two rules the highlight was drawn from, applied to the same
+      // answer: what is shown and what happens cannot be allowed to differ.
+      const allowed = admittedZone(zone, admissionFor(targetLeafId, panelId))
+      if (allowed === null) return
+      tree.value = movePanel(tree.value, panelId, targetLeafId, allowed, nextId("leaf"))
     },
   }
 

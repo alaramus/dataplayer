@@ -46,8 +46,11 @@
   /* Nothing has been said yet — the dot of a connection nobody checked. */
   --dp-idle: rgba(0, 0, 0, 0.2);
 
-  /* Chosen: the row whose catalog is showing, the tile that is picked. */
+  /* Chosen: the row whose catalog is showing, the tile that is picked. And
+     the same thing said quietly: a connection with a catalog open somewhere,
+     which is not the one being looked at. */
   --dp-selected: rgba(25, 118, 210, 0.1);
+  --dp-selected-quiet: rgba(25, 118, 210, 0.05);
   --dp-link: rgba(25, 118, 210, 0.9);
   --dp-focus-border: rgba(25, 118, 210, 0.5);
 
@@ -83,6 +86,7 @@ body.body--dark {
 
   /* A lighter blue: #1976d2 on #121212 is a stain rather than a highlight. */
   --dp-selected: rgba(100, 181, 246, 0.18);
+  --dp-selected-quiet: rgba(100, 181, 246, 0.08);
   --dp-link: rgba(144, 202, 249, 0.95);
   --dp-focus-border: rgba(100, 181, 246, 0.6);
 

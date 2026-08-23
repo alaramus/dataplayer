@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest"
 
+import { adapterIcon } from "@/features/connectors/adapters"
+
 import {
   catalogPanelId,
   collapsedOf,
@@ -7,6 +9,7 @@ import {
   emptyOf,
   kindOf,
   lookOf,
+  openConnectorIds,
   panelSchema,
   PANEL_ROLES,
   roleOf,
@@ -31,6 +34,8 @@ const samples: Record<PanelKind, Panel> = {
     connectorId: "c1",
     nodeId: "public.orders",
     title: "orders",
+    connectorName: "local pg",
+    adapterType: "postgres",
   },
 }
 
@@ -71,14 +76,45 @@ describe("the panel registry", () => {
     expect(panelSchema.safeParse({ id: "x", kind: "sql" }).success).toBe(false)
   })
 
+  it("says which connection a data tab came from, quietly beside the node", () => {
+    // Two connections of one type look alike, and the node is what the eye
+    // looks for: the name stays in front and the connection follows. See P8.
+    const look = lookOf(samples.rows)
+    expect(look.title).toBe("orders")
+    expect(look.subtitle).toBe("local pg")
+  })
+
+  it("draws a data tab with the icon of its source rather than a generic one", () => {
+    expect(lookOf(samples.rows).icon).toBe(adapterIcon("postgres"))
+    expect(lookOf(samples.rows).icon).not.toBe(lookOf(samples.connectors).icon)
+  })
+
+  it("refuses a rows panel that does not say whose it is", () => {
+    expect(
+      panelSchema.safeParse({
+        id: "x",
+        kind: "rows",
+        connectorId: "c1",
+        nodeId: "n",
+        title: "t",
+      }).success
+    ).toBe(false)
+  })
+
   it("refuses a rows panel with no node", () => {
     expect(
       panelSchema.safeParse({ id: "x", kind: "rows", connectorId: "c1", title: "t" }).success
     ).toBe(false)
   })
 
-  it("says what stands in each column that can be empty", () => {
-    expect(emptyOf(roleOf(samples.catalog))).not.toBeNull()
+  it("has nothing to put in the column of catalogs, so it never appears empty", () => {
+    // A column appears with what goes in it: there is no view of a middle
+    // column with no catalog in it, and the engine leaves such a column off
+    // the screen. See P5.
+    expect(emptyOf(roleOf(samples.catalog))).toBeNull()
+  })
+
+  it("puts the scene in the column of data, which is therefore always there", () => {
     expect(emptyOf(roleOf(samples.rows))).not.toBeNull()
   })
 
@@ -101,6 +137,22 @@ describe("the panel registry", () => {
     /* The engine renders this on every frame; a fresh wrapper each time would
        be a different component each time. */
     expect(collapsedOf(samples.connectors)).toBe(collapsedOf(samples.connectors))
+  })
+
+  it("names the connections that have a catalog open", () => {
+    // The list shows two states now: open, and the one being looked at. See P7.
+    const other = {
+      ...samples.catalog,
+      id: catalogPanelId("c2"),
+      connectorId: "c2",
+    } as Panel
+    expect(openConnectorIds([samples.connectors, samples.catalog, other, samples.rows])).toEqual(
+      new Set(["c1", "c2"])
+    )
+  })
+
+  it("names none while no catalog is open", () => {
+    expect(openConnectorIds([samples.connectors])).toEqual(new Set())
   })
 
   it("gives the same panel of a table the same id every time", () => {

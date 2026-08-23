@@ -41,7 +41,13 @@ const workspace = useWorkspace<DemoPanel>({
     tree: makeSplit(
       "root",
       "row",
-      [makeLeaf("left", ["alpha"]), makeLeaf("main", ["beta", "gamma"])],
+      [
+        // A role each, because a drop is judged by one: a section that names
+        // none takes nothing, and the demo is here to exercise the engine as
+        // the application uses it. See P1.
+        makeLeaf("left", ["alpha"], { accepts: "alpha" }),
+        makeLeaf("main", ["beta", "gamma"], { accepts: "beta" }),
+      ],
       [30, 70]
     ),
     panels: [
@@ -60,7 +66,7 @@ let opened = 0
 function openOne() {
   opened += 1
   const id = `demo-${String(opened)}`
-  workspace.open({ id, kind: "demo", title: `Demo ${String(opened)}` })
+  workspace.open({ id, kind: "beta", title: `Demo ${String(opened)}` })
 }
 </script>
 

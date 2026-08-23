@@ -13,10 +13,14 @@ import { leavesOf } from "./tree"
 /**
  * 2: sections gained a role and the right to stay empty. A layout written
  * before that is one section holding everything, so restoring it would leave
- * the user without the columns the screen now promises. Refused like any other
- * foreign version — see the spec, T6.
+ * the user without the columns the screen now promises.
+ *
+ * 3: a data tab carries the connection it came from, so that it can say whose
+ * it is and draw the icon of its source before the list of connections has
+ * been read. A layout written under 2 holds tabs that cannot. Refused whole,
+ * like any other foreign version — see the spec, T6 and P8.
  */
-export const WORKSPACE_VERSION = 2
+export const WORKSPACE_VERSION = 3
 
 const leafSchema = z.object({
   kind: z.literal("leaf"),

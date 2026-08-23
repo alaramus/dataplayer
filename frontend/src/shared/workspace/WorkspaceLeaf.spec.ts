@@ -21,6 +21,7 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
     lookOf: (panelId) => ({ title: `title ${panelId}`, icon: "square" }),
     componentOf: () => Stub,
     emptyOf: () => Hint,
+    admissionOf: () => ({ accepts: true, remaining: 1 }),
     collapsedOf: () => null,
     activate: () => undefined,
     close: () => undefined,
@@ -46,6 +47,18 @@ describe("a section", () => {
     const wrapper = mountLeaf(contextFor())
     expect(wrapper.get('[data-testid="workspace-tab-p1"]').text()).toContain("title p1")
     expect(wrapper.get('[data-testid="workspace-tab-p2"]').text()).toContain("title p2")
+  })
+
+  it("says quietly whose the panel is, when the feature says so", () => {
+    // Two connections of one type are alike on the screen, and the name of the
+    // node is what the eye looks for - so the subtitle stands beside it rather
+    // than in front of it. See P8.
+    const wrapper = mountLeaf(
+      contextFor({
+        lookOf: (panelId) => ({ title: `title ${panelId}`, icon: "square", subtitle: "prod-db" }),
+      })
+    )
+    expect(wrapper.get('[data-testid="workspace-tab-p1"]').text()).toContain("prod-db")
   })
 
   it("renders only the active panel", () => {
@@ -150,6 +163,25 @@ describe("a section", () => {
     dragging.value = "p1"
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="workspace-dropzone"]').exists()).toBe(true)
+  })
+
+  it("marks where the panel would land when the section takes it", async () => {
+    const wrapper = mountLeaf(contextFor({ dragging: ref<string | null>("p1") }))
+    await wrapper.get('[data-testid="workspace-leaf-a"]').trigger("pointermove")
+    expect(wrapper.get(".workspace-leaf__zone").attributes("style")).not.toContain("display: none")
+  })
+
+  it("marks nothing at all in a section that refuses it", async () => {
+    // A refusal has to be visible before the button is released, and the only
+    // way this screen says it is by not promising anything. See P1.
+    const wrapper = mountLeaf(
+      contextFor({
+        dragging: ref<string | null>("p1"),
+        admissionOf: () => ({ accepts: false, remaining: 1 }),
+      })
+    )
+    await wrapper.get('[data-testid="workspace-leaf-a"]').trigger("pointermove")
+    expect(wrapper.get(".workspace-leaf__zone").attributes("style")).toContain("display: none")
   })
 })
 

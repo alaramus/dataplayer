@@ -17,8 +17,16 @@ import { AppEmptyState, AppIconButton, AppSpinner } from "@/shared/ui"
 const props = defineProps<{
   rows: ConnectorPublic[]
   loading: boolean
-  /** The connection whose catalog is showing, if any. */
+  /** The connection whose catalog is being looked at, if any. */
   selectedId?: string | null
+  /**
+   * The connections that have a catalog open somewhere.
+   *
+   * A quieter version of the same mark rather than a fourth thing in the row:
+   * a row is an icon, a name and a state dot, and there is nothing to add to
+   * it. See P7.
+   */
+  openIds?: ReadonlySet<string>
 }>()
 
 const emit = defineEmits<{
@@ -27,6 +35,7 @@ const emit = defineEmits<{
 }>()
 
 const selected = computed(() => props.selectedId ?? null)
+const open = computed(() => props.openIds ?? new Set<string>())
 </script>
 
 <template>
@@ -51,7 +60,10 @@ const selected = computed(() => props.selectedId ?? null)
       role="button"
       tabindex="0"
       class="connector-list__row"
-      :class="{ 'connector-list__row--selected': connector.id === selected }"
+      :class="{
+        'connector-list__row--open': open.has(connector.id),
+        'connector-list__row--selected': connector.id === selected,
+      }"
       :data-testid="`connector-${connector.name}`"
       @click="emit('open', connector)"
       @keydown.enter="emit('open', connector)"
@@ -93,6 +105,11 @@ const selected = computed(() => props.selectedId ?? null)
 }
 .connector-list__row:hover {
   background: var(--dp-hover);
+}
+/* Open somewhere, and the one being read. The full mark is written after the
+   quiet one so that it wins where both apply. */
+.connector-list__row--open {
+  background: var(--dp-selected-quiet);
 }
 .connector-list__row--selected {
   background: var(--dp-selected);

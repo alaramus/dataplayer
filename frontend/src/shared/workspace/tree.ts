@@ -200,7 +200,12 @@ export function setCollapsed(root: LayoutNode, leafId: NodeId, collapsed: boolea
 }
 
 /**
- * Move the border between `children[index]` and `children[index + 1]`.
+ * Move the border between `children[before]` and `children[after]`.
+ *
+ * Two indices rather than one and its successor: a section with nothing to
+ * show is off the screen, and the two sections a user sees on either side of a
+ * border are then not neighbours in the tree. Everything between them keeps
+ * the width it had, which is what brings it back unchanged. See P4.
  *
  * Sizes are percentages and the limit is pixels, so the caller converts: the
  * component that owns the element knows how wide it is, and this function
@@ -209,7 +214,8 @@ export function setCollapsed(root: LayoutNode, leafId: NodeId, collapsed: boolea
 export function resizeSplit(
   root: LayoutNode,
   splitId: NodeId,
-  index: number,
+  beforeIndex: number,
+  afterIndex: number,
   delta: number,
   minPercent: number
 ): LayoutNode {
@@ -218,8 +224,8 @@ export function resizeSplit(
   const split = nodeAt(root, path)
   if (split === null || split.kind !== "split") return root
 
-  const before = split.sizes[index]
-  const after = split.sizes[index + 1]
+  const before = split.sizes[beforeIndex]
+  const after = split.sizes[afterIndex]
   if (before === undefined || after === undefined) return root
 
   const room = before + after
@@ -227,8 +233,8 @@ export function resizeSplit(
   if (!Number.isFinite(clamped) || clamped <= 0) return root
 
   const sizes = [...split.sizes]
-  sizes[index] = clamped
-  sizes[index + 1] = room - clamped
+  sizes[beforeIndex] = clamped
+  sizes[afterIndex] = room - clamped
 
   const replaced = replaceAt(root, path, { ...split, sizes })
   // Normalised like every other operation. Resizing cannot on its own leave a
@@ -256,7 +262,11 @@ export function splitLeaf(
   if (zone === "center") return addPanel(root, leafId, panelId)
 
   return withLeaf(root, leafId, (leaf) => {
-    const arrival = makeLeaf(newLeafId, [panelId])
+    // The role is inherited and the pin is not. A section with no role takes
+    // nothing at all once P1 holds, so the first split would produce a dead
+    // corner of the screen; a section that may stay empty would leave a trace
+    // behind every split. See P2.
+    const arrival = makeLeaf(newLeafId, [panelId], { accepts: leaf.accepts })
     const children = FIRST.includes(zone) ? [arrival, leaf] : [leaf, arrival]
     return makeSplit(`split-${newLeafId}`, DIRECTION_OF[zone], children, [50, 50])
   })

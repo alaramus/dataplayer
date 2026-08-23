@@ -32,6 +32,7 @@ const rows = computed(() => connectors.data.value?.data ?? [])
         :rows="rows"
         :loading="connectors.isLoading.value"
         :selected-id="workspace.activeConnectorId.value"
+        :open-ids="workspace.openConnectorIds.value"
         @open="workspace.openCatalog"
         @edit="workspace.editConnector($event.id)"
       />

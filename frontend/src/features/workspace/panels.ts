@@ -2,12 +2,12 @@ import { defineComponent, h } from "vue"
 import type { Component, VNode } from "vue"
 import { z } from "zod"
 
+import { adapterIcon } from "@/features/connectors/adapters"
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
 import ConnectorsPanelView from "@/features/workspace/panels/ConnectorsPanel.vue"
-import EmptyNavigateView from "@/features/workspace/panels/EmptyNavigate.vue"
-import EmptyWorkView from "@/features/workspace/panels/EmptyWork.vue"
 import RowsPanelView from "@/features/workspace/panels/RowsPanel.vue"
+import WorkspaceSceneView from "@/features/workspace/panels/WorkspaceScene.vue"
 import type { PanelLook } from "@/shared/workspace"
 
 /**
@@ -35,6 +35,11 @@ export const panelSchema = z.discriminatedUnion("kind", [
     connectorId: z.string(),
     nodeId: z.string(),
     title: z.string(),
+    // Both carried on the panel for the reason the catalog carries its type:
+    // a layout restored from storage draws the tab before the list of
+    // connections has been read. See P8.
+    connectorName: z.string(),
+    adapterType: z.string(),
   }),
 ])
 
@@ -52,6 +57,19 @@ export const rowsPanelId = (connectorId: string, nodeId: string) => `rows:${conn
 
 export function kindOf(panel: Panel): PanelKind {
   return panel.kind
+}
+
+/**
+ * The connections that have a catalog open.
+ *
+ * A row of the list is now in one of two states — open, and the one being
+ * looked at — and the first of them is a fact about the panels rather than
+ * about the tree. See P7.
+ */
+export function openConnectorIds(panels: Panel[]): Set<string> {
+  return new Set(
+    panels.filter((panel) => panel.kind === "catalog").map((panel) => panel.connectorId)
+  )
 }
 
 /**
@@ -78,16 +96,21 @@ export function roleOf(panel: Panel): PanelRole {
   }
 }
 
-/** What a column shows before anything has been opened in it. */
+/**
+ * What a column shows before anything has been opened in it.
+ *
+ * Only the column of data has anything: the middle column with no catalog in
+ * it is not a column yet, so it answers null and the engine leaves it off the
+ * screen. The scene in the right-hand column carries the whole first run —
+ * see P4 and P5.
+ */
 export function emptyOf(accepts: string | null): Component | null {
   switch (accepts) {
-    case "navigate":
-      return EmptyNavigateView
     case "work":
-      return EmptyWorkView
+      return WorkspaceSceneView
     default:
-      // "sources" among others: its panel cannot be closed, so it is never
-      // empty, and a hint for it would be a hint nobody can reach.
+      // "sources" and "navigate": the first is never empty, because its panel
+      // cannot be closed, and the second appears together with a catalog.
       return null
   }
 }
@@ -113,7 +136,14 @@ export function lookOf(panel: Panel): PanelLook {
     case "catalog":
       return { title: panel.title, icon: "account_tree" }
     case "rows":
-      return { title: panel.title, icon: "table_chart" }
+      // The icon of the source rather than a generic grid: with several
+      // catalogs open the right-hand column holds tabs from several
+      // connections at once.
+      return {
+        title: panel.title,
+        subtitle: panel.connectorName,
+        icon: adapterIcon(panel.adapterType),
+      }
   }
 }
 

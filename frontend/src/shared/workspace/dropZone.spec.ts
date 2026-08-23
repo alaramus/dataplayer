@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { dropZoneAt } from "./dropZone"
+import { dropZoneAt, dropZoneFor } from "./dropZone"
 
 const rect = { left: 0, top: 0, width: 400, height: 200 }
 
@@ -45,5 +45,30 @@ describe("the zone a pointer is over", () => {
 
   it("answers the centre for a rectangle with no size", () => {
     expect(dropZoneAt({ left: 0, top: 0, width: 0, height: 0 }, 0, 0)).toBe("center")
+  })
+})
+
+describe("what a section will take", () => {
+  const anywhere = { accepts: true, remaining: 1 }
+
+  it("refuses every zone of a section that takes another role", () => {
+    expect(dropZoneFor(rect, 200, 100, { accepts: false, remaining: 1 })).toBeNull()
+    expect(dropZoneFor(rect, 20, 100, { accepts: false, remaining: 1 })).toBeNull()
+  })
+
+  it("keeps the zone the pointer is over when the roles agree", () => {
+    expect(dropZoneFor(rect, 20, 100, anywhere)).toBe("left")
+    expect(dropZoneFor(rect, 200, 100, anywhere)).toBe("center")
+  })
+
+  it("offers the centre instead of a side when the split would leave nothing behind", () => {
+    // The only tab of a section dragged to its own edge, and anything at all
+    // dragged to the edge of an empty one: one rule, two cases. See P3.
+    expect(dropZoneFor(rect, 20, 100, { accepts: true, remaining: 0 })).toBe("center")
+    expect(dropZoneFor(rect, 200, 190, { accepts: true, remaining: 0 })).toBe("center")
+  })
+
+  it("still takes it as a tab when there would be nothing left", () => {
+    expect(dropZoneFor(rect, 200, 100, { accepts: true, remaining: 0 })).toBe("center")
   })
 })

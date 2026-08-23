@@ -4,7 +4,7 @@ import type { CSSProperties } from "vue"
 
 import { workspaceKey } from "./context"
 import type { WorkspaceContext } from "./context"
-import { dropZoneAt } from "./dropZone"
+import { dropZoneFor } from "./dropZone"
 import type { DropZone, LeafNode } from "./model"
 
 const props = defineProps<{ leaf: LeafNode; collapsible: boolean }>()
@@ -46,7 +46,15 @@ const closableOthers = computed(
 
 function onPointerMove(event: PointerEvent) {
   if (workspace.dragging.value === null || element.value === null) return
-  zone.value = dropZoneAt(element.value.getBoundingClientRect(), event.clientX, event.clientY)
+  // Null for a section that refuses what is being dragged, and the overlay
+  // draws nothing for null: the only thing this screen says about a refusal
+  // is that it does not offer. See P1.
+  zone.value = dropZoneFor(
+    element.value.getBoundingClientRect(),
+    event.clientX,
+    event.clientY,
+    workspace.admissionOf(props.leaf.id)
+  )
 }
 
 function onPointerUp() {
@@ -117,6 +125,10 @@ const overlayStyle = computed((): CSSProperties => {
             size="16px"
           />
           <span class="workspace-leaf__title">{{ workspace.lookOf(panelId).title }}</span>
+          <span
+            v-if="workspace.lookOf(panelId).subtitle"
+            class="workspace-leaf__subtitle"
+          >{{ workspace.lookOf(panelId).subtitle }}</span>
           <span
             v-if="workspace.lookOf(panelId).closable !== false"
             class="workspace-leaf__close"
@@ -259,6 +271,15 @@ const overlayStyle = computed((): CSSProperties => {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 160px;
+}
+/* Whose tab this is. It goes first when the room runs out: the name of the
+   node is what is being looked for, and this only tells two alike apart. */
+.workspace-leaf__subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 96px;
+  color: var(--dp-text-faint);
 }
 /* The tabs take the room, so the handles sit at the end without a margin of
    their own - which two of them beside each other would fight over. */

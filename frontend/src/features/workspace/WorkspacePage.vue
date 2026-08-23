@@ -10,18 +10,21 @@ import {
   draftWindowId,
 } from "@/features/connectors/windows"
 import { useConnectors } from "@/features/connectors/api"
+import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import {
   catalogPanelId,
   collapsedOf,
   componentOf,
   emptyOf,
   lookOf,
+  openConnectorIds,
   panelSchema,
   roleOf,
   rowsPanelId,
 } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
 import { workspaceActionsKey } from "@/features/workspace/state"
+import type { OpenRowsRequest } from "@/features/workspace/state"
 import { AppLayout, useConfirm } from "@/shared/ui"
 import { useWindows, WindowHost } from "@/shared/windows"
 import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
@@ -59,14 +62,22 @@ const workspace = useWorkspace<Panel>({
 })
 
 /**
- * Which connection the catalog is showing.
+ * Which connection is being looked at, and which have a catalog open at all.
  *
- * Read off the panels rather than kept beside them: one catalog is open at a
- * time by T4, and a second record of which one could disagree with the first.
+ * Read off the layout rather than kept beside it: a second record of where the
+ * user is could disagree with the tree, and the tree cannot disagree with
+ * itself. See P7.
  */
-const activeConnectorId = computed(
-  () => workspace.panels.value.find((panel) => panel.kind === "catalog")?.connectorId ?? null
-)
+const activeConnectorId = computed(() => {
+  const panelId = activeCatalogPanel(
+    workspace.context.tree.value,
+    workspace.context.focusedLeaf.value
+  )
+  const panel = workspace.panels.value.find((one) => one.id === panelId)
+  return panel?.kind === "catalog" ? panel.connectorId : null
+})
+
+const openConnectors = computed(() => openConnectorIds(workspace.panels.value))
 
 /**
  * The windows of connections, owned by the page.
@@ -159,27 +170,24 @@ function pickAdapterType(adapterType: string) {
 
 provide(workspaceActionsKey, {
   activeConnectorId,
+  openConnectorIds: openConnectors,
   openCatalog: (connector: ConnectorPublic) => {
-    // replace: the middle column holds one catalog. Dropping this flag is all
-    // that stands between here and two catalogs side by side — see T4.
-    workspace.open(
-      {
-        id: catalogPanelId(connector.id),
-        kind: "catalog",
-        connectorId: connector.id,
-        title: connector.name,
-        adapterType: connector.adapter_type,
-      },
-      { replace: true }
-    )
-  },
-  openRows: (connectorId: string, nodeId: string, title: string) => {
+    // As many catalogs as were opened: a panel is identified by what it shows,
+    // so pressing the same connection again brings its tab forward rather than
+    // opening a second one. See P6.
     workspace.open({
-      id: rowsPanelId(connectorId, nodeId),
+      id: catalogPanelId(connector.id),
+      kind: "catalog",
+      connectorId: connector.id,
+      title: connector.name,
+      adapterType: connector.adapter_type,
+    })
+  },
+  openRows: (request: OpenRowsRequest) => {
+    workspace.open({
+      id: rowsPanelId(request.connectorId, request.nodeId),
       kind: "rows",
-      connectorId,
-      nodeId,
-      title,
+      ...request,
     })
   },
   editConnector: (connectorId: string | null) => {

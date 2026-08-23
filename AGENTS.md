@@ -53,10 +53,16 @@ that are ticked, so the screen has no knowledge of any particular source.
 Credentials are encrypted at rest and never leave the server, and a source that
 has connections keeps them between requests. Every screen is built from one
 component kit, and what a screen may not reach for is a lint error rather than
-a convention. All of that happens in one screen: three columns that are always
-there — the connections, the catalog of the one picked, and the rows of a node
-in tabs beside each other — resizable, bounded by the window so each scrolls
-inside itself, and the layout a user arrives at is the one they left.
+a convention. All of that happens in one screen, and a column of it appears together with
+what goes in it: the connections, the catalog of every connection that was
+opened, and the rows of a node in tabs beside each other. The middle column is
+not there until a catalog is, and the right-hand one, while it is empty, says
+what to do next and offers the button that does it. A tab of data carries the
+icon of its source and, quietly beside the name of the node, the connection it
+came from; the list of connections marks the ones that are open and, fully, the
+one being read. Columns are resizable and bounded by the window so each scrolls
+inside itself, a tab can only be taken to a column that takes its kind, and the
+layout a user arrives at is the one they left.
 
 What a user fills in now follows the way they connect. The options of a source
 type may be a choice of shapes rather than one, and the window draws what every
@@ -179,9 +185,10 @@ frontend/src/
 │   ├── windows/         floating windows: geometry.ts is pure, the frame and
 │   │                    the host see one injected context
 │   ├── workspace/       the panel engine: a layout tree, tabs, drag and drop,
-│   │                    sections that carry a role and outlive their panels;
-│   │                    tree.ts, dropZone.ts, placement.ts and persist.ts are
-│   │                    pure, the components see one injected context
+│   │                    sections that carry a role, admit what matches it and
+│   │                    outlive their panels; tree.ts, dropZone.ts,
+│   │                    placement.ts, shares.ts and persist.ts are pure, the
+│   │                    components see one injected context
 │   └── testing/         helpers for tests, not shipped by any screen
 ├── stores/              Pinia: client-side state only — the session, the
 │                        theme, and what the last connection check said
@@ -197,7 +204,9 @@ frontend/src/
     │                    starts a new one, and the window that registers one;
     │                    adapterSearch.ts is a pure mapper
     ├── workspace/       the panels, the registry that names them and the role
-    │                    that puts each in one of the three columns
+    │                    that puts each in one of the three columns; the scene
+    │                    that stands in the empty one, and scene.ts and
+    │                    activeCatalog.ts, which are pure
     └── dev/             /ui-kit and /workspace-demo, dev builds only
 ```
 
@@ -610,7 +619,7 @@ mutated in place and carried parent back-pointers, so undoing anything needed a
 history of layouts and a command language of nine verbs, and a node it could
 not remove had to be left in place marked `fake`.
 
-Three consequences worth stating separately:
+Seven consequences worth stating separately:
 
 - **A column is a role, not a place something was dragged to.** A section
   carries `accepts`, the role of panel that lands in it, and `pinned`, which
@@ -620,6 +629,37 @@ Three consequences worth stating separately:
   means — and what makes a source type that brings its own view a new kind
   with an existing role rather than a change to the layout. Full reasoning in
   `docs/superpowers/specs/2026-08-22-three-column-workspace-design.md`.
+- **A role is also what a section will take.** `accepts` answered one question
+  — where a newly opened panel goes; it now answers the second as well, and a
+  panel may only be dragged into a section whose role matches it. The engine
+  still compares two opaque strings and never reads them. A section split off
+  another inherits its role, or the first split would make a corner of the
+  screen that takes nothing at all; it does not inherit `pinned`, which belongs
+  to a column rather than to every section. A side that would leave the target
+  holding nothing is offered as its centre instead — one rule covering both the
+  only tab dragged to its own edge and anything dragged to the edge of an empty
+  section — and that is also what keeps the tab of connections where it is,
+  without a flag saying so. Where a drop is refused, nothing is highlighted:
+  the refusal has to be visible before the button comes up. Full reasoning in
+  `docs/superpowers/specs/2026-08-23-progressive-workspace-design.md`.
+- **A column appears together with what goes in it.** A pinned section holding
+  nothing, for which the feature has no empty view, is not rendered, and its
+  share of the row goes whole to the next column that is — `sizes` in the tree
+  are untouched, so the width comes back exactly as the user left it, and the
+  border a user drags is then between two sections that are not neighbours in
+  the tree. Only the right-hand column has an empty view: the scene, which
+  derives its stage from the list of connections and the catalog being read,
+  says what to do next, and carries a real button rather than pointing at one
+  elsewhere on the screen. Three blank columns on the first run looked broken
+  rather than empty.
+- **There are as many catalogs as were opened.** The flag that made the middle
+  column hold one is gone, which is what the flag was for. A connection opens
+  its catalog once, because a panel is identified by what it shows; which
+  catalog is being read is asked of the tree — the sections that take
+  `navigate`, the focused one first, its active tab — rather than kept beside
+  it. The list of connections then has two states instead of one, open and
+  being read, said with two strengths of the same highlight rather than a
+  fourth thing in the row.
 - **A column pushed aside may keep something on screen.** The engine knows the
   section is narrow and asks the feature what is worth that width, the way it
   asks what stands in an empty one; only the connections answer, with their
@@ -877,6 +917,21 @@ into one about a set. A connection lost its row menu to the one window its icon
 opens. Full reasoning in
 `docs/superpowers/specs/2026-08-22-catalog-list-design.md`.
 
+Then the screen was worked in, and five things it got wrong were put right: a
+column now appears together with what goes in it rather than waiting blank, a
+role decides what may be dragged into a section as well as what opens there, a
+split that would leave a section empty is not a split, catalogs are as many as
+were opened, and a data tab says whose it is. Full reasoning in
+`docs/superpowers/specs/2026-08-23-progressive-workspace-design.md`.
+
+Two things it settled are worth carrying into 7. What a section will take is
+the same opaque comparison as where a panel opens, so a later view of a later
+source type is admitted or refused without the engine learning anything about
+it. And the empty view of a column is where a screen says what to do next: the
+scene derives its stage from what already exists — the list of connections and
+the catalog being read — and keeps no state of its own, which is the shape any
+later "what now" should take.
+
 The shared UI kit is done, ahead of 7 rather than as part of it: every screen
 now builds from `shared/ui`, and a lint rule keeps the next one from going
 around it (D11). A new screen starts by looking at `/ui-kit`.
@@ -986,18 +1041,32 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   groupings on, the row carries the name of its grouping and its size or row
   estimate, and the name is elided first. The columns are resizable, which is
   the only answer today.
-- **One catalog at a time.** Opening a connection closes the catalog of the
-  previous one, so the expanded tree of the one before is lost on the way
-  back. The panel is still identified by its connection, so allowing two
-  catalogs side by side is dropping one flag at one call site — but nothing
-  offers that today.
 - **A source that has no catalog has not been seen.** Both source types
-  implement every capability, so the middle column has never had to say "this
-  one has nothing to browse". The mechanism does not stand in the way — such a
-  source opens no panel of that role and the column keeps its hint — but the
-  branch is untested. The server does report a type's capabilities now (D13),
-  so the catalog says so before a connection is made; the middle column still
-  has no wording for it.
+  implement every capability, so nothing has yet had to say "this one has
+  nothing to browse". The mechanism does not stand in the way — such a source
+  opens no panel of that role, and the middle column simply does not appear —
+  but the branch is untested, and there is still no wording for it. The server
+  does report a type's capabilities now (D13), so the catalog of source types
+  says so before a connection is made.
+- **A refusal is visible only as the absence of a highlight.** Why a tab may
+  not be brought here is not explained by the screen: it just does not offer.
+- **A hidden column is still in the tree.** It shows in localStorage and in a
+  layout test although it is not on the screen. That is what brings its width
+  back, but "what I see" and "what is written" differ here.
+- **The freed share goes to the neighbour on one side, not by meaning.** Right
+  for a row of three columns, arbitrary for a split from top to bottom, where
+  "the next one along" means "the one below".
+- **The connection named on a data tab is written when it is opened.** Rename
+  the connection and the tab lags until it is opened again — which is already
+  true of the title of a catalog tab.
+- **The stored layout is discarded once**, on the move to version 3, because a
+  data tab now carries the connection it came from.
+- **The scene knows three stages and no more.** A source that cannot be
+  browsed never reaches it: the middle column simply does not appear for one,
+  and there is still nothing that says so in words.
+- **A row of the list carries four marks.** The icon, the name, the state dot
+  and the highlight that says it is open. On a long list with several catalogs
+  open the column becomes busy, and nobody has measured that.
 - **The state dot only knows about this session.** A connection shows grey
   until the user checks it; nothing checks in the background, because that
   would mean opening a connection to every source on every load. The record is

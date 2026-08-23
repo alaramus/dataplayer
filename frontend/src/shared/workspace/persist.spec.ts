@@ -64,6 +64,13 @@ describe("a stored workspace", () => {
     expect(parseWorkspace(raw, panelSchema)).toBeNull()
   })
 
+  // A data tab now carries the connection it came from, so a layout written
+  // before that would restore tabs that cannot say whose they are.
+  it("is refused when it was written before a data tab named its connection", () => {
+    const raw = JSON.stringify({ version: 2, tree, panels })
+    expect(parseWorkspace(raw, panelSchema)).toBeNull()
+  })
+
   it("is refused when there is nothing stored", () => {
     expect(parseWorkspace(null, panelSchema)).toBeNull()
   })

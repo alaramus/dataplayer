@@ -48,7 +48,13 @@ function onOpen(node: ListNode) {
     return
   }
   if (node.readable) {
-    workspace.openRows(props.connectorId, node.id, node.label)
+    workspace.openRows({
+      connectorId: props.connectorId,
+      nodeId: node.id,
+      title: node.label,
+      connectorName: props.title,
+      adapterType: props.adapterType,
+    })
     return
   }
   // Said rather than left silent: a picture opens no tab, and without a word
