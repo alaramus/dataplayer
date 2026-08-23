@@ -11,27 +11,9 @@ x-backend-environment: &backend-environment
   SMTP_PASSWORD: ${SMTP_PASSWORD:-}
   EMAILS_FROM_EMAIL: ${EMAILS_FROM_EMAIL}
   DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Variable not set}@db:5432/app
-  SENTRY_DSN: ${SENTRY_DSN:-}
   USER_STORAGE_ROOT: /data/users
 
 services:
-
-  proxy:
-    image: traefik:3.6
-    volumes:
-      # Add Docker as a mounted volume, so that Traefik can read the labels of other services
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    command:
-      # Enable Docker in Traefik, so that it reads labels from Docker services
-      - --providers.docker
-      # Do not expose all Docker services, only the ones explicitly exposed
-      - --providers.docker.exposedbydefault=false
-      # Create an entrypoint "http" listening on port 80
-      - --entrypoints.http.address=:80
-      # Enable the access log, with HTTP requests
-      - --accesslog
-      # Enable the Traefik log, for configurations and errors
-      - --log
 
   db:
     image: postgres:18
@@ -53,14 +35,6 @@ services:
       - db
     environment:
       - ADMINER_DESIGN=pepa-linha-dark
-    labels:
-      # Enable Traefik for this service
-      - traefik.enable=true
-      # Route HTTP traffic for the Adminer subdomain
-      - traefik.http.routers.adminer-http.rule=Host(`adminer.${DOMAIN:-localhost}`)
-      - traefik.http.routers.adminer-http.entrypoints=http
-      # Define the port inside of the Docker service to use
-      - traefik.http.services.adminer.loadbalancer.server.port=8080
 
   # Everything the database needs before the application may serve a request:
   # wait for the server, migrate to head, create the first superuser. It runs
@@ -106,16 +80,6 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    labels:
-      # Enable Traefik for this service
-      - traefik.enable=true
-
-      # Define the port inside of the Docker service to use
-      - traefik.http.services.backend.loadbalancer.server.port=8000
-
-      # Route HTTP traffic for this domain
-      - traefik.http.routers.backend-http.rule=Host(`${DOMAIN:-localhost}`)
-      - traefik.http.routers.backend-http.entrypoints=http
 
 volumes:
   app-db-data:

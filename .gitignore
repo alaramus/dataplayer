@@ -4,8 +4,7 @@
 frontend/.env
 
 .idea
-.vscode/*
-!.vscode/extensions.json
+.vscode/
 
 node_modules/
 .venv/
