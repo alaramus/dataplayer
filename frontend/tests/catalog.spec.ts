@@ -40,6 +40,15 @@ test("the head of the catalog opens the window of its connection", async ({ page
   await createPostgresConnector(page, name)
   await openConnector(page, name)
 
+  // The icon of the source, the path and the menu share one line: a column
+  // this narrow cannot afford a stack of them, and a unit test cannot tell
+  // one line from two.
+  const icon = await page.getByTestId("catalog-connector").boundingBox()
+  const path = await page.getByTestId("catalog-path").boundingBox()
+  const middle = (box: { y: number; height: number } | null) =>
+    box === null ? 0 : box.y + box.height / 2
+  expect(Math.abs(middle(icon) - middle(path))).toBeLessThan(4)
+
   // Reachable from here as well as from the list, because the column that
   // holds the list can be collapsed.
   await page.getByTestId("catalog-connector").click()

@@ -77,7 +77,48 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
           data-testid="catalog-connector"
           @click="workspace.editConnector(connectorId)"
         />
-        <span class="catalog-panel__title">{{ title }}</span>
+        <!-- Where we are, on the same line as the icon of the connection and
+             the menu: three things about this connection, not a stack of
+             lines. Starting at a home button rather than at the name of the
+             connection — the name is on the tab above, and what the first step
+             of a path means is "back to the top". Whether this is a path or a
+             set of groupings follows from the kinds of node the level holds,
+             never from the type of the source. -->
+        <div
+          class="catalog-panel__crumbs"
+          data-testid="catalog-path"
+        >
+          <AppIconButton
+            icon="home"
+            tooltip="The top of this connection"
+            :disable="level.path.value.length < 2"
+            data-testid="catalog-home"
+            @click="level.goTo(0)"
+          />
+          <!-- The trail scrolls and the home button does not: a path deep
+               enough to run out of the column must not carry away the one
+               step that always gets back. -->
+          <div class="catalog-panel__trail">
+            <template
+              v-for="(crumb, index) in level.path.value.slice(1)"
+              :key="index"
+            >
+              <q-icon
+                name="chevron_right"
+                size="14px"
+                class="catalog-panel__chevron"
+              />
+              <span
+                class="catalog-panel__crumb"
+                :class="{ 'catalog-panel__crumb--last': index === level.path.value.length - 2 }"
+                role="button"
+                tabindex="0"
+                @click="level.goTo(index + 1)"
+                @keydown.enter="level.goTo(index + 1)"
+              >{{ crumb.label }}</span>
+            </template>
+          </div>
+        </div>
 
         <CatalogActions
           :connector-id="connectorId"
@@ -87,42 +128,6 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
           :checked-label="checkedLabel"
           @done="afterAction"
         />
-      </div>
-
-      <!-- Where we are, starting at a home button rather than at the name of
-           the connection: the name is already on the tab and in the bar above,
-           and what the first step of a path means is "back to the top".
-           Whether this is a path or a set of groupings follows from the kinds
-           of node the level holds, never from the type of the source. -->
-      <div
-        class="catalog-panel__crumbs"
-        data-testid="catalog-path"
-      >
-        <AppIconButton
-          icon="home"
-          tooltip="The top of this connection"
-          :disable="level.path.value.length < 2"
-          data-testid="catalog-home"
-          @click="level.goTo(0)"
-        />
-        <template
-          v-for="(crumb, index) in level.path.value.slice(1)"
-          :key="index"
-        >
-          <q-icon
-            name="chevron_right"
-            size="14px"
-            class="catalog-panel__chevron"
-          />
-          <span
-            class="catalog-panel__crumb"
-            :class="{ 'catalog-panel__crumb--last': index === level.path.value.length - 2 }"
-            role="button"
-            tabindex="0"
-            @click="level.goTo(index + 1)"
-            @keydown.enter="level.goTo(index + 1)"
-          >{{ crumb.label }}</span>
-        </template>
       </div>
 
       <AppSelect
@@ -185,23 +190,34 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
   align-items: center;
   gap: 4px;
 }
-.catalog-panel__title {
-  flex: 1;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .catalog-panel__crumbs {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
-  margin: 2px 0;
-  padding: 0 6px;
+  flex: 1;
+  min-width: 0;
+  padding-right: 6px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.04);
   font-size: 12px;
+}
+.catalog-panel__trail {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  /* No bar: it would be thicker than the line it sits in. The path is
+     scrolled by wheel or touch, and every step of it is also a click. */
+  scrollbar-width: none;
+}
+.catalog-panel__trail::-webkit-scrollbar {
+  display: none;
+}
+.catalog-panel__crumb,
+.catalog-panel__chevron {
+  flex: none;
 }
 .catalog-panel__crumb {
   cursor: pointer;
