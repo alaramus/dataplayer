@@ -58,6 +58,13 @@ there — the connections, the catalog of the one picked, and the rows of a node
 in tabs beside each other — resizable, bounded by the window so each scrolls
 inside itself, and the layout a user arrives at is the one they left.
 
+A connection is edited in a floating window, and several of them are open at
+once: one connection is read while another is filled in beside it, which is
+what a modal window forbids. Inside, the layout follows a database tool — the
+name on top, the driver stated, host and port on one line because the options
+model says they are one address, and the connection string the server composed
+pinned above Test Connection and OK / Cancel / Apply.
+
 Adding a connection now starts at a catalog of source types rather than at a
 dropdown: a sidebar of categories with counts, a search that matches what a
 type can do as well as what it is called, tiles, and a panel that says — in
@@ -84,7 +91,9 @@ a strip, and a strip can be cleared down to the tab being looked at.
 ```
 backend/app/
 ├── adapters/            source types: contract, registry, drivers
-│   ├── protocol.py      DataAdapter, SupportsCatalog, SupportsFetch, AdapterError
+│   ├── protocol.py      DataAdapter, SupportsCatalog, SupportsFetch,
+│   │                    SupportsConnectionString, AdapterError
+│   ├── layout.py        where a field goes in the window that edits it
 │   ├── catalog.py       CatalogNode: a union discriminated by kind; NodeKind
 │   ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
 │   ├── actions.py       Action, ActionSet, SupportsActions, ActionType,
@@ -136,7 +145,10 @@ frontend/src/
 │   │                    the one import path
 │   ├── api/             client setup, and one reading of an API error
 │   ├── auth/            the session, watched across tabs
-│   ├── SchemaForm/      JSON Schema to form, framework-independent core
+│   ├── SchemaForm/      JSON Schema to form, framework-independent core;
+│   │                    a field says which tab and which row it belongs to
+│   ├── windows/         floating windows: geometry.ts is pure, the frame and
+│   │                    the host see one injected context
 │   ├── workspace/       the panel engine: a layout tree, tabs, drag and drop,
 │   │                    sections that carry a role and outlive their panels;
 │   │                    tree.ts, dropZone.ts, placement.ts and persist.ts are
@@ -153,7 +165,7 @@ frontend/src/
     │                    useCatalogLevel.ts walks a catalog outside any
     │                    component
     ├── connectors/      the list of sources, the catalog of source types that
-    │                    starts a new one, and the form that registers it;
+    │                    starts a new one, and the window that registers one;
     │                    adapterSearch.ts is a pure mapper
     ├── workspace/       the panels, the registry that names them and the role
     │                    that puts each in one of the three columns
@@ -172,6 +184,7 @@ PATCH  /api/v1/connectors/{connector_id}
 DELETE /api/v1/connectors/{connector_id}
 POST   /api/v1/connectors/{connector_id}/check
 POST   /api/v1/connectors/check-draft
+POST   /api/v1/connectors/describe-draft
 GET    /api/v1/connectors/{connector_id}/catalog
 POST   /api/v1/connectors/{connector_id}/fetch
 POST   /api/v1/connectors/{connector_id}/actions
@@ -368,6 +381,54 @@ Two consequences worth stating separately:
   carry two roles as well. It is also what lets editing an existing connection
   open its form directly, with no step behind it — so the form states its type
   rather than offering a disabled dropdown of it.
+
+**D14. A connection is edited in a floating window, and there may be several.**
+Not modal, and that is the requirement rather than a detail: the reason for the
+window is to read one connection while filling in another. What modality would
+have given — that you cannot walk away from an unfinished form — is replaced by
+asking before a window with unsaved changes is closed. `shared/windows` knows
+nothing about connections, the same split that keeps `shared/workspace` free of
+any knowledge about panels. Full reasoning in
+`docs/superpowers/specs/2026-08-23-connector-window-design.md`.
+
+The old application had such an engine. Three things it got wrong are inverted
+here: a z-index counter that only ever grew is now a position in a list;
+geometry mutated in place inside the manager is now pure functions whose result
+is assigned; and no clamping at all — a window dragged past an edge could not
+be recovered — is now a rule applied on every move and again when the viewport
+shrinks.
+
+Four consequences worth stating separately:
+
+- **A window is identified by what it shows**, so asking for a connection that
+  is already open brings that window forward. Two windows of one row are two
+  unsaved edits of it, and whichever is saved second silently wins. Drafts have
+  no row to overwrite, so any number of them may be open.
+- **What a window *is* is not what it is addressed by.** Saving a draft renames
+  the window to the connection it created — so a second Apply updates rather
+  than duplicating — and the list is keyed by a separate immutable key.
+  Keying it by the address instead destroyed the window at that moment and
+  built a fresh one: the form reset itself, and the close that followed the
+  save was delivered to an instance that no longer existed.
+- **A new window opens in the middle of the screen**, not at a corner. At a
+  corner it lands on the column it was opened from and covers the control that
+  opens the next one — which is the one thing this must not do.
+- **The server says how the form is laid out.** `layout()` on a field names its
+  tab and the row it shares. Left to the screen, the rule that a host and a
+  port are one address would be inferred from a port being a number, in a
+  component that knows nothing about addresses.
+
+**D15. The connection string is a capability, and it is only shown.**
+`SupportsConnectionString`, answered through `POST /connectors/describe-draft`,
+which opens nothing. A personal directory is not addressed by a URL, so the
+file source does not implement it, the route answers 501 and the row is absent
+— the same shape as 501 for a missing catalog or fetch. The password is never
+in it, and identifiers go through `quote`, so a user named `ann@corp` cannot
+move the host.
+
+Composed on the server rather than from a template on the client, at the price
+of a request while the form is typed into: the rule for building a DSN belongs
+to the driver, and stating it twice is what ENGINEERING.md calls a defect.
 
 **D3. The backend is fully asynchronous.** `AsyncSession`, `async def`
 throughout, psycopg 3 in async mode. The application is network-I/O bound by
@@ -849,5 +910,20 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   "Files & Storage", one type each. Built for the registry D1 anticipates
   rather than for its size today — the same reasoning as building the UI kit
   as an alphabet.
+- **Windows do not survive a reload.** The workspace layout does; a window
+  does not, because a half-filled form restored without its secrets would
+  promise more than it holds.
+- **A window cannot be resized**, only moved. Its width is decided by what it
+  is; a connection form is not a case where a size does anything.
+- **The connection string costs a request per edit.** Delayed, and it opens no
+  connection, but it is still a round trip whenever the values change enough to
+  compose one.
+- **The tab strip has never been seen.** Both source types put everything in
+  one group, and one tab is not a choice, so the strip does not render — that
+  half of D14 is unproven in a browser.
+- **Nothing minimises or maximises.** The old engine had both; a window here is
+  a thing you do and then close, not a place you live in.
+- **A window reopened does not return to where it was.** It joins the cascade
+  again.
 - **The reuse rules rest on review.** No machine flags the third similar thing
   in a diff.

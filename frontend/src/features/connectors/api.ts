@@ -67,3 +67,22 @@ export function useCheckDraft() {
     }) => (await ConnectorsService.checkDraft({ body })).data,
   })
 }
+
+/**
+ * The connection string of a draft, composed by the server.
+ *
+ * A request while the form is being typed into, and that is the price of the
+ * rule living in one place: the driver knows how its own address is built,
+ * and a template filled in on the client would be the same statement made
+ * twice. It opens no connection, so the cost is the round trip and nothing
+ * more. A source that has no such address answers 501. See the spec, O8.
+ */
+export function useDescribeDraft() {
+  return useMutation({
+    mutationFn: async (body: {
+      adapter_type: string
+      options: Record<string, unknown>
+      connector_id?: string | null
+    }) => (await ConnectorsService.describeDraft({ body })).data,
+  })
+}

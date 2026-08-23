@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest"
 
 import { at, first } from "@/shared/testing/collections"
 
-import { defaultValues, jsonSchemaToZod, schemaToFields } from "./jsonSchema"
+import {
+  defaultValues,
+  fieldGroups,
+  fieldRows,
+  jsonSchemaToZod,
+  schemaToFields,
+} from "./jsonSchema"
 import type { JsonSchema } from "./jsonSchema"
 
 // Copied from the GET /api/v1/adapter-types/ response: the exact shape in which
@@ -168,5 +174,64 @@ describe("defaultValues", () => {
     })
 
     expect(defaultValues(fields)).toEqual({ ssl: false })
+  })
+})
+
+describe("the layout a field declares", () => {
+  const schema: JsonSchema = {
+    properties: {
+      host: { type: "string", title: "Host", group: "general", row: "address" },
+      port: { type: "integer", title: "Port", group: "general", row: "address" },
+      database: { type: "string", title: "Database", group: "general" },
+      key: { type: "string", title: "Key", group: "ssl" },
+    },
+    required: ["host", "database"],
+  }
+
+  it("carries the group and the row onto the field", () => {
+    const host = first(schemaToFields(schema))
+
+    expect(host.group).toBe("general")
+    expect(host.row).toBe("address")
+  })
+
+  it("defaults a field that declares nothing to the general group", () => {
+    const only = first(schemaToFields({ properties: { a: { type: "string" } } }))
+
+    expect(only.group).toBe("general")
+    expect(only.row).toBeUndefined()
+  })
+
+  it("puts fields of one row on one line, in declaration order", () => {
+    const lines = fieldRows(schemaToFields(schema).filter((f) => f.group === "general"))
+
+    expect(lines.map((line) => line.map((f) => f.name))).toEqual([
+      ["host", "port"],
+      ["database"],
+    ])
+  })
+
+  it("does not merge two runs of the same row name that are not adjacent", () => {
+    // Otherwise a field could jump up the form to join a row above it.
+    const fields = schemaToFields({
+      properties: {
+        a: { type: "string", row: "pair" },
+        b: { type: "string" },
+        c: { type: "string", row: "pair" },
+      },
+    })
+
+    expect(fieldRows(fields).map((line) => line.map((f) => f.name))).toEqual([
+      ["a"],
+      ["b"],
+      ["c"],
+    ])
+  })
+
+  it("groups fields into tabs, keeping the order the schema gave", () => {
+    expect(fieldGroups(schemaToFields(schema)).map((g) => g.id)).toEqual([
+      "general",
+      "ssl",
+    ])
   })
 })

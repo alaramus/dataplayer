@@ -10,6 +10,12 @@ export interface JsonSchemaProperty {
   minLength?: number
   minimum?: number
   maximum?: number
+  // Where the field goes, put here by `layout()` on the server. A statement
+  // about the fields, so it is made where the fields are declared — the form
+  // would otherwise have to infer that a port is narrow from its being a
+  // number, which is a rule about addresses in a component that knows none.
+  group?: string
+  row?: string
 }
 
 export interface JsonSchema {
@@ -31,6 +37,10 @@ export interface FieldSpec {
   minLength?: number
   minimum?: number
   maximum?: number
+  /** The tab this field belongs to. */
+  group: string
+  /** Fields sharing a row are laid out on one line. */
+  row?: string
 }
 
 function kindOf(property: JsonSchemaProperty, name: string): FieldKind {
@@ -64,7 +74,63 @@ export function schemaToFields(schema: JsonSchema): FieldSpec[] {
     minLength: property.minLength,
     minimum: property.minimum,
     maximum: property.maximum,
+    group: property.group ?? DEFAULT_GROUP,
+    row: property.row,
   }))
+}
+
+/**
+ * The tab a field lands on when its schema says nothing.
+ *
+ * Mirrors `DEFAULT_GROUP` in the backend's `layout.py`. Stated on both sides
+ * because a schema written before that helper existed — or by a driver that
+ * never calls it — must still render, and a field with no tab is not a field
+ * to drop on the floor.
+ */
+export const DEFAULT_GROUP = "general"
+
+export interface FieldGroup {
+  id: string
+  fields: FieldSpec[]
+}
+
+/**
+ * The fields split into tabs, in the order the schema listed them.
+ *
+ * A window with one group draws no tab strip: one tab is not a choice.
+ */
+export function fieldGroups(fields: FieldSpec[]): FieldGroup[] {
+  const groups: FieldGroup[] = []
+
+  for (const field of fields) {
+    const last = groups.find((group) => group.id === field.group)
+    if (last) last.fields.push(field)
+    else groups.push({ id: field.group, fields: [field] })
+  }
+  return groups
+}
+
+/**
+ * The fields split into lines, adjacent members of one row together.
+ *
+ * Adjacency matters: matching by name alone would let a field further down the
+ * form jump up to join a row above it, silently reordering what the schema
+ * laid out. A run ends as soon as a field of another row appears.
+ */
+export function fieldRows(fields: FieldSpec[]): FieldSpec[][] {
+  const rows: FieldSpec[][] = []
+  let openRow: string | undefined
+
+  for (const field of fields) {
+    const last = rows[rows.length - 1]
+    if (field.row !== undefined && field.row === openRow && last !== undefined) {
+      last.push(field)
+    } else {
+      rows.push([field])
+      openRow = field.row
+    }
+  }
+  return rows
 }
 
 function zodForField(field: FieldSpec): z.ZodType {
