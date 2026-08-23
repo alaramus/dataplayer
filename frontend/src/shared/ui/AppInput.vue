@@ -31,6 +31,8 @@ const emit = defineEmits<{
   /** The field was entered. A caller that shows a stand-in for a value it
       does not have needs to know the moment the user means to type. */
   focus: []
+  /** And left, which is when a stand-in nobody replaced comes back. */
+  blur: []
 }>()
 
 // QInput reports string | number | null whatever its type is. A text field
@@ -55,6 +57,7 @@ function report(value: string | number | null) {
     :error-message="error"
     @update:model-value="report"
     @focus="emit('focus')"
+    @blur="emit('blur')"
   >
     <!-- Forwarded rather than left to fall through: a slot does not fall
          through at all, so a search field had no way to carry its magnifier

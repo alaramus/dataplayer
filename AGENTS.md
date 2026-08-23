@@ -72,9 +72,12 @@ what a modal window forbids. Inside, the layout follows a database tool — the
 name on top, host and port on one line because the options model says they are
 one address, and the connection string the server composed pinned above Test
 Connection and OK / Cancel / Apply. A new connection opens named after its type
-and addressed to localhost; a stored secret shows as `<hidden>` and empties the
-moment the field is entered; and what a check said appears in a panel over the
-button that ran it rather than as a line that moves the form about.
+and addressed to localhost; a stored secret shows as `<hidden>`, empties the
+moment the field is entered and comes back if it is left untyped-in; the
+connection string is typed into as well as read, so a pasted address becomes
+the fields and the fields compose it again; and what a check said appears in a
+panel over the button that ran it rather than as a line that moves the form
+about.
 
 Adding a connection now starts at a catalog of source types rather than at a
 dropdown: a sidebar of categories with counts, a search that matches what a
@@ -479,13 +482,17 @@ Four consequences worth stating separately:
   alembic revision, data only; the statement it runs is a named constant and
   a test runs it against a row of the old shape.
 - **The form is told the shape, not the source type.** `readSchema` marks a
-  schema as plain or as variants; the fields every variant shares are drawn
-  once, in the order of the first variant, which is what stops the host and
-  the port jumping about. The discriminator is built from the `mapping` —
-  Pydantic emits the property itself as a `const`, which would render as a
-  text box holding the name of the variant. A choice therefore carries a code
-  and a wording, since `no_auth` travels to the server and "No auth" is read
-  by a person, and the wording is the `title` the model declared.
+  schema as plain or as variants and answers with the fields of each variant
+  in the order its model declared them, the choice standing where the model
+  put it. Order is a statement the server makes and the only place that can
+  make it: a base class's fields always come first, so `_PostgresBase` holds
+  the address alone and every variant declares the choice directly under it.
+  Gathering the shared fields first and appending the choice would have been a
+  rule of the form's own, overriding that. The choice itself is built from the
+  `mapping` — Pydantic emits the property as a `const`, which would render as
+  a text box holding the name of the variant — and carries a code and a
+  wording, since `no_auth` travels to the server and "No auth" is read by a
+  person.
 
 **D17. A pasted connection string is taken apart by the driver, and the fields
 stay the only stored form.** `ParsesConnectionString` is a classmethod
@@ -506,10 +513,14 @@ Two consequences worth stating separately:
 - **The driver names the way of connecting, not the form.** A string with a
   password is `user_password`, one without is `no_auth`. A form inferring that
   from the presence of a substring is `isFieldShowing` again.
-- **It is a button, not an editable field.** One control that sometimes shows
-  what was composed and sometimes takes what was typed would have to answer
-  "which of the two is true now", and the answer here is settled: the fields
-  are.
+- **The box is typed into as well as read, and it keeps no answer of its
+  own.** What is typed goes to the driver, the driver produces fields, and the
+  fields compose the string that comes back — so a password typed into the box
+  lands in the password field and leaves the box, which is the rule made
+  visible rather than explained. Nothing composed is ever written into the box
+  while it has focus: every prefix of an address parses as some address, so a
+  slow typist would otherwise have it rewritten under the cursor between
+  keystrokes.
 
 **D3. The backend is fully asynchronous.** `AsyncSession`, `async def`
 throughout, psycopg 3 in async mode. The application is network-I/O bound by
@@ -1021,10 +1032,10 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   comes back as `no auth`, even when the password was simply left out of the
   string on purpose. Said in the interface rather than worked around: the
   method can be switched back by hand.
-- **The choice sits below two fields the reference tool puts above it.** The
-  database and the user belong to every variant, so they are drawn with the
-  common fields, and the choice follows them. A field declares a tab and a row
-  but no ordinal, and one line is not worth a third coordinate of layout.
+- **The order of fields is the order they are declared in, and nothing else.**
+  It is enough to put the choice of method under the address, because a base
+  class's fields come first — but a field that had to sit between two of its
+  own model's would need an ordinal, and there is none.
 - **A parsed string travels through the server with its password.** The client
   sent that very string a moment ago, so nothing new is disclosed, but it
   passes through a request body and comes back in a response — and no check

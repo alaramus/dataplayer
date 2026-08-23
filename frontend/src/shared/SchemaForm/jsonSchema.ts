@@ -239,9 +239,20 @@ export type SchemaShape =
       kind: "variants"
       /** The choice itself: a select whose items are the variants. */
       discriminator: FieldSpec
-      /** Fields every variant has alike, in the order of the first one. */
+      /**
+       * Fields every variant has alike — what a switch of method must not
+       * disturb. Not a rendering order: that comes from `byVariant`.
+       */
       common: FieldSpec[]
-      /** What each variant adds, by the code that names it. */
+      /**
+       * Everything a variant shows, in the order its model declared it, the
+       * choice among them.
+       *
+       * The order is the server's statement and not this function's: a model
+       * puts the choice under the address by declaring it there, and a form
+       * that gathered all the shared fields first would override that with a
+       * rule of its own.
+       */
       byVariant: Record<string, FieldSpec[]>
     }
 
@@ -279,12 +290,7 @@ export function readSchema(schema: JsonSchema): SchemaShape {
     return {
       tag,
       label: definition.title ?? member.$ref.replace("#/$defs/", ""),
-      // The discriminator is drawn from the mapping below. Left among the
-      // fields it would render as a text input holding the name of the
-      // variant — Pydantic emits it as a `const`, which is not a choice.
-      fields: schemaToFields(definition).filter(
-        (field) => field.name !== discriminator.propertyName
-      ),
+      fields: schemaToFields(definition),
       property: definition.properties?.[discriminator.propertyName],
     }
   })
@@ -292,31 +298,35 @@ export function readSchema(schema: JsonSchema): SchemaShape {
   const [firstVariant, ...rest] = variants
   if (!firstVariant) throw new Error("A union schema with no variants")
 
-  const common = firstVariant.fields.filter((field) =>
+  const choice: FieldSpec = {
+    name: discriminator.propertyName,
+    label: firstVariant.property?.title ?? discriminator.propertyName,
+    kind: "select",
+    required: true,
+    // The first variant, so a form that has been touched by nobody still
+    // names a way of connecting: the server rejects options that name none.
+    defaultValue: firstVariant.tag,
+    choices: variants.map(({ tag, label }) => ({ value: tag, label })),
+    group: firstVariant.property?.group ?? DEFAULT_GROUP,
+    row: firstVariant.property?.row,
+  }
+
+  const isChoice = (field: FieldSpec) => field.name === choice.name
+  const own = (variant: { fields: FieldSpec[] }) => variant.fields.filter((f) => !isChoice(f))
+
+  const common = own(firstVariant).filter((field) =>
     rest.every((variant) => variant.fields.some((other) => sameField(field, other)))
   )
-  const isCommon = (field: FieldSpec) => common.some((one) => sameField(one, field))
 
   const byVariant: Record<string, FieldSpec[]> = {}
   for (const variant of variants) {
-    byVariant[variant.tag] = variant.fields.filter((field) => !isCommon(field))
+    // In place rather than filtered out: Pydantic emits the discriminator as
+    // a `const`, which would render as a text box holding the name of the
+    // variant, so it is the select that stands where the model put it.
+    byVariant[variant.tag] = variant.fields.map((field) =>
+      isChoice(field) ? choice : field
+    )
   }
 
-  return {
-    kind: "variants",
-    discriminator: {
-      name: discriminator.propertyName,
-      label: firstVariant.property?.title ?? discriminator.propertyName,
-      kind: "select",
-      required: true,
-      // The first variant, so a form that has been touched by nobody still
-      // names a way of connecting: the server rejects options that name none.
-      defaultValue: firstVariant.tag,
-      choices: variants.map(({ tag, label }) => ({ value: tag, label })),
-      group: firstVariant.property?.group ?? DEFAULT_GROUP,
-      row: firstVariant.property?.row,
-    },
-    common,
-    byVariant,
-  }
+  return { kind: "variants", discriminator: choice, common, byVariant }
 }

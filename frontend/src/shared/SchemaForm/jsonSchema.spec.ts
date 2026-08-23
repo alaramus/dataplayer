@@ -248,11 +248,12 @@ const UNION_SCHEMA: JsonSchema = {
     PostgresNoAuth: {
       type: "object",
       title: "No auth",
-      required: ["host", "database", "user"],
+      required: ["database", "user"],
       properties: {
         host: {
           type: "string",
           title: "Host",
+          default: "localhost",
           minLength: 1,
           group: "general",
           row: "address",
@@ -264,7 +265,6 @@ const UNION_SCHEMA: JsonSchema = {
           group: "general",
           row: "address",
         },
-        database: { type: "string", title: "Database", minLength: 1, group: "general" },
         auth_method: {
           const: "no_auth",
           default: "no_auth",
@@ -272,17 +272,19 @@ const UNION_SCHEMA: JsonSchema = {
           type: "string",
           group: "general",
         },
+        database: { type: "string", title: "Database", minLength: 1, group: "general" },
         user: { type: "string", title: "User", minLength: 1, group: "general" },
       },
     },
     PostgresUserPassword: {
       type: "object",
       title: "User & Password",
-      required: ["host", "database", "user", "password"],
+      required: ["database", "user", "password"],
       properties: {
         host: {
           type: "string",
           title: "Host",
+          default: "localhost",
           minLength: 1,
           group: "general",
           row: "address",
@@ -294,7 +296,6 @@ const UNION_SCHEMA: JsonSchema = {
           group: "general",
           row: "address",
         },
-        database: { type: "string", title: "Database", minLength: 1, group: "general" },
         auth_method: {
           const: "user_password",
           default: "user_password",
@@ -302,6 +303,7 @@ const UNION_SCHEMA: JsonSchema = {
           type: "string",
           group: "general",
         },
+        database: { type: "string", title: "Database", minLength: 1, group: "general" },
         user: { type: "string", title: "User", minLength: 1, group: "general" },
         password: {
           type: "string",
@@ -350,8 +352,23 @@ describe("readSchema", () => {
     const shape = variantsOf(readSchema(UNION_SCHEMA))
 
     expect(keyed(shape.byVariant, "user_password").map((f) => f.name)).toEqual([
+      "host",
+      "port",
+      "auth_method",
+      "database",
+      "user",
       "password",
     ])
+  })
+
+  it("leaves the choice where the model declared it", () => {
+    // The server states the order by declaring the fields in it. Gathering
+    // every shared field first and putting the choice after them would be a
+    // rule of the form's own, and it would put the choice under the database.
+    const shape = variantsOf(readSchema(UNION_SCHEMA))
+    const names = keyed(shape.byVariant, "no_auth").map((f) => f.name)
+
+    expect(names.indexOf("auth_method")).toBe(names.indexOf("port") + 1)
   })
 
   it("draws the fields every variant shares only once", () => {
@@ -361,26 +378,16 @@ describe("readSchema", () => {
     expect(shape.common.map((f) => f.name)).toEqual(["host", "port", "database", "user"])
   })
 
-  it("keeps the common fields in the order of the first variant", () => {
+  it("shows the discriminator as a select and never as the const it arrives as", () => {
+    // Pydantic emits the property as a `const`, which would render as a text
+    // box holding the name of the variant.
     const shape = variantsOf(readSchema(UNION_SCHEMA))
+    const inPlace = keyed(shape.byVariant, "no_auth").find((f) => f.name === "auth_method")
 
-    expect(shape.common.map((f) => f.row)).toEqual([
-      "address",
-      "address",
-      undefined,
-      undefined,
-    ])
-  })
-
-  it("never leaves the discriminator among the fields it lists", () => {
-    // It is drawn from the mapping instead; left in, it would render as a
-    // text input holding the name of the variant.
-    const shape = variantsOf(readSchema(UNION_SCHEMA))
-
+    expect(inPlace?.kind).toBe("select")
+    expect(inPlace).toBe(shape.discriminator)
+    // And it is never counted as a field the variants merely share.
     expect(shape.common.map((f) => f.name)).not.toContain("auth_method")
-    for (const fields of Object.values(shape.byVariant)) {
-      expect(fields.map((f) => f.name)).not.toContain("auth_method")
-    }
   })
 
   it("offers the ways of connecting as a select of code and wording", () => {
@@ -447,17 +454,15 @@ describe("readSchema", () => {
     )
 
     expect(shape.common).toEqual([])
-    expect(keyed(shape.byVariant, "a").map((f) => f.name)).toEqual(["token"])
-    expect(keyed(shape.byVariant, "b").map((f) => f.name)).toEqual(["token"])
+    expect(keyed(shape.byVariant, "a").map((f) => f.name)).toEqual(["k", "token"])
+    expect(keyed(shape.byVariant, "b").map((f) => f.name)).toEqual(["k", "token"])
   })
 })
 
 describe("the schema a chosen variant is validated against", () => {
   it("accepts the common fields plus the ones of the variant in hand", () => {
     const shape = variantsOf(readSchema(UNION_SCHEMA))
-    const fields = [...shape.common, shape.discriminator, ...keyed(shape.byVariant, "no_auth")]
-
-    const result = fieldsToZod(fields).safeParse({
+    const result = fieldsToZod(keyed(shape.byVariant, "no_auth")).safeParse({
       auth_method: "no_auth",
       host: "db",
       port: 5432,
@@ -472,13 +477,7 @@ describe("the schema a chosen variant is validated against", () => {
     // The whole union at once would insist on a password that this way of
     // connecting does not have.
     const shape = variantsOf(readSchema(UNION_SCHEMA))
-    const withPassword = [
-      ...shape.common,
-      shape.discriminator,
-      ...keyed(shape.byVariant, "user_password"),
-    ]
-
-    const result = fieldsToZod(withPassword).safeParse({
+    const result = fieldsToZod(keyed(shape.byVariant, "user_password")).safeParse({
       auth_method: "user_password",
       host: "db",
       port: 5432,

@@ -69,6 +69,20 @@ function reveal(name: string) {
   touched.value = new Set(touched.value).add(name)
 }
 
+/**
+ * Leaving without typing puts the stand-in back.
+ *
+ * A field entered and left unchanged has changed nothing, and an empty box is
+ * not what is stored there. Only an emptied field goes back: whatever was
+ * typed stays, and that is what replaces the stored secret.
+ */
+function restore(name: string) {
+  if ((props.modelValue[name] ?? "") !== "") return
+  const remaining = new Set(touched.value)
+  remaining.delete(name)
+  touched.value = remaining
+}
+
 // A different connection in the same window is a different set of secrets.
 watch(
   () => props.fields,
@@ -133,6 +147,7 @@ watch(
           :type="field.kind === 'password' && !isHidden(field) ? 'password' : 'text'"
           :error="errors[field.name]"
           @focus="field.kind === 'password' ? reveal(field.name) : undefined"
+          @blur="field.kind === 'password' ? restore(field.name) : undefined"
           @update:model-value="update(field.name, $event)"
         />
       </template>

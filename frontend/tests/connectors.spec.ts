@@ -89,6 +89,19 @@ test("a stored secret stands in for itself and needs no retyping", async ({
   await page.getByTestId("field-password").click()
   await expect(page.getByTestId("field-password")).toHaveValue("")
 
+  // Leaving it without typing changed nothing, so the stand-in comes back: an
+  // empty box would go on claiming there is no password stored.
+  await page.getByTestId("field-user").click()
+  await expect(page.getByTestId("field-password")).toHaveValue("<hidden>")
+
+  // What is typed stays, because that is what replaces the stored value.
+  await page.getByTestId("field-password").fill("something-else")
+  await page.getByTestId("field-user").click()
+  await expect(page.getByTestId("field-password")).toHaveValue("something-else")
+  await page.getByTestId("field-password").fill("")
+  await page.getByTestId("field-user").click()
+  await expect(page.getByTestId("field-password")).toHaveValue("<hidden>")
+
   // Left blank, nothing is sent and the server substitutes the stored value
   // by connector_id.
   await page.getByTestId("check-draft").click()

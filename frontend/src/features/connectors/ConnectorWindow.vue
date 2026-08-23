@@ -80,6 +80,16 @@ const name = ref("")
 const nameError = ref("")
 const checkResult = ref<ConnectionCheckResult | null>(null)
 const connectionString = ref("")
+// What is in the URL box. Held apart from the composed string because the box
+// is typed into as well as read: a pasted address is taken apart into the
+// fields, and the fields then compose the string again — which is what makes
+// the fields, and not this text, the truth.
+const urlText = ref("")
+const urlError = ref("")
+// Whether the box is being typed into. What the fields compose is never
+// written into it while it is: an address being typed out one character at a
+// time would be rewritten under the cursor as each prefix parsed.
+const urlFocused = ref(false)
 // Null while the source has never been asked; false once it has answered 501.
 const hasConnectionString = ref<boolean | null>(null)
 const dirty = ref(false)
@@ -114,19 +124,18 @@ const variantTag = computed(() => {
 })
 
 /**
- * The fields on screen: what every way of connecting has, then the choice
- * itself, then what this one adds.
+ * The fields on screen: everything the chosen way of connecting shows, in the
+ * order its model declared, the choice among them.
  *
- * The choice sits below the common fields rather than between the port and
- * the user, as the reference tool has it, because a field declares a tab and
- * a row but no ordinal — and one line is not worth a third coordinate.
+ * No order is decided here. The server states it by declaring the fields —
+ * the address, then how one authenticates to it, then the rest — and a rule
+ * imposed at this end would quietly override that.
  */
 const activeFields = computed<FieldSpec[]>(() => {
   const current = shape.value
   if (!current) return []
   if (current.kind === "plain") return current.fields
-  const tag = variantTag.value ?? ""
-  return [...current.common, current.discriminator, ...(current.byVariant[tag] ?? [])]
+  return current.byVariant[variantTag.value ?? ""] ?? []
 })
 
 /**
@@ -140,11 +149,7 @@ const allFields = computed<FieldSpec[]>(() => {
   const current = shape.value
   if (!current) return []
   if (current.kind === "plain") return current.fields
-  const collected = [
-    ...current.common,
-    current.discriminator,
-    ...Object.values(current.byVariant).flat(),
-  ]
+  const collected = Object.values(current.byVariant).flat()
   return collected.filter(
     (field, index) => collected.findIndex((one) => one.name === field.name) === index
   )
@@ -196,6 +201,7 @@ async function describe() {
     // A later edit already asked; its answer is the current one.
     if (token !== describeToken) return
     connectionString.value = answer.connection_string
+    if (!urlFocused.value) urlText.value = answer.connection_string
     hasConnectionString.value = true
   } catch (error) {
     if (token !== describeToken) return
@@ -217,6 +223,8 @@ function load() {
   checkResult.value = null
   nameError.value = ""
   connectionString.value = ""
+  urlText.value = ""
+  urlError.value = ""
   hasConnectionString.value = null
   dirty.value = false
   saved.value = props.connector
@@ -344,35 +352,52 @@ async function remove() {
 }
 
 async function copyUrl() {
-  await navigator.clipboard.writeText(connectionString.value)
+  await navigator.clipboard.writeText(urlText.value)
   toast.success("Connection string copied")
 }
 
 /**
- * Take what is on the clipboard apart into the fields.
+ * An address typed into the URL box, taken apart into the fields.
  *
- * A button rather than an editable field: one control that sometimes shows
- * what was composed and sometimes takes what was typed would have to answer
- * "which of the two is true now", and the answer here is settled — the fields
- * are. The way of connecting comes back with the rest, decided by the driver.
+ * The box answers "which of the two is true now" by never keeping an answer
+ * of its own: what is typed goes to the driver, the driver produces fields,
+ * and the fields compose the string that comes back. A password typed into
+ * the box therefore lands in the password field and leaves the box, which is
+ * the rule made visible rather than explained.
+ *
+ * Delayed, because it is a request, and it is not made at all for text the
+ * server itself composed.
  */
-async function pasteUrl() {
+let parseTimer: ReturnType<typeof setTimeout> | undefined
+
+function editUrl(text: string) {
+  urlText.value = text
+  urlError.value = ""
+  clearTimeout(parseTimer)
+  parseTimer = setTimeout(() => void parseTyped(text), 600)
+}
+
+/** Leaving the box hands it back to the fields, whatever was typed into it. */
+function leaveUrl() {
+  urlFocused.value = false
+  clearTimeout(parseTimer)
+  void parseTyped(urlText.value).then(() => {
+    if (connectionString.value !== "") urlText.value = connectionString.value
+  })
+}
+
+async function parseTyped(text: string) {
   if (!typeName.value) return
-  let text = ""
-  try {
-    text = await navigator.clipboard.readText()
-  } catch {
-    toast.error("Could not read the clipboard")
-    return
-  }
+  // Nothing to take apart, and nothing to say about it: an emptied box is on
+  // its way somewhere, not a refusal.
+  if (text.trim() === "" || text === connectionString.value) return
 
   try {
     const answer = await parseUrl.mutateAsync({ adapter_type: typeName.value, url: text })
     resetOptions(allFields.value, answer.options as Record<string, unknown>)
     dirty.value = true
-    toast.success("Connection string read into the form")
   } catch (error) {
-    toast.error(messageOf(error, "That is not a connection string this source reads"))
+    urlError.value = messageOf(error, "That is not a connection string this source reads")
   }
 }
 </script>
@@ -423,34 +448,29 @@ async function pasteUrl() {
 
       <!-- Pinned above the buttons rather than left at the end of the
            scrolling form: it is composed from every field above it, so it is
-           worth reading whichever field is being edited. Shown and not
-           edited — the "URL only" mode belongs to the next sub-project. A
-           source with no such address answers 501 and gets no row at all. -->
+           worth reading whichever field is being edited. Typed into as well:
+           an address put here is taken apart by the driver into the fields,
+           which then compose it again. A source with no such address answers
+           501 and gets no row at all. -->
       <div
         v-if="hasConnectionString !== false"
         class="connector-window__url"
       >
         <AppInput
-          :model-value="connectionString"
+          :model-value="urlText"
           label="URL"
           data-testid="connector-url"
-          :disable="true"
+          :error="urlError"
+          @focus="urlFocused = true"
+          @blur="leaveUrl"
+          @update:model-value="editUrl"
         />
         <AppIconButton
           icon="content_copy"
           tooltip="Copy the connection string. The password is not part of it."
           data-testid="copy-url"
-          :disable="connectionString === ''"
+          :disable="urlText === ''"
           @click="copyUrl"
-        />
-        <!-- The other direction: what is on the clipboard, taken apart by the
-             driver into these very fields. -->
-        <AppIconButton
-          icon="content_paste_go"
-          tooltip="Paste a connection string and fill the fields from it. A string with no password sets the method to No auth."
-          data-testid="paste-url"
-          :loading="parseUrl.isPending.value"
-          @click="pasteUrl"
         />
       </div>
 

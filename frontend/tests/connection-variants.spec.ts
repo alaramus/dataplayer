@@ -10,8 +10,8 @@ import { connectorRow, deleteConnector, editConnector } from "./utils/workspace"
  *
  * Neither half can be shown by a unit test. That switching the way of
  * connecting takes the password off the screen and leaves the address alone
- * is a question about what is rendered; that a pasted string fills the fields
- * is a question about the clipboard, the server and the form together.
+ * is a question about what is rendered; that an address typed into the URL
+ * box fills the fields is a question about the form and the server together.
  */
 
 /** Quasar's select: click the field, then the item by its wording. */
@@ -20,6 +20,33 @@ async function chooseAuthMethod(page: Page, label: string) {
   await page.getByRole("option", { name: label, exact: true }).click()
   await expect(page.getByTestId("field-auth_method")).toHaveValue(label)
 }
+
+/** Type an address into the URL box and wait for it to reach the fields. */
+async function typeUrl(page: Page, url: string) {
+  await page.getByTestId("connector-url").fill(url)
+  await page.getByTestId("connector-name").click()
+}
+
+test("the choice of method stands directly under the address", async ({ page }) => {
+  // Order is the server's statement, made by declaring the fields in it. A
+  // form that gathered every shared field first would put the choice under
+  // the database instead, whatever the model said.
+  await login(page)
+  await pickAdapterType(page, "postgres")
+
+  const middle = async (id: string) => {
+    const box = await page.getByTestId(id).boundingBox()
+    if (!box) throw new Error(`${id} was not laid out`)
+    return box.y + box.height / 2
+  }
+
+  const port = await middle("field-port")
+  const auth = await middle("field-auth_method")
+  const database = await middle("field-database")
+
+  expect(auth).toBeGreaterThan(port)
+  expect(auth).toBeLessThan(database)
+})
 
 test("switching the way of connecting changes the fields, not the address", async ({
   page,
@@ -71,19 +98,13 @@ test("a connection saved without a password keeps that way of connecting", async
   await deleteConnector(page, name)
 })
 
-test("a pasted connection string fills the fields and names the method", async ({
+test("an address typed into the URL box fills the fields and names the method", async ({
   page,
-  context,
 }) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"])
   await login(page)
-  await page.evaluate(
-    (url) => navigator.clipboard.writeText(url),
-    `postgresql://ann:hunter2@${DATABASE.host}:6543/warehouse`
-  )
-
   await pickAdapterType(page, "postgres")
-  await page.getByTestId("paste-url").click()
+
+  await typeUrl(page, `postgresql://ann:hunter2@${DATABASE.host}:6543/warehouse`)
 
   await expect(page.getByTestId("field-host")).toHaveValue(DATABASE.host)
   await expect(page.getByTestId("field-port")).toHaveValue("6543")
@@ -95,36 +116,72 @@ test("a pasted connection string fills the fields and names the method", async (
   await expect(page.getByTestId("field-auth_method")).toHaveValue("User & Password")
 })
 
+test("the box then shows what the fields compose, without the password", async ({
+  page,
+}) => {
+  // Which of the two is true is answered by the box never keeping an answer
+  // of its own: the password lands in its field and leaves the box.
+  await login(page)
+  await pickAdapterType(page, "postgres")
+
+  await typeUrl(page, `postgresql://ann:hunter2@${DATABASE.host}:6543/warehouse`)
+
+  await expect(page.getByTestId("connector-url")).toHaveValue(
+    `postgresql://ann@${DATABASE.host}:6543/warehouse`
+  )
+})
+
 test("a string with no password comes back as the other way of connecting", async ({
   page,
-  context,
 }) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"])
   await login(page)
-  await page.evaluate(
-    (url) => navigator.clipboard.writeText(url),
-    `postgresql://ann@${DATABASE.host}/warehouse`
-  )
-
   await pickAdapterType(page, "postgres")
-  await page.getByTestId("paste-url").click()
+
+  await typeUrl(page, `postgresql://ann@${DATABASE.host}/warehouse`)
 
   await expect(page.getByTestId("field-auth_method")).toHaveValue("No auth")
   await expect(page.getByTestId("field-password")).toHaveCount(0)
   await expect(page.getByTestId("field-user")).toHaveValue("ann")
 })
 
-test("something that is not a connection string is refused, and nothing changes", async ({
-  page,
-  context,
-}) => {
-  await context.grantPermissions(["clipboard-read", "clipboard-write"])
+test("what is being typed is never rewritten under the cursor", async ({ page }) => {
+  // Every prefix of an address parses as some address, and the fields follow
+  // each one. If the box also followed the fields it would be rewritten
+  // between keystrokes, and the address could not be typed out at all.
   await login(page)
-  await page.evaluate(() => navigator.clipboard.writeText("just some text"))
-
   await pickAdapterType(page, "postgres")
-  await page.getByTestId("field-host").fill(DATABASE.host)
-  await page.getByTestId("paste-url").click()
 
-  await expect(page.getByTestId("field-host")).toHaveValue(DATABASE.host)
+  await page.getByTestId("connector-url").click()
+  await page.keyboard.type(`postgresql://ann@${DATABASE.host}/warehouse`)
+  // Long enough for the prefix to be parsed and for the fields to compose an
+  // address of their own — which is the moment a slow typist would have the
+  // box rewritten from under them, port and all.
+  await page.waitForTimeout(1500)
+  await page.keyboard.type("2")
+
+  await expect(page.getByTestId("connector-url")).toHaveValue(
+    `postgresql://ann@${DATABASE.host}/warehouse2`
+  )
+
+  // Leaving hands the box back to the fields, and the password is not part of
+  // what they compose.
+  await page.getByTestId("connector-name").click()
+  await expect(page.getByTestId("connector-url")).toHaveValue(
+    `postgresql://ann@${DATABASE.host}:5432/warehouse2`
+  )
+})
+
+test("something that is not an address is refused, and nothing changes", async ({
+  page,
+}) => {
+  await login(page)
+  await pickAdapterType(page, "postgres")
+  await page.getByTestId("field-database").fill("warehouse")
+
+  await typeUrl(page, "just some text")
+
+  // Said on the field that was typed into, not as a toast over the window: it
+  // is that text that is wrong.
+  await expect(page.getByText("not a PostgreSQL connection string")).toBeVisible()
+  await expect(page.getByTestId("field-database")).toHaveValue("warehouse")
 })
