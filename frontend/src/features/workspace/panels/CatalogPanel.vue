@@ -202,10 +202,18 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
   flex: none;
   padding: 4px 4px 0;
 }
+/* One line of one height, whatever the source puts in it.
+   An icon button and the menu are 32px, a field is 40, and a source with no
+   groupings puts neither — so the height is stated here rather than left to
+   be whatever the tallest thing in it happens to be. Moving between two
+   connections must not move the list under them, and a rule about the panel
+   is the only kind that a source type added later cannot break: what it
+   brings centres in this line instead of setting it. */
 .catalog-panel__bar {
   display: flex;
   align-items: center;
   gap: 4px;
+  height: 40px;
 }
 .catalog-panel__crumbs {
   display: flex;

@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test"
 
+import type { Page } from "@playwright/test"
+
 import { catalogRow, pickSchema } from "./utils/catalog"
-import { createPostgresConnector } from "./utils/connectors"
+import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
 
@@ -53,4 +55,53 @@ test("the head of the catalog opens the window of its connection", async ({ page
   await page.getByTestId("delete-connector").click()
   await page.getByTestId("confirm-accept").click()
   await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+/**
+ * The head of a catalog is the same height whatever the source is.
+ *
+ * Moving between two connections must not move the list under them, and the
+ * head holds different things for different sources: a path for a directory,
+ * a choice of schemas for a database, and a menu only where the source has
+ * actions. Asserted rather than looked at once, because the next source type
+ * is what would break it.
+ */
+async function headHeight(page: Page): Promise<number> {
+  const box = await page.locator(".catalog-panel__head").boundingBox()
+  if (box === null) throw new Error("the head of the catalog has no box")
+  return Math.round(box.height)
+}
+
+test("the head of a catalog is one height across source types", async ({ page }) => {
+  const database = `e2e-sym-db-${Date.now()}`
+  const files = `e2e-sym-files-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, database)
+  await createFileConnector(page, files)
+
+  // A database: an icon, a choice of schemas, and no menu — postgres declares
+  // no actions.
+  await openConnector(page, database)
+  await expect(page.getByTestId("catalog-list")).toContainText("connector")
+  const withGroups = await headHeight(page)
+
+  await pickSchema(page, "pg_catalog")
+  await expect(page.getByTestId("catalog-list")).toContainText("pg_class")
+  expect(await headHeight(page)).toBe(withGroups)
+
+  // Personal storage at its root: an icon and a menu, and no path — one step
+  // says nothing, so no crumbs are drawn.
+  await openConnector(page, files)
+  await expect(page.getByTestId("catalog-actions")).toBeVisible()
+  expect(await headHeight(page)).toBe(withGroups)
+
+  // And inside a folder, where the path appears and the head must not grow.
+  await catalogRow(page, "reports").click()
+  await expect(page.getByTestId("catalog-path")).toBeVisible()
+  expect(await headHeight(page)).toBe(withGroups)
+
+  for (const name of [database, files]) {
+    await deleteConnector(page, name)
+    await expect(connectorRow(page, name)).toHaveCount(0)
+  }
 })
