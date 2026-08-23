@@ -88,7 +88,20 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
         @keydown.enter="emit('up')"
         @keydown.space.prevent="emit('up')"
       >
-        <span class="catalog-list__tick-space" />
+        <!-- A tick box that is there and cannot be seen, rather than a spacer
+             of a guessed width: this row has nothing to tick but has to line
+             up with the rows that do, and only the control itself knows how
+             wide it is. Hidden by visibility, so it is out of the tab order
+             as well as out of sight. -->
+        <span
+          class="catalog-list__tick-space"
+          aria-hidden="true"
+        >
+          <AppCheckbox
+            :model-value="false"
+            dense
+          />
+        </span>
         <q-icon
           name="drive_folder_upload"
           size="18px"
@@ -184,11 +197,8 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
 .catalog-list__row--checked {
   background: rgba(25, 118, 210, 0.08);
 }
-/* The way back is a row, so it lines up with the rows: the space a tick box
-   would take is kept rather than shifting the whole first line left. */
 .catalog-list__tick-space {
-  width: 24px;
-  flex: none;
+  visibility: hidden;
 }
 /* The name comes first when there is not enough room: it is what the row is
    about, and the caption beside it is an aside. */

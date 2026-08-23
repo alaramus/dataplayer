@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { openNode } from "./utils/catalog"
+import { catalogRow, openNode } from "./utils/catalog"
 import { createFileConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector, openConnector, rowsTabs } from "./utils/workspace"
@@ -34,6 +34,12 @@ test("browses a personal directory and reads files as rows", async ({ page }) =>
     "data-testid",
     "catalog-up"
   )
+  // It lines up with the rows that have a tick box: the space is reserved by
+  // the control itself, so nothing here depends on guessing how wide it is.
+  const back = await page.getByTestId("catalog-up").getByText("..").boundingBox()
+  const beside = await catalogRow(page, "q3.csv").getByText("q3.csv").boundingBox()
+  expect(Math.abs((back?.x ?? 0) - (beside?.x ?? 0))).toBeLessThan(1)
+
   await page.getByTestId("catalog-up").click()
   await expect(list).toContainText("sample.csv")
   await expect(page.getByTestId("catalog-up")).toHaveCount(0)
