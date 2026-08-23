@@ -94,13 +94,9 @@ function endDrag(event: PointerEvent) {
 <style scoped>
 .app-window {
   position: fixed;
-  /* Above the application's own chrome — Quasar puts a header and a footer at
-     2000 — and above a sticky table heading, which declares 1 and would
-     otherwise paint over a window that declared nothing at all. Below q-menu
-     and q-dialog at 6000: a select, an action menu and the confirmation of a
-     close all open *from* a window and have to land on top of it.
-     Order within this layer is the order of the array, not a counter. */
-  z-index: 3000;
+  /* Named rather than numbered: what a window has to clear and what it has to
+     stay under is stated once, in `shared/ui/layers.css`. */
+  z-index: var(--dp-layer-window);
   display: flex;
   flex-direction: column;
   min-height: 0;

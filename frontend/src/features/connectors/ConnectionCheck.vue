@@ -99,7 +99,7 @@ async function copy() {
   left: 12px;
   right: 12px;
   bottom: calc(100% + 10px);
-  z-index: 1;
+  z-index: var(--dp-layer-popover);
   padding: 12px 14px;
   border: 1px solid var(--dp-border-strong);
   border-radius: 6px;

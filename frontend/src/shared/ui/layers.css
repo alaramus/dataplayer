@@ -1,0 +1,35 @@
+/*
+ * How far above the page each floating thing is drawn.
+ *
+ * The same relation `theme.css` has to a colour: a component says what
+ * something *is* and one file says what that is worth. A layer stated as a
+ * number is a decision made alone, and two such decisions cannot be compared
+ * without opening both files — which is exactly how a floating window came to
+ * be painted over by a sticky table heading that quietly declared `1`, and how
+ * the drop zone of the workspace lost to the same heading afterwards.
+ *
+ * Two of the numbers are not ours. Quasar puts its header and footer at 2000
+ * and its menus, dialogs and notifications at 6000, so anything of ours that
+ * has to clear the first and stay under the second is placed between them.
+ *
+ * Custom properties and not Sass variables, for the reason theme.css gives:
+ * these are read in the browser, and a screen carries the name rather than
+ * the value.
+ */
+
+:root {
+  /* A heading that stays while its own rows slide under it. */
+  --dp-layer-sticky: 1;
+
+  /* Drawn over a whole panel: where a dragged tab would land. Above a sticky
+     heading, because it covers the panel and a heading is part of it. */
+  --dp-layer-overlay: 2;
+
+  /* A panel anchored to a control it belongs to, over the form around it. */
+  --dp-layer-popover: 3;
+
+  /* A floating window: over the application's own chrome and over any grid
+     inside it, under the menus and dialogs that open from the window itself.
+     Order within this layer is the order of the array, not a counter. */
+  --dp-layer-window: 3000;
+}

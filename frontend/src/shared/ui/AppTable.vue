@@ -92,7 +92,7 @@ withDefaults(
 .app-table--sticky :deep(thead tr th) {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: var(--dp-layer-sticky);
   background: var(--dp-surface);
 }
 </style>

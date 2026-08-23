@@ -8,6 +8,7 @@ import { openNode, pickSchema } from "./utils/catalog"
 import {
   catalogTab,
   deleteConnector,
+  editConnector,
   connectorRow,
   openConnector,
   rowsTabs,
@@ -289,6 +290,51 @@ test("a column torn in two leaves no empty half behind", async ({ page }) => {
   await expect(page.getByTestId("workspace-scene")).toBeVisible()
 
   await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("what floats over a panel is drawn over the sticky heading in it", async ({ page }) => {
+  const name = `e2e-layer-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+  await expect(page.getByTestId("row-grid")).toContainText("relname")
+
+  const layerOf = async (selector: string) =>
+    Number(
+      await page
+        .locator(selector)
+        .first()
+        .evaluate((node) => getComputedStyle(node).zIndex)
+    )
+  const heading = await layerOf(".app-table--sticky thead th")
+  expect(heading).toBeGreaterThan(0)
+
+  // While a tab is being dragged. The heading of a grid declares a layer of
+  // its own, so anything covering the panel has to declare a higher one or it
+  // is painted over - which is what left the column names standing out of the
+  // drop zone.
+  const tab = rowsTabs(page).first()
+  const work = page.getByTestId("workspace-leaf-work")
+  const from = await tab.boundingBox()
+  const onto = await work.boundingBox()
+  if (from === null || onto === null) throw new Error("the tab or the column has no box")
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(onto.x + onto.width / 2, onto.y + onto.height / 2, { steps: 8 })
+  expect(await layerOf(".workspace-leaf__overlay")).toBeGreaterThan(heading)
+  await page.mouse.up()
+
+  // And a floating window over the same grid, which is the same question
+  // asked once before.
+  await editConnector(page, name)
+  expect(await layerOf(".app-window")).toBeGreaterThan(heading)
+
+  await page.getByTestId("delete-connector").click()
+  await page.getByTestId("confirm-accept").click()
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 

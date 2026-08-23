@@ -7,6 +7,7 @@ import "@quasar/extras/material-icons/material-icons.css"
 import "quasar/src/css/index.sass"
 // After Quasar's own stylesheet: the colours the application draws itself
 // with, both themes of them.
+import "@/shared/ui/layers.css"
 import "@/shared/ui/theme.css"
 
 import App from "@/App.vue"

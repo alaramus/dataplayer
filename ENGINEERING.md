@@ -151,6 +151,10 @@ encryption key must decode to exactly 32 bytes.
   `variant="danger"`, not `flat color="negative"`. `tokens.ts` is the only
   place that turns one into the other. What has no choice (`q-icon`,
   `q-separator`, `q-td`) stays as it is; the kit is not a facade over Quasar.
+- **How far something floats is a meaning too.** Every `z-index` in the
+  application names a layer declared in `src/shared/ui/layers.css`; a raw
+  number is a defect, because two of them cannot be compared without opening
+  both files.
 - `src/client` is generated from OpenAPI and never edited by hand. After
   changing routes or schemas, run `bash scripts/generate-client.sh`.
 - Pure logic is separated from components so it can be tested without mounting:
@@ -158,7 +162,9 @@ encryption key must decode to exactly 32 bytes.
 - Elements are found in tests the way a user finds them — by role, text or
   `data-testid` — not by CSS classes and not by snapshots.
 
-**Enforced:** ESLint forbids `src/stores/**` importing the generated client or
+**Enforced:** a test reads every `.vue` and `.css` under `src` and fails on a
+`z-index` that is not `var(--dp-layer-…)`, verified by putting a number back.
+ESLint forbids `src/stores/**` importing the generated client or
 any feature, verified by introducing the import. ESLint also forbids, outside
 `src/shared/ui`, every `q-*` the kit replaces — in both spellings Vue accepts,
 because the rule matches the raw tag name and `<QBtn>` would otherwise walk

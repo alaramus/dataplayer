@@ -321,6 +321,11 @@ const overlayStyle = computed((): CSSProperties => {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* Over everything the panel draws, a sticky table heading included: a
+     heading declares a layer of its own, so an overlay that declared none was
+     painted over by it and the column names stood outside the drop zone.
+     What each layer is worth is in `shared/ui/layers.css`. */
+  z-index: var(--dp-layer-overlay);
 }
 .workspace-leaf__zone {
   background: var(--dp-dropzone);

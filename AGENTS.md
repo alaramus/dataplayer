@@ -175,7 +175,8 @@ frontend/src/
 │   ├── ui/              the component kit every screen is built from;
 │   │                    tokens.ts turns meaning into Quasar props,
 │   │                    theme.css turns meaning into colours in both
-│   │                    themes, useToast and useConfirm replace $q,
+│   │                    themes, layers.css turns meaning into stacking
+│   │                    order, useToast and useConfirm replace $q,
 │   │                    index.ts is the one import path
 │   ├── api/             client setup, and one reading of an API error
 │   ├── auth/            the session, watched across tabs
@@ -589,6 +590,18 @@ Four consequences worth stating separately:
   of custom properties. `stores/theme.ts` is the only caller of Quasar's Dark
   plugin, so the kit's components and the colours a screen draws itself with
   turn over on one event.
+- **A layer is a meaning too, and `layers.css` is where it is spent.** How
+  far above the page something floats is the same kind of statement as what
+  colour it is: a screen carries `var(--dp-layer-overlay)`, never `2`. A
+  number decided alone cannot be compared with another without opening both
+  files, which is how a floating window came to be painted over by a sticky
+  table heading that quietly declared `1`, and how the drop zone of the
+  workspace lost to the same heading afterwards — the second time is what
+  turned a fix into a rule. Two of the values in that file are Quasar's, not
+  ours: its header and footer sit at 2000 and its menus and dialogs at 6000,
+  so anything of ours that must clear the first and stay under the second is
+  placed between them. A test reads every `.vue` and `.css` under `src` and
+  fails on a `z-index` that is not one of these names.
 - **The rule is a lint rule, not a habit.** `vue/no-restricted-html-elements`
   forbids, outside `shared/ui`, exactly those `q-*` that have a replacement,
   in both spellings Vue accepts — matching only `q-btn` would let `<QBtn>`
