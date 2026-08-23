@@ -98,7 +98,16 @@ button. One menu in the head carries everything the source can do, live for
 what is ticked and greyed out for the rest — standing in a folder is not
 choosing it, so nothing is renamed or removed because of where the user
 happens to be. Tabs wrap onto a second line rather than running off the end of
-a strip, and a strip can be cleared down to the tab being looked at.
+a strip, and a strip can be cleared down to the tab being looked at. A column
+pushed aside keeps the plus as well as the icons: it is the same commands at a
+smaller width, not fewer of them.
+
+The screen comes in light and dark, switched by a button beside Sign out and
+remembered. The browser is asked what it prefers only until somebody chooses.
+Every colour the application draws itself with is declared once, by meaning,
+and stated twice — so a screen never names a value, and a floating window now
+lies over the header and over the sticky headings of a grid rather than
+under them.
 
 ### What exists
 
@@ -159,8 +168,9 @@ frontend/src/
 ├── shared/
 │   ├── ui/              the component kit every screen is built from;
 │   │                    tokens.ts turns meaning into Quasar props,
-│   │                    useToast and useConfirm replace $q, index.ts is
-│   │                    the one import path
+│   │                    theme.css turns meaning into colours in both
+│   │                    themes, useToast and useConfirm replace $q,
+│   │                    index.ts is the one import path
 │   ├── api/             client setup, and one reading of an API error
 │   ├── auth/            the session, watched across tabs
 │   ├── SchemaForm/      JSON Schema to form, framework-independent core;
@@ -173,8 +183,8 @@ frontend/src/
 │   │                    tree.ts, dropZone.ts, placement.ts and persist.ts are
 │   │                    pure, the components see one injected context
 │   └── testing/         helpers for tests, not shipped by any screen
-├── stores/              Pinia: client-side state only — the session, and what
-│                        the last connection check said
+├── stores/              Pinia: client-side state only — the session, the
+│                        theme, and what the last connection check said
 └── features/
     ├── auth/
     ├── catalog/         the list of one level, the row grid, and the menu of
@@ -559,8 +569,17 @@ It is not a facade over Quasar: what has no choice of appearance
 a rare case does not force a change to the kit — and `data-testid` keeps
 landing where Quasar puts it, which is what the existing tests address.
 
-Three consequences worth stating separately:
+Four consequences worth stating separately:
 
+- **A colour is a meaning too, and `theme.css` is where it is spent.** The
+  same relation `tokens.ts` has to Quasar props: a screen carries
+  `var(--dp-hover)`, never `rgba(0, 0, 0, 0.04)`. That one file declares the
+  light values on `:root` and redeclares them under `body.body--dark`, which
+  is what makes a theme switchable at all — a Sass variable is settled at
+  build time, and that is why there was no dark theme until there was a file
+  of custom properties. `stores/theme.ts` is the only caller of Quasar's Dark
+  plugin, so the kit's components and the colours a screen draws itself with
+  turn over on one event.
 - **The rule is a lint rule, not a habit.** `vue/no-restricted-html-elements`
   forbids, outside `shared/ui`, exactly those `q-*` that have a replacement,
   in both spellings Vue accepts — matching only `q-btn` would let `<QBtn>`
@@ -862,6 +881,22 @@ The shared UI kit is done, ahead of 7 rather than as part of it: every screen
 now builds from `shared/ui`, and a lint rule keeps the next one from going
 around it (D11). A new screen starts by looking at `/ui-kit`.
 
+The kit then grew the half it was missing: colour. `shared/ui/theme.css` is to
+a colour what `tokens.ts` is to a Quasar prop, and a screen that names a value
+rather than a meaning now has one theme instead of two. Full reasoning in
+`docs/superpowers/specs/2026-08-23-theme-and-window-layer-design.md`, which
+also carries the rest of that round — the plus a collapsed column keeps, the
+layer a floating window sits in, and the schemas moving onto the line that
+says where you are.
+
+Two things it settled are worth carrying into 7. A colour named by meaning is
+the shape any later look-and-feel question should take: a screen states what
+something *is*, and one file says what that is worth in each theme. And a
+green unit test is still not evidence — the theme store passed six of them
+while the application opened in the wrong theme, because Quasar's Dark plugin
+writes to the document when it installs and overwrote the choice applied a
+line earlier.
+
 Each sub-project gets its own design document, its own plan and its own
 iteration.
 
@@ -985,8 +1020,18 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   `features/workspace/panels.ts` and the cache inside `<KeepAlive>` keep what
   they were given for as long as the page lives; nothing prunes them when a tab
   is closed. Bounded by how many distinct panels one session opens.
-- **There is no dark theme.** Tokens are build-time sass variables; switching
-  at runtime needs CSS custom properties and its own task.
+- **The theme does not follow the system.** The browser is asked once, when
+  nothing has been chosen; after that the choice stands, and there is no way
+  back to "as the system says" but clearing the stored value.
+- **The theme is one per browser.** `localStorage`, like the layout: it does
+  not follow a user to another machine and is not shared between two windows.
+- **The dark palette was picked, not derived.** The values under
+  `body.body--dark` were chosen by eye against Quasar's own dark colours;
+  nothing measures contrast against WCAG.
+- **A window can cover the application's header.** Dragged to the top it lies
+  over Sign out until it is moved away. The price of the window engine not
+  knowing the height of the chrome above it; it cannot be lost, which is what
+  the layer was changed for.
 - **D2b — a driver is a session plus capability modules — rests on review.**
   There is no check that a capability module keeps out of connection handling.
 - **A capability is coarser than what a source actually does.** "Read rows" is
