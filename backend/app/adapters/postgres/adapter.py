@@ -31,6 +31,16 @@ class PostgresAdapter:
         return await self._fetch.fetch(request)
 
 
-@register(name="postgres", title="PostgreSQL", options_schema=PostgresOptions)
+@register(
+    name="postgres",
+    title="PostgreSQL",
+    category="sql",
+    description=(
+        "Relational database. Browse schemas, tables and views, and read "
+        "rows a page at a time with sorting and filtering done by the server."
+    ),
+    options_schema=PostgresOptions,
+    adapter_class=PostgresAdapter,
+)
 def _build(options: PostgresOptions, context: AdapterContext) -> PostgresAdapter:
     return PostgresAdapter(options, context.pooling)

@@ -207,7 +207,14 @@ async def test_adapter_without_fetch_support_returns_501(
         async def check_connection(self) -> ConnectionCheckResult:
             return ConnectionCheckResult(ok=True, message="pong", latency_ms=1)
 
-    registry.register(name="ping", title="Ping", options_schema=PingOptions)(PingAdapter)
+    registry.register(
+        name="ping",
+        title="Ping",
+        category="sql",
+        description="A source that can only be reached.",
+        options_schema=PingOptions,
+        adapter_class=PingAdapter,
+    )(PingAdapter)
 
     created = await client.post(
         f"{BASE}/",

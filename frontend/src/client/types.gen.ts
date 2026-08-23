@@ -107,6 +107,22 @@ export type AdapterTypeInfo = {
    */
   title: string
   /**
+   * Category
+   */
+  category: "sql" | "files"
+  /**
+   * Category Title
+   */
+  category_title: string
+  /**
+   * Description
+   */
+  description: string
+  /**
+   * Capabilities
+   */
+  capabilities: Array<Capability>
+  /**
    * Options Schema
    */
   options_schema: {
@@ -160,6 +176,24 @@ export type Body_login_login_access_token = {
    * Client Secret
    */
   client_secret?: string | null
+}
+
+/**
+ * Capability
+ *
+ * One thing a source type can do, in words a user reads.
+ *
+ * A model rather than a tuple because it crosses the API boundary.
+ */
+export type Capability = {
+  /**
+   * Group
+   */
+  group: "explore" | "manage"
+  /**
+   * Title
+   */
+  title: string
 }
 
 /**

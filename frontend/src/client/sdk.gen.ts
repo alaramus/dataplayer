@@ -767,7 +767,8 @@ export class AdaptersService {
   /**
    * Read Adapter Types
    *
-   * List available adapter types with the JSON Schema of their options.
+   * List available adapter types: what each one is, what it can do, and the
+   * JSON Schema of its options.
    */
   public static readAdapterTypes<ThrowOnError extends boolean = true>(
     options?: Options<adaptersReadAdapterTypesData, ThrowOnError>

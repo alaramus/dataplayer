@@ -11,7 +11,7 @@ import shutil
 import tempfile
 from functools import partial
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Protocol
 
 from anyio import to_thread
 from pydantic import BaseModel, Field, field_validator
@@ -21,6 +21,7 @@ from app.adapters.actions import (
     ActionRefused,
     ActionResult,
     ActionSet,
+    ActionType,
     ActsOn,
     FileAction,
     FilePayload,
@@ -243,13 +244,37 @@ def _remove(path: Path, recursive: bool) -> None:
         ) from None
 
 
+class FileActionType(ActionType, Protocol):
+    """One of the classes below, seen from outside.
+
+    Both halves are needed and neither alone is enough: the registry reads
+    `title` off the class, and `FileActions` builds an instance from a session.
+    """
+
+    def __call__(self, session: FileSession) -> Action[Any]: ...
+
+
+# The actions a file source has, as classes.
+#
+# Two readers, one tuple: `FileActions` builds its set from it, and the
+# registry reads the titles off it to say what the type can do. A second list
+# would be a list to forget — the same reasoning that derives secret fields
+# from `SecretStr` rather than from a register of names.
+FILE_ACTION_TYPES: tuple[FileActionType, ...] = (
+    CreateFolder,
+    Upload,
+    Rename,
+    Delete,
+)
+
+
 class FileActions:
     """What a file source offers on a given node."""
 
     def __init__(self, session: FileSession) -> None:
         self._session = session
         self._actions = ActionSet(
-            [CreateFolder(session), Upload(session), Rename(session), Delete(session)]
+            [action_type(session) for action_type in FILE_ACTION_TYPES]
         )
 
     def action(self, name: str) -> Action[Any]:

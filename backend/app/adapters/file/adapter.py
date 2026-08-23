@@ -1,10 +1,10 @@
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from app.adapters.actions import Action
+from app.adapters.actions import Action, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.fetch import FetchRequest, FetchResult
-from app.adapters.file.actions import FileActions
+from app.adapters.file.actions import FILE_ACTION_TYPES, FileActions
 from app.adapters.file.catalog import FileCatalog
 from app.adapters.file.fetch import FileFetch
 from app.adapters.file.options import FileOptions
@@ -49,7 +49,26 @@ class FileAdapter:
     def all_actions(self) -> list[Action[Any]]:
         return self._actions.all_actions()
 
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        """What this type of source can be asked to do, before one exists.
 
-@register(name="file", title="Files", options_schema=FileOptions)
+        The same tuple `FileActions` builds its set from, so the catalog
+        cannot advertise an action the driver does not dispatch.
+        """
+        return FILE_ACTION_TYPES
+
+
+@register(
+    name="file",
+    title="Files",
+    category="files",
+    description=(
+        "Your personal storage on this server. Browse folders, read a "
+        "delimited file as columns and anything else as numbered lines."
+    ),
+    options_schema=FileOptions,
+    adapter_class=FileAdapter,
+)
 def _build(options: FileOptions, context: AdapterContext) -> FileAdapter:
     return FileAdapter(options, context)

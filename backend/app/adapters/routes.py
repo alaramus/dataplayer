@@ -23,18 +23,30 @@ router = APIRouter(
 class AdapterTypeInfo(BaseModel):
     name: str
     title: str
+    category: registry.Category
+    # Sent rather than looked up on the client: one name for a category, and
+    # it is the server's.
+    category_title: str
+    description: str
+    # Derived from the driver, never listed — see registry.capabilities_of.
+    capabilities: list[registry.Capability]
     options_schema: dict[str, Any]
 
 
 @router.get("/", response_model=list[AdapterTypeInfo])
 async def read_adapter_types() -> Any:
     """
-    List available adapter types with the JSON Schema of their options.
+    List available adapter types: what each one is, what it can do, and the
+    JSON Schema of its options.
     """
     return [
         AdapterTypeInfo(
             name=adapter_type.name,
             title=adapter_type.title,
+            category=adapter_type.category,
+            category_title=registry.category_title(adapter_type.category),
+            description=adapter_type.description,
+            capabilities=registry.capabilities_of(adapter_type),
             options_schema=adapter_type.options_schema.model_json_schema(),
         )
         for adapter_type in registry.all_types()

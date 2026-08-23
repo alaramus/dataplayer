@@ -1,11 +1,12 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, SecretStr
 
-from app.adapters.protocol import DataAdapter
+from app.adapters.actions import DeclaresActions
+from app.adapters.protocol import DataAdapter, SupportsCatalog, SupportsFetch
 from app.adapters.resources import Pooling
 
 
@@ -33,31 +34,115 @@ class AdapterContext:
 
 Factory = Callable[[Any, AdapterContext], DataAdapter]
 
+# What kind of thing a source is, for the one screen that groups them. A
+# closed set rather than a free string: a category is a set of values, so a
+# typo has to fail to compile instead of quietly creating a group of one.
+Category = Literal["sql", "files"]
+
+# The wording lives beside the set it names, on the server, so the client is
+# never a second place where a category is called something.
+_CATEGORY_TITLES: dict[Category, str] = {
+    "sql": "SQL Databases",
+    "files": "Files & Storage",
+}
+
+
+def category_title(category: Category) -> str:
+    return _CATEGORY_TITLES[category]
+
+
+# What sort of statement a capability makes: what can be looked at, and what
+# can be changed. Two rather than the old application's ten, because two is
+# what the derivation below can honestly tell apart.
+CapabilityGroup = Literal["explore", "manage"]
+
+
+class Capability(BaseModel):
+    """One thing a source type can do, in words a user reads.
+
+    A model rather than a tuple because it crosses the API boundary.
+    """
+
+    group: CapabilityGroup
+    title: str
+
 
 @dataclass(frozen=True)
 class AdapterType:
     name: str
     title: str
+    category: Category
+    description: str
     options_schema: type[BaseModel]
+    # The driver class, kept beside the factory that builds instances of it.
+    # Capabilities are a question about the type — no connector exists yet, so
+    # there are no options and no session to build an instance from.
+    adapter_class: type[DataAdapter]
     factory: Factory
 
 _registry: dict[str, AdapterType] = {}
 
 
 def register(
-    *, name: str, title: str, options_schema: type[BaseModel]
+    *,
+    name: str,
+    title: str,
+    category: Category,
+    description: str,
+    options_schema: type[BaseModel],
+    adapter_class: type[DataAdapter],
 ) -> Callable[[Factory], Factory]:
-    """Register a source type. Applied to the driver factory."""
+    """Register a source type. Applied to the driver factory.
+
+    Every argument is required: a type that did not say what it is would reach
+    the catalog as a nameless tile, and the one place that could have said so
+    is this call.
+    """
 
     def decorator(factory: Factory) -> Factory:
         if name in _registry:
             raise ValueError(f"Adapter type already registered: {name}")
         _registry[name] = AdapterType(
-            name=name, title=title, options_schema=options_schema, factory=factory
+            name=name,
+            title=title,
+            category=category,
+            description=description,
+            options_schema=options_schema,
+            adapter_class=adapter_class,
+            factory=factory,
         )
         return factory
 
     return decorator
+
+
+def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
+    """What a source type can do, read off the driver rather than listed.
+
+    There is no table of capabilities to keep in step: a driver that stops
+    implementing `list_children` stops claiming to browse in the same commit,
+    and the titles of its actions come from the very classes that will be
+    dispatched. The old application kept 105 capability names by hand on the
+    client and said so in its own README, at the cost it names there.
+
+    `issubclass` rather than `isinstance` because the question is about the
+    type. All three protocols hold methods only, which is what makes the class
+    check legal at all.
+    """
+    driver = adapter_type.adapter_class
+    found: list[Capability] = []
+
+    if issubclass(driver, SupportsCatalog):
+        found.append(Capability(group="explore", title="Browse the catalog"))
+    if issubclass(driver, SupportsFetch):
+        found.append(Capability(group="explore", title="Read rows"))
+    if issubclass(driver, DeclaresActions):
+        found.extend(
+            Capability(group="manage", title=action_type.title)
+            for action_type in driver.action_types()
+        )
+
+    return found
 
 
 def get(name: str) -> AdapterType:

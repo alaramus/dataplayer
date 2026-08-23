@@ -211,3 +211,32 @@ class SupportsActions(Protocol):
     def action(self, name: str) -> Action[Any]: ...
 
     def all_actions(self) -> list[Action[Any]]: ...
+
+
+class ActionType(Protocol):
+    """An action seen as a class: what it is called, before one is built.
+
+    `name` and `title` are `ClassVar` on `Action`, so they can be read without
+    a session — which is the whole point, since the catalog asks what a type
+    of source can do while no connector exists.
+    """
+
+    name: str
+    title: str
+
+
+@runtime_checkable
+class DeclaresActions(Protocol):
+    """A driver that names its action classes without being built.
+
+    Separate from `SupportsActions`, which is about an instance: `available`
+    needs a session to look at a node with.
+
+    A classmethod and not a `ClassVar` on purpose: a protocol holding data
+    cannot be used with `issubclass`, and reaching for the attribute with
+    `getattr` would be the `hasattr` dispatch this module was written to
+    remove.
+    """
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]: ...
