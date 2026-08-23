@@ -23,8 +23,8 @@ cp frontend/.env.example frontend/.env
 ```
 
 Fill in both files: at minimum `SECRET_KEY`, `CONNECTOR_SECRET_KEY`,
-`POSTGRES_PASSWORD` and `FIRST_SUPERUSER_PASSWORD`. Generate the encryption
-key with:
+`POSTGRES_PASSWORD` and `FIRST_SUPERUSER_PASSWORD`. Generate the encryption key
+with:
 
 ```bash
 python -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"
@@ -34,19 +34,22 @@ Then start the stack and the dev server:
 
 ```bash
 docker compose up -d db backend
-bun install
-bun run dev
+cd frontend && bun install && bun run dev
 ```
 
 The application is served at http://localhost:5173, the API at
 http://localhost:8000, and the interactive API docs at
 http://localhost:8000/docs.
 
+The backend cannot run natively on Windows: psycopg 3 in async mode is
+incompatible with the event loop Python selects there. Use Docker.
+
 ## Documentation
 
-- [AGENTS.md](AGENTS.md) — what the project is, decisions, commands and traps.
-  Read this before changing anything.
-- [ENGINEERING.md](ENGINEERING.md) — how code is written here, and what
-  enforces each rule.
-- [development.md](development.md) — day-to-day workflow.
-- `docs/superpowers/` — design documents and implementation plans.
+- [AGENTS.md](AGENTS.md) — what the project is, where to read the rest, commands
+  and traps. Read this before changing anything.
+- [ENGINEERING.md](ENGINEERING.md) — how code is written here, and what enforces
+  each rule.
+- [docs/architecture/](docs/architecture/) — what exists in each area, the
+  decisions behind it, and where it falls short.
+- `docs/superpowers/` — design documents and implementation plans, in Russian.
