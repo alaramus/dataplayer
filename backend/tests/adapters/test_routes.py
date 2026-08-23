@@ -20,6 +20,9 @@ async def test_lists_postgres_with_json_schema(
     assert set(schema["discriminator"]["mapping"]) == {"user_password", "no_auth"}
     properties = schema["$defs"]["PostgresUserPassword"]["properties"]
     assert properties["host"]["title"] == "Host"
+    # Defaults the form starts from: the commonest address there is, rather
+    # than two empty boxes.
+    assert properties["host"]["default"] == "localhost"
     assert properties["port"]["default"] == 5432
 
 
@@ -46,7 +49,7 @@ async def test_a_type_with_one_way_of_connecting_stays_a_plain_schema(
     schema = types["file"]["options_schema"]
 
     assert "oneOf" not in schema
-    assert "path" in schema["properties"]
+    assert schema["properties"]["path"]["title"] == "Path"
 
 
 async def test_secret_fields_are_marked_as_password(

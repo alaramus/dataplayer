@@ -75,9 +75,10 @@ test("the catalog leads to the form, and back again", async ({ page }) => {
   await page.getByTestId("adapter-file").click()
   await page.getByTestId("create-from-catalog").click()
 
-  // The form states the type rather than offering a choice of it: the choice
-  // was made in the window behind this one.
-  await expect(page.getByTestId("connector-type")).toContainText("Files")
+  // The form follows the type picked in the window behind it, and says so by
+  // the name it opens with — there is one driver per type, so a row stating
+  // which one would only ever repeat this.
+  await expect(page.getByTestId("connector-name")).toHaveValue("Files")
   await expect(page.getByTestId("adapter-catalog")).toHaveCount(0)
 
   await page.getByTestId("back-to-catalog").click()
@@ -87,7 +88,7 @@ test("the catalog leads to the form, and back again", async ({ page }) => {
   // picked before.
   await page.getByTestId("adapter-postgres").click()
   await page.getByTestId("create-from-catalog").click()
-  await expect(page.getByTestId("connector-type")).toContainText("PostgreSQL")
+  await expect(page.getByTestId("connector-name")).toHaveValue("PostgreSQL")
   await expect(page.getByTestId("field-host")).toBeVisible()
 
   await page.getByTestId("back-to-catalog").click()
@@ -118,7 +119,7 @@ test("editing an existing connection opens its form directly", async ({ page }) 
   // settled, so there was never a step before this one.
   await expect(page.getByTestId("adapter-catalog")).toHaveCount(0)
   await expect(page.getByTestId("back-to-catalog")).toHaveCount(0)
-  await expect(page.getByTestId("connector-type")).toContainText("Files")
+  await expect(page.getByTestId("connector-name")).toHaveValue(name)
 
   await page.getByRole("button", { name: "Cancel" }).click()
   await deleteConnector(page, name)

@@ -69,9 +69,12 @@ included.
 A connection is edited in a floating window, and several of them are open at
 once: one connection is read while another is filled in beside it, which is
 what a modal window forbids. Inside, the layout follows a database tool — the
-name on top, the driver stated, host and port on one line because the options
-model says they are one address, and the connection string the server composed
-pinned above Test Connection and OK / Cancel / Apply.
+name on top, host and port on one line because the options model says they are
+one address, and the connection string the server composed pinned above Test
+Connection and OK / Cancel / Apply. A new connection opens named after its type
+and addressed to localhost; a stored secret shows as `<hidden>` and empties the
+moment the field is entered; and what a check said appears in a panel over the
+button that ran it rather than as a line that moves the form about.
 
 Adding a connection now starts at a catalog of source types rather than at a
 dropdown: a sidebar of categories with counts, a search that matches what a
@@ -393,8 +396,9 @@ Two consequences worth stating separately:
 - **The catalog and the form are two windows, not two steps.** A grid needs
   900px and a form 520, and one component changing width between them would
   carry two roles as well. It is also what lets editing an existing connection
-  open its form directly, with no step behind it — so the form states its type
-  rather than offering a disabled dropdown of it.
+  open its form directly, with no step behind it — so the form never offers a
+  choice of type. It does not state one either: there is one driver per type,
+  so a new connection simply opens named after the type it connects to.
 
 **D14. A connection is edited in a floating window, and there may be several.**
 Not modal, and that is the requirement rather than a detail: the reason for the
@@ -1028,10 +1032,5 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
 - **There are two variants, and both belong to one source type.** The
   mechanism takes a union of any width; it has been exercised on the narrowest
   one there is.
-- **The URL row stays empty while a connection is edited.** The form asks for
-  the string only once its own values pass validation, and a stored password
-  never comes back, so nothing is shown until one is retyped — even though the
-  server would have filled it in from the stored secret. Older than this
-  sub-project and confirmed in a browser, not deduced.
 - **The reuse rules rest on review.** No machine flags the third similar thing
   in a diff.

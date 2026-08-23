@@ -13,6 +13,7 @@ withDefaults(
     /** Offer a cross that empties the field. A search is the reason it exists:
         a query with no way back is a query the user has to erase by hand. */
     clearable?: boolean
+
   }>(),
   {
     label: undefined,
@@ -25,7 +26,12 @@ withDefaults(
   }
 )
 
-const emit = defineEmits<{ "update:modelValue": [value: string] }>()
+const emit = defineEmits<{
+  "update:modelValue": [value: string]
+  /** The field was entered. A caller that shows a stand-in for a value it
+      does not have needs to know the moment the user means to type. */
+  focus: []
+}>()
 
 // QInput reports string | number | null whatever its type is. A text field
 // deals in strings, so the caller is not made to widen its own state to match
@@ -48,6 +54,7 @@ function report(value: string | number | null) {
     :error="Boolean(error)"
     :error-message="error"
     @update:model-value="report"
+    @focus="emit('focus')"
   >
     <!-- Forwarded rather than left to fall through: a slot does not fall
          through at all, so a search field had no way to carry its magnifier

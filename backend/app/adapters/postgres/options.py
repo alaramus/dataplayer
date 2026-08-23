@@ -30,7 +30,15 @@ class _PostgresBase(BaseModel):
     see `readSchema` on the client.
     """
 
-    host: str = Field(title="Host", min_length=1, json_schema_extra=layout(row="address"))
+    # A default rather than an empty box: a database on the same machine is
+    # the commonest case there is, and a value that is usually right is worth
+    # more than a field that always has to be filled in.
+    host: str = Field(
+        default="localhost",
+        title="Host",
+        min_length=1,
+        json_schema_extra=layout(row="address"),
+    )
     port: int = Field(
         default=5432,
         title="Port",

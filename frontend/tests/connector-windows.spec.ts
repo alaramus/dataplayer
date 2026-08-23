@@ -166,6 +166,15 @@ test("shows the connection string, and hides it for a source that has none", asy
   await page.getByTestId("save-connector").click()
   await expect(connectorRow(page, postgres)).toBeVisible()
 
+  // And it is there the moment a stored connection is opened. The password
+  // never comes back, so a form that waited for one to be typed showed
+  // nothing at all — while the server fills it in from what it has stored.
+  await editConnector(page, postgres)
+  await expect(page.getByTestId("connector-url")).toHaveValue(
+    new RegExp(`^postgresql://${DATABASE.user}@${DATABASE.host}:${DATABASE.port}/`)
+  )
+  await page.getByRole("button", { name: "Cancel" }).click()
+
   // A personal directory is not addressed by a URL: the source does not
   // implement the capability, the server answers 501, and the row is absent.
   await pickAdapterType(page, "file")

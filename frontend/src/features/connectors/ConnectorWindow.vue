@@ -3,7 +3,6 @@ import { computed, ref, watch } from "vue"
 
 import type { ConnectionCheckResult, ConnectorPublic } from "@/client"
 import ConnectionCheck from "@/features/connectors/ConnectionCheck.vue"
-import { adapterIcon } from "@/features/connectors/adapters"
 import {
   useAdapterTypes,
   useCheckDraft,
@@ -156,14 +155,33 @@ const groups = computed(() => fieldGroups(activeFields.value))
 const showTabs = computed(() => groups.value.length > 1)
 const activeGroup = ref("general")
 
-const secretPlaceholder = computed(() => (isEdit.value ? "Leave unchanged" : undefined))
+// A stored connection has secrets the server will never send back, so an
+// untouched secret field stands in for a value this screen does not hold.
+const secretsAreStored = computed(() => isEdit.value)
+
+/**
+ * What the values must satisfy before the server is asked anything.
+ *
+ * While editing, a secret left untouched is not missing: the server has it
+ * and fills it in. Stated once here rather than at each of the three call
+ * sites, which is how the connection string came to be missing from an edit
+ * window — the guard demanded a password that was never going to be typed.
+ */
+function draftSchema() {
+  const fields = secretsAreStored.value
+    ? activeFields.value.map((field) =>
+        field.kind === "password" ? { ...field, required: false, minLength: 0 } : field
+      )
+    : activeFields.value
+  return fieldsToZod(fields)
+}
 const saving = computed(() => createConnector.isPending.value || updateConnector.isPending.value)
 
 /** The address, asked of the server whenever the values could compose one. */
 let describeToken = 0
 async function describe() {
   if (!typeName.value || !shape.value) return
-  if (!fieldsToZod(activeFields.value).safeParse(optionValues.value).success) {
+  if (!draftSchema().safeParse(optionValues.value).success) {
     // Half-typed values would only produce a half-built address.
     connectionString.value = ""
     return
@@ -206,7 +224,10 @@ function load() {
     name.value = props.connector.name
     resetOptions(allFields.value, props.connector.config as Record<string, unknown>)
   } else {
-    name.value = ""
+    // Named after the type it connects to, so the form says which one was
+    // picked without a row that only ever states it. One word to replace
+    // beats an empty box, and a connection nobody renames still has a name.
+    name.value = selectedType.value?.title ?? ""
     resetOptions(allFields.value)
   }
   describe()
@@ -266,9 +287,7 @@ async function check() {
 async function apply(): Promise<boolean> {
   if (!typeName.value || !shape.value) return false
   const nameValid = validateName()
-  // While editing an empty password is allowed, so the schema is enforced in
-  // full only for a connection being created.
-  const valuesValid = isEdit.value ? true : validateOptions(fieldsToZod(activeFields.value))
+  const valuesValid = validateOptions(draftSchema())
   if (!nameValid || !valuesValid) return false
 
   try {
@@ -371,22 +390,6 @@ async function pasteUrl() {
           :error="nameError"
         />
 
-        <!-- The type, stated rather than offered: it was chosen in the
-             catalog, and it never changes afterwards. -->
-        <div
-          v-if="selectedType"
-          class="connector-window__type"
-          data-testid="connector-type"
-        >
-          <span class="connector-window__label">Driver:</span>
-          <q-icon
-            :name="adapterIcon(selectedType.name)"
-            size="22px"
-          />
-          <span>{{ selectedType.title }}</span>
-          <span class="connector-window__muted">{{ selectedType.category_title }}</span>
-        </div>
-
         <!-- Only once the server names a second group: one tab is not a
              choice, and a strip of one would say nothing. -->
         <div
@@ -414,10 +417,8 @@ async function pasteUrl() {
           v-model="optionValues"
           :fields="group.fields"
           :errors="optionErrors"
-          :secret-placeholder="secretPlaceholder"
+          :secrets-are-stored="secretsAreStored"
         />
-
-        <ConnectionCheck :result="checkResult" />
       </div>
 
       <!-- Pinned above the buttons rather than left at the end of the
@@ -453,55 +454,65 @@ async function pasteUrl() {
         />
       </div>
 
-      <footer class="connector-window__foot">
-        <AppButton
-          variant="secondary"
-          label="Test Connection"
-          data-testid="check-draft"
-          :disable="!typeName"
-          :loading="checkDraft.isPending.value"
-          @click="check"
+      <!-- The result of the last check floats over this strip rather than
+           sitting in the form: it is read once and dismissed, and a line in
+           the body moved every field below it. -->
+      <div class="connector-window__foot-area">
+        <ConnectionCheck
+          :result="checkResult"
+          @close="checkResult = null"
         />
-        <AppButton
-          v-if="isEdit"
-          variant="danger-quiet"
-          label="Delete"
-          data-testid="delete-connector"
-          :loading="removeConnector.isPending.value"
-          @click="remove"
-        />
-        <span class="connector-window__spacer" />
-        <AppButton
-          label="OK"
-          data-testid="save-connector"
-          :disable="!typeName"
-          :loading="saving"
-          @click="ok"
-        />
-        <AppButton
-          v-if="!isEdit"
-          variant="quiet"
-          label="Back"
-          data-testid="back-to-catalog"
-          @click="emit('back')"
-        />
-        <AppButton
-          variant="quiet"
-          label="Cancel"
-          data-testid="cancel-connector"
-          @click="emit('close')"
-        />
-        <!-- Saves and stays: the reason several of these windows are open at
+
+        <footer class="connector-window__foot">
+          <AppButton
+            variant="secondary"
+            label="Test Connection"
+            data-testid="check-draft"
+            :disable="!typeName"
+            :loading="checkDraft.isPending.value"
+            @click="check"
+          />
+          <AppButton
+            v-if="isEdit"
+            variant="danger-quiet"
+            label="Delete"
+            data-testid="delete-connector"
+            :loading="removeConnector.isPending.value"
+            @click="remove"
+          />
+          <span class="connector-window__spacer" />
+          <AppButton
+            label="OK"
+            data-testid="save-connector"
+            :disable="!typeName"
+            :loading="saving"
+            @click="ok"
+          />
+          <AppButton
+            v-if="!isEdit"
+            variant="quiet"
+            label="Back"
+            data-testid="back-to-catalog"
+            @click="emit('back')"
+          />
+          <AppButton
+            variant="quiet"
+            label="Cancel"
+            data-testid="cancel-connector"
+            @click="emit('close')"
+          />
+          <!-- Saves and stays: the reason several of these windows are open at
              once is to keep working in them. -->
-        <AppButton
-          variant="secondary"
-          label="Apply"
-          data-testid="apply-connector"
-          :disable="!typeName"
-          :loading="saving"
-          @click="apply"
-        />
-      </footer>
+          <AppButton
+            variant="secondary"
+            label="Apply"
+            data-testid="apply-connector"
+            :disable="!typeName"
+            :loading="saving"
+            @click="apply"
+          />
+        </footer>
+      </div>
     </template>
   </div>
 </template>
@@ -523,18 +534,9 @@ async function pasteUrl() {
   gap: 16px;
   padding: 12px 16px;
 }
-.connector-window__type {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.connector-window__label {
-  opacity: 0.7;
-}
-.connector-window__muted {
-  font-size: 12px;
-  opacity: 0.6;
+.connector-window__foot-area {
+  flex: none;
+  position: relative;
 }
 .connector-window__tabs {
   display: flex;
@@ -567,6 +569,12 @@ async function pasteUrl() {
 .connector-window__url > *:first-child {
   flex: 1;
   min-width: 0;
+}
+/* A Quasar field reserves a line under its control for an error message, so
+   aligning to the bottom of the box puts a button that height below the one
+   thing it belongs to. */
+.connector-window__url > button {
+  margin-bottom: 20px;
 }
 .connector-window__foot {
   flex: none;

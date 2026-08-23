@@ -10,8 +10,8 @@ class FileOptions(BaseModel):
     # relative to that person's own storage.
     path: str = Field(
         default="/",
-        title="Folder",
-        description="Folder inside your personal storage",
+        title="Path",
+        description="Path inside your personal storage",
         json_schema_extra=layout(),
         # The default goes through the validator too, so "/" becomes the
         # empty path that means "the home directory itself".
@@ -23,5 +23,5 @@ class FileOptions(BaseModel):
     def _must_stay_inside_the_home(cls, value: str) -> str:
         relative = value.strip().strip("/")
         if relative and not stays_inside_root(relative):
-            raise ValueError("The folder must stay inside your personal storage")
+            raise ValueError("The path must stay inside your personal storage")
         return relative

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref, watch } from "vue"
 
 import AppInput from "@/shared/ui/AppInput.vue"
 import AppNumberInput from "@/shared/ui/AppNumberInput.vue"
@@ -13,7 +13,12 @@ const props = defineProps<{
   fields: FieldSpec[]
   modelValue: Record<string, unknown>
   errors: Record<string, string>
-  secretPlaceholder?: string
+  /**
+   * The connection being edited already has secrets stored, and the server
+   * never sends them back. An untouched secret field therefore stands in for
+   * a value it does not hold.
+   */
+  secretsAreStored?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -37,6 +42,40 @@ function numberValue(name: string): number | null {
   const value = props.modelValue[name]
   return typeof value === "number" ? value : null
 }
+
+/**
+ * A stored secret, shown as a stand-in until the user means to replace it.
+ *
+ * The alternative — a placeholder — reads as an empty field, and an empty
+ * field beside a saved connection says the password was lost. This says there
+ * is one and that it is not being shown; touching it empties the field and
+ * whatever is typed then replaces it. A field left untouched reports nothing,
+ * and the server keeps what it has.
+ */
+const HIDDEN = "<hidden>"
+
+const touched = ref<Set<string>>(new Set())
+
+function isHidden(field: FieldSpec): boolean {
+  return (
+    props.secretsAreStored === true &&
+    field.kind === "password" &&
+    !touched.value.has(field.name) &&
+    (props.modelValue[field.name] ?? "") === ""
+  )
+}
+
+function reveal(name: string) {
+  touched.value = new Set(touched.value).add(name)
+}
+
+// A different connection in the same window is a different set of secrets.
+watch(
+  () => props.fields,
+  () => {
+    touched.value = new Set()
+  }
+)
 </script>
 
 <template>
@@ -81,14 +120,19 @@ function numberValue(name: string): number | null {
           @update:model-value="update(field.name, $event)"
         />
 
+        <!-- A stored secret shows as plain text on purpose: dots would say a
+             password of eight characters is there, and what is there is
+             unknown to this screen. Editable rather than read-only, because
+             Quasar does not report focus on a field it considers uneditable —
+             and focus is the moment the stand-in gives way. -->
         <AppInput
           v-else
           :data-testid="`field-${field.name}`"
-          :model-value="textValue(field.name)"
+          :model-value="isHidden(field) ? HIDDEN : textValue(field.name)"
           :label="field.label"
-          :type="field.kind === 'password' ? 'password' : 'text'"
-          :placeholder="field.kind === 'password' ? secretPlaceholder : undefined"
+          :type="field.kind === 'password' && !isHidden(field) ? 'password' : 'text'"
           :error="errors[field.name]"
+          @focus="field.kind === 'password' ? reveal(field.name) : undefined"
           @update:model-value="update(field.name, $event)"
         />
       </template>
