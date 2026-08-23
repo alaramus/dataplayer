@@ -3,9 +3,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel
 
 from app.adapters.actions import DeclaresActions
+from app.adapters.options import OptionsSchema
 from app.adapters.protocol import DataAdapter, SupportsCatalog, SupportsFetch
 from app.adapters.resources import Pooling
 
@@ -73,7 +74,10 @@ class AdapterType:
     title: str
     category: Category
     description: str
-    options_schema: type[BaseModel]
+    # A model, or a discriminated union of them when the fields depend on
+    # the way the source is connected to. Everything that reads it goes
+    # through `app.adapters.options`, which answers for both.
+    options_schema: OptionsSchema
     # The driver class, kept beside the factory that builds instances of it.
     # Capabilities are a question about the type — no connector exists yet, so
     # there are no options and no session to build an instance from.
@@ -89,7 +93,7 @@ def register(
     title: str,
     category: Category,
     description: str,
-    options_schema: type[BaseModel],
+    options_schema: OptionsSchema,
     adapter_class: type[DataAdapter],
 ) -> Callable[[Factory], Factory]:
     """Register a source type. Applied to the driver factory.
@@ -155,15 +159,3 @@ def get(name: str) -> AdapterType:
 def all_types() -> list[AdapterType]:
     return sorted(_registry.values(), key=lambda t: t.title)
 
-
-def secret_field_names(schema: type[BaseModel]) -> set[str]:
-    """Names of schema fields declared as SecretStr.
-
-    The single source of truth about which values are encrypted: there is no
-    separate list of secret fields, so a field cannot be left out by mistake.
-    """
-    return {
-        name
-        for name, field in schema.model_fields.items()
-        if field.annotation is SecretStr
-    }

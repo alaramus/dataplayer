@@ -154,10 +154,6 @@ def test_all_types_sorted_by_title() -> None:
     assert [t.title for t in registry.all_types()] == ["Alpha", "Zeta"]
 
 
-def test_secret_field_names_finds_only_secretstr_fields() -> None:
-    assert registry.secret_field_names(FakeOptions) == {"password"}
-
-
 def test_category_title_comes_from_the_server() -> None:
     """A second table of names on the client is a table that drifts."""
     assert registry.category_title("sql") == "SQL Databases"
