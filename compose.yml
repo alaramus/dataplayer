@@ -1,3 +1,7 @@
+# Named here rather than taken from the directory: containers and volumes keep
+# the same names whatever the checkout is called.
+name: dataplayer
+
 # The environment of anything built from the backend image. Named once so a new
 # variable cannot be added to the application and forgotten in prestart.
 x-backend-environment: &backend-environment
