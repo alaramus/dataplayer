@@ -58,6 +58,14 @@ there — the connections, the catalog of the one picked, and the rows of a node
 in tabs beside each other — resizable, bounded by the window so each scrolls
 inside itself, and the layout a user arrives at is the one they left.
 
+Adding a connection now starts at a catalog of source types rather than at a
+dropdown: a sidebar of categories with counts, a search that matches what a
+type can do as well as what it is called, tiles, and a panel that says — in
+words the server derived from the driver itself — what the type lets a user
+see and change. Picking one leads to the form, which states the type instead of
+offering a choice of it, and can step back to the catalog. Editing an existing
+connection skips the first window entirely.
+
 A connection is a row of three things — the icon of its type, its name, and
 what the last check said — and everything else about it lives in the one window
 that icon opens, from either of the two columns that show it. Pushed aside, the
@@ -79,9 +87,11 @@ backend/app/
 │   ├── protocol.py      DataAdapter, SupportsCatalog, SupportsFetch, AdapterError
 │   ├── catalog.py       CatalogNode: a union discriminated by kind; NodeKind
 │   ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
-│   ├── actions.py       Action, ActionSet, SupportsActions, transports, refusals
+│   ├── actions.py       Action, ActionSet, SupportsActions, ActionType,
+│   │                    DeclaresActions, transports, refusals
 │   ├── resources.py     ResourceStore: what outlives a request; Pooling
-│   ├── registry.py      type registry, AdapterContext, secret_field_names
+│   ├── registry.py      type registry, AdapterContext, secret_field_names,
+│   │                    Category, Capability, capabilities_of
 │   ├── routes.py        GET /adapter-types
 │   ├── postgres/        session.py, pool.py, catalog.py, fetch.py,
 │   │                    adapter.py (facade)
@@ -142,7 +152,9 @@ frontend/src/
     │                    table that says what a kind of node does;
     │                    useCatalogLevel.ts walks a catalog outside any
     │                    component
-    ├── connectors/      the list of sources and the form that registers one
+    ├── connectors/      the list of sources, the catalog of source types that
+    │                    starts a new one, and the form that registers it;
+    │                    adapterSearch.ts is a pure mapper
     ├── workspace/       the panels, the registry that names them and the role
     │                    that puts each in one of the three columns
     └── dev/             /ui-kit and /workspace-demo, dev builds only
@@ -327,6 +339,35 @@ rejected earlier, by sub-project 6 — a file source has no connection at all.
   directly to learn the real reason.
 - **Checks are never pooled.** A check is meant to exercise the credentials,
   and a draft has no identity to key anything by.
+
+**D13. A source type describes itself, and what it can do is derived.**
+`@register` takes a category — a `Literal`, so a typo does not compile — and a
+description, and `GET /adapter-types` answers with both plus a list of
+capabilities. Nothing lists those capabilities: `capabilities_of` reads them
+off the driver class, by `issubclass` against the capability protocols and by
+the titles of the action classes it declares. `FILE_ACTION_TYPES` has two
+readers and no copy — `FileActions` builds its set from it, the registry reads
+titles off it — which is the shape `secret_field_names` already had. Full
+reasoning in `docs/superpowers/specs/2026-08-23-adapter-catalog-design.md`.
+
+The old application kept 105 capability names by hand on the client, in a
+931-line file, and its own README called that deliberate duplication and named
+the cost. Here the rule from ENGINEERING.md applies instead: the same statement
+made in two places is a defect, and this one belongs to the server.
+
+Two consequences worth stating separately:
+
+- **A class answers, not an instance.** The question is about a *type* of
+  source, asked before any connector exists, so there are no options and no
+  session to build one from. That is why `DeclaresActions` is a classmethod
+  rather than a `ClassVar`: a protocol holding data cannot be used with
+  `issubclass`, and reaching for the attribute with `getattr` would be exactly
+  the `hasattr` dispatch D9 was written to remove.
+- **The catalog and the form are two windows, not two steps.** A grid needs
+  900px and a form 520, and one component changing width between them would
+  carry two roles as well. It is also what lets editing an existing connection
+  open its form directly, with no step behind it — so the form states its type
+  rather than offering a disabled dropdown of it.
 
 **D3. The backend is fully asynchronous.** `AsyncSession`, `async def`
 throughout, psycopg 3 in async mode. The application is network-I/O bound by
@@ -759,8 +800,9 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   implement every capability, so the middle column has never had to say "this
   one has nothing to browse". The mechanism does not stand in the way — such a
   source opens no panel of that role and the column keeps its hint — but the
-  branch is untested, and the server does not report a type's capabilities
-  either.
+  branch is untested. The server does report a type's capabilities now (D13),
+  so the catalog says so before a connection is made; the middle column still
+  has no wording for it.
 - **The state dot only knows about this session.** A connection shows grey
   until the user checks it; nothing checks in the background, because that
   would mean opening a connection to every source on every load. The record is
@@ -787,5 +829,25 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   at runtime needs CSS custom properties and its own task.
 - **D2b — a driver is a session plus capability modules — rests on review.**
   There is no check that a capability module keeps out of connection handling.
+- **A capability is coarser than what a source actually does.** "Read rows" is
+  true of PostgreSQL and of a file, and says nothing about the file having no
+  index to sort by. The honest finer answer already exists in
+  `FetchResult.sortable` / `filterable`, but it belongs to a connection rather
+  than to a type, so the catalog cannot show it.
+- **A capability describes a type, not a node.** The file driver declares
+  `Delete`, and the root of a connector may not be deleted — that is state,
+  known only to `available()`. The catalog therefore promises slightly more
+  than any particular node will allow.
+- **A type's description is unchecked free text.** Nothing requires
+  `@register` to be given a meaningful one, and an empty string passes.
+- **The catalog search knows no morphology.** Substring matching over the name,
+  category, description and capability titles, so "migrations" does not find
+  "migration" and a Russian word finds nothing. The old application reached for
+  an embedding model in the browser; over a registry this size that is not
+  worth the download.
+- **Two categories make for a thin sidebar.** "All", "SQL Databases" and
+  "Files & Storage", one type each. Built for the registry D1 anticipates
+  rather than for its size today — the same reasoning as building the UI kit
+  as an alphabet.
 - **The reuse rules rest on review.** No machine flags the third similar thing
   in a diff.

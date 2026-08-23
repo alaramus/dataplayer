@@ -1,19 +1,19 @@
 import { expect, test } from "@playwright/test"
 
-import { DATABASE } from "./utils/connectors"
+import { DATABASE, pickAdapterType } from "./utils/connectors"
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector, editConnector } from "./utils/workspace"
 
 
 // Quasar forwards data-testid onto the input element, so field ids address the
 // input directly, without a nested locator.
+//
+// The type is no longer among them: it is chosen in the catalog before this
+// window opens, and the form only states which one it was.
 async function fillConnectionFields(
   page: import("@playwright/test").Page,
   password: string
 ) {
-  await page.getByTestId("connector-type").click()
-  await page.getByRole("option", { name: "PostgreSQL" }).click()
-
   await page.getByTestId("field-host").fill(DATABASE.host)
   await page.getByTestId("field-port").fill(DATABASE.port)
   await page.getByTestId("field-database").fill(DATABASE.database)
@@ -25,7 +25,7 @@ test("creates a connection, checks it and deletes it", async ({ page }) => {
   const name = `e2e-postgres-${Date.now()}`
   await login(page)
 
-  await page.getByTestId("add-connector").click()
+  await pickAdapterType(page, "postgres")
   await page.getByTestId("connector-name").fill(name)
   await fillConnectionFields(page, DATABASE.password)
 
@@ -54,7 +54,7 @@ test("a wrong password reports an auth failure without leaking the password", as
   const wrongPassword = "definitely-not-the-password"
   await login(page)
 
-  await page.getByTestId("add-connector").click()
+  await pickAdapterType(page, "postgres")
   await page.getByTestId("connector-name").fill(`e2e-bad-${Date.now()}`)
   await fillConnectionFields(page, wrongPassword)
 
@@ -73,7 +73,7 @@ test("the secret field is empty while editing and needs no retyping", async ({
   const name = `e2e-edit-${Date.now()}`
   await login(page)
 
-  await page.getByTestId("add-connector").click()
+  await pickAdapterType(page, "postgres")
   await page.getByTestId("connector-name").fill(name)
   await fillConnectionFields(page, DATABASE.password)
   await page.getByTestId("save-connector").click()

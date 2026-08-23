@@ -250,6 +250,15 @@ function flash() {
           type="password"
           placeholder="Leave unchanged"
         />
+        <AppInput
+          v-model="text"
+          clearable
+          placeholder="Search"
+        >
+          <template #prepend>
+            <q-icon name="search" />
+          </template>
+        </AppInput>
         <AppNumberInput
           v-model="broken"
           label="Port"

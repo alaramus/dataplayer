@@ -2,6 +2,7 @@
 import { computed, provide, ref } from "vue"
 
 import type { ConnectorPublic } from "@/client"
+import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
 import ConnectorDialog from "@/features/connectors/ConnectorDialog.vue"
 import { useConnectors } from "@/features/connectors/api"
 import {
@@ -72,6 +73,28 @@ const connectors = useConnectors()
 const dialogOpen = ref(false)
 const editing = ref<ConnectorPublic | null>(null)
 
+/**
+ * Adding a connection is two windows, and this is the state between them.
+ *
+ * The catalog answers "what kind of source", the form answers "which one".
+ * Editing skips the first: the type of an existing connection is settled, so
+ * there is nothing to pick and nothing to go back to. See the spec, K3.
+ */
+const catalogOpen = ref(false)
+const draftType = ref<string | null>(null)
+
+function pickAdapterType(adapterType: string) {
+  catalogOpen.value = false
+  editing.value = null
+  draftType.value = adapterType
+  dialogOpen.value = true
+}
+
+function backToCatalog() {
+  dialogOpen.value = false
+  catalogOpen.value = true
+}
+
 provide(workspaceActionsKey, {
   activeConnectorId,
   openCatalog: (connector: ConnectorPublic) => {
@@ -98,10 +121,15 @@ provide(workspaceActionsKey, {
     })
   },
   editConnector: (connectorId: string | null) => {
+    // A new connection starts at the catalog, an existing one at its form.
+    if (connectorId === null) {
+      editing.value = null
+      draftType.value = null
+      catalogOpen.value = true
+      return
+    }
     editing.value =
-      connectorId === null
-        ? null
-        : ((connectors.data.value?.data ?? []).find((row) => row.id === connectorId) ?? null)
+      (connectors.data.value?.data ?? []).find((row) => row.id === connectorId) ?? null
     dialogOpen.value = true
   },
 })
@@ -111,9 +139,16 @@ provide(workspaceActionsKey, {
   <AppLayout fill>
     <WorkspaceRoot :context="workspace.context" />
 
+    <AdapterCatalogDialog
+      v-model="catalogOpen"
+      @pick="pickAdapterType"
+    />
+
     <ConnectorDialog
       v-model="dialogOpen"
       :connector="editing"
+      :adapter-type="draftType"
+      @back="backToCatalog"
     />
   </AppLayout>
 </template>

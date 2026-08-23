@@ -21,3 +21,22 @@ export const UNKNOWN_ADAPTER_ICON = "cable"
 export function adapterIcon(adapterType: string): string {
   return ICONS[adapterType] ?? UNKNOWN_ADAPTER_ICON
 }
+
+/**
+ * The glyph beside a category in the catalog's sidebar.
+ *
+ * A glyph and not a logo: a category is a heading, not a product, so this is
+ * an icon-font name rather than a file. What a category is *called* comes from
+ * the server with the type — only the drawing is decided here, for the same
+ * reason the logos above are.
+ */
+const CATEGORY_ICONS: Record<string, string> = {
+  sql: "table_chart",
+  files: "folder",
+}
+
+export const UNKNOWN_CATEGORY_ICON = "category"
+
+export function categoryIcon(category: string): string {
+  return CATEGORY_ICONS[category] ?? UNKNOWN_CATEGORY_ICON
+}

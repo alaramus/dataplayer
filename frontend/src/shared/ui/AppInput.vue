@@ -10,6 +10,9 @@ withDefaults(
     disable?: boolean
     /** A field in a toolbar rather than in a form: tighter, and no underline. */
     compact?: boolean
+    /** Offer a cross that empties the field. A search is the reason it exists:
+        a query with no way back is a query the user has to erase by hand. */
+    clearable?: boolean
   }>(),
   {
     label: undefined,
@@ -18,6 +21,7 @@ withDefaults(
     placeholder: undefined,
     disable: false,
     compact: false,
+    clearable: false,
   }
 )
 
@@ -40,8 +44,19 @@ function report(value: string | number | null) {
     :dense="compact"
     :borderless="compact"
     :disable="disable"
+    :clearable="clearable"
     :error="Boolean(error)"
     :error-message="error"
     @update:model-value="report"
-  />
+  >
+    <!-- Forwarded rather than left to fall through: a slot does not fall
+         through at all, so a search field had no way to carry its magnifier
+         except by going around the kit. -->
+    <template
+      v-if="$slots.prepend"
+      #prepend
+    >
+      <slot name="prepend" />
+    </template>
+  </q-input>
 </template>

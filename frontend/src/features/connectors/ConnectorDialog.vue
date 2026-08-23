@@ -8,15 +8,8 @@ import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
 import { jsonSchemaToZod, schemaToFields } from "@/shared/SchemaForm/jsonSchema"
 import type { JsonSchema } from "@/shared/SchemaForm/jsonSchema"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
-import {
-  AppButton,
-  AppDialog,
-  AppInput,
-  AppSection,
-  AppSelect,
-  useConfirm,
-  useToast,
-} from "@/shared/ui"
+import { adapterIcon } from "@/features/connectors/adapters"
+import { AppButton, AppDialog, AppInput, AppSection, useConfirm, useToast } from "@/shared/ui"
 import {
   useAdapterTypes,
   useCheckDraft,
@@ -29,9 +22,16 @@ import { useConnectorChecksStore } from "@/stores/connectorChecks"
 const props = defineProps<{
   modelValue: boolean
   connector: ConnectorPublic | null
+  /** The type picked in the catalog; null while editing, where it is read off
+      the connector instead. */
+  adapterType?: string | null
 }>()
 
-const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
+const emit = defineEmits<{
+  "update:modelValue": [value: boolean]
+  /** Only ever heard when this window was reached from the catalog. */
+  back: []
+}>()
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -54,19 +54,20 @@ const {
 
 const name = ref("")
 const nameError = ref("")
-const adapterType = ref<string | null>(null)
+// Named apart from the `adapterType` prop: the prop is what the catalog
+// chose, this is what the window is working on.
+const chosenType = ref<string | null>(null)
 const checkResult = ref<ConnectionCheckResult | null>(null)
 
 const isEdit = computed(() => props.connector !== null)
 
-const typeOptions = computed(() =>
-  (adapterTypes.data.value ?? []).map((type) => ({ label: type.title, value: type.name }))
+const selectedType = computed(
+  () => (adapterTypes.data.value ?? []).find((item) => item.name === chosenType.value) ?? null
 )
 
-const selectedSchema = computed<JsonSchema | null>(() => {
-  const type = (adapterTypes.data.value ?? []).find((item) => item.name === adapterType.value)
-  return type ? (type.options_schema as unknown as JsonSchema) : null
-})
+const selectedSchema = computed<JsonSchema | null>(
+  () => (selectedType.value?.options_schema as unknown as JsonSchema | undefined) ?? null
+)
 
 const fields = computed(() => (selectedSchema.value ? schemaToFields(selectedSchema.value) : []))
 
@@ -83,19 +84,24 @@ watch(
     nameError.value = ""
     if (props.connector) {
       name.value = props.connector.name
-      adapterType.value = props.connector.adapter_type
+      chosenType.value = props.connector.adapter_type
       resetOptions(fields.value, props.connector.config as Record<string, unknown>)
     } else {
       name.value = ""
-      adapterType.value = null
-      resetOptions([])
+      // Decided in the catalog, which is the only way to reach this window
+      // for a new connection.
+      chosenType.value = props.adapterType ?? null
+      // Read after the type is set, and not left to the watcher below: coming
+      // back to the same type twice does not change the ref, so the watcher
+      // would not fire and the previous answers would still be in the form.
+      resetOptions(fields.value)
     }
   }
 )
 
-watch(adapterType, () => {
+watch(chosenType, () => {
   checkResult.value = null
-  if (props.connector && adapterType.value === props.connector.adapter_type) {
+  if (props.connector && chosenType.value === props.connector.adapter_type) {
     resetOptions(fields.value, props.connector.config as Record<string, unknown>)
   } else {
     resetOptions(fields.value)
@@ -119,11 +125,11 @@ function validateName(): boolean {
 }
 
 async function check() {
-  if (!adapterType.value) return
+  if (!chosenType.value) return
   checkResult.value = null
   try {
     checkResult.value = await checkDraft.mutateAsync({
-      adapter_type: adapterType.value,
+      adapter_type: chosenType.value,
       options: filledOptions(),
       connector_id: props.connector?.id ?? null,
     })
@@ -161,7 +167,7 @@ async function remove() {
 }
 
 async function submit() {
-  if (!adapterType.value || !selectedSchema.value) return
+  if (!chosenType.value || !selectedSchema.value) return
   const nameValid = validateName()
   // While editing an empty password is allowed, so the schema is only enforced
   // for a new connection.
@@ -177,7 +183,7 @@ async function submit() {
     } else {
       await createConnector.mutateAsync({
         name: name.value,
-        adapter_type: adapterType.value,
+        adapter_type: chosenType.value,
         options: filledOptions(),
       })
     }
@@ -209,14 +215,23 @@ async function submit() {
         :error="nameError"
       />
 
-      <AppSelect
-        v-model="adapterType"
-        :options="typeOptions"
-        label="Source type"
+      <!-- What the type is, not a choice of it: it was made in the catalog,
+           and it never changes afterwards. A disabled dropdown would leave a
+           control on screen that does nothing. -->
+      <div
+        v-if="selectedType"
+        class="connector-dialog__type"
         data-testid="connector-type"
-        :disable="isEdit"
-        :loading="adapterTypes.isLoading.value"
-      />
+      >
+        <q-icon
+          :name="adapterIcon(selectedType.name)"
+          size="24px"
+        />
+        <div class="connector-dialog__type-text">
+          <span>{{ selectedType.title }}</span>
+          <span class="connector-dialog__type-category">{{ selectedType.category_title }}</span>
+        </div>
+      </div>
 
       <SchemaFields
         v-if="fields.length"
@@ -242,6 +257,15 @@ async function submit() {
         @click="remove"
       />
       <q-space />
+      <!-- Only when this window was reached from the catalog: while editing
+           there is nothing behind it to go back to. -->
+      <AppButton
+        v-if="!isEdit"
+        variant="quiet"
+        label="Back"
+        data-testid="back-to-catalog"
+        @click="emit('back')"
+      />
       <AppButton
         variant="quiet"
         label="Cancel"
@@ -251,17 +275,35 @@ async function submit() {
         variant="secondary"
         label="Check"
         data-testid="check-draft"
-        :disable="!adapterType"
+        :disable="!chosenType"
         :loading="checkDraft.isPending.value"
         @click="check"
       />
       <AppButton
         label="Save"
         data-testid="save-connector"
-        :disable="!adapterType"
+        :disable="!chosenType"
         :loading="saving"
         @click="submit"
       />
     </template>
   </AppDialog>
 </template>
+
+<style scoped>
+.connector-dialog__type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.connector-dialog__type-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.connector-dialog__type-category {
+  font-size: 12px;
+  opacity: 0.6;
+}
+</style>

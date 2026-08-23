@@ -19,11 +19,23 @@ export const DATABASE = {
   password: process.env.POSTGRES_PASSWORD ?? "",
 }
 
-export async function createPostgresConnector(page: Page, name: string) {
+/**
+ * The first of the two windows: which kind of source.
+ *
+ * Written once here because every scenario below starts with it, and because
+ * it is the step that replaced a dropdown — a helper is what keeps the change
+ * from being made twelve times.
+ */
+export async function pickAdapterType(page: Page, adapterType: string) {
   await page.getByTestId("add-connector").click()
+  await page.getByTestId(`adapter-${adapterType}`).click()
+  await page.getByTestId("create-from-catalog").click()
+  await expect(page.getByTestId("connector-name")).toBeVisible()
+}
+
+export async function createPostgresConnector(page: Page, name: string) {
+  await pickAdapterType(page, "postgres")
   await page.getByTestId("connector-name").fill(name)
-  await page.getByTestId("connector-type").click()
-  await page.getByRole("option", { name: "PostgreSQL" }).click()
   await page.getByTestId("field-host").fill(DATABASE.host)
   await page.getByTestId("field-port").fill(DATABASE.port)
   await page.getByTestId("field-database").fill(DATABASE.database)
@@ -35,10 +47,8 @@ export async function createPostgresConnector(page: Page, name: string) {
 
 /** Personal storage has no options: the server composes the root itself. */
 export async function createFileConnector(page: Page, name: string) {
-  await page.getByTestId("add-connector").click()
+  await pickAdapterType(page, "file")
   await page.getByTestId("connector-name").fill(name)
-  await page.getByTestId("connector-type").click()
-  await page.getByRole("option", { name: "Files" }).click()
   await page.getByTestId("save-connector").click()
   await expect(connectorRow(page, name)).toBeVisible()
 }
