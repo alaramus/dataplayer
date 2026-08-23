@@ -245,6 +245,53 @@ test("the list says which connections are open and which is being read", async (
   }
 })
 
+test("a column torn in two leaves no empty half behind", async ({ page }) => {
+  const name = `e2e-torn-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+  await openNode(page, "pg_namespace")
+  await expect(rowsTabs(page)).toHaveCount(2)
+
+  // One of the two tables is taken to the bottom of its own column, which
+  // splits it: the pinned column keeps the other table.
+  const tab = rowsTabs(page).filter({ hasText: "pg_class" })
+  const work = page.getByTestId("workspace-leaf-work")
+  const from = await tab.boundingBox()
+  const onto = await work.boundingBox()
+  if (from === null || onto === null) throw new Error("the tab or the column has no box")
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(onto.x + onto.width / 2, onto.y + onto.height * 0.9, { steps: 12 })
+  await page.mouse.up()
+  await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(4)
+
+  // Closing what the pinned column still held leaves it empty - and its role
+  // is being done by the section below it, so it goes off the screen rather
+  // than offering to open what is already open.
+  const closing = await rowsTabs(page).filter({ hasText: "pg_namespace" }).getAttribute("data-testid")
+  if (closing === null) throw new Error("the data tab has no test id")
+  await page.getByTestId(closing.replace("workspace-tab-", "workspace-close-")).click()
+
+  await expect(page.getByTestId("workspace-leaf-work")).toHaveCount(0)
+  await expect(page.getByTestId("workspace-scene")).toHaveCount(0)
+  await expect(rowsTabs(page)).toHaveCount(1)
+  await expect(page.getByTestId("row-grid")).toBeVisible()
+
+  // And it comes back, with the scene in it, when the last table is closed.
+  const last = await rowsTabs(page).getAttribute("data-testid")
+  if (last === null) throw new Error("the data tab has no test id")
+  await page.getByTestId(last.replace("workspace-tab-", "workspace-close-")).click()
+  await expect(page.getByTestId("workspace-leaf-work")).toBeVisible()
+  await expect(page.getByTestId("workspace-scene")).toBeVisible()
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
 test("the head of every column is one height, whatever is in it", async ({ page }) => {
   const name = `e2e-head-${Date.now()}`
   await login(page)

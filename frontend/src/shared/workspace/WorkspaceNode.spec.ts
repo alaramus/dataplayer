@@ -80,3 +80,44 @@ describe("a split with a column that has nothing to show", () => {
     expect(mountColumns().findAll('[data-testid="workspace-separator"]')).toHaveLength(1)
   })
 })
+
+/** A tab dragged to the edge of its column leaves the pinned one behind. */
+describe("a column whose role is served by the section beside it", () => {
+  const torn = () =>
+    makeSplit(
+      "root",
+      "row",
+      [
+        makeLeaf("sources", ["p1"], { accepts: "sources", pinned: true }),
+        makeSplit(
+          "work-split",
+          "column",
+          [
+            makeLeaf("work", [], { accepts: "work", pinned: true }),
+            makeLeaf("torn", ["p2"], { accepts: "work" }),
+          ],
+          [50, 50]
+        ),
+      ],
+      [30, 70]
+    )
+
+  function mountTorn() {
+    const context = contextFor()
+    context.tree.value = torn()
+    return mount(WorkspaceNode, {
+      props: { node: torn() },
+      global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: context } },
+    })
+  }
+
+  it("is not on the screen, and its empty view with it", () => {
+    const wrapper = mountTorn()
+    expect(wrapper.find('[data-testid="workspace-leaf-work"]').exists()).toBe(false)
+    expect(wrapper.findAll(".hint")).toHaveLength(0)
+  })
+
+  it("leaves the section that does hold something", () => {
+    expect(mountTorn().find('[data-testid="workspace-leaf-torn"]').exists()).toBe(true)
+  })
+})

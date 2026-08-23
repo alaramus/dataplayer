@@ -187,8 +187,8 @@ frontend/src/
 │   ├── workspace/       the panel engine: a layout tree, tabs, drag and drop,
 │   │                    sections that carry a role, admit what matches it and
 │   │                    outlive their panels; tree.ts, dropZone.ts,
-│   │                    placement.ts, shares.ts and persist.ts are pure, the
-│   │                    components see one injected context
+│   │                    placement.ts, shares.ts, visibility.ts and persist.ts
+│   │                    are pure, the components see one injected context
 │   └── testing/         helpers for tests, not shipped by any screen
 ├── stores/              Pinia: client-side state only — the session, the
 │                        theme, and what the last connection check said
@@ -647,7 +647,12 @@ Seven consequences worth stating separately:
   share of the row goes whole to the next column that is — `sizes` in the tree
   are untouched, so the width comes back exactly as the user left it, and the
   border a user drags is then between two sections that are not neighbours in
-  the tree. Only the right-hand column has an empty view: the scene, which
+  the tree. `pinned` keeps a *role* on the screen rather than one particular
+  section, so a column left empty while the section split off it holds the
+  work goes too — otherwise the screen would offer to open what is open
+  beside it. The head of a column is one height whatever it holds, or the
+  line under two columns reads as a broken layout rather than an empty one.
+  Only the right-hand column has an empty view: the scene, which
   derives its stage from the list of connections and the catalog being read,
   says what to do next, and carries a real button rather than pointing at one
   elsewhere on the screen. Three blank columns on the first run looked broken

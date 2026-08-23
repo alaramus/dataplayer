@@ -6,6 +6,7 @@ import type { WorkspaceContext } from "./context"
 import { COLLAPSED_PX, MIN_PANEL_PX } from "./model"
 import type { LayoutNode } from "./model"
 import { sharesOf } from "./shares"
+import { isSectionHidden } from "./visibility"
 import WorkspaceLeaf from "./WorkspaceLeaf.vue"
 import WorkspaceSeparator from "./WorkspaceSeparator.vue"
 
@@ -22,15 +23,17 @@ const element = ref<HTMLElement | null>(null)
 /**
  * A column that holds nothing and has nothing to say in that state.
  *
- * The engine does not decide this: it asks the feature what stands in an empty
- * section, and null is the answer that means "there is no such column until
- * something is opened in it". See P4.
+ * The engine does not decide what that means: it asks the feature what stands
+ * in an empty section, and null is the answer that means "there is no such
+ * column until something is opened in it". The whole tree is passed because a
+ * pinned column keeps a role on screen rather than itself — see
+ * `visibility.ts` and P4.
  */
 function isHidden(child: LayoutNode): boolean {
-  return (
-    child.kind === "leaf" &&
-    child.activePanel === null &&
-    workspace.emptyOf(child.accepts ?? null) === null
+  return isSectionHidden(
+    workspace.tree.value,
+    child,
+    (accepts) => workspace.emptyOf(accepts) !== null
   )
 }
 
