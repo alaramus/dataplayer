@@ -43,6 +43,6 @@ const state = computed(() => checks.stateOf(props.connectorId))
   flex: none;
 }
 .connector-dot--unknown {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--dp-idle);
 }
 </style>

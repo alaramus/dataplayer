@@ -101,10 +101,10 @@ async function copy() {
   bottom: calc(100% + 10px);
   z-index: 1;
   padding: 12px 14px;
-  border: 1px solid rgba(128, 128, 128, 0.4);
+  border: 1px solid var(--dp-border-strong);
   border-radius: 6px;
-  background: var(--q-page-background, #fff);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  background: var(--dp-surface-raised);
+  box-shadow: 0 4px 14px var(--dp-shadow-soft);
 }
 .check-popover__head {
   display: flex;
@@ -138,12 +138,12 @@ async function copy() {
   height: 0;
   border: 8px solid transparent;
   border-bottom: none;
-  border-top-color: rgba(128, 128, 128, 0.4);
+  border-top-color: var(--dp-border-strong);
 }
 .check-popover__tail::after {
   content: "";
   top: -9px;
   left: -8px;
-  border-top-color: var(--q-page-background, #fff);
+  border-top-color: var(--dp-surface-raised);
 }
 </style>

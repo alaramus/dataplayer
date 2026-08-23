@@ -92,10 +92,10 @@ const selected = computed(() => props.selectedId ?? null)
   cursor: pointer;
 }
 .connector-list__row:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--dp-hover);
 }
 .connector-list__row--selected {
-  background: rgba(25, 118, 210, 0.1);
+  background: var(--dp-selected);
   font-weight: 500;
 }
 .connector-list__name {

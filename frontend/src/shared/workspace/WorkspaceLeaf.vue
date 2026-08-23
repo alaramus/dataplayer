@@ -213,14 +213,14 @@ const overlayStyle = computed((): CSSProperties => {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: #fff;
+  background: var(--dp-surface);
 }
 .workspace-leaf__strip {
   display: flex;
   align-items: flex-start;
   gap: 2px;
   padding: 2px 4px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  border-bottom: 1px solid var(--dp-border);
 }
 /* Tabs wrap onto a second line rather than running off the end of the strip:
    a tab that cannot be seen cannot be reached, and a section is only ever as
@@ -242,13 +242,17 @@ const overlayStyle = computed((): CSSProperties => {
   border: none;
   border-radius: 4px 4px 0 0;
   background: transparent;
+  /* A native button takes its colour from the browser, which is black, and
+     `font: inherit` does not carry colour with it. Black on a dark panel is
+     an invisible tab. */
+  color: inherit;
   font: inherit;
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
 }
 .workspace-leaf__tab--active {
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--dp-active);
   font-weight: 500;
 }
 .workspace-leaf__title {
@@ -261,6 +265,8 @@ const overlayStyle = computed((): CSSProperties => {
 .workspace-leaf__collapse {
   border: none;
   background: transparent;
+  /* The icon inside draws itself in currentColor - see the tab above. */
+  color: inherit;
   cursor: pointer;
   padding: 2px;
   flex: none;
@@ -290,8 +296,8 @@ const overlayStyle = computed((): CSSProperties => {
   pointer-events: none;
 }
 .workspace-leaf__zone {
-  background: rgba(25, 118, 210, 0.18);
-  border: 2px solid rgba(25, 118, 210, 0.6);
+  background: var(--dp-dropzone);
+  border: 2px solid var(--dp-dropzone-border);
   border-radius: 4px;
 }
 </style>

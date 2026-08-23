@@ -172,12 +172,12 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
   align-items: center;
   gap: 8px;
   padding: 0 8px 2px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--dp-border-faint);
   flex: none;
 }
 .catalog-list__count {
   font-size: 11px;
-  color: rgba(0, 0, 0, 0.54);
+  color: var(--dp-text-muted);
 }
 .catalog-list__rows {
   flex: 1;
@@ -192,10 +192,10 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
   cursor: pointer;
 }
 .catalog-list__row:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--dp-hover);
 }
 .catalog-list__row--checked {
-  background: rgba(25, 118, 210, 0.08);
+  background: var(--dp-selected);
 }
 .catalog-list__tick-space {
   visibility: hidden;
@@ -215,11 +215,11 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
   min-width: 0;
   overflow: hidden;
   font-size: 11px;
-  color: rgba(0, 0, 0, 0.54);
+  color: var(--dp-text-muted);
   white-space: nowrap;
 }
 .catalog-list__group {
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--dp-border);
   border-radius: 3px;
   padding: 0 4px;
 }

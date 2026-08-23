@@ -120,7 +120,7 @@ const groups = computed(() =>
   min-height: 0;
   width: clamp(240px, 32%, 320px);
   flex: none;
-  border-left: 1px solid rgba(128, 128, 128, 0.3);
+  border-left: 1px solid var(--dp-border);
 }
 .adapter-panel--empty {
   justify-content: center;

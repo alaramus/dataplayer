@@ -173,15 +173,15 @@ function pick(type: AdapterTypeInfo) {
   display: flex;
   min-height: 0;
   height: min(60vh, 460px);
-  border-top: 1px solid rgba(128, 128, 128, 0.3);
-  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+  border-top: 1px solid var(--dp-border);
+  border-bottom: 1px solid var(--dp-border);
 }
 .adapter-catalog__sidebar {
   flex: none;
   width: clamp(150px, 22%, 220px);
   min-height: 0;
   overflow-y: auto;
-  border-right: 1px solid rgba(128, 128, 128, 0.3);
+  border-right: 1px solid var(--dp-border);
 }
 .adapter-catalog__category {
   display: flex;
@@ -192,10 +192,10 @@ function pick(type: AdapterTypeInfo) {
   min-width: 0;
 }
 .adapter-catalog__category:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--dp-hover);
 }
 .adapter-catalog__category--active {
-  background: rgba(25, 118, 210, 0.1);
+  background: var(--dp-selected);
   font-weight: 500;
 }
 .adapter-catalog__category-name {

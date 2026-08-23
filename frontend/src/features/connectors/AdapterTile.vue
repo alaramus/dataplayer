@@ -45,7 +45,7 @@ const emit = defineEmits<{ pick: []; open: [] }>()
   gap: 4px;
   min-width: 0;
   padding: 8px;
-  border: 1px solid rgba(128, 128, 128, 0.3);
+  border: 1px solid var(--dp-border);
   border-radius: 4px;
   cursor: pointer;
 }

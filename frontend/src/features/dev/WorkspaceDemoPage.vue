@@ -101,6 +101,6 @@ function openOne() {
 .demo__area {
   flex: 1;
   min-height: 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  border-top: 1px solid var(--dp-border);
 }
 </style>

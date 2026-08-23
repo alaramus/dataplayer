@@ -21,6 +21,7 @@ import {
   AppSelect,
   AppSpinner,
   AppTable,
+  AppThemeToggle,
   AppToggle,
   AppTooltip,
   AppTree,
@@ -195,6 +196,9 @@ function flash() {
             hover for tooltips
             <AppTooltip>A tooltip attaches to whatever contains it.</AppTooltip>
           </span>
+          <!-- The real one, so this page turns over with the rest of the
+               application when it is pressed. -->
+          <AppThemeToggle />
         </div>
       </AppSection>
     </AppCard>

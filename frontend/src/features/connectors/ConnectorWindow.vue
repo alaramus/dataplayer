@@ -578,7 +578,7 @@ async function parseTyped(text: string) {
 .connector-window__tabs {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.3);
+  border-bottom: 1px solid var(--dp-border);
 }
 .connector-window__tab {
   border: none;
@@ -601,7 +601,7 @@ async function parseTyped(text: string) {
   gap: 4px;
   min-width: 0;
   padding: 0 16px 8px;
-  border-top: 1px solid rgba(128, 128, 128, 0.3);
+  border-top: 1px solid var(--dp-border);
 }
 .connector-window__url > *:first-child {
   flex: 1;
@@ -619,7 +619,7 @@ async function parseTyped(text: string) {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  border-top: 1px solid rgba(128, 128, 128, 0.3);
+  border-top: 1px solid var(--dp-border);
 }
 .connector-window__spacer {
   flex: 1;

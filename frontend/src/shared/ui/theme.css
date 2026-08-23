@@ -1,0 +1,97 @@
+/*
+ * Every colour the application draws itself with.
+ *
+ * The same relation `tokens.ts` has to Quasar props: a component says what a
+ * colour *means* and one file turns that into a value. Screens carry
+ * `var(--dp-hover)`, never `rgba(0, 0, 0, 0.04)` — a literal is a decision
+ * made in forty places, and a theme is that decision made once.
+ *
+ * Custom properties and not Sass variables: Sass is settled at build time,
+ * and the theme is turned over in the browser. That is exactly why there was
+ * no dark theme until now.
+ *
+ * The switch is `body--dark`, which is what Quasar's Dark plugin puts on the
+ * document — so the kit's components and the colours above go over together,
+ * on one event. `stores/theme.ts` is the only caller of that plugin.
+ *
+ * Quasar's own dark palette is the ground these sit on: #121212 for a page
+ * and #1d1d1d for what is raised off it.
+ */
+
+:root {
+  /* The ground a panel stands on, and what floats above it. */
+  --dp-surface: #fff;
+  --dp-surface-raised: #fff;
+
+  /* Lines. Faint separates rows, plain separates regions, strong outlines a
+     thing that floats free of the page. */
+  --dp-border-faint: rgba(0, 0, 0, 0.08);
+  --dp-border: rgba(0, 0, 0, 0.12);
+  --dp-border-strong: rgba(128, 128, 128, 0.4);
+
+  /* Under the pointer, and pressed or current. */
+  --dp-hover: rgba(0, 0, 0, 0.04);
+  --dp-active: rgba(0, 0, 0, 0.06);
+
+  /* The handle between two columns, and the same handle being dragged. */
+  --dp-separator: rgba(0, 0, 0, 0.12);
+  --dp-separator-active: rgba(0, 0, 0, 0.28);
+
+  /* Text that is not the body text: a heading of a group, a caption, a
+     chevron between two steps of a path. */
+  --dp-text-strong: rgba(0, 0, 0, 0.7);
+  --dp-text-muted: rgba(0, 0, 0, 0.54);
+  --dp-text-faint: rgba(0, 0, 0, 0.35);
+
+  /* Nothing has been said yet — the dot of a connection nobody checked. */
+  --dp-idle: rgba(0, 0, 0, 0.2);
+
+  /* Chosen: the row whose catalog is showing, the tile that is picked. */
+  --dp-selected: rgba(25, 118, 210, 0.1);
+  --dp-link: rgba(25, 118, 210, 0.9);
+  --dp-focus-border: rgba(25, 118, 210, 0.5);
+
+  /* Where a dragged tab would land. */
+  --dp-dropzone: rgba(25, 118, 210, 0.18);
+  --dp-dropzone-border: rgba(25, 118, 210, 0.6);
+
+  /* Depth. Soft for a popover, plain for a window, strong for the front one. */
+  --dp-shadow-soft: rgba(0, 0, 0, 0.18);
+  --dp-shadow: rgba(0, 0, 0, 0.2);
+  --dp-shadow-strong: rgba(0, 0, 0, 0.35);
+}
+
+body.body--dark {
+  --dp-surface: #121212;
+  --dp-surface-raised: #1d1d1d;
+
+  --dp-border-faint: rgba(255, 255, 255, 0.09);
+  --dp-border: rgba(255, 255, 255, 0.16);
+  --dp-border-strong: rgba(255, 255, 255, 0.28);
+
+  --dp-hover: rgba(255, 255, 255, 0.06);
+  --dp-active: rgba(255, 255, 255, 0.11);
+
+  --dp-separator: rgba(255, 255, 255, 0.16);
+  --dp-separator-active: rgba(255, 255, 255, 0.38);
+
+  --dp-text-strong: rgba(255, 255, 255, 0.87);
+  --dp-text-muted: rgba(255, 255, 255, 0.62);
+  --dp-text-faint: rgba(255, 255, 255, 0.42);
+
+  --dp-idle: rgba(255, 255, 255, 0.3);
+
+  /* A lighter blue: #1976d2 on #121212 is a stain rather than a highlight. */
+  --dp-selected: rgba(100, 181, 246, 0.18);
+  --dp-link: rgba(144, 202, 249, 0.95);
+  --dp-focus-border: rgba(100, 181, 246, 0.6);
+
+  --dp-dropzone: rgba(100, 181, 246, 0.26);
+  --dp-dropzone-border: rgba(100, 181, 246, 0.7);
+
+  /* Deeper, because a shadow has to be darker than a dark ground to be seen
+     at all. */
+  --dp-shadow-soft: rgba(0, 0, 0, 0.55);
+  --dp-shadow: rgba(0, 0, 0, 0.65);
+  --dp-shadow-strong: rgba(0, 0, 0, 0.8);
+}

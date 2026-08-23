@@ -5,6 +5,7 @@ import { useRouter } from "vue-router"
 import { useAuthStore } from "@/stores/auth"
 
 import AppButton from "./AppButton.vue"
+import AppThemeToggle from "./AppThemeToggle.vue"
 
 defineProps<{ fill?: boolean }>()
 
@@ -29,6 +30,9 @@ async function logout() {
     <q-header elevated>
       <q-toolbar>
         <q-toolbar-title>DataPlayer</q-toolbar-title>
+        <!-- Beside signing out: both are about this session rather than about
+             what is on the screen. -->
+        <AppThemeToggle />
         <AppButton
           variant="quiet"
           size="sm"

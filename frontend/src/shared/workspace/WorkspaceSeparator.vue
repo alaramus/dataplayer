@@ -53,7 +53,7 @@ function onPointerUp(event: PointerEvent) {
 <style scoped>
 .workspace-separator {
   flex: 0 0 5px;
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--dp-separator);
 }
 .workspace-separator--row {
   cursor: col-resize;
@@ -62,6 +62,6 @@ function onPointerUp(event: PointerEvent) {
   cursor: row-resize;
 }
 .workspace-separator:hover {
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--dp-separator-active);
 }
 </style>
