@@ -198,16 +198,22 @@ pure-logic split rests on review.
 
 ## Documentation of decisions
 
-- A decision that shaped the code is written down with its reasoning, in
-  `AGENTS.md` for the standing ones and in `docs/superpowers/specs/` for the
-  full argument.
+- A decision that shaped the code is written down three times over, each shorter
+  than the last: one line in the table in [AGENTS.md](AGENTS.md), the statement
+  and its reasoning in `docs/architecture/`, the full argument in
+  `docs/superpowers/specs/`.
 - **When a plan turns out to be wrong during execution, the plan is corrected
   too**, not just the code.
-- Where the code knowingly differs from these documents, it is listed in
-  "Known deviations" in [AGENTS.md](AGENTS.md) rather than left to be
+- Where the code knowingly differs from these documents, it is listed as a known
+  deviation next to the decision it departs from, rather than left to be
   discovered.
+- `AGENTS.md` is loaded into every session, so it holds no reasoning. What grows
+  there belongs in `docs/architecture/`.
 
-**Review only.**
+**Enforced:** `bash scripts/check-docs.sh` — every relative link resolves, every
+decision in the table has exactly one home in `docs/architecture/` and none
+lives there unlisted, and `AGENTS.md` stays under 16 KB. All three were checked
+by breaking them. That a deviation is recorded at all rests on review.
 
 ## A failing check is fixed in code, not weakened
 
@@ -229,6 +235,7 @@ the way to a green run.
 | `bun run lint` | frontend style, stores not reaching the API | works |
 | `bun run test:unit` | pure frontend logic | works |
 | `bunx playwright test` | end-to-end, needs db + backend + dev server | works |
+| `bash scripts/check-docs.sh` | doc links, decisions with one home, AGENTS.md size | works |
 
 A change is ready when every command touching the affected side is clean. That
 is necessary, not sufficient: it says nothing about whether the thing asked for
