@@ -1,4 +1,4 @@
-from typing import Literal, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
@@ -88,3 +88,25 @@ class SupportsConnectionString(Protocol):
         and answering with an invented one would be worse than answering 501.
         """
         ...
+
+
+@runtime_checkable
+class ParsesConnectionString(Protocol):
+    """A source type that can take a pasted address apart again.
+
+    Asked of the class, not of an instance: an adapter cannot be built until
+    there are options, and parsing is what produces them. The same reason
+    `action_types` is a classmethod — and, as there, a classmethod rather than
+    data so that `issubclass` can answer it.
+
+    The answer is options in the shape the schema declares, discriminator
+    included: which way of connecting a string describes is the driver's
+    inference. A form that read it off the presence of a substring would be
+    the `isFieldShowing` of the old application.
+
+    Raises ValueError for a string the driver cannot read as an address. What
+    counts as one is the driver's own rule; nothing here inspects the text.
+    """
+
+    @classmethod
+    def options_from_url(cls, url: str) -> dict[str, Any]: ...

@@ -1,9 +1,11 @@
+from typing import Any
+
 from app.adapters.catalog import CatalogNode
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.options import PostgresOptions
-from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.session import PostgresSession, options_from_url
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
 from app.adapters.resources import Pooling
@@ -20,6 +22,11 @@ class PostgresAdapter:
         self._session = PostgresSession(options, pooling)
         self._catalog = PostgresCatalog(self._session)
         self._fetch = PostgresFetch(self._session)
+
+    @classmethod
+    def options_from_url(cls, url: str) -> dict[str, Any]:
+        """Asked of the class: parsing is what produces the options."""
+        return options_from_url(url)
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()

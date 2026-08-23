@@ -50,6 +50,56 @@ def classify(
     return "unknown", fallback_message
 
 
+def options_from_url(url: str) -> dict[str, Any]:
+    """A connection string taken apart into the fields of the form.
+
+    The inverse of `connection_string`, and it lives here for the same reason
+    that does: what a PostgreSQL address is made of is psycopg's rule, and
+    stating it a second time on the client would be the defect ENGINEERING.md
+    names. Nothing is opened.
+
+    Three details, each of which is a bug if missed: libpq calls the database
+    `dbname`, it answers with the port as a string, and it leaves `password`
+    out rather than empty when the string carries none. The last one decides
+    the variant.
+
+    A string that names no host is refused: a connection string that does not
+    say where to connect is not one, and libpq reads the empty string as an
+    empty set of settings, which would silently blank the form.
+    """
+    try:
+        parsed = psycopg.conninfo.conninfo_to_dict(url)
+    except psycopg.Error:
+        # The driver's message quotes the string back, and the string may
+        # carry a password.
+        raise ValueError("That is not a PostgreSQL connection string") from None
+
+    host = parsed.get("host")
+    if not isinstance(host, str) or host == "":
+        raise ValueError("The connection string names no host")
+
+    options: dict[str, Any] = {"host": host}
+    for source, target in (("dbname", "database"), ("user", "user")):
+        value = parsed.get(source)
+        if isinstance(value, str) and value != "":
+            options[target] = value
+
+    port = parsed.get("port")
+    if isinstance(port, str) and port != "":
+        try:
+            options["port"] = int(port)
+        except ValueError:
+            raise ValueError("The connection string names no usable port") from None
+
+    password = parsed.get("password")
+    if isinstance(password, str) and password != "":
+        options["auth_method"] = "user_password"
+        options["password"] = password
+    else:
+        options["auth_method"] = "no_auth"
+    return options
+
+
 class PostgresSession:
     """How to talk to a PostgreSQL server.
 

@@ -3,7 +3,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from typing import Annotated, Any
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -25,6 +25,7 @@ from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
     DataAdapter,
+    ParsesConnectionString,
     SupportsCatalog,
     SupportsConnectionString,
     SupportsFetch,
@@ -43,7 +44,7 @@ from app.connectors.models import (
 from app.core.db import SessionDep
 from app.core.schemas import Message, get_datetime_utc
 from app.users import storage
-from app.users.deps import CurrentUser
+from app.users.deps import CurrentUser, get_current_user
 from app.users.models import User
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
@@ -290,6 +291,61 @@ async def describe_draft(
             },
         )
     return ConnectionDescription(connection_string=adapter.connection_string())
+
+
+class ConnectionStringRequest(BaseModel):
+    adapter_type: str
+    url: str
+
+
+class ParsedOptions(BaseModel):
+    """Form values, in the shape the type's own schema declares."""
+
+    options: dict[str, Any]
+
+
+# Authentication is declared on the route rather than taken as an argument:
+# nothing here reads the user — the question is about a type of source, not
+# about anything of theirs — and an unused argument is a ruff error.
+@router.post(
+    "/parse-url",
+    response_model=ParsedOptions,
+    dependencies=[Depends(get_current_user)],
+)
+async def parse_url(body: ConnectionStringRequest) -> Any:
+    """
+    Take a pasted connection string apart into the fields of the form.
+
+    Asked of the *type*: there are no options yet, and this is what produces
+    them, so the question goes to the driver class exactly as `action_types`
+    does. Nothing is opened, and nothing is stored.
+
+    The driver names the way of connecting as well as the address — a form
+    inferring it from the presence of a password would be a rule about
+    authentication living in a component that knows nothing about it.
+
+    The password in the answer discloses nothing: the client sent that very
+    string a moment ago. It must not be written to a log, all the same.
+    """
+    adapter_type = _resolve_type(body.adapter_type)
+    driver = adapter_type.adapter_class
+    if not issubclass(driver, ParsesConnectionString):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source is not addressed by a connection string",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return ParsedOptions(options=driver.options_from_url(body.url))
+    except ValueError as exc:
+        # The driver's own message, which is written not to quote the string
+        # back: a rejected one may still have carried a password.
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body", "url"], "msg": str(exc), "type": "value_error"}],
+        ) from None
 
 
 @router.post("/{connector_id}/check", response_model=ConnectionCheckResult)
