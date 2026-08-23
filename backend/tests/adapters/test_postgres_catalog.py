@@ -8,6 +8,7 @@ from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.protocol import AdapterError
 from tests.utils.database import working_postgres_options
+from tests.utils.network import silent_endpoint
 
 VIEW_NAME = "catalog_test_view"
 
@@ -105,12 +106,13 @@ async def test_unknown_table_raises_instead_of_returning_empty() -> None:
 
 
 async def test_unreachable_server_raises_with_a_safe_message() -> None:
-    options = PostgresUserPassword(**working_postgres_options()).model_copy(
-        update={"host": "127.0.0.1", "port": 1}
-    )
+    with silent_endpoint() as port:
+        options = PostgresUserPassword(**working_postgres_options()).model_copy(
+            update={"host": "127.0.0.1", "port": port}
+        )
 
-    with pytest.raises(AdapterError) as caught:
-        await PostgresAdapter(options).list_children(None)
+        with pytest.raises(AdapterError) as caught:
+            await PostgresAdapter(options).list_children(None)
 
     assert caught.value.error_kind == "timeout"
     assert options.password.get_secret_value() not in caught.value.message

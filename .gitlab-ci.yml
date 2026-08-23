@@ -33,6 +33,15 @@ backend:
     FIRST_SUPERUSER: admin@example.com
     FIRST_SUPERUSER_PASSWORD: ci-superuser-password
     USER_STORAGE_ROOT: /tmp/users
+    # backend/scripts/test.sh runs the suite this way, and the private routes
+    # exist only in development: without it their tests get a 404.
+    FASTAPI_ENV: development
+    # Nothing is sent — the one test that reaches the mailer patches the host —
+    # but the sender has to be configured or the mailer refuses outright.
+    SMTP_HOST: localhost
+    SMTP_PORT: "1025"
+    SMTP_TLS: "False"
+    EMAILS_FROM_EMAIL: info@example.com
     UV_CACHE_DIR: $CI_PROJECT_DIR/.uv-cache
   cache:
     key:

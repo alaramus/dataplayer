@@ -11,6 +11,7 @@ from app.adapters.postgres.options import (
 )
 from app.adapters.postgres.session import CHECK_TIMEOUT_SECONDS, PostgresSession
 from tests.utils.database import working_postgres_options
+from tests.utils.network import silent_endpoint
 
 WRONG_PASSWORD = "definitely-not-the-password"
 
@@ -39,11 +40,14 @@ async def test_wrong_password_is_classified_as_auth() -> None:
 
 
 async def test_unreachable_endpoint_times_out_within_the_budget() -> None:
-    options = _working_options().model_copy(update={"host": "127.0.0.1", "port": 1})
+    with silent_endpoint() as port:
+        options = _working_options().model_copy(
+            update={"host": "127.0.0.1", "port": port}
+        )
 
-    started = time.perf_counter()
-    result = await PostgresAdapter(options).check_connection()
-    elapsed = time.perf_counter() - started
+        started = time.perf_counter()
+        result = await PostgresAdapter(options).check_connection()
+        elapsed = time.perf_counter() - started
 
     assert result.ok is False
     assert result.error_kind == "timeout"
