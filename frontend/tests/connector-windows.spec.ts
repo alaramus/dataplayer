@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test"
 import type { Locator, Page } from "@playwright/test"
 
+import { openNode, pickSchema } from "./utils/catalog"
 import { createPostgresConnector, DATABASE, pickAdapterType } from "./utils/connectors"
 import { login } from "./utils/login"
-import { connectorRow, deleteConnector, editConnector } from "./utils/workspace"
+import { connectorRow, deleteConnector, editConnector, openConnector } from "./utils/workspace"
 
 /**
  * What this sub-project is for: two connections on screen at once, one read
@@ -110,6 +111,71 @@ test("a window can be dragged, and cannot be dragged out of reach", async ({ pag
 
   await page.getByTestId("cancel-connector").click()
   await expect(windows(page)).toHaveCount(0)
+  await deleteConnector(page, name)
+})
+
+/** What is actually painted at a point, and whether it belongs to the window. */
+async function hitsTheWindow(page: Page, point: { x: number; y: number }): Promise<boolean> {
+  return await page.evaluate(
+    (at) => document.elementFromPoint(at.x, at.y)?.closest(".app-window") !== null,
+    point
+  )
+}
+
+test("a window is painted over the chrome and over a grid it covers", async ({ page }) => {
+  const name = `e2e-win-layer-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+
+  // A grid behind it, because half of what this is about is the sticky header
+  // of a table: it is declared with a z-index, and the window was not.
+  await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+  await expect(page.getByTestId("row-grid")).toContainText("relname")
+
+  await editConnector(page, name)
+  const frame = windows(page).first()
+  const bar = page.locator('[data-testid^="window-bar-connector"]').first()
+
+  const grip = await bar.boundingBox()
+  await page.mouse.move((grip?.x ?? 0) + 20, (grip?.y ?? 0) + (grip?.height ?? 0) / 2)
+  await page.mouse.down()
+  // Hard against the top, where the blue header is.
+  await page.mouse.move(500, 2, { steps: 8 })
+  await page.mouse.up()
+
+  // Not "is the box inside the viewport" — it always was, `clamp` saw to
+  // that. The bar was painted over by the header, and a strip that cannot be
+  // clicked is a window that cannot be brought back.
+  const parked = await bar.boundingBox()
+  expect(
+    await hitsTheWindow(page, {
+      x: (parked?.x ?? 0) + 20,
+      y: (parked?.y ?? 0) + (parked?.height ?? 0) / 2,
+    })
+  ).toBe(true)
+
+  // And the body of the window covers the column headings of the grid rather
+  // than the other way round. A point inside both boxes, so the question is
+  // only which of the two is painted there.
+  const cell = await page.locator(".app-table--sticky thead th").first().boundingBox()
+  const box = await frame.boundingBox()
+  if (cell === null || box === null) throw new Error("the heading or the window has no box")
+  const overlapFrom = Math.max(cell.x, box.x)
+  const overlapTo = Math.min(cell.x + cell.width, box.x + box.width)
+  expect(overlapTo).toBeGreaterThan(overlapFrom)
+  expect(cell.y).toBeGreaterThan(box.y)
+  expect(cell.y).toBeLessThan(box.y + box.height)
+
+  expect(
+    await hitsTheWindow(page, {
+      x: (overlapFrom + overlapTo) / 2,
+      y: cell.y + cell.height / 2,
+    })
+  ).toBe(true)
+
+  await page.getByTestId("cancel-connector").click()
   await deleteConnector(page, name)
 })
 

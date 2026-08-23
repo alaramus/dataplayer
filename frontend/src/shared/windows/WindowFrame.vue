@@ -94,18 +94,25 @@ function endDrag(event: PointerEvent) {
 <style scoped>
 .app-window {
   position: fixed;
+  /* Above the application's own chrome — Quasar puts a header and a footer at
+     2000 — and above a sticky table heading, which declares 1 and would
+     otherwise paint over a window that declared nothing at all. Below q-menu
+     and q-dialog at 6000: a select, an action menu and the confirmation of a
+     close all open *from* a window and have to land on top of it.
+     Order within this layer is the order of the array, not a counter. */
+  z-index: 3000;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--q-window-bg, #fff);
-  border: 1px solid rgba(128, 128, 128, 0.4);
+  background: var(--dp-surface-raised);
+  border: 1px solid var(--dp-border-strong);
   border-radius: 6px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 24px var(--dp-shadow);
   overflow: hidden;
 }
 .app-window--front {
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
-  border-color: rgba(25, 118, 210, 0.5);
+  box-shadow: 0 10px 40px var(--dp-shadow-strong);
+  border-color: var(--dp-focus-border);
 }
 .app-window__bar {
   flex: none;
@@ -113,7 +120,7 @@ function endDrag(event: PointerEvent) {
   align-items: center;
   gap: 6px;
   padding: 4px 4px 4px 10px;
-  background: rgba(128, 128, 128, 0.12);
+  background: var(--dp-active);
   cursor: grab;
   /* Otherwise a drag selects the title text instead of moving the window. */
   user-select: none;
