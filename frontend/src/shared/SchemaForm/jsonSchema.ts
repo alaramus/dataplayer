@@ -3,6 +3,8 @@ import { z } from "zod"
 export interface JsonSchemaProperty {
   type?: string
   title?: string
+  /** The single value a discriminator property may take, as Pydantic emits it. */
+  const?: string
   format?: string
   writeOnly?: boolean
   default?: unknown
@@ -18,11 +20,24 @@ export interface JsonSchemaProperty {
   row?: string
 }
 
+/** One member of a union, always a reference into `$defs`. */
+export interface JsonSchemaRef {
+  $ref: string
+}
+
 export interface JsonSchema {
   type?: string
   title?: string
   required?: string[]
-  properties: Record<string, JsonSchemaProperty>
+  // Absent from the top level of a union schema: everything is in $defs there.
+  properties?: Record<string, JsonSchemaProperty>
+  $defs?: Record<string, JsonSchema>
+  oneOf?: JsonSchemaRef[]
+  discriminator?: {
+    propertyName: string
+    /** The code of a variant to the definition that describes it. */
+    mapping: Record<string, string>
+  }
 }
 
 export type FieldKind = "text" | "password" | "number" | "boolean" | "select"
@@ -33,7 +48,7 @@ export interface FieldSpec {
   kind: FieldKind
   required: boolean
   defaultValue?: unknown
-  choices?: string[]
+  choices?: SchemaChoice[]
   minLength?: number
   minimum?: number
   maximum?: number
@@ -64,13 +79,13 @@ function kindOf(property: JsonSchemaProperty, name: string): FieldKind {
 export function schemaToFields(schema: JsonSchema): FieldSpec[] {
   const required = new Set(schema.required ?? [])
 
-  return Object.entries(schema.properties).map(([name, property]) => ({
+  return Object.entries(schema.properties ?? {}).map(([name, property]) => ({
     name,
     label: property.title ?? name,
     kind: kindOf(property, name),
     required: required.has(name),
     defaultValue: property.default,
-    choices: property.enum,
+    choices: property.enum?.map((value) => ({ value, label: value })),
     minLength: property.minLength,
     minimum: property.minimum,
     maximum: property.maximum,
@@ -136,7 +151,9 @@ export function fieldRows(fields: FieldSpec[]): FieldSpec[][] {
 function zodForField(field: FieldSpec): z.ZodType {
   switch (field.kind) {
     case "select":
-      return z.enum(field.choices as [string, ...string[]])
+      return z.enum(
+        (field.choices ?? []).map((choice) => choice.value) as [string, ...string[]]
+      )
     case "boolean":
       return z.boolean()
     case "number": {
@@ -155,15 +172,27 @@ function zodForField(field: FieldSpec): z.ZodType {
   }
 }
 
-export function jsonSchemaToZod(schema: JsonSchema) {
+/**
+ * What a set of fields accepts.
+ *
+ * Takes fields rather than a schema because a union is never validated whole:
+ * the fields in hand are the common ones plus those of the variant the user
+ * chose, and the whole union at once would demand a password that the chosen
+ * way of connecting does not have.
+ */
+export function fieldsToZod(fields: FieldSpec[]) {
   const shape: Record<string, z.ZodType> = {}
 
-  for (const field of schemaToFields(schema)) {
+  for (const field of fields) {
     const fieldSchema = zodForField(field)
     shape[field.name] = field.required ? fieldSchema : fieldSchema.optional()
   }
 
   return z.object(shape)
+}
+
+export function jsonSchemaToZod(schema: JsonSchema) {
+  return fieldsToZod(schemaToFields(schema))
 }
 
 export function defaultValues(fields: FieldSpec[]): Record<string, unknown> {
@@ -182,4 +211,112 @@ export function defaultValues(fields: FieldSpec[]): Record<string, unknown> {
   }
 
   return values
+}
+
+/**
+ * The one thing a variant of a schema is picked by.
+ *
+ * A pair rather than a bare string because the code stored in the options and
+ * the wording a user reads are two different things: `no_auth` is what travels
+ * to the server, "No auth" is what the model called itself.
+ */
+export interface SchemaChoice {
+  value: string
+  label: string
+}
+
+/**
+ * What a schema turns out to be.
+ *
+ * A source type whose fields depend on the way it is connected to describes
+ * them as a discriminated union, and Pydantic emits that as `$defs` plus
+ * `oneOf` plus a `discriminator` — with nothing at the top level to read. A
+ * union is marked out here rather than sniffed for at every call site.
+ */
+export type SchemaShape =
+  | { kind: "plain"; fields: FieldSpec[] }
+  | {
+      kind: "variants"
+      /** The choice itself: a select whose items are the variants. */
+      discriminator: FieldSpec
+      /** Fields every variant has alike, in the order of the first one. */
+      common: FieldSpec[]
+      /** What each variant adds, by the code that names it. */
+      byVariant: Record<string, FieldSpec[]>
+    }
+
+function resolveRef(schema: JsonSchema, ref: string): JsonSchema {
+  // Only local refs into $defs are ever emitted, and a schema that pointed
+  // anywhere else would be a schema this form cannot render.
+  const name = ref.replace("#/$defs/", "")
+  const found = schema.$defs?.[name]
+  if (!found) throw new Error(`Cannot resolve schema reference "${ref}"`)
+  return found
+}
+
+/** True when two variants are talking about the same field. */
+function sameField(one: FieldSpec, other: FieldSpec): boolean {
+  return (
+    one.name === other.name && one.kind === other.kind && one.label === other.label
+  )
+}
+
+export function readSchema(schema: JsonSchema): SchemaShape {
+  const discriminator = schema.discriminator
+  if (!discriminator || !schema.oneOf) {
+    return { kind: "plain", fields: schemaToFields(schema) }
+  }
+
+  // `oneOf` is in the order the variants were declared; the keys of `mapping`
+  // are not, so the pick list is built from the first and named by the second.
+  const tagOf = new Map(
+    Object.entries(discriminator.mapping).map(([tag, ref]) => [ref, tag])
+  )
+  const variants = schema.oneOf.map((member) => {
+    const tag = tagOf.get(member.$ref)
+    if (tag === undefined) throw new Error(`No variant is mapped to "${member.$ref}"`)
+    const definition = resolveRef(schema, member.$ref)
+    return {
+      tag,
+      label: definition.title ?? member.$ref.replace("#/$defs/", ""),
+      // The discriminator is drawn from the mapping below. Left among the
+      // fields it would render as a text input holding the name of the
+      // variant — Pydantic emits it as a `const`, which is not a choice.
+      fields: schemaToFields(definition).filter(
+        (field) => field.name !== discriminator.propertyName
+      ),
+      property: definition.properties?.[discriminator.propertyName],
+    }
+  })
+
+  const [firstVariant, ...rest] = variants
+  if (!firstVariant) throw new Error("A union schema with no variants")
+
+  const common = firstVariant.fields.filter((field) =>
+    rest.every((variant) => variant.fields.some((other) => sameField(field, other)))
+  )
+  const isCommon = (field: FieldSpec) => common.some((one) => sameField(one, field))
+
+  const byVariant: Record<string, FieldSpec[]> = {}
+  for (const variant of variants) {
+    byVariant[variant.tag] = variant.fields.filter((field) => !isCommon(field))
+  }
+
+  return {
+    kind: "variants",
+    discriminator: {
+      name: discriminator.propertyName,
+      label: firstVariant.property?.title ?? discriminator.propertyName,
+      kind: "select",
+      required: true,
+      // The first variant, so a form that has been touched by nobody still
+      // names a way of connecting: the server rejects options that name none.
+      defaultValue: firstVariant.tag,
+      choices: variants.map(({ tag, label }) => ({ value: tag, label })),
+      group: firstVariant.property?.group ?? DEFAULT_GROUP,
+      row: firstVariant.property?.row,
+    },
+    common,
+    byVariant,
+  }
 }

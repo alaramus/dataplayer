@@ -288,6 +288,20 @@ export type ConnectionDescription = {
 }
 
 /**
+ * ConnectionStringRequest
+ */
+export type ConnectionStringRequest = {
+  /**
+   * Adapter Type
+   */
+  adapter_type: string
+  /**
+   * Url
+   */
+  url: string
+}
+
+/**
  * ConnectorCreate
  */
 export type ConnectorCreate = {
@@ -561,6 +575,20 @@ export type NewPassword = {
    * New Password
    */
   new_password: string
+}
+
+/**
+ * ParsedOptions
+ *
+ * Form values, in the shape the type's own schema declares.
+ */
+export type ParsedOptions = {
+  /**
+   * Options
+   */
+  options: {
+    [key: string]: unknown
+  }
 }
 
 /**
@@ -1522,6 +1550,32 @@ export type connectorsDescribeDraftResponses = {
 
 export type connectorsDescribeDraftResponse =
   connectorsDescribeDraftResponses[keyof connectorsDescribeDraftResponses]
+
+export type connectorsParseUrlData = {
+  body: ConnectionStringRequest
+  path?: never
+  query?: never
+  url: "/api/v1/connectors/parse-url"
+}
+
+export type connectorsParseUrlErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsParseUrlError = connectorsParseUrlErrors[keyof connectorsParseUrlErrors]
+
+export type connectorsParseUrlResponses = {
+  /**
+   * Successful Response
+   */
+  200: ParsedOptions
+}
+
+export type connectorsParseUrlResponse =
+  connectorsParseUrlResponses[keyof connectorsParseUrlResponses]
 
 export type connectorsCheckConnectorData = {
   body?: never

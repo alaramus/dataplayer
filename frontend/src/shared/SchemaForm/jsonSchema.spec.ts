@@ -1,15 +1,17 @@
 import { describe, expect, it } from "vitest"
 
-import { at, first } from "@/shared/testing/collections"
+import { at, first, keyed } from "@/shared/testing/collections"
 
 import {
   defaultValues,
   fieldGroups,
   fieldRows,
+  fieldsToZod,
   jsonSchemaToZod,
+  readSchema,
   schemaToFields,
 } from "./jsonSchema"
-import type { JsonSchema } from "./jsonSchema"
+import type { JsonSchema, SchemaShape } from "./jsonSchema"
 
 // Copied from the GET /api/v1/adapter-types/ response: the exact shape in which
 // Pydantic emits the PostgresOptions schema.
@@ -72,7 +74,10 @@ describe("schemaToFields", () => {
 
     expect(at(fields, 0).kind).toBe("boolean")
     expect(at(fields, 1).kind).toBe("select")
-    expect(at(fields, 1).choices).toEqual(["require", "disable"])
+    expect(at(fields, 1).choices).toEqual([
+      { value: "require", label: "require" },
+      { value: "disable", label: "disable" },
+    ])
   })
 
   it("marks required fields", () => {
@@ -232,6 +237,270 @@ describe("the layout a field declares", () => {
     expect(fieldGroups(schemaToFields(schema)).map((g) => g.id)).toEqual([
       "general",
       "ssl",
+    ])
+  })
+})
+
+// Copied from GET /api/v1/adapter-types/ once PostgreSQL options became a
+// discriminated union: the exact shape Pydantic emits for one.
+const UNION_SCHEMA: JsonSchema = {
+  $defs: {
+    PostgresNoAuth: {
+      type: "object",
+      title: "No auth",
+      required: ["host", "database", "user"],
+      properties: {
+        host: {
+          type: "string",
+          title: "Host",
+          minLength: 1,
+          group: "general",
+          row: "address",
+        },
+        port: {
+          type: "integer",
+          title: "Port",
+          default: 5432,
+          group: "general",
+          row: "address",
+        },
+        database: { type: "string", title: "Database", minLength: 1, group: "general" },
+        auth_method: {
+          const: "no_auth",
+          default: "no_auth",
+          title: "Authentication",
+          type: "string",
+          group: "general",
+        },
+        user: { type: "string", title: "User", minLength: 1, group: "general" },
+      },
+    },
+    PostgresUserPassword: {
+      type: "object",
+      title: "User & Password",
+      required: ["host", "database", "user", "password"],
+      properties: {
+        host: {
+          type: "string",
+          title: "Host",
+          minLength: 1,
+          group: "general",
+          row: "address",
+        },
+        port: {
+          type: "integer",
+          title: "Port",
+          default: 5432,
+          group: "general",
+          row: "address",
+        },
+        database: { type: "string", title: "Database", minLength: 1, group: "general" },
+        auth_method: {
+          const: "user_password",
+          default: "user_password",
+          title: "Authentication",
+          type: "string",
+          group: "general",
+        },
+        user: { type: "string", title: "User", minLength: 1, group: "general" },
+        password: {
+          type: "string",
+          title: "Password",
+          format: "password",
+          writeOnly: true,
+          group: "general",
+        },
+      },
+    },
+  },
+  // The order of oneOf is the order the variants were declared in; the keys of
+  // mapping are not.
+  discriminator: {
+    propertyName: "auth_method",
+    mapping: {
+      no_auth: "#/$defs/PostgresNoAuth",
+      user_password: "#/$defs/PostgresUserPassword",
+    },
+  },
+  oneOf: [{ $ref: "#/$defs/PostgresUserPassword" }, { $ref: "#/$defs/PostgresNoAuth" }],
+}
+
+function variantsOf(shape: SchemaShape) {
+  if (shape.kind !== "variants") throw new Error("expected a union schema")
+  return shape
+}
+
+describe("readSchema", () => {
+  it("reads a schema with no variants as a plain list of fields", () => {
+    const shape = readSchema(POSTGRES_SCHEMA)
+
+    expect(shape.kind).toBe("plain")
+    expect(shape.kind === "plain" && shape.fields.map((f) => f.name)).toEqual([
+      "host",
+      "port",
+      "database",
+      "user",
+      "password",
+    ])
+  })
+
+  it("follows a $ref into $defs rather than reading the top level", () => {
+    // Nothing but $defs, oneOf and the discriminator is at the top level of a
+    // union schema: reading `properties` there would find no fields at all.
+    const shape = variantsOf(readSchema(UNION_SCHEMA))
+
+    expect(keyed(shape.byVariant, "user_password").map((f) => f.name)).toEqual([
+      "password",
+    ])
+  })
+
+  it("draws the fields every variant shares only once", () => {
+    // What stops the address jumping about when the method is switched.
+    const shape = variantsOf(readSchema(UNION_SCHEMA))
+
+    expect(shape.common.map((f) => f.name)).toEqual(["host", "port", "database", "user"])
+  })
+
+  it("keeps the common fields in the order of the first variant", () => {
+    const shape = variantsOf(readSchema(UNION_SCHEMA))
+
+    expect(shape.common.map((f) => f.row)).toEqual([
+      "address",
+      "address",
+      undefined,
+      undefined,
+    ])
+  })
+
+  it("never leaves the discriminator among the fields it lists", () => {
+    // It is drawn from the mapping instead; left in, it would render as a
+    // text input holding the name of the variant.
+    const shape = variantsOf(readSchema(UNION_SCHEMA))
+
+    expect(shape.common.map((f) => f.name)).not.toContain("auth_method")
+    for (const fields of Object.values(shape.byVariant)) {
+      expect(fields.map((f) => f.name)).not.toContain("auth_method")
+    }
+  })
+
+  it("offers the ways of connecting as a select of code and wording", () => {
+    const shape = variantsOf(readSchema(UNION_SCHEMA))
+
+    expect(shape.discriminator.kind).toBe("select")
+    expect(shape.discriminator.name).toBe("auth_method")
+    expect(shape.discriminator.choices).toEqual([
+      { value: "user_password", label: "User & Password" },
+      { value: "no_auth", label: "No auth" },
+    ])
+  })
+
+  it("labels the choice with what the server called the field", () => {
+    const shape = variantsOf(readSchema(UNION_SCHEMA))
+
+    expect(shape.discriminator.label).toBe("Authentication")
+    expect(shape.discriminator.group).toBe("general")
+  })
+
+  it("starts on the first variant", () => {
+    const shape = variantsOf(readSchema(UNION_SCHEMA))
+
+    expect(shape.discriminator.defaultValue).toBe("user_password")
+    expect(defaultValues([shape.discriminator]).auth_method).toBe("user_password")
+  })
+
+  it("names a variant by its class when the model declared no title", () => {
+    const shape = variantsOf(
+      readSchema({
+        $defs: { Bare: { type: "object", properties: { a: { type: "string" } } } },
+        discriminator: { propertyName: "kind", mapping: { bare: "#/$defs/Bare" } },
+        oneOf: [{ $ref: "#/$defs/Bare" }],
+      })
+    )
+
+    expect(shape.discriminator.choices).toEqual([{ value: "bare", label: "Bare" }])
+  })
+
+  it("keeps a field of the same name but a different kind out of the common ones", () => {
+    const shape = variantsOf(
+      readSchema({
+        $defs: {
+          A: {
+            type: "object",
+            title: "A",
+            properties: {
+              k: { const: "a", type: "string" },
+              token: { type: "string", title: "Token" },
+            },
+          },
+          B: {
+            type: "object",
+            title: "B",
+            properties: {
+              k: { const: "b", type: "string" },
+              token: { type: "integer", title: "Token" },
+            },
+          },
+        },
+        discriminator: { propertyName: "k", mapping: { a: "#/$defs/A", b: "#/$defs/B" } },
+        oneOf: [{ $ref: "#/$defs/A" }, { $ref: "#/$defs/B" }],
+      })
+    )
+
+    expect(shape.common).toEqual([])
+    expect(keyed(shape.byVariant, "a").map((f) => f.name)).toEqual(["token"])
+    expect(keyed(shape.byVariant, "b").map((f) => f.name)).toEqual(["token"])
+  })
+})
+
+describe("the schema a chosen variant is validated against", () => {
+  it("accepts the common fields plus the ones of the variant in hand", () => {
+    const shape = variantsOf(readSchema(UNION_SCHEMA))
+    const fields = [...shape.common, shape.discriminator, ...keyed(shape.byVariant, "no_auth")]
+
+    const result = fieldsToZod(fields).safeParse({
+      auth_method: "no_auth",
+      host: "db",
+      port: 5432,
+      database: "app",
+      user: "ann",
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it("does not demand a field belonging to another variant", () => {
+    // The whole union at once would insist on a password that this way of
+    // connecting does not have.
+    const shape = variantsOf(readSchema(UNION_SCHEMA))
+    const withPassword = [
+      ...shape.common,
+      shape.discriminator,
+      ...keyed(shape.byVariant, "user_password"),
+    ]
+
+    const result = fieldsToZod(withPassword).safeParse({
+      auth_method: "user_password",
+      host: "db",
+      port: 5432,
+      database: "app",
+      user: "ann",
+    })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe("a choice offered by an enum", () => {
+  it("carries a code and a wording, the same as a variant does", () => {
+    const fields = schemaToFields({
+      properties: {
+        mode: { type: "string", title: "Mode", enum: ["require", "disable"] },
+      },
+    })
+
+    expect(first(fields).choices).toEqual([
+      { value: "require", label: "require" },
+      { value: "disable", label: "disable" },
     ])
   })
 })

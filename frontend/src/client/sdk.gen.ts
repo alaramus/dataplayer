@@ -29,6 +29,9 @@ import type {
   connectorsFetchRowsData,
   connectorsFetchRowsErrors,
   connectorsFetchRowsResponses,
+  connectorsParseUrlData,
+  connectorsParseUrlErrors,
+  connectorsParseUrlResponses,
   connectorsReadActionsData,
   connectorsReadActionsErrors,
   connectorsReadActionsResponses,
@@ -630,6 +633,41 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/describe-draft",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Parse Url
+   *
+   * Take a pasted connection string apart into the fields of the form.
+   *
+   * Asked of the *type*: there are no options yet, and this is what produces
+   * them, so the question goes to the driver class exactly as `action_types`
+   * does. Nothing is opened, and nothing is stored.
+   *
+   * The driver names the way of connecting as well as the address — a form
+   * inferring it from the presence of a password would be a rule about
+   * authentication living in a component that knows nothing about it.
+   *
+   * The password in the answer discloses nothing: the client sent that very
+   * string a moment ago. It must not be written to a log, all the same.
+   */
+  public static parseUrl<ThrowOnError extends boolean = true>(
+    options: Options<connectorsParseUrlData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsParseUrlResponses,
+      connectorsParseUrlErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/parse-url",
       ...options,
       headers: {
         "Content-Type": "application/json",

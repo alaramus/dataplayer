@@ -16,3 +16,12 @@ export function at<T>(items: readonly T[], index: number): T {
   }
   return item
 }
+
+/** The same, for a record keyed by something a test expects to be present. */
+export function keyed<T>(record: Record<string, T>, key: string): T {
+  const item = record[key]
+  if (item === undefined) {
+    throw new Error(`expected a "${key}" entry, got ${Object.keys(record).join(", ")}`)
+  }
+  return item
+}
