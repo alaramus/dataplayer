@@ -2,15 +2,14 @@
 import { computed } from "vue"
 
 import type { ConnectorPublic } from "@/client"
-import ConnectorDot from "@/features/connectors/ConnectorDot.vue"
-import { adapterIcon } from "@/features/connectors/adapters"
-import { AppEmptyState, AppIconButton, AppSpinner } from "@/shared/ui"
+import ConnectorIcon from "@/features/connectors/ConnectorIcon.vue"
+import { AppEmptyState, AppSpinner } from "@/shared/ui"
 
 /**
  * The sources of the workspace, one per row.
  *
- * Three things in a row and nothing else: what kind of source it is, what it
- * is called, and what the last check said. Everything that can be done to a
+ * Two things in a row and nothing else: the icon of the source type, carrying
+ * what the last check said, and the name beside it. Everything that can be done to a
  * connection lives inside the window its icon opens — a menu here would be a
  * second home for the same commands, and two homes drift. See the spec, S1.
  */
@@ -69,23 +68,21 @@ const open = computed(() => props.openIds ?? new Set<string>())
       @keydown.enter="emit('open', connector)"
       @keydown.space.prevent="emit('open', connector)"
     >
+      <!-- The icon carries the state dot, exactly as it does in the strip a
+           collapsed column leaves behind: what a press means differs, what is
+           drawn does not. -->
       <span @click.stop>
-        <AppIconButton
-          :icon="adapterIcon(connector.adapter_type)"
+        <ConnectorIcon
+          :connector-id="connector.id"
+          :name="connector.name"
+          :adapter-type="connector.adapter_type"
           tooltip="Edit connection"
-          :data-testid="`connector-edit-${connector.name}`"
+          :testid="`connector-edit-${connector.name}`"
           @click="emit('edit', connector)"
         />
       </span>
 
       <span class="connector-list__name">{{ connector.name }}</span>
-
-      <!-- What the last check said, and nothing more: no check has been made
-           until the user asks for one. -->
-      <ConnectorDot
-        :connector-id="connector.id"
-        :name="connector.name"
-      />
     </div>
   </div>
 </template>
@@ -100,7 +97,9 @@ const open = computed(() => props.openIds ?? new Set<string>())
   align-items: center;
   gap: 6px;
   width: 100%;
-  padding: 1px 8px;
+  /* The same four pixels the strip centres its icons at, so that a row keeps
+     its icon in place when the column is pushed aside. */
+  padding: 1px 8px 1px 4px;
   cursor: pointer;
 }
 .connector-list__row:hover {

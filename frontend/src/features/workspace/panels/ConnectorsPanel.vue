@@ -17,8 +17,11 @@ const rows = computed(() => connectors.data.value?.data ?? [])
     <div class="connectors-panel__bar">
       <!-- No title: the tab above the panel already carries one, and saying
            it twice costs a line of a column that is a fifth of the screen.
-           An icon and not a labelled button, for the same reason. -->
-      <span class="connectors-panel__spacer" />
+           An icon and not a labelled button, for the same reason.
+
+           On the left, where it stands in the strip a collapsed column leaves
+           behind: pushing the column aside is meant to take the name away and
+           move nothing. -->
       <AppIconButton
         icon="add"
         tooltip="New connection"
@@ -26,6 +29,7 @@ const rows = computed(() => connectors.data.value?.data ?? [])
         @click="workspace.editConnector(null)"
       />
     </div>
+    <q-separator class="connectors-panel__rule" />
 
     <div class="connectors-panel__body">
       <ConnectorList
@@ -48,15 +52,21 @@ const rows = computed(() => connectors.data.value?.data ?? [])
   height: 100%;
   min-height: 0;
 }
+/* Four pixels of padding, which is exactly where a forty-pixel strip centres
+   a thirty-two pixel button: the plus does not move when the column is pushed
+   aside. */
 .connectors-panel__bar {
   flex: none;
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 0 4px;
+  padding: 2px 0 0 4px;
 }
-.connectors-panel__spacer {
-  flex: 1;
+/* The same hairline the strip draws, at the width this column happens to
+   have. */
+.connectors-panel__rule {
+  flex: none;
+  margin: 2px 8px 4px;
 }
 .connectors-panel__body {
   flex: 1;

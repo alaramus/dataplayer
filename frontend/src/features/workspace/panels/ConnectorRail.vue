@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import ConnectorDot from "@/features/connectors/ConnectorDot.vue"
+import ConnectorIcon from "@/features/connectors/ConnectorIcon.vue"
 import { useConnectors } from "@/features/connectors/api"
-import { adapterIcon } from "@/features/connectors/adapters"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppIconButton } from "@/shared/ui"
 
@@ -52,16 +51,13 @@ const rows = computed(() => connectors.data.value?.data ?? [])
         'connector-rail__slot--selected': connector.id === workspace.activeConnectorId.value,
       }"
     >
-      <AppIconButton
-        :icon="adapterIcon(connector.adapter_type)"
-        :tooltip="connector.name"
-        :data-testid="`connector-rail-${connector.name}`"
-        @click="workspace.openCatalog(connector)"
-      />
-      <ConnectorDot
-        class="connector-rail__dot"
+      <ConnectorIcon
         :connector-id="connector.id"
         :name="connector.name"
+        :adapter-type="connector.adapter_type"
+        :tooltip="connector.name"
+        :testid="`connector-rail-${connector.name}`"
+        @click="workspace.openCatalog(connector)"
       />
     </div>
   </div>
@@ -75,10 +71,12 @@ const rows = computed(() => connectors.data.value?.data ?? [])
   padding: 2px 0;
 }
 /* A hairline under the plus: making a connection and reaching one already
-   made are two different things, and at this width nothing else says so. */
+   made are two different things. It stretches to whatever width the column
+   has, which is how the wide list draws the same rule without a second
+   declaration of it. */
 .connector-rail__rule {
-  width: 24px;
-  margin: 2px 0 4px;
+  align-self: stretch;
+  margin: 2px 8px 4px;
 }
 .connector-rail__slot {
   position: relative;
@@ -93,13 +91,5 @@ const rows = computed(() => connectors.data.value?.data ?? [])
 }
 .connector-rail__slot--selected {
   background: var(--dp-selected);
-}
-/* On the icon rather than beside it: there is no room for a second column. */
-.connector-rail__dot {
-  position: absolute;
-  right: 1px;
-  bottom: 1px;
-  border: 1px solid var(--dp-surface);
-  pointer-events: none;
 }
 </style>

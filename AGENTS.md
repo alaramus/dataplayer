@@ -96,11 +96,13 @@ see and change. Picking one leads to the form, which states the type instead of
 offering a choice of it, and can step back to the catalog. Editing an existing
 connection skips the first window entirely.
 
-A connection is a row of three things — the icon of its type, its name, and
-what the last check said — and everything else about it lives in the one window
-that icon opens, from either of the two columns that show it. Pushed aside, the
-column of connections keeps that icon and that dot, and pressing one opens its
-catalog. A catalog is a list of one level: a click opens what can be read and
+A connection is a row of two things — the icon of its type, with the dot of the
+last check standing on it, and its name — and everything else about it lives in
+the one window that icon opens, from either of the two columns that show it.
+Pushed aside, the column of connections is the same column with the names gone:
+the plus stays where it was, under it the same hairline, and under that the same
+icons in the same place, each still carrying its dot. Pressing one there opens
+its catalog. A catalog is a list of one level: a click opens what can be read and
 walks into what cannot, a tick box picks a node out without opening it, the way
 back is the first row of the list and the path above it starts at a home
 button. One menu in the head carries everything the source can do, live for
@@ -1106,8 +1108,12 @@ short of what it should be. Listed so it is not rediscovered as a surprise.
   browsed never reaches it: the middle column simply does not appear for one,
   and there is still nothing that says so in words.
 - **A row of the list carries four marks.** The icon, the name, the state dot
-  and the highlight that says it is open. On a long list with several catalogs
-  open the column becomes busy, and nobody has measured that.
+  on that icon and the highlight that says it is open. On a long list with
+  several catalogs open the column becomes busy, and nobody has measured that.
+- **The two states of the column agree by arithmetic, not by construction.**
+  The wide list pads by four pixels because that is where a forty-pixel strip
+  centres a thirty-two pixel button. Change the size of the button and the two
+  drift apart; a scenario measures both and fails when they do.
 - **The state dot only knows about this session.** A connection shows grey
   until the user checks it; nothing checks in the background, because that
   would mean opening a connection to every source on every load. The record is

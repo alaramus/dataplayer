@@ -496,6 +496,53 @@ test("tables stack as tabs in the right column and survive a reload", async ({ p
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("pushing the column of sources aside takes away the name and nothing else", async ({
+  page,
+}) => {
+  const name = `e2e-rail-same-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, name)
+
+  const box = async (locator: ReturnType<typeof page.getByTestId>) => {
+    const found = await locator.boundingBox()
+    if (found === null) throw new Error("no box")
+    return found
+  }
+
+  // Wide: the plus on the left, the icon of the source under it, the state dot
+  // on that icon, and the name beside it.
+  const plusWide = await box(page.getByTestId("add-connector"))
+  const iconWide = await box(page.getByTestId(`connector-edit-${name}`))
+  const dotWide = await box(page.getByTestId(`connector-state-${name}`))
+  await expect(page.getByTestId(`connector-${name}`)).toContainText(name)
+
+  // The dot sits on the icon rather than at the end of the row.
+  expect(dotWide.x).toBeGreaterThan(iconWide.x)
+  expect(dotWide.x + dotWide.width).toBeLessThan(iconWide.x + iconWide.width + 2)
+
+  await page.getByTestId("workspace-collapse-sources").click()
+
+  const plusNarrow = await box(page.getByTestId("add-connector"))
+  const iconNarrow = await box(page.getByTestId(`connector-rail-${name}`))
+  const dotNarrow = await box(page.getByTestId(`connector-state-${name}`))
+
+  // Everything stayed where it was; only the name is gone. Two pixels of
+  // tolerance, because one layout centres in forty pixels and the other pads
+  // by eight.
+  expect(Math.abs(plusNarrow.x - plusWide.x)).toBeLessThan(3)
+  expect(Math.abs(plusNarrow.y - plusWide.y)).toBeLessThan(3)
+  expect(Math.abs(iconNarrow.x - iconWide.x)).toBeLessThan(3)
+  expect(Math.abs(iconNarrow.y - iconWide.y)).toBeLessThan(3)
+  expect(Math.abs(dotNarrow.x - dotWide.x)).toBeLessThan(3)
+  expect(Math.abs(dotNarrow.y - dotWide.y)).toBeLessThan(3)
+  await expect(page.getByTestId("connector-list")).toHaveCount(0)
+
+  await page.getByTestId("workspace-collapse-sources").click()
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
 test("a pushed-aside column of sources still opens one of them", async ({ page }) => {
   const name = `e2e-rail-${Date.now()}`
   await login(page)
