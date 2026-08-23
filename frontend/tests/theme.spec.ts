@@ -2,7 +2,10 @@ import { expect, test } from "@playwright/test"
 
 import type { Page } from "@playwright/test"
 
+import { openNode, pickSchema } from "./utils/catalog"
+import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { deleteConnector, openConnector } from "./utils/workspace"
 
 /**
  * Light and dark, and where each of them comes from.
@@ -72,6 +75,35 @@ test("a chosen theme outlives a reload and outranks the system", async ({ page }
   await page.reload()
   await expect(dark(page)).toHaveCount(1)
   expect(await panelColour(page)).toBe(wasDark)
+})
+
+test("a column of the workspace is one colour, grid included", async ({ page }) => {
+  const name = `e2e-theme-grid-${Date.now()}`
+  await login(page)
+  await page.emulateMedia({ colorScheme: "dark" })
+  await forget(page)
+  await page.reload()
+  await expect(dark(page)).toHaveCount(1)
+
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+  await expect(page.getByTestId("row-grid")).toContainText("relname")
+
+  const colourOf = (selector: string) =>
+    page.locator(selector).first().evaluate((node) => getComputedStyle(node).backgroundColor)
+
+  // Quasar gives a table a card of its own, and in the dark theme that card is
+  // #1d1d1d over a panel that is #121212 — three colours in one column, with
+  // the sticky heading a stripe across the table it heads.
+  // The class lands on the element Quasar calls `q-table__container`, so the
+  // table and its card are one and the same box.
+  const panel = await colourOf('[data-testid^="workspace-leaf-"]')
+  expect(await colourOf(".app-table--sticky.q-table__container")).toBe(panel)
+  expect(await colourOf(".app-table--sticky thead th")).toBe(panel)
+
+  await deleteConnector(page, name)
 })
 
 test("a tab is legible in the dark theme", async ({ page }) => {
