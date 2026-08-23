@@ -713,6 +713,7 @@ From the design document, in order:
 
 | # | Sub-project |
 | --- | --- |
+| 7-подготовка | Connection variants — the last part of the window. Designed and not built: `docs/superpowers/specs/2026-08-23-connection-variants-design.md`. Authentication becomes a discriminated union so the fields follow the method chosen, and a pasted connection string is parsed by the driver into those fields. Written to be executed from a cold session: it carries what to read first, the order of the work, and three facts verified while designing it — Pydantic emits `oneOf` with `$ref`, which the form does not resolve today; a missing discriminator is rejected, so stored connectors need a data migration; and `conninfo_to_dict` answers `dbname` with a string port. |
 | 7+ | Realtime, AI, data grid |
 
 Sub-project 6 is done: the file source is the second type, and it was
