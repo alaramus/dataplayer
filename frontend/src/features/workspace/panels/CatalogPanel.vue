@@ -123,6 +123,23 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
           </div>
         </div>
 
+        <!-- Beside the path and not under it. The line answers one question —
+             where we are inside this source — and the answer takes the shape
+             the level's own nodes give it: a path for a directory, a set of
+             groupings for a database. Which of the two shows follows from the
+             nodes, never from the type of the source. -->
+        <AppSelect
+          v-if="groupOptions.length"
+          class="catalog-panel__groups"
+          :model-value="level.selectedGroups.value"
+          :options="groupOptions"
+          label="Schemas"
+          multiple
+          compact
+          data-testid="catalog-groups"
+          @update:model-value="level.setGroups($event as string[])"
+        />
+
         <CatalogActions
           class="catalog-panel__menu"
           :connector-id="connectorId"
@@ -134,17 +151,8 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
         />
       </div>
 
-      <AppSelect
-        v-if="groupOptions.length"
-        :model-value="level.selectedGroups.value"
-        :options="groupOptions"
-        label="Schemas"
-        multiple
-        compact
-        data-testid="catalog-groups"
-        @update:model-value="level.setGroups($event as string[])"
-      />
-
+      <!-- On a line of its own: a filter is something a user types into, and
+           typing needs the width. -->
       <AppInput
         v-model="level.filter.value"
         placeholder="Filter"
@@ -202,8 +210,15 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
   min-width: 0;
   padding-right: 6px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--dp-hover);
   font-size: 12px;
+}
+/* Takes what the line has left, and gives it back rather than pushing the
+   menu off the end: the choice of schemas is a list of names, and a long one
+   must not cost the column its only menu. */
+.catalog-panel__groups {
+  flex: 1;
+  min-width: 0;
 }
 /* The menu keeps to the end of the line whether or not there is a path to
    push it there. */
@@ -231,15 +246,15 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
 .catalog-panel__crumb {
   cursor: pointer;
   padding: 2px 2px;
-  color: rgba(25, 118, 210, 0.9);
+  color: var(--dp-link);
 }
 .catalog-panel__crumb--last {
   cursor: default;
   font-weight: 500;
-  color: rgba(0, 0, 0, 0.7);
+  color: var(--dp-text-strong);
 }
 .catalog-panel__chevron {
-  color: rgba(0, 0, 0, 0.35);
+  color: var(--dp-text-faint);
 }
 .catalog-panel__body {
   flex: 1;
