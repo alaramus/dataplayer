@@ -83,8 +83,11 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
              connection — the name is on the tab above, and what the first step
              of a path means is "back to the top". Whether this is a path or a
              set of groupings follows from the kinds of node the level holds,
-             never from the type of the source. -->
+             never from the type of the source — which is also why a source
+             whose catalog is one level deep never shows it: a path of one step
+             says nothing, and a database has no levels to walk. -->
         <div
+          v-if="level.path.value.length > 1"
           class="catalog-panel__crumbs"
           data-testid="catalog-path"
         >
@@ -121,6 +124,7 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
         </div>
 
         <CatalogActions
+          class="catalog-panel__menu"
           :connector-id="connectorId"
           :level-id="level.currentId.value"
           :checked-ids="level.checked.value"
@@ -200,6 +204,11 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.04);
   font-size: 12px;
+}
+/* The menu keeps to the end of the line whether or not there is a path to
+   push it there. */
+.catalog-panel__menu {
+  margin-left: auto;
 }
 .catalog-panel__trail {
   display: flex;

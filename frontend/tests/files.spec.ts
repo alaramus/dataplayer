@@ -23,9 +23,21 @@ test("browses a personal directory and reads files as rows", async ({ page }) =>
   // mapper passed once while nothing reached the screen.
   await expect(list).toContainText(/\d+(\.\d+)? KB/)
 
+  // Nothing has been walked into yet, so there is no path to show.
+  await expect(page.getByTestId("catalog-path")).toHaveCount(0)
+
   // A directory is walked into, and the path says where we are.
   await openNode(page, "reports")
   await expect(page.getByTestId("catalog-path")).toContainText("reports")
+
+  // It shares the line with the icon of the source and the menu: a column
+  // this narrow cannot afford a stack of them, and a unit test cannot tell
+  // one line from two.
+  const icon = await page.getByTestId("catalog-connector").boundingBox()
+  const path = await page.getByTestId("catalog-path").boundingBox()
+  const middle = (box: { y: number; height: number } | null) =>
+    box === null ? 0 : box.y + box.height / 2
+  expect(Math.abs(middle(icon) - middle(path))).toBeLessThan(4)
   await expect(list).toContainText("q3.csv")
 
   // The way back is the first row of the list, as it is in any other

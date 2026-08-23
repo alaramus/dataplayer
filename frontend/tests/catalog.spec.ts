@@ -18,6 +18,11 @@ test("browses a database as a list filtered by schema", async ({ page }) => {
   await expect(list).toContainText("connector")
   await expect(page.getByTestId("catalog-groups")).toContainText("public")
 
+  // A database is one level deep — schemas are a grouping, not a place — so
+  // there is no path, and a pill holding nothing but a home button would be
+  // one more thing to read on a line that has none to spare.
+  await expect(page.getByTestId("catalog-path")).toHaveCount(0)
+
   // A column is not a row of the catalog: the grid on the right has them.
   await expect(catalogRow(page, "adapter_type")).toHaveCount(0)
 
@@ -39,15 +44,6 @@ test("the head of the catalog opens the window of its connection", async ({ page
   await login(page)
   await createPostgresConnector(page, name)
   await openConnector(page, name)
-
-  // The icon of the source, the path and the menu share one line: a column
-  // this narrow cannot afford a stack of them, and a unit test cannot tell
-  // one line from two.
-  const icon = await page.getByTestId("catalog-connector").boundingBox()
-  const path = await page.getByTestId("catalog-path").boundingBox()
-  const middle = (box: { y: number; height: number } | null) =>
-    box === null ? 0 : box.y + box.height / 2
-  expect(Math.abs(middle(icon) - middle(path))).toBeLessThan(4)
 
   // Reachable from here as well as from the list, because the column that
   // holds the list can be collapsed.
