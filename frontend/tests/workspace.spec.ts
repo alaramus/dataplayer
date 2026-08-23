@@ -245,6 +245,36 @@ test("the list says which connections are open and which is being read", async (
   }
 })
 
+test("the head of every column is one height, whatever is in it", async ({ page }) => {
+  const name = `e2e-head-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+
+  /** The strip of every section on screen, measured where it is drawn. */
+  const heights = async () =>
+    await page
+      .locator(".workspace-leaf__strip")
+      .evaluateAll((nodes) => nodes.map((node) => Math.round(node.getBoundingClientRect().height)))
+
+  // A column with a tab beside one with none: the line under them is one line
+  // across the screen, or it reads as a broken layout.
+  await page.getByTestId("workspace-scene").waitFor()
+  const columns = await heights()
+  expect(columns).toHaveLength(2)
+  expect(new Set(columns).size).toBe(1)
+
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  expect(new Set(await heights()).size).toBe(1)
+
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+  expect(new Set(await heights()).size).toBe(1)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
 test("the tab of connections cannot be taken to another column", async ({ page }) => {
   const name = `e2e-drag-${Date.now()}`
   await login(page)

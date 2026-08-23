@@ -233,6 +233,12 @@ const overlayStyle = computed((): CSSProperties => {
   gap: 2px;
   padding: 2px 4px;
   border-bottom: 1px solid var(--dp-border);
+  /* The head of a column is one height whatever stands in it: a column with a
+     tab beside one with only its handles put the line under them at two
+     different heights, which reads as a broken layout rather than as an empty
+     one. A floor and not a fixed height, because tabs still wrap onto a
+     second line. */
+  min-height: 31px;
 }
 /* Tabs wrap onto a second line rather than running off the end of the strip:
    a tab that cannot be seen cannot be reached, and a section is only ever as
