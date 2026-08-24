@@ -1,5 +1,3 @@
-import pytest
-from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -26,7 +24,7 @@ async def test_connector_is_persisted(db: AsyncSession) -> None:
     assert connector.config["host"] == "localhost"
 
 
-async def test_name_is_unique_per_owner(db: AsyncSession) -> None:
+async def test_duplicate_names_allowed_per_owner(db: AsyncSession) -> None:
     user = await create_random_user(db)
     for _ in range(2):
         db.add(
@@ -39,9 +37,14 @@ async def test_name_is_unique_per_owner(db: AsyncSession) -> None:
             )
         )
 
-    with pytest.raises(IntegrityError):
-        await db.commit()
-    await db.rollback()
+    await db.commit()
+
+    result = await db.exec(
+        select(Connector).where(
+            Connector.owner_id == user.id, Connector.name == "duplicate"
+        )
+    )
+    assert len(result.all()) == 2
 
 
 async def test_same_name_allowed_for_different_owners(db: AsyncSession) -> None:

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Column, DateTime, LargeBinary, UniqueConstraint
+from sqlalchemy import Column, DateTime, LargeBinary
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
@@ -10,10 +10,6 @@ from app.core.schemas import get_datetime_utc
 
 
 class Connector(SQLModel, table=True):
-    __table_args__ = (
-        UniqueConstraint("owner_id", "name", name="uq_connector_owner_name"),
-    )
-
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(min_length=1, max_length=255)
     # A key into the adapter type registry, not a foreign key: the registry

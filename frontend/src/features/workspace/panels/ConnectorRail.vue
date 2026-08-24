@@ -50,6 +50,7 @@ const rows = computed(() => connectors.data.value?.data ?? [])
         'connector-rail__slot--open': workspace.openConnectorIds.value.has(connector.id),
         'connector-rail__slot--selected': connector.id === workspace.activeConnectorId.value,
       }"
+      :data-connector-id="connector.id"
     >
       <ConnectorIcon
         :connector-id="connector.id"
