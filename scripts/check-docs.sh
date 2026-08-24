@@ -7,13 +7,16 @@
 #   2. every decision listed in the AGENTS.md table has exactly one home in
 #      docs/architecture/, and no decision lives there unlisted;
 #   3. AGENTS.md stays under the size budget — it is loaded into every session,
-#      which is the whole reason it was split up.
+#      which is the whole reason it was split up. Raised from 16 KB to 24 KB in
+#      round 8: the file had 142 bytes left, and the first thing the budget
+#      would have evicted was a trap that belongs in every session. A ceiling
+#      that pushes out what the file exists to hold is set too low.
 #
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-BUDGET=16384
+BUDGET=24576
 failed=0
 
 note() {
