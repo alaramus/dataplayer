@@ -94,9 +94,11 @@ test("the head of a catalog is one height across source types", async ({ page })
   await expect(page.getByTestId("catalog-list")).toContainText("pg_class")
   expect(await headHeight(page)).toBe(withGroups)
 
-  // Personal storage at its root: a menu and no path — one step says
-  // nothing, so no crumbs are drawn. The icon is on the tab.
+  // Personal storage at its root: a menu and a path with only the
+  // home button — the strip stays visible even at the top so it does
+  // not appear and disappear when walking in and out.
   await openConnector(page, files)
+  await expect(page.getByTestId("catalog-path")).toBeVisible()
   await expect(page.getByTestId("catalog-actions")).toBeVisible()
   expect(await headHeight(page)).toBe(withGroups)
 

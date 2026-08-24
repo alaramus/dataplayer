@@ -28,6 +28,8 @@ const groupOptions = computed(() =>
   level.groups.value.map((group) => ({ label: group.label, value: group.id }))
 )
 
+const showPath = computed(() => props.adapterType === "file" || level.path.value.length > 1)
+
 /** What the level is called, for a form that acts on the level itself. */
 const levelLabel = computed(
   () => level.path.value[level.path.value.length - 1]?.label ?? props.title
@@ -79,13 +81,12 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
         <!-- Where we are, on the same line as the menu, not a stack of
              lines. Starting at a home button rather than at the name of the
              connection — the name is on the tab above, and what the first step
-             of a path means is "back to the top". Whether this is a path or a
-             set of groupings follows from the kinds of node the level holds,
-             never from the type of the source — which is also why a source
-             whose catalog is one level deep never shows it: a path of one step
-             says nothing, and a database has no levels to walk. -->
+             of a path means is "back to the top". For a file source the bar
+             stays visible even at the top, so the line does not appear and
+             disappear when walking in and out; a database has no levels to
+             walk and therefore never shows it. -->
         <div
-          v-if="level.path.value.length > 1"
+          v-if="showPath"
           class="catalog-panel__crumbs"
           data-testid="catalog-path"
         >

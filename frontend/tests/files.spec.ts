@@ -29,8 +29,9 @@ test("browses a personal directory and reads files as rows", async ({ page }) =>
   // mapper passed once while nothing reached the screen.
   await expect(list).toContainText(/\d+(\.\d+)? KB/)
 
-  // Nothing has been walked into yet, so there is no path to show.
-  await expect(page.getByTestId("catalog-path")).toHaveCount(0)
+  // The path is always visible for a file source, even at the top.
+  await expect(page.getByTestId("catalog-path")).toBeVisible()
+  await expect(page.getByTestId("catalog-home")).toBeVisible()
 
   // A directory is walked into, and the path says where we are.
   await openNode(page, "reports")
