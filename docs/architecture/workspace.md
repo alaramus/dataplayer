@@ -101,6 +101,22 @@ Consequences:
   feature: `component(panel)` must answer with the same component for the same
   panel. A wrapper built afresh on each call is a different component each time,
   and a functional wrapper cannot be kept alive at all.
+- **A tab offers what the feature named, and the engine calls it back.** Three
+  handles have this shape now: `iconTooltip` with `onIconClick`, which is how a
+  catalog tab opens the window of its connection, and `reloadTooltip` with
+  `onReload`, which is how a tab is re-read. The engine draws the button when
+  the feature named it and calls back with the panel id; what re-reading means
+  belongs to the panel — the connections list asks vue-query again, the catalog
+  re-reads the level it is standing on, the grid re-runs the page it is showing
+  — so panels register their own answer in a small registry and the engine
+  never learns what a catalog is. Instance refs held by the engine would have
+  been the other way to reach a panel, and that is the coupling this decision
+  exists to prevent.
+- **A panel that never mounted has nothing to re-read.** Only the active tab of
+  a section is mounted, and `<KeepAlive>` keeps the ones that have been shown —
+  so a tab restored from storage and never opened has registered nothing.
+  Pressing its reload shows it instead, because reading a panel that never read
+  anything is showing it.
 - **Walking a catalog is not logic of a screen.** `useCatalogTree` holds it, and
   it invalidates the branch it re-reads rather than trusting whoever changed it to
   have done so.

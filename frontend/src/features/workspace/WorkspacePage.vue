@@ -24,6 +24,10 @@ import {
   rowsPanelId,
 } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
+import {
+  createReloadRegistry,
+  provideReloadRegistry,
+} from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
 import type { OpenRowsRequest } from "@/features/workspace/state"
 import { AppLayout, useConfirm, useToast } from "@/shared/ui"
@@ -68,6 +72,13 @@ const workspace = useWorkspace<Panel>({
   onIconClick: (panel) => {
     if (panel.kind === "catalog" || panel.kind === "rows") editConnector(panel.connectorId)
   },
+  // What re-reading means belongs to the panel, so the panel says how and this
+  // only calls it. A tab restored from storage and never opened has never
+  // mounted and registered nothing — showing it is what reads it, and that is
+  // what the button does there.
+  onReload: async (panel) => {
+    if (!(await reloads.reload(panel.id))) workspace.context.activate(panel.id)
+  },
 })
 
 /**
@@ -102,6 +113,11 @@ const openConnectors = computed(() => openConnectorIds(workspace.panels.value))
  */
 const connectors = useConnectors()
 const confirm = useConfirm()
+
+// Panels say how they are re-read; the tab strip presses the button. Provided
+// here so that every panel of this screen registers into the same one.
+const reloads = createReloadRegistry()
+provideReloadRegistry(reloads)
 const toast = useToast()
 
 // The state of every connection, pushed while this screen is open. Called

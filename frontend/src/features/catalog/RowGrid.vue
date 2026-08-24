@@ -15,6 +15,15 @@ const props = defineProps<{
   rowEstimate?: number | null
 }>()
 
+/**
+ * How this grid is re-read, for whoever holds it.
+ *
+ * The page and the order stay: the button says "read this again", not "start
+ * over". Exposed rather than registered here because the grid does not know
+ * which panel it is in — the panel does.
+ */
+defineExpose({ reload: () => load() })
+
 const PAGE_SIZE = 50
 
 const fetchRows = useFetchRows()

@@ -132,12 +132,18 @@ export function lookOf(panel: Panel): PanelLook {
     case "connectors":
       // Not closable: it has no parameters, so a closed one leaves a column
       // with nothing to say about how to bring it back. See T3.
-      return { title: "Connections", icon: "lan", closable: false }
+      return {
+        title: "Connections",
+        icon: "lan",
+        closable: false,
+        reloadTooltip: "Reload the list of connections",
+      }
     case "catalog":
       return {
         title: panel.title,
         icon: adapterIcon(panel.adapterType),
         iconTooltip: "Edit connection",
+        reloadTooltip: "Re-read this level",
       }
     case "rows":
       // The icon of the source rather than a generic grid: with several
@@ -149,6 +155,7 @@ export function lookOf(panel: Panel): PanelLook {
         subtitle: panel.connectorName,
         icon: adapterIcon(panel.adapterType),
         iconTooltip: "Edit connection",
+        reloadTooltip: "Re-read this table",
       }
   }
 }
@@ -186,6 +193,7 @@ export function componentOf(panel: Panel): Component {
       // needs is bound here, where the panel is still a typed object.
       return boundComponent(panel.id, () =>
         h(CatalogPanelView, {
+          panelId: panel.id,
           connectorId: panel.connectorId,
           title: panel.title,
           adapterType: panel.adapterType,
@@ -193,7 +201,11 @@ export function componentOf(panel: Panel): Component {
       )
     case "rows":
       return boundComponent(panel.id, () =>
-        h(RowsPanelView, { connectorId: panel.connectorId, nodeId: panel.nodeId })
+        h(RowsPanelView, {
+          panelId: panel.id,
+          connectorId: panel.connectorId,
+          nodeId: panel.nodeId,
+        })
       )
   }
 }

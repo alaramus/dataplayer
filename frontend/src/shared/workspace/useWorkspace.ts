@@ -48,6 +48,8 @@ export interface WorkspaceOptions<P extends { id: string }> {
   collapsed?: (panel: P) => Component | null
   /** What a click on the icon of a tab does, if anything. */
   onIconClick?: (panel: P) => void
+  /** How a panel is re-read, if the feature offers it. */
+  onReload?: (panel: P) => Promise<void> | void
 }
 
 /** How an opened panel treats the ones already there. */
@@ -200,6 +202,13 @@ export function useWorkspace<P extends { id: string }>(
         : (panelId) => {
             const panel = panelOf(panelId)
             if (panel !== undefined) options.onIconClick?.(panel)
+          },
+    onReload:
+      options.onReload === undefined
+        ? undefined
+        : async (panelId) => {
+            const panel = panelOf(panelId)
+            if (panel !== undefined) await options.onReload?.(panel)
           },
     close,
     closeOthers,

@@ -6,10 +6,12 @@ import CatalogList from "@/features/catalog/CatalogList.vue"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
+import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppBanner, AppIconButton, AppInput, AppSelect, useToast } from "@/shared/ui"
 
 const props = defineProps<{
+  panelId: string
   connectorId: string
   title: string
   adapterType: string
@@ -32,6 +34,13 @@ const level = useCatalogLevel(connectorId, rootLabel)
  * each time.
  */
 const answered = ref(false)
+
+// The level that is on screen, not the root: the path and the ticks are where
+// the user put them, and going back to the top is navigation rather than a
+// refresh.
+useReloadable(props.panelId, async () => {
+  await level.reload(level.path.value[level.path.value.length - 1]?.id ?? null)
+})
 
 onMounted(() => {
   void level.load().finally(() => {

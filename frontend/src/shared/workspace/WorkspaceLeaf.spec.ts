@@ -99,6 +99,45 @@ describe("a section", () => {
     expect(activated).toEqual([])
   })
 
+  it("re-reads the panel whose reload is pressed, without activating it", async () => {
+    const reloaded: string[] = []
+    const activated: string[] = []
+    const wrapper = mountLeaf(
+      contextFor({
+        lookOf: (panelId) => ({
+          title: `title ${panelId}`,
+          icon: "square",
+          reloadTooltip: "Reload",
+        }),
+        onReload: (id) => {
+          reloaded.push(id)
+        },
+        activate: (id) => activated.push(id),
+      })
+    )
+
+    await wrapper.get('[data-testid="workspace-reload-p2"]').trigger("click")
+
+    expect(reloaded).toEqual(["p2"])
+    expect(activated).toEqual([])
+  })
+
+  it("offers no reload where the feature named none", () => {
+    const wrapper = mountLeaf(contextFor({ onReload: () => undefined }))
+    expect(wrapper.find('[data-testid="workspace-reload-p1"]').exists()).toBe(false)
+  })
+
+  // The same pairing the icon action already has: a tooltip without a handler
+  // would draw a button that does nothing.
+  it("offers no reload when the handler is absent though the tooltip is there", () => {
+    const wrapper = mountLeaf(
+      contextFor({
+        lookOf: () => ({ title: "title", icon: "square", reloadTooltip: "Reload" }),
+      })
+    )
+    expect(wrapper.find('[data-testid="workspace-reload-p1"]').exists()).toBe(false)
+  })
+
   it("shows a plain icon when the tab has no action", () => {
     const wrapper = mountLeaf(contextFor())
     expect(wrapper.find('[data-testid="workspace-tab-icon-p1"]').exists()).toBe(false)

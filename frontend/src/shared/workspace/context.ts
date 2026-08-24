@@ -31,6 +31,14 @@ export interface PanelLook {
    * have an actionable icon without knowing what a catalog is. See T5.
    */
   iconTooltip?: string
+  /**
+   * What the reload button says when hovered, if the panel offers one.
+   *
+   * Present means the tab draws the button; absent means it does not. The same
+   * pairing as `iconTooltip`: the engine learns that a tab has something to
+   * re-read without learning what a catalog is.
+   */
+  reloadTooltip?: string
 }
 
 /**
@@ -81,6 +89,14 @@ export interface WorkspaceContext {
    * nothing. The engine knows the tab, not what a catalog is. See T5.
    */
   onIconClick?: (panelId: PanelId) => void
+  /**
+   * Re-read a panel, without making it the one on show.
+   *
+   * What re-reading means belongs to the panel — a list re-fetches, a catalog
+   * re-reads the level it stands on, a grid re-runs its page — so the engine
+   * asks and does not know. Awaited, so the button can say it is working.
+   */
+  onReload?: (panelId: PanelId) => Promise<void> | void
   close: (panelId: PanelId) => void
   /**
    * Close every panel of this section but the active one.

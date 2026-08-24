@@ -3,11 +3,18 @@ import { computed } from "vue"
 
 import ConnectorList from "@/features/connectors/ConnectorList.vue"
 import { useConnectors } from "@/features/connectors/api"
+import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppIconButton } from "@/shared/ui"
 
 const workspace = useWorkspaceActions()
 const connectors = useConnectors()
+
+// The only panel whose whole content is one query, so re-reading it is asking
+// vue-query again and nothing more.
+useReloadable("connectors", async () => {
+  await connectors.refetch()
+})
 
 const rows = computed(() => connectors.data.value?.data ?? [])
 </script>
