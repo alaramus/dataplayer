@@ -76,6 +76,7 @@ const open = computed(() => props.openIds ?? new Set<string>())
           :connector-id="connector.id"
           :name="connector.name"
           :adapter-type="connector.adapter_type"
+          :enabled="connector.enabled"
           tooltip="Edit connection"
           :testid="`connector-edit-${connector.name}`"
           @click="emit('edit', connector)"

@@ -44,6 +44,7 @@ strings, test names, commit messages and documentation. The only exception is
 | Add a module, a route, a migration; touch secrets or the database | [docs/architecture/backend.md](docs/architecture/backend.md) |
 | Build a screen, touch the component kit, colours or layers | [docs/architecture/frontend.md](docs/architecture/frontend.md) |
 | Touch the layout, tabs, dragging or floating windows | [docs/architecture/workspace.md](docs/architecture/workspace.md) |
+| Push anything to the client, or add a socket topic | [docs/architecture/realtime.md](docs/architecture/realtime.md) |
 | Write any code at all | ENGINEERING.md — already in context |
 
 ## What already works
@@ -65,6 +66,9 @@ strings, test names, commit messages and documentation. The only exception is
   reload.
 - Connections are edited in floating windows, several at once, with the
   connection string composed by the driver and parsed back from a pasted one.
+- The state of every connection arrives by itself over one socket, while the
+  screen is open. A connection can be switched off: it stays in the list, is
+  not probed and cannot be opened.
 - Light and dark themes, remembered.
 
 ## Decisions
@@ -95,6 +99,9 @@ and the known deviations live there.
 | D15 | The connection string is a capability, and it is only shown | [adapters](docs/architecture/adapters.md) |
 | D16 | A way of connecting is a variant of the options, and the union is flat | [adapters](docs/architecture/adapters.md) |
 | D17 | A pasted connection string is taken apart by the driver | [adapters](docs/architecture/adapters.md) |
+| D18 | The transport does not know a single topic | [realtime](docs/architecture/realtime.md) |
+| D19 | A monitor belongs to a user, and lives only while somebody watches | [realtime](docs/architecture/realtime.md) |
+| D20 | A switched-off connection is not a source | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -303,9 +310,7 @@ touching the affected side is clean.
 Sub-projects 1–6 and the workspace rounds are done; see
 [the spec index](docs/superpowers/specs/README.md) for what each settled.
 
-Next is sub-project 7: realtime, AI, and the data grid. Two things carry into
-it. A capability protocol is how a source says what it cannot do — 501 for the
-whole capability, per-node applicability inside it — and any later capability
-should take that shape. And an action that carries bytes needed a second route
-rather than a second body type; download answers with bytes and will need the
-same treatment in the other direction.
+Sub-project 7a — the socket and connection health — is done. What is left of 7
+is the AI pipeline and the data grid, and both sit on that socket: a new thing
+to push is a topic plus a line of registration, never an edit to the
+transport.

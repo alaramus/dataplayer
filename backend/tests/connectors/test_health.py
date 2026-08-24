@@ -259,3 +259,38 @@ async def test_pressing_check_reaches_every_watcher(
 
     assert response.status_code == 200
     assert health["result"]["ok"] is True
+
+
+async def test_a_connection_switched_back_on_is_reported_again(
+    client: AsyncClient, fresh_user_headers: dict[str, str]
+) -> None:
+    """Switching off and on again is not a one-way door.
+
+    What the monitor knew is dropped when a connection goes off, so if it were
+    not picked up again the dot would stay blank for as long as the screen is
+    open.
+    """
+    connector_id = await _create_connector(
+        client, fresh_user_headers, f"health revived {uuid.uuid4()}"
+    )
+
+    async with authenticated_socket(fresh_user_headers) as ws:
+        await _watch(ws)
+        await _health_of(ws, connector_id)
+
+        await client.patch(
+            f"{BASE}/{connector_id}",
+            headers=fresh_user_headers,
+            json={"enabled": False},
+        )
+        await asyncio.sleep(1)
+        switched_on_at = datetime.now(UTC)
+        await client.patch(
+            f"{BASE}/{connector_id}",
+            headers=fresh_user_headers,
+            json={"enabled": True},
+        )
+
+        health = await _health_after(ws, connector_id, switched_on_at)
+
+    assert health["result"]["ok"] is True

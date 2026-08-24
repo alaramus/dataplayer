@@ -23,6 +23,7 @@ import {
   AppIconButton,
   AppInput,
   AppSpinner,
+  AppToggle,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -78,6 +79,7 @@ const {
 } = useSchemaForm()
 
 const name = ref("")
+const enabled = ref(true)
 const nameError = ref("")
 const checkResult = ref<ConnectionCheckResult | null>(null)
 const connectionString = ref("")
@@ -109,7 +111,7 @@ function snapshot(): string {
   const ordered = Object.keys(values)
     .sort()
     .map((key) => [key, values[key]])
-  return JSON.stringify([name.value, ordered])
+  return JSON.stringify([name.value, enabled.value, ordered])
 }
 
 const dirty = computed(() => snapshot() !== baseline.value)
@@ -255,12 +257,14 @@ function load() {
   saved.value = props.connector
   if (props.connector) {
     name.value = props.connector.name
+    enabled.value = props.connector.enabled
     resetOptions(allFields.value, props.connector.config as Record<string, unknown>)
   } else {
     // Named after the type it connects to, so the form says which one was
     // picked without a row that only ever states it. One word to replace
     // beats an empty box, and a connection nobody renames still has a name.
     name.value = selectedType.value?.title ?? ""
+    enabled.value = true
     resetOptions(allFields.value)
   }
   baseline.value = snapshot()
@@ -304,9 +308,17 @@ async function check() {
       options: filledOptions(),
       connector_id: saved.value?.id ?? null,
     })
-    // The dot beside the connection reads this, and it is the only check
-    // there is: the same values, exercised the same way.
-    if (saved.value) checks.record(saved.value.id, checkResult.value.ok)
+    // The dot beside the connection reads this. A draft is checked with the
+    // values in the form, which may differ from the stored ones, so this is
+    // recorded here rather than left to the monitor.
+    if (saved.value) {
+      checks.record(saved.value.id, {
+        ok: checkResult.value.ok,
+        message: checkResult.value.message,
+        latencyMs: checkResult.value.latency_ms ?? null,
+        checkedAt: new Date().toISOString(),
+      })
+    }
   } catch (error) {
     const serverErrors = fieldErrorsFrom(error)
     if (serverErrors) applyServerErrors(serverErrors)
@@ -325,7 +337,7 @@ async function apply(): Promise<boolean> {
     if (saved.value) {
       await updateConnector.mutateAsync({
         connectorId: saved.value.id,
-        body: { name: name.value, options: filledOptions() },
+        body: { name: name.value, enabled: enabled.value, options: filledOptions() },
       })
     } else {
       const created = await createConnector.mutateAsync({
@@ -439,12 +451,24 @@ async function parseTyped(text: string) {
 
     <template v-else>
       <div class="connector-window__body">
-        <AppInput
-          v-model="name"
-          label="Name"
-          data-testid="connector-name"
-          :error="nameError"
-        />
+        <div class="connector-window__heading">
+          <AppInput
+            v-model="name"
+            class="connector-window__name"
+            label="Name"
+            data-testid="connector-name"
+            :error="nameError"
+          />
+          <!-- Only for a connection that exists: there is nothing to switch
+               off before it is saved, and the row would ask a question about
+               a thing that is not there yet. -->
+          <AppToggle
+            v-if="saved"
+            v-model="enabled"
+            label="In use"
+            data-testid="connector-enabled"
+          />
+        </div>
 
         <!-- Only once the server names a second group: one tab is not a
              choice, and a strip of one would say nothing. -->
@@ -574,6 +598,16 @@ async function parseTyped(text: string) {
   flex-direction: column;
   height: 100%;
   min-height: 0;
+}
+.connector-window__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+/* The name takes what is left: the switch is two words wide and fixed, and a
+   name box that changed width with the label beside it would jump. */
+.connector-window__name {
+  flex: 1;
 }
 .connector-window__body {
   flex: 1;

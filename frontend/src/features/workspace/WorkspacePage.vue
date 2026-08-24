@@ -10,6 +10,7 @@ import {
   draftWindowId,
 } from "@/features/connectors/windows"
 import { useConnectors } from "@/features/connectors/api"
+import { useConnectorHealth } from "@/features/connectors/health"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import {
   catalogPanelId,
@@ -25,7 +26,7 @@ import {
 import type { Panel } from "@/features/workspace/panels"
 import { workspaceActionsKey } from "@/features/workspace/state"
 import type { OpenRowsRequest } from "@/features/workspace/state"
-import { AppLayout, useConfirm } from "@/shared/ui"
+import { AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindows, WindowHost } from "@/shared/windows"
 import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
 
@@ -101,6 +102,12 @@ const openConnectors = computed(() => openConnectorIds(workspace.panels.value))
  */
 const connectors = useConnectors()
 const confirm = useConfirm()
+const toast = useToast()
+
+// The state of every connection, pushed while this screen is open. Called
+// here and nowhere else: the server probes only while somebody is watching,
+// and the workspace is what "watching" means.
+useConnectorHealth()
 
 const unsaved = ref(new Set<string>())
 
@@ -190,6 +197,14 @@ provide(workspaceActionsKey, {
   activeConnectorId,
   openConnectorIds: openConnectors,
   openCatalog: (connector: ConnectorPublic) => {
+    // A switched-off connection is not a source. Refused here rather than in
+    // each place that shows one, because both the list and the strip end up
+    // here — and the server refuses it too, so this only saves the round trip
+    // and the empty panel.
+    if (!connector.enabled) {
+      toast.info(`${connector.name} is switched off`)
+      return
+    }
     // As many catalogs as were opened: a panel is identified by what it shows,
     // so pressing the same connection again brings its tab forward rather than
     // opening a second one. See P6.

@@ -3,7 +3,8 @@
 What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
-Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17.
+Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
+D20.
 
 ## What exists today
 
@@ -268,6 +269,25 @@ Known deviations:
 - **Nothing reports on the pools.** How many exist, how busy they are and what
   was evicted is invisible; `application_name` in `pg_stat_activity` is the only
   way to see them from outside.
+
+## D20. A switched-off connection is not a source
+
+A connector carries `enabled`. Switched off it stays in the list, stays
+readable and stays editable — this is not deleting — but it stops being
+something the application will connect to: no catalog, no rows, no action, not
+even a manual check, and the health monitor leaves it out of its round.
+
+The refusal is written in `_adapter_for`, the one place a stored connector
+becomes a live adapter. Every route that reaches a source goes through it, so
+the rule is stated once and a route added later cannot forget to ask; reading
+and editing go through `_get_or_404` and are untouched.
+
+The answer is 409. Not 404, because the connector exists and the client knows
+it — the list it came from says so. Not 403, because it is the caller's own
+and rights are not what is missing.
+
+Rejected: a route of its own, `/{id}/disable`. It is one field of a connector
+and it is edited where the others are.
 
 ## D13. A source type describes itself, and what it can do is derived
 

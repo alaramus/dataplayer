@@ -1,7 +1,11 @@
 <script setup lang="ts">
+import { computed } from "vue"
+
 import ConnectorDot from "@/features/connectors/ConnectorDot.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
+import { describeState } from "@/features/connectors/connectorState"
 import { AppIconButton } from "@/shared/ui"
+import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
 /**
  * A connection, as one thing to press: the logo of its source type with the
@@ -13,23 +17,39 @@ import { AppIconButton } from "@/shared/ui"
  * copies of this markup would not survive. What a press means is still the
  * caller's: in the list it opens the connection, in the strip it opens the
  * catalog.
+ *
+ * The state is said in words here rather than on the dot, which has pointer
+ * events off and could never be hovered.
  */
-defineProps<{
-  connectorId: string
-  name: string
-  adapterType: string
-  tooltip: string
-  testid: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    connectorId: string
+    name: string
+    adapterType: string
+    tooltip: string
+    testid: string
+    enabled?: boolean
+  }>(),
+  { enabled: true }
+)
 
 const emit = defineEmits<{ click: [] }>()
+
+const checks = useConnectorChecksStore()
+
+const explained = computed(
+  () => `${props.tooltip} · ${describeState(props.enabled, checks.reportOf(props.connectorId)).words}`
+)
 </script>
 
 <template>
-  <span class="connector-icon">
+  <span
+    class="connector-icon"
+    :class="{ 'connector-icon--off': !enabled }"
+  >
     <AppIconButton
       :icon="adapterIcon(adapterType)"
-      :tooltip="tooltip"
+      :tooltip="explained"
       :data-testid="testid"
       @click="emit('click')"
     />
@@ -37,6 +57,7 @@ const emit = defineEmits<{ click: [] }>()
       class="connector-icon__dot"
       :connector-id="connectorId"
       :name="name"
+      :enabled="enabled"
     />
   </span>
 </template>
@@ -58,5 +79,10 @@ const emit = defineEmits<{ click: [] }>()
   bottom: 1px;
   border: 1px solid var(--dp-surface);
   pointer-events: none;
+}
+/* A switched-off connection is still listed and still editable, so it is
+   dimmed rather than hidden. */
+.connector-icon--off {
+  opacity: 0.55;
 }
 </style>
