@@ -49,17 +49,65 @@ async def test_a_source_with_no_connection_string_answers_501(
     assert response.status_code == 501
 
 
-async def test_values_that_do_not_fit_the_schema_are_rejected(
+async def test_a_half_typed_form_is_described_as_far_as_it_goes(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
-    """A half-typed form must not reach the driver."""
+    """A host and a port are already an address worth showing.
+
+    Composed here rather than on the client for the same reason the finished
+    one is: the grammar of the address belongs to the driver, and a second
+    implementation would differ from it in the escaping first.
+    """
     response = await client.post(
         f"{BASE}/describe-draft",
         headers=normal_user_token_headers,
-        json={"adapter_type": "postgres", "options": {"host": "db"}},
+        json={"adapter_type": "postgres", "options": {"host": "db", "port": 6543}},
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 200
+    assert response.json()["connection_string"] == "postgresql://db:6543"
+
+
+async def test_a_form_with_nothing_in_it_yet_is_described_as_nothing(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """An empty string rather than 501: the source does have addresses."""
+    response = await client.post(
+        f"{BASE}/describe-draft",
+        headers=normal_user_token_headers,
+        json={"adapter_type": "postgres", "options": {}},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["connection_string"] == ""
+
+
+async def test_a_half_typed_draft_never_carries_the_password(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await client.post(
+        f"{BASE}/describe-draft",
+        headers=normal_user_token_headers,
+        json={
+            "adapter_type": "postgres",
+            "options": {"host": "db", "user": "ann", "password": "a-very-secret-value"},
+        },
+    )
+
+    assert "a-very-secret-value" not in response.text
+
+
+async def test_a_half_typed_form_for_a_source_with_no_address_still_answers_501(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Incomplete is not the same answer as "this source has no address"."""
+    response = await client.post(
+        f"{BASE}/describe-draft",
+        headers=normal_user_token_headers,
+        json={"adapter_type": "file", "options": {}},
+    )
+
+    assert response.status_code == 501
 
 
 async def test_unknown_adapter_type_is_rejected(

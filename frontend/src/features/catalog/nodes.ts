@@ -159,3 +159,17 @@ export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
 export function groupsOf(nodes: ListNode[]): ListNode[] {
   return nodes.filter((node) => node.role === "group")
 }
+
+/**
+ * Whether the head of a level says where we are.
+ *
+ * Read off what the level holds and never off the type of the source, which
+ * is the same rule the rest of this file follows. A level that offers
+ * groupings already says one thing about itself on that line, and a path of
+ * one step beside it would say nothing; a level that offers none has the line
+ * to itself, and drawing the path only after the first step would make it
+ * appear and disappear while walking in and out.
+ */
+export function showsPath(depth: number, groups: ListNode[]): boolean {
+  return depth > 1 || groups.length === 0
+}

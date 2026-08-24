@@ -59,6 +59,14 @@ const workspace = useWorkspace<Panel>({
   component: componentOf,
   empty: emptyOf,
   collapsed: collapsedOf,
+  // A click on the icon of a tab opens the window of the connection that owns
+  // it, rather than activating the tab; the tab still activates on a click
+  // anywhere else. Both the catalog in the second column and the data tabs in
+  // the third carry it, because several data tabs from several connections
+  // can be open at once. See T5.
+  onIconClick: (panel) => {
+    if (panel.kind === "catalog" || panel.kind === "rows") editConnector(panel.connectorId)
+  },
 })
 
 /**
@@ -176,16 +184,6 @@ function editConnector(connectorId: string | null) {
   }
   const found = (connectors.data.value?.data ?? []).find((row) => row.id === connectorId)
   if (found) openConnectorWindow(found, null)
-}
-
-// A click on the icon of a tab opens the window of the connection
-// that owns it, rather than activating the tab. The tab itself still
-// activates on a click anywhere else. Both the catalog in the second
-// column and the data tabs in the third carry the same action, because
-// several data tabs from several connections can be open at once. See T5.
-workspace.context.onIconClick = (panelId: string) => {
-  const panel = workspace.panels.value.find((one) => one.id === panelId)
-  if (panel?.kind === "catalog" || panel?.kind === "rows") editConnector(panel.connectorId)
 }
 
 provide(workspaceActionsKey, {

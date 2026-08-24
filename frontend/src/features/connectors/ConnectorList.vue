@@ -64,7 +64,6 @@ const open = computed(() => props.openIds ?? new Set<string>())
         'connector-list__row--selected': connector.id === selected,
       }"
       :data-testid="`connector-${connector.name}`"
-      :data-connector-id="connector.id"
       @click="emit('open', connector)"
       @keydown.enter="emit('open', connector)"
       @keydown.space.prevent="emit('open', connector)"

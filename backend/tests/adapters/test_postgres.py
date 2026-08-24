@@ -201,3 +201,71 @@ def test_the_password_is_a_secret_of_the_union_as_a_whole() -> None:
     from app.adapters import options as options_module
 
     assert options_module.secret_field_names(PostgresOptions) == {"password"}
+
+
+def test_a_draft_is_addressed_by_as_much_of_it_as_there_is() -> None:
+    """A form still being filled in has a host and a port and little else.
+
+    Asked of the class: there is no valid options object yet, which is the
+    whole reason this exists. The same reason `options_from_url` is a
+    classmethod.
+    """
+    assert (
+        PostgresAdapter.draft_connection_string({"host": "db.example", "port": 6543})
+        == "postgresql://db.example:6543"
+    )
+
+
+def test_a_draft_grows_a_part_at_a_time() -> None:
+    draft = PostgresAdapter.draft_connection_string
+    host = {"host": "db.example", "port": 5432}
+
+    assert draft({**host, "user": "ann"}) == "postgresql://ann@db.example:5432"
+    assert (
+        draft({**host, "user": "ann", "database": "app"})
+        == "postgresql://ann@db.example:5432/app"
+    )
+
+
+def test_a_draft_is_escaped_by_the_same_rule_as_a_finished_address() -> None:
+    """One grammar, written once: the two must not drift apart in the quoting."""
+    options = PostgresUserPassword(
+        host="db.example",
+        port=5432,
+        database="a/b",
+        user="ann@corp",
+        password=SecretStr("s"),
+    )
+    finished = PostgresAdapter(options).connection_string()
+
+    assert (
+        PostgresAdapter.draft_connection_string(
+            {"host": "db.example", "port": 5432, "user": "ann@corp", "database": "a/b"}
+        )
+        == finished
+    )
+
+
+def test_a_draft_with_no_host_has_no_address_at_all() -> None:
+    """Nothing to say is said as nothing, not as `postgresql://`."""
+    assert PostgresAdapter.draft_connection_string({"port": 5432}) is None
+    assert PostgresAdapter.draft_connection_string({"host": ""}) is None
+
+
+def test_a_draft_never_carries_the_password() -> None:
+    """Half-typed values are still values, and one of them is a secret."""
+    secret = "definitely-not-the-password"
+    url = PostgresAdapter.draft_connection_string(
+        {"host": "db.example", "port": 5432, "user": "ann", "password": secret}
+    )
+
+    assert url is not None
+    assert secret not in url
+
+
+def test_a_file_source_describes_no_draft() -> None:
+    from app.adapters.file.adapter import FileAdapter
+    from app.adapters.protocol import DescribesDraft
+
+    assert not issubclass(FileAdapter, DescribesDraft)
+    assert issubclass(PostgresAdapter, DescribesDraft)

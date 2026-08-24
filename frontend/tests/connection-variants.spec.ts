@@ -27,6 +27,38 @@ async function typeUrl(page: Page, url: string) {
   await page.getByTestId("connector-name").click()
 }
 
+test("a form that has only its defaults is already addressed", async ({ page }) => {
+  // The defaults put a host and a port there before anything is typed, and
+  // that is an address worth showing. Composed by the server like every other
+  // one: a client that wrote this one itself would be a second copy of the
+  // driver's grammar, differing from it in the quoting first.
+  await login(page)
+  await pickAdapterType(page, "postgres")
+
+  await expect(page.getByTestId("connector-url")).toHaveValue("postgresql://localhost:5432")
+
+  // And it grows a part at a time, rather than appearing only once every
+  // required field is filled in.
+  await page.getByTestId("field-user").fill("ann")
+  await expect(page.getByTestId("connector-url")).toHaveValue("postgresql://ann@localhost:5432")
+
+  await page.getByTestId("field-database").fill("warehouse")
+  await expect(page.getByTestId("connector-url")).toHaveValue(
+    "postgresql://ann@localhost:5432/warehouse"
+  )
+})
+
+test("a source with no address still shows no box while being filled in", async ({
+  page,
+}) => {
+  // Incomplete and "has none at all" are different answers, and only the
+  // second one takes the row away.
+  await login(page)
+  await pickAdapterType(page, "file")
+
+  await expect(page.getByTestId("connector-url")).toHaveCount(0)
+})
+
 test("the choice of method stands directly under the address", async ({ page }) => {
   // Order is the server's statement, made by declaring the fields in it. A
   // form that gathered every shared field first would put the choice under
@@ -151,7 +183,13 @@ test("what is being typed is never rewritten under the cursor", async ({ page })
   await login(page)
   await pickAdapterType(page, "postgres")
 
+  // The box is not empty to begin with: the defaults give a host and a port,
+  // and the server composes an address from them before anything is typed.
+  // Selected rather than cleared through the field, so that what follows is
+  // keystrokes and nothing else — which is the whole subject of this test.
   await page.getByTestId("connector-url").click()
+  await expect(page.getByTestId("connector-url")).toHaveValue("postgresql://localhost:5432")
+  await page.keyboard.press("ControlOrMeta+a")
   await page.keyboard.type(`postgresql://ann@${DATABASE.host}/warehouse`)
   // Long enough for the prefix to be parsed and for the fields to compose an
   // address of their own — which is the moment a slow typist would have the

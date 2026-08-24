@@ -621,6 +621,14 @@ export class ConnectorsService {
    * server only the string it builds. Composed here rather than on the client
    * because the rule for building it belongs to the driver, and because this
    * is already the layer obliged to keep the password out of what it answers.
+   *
+   * Answers for a form that does not validate yet as well. Defaults put a host
+   * and a port there before anything is typed, and that is already an address
+   * worth showing; the alternative was a client that composed one itself, and
+   * a second implementation of the driver's grammar drifts from it in the
+   * quoting first. What the source cannot say yet is an empty string — a
+   * source with no address at all is still the 501, which is a different
+   * answer and stays one.
    */
   public static describeDraft<ThrowOnError extends boolean = true>(
     options: Options<connectorsDescribeDraftData, ThrowOnError>

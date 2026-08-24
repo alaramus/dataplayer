@@ -320,11 +320,30 @@ Composed on the server rather than from a template on the client, at the price o
 a request while the form is typed into: the rule for building a DSN belongs to
 the driver.
 
-Known deviation:
+That holds while the form is still being filled in, too. Defaults put a host and
+a port in it before anything is typed, and that is already an address worth
+showing — so `DescribesDraft` answers from whatever the form holds, unvalidated,
+and `describe-draft` falls back to it when the options do not validate yet. A
+classmethod, and for the same reason `ParsesConnectionString` is one: there is no
+valid options object at that moment, which is precisely the moment it is asked.
+`compose_url` writes the grammar once and both the finished address and the draft
+go through it, so the two cannot drift apart in the quoting. None means "not
+enough yet", and it reaches the client as an empty string — a source with no
+address at all is still the 501, which is a different answer.
+
+This is the shape a capability takes when it has something to say about an
+incomplete request, and it was written after the alternative was tried: a client
+that composed `postgresql://` itself. That version disagreed with the server
+within a day, over `encodeURIComponent` leaving `(` alone where `quote` does not.
+
+Known deviations:
 
 - **The connection string costs a request per edit.** Delayed, and it opens no
-  connection, but it is a round trip whenever the values change enough to compose
-  one.
+  connection, but it is a round trip whenever the values change — now including
+  the edits that do not yet compose a full address.
+- **The box is no longer empty when a new form opens.** An address pasted into it
+  therefore replaces a selection rather than filling an empty field. Ordinary for
+  a text box with content, but it is a change in what the field does.
 
 ## D16. A way of connecting is a variant of the options, and the union is flat
 

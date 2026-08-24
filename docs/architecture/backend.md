@@ -13,6 +13,17 @@ registers connections, checks them, browses their catalogs and reads rows.
 Credentials are encrypted at rest and never leave the server. Every user owns a
 personal directory, created with the user.
 
+A connection is identified by its id and by nothing else. Names are a label the
+user writes for themselves and two connections of one owner may share one:
+pointing the same tool at two databases that are meant to be the same, staging
+and production side by side, is the normal case and not a mistake to prevent.
+The unique constraint that used to sit on `(owner_id, name)` was also never
+caught anywhere — a duplicate reached the client as a 500 out of psycopg rather
+than as an answer — so removing it took a failure mode with it
+(`b8c4d2e91a57`). What follows is that nothing may address a connection by
+name: the API takes ids, and a screen showing a list shows the name but acts on
+the id.
+
 ```
 backend/app/
 ├── adapters/            source types — see adapters.md

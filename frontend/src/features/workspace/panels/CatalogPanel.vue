@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue"
+import { computed, onMounted, ref } from "vue"
 
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
+import { showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppBanner, AppIconButton, AppInput, AppSelect, useToast } from "@/shared/ui"
@@ -20,15 +21,31 @@ const connectorId = computed(() => props.connectorId)
 const rootLabel = computed(() => props.title)
 const level = useCatalogLevel(connectorId, rootLabel)
 
+/**
+ * Whether the first level has come back.
+ *
+ * What the head shows follows from what the level holds, and before the first
+ * answer it holds nothing — which reads the same as a level with nothing to
+ * filter by. Deciding then would draw the path for one round trip and take it
+ * away again on every source that does have groupings. `loading` cannot stand
+ * in for this: it goes up on every later reload too, and the head would blink
+ * each time.
+ */
+const answered = ref(false)
+
 onMounted(() => {
-  void level.load()
+  void level.load().finally(() => {
+    answered.value = true
+  })
 })
 
 const groupOptions = computed(() =>
   level.groups.value.map((group) => ({ label: group.label, value: group.id }))
 )
 
-const showPath = computed(() => props.adapterType === "file" || level.path.value.length > 1)
+const showPath = computed(
+  () => answered.value && showsPath(level.path.value.length, level.groups.value)
+)
 
 /** What the level is called, for a form that acts on the level itself. */
 const levelLabel = computed(
@@ -81,10 +98,9 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
         <!-- Where we are, on the same line as the menu, not a stack of
              lines. Starting at a home button rather than at the name of the
              connection — the name is on the tab above, and what the first step
-             of a path means is "back to the top". For a file source the bar
-             stays visible even at the top, so the line does not appear and
-             disappear when walking in and out; a database has no levels to
-             walk and therefore never shows it. -->
+             of a path means is "back to the top". Whether it is drawn at all
+             follows from what the level holds and never from the type of the
+             source: see `showsPath` in `nodes.ts`. -->
         <div
           v-if="showPath"
           class="catalog-panel__crumbs"

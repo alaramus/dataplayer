@@ -32,6 +32,20 @@ export function messageOf(cause: unknown, fallback: string): string {
 }
 
 /**
+ * What the server answered with, or null when nothing arrived from it.
+ *
+ * The status is part of the answer and not only of the failure: a source
+ * saying 501 to a capability is stating something about itself, and a request
+ * that never arrived is stating nothing at all. Telling the two apart is the
+ * difference between a row that is absent because it has no meaning and a row
+ * that vanished because the network blinked.
+ */
+export function statusOf(cause: unknown): number | null {
+  if (!(cause instanceof AxiosError)) return null
+  return cause.response?.status ?? null
+}
+
+/**
  * The per-field errors of a rejected form, or null when the failure is not
  * about fields.
  *

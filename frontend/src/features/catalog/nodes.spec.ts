@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest"
 
 import { at, first } from "@/shared/testing/collections"
-import { groupsOf, roleOfKind, toListNodes } from "./nodes"
+import { groupsOf, roleOfKind, showsPath, toListNodes } from "./nodes"
 import type { CatalogNode } from "./nodes"
+
+function group(id: string) {
+  return first(toListNodes([{ kind: "schema", id, name: id, has_children: true }]))
+}
 
 describe("what the catalog does with a node", () => {
   it("puts a schema in the filter rather than in the list", () => {
@@ -270,5 +274,22 @@ describe("file sources", () => {
     expect(at(mapped, 0).readable).toBe(true)
     expect(at(mapped, 1).readable).toBe(true)
     expect(at(mapped, 2).readable).toBe(false)
+  })
+
+  it("shows where we are once a step has been taken", () => {
+    expect(showsPath(2, [group("public")])).toBe(true)
+  })
+
+  it("shows the path at the top of a level that offers no groupings", () => {
+    // A personal directory: nothing to filter by, so the head has room for
+    // the path and it is there before the first step rather than appearing
+    // on it. Read off what the level holds, never off the type of source.
+    expect(showsPath(1, [])).toBe(true)
+  })
+
+  it("hides a path of one step next to a choice of groupings", () => {
+    // A database at its root: the head says which schema is on, and a path
+    // of one step beside it would say nothing.
+    expect(showsPath(1, [group("public")])).toBe(false)
   })
 })

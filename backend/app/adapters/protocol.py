@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel
@@ -110,3 +111,29 @@ class ParsesConnectionString(Protocol):
 
     @classmethod
     def options_from_url(cls, url: str) -> dict[str, Any]: ...
+
+
+@runtime_checkable
+class DescribesDraft(Protocol):
+    """A source type that can address a form that is not filled in yet.
+
+    The mirror of `ParsesConnectionString`, and a classmethod for the same
+    reason: there is no valid options object while a form is half-typed, which
+    is precisely the moment this is asked. `SupportsConnectionString` cannot
+    answer it — that one is a method on a built adapter.
+
+    It exists so that the client never has to compose an address of its own.
+    Defaults put a host and a port in the form before anything is typed, and
+    they already make an address worth showing; a screen that wrote it itself
+    would be a second implementation of the driver's grammar and would differ
+    from it in the quoting first.
+
+    The values are whatever the form holds — unvalidated, of whatever types
+    JSON produced — so an implementation reads what it recognises and ignores
+    the rest. None means there is not enough yet to write anything, which is
+    a different answer from a source having no address at all: that one is
+    still the absence of `SupportsConnectionString`.
+    """
+
+    @classmethod
+    def draft_connection_string(cls, options: Mapping[str, Any]) -> str | None: ...

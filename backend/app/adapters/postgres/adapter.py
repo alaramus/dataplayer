@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any
 
 from app.adapters.catalog import CatalogNode
@@ -5,10 +6,34 @@ from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.options import PostgresOptions
-from app.adapters.postgres.session import PostgresSession, options_from_url
+from app.adapters.postgres.session import (
+    PostgresSession,
+    compose_url,
+    options_from_url,
+)
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
 from app.adapters.resources import Pooling
+
+
+def _as_text(value: Any) -> str:
+    """A form value read as text, or nothing when it is not text yet."""
+    return value if isinstance(value, str) else ""
+
+
+def _as_port(value: Any) -> int | None:
+    """A form value read as a port, or nothing when it is not one yet.
+
+    A number typed into a field arrives as a string until it parses, and an
+    untouched numeric field arrives as null.
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return None
 
 
 class PostgresAdapter:
@@ -27,6 +52,29 @@ class PostgresAdapter:
     def options_from_url(cls, url: str) -> dict[str, Any]:
         """Asked of the class: parsing is what produces the options."""
         return options_from_url(url)
+
+    @classmethod
+    def draft_connection_string(cls, options: Mapping[str, Any]) -> str | None:
+        """The address of a form that does not validate yet.
+
+        The values arrive as the form holds them, so every one of them is
+        checked here rather than assumed: a port half-typed as "65" is a
+        string, and a field never touched is absent. What cannot be read is
+        left out of the address instead of stopping it — the point is to show
+        as much as there is.
+
+        Composed by `compose_url`, the same function the finished address goes
+        through, so the two agree on the quoting by construction.
+        """
+        host = options.get("host")
+        if not isinstance(host, str) or host == "":
+            return None
+        return compose_url(
+            host=host,
+            port=_as_port(options.get("port")),
+            user=_as_text(options.get("user")),
+            database=_as_text(options.get("database")),
+        )
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()

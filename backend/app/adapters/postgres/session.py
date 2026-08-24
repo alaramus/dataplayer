@@ -50,6 +50,32 @@ def classify(
     return "unknown", fallback_message
 
 
+def compose_url(
+    *, host: str, port: int | None = None, user: str = "", database: str = ""
+) -> str:
+    """A PostgreSQL address, from as many of its parts as there are.
+
+    The one place that writes the grammar. Both the address of a finished
+    connection and the one shown while a form is still being filled in come
+    through here, so the two cannot drift apart in the quoting — which is how
+    this would go wrong, and quietly. A part that is not there is left out
+    rather than written empty: `postgresql://db:5432` is an address a person
+    reads, and `postgresql://@db:5432/` is a puzzle.
+
+    Quoted with `quote` rather than formatted in: a user named `ann@corp` or a
+    database named `a/b` would otherwise move the host or invent a path, and
+    this string is meant to be pasted into other tools.
+    """
+    authority = quote(host, safe="")
+    if user != "":
+        authority = f"{quote(user, safe='')}@{authority}"
+    if port is not None:
+        authority += f":{port}"
+    if database == "":
+        return f"postgresql://{authority}"
+    return f"postgresql://{authority}/{quote(database, safe='')}"
+
+
 def options_from_url(url: str) -> dict[str, Any]:
     """A connection string taken apart into the fields of the form.
 
@@ -143,15 +169,16 @@ class PostgresSession:
     def connection_string(self) -> str:
         """The same address as `conninfo`, as a URL and without the password.
 
-        Built with `quote` rather than by formatting: a user named `ann@corp`
-        or a database named `a/b` would otherwise move the host or invent a
-        path, and this string is meant to be pasted into other tools.
+        Written by `compose_url`, which is also what a form still being filled
+        in is shown: one grammar, so the two cannot disagree.
         """
         options = self._options
-        user = quote(options.user, safe="")
-        database = quote(options.database, safe="")
-        host = quote(options.host, safe="")
-        return f"postgresql://{user}@{host}:{options.port}/{database}"
+        return compose_url(
+            host=options.host,
+            port=options.port,
+            user=options.user,
+            database=options.database,
+        )
 
     async def check(self) -> ConnectionCheckResult:
         started = time.perf_counter()

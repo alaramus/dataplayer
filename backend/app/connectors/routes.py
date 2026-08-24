@@ -1,7 +1,7 @@
 import json
 import uuid
 from collections.abc import Awaitable, Callable
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field, ValidationError
@@ -25,6 +25,7 @@ from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
     DataAdapter,
+    DescribesDraft,
     ParsesConnectionString,
     SupportsCatalog,
     SupportsConnectionString,
@@ -280,9 +281,17 @@ async def describe_draft(
     server only the string it builds. Composed here rather than on the client
     because the rule for building it belongs to the driver, and because this
     is already the layer obliged to keep the password out of what it answers.
+
+    Answers for a form that does not validate yet as well. Defaults put a host
+    and a port there before anything is typed, and that is already an address
+    worth showing; the alternative was a client that composed one itself, and
+    a second implementation of the driver's grammar drifts from it in the
+    quoting first. What the source cannot say yet is an empty string — a
+    source with no address at all is still the 501, which is a different
+    answer and stays one.
     """
-    adapter = await _draft_adapter(session, current_user, body)
-    if not isinstance(adapter, SupportsConnectionString):
+    driver = _resolve_type(body.adapter_type).adapter_class
+    if not issubclass(driver, SupportsConnectionString):
         raise HTTPException(
             status_code=501,
             detail={
@@ -290,7 +299,21 @@ async def describe_draft(
                 "error_kind": "config",
             },
         )
-    return ConnectionDescription(connection_string=adapter.connection_string())
+    try:
+        adapter = await _draft_adapter(session, current_user, body)
+    except HTTPException as exc:
+        # Not filled in yet is not the same as wrong: the driver is asked what
+        # it can write from what there is, and answers None while that is
+        # nothing at all.
+        if exc.status_code != 422 or not issubclass(driver, DescribesDraft):
+            raise
+        drafted = driver.draft_connection_string(body.options)
+        return ConnectionDescription(connection_string=drafted or "")
+    # Cast rather than a second check: the class was asked above, and an
+    # adapter built from it cannot have lost the capability on the way.
+    return ConnectionDescription(
+        connection_string=cast(SupportsConnectionString, adapter).connection_string()
+    )
 
 
 class ConnectionStringRequest(BaseModel):
