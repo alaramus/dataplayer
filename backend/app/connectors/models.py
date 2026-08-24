@@ -22,6 +22,10 @@ class Connector(SQLModel, table=True):
     owner_id: uuid.UUID = Field(
         foreign_key="user.id", nullable=False, ondelete="CASCADE"
     )
+    # Switched off rather than deleted: the row stays, and what it loses is the
+    # right to become a live adapter. A server default as well as a Python one,
+    # so rows written before the column existed answer the same.
+    enabled: bool = Field(default=True, sa_column_kwargs={"server_default": "true"})
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore
@@ -41,6 +45,7 @@ class ConnectorCreate(SQLModel):
 class ConnectorUpdate(SQLModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     options: dict[str, Any] | None = None
+    enabled: bool | None = None
 
 
 class ConnectorPublic(SQLModel):
@@ -48,6 +53,7 @@ class ConnectorPublic(SQLModel):
     name: str
     adapter_type: str
     config: dict[str, Any]
+    enabled: bool
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

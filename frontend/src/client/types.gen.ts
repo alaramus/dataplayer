@@ -344,6 +344,10 @@ export type ConnectorPublic = {
     [key: string]: unknown
   }
   /**
+   * Enabled
+   */
+  enabled: boolean
+  /**
    * Created At
    */
   created_at?: string | null
@@ -367,6 +371,10 @@ export type ConnectorUpdate = {
   options?: {
     [key: string]: unknown
   } | null
+  /**
+   * Enabled
+   */
+  enabled?: boolean | null
 }
 
 /**

@@ -115,8 +115,18 @@ async def _adapter_for(
     A stored connector has an identity, so whatever it keeps between requests
     can be found again. Without a store — a check, which is meant to exercise
     the credentials — the driver connects on its own.
+
+    A disabled connector is refused here rather than in each route: this is the
+    one door to a live source, so the rule is written once and cannot be
+    forgotten by a route added later. Reading and editing the row go through
+    ``_get_or_404`` and stay open — switching a connection off is not deleting
+    it.
     """
     connector = await _get_or_404(session, connector_id, current_user)
+    if not connector.enabled:
+        # 409 rather than 404: the connector exists and the client knows it.
+        # Nor 403: it is the caller's own, and rights are not what is missing.
+        raise HTTPException(status_code=409, detail="Connector is disabled")
     adapter_type = _resolve_type(connector.adapter_type)
     options = service.merge_options(connector.config, connector.secrets)
     pooling = (
@@ -185,6 +195,9 @@ async def update_connector(
 
     if connector_in.name is not None:
         connector.name = connector_in.name
+
+    if connector_in.enabled is not None:
+        connector.enabled = connector_in.enabled
 
     if connector_in.options is not None:
         adapter_type = _resolve_type(connector.adapter_type)
