@@ -201,13 +201,41 @@ function draftSchema() {
 }
 const saving = computed(() => createConnector.isPending.value || updateConnector.isPending.value)
 
+/** What the fields compose on their own, before the server answers. */
+function localConnectionString(): string {
+  const host = optionValues.value.host
+  const port = optionValues.value.port
+  const database = optionValues.value.database
+  const user = optionValues.value.user
+  if (typeof host !== "string" || host === "") return ""
+  let url = "postgresql://"
+  if (typeof user === "string" && user !== "") url += encodeURIComponent(user) + "@"
+  url += encodeURIComponent(host)
+  if (typeof port === "number") url += `:${port}`
+  else if (typeof port === "string" && port !== "") url += `:${port}`
+  if (typeof database === "string" && database !== "") url += `/${encodeURIComponent(database)}`
+  return url
+}
+
+function syncUrlFromLocal() {
+  if (urlFocused.value) return
+  const local = localConnectionString()
+  if (local !== "") {
+    urlText.value = local
+    // Do not touch connectionString here: it is the server's answer, local is only for display.
+    if (hasConnectionString.value === null) hasConnectionString.value = true
+  }
+}
+
 /** The address, asked of the server whenever the values could compose one. */
 let describeToken = 0
 async function describe() {
   if (!typeName.value || !shape.value) return
+  syncUrlFromLocal()
   if (!draftSchema().safeParse(optionValues.value).success) {
     // Half-typed values would only produce a half-built address.
-    connectionString.value = ""
+    // Keep the locally composed one so the box is never empty when host/port are there.
+    connectionString.value = localConnectionString()
     return
   }
   const token = ++describeToken
@@ -256,6 +284,8 @@ function load() {
     name.value = selectedType.value?.title ?? ""
     resetOptions(allFields.value)
   }
+  // Show host/port immediately, before the server composes the string.
+  syncUrlFromLocal()
   baseline.value = snapshot()
   describe()
 }
@@ -412,7 +442,36 @@ async function parseTyped(text: string) {
 
   try {
     const answer = await parseUrl.mutateAsync({ adapter_type: typeName.value, url: text })
-    resetOptions(allFields.value, answer.options as Record<string, unknown>)
+    const parsed = answer.options as Record<string, unknown>
+    // The composed string never carries a password, so any edit of host/port
+    // parsed as no_auth would flip the variant and hide the password field that
+    // the user just typed. Preserve it when the form already holds one.
+    const discriminatorName =
+      shape.value?.kind === "variants" ? shape.value.discriminator.name : "auth_method"
+    const prevAuth = optionValues.value[discriminatorName]
+    const prevPassword = optionValues.value["password"]
+    const hasPassword =
+      (typeof prevPassword === "string" && prevPassword !== "") ||
+      (secretsAreStored.value && prevPassword === "" && prevAuth === "user_password")
+    if (parsed["auth_method"] === "no_auth" && hasPassword && prevAuth === "user_password") {
+      parsed["auth_method"] = "user_password"
+      if (parsed["password"] === undefined && typeof prevPassword === "string" && prevPassword !== "") {
+        parsed["password"] = prevPassword
+      }
+    }
+    // Merge into existing values rather than resetting to defaults: editing one
+    // part of the address must not blank the rest.
+    const next: Record<string, unknown> = { ...optionValues.value, ...parsed }
+    for (const field of allFields.value) {
+      if (!(field.name in next)) {
+        if (field.defaultValue !== undefined) next[field.name] = field.defaultValue
+        else if (field.kind === "boolean") next[field.name] = false
+        else if (field.kind === "number") next[field.name] = null
+        else next[field.name] = ""
+      }
+    }
+    optionValues.value = next
+    urlError.value = ""
   } catch (error) {
     urlError.value = messageOf(error, "That is not a connection string this source reads")
   }
