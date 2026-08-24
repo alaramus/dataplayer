@@ -43,7 +43,6 @@ class FileAdapter:
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
 
-
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         return await self._actions.available(node_id)
 
