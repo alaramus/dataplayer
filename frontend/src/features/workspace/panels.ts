@@ -134,7 +134,7 @@ export function lookOf(panel: Panel): PanelLook {
       // with nothing to say about how to bring it back. See T3.
       return { title: "Connections", icon: "lan", closable: false }
     case "catalog":
-      return { title: panel.title, icon: "account_tree" }
+      return { title: panel.title, icon: adapterIcon(panel.adapterType) }
     case "rows":
       // The icon of the source rather than a generic grid: with several
       // catalogs open the right-hand column holds tabs from several
