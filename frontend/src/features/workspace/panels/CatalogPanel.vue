@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
@@ -41,6 +41,37 @@ const answered = ref(false)
 useReloadable(props.panelId, async () => {
   await level.reload(level.path.value[level.path.value.length - 1]?.id ?? null)
 })
+
+/**
+ * The node this catalog was told to point at, if it is on the level shown.
+ *
+ * Taken from the workspace rather than passed in: the panel may have been
+ * opened by the very press that asked for the pointing, so `immediate` is what
+ * catches the target that was set before this existed.
+ *
+ * A node that is not on this level marks nothing. Walking to its level would
+ * mean taking its id apart on the client, and how an id is built is the
+ * source's own business.
+ */
+const revealed = ref<string | null>(null)
+
+watch(
+  workspace.revealTarget,
+  () => {
+    const nodeId = workspace.takeReveal(props.connectorId)
+    if (nodeId !== null) revealed.value = nodeId
+  },
+  { immediate: true }
+)
+
+// Pointing says "here it is", which stops being true the moment the level is
+// no longer the one it was said about.
+watch(
+  () => level.path.value.map((crumb) => crumb.id).join("/"),
+  () => {
+    revealed.value = null
+  }
+)
 
 onMounted(() => {
   void level.load().finally(() => {
@@ -205,6 +236,7 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
       :loading="level.loading.value"
       :show-group="level.selectedGroups.value.length > 1"
       :has-parent="level.path.value.length > 1"
+      :revealed="revealed"
       @open="onOpen"
       @up="level.up"
       @toggle="onToggle"

@@ -112,6 +112,22 @@ Consequences:
   never learns what a catalog is. Instance refs held by the engine would have
   been the other way to reach a panel, and that is the coupling this decision
   exists to prevent.
+- **The icon of a tab does what that tab has no other way to do.** From a
+  catalog that is the connection itself; from a table it is the catalog the
+  table came from, which is reachable nowhere else — while editing a connection
+  has two other ways in. What used to stand beside the title of a data tab, the
+  name of its connection, is in the tooltip instead: the column is a fifth of
+  the screen and the node is what the eye looks for.
+- **Being pointed at is not being ticked.** A tick means an action will be done
+  to a row; arriving from the tab of a table means "here it is". Two meanings,
+  so an outline rather than a fill, and it goes when the level changes. The
+  pointing travels as a piece of state the panel takes, not as a call: the
+  panel may have been opened by the very press that asked for it and not be
+  mounted yet.
+- **A node that is not on the level shown is not found for you.** Walking to its
+  level would mean taking its id apart on the client, and how an id is built is
+  the source's own business. The catalog is opened and nothing is marked. The
+  honest fix is a capability that answers with the path to a node.
 - **A panel that never mounted has nothing to re-read.** Only the active tab of
   a section is mounted, and `<KeepAlive>` keeps the ones that have been shown —
   so a tab restored from storage and never opened has registered nothing.
@@ -150,8 +166,8 @@ Known deviations:
   and a tab dropped there goes where it cannot be seen until the column is brought
   back.
 - **What is in the hand shows only what a tab shows.** No picture of the panel:
-  two tabs of one node from different connections are told apart by the subtitle
-  and by nothing else.
+  two tabs of one node from different connections are told apart by the icon of
+  the source and, once hovered, by the tooltip on it.
 - **The ghost hangs from the pointer, not from where the tab was grabbed.**
 - **A drag cannot be cancelled from the keyboard.** Escape does nothing; releasing
   over no target is the only way to change one's mind.

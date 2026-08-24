@@ -148,13 +148,17 @@ export function lookOf(panel: Panel): PanelLook {
     case "rows":
       // The icon of the source rather than a generic grid: with several
       // catalogs open the right-hand column holds tabs from several
-      // connections at once. The icon is also the way to reach the
-      // connection that owns the node.
+      // connections at once. Pressing it goes to the catalog of the
+      // connection that owns the node — the one way there that exists
+      // nowhere else, where editing the connection has two others.
+      //
+      // The name of the connection is in the tooltip rather than beside the
+      // title: two `users` from two databases would otherwise be the same
+      // tab, and the tooltip has to say something anyway.
       return {
         title: panel.title,
-        subtitle: panel.connectorName,
         icon: adapterIcon(panel.adapterType),
-        iconTooltip: "Edit connection",
+        iconTooltip: `${panel.connectorName} · Show in catalog`,
         reloadTooltip: "Re-read this table",
       }
   }

@@ -21,6 +21,29 @@ export interface WorkspaceActions {
    */
   openConnectorIds: Readonly<Ref<ReadonlySet<string>>>
   openCatalog: (connector: ConnectorPublic) => void
+  /**
+   * Show the catalog of a connection and point at one node in it.
+   *
+   * Opening and coming forward are one thing: a panel is identified by what it
+   * shows, so asking for a catalog that is already open brings its tab
+   * forward. What is added here is the pointing.
+   */
+  revealInCatalog: (connectorId: string, nodeId: string) => void
+  /**
+   * The node a catalog has just been asked to point at, or nothing.
+   *
+   * A piece of state rather than a call into the panel: the panel may not have
+   * mounted yet — it was opened a moment ago — and a call does not survive
+   * that, while something to watch does.
+   */
+  revealTarget: Readonly<Ref<RevealTarget | null>>
+  /**
+   * Take the pointing meant for this connection, if the current one is.
+   *
+   * Taken rather than read: it is acted on once, and a target left behind
+   * would point again at the next thing that made the panel re-render.
+   */
+  takeReveal: (connectorId: string) => string | null
   openRows: (request: OpenRowsRequest) => void
   /**
    * Show the window of one connection, or an empty one for a new connection.
@@ -30,6 +53,12 @@ export interface WorkspaceActions {
    * it would go with it — which is exactly when the catalog needs to open one.
    */
   editConnector: (connectorId: string | null) => void
+}
+
+/** One node of one connection, to be pointed at once its catalog is showing. */
+export interface RevealTarget {
+  connectorId: string
+  nodeId: string
 }
 
 /**
@@ -44,7 +73,7 @@ export interface OpenRowsRequest {
   nodeId: string
   /** The node, which is what the tab is called. */
   title: string
-  /** Whose it is, said quietly beside the name. */
+  /** Whose it is. In the tooltip of the tab rather than beside its title. */
   connectorName: string
   adapterType: string
 }

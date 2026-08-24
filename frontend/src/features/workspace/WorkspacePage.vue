@@ -29,7 +29,7 @@ import {
   provideReloadRegistry,
 } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
-import type { OpenRowsRequest } from "@/features/workspace/state"
+import type { OpenRowsRequest, RevealTarget } from "@/features/workspace/state"
 import { AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindows, WindowHost } from "@/shared/windows"
 import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
@@ -64,13 +64,14 @@ const workspace = useWorkspace<Panel>({
   component: componentOf,
   empty: emptyOf,
   collapsed: collapsedOf,
-  // A click on the icon of a tab opens the window of the connection that owns
-  // it, rather than activating the tab; the tab still activates on a click
-  // anywhere else. Both the catalog in the second column and the data tabs in
-  // the third carry it, because several data tabs from several connections
-  // can be open at once. See T5.
+  // A click on the icon of a tab does the thing that tab has no other way to
+  // do, rather than activating it; the tab still activates on a click anywhere
+  // else. From a catalog that is the connection itself; from a table it is the
+  // catalog the table came from, which is reachable nowhere else while editing
+  // a connection has two other ways in. See T5.
   onIconClick: (panel) => {
-    if (panel.kind === "catalog" || panel.kind === "rows") editConnector(panel.connectorId)
+    if (panel.kind === "catalog") editConnector(panel.connectorId)
+    if (panel.kind === "rows") revealInCatalog(panel.connectorId, panel.nodeId)
   },
   // What re-reading means belongs to the panel, so the panel says how and this
   // only calls it. A tab restored from storage and never opened has never
@@ -118,6 +119,14 @@ const confirm = useConfirm()
 // here so that every panel of this screen registers into the same one.
 const reloads = createReloadRegistry()
 provideReloadRegistry(reloads)
+
+/**
+ * The node a catalog has just been asked to point at.
+ *
+ * Held here rather than handed to the panel: the panel may have been opened a
+ * moment ago and not be mounted yet, and a call does not survive that.
+ */
+const revealTarget = ref<RevealTarget | null>(null)
 const toast = useToast()
 
 // The state of every connection, pushed while this screen is open. Called
@@ -209,28 +218,53 @@ function editConnector(connectorId: string | null) {
   if (found) openConnectorWindow(found, null)
 }
 
+function openCatalog(connector: ConnectorPublic) {
+  // A switched-off connection is not a source. Refused here rather than in
+  // each place that shows one, because both the list and the strip end up
+  // here — and the server refuses it too, so this only saves the round trip
+  // and the empty panel.
+  if (!connector.enabled) {
+    toast.info(`${connector.name} is switched off`)
+    return
+  }
+  // As many catalogs as were opened: a panel is identified by what it shows,
+  // so pressing the same connection again brings its tab forward rather than
+  // opening a second one. See P6.
+  workspace.open({
+    id: catalogPanelId(connector.id),
+    kind: "catalog",
+    connectorId: connector.id,
+    title: connector.name,
+    adapterType: connector.adapter_type,
+  })
+}
+
+/**
+ * Show the catalog of a connection and point at one node in it.
+ *
+ * The connection is looked up rather than carried by the tab: whether it is
+ * switched off is not something a tab opened an hour ago can know, and the
+ * refusal has to be the same one as anywhere else.
+ */
+function revealInCatalog(connectorId: string, nodeId: string) {
+  const connector = (connectors.data.value?.data ?? []).find((row) => row.id === connectorId)
+  if (connector === undefined) return
+  openCatalog(connector)
+  if (!connector.enabled) return
+  revealTarget.value = { connectorId, nodeId }
+}
+
 provide(workspaceActionsKey, {
   activeConnectorId,
   openConnectorIds: openConnectors,
-  openCatalog: (connector: ConnectorPublic) => {
-    // A switched-off connection is not a source. Refused here rather than in
-    // each place that shows one, because both the list and the strip end up
-    // here — and the server refuses it too, so this only saves the round trip
-    // and the empty panel.
-    if (!connector.enabled) {
-      toast.info(`${connector.name} is switched off`)
-      return
-    }
-    // As many catalogs as were opened: a panel is identified by what it shows,
-    // so pressing the same connection again brings its tab forward rather than
-    // opening a second one. See P6.
-    workspace.open({
-      id: catalogPanelId(connector.id),
-      kind: "catalog",
-      connectorId: connector.id,
-      title: connector.name,
-      adapterType: connector.adapter_type,
-    })
+  openCatalog,
+  revealInCatalog,
+  revealTarget,
+  takeReveal: (connectorId: string) => {
+    const target = revealTarget.value
+    if (target === null || target.connectorId !== connectorId) return null
+    revealTarget.value = null
+    return target.nodeId
   },
   openRows: (request: OpenRowsRequest) => {
     workspace.open({

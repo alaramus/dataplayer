@@ -480,9 +480,11 @@ test("tables stack as tabs in the right column and survive a reload", async ({ p
   await expect(rowsTabs(page)).toHaveCount(2)
   await expect(page.getByTestId("workspace-scene")).toHaveCount(0)
 
-  // A data tab says whose it is: two connections of one type are alike, and
-  // the right-hand column now holds tabs from several of them. See P8.
-  await expect(rowsTabs(page).first()).toContainText(name)
+  // A data tab is named after the node and nothing else. Whose it is used to
+  // stand beside the title; it moved into the tooltip of the icon when that
+  // icon started leading back to the catalog — see reveal.spec.ts.
+  await expect(rowsTabs(page).first()).toContainText("pg_class")
+  await expect(rowsTabs(page).first()).not.toContainText(name)
 
   // Three columns still, so the tables went beside each other and not on top
   // of the list that opened them.

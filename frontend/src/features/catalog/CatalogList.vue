@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, nextTick, ref, watch } from "vue"
 
 import type { ListNode } from "@/features/catalog/nodes"
 import { AppCheckbox, AppEmptyState, AppSpinner } from "@/shared/ui"
@@ -31,7 +31,35 @@ const props = defineProps<{
    * places, and the hand is already in the list. See the spec, S5.
    */
   hasParent?: boolean
+  /**
+   * Which row was arrived at, from the tab of a table that lives in it.
+   *
+   * Apart from `checked`, and marked differently: a tick means an action will
+   * be done to the row, this means "here it is". Null, or an id this level
+   * does not hold, marks nothing.
+   */
+  revealed?: string | null
 }>()
+
+const root = ref<HTMLElement | null>(null)
+
+/**
+ * Bring the pointed-at row into view.
+ *
+ * After the next render: the row may have arrived in the same change that
+ * named it, when the level was read because the catalog had just been opened.
+ * "nearest" and not "center" — a row already on screen must not make the list
+ * jump.
+ */
+watch(
+  () => props.revealed,
+  async (id) => {
+    if (id === null || id === undefined) return
+    await nextTick()
+    root.value?.querySelector('[data-revealed="true"]')?.scrollIntoView({ block: "nearest" })
+  },
+  { immediate: true }
+)
 
 const emit = defineEmits<{
   open: [node: ListNode]
@@ -55,7 +83,10 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
 </script>
 
 <template>
-  <div class="catalog-list">
+  <div
+    ref="root"
+    class="catalog-list"
+  >
     <div class="catalog-list__head">
       <AppCheckbox
         :model-value="allChecked"
@@ -122,8 +153,12 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
         role="button"
         tabindex="0"
         class="catalog-list__row"
-        :class="{ 'catalog-list__row--checked': checked.includes(node.id) }"
+        :class="{
+          'catalog-list__row--checked': checked.includes(node.id),
+          'catalog-list__row--revealed': node.id === revealed,
+        }"
         :data-testid="`catalog-node-${node.label}`"
+        :data-revealed="node.id === revealed ? 'true' : undefined"
         @click="emit('open', node)"
         @keydown.enter="emit('open', node)"
         @keydown.space.prevent="emit('open', node)"
@@ -196,6 +231,13 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
 }
 .catalog-list__row--checked {
   background: var(--dp-selected);
+}
+/* An outline and not a fill: a fill is what a tick already means here, and
+   "an action will be done to this" and "here it is" are not the same thing. */
+.catalog-list__row--revealed {
+  outline: 2px solid var(--dp-focus-border);
+  outline-offset: -2px;
+  border-radius: 4px;
 }
 .catalog-list__tick-space {
   visibility: hidden;

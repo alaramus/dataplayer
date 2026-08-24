@@ -76,12 +76,19 @@ describe("the panel registry", () => {
     expect(panelSchema.safeParse({ id: "x", kind: "sql" }).success).toBe(false)
   })
 
-  it("says which connection a data tab came from, quietly beside the node", () => {
-    // Two connections of one type look alike, and the node is what the eye
-    // looks for: the name stays in front and the connection follows. See P8.
+  it("gives a data tab the name of the node and nothing else", () => {
+    // The connection used to stand beside it. It moved into the tooltip when
+    // the icon started leading to the catalog: the tab is a fifth of a narrow
+    // column and the node is what the eye looks for.
     const look = lookOf(samples.rows)
     expect(look.title).toBe("orders")
-    expect(look.subtitle).toBe("local pg")
+    expect(look.subtitle).toBeUndefined()
+  })
+
+  it("still says which connection a data tab came from, in the tooltip", () => {
+    // Two `users` from two databases are otherwise the same tab. The tooltip
+    // is needed anyway, since the icon no longer does what it used to.
+    expect(lookOf(samples.rows).iconTooltip).toContain("local pg")
   })
 
   it("draws a data tab with the icon of its source rather than a generic one", () => {
@@ -94,9 +101,19 @@ describe("the panel registry", () => {
     expect(lookOf(samples.catalog).icon).not.toBe(lookOf(samples.connectors).icon)
   })
 
-  it("lets the icon of a tab open the window of that connection", () => {
+  // Both tabs offer their icon, and they offer different things: from a
+  // catalog the connection itself is what there is to reach, from a table it
+  // is the catalog the table came from. Editing a connection has two other
+  // ways in; reaching the catalog of one table has none.
+  it("lets the icon of a catalog tab open the window of that connection", () => {
     expect(lookOf(samples.catalog).iconTooltip).toBe("Edit connection")
-    expect(lookOf(samples.rows).iconTooltip).toBe("Edit connection")
+  })
+
+  it("lets the icon of a data tab lead to the catalog it came from", () => {
+    expect(lookOf(samples.rows).iconTooltip).toContain("Show in catalog")
+  })
+
+  it("leaves the icon of the connections tab inert", () => {
     expect(lookOf(samples.connectors).iconTooltip).toBeUndefined()
   })
 
