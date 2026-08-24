@@ -120,10 +120,13 @@ Consequences:
   the screen and the node is what the eye looks for.
 - **Being pointed at is not being ticked.** A tick means an action will be done
   to a row; arriving from the tab of a table means "here it is". Two meanings,
-  so an outline rather than a fill, and it goes when the level changes. The
-  pointing travels as a piece of state the panel takes, not as a call: the
-  panel may have been opened by the very press that asked for it and not be
-  mounted yet.
+  so an outline rather than a fill — and it takes itself off after three
+  seconds, because an outline held indefinitely stops saying "here it is" and
+  starts reading as a state the row is in. It fades rather than blinks: every
+  row carries the outline transparent, since a colour cannot be transitioned
+  out of a rule that is no longer applied. The pointing travels as a piece of
+  state the panel takes, not as a call: the panel may have been opened by the
+  very press that asked for it and not be mounted yet.
 - **A node that is not on the level shown is not found for you.** Walking to its
   level would mean taking its id apart on the client, and how an id is built is
   the source's own business. The catalog is opened and nothing is marked. The

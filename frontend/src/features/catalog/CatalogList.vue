@@ -225,6 +225,18 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
   gap: 6px;
   padding: 1px 8px;
   cursor: pointer;
+  /* Every row carries the outline, transparent, so that taking the mark off
+     fades rather than blinks: a colour cannot be transitioned out of a rule
+     that is no longer applied. An outline takes no space, so this costs
+     nothing on the rows that never carry a mark. */
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  transition: outline-color 400ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .catalog-list__row {
+    transition: none;
+  }
 }
 .catalog-list__row:hover {
   background: var(--dp-hover);
@@ -233,10 +245,11 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
   background: var(--dp-selected);
 }
 /* An outline and not a fill: a fill is what a tick already means here, and
-   "an action will be done to this" and "here it is" are not the same thing. */
+   "an action will be done to this" and "here it is" are not the same thing.
+   It comes off after a few seconds — held longer it stops saying "here it is"
+   and starts reading as a state the row is in. */
 .catalog-list__row--revealed {
-  outline: 2px solid var(--dp-focus-border);
-  outline-offset: -2px;
+  outline-color: var(--dp-focus-border);
   border-radius: 4px;
 }
 .catalog-list__tick-space {

@@ -55,6 +55,14 @@ test("brings the catalog forward and marks the row the table came from", async (
     "true"
   )
 
+  // And it takes itself off. Held any longer it would stop saying "here it is"
+  // and start reading as a state the row is in.
+  await expect(page.getByTestId("catalog-node-connector")).not.toHaveAttribute(
+    "data-revealed",
+    "true",
+    { timeout: 10_000 }
+  )
+
   await deleteConnector(page, name)
 })
 

@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue"
 
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
+import { useFadingMark } from "@/features/catalog/fadingMark"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
@@ -42,6 +43,10 @@ useReloadable(props.panelId, async () => {
   await level.reload(level.path.value[level.path.value.length - 1]?.id ?? null)
 })
 
+/** Long enough for the eye to catch the row, short enough not to read as a
+    state the row is in. */
+const REVEAL_SECONDS = 3
+
 /**
  * The node this catalog was told to point at, if it is on the level shown.
  *
@@ -53,23 +58,30 @@ useReloadable(props.panelId, async () => {
  * mean taking its id apart on the client, and how an id is built is the
  * source's own business.
  */
-const revealed = ref<string | null>(null)
+// Destructured so the template reads the ref directly: a ref reached through
+// an object is not unwrapped there.
+const {
+  value: revealedNode,
+  show: showRevealed,
+  clear: clearReveal,
+} = useFadingMark<string>(REVEAL_SECONDS * 1000)
 
 watch(
   workspace.revealTarget,
   () => {
     const nodeId = workspace.takeReveal(props.connectorId)
-    if (nodeId !== null) revealed.value = nodeId
+    if (nodeId !== null) showRevealed(nodeId)
   },
   { immediate: true }
 )
 
 // Pointing says "here it is", which stops being true the moment the level is
-// no longer the one it was said about.
+// no longer the one it was said about — sooner than the few seconds, if the
+// user walks away in the meantime.
 watch(
   () => level.path.value.map((crumb) => crumb.id).join("/"),
   () => {
-    revealed.value = null
+    clearReveal()
   }
 )
 
@@ -236,7 +248,7 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
       :loading="level.loading.value"
       :show-group="level.selectedGroups.value.length > 1"
       :has-parent="level.path.value.length > 1"
-      :revealed="revealed"
+      :revealed="revealedNode"
       @open="onOpen"
       @up="level.up"
       @toggle="onToggle"

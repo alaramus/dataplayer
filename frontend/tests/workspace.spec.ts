@@ -524,6 +524,10 @@ test("pushing the column of sources aside takes away the name and nothing else",
   expect(dotWide.x + dotWide.width).toBeLessThan(iconWide.x + iconWide.width + 2)
 
   await page.getByTestId("workspace-collapse-sources").click()
+  // Wait for the collapse to have happened before measuring anything: a box
+  // read while the column is still wide is a race, and this assertion was
+  // already at the end of the test doing nothing for it.
+  await expect(page.getByTestId("connector-list")).toHaveCount(0)
 
   const plusNarrow = await box(page.getByTestId("add-connector"))
   const iconNarrow = await box(page.getByTestId(`connector-rail-${name}`))
@@ -538,7 +542,6 @@ test("pushing the column of sources aside takes away the name and nothing else",
   expect(Math.abs(iconNarrow.y - iconWide.y)).toBeLessThan(3)
   expect(Math.abs(dotNarrow.x - dotWide.x)).toBeLessThan(3)
   expect(Math.abs(dotNarrow.y - dotWide.y)).toBeLessThan(3)
-  await expect(page.getByTestId("connector-list")).toHaveCount(0)
 
   await page.getByTestId("workspace-collapse-sources").click()
   await deleteConnector(page, name)
