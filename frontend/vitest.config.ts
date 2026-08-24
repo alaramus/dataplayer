@@ -24,6 +24,9 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    setupFiles: ["./vitest.setup.ts"],
+    // A spy on a shared prototype outlives the test that installed it.
+    restoreMocks: true,
     server: {
       deps: {
         inline: ["quasar"],

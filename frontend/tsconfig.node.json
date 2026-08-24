@@ -3,6 +3,7 @@
   "include": [
     "vite.config.ts",
     "vitest.config.ts",
+    "vitest.setup.ts",
     "playwright.config.ts",
     "openapi-ts.config.ts",
     "tests/**/*"

@@ -1,6 +1,6 @@
-import { mount } from "@vue/test-utils"
+import { flushPromises, mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import CatalogList from "./CatalogList.vue"
 import type { ListNode } from "./nodes"
@@ -54,6 +54,29 @@ describe("a row that was pointed at", () => {
     expect(
       wrapper.get('[data-testid="catalog-node-orders"]').attributes("data-revealed")
     ).toBeUndefined()
+  })
+
+  /**
+   * The row may be below the fold: the level is arrived at from a tab, so
+   * nobody scrolled to it by hand. jsdom has no layout and therefore no
+   * `scrollIntoView` of its own — `vitest.setup.ts` gives it one, or this
+   * would be a call into nothing.
+   */
+  it("brings the row into view", async () => {
+    const scroll = vi.spyOn(Element.prototype, "scrollIntoView")
+    const wrapper = mountList("public.orders")
+    await flushPromises()
+    expect(scroll).toHaveBeenCalledWith({ block: "nearest" })
+    expect(scroll.mock.contexts[0]).toBe(
+      wrapper.get('[data-testid="catalog-node-orders"]').element
+    )
+  })
+
+  it("brings nothing into view when nobody was pointed at", async () => {
+    const scroll = vi.spyOn(Element.prototype, "scrollIntoView")
+    mountList()
+    await flushPromises()
+    expect(scroll).not.toHaveBeenCalled()
   })
 
   // The level may not hold the node at all — arrived at from a table opened
