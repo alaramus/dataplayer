@@ -57,6 +57,21 @@ async def list_for(
     return list(connectors), count
 
 
+async def enabled_of(
+    session: AsyncSession, *, owner_id: uuid.UUID
+) -> list[Connector]:
+    """Every switched-on connector of one owner.
+
+    By owner id and not by ``User``, and deliberately not through ``list_for``:
+    that one shows a superuser everybody's connectors, which is right for an
+    administrative list and wrong for watching your own connections.
+    """
+    statement = select(Connector).where(
+        Connector.owner_id == owner_id, col(Connector.enabled).is_(True)
+    )
+    return list((await session.exec(statement)).all())
+
+
 async def save(session: AsyncSession, *, connector: Connector) -> Connector:
     session.add(connector)
     await session.commit()

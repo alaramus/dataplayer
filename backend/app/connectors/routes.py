@@ -34,7 +34,7 @@ from app.adapters.protocol import (
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
 from app.adapters.resources import Pooling, ResourcesDep, ResourceStore
-from app.connectors import crud, service
+from app.connectors import crud, health, service
 from app.connectors.models import (
     Connector,
     ConnectorCreate,
@@ -44,6 +44,7 @@ from app.connectors.models import (
 )
 from app.core.db import SessionDep
 from app.core.schemas import Message, get_datetime_utc
+from app.realtime.topics import TopicsDep
 from app.users import storage
 from app.users.deps import CurrentUser, get_current_user
 from app.users.models import User
@@ -386,13 +387,20 @@ async def parse_url(body: ConnectionStringRequest) -> Any:
 
 @router.post("/{connector_id}/check", response_model=ConnectionCheckResult)
 async def check_connector(
-    session: SessionDep, current_user: CurrentUser, connector_id: uuid.UUID
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    topics: TopicsDep,
 ) -> Any:
     """
     Check the connection of a stored connector.
     """
     adapter = await _adapter_for(session, connector_id, current_user)
-    return await adapter.check_connection()
+    result = await adapter.check_connection()
+    # Told to whoever is watching, so that pressing the button and the dot on
+    # the same connection cannot end up saying different things.
+    await health.announce_check(topics, current_user.id, connector_id, result)
+    return result
 
 
 @router.post("/{connector_id}/fetch", response_model=FetchResult)

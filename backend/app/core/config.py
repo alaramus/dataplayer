@@ -65,6 +65,16 @@ class Settings(BaseSettings):
     # says nothing still holds a connection.
     WS_AUTH_TIMEOUT_SECONDS: float = 5.0
 
+    # Watching a user's connections. The monitor reads these every round, so
+    # they can be changed under a running one.
+    HEALTH_INTERVAL_SECONDS: float = 15.0
+    HEALTH_BACKOFF_CAP_SECONDS: float = 120.0
+    HEALTH_PROBE_TIMEOUT_SECONDS: float = 5.0
+    HEALTH_CONCURRENCY: int = 8
+    # A reloaded page closes one socket and opens another; without this the
+    # monitor would be rebuilt from knowing nothing every time.
+    HEALTH_GRACE_SECONDS: float = 5.0
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def _use_psycopg_driver(cls, value: str | PostgresDsn) -> str:

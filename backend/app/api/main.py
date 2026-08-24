@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.adapters.routes import router as adapter_types_router
+from app.connectors import health as connector_health
 from app.connectors.routes import router as connectors_router
 from app.core.config import settings
 from app.realtime.routes import router as realtime_router
@@ -18,6 +19,10 @@ api_router.include_router(utils_router)
 api_router.include_router(connectors_router)
 api_router.include_router(adapter_types_router)
 api_router.include_router(realtime_router)
+
+# Imported for its registration: the health topic is about connectors, so it
+# lives with them, and the socket learns of it here rather than knowing it.
+_ = connector_health.NAME
 
 
 if settings.FASTAPI_ENV == "development":

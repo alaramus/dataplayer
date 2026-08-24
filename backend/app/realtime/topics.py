@@ -12,8 +12,9 @@ keeps a background task alive is exactly the thing that outlives a request
 
 import uuid
 from collections.abc import Callable
-from typing import Protocol, runtime_checkable
+from typing import Annotated, Protocol, runtime_checkable
 
+from fastapi import Depends, Request
 from pydantic import BaseModel
 
 
@@ -88,3 +89,18 @@ class TopicSet:
 
 def build_all() -> TopicSet:
     return TopicSet({name: factory() for name, factory in _registry.items()})
+
+
+def get_topics(request: Request) -> TopicSet:
+    """The topics of the running application, for a route that has to reach one.
+
+    Through the application rather than a module global, for the same reason as
+    the resource store: what outlives a request belongs to the application.
+    """
+    topics = request.app.state.topics
+    if not isinstance(topics, TopicSet):
+        raise RuntimeError("The application has no topics; is the lifespan running?")
+    return topics
+
+
+TopicsDep = Annotated[TopicSet, Depends(get_topics)]
