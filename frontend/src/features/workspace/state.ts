@@ -28,7 +28,7 @@ export interface WorkspaceActions {
    * shows, so asking for a catalog that is already open brings its tab
    * forward. What is added here is the pointing.
    */
-  revealInCatalog: (connectorId: string, nodeId: string) => void
+  revealInCatalog: (connectorId: string, nodeId: string, label: string) => void
   /**
    * The node a catalog has just been asked to point at, or nothing.
    *
@@ -43,7 +43,7 @@ export interface WorkspaceActions {
    * Taken rather than read: it is acted on once, and a target left behind
    * would point again at the next thing that made the panel re-render.
    */
-  takeReveal: (connectorId: string) => string | null
+  takeReveal: (connectorId: string) => RevealTarget | null
   openRows: (request: OpenRowsRequest) => void
   /**
    * Show the window of one connection, or an empty one for a new connection.
@@ -59,6 +59,14 @@ export interface WorkspaceActions {
 export interface RevealTarget {
   connectorId: string
   nodeId: string
+  /**
+   * What the node is called, which the catalog cannot work out on its own.
+   *
+   * The id is the source's own string and the catalog never takes one apart,
+   * so a node that has been deleted since the tab was opened has no name left
+   * anywhere else — and "it is gone" is worth saying with the name in it.
+   */
+  label: string
 }
 
 /**

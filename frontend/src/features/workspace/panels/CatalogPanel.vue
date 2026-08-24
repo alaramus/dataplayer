@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue"
+import { computed, nextTick, ref, watch } from "vue"
 
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
+import { useNodePathLoader } from "@/features/catalog/api"
+import { locationOf } from "@/features/catalog/location"
 import { useFadingMark } from "@/features/catalog/fadingMark"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
+import { messageOf, statusOf } from "@/shared/api/errors"
 import { AppBanner, AppIconButton, AppInput, AppSelect, useToast } from "@/shared/ui"
 
 const props = defineProps<{
@@ -48,15 +51,14 @@ useReloadable(props.panelId, async () => {
 const REVEAL_SECONDS = 3
 
 /**
- * The node this catalog was told to point at, if it is on the level shown.
+ * The node this catalog was told to point at.
  *
  * Taken from the workspace rather than passed in: the panel may have been
  * opened by the very press that asked for the pointing, so `immediate` is what
  * catches the target that was set before this existed.
  *
- * A node that is not on this level marks nothing. Walking to its level would
- * mean taking its id apart on the client, and how an id is built is the
- * source's own business.
+ * Where the node lives is asked of the source, which is the only party that
+ * knows what its own ids are made of — see D21. Nothing here takes one apart.
  */
 // Destructured so the template reads the ref directly: a ref reached through
 // an object is not unwrapped there.
@@ -66,11 +68,73 @@ const {
   clear: clearReveal,
 } = useFadingMark<string>(REVEAL_SECONDS * 1000)
 
+const loadPath = useNodePathLoader()
+
+/**
+ * Stand where the node lives, then point at it.
+ *
+ * The path is asked for every time rather than only when the node is out of
+ * sight: one road through the code instead of two, and the answer is cached,
+ * so pointing at the same table twice costs one request. `showLocation` is
+ * what decides whether anything moves — a level that is already the right one
+ * keeps the user's ticks.
+ *
+ * The mark is set a tick later because putting the trail in place is itself a
+ * change of level, and a change of level is what takes a mark off.
+ */
+async function reveal(nodeId: string, label: string) {
+  try {
+    await level.showLocation(locationOf(await loadPath(props.connectorId, nodeId)))
+    await nextTick()
+    showRevealed(nodeId)
+  } catch (cause) {
+    const status = statusOf(cause)
+    if (status === 501) {
+      // The source cannot walk back up. That is a fact about it rather than
+      // an event, so nothing is said: the node is marked if it happens to be
+      // on the level already, which is all this could do before D21.
+      showRevealed(nodeId)
+      return
+    }
+    if (status === 404) {
+      // A tab outlives the table it shows. Worth a word: without one the
+      // press looks like it did nothing.
+      toast.info(`${label} is no longer in the catalog`)
+      return
+    }
+    toast.error(messageOf(cause, "Could not find this node in the catalog"))
+  }
+}
+
+/**
+ * One chain for everything that moves the level.
+ *
+ * The first read and a pointing that arrived together with the panel would
+ * otherwise race, and whichever lost would leave the catalog somewhere the
+ * user did not ask for — the pointing is what opened the panel, so the two
+ * start in the same breath. They run in the order they are queued here, which
+ * is why the first read is queued in setup rather than on mount.
+ */
+let work: Promise<void> = Promise.resolve()
+
+function queue(job: () => Promise<void>): Promise<void> {
+  work = work.then(job, job)
+  return work
+}
+
+void queue(async () => {
+  try {
+    await level.load()
+  } finally {
+    answered.value = true
+  }
+})
+
 watch(
   workspace.revealTarget,
   () => {
-    const nodeId = workspace.takeReveal(props.connectorId)
-    if (nodeId !== null) showRevealed(nodeId)
+    const target = workspace.takeReveal(props.connectorId)
+    if (target !== null) void queue(() => reveal(target.nodeId, target.label))
   },
   { immediate: true }
 )
@@ -84,12 +148,6 @@ watch(
     clearReveal()
   }
 )
-
-onMounted(() => {
-  void level.load().finally(() => {
-    answered.value = true
-  })
-})
 
 const groupOptions = computed(() =>
   level.groups.value.map((group) => ({ label: group.label, value: group.id }))

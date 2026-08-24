@@ -6,7 +6,7 @@ import pytest
 from app.adapters.catalog import ColumnNode, SchemaNode, TableNode, ViewNode
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.options import PostgresUserPassword
-from app.adapters.protocol import AdapterError
+from app.adapters.protocol import AdapterError, NodeNotFound
 from tests.utils.database import working_postgres_options
 from tests.utils.network import silent_endpoint
 
@@ -116,3 +116,60 @@ async def test_unreachable_server_raises_with_a_safe_message() -> None:
 
     assert caught.value.error_kind == "timeout"
     assert options.password.get_secret_value() not in caught.value.message
+
+
+async def test_path_to_a_table_names_its_schema_and_then_the_table() -> None:
+    path = await _adapter().path_to("public.connector")
+
+    assert [node.name for node in path] == ["public", "connector"]
+    assert isinstance(path[0], SchemaNode)
+    assert isinstance(path[1], TableNode)
+    assert path[0].id == "public"
+    assert path[1].id == "public.connector"
+
+
+async def test_path_to_a_table_carries_what_the_listing_would_carry() -> None:
+    """The last node answers "what is this", so it must not be a stub."""
+    path = await _adapter().path_to("public.connector")
+
+    table = path[-1]
+    assert isinstance(table, TableNode)
+    assert table.has_children is True
+    assert table.size_bytes is not None
+
+
+async def test_path_to_a_view_ends_with_a_view(temporary_view: str) -> None:
+    path = await _adapter().path_to(f"public.{temporary_view}")
+
+    assert isinstance(path[-1], ViewNode)
+    assert path[-1].name == temporary_view
+
+
+async def test_path_to_a_column_names_schema_table_and_column() -> None:
+    path = await _adapter().path_to("public.connector.adapter_type")
+
+    assert [node.name for node in path] == ["public", "connector", "adapter_type"]
+    assert isinstance(path[-1], ColumnNode)
+    assert path[-1].data_type
+
+
+async def test_path_to_a_schema_is_the_schema_alone() -> None:
+    path = await _adapter().path_to("public")
+
+    assert [node.name for node in path] == ["public"]
+    assert isinstance(path[0], SchemaNode)
+
+
+async def test_path_to_an_unknown_schema_is_not_found() -> None:
+    with pytest.raises(NodeNotFound):
+        await _adapter().path_to("no_such_schema")
+
+
+async def test_path_to_an_unknown_table_is_not_found() -> None:
+    with pytest.raises(NodeNotFound):
+        await _adapter().path_to("public.no_such_table")
+
+
+async def test_path_to_an_unknown_column_is_not_found() -> None:
+    with pytest.raises(NodeNotFound):
+        await _adapter().path_to("public.connector.no_such_column")

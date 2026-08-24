@@ -1706,6 +1706,64 @@ export type connectorsReadCatalogResponses = {
 export type connectorsReadCatalogResponse =
   connectorsReadCatalogResponses[keyof connectorsReadCatalogResponses]
 
+export type connectorsReadNodePathData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query: {
+    /**
+     * Node Id
+     */
+    node_id: string
+  }
+  url: "/api/v1/connectors/{connector_id}/catalog/path"
+}
+
+export type connectorsReadNodePathErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsReadNodePathError =
+  connectorsReadNodePathErrors[keyof connectorsReadNodePathErrors]
+
+export type connectorsReadNodePathResponses = {
+  /**
+   * Response Connectors-Read Node Path
+   *
+   * Successful Response
+   */
+  200: Array<
+    | ({
+        kind: "schema"
+      } & SchemaNode)
+    | ({
+        kind: "table"
+      } & TableNode)
+    | ({
+        kind: "view"
+      } & ViewNode)
+    | ({
+        kind: "column"
+      } & ColumnNode)
+    | ({
+        kind: "directory"
+      } & DirectoryNode)
+    | ({
+        kind: "file"
+      } & FileNode)
+  >
+}
+
+export type connectorsReadNodePathResponse =
+  connectorsReadNodePathResponses[keyof connectorsReadNodePathResponses]
+
 export type connectorsReadActionsData = {
   body: ActionTargets
   path: {

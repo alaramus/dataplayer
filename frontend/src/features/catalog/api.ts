@@ -40,6 +40,37 @@ export function useCatalogLoader() {
   }
 }
 
+export const nodePathKey = (connectorId: string, nodeId: string) =>
+  ["nodePath", connectorId, nodeId] as const
+
+/**
+ * Loader for the chain of nodes from the root of a connector down to one node.
+ *
+ * Through the cache for the reason the catalog loader is: pointing at the same
+ * table twice must not ask the source twice. Kept fresh for as long as a
+ * level, since the two answer about the same thing.
+ */
+export function useNodePathLoader() {
+  const queryClient = useQueryClient()
+
+  return async function loadPath(
+    connectorId: string,
+    nodeId: string
+  ): Promise<CatalogNode[]> {
+    return queryClient.fetchQuery({
+      queryKey: nodePathKey(connectorId, nodeId),
+      queryFn: async () =>
+        (
+          await ConnectorsService.readNodePath({
+            path: { connector_id: connectorId },
+            query: { node_id: nodeId },
+          })
+        ).data,
+      staleTime: 60_000,
+    })
+  }
+}
+
 /**
  * Reading a page of rows.
  *

@@ -44,6 +44,9 @@ import type {
   connectorsReadConnectorsData,
   connectorsReadConnectorsErrors,
   connectorsReadConnectorsResponses,
+  connectorsReadNodePathData,
+  connectorsReadNodePathErrors,
+  connectorsReadNodePathResponses,
   connectorsRunActionData,
   connectorsRunActionErrors,
   connectorsRunActionResponses,
@@ -746,6 +749,31 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/catalog",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Node Path
+   *
+   * Every node from the root of the connector down to node_id, node_id last.
+   *
+   * What the id is made of stays the adapter's own business: the client sends
+   * back the string it was given and receives nodes, never a rule for taking
+   * one apart. node_id is required — the root of a connector has no path,
+   * because the root is the connector.
+   */
+  public static readNodePath<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadNodePathData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      connectorsReadNodePathResponses,
+      connectorsReadNodePathErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/catalog/path",
       ...options,
     })
   }

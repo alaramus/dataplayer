@@ -26,10 +26,12 @@ from app.adapters.protocol import (
     ConnectionCheckResult,
     DataAdapter,
     DescribesDraft,
+    NodeNotFound,
     ParsesConnectionString,
     SupportsCatalog,
     SupportsConnectionString,
     SupportsFetch,
+    SupportsNodePath,
 )
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
@@ -476,6 +478,48 @@ async def read_catalog(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         )
+
+
+@router.get("/{connector_id}/catalog/path", response_model=list[CatalogNode])
+async def read_node_path(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    node_id: str,
+) -> Any:
+    """
+    Every node from the root of the connector down to node_id, node_id last.
+
+    What the id is made of stays the adapter's own business: the client sends
+    back the string it was given and receives nodes, never a rule for taking
+    one apart. node_id is required — the root of a connector has no path,
+    because the root is the connector.
+    """
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    if not isinstance(adapter, SupportsNodePath):
+        # A source may be able to list children without being able to walk
+        # back up: its ids can be opaque handles from someone else's API.
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source cannot say where a node lives",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.path_to(node_id)
+    except NodeNotFound as exc:
+        # 404 rather than 502: the source answered, and the answer is that
+        # there is no such node. A tab outlives the table it shows.
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"message": str(exc)}) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
 
 
 class ActionInfo(BaseModel):

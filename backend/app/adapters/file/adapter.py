@@ -37,8 +37,12 @@ class FileAdapter:
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         return await self._catalog.list_children(node_id)
 
+    async def path_to(self, node_id: str) -> list[CatalogNode]:
+        return await self._catalog.path_to(node_id)
+
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         return await self._actions.available(node_id)

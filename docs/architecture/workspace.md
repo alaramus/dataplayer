@@ -127,10 +127,12 @@ Consequences:
   out of a rule that is no longer applied. The pointing travels as a piece of
   state the panel takes, not as a call: the panel may have been opened by the
   very press that asked for it and not be mounted yet.
-- **A node that is not on the level shown is not found for you.** Walking to its
-  level would mean taking its id apart on the client, and how an id is built is
-  the source's own business. The catalog is opened and nothing is marked. The
-  honest fix is a capability that answers with the path to a node.
+- **A node is found wherever it lives, and the source is what says where.** The
+  catalog asks for the path to the node and stands where the answer puts it —
+  walking into the directory it is in, or ticking the schema it belongs to. Which
+  of the two is read off the role of each node on the path, so nothing here takes
+  an id apart; see D21. A source that cannot walk back up answers 501 and the
+  catalog opens as before, marking the node only if it happens to be in view.
 - **A panel that never mounted has nothing to re-read.** Only the active tab of
   a section is mounted, and `<KeepAlive>` keeps the ones that have been shown —
   so a tab restored from storage and never opened has registered nothing.

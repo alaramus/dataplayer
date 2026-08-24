@@ -4,7 +4,7 @@ What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
-D20.
+D20, D21.
 
 ## What exists today
 
@@ -22,9 +22,9 @@ sorting and no filtering, because a file has no index. No connection string.
 
 ```
 backend/app/adapters/
-├── protocol.py      DataAdapter, SupportsCatalog, SupportsFetch,
-│                    SupportsConnectionString, ParsesConnectionString,
-│                    AdapterError
+├── protocol.py      DataAdapter, SupportsCatalog, SupportsNodePath,
+│                    SupportsFetch, SupportsConnectionString,
+│                    ParsesConnectionString, AdapterError, NodeNotFound
 ├── options.py       the one seam over an options schema, model or union:
 │                    json_schema / validate / variants / secret_field_names
 ├── layout.py        where a field goes in the window that edits it
@@ -148,6 +148,52 @@ Known deviation:
 - **A deep offset over a file costs a full scan.** Paging a file means skipping
   `offset` lines every time. Bounded by the limit ceiling, acceptable while pages
   are read in order.
+
+## D21. A source says where a node lives, and the client never takes an id apart
+
+`SupportsNodePath.path_to(node_id)` answers with every node from the root of
+the connector down to that node, the node itself last. `GET
+/connectors/{id}/catalog/path?node_id=…` exposes it; a source that lacks the
+capability answers 501, and an id that names nothing answers 404.
+
+A node id is the source's own string — PostgreSQL encodes `public.users`, the
+file source encodes a path — so the party that built it is the only one able to
+read it back. Before this, going to a table from its open tab could only mark a
+row that happened to be on the level already: the alternative was to split the
+id on the client, which would put a rule about PostgreSQL ids into the screen
+and break on the third source type.
+
+Making it part of `SupportsCatalog` was rejected. A source whose ids are opaque
+handles from someone else's API may have no way back up at all, and would be
+left to either invent one or give up having a catalog — the forcing that D2
+exists to prevent. `NodeNotFound` is a class of its own rather than an
+`AdapterError` for the same kind of reason: `AdapterError` means the source
+failed and is answered with 502, while "there is no such node" is an answer.
+
+Consequences:
+
+- **Identity is a pair, and it already was.** A node is named by its connector
+  and its id together — `(connectorId, nodeId)` — which is what panel ids and
+  cache keys have always used, so two tables of the same name in two
+  connections were never confused. What was missing was not a key but a way
+  back up. A single string form of that pair, for a caller that needs one
+  handle, stays an encoding the server can add later without touching an
+  adapter.
+- **The last node of the path answers "what is this".** Full `CatalogNode`s
+  rather than a lighter pair of id and name, so nothing needs a second model of
+  a node and the same call serves a caller that holds a reference and wants to
+  know what it points at.
+- **A path is not a trail of crumbs.** A schema is a step of the path and a
+  grouping on the screen; a directory is a step of both. The screen translates
+  one into the other by node role, in `locationOf` — the same table that lets
+  the catalog never ask what type of source it is looking at.
+
+Known deviation:
+
+- **A path is confirmed level by level.** PostgreSQL asks the server once per
+  step to be sure each one is really there. Three round trips for a column is
+  nothing next to being told a table exists when it does not, but a source with
+  deep trees would want one query for the whole chain.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

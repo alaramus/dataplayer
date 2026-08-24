@@ -5,7 +5,7 @@ import pytest
 from app.adapters.catalog import DirectoryNode, FileNode
 from app.adapters.file.catalog import MAX_ENTRIES, FileCatalog
 from app.adapters.file.session import FileSession
-from app.adapters.protocol import AdapterError
+from app.adapters.protocol import AdapterError, NodeNotFound
 
 
 @pytest.fixture
@@ -108,3 +108,51 @@ async def test_too_many_entries_fail_instead_of_being_cut_short(
 
     with pytest.raises(AdapterError, match="pagination"):
         await catalog.list_children(None)
+async def test_path_to_a_nested_file_names_every_directory_above_it(
+    catalog: FileCatalog,
+) -> None:
+    path = await catalog.path_to("reports/q3.csv")
+
+    assert [node.name for node in path] == ["reports", "q3.csv"]
+    assert isinstance(path[0], DirectoryNode)
+    assert path[0].id == "reports"
+    assert isinstance(path[1], FileNode)
+    assert path[1].id == "reports/q3.csv"
+    assert path[1].content_kind == "table"
+
+
+async def test_path_to_a_file_in_the_root_is_the_file_alone(
+    catalog: FileCatalog,
+) -> None:
+    """The root is the connector itself and is never a step of the path."""
+    path = await catalog.path_to("notes.txt")
+
+    assert [node.name for node in path] == ["notes.txt"]
+
+
+async def test_path_to_a_directory_ends_with_that_directory(
+    catalog: FileCatalog,
+) -> None:
+    path = await catalog.path_to("reports")
+
+    assert [node.name for node in path] == ["reports"]
+    assert isinstance(path[0], DirectoryNode)
+    assert path[0].has_children is True
+
+
+async def test_path_to_something_that_is_not_there_is_not_found(
+    catalog: FileCatalog,
+) -> None:
+    with pytest.raises(NodeNotFound):
+        await catalog.path_to("reports/q4.csv")
+
+
+@pytest.mark.parametrize(
+    "node_id", ["../outside", "/etc/passwd", "C:/Windows", "reports/../../outside"]
+)
+async def test_path_to_a_node_outside_the_root_is_refused(
+    catalog: FileCatalog, node_id: str
+) -> None:
+    """The same containment rule as everything else, not a second one."""
+    with pytest.raises(ValueError):
+        await catalog.path_to(node_id)

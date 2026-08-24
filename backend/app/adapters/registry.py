@@ -7,7 +7,12 @@ from pydantic import BaseModel
 
 from app.adapters.actions import DeclaresActions
 from app.adapters.options import OptionsSchema
-from app.adapters.protocol import DataAdapter, SupportsCatalog, SupportsFetch
+from app.adapters.protocol import (
+    DataAdapter,
+    SupportsCatalog,
+    SupportsFetch,
+    SupportsNodePath,
+)
 from app.adapters.resources import Pooling
 
 
@@ -138,6 +143,8 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
 
     if issubclass(driver, SupportsCatalog):
         found.append(Capability(group="explore", title="Browse the catalog"))
+    if issubclass(driver, SupportsNodePath):
+        found.append(Capability(group="explore", title="Locate a node"))
     if issubclass(driver, SupportsFetch):
         found.append(Capability(group="explore", title="Read rows"))
     if issubclass(driver, DeclaresActions):

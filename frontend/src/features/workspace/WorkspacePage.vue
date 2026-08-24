@@ -71,7 +71,7 @@ const workspace = useWorkspace<Panel>({
   // a connection has two other ways in. See T5.
   onIconClick: (panel) => {
     if (panel.kind === "catalog") editConnector(panel.connectorId)
-    if (panel.kind === "rows") revealInCatalog(panel.connectorId, panel.nodeId)
+    if (panel.kind === "rows") revealInCatalog(panel.connectorId, panel.nodeId, panel.title)
   },
   // What re-reading means belongs to the panel, so the panel says how and this
   // only calls it. A tab restored from storage and never opened has never
@@ -246,12 +246,12 @@ function openCatalog(connector: ConnectorPublic) {
  * switched off is not something a tab opened an hour ago can know, and the
  * refusal has to be the same one as anywhere else.
  */
-function revealInCatalog(connectorId: string, nodeId: string) {
+function revealInCatalog(connectorId: string, nodeId: string, label: string) {
   const connector = (connectors.data.value?.data ?? []).find((row) => row.id === connectorId)
   if (connector === undefined) return
   openCatalog(connector)
   if (!connector.enabled) return
-  revealTarget.value = { connectorId, nodeId }
+  revealTarget.value = { connectorId, nodeId, label }
 }
 
 provide(workspaceActionsKey, {
@@ -264,7 +264,7 @@ provide(workspaceActionsKey, {
     const target = revealTarget.value
     if (target === null || target.connectorId !== connectorId) return null
     revealTarget.value = null
-    return target.nodeId
+    return target
   },
   openRows: (request: OpenRowsRequest) => {
     workspace.open({

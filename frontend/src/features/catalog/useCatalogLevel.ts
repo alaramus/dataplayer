@@ -3,15 +3,12 @@ import { computed, ref, watch } from "vue"
 import type { ComputedRef, Ref } from "vue"
 
 import { catalogKey, useCatalogLoader } from "@/features/catalog/api"
+import type { Crumb, Location } from "@/features/catalog/location"
 import { groupsOf, toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
 
-/** One step of the way down from the root of a connector. */
-export interface Crumb {
-  id: string | null
-  label: string
-}
+export type { Crumb } from "@/features/catalog/location"
 
 export interface CatalogLevel {
   path: Ref<Crumb[]>
@@ -31,6 +28,7 @@ export interface CatalogLevel {
   enter: (node: ListNode) => Promise<void>
   up: () => Promise<void>
   goTo: (index: number) => Promise<void>
+  showLocation: (location: Location) => Promise<void>
   reload: (nodeId: string | null) => Promise<void>
   toggleAll: (on: boolean) => void
 }
@@ -113,7 +111,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     return first === undefined ? [] : [first.id]
   }
 
-  async function show(nodeId: string | null) {
+  async function show(nodeId: string | null, groupIds?: string[]) {
     checked.value = []
     filter.value = ""
     error.value = ""
@@ -121,7 +119,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     try {
       const children = await childrenOf(nodeId)
       groups.value = groupsOf(children)
-      selectedGroups.value = defaultGroups(groups.value)
+      selectedGroups.value = groupIds ?? defaultGroups(groups.value)
       plain.value = children.filter((node) => node.role !== "group")
       await fillRows()
     } catch (cause) {
@@ -180,6 +178,25 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
   }
 
   /**
+   * Stand where a node lives, as the source said it lives there.
+   *
+   * The level is only re-read when it is not already the right one: `show`
+   * clears the ticks and the filter, and pointing at a row that is on screen
+   * already is no reason to take a user's ticks away. The comparison is one
+   * of ids for equality — nothing here reads what an id is made of.
+   */
+  async function showLocation(location: Location) {
+    const sameLevel = currentId.value === location.parentId
+    const sameGroups = location.groups.every((id) =>
+      selectedGroups.value.includes(id)
+    )
+    if (sameLevel && sameGroups) return
+
+    path.value = [{ id: null, label: rootLabel.value }, ...location.crumbs]
+    await show(location.parentId, location.groups)
+  }
+
+  /**
    * Re-read the level after something changed it.
    *
    * The branch is forgotten here rather than trusted to have been forgotten by
@@ -215,6 +232,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     enter,
     up,
     goTo,
+    showLocation,
     reload,
     toggleAll,
   }

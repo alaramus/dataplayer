@@ -22,6 +22,22 @@ class AdapterError(Exception):
         self.message = message
 
 
+class NodeNotFound(Exception):
+    """The id does not name anything the source holds now.
+
+    Not an `AdapterError`: that one means the source failed, and is answered
+    with 502. This is an answer rather than a failure — the node was deleted,
+    or never existed — and is answered with 404. Returning None instead was
+    rejected because `list_children` already fixes the meaning of an empty
+    answer as "an empty node, never a failure", and a second way of saying
+    "no" beside it would read ambiguously.
+    """
+
+    def __init__(self, node_id: str) -> None:
+        super().__init__(f"No such node: {node_id}")
+        self.node_id = node_id
+
+
 class ConnectionCheckResult(BaseModel):
     """Outcome of a connection check.
 
@@ -59,6 +75,33 @@ class SupportsCatalog(Protocol):
         the source cannot or may not reach — a path leaving the root of a file
         source, for instance. An empty list means an empty node, never a
         failure: the old application returned an empty result for both.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsNodePath(Protocol):
+    async def path_to(self, node_id: str) -> list[CatalogNode]:
+        """Every node from the root down to node_id, the node itself last.
+
+        The root of the connector is not in the answer: the root is the
+        connector, and the caller already knows what it is called. A node
+        lying in the root therefore answers with itself alone.
+
+        Full nodes rather than a lighter pair of id and name: a second model
+        of a node beside `CatalogNode` would let the two meanings of `name`
+        drift apart, and the last element doubles as the answer to "what is
+        this" — with its kind, its row estimate and everything else it knows
+        about itself.
+
+        A capability of its own rather than part of `SupportsCatalog`: a
+        source whose ids are opaque handles from someone else's API may have
+        no way back up at all, and would be left to either lie or give up
+        having a catalog. Answering 501 is the honest third option.
+
+        Raises NodeNotFound for an id that names nothing, AdapterError for
+        source failures, and ValueError for an id the source may not reach —
+        the same rule that guards list_children.
         """
         ...
 

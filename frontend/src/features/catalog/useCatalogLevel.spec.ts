@@ -261,3 +261,59 @@ describe("re-reading after a change", () => {
     })
   })
 })
+describe("standing where a node lives", () => {
+  it("walks to the level of the node and draws the trail to it", async () => {
+    answers([table("reports/2026/q3.csv", "q3.csv")])
+
+    await withLevel(async (level) => {
+      await level.showLocation({
+        crumbs: [
+          { id: "reports", label: "reports" },
+          { id: "reports/2026", label: "2026" },
+        ],
+        groups: [],
+        parentId: "reports/2026",
+      })
+
+      expect(level.currentId.value).toBe("reports/2026")
+      expect(level.path.value.map((crumb) => crumb.label)).toEqual([
+        "mydb",
+        "reports",
+        "2026",
+      ])
+    })
+  })
+
+  it("ticks the grouping the node lives under rather than the default one", async () => {
+    // The root answers with two schemas; `sales` is not the one a fresh level
+    // would have picked, so a location that names it must override the default.
+    answers([schema("public"), schema("sales")], [table("sales.leads", "leads")])
+
+    await withLevel(async (level) => {
+      await level.showLocation({ crumbs: [], groups: ["sales"], parentId: null })
+
+      expect(level.selectedGroups.value).toEqual(["sales"])
+      expect(level.items.value.map((node) => node.label)).toEqual(["leads"])
+    })
+  })
+
+  it("does not disturb a level that is already the right one", async () => {
+    // Ticks are the user's, and pointing at a row that is already on screen
+    // is no reason to take them away.
+    const spy = answers(
+      [schema("public")],
+      [table("public.orders", "orders"), table("public.leads", "leads")]
+    )
+
+    await withLevel(async (level) => {
+      await level.load()
+      level.checked.value = ["public.orders"]
+      const readsSoFar = spy.mock.calls.length
+
+      await level.showLocation({ crumbs: [], groups: ["public"], parentId: null })
+
+      expect(level.checked.value).toEqual(["public.orders"])
+      expect(spy.mock.calls.length).toBe(readsSoFar)
+    })
+  })
+})

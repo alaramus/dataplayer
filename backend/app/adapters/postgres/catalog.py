@@ -1,3 +1,6 @@
+from collections.abc import Mapping
+from typing import Any
+
 from app.adapters.catalog import (
     CatalogNode,
     ColumnNode,
@@ -6,7 +9,7 @@ from app.adapters.catalog import (
     ViewNode,
 )
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.protocol import AdapterError
+from app.adapters.protocol import AdapterError, NodeNotFound
 
 _SYSTEM_SCHEMAS = ("information_schema",)
 
@@ -70,33 +73,7 @@ class PostgresCatalog:
         if not rows and not await self._schema_exists(schema):
             raise AdapterError("config", f'Schema "{schema}" does not exist')
 
-        nodes: list[CatalogNode] = []
-        for row in rows:
-            is_system = _is_system_schema(schema)
-            if row["kind"] in ("v", "m"):
-                nodes.append(
-                    ViewNode(
-                        id=f"{schema}.{row['name']}",
-                        name=row["name"],
-                        has_children=True,
-                        is_materialized=row["kind"] == "m",
-                        is_system=is_system,
-                    )
-                )
-            else:
-                estimate = int(row["row_estimate"])
-                nodes.append(
-                    TableNode(
-                        id=f"{schema}.{row['name']}",
-                        name=row["name"],
-                        has_children=True,
-                        # reltuples is -1 until the table has been analysed.
-                        row_count_estimate=estimate if estimate >= 0 else None,
-                        size_bytes=row["size_bytes"],
-                        is_system=is_system,
-                    )
-                )
-        return nodes
+        return [_relation_of(schema, row["name"], row) for row in rows]
 
     async def _list_columns(self, schema: str, table: str) -> list[CatalogNode]:
         rows = await self._session.query(
@@ -132,8 +109,103 @@ class PostgresCatalog:
             for row in rows
         ]
 
+    async def path_to(self, node_id: str) -> list[CatalogNode]:
+        """Every node from the root down to node_id, the node itself last.
+
+        Taken apart by the same `partition` that `list_children` uses, so the
+        two cannot disagree about what an id means. Each step is confirmed
+        against the server rather than assumed from the shape of the string:
+        an id survives in a tab across a `DROP TABLE`, and the caller has to
+        be able to tell "it moved" from "it is gone".
+        """
+        schema, _, rest = node_id.partition(".")
+        relation, _, column = rest.partition(".")
+
+        path: list[CatalogNode] = [await self._schema_node(schema, node_id)]
+        if not relation:
+            return path
+
+        path.append(await self._relation_node(schema, relation, node_id))
+        if not column:
+            return path
+
+        path.append(await self._column_node(schema, relation, column, node_id))
+        return path
+
+    async def _schema_node(self, schema: str, node_id: str) -> CatalogNode:
+        if not await self._schema_exists(schema):
+            raise NodeNotFound(node_id)
+        return SchemaNode(
+            id=schema,
+            name=schema,
+            has_children=True,
+            is_system=_is_system_schema(schema),
+        )
+
+    async def _relation_node(
+        self, schema: str, relation: str, node_id: str
+    ) -> CatalogNode:
+        """One relation, described exactly as the listing of its schema would.
+
+        Asked for by name rather than found in the listing: a schema of ten
+        thousand tables would otherwise be read whole to describe one of them.
+        """
+        rows = await self._session.query(
+            """
+            SELECT c.relkind AS kind,
+                   c.reltuples AS row_estimate,
+                   pg_total_relation_size(c.oid) AS size_bytes
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = %s AND c.relname = %s
+              AND c.relkind IN ('r', 'p', 'v', 'm')
+            """,
+            (schema, relation),
+        )
+        if not rows:
+            raise NodeNotFound(node_id)
+
+        row = rows[0]
+        return _relation_of(schema, relation, row)
+
+    async def _column_node(
+        self, schema: str, relation: str, column: str, node_id: str
+    ) -> CatalogNode:
+        columns = await self._list_columns(schema, relation)
+        for node in columns:
+            if node.name == column:
+                return node
+        raise NodeNotFound(node_id)
+
     async def _schema_exists(self, schema: str) -> bool:
         rows = await self._session.query(
             "SELECT 1 FROM pg_namespace WHERE nspname = %s", (schema,)
         )
         return bool(rows)
+
+
+def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
+    """One relation as a node, from a row that names its kind and its size.
+
+    Shared by the listing and by `path_to` so a table cannot be described one
+    way when walked into and another way when pointed at.
+    """
+    is_system = _is_system_schema(schema)
+    if row["kind"] in ("v", "m"):
+        return ViewNode(
+            id=f"{schema}.{name}",
+            name=name,
+            has_children=True,
+            is_materialized=row["kind"] == "m",
+            is_system=is_system,
+        )
+    estimate = int(row["row_estimate"])
+    return TableNode(
+        id=f"{schema}.{name}",
+        name=name,
+        has_children=True,
+        # reltuples is -1 until the table has been analysed.
+        row_count_estimate=estimate if estimate >= 0 else None,
+        size_bytes=row["size_bytes"],
+        is_system=is_system,
+    )

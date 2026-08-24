@@ -69,6 +69,9 @@ class FullAdapter(FakeAdapter):
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         return []
 
+    async def path_to(self, node_id: str) -> list[CatalogNode]:
+        return []
+
     async def fetch(self, request: FetchRequest) -> FetchResult:
         raise NotImplementedError
 
@@ -172,7 +175,7 @@ def test_capabilities_are_read_off_the_protocols_the_driver_satisfies() -> None:
 
     titles = [c.title for c in registry.capabilities_of(registry.get("fake"))]
 
-    assert titles[:2] == ["Browse the catalog", "Read rows"]
+    assert titles[:3] == ["Browse the catalog", "Locate a node", "Read rows"]
 
 
 def test_capabilities_carry_the_titles_of_the_declared_actions() -> None:

@@ -102,6 +102,7 @@ and the known deviations live there.
 | D18 | The transport does not know a single topic | [realtime](docs/architecture/realtime.md) |
 | D19 | A monitor belongs to a user, and lives only while somebody watches | [realtime](docs/architecture/realtime.md) |
 | D20 | A switched-off connection is not a source | [adapters](docs/architecture/adapters.md) |
+| D21 | A source says where a node lives, and the client never takes an id apart | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
