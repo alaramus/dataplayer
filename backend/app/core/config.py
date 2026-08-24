@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     POOL_MAX_POOLS: int = 20
     POOL_MAX_IDLE_SECONDS: float = 300.0
 
+    # How long a socket may stay open without saying who it is. A socket that
+    # says nothing still holds a connection.
+    WS_AUTH_TIMEOUT_SECONDS: float = 5.0
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def _use_psycopg_driver(cls, value: str | PostgresDsn) -> str:

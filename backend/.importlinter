@@ -13,6 +13,7 @@ layers =
     app.system
     app.connectors
     app.adapters
+    app.realtime
     app.users
     app.core
 exhaustive = false
@@ -24,6 +25,7 @@ source_modules =
     app.core
 forbidden_modules =
     app.users
+    app.realtime
     app.adapters
     app.connectors
     app.system
@@ -38,6 +40,7 @@ type = forbidden
 source_modules =
     app.core
     app.users
+    app.realtime
     app.connectors
     app.system
     app.api

@@ -9,6 +9,7 @@ from starlette.middleware.cors import CORSMiddleware
 from app.adapters.resources import ResourceStore
 from app.api.main import api_router
 from app.core.config import settings
+from app.realtime import topics
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -30,9 +31,11 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         max_entries=settings.POOL_MAX_POOLS,
         max_idle_seconds=settings.POOL_MAX_IDLE_SECONDS,
     )
+    application.state.topics = topics.build_all()
     try:
         yield
     finally:
+        await application.state.topics.aclose()
         await application.state.resources.aclose()
 
 
