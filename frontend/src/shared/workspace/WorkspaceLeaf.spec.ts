@@ -80,6 +80,39 @@ describe("a section", () => {
     expect(seen).toEqual(["p2"])
   })
 
+  it("opens the window when the icon of a catalog tab is clicked", async () => {
+    const iconSeen: string[] = []
+    const activated: string[] = []
+    const wrapper = mountLeaf(
+      contextFor({
+        lookOf: (panelId) => ({
+          title: `title ${panelId}`,
+          icon: "square",
+          iconTooltip: panelId === "p1" ? "Edit connection" : undefined,
+        }),
+        onIconClick: (id) => iconSeen.push(id),
+        activate: (id) => activated.push(id),
+      })
+    )
+    await wrapper.get('[data-testid="workspace-tab-icon-p1"]').trigger("click")
+    expect(iconSeen).toEqual(["p1"])
+    expect(activated).toEqual([])
+  })
+
+  it("shows a plain icon when the tab has no action", () => {
+    const wrapper = mountLeaf(contextFor())
+    expect(wrapper.find('[data-testid="workspace-tab-icon-p1"]').exists()).toBe(false)
+  })
+
+  it("shows no actionable icon when the handler is absent even though the tooltip is there", () => {
+    const wrapper = mountLeaf(
+      contextFor({
+        lookOf: () => ({ title: "title p1", icon: "square", iconTooltip: "Edit connection" }),
+      })
+    )
+    expect(wrapper.find('[data-testid="workspace-tab-icon-p1"]').exists()).toBe(false)
+  })
+
   it("does not activate the panel when its cross is clicked", async () => {
     // Without @click.stop the cross would bubble to the tab it sits in, so
     // closing a background panel would activate it on the way out.

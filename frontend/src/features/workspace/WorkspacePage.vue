@@ -168,6 +168,26 @@ function pickAdapterType(adapterType: string) {
   openConnectorWindow(null, adapterType)
 }
 
+function editConnector(connectorId: string | null) {
+  // A new connection starts at the catalog, an existing one at its window.
+  if (connectorId === null) {
+    catalogOpen.value = true
+    return
+  }
+  const found = (connectors.data.value?.data ?? []).find((row) => row.id === connectorId)
+  if (found) openConnectorWindow(found, null)
+}
+
+// A click on the icon of a tab opens the window of the connection
+// that owns it, rather than activating the tab. The tab itself still
+// activates on a click anywhere else. Both the catalog in the second
+// column and the data tabs in the third carry the same action, because
+// several data tabs from several connections can be open at once. See T5.
+workspace.context.onIconClick = (panelId: string) => {
+  const panel = workspace.panels.value.find((one) => one.id === panelId)
+  if (panel?.kind === "catalog" || panel?.kind === "rows") editConnector(panel.connectorId)
+}
+
 provide(workspaceActionsKey, {
   activeConnectorId,
   openConnectorIds: openConnectors,
@@ -190,15 +210,7 @@ provide(workspaceActionsKey, {
       ...request,
     })
   },
-  editConnector: (connectorId: string | null) => {
-    // A new connection starts at the catalog, an existing one at its window.
-    if (connectorId === null) {
-      catalogOpen.value = true
-      return
-    }
-    const found = (connectors.data.value?.data ?? []).find((row) => row.id === connectorId)
-    if (found) openConnectorWindow(found, null)
-  },
+  editConnector,
 })
 </script>
 

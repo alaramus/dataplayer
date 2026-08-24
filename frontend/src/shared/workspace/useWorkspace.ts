@@ -46,6 +46,8 @@ export interface WorkspaceOptions<P extends { id: string }> {
    * or every render replaces it.
    */
   collapsed?: (panel: P) => Component | null
+  /** What a click on the icon of a tab does, if anything. */
+  onIconClick?: (panel: P) => void
 }
 
 /** How an opened panel treats the ones already there. */
@@ -192,6 +194,13 @@ export function useWorkspace<P extends { id: string }>(
     activate: (panelId) => {
       tree.value = activatePanel(tree.value, panelId)
     },
+    onIconClick:
+      options.onIconClick === undefined
+        ? undefined
+        : (panelId) => {
+            const panel = panelOf(panelId)
+            if (panel !== undefined) options.onIconClick?.(panel)
+          },
     close,
     closeOthers,
     focus: (leafId) => {

@@ -22,6 +22,15 @@ export interface PanelLook {
    * connections has no parameters and nothing to say once closed. See T3.
    */
   closable?: boolean
+  /**
+   * What the icon says when hovered, if clicking it does something of its
+   * own rather than activating the tab.
+   *
+   * Absent means the icon is inert: the catalog carries "Edit connection"
+   * here and a data tab carries nothing, so the engine knows which tabs
+   * have an actionable icon without knowing what a catalog is. See T5.
+   */
+  iconTooltip?: string
 }
 
 /**
@@ -62,6 +71,16 @@ export interface WorkspaceContext {
    */
   admissionOf: (leafId: NodeId) => DropAdmission
   activate: (panelId: PanelId) => void
+  /**
+   * What a click on the icon of a tab does, if the feature says it does
+   * anything at all rather than activating the tab.
+   *
+   * Asked of the context rather than worked out by the section, because the
+   * answer needs the panel being clicked and what the feature wants to do
+   * with it - for a catalog that is opening the edit window, for data it is
+   * nothing. The engine knows the tab, not what a catalog is. See T5.
+   */
+  onIconClick?: (panelId: PanelId) => void
   close: (panelId: PanelId) => void
   /**
    * Close every panel of this section but the active one.

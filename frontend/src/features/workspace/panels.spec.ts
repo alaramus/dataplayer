@@ -89,6 +89,17 @@ describe("the panel registry", () => {
     expect(lookOf(samples.rows).icon).not.toBe(lookOf(samples.connectors).icon)
   })
 
+  it("draws a catalog tab with the icon of its source rather than a generic one", () => {
+    expect(lookOf(samples.catalog).icon).toBe(adapterIcon("postgres"))
+    expect(lookOf(samples.catalog).icon).not.toBe(lookOf(samples.connectors).icon)
+  })
+
+  it("lets the icon of a tab open the window of that connection", () => {
+    expect(lookOf(samples.catalog).iconTooltip).toBe("Edit connection")
+    expect(lookOf(samples.rows).iconTooltip).toBe("Edit connection")
+    expect(lookOf(samples.connectors).iconTooltip).toBeUndefined()
+  })
+
   it("refuses a rows panel that does not say whose it is", () => {
     expect(
       panelSchema.safeParse({

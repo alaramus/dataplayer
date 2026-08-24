@@ -5,7 +5,6 @@ import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import type { ListNode } from "@/features/catalog/nodes"
-import { adapterIcon } from "@/features/connectors/adapters"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppBanner, AppIconButton, AppInput, AppSelect, useToast } from "@/shared/ui"
 
@@ -77,14 +76,7 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
   <div class="catalog-panel">
     <div class="catalog-panel__head">
       <div class="catalog-panel__bar">
-        <AppIconButton
-          :icon="adapterIcon(adapterType)"
-          tooltip="Edit connection"
-          data-testid="catalog-connector"
-          @click="workspace.editConnector(connectorId)"
-        />
-        <!-- Where we are, on the same line as the icon of the connection and
-             the menu: three things about this connection, not a stack of
+        <!-- Where we are, on the same line as the menu, not a stack of
              lines. Starting at a home button rather than at the name of the
              connection — the name is on the tab above, and what the first step
              of a path means is "back to the top". Whether this is a path or a
@@ -209,7 +201,7 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
   padding: 4px 4px 0;
 }
 /* One line of one height, whatever the source puts in it.
-   An icon button and the menu are 32px, a field is 40, and a source with no
+   A button and the menu are 32px, a field is 40, and a source with no
    groupings puts neither — so the height is stated here rather than left to
    be whatever the tallest thing in it happens to be. Moving between two
    connections must not move the list under them, and a rule about the panel

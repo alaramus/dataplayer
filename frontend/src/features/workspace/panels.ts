@@ -134,15 +134,21 @@ export function lookOf(panel: Panel): PanelLook {
       // with nothing to say about how to bring it back. See T3.
       return { title: "Connections", icon: "lan", closable: false }
     case "catalog":
-      return { title: panel.title, icon: adapterIcon(panel.adapterType) }
+      return {
+        title: panel.title,
+        icon: adapterIcon(panel.adapterType),
+        iconTooltip: "Edit connection",
+      }
     case "rows":
       // The icon of the source rather than a generic grid: with several
       // catalogs open the right-hand column holds tabs from several
-      // connections at once.
+      // connections at once. The icon is also the way to reach the
+      // connection that owns the node.
       return {
         title: panel.title,
         subtitle: panel.connectorName,
         icon: adapterIcon(panel.adapterType),
+        iconTooltip: "Edit connection",
       }
   }
 }

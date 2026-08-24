@@ -17,6 +17,10 @@ export function catalogTab(page: Page) {
   return page.locator('[data-testid^="workspace-tab-catalog:"]').first()
 }
 
+export function catalogTabIcon(page: Page) {
+  return page.locator('[data-testid^="workspace-tab-icon-catalog:"]').first()
+}
+
 export function rowsTabs(page: Page) {
   return page.locator('[data-testid^="workspace-tab-rows:"]')
 }

@@ -183,7 +183,25 @@ const overlayStyle = computed((): CSSProperties => {
           @pointerdown="onTabPointerDown($event, panelId)"
           @click="workspace.activate(panelId)"
         >
+          <span
+            v-if="workspace.lookOf(panelId).iconTooltip && workspace.onIconClick"
+            class="workspace-leaf__icon workspace-leaf__icon--action"
+            :data-testid="`workspace-tab-icon-${panelId}`"
+            role="button"
+            tabindex="0"
+            @click.stop="workspace.onIconClick?.(panelId)"
+            @keydown.enter.stop="workspace.onIconClick?.(panelId)"
+            @keydown.space.stop.prevent="workspace.onIconClick?.(panelId)"
+            @pointerdown.stop
+          >
+            <q-icon
+              :name="workspace.lookOf(panelId).icon"
+              size="16px"
+            />
+            <AppTooltip>{{ workspace.lookOf(panelId).iconTooltip }}</AppTooltip>
+          </span>
           <q-icon
+            v-else
             :name="workspace.lookOf(panelId).icon"
             size="16px"
           />
@@ -336,6 +354,21 @@ const overlayStyle = computed((): CSSProperties => {
 .workspace-leaf__tab--active {
   background: var(--dp-active);
   font-weight: 500;
+}
+.workspace-leaf__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.workspace-leaf__icon--action {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px;
+  margin: -2px;
+}
+.workspace-leaf__icon--action:hover {
+  background: var(--dp-hover);
 }
 .workspace-leaf__title {
   overflow: hidden;

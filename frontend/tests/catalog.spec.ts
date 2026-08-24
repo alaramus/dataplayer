@@ -5,7 +5,12 @@ import type { Page } from "@playwright/test"
 import { catalogRow, pickSchema } from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
+import {
+  catalogTabIcon,
+  connectorRow,
+  deleteConnector,
+  openConnector,
+} from "./utils/workspace"
 
 test("browses a database as a list filtered by schema", async ({ page }) => {
   const name = `e2e-catalog-${Date.now()}`
@@ -41,15 +46,15 @@ test("browses a database as a list filtered by schema", async ({ page }) => {
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
-test("the head of the catalog opens the window of its connection", async ({ page }) => {
+test("the tab icon of the catalog opens the window of its connection", async ({ page }) => {
   const name = `e2e-head-${Date.now()}`
   await login(page)
   await createPostgresConnector(page, name)
   await openConnector(page, name)
 
-  // Reachable from here as well as from the list, because the column that
-  // holds the list can be collapsed.
-  await page.getByTestId("catalog-connector").click()
+  // The icon of the tab, rather than a button in the head: the tab is
+  // always visible while the catalog's own column can be collapsed.
+  await catalogTabIcon(page).click()
   await expect(page.getByTestId("connector-name")).toHaveValue(name)
 
   await page.getByTestId("delete-connector").click()
@@ -79,8 +84,8 @@ test("the head of a catalog is one height across source types", async ({ page })
   await createPostgresConnector(page, database)
   await createFileConnector(page, files)
 
-  // A database: an icon, a choice of schemas, and no menu — postgres declares
-  // no actions.
+  // A database: a choice of schemas and no menu — postgres declares no
+  // actions. The icon of the source lives on the tab, not in the head.
   await openConnector(page, database)
   await expect(page.getByTestId("catalog-list")).toContainText("connector")
   const withGroups = await headHeight(page)
@@ -89,8 +94,8 @@ test("the head of a catalog is one height across source types", async ({ page })
   await expect(page.getByTestId("catalog-list")).toContainText("pg_class")
   expect(await headHeight(page)).toBe(withGroups)
 
-  // Personal storage at its root: an icon and a menu, and no path — one step
-  // says nothing, so no crumbs are drawn.
+  // Personal storage at its root: a menu and no path — one step says
+  // nothing, so no crumbs are drawn. The icon is on the tab.
   await openConnector(page, files)
   await expect(page.getByTestId("catalog-actions")).toBeVisible()
   expect(await headHeight(page)).toBe(withGroups)

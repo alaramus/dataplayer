@@ -3,7 +3,13 @@ import { expect, test } from "@playwright/test"
 import { catalogRow, openNode } from "./utils/catalog"
 import { createFileConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { connectorRow, deleteConnector, openConnector, rowsTabs } from "./utils/workspace"
+import {
+  catalogTabIcon,
+  connectorRow,
+  deleteConnector,
+  openConnector,
+  rowsTabs,
+} from "./utils/workspace"
 
 // The samples come from `docker compose exec backend python -m app.seed_storage`:
 // this sub-project cannot write files, so a personal directory is empty until
@@ -30,14 +36,9 @@ test("browses a personal directory and reads files as rows", async ({ page }) =>
   await openNode(page, "reports")
   await expect(page.getByTestId("catalog-path")).toContainText("reports")
 
-  // It shares the line with the icon of the source and the menu: a column
-  // this narrow cannot afford a stack of them, and a unit test cannot tell
-  // one line from two.
-  const icon = await page.getByTestId("catalog-connector").boundingBox()
-  const path = await page.getByTestId("catalog-path").boundingBox()
-  const middle = (box: { y: number; height: number } | null) =>
-    box === null ? 0 : box.y + box.height / 2
-  expect(Math.abs(middle(icon) - middle(path))).toBeLessThan(4)
+  // The source icon lives on the tab, not in the head - the head holds
+  // the path and the menu on one line.
+  await expect(catalogTabIcon(page)).toBeVisible()
   await expect(list).toContainText("q3.csv")
 
   // The way back is the first row of the list, as it is in any other
