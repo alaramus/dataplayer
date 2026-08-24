@@ -328,6 +328,7 @@ function flash() {
     <AppCard
       size="lg"
       title="Panels"
+      class="q-mb-md"
     >
       <AppSection>
         <div class="row items-center q-gutter-sm">
