@@ -312,6 +312,5 @@ Sub-projects 1–6 and the workspace rounds are done; see
 [the spec index](docs/superpowers/specs/README.md) for what each settled.
 
 Sub-project 7a — the socket and connection health — is done. What is left of 7
-is the AI pipeline and the data grid, and both sit on that socket: a new thing
-to push is a topic plus a line of registration, never an edit to the
-transport.
+is the data grid, and it sits on that socket: a new thing to push is a topic
+plus a line of registration, never an edit to the transport.
