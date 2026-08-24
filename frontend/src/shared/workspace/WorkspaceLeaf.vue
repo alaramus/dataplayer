@@ -2,6 +2,8 @@
 import { computed, inject, ref } from "vue"
 import type { CSSProperties } from "vue"
 
+import AppTooltip from "@/shared/ui/AppTooltip.vue"
+
 import { workspaceKey } from "./context"
 import type { WorkspaceContext } from "./context"
 import { dropShape, dropZoneFor } from "./dropZone"
@@ -208,7 +210,6 @@ const overlayStyle = computed((): CSSProperties => {
         v-if="!leaf.collapsed && closableOthers > 0"
         type="button"
         class="workspace-leaf__collapse"
-        title="Close the other tabs"
         :data-testid="`workspace-close-others-${leaf.id}`"
         @click="workspace.closeOthers(leaf.id)"
       >
@@ -216,13 +217,13 @@ const overlayStyle = computed((): CSSProperties => {
           name="clear_all"
           size="16px"
         />
+        <AppTooltip>Close the other tabs</AppTooltip>
       </button>
 
       <button
         v-if="collapsible"
         type="button"
         class="workspace-leaf__collapse"
-        :title="collapsedTitle"
         :data-testid="`workspace-collapse-${leaf.id}`"
         @click="workspace.toggleCollapse(leaf.id)"
       >
@@ -230,6 +231,7 @@ const overlayStyle = computed((): CSSProperties => {
           :name="leaf.collapsed ? 'chevron_right' : 'chevron_left'"
           size="16px"
         />
+        <AppTooltip>{{ collapsedTitle }}</AppTooltip>
       </button>
     </div>
 
