@@ -1,4 +1,6 @@
 import pytest
+from psycopg.types.multirange import Multirange
+from psycopg.types.range import Range
 
 from app.adapters.fetch import FetchRequest, Filter, Sort
 from app.adapters.postgres.adapter import PostgresAdapter
@@ -21,7 +23,20 @@ CONNECTOR_TABLE = "public.connector"
     ],
 )
 def test_binary_values_are_encoded_as_hex(value: object, expected: object) -> None:
-    assert PostgresFetch._encode_binary(value) == expected
+    assert PostgresFetch._encode_value(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (Range(1, 5), "[1, 5)"),
+        (Multirange([Range(1, 5), Range(10, 20)]), "{[1, 5), [10, 20)}"),
+        ([Range(1, 5)], ["[1, 5)"]),
+    ],
+)
+def test_range_values_are_encoded_as_text(value: object, expected: object) -> None:
+    """Driver range objects must cross the JSON response boundary."""
+    assert PostgresFetch._encode_value(value) == expected
 
 
 def _adapter() -> PostgresAdapter:

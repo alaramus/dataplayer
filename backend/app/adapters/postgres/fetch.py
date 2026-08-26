@@ -1,6 +1,8 @@
 from typing import Any
 
 from psycopg import sql
+from psycopg.types.multirange import Multirange
+from psycopg.types.range import Range
 
 from app.adapters.fetch import (
     NULLARY_OPS,
@@ -59,16 +61,24 @@ class PostgresFetch:
         return FetchResult(
             columns=columns,
             rows=[
-                [self._encode_binary(row[name]) for name in order] for row in page
+                [self._encode_value(row[name]) for name in order] for row in page
             ],
             has_more=has_more,
         )
 
     @staticmethod
-    def _encode_binary(value: Any) -> Any:
-        """Convert PostgreSQL binary values to the hex representation."""
+    def _encode_value(value: Any) -> Any:
+        """Convert driver-specific values into JSON-compatible values."""
         if isinstance(value, bytes | bytearray | memoryview):
             return f"0x{bytes(value).hex().upper()}"
+        if isinstance(value, Range | Multirange):
+            return str(value)
+        if isinstance(value, list | tuple):
+            return [PostgresFetch._encode_value(item) for item in value]
+        if isinstance(value, dict):
+            return {
+                key: PostgresFetch._encode_value(item) for key, item in value.items()
+            }
         return value
 
     @staticmethod
