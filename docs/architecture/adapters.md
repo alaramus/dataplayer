@@ -4,7 +4,7 @@ What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
-D20, D21.
+D20, D21, D22.
 
 ## What exists today
 
@@ -23,13 +23,15 @@ sorting and no filtering, because a file has no index. No connection string.
 ```
 backend/app/adapters/
 ├── protocol.py      DataAdapter, SupportsCatalog, SupportsNodePath,
-│                    SupportsFetch, SupportsConnectionString,
+│                    SupportsFetch, SupportsRelationModel,
+│                    SupportsConnectionString,
 │                    ParsesConnectionString, AdapterError, NodeNotFound
 ├── options.py       the one seam over an options schema, model or union:
 │                    json_schema / validate / variants / secret_field_names
 ├── layout.py        where a field goes in the window that edits it
 ├── catalog.py       CatalogNode: a union discriminated by kind; NodeKind
 ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
+├── relation.py      relation, column, constraint and index models
 ├── actions.py       Action, ActionSet, SupportsActions, ActionType,
 │                    DeclaresActions, transports, refusals
 ├── resources.py     ResourceStore: what outlives a request; Pooling
@@ -37,7 +39,7 @@ backend/app/adapters/
 │                    capabilities_of
 ├── routes.py        GET /adapter-types
 ├── postgres/        options.py (a union by auth_method), session.py, pool.py,
-│                    catalog.py, fetch.py, adapter.py (facade)
+│                    catalog.py, fetch.py, relation.py, adapter.py (facade)
 └── file/            session.py (root and containment), catalog.py, fetch.py,
                      readers.py, actions.py, adapter.py (facade)
 ```
@@ -191,9 +193,50 @@ Consequences:
 Known deviation:
 
 - **A path is confirmed level by level.** PostgreSQL asks the server once per
-  step to be sure each one is really there. Three round trips for a column is
+  step to be sure each one is really there. Two round trips for a relation is
   nothing next to being told a table exists when it does not, but a source with
   deep trees would want one query for the whole chain.
+
+## D22. A source describes a relation in full, and a column type is an object
+
+`SupportsRelationModel.relation_model(node_id)` returns one `RelationModel`:
+columns, constraints, indexes and partitioning together with the relation's
+identity and metadata. It is separate from `SupportsCatalog`: an object store
+can have a catalog without having relations, so the file source answers 501
+rather than inventing a model. PostgreSQL composes this capability beside its
+catalog and fetch modules, and `GET /connectors/{id}/relation-model` exposes it.
+
+A type name cannot do three jobs safely. `ColumnType.sql` is PostgreSQL's
+`format_type(atttypid, atttypmod)`, which can be written back into DDL;
+`category` tells the grid how values behave; the remaining fields carry parsed
+facts such as an array element, dimensions, enum labels, length, precision and
+scale. `pg_type.typname` is deliberately absent: it says `_int4` for
+`integer[]`, while another common spelling drops the `(50)` from `varchar(50)`.
+The integration test builds a new table from every returned `type.sql` and
+describes it again, so both failures are exercised by a real DDL round trip.
+
+A constraint is one top-level discriminated object with its columns in key
+order. It is not copied onto every column: doing that split a composite foreign
+key into independent one-column links in the old application. Foreign keys
+carry the target's adapter-produced `node_id`, so D21 still holds. The screen
+derives per-column badges from these relation-level objects and can show the
+same structure tab beside the relation's rows.
+
+PostgreSQL reads four sets in sequence: relations, columns, constraints and
+indexes. Each query is written over a whole schema, with the relation name as
+an optional value predicate. This leaves schema-wide loading as a caller
+change, not a query rewrite, while keeping all client values in placeholders.
+The catalog no longer descends into a relation: tables and views are leaves,
+and the relation model is the single description of their columns.
+
+Known deviations:
+
+- **There is no server-side cache.** Vue Query keeps a model fresh for five
+  minutes, but a second client asks PostgreSQL again. Correct invalidation after
+  DDL needs measurements and a design of its own.
+- **Only one relation is exposed at a time.** The private PostgreSQL query path
+  already accepts no relation predicate, but no public schema-wide response or
+  cache uses that form yet.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

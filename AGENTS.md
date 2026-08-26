@@ -70,6 +70,8 @@ strings, test names, commit messages and documentation. The only exception is
   screen is open. A connection can be switched off: it stays in the list, is
   not probed and cannot be opened.
 - Light and dark themes, remembered.
+- A relation describes itself: columns with a parsed type, ordered constraints,
+  indexes and partitioning. Its structure opens in a tab beside its rows.
 
 ## Decisions
 
@@ -103,6 +105,7 @@ and the known deviations live there.
 | D19 | A monitor belongs to a user, and lives only while somebody watches | [realtime](docs/architecture/realtime.md) |
 | D20 | A switched-off connection is not a source | [adapters](docs/architecture/adapters.md) |
 | D21 | A source says where a node lives, and the client never takes an id apart | [adapters](docs/architecture/adapters.md) |
+| D22 | A source describes a relation in full, and a column type is an object | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.

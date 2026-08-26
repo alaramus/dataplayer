@@ -43,6 +43,8 @@ frontend/src/
     │                    actions.ts are pure mappers, and nodes.ts holds the
     │                    table that says what a kind of node does;
     │                    useCatalogLevel.ts walks a catalog outside any component
+    ├── structure/       a relation model in its own tab: columns, ordered
+    │                    constraints and indexes; model.ts maps them to badges
     ├── connectors/      the list of sources, the catalog of source types that
     │                    starts a new one, and the window that registers one;
     │                    adapterSearch.ts is a pure mapper
