@@ -12,7 +12,7 @@ export type CatalogNode = connectorsReadCatalogResponses[200][number]
  * one walks into, and a table is something to open. Adding a source type that
  * brings databases or namespaces means adding a line here, not a branch.
  */
-export type NodeRole = "group" | "container" | "leaf" | "hidden"
+export type NodeRole = "group" | "container" | "leaf"
 
 const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   schema: "group",
@@ -20,9 +20,6 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   table: "leaf",
   view: "leaf",
   file: "leaf",
-  // A column belongs to the grid that shows the rows, and is not a level of
-  // the catalog: a click on a table would otherwise have two meanings.
-  column: "hidden",
 }
 
 export interface ListNode {
@@ -53,7 +50,6 @@ const ICONS: Record<CatalogNode["kind"], string> = {
   schema: "folder",
   table: "table_chart",
   view: "visibility",
-  column: "label",
   directory: "folder_open",
   file: "insert_drive_file",
 }
@@ -88,8 +84,6 @@ function iconOf(node: CatalogNode): string {
 
 function captionOf(node: CatalogNode): string | undefined {
   switch (node.kind) {
-    case "column":
-      return node.nullable ? `${node.data_type}, nullable` : node.data_type
     case "table":
       return node.row_count_estimate === null || node.row_count_estimate === undefined
         ? undefined
@@ -133,26 +127,24 @@ function isReadable(node: CatalogNode): boolean {
  *
  * The switches narrow on `kind`, so a new node kind added on the backend
  * becomes a type error here rather than a silently missing caption or a row
- * nobody decided what to do with. Nodes of a hidden kind are dropped.
+ * nobody decided what to do with.
  */
 export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
-  return nodes
-    .filter((node) => roleOfKind(node.kind) !== "hidden")
-    .map((node) => ({
-      id: node.id,
-      label: node.name,
-      caption: captionOf(node),
-      icon: iconOf(node),
-      role: roleOfKind(node.kind),
-      kind: node.kind,
-      readable: isReadable(node),
-      system: isSystem(node),
-      // Only a table knows roughly how many rows it holds. A file would have
-      // to be read from end to end to answer, so the grid pages without a
-      // total.
-      rowEstimate: node.kind === "table" ? node.row_count_estimate : null,
-      ...(group === undefined ? {} : { group }),
-    }))
+  return nodes.map((node) => ({
+    id: node.id,
+    label: node.name,
+    caption: captionOf(node),
+    icon: iconOf(node),
+    role: roleOfKind(node.kind),
+    kind: node.kind,
+    readable: isReadable(node),
+    system: isSystem(node),
+    // Only a table knows roughly how many rows it holds. A file would have
+    // to be read from end to end to answer, so the grid pages without a
+    // total.
+    rowEstimate: node.kind === "table" ? node.row_count_estimate : null,
+    ...(group === undefined ? {} : { group }),
+  }))
 }
 
 /** The groupings among a level's children: what the filter above it offers. */

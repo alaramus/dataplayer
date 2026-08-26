@@ -47,6 +47,9 @@ import type {
   connectorsReadNodePathData,
   connectorsReadNodePathErrors,
   connectorsReadNodePathResponses,
+  connectorsReadRelationModelData,
+  connectorsReadRelationModelErrors,
+  connectorsReadRelationModelResponses,
   connectorsRunActionData,
   connectorsRunActionErrors,
   connectorsRunActionResponses,
@@ -749,6 +752,26 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/catalog",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Relation Model
+   *
+   * Describe one relation named by its opaque catalog node id.
+   */
+  public static readRelationModel<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadRelationModelData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      connectorsReadRelationModelResponses,
+      connectorsReadRelationModelErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/relation-model",
       ...options,
     })
   }

@@ -3,7 +3,6 @@ from pydantic import TypeAdapter, ValidationError
 
 from app.adapters.catalog import (
     CatalogNode,
-    ColumnNode,
     DirectoryNode,
     FileNode,
     SchemaNode,
@@ -25,22 +24,12 @@ def test_union_discriminates_by_kind() -> None:
                 "kind": "table",
                 "row_count_estimate": 42,
             },
-            {
-                "id": "public.users.email",
-                "name": "email",
-                "has_children": False,
-                "kind": "column",
-                "data_type": "varchar",
-                "nullable": False,
-            },
         ]
     )
 
     assert isinstance(parsed[0], SchemaNode)
     assert isinstance(parsed[1], TableNode)
-    assert isinstance(parsed[2], ColumnNode)
     assert parsed[1].row_count_estimate == 42
-    assert parsed[2].data_type == "varchar"
 
 
 def test_unknown_kind_is_rejected() -> None:
@@ -67,14 +56,6 @@ def test_a_field_of_one_kind_is_not_accepted_on_another() -> None:
                 }
             ]
         )
-
-
-def test_column_has_no_children_by_default() -> None:
-    column = ColumnNode(
-        id="public.users.email", name="email", data_type="varchar", nullable=True
-    )
-
-    assert column.has_children is False
 
 
 def test_adapter_error_carries_kind_and_message() -> None:

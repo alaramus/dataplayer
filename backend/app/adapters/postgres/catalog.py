@@ -3,7 +3,6 @@ from typing import Any
 
 from app.adapters.catalog import (
     CatalogNode,
-    ColumnNode,
     SchemaNode,
     TableNode,
     ViewNode,
@@ -31,10 +30,7 @@ class PostgresCatalog:
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         if node_id is None:
             return await self._list_schemas()
-        schema, _, table = node_id.partition(".")
-        if table:
-            return await self._list_columns(schema, table)
-        return await self._list_relations(schema)
+        return await self._list_relations(node_id)
 
     async def _list_schemas(self) -> list[CatalogNode]:
         rows = await self._session.query(
@@ -75,40 +71,6 @@ class PostgresCatalog:
 
         return [_relation_of(schema, row["name"], row) for row in rows]
 
-    async def _list_columns(self, schema: str, table: str) -> list[CatalogNode]:
-        rows = await self._session.query(
-            """
-            SELECT a.attname AS name,
-                   format_type(a.atttypid, a.atttypmod) AS data_type,
-                   NOT a.attnotnull AS nullable,
-                   COALESCE(i.indisprimary, false) AS primary_key
-            FROM pg_attribute a
-            JOIN pg_class c ON c.oid = a.attrelid
-            JOIN pg_namespace n ON n.oid = c.relnamespace
-            LEFT JOIN pg_index i
-                   ON i.indrelid = c.oid
-                  AND a.attnum = ANY (i.indkey)
-                  AND i.indisprimary
-            WHERE n.nspname = %s AND c.relname = %s
-              AND a.attnum > 0 AND NOT a.attisdropped
-            ORDER BY a.attnum
-            """,
-            (schema, table),
-        )
-        if not rows:
-            raise AdapterError("config", f'Relation "{schema}.{table}" does not exist')
-
-        return [
-            ColumnNode(
-                id=f"{schema}.{table}.{row['name']}",
-                name=row["name"],
-                data_type=row["data_type"],
-                nullable=row["nullable"],
-                primary_key=row["primary_key"],
-            )
-            for row in rows
-        ]
-
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         """Every node from the root down to node_id, the node itself last.
 
@@ -118,18 +80,13 @@ class PostgresCatalog:
         an id survives in a tab across a `DROP TABLE`, and the caller has to
         be able to tell "it moved" from "it is gone".
         """
-        schema, _, rest = node_id.partition(".")
-        relation, _, column = rest.partition(".")
+        schema, _, relation = node_id.partition(".")
 
         path: list[CatalogNode] = [await self._schema_node(schema, node_id)]
         if not relation:
             return path
 
         path.append(await self._relation_node(schema, relation, node_id))
-        if not column:
-            return path
-
-        path.append(await self._column_node(schema, relation, column, node_id))
         return path
 
     async def _schema_node(self, schema: str, node_id: str) -> CatalogNode:
@@ -168,15 +125,6 @@ class PostgresCatalog:
         row = rows[0]
         return _relation_of(schema, relation, row)
 
-    async def _column_node(
-        self, schema: str, relation: str, column: str, node_id: str
-    ) -> CatalogNode:
-        columns = await self._list_columns(schema, relation)
-        for node in columns:
-            if node.name == column:
-                return node
-        raise NodeNotFound(node_id)
-
     async def _schema_exists(self, schema: str) -> bool:
         rows = await self._session.query(
             "SELECT 1 FROM pg_namespace WHERE nspname = %s", (schema,)
@@ -195,7 +143,7 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
         return ViewNode(
             id=f"{schema}.{name}",
             name=name,
-            has_children=True,
+            has_children=False,
             is_materialized=row["kind"] == "m",
             is_system=is_system,
         )
@@ -203,7 +151,7 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
     return TableNode(
         id=f"{schema}.{name}",
         name=name,
-        has_children=True,
+        has_children=False,
         # reltuples is -1 until the table has been analysed.
         row_count_estimate=estimate if estimate >= 0 else None,
         size_bytes=row["size_bytes"],

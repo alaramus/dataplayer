@@ -23,26 +23,6 @@ describe("what the catalog does with a node", () => {
     expect(roleOfKind("file")).toBe("leaf")
   })
 
-  it("does not show a column at all: the grid has the columns", () => {
-    expect(roleOfKind("column")).toBe("hidden")
-  })
-
-  it("drops hidden nodes on the way into the list", () => {
-    const mapped = toListNodes([
-      { kind: "table", id: "t", name: "t", has_children: true },
-      {
-        kind: "column",
-        id: "t.a",
-        name: "a",
-        has_children: false,
-        data_type: "int",
-        nullable: false,
-      },
-    ])
-
-    expect(mapped.map((node) => node.id)).toEqual(["t"])
-  })
-
   it("names the grouping a node was listed under, when it was", () => {
     const mapped = first(
       toListNodes([{ kind: "table", id: "sales.orders", name: "orders", has_children: true }], "sales")

@@ -3,7 +3,7 @@ from collections.abc import AsyncGenerator
 import psycopg
 import pytest
 
-from app.adapters.catalog import ColumnNode, SchemaNode, TableNode, ViewNode
+from app.adapters.catalog import SchemaNode, TableNode, ViewNode
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.protocol import AdapterError, NodeNotFound
@@ -61,7 +61,7 @@ async def test_schema_lists_its_tables() -> None:
 
     tables = {node.name: node for node in nodes if isinstance(node, TableNode)}
     assert "connector" in tables
-    assert tables["connector"].has_children is True
+    assert tables["connector"].has_children is False
     assert tables["connector"].size_bytes is not None
 
 
@@ -73,22 +73,11 @@ async def test_schema_lists_views_separately_from_tables(temporary_view: str) ->
     assert views[temporary_view].is_materialized is False
 
 
-async def test_table_lists_its_columns() -> None:
-    nodes = await _adapter().list_children("public.connector")
+async def test_a_table_is_a_leaf_now_that_its_columns_come_from_the_model() -> None:
+    nodes = await _adapter().list_children("public")
 
-    columns = {node.name: node for node in nodes if isinstance(node, ColumnNode)}
-    assert "adapter_type" in columns
-    assert columns["adapter_type"].data_type
-    assert columns["adapter_type"].has_children is False
-    assert columns["id"].primary_key is True
-
-
-async def test_nullable_columns_are_reported() -> None:
-    nodes = await _adapter().list_children("public.connector")
-
-    columns = {node.name: node for node in nodes if isinstance(node, ColumnNode)}
-    assert columns["adapter_type"].nullable is False
-    assert columns["updated_at"].nullable is True
+    table = next(node for node in nodes if isinstance(node, TableNode))
+    assert table.has_children is False
 
 
 async def test_unknown_schema_raises_instead_of_returning_empty() -> None:
@@ -134,7 +123,7 @@ async def test_path_to_a_table_carries_what_the_listing_would_carry() -> None:
 
     table = path[-1]
     assert isinstance(table, TableNode)
-    assert table.has_children is True
+    assert table.has_children is False
     assert table.size_bytes is not None
 
 
@@ -143,14 +132,6 @@ async def test_path_to_a_view_ends_with_a_view(temporary_view: str) -> None:
 
     assert isinstance(path[-1], ViewNode)
     assert path[-1].name == temporary_view
-
-
-async def test_path_to_a_column_names_schema_table_and_column() -> None:
-    path = await _adapter().path_to("public.connector.adapter_type")
-
-    assert [node.name for node in path] == ["public", "connector", "adapter_type"]
-    assert isinstance(path[-1], ColumnNode)
-    assert path[-1].data_type
 
 
 async def test_path_to_a_schema_is_the_schema_alone() -> None:
@@ -168,8 +149,3 @@ async def test_path_to_an_unknown_schema_is_not_found() -> None:
 async def test_path_to_an_unknown_table_is_not_found() -> None:
     with pytest.raises(NodeNotFound):
         await _adapter().path_to("public.no_such_table")
-
-
-async def test_path_to_an_unknown_column_is_not_found() -> None:
-    with pytest.raises(NodeNotFound):
-        await _adapter().path_to("public.connector.no_such_column")

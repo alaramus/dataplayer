@@ -197,37 +197,119 @@ export type Capability = {
 }
 
 /**
- * ColumnNode
+ * CheckConstraint
  */
-export type ColumnNode = {
+export type CheckConstraint = {
   /**
-   * Id
+   * Kind
    */
-  id: string
+  kind?: "check"
   /**
    * Name
    */
   name: string
   /**
-   * Has Children
+   * Expression
    */
-  has_children?: boolean
+  expression: string
   /**
-   * Kind
+   * Columns
    */
-  kind?: "column"
+  columns?: Array<string>
+}
+
+/**
+ * Column
+ */
+export type Column = {
   /**
-   * Data Type
+   * Position
    */
-  data_type: string
+  position: number
+  /**
+   * Name
+   */
+  name: string
+  type: ColumnType
   /**
    * Nullable
    */
   nullable: boolean
   /**
-   * Primary Key
+   * Storage
    */
-  primary_key?: boolean
+  storage: "plain" | "main" | "external" | "extended"
+  /**
+   * Comment
+   */
+  comment?: string | null
+  /**
+   * Default
+   */
+  default?: string | null
+  /**
+   * Identity
+   */
+  identity?: "always" | "by_default" | null
+  /**
+   * Generated
+   */
+  generated?: string | null
+  /**
+   * Collation
+   */
+  collation?: string | null
+}
+
+/**
+ * ColumnType
+ *
+ * A type's DDL spelling and its value semantics.
+ */
+export type ColumnType = {
+  /**
+   * Sql
+   */
+  sql: string
+  /**
+   * Category
+   */
+  category:
+    | "number"
+    | "string"
+    | "boolean"
+    | "datetime"
+    | "binary"
+    | "json"
+    | "uuid"
+    | "network"
+    | "geometric"
+    | "range"
+    | "enum"
+    | "composite"
+    | "array"
+    | "other"
+  element?: ColumnType | null
+  /**
+   * Dimensions
+   */
+  dimensions?: number
+  /**
+   * Enum Values
+   */
+  enum_values?: Array<string> | null
+  /**
+   * Length
+   */
+  length?: number | null
+  /**
+   * Precision
+   */
+  precision?: number | null
+  /**
+   * Scale
+   */
+  scale?: number | null
 }
 
 /**
@@ -418,6 +500,24 @@ export type DirectoryNode = {
 }
 
 /**
+ * ExclusionConstraint
+ */
+export type ExclusionConstraint = {
+  /**
+   * Kind
+   */
+  kind?: "exclude"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Expression
+   */
+  expression: string
+}
+
+/**
  * FetchColumn
  */
 export type FetchColumn = {
@@ -552,6 +652,44 @@ export type Filter = {
 }
 
 /**
+ * ForeignKey
+ */
+export type ForeignKey = {
+  /**
+   * Kind
+   */
+  kind?: "foreign_key"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Columns
+   */
+  columns: Array<string>
+  /**
+   * Target Node Id
+   */
+  target_node_id: string
+  /**
+   * Target Columns
+   */
+  target_columns: Array<string>
+  /**
+   * On Update
+   */
+  on_update?: "no_action" | "restrict" | "cascade" | "set_null" | "set_default"
+  /**
+   * On Delete
+   */
+  on_delete?: "no_action" | "restrict" | "cascade" | "set_null" | "set_default"
+  /**
+   * Match
+   */
+  match?: "full" | "partial" | "simple"
+}
+
+/**
  * HTTPValidationError
  */
 export type HTTPValidationError = {
@@ -559,6 +697,44 @@ export type HTTPValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>
+}
+
+/**
+ * Index
+ */
+export type Index = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Method
+   */
+  method: string
+  /**
+   * Unique
+   */
+  unique?: boolean
+  /**
+   * Primary
+   */
+  primary?: boolean
+  /**
+   * Valid
+   */
+  valid?: boolean
+  /**
+   * Columns
+   */
+  columns?: Array<string>
+  /**
+   * Predicate
+   */
+  predicate?: string | null
+  /**
+   * Definition
+   */
+  definition: string
 }
 
 /**
@@ -600,6 +776,52 @@ export type ParsedOptions = {
 }
 
 /**
+ * PartitionOf
+ */
+export type PartitionOf = {
+  /**
+   * Parent Node Id
+   */
+  parent_node_id: string
+  /**
+   * Bounds
+   */
+  bounds: string
+}
+
+/**
+ * Partitioning
+ */
+export type Partitioning = {
+  /**
+   * Strategy
+   */
+  strategy: "range" | "list" | "hash"
+  /**
+   * Key
+   */
+  key: string
+}
+
+/**
+ * PrimaryKey
+ */
+export type PrimaryKey = {
+  /**
+   * Kind
+   */
+  kind?: "primary_key"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Columns
+   */
+  columns: Array<string>
+}
+
+/**
  * PrivateUserCreate
  */
 export type PrivateUserCreate = {
@@ -619,6 +841,78 @@ export type PrivateUserCreate = {
    * Is Verified
    */
   is_verified?: boolean
+}
+
+/**
+ * RelationModel
+ */
+export type RelationModel = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Schema Name
+   */
+  schema_name: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Kind
+   */
+  kind: "table" | "partitioned_table" | "view" | "materialized_view" | "foreign_table"
+  /**
+   * Owner
+   */
+  owner: string
+  /**
+   * Persistence
+   */
+  persistence: "permanent" | "unlogged" | "temporary"
+  /**
+   * Comment
+   */
+  comment?: string | null
+  /**
+   * Row Estimate
+   */
+  row_estimate?: number | null
+  /**
+   * Size Bytes
+   */
+  size_bytes?: number | null
+  /**
+   * Columns
+   */
+  columns?: Array<Column>
+  /**
+   * Constraints
+   */
+  constraints?: Array<
+    | ({
+        kind: "primary_key"
+      } & PrimaryKey)
+    | ({
+        kind: "unique"
+      } & UniqueConstraint)
+    | ({
+        kind: "foreign_key"
+      } & ForeignKey)
+    | ({
+        kind: "check"
+      } & CheckConstraint)
+    | ({
+        kind: "exclude"
+      } & ExclusionConstraint)
+  >
+  /**
+   * Indexes
+   */
+  indexes?: Array<Index>
+  partitioning?: Partitioning | null
+  partition_of?: PartitionOf | null
 }
 
 /**
@@ -707,6 +1001,28 @@ export type Token = {
    * Token Type
    */
   token_type?: string
+}
+
+/**
+ * UniqueConstraint
+ */
+export type UniqueConstraint = {
+  /**
+   * Kind
+   */
+  kind?: "unique"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Columns
+   */
+  columns: Array<string>
+  /**
+   * Nulls Not Distinct
+   */
+  nulls_not_distinct?: boolean
 }
 
 /**
@@ -1692,9 +2008,6 @@ export type connectorsReadCatalogResponses = {
         kind: "view"
       } & ViewNode)
     | ({
-        kind: "column"
-      } & ColumnNode)
-    | ({
         kind: "directory"
       } & DirectoryNode)
     | ({
@@ -1705,6 +2018,43 @@ export type connectorsReadCatalogResponses = {
 
 export type connectorsReadCatalogResponse =
   connectorsReadCatalogResponses[keyof connectorsReadCatalogResponses]
+
+export type connectorsReadRelationModelData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query: {
+    /**
+     * Node Id
+     */
+    node_id: string
+  }
+  url: "/api/v1/connectors/{connector_id}/relation-model"
+}
+
+export type connectorsReadRelationModelErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsReadRelationModelError =
+  connectorsReadRelationModelErrors[keyof connectorsReadRelationModelErrors]
+
+export type connectorsReadRelationModelResponses = {
+  /**
+   * Successful Response
+   */
+  200: RelationModel
+}
+
+export type connectorsReadRelationModelResponse =
+  connectorsReadRelationModelResponses[keyof connectorsReadRelationModelResponses]
 
 export type connectorsReadNodePathData = {
   body?: never
@@ -1749,9 +2099,6 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "view"
       } & ViewNode)
-    | ({
-        kind: "column"
-      } & ColumnNode)
     | ({
         kind: "directory"
       } & DirectoryNode)

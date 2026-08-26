@@ -45,14 +45,6 @@ class ViewNode(BaseNode):
     is_system: bool = False
 
 
-class ColumnNode(BaseNode):
-    kind: Literal["column"] = "column"
-    has_children: bool = False
-    data_type: str
-    nullable: bool
-    primary_key: bool = False
-
-
 class DirectoryNode(BaseNode):
     kind: Literal["directory"] = "directory"
     modified_at: datetime | None = None
@@ -74,7 +66,7 @@ class FileNode(BaseNode):
 # Adding a kind means adding a class here. The friction is intended: a key can
 # be added to a dict silently, a class cannot.
 CatalogNode = Annotated[
-    SchemaNode | TableNode | ViewNode | ColumnNode | DirectoryNode | FileNode,
+    SchemaNode | TableNode | ViewNode | DirectoryNode | FileNode,
     Field(discriminator="kind"),
 ]
 
@@ -83,4 +75,4 @@ CatalogNode = Annotated[
 # of a node without holding one — deciding which actions a directory admits,
 # for instance — and a bare string there would let a typo through silently.
 # The test that this matches the union keeps the two from drifting apart.
-NodeKind = Literal["schema", "table", "view", "column", "directory", "file"]
+NodeKind = Literal["schema", "table", "view", "directory", "file"]
