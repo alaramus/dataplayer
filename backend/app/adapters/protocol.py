@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.adapters.catalog import CatalogNode
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.relation import RelationModel
 
 ErrorKind = Literal["auth", "network", "timeout", "config", "unknown"]
 
@@ -114,6 +115,17 @@ class SupportsFetch(Protocol):
         Raises AdapterError for source failures and ValueError for a request
         that names a column the relation does not have — that check happens
         before any SQL is built.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsRelationModel(Protocol):
+    async def relation_model(self, node_id: str) -> RelationModel:
+        """Describe one relation in full: columns, constraints, indexes.
+
+        Raises NodeNotFound for an id that names nothing, AdapterError for
+        source failures, and ValueError for an id this source may not reach.
         """
         ...
 
