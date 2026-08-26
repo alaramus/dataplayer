@@ -60,6 +60,35 @@ describe("groupsOf", () => {
 })
 
 describe("toListNodes", () => {
+  it("offers structure for a relation and not for a file", () => {
+    expect(
+      first(
+        toListNodes([
+          { kind: "table", id: "public.orders", name: "orders", has_children: false },
+        ])
+      ).describable
+    ).toBe(true)
+    expect(
+      first(
+        toListNodes([{ kind: "view", id: "public.v", name: "v", has_children: false }])
+      ).describable
+    ).toBe(true)
+    expect(
+      first(
+        toListNodes([
+          {
+            kind: "file",
+            id: "a.csv",
+            name: "a.csv",
+            has_children: false,
+            size_bytes: 1,
+            content_kind: "table",
+          },
+        ])
+      ).describable
+    ).toBe(false)
+  })
+
   it("keeps id and name", () => {
     const nodes: CatalogNode[] = [
       { kind: "schema", id: "public", name: "public", has_children: true },

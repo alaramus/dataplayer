@@ -14,10 +14,11 @@ import {
   PANEL_ROLES,
   roleOf,
   rowsPanelId,
+  structurePanelId,
 } from "./panels"
 import type { Panel, PanelKind } from "./panels"
 
-const KINDS: PanelKind[] = ["connectors", "catalog", "rows"]
+const KINDS: PanelKind[] = ["connectors", "catalog", "rows", "structure"]
 
 const samples: Record<PanelKind, Panel> = {
   connectors: { id: "connectors", kind: "connectors" },
@@ -31,6 +32,15 @@ const samples: Record<PanelKind, Panel> = {
   rows: {
     id: rowsPanelId("c1", "public.orders"),
     kind: "rows",
+    connectorId: "c1",
+    nodeId: "public.orders",
+    title: "orders",
+    connectorName: "local pg",
+    adapterType: "postgres",
+  },
+  structure: {
+    id: structurePanelId("c1", "public.orders"),
+    kind: "structure",
     connectorId: "c1",
     nodeId: "public.orders",
     title: "orders",
@@ -64,7 +74,7 @@ describe("the panel registry", () => {
     expect(lookOf(samples.connectors).closable).toBe(false)
   })
 
-  it.each(["catalog", "rows"] as PanelKind[])("lets %s be closed", (kind) => {
+  it.each(["catalog", "rows", "structure"] as PanelKind[])("lets %s be closed", (kind) => {
     expect(lookOf(samples[kind]).closable).not.toBe(false)
   })
 
@@ -154,7 +164,7 @@ describe("the panel registry", () => {
     expect(collapsedOf(samples.connectors)).not.toBeNull()
   })
 
-  it.each(["catalog", "rows"] as PanelKind[])(
+  it.each(["catalog", "rows", "structure"] as PanelKind[])(
     "has nothing worth forty pixels for %s",
     (kind) => {
       expect(collapsedOf(samples[kind])).toBeNull()
@@ -186,5 +196,28 @@ describe("the panel registry", () => {
   it("gives the same panel of a table the same id every time", () => {
     expect(rowsPanelId("c1", "public.orders")).toBe(rowsPanelId("c1", "public.orders"))
     expect(rowsPanelId("c1", "public.orders")).not.toBe(rowsPanelId("c2", "public.orders"))
+  })
+
+  it("puts structure in the column of work", () => {
+    expect(
+      roleOf({
+        id: "s",
+        kind: "structure",
+        connectorId: "c1",
+        nodeId: "public.orders",
+        title: "orders",
+        connectorName: "db",
+        adapterType: "postgres",
+      })
+    ).toBe("work")
+  })
+
+  it("identifies a structure panel by what it shows", () => {
+    expect(structurePanelId("c1", "public.orders")).toBe(
+      structurePanelId("c1", "public.orders")
+    )
+    expect(structurePanelId("c1", "public.orders")).not.toBe(
+      rowsPanelId("c1", "public.orders")
+    )
   })
 })

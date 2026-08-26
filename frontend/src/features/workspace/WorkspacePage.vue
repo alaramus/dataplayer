@@ -22,6 +22,7 @@ import {
   panelSchema,
   roleOf,
   rowsPanelId,
+  structurePanelId,
 } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
 import {
@@ -29,7 +30,11 @@ import {
   provideReloadRegistry,
 } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
-import type { OpenRowsRequest, RevealTarget } from "@/features/workspace/state"
+import type {
+  OpenRowsRequest,
+  OpenStructureRequest,
+  RevealTarget,
+} from "@/features/workspace/state"
 import { AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindows, WindowHost } from "@/shared/windows"
 import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
@@ -270,6 +275,13 @@ provide(workspaceActionsKey, {
     workspace.open({
       id: rowsPanelId(request.connectorId, request.nodeId),
       kind: "rows",
+      ...request,
+    })
+  },
+  openStructure: (request: OpenStructureRequest) => {
+    workspace.open({
+      id: structurePanelId(request.connectorId, request.nodeId),
+      kind: "structure",
       ...request,
     })
   },

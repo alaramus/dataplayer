@@ -35,6 +35,7 @@ export interface ListNode {
    * has them only when something can read it.
    */
   readable: boolean
+  describable: boolean
   rowEstimate?: number | null
   /**
    * Whether the source considers this part of its own machinery. Only used to
@@ -139,12 +140,21 @@ export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
     kind: node.kind,
     readable: isReadable(node),
     system: isSystem(node),
+    describable: DESCRIBABLE[node.kind],
     // Only a table knows roughly how many rows it holds. A file would have
     // to be read from end to end to answer, so the grid pages without a
     // total.
     rowEstimate: node.kind === "table" ? node.row_count_estimate : null,
     ...(group === undefined ? {} : { group }),
   }))
+}
+
+const DESCRIBABLE: Record<CatalogNode["kind"], boolean> = {
+  schema: false,
+  table: true,
+  view: true,
+  directory: false,
+  file: false,
 }
 
 /** The groupings among a level's children: what the filter above it offers. */

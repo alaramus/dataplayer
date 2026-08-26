@@ -7,6 +7,7 @@ import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
 import ConnectorsPanelView from "@/features/workspace/panels/ConnectorsPanel.vue"
 import RowsPanelView from "@/features/workspace/panels/RowsPanel.vue"
+import StructurePanelView from "@/features/workspace/panels/StructurePanel.vue"
 import WorkspaceSceneView from "@/features/workspace/panels/WorkspaceScene.vue"
 import type { PanelLook } from "@/shared/workspace"
 
@@ -41,6 +42,15 @@ export const panelSchema = z.discriminatedUnion("kind", [
     connectorName: z.string(),
     adapterType: z.string(),
   }),
+  z.object({
+    id: z.string(),
+    kind: z.literal("structure"),
+    connectorId: z.string(),
+    nodeId: z.string(),
+    title: z.string(),
+    connectorName: z.string(),
+    adapterType: z.string(),
+  }),
 ])
 
 export type Panel = z.infer<typeof panelSchema>
@@ -54,6 +64,8 @@ export type PanelKind = Panel["kind"]
  */
 export const catalogPanelId = (connectorId: string) => `catalog:${connectorId}`
 export const rowsPanelId = (connectorId: string, nodeId: string) => `rows:${connectorId}:${nodeId}`
+export const structurePanelId = (connectorId: string, nodeId: string) =>
+  `structure:${connectorId}:${nodeId}`
 
 export function kindOf(panel: Panel): PanelKind {
   return panel.kind
@@ -92,6 +104,7 @@ export function roleOf(panel: Panel): PanelRole {
     case "catalog":
       return "navigate"
     case "rows":
+    case "structure":
       return "work"
   }
 }
@@ -161,6 +174,13 @@ export function lookOf(panel: Panel): PanelLook {
         iconTooltip: `${panel.connectorName} · Show in catalog`,
         reloadTooltip: "Re-read this table",
       }
+    case "structure":
+      return {
+        title: panel.title,
+        icon: "account_tree",
+        iconTooltip: `${panel.connectorName} · Structure`,
+        reloadTooltip: "Re-read the structure",
+      }
   }
 }
 
@@ -206,6 +226,14 @@ export function componentOf(panel: Panel): Component {
     case "rows":
       return boundComponent(panel.id, () =>
         h(RowsPanelView, {
+          panelId: panel.id,
+          connectorId: panel.connectorId,
+          nodeId: panel.nodeId,
+        })
+      )
+    case "structure":
+      return boundComponent(panel.id, () =>
+        h(StructurePanelView, {
           panelId: panel.id,
           connectorId: panel.connectorId,
           nodeId: panel.nodeId,

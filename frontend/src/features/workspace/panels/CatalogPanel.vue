@@ -190,6 +190,16 @@ function onOpen(node: ListNode) {
   toast.info(`${node.label} cannot be read as rows`)
 }
 
+function onDescribe(node: ListNode) {
+  workspace.openStructure({
+    connectorId: props.connectorId,
+    nodeId: node.id,
+    title: node.label,
+    connectorName: props.title,
+    adapterType: props.adapterType,
+  })
+}
+
 function onToggle(id: string, on: boolean) {
   level.checked.value = on
     ? [...level.checked.value, id]
@@ -308,6 +318,7 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
       :has-parent="level.path.value.length > 1"
       :revealed="revealedNode"
       @open="onOpen"
+      @describe="onDescribe"
       @up="level.up"
       @toggle="onToggle"
       @toggle-all="level.toggleAll"

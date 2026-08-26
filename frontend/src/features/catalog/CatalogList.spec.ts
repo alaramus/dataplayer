@@ -13,6 +13,7 @@ function table(id: string, label: string): ListNode {
     kind: "table",
     role: "leaf",
     readable: true,
+    describable: true,
     system: false,
   }
 }

@@ -45,6 +45,7 @@ export interface WorkspaceActions {
    */
   takeReveal: (connectorId: string) => RevealTarget | null
   openRows: (request: OpenRowsRequest) => void
+  openStructure: (request: OpenStructureRequest) => void
   /**
    * Show the window of one connection, or an empty one for a new connection.
    *
@@ -82,6 +83,14 @@ export interface OpenRowsRequest {
   /** The node, which is what the tab is called. */
   title: string
   /** Whose it is. In the tooltip of the tab rather than beside its title. */
+  connectorName: string
+  adapterType: string
+}
+
+export interface OpenStructureRequest {
+  connectorId: string
+  nodeId: string
+  title: string
   connectorName: string
   adapterType: string
 }

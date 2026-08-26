@@ -2,7 +2,7 @@
 import { computed, nextTick, ref, watch } from "vue"
 
 import type { ListNode } from "@/features/catalog/nodes"
-import { AppCheckbox, AppEmptyState, AppSpinner } from "@/shared/ui"
+import { AppCheckbox, AppEmptyState, AppIconButton, AppSpinner } from "@/shared/ui"
 
 /**
  * One level of a catalog, as a list.
@@ -63,6 +63,7 @@ watch(
 
 const emit = defineEmits<{
   open: [node: ListNode]
+  describe: [node: ListNode]
   /**
    * One row, ticked or unticked. The new set is not computed here: `checked`
    * is a prop, and a prop only catches up on the next render — two ticks
@@ -177,6 +178,19 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
           size="18px"
         />
         <span class="catalog-list__name">{{ node.label }}</span>
+
+        <span
+          v-if="node.describable"
+          @click.stop
+        >
+          <AppIconButton
+            icon="account_tree"
+            tooltip="Show structure"
+            dense
+            :data-testid="`catalog-structure-${node.label}`"
+            @click="emit('describe', node)"
+          />
+        </span>
 
         <span
           v-if="showGroup && node.group"
