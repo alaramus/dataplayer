@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { openNode } from "./utils/catalog"
+import { openNode, pickSchema } from "./utils/catalog"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
 
 test("shows the structure of a relation beside its rows", async ({ page }) => {
@@ -10,6 +10,7 @@ test("shows the structure of a relation beside its rows", async ({ page }) => {
   await login(page)
   await createPostgresConnector(page, name)
   await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
 
   await page.getByTestId("catalog-structure-app_users").click()
 

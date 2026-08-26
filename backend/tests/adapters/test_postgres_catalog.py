@@ -47,6 +47,13 @@ async def test_root_lists_schemas_including_public() -> None:
     assert "public" in names
 
 
+async def test_public_is_the_first_schema_offered() -> None:
+    """The generic catalog selects the first non-system grouping by default."""
+    nodes = await _adapter().list_children(None)
+
+    assert nodes[0].name == "public"
+
+
 async def test_system_schemas_are_marked_but_not_hidden() -> None:
     nodes = await _adapter().list_children(None)
 

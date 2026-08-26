@@ -60,7 +60,7 @@ async def test_schema_returns_tables(
     assert "connector" in [node["name"] for node in tables]
 
 
-async def test_table_returns_columns(
+async def test_table_is_a_leaf_because_relation_model_returns_its_columns(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     connector_id = await _create_connector(
@@ -70,14 +70,13 @@ async def test_table_returns_columns(
     response = await client.get(
         f"{BASE}/{connector_id}/catalog",
         headers=normal_user_token_headers,
-        params={"node_id": "public.connector"},
+        params={"node_id": "public"},
     )
 
     assert response.status_code == 200
-    columns = {node["name"]: node for node in response.json()}
-    assert columns["adapter_type"]["kind"] == "column"
-    assert columns["adapter_type"]["data_type"]
-    assert columns["adapter_type"]["has_children"] is False
+    connector = next(node for node in response.json() if node["name"] == "connector")
+    assert connector["kind"] == "table"
+    assert connector["has_children"] is False
 
 
 async def test_unknown_node_returns_502_not_an_empty_list(

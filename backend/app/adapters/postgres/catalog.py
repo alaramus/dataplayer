@@ -39,7 +39,7 @@ class PostgresCatalog:
             FROM pg_namespace
             WHERE nspname NOT LIKE 'pg_toast%'
               AND nspname NOT LIKE 'pg_temp%'
-            ORDER BY nspname
+            ORDER BY (nspname <> 'public'), nspname
             """
         )
         return [
