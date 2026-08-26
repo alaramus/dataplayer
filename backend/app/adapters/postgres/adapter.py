@@ -6,6 +6,7 @@ from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.options import PostgresOptions
+from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.session import (
     PostgresSession,
     compose_url,
@@ -13,6 +14,7 @@ from app.adapters.postgres.session import (
 )
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
+from app.adapters.relation import RelationModel
 from app.adapters.resources import Pooling
 
 
@@ -47,6 +49,7 @@ class PostgresAdapter:
         self._session = PostgresSession(options, pooling)
         self._catalog = PostgresCatalog(self._session)
         self._fetch = PostgresFetch(self._session)
+        self._relation = PostgresRelation(self._session)
 
     @classmethod
     def options_from_url(cls, url: str) -> dict[str, Any]:
@@ -90,6 +93,9 @@ class PostgresAdapter:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    async def relation_model(self, node_id: str) -> RelationModel:
+        return await self._relation.relation_model(node_id)
 
 
 @register(
