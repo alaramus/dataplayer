@@ -32,9 +32,11 @@ from app.adapters.protocol import (
     SupportsConnectionString,
     SupportsFetch,
     SupportsNodePath,
+    SupportsRelationModel,
 )
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
+from app.adapters.relation import RelationModel
 from app.adapters.resources import Pooling, ResourcesDep, ResourceStore
 from app.connectors import crud, health, service
 from app.connectors.models import (
@@ -478,6 +480,46 @@ async def read_catalog(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         )
+
+
+@router.get("/{connector_id}/relation-model", response_model=RelationModel)
+async def read_relation_model(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    node_id: str,
+) -> Any:
+    """Describe one relation named by its opaque catalog node id."""
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    if not isinstance(adapter, SupportsRelationModel):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not describe relations",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.relation_model(node_id)
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["query", "node_id"],
+                    "msg": str(exc),
+                    "type": "value_error",
+                }
+            ],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
 
 
 @router.get("/{connector_id}/catalog/path", response_model=list[CatalogNode])

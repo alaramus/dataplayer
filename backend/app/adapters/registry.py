@@ -12,6 +12,7 @@ from app.adapters.protocol import (
     SupportsCatalog,
     SupportsFetch,
     SupportsNodePath,
+    SupportsRelationModel,
 )
 from app.adapters.resources import Pooling
 
@@ -147,6 +148,8 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(Capability(group="explore", title="Locate a node"))
     if issubclass(driver, SupportsFetch):
         found.append(Capability(group="explore", title="Read rows"))
+    if issubclass(driver, SupportsRelationModel):
+        found.append(Capability(group="explore", title="Describe a relation"))
     if issubclass(driver, DeclaresActions):
         found.extend(
             Capability(group="manage", title=action_type.title)
