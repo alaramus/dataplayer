@@ -43,6 +43,7 @@ backend/app/
 │   ├── auth_routes.py   /login, /password-recovery, /reset-password
 │   └── private_routes.py
 ├── system/              operational routes: /utils health check, test email
+├── seed_database.py     dev tool: rebuilds the demo_lab PostgreSQL fixtures
 ├── seed_storage.py      dev tool: sample files into a personal directory
 ├── core/                depends on nothing else in the app
 │   ├── crypto.py        AES-GCM for connector secrets

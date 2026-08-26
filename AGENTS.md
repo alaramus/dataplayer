@@ -120,7 +120,8 @@ hand. `compose.yml` holds a one-shot `prestart` service that waits for the
 server, runs `alembic upgrade head` and creates the first superuser, and
 `backend` depends on it with `service_completed_successfully`. In development
 `compose.override.yml` points it at `scripts/prestart-dev.sh`, which also writes
-the sample files. A failing migration therefore stops the backend from starting
+the sample files and rebuilds the `demo_lab` PostgreSQL fixture schema from
+`sql/`. A failing migration or fixture therefore stops the backend from starting
 rather than letting it serve against an older schema; the reason is in
 `docker compose logs prestart`.
 
