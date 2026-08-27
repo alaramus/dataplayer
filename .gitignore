@@ -23,3 +23,6 @@ backend/htmlcov/
 
 # Local visual brainstorming sessions and generated mockups
 .superpowers/
+
+# Local isolated feature worktrees
+.worktrees/
