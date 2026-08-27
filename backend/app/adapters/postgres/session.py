@@ -261,6 +261,25 @@ class PostgresSession:
             error_kind, message = classify(exc, fallback_message="Update failed")
             raise AdapterError(error_kind, message) from None
 
+    async def schema_change(self, sql: str) -> None:
+        """Run validated DDL without pretending it returns rows."""
+        try:
+            async with self._connection() as connection:
+                await connection.execute(sql)
+        except PoolTimeout:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except (
+            psycopg.DataError,
+            psycopg.IntegrityError,
+            psycopg.InternalError,
+            psycopg.ProgrammingError,
+        ):
+            raise ValueError("The source rejected the schema change") from None
+        except Exception as exc:
+            error_kind, message = classify(exc, fallback_message="Schema change failed")
+            raise AdapterError(error_kind, message) from None
+
     async def _why_no_connection(self) -> tuple[ErrorKind, str]:
         """Ask the server once, on the failure path, what is actually wrong.
 

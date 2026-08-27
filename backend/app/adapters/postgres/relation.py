@@ -3,6 +3,7 @@
 from typing import Any, Literal, cast
 
 from app.adapters.postgres.column_type import build_column_type
+from app.adapters.postgres.column_types import POSTGRES_COLUMN_TYPE_OPTIONS
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import (
@@ -329,11 +330,18 @@ def _relation_model(
         if parent is not None
         else None
     )
+    kind = _KINDS[str(row["relkind"])]
+    if partition_of is not None:
+        column_changes_reason = "Change columns on the partitioned parent"
+    elif kind not in {"table", "partitioned_table"}:
+        column_changes_reason = "Only tables can change columns"
+    else:
+        column_changes_reason = None
     return RelationModel(
         node_id=f"{schema}.{name}",
         schema_name=schema,
         name=name,
-        kind=_KINDS[str(row["relkind"])],
+        kind=kind,
         owner=str(row["owner"]),
         persistence=_PERSISTENCE.get(str(row["persistence"]), "permanent"),
         comment=row.get("comment"),
@@ -344,4 +352,9 @@ def _relation_model(
         indexes=indexes,
         partitioning=partitioning,
         partition_of=partition_of,
+        column_changes_supported=column_changes_reason is None,
+        column_changes_reason=column_changes_reason,
+        column_type_options=(
+            POSTGRES_COLUMN_TYPE_OPTIONS if column_changes_reason is None else []
+        ),
     )

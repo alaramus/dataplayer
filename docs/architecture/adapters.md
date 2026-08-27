@@ -4,7 +4,7 @@ What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
-D20, D21, D22, D23, D25, D26.
+D20, D21, D22, D23, D25, D26, D27.
 
 ## What exists today
 
@@ -341,6 +341,40 @@ Known deviations:
   and a deliberate decision between atomic and partial success.
 - **Delete is limited to loaded rows.** Selection stops at the current page;
   deleting a server-side filter needs a separate previewable command.
+
+## D27. A source publishes column type choices and alone turns them into DDL
+
+Adding and dropping columns are independent adapter capabilities. Relation
+metadata states whether this exact relation supports them, why not, and the
+source-owned `ColumnTypeOption` vocabulary. PostgreSQL permits ordinary and
+partitioned parent tables; views are not tables, and a child partition directs
+the user to its parent so its inherited shape cannot be changed accidentally.
+
+An add request carries a column name, an opaque type code and nullability. The
+code is never SQL: PostgreSQL validates it against a closed registry and maps it
+to a fixed `psycopg.sql.SQL` fragment. Relation and column names always go
+through `Identifier`; metadata is reread before DDL to reject a duplicate or
+unknown column, and PostgreSQL's 63-byte identifier ceiling is checked before
+the server can silently truncate a name. This preserves D2c even though a type
+must become syntax rather than a bound value.
+
+Drop names exactly one current column and uses PostgreSQL's default `RESTRICT`,
+never an implicit `CASCADE`. PostgreSQL removes indexes and constraints owned by
+that column as part of dropping it, which the destructive confirmation says;
+dependencies outside the table block the operation. Both commands invalidate
+the relation model and every open row query for the connector, since a schema
+change makes both cached shapes stale.
+
+Known deviations:
+
+- **The first type vocabulary is deliberately small.** It covers common scalar
+  PostgreSQL types, without length, precision, arrays, domains or user-defined
+  types. Expanding it needs typed option parameters, not a raw SQL escape hatch.
+- **Add has no default expression.** A non-null column can therefore be added
+  only where existing rows permit it. Defaults need their own value/expression
+  distinction before they can cross the boundary.
+- **Columns cannot yet be renamed or altered.** Those operations need explicit
+  conversion and dependency semantics rather than variants of add or drop.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

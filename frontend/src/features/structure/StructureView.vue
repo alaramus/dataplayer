@@ -1,22 +1,37 @@
 <script setup lang="ts">
-import { computed, toRef } from "vue"
+import { computed, ref, toRef } from "vue"
 
-import { useRelationModel } from "@/features/structure/api"
+import { useAddColumn, useDropColumn, useRelationModel } from "@/features/structure/api"
 import { badgesFor, foreignKeyLabel } from "@/features/structure/model"
 import type { ForeignKey } from "@/features/structure/model"
 import { messageOf } from "@/shared/api/errors"
 import {
   AppBadge,
   AppBanner,
+  AppButton,
   AppEmptyState,
+  AppIconButton,
   AppSection,
   AppSpinner,
   AppTable,
   AppTooltip,
+  useConfirm,
+  useToast,
 } from "@/shared/ui"
 
+import AddColumnDialog from "./AddColumnDialog.vue"
+
 const props = defineProps<{ connectorId: string; nodeId: string }>()
-const query = useRelationModel(toRef(props, "connectorId"), toRef(props, "nodeId"))
+const connectorId = toRef(props, "connectorId")
+const nodeId = toRef(props, "nodeId")
+const query = useRelationModel(connectorId, nodeId)
+const addColumn = useAddColumn(connectorId, nodeId)
+const dropColumn = useDropColumn(connectorId, nodeId)
+const confirm = useConfirm()
+const toast = useToast()
+const addOpen = ref(false)
+const addError = ref("")
+const dropping = ref<string | null>(null)
 
 defineExpose({ reload: async () => void (await query.refetch()) })
 
@@ -26,6 +41,7 @@ const COLUMNS = [
   { name: "nullable", label: "Null", field: "nullable", align: "left" as const },
   { name: "default", label: "Default", field: "default", align: "left" as const },
   { name: "keys", label: "Keys", field: "keys", align: "left" as const },
+  { name: "actions", label: "", field: "actions", align: "right" as const },
 ]
 
 const rows = computed(() =>
@@ -54,6 +70,46 @@ const errorText = computed(() =>
     ? ""
     : messageOf(query.error.value, "Could not read the structure")
 )
+
+function openAdd() {
+  addError.value = ""
+  addOpen.value = true
+}
+
+async function saveAdd(value: { name: string; typeCode: string; nullable: boolean }) {
+  addError.value = ""
+  try {
+    await addColumn.mutateAsync({
+      node_id: props.nodeId,
+      name: value.name,
+      type_code: value.typeCode,
+      nullable: value.nullable,
+    })
+    addOpen.value = false
+    toast.success(`Column ${value.name} added`)
+  } catch (error) {
+    addError.value = messageOf(error, "Could not add the column")
+  }
+}
+
+async function drop(name: string) {
+  const accepted = await confirm({
+    title: `Drop column ${name}?`,
+    message: "Its data and indexes or constraints owned by this column will be removed.",
+    confirmLabel: "Drop",
+    danger: true,
+  })
+  if (!accepted) return
+  dropping.value = name
+  try {
+    await dropColumn.mutateAsync({ node_id: props.nodeId, name })
+    toast.success(`Column ${name} dropped`)
+  } catch (error) {
+    toast.error(messageOf(error, "Could not drop the column"))
+  } finally {
+    dropping.value = null
+  }
+}
 </script>
 
 <template>
@@ -73,8 +129,23 @@ const errorText = computed(() =>
 
     <template v-else-if="query.data.value">
       <AppSection>
-        <div class="structure-view__title">
-          Columns
+        <div class="structure-view__heading">
+          <div class="structure-view__title">
+            Columns
+          </div>
+          <span :title="query.data.value.column_changes_supported ? undefined : query.data.value.column_changes_reason ?? undefined">
+            <AppButton
+              label="Add column"
+              variant="secondary"
+              size="sm"
+              :disable="query.data.value.column_changes_supported !== true"
+              data-testid="structure-add-column"
+              @click="openAdd"
+            />
+            <AppTooltip v-if="query.data.value.column_changes_supported !== true && query.data.value.column_changes_reason">
+              {{ query.data.value.column_changes_reason }}
+            </AppTooltip>
+          </span>
         </div>
         <AppTable
           :rows="rows"
@@ -96,6 +167,19 @@ const errorText = computed(() =>
                 />
                 <AppTooltip>{{ badge.tooltip }}</AppTooltip>
               </span>
+            </q-td>
+          </template>
+          <template #body-cell-actions="cellProps">
+            <q-td :props="cellProps">
+              <AppIconButton
+                icon="delete_outline"
+                :tooltip="query.data.value?.column_changes_supported === true ? `Drop column ${cellProps.row.name}` : query.data.value?.column_changes_reason ?? 'This column cannot be dropped'"
+                variant="danger-quiet"
+                :disable="query.data.value?.column_changes_supported !== true"
+                :loading="dropping === cellProps.row.name"
+                :data-testid="`structure-drop-${cellProps.row.name}`"
+                @click="drop(String(cellProps.row.name))"
+              />
             </q-td>
           </template>
         </AppTable>
@@ -168,6 +252,16 @@ const errorText = computed(() =>
         </ul>
       </AppSection>
     </template>
+
+    <AddColumnDialog
+      v-if="addOpen"
+      :model-value="true"
+      :types="query.data.value?.column_type_options ?? []"
+      :saving="addColumn.isPending.value"
+      :error="addError"
+      @save="saveAdd"
+      @update:model-value="addOpen = false"
+    />
   </div>
 </template>
 
@@ -180,6 +274,16 @@ const errorText = computed(() =>
 .structure-view__title {
   margin-bottom: 8px;
   font-weight: 600;
+}
+.structure-view__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.structure-view__heading .structure-view__title {
+  margin-bottom: 0;
 }
 .structure-view__list {
   margin: 0;

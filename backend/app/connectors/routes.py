@@ -20,6 +20,11 @@ from app.adapters.actions import (
     common_actions,
 )
 from app.adapters.catalog import CatalogNode
+from app.adapters.column_changes import (
+    AddColumnRequest,
+    ColumnChangeResult,
+    DropColumnRequest,
+)
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.protocol import (
     AdapterError,
@@ -28,9 +33,11 @@ from app.adapters.protocol import (
     DescribesDraft,
     NodeNotFound,
     ParsesConnectionString,
+    SupportsAddColumn,
     SupportsCatalog,
     SupportsConnectionString,
     SupportsDelete,
+    SupportsDropColumn,
     SupportsFetch,
     SupportsInsert,
     SupportsNodePath,
@@ -640,6 +647,67 @@ async def read_relation_model(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         ) from exc
+
+
+async def _change_column(
+    run: Callable[[], Awaitable[ColumnChangeResult]],
+) -> ColumnChangeResult:
+    try:
+        return await run()
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.post("/{connector_id}/columns", response_model=ColumnChangeResult)
+async def add_column(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: AddColumnRequest,
+) -> ColumnChangeResult:
+    """Add one validated column to a relation."""
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    if not isinstance(adapter, SupportsAddColumn):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support adding columns",
+                "error_kind": "config",
+            },
+        )
+    return await _change_column(lambda: adapter.add_column(request))
+
+
+@router.delete("/{connector_id}/columns", response_model=ColumnChangeResult)
+async def drop_column(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: DropColumnRequest,
+) -> ColumnChangeResult:
+    """Drop one exact column after the caller's explicit confirmation."""
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    if not isinstance(adapter, SupportsDropColumn):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support dropping columns",
+                "error_kind": "config",
+            },
+        )
+    return await _change_column(lambda: adapter.drop_column(request))
 
 
 @router.get("/{connector_id}/catalog/path", response_model=list[CatalogNode])

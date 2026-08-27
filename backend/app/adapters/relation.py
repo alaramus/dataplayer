@@ -142,6 +142,16 @@ class PartitionOf(BaseModel):
     bounds: str
 
 
+class ColumnTypeOption(BaseModel):
+    """One source-owned DDL type choice; its code is not SQL."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    title: str
+    sql: str
+
+
 class RelationModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -159,3 +169,6 @@ class RelationModel(BaseModel):
     indexes: list[Index] = Field(default_factory=list)
     partitioning: Partitioning | None = None
     partition_of: PartitionOf | None = None
+    column_changes_supported: bool = False
+    column_changes_reason: str | None = None
+    column_type_options: list[ColumnTypeOption] = Field(default_factory=list)

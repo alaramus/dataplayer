@@ -11,6 +11,9 @@ import { client } from "./client.gen"
 import type {
   adaptersReadAdapterTypesData,
   adaptersReadAdapterTypesResponses,
+  connectorsAddColumnData,
+  connectorsAddColumnErrors,
+  connectorsAddColumnResponses,
   connectorsCheckConnectorData,
   connectorsCheckConnectorErrors,
   connectorsCheckConnectorResponses,
@@ -29,6 +32,9 @@ import type {
   connectorsDescribeDraftData,
   connectorsDescribeDraftErrors,
   connectorsDescribeDraftResponses,
+  connectorsDropColumnData,
+  connectorsDropColumnErrors,
+  connectorsDropColumnResponses,
   connectorsFetchRowsData,
   connectorsFetchRowsErrors,
   connectorsFetchRowsResponses,
@@ -854,6 +860,54 @@ export class ConnectorsService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/relation-model",
       ...options,
+    })
+  }
+
+  /**
+   * Drop Column
+   *
+   * Drop one exact column after the caller's explicit confirmation.
+   */
+  public static dropColumn<ThrowOnError extends boolean = true>(
+    options: Options<connectorsDropColumnData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      connectorsDropColumnResponses,
+      connectorsDropColumnErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/columns",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Add Column
+   *
+   * Add one validated column to a relation.
+   */
+  public static addColumn<ThrowOnError extends boolean = true>(
+    options: Options<connectorsAddColumnData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsAddColumnResponses,
+      connectorsAddColumnErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/columns",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 

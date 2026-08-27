@@ -4,6 +4,11 @@ from typing import Any, Literal, Protocol, runtime_checkable
 from pydantic import BaseModel
 
 from app.adapters.catalog import CatalogNode
+from app.adapters.column_changes import (
+    AddColumnRequest,
+    ColumnChangeResult,
+    DropColumnRequest,
+)
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.relation import RelationModel
 from app.adapters.update import (
@@ -156,6 +161,20 @@ class SupportsRelationModel(Protocol):
         Raises NodeNotFound for an id that names nothing, AdapterError for
         source failures, and ValueError for an id this source may not reach.
         """
+        ...
+
+
+@runtime_checkable
+class SupportsAddColumn(Protocol):
+    async def add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
+        """Add one column from the source-owned type vocabulary."""
+        ...
+
+
+@runtime_checkable
+class SupportsDropColumn(Protocol):
+    async def drop_column(self, request: DropColumnRequest) -> ColumnChangeResult:
+        """Drop one exact column without an implicit cascade."""
         ...
 
 

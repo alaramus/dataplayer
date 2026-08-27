@@ -80,6 +80,27 @@ async def test_a_source_without_relations_says_so(
     assert response.status_code == 501
 
 
+async def test_a_source_without_column_changes_says_so(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    added = await client.post(
+        f"{BASE}/{connector_id}/columns",
+        headers=normal_user_token_headers,
+        json={"node_id": "anything", "name": "note", "type_code": "text"},
+    )
+    dropped = await client.request(
+        "DELETE",
+        f"{BASE}/{connector_id}/columns",
+        headers=normal_user_token_headers,
+        json={"node_id": "anything", "name": "note"},
+    )
+
+    assert added.status_code == 501
+    assert dropped.status_code == 501
+
+
 async def test_requires_authentication(client: AsyncClient) -> None:
     response = await client.get(
         f"{BASE}/{uuid.uuid4()}/relation-model",

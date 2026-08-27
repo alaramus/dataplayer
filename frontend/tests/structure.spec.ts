@@ -44,3 +44,25 @@ test("shows the structure of a relation beside its rows", async ({ page }) => {
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
+
+test("adds and drops a PostgreSQL column", async ({ page }) => {
+  const name = `e2e-columns-${Date.now()}`
+  const column = `review_${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await page.getByTestId("catalog-structure-tags").click()
+
+  const view = page.getByTestId("structure-view")
+  await view.getByTestId("structure-add-column").click()
+  await page.getByTestId("structure-add-name").fill(column)
+  await page.getByTestId("structure-add-save").click()
+  await expect(view).toContainText(column)
+
+  await view.getByTestId(`structure-drop-${column}`).click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(view.getByTestId(`structure-drop-${column}`)).toHaveCount(0)
+
+  await deleteConnector(page, name)
+})

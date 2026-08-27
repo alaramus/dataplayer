@@ -2,8 +2,14 @@ from collections.abc import Mapping
 from typing import Any
 
 from app.adapters.catalog import CatalogNode
+from app.adapters.column_changes import (
+    AddColumnRequest,
+    ColumnChangeResult,
+    DropColumnRequest,
+)
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.postgres.catalog import PostgresCatalog
+from app.adapters.postgres.columns import PostgresColumns
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.options import PostgresOptions
 from app.adapters.postgres.relation import PostgresRelation
@@ -62,6 +68,7 @@ class PostgresAdapter:
         self._fetch = PostgresFetch(self._session)
         self._update = PostgresUpdate(self._session, self._fetch)
         self._relation = PostgresRelation(self._session)
+        self._columns = PostgresColumns(self._session, self._relation)
 
     @classmethod
     def options_from_url(cls, url: str) -> dict[str, Any]:
@@ -117,6 +124,12 @@ class PostgresAdapter:
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)
+
+    async def add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
+        return await self._columns.add_column(request)
+
+    async def drop_column(self, request: DropColumnRequest) -> ColumnChangeResult:
+        return await self._columns.drop_column(request)
 
 
 @register(

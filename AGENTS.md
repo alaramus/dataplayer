@@ -71,7 +71,8 @@ strings, test names, commit messages and documentation. The only exception is
   not probed and cannot be opened.
 - Light and dark themes, remembered.
 - A relation describes itself: columns with a parsed type, ordered constraints,
-  indexes and partitioning. Its structure opens in a tab beside its rows.
+  indexes and partitioning. Its structure opens in a tab beside its rows, where
+  PostgreSQL columns can be added from a safe type list or explicitly dropped.
 - The row grid filters and ordered multi-sorts on the server, pages up to 500
   rows, remembers its query and column layout, selects and copies exact TSV, and
   renders lossless values by type with a full-value viewer. PostgreSQL cells in
@@ -115,6 +116,7 @@ and the known deviations live there.
 | D24 | The grid is controlled state around a headless engine, and source operations stay server-side | [frontend](docs/architecture/frontend.md) |
 | D25 | A source issues a versioned row handle, and only it can apply an edit | [adapters](docs/architecture/adapters.md) |
 | D26 | Insert names supplied columns; bulk delete changes every versioned row or none | [adapters](docs/architecture/adapters.md) |
+| D27 | A source publishes column type choices and alone turns them into DDL | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -324,6 +326,6 @@ touching the affected side is clean.
 Sub-projects 1–6 and the workspace rounds are done; see
 [the spec index](docs/superpowers/specs/README.md) for what each settled.
 
-The data grid and its first editing rounds are done: update, insert and atomic
-bulk delete. The next editing work starts only after its interaction and
-transaction boundary are specified; these commands are not a generic SQL editor.
+The first data and structure editing rounds are done: update, insert, atomic
+bulk delete, and add/drop column. Further DDL starts only after its safe
+vocabulary and dependency behaviour are specified; this is not a generic SQL editor.

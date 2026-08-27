@@ -36,6 +36,7 @@
 | 2026-08-27 | [Грид исследования данных](2026-08-27-data-grid-design.md) | Фильтры, multi-sort, раскладка колонок, выделение и точное копирование |
 | 2026-08-27 | [Редактирование данных](2026-08-27-data-editing-design.md) | D25: versioned row handle и optimistic update одной ячейки |
 | 2026-08-27 | [Вставка и удаление строк](2026-08-27-row-insert-delete-design.md) | D26: omitted/default/NULL и атомарное bulk delete |
+| 2026-08-27 | [Добавление и удаление колонок](2026-08-27-column-add-drop-design.md) | D27: source-owned типы и DDL без клиентского SQL |
 
 Планы реализации — в [../plans/](../plans/). Их пять: два на реестр
 коннекторов, по одному на рабочую область, relation model и grid; остальные

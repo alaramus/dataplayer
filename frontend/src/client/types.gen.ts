@@ -131,6 +131,28 @@ export type AdapterTypeInfo = {
 }
 
 /**
+ * AddColumnRequest
+ */
+export type AddColumnRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Type Code
+   */
+  type_code: string
+  /**
+   * Nullable
+   */
+  nullable?: boolean
+}
+
+/**
  * Body_connectors-run_action_with_file
  */
 export type Body_connectors_run_action_with_file = {
@@ -262,6 +284,16 @@ export type Column = {
 }
 
 /**
+ * ColumnChangeResult
+ */
+export type ColumnChangeResult = {
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
  * ColumnType
  *
  * A type's DDL spelling and its value semantics.
@@ -310,6 +342,26 @@ export type ColumnType = {
    * Scale
    */
   scale?: number | null
+}
+
+/**
+ * ColumnTypeOption
+ *
+ * One source-owned DDL type choice; its code is not SQL.
+ */
+export type ColumnTypeOption = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Sql
+   */
+  sql: string
 }
 
 /**
@@ -521,6 +573,20 @@ export type DirectoryNode = {
    * Modified At
    */
   modified_at?: string | null
+}
+
+/**
+ * DropColumnRequest
+ */
+export type DropColumnRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Name
+   */
+  name: string
 }
 
 /**
@@ -1051,6 +1117,18 @@ export type RelationModel = {
   indexes?: Array<Index>
   partitioning?: Partitioning | null
   partition_of?: PartitionOf | null
+  /**
+   * Column Changes Supported
+   */
+  column_changes_supported?: boolean
+  /**
+   * Column Changes Reason
+   */
+  column_changes_reason?: string | null
+  /**
+   * Column Type Options
+   */
+  column_type_options?: Array<ColumnTypeOption>
 }
 
 /**
@@ -2340,6 +2418,68 @@ export type connectorsReadRelationModelResponses = {
 
 export type connectorsReadRelationModelResponse =
   connectorsReadRelationModelResponses[keyof connectorsReadRelationModelResponses]
+
+export type connectorsDropColumnData = {
+  body: DropColumnRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/columns"
+}
+
+export type connectorsDropColumnErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsDropColumnError = connectorsDropColumnErrors[keyof connectorsDropColumnErrors]
+
+export type connectorsDropColumnResponses = {
+  /**
+   * Successful Response
+   */
+  200: ColumnChangeResult
+}
+
+export type connectorsDropColumnResponse =
+  connectorsDropColumnResponses[keyof connectorsDropColumnResponses]
+
+export type connectorsAddColumnData = {
+  body: AddColumnRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/columns"
+}
+
+export type connectorsAddColumnErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsAddColumnError = connectorsAddColumnErrors[keyof connectorsAddColumnErrors]
+
+export type connectorsAddColumnResponses = {
+  /**
+   * Successful Response
+   */
+  200: ColumnChangeResult
+}
+
+export type connectorsAddColumnResponse =
+  connectorsAddColumnResponses[keyof connectorsAddColumnResponses]
 
 export type connectorsReadNodePathData = {
   body?: never

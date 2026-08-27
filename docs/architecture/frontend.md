@@ -11,7 +11,8 @@ Decisions here: D6, D7, D11, D24.
 Vue 3, TypeScript, Quasar, Vite, TanStack Query, Pinia. Sign in, a catalog of
 source types, a form generated from the adapter's own schema, the list of
 connections, the catalog of a connection as a list of one level, and a typed
-data grid with server paging, filters, ordered sorting and guarded cell editing.
+data grid with server paging, filters, ordered sorting and guarded cell editing;
+the structure tab adds and drops columns through source-declared capabilities.
 Light and dark themes,
 switched by a button beside Sign out and remembered.
 
@@ -49,7 +50,8 @@ frontend/src/
     │                    sort editors, column layout, selection, clipboard,
     │                    typed renderers and the full-value viewer
     ├── structure/       a relation model in its own tab: columns, ordered
-    │                    constraints and indexes; model.ts maps them to badges
+    │                    constraints and indexes; model.ts maps them to badges,
+    │                    and source-owned type choices drive column DDL
     ├── connectors/      the list of sources, the catalog of source types that
     │                    starts a new one, and the window that registers one;
     │                    adapterSearch.ts is a pure mapper
