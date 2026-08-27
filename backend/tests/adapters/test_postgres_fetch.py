@@ -6,7 +6,7 @@ import pytest
 
 from app.adapters.fetch import FetchRequest, Sort
 from app.adapters.postgres.adapter import PostgresAdapter
-from app.adapters.postgres.fetch import encode_cell
+from app.adapters.postgres.fetch import column_capabilities, encode_cell
 from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.protocol import AdapterError
 from app.adapters.relation import ColumnType
@@ -46,6 +46,16 @@ def test_cell_values_are_lossless_text(
     value: object, column_type: ColumnType, expected: str | None
 ) -> None:
     assert encode_cell(value, column_type) == expected
+
+
+def test_interval_advertises_only_null_filters() -> None:
+    """An interval has no supported text parameter representation yet."""
+    sortable, operators = column_capabilities(
+        ColumnType(sql="interval", category="datetime")
+    )
+
+    assert sortable is False
+    assert operators == ["is_null", "is_not_null"]
 
 
 def _adapter() -> PostgresAdapter:

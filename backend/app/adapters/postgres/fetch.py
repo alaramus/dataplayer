@@ -48,16 +48,31 @@ class _JsonNumber:
         self.text = text
 
 
+def _supports_filter_value_coercion(type_: ColumnType) -> bool:
+    if type_.category == "datetime":
+        return _is_supported_datetime_sql(type_.sql)
+    return type_.category in _EQUAL
+
+
+def _is_supported_datetime_sql(sql_type: str) -> bool:
+    return (
+        sql_type == "date"
+        or sql_type.startswith("timestamp")
+        or sql_type.startswith("time")
+    )
+
+
 def column_capabilities(type_: ColumnType) -> tuple[bool, list[FilterOp]]:
     operators: list[FilterOp] = []
-    if type_.category in _EQUAL:
+    coercible = _supports_filter_value_coercion(type_)
+    if coercible and type_.category in _EQUAL:
         operators.extend(["eq", "ne", "in"])
-    if type_.category in _COMPARED:
+    if coercible and type_.category in _COMPARED:
         operators.extend(["gt", "gte", "lt", "lte"])
-    if type_.category == "string":
+    if coercible and type_.category == "string":
         operators.extend(["contains", "starts_with"])
     operators.extend(["is_null", "is_not_null"])
-    return type_.category in _ORDERED, operators
+    return coercible and type_.category in _ORDERED, operators
 
 
 def coerce_filter_value(value: str, type_: ColumnType) -> object:
@@ -79,7 +94,7 @@ def coerce_filter_value(value: str, type_: ColumnType) -> object:
             case "string" | "enum":
                 return value
             case _:
-                return value
+                raise ValueError
     except (InvalidOperation, ValueError):
         raise ValueError from None
 
