@@ -136,4 +136,56 @@ describe("the basic data grid", () => {
     )
     expect(loadGridState("connector-1", "public.projects")?.filters).toEqual(filters)
   })
+
+  it("uses normal and Shift header clicks for one ordered server sort", async () => {
+    const fetchRows = mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-column-id"]').trigger("click")
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-column-name"]').trigger("click", { shiftKey: true })
+    await flushPromises()
+
+    expect(fetchRows).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          sort: [
+            { column: "id", descending: false },
+            { column: "name", descending: false },
+          ],
+        }),
+      })
+    )
+    expect(wrapper.get('[data-testid="grid-sort-priority-id"]').text()).toBe("1")
+    expect(wrapper.get('[data-testid="grid-sort-priority-name"]').text()).toBe("2")
+    expect(wrapper.get('[data-testid="grid-sort-direction-id"]').attributes("data-direction")).toBe(
+      "asc"
+    )
+  })
+
+  it("never requests a sort for a non-sortable header", async () => {
+    const fetchRows = vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({
+      data: {
+        columns: [
+          {
+            name: "payload",
+            type: { sql: "jsonb", category: "json" },
+            sortable: false,
+            filter_operators: ["is_null"],
+          },
+        ],
+        rows: [["{}"]],
+        has_more: false,
+      },
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+    const callsBeforeClick = fetchRows.mock.calls.length
+
+    await wrapper.get('[data-testid="grid-column-payload"]').trigger("click")
+    await flushPromises()
+
+    expect(fetchRows).toHaveBeenCalledTimes(callsBeforeClick)
+  })
 })

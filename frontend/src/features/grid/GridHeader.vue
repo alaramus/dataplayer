@@ -1,23 +1,32 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
-import type { FetchColumn } from "@/client"
+import type { FetchColumn, Sort } from "@/client"
 import { AppButton, AppSelect, AppTooltip } from "@/shared/ui"
 
 import FilterEditor from "./FilterEditor.vue"
+import SortEditor from "./SortEditor.vue"
 import { PAGE_SIZES } from "./types"
 import type { Filter, PageSize } from "./types"
 
-const props = defineProps<{ pageSize: PageSize; columns: FetchColumn[]; filters: Filter[] }>()
+const props = defineProps<{
+  pageSize: PageSize
+  columns: FetchColumn[]
+  filters: Filter[]
+  sort: Sort[]
+}>()
 const emit = defineEmits<{
   "update:pageSize": [value: PageSize]
   "update:filters": [value: Filter[]]
+  "update:sort": [value: Sort[]]
 }>()
 const pageSizeOptions = PAGE_SIZES.map((size) => ({ label: String(size), value: size }))
 const filtersOpen = ref(false)
+const sortOpen = ref(false)
 const canFilter = computed(() =>
   props.columns.some((column) => (column.filter_operators?.length ?? 0) > 0)
 )
+const canSort = computed(() => props.columns.some((column) => column.sortable === true))
 
 function selectPageSize(value: unknown) {
   if (typeof value === "number" && PAGE_SIZES.some((size) => size === value)) {
@@ -47,12 +56,20 @@ function selectPageSize(value: unknown) {
           />
           <AppTooltip v-if="!canFilter">This source does not support filtering</AppTooltip>
         </span>
-        <AppButton
-          label="Sort"
-          variant="quiet"
-          size="sm"
-          disable
-        />
+        <span
+          data-testid="grid-sort-command"
+          :title="canSort ? undefined : 'This source does not support sorting'"
+        >
+          <AppButton
+            :label="sort.length > 0 ? `Sort (${sort.length})` : 'Sort'"
+            variant="quiet"
+            size="sm"
+            :disable="!canSort"
+            data-testid="grid-sort"
+            @click="sortOpen = !sortOpen"
+          />
+          <AppTooltip v-if="!canSort">This source does not support sorting</AppTooltip>
+        </span>
         <AppButton
           label="Columns"
           variant="quiet"
@@ -90,6 +107,13 @@ function selectPageSize(value: unknown) {
       :filters="filters"
       @apply="emit('update:filters', $event)"
       @close="filtersOpen = false"
+    />
+    <SortEditor
+      v-if="sortOpen && canSort"
+      :columns="columns"
+      :sort="sort"
+      @apply="emit('update:sort', $event)"
+      @close="sortOpen = false"
     />
   </div>
 </template>

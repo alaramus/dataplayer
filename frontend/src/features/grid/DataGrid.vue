@@ -3,6 +3,7 @@ import { tableFeatures, useTable } from "@tanstack/vue-table"
 import type { ColumnDef } from "@tanstack/vue-table"
 import { computed, ref, toRef, watch } from "vue"
 
+import type { Sort } from "@/client"
 import { AppIconButton } from "@/shared/ui"
 
 import { useRowsPage } from "./api"
@@ -16,6 +17,8 @@ import {
   savePageSize,
 } from "./persist"
 import { buildFetchRequest, withFilters, withPage, withPageSize } from "./queryState"
+import { withSort } from "./queryState"
+import { toggleMultiSort, toggleSingleSort } from "./sortModel"
 import type { Filter, GridQueryState, GridRow, PageSize, StoredGridState } from "./types"
 
 const props = defineProps<{ connectorId: string; nodeId: string }>()
@@ -65,7 +68,18 @@ function changePageSize(pageSize: PageSize) {
 }
 
 function changeFilters(filters: Filter[]) {
-  queryState.value = withFilters(queryState.value, filters)
+  const next = withFilters(queryState.value, filters)
+  queryState.value = next
+  saveQueryState(next)
+}
+
+function changeSort(sort: Sort[]) {
+  const next = withSort(queryState.value, sort)
+  queryState.value = next
+  saveQueryState(next)
+}
+
+function saveQueryState(state: GridQueryState) {
   const columns = result.value?.columns ?? []
   const stored = loadGridState(props.connectorId, props.nodeId)
   const base: StoredGridState =
@@ -79,7 +93,25 @@ function changeFilters(filters: Filter[]) {
           sort: [],
         }
       : reconcileGridState(stored, columns)
-  saveGridState(props.connectorId, props.nodeId, { ...base, filters })
+  saveGridState(props.connectorId, props.nodeId, {
+    ...base,
+    filters: state.filters,
+    sort: state.sort,
+  })
+}
+
+function sortColumn(columnName: string, event: MouseEvent) {
+  const column = result.value?.columns.find((candidate) => candidate.name === columnName)
+  if (column?.sortable !== true) return
+  changeSort(
+    event.shiftKey
+      ? toggleMultiSort(queryState.value.sort, columnName)
+      : toggleSingleSort(queryState.value.sort, columnName)
+  )
+}
+
+function sortIndex(columnName: string): number {
+  return queryState.value.sort.findIndex((item) => item.column === columnName)
 }
 
 function displayCell(value: unknown): string {
@@ -109,8 +141,10 @@ defineExpose({
       :page-size="queryState.pageSize"
       :columns="result?.columns ?? []"
       :filters="queryState.filters"
+      :sort="queryState.sort"
       @update:page-size="changePageSize"
       @update:filters="changeFilters"
+      @update:sort="changeSort"
     />
 
     <div class="data-grid__scroll">
@@ -128,12 +162,26 @@ defineExpose({
               :key="header.id"
               scope="col"
               :data-testid="`grid-column-${header.column.id}`"
+              :class="{ 'data-grid__sortable': result?.columns.find((column) => column.name === header.column.id)?.sortable === true }"
+              @click="sortColumn(header.column.id, $event)"
             >
               <span>{{ header.column.id }}</span>
+              <template v-if="sortIndex(header.column.id) >= 0">
+                <q-icon
+                  :name="queryState.sort[sortIndex(header.column.id)]?.descending === true ? 'arrow_downward' : 'arrow_upward'"
+                  :data-direction="queryState.sort[sortIndex(header.column.id)]?.descending === true ? 'desc' : 'asc'"
+                  :data-testid="`grid-sort-direction-${header.column.id}`"
+                  size="14px"
+                />
+                <span :data-testid="`grid-sort-priority-${header.column.id}`">
+                  {{ sortIndex(header.column.id) + 1 }}
+                </span>
+              </template>
               <AppIconButton
                 icon="more_horiz"
                 :tooltip="`Select column ${header.column.id}`"
                 :data-testid="`grid-column-select-${header.column.id}`"
+                @click.stop
               />
             </th>
           </tr>
@@ -210,6 +258,10 @@ defineExpose({
 .data-grid__table th {
   background: var(--dp-surface-raised);
   color: var(--dp-text-strong);
+}
+
+.data-grid__sortable {
+  cursor: pointer;
 }
 
 .data-grid__pager {

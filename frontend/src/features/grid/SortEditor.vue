@@ -1,0 +1,147 @@
+<script setup lang="ts">
+import { computed, ref } from "vue"
+
+import type { FetchColumn, Sort } from "@/client"
+import { AppButton, AppIconButton, AppSelect } from "@/shared/ui"
+
+import { moveSort } from "./sortModel"
+
+const props = defineProps<{ columns: FetchColumn[]; sort: Sort[] }>()
+const emit = defineEmits<{ apply: [sort: Sort[]]; close: [] }>()
+
+const sortableColumns = computed(() => props.columns.filter((column) => column.sortable === true))
+const availableColumns = computed(() =>
+  sortableColumns.value.filter(
+    (column) => !props.sort.some((item) => item.column === column.name)
+  )
+)
+const selectedColumn = ref<string | null>(null)
+const addOptions = computed(() =>
+  availableColumns.value.map((column) => ({ label: column.name, value: column.name }))
+)
+
+function addColumn() {
+  const column =
+    selectedColumn.value ?? (availableColumns.value.length === 1 ? availableColumns.value[0]?.name : null)
+  if (column === null || column === undefined) return
+  emit("apply", [...props.sort, { column, descending: false }])
+  selectedColumn.value = null
+}
+
+function toggleDirection(index: number) {
+  emit(
+    "apply",
+    props.sort.map((item, itemIndex) =>
+      itemIndex === index ? { ...item, descending: item.descending !== true } : item
+    )
+  )
+}
+
+function remove(index: number) {
+  emit(
+    "apply",
+    props.sort.filter((_, itemIndex) => itemIndex !== index)
+  )
+}
+</script>
+
+<template>
+  <div
+    class="sort-editor"
+    data-testid="grid-sort-editor"
+    @keyup.esc="emit('close')"
+  >
+    <div
+      v-for="(item, index) in sort"
+      :key="item.column"
+      class="sort-editor__item"
+    >
+      <span class="sort-editor__priority">{{ index + 1 }}</span>
+      <span>{{ item.column }}</span>
+      <AppButton
+        :label="item.descending === true ? 'Descending' : 'Ascending'"
+        variant="quiet"
+        size="sm"
+        :data-testid="`grid-sort-direction-${index}`"
+        @click="toggleDirection(index)"
+      />
+      <AppIconButton
+        icon="arrow_upward"
+        :tooltip="`Move ${item.column} up`"
+        :disable="index === 0"
+        :data-testid="`grid-sort-up-${index}`"
+        @click="emit('apply', moveSort(sort, index, -1))"
+      />
+      <AppIconButton
+        icon="arrow_downward"
+        :tooltip="`Move ${item.column} down`"
+        :disable="index === sort.length - 1"
+        :data-testid="`grid-sort-down-${index}`"
+        @click="emit('apply', moveSort(sort, index, 1))"
+      />
+      <AppIconButton
+        icon="close"
+        :tooltip="`Remove ${item.column}`"
+        :data-testid="`grid-sort-delete-${index}`"
+        @click="remove(index)"
+      />
+    </div>
+
+    <div class="sort-editor__add">
+      <AppSelect
+        v-model="selectedColumn"
+        :options="addOptions"
+        label="Column"
+        compact
+        :disable="availableColumns.length === 0"
+      />
+      <AppButton
+        label="Add"
+        variant="quiet"
+        size="sm"
+        :disable="availableColumns.length === 0"
+        data-testid="grid-sort-add"
+        @click="addColumn"
+      />
+      <AppButton
+        label="Clear all"
+        variant="quiet"
+        size="sm"
+        :disable="sort.length === 0"
+        data-testid="grid-sort-clear"
+        @click="emit('apply', [])"
+      />
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.sort-editor,
+.sort-editor__item,
+.sort-editor__add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sort-editor {
+  flex-wrap: wrap;
+  min-height: 48px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--dp-border-faint);
+}
+
+.sort-editor__item {
+  padding-left: 8px;
+  border: 1px solid var(--dp-border);
+  border-radius: 4px;
+}
+
+.sort-editor__priority {
+  color: var(--dp-text-muted);
+}
+
+.sort-editor__add :deep(.q-field) {
+  min-width: 140px;
+}
+</style>

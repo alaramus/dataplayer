@@ -31,7 +31,7 @@ const FILE_COLUMN: FetchColumn = {
 
 function mountHeader(columns: FetchColumn[], filters: Filter[] = []) {
   return mount(GridHeader, {
-    props: { pageSize: 100, columns, filters },
+    props: { pageSize: 100, columns, filters, sort: [] },
     global: { plugins: [Quasar] },
   })
 }
