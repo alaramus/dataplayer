@@ -8,9 +8,15 @@ import { AppIconButton } from "@/shared/ui"
 import { useRowsPage } from "./api"
 import GridHeader from "./GridHeader.vue"
 import { toGridRows } from "./model"
-import { loadPageSize, savePageSize } from "./persist"
-import { buildFetchRequest, withPage, withPageSize } from "./queryState"
-import type { GridQueryState, GridRow, PageSize } from "./types"
+import {
+  loadGridState,
+  loadPageSize,
+  reconcileGridState,
+  saveGridState,
+  savePageSize,
+} from "./persist"
+import { buildFetchRequest, withFilters, withPage, withPageSize } from "./queryState"
+import type { Filter, GridQueryState, GridRow, PageSize, StoredGridState } from "./types"
 
 const props = defineProps<{ connectorId: string; nodeId: string }>()
 
@@ -58,6 +64,24 @@ function changePageSize(pageSize: PageSize) {
   savePageSize(pageSize)
 }
 
+function changeFilters(filters: Filter[]) {
+  queryState.value = withFilters(queryState.value, filters)
+  const columns = result.value?.columns ?? []
+  const stored = loadGridState(props.connectorId, props.nodeId)
+  const base: StoredGridState =
+    stored === null
+      ? {
+          columnOrder: columns.map((column) => column.name),
+          columnVisibility: {},
+          columnSizing: {},
+          pinnedLeft: [],
+          filters: [],
+          sort: [],
+        }
+      : reconcileGridState(stored, columns)
+  saveGridState(props.connectorId, props.nodeId, { ...base, filters })
+}
+
 function displayCell(value: unknown): string {
   return value === null ? "∅" : String(value)
 }
@@ -83,7 +107,10 @@ defineExpose({
   >
     <GridHeader
       :page-size="queryState.pageSize"
+      :columns="result?.columns ?? []"
+      :filters="queryState.filters"
       @update:page-size="changePageSize"
+      @update:filters="changeFilters"
     />
 
     <div class="data-grid__scroll">

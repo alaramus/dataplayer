@@ -6,14 +6,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ConnectorsService } from "@/client"
 import type { FetchResult } from "@/client"
 import { AppSelect } from "@/shared/ui"
+import { AppInput } from "@/shared/ui"
 
 import DataGrid from "./DataGrid.vue"
+import { loadGridState } from "./persist"
 
 function result(offset: number, limit: number): FetchResult {
   return {
     columns: [
-      { name: "id", type: { sql: "bigint", category: "number" }, sortable: true },
-      { name: "name", type: { sql: "text", category: "string" }, sortable: true },
+      {
+        name: "id",
+        type: { sql: "bigint", category: "number" },
+        sortable: true,
+        filter_operators: ["eq", "gt", "is_null"],
+      },
+      {
+        name: "name",
+        type: { sql: "text", category: "string" },
+        sortable: true,
+        filter_operators: ["eq", "contains", "is_null"],
+      },
     ],
     rows: Array.from({ length: limit }, (_, index) => [
       String(offset + index + 1),
@@ -102,5 +114,26 @@ describe("the basic data grid", () => {
     expect(fetchRows).toHaveBeenLastCalledWith(
       expect.objectContaining({ body: expect.objectContaining({ offset: 100, limit: 100 }) })
     )
+  })
+
+  it("applies filters from page zero and persists the exact conditions", async () => {
+    const fetchRows = mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-next"]').trigger("click")
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-filter"]').trigger("click")
+    wrapper.findComponent(AppInput).vm.$emit("update:modelValue", "1")
+
+    await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
+    await flushPromises()
+
+    const filters = [{ column: "id", op: "eq", value: "1" }] as const
+    expect(fetchRows).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ offset: 0, filters }),
+      })
+    )
+    expect(loadGridState("connector-1", "public.projects")?.filters).toEqual(filters)
   })
 })
