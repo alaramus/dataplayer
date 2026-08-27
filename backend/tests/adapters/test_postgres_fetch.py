@@ -1,3 +1,4 @@
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -10,8 +11,15 @@ from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.protocol import AdapterError
 from app.adapters.relation import ColumnType
 from tests.utils.database import working_postgres_options
+from tests.utils.relation_fixture import make_schema, run
 
 CONNECTOR_TABLE = "public.connector"
+
+
+@pytest.fixture
+async def schema() -> AsyncGenerator[str]:
+    async for name in make_schema():
+        yield name
 
 
 @pytest.mark.parametrize(
@@ -55,6 +63,20 @@ async def test_returns_columns_and_rows_as_arrays() -> None:
         for cell in row
         if cell is not None
     )
+
+
+async def test_json_numeric_tokens_survive_a_database_fetch(schema: str) -> None:
+    await run(f"CREATE TABLE {schema}.json_values (payload jsonb NOT NULL)")
+    await run(
+        f"INSERT INTO {schema}.json_values VALUES "  # noqa: S608 -- schema is fixture-owned.
+        "('[9007199254740993.25,0.0000000000000000001]'::jsonb)"
+    )
+
+    result = await _adapter().fetch(
+        FetchRequest(node_id=f"{schema}.json_values", limit=1)
+    )
+
+    assert result.rows == [["[9007199254740993.25,0.0000000000000000001]"]]
 
 
 async def test_limit_bounds_the_page() -> None:

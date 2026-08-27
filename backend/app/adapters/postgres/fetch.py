@@ -32,7 +32,16 @@ _COMPARISONS: dict[str, str] = {
 _ORDERED = frozenset({"number", "string", "boolean", "datetime", "uuid", "enum"})
 _COMPARED = frozenset({"number", "string", "datetime"})
 _EQUAL = frozenset({"number", "string", "datetime", "boolean", "uuid", "enum"})
-_SERVER_TEXT = frozenset({"array", "geometric", "range", "composite", "other"})
+_SERVER_TEXT = frozenset(
+    {"array", "geometric", "json", "range", "composite", "other"}
+)
+
+
+class _JsonNumber:
+    """A JSON numeric token that must never become a Python float."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
 
 
 def column_capabilities(type_: ColumnType) -> tuple[bool, list[FilterOp]]:
@@ -58,8 +67,35 @@ def encode_cell(value: Any, type_: ColumnType) -> str | None:
     if type_.category == "binary" and isinstance(value, bytes | bytearray | memoryview):
         return f"0x{bytes(value).hex().upper()}"
     if type_.category == "json":
-        return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+        if not isinstance(value, str):
+            raise TypeError("PostgreSQL JSON values must be selected as text")
+        return _compact_json(value)
     return str(value)
+
+
+def _compact_json(value: str) -> str:
+    """Remove JSON whitespace without parsing numeric tokens as floats."""
+    decoded = json.loads(value, parse_int=_JsonNumber, parse_float=_JsonNumber)
+    return _encode_json(decoded)
+
+
+def _encode_json(value: Any) -> str:
+    if isinstance(value, _JsonNumber):
+        return value.text
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, list):
+        return "[" + ",".join(_encode_json(item) for item in value) + "]"
+    if isinstance(value, dict):
+        return "{" + ",".join(
+            f"{json.dumps(key, ensure_ascii=False)}:{_encode_json(item)}"
+            for key, item in value.items()
+        ) + "}"
+    raise TypeError("PostgreSQL JSON values must contain JSON data")
 
 
 class PostgresFetch:
