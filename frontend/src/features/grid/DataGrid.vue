@@ -21,15 +21,25 @@ import type {
 import { computed, ref, toRef, useTemplateRef, watch } from "vue"
 import type { CSSProperties } from "vue"
 
-import type { Sort } from "@/client"
-import { AppIconButton, useToast } from "@/shared/ui"
+import type { FetchColumn, Sort } from "@/client"
+import { messageOf } from "@/shared/api/errors"
+import {
+  AppBanner,
+  AppButton,
+  AppCheckbox,
+  AppEmptyState,
+  AppIconButton,
+  useToast,
+} from "@/shared/ui"
 
 import { useRowsPage } from "./api"
+import CellValueDialog from "./CellValueDialog.vue"
 import { toTsv, writeSelection } from "./clipboard"
 import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
 import GridHeader from "./GridHeader.vue"
-import { toGridRows } from "./model"
+import { cellPresentation, shouldOpenViewer, toGridRows } from "./model"
+import type { CellPresentation } from "./model"
 import {
   loadGridState,
   loadPageSize,
@@ -64,10 +74,13 @@ const request = computed(() => buildFetchRequest(props.nodeId, queryState.value)
 const rowsQuery = useRowsPage(toRef(props, "connectorId"), request)
 const result = computed(() => rowsQuery.data.value)
 const rows = computed(() =>
-  result.value === undefined ? [] : toGridRows(result.value, request.value.offset ?? 0)
+  result.value === undefined || rowsQuery.isError.value
+    ? []
+    : toGridRows(result.value, request.value.offset ?? 0)
 )
 const layout = ref<ColumnLayoutState>({ ...EMPTY_LAYOUT })
 const selectedColumn = ref<string | null>(null)
+const viewer = ref<{ columnName: string; typeSql: string; value: string } | null>(null)
 const gridFocus = useTemplateRef<HTMLElement>("gridFocus")
 const features = tableFeatures({
   columnSizingFeature,
@@ -325,8 +338,27 @@ function handleGridKey(event: KeyboardEvent) {
   }
 }
 
-function displayCell(value: unknown): string {
-  return value === null ? "∅" : String(value)
+function serverColumn(columnId: string): FetchColumn | undefined {
+  return result.value?.columns.find((column) => column.name === columnId)
+}
+
+function presentCell(cell: Cell<GridFeatures, GridRow, unknown>): CellPresentation {
+  const column = serverColumn(cell.column.id)
+  const value = cell.getValue() as string | null
+  return column === undefined
+    ? { text: value ?? "∅", align: "left", tone: value === null ? "null" : "default" }
+    : cellPresentation(value, column.type)
+}
+
+function openViewer(cell: Cell<GridFeatures, GridRow, unknown>) {
+  const column = serverColumn(cell.column.id)
+  const value = cell.getValue() as string | null
+  if (column === undefined || value === null || !shouldOpenViewer(value, column.type)) return
+  viewer.value = { columnName: column.name, typeSql: column.type.sql, value }
+}
+
+function retry() {
+  void rowsQuery.refetch()
 }
 
 let restoredKey = ""
@@ -398,7 +430,26 @@ defineExpose({
       @copy="copySelection"
     />
 
+    <AppBanner
+      v-if="rowsQuery.isError.value"
+      tone="error"
+      class="data-grid__state"
+      data-testid="grid-error"
+    >
+      <div class="data-grid__error">
+        <span>{{ messageOf(rowsQuery.error.value, "Could not read the rows") }}</span>
+        <AppButton
+          variant="secondary"
+          label="Retry"
+          size="sm"
+          data-testid="grid-retry"
+          @click="retry"
+        />
+      </div>
+    </AppBanner>
+
     <div
+      v-else
       ref="gridFocus"
       class="data-grid__scroll"
       role="grid"
@@ -406,7 +457,20 @@ defineExpose({
       data-testid="grid-focus"
       @keydown="handleGridKey"
     >
+      <div
+        v-if="rowsQuery.isPending.value"
+        class="data-grid__skeleton"
+        data-testid="grid-skeleton"
+        aria-label="Loading rows"
+      >
+        <div
+          v-for="index in 8"
+          :key="index"
+          class="data-grid__skeleton-row"
+        />
+      </div>
       <table
+        v-else
         class="data-grid__table"
       >
         <thead>
@@ -493,12 +557,40 @@ defineExpose({
               :style="columnStyle(cell.column)"
               @mousedown="startSelection(cell, $event)"
               @mouseenter="cell.getSelectionExtendHandler()($event)"
+              @dblclick="openViewer(cell)"
             >
-              {{ displayCell(cell.getValue()) }}
+              <AppCheckbox
+                v-if="serverColumn(cell.column.id)?.type.category === 'boolean' && cell.getValue() !== null"
+                :model-value="cell.getValue() === 'true'"
+                dense
+                disable
+                aria-label="Boolean value"
+              />
+              <span
+                v-else
+                :class="{
+                  'data-grid__align-right': presentCell(cell).align === 'right',
+                  'data-grid__align-center': presentCell(cell).align === 'center',
+                  'data-grid__null': presentCell(cell).tone === 'null',
+                  'data-grid__monospace': presentCell(cell).monospace === true,
+                }"
+              >{{ presentCell(cell).text }}</span>
             </td>
           </tr>
         </tbody>
       </table>
+      <AppEmptyState
+        v-if="result !== undefined && rows.length === 0"
+        class="data-grid__state"
+        text="No rows"
+        data-testid="grid-empty"
+      />
+      <div
+        v-if="rowsQuery.isFetching.value && result !== undefined"
+        class="data-grid__loading-overlay"
+        data-testid="grid-loading-overlay"
+        aria-label="Refreshing rows"
+      />
     </div>
 
     <div class="data-grid__pager">
@@ -518,6 +610,15 @@ defineExpose({
         @click="turnPage(1)"
       />
     </div>
+
+    <CellValueDialog
+      v-if="viewer !== null"
+      :model-value="true"
+      :column-name="viewer.columnName"
+      :type-sql="viewer.typeSql"
+      :value="viewer.value"
+      @update:model-value="viewer = null"
+    />
   </div>
 </template>
 
@@ -531,10 +632,43 @@ defineExpose({
 }
 
 .data-grid__scroll {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow: auto;
   outline: none;
+}
+
+.data-grid__state {
+  margin: 12px;
+}
+
+.data-grid__error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.data-grid__skeleton {
+  display: grid;
+  gap: 1px;
+  padding: 1px;
+}
+
+.data-grid__skeleton-row {
+  height: 34px;
+  background: var(--dp-surface-raised);
+  opacity: 0.65;
+}
+
+.data-grid__loading-overlay {
+  position: absolute;
+  z-index: var(--dp-layer-sticky);
+  inset: 0;
+  background: var(--dp-surface-raised);
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 .data-grid__table {
@@ -605,6 +739,29 @@ defineExpose({
 
 .data-grid__selected {
   box-shadow: inset 0 0 0 2px var(--dp-focus-border);
+}
+
+.data-grid__table td > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.data-grid__align-right {
+  text-align: right;
+}
+
+.data-grid__align-center {
+  text-align: center;
+}
+
+.data-grid__null {
+  color: var(--dp-text-muted);
+  font-style: italic;
+}
+
+.data-grid__monospace {
+  font-family: monospace;
 }
 
 .data-grid__pager {

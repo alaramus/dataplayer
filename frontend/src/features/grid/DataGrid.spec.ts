@@ -332,4 +332,104 @@ describe("the basic data grid", () => {
     await wrapper.get('[data-testid="grid-pin-name"]').trigger("click")
     expect(wrapper.findAll(".data-grid__selected")).toHaveLength(0)
   })
+
+  it("shows an initial skeleton while the first page is pending", async () => {
+    vi.spyOn(ConnectorsService, "fetchRows").mockImplementation(
+      () => new Promise(() => {}) as never
+    )
+
+    const wrapper = mountGrid()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-testid="grid-skeleton"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="grid-header"]').exists()).toBe(true)
+  })
+
+  it("keeps rows under an overlay while the current page refetches", async () => {
+    let finish: ((value: unknown) => void) | undefined
+    const fetchRows = vi
+      .spyOn(ConnectorsService, "fetchRows")
+      .mockResolvedValueOnce({ data: result(0, 1) } as never)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve
+          }) as never
+      )
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    const reload = (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="grid-loading-overlay"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="grid-cell-0-name"]').text()).toBe("Project 1")
+
+    finish?.({ data: result(0, 1) })
+    await reload
+    expect(fetchRows).toHaveBeenCalledTimes(2)
+  })
+
+  it("removes prior rows after failure and retries from the safe error", async () => {
+    const fetchRows = vi
+      .spyOn(ConnectorsService, "fetchRows")
+      .mockResolvedValueOnce({ data: result(0, 1) } as never)
+      .mockRejectedValueOnce(new Error("password=secret"))
+      .mockResolvedValueOnce({ data: result(0, 1) } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="grid-cell-0-name"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="grid-error"]').text()).toContain("Could not read the rows")
+    expect(wrapper.text()).not.toContain("password=secret")
+    await wrapper.get('[data-testid="grid-retry"]').trigger("click")
+    await flushPromises()
+    expect(fetchRows).toHaveBeenCalledTimes(3)
+  })
+
+  it("shows an empty page while Previous stays available", async () => {
+    vi.spyOn(ConnectorsService, "fetchRows").mockImplementation((options) =>
+      Promise.resolve({
+        data:
+          (options.body.offset ?? 0) === 0
+            ? { ...result(0, 1), has_more: true }
+            : { ...result(100, 0), has_more: false },
+      }) as never
+    )
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-next"]').trigger("click")
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="grid-empty"]').text()).toContain("No rows")
+    expect(wrapper.get('[data-testid="grid-prev"]').attributes("disabled")).toBeUndefined()
+  })
+
+  it("renders typed cells and opens complex values in the full viewer", async () => {
+    vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({
+      data: {
+        columns: [
+          { name: "enabled", type: { sql: "boolean", category: "boolean" } },
+          { name: "id", type: { sql: "uuid", category: "uuid" } },
+          { name: "payload", type: { sql: "jsonb", category: "json" } },
+        ],
+        rows: [["true", "550e8400-e29b-41d4-a716-446655440000", '{"full":"value"}']],
+        has_more: false,
+      },
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="grid-cell-0-enabled"] .q-checkbox').attributes("aria-disabled")).toBe("true")
+    expect(wrapper.get('[data-testid="grid-cell-0-id"] span').classes()).toContain(
+      "data-grid__monospace"
+    )
+
+    await wrapper.get('[data-testid="grid-cell-0-payload"]').trigger("dblclick")
+    await flushPromises()
+    expect(document.body.textContent).toContain('{"full":"value"}')
+  })
 })
