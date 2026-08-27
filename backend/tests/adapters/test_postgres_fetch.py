@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.adapters.fetch import FetchRequest, Filter, Sort
+from app.adapters.fetch import FetchRequest, Sort
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.fetch import encode_cell
 from app.adapters.postgres.options import PostgresUserPassword
@@ -14,6 +14,8 @@ from tests.utils.database import working_postgres_options
 from tests.utils.relation_fixture import make_schema, run
 
 CONNECTOR_TABLE = "public.connector"
+
+TYPED_FILTER_TABLE = "typed_filter_values"
 
 
 @pytest.fixture
@@ -79,6 +81,90 @@ async def test_json_numeric_tokens_survive_a_database_fetch(schema: str) -> None
     assert result.rows == [["[9007199254740993.25,0.0000000000000000001]"]]
 
 
+async def test_filters_are_combined_and_sorts_keep_their_order(schema: str) -> None:
+    """Two predicates narrow one result, then both requested sort keys apply."""
+    await run(
+        f"CREATE TABLE {schema}.{TYPED_FILTER_TABLE} ("  # noqa: S608 -- schema is fixture-owned.
+        "id integer NOT NULL, active boolean NOT NULL, "
+        "happened timestamp without time zone NOT NULL, name text NOT NULL)"
+    )
+    await run(
+        f"INSERT INTO {schema}.{TYPED_FILTER_TABLE} VALUES "  # noqa: S608 -- schema is fixture-owned.
+        "(1, true, '2026-01-03T10:00:00', 'zeta'), "
+        "(2, true, '2026-01-02T10:00:00', 'beta'), "
+        "(3, true, '2026-01-03T10:00:00', 'alpha'), "
+        "(4, false, '2026-01-04T10:00:00', 'omega'), "
+        "(5, false, '2026-01-01T10:00:00', 'theta')"
+    )
+
+    result = await _adapter().fetch(
+        FetchRequest.model_validate(
+            {
+                "node_id": f"{schema}.{TYPED_FILTER_TABLE}",
+                "filters": [
+                    {
+                        "column": "happened",
+                        "op": "gte",
+                        "value": "2026-01-02T00:00:00",
+                    },
+                    {"column": "id", "op": "gte", "value": "2"},
+                ],
+                "sort": [
+                    {"column": "active", "descending": True},
+                    {"column": "name"},
+                ],
+            }
+        )
+    )
+
+    id_at = [column.name for column in result.columns].index("id")
+    assert [row[id_at] for row in result.rows] == ["3", "2", "4"]
+
+
+@pytest.mark.parametrize(
+    ("column", "value"),
+    [
+        ("id", "not-a-number"),
+        ("active", "yes"),
+        ("happened", "not-a-datetime"),
+    ],
+)
+async def test_invalid_typed_filter_value_is_rejected_before_query(
+    schema: str, column: str, value: str
+) -> None:
+    await run(
+        f"CREATE TABLE {schema}.{TYPED_FILTER_TABLE} ("  # noqa: S608 -- schema is fixture-owned.
+        "id integer NOT NULL, active boolean NOT NULL, "
+        "happened timestamp without time zone NOT NULL)"
+    )
+
+    with pytest.raises(ValueError, match=f'Invalid value for column "{column}"'):
+        await _adapter().fetch(
+            FetchRequest.model_validate(
+                {
+                    "node_id": f"{schema}.{TYPED_FILTER_TABLE}",
+                    "filters": [{"column": column, "op": "eq", "value": value}],
+                }
+            )
+        )
+
+
+async def test_contains_is_refused_for_a_numeric_column(schema: str) -> None:
+    await run(
+        f"CREATE TABLE {schema}.{TYPED_FILTER_TABLE} (id integer NOT NULL)"  # noqa: S608 -- schema is fixture-owned.
+    )
+
+    with pytest.raises(ValueError, match='Cannot filter column "id" with "contains"'):
+        await _adapter().fetch(
+            FetchRequest.model_validate(
+                {
+                    "node_id": f"{schema}.{TYPED_FILTER_TABLE}",
+                    "filters": [{"column": "id", "op": "contains", "value": "2"}],
+                }
+            )
+        )
+
+
 async def test_limit_bounds_the_page() -> None:
     result = await _adapter().fetch(FetchRequest(node_id=CONNECTOR_TABLE, limit=1))
 
@@ -131,9 +217,11 @@ async def test_sorting_descending_reverses_the_order() -> None:
 
 async def test_equality_filter_narrows_the_result() -> None:
     result = await _adapter().fetch(
-        FetchRequest(
-            node_id=CONNECTOR_TABLE,
-            filters=[Filter(column="adapter_type", op="eq", value="postgres")],
+        FetchRequest.model_validate(
+            {
+                "node_id": CONNECTOR_TABLE,
+                "filters": [{"column": "adapter_type", "op": "eq", "value": "postgres"}],
+            }
         )
     )
 
@@ -143,9 +231,13 @@ async def test_equality_filter_narrows_the_result() -> None:
 
 async def test_filter_that_matches_nothing_returns_an_empty_page() -> None:
     result = await _adapter().fetch(
-        FetchRequest(
-            node_id=CONNECTOR_TABLE,
-            filters=[Filter(column="adapter_type", op="eq", value="no such type")],
+        FetchRequest.model_validate(
+            {
+                "node_id": CONNECTOR_TABLE,
+                "filters": [
+                    {"column": "adapter_type", "op": "eq", "value": "no such type"}
+                ],
+            }
         )
     )
 
@@ -155,9 +247,11 @@ async def test_filter_that_matches_nothing_returns_an_empty_page() -> None:
 
 async def test_is_null_filter_uses_no_value() -> None:
     result = await _adapter().fetch(
-        FetchRequest(
-            node_id=CONNECTOR_TABLE,
-            filters=[Filter(column="updated_at", op="is_null")],
+        FetchRequest.model_validate(
+            {
+                "node_id": CONNECTOR_TABLE,
+                "filters": [{"column": "updated_at", "op": "is_null"}],
+            }
         )
     )
 
@@ -167,9 +261,13 @@ async def test_is_null_filter_uses_no_value() -> None:
 
 async def test_contains_filter_matches_a_substring() -> None:
     result = await _adapter().fetch(
-        FetchRequest(
-            node_id=CONNECTOR_TABLE,
-            filters=[Filter(column="adapter_type", op="contains", value="ostgr")],
+        FetchRequest.model_validate(
+            {
+                "node_id": CONNECTOR_TABLE,
+                "filters": [
+                    {"column": "adapter_type", "op": "contains", "value": "ostgr"}
+                ],
+            }
         )
     )
 
@@ -180,9 +278,13 @@ async def test_contains_filter_matches_a_substring() -> None:
 async def test_unknown_filter_column_is_rejected() -> None:
     with pytest.raises(ValueError, match="no_such_column"):
         await _adapter().fetch(
-            FetchRequest(
-                node_id=CONNECTOR_TABLE,
-                filters=[Filter(column="no_such_column", op="eq", value=1)],
+            FetchRequest.model_validate(
+                {
+                    "node_id": CONNECTOR_TABLE,
+                    "filters": [
+                        {"column": "no_such_column", "op": "eq", "value": "1"}
+                    ],
+                }
             )
         )
 

@@ -1,12 +1,10 @@
-from typing import Any, Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.relation import ColumnType
 
-# A closed set. In the old application a client could pass a raw SQL fragment
-# through `sql_conditions`, guarded only by a blacklist.
-FilterOp = Literal[
+ScalarFilterOp = Literal[
     "eq",
     "ne",
     "gt",
@@ -15,21 +13,41 @@ FilterOp = Literal[
     "lte",
     "contains",
     "starts_with",
-    "in",
-    "is_null",
-    "is_not_null",
 ]
-
-# Operators that take no value at all.
-NULLARY_OPS: frozenset[str] = frozenset({"is_null", "is_not_null"})
+FilterOp = ScalarFilterOp | Literal["in", "is_null", "is_not_null"]
 
 MAX_LIMIT = 1000
 
 
-class Filter(BaseModel):
+class ScalarFilter(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     column: str
-    op: FilterOp
-    value: Any | None = None
+    op: ScalarFilterOp
+    value: str
+
+
+class InFilter(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    column: str
+    op: Literal["in"]
+    values: list[str] = Field(min_length=1)
+
+
+class NullFilter(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    column: str
+    op: Literal["is_null", "is_not_null"]
+
+
+# A closed set. In the old application a client could pass a raw SQL fragment
+# through `sql_conditions`, guarded only by a blacklist.
+Filter = Annotated[
+    ScalarFilter | InFilter | NullFilter,
+    Field(discriminator="op"),
+]
 
 
 class Sort(BaseModel):

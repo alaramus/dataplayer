@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.adapters.fetch import FetchColumn, FetchRequest, Filter, Sort
+from app.adapters.fetch import FetchColumn, FetchRequest, Sort
 from app.adapters.relation import ColumnType
 
 
@@ -29,11 +29,48 @@ def test_negative_offset_is_rejected() -> None:
 def test_unknown_operator_is_rejected() -> None:
     """Operators are a closed set: an arbitrary string never reaches SQL."""
     with pytest.raises(ValidationError):
-        Filter(column="id", op="; DROP TABLE users --", value=1)  # type: ignore[arg-type]
+        FetchRequest.model_validate(
+            {
+                "node_id": "public.events",
+                "filters": [
+                    {"column": "id", "op": "; DROP TABLE users --", "value": "1"}
+                ],
+            }
+        )
 
 
-def test_filter_without_value_is_allowed_for_null_checks() -> None:
-    assert Filter(column="updated_at", op="is_null").value is None
+def test_null_filter_rejects_a_value() -> None:
+    """A null predicate has no value to accidentally bind into SQL."""
+    with pytest.raises(ValidationError):
+        FetchRequest.model_validate(
+            {
+                "node_id": "public.events",
+                "filters": [{"column": "happened", "op": "is_null", "value": "x"}],
+            }
+        )
+
+
+def test_in_filter_requires_values() -> None:
+    """An empty IN list is not a meaningful predicate."""
+    with pytest.raises(ValidationError):
+        FetchRequest.model_validate(
+            {
+                "node_id": "public.events",
+                "filters": [{"column": "id", "op": "in", "values": []}],
+            }
+        )
+
+
+def test_scalar_filter_requires_one_text_value() -> None:
+    """Filter values cross the boundary as exact text before server coercion."""
+    request = FetchRequest.model_validate(
+        {
+            "node_id": "public.events",
+            "filters": [{"column": "id", "op": "gte", "value": "9007199254740993"}],
+        }
+    )
+
+    assert request.filters[0].op == "gte"
 
 
 def test_sort_defaults_to_ascending() -> None:

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from app.adapters.fetch import FetchRequest, Filter, Sort
+from app.adapters.fetch import FetchRequest, Sort
 from app.adapters.file.fetch import FileFetch
 from app.adapters.file.session import FileSession
 
@@ -122,8 +122,11 @@ async def test_asking_for_sorting_is_refused(fetch: FileFetch) -> None:
 
 
 async def test_asking_for_a_filter_is_refused(fetch: FileFetch) -> None:
-    request = FetchRequest(
-        node_id="cities.csv", filters=[Filter(column="id", op="eq", value="1")]
+    request = FetchRequest.model_validate(
+        {
+            "node_id": "cities.csv",
+            "filters": [{"column": "id", "op": "eq", "value": "1"}],
+        }
     )
 
     with pytest.raises(ValueError, match="filter"):

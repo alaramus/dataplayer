@@ -1,16 +1,20 @@
 import json
 from datetime import date, datetime, time
-from typing import Any
+from decimal import Decimal, InvalidOperation
+from typing import Any, assert_never
+from uuid import UUID
 
 from psycopg import sql
 
 from app.adapters.fetch import (
-    NULLARY_OPS,
     FetchColumn,
     FetchRequest,
     FetchResult,
     Filter,
     FilterOp,
+    InFilter,
+    NullFilter,
+    ScalarFilter,
 )
 from app.adapters.postgres.column_type import build_column_type
 from app.adapters.postgres.session import PostgresSession
@@ -54,6 +58,40 @@ def column_capabilities(type_: ColumnType) -> tuple[bool, list[FilterOp]]:
         operators.extend(["contains", "starts_with"])
     operators.extend(["is_null", "is_not_null"])
     return type_.category in _ORDERED, operators
+
+
+def coerce_filter_value(value: str, type_: ColumnType) -> object:
+    """Turn the text boundary value into the driver's native parameter type."""
+    try:
+        match type_.category:
+            case "number":
+                return Decimal(value)
+            case "boolean":
+                if value == "true":
+                    return True
+                if value == "false":
+                    return False
+                raise ValueError
+            case "uuid":
+                return UUID(value)
+            case "datetime":
+                return _coerce_datetime(value, type_.sql)
+            case "string" | "enum":
+                return value
+            case _:
+                return value
+    except (InvalidOperation, ValueError):
+        raise ValueError from None
+
+
+def _coerce_datetime(value: str, sql_type: str) -> date | datetime | time:
+    if sql_type.startswith("timestamp"):
+        return datetime.fromisoformat(value)
+    if sql_type.startswith("time"):
+        return time.fromisoformat(value)
+    if sql_type == "date":
+        return date.fromisoformat(value)
+    raise ValueError
 
 
 def encode_cell(value: Any, type_: ColumnType) -> str | None:
@@ -118,8 +156,11 @@ class PostgresFetch:
             )
 
         columns = await self._columns(schema, table)
-        known = {column.name for column in columns}
+        known = {column.name: column for column in columns}
         self._reject_unknown_columns(request, known)
+        filters = self._validate_filters(request.filters, known)
+        self._reject_unsortable_columns(request, known)
+        request = request.model_copy(update={"filters": filters})
 
         statement, params = self._build(schema, table, columns, request)
         rows = await self._session.query(statement.as_string(), tuple(params))
@@ -138,7 +179,9 @@ class PostgresFetch:
         )
 
     @staticmethod
-    def _reject_unknown_columns(request: FetchRequest, known: set[str]) -> None:
+    def _reject_unknown_columns(
+        request: FetchRequest, known: dict[str, FetchColumn]
+    ) -> None:
         """Validate identifiers against the relation before building anything.
 
         This is what makes the composition below safe: by the time a name
@@ -149,6 +192,50 @@ class PostgresFetch:
         for column in used:
             if column not in known:
                 raise ValueError(f'Relation has no column "{column}"')
+
+    @staticmethod
+    def _validate_filters(
+        filters: list[Filter], known: dict[str, FetchColumn]
+    ) -> list[Filter]:
+        validated: list[Filter] = []
+        for filter_ in filters:
+            column = known[filter_.column]
+            if filter_.op not in column.filter_operators:
+                raise ValueError(
+                    f'Cannot filter column "{column.name}" with "{filter_.op}"'
+                )
+            match filter_:
+                case ScalarFilter(value=value):
+                    try:
+                        coerced = coerce_filter_value(value, column.type)
+                    except ValueError:
+                        raise ValueError(
+                            f'Invalid value for column "{column.name}"'
+                        ) from None
+                    validated.append(filter_.model_copy(update={"value": coerced}))
+                case InFilter(values=values):
+                    try:
+                        coerced = [
+                            coerce_filter_value(value, column.type) for value in values
+                        ]
+                    except ValueError:
+                        raise ValueError(
+                            f'Invalid value for column "{column.name}"'
+                        ) from None
+                    validated.append(filter_.model_copy(update={"values": coerced}))
+                case NullFilter():
+                    validated.append(filter_)
+                case unreachable:
+                    assert_never(unreachable)
+        return validated
+
+    @staticmethod
+    def _reject_unsortable_columns(
+        request: FetchRequest, known: dict[str, FetchColumn]
+    ) -> None:
+        for sort in request.sort:
+            if not known[sort.column].sortable:
+                raise ValueError(f'Cannot sort column "{sort.column}"')
 
     async def _columns(self, schema: str, table: str) -> list[FetchColumn]:
         rows = await self._session.query(
@@ -228,29 +315,26 @@ class PostgresFetch:
 
     @staticmethod
     def _condition(filter_: Filter, params: list[Any]) -> sql.Composed:
-        column = sql.Identifier(filter_.column)
-
-        if filter_.op in NULLARY_OPS:
-            keyword = "IS NULL" if filter_.op == "is_null" else "IS NOT NULL"
-            return sql.SQL("{} {}").format(column, sql.SQL(keyword))
-
-        if filter_.op == "contains":
-            params.append(f"%{filter_.value}%")
-            return sql.SQL("{}::text ILIKE %s").format(column)
-
-        if filter_.op == "starts_with":
-            params.append(f"{filter_.value}%")
-            return sql.SQL("{}::text ILIKE %s").format(column)
-
-        if filter_.op == "in":
-            values = filter_.value if isinstance(filter_.value, list) else [filter_.value]
-            params.append(list(values))
-            return sql.SQL("{} = ANY(%s)").format(column)
-
-        params.append(filter_.value)
-        return sql.SQL("{} {} %s").format(
-            column, sql.SQL(_COMPARISONS[filter_.op])
-        )
+        match filter_:
+            case NullFilter(column=name, op=op):
+                keyword = "IS NULL" if op == "is_null" else "IS NOT NULL"
+                return sql.SQL("{} {}").format(sql.Identifier(name), sql.SQL(keyword))
+            case InFilter(column=name, values=values):
+                params.append(list(values))
+                return sql.SQL("{} = ANY(%s)").format(sql.Identifier(name))
+            case ScalarFilter(column=name, op="contains", value=value):
+                params.append(f"%{value}%")
+                return sql.SQL("{}::text ILIKE %s").format(sql.Identifier(name))
+            case ScalarFilter(column=name, op="starts_with", value=value):
+                params.append(f"{value}%")
+                return sql.SQL("{}::text ILIKE %s").format(sql.Identifier(name))
+            case ScalarFilter(column=name, op=op, value=value):
+                params.append(value)
+                return sql.SQL("{} {} %s").format(
+                    sql.Identifier(name), sql.SQL(_COMPARISONS[op])
+                )
+            case unreachable:
+                assert_never(unreachable)
 
 
 def _select_expression(column: FetchColumn) -> sql.Composed:

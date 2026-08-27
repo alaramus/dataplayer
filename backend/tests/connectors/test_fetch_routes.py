@@ -133,6 +133,48 @@ async def test_unknown_operator_is_rejected(
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize(
+    ("node_id", "filters"),
+    [
+        (
+            "pg_catalog.pg_class",
+            [{"column": "oid", "op": "eq", "value": "not-a-number"}],
+        ),
+        (
+            "public.connector",
+            [{"column": "enabled", "op": "eq", "value": "yes"}],
+        ),
+        (
+            "public.connector",
+            [{"column": "updated_at", "op": "eq", "value": "not-a-datetime"}],
+        ),
+        (
+            "pg_catalog.pg_class",
+            [{"column": "oid", "op": "contains", "value": "1"}],
+        ),
+    ],
+)
+async def test_invalid_filter_is_a_safe_422(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    node_id: str,
+    filters: list[dict[str, str]],
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await _fetch(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        node_id=node_id,
+        filters=filters,
+    )
+
+    assert response.status_code == 422
+    assert "psycopg" not in response.text
+    assert "password" not in response.text
+
+
 async def test_limit_above_the_maximum_is_rejected(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
