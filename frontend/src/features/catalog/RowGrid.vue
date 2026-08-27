@@ -54,7 +54,7 @@ async function load() {
     columns.value = toGridColumns(result)
     rows.value = toGridRows(result)
     hasMore.value = result.has_more
-    sortable.value = result.sortable !== false
+    sortable.value = result.columns.some((column) => column.sortable === true)
   } catch (cause) {
     error.value = messageOf(cause, "Could not read the rows")
     columns.value = []

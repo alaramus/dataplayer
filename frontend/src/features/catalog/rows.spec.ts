@@ -5,8 +5,8 @@ import type { FetchResult } from "@/client"
 
 const RESULT: FetchResult = {
   columns: [
-    { name: "id", data_type: "uuid" },
-    { name: "name", data_type: "text" },
+    { name: "id", type: { sql: "uuid", category: "uuid" }, sortable: true },
+    { name: "name", type: { sql: "text", category: "string" }, sortable: true },
   ],
   rows: [
     ["a1", "first"],

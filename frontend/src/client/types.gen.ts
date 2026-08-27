@@ -525,10 +525,27 @@ export type FetchColumn = {
    * Name
    */
   name: string
+  type: ColumnType
   /**
-   * Data Type
+   * Sortable
    */
-  data_type: string
+  sortable?: boolean
+  /**
+   * Filter Operators
+   */
+  filter_operators?: Array<
+    | "eq"
+    | "ne"
+    | "gt"
+    | "gte"
+    | "lt"
+    | "lte"
+    | "contains"
+    | "starts_with"
+    | "in"
+    | "is_null"
+    | "is_not_null"
+  >
 }
 
 /**
@@ -550,7 +567,17 @@ export type FetchRequest = {
   /**
    * Filters
    */
-  filters?: Array<Filter>
+  filters?: Array<
+    | ({
+        op: "contains" | "eq" | "gt" | "gte" | "lt" | "lte" | "ne" | "starts_with"
+      } & ScalarFilter)
+    | ({
+        op: "in"
+      } & InFilter)
+    | ({
+        op: "is_not_null" | "is_null"
+      } & NullFilter)
+  >
   /**
    * Sort
    */
@@ -573,19 +600,11 @@ export type FetchResult = {
   /**
    * Rows
    */
-  rows: Array<Array<unknown>>
+  rows: Array<Array<string | null>>
   /**
    * Has More
    */
   has_more: boolean
-  /**
-   * Sortable
-   */
-  sortable?: boolean
-  /**
-   * Filterable
-   */
-  filterable?: boolean
 }
 
 /**
@@ -620,35 +639,6 @@ export type FileNode = {
    * Content Kind
    */
   content_kind: "table" | "text" | "opaque"
-}
-
-/**
- * Filter
- */
-export type Filter = {
-  /**
-   * Column
-   */
-  column: string
-  /**
-   * Op
-   */
-  op:
-    | "eq"
-    | "ne"
-    | "gt"
-    | "gte"
-    | "lt"
-    | "lte"
-    | "contains"
-    | "starts_with"
-    | "in"
-    | "is_null"
-    | "is_not_null"
-  /**
-   * Value
-   */
-  value?: unknown | null
 }
 
 /**
@@ -697,6 +687,24 @@ export type HTTPValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>
+}
+
+/**
+ * InFilter
+ */
+export type InFilter = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Op
+   */
+  op: "in"
+  /**
+   * Values
+   */
+  values: Array<string>
 }
 
 /**
@@ -759,6 +767,20 @@ export type NewPassword = {
    * New Password
    */
   new_password: string
+}
+
+/**
+ * NullFilter
+ */
+export type NullFilter = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Op
+   */
+  op: "is_null" | "is_not_null"
 }
 
 /**
@@ -913,6 +935,24 @@ export type RelationModel = {
   indexes?: Array<Index>
   partitioning?: Partitioning | null
   partition_of?: PartitionOf | null
+}
+
+/**
+ * ScalarFilter
+ */
+export type ScalarFilter = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Op
+   */
+  op: "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "contains" | "starts_with"
+  /**
+   * Value
+   */
+  value: string
 }
 
 /**
