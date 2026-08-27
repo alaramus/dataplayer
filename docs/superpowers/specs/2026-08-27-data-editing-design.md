@@ -100,4 +100,4 @@ gesture создаёт одну команду, одну транзакцию и
 Backend-тесты доказывают metadata, запрет keyless/generated, точный update,
 возврат generated value и конфликт старого handle. Unit-тест грида доказывает,
 что endpoint получает непрозрачный handle. Playwright меняет nullable numeric
-ячейку в `NULL`, видит отдельное `∅`, затем возвращает fixture исходное значение.
+ячейку в `NULL`, видит текст `null`, затем возвращает fixture исходное значение.

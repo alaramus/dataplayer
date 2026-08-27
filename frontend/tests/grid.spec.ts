@@ -82,7 +82,7 @@ test("edits one PostgreSQL cell and can write SQL NULL", async ({ page }) => {
 
   await addFilter(page, "name", "equals", "Signal Research")
   const budget = page.getByTestId("grid-cell-0-budget")
-  if ((await budget.textContent()) === "∅") {
+  if ((await budget.textContent()) === "null") {
     await budget.dblclick()
     await page.getByTestId("grid-edit-null").click()
     await page.getByTestId("grid-edit-value").fill("90000.00")
@@ -93,7 +93,7 @@ test("edits one PostgreSQL cell and can write SQL NULL", async ({ page }) => {
   await budget.dblclick()
   await page.getByTestId("grid-edit-null").click()
   await page.getByTestId("grid-edit-save").click()
-  await expect(budget).toHaveText("∅")
+  await expect(budget).toHaveText("null")
 
   await budget.dblclick()
   await page.getByTestId("grid-edit-null").click()

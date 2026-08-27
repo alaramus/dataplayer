@@ -582,7 +582,8 @@ describe("the basic data grid", () => {
     const wrapper = mountGrid()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="grid-cell-0-enabled"] .q-checkbox').attributes("aria-disabled")).toBe("true")
+    expect(wrapper.get('[data-testid="grid-cell-0-enabled"]').text()).toBe("true")
+    expect(wrapper.find('[data-testid="grid-cell-0-enabled"] .q-checkbox').exists()).toBe(false)
     expect(wrapper.get('[data-testid="grid-cell-0-id"] span').classes()).toContain(
       "data-grid__monospace"
     )

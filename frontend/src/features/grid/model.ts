@@ -20,7 +20,7 @@ export function cellPresentation(
   value: string | null,
   type: ColumnType
 ): CellPresentation {
-  if (value === null) return { text: "∅", align: "left", tone: "null" }
+  if (value === null) return { text: "null", align: "left", tone: "default" }
 
   switch (type.category) {
     case "number":

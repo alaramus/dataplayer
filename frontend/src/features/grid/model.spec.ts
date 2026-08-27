@@ -31,7 +31,7 @@ describe("toGridRows", () => {
 
 describe("typed cell presentation", () => {
   it.each([
-    [null, "string", { text: "∅", align: "left", tone: "null" }],
+    [null, "string", { text: "null", align: "left", tone: "default" }],
     ["9007199254740993", "number", { text: "9007199254740993", align: "right", tone: "default" }],
     ["true", "boolean", { text: "true", align: "center", tone: "default" }],
   ] as const)("presents %s as %s", (value, category, expected) => {

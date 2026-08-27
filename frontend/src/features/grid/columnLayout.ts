@@ -18,7 +18,7 @@ export function autoFitWidth(
   measure: (text: string) => number,
   limits: WidthLimits
 ): number {
-  const measured = Math.max(measure(header), ...values.map((value) => measure(value ?? "∅")))
+  const measured = Math.max(measure(header), ...values.map((value) => measure(value ?? "null")))
   return Math.min(limits.max, Math.max(limits.min, measured))
 }
 

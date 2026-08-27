@@ -26,7 +26,6 @@ import { messageOf } from "@/shared/api/errors"
 import {
   AppBanner,
   AppButton,
-  AppCheckbox,
   AppEmptyState,
   AppIconButton,
   useConfirm,
@@ -388,7 +387,7 @@ function presentCell(cell: Cell<GridFeatures, GridRow, unknown>): CellPresentati
   const column = serverColumn(cell.column.id)
   const value = cell.getValue() as string | null
   return column === undefined
-    ? { text: value ?? "∅", align: "left", tone: value === null ? "null" : "default" }
+    ? { text: value ?? "null", align: "left", tone: "default" }
     : cellPresentation(value, column.type)
 }
 
@@ -688,15 +687,7 @@ defineExpose({
               @mouseenter="cell.getSelectionExtendHandler()($event)"
               @dblclick="openCell(cell, $event)"
             >
-              <AppCheckbox
-                v-if="serverColumn(cell.column.id)?.type.category === 'boolean' && cell.getValue() !== null"
-                :model-value="cell.getValue() === 'true'"
-                dense
-                disable
-                aria-label="Boolean value"
-              />
               <span
-                v-else
                 :class="{
                   'data-grid__align-right': presentCell(cell).align === 'right',
                   'data-grid__align-center': presentCell(cell).align === 'center',
