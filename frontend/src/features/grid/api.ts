@@ -3,7 +3,13 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
-import type { FetchRequest, FetchResult, UpdateCellRequest } from "@/client"
+import type {
+  DeleteRowsRequest,
+  FetchRequest,
+  FetchResult,
+  InsertRowRequest,
+  UpdateCellRequest,
+} from "@/client"
 
 export const rowsKey = (connectorId: string, request: FetchRequest) =>
   ["rows", connectorId, request] as const
@@ -43,4 +49,39 @@ export function useUpdateCell(connectorId: Ref<string>) {
       await queryClient.invalidateQueries({ queryKey: ["rows", connectorId.value] })
     },
   })
+}
+
+function useRowsMutation<TBody>(
+  connectorId: Ref<string>,
+  run: (connectorId: string, body: TBody) => Promise<unknown>
+) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: TBody) => run(connectorId.value, body),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["rows", connectorId.value] })
+    },
+  })
+}
+
+export function useInsertRow(connectorId: Ref<string>) {
+  return useRowsMutation(connectorId, async (id, body: InsertRowRequest) =>
+    (
+      await ConnectorsService.insertRow({
+        path: { connector_id: id },
+        body,
+      })
+    ).data
+  )
+}
+
+export function useDeleteRows(connectorId: Ref<string>) {
+  return useRowsMutation(connectorId, async (id, body: DeleteRowsRequest) =>
+    (
+      await ConnectorsService.deleteRows({
+        path: { connector_id: id },
+        body,
+      })
+    ).data
+  )
 }

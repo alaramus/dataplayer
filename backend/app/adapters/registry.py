@@ -10,7 +10,9 @@ from app.adapters.options import OptionsSchema
 from app.adapters.protocol import (
     DataAdapter,
     SupportsCatalog,
+    SupportsDelete,
     SupportsFetch,
+    SupportsInsert,
     SupportsNodePath,
     SupportsRelationModel,
     SupportsUpdate,
@@ -153,6 +155,10 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(Capability(group="explore", title="Describe a relation"))
     if issubclass(driver, SupportsUpdate):
         found.append(Capability(group="manage", title="Edit rows"))
+    if issubclass(driver, SupportsInsert):
+        found.append(Capability(group="manage", title="Insert rows"))
+    if issubclass(driver, SupportsDelete):
+        found.append(Capability(group="manage", title="Delete rows"))
     if issubclass(driver, DeclaresActions):
         found.extend(
             Capability(group="manage", title=action_type.title)

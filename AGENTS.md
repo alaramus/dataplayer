@@ -75,7 +75,8 @@ strings, test names, commit messages and documentation. The only exception is
 - The row grid filters and ordered multi-sorts on the server, pages up to 500
   rows, remembers its query and column layout, selects and copies exact TSV, and
   renders lossless values by type with a full-value viewer. PostgreSQL cells in
-  keyed tables can be edited with optimistic conflict detection.
+  keyed tables can be edited with optimistic conflict detection; rows can be
+  inserted with defaults preserved and selected rows deleted atomically.
 
 ## Decisions
 
@@ -113,6 +114,7 @@ and the known deviations live there.
 | D23 | A fetched column states its type and operations, and a cell crosses the boundary as lossless text | [adapters](docs/architecture/adapters.md) |
 | D24 | The grid is controlled state around a headless engine, and source operations stay server-side | [frontend](docs/architecture/frontend.md) |
 | D25 | A source issues a versioned row handle, and only it can apply an edit | [adapters](docs/architecture/adapters.md) |
+| D26 | Insert names supplied columns; bulk delete changes every versioned row or none | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -322,6 +324,6 @@ touching the affected side is clean.
 Sub-projects 1–6 and the workspace rounds are done; see
 [the spec index](docs/superpowers/specs/README.md) for what each settled.
 
-The read-only data grid and the first editing round are done. Inserting and
-deleting rows remain separate rounds: they need defaults, required-field forms
-and deliberate bulk semantics rather than extensions to the cell-update command.
+The data grid and its first editing rounds are done: update, insert and atomic
+bulk delete. The next editing work starts only after its interaction and
+transaction boundary are specified; these commands are not a generic SQL editor.

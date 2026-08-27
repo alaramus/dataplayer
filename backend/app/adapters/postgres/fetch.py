@@ -47,6 +47,10 @@ class RelationFetchInfo:
     primary_key: list[str]
     update_supported: bool
     update_reason: str | None
+    insert_supported: bool
+    insert_reason: str | None
+    delete_supported: bool
+    delete_reason: str | None
 
 
 class _JsonNumber:
@@ -207,13 +211,17 @@ class PostgresFetch:
             row_handles=[self._row_handle(row, info, columns) for row in page],
             update_supported=info.update_supported,
             update_reason=info.update_reason,
+            insert_supported=info.insert_supported,
+            insert_reason=info.insert_reason,
+            delete_supported=info.delete_supported,
+            delete_reason=info.delete_reason,
         )
 
     @staticmethod
     def _row_handle(
         row: dict[str, Any], info: RelationFetchInfo, columns: list[FetchColumn]
     ) -> str | None:
-        if not info.update_supported:
+        if not info.delete_supported:
             return None
         known = {column.name: column for column in columns}
         keys = [encode_cell(row[name], known[name].type) for name in info.primary_key]
@@ -295,6 +303,8 @@ class PostgresFetch:
                    et.typname AS element_name,
                    c.relkind AS relation_kind,
                    a.attgenerated AS generated,
+                   a.attidentity AS identity,
+                   (ad.adbin IS NOT NULL OR a.attidentity <> '') AS has_default,
                    NOT a.attnotnull AS nullable,
                    (SELECT array_agg(pa.attname ORDER BY key.ord)
                       FROM pg_index i
@@ -311,6 +321,8 @@ class PostgresFetch:
             JOIN pg_namespace n ON n.oid = c.relnamespace
             JOIN pg_type t ON t.oid = a.atttypid
             LEFT JOIN pg_type et ON et.oid = t.typelem
+            LEFT JOIN pg_attrdef ad
+              ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
             WHERE n.nspname = %s AND c.relname = %s
               AND a.attnum > 0 AND NOT a.attisdropped
             ORDER BY a.attnum
@@ -328,6 +340,15 @@ class PostgresFetch:
             update_reason = "A primary key is required to edit rows"
         else:
             update_reason = None
+        insert_supported = table_kind
+        insert_reason = None if table_kind else "Only tables accept inserted rows"
+        delete_supported = table_kind and bool(primary_key)
+        if not table_kind:
+            delete_reason = "Only tables can delete rows"
+        elif not primary_key:
+            delete_reason = "A primary key is required to delete rows"
+        else:
+            delete_reason = None
         columns: list[FetchColumn] = []
         for row in rows:
             type_ = build_column_type(row)
@@ -340,6 +361,19 @@ class PostgresFetch:
                     filter_operators=filter_operators,
                     editable=update_supported and str(row["generated"]) == "",
                     nullable=bool(row["nullable"]),
+                    insertable=(
+                        insert_supported
+                        and str(row["generated"]) == ""
+                        and str(row["identity"]) != "a"
+                    ),
+                    insert_required=(
+                        insert_supported
+                        and str(row["generated"]) == ""
+                        and str(row["identity"]) != "a"
+                        and not bool(row["nullable"])
+                        and not bool(row["has_default"])
+                    ),
+                    has_default=bool(row["has_default"]),
                 )
             )
         return RelationFetchInfo(
@@ -347,6 +381,10 @@ class PostgresFetch:
             primary_key=primary_key,
             update_supported=update_supported,
             update_reason=update_reason,
+            insert_supported=insert_supported,
+            insert_reason=insert_reason,
+            delete_supported=delete_supported,
+            delete_reason=delete_reason,
         )
 
     def _build(

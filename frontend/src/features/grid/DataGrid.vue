@@ -29,16 +29,18 @@ import {
   AppCheckbox,
   AppEmptyState,
   AppIconButton,
+  useConfirm,
   useToast,
 } from "@/shared/ui"
 
-import { useRowsPage, useUpdateCell } from "./api"
+import { useDeleteRows, useInsertRow, useRowsPage, useUpdateCell } from "./api"
 import CellEditorDialog from "./CellEditorDialog.vue"
 import CellValueDialog from "./CellValueDialog.vue"
 import { toTsv, writeSelection } from "./clipboard"
 import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
 import GridHeader from "./GridHeader.vue"
+import RowInsertDialog from "./RowInsertDialog.vue"
 import { cellPresentation, shouldOpenViewer, toGridRows } from "./model"
 import type { CellPresentation } from "./model"
 import {
@@ -51,12 +53,13 @@ import {
 import { buildFetchRequest, withFilters, withPage, withPageSize } from "./queryState"
 import { withSort } from "./queryState"
 import { toggleMultiSort, toggleSingleSort } from "./sortModel"
-import { selectionMatrix } from "./selection"
+import { selectedWholeRowIndexes, selectionMatrix } from "./selection"
 import type { VisibleGridColumn } from "./selection"
 import type { Filter, GridQueryState, GridRow, PageSize, StoredGridState } from "./types"
 
 const props = defineProps<{ connectorId: string; nodeId: string }>()
 const toast = useToast()
+const confirm = useConfirm()
 
 const EMPTY_LAYOUT: ColumnLayoutState = {
   columnOrder: [],
@@ -88,7 +91,11 @@ const editor = ref<{
   rowHandle: string
 } | null>(null)
 const editError = ref("")
+const insertOpen = ref(false)
+const insertError = ref("")
 const updateCell = useUpdateCell(toRef(props, "connectorId"))
+const insertRow = useInsertRow(toRef(props, "connectorId"))
+const deleteRows = useDeleteRows(toRef(props, "connectorId"))
 const gridFocus = useTemplateRef<HTMLElement>("gridFocus")
 const features = tableFeatures({
   columnSizingFeature,
@@ -159,6 +166,33 @@ const visibleGridColumns = computed<VisibleGridColumn[]>(() => {
     const valueIndex = result.value?.columns.findIndex((item) => item.name === column.id) ?? -1
     return valueIndex < 0 ? [] : [{ id: column.id, valueIndex }]
   })
+})
+const selectedRowIndexes = computed(() =>
+  selectedWholeRowIndexes(
+    table.getCellSelectionBounds(),
+    visibleGridColumns.value.length
+  )
+)
+const selectedRowHandles = computed(() => {
+  const handles = result.value?.row_handles ?? []
+  const selected = selectedRowIndexes.value.map((index) => handles[index])
+  return selected.every((handle): handle is string => typeof handle === "string")
+    ? selected
+    : []
+})
+const canInsert = computed(() => result.value?.insert_supported === true)
+const canDelete = computed(
+  () =>
+    result.value?.delete_supported === true &&
+    selectedRowIndexes.value.length > 0 &&
+    selectedRowHandles.value.length === selectedRowIndexes.value.length
+)
+const deleteReason = computed(() => {
+  if (result.value?.delete_supported !== true) return result.value?.delete_reason ?? undefined
+  if (selectedRowIndexes.value.length === 0) return "Select complete rows to delete"
+  return selectedRowHandles.value.length === selectedRowIndexes.value.length
+    ? undefined
+    : "The selected rows cannot be deleted"
 })
 
 const offset = computed(() => queryState.value.page * queryState.value.pageSize)
@@ -408,6 +442,41 @@ async function saveCell(value: string | null) {
   }
 }
 
+function openInsert() {
+  insertError.value = ""
+  insertOpen.value = true
+}
+
+async function saveInsert(values: { column: string; value: string | null }[]) {
+  insertError.value = ""
+  try {
+    await insertRow.mutateAsync({ node_id: props.nodeId, values })
+    insertOpen.value = false
+    toast.success("Row inserted")
+  } catch (error) {
+    insertError.value = messageOf(error, "Could not insert the row")
+  }
+}
+
+async function deleteSelection() {
+  const handles = selectedRowHandles.value
+  if (!canDelete.value || handles.length === 0) return
+  const accepted = await confirm({
+    title: `Delete ${handles.length} ${handles.length === 1 ? "row" : "rows"}?`,
+    message: "This cannot be undone.",
+    confirmLabel: "Delete",
+    danger: true,
+  })
+  if (!accepted) return
+  try {
+    await deleteRows.mutateAsync({ node_id: props.nodeId, row_handles: handles })
+    table.resetCellSelection(true)
+    toast.success(`${handles.length} ${handles.length === 1 ? "row" : "rows"} deleted`)
+  } catch (error) {
+    toast.error(messageOf(error, "Could not delete the selected rows"))
+  }
+}
+
 function retry() {
   void rowsQuery.refetch()
 }
@@ -474,11 +543,18 @@ defineExpose({
       :layout="layout"
       :selected-column="selectedColumn"
       :can-copy="canCopy"
+      :can-insert="canInsert"
+      :insert-reason="result?.insert_reason ?? undefined"
+      :can-delete="canDelete"
+      :delete-reason="deleteReason"
+      :delete-count="selectedRowHandles.length"
       @update:page-size="changePageSize"
       @update:filters="changeFilters"
       @update:sort="changeSort"
       @update:layout="changeLayout"
       @copy="copySelection"
+      @insert="openInsert"
+      @delete="deleteSelection"
     />
 
     <AppBanner
@@ -681,6 +757,15 @@ defineExpose({
       :error="editError"
       @save="saveCell"
       @update:model-value="editor = null"
+    />
+    <RowInsertDialog
+      v-if="insertOpen"
+      :model-value="true"
+      :columns="result?.columns ?? []"
+      :saving="insertRow.isPending.value"
+      :error="insertError"
+      @save="saveInsert"
+      @update:model-value="insertOpen = false"
     />
   </div>
 </template>

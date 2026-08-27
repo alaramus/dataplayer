@@ -52,7 +52,8 @@ export async function addFilter(
   page: Page,
   column: string,
   operator: string,
-  value: string
+  value: string,
+  expectRows = true
 ) {
   const editor = page.getByTestId("grid-filter-editor")
   if (!(await editor.isVisible())) await page.getByTestId("grid-filter").click()
@@ -76,7 +77,11 @@ export async function addFilter(
   await editor.getByTestId("grid-filter-apply").click()
   await fetched
   await editor.waitFor({ state: "visible" })
-  await page.getByTestId(/^grid-cell-0-/).first().waitFor({ state: "visible" })
+  if (expectRows) {
+    await page.getByTestId(/^grid-cell-0-/).first().waitFor({ state: "visible" })
+  } else {
+    await page.getByTestId("grid-empty").waitFor({ state: "visible" })
+  }
 }
 
 export async function sortColumn(page: Page, name: string, shift = false) {

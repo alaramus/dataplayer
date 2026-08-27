@@ -474,6 +474,30 @@ export type ConnectorsPublic = {
 }
 
 /**
+ * DeleteRowsRequest
+ */
+export type DeleteRowsRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Row Handles
+   */
+  row_handles: Array<string>
+}
+
+/**
+ * DeleteRowsResult
+ */
+export type DeleteRowsResult = {
+  /**
+   * Deleted
+   */
+  deleted: number
+}
+
+/**
  * DirectoryNode
  */
 export type DirectoryNode = {
@@ -554,6 +578,18 @@ export type FetchColumn = {
    * Nullable
    */
   nullable?: boolean
+  /**
+   * Insertable
+   */
+  insertable?: boolean
+  /**
+   * Insert Required
+   */
+  insert_required?: boolean
+  /**
+   * Has Default
+   */
+  has_default?: boolean
 }
 
 /**
@@ -625,6 +661,22 @@ export type FetchResult = {
    * Update Reason
    */
   update_reason?: string | null
+  /**
+   * Insert Supported
+   */
+  insert_supported?: boolean
+  /**
+   * Insert Reason
+   */
+  insert_reason?: string | null
+  /**
+   * Delete Supported
+   */
+  delete_supported?: boolean
+  /**
+   * Delete Reason
+   */
+  delete_reason?: string | null
 }
 
 /**
@@ -763,6 +815,50 @@ export type Index = {
    * Definition
    */
   definition: string
+}
+
+/**
+ * InsertRowRequest
+ */
+export type InsertRowRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Values
+   */
+  values?: Array<InsertValue>
+}
+
+/**
+ * InsertRowResult
+ */
+export type InsertRowResult = {
+  /**
+   * Values
+   */
+  values: Array<string | null>
+  /**
+   * Row Handle
+   */
+  row_handle: string | null
+}
+
+/**
+ * InsertValue
+ *
+ * One explicitly supplied value; an absent column keeps its source default.
+ */
+export type InsertValue = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Value
+   */
+  value: string | null
 }
 
 /**
@@ -2145,6 +2241,68 @@ export type connectorsUpdateCellResponses = {
 
 export type connectorsUpdateCellResponse =
   connectorsUpdateCellResponses[keyof connectorsUpdateCellResponses]
+
+export type connectorsDeleteRowsData = {
+  body: DeleteRowsRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/rows"
+}
+
+export type connectorsDeleteRowsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsDeleteRowsError = connectorsDeleteRowsErrors[keyof connectorsDeleteRowsErrors]
+
+export type connectorsDeleteRowsResponses = {
+  /**
+   * Successful Response
+   */
+  200: DeleteRowsResult
+}
+
+export type connectorsDeleteRowsResponse =
+  connectorsDeleteRowsResponses[keyof connectorsDeleteRowsResponses]
+
+export type connectorsInsertRowData = {
+  body: InsertRowRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/rows"
+}
+
+export type connectorsInsertRowErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsInsertRowError = connectorsInsertRowErrors[keyof connectorsInsertRowErrors]
+
+export type connectorsInsertRowResponses = {
+  /**
+   * Successful Response
+   */
+  200: InsertRowResult
+}
+
+export type connectorsInsertRowResponse =
+  connectorsInsertRowResponses[keyof connectorsInsertRowResponses]
 
 export type connectorsReadRelationModelData = {
   body?: never

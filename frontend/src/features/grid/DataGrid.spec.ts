@@ -1,6 +1,6 @@
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query"
 import { flushPromises, mount } from "@vue/test-utils"
-import { Quasar } from "quasar"
+import { Dialog, Notify, Quasar } from "quasar"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ConnectorsService } from "@/client"
@@ -48,7 +48,9 @@ function mountGrid() {
   })
   return mount(DataGrid, {
     props: { connectorId: "connector-1", nodeId: "public.projects" },
-    global: { plugins: [Quasar, [VueQueryPlugin, { queryClient }]] },
+    global: {
+      plugins: [[Quasar, { plugins: { Dialog, Notify } }], [VueQueryPlugin, { queryClient }]],
+    },
   })
 }
 
@@ -136,6 +138,95 @@ describe("the basic data grid", () => {
       },
     })
     expect(wrapper.get('[data-testid="grid-cell-0-name"]').text()).toBe("Grace")
+    wrapper.unmount()
+  })
+
+  it("inserts only supplied fields and leaves omitted columns to defaults", async () => {
+    const insertedResult: FetchResult = {
+      columns: [
+        {
+          name: "id",
+          type: { sql: "integer", category: "number" },
+          insertable: true,
+          has_default: true,
+        },
+        {
+          name: "name",
+          type: { sql: "text", category: "string" },
+          insertable: true,
+          insert_required: true,
+        },
+      ],
+      rows: [],
+      row_handles: [],
+      insert_supported: true,
+      has_more: false,
+    }
+    vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({ data: insertedResult } as never)
+    const insert = vi.spyOn(ConnectorsService, "insertRow").mockResolvedValue({
+      data: { values: ["1", "Ada"], row_handle: "row-1" },
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-insert"]').trigger("click")
+    await flushPromises()
+    const input = document.body.querySelector<HTMLInputElement>(
+      '[data-testid="grid-insert-value-name"]'
+    )
+    expect(input).not.toBeNull()
+    if (input !== null) input.value = "Ada"
+    input?.dispatchEvent(new Event("input", { bubbles: true }))
+    document.body.querySelector<HTMLElement>('[data-testid="grid-insert-save"]')?.click()
+    await flushPromises()
+
+    expect(insert).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: {
+        node_id: "public.projects",
+        values: [{ column: "name", value: "Ada" }],
+      },
+    })
+    wrapper.unmount()
+  })
+
+  it("deletes a complete selected row only after confirmation", async () => {
+    vi.spyOn(ConnectorsService, "fetchRows")
+      .mockResolvedValueOnce({
+        data: {
+          columns: [{ name: "name", type: { sql: "text", category: "string" } }],
+          rows: [["Ada"]],
+          row_handles: ["opaque-row"],
+          delete_supported: true,
+          has_more: false,
+        },
+      } as never)
+      .mockResolvedValue({
+        data: {
+          columns: [{ name: "name", type: { sql: "text", category: "string" } }],
+          rows: [],
+          row_handles: [],
+          delete_supported: true,
+          has_more: false,
+        },
+      } as never)
+    const remove = vi.spyOn(ConnectorsService, "deleteRows").mockResolvedValue({
+      data: { deleted: 1 },
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-select-row-0"]').trigger("click")
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-delete"]').trigger("click")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="confirm-accept"]')?.click()
+    await flushPromises()
+
+    expect(remove).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: { node_id: "public.projects", row_handles: ["opaque-row"] },
+    })
     wrapper.unmount()
   })
 

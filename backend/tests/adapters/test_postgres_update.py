@@ -5,7 +5,13 @@ import pytest
 from app.adapters.fetch import FetchRequest
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.options import PostgresUserPassword
-from app.adapters.update import RowConflict, UpdateCellRequest
+from app.adapters.update import (
+    DeleteRowsRequest,
+    InsertRowRequest,
+    InsertValue,
+    RowConflict,
+    UpdateCellRequest,
+)
 from tests.utils.database import working_postgres_options
 from tests.utils.relation_fixture import make_schema, run
 
@@ -43,6 +49,16 @@ async def test_fetch_marks_primary_key_table_and_returns_row_handles(
     assert not next(
         column for column in result.columns if column.name == "name_upper"
     ).editable
+    assert result.insert_supported is True
+    assert result.delete_supported is True
+    assert next(column for column in result.columns if column.name == "name").insert_required
+    assert not next(column for column in result.columns if column.name == "id").insert_required
+    assert next(column for column in result.columns if column.name == "id").has_default
+    assert next(column for column in result.columns if column.name == "id").insertable
+    assert next(column for column in result.columns if column.name == "balance").has_default
+    assert not next(
+        column for column in result.columns if column.name == "name_upper"
+    ).insertable
 
 
 async def test_relation_without_primary_key_explains_why_it_is_read_only(
@@ -54,6 +70,10 @@ async def test_relation_without_primary_key_explains_why_it_is_read_only(
 
     assert result.update_supported is False
     assert result.update_reason == "A primary key is required to edit rows"
+    assert result.insert_supported is True
+    assert result.insert_reason is None
+    assert result.delete_supported is False
+    assert result.delete_reason == "A primary key is required to delete rows"
     assert result.row_handles == [None for _ in result.rows]
     assert not any(column.editable for column in result.columns)
 
@@ -158,3 +178,121 @@ async def test_value_rejected_by_postgres_is_a_safe_validation_error(
                 value="not-a-number",
             )
         )
+
+
+async def test_inserts_a_row_with_defaults_and_returns_canonical_values(
+    schema: str,
+) -> None:
+    adapter = _adapter()
+
+    inserted = await adapter.insert_row(
+        InsertRowRequest(
+            node_id=f"{schema}.customers",
+            values=[
+                InsertValue(column="region_id", value="1"),
+                InsertValue(column="region_code", value="EU"),
+                InsertValue(column="name", value="Ada"),
+            ],
+        )
+    )
+
+    fetched = await adapter.fetch(FetchRequest(node_id=f"{schema}.customers"))
+    names = [column.name for column in fetched.columns]
+    assert inserted.values[names.index("id")] == "1"
+    assert inserted.values[names.index("balance")] == "0.00"
+    assert inserted.values[names.index("name_upper")] == "ADA"
+    assert inserted.row_handle is not None
+
+
+async def test_insert_distinguishes_omitted_default_from_explicit_null(
+    schema: str,
+) -> None:
+    inserted = await _adapter().insert_row(
+        InsertRowRequest(
+            node_id=f"{schema}.customers",
+            values=[
+                InsertValue(column="region_id", value="1"),
+                InsertValue(column="region_code", value="EU"),
+                InsertValue(column="name", value="Ada"),
+                InsertValue(column="tags", value=None),
+            ],
+        )
+    )
+    columns = (await _adapter().fetch(FetchRequest(node_id=f"{schema}.customers"))).columns
+    names = [column.name for column in columns]
+
+    assert inserted.values[names.index("tags")] is None
+    assert inserted.values[names.index("balance")] == "0.00"
+
+
+async def test_insert_rejects_missing_unknown_and_generated_columns(
+    schema: str,
+) -> None:
+    adapter = _adapter()
+
+    with pytest.raises(ValueError, match="Required columns.*name"):
+        await adapter.insert_row(
+            InsertRowRequest(
+                node_id=f"{schema}.customers",
+                values=[
+                    InsertValue(column="region_id", value="1"),
+                    InsertValue(column="region_code", value="EU"),
+                ],
+            )
+        )
+    with pytest.raises(ValueError, match="no column"):
+        await adapter.insert_row(
+            InsertRowRequest(
+                node_id=f"{schema}.customers",
+                values=[InsertValue(column='name) VALUES (NULL); --', value="bad")],
+            )
+        )
+    with pytest.raises(ValueError, match="cannot be inserted"):
+        await adapter.insert_row(
+            InsertRowRequest(
+                node_id=f"{schema}.customers",
+                values=[InsertValue(column="name_upper", value="BAD")],
+            )
+        )
+
+
+async def test_deletes_several_rows_by_their_versioned_handles(schema: str) -> None:
+    await run(
+        f"INSERT INTO {schema}.customers (region_id, region_code, name) "  # noqa: S608 -- fixture-owned schema.
+        "VALUES (1, 'EU', 'Ada'), (1, 'EU', 'Grace')"
+    )
+    adapter = _adapter()
+    fetched = await adapter.fetch(FetchRequest(node_id=f"{schema}.customers"))
+    handles = [handle for handle in fetched.row_handles if handle is not None]
+
+    deleted = await adapter.delete_rows(
+        DeleteRowsRequest(node_id=f"{schema}.customers", row_handles=handles)
+    )
+
+    assert deleted.deleted == 2
+    assert (await adapter.fetch(FetchRequest(node_id=f"{schema}.customers"))).rows == []
+
+
+async def test_stale_handle_makes_bulk_delete_atomic(schema: str) -> None:
+    await run(
+        f"INSERT INTO {schema}.customers (region_id, region_code, name) "  # noqa: S608 -- fixture-owned schema.
+        "VALUES (1, 'EU', 'Ada'), (1, 'EU', 'Grace')"
+    )
+    adapter = _adapter()
+    fetched = await adapter.fetch(FetchRequest(node_id=f"{schema}.customers"))
+    handles = [handle for handle in fetched.row_handles if handle is not None]
+    await adapter.update_cell(
+        UpdateCellRequest(
+            node_id=f"{schema}.customers",
+            row_handle=handles[0],
+            column="name",
+            value="Ada Lovelace",
+        )
+    )
+
+    with pytest.raises(RowConflict):
+        await adapter.delete_rows(
+            DeleteRowsRequest(node_id=f"{schema}.customers", row_handles=handles)
+        )
+
+    assert len((await adapter.fetch(FetchRequest(node_id=f"{schema}.customers"))).rows) == 2

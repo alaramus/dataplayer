@@ -4,7 +4,7 @@ What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
-D20, D21, D22, D23, D25.
+D20, D21, D22, D23, D25, D26.
 
 ## What exists today
 
@@ -308,9 +308,39 @@ Known deviations:
 - **`xmin` is PostgreSQL-specific and finite.** It stays behind the opaque
   adapter handle and is sufficient for the interval between reading and saving;
   an adapter with an explicit revision column can issue a different handle.
-- **Only existing cells are edited.** Insert and delete need their own contracts
-  for defaults, required values and bulk selection, so they are not disguised as
-  special forms of update.
+
+## D26. Insert names supplied columns; bulk delete changes every versioned row or none
+
+Insert and delete are independent capabilities beside update. A source may read
+rows without implementing either, and relation-level support and its reason
+arrive in `FetchResult`. PostgreSQL inserts into tables, including keyless ones;
+it deletes only from tables with a primary key because deletion needs stable row
+identity. Views and files keep the commands visible but disabled with the
+source's explanation.
+
+An insert request is a list of `{column, value}` objects, not a dictionary and
+not a complete row. Absence means “let the source use its default”, an object
+whose value is null means SQL `NULL`, and text remains canonical boundary text.
+Metadata marks columns `insertable`, `insert_required` and `has_default`, so the
+form can omit identity, generated and defaulted fields without copying
+PostgreSQL rules. The adapter rereads metadata, rejects unknown or non-insertable
+identifiers, and uses `DEFAULT VALUES` when the list is empty. `RETURNING`
+produces the same canonical row and optional versioned handle as fetch.
+
+Delete accepts one to 500 opaque row handles and is one statement. PostgreSQL
+first counts rows matching every primary key plus fetched `xmin`; the `DELETE`
+runs only when that count equals the requested count. One stale or missing row
+therefore produces 409 and removes nothing. Duplicate handles are rejected, so
+the equality cannot be satisfied accidentally. This all-or-nothing boundary was
+chosen over per-row results: a selection is one destructive user action, and a
+half-applied action would leave the grid unable to say what still needs consent.
+
+Known deviations:
+
+- **Insert is one row at a time.** Multi-row insert needs row-local validation
+  and a deliberate decision between atomic and partial success.
+- **Delete is limited to loaded rows.** Selection stops at the current page;
+  deleting a server-side filter needs a separate previewable command.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

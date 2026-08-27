@@ -185,6 +185,15 @@ in the dialog and the successful mutation invalidates the page because a filter
 or sort change can move the row. A 409 stays in the editor and asks for a reload
 rather than overwriting a newer value.
 
+Insert opens a schema-driven form. Required columns are always supplied;
+optional columns must be explicitly included, and nullable included columns
+offer SQL `NULL` separately from empty text. Omitted fields never cross the
+boundary, so source defaults remain source defaults. Delete becomes available
+only when selection ranges span complete visible rows and every row has an
+opaque handle. One destructive confirmation sends all handles together; success
+clears the selection and invalidates the page, while any version conflict leaves
+every selected row intact.
+
 Known deviations:
 
 - **There is no virtualization.** A browser scenario exercises a 500-row page;

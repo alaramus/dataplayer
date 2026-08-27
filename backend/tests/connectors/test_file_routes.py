@@ -92,6 +92,28 @@ async def test_the_answer_says_the_source_cannot_sort_or_filter(
 
 
 @pytest.mark.usefixtures("home")
+async def test_a_file_source_has_no_row_mutation_capabilities(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    inserted = await client.post(
+        f"{BASE}/{connector_id}/rows",
+        headers=normal_user_token_headers,
+        json={"node_id": "reports/q3.csv", "values": []},
+    )
+    deleted = await client.request(
+        "DELETE",
+        f"{BASE}/{connector_id}/rows",
+        headers=normal_user_token_headers,
+        json={"node_id": "reports/q3.csv", "row_handles": ["opaque"]},
+    )
+
+    assert inserted.status_code == 501
+    assert deleted.status_code == 501
+
+
+@pytest.mark.usefixtures("home")
 async def test_browsing_out_of_the_root_is_a_bad_request(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

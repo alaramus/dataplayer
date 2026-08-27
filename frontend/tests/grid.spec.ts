@@ -104,6 +104,33 @@ test("edits one PostgreSQL cell and can write SQL NULL", async ({ page }) => {
   await deleteConnector(page, name)
 })
 
+test("inserts and deletes a PostgreSQL row", async ({ page }) => {
+  const name = `e2e-grid-mutations-${Date.now()}`
+  const label = `e2e-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "tags")
+
+  await addFilter(page, "label", "equals", label, false)
+  await expect(page.getByTestId("grid-empty")).toBeVisible()
+  await page.getByTestId("grid-insert").click()
+  await page.getByTestId("grid-insert-value-organization_id").fill("1")
+  await page.getByTestId("grid-insert-value-label").fill(label)
+  await page.getByTestId("grid-insert-save").click()
+
+  await expect(page.getByTestId("grid-cell-0-label")).toHaveText(label)
+  await expect(page.getByTestId("grid-cell-0-color")).toHaveText("#64748B")
+  await page.getByTestId("grid-select-row-0").click()
+  await expect(page.getByTestId("grid-delete")).toBeEnabled()
+  await page.getByTestId("grid-delete").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId("grid-empty")).toBeVisible()
+
+  await deleteConnector(page, name)
+})
+
 test("states that a CSV cannot be filtered or sorted", async ({ page }) => {
   const name = `e2e-grid-csv-${Date.now()}`
   await login(page)

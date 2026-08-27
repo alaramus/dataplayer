@@ -23,12 +23,18 @@ import type {
   connectorsDeleteConnectorData,
   connectorsDeleteConnectorErrors,
   connectorsDeleteConnectorResponses,
+  connectorsDeleteRowsData,
+  connectorsDeleteRowsErrors,
+  connectorsDeleteRowsResponses,
   connectorsDescribeDraftData,
   connectorsDescribeDraftErrors,
   connectorsDescribeDraftResponses,
   connectorsFetchRowsData,
   connectorsFetchRowsErrors,
   connectorsFetchRowsResponses,
+  connectorsInsertRowData,
+  connectorsInsertRowErrors,
+  connectorsInsertRowResponses,
   connectorsParseUrlData,
   connectorsParseUrlErrors,
   connectorsParseUrlResponses,
@@ -775,6 +781,54 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/rows/cell",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete Rows
+   *
+   * Delete versioned rows only when every selected row is still current.
+   */
+  public static deleteRows<ThrowOnError extends boolean = true>(
+    options: Options<connectorsDeleteRowsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      connectorsDeleteRowsResponses,
+      connectorsDeleteRowsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/rows",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Insert Row
+   *
+   * Insert one row, preserving defaults for columns the caller omitted.
+   */
+  public static insertRow<ThrowOnError extends boolean = true>(
+    options: Options<connectorsInsertRowData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsInsertRowResponses,
+      connectorsInsertRowErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/rows",
       ...options,
       headers: {
         "Content-Type": "application/json",

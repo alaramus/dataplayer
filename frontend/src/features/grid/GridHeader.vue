@@ -19,6 +19,11 @@ const props = defineProps<{
   layout: ColumnLayoutState
   selectedColumn: string | null
   canCopy?: boolean
+  canInsert?: boolean
+  insertReason?: string
+  canDelete?: boolean
+  deleteReason?: string
+  deleteCount?: number
 }>()
 const emit = defineEmits<{
   "update:pageSize": [value: PageSize]
@@ -26,6 +31,8 @@ const emit = defineEmits<{
   "update:sort": [value: Sort[]]
   "update:layout": [value: ColumnLayoutState]
   copy: []
+  insert: []
+  delete: []
 }>()
 const pageSizeOptions = PAGE_SIZES.map((size) => ({ label: String(size), value: size }))
 const filtersOpen = ref(false)
@@ -110,6 +117,28 @@ function selectPageSize(value: unknown) {
           data-testid="grid-copy"
           @click="emit('copy')"
         />
+        <span :title="canInsert ? undefined : insertReason">
+          <AppButton
+            label="Insert"
+            variant="quiet"
+            size="sm"
+            :disable="!canInsert"
+            data-testid="grid-insert"
+            @click="emit('insert')"
+          />
+          <AppTooltip v-if="!canInsert && insertReason">{{ insertReason }}</AppTooltip>
+        </span>
+        <span :title="canDelete ? undefined : deleteReason">
+          <AppButton
+            :label="deleteCount ? `Delete (${deleteCount})` : 'Delete'"
+            variant="quiet"
+            size="sm"
+            :disable="!canDelete"
+            data-testid="grid-delete"
+            @click="emit('delete')"
+          />
+          <AppTooltip v-if="!canDelete && deleteReason">{{ deleteReason }}</AppTooltip>
+        </span>
       </div>
 
       <AppSelect

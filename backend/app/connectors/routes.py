@@ -30,7 +30,9 @@ from app.adapters.protocol import (
     ParsesConnectionString,
     SupportsCatalog,
     SupportsConnectionString,
+    SupportsDelete,
     SupportsFetch,
+    SupportsInsert,
     SupportsNodePath,
     SupportsRelationModel,
     SupportsUpdate,
@@ -39,7 +41,15 @@ from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterTyp
 from app.adapters.registry import get as get_adapter_type
 from app.adapters.relation import RelationModel
 from app.adapters.resources import Pooling, ResourcesDep, ResourceStore
-from app.adapters.update import RowConflict, UpdateCellRequest, UpdateCellResult
+from app.adapters.update import (
+    DeleteRowsRequest,
+    DeleteRowsResult,
+    InsertRowRequest,
+    InsertRowResult,
+    RowConflict,
+    UpdateCellRequest,
+    UpdateCellResult,
+)
 from app.connectors import crud, health, service
 from app.connectors.models import (
     Connector,
@@ -508,6 +518,77 @@ async def update_cell(
         raise HTTPException(
             status_code=409,
             detail={"message": "The row changed or was deleted; reload it and try again"},
+        ) from None
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.post("/{connector_id}/rows", response_model=InsertRowResult)
+async def insert_row(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: InsertRowRequest,
+) -> Any:
+    """Insert one row, preserving defaults for columns the caller omitted."""
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    if not isinstance(adapter, SupportsInsert):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support inserting rows",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.insert_row(request)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.delete("/{connector_id}/rows", response_model=DeleteRowsResult)
+async def delete_rows(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: DeleteRowsRequest,
+) -> Any:
+    """Delete versioned rows only when every selected row is still current."""
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    if not isinstance(adapter, SupportsDelete):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support deleting rows",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.delete_rows(request)
+    except RowConflict:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "One or more rows changed or were deleted; reload and try again"
+            },
         ) from None
     except ValueError as exc:
         raise HTTPException(

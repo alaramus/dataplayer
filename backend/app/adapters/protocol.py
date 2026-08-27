@@ -6,7 +6,14 @@ from pydantic import BaseModel
 from app.adapters.catalog import CatalogNode
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.relation import RelationModel
-from app.adapters.update import UpdateCellRequest, UpdateCellResult
+from app.adapters.update import (
+    DeleteRowsRequest,
+    DeleteRowsResult,
+    InsertRowRequest,
+    InsertRowResult,
+    UpdateCellRequest,
+    UpdateCellResult,
+)
 
 ErrorKind = Literal["auth", "network", "timeout", "config", "unknown"]
 
@@ -124,6 +131,20 @@ class SupportsFetch(Protocol):
 class SupportsUpdate(Protocol):
     async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
         """Change one cell if the row still has the fetched version."""
+        ...
+
+
+@runtime_checkable
+class SupportsInsert(Protocol):
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        """Insert one row while leaving omitted values to the source."""
+        ...
+
+
+@runtime_checkable
+class SupportsDelete(Protocol):
+    async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
+        """Delete versioned rows as one all-or-nothing operation."""
         ...
 
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { CellSelectionBounds } from "@tanstack/vue-table"
 
-import { selectionMatrix } from "./selection"
+import { selectedWholeRowIndexes, selectionMatrix } from "./selection"
 import type { VisibleGridColumn } from "./selection"
 import type { GridRow } from "./types"
 
@@ -52,5 +52,16 @@ describe("selection matrices", () => {
       ["1", "Ada"],
       ["2", "Grace"],
     ])
+  })
+
+  it("returns row indexes only for ranges spanning every visible column", () => {
+    expect(selectedWholeRowIndexes([bounds(1, 1, 0, 1)], 2)).toEqual([1])
+    expect(selectedWholeRowIndexes([bounds(0, 1, 1, 1)], 2)).toEqual([])
+  })
+
+  it("deduplicates overlapping whole-row ranges", () => {
+    expect(
+      selectedWholeRowIndexes([bounds(0, 1, 0, 1), bounds(1, 1, 0, 1)], 2)
+    ).toEqual([0, 1])
   })
 })

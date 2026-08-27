@@ -17,7 +17,14 @@ from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
 from app.adapters.resources import Pooling
-from app.adapters.update import UpdateCellRequest, UpdateCellResult
+from app.adapters.update import (
+    DeleteRowsRequest,
+    DeleteRowsResult,
+    InsertRowRequest,
+    InsertRowResult,
+    UpdateCellRequest,
+    UpdateCellResult,
+)
 
 
 def _as_text(value: Any) -> str:
@@ -101,6 +108,12 @@ class PostgresAdapter:
 
     async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
         return await self._update.update_cell(request)
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        return await self._update.insert_row(request)
+
+    async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
+        return await self._update.delete_rows(request)
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)

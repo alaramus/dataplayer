@@ -75,6 +75,9 @@ class FetchColumn(BaseModel):
     filter_operators: list[FilterOp] = Field(default_factory=list)
     editable: bool = False
     nullable: bool = False
+    insertable: bool = False
+    insert_required: bool = False
+    has_default: bool = False
 
 
 class FetchResult(BaseModel):
@@ -92,3 +95,7 @@ class FetchResult(BaseModel):
     row_handles: list[str | None] = Field(default_factory=list)
     update_supported: bool = False
     update_reason: str | None = None
+    insert_supported: bool = False
+    insert_reason: str | None = None
+    delete_supported: bool = False
+    delete_reason: str | None = None
