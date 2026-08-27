@@ -73,6 +73,8 @@ const queryState = ref<GridQueryState>({
   filters: [],
   sort: [],
 })
+const persistedQueryState = ref<GridQueryState>({ ...queryState.value })
+const queryAwaitingPersistence = ref<GridQueryState | null>(null)
 const request = computed(() => buildFetchRequest(props.nodeId, queryState.value))
 const rowsQuery = useRowsPage(toRef(props, "connectorId"), request)
 const result = computed(() => rowsQuery.data.value)
@@ -211,14 +213,14 @@ function changePageSize(pageSize: PageSize) {
 
 function changeFilters(filters: Filter[]) {
   const next = withFilters(queryState.value, filters)
+  queryAwaitingPersistence.value = next
   queryState.value = next
-  saveQueryState(next)
 }
 
 function changeSort(sort: Sort[]) {
   const next = withSort(queryState.value, sort)
+  queryAwaitingPersistence.value = next
   queryState.value = next
-  saveQueryState(next)
 }
 
 function changeLayout(next: ColumnLayoutState) {
@@ -226,18 +228,20 @@ function changeLayout(next: ColumnLayoutState) {
   layout.value = next
   saveGridState(props.connectorId, props.nodeId, {
     ...next,
-    filters: queryState.value.filters,
-    sort: queryState.value.sort,
+    filters: persistedQueryState.value.filters,
+    sort: persistedQueryState.value.sort,
   })
 }
 
 function saveQueryState(state: GridQueryState) {
-  const columns = result.value?.columns ?? []
+  const serverColumns = result.value?.columns
   const stored = loadGridState(props.connectorId, props.nodeId)
   const base: StoredGridState =
     stored === null
-      ? { ...defaultColumnLayout(columns), filters: [], sort: [] }
-      : reconcileGridState(stored, columns)
+      ? { ...defaultColumnLayout(serverColumns ?? []), filters: [], sort: [] }
+      : serverColumns === undefined
+        ? stored
+        : reconcileGridState(stored, serverColumns)
   saveGridState(props.connectorId, props.nodeId, {
     ...base,
     filters: state.filters,
@@ -480,6 +484,18 @@ function retry() {
   void rowsQuery.refetch()
 }
 
+function resetQuery() {
+  const next = {
+    ...withPage(queryState.value, 0),
+    filters: [],
+    sort: [],
+  }
+  queryAwaitingPersistence.value = null
+  persistedQueryState.value = next
+  saveQueryState(next)
+  queryState.value = next
+}
+
 let restoredKey = ""
 watch(
   () => result.value?.columns,
@@ -492,6 +508,7 @@ watch(
     const stored = loadGridState(props.connectorId, props.nodeId)
     if (stored === null) {
       layout.value = defaultColumnLayout(serverColumns)
+      persistedQueryState.value = { ...queryState.value }
       return
     }
     const reconciled = reconcileGridState(stored, serverColumns)
@@ -501,14 +518,27 @@ watch(
       columnSizing: reconciled.columnSizing,
       pinnedLeft: reconciled.pinnedLeft,
     }
-    queryState.value = {
+    const restored = {
       ...queryState.value,
       page: 0,
       filters: reconciled.filters,
       sort: reconciled.sort,
     }
+    persistedQueryState.value = restored
+    queryState.value = restored
   },
   { immediate: true }
+)
+
+watch(
+  () => [rowsQuery.isSuccess.value, rowsQuery.dataUpdatedAt.value] as const,
+  ([isSuccess]) => {
+    const pending = queryAwaitingPersistence.value
+    if (!isSuccess || pending === null || queryState.value !== pending) return
+    persistedQueryState.value = pending
+    saveQueryState(pending)
+    queryAwaitingPersistence.value = null
+  }
 )
 
 watch(
@@ -517,7 +547,10 @@ watch(
     restoredKey = ""
     selectedColumn.value = null
     layout.value = { ...EMPTY_LAYOUT }
-    queryState.value = { ...withPage(queryState.value, 0), filters: [], sort: [] }
+    const reset = { ...withPage(queryState.value, 0), filters: [], sort: [] }
+    queryAwaitingPersistence.value = null
+    persistedQueryState.value = reset
+    queryState.value = reset
   }
 )
 
@@ -564,13 +597,22 @@ defineExpose({
     >
       <div class="data-grid__error">
         <span>{{ messageOf(rowsQuery.error.value, "Could not read the rows") }}</span>
-        <AppButton
-          variant="secondary"
-          label="Retry"
-          size="sm"
-          data-testid="grid-retry"
-          @click="retry"
-        />
+        <div class="data-grid__error-actions">
+          <AppButton
+            variant="secondary"
+            label="Reset query"
+            size="sm"
+            data-testid="grid-reset-query"
+            @click="resetQuery"
+          />
+          <AppButton
+            variant="secondary"
+            label="Retry"
+            size="sm"
+            data-testid="grid-retry"
+            @click="retry"
+          />
+        </div>
       </div>
     </AppBanner>
 
@@ -787,6 +829,11 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.data-grid__error-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .data-grid__skeleton {

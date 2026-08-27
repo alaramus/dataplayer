@@ -548,6 +548,52 @@ describe("the basic data grid", () => {
     expect(fetchRows).toHaveBeenCalledTimes(3)
   })
 
+  it("does not persist a filter until the server accepts it", async () => {
+    vi.spyOn(ConnectorsService, "fetchRows").mockImplementation((options) =>
+      (options.body.filters?.length ?? 0) > 0
+        ? Promise.reject(new Error("Query failed")) as never
+        : Promise.resolve({ data: result(0, 1) }) as never
+    )
+    const wrapper = mountGrid()
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-filter"]').trigger("click")
+    wrapper.findComponent(AppInput).vm.$emit("update:modelValue", "not accepted")
+
+    await wrapper.get('[data-testid="grid-filter-apply"]').trigger("click")
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="grid-error"]').text()).toContain("Could not read the rows")
+    expect(loadGridState("connector-1", "public.projects")?.filters ?? []).toEqual([])
+  })
+
+  it("resets a persisted query that fails when the grid is reopened", async () => {
+    saveGridState("connector-1", "public.projects", {
+      columnOrder: ["id", "name"],
+      columnVisibility: {},
+      columnSizing: {},
+      pinnedLeft: [],
+      filters: [{ column: "id", op: "eq", value: "not accepted" }],
+      sort: [],
+    })
+    const fetchRows = vi.spyOn(ConnectorsService, "fetchRows").mockImplementation((options) =>
+      (options.body.filters?.length ?? 0) > 0
+        ? Promise.reject(new Error("Query failed")) as never
+        : Promise.resolve({ data: result(0, 1) }) as never
+    )
+    const wrapper = mountGrid()
+    await flushPromises()
+    expect(wrapper.get('[data-testid="grid-error"]').text()).toContain("Could not read the rows")
+
+    await wrapper.get('[data-testid="grid-reset-query"]').trigger("click")
+    await flushPromises()
+
+    expect(fetchRows).toHaveBeenLastCalledWith(
+      expect.objectContaining({ body: expect.objectContaining({ filters: [], sort: [] }) })
+    )
+    expect(loadGridState("connector-1", "public.projects")?.filters).toEqual([])
+    expect(wrapper.get('[data-testid="grid-cell-0-name"]').text()).toBe("Project 1")
+  })
+
   it("shows an empty page while Previous stays available", async () => {
     vi.spyOn(ConnectorsService, "fetchRows").mockImplementation((options) =>
       Promise.resolve({

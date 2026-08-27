@@ -167,6 +167,10 @@ query.
 
 Versioned local storage persists filters, ordered sort and column width, order,
 visibility and left pinning per `connectorId + nodeId`; page size is global.
+Filters and sort are committed only after the server accepts their fetch, so a
+rejected query cannot become the view restored on the next open. The error state
+also offers a query reset that clears both without depending on column metadata
+from the failed response.
 Unknown versions and contradictory shapes are discarded, and restored state is
 reconciled with the columns the server actually returned. Offset, selection and
 open editors are transient: reload starts at the first page and a page or

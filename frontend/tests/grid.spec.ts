@@ -51,6 +51,60 @@ test("explores a relation and restores its view", async ({ page, context }) => {
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("recovers from a rejected query without restoring it", async ({ page }) => {
+  test.setTimeout(60_000)
+  const name = `e2e-grid-query-error-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "projects")
+  await expect(page.getByTestId("grid-cell-0-name")).toBeVisible()
+
+  await page.route("**/*", async (route) => {
+    const request = route.request()
+    if (request.method() !== "POST" || !request.url().includes("/fetch")) {
+      await route.continue()
+      return
+    }
+    const body = request.postDataJSON() as { filters?: unknown[] }
+    if ((body.filters?.length ?? 0) === 0) {
+      await route.continue()
+      return
+    }
+    await route.fulfill({
+      status: 400,
+      contentType: "application/json",
+      body: JSON.stringify({ detail: "Query failed" }),
+    })
+  })
+
+  const applyRejectedFilter = async () => {
+    const editor = page.getByTestId("grid-filter-editor")
+    if (!(await editor.isVisible())) await page.getByTestId("grid-filter").click()
+    await editor.getByLabel("Column").click()
+    await page.getByRole("option", { name: "name", exact: true }).click()
+    await editor.getByLabel("Operator").click()
+    await page.getByRole("option", { name: "equals", exact: true }).click()
+    await editor.getByLabel("Value").fill("rejected")
+    await editor.getByTestId("grid-filter-apply").click()
+    await expect(page.getByTestId("grid-error")).toContainText("Could not read the rows", {
+      timeout: 15_000,
+    })
+  }
+
+  await applyRejectedFilter()
+  await page.getByTestId("grid-reset-query").click()
+  await expect(page.getByTestId("grid-cell-0-name")).toBeVisible()
+
+  await applyRejectedFilter()
+  await page.reload()
+  await expect(page.getByTestId("grid-cell-0-name")).toBeVisible()
+  await expect(page.getByTestId("grid-error")).toHaveCount(0)
+
+  await deleteConnector(page, name)
+})
+
 test("opens a complete JSON value", async ({ page }) => {
   const name = `e2e-grid-json-${Date.now()}`
   await login(page)
