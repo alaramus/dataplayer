@@ -10,8 +10,8 @@ cost time.
   loaded into every session.
 - `docs/architecture/` — what exists, why it was decided that way, and where it
   falls short. Read the file for the area you are touching.
-- `docs/superpowers/specs/` — the full argument behind each decision, in
-  Russian. [README.md](docs/superpowers/specs/README.md) lists them in order.
+- `docs/superpowers/specs/` — the full argument behind each decision.
+  [README.md](docs/superpowers/specs/README.md) lists them in order.
 
 ## What this project is
 
@@ -33,8 +33,7 @@ not a constraint: any part of it may be rewritten or deleted, and most of it
 already has been.
 
 Everything in the repository is in **English**: code, comments, docstrings, UI
-strings, test names, commit messages and documentation. The only exception is
-`docs/superpowers/`, which holds working notes in Russian.
+strings, test names, commit messages and documentation.
 
 ## Where to read what
 

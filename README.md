@@ -52,4 +52,4 @@ incompatible with the event loop Python selects there. Use Docker.
   each rule.
 - [docs/architecture/](docs/architecture/) — what exists in each area, the
   decisions behind it, and where it falls short.
-- `docs/superpowers/` — design documents and implementation plans, in Russian.
+- `docs/superpowers/` — design documents and implementation plans.
