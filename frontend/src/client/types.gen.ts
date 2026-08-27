@@ -546,6 +546,14 @@ export type FetchColumn = {
     | "is_null"
     | "is_not_null"
   >
+  /**
+   * Editable
+   */
+  editable?: boolean
+  /**
+   * Nullable
+   */
+  nullable?: boolean
 }
 
 /**
@@ -605,6 +613,18 @@ export type FetchResult = {
    * Has More
    */
   has_more: boolean
+  /**
+   * Row Handles
+   */
+  row_handles?: Array<string | null>
+  /**
+   * Update Supported
+   */
+  update_supported?: boolean
+  /**
+   * Update Reason
+   */
+  update_reason?: string | null
 }
 
 /**
@@ -1063,6 +1083,42 @@ export type UniqueConstraint = {
    * Nulls Not Distinct
    */
   nulls_not_distinct?: boolean
+}
+
+/**
+ * UpdateCellRequest
+ */
+export type UpdateCellRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Row Handle
+   */
+  row_handle: string
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Value
+   */
+  value: string | null
+}
+
+/**
+ * UpdateCellResult
+ */
+export type UpdateCellResult = {
+  /**
+   * Values
+   */
+  values: Array<string | null>
+  /**
+   * Row Handle
+   */
+  row_handle: string
 }
 
 /**
@@ -2058,6 +2114,37 @@ export type connectorsReadCatalogResponses = {
 
 export type connectorsReadCatalogResponse =
   connectorsReadCatalogResponses[keyof connectorsReadCatalogResponses]
+
+export type connectorsUpdateCellData = {
+  body: UpdateCellRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/rows/cell"
+}
+
+export type connectorsUpdateCellErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsUpdateCellError = connectorsUpdateCellErrors[keyof connectorsUpdateCellErrors]
+
+export type connectorsUpdateCellResponses = {
+  /**
+   * Successful Response
+   */
+  200: UpdateCellResult
+}
+
+export type connectorsUpdateCellResponse =
+  connectorsUpdateCellResponses[keyof connectorsUpdateCellResponses]
 
 export type connectorsReadRelationModelData = {
   body?: never

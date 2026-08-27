@@ -94,7 +94,8 @@ async def test_reports_what_a_type_can_do(
     assert "Read rows" in postgres
     assert "Describe a relation" in postgres
     assert "Describe a relation" not in files
-    # PostgreSQL implements no actions, so it must claim none.
-    assert [c for c in types["postgres"]["capabilities"] if c["group"] == "manage"] == []
+    assert {c["title"] for c in types["postgres"]["capabilities"] if c["group"] == "manage"} == {
+        "Edit rows"
+    }
     assert "Upload a file" in files
     assert "Delete" in files

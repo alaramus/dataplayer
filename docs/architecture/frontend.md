@@ -11,7 +11,8 @@ Decisions here: D6, D7, D11, D24.
 Vue 3, TypeScript, Quasar, Vite, TanStack Query, Pinia. Sign in, a catalog of
 source types, a form generated from the adapter's own schema, the list of
 connections, the catalog of a connection as a list of one level, and a typed
-data grid with server paging, filters and ordered sorting. Light and dark themes,
+data grid with server paging, filters, ordered sorting and guarded cell editing.
+Light and dark themes,
 switched by a button beside Sign out and remembered.
 
 ```
@@ -175,6 +176,14 @@ appearance but not the canonical string; complex or long values open that same
 full string in a read-only viewer. The page ceiling is 500 rows, with explicit
 pagination rather than virtualization until browser measurement demonstrates a
 need.
+
+Double-click opens an editor only when the fetched column is marked editable and
+the row has a handle. A complex value keeps the established double-click viewer;
+Shift + double-click opens its technical editor. The value remains canonical
+text; SQL null is a separate choice, never an empty string. Saving is pessimistic
+in the dialog and the successful mutation invalidates the page because a filter
+or sort change can move the row. A 409 stays in the editor and asks for a reload
+rather than overwriting a newer value.
 
 Known deviations:
 

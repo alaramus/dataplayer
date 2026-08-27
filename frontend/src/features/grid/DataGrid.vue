@@ -32,7 +32,8 @@ import {
   useToast,
 } from "@/shared/ui"
 
-import { useRowsPage } from "./api"
+import { useRowsPage, useUpdateCell } from "./api"
+import CellEditorDialog from "./CellEditorDialog.vue"
 import CellValueDialog from "./CellValueDialog.vue"
 import { toTsv, writeSelection } from "./clipboard"
 import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
@@ -81,6 +82,13 @@ const rows = computed(() =>
 const layout = ref<ColumnLayoutState>({ ...EMPTY_LAYOUT })
 const selectedColumn = ref<string | null>(null)
 const viewer = ref<{ columnName: string; typeSql: string; value: string } | null>(null)
+const editor = ref<{
+  column: FetchColumn
+  value: string | null
+  rowHandle: string
+} | null>(null)
+const editError = ref("")
+const updateCell = useUpdateCell(toRef(props, "connectorId"))
 const gridFocus = useTemplateRef<HTMLElement>("gridFocus")
 const features = tableFeatures({
   columnSizingFeature,
@@ -350,11 +358,54 @@ function presentCell(cell: Cell<GridFeatures, GridRow, unknown>): CellPresentati
     : cellPresentation(value, column.type)
 }
 
-function openViewer(cell: Cell<GridFeatures, GridRow, unknown>) {
+function openCell(cell: Cell<GridFeatures, GridRow, unknown>, event: MouseEvent) {
   const column = serverColumn(cell.column.id)
   const value = cell.getValue() as string | null
+  if (
+    event.shiftKey === false &&
+    column !== undefined &&
+    value !== null &&
+    shouldOpenViewer(value, column.type)
+  ) {
+    viewer.value = { columnName: column.name, typeSql: column.type.sql, value }
+    return
+  }
+  const rowIndex = Number(cell.row.id) - offset.value
+  const rowHandle = result.value?.row_handles?.[rowIndex]
+  if (column?.editable === true && typeof rowHandle === "string") {
+    editError.value = ""
+    editor.value = { column, value, rowHandle }
+    return
+  }
   if (column === undefined || value === null || !shouldOpenViewer(value, column.type)) return
   viewer.value = { columnName: column.name, typeSql: column.type.sql, value }
+}
+
+function cellTitle(cell: Cell<GridFeatures, GridRow, unknown>): string | undefined {
+  const column = serverColumn(cell.column.id)
+  if (column?.editable !== true) return result.value?.update_reason ?? undefined
+  const value = cell.getValue() as string | null
+  return shouldOpenViewer(value, column.type)
+    ? "Double-click to view; Shift+double-click to edit"
+    : "Double-click to edit"
+}
+
+async function saveCell(value: string | null) {
+  const active = editor.value
+  if (active === null) return
+  editError.value = ""
+  try {
+    await updateCell.mutateAsync({
+      node_id: props.nodeId,
+      row_handle: active.rowHandle,
+      column: active.column.name,
+      value,
+    })
+    editor.value = null
+    toast.success("Cell updated")
+  } catch (error) {
+    editError.value = messageOf(error, "Could not update the cell")
+  }
 }
 
 function retry() {
@@ -553,11 +604,13 @@ defineExpose({
               :class="{
                 'data-grid__pinned': cell.column.getIsPinned() === 'start',
                 'data-grid__selected': cell.getIsSelected(),
+                'data-grid__editable': serverColumn(cell.column.id)?.editable === true,
               }"
+              :title="cellTitle(cell)"
               :style="columnStyle(cell.column)"
               @mousedown="startSelection(cell, $event)"
               @mouseenter="cell.getSelectionExtendHandler()($event)"
-              @dblclick="openViewer(cell)"
+              @dblclick="openCell(cell, $event)"
             >
               <AppCheckbox
                 v-if="serverColumn(cell.column.id)?.type.category === 'boolean' && cell.getValue() !== null"
@@ -618,6 +671,16 @@ defineExpose({
       :type-sql="viewer.typeSql"
       :value="viewer.value"
       @update:model-value="viewer = null"
+    />
+    <CellEditorDialog
+      v-if="editor !== null"
+      :model-value="true"
+      :column="editor.column"
+      :value="editor.value"
+      :saving="updateCell.isPending.value"
+      :error="editError"
+      @save="saveCell"
+      @update:model-value="editor = null"
     />
   </div>
 </template>
@@ -739,6 +802,10 @@ defineExpose({
 
 .data-grid__selected {
   box-shadow: inset 0 0 0 2px var(--dp-focus-border);
+}
+
+.data-grid__editable {
+  cursor: cell;
 }
 
 .data-grid__table td > span {

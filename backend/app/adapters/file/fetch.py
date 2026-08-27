@@ -40,6 +40,8 @@ class FileFetch:
             columns=page.columns,
             rows=page.rows,
             has_more=page.has_more,
+            row_handles=[None for _ in page.rows],
+            update_reason="This source is read-only",
         )
 
     def _read(self, path: Path, request: FetchRequest) -> Page:

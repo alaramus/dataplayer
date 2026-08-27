@@ -12,10 +12,12 @@ from app.adapters.postgres.session import (
     compose_url,
     options_from_url,
 )
+from app.adapters.postgres.update import PostgresUpdate
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
 from app.adapters.resources import Pooling
+from app.adapters.update import UpdateCellRequest, UpdateCellResult
 
 
 def _as_text(value: Any) -> str:
@@ -45,10 +47,13 @@ class PostgresAdapter:
     another hundred lines in this class.
     """
 
-    def __init__(self, options: PostgresOptions, pooling: Pooling | None = None) -> None:
+    def __init__(
+        self, options: PostgresOptions, pooling: Pooling | None = None
+    ) -> None:
         self._session = PostgresSession(options, pooling)
         self._catalog = PostgresCatalog(self._session)
         self._fetch = PostgresFetch(self._session)
+        self._update = PostgresUpdate(self._session, self._fetch)
         self._relation = PostgresRelation(self._session)
 
     @classmethod
@@ -93,6 +98,9 @@ class PostgresAdapter:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
+        return await self._update.update_cell(request)
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)

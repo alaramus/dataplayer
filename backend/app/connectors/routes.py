@@ -33,11 +33,13 @@ from app.adapters.protocol import (
     SupportsFetch,
     SupportsNodePath,
     SupportsRelationModel,
+    SupportsUpdate,
 )
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
 from app.adapters.relation import RelationModel
 from app.adapters.resources import Pooling, ResourcesDep, ResourceStore
+from app.adapters.update import RowConflict, UpdateCellRequest, UpdateCellResult
 from app.connectors import crud, health, service
 from app.connectors.models import (
     Connector,
@@ -480,6 +482,43 @@ async def read_catalog(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         )
+
+
+@router.patch("/{connector_id}/rows/cell", response_model=UpdateCellResult)
+async def update_cell(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: UpdateCellRequest,
+) -> Any:
+    """Change one cell if the fetched row version is still current."""
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    if not isinstance(adapter, SupportsUpdate):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support editing rows",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.update_cell(request)
+    except RowConflict:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": "The row changed or was deleted; reload it and try again"},
+        ) from None
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
 
 
 @router.get("/{connector_id}/relation-model", response_model=RelationModel)

@@ -1,4 +1,5 @@
 import json
+from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 from typing import Any, assert_never
@@ -17,6 +18,7 @@ from app.adapters.fetch import (
     ScalarFilter,
 )
 from app.adapters.postgres.column_type import build_column_type
+from app.adapters.postgres.row_handle import encode_row_handle
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError
 from app.adapters.relation import ColumnType
@@ -36,9 +38,15 @@ _COMPARISONS: dict[str, str] = {
 _ORDERED = frozenset({"number", "string", "boolean", "datetime", "uuid", "enum"})
 _COMPARED = frozenset({"number", "string", "datetime"})
 _EQUAL = frozenset({"number", "string", "datetime", "boolean", "uuid", "enum"})
-_SERVER_TEXT = frozenset(
-    {"array", "geometric", "json", "range", "composite", "other"}
-)
+_SERVER_TEXT = frozenset({"array", "geometric", "json", "range", "composite", "other"})
+
+
+@dataclass(frozen=True)
+class RelationFetchInfo:
+    columns: list[FetchColumn]
+    primary_key: list[str]
+    update_supported: bool
+    update_reason: str | None
 
 
 class _JsonNumber:
@@ -95,7 +103,7 @@ def coerce_filter_value(value: str, type_: ColumnType) -> object:
                 return value
             case _:
                 raise ValueError
-    except (InvalidOperation, ValueError):
+    except InvalidOperation, ValueError:
         raise ValueError from None
 
 
@@ -144,10 +152,14 @@ def _encode_json(value: Any) -> str:
     if isinstance(value, list):
         return "[" + ",".join(_encode_json(item) for item in value) + "]"
     if isinstance(value, dict):
-        return "{" + ",".join(
-            f"{json.dumps(key, ensure_ascii=False)}:{_encode_json(item)}"
-            for key, item in value.items()
-        ) + "}"
+        return (
+            "{"
+            + ",".join(
+                f"{json.dumps(key, ensure_ascii=False)}:{_encode_json(item)}"
+                for key, item in value.items()
+            )
+            + "}"
+        )
     raise TypeError("PostgreSQL JSON values must contain JSON data")
 
 
@@ -170,7 +182,8 @@ class PostgresFetch:
                 f'"{request.node_id}" is not a relation: expected schema.table'
             )
 
-        columns = await self._columns(schema, table)
+        info = await self.relation_info(schema, table)
+        columns = info.columns
         known = {column.name: column for column in columns}
         self._reject_unknown_columns(request, known)
         filters = self._validate_filters(request.filters, known)
@@ -191,6 +204,23 @@ class PostgresFetch:
                 for row in page
             ],
             has_more=has_more,
+            row_handles=[self._row_handle(row, info, columns) for row in page],
+            update_supported=info.update_supported,
+            update_reason=info.update_reason,
+        )
+
+    @staticmethod
+    def _row_handle(
+        row: dict[str, Any], info: RelationFetchInfo, columns: list[FetchColumn]
+    ) -> str | None:
+        if not info.update_supported:
+            return None
+        known = {column.name: column for column in columns}
+        keys = [encode_cell(row[name], known[name].type) for name in info.primary_key]
+        if any(value is None for value in keys):
+            return None
+        return encode_row_handle(
+            [value for value in keys if value is not None], str(row["__dp_xmin"])
         )
 
     @staticmethod
@@ -252,7 +282,7 @@ class PostgresFetch:
             if not known[sort.column].sortable:
                 raise ValueError(f'Cannot sort column "{sort.column}"')
 
-    async def _columns(self, schema: str, table: str) -> list[FetchColumn]:
+    async def relation_info(self, schema: str, table: str) -> RelationFetchInfo:
         rows = await self._session.query(
             """
             SELECT a.attname AS name,
@@ -263,6 +293,15 @@ class PostgresFetch:
                    format_type(t.typelem, a.atttypmod) AS element_sql,
                    et.typcategory AS element_category,
                    et.typname AS element_name,
+                   c.relkind AS relation_kind,
+                   a.attgenerated AS generated,
+                   NOT a.attnotnull AS nullable,
+                   (SELECT array_agg(pa.attname ORDER BY key.ord)
+                      FROM pg_index i
+                      CROSS JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS key(attnum, ord)
+                      JOIN pg_attribute pa
+                        ON pa.attrelid = i.indrelid AND pa.attnum = key.attnum
+                     WHERE i.indrelid = c.oid AND i.indisprimary) AS primary_key,
                    (SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
                       FROM pg_enum e WHERE e.enumtypid = t.oid) AS enum_values,
                    (SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
@@ -280,6 +319,15 @@ class PostgresFetch:
         )
         if not rows:
             raise AdapterError("config", f'Relation "{schema}.{table}" does not exist')
+        primary_key = [str(value) for value in (rows[0]["primary_key"] or [])]
+        table_kind = str(rows[0]["relation_kind"]) in {"r", "p"}
+        update_supported = table_kind and bool(primary_key)
+        if not table_kind:
+            update_reason = "Only tables can be edited"
+        elif not primary_key:
+            update_reason = "A primary key is required to edit rows"
+        else:
+            update_reason = None
         columns: list[FetchColumn] = []
         for row in rows:
             type_ = build_column_type(row)
@@ -290,9 +338,16 @@ class PostgresFetch:
                     type=type_,
                     sortable=sortable,
                     filter_operators=filter_operators,
+                    editable=update_supported and str(row["generated"]) == "",
+                    nullable=bool(row["nullable"]),
                 )
             )
-        return columns
+        return RelationFetchInfo(
+            columns=columns,
+            primary_key=primary_key,
+            update_supported=update_supported,
+            update_reason=update_reason,
+        )
 
     def _build(
         self,
@@ -302,15 +357,17 @@ class PostgresFetch:
         request: FetchRequest,
     ) -> tuple[sql.Composed, list[Any]]:
         params: list[Any] = []
-        selected = sql.SQL(", ").join(_select_expression(column) for column in columns)
+        selected = sql.SQL(", ").join(select_expression(column) for column in columns)
+        if any(column.editable for column in columns):
+            selected = selected + sql.SQL(", xmin::text AS __dp_xmin")
         statement = sql.SQL("SELECT {} FROM {}").format(
             selected, sql.Identifier(schema, table)
         )
 
         conditions = [self._condition(f, params) for f in request.filters]
         if conditions:
-            statement = statement + sql.SQL(" WHERE ") + sql.SQL(" AND ").join(
-                conditions
+            statement = (
+                statement + sql.SQL(" WHERE ") + sql.SQL(" AND ").join(conditions)
             )
 
         if request.sort:
@@ -352,7 +409,7 @@ class PostgresFetch:
                 assert_never(unreachable)
 
 
-def _select_expression(column: FetchColumn) -> sql.Composed:
+def select_expression(column: FetchColumn) -> sql.Composed:
     identifier = sql.Identifier(column.name)
     if column.type.category in _SERVER_TEXT:
         return sql.SQL("{}::text AS {}").format(identifier, identifier)

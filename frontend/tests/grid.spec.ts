@@ -72,6 +72,38 @@ test("opens a complete JSON value", async ({ page }) => {
   await deleteConnector(page, name)
 })
 
+test("edits one PostgreSQL cell and can write SQL NULL", async ({ page }) => {
+  const name = `e2e-grid-edit-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "projects")
+
+  await addFilter(page, "name", "equals", "Signal Research")
+  const budget = page.getByTestId("grid-cell-0-budget")
+  if ((await budget.textContent()) === "∅") {
+    await budget.dblclick()
+    await page.getByTestId("grid-edit-null").click()
+    await page.getByTestId("grid-edit-value").fill("90000.00")
+    await page.getByTestId("grid-edit-save").click()
+    await expect(budget).toHaveText("90000.00")
+  }
+
+  await budget.dblclick()
+  await page.getByTestId("grid-edit-null").click()
+  await page.getByTestId("grid-edit-save").click()
+  await expect(budget).toHaveText("∅")
+
+  await budget.dblclick()
+  await page.getByTestId("grid-edit-null").click()
+  await page.getByTestId("grid-edit-value").fill("90000.00")
+  await page.getByTestId("grid-edit-save").click()
+  await expect(budget).toHaveText("90000.00")
+
+  await deleteConnector(page, name)
+})
+
 test("states that a CSV cannot be filtered or sorted", async ({ page }) => {
   const name = `e2e-grid-csv-${Date.now()}`
   await login(page)

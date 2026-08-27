@@ -136,7 +136,9 @@ class PostgresSession:
     extensions had already been moved out of it.
     """
 
-    def __init__(self, options: PostgresOptions, pooling: Pooling | None = None) -> None:
+    def __init__(
+        self, options: PostgresOptions, pooling: Pooling | None = None
+    ) -> None:
         self._options = options
         # Absent for a draft being checked, and for a session a test builds by
         # hand: then every query connects on its own, as everything did before
@@ -236,6 +238,27 @@ class PostgresSession:
             raise AdapterError(error_kind, message) from None
         except Exception as exc:
             error_kind, message = classify(exc, fallback_message="Query failed")
+            raise AdapterError(error_kind, message) from None
+
+    async def change(
+        self, sql: str, params: tuple[object, ...]
+    ) -> list[dict[str, Any]]:
+        """Run a data change and keep rejected values separate from failures."""
+        try:
+            async with self._connection() as connection:
+                cursor = await connection.cursor(row_factory=dict_row).execute(
+                    sql, params
+                )
+                return await cursor.fetchall()
+        except PoolTimeout:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except (psycopg.DataError, psycopg.IntegrityError):
+            # Constraint and conversion messages may quote source data and
+            # schema details. The status is useful; the driver text is not.
+            raise ValueError("The source rejected the new value") from None
+        except Exception as exc:
+            error_kind, message = classify(exc, fallback_message="Update failed")
             raise AdapterError(error_kind, message) from None
 
     async def _why_no_connection(self) -> tuple[ErrorKind, str]:

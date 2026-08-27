@@ -55,6 +55,7 @@ function mountGrid() {
 beforeEach(() => {
   localStorage.clear()
   vi.restoreAllMocks()
+  vi.spyOn(window, "scrollTo").mockImplementation(() => undefined)
 })
 
 describe("the basic data grid", () => {
@@ -69,6 +70,73 @@ describe("the basic data grid", () => {
     expect(fetchRows).toHaveBeenLastCalledWith(
       expect.objectContaining({ body: expect.objectContaining({ offset: 0, limit: 100 }) })
     )
+  })
+
+  it("edits only a server-declared cell with its opaque row handle", async () => {
+    vi.spyOn(ConnectorsService, "fetchRows")
+      .mockResolvedValueOnce({
+        data: {
+          columns: [
+            {
+              name: "name",
+              type: { sql: "text", category: "string" },
+              editable: true,
+              nullable: false,
+            },
+          ],
+          rows: [["Ada"]],
+          row_handles: ["opaque-row"],
+          update_supported: true,
+          has_more: false,
+        },
+      } as never)
+      .mockResolvedValue({
+        data: {
+          columns: [
+            {
+              name: "name",
+              type: { sql: "text", category: "string" },
+              editable: true,
+              nullable: false,
+            },
+          ],
+          rows: [["Grace"]],
+          row_handles: ["new-row"],
+          update_supported: true,
+          has_more: false,
+        },
+      } as never)
+    const update = vi.spyOn(ConnectorsService, "updateCell").mockResolvedValue({
+      data: { values: ["Grace"], row_handle: "new-row" },
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-cell-0-name"]').trigger("dblclick")
+    await flushPromises()
+    const input = document.body.querySelector<HTMLInputElement>(
+      '[data-testid="grid-edit-value"]'
+    )
+    expect(input).not.toBeNull()
+    input?.focus()
+    input?.setSelectionRange(0, input.value.length)
+    input?.dispatchEvent(new InputEvent("input", { data: "Grace", bubbles: true }))
+    if (input !== null) input.value = "Grace"
+    input?.dispatchEvent(new Event("input", { bubbles: true }))
+    document.body.querySelector<HTMLElement>('[data-testid="grid-edit-save"]')?.click()
+    await flushPromises()
+
+    expect(update).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: {
+        node_id: "public.projects",
+        row_handle: "opaque-row",
+        column: "name",
+        value: "Grace",
+      },
+    })
+    expect(wrapper.get('[data-testid="grid-cell-0-name"]').text()).toBe("Grace")
+    wrapper.unmount()
   })
 
   it("turns pages with an explicit server offset", async () => {

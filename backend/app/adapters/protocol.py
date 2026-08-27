@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from app.adapters.catalog import CatalogNode
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.relation import RelationModel
+from app.adapters.update import UpdateCellRequest, UpdateCellResult
 
 ErrorKind = Literal["auth", "network", "timeout", "config", "unknown"]
 
@@ -116,6 +117,13 @@ class SupportsFetch(Protocol):
         that names a column the relation does not have — that check happens
         before any SQL is built.
         """
+        ...
+
+
+@runtime_checkable
+class SupportsUpdate(Protocol):
+    async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
+        """Change one cell if the row still has the fetched version."""
         ...
 
 

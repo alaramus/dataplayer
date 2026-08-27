@@ -73,6 +73,8 @@ class FetchColumn(BaseModel):
     type: ColumnType
     sortable: bool = False
     filter_operators: list[FilterOp] = Field(default_factory=list)
+    editable: bool = False
+    nullable: bool = False
 
 
 class FetchResult(BaseModel):
@@ -87,3 +89,6 @@ class FetchResult(BaseModel):
 
     rows: list[list[str | None]]
     has_more: bool
+    row_handles: list[str | None] = Field(default_factory=list)
+    update_supported: bool = False
+    update_reason: str | None = None

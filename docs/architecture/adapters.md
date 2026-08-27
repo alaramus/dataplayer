@@ -4,7 +4,7 @@ What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
-D20, D21, D22, D23.
+D20, D21, D22, D23, D25.
 
 ## What exists today
 
@@ -271,11 +271,46 @@ is an adapter change that arrives in `FetchColumn`, not new frontend knowledge.
 
 Known deviations:
 
-- **Canonical text is for reading, not round-trip editing.** The grid is
-  read-only; writing requires row identity, concurrency and a separate adapter
-  capability rather than reversing display strings.
+- **Not every canonical text has a specialised editor.** PostgreSQL remains the
+  final parser for complex values; the first UI gives them a technical text
+  field rather than duplicating every server type in the browser.
 - **Filtering has no `OR` or grouping.** The flat request means `AND`; adding
   parentheses needs a recursive expression contract and a matching editor.
+
+## D25. A source issues a versioned row handle, and only it can apply an edit
+
+An editable fetched row carries an opaque handle beside its canonical values.
+The client returns that handle unchanged with one column name and one new
+canonical value. It never constructs a predicate, takes a node id apart or
+decides what identifies a row. The adapter validates the column against current
+metadata and builds every identifier with the driver's composition API.
+
+PostgreSQL offers editing only for tables with a primary key. Its handle holds
+the fetched primary-key values and `xmin`; an update matches both and returns
+the complete canonical row with a new handle. No match is a 409 conflict, so a
+second tab cannot silently overwrite a row changed or deleted since it was
+read. Generated columns are explicitly non-editable and views, files and
+keyless tables state why their rows are read-only in the fetch result.
+
+The old application preferred a special row-id column, then fell back to every
+non-null cell. That fallback could match several duplicate rows, ignored nulls,
+guessed value types in the browser and had no version check. None of those
+predicates cross this boundary.
+
+An update is one cell and one transaction. The full returned row matters even
+then: triggers and generated columns may change other cells, while a changed
+filter or sort value may move the row out of the current page. The grid therefore
+invalidates and rereads the server page after success instead of pretending a
+local patch preserves server order.
+
+Known deviations:
+
+- **`xmin` is PostgreSQL-specific and finite.** It stays behind the opaque
+  adapter handle and is sufficient for the interval between reading and saving;
+  an adapter with an explicit revision column can issue a different handle.
+- **Only existing cells are edited.** Insert and delete need their own contracts
+  for defaults, required values and bulk selection, so they are not disguised as
+  special forms of update.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

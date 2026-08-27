@@ -56,6 +56,9 @@ import type {
   connectorsRunActionWithFileData,
   connectorsRunActionWithFileErrors,
   connectorsRunActionWithFileResponses,
+  connectorsUpdateCellData,
+  connectorsUpdateCellErrors,
+  connectorsUpdateCellResponses,
   connectorsUpdateConnectorData,
   connectorsUpdateConnectorErrors,
   connectorsUpdateConnectorResponses,
@@ -753,6 +756,30 @@ export class ConnectorsService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/catalog",
       ...options,
+    })
+  }
+
+  /**
+   * Update Cell
+   *
+   * Change one cell if the fetched row version is still current.
+   */
+  public static updateCell<ThrowOnError extends boolean = true>(
+    options: Options<connectorsUpdateCellData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      connectorsUpdateCellResponses,
+      connectorsUpdateCellErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/rows/cell",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 
