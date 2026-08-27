@@ -238,4 +238,98 @@ describe("the basic data grid", () => {
     )
     expect(wrapper.get('[data-testid="grid-column-name"]').classes()).toContain("data-grid__pinned")
   })
+
+  it("selects and extends cells with mouse and keyboard", async () => {
+    mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+    const grid = wrapper.get('[data-testid="grid-focus"]')
+
+    await wrapper.get('[data-testid="grid-cell-0-id"]').trigger("mousedown")
+    document.dispatchEvent(new MouseEvent("mouseup"))
+    expect(wrapper.get('[data-testid="grid-cell-0-id"]').classes()).toContain(
+      "data-grid__selected"
+    )
+
+    await grid.trigger("keydown", { key: "ArrowRight" })
+    expect(wrapper.get('[data-testid="grid-cell-0-id"]').classes()).not.toContain(
+      "data-grid__selected"
+    )
+    expect(wrapper.get('[data-testid="grid-cell-0-name"]').classes()).toContain(
+      "data-grid__selected"
+    )
+
+    await grid.trigger("keydown", { key: "ArrowDown", shiftKey: true })
+    expect(wrapper.get('[data-testid="grid-cell-1-name"]').classes()).toContain(
+      "data-grid__selected"
+    )
+  })
+
+  it("extends the active rectangle with Shift-click", async () => {
+    mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-cell-0-id"]').trigger("mousedown")
+    document.dispatchEvent(new MouseEvent("mouseup"))
+    await wrapper
+      .get('[data-testid="grid-cell-1-name"]')
+      .trigger("mousedown", { shiftKey: true })
+    document.dispatchEvent(new MouseEvent("mouseup"))
+
+    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(4)
+  })
+
+  it("selects a row, a visible column and the whole page with explicit selectors", async () => {
+    mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-select-row-0"]').trigger("click")
+    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(2)
+
+    await wrapper.get('[data-testid="grid-column-select-name"]').trigger("click")
+    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(100)
+
+    await wrapper.get('[data-testid="grid-select-page"]').trigger("click")
+    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(200)
+  })
+
+  it("copies the same raw TSV from a drag and from Ctrl+C", async () => {
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
+    mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+    const from = wrapper.get('[data-testid="grid-cell-0-id"]')
+    const to = wrapper.get('[data-testid="grid-cell-0-name"]')
+
+    await from.trigger("mousedown")
+    await to.trigger("mouseenter")
+    document.dispatchEvent(new MouseEvent("mouseup"))
+    await wrapper.get('[data-testid="grid-copy"]').trigger("click")
+    await wrapper.get('[data-testid="grid-focus"]').trigger("keydown", {
+      key: "c",
+      ctrlKey: true,
+    })
+
+    expect(writeText).toHaveBeenNthCalledWith(1, "1\tProject 1")
+    expect(writeText).toHaveBeenNthCalledWith(2, "1\tProject 1")
+  })
+
+  it("clears selection when the page or column structure changes", async () => {
+    mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-cell-0-id"]').trigger("mousedown")
+    document.dispatchEvent(new MouseEvent("mouseup"))
+
+    await wrapper.get('[data-testid="grid-next"]').trigger("click")
+    await flushPromises()
+    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(0)
+
+    await wrapper.get('[data-testid="grid-column-select-name"]').trigger("click")
+    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(100)
+    await wrapper.get('[data-testid="grid-pin-name"]').trigger("click")
+    expect(wrapper.findAll(".data-grid__selected")).toHaveLength(0)
+  })
 })

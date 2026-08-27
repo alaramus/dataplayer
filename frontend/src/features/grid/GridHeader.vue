@@ -18,12 +18,14 @@ const props = defineProps<{
   sort: Sort[]
   layout: ColumnLayoutState
   selectedColumn: string | null
+  canCopy?: boolean
 }>()
 const emit = defineEmits<{
   "update:pageSize": [value: PageSize]
   "update:filters": [value: Filter[]]
   "update:sort": [value: Sort[]]
   "update:layout": [value: ColumnLayoutState]
+  copy: []
 }>()
 const pageSizeOptions = PAGE_SIZES.map((size) => ({ label: String(size), value: size }))
 const filtersOpen = ref(false)
@@ -104,7 +106,9 @@ function selectPageSize(value: unknown) {
           label="Copy"
           variant="quiet"
           size="sm"
-          disable
+          :disable="!canCopy"
+          data-testid="grid-copy"
+          @click="emit('copy')"
         />
       </div>
 

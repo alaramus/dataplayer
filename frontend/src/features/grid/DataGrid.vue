@@ -5,18 +5,27 @@ import {
   columnResizingFeature,
   columnSizingFeature,
   columnVisibilityFeature,
+  cellSelectionFeature,
   functionalUpdate,
   tableFeatures,
   useTable,
 } from "@tanstack/vue-table"
-import type { Column, ColumnDef, ColumnPinningState, Updater } from "@tanstack/vue-table"
-import { computed, ref, toRef, watch } from "vue"
+import type {
+  Cell,
+  CellSelectionDirection,
+  Column,
+  ColumnDef,
+  ColumnPinningState,
+  Updater,
+} from "@tanstack/vue-table"
+import { computed, ref, toRef, useTemplateRef, watch } from "vue"
 import type { CSSProperties } from "vue"
 
 import type { Sort } from "@/client"
-import { AppIconButton } from "@/shared/ui"
+import { AppIconButton, useToast } from "@/shared/ui"
 
 import { useRowsPage } from "./api"
+import { toTsv, writeSelection } from "./clipboard"
 import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
 import GridHeader from "./GridHeader.vue"
@@ -31,9 +40,12 @@ import {
 import { buildFetchRequest, withFilters, withPage, withPageSize } from "./queryState"
 import { withSort } from "./queryState"
 import { toggleMultiSort, toggleSingleSort } from "./sortModel"
+import { selectionMatrix } from "./selection"
+import type { VisibleGridColumn } from "./selection"
 import type { Filter, GridQueryState, GridRow, PageSize, StoredGridState } from "./types"
 
 const props = defineProps<{ connectorId: string; nodeId: string }>()
+const toast = useToast()
 
 const EMPTY_LAYOUT: ColumnLayoutState = {
   columnOrder: [],
@@ -56,12 +68,14 @@ const rows = computed(() =>
 )
 const layout = ref<ColumnLayoutState>({ ...EMPTY_LAYOUT })
 const selectedColumn = ref<string | null>(null)
+const gridFocus = useTemplateRef<HTMLElement>("gridFocus")
 const features = tableFeatures({
   columnSizingFeature,
   columnResizingFeature,
   columnOrderingFeature,
   columnVisibilityFeature,
   columnPinningFeature,
+  cellSelectionFeature,
 })
 type GridFeatures = typeof features
 const columns = computed<ColumnDef<GridFeatures, GridRow>[]>(() =>
@@ -114,6 +128,17 @@ const columnWidthVariables = computed<Record<string, string>>(() =>
     table.getAllLeafColumns().map((column) => [columnVariable(column.id), `${column.getSize()}px`])
   )
 )
+const canCopy = computed(() => table.getSelectedCellCount() > 0)
+const visibleGridColumns = computed<VisibleGridColumn[]>(() => {
+  const ordered = [
+    ...table.getStartVisibleLeafColumns(),
+    ...table.getCenterVisibleLeafColumns(),
+  ]
+  return ordered.flatMap((column) => {
+    const valueIndex = result.value?.columns.findIndex((item) => item.name === column.id) ?? -1
+    return valueIndex < 0 ? [] : [{ id: column.id, valueIndex }]
+  })
+})
 
 const offset = computed(() => queryState.value.page * queryState.value.pageSize)
 const range = computed(() => {
@@ -143,6 +168,7 @@ function changeSort(sort: Sort[]) {
 }
 
 function changeLayout(next: ColumnLayoutState) {
+  table.resetCellSelection(true)
   layout.value = next
   saveGridState(props.connectorId, props.nodeId, {
     ...next,
@@ -217,6 +243,88 @@ function autoFit(columnName: string) {
   })
 }
 
+function startSelection(cell: Cell<GridFeatures, GridRow, unknown>, event: MouseEvent) {
+  gridFocus.value?.focus()
+  cell.getSelectionStartHandler()(event)
+}
+
+function selectRow(rowId: string) {
+  const columns = visibleGridColumns.value
+  const first = columns[0]
+  const last = columns.at(-1)
+  if (first === undefined || last === undefined) return
+  table.selectCellRange({
+    anchorRowId: rowId,
+    focusRowId: rowId,
+    anchorColumnId: first.id,
+    focusColumnId: last.id,
+  })
+}
+
+function selectColumn(columnId: string) {
+  selectedColumn.value = columnId
+  const first = rows.value[0]
+  const last = rows.value.at(-1)
+  if (first === undefined || last === undefined) return
+  table.selectCellRange({
+    anchorRowId: first.id,
+    focusRowId: last.id,
+    anchorColumnId: columnId,
+    focusColumnId: columnId,
+  })
+}
+
+function selectPage() {
+  const firstRow = rows.value[0]
+  const lastRow = rows.value.at(-1)
+  const firstColumn = visibleGridColumns.value[0]
+  const lastColumn = visibleGridColumns.value.at(-1)
+  if (
+    firstRow === undefined ||
+    lastRow === undefined ||
+    firstColumn === undefined ||
+    lastColumn === undefined
+  ) {
+    return
+  }
+  table.selectCellRange({
+    anchorRowId: firstRow.id,
+    focusRowId: lastRow.id,
+    anchorColumnId: firstColumn.id,
+    focusColumnId: lastColumn.id,
+  })
+}
+
+async function copySelection() {
+  const matrix = selectionMatrix(rows.value, visibleGridColumns.value, table.getCellSelectionBounds())
+  if (matrix.length === 0) return
+  try {
+    await writeSelection(toTsv(matrix))
+  } catch {
+    toast.error("Could not copy the selection")
+  }
+}
+
+function handleGridKey(event: KeyboardEvent) {
+  const directions: Partial<Record<string, CellSelectionDirection>> = {
+    ArrowUp: "up",
+    ArrowDown: "down",
+    ArrowLeft: "left",
+    ArrowRight: "right",
+  }
+  const direction = directions[event.key]
+  if (direction !== undefined) {
+    event.preventDefault()
+    if (event.shiftKey) table.extendCellSelection(direction)
+    else table.moveCellSelection(direction)
+    return
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
+    event.preventDefault()
+    void copySelection()
+  }
+}
+
 function displayCell(value: unknown): string {
   return value === null ? "∅" : String(value)
 }
@@ -282,22 +390,41 @@ defineExpose({
       :sort="queryState.sort"
       :layout="layout"
       :selected-column="selectedColumn"
+      :can-copy="canCopy"
       @update:page-size="changePageSize"
       @update:filters="changeFilters"
       @update:sort="changeSort"
       @update:layout="changeLayout"
+      @copy="copySelection"
     />
 
-    <div class="data-grid__scroll">
+    <div
+      ref="gridFocus"
+      class="data-grid__scroll"
+      role="grid"
+      tabindex="0"
+      data-testid="grid-focus"
+      @keydown="handleGridKey"
+    >
       <table
         class="data-grid__table"
-        role="grid"
       >
         <thead>
           <tr
             v-for="headerGroup in table.getHeaderGroups()"
             :key="headerGroup.id"
           >
+            <th
+              class="data-grid__selector"
+              scope="col"
+            >
+              <AppIconButton
+                icon="select_all"
+                tooltip="Select page"
+                data-testid="grid-select-page"
+                @click="selectPage"
+              />
+            </th>
             <th
               v-for="header in headerGroup.headers"
               :key="header.id"
@@ -326,7 +453,7 @@ defineExpose({
                 icon="more_horiz"
                 :tooltip="`Select column ${header.column.id}`"
                 :data-testid="`grid-column-select-${header.column.id}`"
-                @click.stop="selectedColumn = header.column.id"
+                @click.stop="selectColumn(header.column.id)"
               />
               <span
                 class="data-grid__resize"
@@ -344,12 +471,28 @@ defineExpose({
             :key="row.id"
             :data-testid="`grid-row-${row.id}`"
           >
+            <td class="data-grid__selector">
+              <button
+                type="button"
+                class="data-grid__row-selector"
+                :data-testid="`grid-select-row-${row.id}`"
+                :aria-label="`Select row ${Number(row.id) + 1}`"
+                @click="selectRow(row.id)"
+              >
+                {{ Number(row.id) + 1 }}
+              </button>
+            </td>
             <td
               v-for="cell in row.getVisibleCells()"
               :key="cell.id"
               :data-testid="`grid-cell-${row.id}-${cell.column.id}`"
-              :class="{ 'data-grid__pinned': cell.column.getIsPinned() === 'start' }"
+              :class="{
+                'data-grid__pinned': cell.column.getIsPinned() === 'start',
+                'data-grid__selected': cell.getIsSelected(),
+              }"
               :style="columnStyle(cell.column)"
+              @mousedown="startSelection(cell, $event)"
+              @mouseenter="cell.getSelectionExtendHandler()($event)"
             >
               {{ displayCell(cell.getValue()) }}
             </td>
@@ -391,6 +534,7 @@ defineExpose({
   flex: 1;
   min-height: 0;
   overflow: auto;
+  outline: none;
 }
 
 .data-grid__table {
@@ -440,6 +584,27 @@ defineExpose({
 
 .data-grid__resize:hover {
   background: var(--dp-separator-active);
+}
+
+.data-grid__selector {
+  width: 48px;
+  min-width: 48px !important;
+  max-width: 48px !important;
+  text-align: center !important;
+  background: var(--dp-surface-raised);
+}
+
+.data-grid__row-selector {
+  width: 100%;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--dp-text-muted);
+  cursor: pointer;
+}
+
+.data-grid__selected {
+  box-shadow: inset 0 0 0 2px var(--dp-focus-border);
 }
 
 .data-grid__pager {
