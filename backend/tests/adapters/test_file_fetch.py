@@ -32,11 +32,19 @@ async def test_the_header_line_names_the_columns(fetch: FileFetch) -> None:
     assert result.rows[0] == ["1", "city-1"]
 
 
-async def test_columns_of_a_delimited_file_have_no_type(fetch: FileFetch) -> None:
+async def test_columns_of_a_delimited_file_have_string_types(fetch: FileFetch) -> None:
     """A CSV carries no types, and inventing them would be a guess."""
     result = await fetch.fetch(FetchRequest(node_id="cities.csv", limit=1))
 
-    assert {column.data_type for column in result.columns} == {"text"}
+    assert {column.type.category for column in result.columns} == {"string"}
+    assert all(column.sortable is False for column in result.columns)
+    assert all(column.filter_operators == [] for column in result.columns)
+    assert all(
+        isinstance(cell, str)
+        for row in result.rows
+        for cell in row
+        if cell is not None
+    )
 
 
 async def test_a_page_in_the_middle_knows_there_is_more(fetch: FileFetch) -> None:
@@ -93,17 +101,17 @@ async def test_a_text_file_is_read_line_by_line(fetch: FileFetch) -> None:
     result = await fetch.fetch(FetchRequest(node_id="notes.txt", limit=2, offset=1))
 
     assert [column.name for column in result.columns] == ["line_no", "line"]
-    assert result.rows == [[2, "second"], [3, "third"]]
+    assert result.rows == [["2", "second"], ["3", "third"]]
     assert result.has_more is False
 
 
-async def test_a_file_source_admits_it_cannot_sort_or_filter(
+async def test_a_file_source_admits_per_column_it_cannot_sort_or_filter(
     fetch: FileFetch,
 ) -> None:
     result = await fetch.fetch(FetchRequest(node_id="notes.txt"))
 
-    assert result.sortable is False
-    assert result.filterable is False
+    assert all(column.sortable is False for column in result.columns)
+    assert all(column.filter_operators == [] for column in result.columns)
 
 
 async def test_asking_for_sorting_is_refused(fetch: FileFetch) -> None:

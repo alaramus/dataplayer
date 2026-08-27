@@ -1,8 +1,8 @@
+import json
+from datetime import date, datetime, time
 from typing import Any
 
 from psycopg import sql
-from psycopg.types.multirange import Multirange
-from psycopg.types.range import Range
 
 from app.adapters.fetch import (
     NULLARY_OPS,
@@ -10,9 +10,12 @@ from app.adapters.fetch import (
     FetchRequest,
     FetchResult,
     Filter,
+    FilterOp,
 )
+from app.adapters.postgres.column_type import build_column_type
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError
+from app.adapters.relation import ColumnType
 
 # Every operator maps to a fixed SQL fragment. Nothing here is ever built from
 # client input: the client chooses an operator from a closed set, and that is
@@ -25,6 +28,38 @@ _COMPARISONS: dict[str, str] = {
     "lt": "<",
     "lte": "<=",
 }
+
+_ORDERED = frozenset({"number", "string", "boolean", "datetime", "uuid", "enum"})
+_COMPARED = frozenset({"number", "string", "datetime"})
+_EQUAL = frozenset({"number", "string", "datetime", "boolean", "uuid", "enum"})
+_SERVER_TEXT = frozenset({"array", "geometric", "range", "composite", "other"})
+
+
+def column_capabilities(type_: ColumnType) -> tuple[bool, list[FilterOp]]:
+    operators: list[FilterOp] = []
+    if type_.category in _EQUAL:
+        operators.extend(["eq", "ne", "in"])
+    if type_.category in _COMPARED:
+        operators.extend(["gt", "gte", "lt", "lte"])
+    if type_.category == "string":
+        operators.extend(["contains", "starts_with"])
+    operators.extend(["is_null", "is_not_null"])
+    return type_.category in _ORDERED, operators
+
+
+def encode_cell(value: Any, type_: ColumnType) -> str | None:
+    """Render one value with the canonical representation for its type."""
+    if value is None:
+        return None
+    if type_.category == "boolean":
+        return "true" if value else "false"
+    if type_.category == "datetime" and isinstance(value, datetime | date | time):
+        return value.isoformat()
+    if type_.category == "binary" and isinstance(value, bytes | bytearray | memoryview):
+        return f"0x{bytes(value).hex().upper()}"
+    if type_.category == "json":
+        return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+    return str(value)
 
 
 class PostgresFetch:
@@ -50,36 +85,21 @@ class PostgresFetch:
         known = {column.name for column in columns}
         self._reject_unknown_columns(request, known)
 
-        statement, params = self._build(schema, table, request)
+        statement, params = self._build(schema, table, columns, request)
         rows = await self._session.query(statement.as_string(), tuple(params))
 
         # One row beyond the page tells us whether another page exists, without
         # a COUNT(*) on every request.
         has_more = len(rows) > request.limit
         page = rows[: request.limit]
-        order = [column.name for column in columns]
         return FetchResult(
             columns=columns,
             rows=[
-                [self._encode_value(row[name]) for name in order] for row in page
+                [encode_cell(row[column.name], column.type) for column in columns]
+                for row in page
             ],
             has_more=has_more,
         )
-
-    @staticmethod
-    def _encode_value(value: Any) -> Any:
-        """Convert driver-specific values into JSON-compatible values."""
-        if isinstance(value, bytes | bytearray | memoryview):
-            return f"0x{bytes(value).hex().upper()}"
-        if isinstance(value, Range | Multirange):
-            return str(value)
-        if isinstance(value, list | tuple):
-            return [PostgresFetch._encode_value(item) for item in value]
-        if isinstance(value, dict):
-            return {
-                key: PostgresFetch._encode_value(item) for key, item in value.items()
-            }
-        return value
 
     @staticmethod
     def _reject_unknown_columns(request: FetchRequest, known: set[str]) -> None:
@@ -98,10 +118,22 @@ class PostgresFetch:
         rows = await self._session.query(
             """
             SELECT a.attname AS name,
-                   format_type(a.atttypid, a.atttypmod) AS data_type
+                   format_type(a.atttypid, a.atttypmod) AS sql_type,
+                   a.atttypmod AS type_mod,
+                   t.typcategory AS type_category,
+                   t.typname AS type_name,
+                   format_type(t.typelem, a.atttypmod) AS element_sql,
+                   et.typcategory AS element_category,
+                   et.typname AS element_name,
+                   (SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
+                      FROM pg_enum e WHERE e.enumtypid = t.oid) AS enum_values,
+                   (SELECT array_agg(e.enumlabel ORDER BY e.enumsortorder)
+                      FROM pg_enum e WHERE e.enumtypid = et.oid) AS element_enum_values
             FROM pg_attribute a
             JOIN pg_class c ON c.oid = a.attrelid
             JOIN pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_type t ON t.oid = a.atttypid
+            LEFT JOIN pg_type et ON et.oid = t.typelem
             WHERE n.nspname = %s AND c.relname = %s
               AND a.attnum > 0 AND NOT a.attisdropped
             ORDER BY a.attnum
@@ -110,16 +142,31 @@ class PostgresFetch:
         )
         if not rows:
             raise AdapterError("config", f'Relation "{schema}.{table}" does not exist')
-        return [
-            FetchColumn(name=row["name"], data_type=row["data_type"]) for row in rows
-        ]
+        columns: list[FetchColumn] = []
+        for row in rows:
+            type_ = build_column_type(row)
+            sortable, filter_operators = column_capabilities(type_)
+            columns.append(
+                FetchColumn(
+                    name=str(row["name"]),
+                    type=type_,
+                    sortable=sortable,
+                    filter_operators=filter_operators,
+                )
+            )
+        return columns
 
     def _build(
-        self, schema: str, table: str, request: FetchRequest
+        self,
+        schema: str,
+        table: str,
+        columns: list[FetchColumn],
+        request: FetchRequest,
     ) -> tuple[sql.Composed, list[Any]]:
         params: list[Any] = []
-        statement = sql.SQL("SELECT * FROM {}").format(
-            sql.Identifier(schema, table)
+        selected = sql.SQL(", ").join(_select_expression(column) for column in columns)
+        statement = sql.SQL("SELECT {} FROM {}").format(
+            selected, sql.Identifier(schema, table)
         )
 
         conditions = [self._condition(f, params) for f in request.filters]
@@ -168,3 +215,10 @@ class PostgresFetch:
         return sql.SQL("{} {} %s").format(
             column, sql.SQL(_COMPARISONS[filter_.op])
         )
+
+
+def _select_expression(column: FetchColumn) -> sql.Composed:
+    identifier = sql.Identifier(column.name)
+    if column.type.category in _SERVER_TEXT:
+        return sql.SQL("{}::text AS {}").format(identifier, identifier)
+    return sql.SQL("{}").format(identifier)

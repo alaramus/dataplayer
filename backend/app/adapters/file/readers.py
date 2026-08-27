@@ -3,10 +3,11 @@
 import csv
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, Protocol, TextIO
+from typing import Protocol, TextIO
 
 from app.adapters.catalog import ContentKind
 from app.adapters.fetch import FetchColumn
+from app.adapters.relation import ColumnType
 
 # Delimited files become columns. The delimiter of a .csv is decided from its
 # first line: the extension promises commas only by convention.
@@ -74,7 +75,7 @@ class Page:
     """One page of rows, before the source adds what it can and cannot do."""
 
     columns: list[FetchColumn]
-    rows: list[list[Any]]
+    rows: list[list[str | None]]
     has_more: bool
 
 
@@ -99,7 +100,7 @@ class CsvReader:
                 if next(reader, None) is None:
                     break
 
-            rows: list[list[Any]] = []
+            rows: list[list[str | None]] = []
             has_more = False
             for row in reader:
                 if len(rows) == limit:
@@ -109,7 +110,10 @@ class CsvReader:
 
         # A CSV states no types, and guessing one from the first page would
         # make the answer depend on where the reader happened to stop.
-        columns = [FetchColumn(name=name, data_type="text") for name in names]
+        columns = [
+            FetchColumn(name=name, type=ColumnType(sql="text", category="string"))
+            for name in names
+        ]
         return Page(columns=columns, rows=rows, has_more=has_more)
 
 
@@ -117,7 +121,7 @@ class TextReader:
     """Anything else readable: one row per line, numbered from one."""
 
     def read(self, path: Path, limit: int, offset: int) -> Page:
-        rows: list[list[Any]] = []
+        rows: list[list[str | None]] = []
         has_more = False
         with path.open("r", encoding="utf-8", errors="replace") as handle:
             for _ in range(offset):
@@ -127,11 +131,11 @@ class TextReader:
                 if len(rows) == limit:
                     has_more = True
                     break
-                rows.append([number, line.rstrip("\n").rstrip("\r")])
+                rows.append([str(number), line.rstrip("\n").rstrip("\r")])
 
         columns = [
-            FetchColumn(name="line_no", data_type="integer"),
-            FetchColumn(name="line", data_type="text"),
+            FetchColumn(name="line_no", type=ColumnType(sql="text", category="string")),
+            FetchColumn(name="line", type=ColumnType(sql="text", category="string")),
         ]
         return Page(columns=columns, rows=rows, has_more=has_more)
 
@@ -162,8 +166,10 @@ def _usable_names(header: list[str]) -> list[str]:
     return names
 
 
-def _fit(row: list[str], width: int) -> list[Any]:
+def _fit(row: list[str], width: int) -> list[str | None]:
     """One row shaped to the header, which decides the width of the table."""
     if len(row) < width:
         return [*row, *[None] * (width - len(row))]
-    return row[:width]
+    fitted: list[str | None] = []
+    fitted.extend(row[:width])
+    return fitted

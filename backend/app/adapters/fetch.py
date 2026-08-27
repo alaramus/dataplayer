@@ -1,6 +1,8 @@
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.adapters.relation import ColumnType
 
 # A closed set. In the old application a client could pass a raw SQL fragment
 # through `sql_conditions`, guarded only by a blacklist.
@@ -47,8 +49,12 @@ class FetchRequest(BaseModel):
 
 
 class FetchColumn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     name: str
-    data_type: str
+    type: ColumnType
+    sortable: bool = False
+    filter_operators: list[FilterOp] = Field(default_factory=list)
 
 
 class FetchResult(BaseModel):
@@ -59,11 +65,7 @@ class FetchResult(BaseModel):
     """
 
     columns: list[FetchColumn]
-    rows: list[list[Any]]
+    model_config = ConfigDict(extra="forbid")
+
+    rows: list[list[str | None]]
     has_more: bool
-    # Not every source can order or filter: a file has no index, and the
-    # columns of a CSV have no types. Stating it in the answer keeps the grid
-    # from offering what the source cannot do, without the frontend ever
-    # branching on the type of the source.
-    sortable: bool = True
-    filterable: bool = True

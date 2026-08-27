@@ -1,42 +1,41 @@
+from datetime import UTC, datetime
+from decimal import Decimal
+
 import pytest
-from psycopg.types.multirange import Multirange
-from psycopg.types.range import Range
 
 from app.adapters.fetch import FetchRequest, Filter, Sort
 from app.adapters.postgres.adapter import PostgresAdapter
-from app.adapters.postgres.fetch import PostgresFetch
+from app.adapters.postgres.fetch import encode_cell
 from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.protocol import AdapterError
+from app.adapters.relation import ColumnType
 from tests.utils.database import working_postgres_options
 
 CONNECTOR_TABLE = "public.connector"
 
 
 @pytest.mark.parametrize(
-    ("value", "expected"),
+    ("value", "column_type", "expected"),
     [
-        (b"hello", "0x68656C6C6F"),
-        (bytearray(b"binary"), "0x62696E617279"),
-        (memoryview(b"view"), "0x76696577"),
-        (None, None),
-        ("text", "text"),
+        (
+            Decimal("9007199254740993.25"),
+            ColumnType(sql="numeric", category="number"),
+            "9007199254740993.25",
+        ),
+        (
+            datetime(2026, 8, 27, 14, 30, tzinfo=UTC),
+            ColumnType(sql="timestamp with time zone", category="datetime"),
+            "2026-08-27T14:30:00+00:00",
+        ),
+        (True, ColumnType(sql="boolean", category="boolean"), "true"),
+        (b"hello", ColumnType(sql="bytea", category="binary"), "0x68656C6C6F"),
+        (None, ColumnType(sql="text", category="string"), None),
     ],
 )
-def test_binary_values_are_encoded_as_hex(value: object, expected: object) -> None:
-    assert PostgresFetch._encode_value(value) == expected
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        (Range(1, 5), "[1, 5)"),
-        (Multirange([Range(1, 5), Range(10, 20)]), "{[1, 5), [10, 20)}"),
-        ([Range(1, 5)], ["[1, 5)"]),
-    ],
-)
-def test_range_values_are_encoded_as_text(value: object, expected: object) -> None:
-    """Driver range objects must cross the JSON response boundary."""
-    assert PostgresFetch._encode_value(value) == expected
+def test_cell_values_are_lossless_text(
+    value: object, column_type: ColumnType, expected: str | None
+) -> None:
+    assert encode_cell(value, column_type) == expected
 
 
 def _adapter() -> PostgresAdapter:
@@ -50,6 +49,12 @@ async def test_returns_columns_and_rows_as_arrays() -> None:
     assert "adapter_type" in names
     assert all(isinstance(row, list) for row in result.rows)
     assert all(len(row) == len(result.columns) for row in result.rows)
+    assert all(
+        isinstance(cell, str)
+        for row in result.rows
+        for cell in row
+        if cell is not None
+    )
 
 
 async def test_limit_bounds_the_page() -> None:

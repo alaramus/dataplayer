@@ -40,8 +40,6 @@ class FileFetch:
             columns=page.columns,
             rows=page.rows,
             has_more=page.has_more,
-            sortable=False,
-            filterable=False,
         )
 
     def _read(self, path: Path, request: FetchRequest) -> Page:

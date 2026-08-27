@@ -1,7 +1,8 @@
 import pytest
 from pydantic import ValidationError
 
-from app.adapters.fetch import FetchRequest, FetchResult, Filter, Sort
+from app.adapters.fetch import FetchColumn, FetchRequest, Filter, Sort
+from app.adapters.relation import ColumnType
 
 
 def test_defaults_are_bounded() -> None:
@@ -39,9 +40,16 @@ def test_sort_defaults_to_ascending() -> None:
     assert Sort(column="name").descending is False
 
 
-def test_a_result_claims_sorting_and_filtering_unless_told_otherwise() -> None:
-    """A source that can do neither says so; the grid stops offering it."""
-    result = FetchResult(columns=[], rows=[], has_more=False)
+def test_a_fetch_column_states_type_and_operations() -> None:
+    column = FetchColumn(
+        name="amount",
+        type=ColumnType(
+            sql="numeric(20,2)", category="number", precision=20, scale=2
+        ),
+        sortable=True,
+        filter_operators=["eq", "gt", "is_null"],
+    )
 
-    assert result.sortable is True
-    assert result.filterable is True
+    assert column.type.category == "number"
+    assert column.sortable is True
+    assert column.filter_operators == ["eq", "gt", "is_null"]

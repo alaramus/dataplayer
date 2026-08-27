@@ -48,8 +48,12 @@ async def test_returns_columns_and_rows(
     assert response.status_code == 200
     body = response.json()
     assert [column["name"] for column in body["columns"]]
+    assert all("data_type" not in column for column in body["columns"])
     assert len(body["rows"]) == 5
     assert body["has_more"] is True
+    assert "data_type" not in body
+    assert "sortable" not in body
+    assert "filterable" not in body
 
 
 async def test_sorting_and_paging_are_applied(
