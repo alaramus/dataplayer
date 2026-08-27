@@ -20,3 +20,6 @@ backend/htmlcov/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Local visual brainstorming sessions and generated mockups
+.superpowers/
