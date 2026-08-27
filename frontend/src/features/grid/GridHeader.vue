@@ -5,7 +5,9 @@ import type { FetchColumn, Sort } from "@/client"
 import { AppButton, AppSelect, AppTooltip } from "@/shared/ui"
 
 import FilterEditor from "./FilterEditor.vue"
+import ColumnManager from "./ColumnManager.vue"
 import SortEditor from "./SortEditor.vue"
+import type { ColumnLayoutState } from "./columnLayout"
 import { PAGE_SIZES } from "./types"
 import type { Filter, PageSize } from "./types"
 
@@ -14,19 +16,31 @@ const props = defineProps<{
   columns: FetchColumn[]
   filters: Filter[]
   sort: Sort[]
+  layout: ColumnLayoutState
+  selectedColumn: string | null
 }>()
 const emit = defineEmits<{
   "update:pageSize": [value: PageSize]
   "update:filters": [value: Filter[]]
   "update:sort": [value: Sort[]]
+  "update:layout": [value: ColumnLayoutState]
 }>()
 const pageSizeOptions = PAGE_SIZES.map((size) => ({ label: String(size), value: size }))
 const filtersOpen = ref(false)
 const sortOpen = ref(false)
+const columnsOpen = ref(false)
 const canFilter = computed(() =>
   props.columns.some((column) => (column.filter_operators?.length ?? 0) > 0)
 )
 const canSort = computed(() => props.columns.some((column) => column.sortable === true))
+
+function toggleSelectedPin() {
+  if (props.selectedColumn === null) return
+  const pinnedLeft = props.layout.pinnedLeft.includes(props.selectedColumn)
+    ? props.layout.pinnedLeft.filter((name) => name !== props.selectedColumn)
+    : [...props.layout.pinnedLeft, props.selectedColumn]
+  emit("update:layout", { ...props.layout, pinnedLeft })
+}
 
 function selectPageSize(value: unknown) {
   if (typeof value === "number" && PAGE_SIZES.some((size) => size === value)) {
@@ -74,13 +88,17 @@ function selectPageSize(value: unknown) {
           label="Columns"
           variant="quiet"
           size="sm"
-          disable
+          :disable="columns.length === 0"
+          data-testid="grid-columns"
+          @click="columnsOpen = !columnsOpen"
         />
         <AppButton
-          label="Pin"
+          :label="selectedColumn !== null && layout.pinnedLeft.includes(selectedColumn) ? 'Unpin' : 'Pin'"
           variant="quiet"
           size="sm"
-          disable
+          :disable="selectedColumn === null"
+          :data-testid="selectedColumn === null ? 'grid-pin-current' : `grid-pin-${selectedColumn}`"
+          @click="toggleSelectedPin"
         />
         <AppButton
           label="Copy"
@@ -114,6 +132,13 @@ function selectPageSize(value: unknown) {
       :sort="sort"
       @apply="emit('update:sort', $event)"
       @close="sortOpen = false"
+    />
+    <ColumnManager
+      v-if="columnsOpen && columns.length > 0"
+      :columns="columns"
+      :layout="layout"
+      @update:layout="emit('update:layout', $event)"
+      @close="columnsOpen = false"
     />
   </div>
 </template>

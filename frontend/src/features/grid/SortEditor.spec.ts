@@ -7,6 +7,7 @@ import { first } from "@/shared/testing/collections"
 
 import GridHeader from "./GridHeader.vue"
 import SortEditor from "./SortEditor.vue"
+import { defaultColumnLayout } from "./columnLayout"
 
 const COLUMNS: FetchColumn[] = [
   {
@@ -25,7 +26,14 @@ const COLUMNS: FetchColumn[] = [
 
 function mountHeader(columns: FetchColumn[] = COLUMNS) {
   return mount(GridHeader, {
-    props: { pageSize: 100, columns, filters: [], sort: [] },
+    props: {
+      pageSize: 100,
+      columns,
+      filters: [],
+      sort: [],
+      layout: defaultColumnLayout(columns),
+      selectedColumn: null,
+    },
     global: { plugins: [Quasar] },
   })
 }

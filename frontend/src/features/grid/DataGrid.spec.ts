@@ -9,7 +9,7 @@ import { AppSelect } from "@/shared/ui"
 import { AppInput } from "@/shared/ui"
 
 import DataGrid from "./DataGrid.vue"
-import { loadGridState } from "./persist"
+import { loadGridState, saveGridState } from "./persist"
 
 function result(offset: number, limit: number): FetchResult {
   return {
@@ -187,5 +187,55 @@ describe("the basic data grid", () => {
     await flushPromises()
 
     expect(fetchRows).toHaveBeenCalledTimes(callsBeforeClick)
+  })
+
+  it("auto fits from full current-page values and persists the width", async () => {
+    mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-resize-name"]').trigger("dblclick")
+
+    expect(loadGridState("connector-1", "public.projects")?.columnSizing.name).toBeGreaterThan(
+      100
+    )
+  })
+
+  it("commits a drag resize only when the pointer is released", async () => {
+    mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+    const handle = wrapper.get('[data-testid="grid-resize-name"]')
+
+    await handle.trigger("mousedown", { clientX: 100 })
+    document.dispatchEvent(new MouseEvent("mousemove", { clientX: 220, bubbles: true }))
+    expect(loadGridState("connector-1", "public.projects")?.columnSizing.name).toBeUndefined()
+
+    document.dispatchEvent(new MouseEvent("mouseup", { clientX: 220, bubbles: true }))
+    await wrapper.vm.$nextTick()
+
+    expect(loadGridState("connector-1", "public.projects")?.columnSizing.name).toBe(280)
+  })
+
+  it("restores order, visibility, width and left pinning on remount", async () => {
+    const state = {
+      columnOrder: ["name", "id"],
+      columnVisibility: { id: false },
+      columnSizing: { name: 220 },
+      pinnedLeft: ["name"],
+      filters: [],
+      sort: [],
+    }
+    saveGridState("connector-1", "public.projects", state)
+    mockPages()
+
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="grid-column-id"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="row-grid"]').attributes("style")).toContain(
+      "--grid-column-1: 220px"
+    )
+    expect(wrapper.get('[data-testid="grid-column-name"]').classes()).toContain("data-grid__pinned")
   })
 })

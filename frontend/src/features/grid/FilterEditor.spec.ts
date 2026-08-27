@@ -8,6 +8,7 @@ import { at, first } from "@/shared/testing/collections"
 
 import FilterEditor from "./FilterEditor.vue"
 import GridHeader from "./GridHeader.vue"
+import { defaultColumnLayout } from "./columnLayout"
 import type { Filter } from "./types"
 
 const STATUS_COLUMN: FetchColumn = {
@@ -31,7 +32,14 @@ const FILE_COLUMN: FetchColumn = {
 
 function mountHeader(columns: FetchColumn[], filters: Filter[] = []) {
   return mount(GridHeader, {
-    props: { pageSize: 100, columns, filters, sort: [] },
+    props: {
+      pageSize: 100,
+      columns,
+      filters,
+      sort: [],
+      layout: defaultColumnLayout(columns),
+      selectedColumn: null,
+    },
     global: { plugins: [Quasar] },
   })
 }

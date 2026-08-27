@@ -59,6 +59,12 @@ describe("stored grid state", () => {
     expect(parseGridState(JSON.stringify({ version: 1, state }))).toBeNull()
   })
 
+  it("never restores right pinning", () => {
+    const state = { ...STORED, pinnedRight: ["id"] }
+
+    expect(parseGridState(JSON.stringify({ version: 1, state }))).toBeNull()
+  })
+
   it("round trips relation state independently by connector and node", () => {
     saveGridState("connector-a", "public.projects", STORED)
 
