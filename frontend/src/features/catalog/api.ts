@@ -3,7 +3,7 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
-import type { ActionResult, FetchRequest } from "@/client"
+import type { ActionResult } from "@/client"
 import { messageOf } from "@/shared/api/errors"
 import { reloadedBy } from "./actions"
 import type { ActionFailure, ActionOutcome } from "./actions"
@@ -69,25 +69,6 @@ export function useNodePathLoader() {
       staleTime: 60_000,
     })
   }
-}
-
-/**
- * Reading a page of rows.
- *
- * A mutation rather than a query: the request is a POST with a structured
- * body, and pages are asked for in response to user action rather than cached
- * by key. The result is short-lived — the grid holds the page it is showing.
- */
-export function useFetchRows() {
-  return useMutation({
-    mutationFn: async (payload: { connectorId: string; request: FetchRequest }) =>
-      (
-        await ConnectorsService.fetchRows({
-          path: { connector_id: payload.connectorId },
-          body: payload.request,
-        })
-      ).data,
-  })
 }
 
 export const actionsKey = (connectorId: string, nodeIds: string[] | null) =>

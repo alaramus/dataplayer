@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useTemplateRef } from "vue"
 
-import RowGrid from "@/features/catalog/RowGrid.vue"
+import DataGrid from "@/features/grid/DataGrid.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 
 /**
@@ -22,7 +22,7 @@ useReloadable(props.panelId, async () => {
 
 <template>
   <div class="rows-panel">
-    <RowGrid
+    <DataGrid
       ref="grid"
       :connector-id="connectorId"
       :node-id="nodeId"
