@@ -159,7 +159,7 @@ test("a window is painted over the chrome and over a grid it covers", async ({ p
   // And the body of the window covers the column headings of the grid rather
   // than the other way round. A point inside both boxes, so the question is
   // only which of the two is painted there.
-  const cell = await page.locator(".app-table--sticky thead th").first().boundingBox()
+  const cell = await page.getByTestId("grid-column-relname").boundingBox()
   const box = await frame.boundingBox()
   if (cell === null || box === null) throw new Error("the heading or the window has no box")
   const overlapFrom = Math.max(cell.x, box.x)

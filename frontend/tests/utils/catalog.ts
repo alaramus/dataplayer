@@ -46,3 +46,83 @@ export async function showOnlySchema(page: Page, on: string, off: string) {
   await page.getByRole("option", { name: off, exact: true }).click()
   await page.keyboard.press("Escape")
 }
+
+/** Add one server-side filter entirely through the visible grid controls. */
+export async function addFilter(
+  page: Page,
+  column: string,
+  operator: string,
+  value: string
+) {
+  const editor = page.getByTestId("grid-filter-editor")
+  if (!(await editor.isVisible())) await page.getByTestId("grid-filter").click()
+
+  await editor.getByLabel("Column").click()
+  await page.getByRole("option", { name: column, exact: true }).click()
+  await editor.getByLabel("Operator").click()
+  await page.getByRole("option", { name: operator, exact: true }).click()
+
+  const valueField = editor.getByLabel("Value")
+  if ((await valueField.getAttribute("role")) === "combobox") {
+    await valueField.click()
+    await page.getByRole("option", { name: value, exact: true }).click()
+  } else {
+    await valueField.fill(value)
+  }
+  const fetched = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" && response.url().endsWith("/fetch")
+  )
+  await editor.getByTestId("grid-filter-apply").click()
+  await fetched
+  await editor.waitFor({ state: "visible" })
+  await page.getByTestId(/^grid-cell-0-/).first().waitFor({ state: "visible" })
+}
+
+export async function sortColumn(page: Page, name: string, shift = false) {
+  const fetched = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" && response.url().endsWith("/fetch")
+  )
+  if (shift) await page.keyboard.down("Shift")
+  await page
+    .getByTestId(`grid-column-${name}`)
+    .getByText(name, { exact: true })
+    .click()
+  if (shift) await page.keyboard.up("Shift")
+  await fetched
+  await page.getByTestId(`grid-sort-direction-${name}`).waitFor({ state: "visible" })
+}
+
+export async function selectRange(
+  page: Page,
+  fromColumn: string,
+  fromRow: number,
+  toColumn: string,
+  toRow: number
+) {
+  const from = page.getByTestId(`grid-cell-${fromRow}-${fromColumn}`)
+  const to = page.getByTestId(`grid-cell-${toRow}-${toColumn}`)
+  await from.hover()
+  await page.mouse.down()
+  await to.hover()
+  await page.mouse.up()
+}
+
+/** Drag the column's right edge by a measured number of pixels. */
+export async function resizeColumn(page: Page, name: string, delta: number) {
+  const handle = page.getByTestId(`grid-resize-${name}`)
+  const box = await handle.boundingBox()
+  if (box === null) throw new Error(`the ${name} resize handle has no box`)
+  const x = box.x + box.width / 2
+  const y = box.y + box.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  await page.mouse.move(x + delta, y, { steps: 8 })
+  await page.mouse.up()
+}
+
+export async function pinColumn(page: Page, name: string) {
+  await page.getByTestId(`grid-column-select-${name}`).click()
+  await page.getByTestId(`grid-pin-${name}`).click()
+}

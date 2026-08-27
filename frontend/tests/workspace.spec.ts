@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test"
 
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { openNode, pickSchema } from "./utils/catalog"
+import { openNode, pickSchema, pinColumn } from "./utils/catalog"
 import {
   catalogTab,
   deleteConnector,
@@ -302,15 +302,11 @@ test("what floats over a panel is drawn over the sticky heading in it", async ({
   await pickSchema(page, "pg_catalog")
   await openNode(page, "pg_class")
   await expect(page.getByTestId("row-grid")).toContainText("relname")
+  await pinColumn(page, "relname")
 
-  const layerOf = async (selector: string) =>
-    Number(
-      await page
-        .locator(selector)
-        .first()
-        .evaluate((node) => getComputedStyle(node).zIndex)
-    )
-  const heading = await layerOf(".app-table--sticky thead th")
+  const layerOf = async (locator: Locator) =>
+    Number(await locator.first().evaluate((node) => getComputedStyle(node).zIndex))
+  const heading = await layerOf(page.getByTestId("grid-column-relname"))
   expect(heading).toBeGreaterThan(0)
 
   // The scale itself, as the browser resolves it. This is the one place it can
@@ -336,13 +332,13 @@ test("what floats over a panel is drawn over the sticky heading in it", async ({
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
   await page.mouse.down()
   await page.mouse.move(onto.x + onto.width / 2, onto.y + onto.height / 2, { steps: 8 })
-  expect(await layerOf(".workspace-leaf__overlay")).toBeGreaterThan(heading)
+  expect(await layerOf(page.locator(".workspace-leaf__overlay"))).toBeGreaterThan(heading)
   await page.mouse.up()
 
   // And a floating window over the same grid, which is the same question
   // asked once before.
   await editConnector(page, name)
-  expect(await layerOf(".app-window")).toBeGreaterThan(heading)
+  expect(await layerOf(page.locator(".app-window"))).toBeGreaterThan(heading)
 
   await page.getByTestId("delete-connector").click()
   await page.getByTestId("confirm-accept").click()

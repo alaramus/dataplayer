@@ -67,14 +67,14 @@ test("browses a personal directory and reads files as rows", async ({ page }) =>
   await openNode(page, "sample.csv")
   const grid = page.getByTestId("row-grid")
   await expect(grid).toContainText("population")
-  await expect(grid.locator("tbody tr")).toHaveCount(50)
+  await expect(grid.locator("tbody tr")).toHaveCount(100)
   // A file has no row estimate: counting means reading it end to end, so the
   // grid pages without ever claiming a total.
-  await expect(grid).toContainText("Rows 1–50")
+  await expect(grid).toContainText("Rows 1–100")
   await expect(grid).not.toContainText("of ~")
 
   await page.getByTestId("grid-next").click()
-  await expect(grid).toContainText("Rows 51–100")
+  await expect(grid).toContainText("Rows 101–200")
 
   // The list is a column of its own, so nothing covered it and nothing had to
   // be clicked to get back to it.

@@ -87,8 +87,8 @@ async def test_the_answer_says_the_source_cannot_sort_or_filter(
     )
 
     body = response.json()
-    assert body["sortable"] is False
-    assert body["filterable"] is False
+    assert all(column["sortable"] is False for column in body["columns"])
+    assert all(column["filter_operators"] == [] for column in body["columns"])
 
 
 @pytest.mark.usefixtures("home")

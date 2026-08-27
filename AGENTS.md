@@ -72,6 +72,9 @@ strings, test names, commit messages and documentation. The only exception is
 - Light and dark themes, remembered.
 - A relation describes itself: columns with a parsed type, ordered constraints,
   indexes and partitioning. Its structure opens in a tab beside its rows.
+- The row grid filters and ordered multi-sorts on the server, pages up to 500
+  rows, remembers its query and column layout, selects and copies exact TSV, and
+  renders lossless values by type with a full-value viewer.
 
 ## Decisions
 
@@ -106,6 +109,8 @@ and the known deviations live there.
 | D20 | A switched-off connection is not a source | [adapters](docs/architecture/adapters.md) |
 | D21 | A source says where a node lives, and the client never takes an id apart | [adapters](docs/architecture/adapters.md) |
 | D22 | A source describes a relation in full, and a column type is an object | [adapters](docs/architecture/adapters.md) |
+| D23 | A fetched column states its type and operations, and a cell crosses the boundary as lossless text | [adapters](docs/architecture/adapters.md) |
+| D24 | The grid is controlled state around a headless engine, and source operations stay server-side | [frontend](docs/architecture/frontend.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.

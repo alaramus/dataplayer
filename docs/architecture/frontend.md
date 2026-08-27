@@ -4,14 +4,15 @@ How a screen is built, where state lives, and what the component kit is. The
 panel engine, the layout and floating windows are in
 [workspace.md](workspace.md).
 
-Decisions here: D6, D7, D11.
+Decisions here: D6, D7, D11, D24.
 
 ## What exists today
 
 Vue 3, TypeScript, Quasar, Vite, TanStack Query, Pinia. Sign in, a catalog of
 source types, a form generated from the adapter's own schema, the list of
-connections, the catalog of a connection as a list of one level, and a paged row
-grid. Light and dark themes, switched by a button beside Sign out and remembered.
+connections, the catalog of a connection as a list of one level, and a typed
+data grid with server paging, filters and ordered sorting. Light and dark themes,
+switched by a button beside Sign out and remembered.
 
 ```
 frontend/public/
@@ -38,11 +39,14 @@ frontend/src/
 │                        and what the last connection check said
 └── features/
     ├── auth/
-    ├── catalog/         the list of one level, the row grid, and the menu of
-    │                    what the ticked nodes admit; nodes.ts, rows.ts and
-    │                    actions.ts are pure mappers, and nodes.ts holds the
+    ├── catalog/         the list of one level and the menu of what the ticked
+    │                    nodes admit; nodes.ts and actions.ts are pure mappers,
+    │                    and nodes.ts holds the
     │                    table that says what a kind of node does;
     │                    useCatalogLevel.ts walks a catalog outside any component
+    ├── grid/            the controlled data explorer: query state, filter and
+    │                    sort editors, column layout, selection, clipboard,
+    │                    typed renderers and the full-value viewer
     ├── structure/       a relation model in its own tab: columns, ordered
     │                    constraints and indexes; model.ts maps them to badges
     ├── connectors/      the list of sources, the catalog of source types that
@@ -133,6 +137,54 @@ Known deviations:
 - **The dark palette was picked, not derived.** The values under
   `body.body--dark` were chosen by eye against Quasar's own dark colours; nothing
   measures contrast against WCAG.
+
+## D24. The grid is controlled state around a headless engine, and source operations stay server-side
+
+`features/grid` owns the data explorer; the catalog only opens a node and the
+workspace only hosts its panel. `DataGrid.vue` binds the fetched page, editors
+and layout, while the query, persistence, filter, sort, selection, clipboard and
+presentation rules live in plain modules. `GridHeader.vue` stays mounted at one
+height in loading, empty and error states; unsupported commands remain in place,
+disabled with the source's explanation.
+
+TanStack Table v9 is the headless engine for cell selection, column sizing and
+resizing, ordering, visibility, left pinning and controlled sorting state.
+DataPlayer renders the semantic table and every control through its own kit.
+TanStack's client-side sorting, filtering and pagination row models are not
+registered: the browser holds one bounded page, while filters, ordered
+multi-sort and paging apply to the relation and therefore remain adapter
+operations.
+
+Rows are fetched through TanStack Query with connector, node and the full
+`FetchRequest` in the key. Changing filter, sort or page size resets the offset;
+switching page changes only the offset; reload refetches the same key. A first
+request shows a skeleton, a subsequent request covers old rows with an overlay,
+and failure removes them rather than presenting a previous page under a new
+query.
+
+Versioned local storage persists filters, ordered sort and column width, order,
+visibility and left pinning per `connectorId + nodeId`; page size is global.
+Unknown versions and contradictory shapes are discarded, and restored state is
+reconciled with the columns the server actually returned. Offset, selection and
+open editors are transient: reload starts at the first page and a page or
+structural column change clears a selection that has no stable row identity.
+
+Selection and TSV copying use the current page's data and visible column order,
+never rendered or truncated DOM text. Typed renderers change alignment and
+appearance but not the canonical string; complex or long values open that same
+full string in a read-only viewer. The page ceiling is 500 rows, with explicit
+pagination rather than virtualization until browser measurement demonstrates a
+need.
+
+Known deviations:
+
+- **There is no virtualization.** A browser scenario exercises a 500-row page;
+  TanStack Virtual is deferred until measurement shows that bounded DOM is not
+  responsive enough.
+- **Saved views are local and unnamed.** Grid state follows one browser and one
+  connector/node pair; it cannot yet be shared or selected as a named view.
+- **Clipboard and selection stop at the current page.** Exporting rows that are
+  not loaded needs a server-side export capability, not a larger client page.
 
 ## Screens
 

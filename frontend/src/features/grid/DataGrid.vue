@@ -691,7 +691,7 @@ defineExpose({
 }
 
 .data-grid__table th {
-  background: var(--dp-surface-raised);
+  background: var(--dp-surface);
   color: var(--dp-text-strong);
 }
 
@@ -702,7 +702,7 @@ defineExpose({
 .data-grid__pinned {
   position: sticky !important;
   z-index: var(--dp-layer-sticky);
-  background: var(--dp-surface-raised);
+  background: var(--dp-surface);
   box-shadow: 2px 0 3px var(--dp-shadow-soft);
 }
 
@@ -725,7 +725,7 @@ defineExpose({
   min-width: 48px !important;
   max-width: 48px !important;
   text-align: center !important;
-  background: var(--dp-surface-raised);
+  background: var(--dp-surface);
 }
 
 .data-grid__row-selector {

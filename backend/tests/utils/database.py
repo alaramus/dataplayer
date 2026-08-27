@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import unquote
 
 from app.core.config import settings
 
@@ -19,5 +20,8 @@ def working_postgres_options() -> dict[str, Any]:
         "port": host["port"] or 5432,
         "database": (url.path or "/app").lstrip("/"),
         "user": host["username"] or "postgres",
-        "password": host["password"] or "",
+        # PostgresDsn serializes reserved characters in user info. psycopg
+        # accepts a password value rather than URL user info, so decode it
+        # before handing the options to the adapter.
+        "password": unquote(host["password"] or ""),
     }

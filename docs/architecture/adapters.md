@@ -4,7 +4,7 @@ What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
-D20, D21, D22.
+D20, D21, D22, D23.
 
 ## What exists today
 
@@ -134,12 +134,12 @@ application smuggled an exact count in as a pseudo-column named
 
 ## D2d. What a source cannot do is stated in the answer
 
-`FetchResult` carries `sortable` and `filterable`. A file has no index to order
-by and the columns of a CSV have no types, so the file source answers `false`
-and refuses a request that asks for either. The grid learns from the first
-answer and stops offering what the source cannot do, without ever branching on
-the type of the source. The same covers the missing row estimate: a file has
-none, so the grid pages by `has_more` alone.
+Every `FetchColumn` carries `sortable` and its exact ordered list of
+`filter_operators`. A file has no index to order by, so its columns answer
+`false` and `[]` and the driver refuses a request that asks for either. The grid
+learns this from the first answer and stops offering what the source cannot do,
+without branching on the source type. The same covers the missing row estimate:
+a file has none, so the grid pages by `has_more` alone.
 
 Sorting a page in memory and calling it sorted was rejected — the order would
 depend on where the reader stopped. Reading the whole file up to a size ceiling
@@ -237,6 +237,45 @@ Known deviations:
 - **Only one relation is exposed at a time.** The private PostgreSQL query path
   already accepts no relation predicate, but no public schema-wide response or
   cache uses that form yet.
+
+## D23. A fetched column states its type and operations, and a cell crosses the boundary as lossless text
+
+`FetchColumn` is the complete contract for one displayed column: `name`, the
+same structured `ColumnType` used by D22, `sortable`, and an ordered list of
+`filter_operators`. Capabilities belong to a column rather than to a whole
+result: a source may expose a complex value while allowing only null checks on
+it. The file source describes its simple string and number columns but declares
+no sorting or filtering; the client never names either adapter.
+
+`FetchResult.rows` is `list[list[str | None]]`. Values cross JSON as canonical
+text so `bigint` and `numeric` never pass through a JavaScript number, date and
+time keep ISO 8601, boolean is `true` or `false`, binary is uppercase hex with a
+`0x` prefix, and JSON is compacted without parsing numeric tokens as floats.
+`None` remains distinct from an empty string. PostgreSQL casts server-text types
+in the `SELECT`; typed columns stay typed for filtering and sorting, and the
+frontend uses the full original string for the viewer and clipboard.
+
+Filters are a discriminated union rather than a partly filled object. Null
+checks have no value, `in` requires a non-empty list, and scalar operators
+require one text value. Before building the statement PostgreSQL verifies the
+column, verifies that the column declares the operator, converts the value to
+the driver's native type and rejects invalid input. Identifiers use
+`sql.Identifier`, values use placeholders, fixed operator fragments come from a
+closed table, and the first version joins every condition with `AND`.
+
+PostgreSQL is deliberately conservative. Number, string and supported date/time
+columns compare; string also contains and starts with; boolean, UUID and enum
+have equality and `in`; every type has null checks. Sorting is limited to
+number, string, boolean, supported date/time, UUID and enum. Extending that set
+is an adapter change that arrives in `FetchColumn`, not new frontend knowledge.
+
+Known deviations:
+
+- **Canonical text is for reading, not round-trip editing.** The grid is
+  read-only; writing requires row identity, concurrency and a separate adapter
+  capability rather than reversing display strings.
+- **Filtering has no `OR` or grouping.** The flat request means `AND`; adding
+  parentheses needs a recursive expression contract and a matching editor.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

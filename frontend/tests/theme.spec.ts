@@ -94,14 +94,11 @@ test("a column of the workspace is one colour, grid included", async ({ page }) 
   const colourOf = (selector: string) =>
     page.locator(selector).first().evaluate((node) => getComputedStyle(node).backgroundColor)
 
-  // Quasar gives a table a card of its own, and in the dark theme that card is
-  // #1d1d1d over a panel that is #121212 — three colours in one column, with
-  // the sticky heading a stripe across the table it heads.
-  // The class lands on the element Quasar calls `q-table__container`, so the
-  // table and its card are one and the same box.
+  // Cells are transparent over the panel and the grid heading spends the same
+  // surface token, so the table does not become a raised card or a stripe.
   const panel = await colourOf('[data-testid^="workspace-leaf-"]')
-  expect(await colourOf(".app-table--sticky.q-table__container")).toBe(panel)
-  expect(await colourOf(".app-table--sticky thead th")).toBe(panel)
+  expect(await colourOf('[data-testid="row-grid"]')).toBe("rgba(0, 0, 0, 0)")
+  expect(await colourOf('[data-testid="grid-column-relname"]')).toBe(panel)
 
   await deleteConnector(page, name)
 })
