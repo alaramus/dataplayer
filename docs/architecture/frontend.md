@@ -34,7 +34,8 @@ frontend/src/
 │   ├── SchemaForm/      JSON Schema to form, framework-independent core;
 │   │                    a field says which tab and which row it belongs to,
 │   │                    and readSchema tells a plain schema from a union
-│   ├── windows/         floating windows — see workspace.md
+│   ├── windows/         floating windows and shared question/delete presets
+│   │                    — see workspace.md
 │   ├── workspace/       the panel engine — see workspace.md
 │   └── testing/         helpers for tests, not shipped by any screen
 ├── stores/              Pinia: client-side state only — the session, the theme,

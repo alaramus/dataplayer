@@ -102,7 +102,7 @@ and the known deviations live there.
 | D11 | A screen asks the kit for meaning, not Quasar for a look | [frontend](docs/architecture/frontend.md) |
 | D12 | The screen is a workspace of sections, and the engine knows nothing about the application | [workspace](docs/architecture/workspace.md) |
 | D13 | A source type describes itself, and what it can do is derived | [adapters](docs/architecture/adapters.md) |
-| D14 | A connection is edited in a floating window, and there may be several | [workspace](docs/architecture/workspace.md) |
+| D14 | Work opens in resizable floating windows, and there may be several | [workspace](docs/architecture/workspace.md) |
 | D15 | The connection string is a capability, and it is only shown | [adapters](docs/architecture/adapters.md) |
 | D16 | A way of connecting is a variant of the options, and the union is flat | [adapters](docs/architecture/adapters.md) |
 | D17 | A pasted connection string is taken apart by the driver | [adapters](docs/architecture/adapters.md) |

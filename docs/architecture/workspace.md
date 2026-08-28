@@ -21,6 +21,11 @@ divides a column by being dropped in its body. It can only be taken to a column
 that takes its kind.
 
 A connection is edited in a floating window, and several are open at once.
+The same application-level host now owns every transient form and question:
+catalog actions, row and column editing, full cell values and confirmations.
+Only the source-type catalog that begins **New connection** remains modal,
+because it is a choice before work starts rather than work that must stay
+beside the workspace.
 
 ```
 frontend/src/shared/
@@ -189,7 +194,7 @@ Known deviations:
   were given for as long as the page lives. Bounded by how many distinct panels
   one session opens.
 
-## D14. A connection is edited in a floating window, and there may be several
+## D14. Work opens in floating windows, and there may be several
 
 Not modal, and that is the requirement rather than a detail: the reason for the
 window is to read one connection while filling in another. What modality would
@@ -205,6 +210,12 @@ A new connection opens named after its type and addressed to localhost; a stored
 secret shows as `<hidden>`, empties the moment the field is entered and comes back
 if it is left untyped-in; what a check said appears in a panel over the button
 that ran it rather than as a line that moves the form about.
+
+Every window opens at a content-measured height, bounded by the viewport, and
+can then be resized from every edge or corner. Manual resizing ends automatic
+fitting for that window, so a later validation message does not undo the
+user's chosen geometry. Repeated questions use presets in `shared/windows`
+rather than restating deletion and ordinary-question geometry in each feature.
 
 The old application had such an engine. Three things it got wrong are inverted
 here: a z-index counter that only ever grew is now a position in a list; geometry
@@ -238,7 +249,6 @@ Known deviations:
 - **Windows do not survive a reload.** The workspace layout does; a window does
   not, because a half-filled form restored without its secrets would promise more
   than it holds.
-- **A window cannot be resized**, only moved. Its width is decided by what it is.
 - **A window can cover the application's header.** Dragged to the top it lies over
   Sign out until it is moved away. The price of the window engine not knowing the
   height of the chrome above it; it cannot be lost, which is what the layer was

@@ -36,7 +36,7 @@ import type {
   RevealTarget,
 } from "@/features/workspace/state"
 import { AppLayout, useConfirm, useToast } from "@/shared/ui"
-import { useWindows, WindowHost } from "@/shared/windows"
+import { useWindowManager } from "@/shared/windows"
 import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
 
 /**
@@ -118,6 +118,7 @@ const openConnectors = computed(() => openConnectorIds(workspace.panels.value))
  * unsaved changes is closed. See the spec, O1.
  */
 const connectors = useConnectors()
+const windows = useWindowManager()
 const confirm = useConfirm()
 
 // Panels say how they are re-read; the tab strip presses the button. Provided
@@ -140,18 +141,6 @@ const toast = useToast()
 useConnectorHealth()
 
 const unsaved = ref(new Set<string>())
-
-const windows = useWindows({
-  confirmClose: async (id) => {
-    if (!unsaved.value.has(id)) return true
-    return await confirm({
-      title: "Discard changes?",
-      message: "This connection has changes that were never applied.",
-      confirmLabel: "Discard",
-      danger: true,
-    })
-  },
-})
 
 function markDirty(id: string, dirty: boolean) {
   const next = new Set(unsaved.value)
@@ -198,6 +187,15 @@ function openConnectorWindow(connector: ConnectorPublic | null, adapterType: str
         catalogOpen.value = true
       },
       onDirty: (dirty) => markDirty(handle.id, dirty),
+      beforeClose: async () => {
+        if (!unsaved.value.has(handle.id)) return true
+        return await confirm({
+          title: "Discard changes?",
+          message: "This connection has changes that were never applied.",
+          confirmLabel: "Discard",
+          danger: true,
+        })
+      },
     })
   )
 }
@@ -297,7 +295,5 @@ provide(workspaceActionsKey, {
       v-model="catalogOpen"
       @pick="pickAdapterType"
     />
-
-    <WindowHost :context="windows.context" />
   </AppLayout>
 </template>

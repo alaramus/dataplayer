@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ConnectorsService } from "@/client"
 import type { RelationModel } from "@/client"
 import { AppInput, AppSelect } from "@/shared/ui"
+import { withWindowHost } from "@/shared/testing/windows"
 
 import StructureView from "./StructureView.vue"
 
@@ -38,8 +39,7 @@ function mountView() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
-  return mount(StructureView, {
-    props: { connectorId: "connector-1", nodeId: "public.projects" },
+  return mount(withWindowHost(StructureView, { connectorId: "connector-1", nodeId: "public.projects" }), {
     global: {
       plugins: [[Quasar, { plugins: { Dialog, Notify } }], [VueQueryPlugin, { queryClient }]],
     },

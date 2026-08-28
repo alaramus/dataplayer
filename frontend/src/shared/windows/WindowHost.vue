@@ -16,20 +16,22 @@ const props = defineProps<{ context: WindowsContext }>()
 provide(windowsKey, props.context)
 
 async function requestClose(id: string) {
-  const ask = props.context.confirmClose
-  if (ask !== null && !(await ask(id))) return
-  props.context.close(id)
+  await props.context.requestClose(id)
 }
 </script>
 
 <template>
-  <WindowFrame
-    v-for="entry in context.windows.value"
-    :key="entry.key"
-    :window="entry"
-    :front="entry.id === context.frontId.value"
-    @focus="context.focus(entry.id)"
-    @close="requestClose(entry.id)"
-    @move="context.move(entry.id, $event)"
-  />
+  <Teleport to="body">
+    <WindowFrame
+      v-for="entry in context.windows.value"
+      :key="entry.key"
+      :window="entry"
+      :front="entry.id === context.frontId.value"
+      @focus="context.focus(entry.id)"
+      @close="requestClose(entry.id)"
+      @move="context.move(entry.id, $event)"
+      @resize="(edge, pointer) => context.resize(entry.id, edge, pointer)"
+      @fit="context.fit(entry.id, $event)"
+    />
+  </Teleport>
 </template>

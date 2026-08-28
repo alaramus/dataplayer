@@ -109,6 +109,22 @@ test("a window can be dragged, and cannot be dragged out of reach", async ({ pag
   const back = await frame.boundingBox()
   expect((back?.y ?? 0) + (back?.height ?? 0)).toBeLessThanOrEqual(viewport?.height ?? 0)
 
+  // Every floating window has the same resize affordance. Shrinking from the
+  // corner changes both dimensions and the engine keeps the result.
+  const corner = page.locator('[data-testid^="window-resize-bottom-right-connector"]').first()
+  const cornerBox = await corner.boundingBox()
+  await page.mouse.move(
+    (cornerBox?.x ?? 0) + (cornerBox?.width ?? 0) / 2,
+    (cornerBox?.y ?? 0) + (cornerBox?.height ?? 0) / 2
+  )
+  await page.mouse.down()
+  await page.mouse.move((cornerBox?.x ?? 0) - 80, (cornerBox?.y ?? 0) - 80, { steps: 4 })
+  await page.mouse.up()
+
+  const resized = await frame.boundingBox()
+  expect(resized?.width).toBeLessThan(back?.width ?? 0)
+  expect(resized?.height).toBeLessThan(back?.height ?? 0)
+
   await page.getByTestId("cancel-connector").click()
   await expect(windows(page)).toHaveCount(0)
   await deleteConnector(page, name)

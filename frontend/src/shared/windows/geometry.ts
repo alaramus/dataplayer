@@ -17,6 +17,16 @@ export interface Rect extends Size {
   y: number
 }
 
+export type ResizeEdge =
+  | "top"
+  | "right"
+  | "bottom"
+  | "left"
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right"
+
 /** How far each new window is offset from the one before it. */
 export const CASCADE_STEP = 32
 
@@ -93,6 +103,68 @@ export function place(size: Size, previous: Rect | null, viewport: Size): Rect {
     next.x + GRAB_MARGIN > viewport.width || next.y + GRAB_MARGIN > viewport.height
 
   return clamp({ ...(restart ? start : next), width, height }, viewport)
+}
+
+/**
+ * Give a newly mounted window the size its contents ask for.
+ *
+ * Content is measured only after Vue has rendered it, so this is separate
+ * from `place`. A fit is an opening rule and centres the final rectangle;
+ * later ResizeObserver changes grow from the current top-left through
+ * `resizeTo`, avoiding a window that jumps around while an error appears.
+ */
+export function fit(_rect: Rect, content: Size, viewport: Size): Rect {
+  const width = Math.min(content.width, viewport.width)
+  const height = Math.min(content.height, viewport.height)
+  return {
+    x: bounded(Math.round(_rect.x + (_rect.width - width) / 2), 0, viewport.width - width),
+    y: bounded(Math.round(_rect.y + (_rect.height - height) / 2), 0, viewport.height - height),
+    width,
+    height,
+  }
+}
+
+/** Resize to an exact measured size without moving the window. */
+export function resizeTo(rect: Rect, size: Size, viewport: Size): Rect {
+  const width = bounded(size.width, 1, viewport.width)
+  const height = bounded(size.height, 1, viewport.height)
+  return {
+    x: bounded(rect.x, 0, viewport.width - width),
+    y: bounded(rect.y, 0, viewport.height - height),
+    width,
+    height,
+  }
+}
+
+/**
+ * Resize from any border or corner. Unlike moving, manual sizing stays
+ * wholly inside the viewport: a resize handle that leaves the screen cannot
+ * be grabbed again.
+ */
+export function resize(
+  rect: Rect,
+  edge: ResizeEdge,
+  pointer: { x: number; y: number },
+  viewport: Size,
+  minimum: Size
+): Rect {
+  const right = rect.x + rect.width
+  const bottom = rect.y + rect.height
+  let left = rect.x
+  let top = rect.y
+  let nextRight = right
+  let nextBottom = bottom
+
+  if (edge.includes("left")) left = bounded(pointer.x, 0, right - minimum.width)
+  if (edge.includes("right")) {
+    nextRight = bounded(pointer.x, rect.x + minimum.width, viewport.width)
+  }
+  if (edge.includes("top")) top = bounded(pointer.y, 0, bottom - minimum.height)
+  if (edge.includes("bottom")) {
+    nextBottom = bounded(pointer.y, rect.y + minimum.height, viewport.height)
+  }
+
+  return { x: left, y: top, width: nextRight - left, height: nextBottom - top }
 }
 
 /**

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import { at, first } from "@/shared/testing/collections"
 
-import { bringToFront, CASCADE_STEP, clamp, GRAB_MARGIN, place } from "./geometry"
+import { bringToFront, CASCADE_STEP, clamp, fit, GRAB_MARGIN, place, resize } from "./geometry"
 import type { Rect } from "./geometry"
 
 const VIEWPORT = { width: 1280, height: 800 }
@@ -91,6 +91,57 @@ describe("keeping a window reachable", () => {
 
     expect(rect.x).toBeLessThanOrEqual(640 - GRAB_MARGIN)
     expect(rect.y).toBeLessThanOrEqual(480 - GRAB_MARGIN)
+  })
+})
+
+describe("sizing a window", () => {
+  it("fits its opening height to the content within the viewport", () => {
+    const rect = fit(
+      { x: 300, y: 200, width: 560, height: 660 },
+      { width: 560, height: 280 },
+      VIEWPORT
+    )
+
+    expect(rect.height).toBe(280)
+    expect(rect.x).toBe(300)
+    expect(rect.y).toBe(390)
+  })
+
+  it("does not fit beyond the viewport", () => {
+    const rect = fit(
+      { x: 0, y: 0, width: 400, height: 300 },
+      { width: 2000, height: 2000 },
+      VIEWPORT
+    )
+
+    expect(rect.width).toBe(VIEWPORT.width)
+    expect(rect.height).toBe(VIEWPORT.height)
+  })
+
+  it("resizes from an edge without crossing the minimum", () => {
+    const rect = resize(
+      { x: 100, y: 100, width: 500, height: 400 },
+      "left",
+      { x: 580, y: 100 },
+      VIEWPORT,
+      { width: 280, height: 180 }
+    )
+
+    expect(rect.width).toBe(280)
+    expect(rect.x).toBe(320)
+  })
+
+  it("resizes a corner and keeps it inside the viewport", () => {
+    const rect = resize(
+      { x: 100, y: 100, width: 500, height: 400 },
+      "bottom-right",
+      { x: 5000, y: 5000 },
+      VIEWPORT,
+      { width: 280, height: 180 }
+    )
+
+    expect(rect.x + rect.width).toBe(VIEWPORT.width)
+    expect(rect.y + rect.height).toBe(VIEWPORT.height)
   })
 })
 

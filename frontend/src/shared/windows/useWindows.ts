@@ -1,8 +1,8 @@
-import { computed, onScopeDispose, ref, shallowRef } from "vue"
+import { computed, inject, onScopeDispose, provide, ref, shallowRef } from "vue"
 import type { Component, InjectionKey, Ref } from "vue"
 
-import { bringToFront, clamp, place } from "./geometry"
-import type { Rect, Size } from "./geometry"
+import { bringToFront, clamp, fit, place, resize, resizeTo } from "./geometry"
+import type { Rect, ResizeEdge, Size } from "./geometry"
 
 /**
  * Floating windows over the application.
@@ -28,10 +28,16 @@ export interface OpenWindow {
   look: WindowLook
   size: Size
   component: Component
+  /** Measure the rendered contents once and use that as the opening height. */
+  autoFit?: boolean
+  minSize?: Size
+  beforeClose?: () => boolean | Promise<boolean>
+  onClosed?: () => void
 }
 
 export interface WindowState extends OpenWindow {
   rect: Rect
+  hasFit: boolean
   /**
    * What this window *is*, as opposed to what it shows.
    *
@@ -50,12 +56,26 @@ export interface WindowsContext {
   frontId: Ref<string | null>
   focus: (id: string) => void
   close: (id: string) => void
+  requestClose: (id: string) => Promise<void>
   move: (id: string, to: { x: number; y: number }) => void
+  resize: (id: string, edge: ResizeEdge, pointer: { x: number; y: number }) => void
+  fit: (id: string, size: Size) => void
   /** Ask before closing, answered by the feature. Null means "just close". */
   confirmClose: ((id: string) => Promise<boolean>) | null
 }
 
 export const windowsKey: InjectionKey<WindowsContext> = Symbol("windows")
+export const windowsApiKey: InjectionKey<WindowsApi> = Symbol("windows-api")
+
+export function provideWindows(api: WindowsApi): void {
+  provide(windowsApiKey, api)
+}
+
+export function useWindowManager(): WindowsApi {
+  const api = inject(windowsApiKey)
+  if (api === undefined) throw new Error("No floating window host was provided")
+  return api
+}
 
 function viewportSize(): Size {
   return { width: window.innerWidth, height: window.innerHeight }
@@ -112,13 +132,25 @@ export function useWindows(
     const last = windows.value[windows.value.length - 1]?.rect ?? null
     const rect = place(window.size, last, viewportSize())
     keys += 1
-    windows.value = [...windows.value, { ...window, rect, key: `w${keys}` }]
+    windows.value = [
+      ...windows.value,
+      { ...window, autoFit: window.autoFit ?? true, rect, hasFit: false, key: `w${keys}` },
+    ]
     order.value = [...order.value, window.id]
   }
 
   function close(id: string) {
+    windows.value.find((entry) => entry.id === id)?.onClosed?.()
     windows.value = windows.value.filter((entry) => entry.id !== id)
     order.value = order.value.filter((other) => other !== id)
+  }
+
+  async function requestClose(id: string) {
+    const entry = windows.value.find((one) => one.id === id)
+    if (entry === undefined) return
+    if (entry.beforeClose !== undefined && !(await entry.beforeClose())) return
+    if (entry.beforeClose === undefined && options.confirmClose && !(await options.confirmClose(id))) return
+    close(id)
   }
 
   function move(id: string, to: { x: number; y: number }) {
@@ -126,6 +158,50 @@ export function useWindows(
     windows.value = windows.value.map((entry) =>
       entry.id === id ? { ...entry, rect: clamp({ ...entry.rect, ...to }, viewport) } : entry
     )
+  }
+
+  function resizeWindow(id: string, edge: ResizeEdge, pointer: { x: number; y: number }) {
+    const viewport = viewportSize()
+    windows.value = windows.value.map((entry) =>
+      entry.id === id
+        ? {
+            ...entry,
+            autoFit: false,
+            rect: resize(
+              entry.rect,
+              edge,
+              pointer,
+              viewport,
+              entry.minSize ?? { width: 280, height: 160 }
+            ),
+          }
+        : entry
+    )
+  }
+
+  function fitWindow(id: string, size: Size) {
+    const viewport = viewportSize()
+    windows.value = windows.value.map((entry) => {
+      if (entry.id !== id || entry.autoFit === false) return entry
+      const minimum = entry.minSize ?? { width: 280, height: 160 }
+      const wanted = {
+        width: Math.max(minimum.width, size.width),
+        // Leave a small moving margin even when the contents are taller than
+        // the viewport. A viewport-tall window fits only at y=0, which makes
+        // an ordinary drag a way to lose its footer immediately.
+        height: Math.min(
+          Math.max(minimum.height, size.height),
+          Math.max(minimum.height, viewport.height - 16)
+        ),
+      }
+      return {
+        ...entry,
+        rect: entry.hasFit
+          ? resizeTo(entry.rect, wanted, viewport)
+          : fit(entry.rect, wanted, viewport),
+        hasFit: true,
+      }
+    })
   }
 
   function rename(from: string, to: string, look: WindowLook) {
@@ -158,7 +234,10 @@ export function useWindows(
       frontId,
       focus,
       close,
+      requestClose,
       move,
+      resize: resizeWindow,
+      fit: fitWindow,
       confirmClose: options.confirmClose ?? null,
     },
     open,

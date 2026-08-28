@@ -7,6 +7,7 @@ import { ConnectorsService } from "@/client"
 import type { FetchResult } from "@/client"
 import { AppSelect } from "@/shared/ui"
 import { AppInput } from "@/shared/ui"
+import { withWindowHost } from "@/shared/testing/windows"
 
 import DataGrid from "./DataGrid.vue"
 import { loadGridState, saveGridState } from "./persist"
@@ -46,8 +47,7 @@ function mountGrid() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
-  return mount(DataGrid, {
-    props: { connectorId: "connector-1", nodeId: "public.projects" },
+  return mount(withWindowHost(DataGrid, { connectorId: "connector-1", nodeId: "public.projects" }), {
     global: {
       plugins: [[Quasar, { plugins: { Dialog, Notify } }], [VueQueryPlugin, { queryClient }]],
     },

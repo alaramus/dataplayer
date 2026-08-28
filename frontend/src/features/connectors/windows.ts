@@ -37,6 +37,7 @@ export function connectorWindow(options: {
   onClose: () => void
   onBack: () => void
   onDirty: (dirty: boolean) => void
+  beforeClose: () => boolean | Promise<boolean>
 }): OpenWindow {
   const type = options.connector?.adapter_type ?? options.adapterType ?? null
 
@@ -62,6 +63,8 @@ export function connectorWindow(options: {
       icon: type ? adapterIcon(type) : undefined,
     },
     size: CONNECTOR_WINDOW_SIZE,
+    minSize: { width: 420, height: 300 },
+    beforeClose: options.beforeClose,
     component,
   }
 }

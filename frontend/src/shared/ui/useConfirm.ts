@@ -1,13 +1,7 @@
-import { useQuasar } from "quasar"
+import { confirmInWindow, useWindowManager } from "@/shared/windows"
+import type { ConfirmRequest, WindowsApi } from "@/shared/windows"
 
-export interface ConfirmRequest {
-  title: string
-  message: string
-  /** What the confirming button says. "Delete" reads better than "OK". */
-  confirmLabel?: string
-  /** Colours the confirming button as destructive. */
-  danger?: boolean
-}
+export type { ConfirmRequest } from "@/shared/windows"
 
 /**
  * Ask before doing something that cannot be taken back.
@@ -16,41 +10,7 @@ export interface ConfirmRequest {
  * ordinary sequential code, and dismissing the dialog is the same answer as
  * cancelling instead of a third path each caller has to remember.
  */
-export function useConfirm(): (request: ConfirmRequest) => Promise<boolean> {
-  const quasar = useQuasar()
-
-  return (request) =>
-    new Promise((resolve) => {
-      quasar
-        .dialog({
-          title: request.title,
-          message: request.message,
-          // Both buttons are spelled out: the plugin's default cancel button
-          // is uppercased, and a dialog with one shouting button and one not
-          // is exactly the inconsistency the kit exists to remove.
-          cancel: {
-            label: "Cancel",
-            flat: true,
-            noCaps: true,
-            "data-testid": "confirm-cancel",
-          },
-          // Addressed by a test id and not by its label: the label is the name
-          // of the action, and the control that started the action carries the
-          // same word - a scenario looking for "Delete" found both.
-          ok: {
-            label: request.confirmLabel ?? "Confirm",
-            color: request.danger === true ? "negative" : "primary",
-            noCaps: true,
-            "data-testid": "confirm-accept",
-          },
-        })
-        .onOk(() => {
-          resolve(true)
-        })
-        // Fires for a dismissal as well as after onOk; resolving a settled
-        // promise again is a no-op, so the first answer stands.
-        .onDismiss(() => {
-          resolve(false)
-        })
-    })
+export function useConfirm(api?: WindowsApi): (request: ConfirmRequest) => Promise<boolean> {
+  const windows = api ?? useWindowManager()
+  return (request) => confirmInWindow(windows, request)
 }

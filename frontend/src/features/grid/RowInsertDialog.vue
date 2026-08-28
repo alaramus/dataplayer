@@ -6,11 +6,11 @@ import {
   AppBanner,
   AppButton,
   AppCheckbox,
-  AppDialog,
   AppInput,
   AppSection,
   AppSelect,
 } from "@/shared/ui"
+import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
   modelValue: boolean
@@ -71,12 +71,11 @@ function save() {
 </script>
 
 <template>
-  <AppDialog
+  <WindowDialog
     :model-value="modelValue"
     title="Insert row"
     subtitle="Omitted columns keep their source default"
     size="lg"
-    persistent
     data-testid="grid-row-insert"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -157,7 +156,7 @@ function save() {
         @click="save"
       />
     </template>
-  </AppDialog>
+  </WindowDialog>
 </template>
 
 <style scoped>

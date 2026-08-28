@@ -126,4 +126,15 @@ describe("moving a window", () => {
     expect(rect.x).toBeLessThan(window.innerWidth)
     expect(rect.y).toBeLessThan(window.innerHeight)
   })
+
+  it("stores a user resize", () => {
+    const windows = useWindows()
+    windows.open(windowOf("a"))
+
+    windows.context.resize("a", "bottom-right", { x: 900, y: 700 })
+
+    const rect = first(windows.context.windows.value).rect
+    expect(rect.width).toBeGreaterThan(400)
+    expect(rect.height).toBeGreaterThan(300)
+  })
 })

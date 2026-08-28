@@ -1,6 +1,6 @@
 import { VueQueryPlugin } from "@tanstack/vue-query"
 import { createPinia } from "pinia"
-import { Dialog, Notify, Quasar } from "quasar"
+import { Notify, Quasar } from "quasar"
 import { createApp } from "vue"
 
 import "@quasar/extras/material-icons/material-icons.css"
@@ -27,7 +27,7 @@ const queryClient = createQueryClient()
 watchSessionAcrossTabs(queryClient)
 
 app
-  .use(Quasar, { plugins: { Notify, Dialog } })
+  .use(Quasar, { plugins: { Notify } })
   .use(router)
   .use(VueQueryPlugin, { queryClient })
 

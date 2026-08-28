@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { AppButton, AppDialog, AppSection, useToast } from "@/shared/ui"
+import { AppButton, AppSection, useToast } from "@/shared/ui"
+import { WindowDialog } from "@/shared/windows"
 
 import { writeSelection } from "./clipboard"
 
@@ -23,7 +24,7 @@ async function copyValue() {
 </script>
 
 <template>
-  <AppDialog
+  <WindowDialog
     :model-value="modelValue"
     :title="columnName"
     :subtitle="typeSql"
@@ -46,7 +47,7 @@ async function copyValue() {
         @click="emit('update:modelValue', false)"
       />
     </template>
-  </AppDialog>
+  </WindowDialog>
 </template>
 
 <style scoped>

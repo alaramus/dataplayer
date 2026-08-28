@@ -6,11 +6,11 @@ import {
   AppBanner,
   AppButton,
   AppCheckbox,
-  AppDialog,
   AppInput,
   AppSection,
   AppSelect,
 } from "@/shared/ui"
+import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
   modelValue: boolean
@@ -44,11 +44,10 @@ function save() {
 </script>
 
 <template>
-  <AppDialog
+  <WindowDialog
     :model-value="modelValue"
     title="Add column"
     subtitle="The source controls the available SQL types"
-    persistent
     data-testid="structure-add-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -99,5 +98,5 @@ function save() {
         @click="save"
       />
     </template>
-  </AppDialog>
+  </WindowDialog>
 </template>

@@ -10,11 +10,11 @@ import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
 import {
   AppBanner,
   AppButton,
-  AppDialog,
   AppFileInput,
   AppSection,
   useToast,
 } from "@/shared/ui"
+import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
   command: ActionCommand | null
@@ -87,7 +87,7 @@ async function submit() {
 </script>
 
 <template>
-  <AppDialog
+  <WindowDialog
     v-if="command"
     :model-value="open"
     size="sm"
@@ -144,5 +144,5 @@ async function submit() {
         @click="submit"
       />
     </template>
-  </AppDialog>
+  </WindowDialog>
 </template>
