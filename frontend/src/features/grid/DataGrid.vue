@@ -18,7 +18,7 @@ import type {
   ColumnPinningState,
   Updater,
 } from "@tanstack/vue-table"
-import { computed, ref, toRef, useTemplateRef, watch } from "vue"
+import { computed, nextTick, ref, toRef, useTemplateRef, watch } from "vue"
 import type { CSSProperties } from "vue"
 
 import type { FetchColumn, Sort } from "@/client"
@@ -40,7 +40,8 @@ import { toTsv } from "./clipboard"
 import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
 import GridHeader from "./GridHeader.vue"
-import RowInsertDialog from "./RowInsertDialog.vue"
+import RowInsertRow from "./RowInsertRow.vue"
+import type { InsertGridColumn } from "./RowInsertRow.vue"
 import { cellPresentation, shouldOpenViewer, toGridRows } from "./model"
 import type { CellPresentation } from "./model"
 import {
@@ -169,6 +170,16 @@ const visibleGridColumns = computed<VisibleGridColumn[]>(() => {
     return valueIndex < 0 ? [] : [{ id: column.id, valueIndex }]
   })
 })
+const insertGridColumns = computed<InsertGridColumn[]>(() =>
+  [...table.getStartVisibleLeafColumns(), ...table.getCenterVisibleLeafColumns()].flatMap(
+    (column) => {
+      const source = serverColumn(column.id)
+      return source === undefined
+        ? []
+        : [{ column: source, pinned: column.getIsPinned() === "start", style: columnStyle(column) }]
+    }
+  )
+)
 const selectedRowIndexes = computed(() =>
   selectedWholeRowIndexes(
     table.getCellSelectionBounds(),
@@ -446,9 +457,20 @@ async function saveCell(value: string | null) {
   }
 }
 
-function openInsert() {
+async function openInsert() {
   insertError.value = ""
+  const visibility = { ...layout.value.columnVisibility }
+  for (const column of result.value?.columns ?? []) {
+    if (column.insert_required === true) visibility[column.name] = true
+  }
+  if (Object.keys(visibility).length > 0) {
+    changeLayout({ ...layout.value, columnVisibility: visibility })
+  }
   insertOpen.value = true
+  await nextTick()
+  gridFocus.value
+    ?.querySelector<HTMLInputElement>('[data-testid^="grid-insert-value-"]')
+    ?.focus()
 }
 
 async function saveInsert(values: { column: string; value: string | null }[]) {
@@ -460,6 +482,11 @@ async function saveInsert(values: { column: string; value: string | null }[]) {
   } catch (error) {
     insertError.value = messageOf(error, "Could not insert the row")
   }
+}
+
+function cancelInsert() {
+  insertOpen.value = false
+  insertError.value = ""
 }
 
 async function deleteSelection() {
@@ -547,6 +574,8 @@ watch(
   () => {
     restoredKey = ""
     selectedColumn.value = null
+    insertOpen.value = false
+    insertError.value = ""
     layout.value = { ...EMPTY_LAYOUT }
     const reset = { ...withPage(queryState.value, 0), filters: [], sort: [] }
     queryAwaitingPersistence.value = null
@@ -616,9 +645,17 @@ defineExpose({
         </div>
       </div>
     </AppBanner>
+    <AppBanner
+      v-if="!rowsQuery.isError.value && insertError"
+      tone="error"
+      class="data-grid__insert-error"
+      data-testid="grid-insert-error"
+    >
+      {{ insertError }}
+    </AppBanner>
 
     <div
-      v-else
+      v-if="!rowsQuery.isError.value"
       ref="gridFocus"
       class="data-grid__scroll"
       role="grid"
@@ -740,10 +777,18 @@ defineExpose({
               >{{ presentCell(cell).text }}</span>
             </td>
           </tr>
+          <RowInsertRow
+            v-if="insertOpen"
+            :columns="insertGridColumns"
+            :row-number="offset + rows.length + 1"
+            :saving="insertRow.isPending.value"
+            @save="saveInsert"
+            @cancel="cancelInsert"
+          />
         </tbody>
       </table>
       <AppEmptyState
-        v-if="result !== undefined && rows.length === 0"
+        v-if="result !== undefined && rows.length === 0 && !insertOpen"
         class="data-grid__state"
         text="No rows"
         data-testid="grid-empty"
@@ -792,15 +837,6 @@ defineExpose({
       @save="saveCell"
       @update:model-value="editor = null"
     />
-    <RowInsertDialog
-      v-if="insertOpen"
-      :model-value="true"
-      :columns="result?.columns ?? []"
-      :saving="insertRow.isPending.value"
-      :error="insertError"
-      @save="saveInsert"
-      @update:model-value="insertOpen = false"
-    />
   </div>
 </template>
 
@@ -823,6 +859,10 @@ defineExpose({
 
 .data-grid__state {
   margin: 12px;
+}
+
+.data-grid__insert-error {
+  margin: 8px 12px;
 }
 
 .data-grid__error {
@@ -908,9 +948,9 @@ defineExpose({
 }
 
 .data-grid__selector {
-  width: 48px;
-  min-width: 48px !important;
-  max-width: 48px !important;
+  width: 72px;
+  min-width: 72px !important;
+  max-width: 72px !important;
   text-align: center !important;
   background: var(--dp-surface);
 }

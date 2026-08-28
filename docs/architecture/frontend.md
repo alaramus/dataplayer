@@ -192,14 +192,16 @@ in the dialog and the successful mutation invalidates the page because a filter
 or sort change can move the row. A 409 stays in the editor and asks for a reload
 rather than overwriting a newer value.
 
-Insert opens a schema-driven form. Required columns are always supplied;
-optional columns must be explicitly included, and nullable included columns
-offer SQL `NULL` separately from empty text. Omitted fields never cross the
-boundary, so source defaults remain source defaults. Delete becomes available
-only when selection ranges span complete visible rows and every row has an
-opaque handle. One destructive confirmation sends all handles together; success
-clears the selection and invalidates the page, while any version conflict leaves
-every selected row intact.
+Insert adds a draft row at the end of the current page, in the same columns as
+the data it will become. Required columns are always supplied; entering an
+optional cell includes it, while a reset action returns it to the source
+default. Nullable cells offer SQL `NULL` separately from empty text. Omitted
+fields never cross the boundary, so source defaults remain source defaults.
+Hidden required columns are revealed when the draft opens. Delete becomes
+available only when selection ranges span complete visible rows and every row
+has an opaque handle. One destructive confirmation sends all handles together;
+success clears the selection and invalidates the page, while any version
+conflict leaves every selected row intact.
 
 Known deviations:
 

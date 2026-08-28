@@ -171,6 +171,7 @@ describe("the basic data grid", () => {
 
     await wrapper.get('[data-testid="grid-insert"]').trigger("click")
     await flushPromises()
+    expect(wrapper.get('[data-testid="grid-insert-row"]').element.tagName).toBe("TR")
     const input = document.body.querySelector<HTMLInputElement>(
       '[data-testid="grid-insert-value-name"]'
     )
