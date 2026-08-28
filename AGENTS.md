@@ -305,10 +305,16 @@ Any new blocking code needs the same treatment.
 
 ## Working rules
 
-1. **Tests first.** Every task so far went failing test → implementation →
-   passing test → commit.
+1. **Write tests with the change, but run validation only with the user's
+   explicit approval.** Several related changes may be accumulated before
+   validation. Do not automatically run tests, linters, type checks, builds or
+   end-to-end checks. When changes are ready to validate, report the proposed
+   commands and their scope, then wait for approval. A request that explicitly
+   asks to implement and test in the same task counts as approval. Prefer
+   targeted checks; run a full relevant suite only when the user approves it.
 2. **Never claim something works without running the check and reading the
-   output.** A green unit test is not evidence the user sees the result.
+   output.** If validation was not approved or run, say so explicitly. A green
+   unit test is not evidence the user sees the result.
 3. **`frontend/src/client` is generated.** Never edit it; regenerate with
    `bash scripts/generate-client.sh`.
 4. **`.env` is not tracked.** A new setting goes into `.env.example` too.
@@ -317,8 +323,9 @@ Any new blocking code needs the same treatment.
    Where the code knowingly falls short, it is listed as a known deviation next
    to the decision it departs from, not left to be rediscovered.
 
-A change is ready when every command in "What holds it up" in ENGINEERING.md
-touching the affected side is clean.
+A change is ready for validation when its implementation and tests are written.
+It is verified only after every user-approved command in "What holds it up" in
+ENGINEERING.md touching the affected side is clean.
 
 ## What comes next
 
