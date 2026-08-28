@@ -12,7 +12,8 @@ test("shows the structure of a relation beside its rows", async ({ page }) => {
   await openConnector(page, name)
   await pickSchema(page, "demo_lab")
 
-  await page.getByTestId("catalog-structure-app_users").click()
+  await openNode(page, "app_users")
+  await page.getByTestId("grid-structure").click()
 
   const view = page.getByTestId("structure-view")
   await expect(view).toBeVisible()
@@ -23,7 +24,7 @@ test("shows the structure of a relation beside its rows", async ({ page }) => {
     "demo_lab.organizations"
   )
 
-  await openNode(page, "app_users")
+  await page.locator('[data-testid^="workspace-tab-rows:"]').first().click()
   await expect(page.getByTestId("row-grid")).toBeVisible()
 
   // Put the inactive structure tab in a section of its own, leaving rows in
@@ -52,7 +53,8 @@ test("adds and drops a PostgreSQL column", async ({ page }) => {
   await createPostgresConnector(page, name)
   await openConnector(page, name)
   await pickSchema(page, "demo_lab")
-  await page.getByTestId("catalog-structure-tags").click()
+  await openNode(page, "tags")
+  await page.getByTestId("grid-structure").click()
 
   const view = page.getByTestId("structure-view")
   await view.getByTestId("structure-add-column").click()
@@ -63,6 +65,32 @@ test("adds and drops a PostgreSQL column", async ({ page }) => {
   await view.getByTestId(`structure-drop-${column}`).click()
   await page.getByTestId("confirm-accept").click()
   await expect(view.getByTestId(`structure-drop-${column}`)).toHaveCount(0)
+
+  await deleteConnector(page, name)
+})
+
+test("renames a PostgreSQL column", async ({ page }) => {
+  const name = `e2e-rename-${Date.now()}`
+  const original = `before_${Date.now()}`
+  const renamed = `after_${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await page.getByTestId("catalog-node-tags").click()
+  await page.getByTestId("grid-structure").click()
+
+  const view = page.getByTestId("structure-view")
+  await view.getByTestId("structure-add-column").click()
+  await page.getByTestId("structure-add-name").fill(original)
+  await page.getByTestId("structure-add-save").click()
+  await expect(view).toContainText(original)
+
+  await view.getByTestId(`structure-rename-${original}`).click()
+  await page.getByTestId("structure-rename-new-name").fill(renamed)
+  await page.getByTestId("structure-rename-save").click()
+  await expect(view.getByTestId(`structure-rename-${renamed}`)).toBeVisible()
+  await expect(view.getByTestId(`structure-rename-${original}`)).toHaveCount(0)
 
   await deleteConnector(page, name)
 })

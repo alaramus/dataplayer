@@ -3,7 +3,7 @@ import { Quasar } from "quasar"
 import { beforeEach, describe, expect, it } from "vitest"
 
 import type { FetchColumn } from "@/client"
-import { AppInput } from "@/shared/ui"
+import { AppInput, AppTooltip } from "@/shared/ui"
 import { at, first } from "@/shared/testing/collections"
 
 import FilterEditor from "./FilterEditor.vue"
@@ -124,7 +124,8 @@ describe("the filter band", () => {
     const wrapper = mountHeader([FILE_COLUMN])
     const command = wrapper.get('[data-testid="grid-filter-command"]')
 
-    expect(command.attributes("title")).toBe("This source does not support filtering")
+    expect(command.attributes("title")).toBeUndefined()
+    expect(command.findComponent(AppTooltip).exists()).toBe(true)
     expect(command.get('[data-testid="grid-filter"]').attributes("disabled")).toBeDefined()
   })
 })

@@ -1,5 +1,7 @@
 """Source-independent commands for changing relation columns."""
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
@@ -23,6 +25,41 @@ class DropColumnRequest(BaseModel):
 
     node_id: str
     name: str = Field(min_length=1, max_length=63)
+
+
+class RenameColumnRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+    name: str = Field(min_length=1, max_length=63)
+    new_name: str = Field(min_length=1, max_length=63)
+
+    @model_validator(mode="after")
+    def plain_and_changed_name(self) -> RenameColumnRequest:
+        if self.new_name.strip() != self.new_name:
+            raise ValueError("A column name cannot start or end with whitespace")
+        if self.name == self.new_name:
+            raise ValueError("The new column name must be different")
+        return self
+
+
+class ColumnDefaultRequest(BaseModel):
+    """Set a literal default, or remove the current default."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+    name: str = Field(min_length=1, max_length=63)
+    action: Literal["set", "drop"]
+    value: str | None = None
+
+    @model_validator(mode="after")
+    def value_matches_action(self) -> ColumnDefaultRequest:
+        if self.action == "set" and self.value is None:
+            raise ValueError("A literal value is required when setting a default")
+        if self.action == "drop" and self.value is not None:
+            raise ValueError("A value cannot be supplied when dropping a default")
+        return self
 
 
 class ColumnChangeResult(BaseModel):

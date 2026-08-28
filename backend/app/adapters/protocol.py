@@ -7,7 +7,9 @@ from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
+    ColumnDefaultRequest,
     DropColumnRequest,
+    RenameColumnRequest,
 )
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.relation import RelationModel
@@ -175,6 +177,22 @@ class SupportsAddColumn(Protocol):
 class SupportsDropColumn(Protocol):
     async def drop_column(self, request: DropColumnRequest) -> ColumnChangeResult:
         """Drop one exact column without an implicit cascade."""
+        ...
+
+
+@runtime_checkable
+class SupportsRenameColumn(Protocol):
+    async def rename_column(self, request: RenameColumnRequest) -> ColumnChangeResult:
+        """Rename one exact column while preserving its source identity."""
+        ...
+
+
+@runtime_checkable
+class SupportsColumnDefault(Protocol):
+    async def change_column_default(
+        self, request: ColumnDefaultRequest
+    ) -> ColumnChangeResult:
+        """Set a literal column default or remove it."""
         ...
 
 

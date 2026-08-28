@@ -194,8 +194,9 @@ test("states that a CSV cannot be filtered or sorted", async ({ page }) => {
 
   await expect(page.getByTestId("grid-filter")).toBeDisabled()
   await expect(page.getByTestId("grid-sort")).toBeDisabled()
-  await expect(page.getByTestId("grid-filter-command")).toHaveAttribute(
-    "title",
+  await page.getByTestId("grid-filter-command").hover()
+  await expect(page.locator(".app-tooltip")).toHaveCount(1)
+  await expect(page.locator(".app-tooltip")).toHaveText(
     "This source does not support filtering"
   )
 

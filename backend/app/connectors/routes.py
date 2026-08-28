@@ -25,6 +25,7 @@ from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
+    ColumnDefaultRequest,
     DropColumnRequest,
     RenameColumnRequest,
 )
@@ -38,6 +39,7 @@ from app.adapters.protocol import (
     ParsesConnectionString,
     SupportsAddColumn,
     SupportsCatalog,
+    SupportsColumnDefault,
     SupportsConnectionString,
     SupportsDelete,
     SupportsDropColumn,
@@ -789,6 +791,27 @@ async def rename_column(
             },
         )
     return await _change_column(lambda: adapter.rename_column(request))
+
+
+@router.patch("/{connector_id}/columns/default", response_model=ColumnChangeResult)
+async def change_column_default(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: ColumnDefaultRequest,
+) -> ColumnChangeResult:
+    """Set one literal column default, or remove its current default."""
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    if not isinstance(adapter, SupportsColumnDefault):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support changing column defaults",
+                "error_kind": "config",
+            },
+        )
+    return await _change_column(lambda: adapter.change_column_default(request))
 
 
 @router.get("/{connector_id}/catalog/path", response_model=list[CatalogNode])

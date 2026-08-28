@@ -5,7 +5,9 @@ from psycopg import sql
 from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
+    ColumnDefaultRequest,
     DropColumnRequest,
+    RenameColumnRequest,
 )
 from app.adapters.postgres.column_types import POSTGRES_COLUMN_TYPES
 from app.adapters.postgres.relation import PostgresRelation
@@ -47,6 +49,47 @@ class PostgresColumns:
             sql.Identifier(model.schema_name, model.name),
             sql.Identifier(request.name),
         )
+        await self._session.schema_change(statement.as_string())
+        return ColumnChangeResult(name=request.name)
+
+    async def rename_column(self, request: RenameColumnRequest) -> ColumnChangeResult:
+        model = await self._relation.relation_model(request.node_id)
+        self._check_supported(model)
+        names = {column.name for column in model.columns}
+        if request.name not in names:
+            raise ValueError(f'Relation has no column "{request.name}"')
+        if request.new_name in names:
+            raise ValueError(f'Relation already has a column "{request.new_name}"')
+        if len(request.new_name.encode("utf-8")) > 63:
+            raise ValueError("A PostgreSQL column name cannot exceed 63 bytes")
+        statement = sql.SQL("ALTER TABLE {} RENAME COLUMN {} TO {}").format(
+            sql.Identifier(model.schema_name, model.name),
+            sql.Identifier(request.name),
+            sql.Identifier(request.new_name),
+        )
+        await self._session.schema_change(statement.as_string())
+        return ColumnChangeResult(name=request.new_name)
+
+    async def change_column_default(
+        self, request: ColumnDefaultRequest
+    ) -> ColumnChangeResult:
+        model = await self._relation.relation_model(request.node_id)
+        self._check_supported(model)
+        column = next((item for item in model.columns if item.name == request.name), None)
+        if column is None:
+            raise ValueError(f'Relation has no column "{request.name}"')
+        if column.generated is not None:
+            raise ValueError("A generated column cannot have a default")
+        statement = sql.SQL("ALTER TABLE {} ALTER COLUMN {} ").format(
+            sql.Identifier(model.schema_name, model.name),
+            sql.Identifier(request.name),
+        )
+        if request.action == "drop":
+            statement += sql.SQL("DROP DEFAULT")
+        else:
+            # A quoted string literal is deliberately not an SQL expression.
+            # PostgreSQL coerces it using the target column's own type.
+            statement += sql.SQL("SET DEFAULT {}").format(sql.Literal(request.value))
         await self._session.schema_change(statement.as_string())
         return ColumnChangeResult(name=request.name)
 

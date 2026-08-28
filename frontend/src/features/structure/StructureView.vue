@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, toRef } from "vue"
 
-import { useAddColumn, useDropColumn, useRelationModel } from "@/features/structure/api"
+import {
+  useAddColumn,
+  useColumnDefault,
+  useDropColumn,
+  useRelationModel,
+  useRenameColumn,
+} from "@/features/structure/api"
 import { badgesFor, foreignKeyLabel } from "@/features/structure/model"
 import type { ForeignKey } from "@/features/structure/model"
 import { messageOf } from "@/shared/api/errors"
@@ -20,6 +26,8 @@ import {
 } from "@/shared/ui"
 
 import AddColumnDialog from "./AddColumnDialog.vue"
+import ColumnDefaultDialog from "./ColumnDefaultDialog.vue"
+import RenameColumnDialog from "./RenameColumnDialog.vue"
 
 const props = defineProps<{ connectorId: string; nodeId: string }>()
 const connectorId = toRef(props, "connectorId")
@@ -27,11 +35,17 @@ const nodeId = toRef(props, "nodeId")
 const query = useRelationModel(connectorId, nodeId)
 const addColumn = useAddColumn(connectorId, nodeId)
 const dropColumn = useDropColumn(connectorId, nodeId)
+const renameColumn = useRenameColumn(connectorId, nodeId)
+const columnDefault = useColumnDefault(connectorId, nodeId)
 const confirm = useConfirm()
 const toast = useToast()
 const addOpen = ref(false)
 const addError = ref("")
 const dropping = ref<string | null>(null)
+const renaming = ref<string | null>(null)
+const renameError = ref("")
+const defaultColumn = ref<{ name: string; currentDefault: string | null } | null>(null)
+const defaultError = ref("")
 
 defineExpose({ reload: async () => void (await query.refetch()) })
 
@@ -50,6 +64,8 @@ const rows = computed(() =>
     type: column.type.sql,
     nullable: column.nullable ? "yes" : "no",
     default: column.generated ?? column.default ?? "",
+    currentDefault: column.default ?? null,
+    generated: column.generated !== null && column.generated !== undefined,
     keys: query.data.value === undefined ? [] : badgesFor(query.data.value, column.name),
   }))
 )
@@ -108,6 +124,47 @@ async function drop(name: string) {
     toast.error(messageOf(error, "Could not drop the column"))
   } finally {
     dropping.value = null
+  }
+}
+
+function openRename(name: string) {
+  renameError.value = ""
+  renaming.value = name
+}
+
+async function saveRename(newName: string) {
+  const name = renaming.value
+  if (name === null) return
+  renameError.value = ""
+  try {
+    await renameColumn.mutateAsync({ node_id: props.nodeId, name, new_name: newName })
+    renaming.value = null
+    toast.success(`Column ${name} renamed to ${newName}`)
+  } catch (error) {
+    renameError.value = messageOf(error, "Could not rename the column")
+  }
+}
+
+function openDefault(name: string, currentDefault: string | null) {
+  defaultError.value = ""
+  defaultColumn.value = { name, currentDefault }
+}
+
+async function changeDefault(action: "set" | "drop", value?: string) {
+  const column = defaultColumn.value
+  if (column === null) return
+  defaultError.value = ""
+  try {
+    await columnDefault.mutateAsync({
+      node_id: props.nodeId,
+      name: column.name,
+      action,
+      ...(action === "set" ? { value: value ?? "" } : {}),
+    })
+    defaultColumn.value = null
+    toast.success(action === "set" ? `Default for ${column.name} set` : `Default for ${column.name} dropped`)
+  } catch (error) {
+    defaultError.value = messageOf(error, "Could not change the default")
   }
 }
 </script>
@@ -171,6 +228,20 @@ async function drop(name: string) {
           </template>
           <template #body-cell-actions="cellProps">
             <q-td :props="cellProps">
+              <AppIconButton
+                icon="data_object"
+                :tooltip="cellProps.row.generated ? 'A generated column cannot have a default' : `Change default for ${cellProps.row.name}`"
+                :disable="query.data.value?.column_changes_supported !== true || cellProps.row.generated"
+                :data-testid="`structure-default-${cellProps.row.name}`"
+                @click="openDefault(String(cellProps.row.name), cellProps.row.currentDefault)"
+              />
+              <AppIconButton
+                icon="edit"
+                :tooltip="query.data.value?.column_changes_supported === true ? `Rename column ${cellProps.row.name}` : query.data.value?.column_changes_reason ?? 'This column cannot be renamed'"
+                :disable="query.data.value?.column_changes_supported !== true"
+                :data-testid="`structure-rename-${cellProps.row.name}`"
+                @click="openRename(String(cellProps.row.name))"
+              />
               <AppIconButton
                 icon="delete_outline"
                 :tooltip="query.data.value?.column_changes_supported === true ? `Drop column ${cellProps.row.name}` : query.data.value?.column_changes_reason ?? 'This column cannot be dropped'"
@@ -261,6 +332,26 @@ async function drop(name: string) {
       :error="addError"
       @save="saveAdd"
       @update:model-value="addOpen = false"
+    />
+    <RenameColumnDialog
+      v-if="renaming !== null"
+      :model-value="true"
+      :name="renaming"
+      :saving="renameColumn.isPending.value"
+      :error="renameError"
+      @save="saveRename"
+      @update:model-value="renaming = null"
+    />
+    <ColumnDefaultDialog
+      v-if="defaultColumn !== null"
+      :model-value="true"
+      :name="defaultColumn.name"
+      :current-default="defaultColumn.currentDefault"
+      :saving="columnDefault.isPending.value"
+      :error="defaultError"
+      @save="changeDefault('set', $event)"
+      @drop="changeDefault('drop')"
+      @update:model-value="defaultColumn = null"
     />
   </div>
 </template>

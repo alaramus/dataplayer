@@ -45,6 +45,6 @@ export async function editConnector(page: Page, name: string) {
 
 export async function deleteConnector(page: Page, name: string) {
   await editConnector(page, name)
-  await page.getByTestId("delete-connector").click()
+  await page.locator('[data-testid="delete-connector"][tabindex="0"]').click()
   await page.getByTestId("confirm-accept").click()
 }

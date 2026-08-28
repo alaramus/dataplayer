@@ -14,6 +14,9 @@ import type {
   connectorsAddColumnData,
   connectorsAddColumnErrors,
   connectorsAddColumnResponses,
+  connectorsChangeColumnDefaultData,
+  connectorsChangeColumnDefaultErrors,
+  connectorsChangeColumnDefaultResponses,
   connectorsCheckConnectorData,
   connectorsCheckConnectorErrors,
   connectorsCheckConnectorResponses,
@@ -957,6 +960,30 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/columns",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Change Column Default
+   *
+   * Set one literal column default, or remove its current default.
+   */
+  public static changeColumnDefault<ThrowOnError extends boolean = true>(
+    options: Options<connectorsChangeColumnDefaultData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      connectorsChangeColumnDefaultResponses,
+      connectorsChangeColumnDefaultErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/columns/default",
       ...options,
       headers: {
         "Content-Type": "application/json",

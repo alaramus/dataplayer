@@ -98,4 +98,55 @@ describe("relation column changes", () => {
     })
     wrapper.unmount()
   })
+
+  it("renames the exact column without a destructive confirmation", async () => {
+    const rename = vi.spyOn(ConnectorsService, "renameColumn").mockResolvedValue({
+      data: { name: "display_name" },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="structure-rename-name"]').trigger("click")
+    await flushPromises()
+    wrapper.findComponent(AppInput).vm.$emit("update:modelValue", "display_name")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="structure-rename-save"]')?.click()
+    await flushPromises()
+
+    expect(rename).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: { node_id: "public.projects", name: "name", new_name: "display_name" },
+    })
+    wrapper.unmount()
+  })
+
+  it("sets an exact literal column default", async () => {
+    const changeDefault = vi.spyOn(ConnectorsService, "changeColumnDefault").mockResolvedValue({
+      data: { name: "name" },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="structure-default-name"]').trigger("click")
+    await flushPromises()
+    const input = document.body.querySelector<HTMLInputElement>(
+      '[data-testid="structure-default-value"]'
+    )
+    if (input === null) throw new Error("default input did not open")
+    input.value = "Robert'); DROP TABLE projects; --"
+    input.dispatchEvent(new Event("input", { bubbles: true }))
+    document.body.querySelector<HTMLElement>('[data-testid="structure-default-save"]')?.click()
+    await flushPromises()
+
+    expect(changeDefault).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: {
+        node_id: "public.projects",
+        name: "name",
+        action: "set",
+        value: "Robert'); DROP TABLE projects; --",
+      },
+    })
+    wrapper.unmount()
+  })
 })

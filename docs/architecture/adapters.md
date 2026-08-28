@@ -4,7 +4,7 @@ What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
-D20, D21, D22, D23, D25, D26, D27.
+D20, D21, D22, D23, D25, D26, D27, D29, D30.
 
 ## What exists today
 
@@ -370,11 +370,45 @@ Known deviations:
 - **The first type vocabulary is deliberately small.** It covers common scalar
   PostgreSQL types, without length, precision, arrays, domains or user-defined
   types. Expanding it needs typed option parameters, not a raw SQL escape hatch.
-- **Add has no default expression.** A non-null column can therefore be added
-  only where existing rows permit it. Defaults need their own value/expression
-  distinction before they can cross the boundary.
-- **Columns cannot yet be renamed or altered.** Those operations need explicit
-  conversion and dependency semantics rather than variants of add or drop.
+- **Add has no inline default.** A non-null column can therefore be added only
+  where existing rows permit it. A literal default can be assigned afterward;
+  source expressions remain outside the boundary.
+- **Columns cannot yet be altered.** Type conversion and default expressions
+  need explicit value/expression and `USING` semantics.
+
+## D29. Renaming a column preserves its source identity and lets the source maintain dependencies
+
+Rename is its own optional capability, not add followed by drop. The request
+names one current column and one new name; fresh relation metadata rejects a
+missing source, a duplicate target and an unchanged name. Both identifiers go
+through the driver's identifier composer, and PostgreSQL's 63-byte ceiling is
+checked before the server can truncate the target silently.
+
+PostgreSQL performs `ALTER TABLE … RENAME COLUMN … TO …` without `CASCADE`.
+The column keeps its identity and data, while PostgreSQL updates constraints,
+indexes and other catalog dependencies that refer to that identity. Objects
+whose own exposed column name is independent — a view output, for example —
+keep their own name. Structure and rows are invalidated after success because
+both cached projections name the old column.
+
+## D30. A column default entered by a user is a literal value, never a source expression
+
+Changing a default is an optional adapter capability with two closed actions:
+set one text value or drop the default. The text crosses the boundary as data,
+not SQL. PostgreSQL quotes it as a literal and asks the target column type to
+coerce it; an invalid value is rejected by the source without storing anything.
+This preserves empty strings and safely handles quotes while deliberately making
+functions, casts and other expressions impossible to enter through the form.
+
+Generated columns are rejected explicitly. After success, relation metadata and
+rows are invalidated: metadata exposes the new expression and inserts may now
+produce different rows when that column is omitted.
+
+Known deviations:
+
+- **Source expressions are not supported.** Values such as `now()` are stored as
+  the literal text `now()` where the column type accepts text. Expressions need
+  a separate, source-owned vocabulary rather than a raw SQL field.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

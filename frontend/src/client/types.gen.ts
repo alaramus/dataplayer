@@ -294,6 +294,30 @@ export type ColumnChangeResult = {
 }
 
 /**
+ * ColumnDefaultRequest
+ *
+ * Set a literal default, or remove the current default.
+ */
+export type ColumnDefaultRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Action
+   */
+  action: "set" | "drop"
+  /**
+   * Value
+   */
+  value?: string | null
+}
+
+/**
  * ColumnType
  *
  * A type's DDL spelling and its value semantics.
@@ -2608,6 +2632,38 @@ export type connectorsAddColumnResponses = {
 
 export type connectorsAddColumnResponse =
   connectorsAddColumnResponses[keyof connectorsAddColumnResponses]
+
+export type connectorsChangeColumnDefaultData = {
+  body: ColumnDefaultRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/columns/default"
+}
+
+export type connectorsChangeColumnDefaultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsChangeColumnDefaultError =
+  connectorsChangeColumnDefaultErrors[keyof connectorsChangeColumnDefaultErrors]
+
+export type connectorsChangeColumnDefaultResponses = {
+  /**
+   * Successful Response
+   */
+  200: ColumnChangeResult
+}
+
+export type connectorsChangeColumnDefaultResponse =
+  connectorsChangeColumnDefaultResponses[keyof connectorsChangeColumnDefaultResponses]
 
 export type connectorsReadNodePathData = {
   body?: never

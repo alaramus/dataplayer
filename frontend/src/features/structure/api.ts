@@ -3,7 +3,12 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
-import type { AddColumnRequest, DropColumnRequest } from "@/client"
+import type {
+  AddColumnRequest,
+  ColumnDefaultRequest,
+  DropColumnRequest,
+  RenameColumnRequest,
+} from "@/client"
 
 export const relationModelKey = (connectorId: string, nodeId: string) =>
   ["relationModel", connectorId, nodeId] as const
@@ -53,6 +58,22 @@ export function useDropColumn(connectorId: Ref<string>, nodeId: Ref<string>) {
   return useStructureMutation(connectorId, nodeId, async (id, body: DropColumnRequest) =>
     (
       await ConnectorsService.dropColumn({ path: { connector_id: id }, body })
+    ).data
+  )
+}
+
+export function useRenameColumn(connectorId: Ref<string>, nodeId: Ref<string>) {
+  return useStructureMutation(connectorId, nodeId, async (id, body: RenameColumnRequest) =>
+    (
+      await ConnectorsService.renameColumn({ path: { connector_id: id }, body })
+    ).data
+  )
+}
+
+export function useColumnDefault(connectorId: Ref<string>, nodeId: Ref<string>) {
+  return useStructureMutation(connectorId, nodeId, async (id, body: ColumnDefaultRequest) =>
+    (
+      await ConnectorsService.changeColumnDefault({ path: { connector_id: id }, body })
     ).data
   )
 }

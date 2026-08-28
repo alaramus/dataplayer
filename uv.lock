@@ -101,8 +101,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "alembic", specifier = "==1.19.1" },
-    { name = "cryptography", specifier = "==50.0.1" },
+    { name = "alembic", specifier = ">=1.12.1,<2.0.0" },
+    { name = "cryptography", specifier = ">=50.0.1" },
     { name = "email-validator", specifier = ">=2.1.0.post1,<3.0.0.0" },
     { name = "emails", specifier = ">=1.1.2,<2.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.141.1,<1.0.0" },
@@ -121,10 +121,10 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "coverage", specifier = "==7.15.4" },
+    { name = "coverage", specifier = ">=7.4.3,<8.0.0" },
     { name = "httpx-ws", specifier = ">=0.9.0" },
     { name = "import-linter", specifier = ">=2.0,<3.0" },
-    { name = "mypy", specifier = "==2.3.1" },
+    { name = "mypy", specifier = ">=1.8.0,<3.0.0" },
     { name = "pytest", specifier = ">=7.4.3,<10.0.0" },
     { name = "pytest-asyncio", specifier = ">=1.0.0,<2.0.0" },
     { name = "ruff", specifier = ">=0.2.2,<1.0.0" },

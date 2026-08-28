@@ -91,4 +91,31 @@ describe("the column manager", () => {
 
     expect(wrapper.get('[data-testid="grid-pin-current"]').attributes("disabled")).toBeDefined()
   })
+
+  it("uses one component tooltip for disabled commands, without a native duplicate", () => {
+    const wrapper = mount(GridHeader, {
+      props: {
+        pageSize: 100,
+        columns: [],
+        filters: [],
+        sort: [],
+        layout: defaultColumnLayout([]),
+        selectedColumn: null,
+        canInsert: false,
+        insertReason: "Insert unavailable",
+        canDelete: false,
+        deleteReason: "Delete unavailable",
+      },
+      global: { plugins: [Quasar] },
+    })
+
+    for (const testId of [
+      "grid-filter-command",
+      "grid-sort-command",
+      "grid-insert-command",
+      "grid-delete-command",
+    ]) {
+      expect(wrapper.get(`[data-testid="${testId}"]`).attributes("title")).toBeUndefined()
+    }
+  })
 })

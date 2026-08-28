@@ -5,7 +5,9 @@ from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
+    ColumnDefaultRequest,
     DropColumnRequest,
+    RenameColumnRequest,
 )
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.postgres.catalog import PostgresCatalog
@@ -130,6 +132,14 @@ class PostgresAdapter:
 
     async def drop_column(self, request: DropColumnRequest) -> ColumnChangeResult:
         return await self._columns.drop_column(request)
+
+    async def rename_column(self, request: RenameColumnRequest) -> ColumnChangeResult:
+        return await self._columns.rename_column(request)
+
+    async def change_column_default(
+        self, request: ColumnDefaultRequest
+    ) -> ColumnChangeResult:
+        return await self._columns.change_column_default(request)
 
 
 @register(
