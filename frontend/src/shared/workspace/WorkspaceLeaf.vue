@@ -379,7 +379,7 @@ const overlayStyle = computed((): CSSProperties => {
   gap: 4px;
   padding: 4px 8px;
   border: none;
-  border: 1px solid transparent;
+  border: none;
   border-radius: var(--dp-radius-control);
   background: transparent;
   /* A native button takes its colour from the browser, which is black, and
@@ -392,8 +392,8 @@ const overlayStyle = computed((): CSSProperties => {
   white-space: nowrap;
 }
 .workspace-leaf__tab--active {
-  border-color: var(--dp-border);
   background: var(--dp-surface);
+  box-shadow: inset 0 0 0 1px var(--dp-border);
   font-weight: 500;
 }
 .workspace-leaf__icon {

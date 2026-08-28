@@ -22,7 +22,6 @@ import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
 import {
   AppButton,
   AppCopyButton,
-  AppIconButton,
   AppInput,
   AppSpinner,
   AppToggle,

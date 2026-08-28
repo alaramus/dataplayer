@@ -172,13 +172,8 @@ describe("the basic data grid", () => {
     await wrapper.get('[data-testid="grid-insert"]').trigger("click")
     await flushPromises()
     expect(wrapper.get('[data-testid="grid-insert-row"]').element.tagName).toBe("TR")
-    const input = document.body.querySelector<HTMLInputElement>(
-      '[data-testid="grid-insert-value-name"]'
-    )
-    expect(input).not.toBeNull()
-    if (input !== null) input.value = "Ada"
-    input?.dispatchEvent(new Event("input", { bubbles: true }))
-    document.body.querySelector<HTMLElement>('[data-testid="grid-insert-save"]')?.click()
+    await wrapper.get('[data-testid="grid-insert-value-name"]').setValue("Ada")
+    await wrapper.get('[data-testid="grid-insert-save"]').trigger("click")
     await flushPromises()
 
     expect(insert).toHaveBeenCalledWith({
