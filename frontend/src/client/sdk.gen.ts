@@ -32,6 +32,9 @@ import type {
   connectorsDescribeDraftData,
   connectorsDescribeDraftErrors,
   connectorsDescribeDraftResponses,
+  connectorsDownloadPageData,
+  connectorsDownloadPageErrors,
+  connectorsDownloadPageResponses,
   connectorsDropColumnData,
   connectorsDropColumnErrors,
   connectorsDropColumnResponses,
@@ -62,6 +65,9 @@ import type {
   connectorsReadRelationModelData,
   connectorsReadRelationModelErrors,
   connectorsReadRelationModelResponses,
+  connectorsRenameColumnData,
+  connectorsRenameColumnErrors,
+  connectorsRenameColumnResponses,
   connectorsRunActionData,
   connectorsRunActionErrors,
   connectorsRunActionResponses,
@@ -772,6 +778,30 @@ export class ConnectorsService {
   }
 
   /**
+   * Download Page
+   *
+   * Re-read, save and return the same bounded page the grid describes.
+   */
+  public static downloadPage<ThrowOnError extends boolean = true>(
+    options: Options<connectorsDownloadPageData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsDownloadPageResponses,
+      connectorsDownloadPageErrors,
+      ThrowOnError
+    >({
+      responseType: "text",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/downloads/page",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
    * Update Cell
    *
    * Change one cell if the fetched row version is still current.
@@ -874,6 +904,30 @@ export class ConnectorsService {
     return (options.client ?? client).delete<
       connectorsDropColumnResponses,
       connectorsDropColumnErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/columns",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Rename Column
+   *
+   * Rename one exact column without recreating it or its data.
+   */
+  public static renameColumn<ThrowOnError extends boolean = true>(
+    options: Options<connectorsRenameColumnData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      connectorsRenameColumnResponses,
+      connectorsRenameColumnErrors,
       ThrowOnError
     >({
       responseType: "json",

@@ -182,22 +182,13 @@ function onOpen(node: ListNode) {
       title: node.label,
       connectorName: props.title,
       adapterType: props.adapterType,
+      describable: node.describable,
     })
     return
   }
   // Said rather than left silent: a picture opens no tab, and without a word
   // the click looks like it did nothing at all.
   toast.info(`${node.label} cannot be read as rows`)
-}
-
-function onDescribe(node: ListNode) {
-  workspace.openStructure({
-    connectorId: props.connectorId,
-    nodeId: node.id,
-    title: node.label,
-    connectorName: props.title,
-    adapterType: props.adapterType,
-  })
 }
 
 function onToggle(id: string, on: boolean) {
@@ -318,7 +309,6 @@ async function afterAction(reloadNodeIds: (string | null)[]) {
       :has-parent="level.path.value.length > 1"
       :revealed="revealedNode"
       @open="onOpen"
-      @describe="onDescribe"
       @up="level.up"
       @toggle="onToggle"
       @toggle-all="level.toggleAll"

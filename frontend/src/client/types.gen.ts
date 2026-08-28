@@ -576,6 +576,52 @@ export type DirectoryNode = {
 }
 
 /**
+ * DownloadPageRequest
+ *
+ * The bounded page to save, in the column order visible in the grid.
+ */
+export type DownloadPageRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Limit
+   */
+  limit?: number
+  /**
+   * Offset
+   */
+  offset?: number
+  /**
+   * Filters
+   */
+  filters?: Array<
+    | ({
+        op: "contains" | "eq" | "gt" | "gte" | "lt" | "lte" | "ne" | "starts_with"
+      } & ScalarFilter)
+    | ({
+        op: "in"
+      } & InFilter)
+    | ({
+        op: "is_not_null" | "is_null"
+      } & NullFilter)
+  >
+  /**
+   * Sort
+   */
+  sort?: Array<Sort>
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Columns
+   */
+  columns: Array<string>
+}
+
+/**
  * DropColumnRequest
  */
 export type DropColumnRequest = {
@@ -1129,6 +1175,24 @@ export type RelationModel = {
    * Column Type Options
    */
   column_type_options?: Array<ColumnTypeOption>
+}
+
+/**
+ * RenameColumnRequest
+ */
+export type RenameColumnRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * New Name
+   */
+  new_name: string
 }
 
 /**
@@ -2289,6 +2353,38 @@ export type connectorsReadCatalogResponses = {
 export type connectorsReadCatalogResponse =
   connectorsReadCatalogResponses[keyof connectorsReadCatalogResponses]
 
+export type connectorsDownloadPageData = {
+  body: DownloadPageRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/downloads/page"
+}
+
+export type connectorsDownloadPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsDownloadPageError =
+  connectorsDownloadPageErrors[keyof connectorsDownloadPageErrors]
+
+export type connectorsDownloadPageResponses = {
+  /**
+   * The visible table page as CSV
+   */
+  200: Blob | File
+}
+
+export type connectorsDownloadPageResponse =
+  connectorsDownloadPageResponses[keyof connectorsDownloadPageResponses]
+
 export type connectorsUpdateCellData = {
   body: UpdateCellRequest
   path: {
@@ -2449,6 +2545,38 @@ export type connectorsDropColumnResponses = {
 
 export type connectorsDropColumnResponse =
   connectorsDropColumnResponses[keyof connectorsDropColumnResponses]
+
+export type connectorsRenameColumnData = {
+  body: RenameColumnRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/columns"
+}
+
+export type connectorsRenameColumnErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsRenameColumnError =
+  connectorsRenameColumnErrors[keyof connectorsRenameColumnErrors]
+
+export type connectorsRenameColumnResponses = {
+  /**
+   * Successful Response
+   */
+  200: ColumnChangeResult
+}
+
+export type connectorsRenameColumnResponse =
+  connectorsRenameColumnResponses[keyof connectorsRenameColumnResponses]
 
 export type connectorsAddColumnData = {
   body: AddColumnRequest

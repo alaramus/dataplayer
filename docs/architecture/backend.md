@@ -73,6 +73,8 @@ POST   /api/v1/connectors/parse-url
 GET    /api/v1/connectors/{connector_id}/catalog
 GET    /api/v1/connectors/{connector_id}/relation-model
 POST   /api/v1/connectors/{connector_id}/fetch
+POST   /api/v1/connectors/{connector_id}/downloads/page
+PATCH  /api/v1/connectors/{connector_id}/columns
 POST   /api/v1/connectors/{connector_id}/actions
 POST   /api/v1/connectors/{connector_id}/actions/{action_name}
 POST   /api/v1/connectors/{connector_id}/actions/{action_name}/file

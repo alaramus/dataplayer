@@ -5,6 +5,7 @@ import type { Ref } from "vue"
 import { ConnectorsService } from "@/client"
 import type {
   DeleteRowsRequest,
+  DownloadPageRequest,
   FetchRequest,
   FetchResult,
   InsertRowRequest,
@@ -84,4 +85,20 @@ export function useDeleteRows(connectorId: Ref<string>) {
       })
     ).data
   )
+}
+
+export function useDownloadPage(connectorId: Ref<string>) {
+  return useMutation({
+    mutationFn: async (body: DownloadPageRequest) => {
+      const response = await ConnectorsService.downloadPage({
+        path: { connector_id: connectorId.value },
+        body,
+        responseType: "blob",
+      })
+      return {
+        blob: response.data,
+        disposition: response.headers["content-disposition"] as string | undefined,
+      }
+    },
+  })
 }

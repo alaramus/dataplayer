@@ -3,9 +3,11 @@ import uuid
 from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, cast
 
+from anyio import to_thread
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
+from starlette.responses import FileResponse
 
 from app.adapters.actions import (
     Action,
@@ -24,8 +26,9 @@ from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
     DropColumnRequest,
+    RenameColumnRequest,
 )
-from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.fetch import DownloadPageRequest, FetchRequest, FetchResult
 from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
@@ -42,6 +45,7 @@ from app.adapters.protocol import (
     SupportsInsert,
     SupportsNodePath,
     SupportsRelationModel,
+    SupportsRenameColumn,
     SupportsUpdate,
 )
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
@@ -57,7 +61,7 @@ from app.adapters.update import (
     UpdateCellRequest,
     UpdateCellResult,
 )
-from app.connectors import crud, health, service
+from app.connectors import crud, downloads, health, service
 from app.connectors.models import (
     Connector,
     ConnectorCreate,
@@ -501,6 +505,62 @@ async def read_catalog(
         )
 
 
+@router.post(
+    "/{connector_id}/downloads/page",
+    response_class=FileResponse,
+    responses={
+        200: {
+            "content": {
+                "text/csv": {"schema": {"type": "string", "format": "binary"}}
+            },
+            "description": "The visible table page as CSV",
+        }
+    },
+)
+async def download_page(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: DownloadPageRequest,
+) -> FileResponse:
+    """Re-read, save and return the same bounded page the grid describes."""
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    if not isinstance(adapter, SupportsFetch):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support reading rows",
+                "error_kind": "config",
+            },
+        )
+    fetch_request = FetchRequest.model_validate(
+        request.model_dump(exclude={"title", "columns"})
+    )
+    try:
+        result = await adapter.fetch(fetch_request)
+        path = await to_thread.run_sync(
+            lambda: downloads.save_csv_page(
+                home=storage.home_dir(current_user.id),
+                connector_id=connector_id,
+                title=request.title,
+                columns=request.columns,
+                result=result,
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from None
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from None
+    return FileResponse(path, media_type="text/csv", filename=path.name)
+
+
 @router.patch("/{connector_id}/rows/cell", response_model=UpdateCellResult)
 async def update_cell(
     session: SessionDep,
@@ -708,6 +768,27 @@ async def drop_column(
             },
         )
     return await _change_column(lambda: adapter.drop_column(request))
+
+
+@router.patch("/{connector_id}/columns", response_model=ColumnChangeResult)
+async def rename_column(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: RenameColumnRequest,
+) -> ColumnChangeResult:
+    """Rename one exact column without recreating it or its data."""
+    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    if not isinstance(adapter, SupportsRenameColumn):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support renaming columns",
+                "error_kind": "config",
+            },
+        )
+    return await _change_column(lambda: adapter.rename_column(request))
 
 
 @router.get("/{connector_id}/catalog/path", response_model=list[CatalogNode])

@@ -4,7 +4,7 @@ How a screen is built, where state lives, and what the component kit is. The
 panel engine, the layout and floating windows are in
 [workspace.md](workspace.md).
 
-Decisions here: D6, D7, D11, D24.
+Decisions here: D6, D7, D11, D24, D28.
 
 ## What exists today
 
@@ -217,6 +217,32 @@ Known deviations:
   connector/node pair; it cannot yet be shared or selected as a named view.
 - **Clipboard and selection stop at the current page.** Exporting rows that are
   not loaded needs a server-side export capability, not a larger client page.
+
+## D28. A download is a fresh copy of the bounded visible page, kept in personal storage
+
+Download repeats the grid's current `FetchRequest`, including its bounded
+limit, offset, filters and ordered sort, then writes only the columns visible
+in the controlled layout, in their displayed order. It is available for every
+source that can answer `SupportsFetch`: CSV is a representation of the common
+table boundary rather than a source-specific adapter capability.
+
+The server writes UTF-8 CSV to
+`downloads/<connector-id>/<table>-<timestamp>.csv` inside the current user's
+personal directory and returns that same file as the HTTP attachment. SQL null
+is `\N`, so it remains distinct from an empty string. The connector id in the
+path preserves provenance even when two connections or tables have the same
+display name.
+
+The client does not upload the rows it already holds. The server authenticates
+the connector, reads the bounded page again and validates the requested visible
+columns against the fresh answer. Consequently, a source changed between the
+screen read and the press of Download may produce a file newer than the pixels
+still on screen. Freezing an exact earlier page would require a source-owned
+snapshot or version token, not trusting client-supplied cells.
+
+Commands concerning an open table live in its grid header. **Show structure**
+therefore opens the structure beside the rows and is no longer repeated on
+every describable catalog row; the catalog remains navigation and selection.
 
 ## Screens
 

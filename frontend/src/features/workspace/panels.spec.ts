@@ -37,6 +37,7 @@ const samples: Record<PanelKind, Panel> = {
     title: "orders",
     connectorName: "local pg",
     adapterType: "postgres",
+    describable: true,
   },
   structure: {
     id: structurePanelId("c1", "public.orders"),

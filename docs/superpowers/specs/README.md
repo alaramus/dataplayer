@@ -37,6 +37,8 @@
 | 2026-08-27 | [Редактирование данных](2026-08-27-data-editing-design.md) | D25: versioned row handle и optimistic update одной ячейки |
 | 2026-08-27 | [Вставка и удаление строк](2026-08-27-row-insert-delete-design.md) | D26: omitted/default/NULL и атомарное bulk delete |
 | 2026-08-27 | [Добавление и удаление колонок](2026-08-27-column-add-drop-design.md) | D27: source-owned типы и DDL без клиентского SQL |
+| 2026-08-28 | [Скачивание видимой страницы и команды открытой таблицы](2026-08-28-page-download-design.md) | D28: ограниченная CSV-страница хранится в личной папке |
+| 2026-08-28 | [Переименование колонки](2026-08-28-column-rename-design.md) | D29: rename сохраняет identity и source-owned зависимости |
 
 Планы реализации — в [../plans/](../plans/). Их пять: два на реестр
 коннекторов, по одному на рабочую область, relation model и grid; остальные

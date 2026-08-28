@@ -43,11 +43,15 @@ function mockPages() {
   })
 }
 
-function mountGrid() {
+function mountGrid(props: { title?: string; canDescribe?: boolean } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
-  return mount(withWindowHost(DataGrid, { connectorId: "connector-1", nodeId: "public.projects" }), {
+  return mount(withWindowHost(DataGrid, {
+    connectorId: "connector-1",
+    nodeId: "public.projects",
+    ...props,
+  }), {
     global: {
       plugins: [[Quasar, { plugins: { Dialog, Notify } }], [VueQueryPlugin, { queryClient }]],
     },
@@ -61,6 +65,46 @@ beforeEach(() => {
 })
 
 describe("the basic data grid", () => {
+  it("downloads only the current page and visible columns", async () => {
+    mockPages()
+    const download = vi.spyOn(ConnectorsService, "downloadPage").mockResolvedValue({
+      data: new Blob(["name\nProject 1\n"], { type: "text/csv" }),
+      headers: { "content-disposition": 'attachment; filename="projects.csv"' },
+    } as never)
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:page")
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined)
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+    const wrapper = mountGrid({ title: "projects" })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-columns"]').trigger("click")
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-column-visible-id"]').trigger("click")
+    await wrapper.get('[data-testid="grid-download"]').trigger("click")
+    await flushPromises()
+
+    expect(download).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { connector_id: "connector-1" },
+        responseType: "blob",
+        body: expect.objectContaining({
+          node_id: "public.projects",
+          offset: 0,
+          limit: 100,
+          title: "projects",
+          columns: ["name"],
+        }),
+      })
+    )
+  })
+
+  it("offers structure in the grid only when the node is describable", async () => {
+    mockPages()
+    const wrapper = mountGrid({ canDescribe: true })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="grid-structure"]').text()).toContain("Structure")
+  })
+
   it("renders server columns and requests 100 rows by default", async () => {
     const fetchRows = mockPages()
     const wrapper = mountGrid()

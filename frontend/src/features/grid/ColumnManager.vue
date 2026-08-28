@@ -48,6 +48,7 @@ function togglePin(columnName: string) {
         :model-value="layout.columnVisibility[column.name] !== false"
         :label="column.name"
         dense
+        :data-testid="`grid-column-visible-${column.name}`"
         @update:model-value="setVisible(column.name, $event)"
       />
       <AppIconButton

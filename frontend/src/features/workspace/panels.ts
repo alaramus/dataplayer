@@ -41,6 +41,9 @@ export const panelSchema = z.discriminatedUnion("kind", [
     // connections has been read. See P8.
     connectorName: z.string(),
     adapterType: z.string(),
+    // Optional so a layout saved before D28 still restores. It gains the
+    // source-declared value the next time the node is opened from its catalog.
+    describable: z.boolean().optional(),
   }),
   z.object({
     id: z.string(),
@@ -229,6 +232,10 @@ export function componentOf(panel: Panel): Component {
           panelId: panel.id,
           connectorId: panel.connectorId,
           nodeId: panel.nodeId,
+          title: panel.title,
+          connectorName: panel.connectorName,
+          adapterType: panel.adapterType,
+          describable: panel.describable === true,
         })
       )
     case "structure":

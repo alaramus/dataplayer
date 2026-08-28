@@ -24,6 +24,9 @@ const props = defineProps<{
   canDelete?: boolean
   deleteReason?: string
   deleteCount?: number
+  canDownload?: boolean
+  downloading?: boolean
+  canDescribe?: boolean
 }>()
 const emit = defineEmits<{
   "update:pageSize": [value: PageSize]
@@ -33,6 +36,8 @@ const emit = defineEmits<{
   copy: []
   insert: []
   delete: []
+  download: []
+  describe: []
 }>()
 const pageSizeOptions = PAGE_SIZES.map((size) => ({ label: String(size), value: size }))
 const filtersOpen = ref(false)
@@ -67,7 +72,6 @@ function selectPageSize(value: unknown) {
       <div class="grid-header__commands">
         <span
           data-testid="grid-filter-command"
-          :title="canFilter ? undefined : 'This source does not support filtering'"
         >
           <AppButton
             :label="filters.length > 0 ? `Filters (${filters.length})` : 'Filters'"
@@ -81,7 +85,6 @@ function selectPageSize(value: unknown) {
         </span>
         <span
           data-testid="grid-sort-command"
-          :title="canSort ? undefined : 'This source does not support sorting'"
         >
           <AppButton
             :label="sort.length > 0 ? `Sort (${sort.length})` : 'Sort'"
@@ -115,7 +118,26 @@ function selectPageSize(value: unknown) {
           data-testid="grid-copy"
           @click="emit('copy')"
         />
-        <span :title="canInsert ? undefined : insertReason">
+        <AppButton
+          label="Download"
+          icon="download"
+          variant="quiet"
+          size="sm"
+          :disable="!canDownload || downloading"
+          :loading="downloading"
+          data-testid="grid-download"
+          @click="emit('download')"
+        />
+        <AppButton
+          v-if="canDescribe"
+          label="Structure"
+          icon="account_tree"
+          variant="quiet"
+          size="sm"
+          data-testid="grid-structure"
+          @click="emit('describe')"
+        />
+        <span data-testid="grid-insert-command">
           <AppButton
             label="Insert"
             variant="quiet"
@@ -126,7 +148,7 @@ function selectPageSize(value: unknown) {
           />
           <AppTooltip v-if="!canInsert && insertReason">{{ insertReason }}</AppTooltip>
         </span>
-        <span :title="canDelete ? undefined : deleteReason">
+        <span data-testid="grid-delete-command">
           <AppButton
             :label="deleteCount ? `Delete (${deleteCount})` : 'Delete'"
             variant="quiet"

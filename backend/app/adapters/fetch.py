@@ -66,6 +66,13 @@ class FetchRequest(BaseModel):
     sort: list[Sort] = Field(default_factory=list)
 
 
+class DownloadPageRequest(FetchRequest):
+    """The bounded page to save, in the column order visible in the grid."""
+
+    title: str = Field(min_length=1, max_length=255)
+    columns: list[str] = Field(min_length=1)
+
+
 class FetchColumn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

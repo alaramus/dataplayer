@@ -36,6 +36,11 @@ function mountList(revealed: string | null = null) {
  * first.
  */
 describe("a row that was pointed at", () => {
+  it("does not put a structure command in catalog rows", () => {
+    const wrapper = mountList()
+    expect(wrapper.find('[data-testid="catalog-structure-orders"]').exists()).toBe(false)
+  })
+
   it("marks the row that was asked for", () => {
     const wrapper = mountList("public.orders")
     expect(wrapper.get('[data-testid="catalog-node-orders"]').attributes("data-revealed")).toBe(

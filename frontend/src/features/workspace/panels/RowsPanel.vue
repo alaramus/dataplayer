@@ -3,6 +3,7 @@ import { useTemplateRef } from "vue"
 
 import DataGrid from "@/features/grid/DataGrid.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
+import { useWorkspaceActions } from "@/features/workspace/state"
 
 /**
  * One relation, in its own tab.
@@ -11,13 +12,32 @@ import { useReloadable } from "@/features/workspace/reloadable"
  * panel restored from storage has not read the catalog. The grid pages by
  * has_more when it has no estimate, which is what a file source gives it too.
  */
-const props = defineProps<{ panelId: string; connectorId: string; nodeId: string }>()
+const props = defineProps<{
+  panelId: string
+  connectorId: string
+  nodeId: string
+  title: string
+  connectorName: string
+  adapterType: string
+  describable: boolean
+}>()
+const workspace = useWorkspaceActions()
 
 const grid = useTemplateRef<{ reload: () => Promise<void> }>("grid")
 
 useReloadable(props.panelId, async () => {
   await grid.value?.reload()
 })
+
+function showStructure() {
+  workspace.openStructure({
+    connectorId: props.connectorId,
+    nodeId: props.nodeId,
+    title: props.title,
+    connectorName: props.connectorName,
+    adapterType: props.adapterType,
+  })
+}
 </script>
 
 <template>
@@ -26,6 +46,9 @@ useReloadable(props.panelId, async () => {
       ref="grid"
       :connector-id="connectorId"
       :node-id="nodeId"
+      :title="title"
+      :can-describe="describable"
+      @describe="showStructure"
     />
   </div>
 </template>

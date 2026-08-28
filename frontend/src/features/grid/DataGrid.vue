@@ -33,12 +33,13 @@ import {
   useToast,
 } from "@/shared/ui"
 
-import { useDeleteRows, useInsertRow, useRowsPage, useUpdateCell } from "./api"
+import { useDeleteRows, useDownloadPage, useInsertRow, useRowsPage, useUpdateCell } from "./api"
 import CellEditorDialog from "./CellEditorDialog.vue"
 import CellValueDialog from "./CellValueDialog.vue"
 import { toTsv } from "./clipboard"
 import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
+import { filenameFromDisposition, saveBrowserDownload } from "./download"
 import GridHeader from "./GridHeader.vue"
 import RowInsertRow from "./RowInsertRow.vue"
 import type { InsertGridColumn } from "./RowInsertRow.vue"
@@ -58,7 +59,13 @@ import { selectedWholeRowIndexes, selectionMatrix } from "./selection"
 import type { VisibleGridColumn } from "./selection"
 import type { Filter, GridQueryState, GridRow, PageSize, StoredGridState } from "./types"
 
-const props = defineProps<{ connectorId: string; nodeId: string }>()
+const props = defineProps<{
+  connectorId: string
+  nodeId: string
+  title?: string
+  canDescribe?: boolean
+}>()
+const emit = defineEmits<{ describe: [] }>()
 const toast = useToast()
 const confirm = useConfirm()
 
@@ -99,6 +106,7 @@ const insertError = ref("")
 const updateCell = useUpdateCell(toRef(props, "connectorId"))
 const insertRow = useInsertRow(toRef(props, "connectorId"))
 const deleteRows = useDeleteRows(toRef(props, "connectorId"))
+const downloadPage = useDownloadPage(toRef(props, "connectorId"))
 const gridFocus = useTemplateRef<HTMLElement>("gridFocus")
 const features = tableFeatures({
   columnSizingFeature,
@@ -430,6 +438,25 @@ function openCell(cell: Cell<GridFeatures, GridRow, unknown>, event: MouseEvent)
   viewer.value = { columnName: column.name, typeSql: column.type.sql, value }
 }
 
+async function downloadVisiblePage() {
+  if (result.value === undefined || visibleGridColumns.value.length === 0) return
+  const fallback = `${props.title ?? "table"}.csv`
+  try {
+    const downloaded = await downloadPage.mutateAsync({
+      ...request.value,
+      title: props.title ?? "table",
+      columns: visibleGridColumns.value.map((column) => column.id),
+    })
+    saveBrowserDownload(
+      downloaded.blob,
+      filenameFromDisposition(downloaded.disposition, fallback)
+    )
+    toast.success("Page downloaded and saved to your Downloads folder")
+  } catch (error) {
+    toast.error(messageOf(error, "Could not download this page"))
+  }
+}
+
 function cellTitle(cell: Cell<GridFeatures, GridRow, unknown>): string | undefined {
   const column = serverColumn(cell.column.id)
   if (column?.editable !== true) return result.value?.update_reason ?? undefined
@@ -610,6 +637,9 @@ defineExpose({
       :can-delete="canDelete"
       :delete-reason="deleteReason"
       :delete-count="selectedRowHandles.length"
+      :can-download="result !== undefined && visibleGridColumns.length > 0"
+      :downloading="downloadPage.isPending.value"
+      :can-describe="canDescribe"
       @update:page-size="changePageSize"
       @update:filters="changeFilters"
       @update:sort="changeSort"
@@ -617,6 +647,8 @@ defineExpose({
       @copy="copySelection"
       @insert="openInsert"
       @delete="deleteSelection"
+      @download="downloadVisiblePage"
+      @describe="emit('describe')"
     />
 
     <AppBanner

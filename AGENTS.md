@@ -116,6 +116,8 @@ and the known deviations live there.
 | D25 | A source issues a versioned row handle, and only it can apply an edit | [adapters](docs/architecture/adapters.md) |
 | D26 | Insert names supplied columns; bulk delete changes every versioned row or none | [adapters](docs/architecture/adapters.md) |
 | D27 | A source publishes column type choices and alone turns them into DDL | [adapters](docs/architecture/adapters.md) |
+| D28 | A download is a fresh copy of the bounded visible page, kept in personal storage | [frontend](docs/architecture/frontend.md) |
+| D29 | Renaming a column preserves its source identity and lets the source maintain dependencies | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.

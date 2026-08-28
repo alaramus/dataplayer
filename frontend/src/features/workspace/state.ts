@@ -85,6 +85,8 @@ export interface OpenRowsRequest {
   /** Whose it is. In the tooltip of the tab rather than beside its title. */
   connectorName: string
   adapterType: string
+  /** Whether this tabular node also has a relation model. */
+  describable: boolean
 }
 
 export interface OpenStructureRequest {
