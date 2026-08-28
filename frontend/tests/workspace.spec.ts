@@ -121,15 +121,21 @@ test("a signed in user lands on the columns that have something in them", async 
   // belongs in a status line.
   await expect(page.getByTestId("app-footer")).toBeVisible()
 
-  // The sections fill what the toolbar leaves of the window. A page with its
-  // own padding and a height of its own content would leave them floating in
-  // it, and a unit test cannot tell the difference.
+  // The sections fill the framed work area that the toolbar and status line
+  // leave behind. The small inset belongs to the application chrome: it joins
+  // the header, workspace and footer into one shell instead of leaving three
+  // unrelated edge-to-edge rectangles.
   const viewport = page.viewportSize()
   if (viewport === null) throw new Error("the page has no viewport")
-  const box = await page.getByTestId("workspace").boundingBox()
+  const workspace = page.getByTestId("workspace")
+  const box = await workspace.boundingBox()
   if (box === null) throw new Error("the workspace has no box")
-  expect(box.width).toBe(viewport.width)
-  expect(box.height).toBeGreaterThan(viewport.height - 80)
+  expect(box.x).toBeGreaterThan(0)
+  expect(box.width).toBeLessThan(viewport.width)
+  expect(box.height).toBeGreaterThan(viewport.height - 100)
+  expect(
+    await workspace.evaluate((node) => getComputedStyle(node).borderRadius)
+  ).not.toBe("0px")
 })
 
 test("catalogs stand beside each other, and each connection opens once", async ({ page }) => {

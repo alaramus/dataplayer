@@ -1,0 +1,31 @@
+/*
+ * Geometry shared by the application chrome and the component kit.
+ *
+ * Like theme.css and layers.css, this file names meaning rather than a
+ * particular screen. New features spend these tokens instead of inventing a
+ * slightly different toolbar, tab strip or corner radius each time.
+ */
+
+:root {
+  --dp-font-ui: Inter, "Segoe UI", system-ui, sans-serif;
+  --dp-font-size: 13px;
+
+  --dp-space-1: 4px;
+  --dp-space-2: 8px;
+  --dp-space-3: 12px;
+  --dp-space-4: 16px;
+
+  --dp-header-height: 42px;
+  --dp-status-height: 24px;
+  --dp-tab-strip-height: 32px;
+  --dp-toolbar-height: 40px;
+  --dp-workspace-inset: 6px;
+
+  --dp-radius-control: 4px;
+  --dp-radius-panel: 8px;
+}
+
+body {
+  font-family: var(--dp-font-ui);
+  font-size: var(--dp-font-size);
+}

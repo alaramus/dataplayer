@@ -351,14 +351,15 @@ const overlayStyle = computed((): CSSProperties => {
   display: flex;
   align-items: flex-start;
   gap: 2px;
-  padding: 2px 4px;
+  padding: 2px var(--dp-space-1);
   border-bottom: 1px solid var(--dp-border);
+  background: var(--dp-chrome-raised);
   /* The head of a column is one height whatever stands in it: a column with a
      tab beside one with only its handles put the line under them at two
      different heights, which reads as a broken layout rather than as an empty
      one. A floor and not a fixed height, because tabs still wrap onto a
      second line. */
-  min-height: 31px;
+  min-height: var(--dp-tab-strip-height);
 }
 /* Tabs wrap onto a second line rather than running off the end of the strip:
    a tab that cannot be seen cannot be reached, and a section is only ever as
@@ -378,7 +379,8 @@ const overlayStyle = computed((): CSSProperties => {
   gap: 4px;
   padding: 4px 8px;
   border: none;
-  border-radius: 4px 4px 0 0;
+  border: 1px solid transparent;
+  border-radius: var(--dp-radius-control);
   background: transparent;
   /* A native button takes its colour from the browser, which is black, and
      `font: inherit` does not carry colour with it. Black on a dark panel is
@@ -390,7 +392,8 @@ const overlayStyle = computed((): CSSProperties => {
   white-space: nowrap;
 }
 .workspace-leaf__tab--active {
-  background: var(--dp-active);
+  border-color: var(--dp-border);
+  background: var(--dp-surface);
   font-weight: 500;
 }
 .workspace-leaf__icon {

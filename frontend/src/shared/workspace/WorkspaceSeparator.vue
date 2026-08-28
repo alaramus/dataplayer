@@ -50,8 +50,20 @@ function onPointerUp(event: PointerEvent) {
 
 <style scoped>
 .workspace-separator {
+  position: relative;
   flex: 0 0 5px;
+  background: transparent;
+}
+.workspace-separator::after {
+  content: "";
+  position: absolute;
   background: var(--dp-separator);
+}
+.workspace-separator--row::after {
+  inset: 0 2px;
+}
+.workspace-separator--column::after {
+  inset: 2px 0;
 }
 .workspace-separator--row {
   cursor: col-resize;
@@ -59,7 +71,7 @@ function onPointerUp(event: PointerEvent) {
 .workspace-separator--column {
   cursor: row-resize;
 }
-.workspace-separator:hover {
+.workspace-separator:hover::after {
   background: var(--dp-separator-active);
 }
 </style>

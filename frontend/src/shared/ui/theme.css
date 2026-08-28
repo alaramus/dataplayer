@@ -22,6 +22,8 @@
   /* The ground a panel stands on, and what floats above it. */
   --dp-surface: #fff;
   --dp-surface-raised: #fff;
+  --dp-chrome: #eef0f3;
+  --dp-chrome-raised: #f7f8fa;
 
   /* Lines. Faint separates rows, plain separates regions, strong outlines a
      thing that floats free of the page. */
@@ -67,6 +69,8 @@
 body.body--dark {
   --dp-surface: #121212;
   --dp-surface-raised: #1d1d1d;
+  --dp-chrome: #1e1f22;
+  --dp-chrome-raised: #2b2d30;
 
   --dp-border-faint: rgba(255, 255, 255, 0.09);
   --dp-border: rgba(255, 255, 255, 0.16);

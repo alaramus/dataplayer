@@ -70,5 +70,10 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--dp-border-strong);
+  border-radius: var(--dp-radius-panel);
+  background: var(--dp-surface);
+  box-shadow: 0 1px 4px var(--dp-shadow-soft);
 }
 </style>

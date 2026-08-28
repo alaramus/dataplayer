@@ -27,9 +27,15 @@ async function logout() {
     view="hHh lpR fFf"
     :class="fill ? 'app-layout--fill' : undefined"
   >
-    <q-header elevated>
-      <q-toolbar>
-        <q-toolbar-title>DataPlayer</q-toolbar-title>
+    <q-header class="app-layout__header">
+      <q-toolbar class="app-layout__toolbar">
+        <q-toolbar-title class="app-layout__title">
+          <q-icon
+            name="database"
+            size="18px"
+          />
+          <span>DataPlayer</span>
+        </q-toolbar-title>
         <!-- Beside signing out: both are about this session rather than about
              what is on the screen. -->
         <AppThemeToggle />
@@ -47,7 +53,9 @@ async function logout() {
         :padding="!fill"
         :class="fill ? 'app-layout__page--fill' : undefined"
       >
-        <slot />
+        <div :class="fill ? 'app-layout__content app-layout__content--fill' : 'app-layout__content'">
+          <slot />
+        </div>
       </q-page>
     </q-page-container>
 
@@ -56,7 +64,7 @@ async function logout() {
          connected, what is running, what the last request cost - arrives with
          the work that produces it, and the room for it is here. -->
     <q-footer
-      elevated
+      class="app-layout__footer"
       data-testid="app-footer"
     >
       <div class="app-layout__status">
@@ -67,13 +75,42 @@ async function logout() {
 </template>
 
 <style scoped>
+.app-layout__header,
+.app-layout__footer {
+  background: var(--dp-chrome-raised);
+  color: var(--dp-text-strong);
+  box-shadow: none;
+}
+
+.app-layout__header {
+  border-bottom: 1px solid var(--dp-border);
+}
+
+.app-layout__footer {
+  border-top: 1px solid var(--dp-border);
+}
+
+.app-layout__toolbar {
+  min-height: var(--dp-header-height);
+  padding: 0 var(--dp-space-2) 0 var(--dp-space-3);
+}
+
+.app-layout__title {
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-2);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
 /* Shorter than the toolbar above it: it is a line, not a second header. */
 .app-layout__status {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 24px;
-  padding: 0 12px;
+  min-height: var(--dp-status-height);
+  padding: 0 var(--dp-space-3);
   font-size: 12px;
 }
 
@@ -87,6 +124,7 @@ async function logout() {
    keeps for the header comes out of the 100% rather than adding to it. */
 .app-layout--fill {
   height: 100vh;
+  background: var(--dp-chrome);
 }
 
 .app-layout--fill :deep(.q-page-container) {
@@ -102,7 +140,15 @@ async function logout() {
   flex-direction: column;
 }
 
-:deep(.app-layout__page--fill) > * {
+.app-layout__content--fill {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: var(--dp-workspace-inset);
+  background: var(--dp-chrome);
+}
+
+.app-layout__content--fill > * {
   flex: 1;
   min-height: 0;
 }

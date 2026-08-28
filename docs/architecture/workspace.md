@@ -15,6 +15,13 @@ a user arrives at is the one they left. A column appears together with what goes
 in it; the right-hand one, while it is empty, says what to do next and offers the
 button that does it.
 
+The whole workspace sits inside one inset frame between a compact application
+toolbar and status line. Its panels spend the same surface, border, tab height,
+spacing and radius tokens, while separators keep a wide pointer target around a
+one-pixel visual line. The chrome therefore reads as one tool rather than a row
+of unrelated cards; the tokens are the stable part, while individual features
+can continue to arrive without settling the final polish.
+
 A tab is carried the way a browser carries one: it leaves its strip and follows
 the pointer, joins the tabs of another column by being dropped on their head, and
 divides a column by being dropped in its body. It can only be taken to a column
