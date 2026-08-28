@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it } from "vitest"
 
-import { toTsv, writeSelection } from "./clipboard"
+import { toTsv } from "./clipboard"
 
 describe("TSV clipboard text", () => {
   it("serializes a rectangle in display order without headers", () => {
@@ -16,13 +16,5 @@ describe("TSV clipboard text", () => {
     expect(toTsv([["a\tb", "line\nnext", 'say "yes"']])).toBe(
       '"a\tb"\t"line\nnext"\t"say ""yes"""'
     )
-  })
-
-  it("has one browser boundary for writing selection text", async () => {
-    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
-
-    await writeSelection("a\tb")
-
-    expect(writeText).toHaveBeenCalledWith("a\tb")
   })
 })

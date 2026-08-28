@@ -23,6 +23,7 @@ import type { CSSProperties } from "vue"
 
 import type { FetchColumn, Sort } from "@/client"
 import { messageOf } from "@/shared/api/errors"
+import { copyText } from "@/shared/clipboard"
 import {
   AppBanner,
   AppButton,
@@ -35,7 +36,7 @@ import {
 import { useDeleteRows, useInsertRow, useRowsPage, useUpdateCell } from "./api"
 import CellEditorDialog from "./CellEditorDialog.vue"
 import CellValueDialog from "./CellValueDialog.vue"
-import { toTsv, writeSelection } from "./clipboard"
+import { toTsv } from "./clipboard"
 import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
 import GridHeader from "./GridHeader.vue"
@@ -357,7 +358,7 @@ async function copySelection() {
   const matrix = selectionMatrix(rows.value, visibleGridColumns.value, table.getCellSelectionBounds())
   if (matrix.length === 0) return
   try {
-    await writeSelection(toTsv(matrix))
+    await copyText(toTsv(matrix))
   } catch {
     toast.error("Could not copy the selection")
   }

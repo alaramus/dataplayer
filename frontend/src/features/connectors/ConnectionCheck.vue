@@ -2,7 +2,8 @@
 import { computed } from "vue"
 
 import type { ConnectionCheckResult } from "@/client"
-import { AppButton, AppIconButton, useToast } from "@/shared/ui"
+import { copyText } from "@/shared/clipboard"
+import { AppCopyButton, AppIconButton, useToast } from "@/shared/ui"
 
 /**
  * What the last check said, in a panel over the button that ran it.
@@ -47,7 +48,7 @@ const lines = computed(() => {
 })
 
 async function copy() {
-  await navigator.clipboard.writeText([heading.value, ...lines.value].join("\n"))
+  await copyText([heading.value, ...lines.value].join("\n"))
   toast.success("Result copied")
 }
 </script>
@@ -66,9 +67,8 @@ async function copy() {
       >
         {{ heading }}
       </span>
-      <AppButton
-        variant="quiet"
-        label="Copy"
+      <AppCopyButton
+        tooltip="Copy the check result"
         data-testid="copy-check-result"
         @click="copy"
       />

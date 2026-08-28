@@ -14,12 +14,14 @@ import {
 } from "@/features/connectors/api"
 import { mergeParsedOptions } from "@/features/connectors/parsedOptions"
 import { fieldErrorsFrom, messageOf, statusOf } from "@/shared/api/errors"
+import { copyText } from "@/shared/clipboard"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
 import { fieldGroups, fieldsToZod, readSchema } from "@/shared/SchemaForm/jsonSchema"
 import type { FieldSpec, JsonSchema } from "@/shared/SchemaForm/jsonSchema"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
 import {
   AppButton,
+  AppCopyButton,
   AppIconButton,
   AppInput,
   AppSpinner,
@@ -389,7 +391,7 @@ async function remove() {
 }
 
 async function copyUrl() {
-  await navigator.clipboard.writeText(urlText.value)
+  await copyText(urlText.value)
   toast.success("Connection string copied")
 }
 
@@ -520,8 +522,7 @@ async function parseTyped(text: string) {
           @blur="leaveUrl"
           @update:model-value="editUrl"
         />
-        <AppIconButton
-          icon="content_copy"
+        <AppCopyButton
           tooltip="Copy the connection string. The password is not part of it."
           data-testid="copy-url"
           :disable="urlText === ''"

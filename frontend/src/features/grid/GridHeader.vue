@@ -2,7 +2,7 @@
 import { computed, ref } from "vue"
 
 import type { FetchColumn, Sort } from "@/client"
-import { AppButton, AppSelect, AppTooltip } from "@/shared/ui"
+import { AppButton, AppCopyButton, AppSelect, AppTooltip } from "@/shared/ui"
 
 import FilterEditor from "./FilterEditor.vue"
 import ColumnManager from "./ColumnManager.vue"
@@ -109,10 +109,8 @@ function selectPageSize(value: unknown) {
           :data-testid="selectedColumn === null ? 'grid-pin-current' : `grid-pin-${selectedColumn}`"
           @click="toggleSelectedPin"
         />
-        <AppButton
-          label="Copy"
-          variant="quiet"
-          size="sm"
+        <AppCopyButton
+          tooltip="Copy the selection"
           :disable="!canCopy"
           data-testid="grid-copy"
           @click="emit('copy')"

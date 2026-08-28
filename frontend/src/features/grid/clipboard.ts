@@ -7,7 +7,3 @@ function tsvCell(value: string | null): string {
   if (!/[\t\r\n"]/u.test(value)) return value
   return `"${value.replaceAll('"', '""')}"`
 }
-
-export function writeSelection(text: string): Promise<void> {
-  return navigator.clipboard.writeText(text)
-}

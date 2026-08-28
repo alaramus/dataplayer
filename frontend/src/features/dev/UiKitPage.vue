@@ -17,6 +17,7 @@ import {
   AppNumberInput,
   AppPageHeader,
   AppCheckbox,
+  AppCopyButton,
   AppSection,
   AppSelect,
   AppSpinner,
@@ -182,6 +183,7 @@ function flash() {
             tooltip="Not available here"
             disable
           />
+          <AppCopyButton />
           <AppButton
             variant="secondary"
             label="Row actions"

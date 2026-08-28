@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { AppButton, AppSection, useToast } from "@/shared/ui"
+import { copyText } from "@/shared/clipboard"
+import { AppButton, AppCopyButton, AppSection, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
-
-import { writeSelection } from "./clipboard"
 
 const props = defineProps<{
   modelValue: boolean
@@ -16,7 +15,7 @@ const toast = useToast()
 
 async function copyValue() {
   try {
-    await writeSelection(props.value)
+    await copyText(props.value)
   } catch {
     toast.error("Could not copy the value")
   }
@@ -36,9 +35,8 @@ async function copyValue() {
       <pre class="cell-value-dialog__value">{{ value }}</pre>
     </AppSection>
     <template #actions>
-      <AppButton
-        variant="secondary"
-        label="Copy"
+      <AppCopyButton
+        tooltip="Copy the full value"
         data-testid="grid-viewer-copy"
         @click="copyValue"
       />
