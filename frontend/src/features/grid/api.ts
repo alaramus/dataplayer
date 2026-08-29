@@ -18,21 +18,28 @@ export const rowsKey = (connectorId: string, request: FetchRequest) =>
 export async function fetchRowsPage(
   connectorId: string,
   request: FetchRequest,
-  signal: AbortSignal
+  signal: AbortSignal,
+  refresh = false
 ): Promise<FetchResult> {
   return (
     await ConnectorsService.fetchRows({
       path: { connector_id: connectorId },
+      query: refresh ? { refresh: true } : {},
       body: request,
       signal,
     })
   ).data
 }
 
-export function useRowsPage(connectorId: Ref<string>, request: Readonly<Ref<FetchRequest>>) {
+export function useRowsPage(
+  connectorId: Ref<string>,
+  request: Readonly<Ref<FetchRequest>>,
+  refreshNext?: Readonly<Ref<boolean>>
+) {
   return useQuery({
     queryKey: computed(() => rowsKey(connectorId.value, request.value)),
-    queryFn: ({ signal }) => fetchRowsPage(connectorId.value, request.value, signal),
+    queryFn: ({ signal }) =>
+      fetchRowsPage(connectorId.value, request.value, signal, refreshNext?.value === true),
   })
 }
 

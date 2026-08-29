@@ -56,6 +56,35 @@ async def test_returns_columns_and_rows(
     assert "filterable" not in body
 
 
+async def test_fetch_reuses_the_exact_page_and_refresh_bypasses_it(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+    body = {"node_id": "pg_catalog.pg_class", "limit": 3}
+
+    first = await client.post(
+        f"{BASE}/{connector_id}/fetch",
+        headers=normal_user_token_headers,
+        json=body,
+    )
+    second = await client.post(
+        f"{BASE}/{connector_id}/fetch",
+        headers=normal_user_token_headers,
+        json=body,
+    )
+    refreshed = await client.post(
+        f"{BASE}/{connector_id}/fetch",
+        headers=normal_user_token_headers,
+        params={"refresh": True},
+        json=body,
+    )
+
+    assert first.headers["x-data-cache"] == "miss"
+    assert second.headers["x-data-cache"] == "hit"
+    assert refreshed.headers["x-data-cache"] == "refreshed"
+    assert first.json() == second.json() == refreshed.json()
+
+
 async def test_sorting_and_paging_are_applied(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

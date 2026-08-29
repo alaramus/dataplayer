@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
 
+from app.adapters.cache import DataCache
 from app.adapters.resources import ResourceStore
 from app.api.main import api_router
 from app.core.config import settings
@@ -31,11 +32,13 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         max_entries=settings.POOL_MAX_POOLS,
         max_idle_seconds=settings.POOL_MAX_IDLE_SECONDS,
     )
+    application.state.data_cache = DataCache(max_entries=settings.DATA_CACHE_MAX_ENTRIES)
     application.state.topics = topics.build_all()
     try:
         yield
     finally:
         await application.state.topics.aclose()
+        await application.state.data_cache.aclose()
         await application.state.resources.aclose()
 
 

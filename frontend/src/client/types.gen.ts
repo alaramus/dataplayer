@@ -2299,7 +2299,12 @@ export type connectorsFetchRowsData = {
      */
     connector_id: string
   }
-  query?: never
+  query?: {
+    /**
+     * Refresh
+     */
+    refresh?: boolean
+  }
   url: "/api/v1/connectors/{connector_id}/fetch"
 }
 
@@ -2335,6 +2340,10 @@ export type connectorsReadCatalogData = {
      * Node Id
      */
     node_id?: string | null
+    /**
+     * Refresh
+     */
+    refresh?: boolean
   }
   url: "/api/v1/connectors/{connector_id}/catalog"
 }

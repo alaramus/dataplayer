@@ -42,6 +42,31 @@ async def test_root_returns_schemas(
     assert "public" in [node["name"] for node in nodes]
 
 
+async def test_catalog_reuses_an_exact_read_and_refresh_bypasses_it(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(
+        client, normal_user_token_headers, f"catalog cache {uuid.uuid4()}"
+    )
+
+    first = await client.get(
+        f"{BASE}/{connector_id}/catalog", headers=normal_user_token_headers
+    )
+    second = await client.get(
+        f"{BASE}/{connector_id}/catalog", headers=normal_user_token_headers
+    )
+    refreshed = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"refresh": True},
+    )
+
+    assert first.headers["x-data-cache"] == "miss"
+    assert second.headers["x-data-cache"] == "hit"
+    assert refreshed.headers["x-data-cache"] == "refreshed"
+    assert first.json() == second.json() == refreshed.json()
+
+
 async def test_schema_returns_tables(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

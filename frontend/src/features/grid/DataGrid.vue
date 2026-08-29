@@ -85,7 +85,17 @@ const queryState = ref<GridQueryState>({
 const persistedQueryState = ref<GridQueryState>({ ...queryState.value })
 const queryAwaitingPersistence = ref<GridQueryState | null>(null)
 const request = computed(() => buildFetchRequest(props.nodeId, queryState.value))
-const rowsQuery = useRowsPage(toRef(props, "connectorId"), request)
+const refreshNext = ref(false)
+const rowsQuery = useRowsPage(toRef(props, "connectorId"), request, refreshNext)
+
+async function refreshRows() {
+  refreshNext.value = true
+  try {
+    await rowsQuery.refetch()
+  } finally {
+    refreshNext.value = false
+  }
+}
 const result = computed(() => rowsQuery.data.value)
 const rows = computed(() =>
   result.value === undefined || rowsQuery.isError.value
@@ -613,7 +623,7 @@ watch(
 
 defineExpose({
   reload: async () => {
-    await rowsQuery.refetch()
+    await refreshRows()
   },
 })
 </script>

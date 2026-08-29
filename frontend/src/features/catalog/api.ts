@@ -24,7 +24,8 @@ export function useCatalogLoader() {
 
   return async function loadChildren(
     connectorId: string,
-    nodeId: string | null
+    nodeId: string | null,
+    refresh = false
   ): Promise<CatalogNode[]> {
     return queryClient.fetchQuery({
       queryKey: catalogKey(connectorId, nodeId),
@@ -32,7 +33,10 @@ export function useCatalogLoader() {
         (
           await ConnectorsService.readCatalog({
             path: { connector_id: connectorId },
-            query: nodeId === null ? {} : { node_id: nodeId },
+            query: {
+              ...(nodeId === null ? {} : { node_id: nodeId }),
+              ...(refresh ? { refresh: true } : {}),
+            },
           })
         ).data,
       staleTime: 60_000,

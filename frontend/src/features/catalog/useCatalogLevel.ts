@@ -81,8 +81,12 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     if (root !== undefined) root.label = label
   })
 
-  async function childrenOf(nodeId: string | null, group?: string): Promise<ListNode[]> {
-    return toListNodes(await loadChildren(connectorId.value, nodeId), group)
+  async function childrenOf(
+    nodeId: string | null,
+    group?: string,
+    refresh = false
+  ): Promise<ListNode[]> {
+    return toListNodes(await loadChildren(connectorId.value, nodeId, refresh), group)
   }
 
   async function forget(nodeId: string | null) {
@@ -96,11 +100,11 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
    * The two are concatenated rather than one replacing the other, so a source
    * whose level holds both keeps both. Nothing does today.
    */
-  async function fillRows() {
+  async function fillRows(refresh = false) {
     const grouped: ListNode[] = []
     for (const group of groups.value) {
       if (!selectedGroups.value.includes(group.id)) continue
-      grouped.push(...(await childrenOf(group.id, group.label)))
+      grouped.push(...(await childrenOf(group.id, group.label, refresh)))
     }
     rows.value = [...plain.value, ...grouped]
   }
@@ -111,17 +115,17 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     return first === undefined ? [] : [first.id]
   }
 
-  async function show(nodeId: string | null, groupIds?: string[]) {
+  async function show(nodeId: string | null, groupIds?: string[], refresh = false) {
     checked.value = []
     filter.value = ""
     error.value = ""
     loading.value = true
     try {
-      const children = await childrenOf(nodeId)
+      const children = await childrenOf(nodeId, undefined, refresh)
       groups.value = groupsOf(children)
       selectedGroups.value = groupIds ?? defaultGroups(groups.value)
       plain.value = children.filter((node) => node.role !== "group")
-      await fillRows()
+      await fillRows(refresh)
     } catch (cause) {
       error.value = messageOf(cause, "Could not read the catalog")
       groups.value = []
@@ -208,7 +212,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     await forget(nodeId)
     await forget(currentId.value)
     for (const group of selectedGroups.value) await forget(group)
-    await show(currentId.value)
+    await show(currentId.value, undefined, true)
   }
 
   function toggleAll(on: boolean) {

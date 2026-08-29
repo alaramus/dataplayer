@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from typing import Any
 
+from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
     AddColumnRequest,
@@ -71,6 +72,10 @@ class PostgresAdapter:
         self._update = PostgresUpdate(self._session, self._fetch)
         self._relation = PostgresRelation(self._session)
         self._columns = PostgresColumns(self._session, self._relation)
+
+    def cache_ttl(self, area: CacheArea) -> float:
+        """A short stale window for reads whose source is under our control."""
+        return 30.0 if area == "catalog" else 10.0
 
     @classmethod
     def options_from_url(cls, url: str) -> dict[str, Any]:

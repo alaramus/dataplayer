@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     POOL_MAX_POOLS: int = 20
     POOL_MAX_IDLE_SECONDS: float = 300.0
 
+    # Exact catalog levels and bounded fetch pages kept per backend process.
+    # A source opts in and chooses its own TTL; this only bounds memory.
+    DATA_CACHE_MAX_ENTRIES: int = 512
+
     # How long a socket may stay open without saying who it is. A socket that
     # says nothing still holds a connection.
     WS_AUTH_TIMEOUT_SECONDS: float = 5.0

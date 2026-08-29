@@ -4,7 +4,7 @@ What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
-D20, D21, D22, D23, D25, D26, D27, D29, D30.
+D20, D21, D22, D23, D25, D26, D27, D29, D30, D31.
 
 ## What exists today
 
@@ -35,6 +35,7 @@ backend/app/adapters/
 ├── actions.py       Action, ActionSet, SupportsActions, ActionType,
 │                    DeclaresActions, transports, refusals
 ├── resources.py     ResourceStore: what outlives a request; Pooling
+├── cache.py         bounded read cache, coalescing and invalidation generations
 ├── registry.py      type registry, AdapterContext, Category, Capability,
 │                    capabilities_of
 ├── routes.py        GET /adapter-types
@@ -231,9 +232,6 @@ and the relation model is the single description of their columns.
 
 Known deviations:
 
-- **There is no server-side cache.** Vue Query keeps a model fresh for five
-  minutes, but a second client asks PostgreSQL again. Correct invalidation after
-  DDL needs measurements and a design of its own.
 - **Only one relation is exposed at a time.** The private PostgreSQL query path
   already accepts no relation predicate, but no public schema-wide response or
   cache uses that form yet.
@@ -409,6 +407,43 @@ Known deviations:
 - **Source expressions are not supported.** Values such as `now()` are stored as
   the literal text `now()` where the column type accepts text. Expressions need
   a separate, source-owned vocabulary rather than a raw SQL field.
+
+## D31. A source opts into bounded read caching, and a successful mutation advances its connector generation
+
+`DataCache` belongs to the application lifespan beside the resource store. Its
+key names the owner, connector, operation and exact normalized request, so two
+users, connectors, catalog levels, pages, filters or ordered sorts cannot share
+an answer accidentally. The source opts in through `SupportsReadCache` and
+chooses a TTL separately for catalog and fetch; a source whose freshness rules
+are unknown is read directly. PostgreSQL keeps catalog levels for 30 seconds and
+bounded fetch pages for 10.
+
+The cache has a hard entry ceiling and evicts the least recently used answer.
+TTL controls staleness, not memory, so neither can replace the other. Errors are
+never stored. Identical reads already in flight share one task, which prevents a
+burst of clients from multiplying the same limited or expensive upstream call.
+The `X-Data-Cache` response header reports `hit`, `miss`, `coalesced`,
+`refreshed` or `bypass` without changing the source's response model.
+
+Every successful row edit, structural change, adapter action, connector update
+or connector deletion invalidates the entire connector. Invalidation advances a
+generation as well as removing entries: an older read already in flight may
+finish for the callers that started it, but cannot insert its stale answer after
+the mutation. A failed mutation changes nothing. Explicit Reload sends
+`refresh=true`, skips a live entry and replaces it with a source read; downloads
+continue to read the source directly because D28 promises a fresh copy.
+
+Known deviations:
+
+- **The cache is process-local.** Multiple backend workers do not share entries
+  or invalidation. TTL bounds the inconsistency until a distributed cache and
+  invalidation channel are justified.
+- **Invalidation knows connector identity, not upstream identity.** Two saved
+  connectors that point to the same database do not invalidate one another,
+  and changes made outside DataPlayer are visible after TTL or explicit Reload.
+- **Entries are bounded by count, not bytes.** Fetch itself is bounded to 1000
+  rows, but wide values make entry sizes unequal. A measured byte budget may
+  replace the count ceiling later.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

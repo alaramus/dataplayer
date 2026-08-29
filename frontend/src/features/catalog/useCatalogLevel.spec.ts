@@ -231,7 +231,7 @@ describe("the filter", () => {
 
 describe("re-reading after a change", () => {
   it("shows what the level holds now, not what it held before", async () => {
-    answers(
+    const spy = answers(
       [table("a", "a"), table("b", "b")],
       [table("a", "a")]
     )
@@ -241,6 +241,7 @@ describe("re-reading after a change", () => {
       await level.reload(null)
 
       expect(level.items.value.map((node) => node.id)).toEqual(["a"])
+      expect(spy.mock.calls[1]?.[0].query).toEqual({ refresh: true })
     })
   })
 

@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, cast
 
 from anyio import to_thread
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.responses import FileResponse
@@ -20,6 +20,13 @@ from app.adapters.actions import (
     TakesParams,
     UnknownAction,
     common_actions,
+)
+from app.adapters.cache import (
+    CacheArea,
+    CacheKey,
+    DataCache,
+    DataCacheDep,
+    SupportsReadCache,
 )
 from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
@@ -79,6 +86,49 @@ from app.users.deps import CurrentUser, get_current_user
 from app.users.models import User
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
+
+
+def _cache_key(
+    current_user: User,
+    connector_id: uuid.UUID,
+    area: CacheArea,
+    request: str,
+) -> CacheKey:
+    return CacheKey(current_user.id, connector_id, area, request)
+
+
+async def _cached[T](
+    *,
+    data_cache: DataCache,
+    adapter: DataAdapter,
+    key: CacheKey,
+    refresh: bool,
+    response: Response,
+    load: Callable[[], Awaitable[T]],
+) -> T:
+    if not isinstance(adapter, SupportsReadCache):
+        response.headers["X-Data-Cache"] = "bypass"
+        return await load()
+    ttl_seconds = adapter.cache_ttl(key.area)
+    if ttl_seconds <= 0:
+        response.headers["X-Data-Cache"] = "bypass"
+        return await load()
+    cached = await data_cache.get_or_load(
+        key,
+        ttl_seconds=ttl_seconds,
+        load=load,
+        refresh=refresh,
+    )
+    response.headers["X-Data-Cache"] = cached.status
+    return cached.value
+
+
+async def _invalidate_after[T](
+    run: Callable[[], Awaitable[T]], data_cache: DataCache, connector_id: uuid.UUID
+) -> T:
+    result = await run()
+    await data_cache.invalidate_connector(connector_id)
+    return result
 
 
 def _resolve_type(adapter_type: str) -> AdapterType:
@@ -215,6 +265,7 @@ async def read_connector(
 async def update_connector(
     session: SessionDep,
     current_user: CurrentUser,
+    data_cache: DataCacheDep,
     connector_id: uuid.UUID,
     connector_in: ConnectorUpdate,
 ) -> Any:
@@ -237,18 +288,24 @@ async def update_connector(
         connector.config, connector.secrets = _split_or_422(adapter_type, options)
 
     connector.updated_at = get_datetime_utc()
-    return await crud.save(session, connector=connector)
+    saved = await crud.save(session, connector=connector)
+    await data_cache.invalidate_connector(connector_id)
+    return saved
 
 
 @router.delete("/{connector_id}")
 async def delete_connector(
-    session: SessionDep, current_user: CurrentUser, connector_id: uuid.UUID
+    session: SessionDep,
+    current_user: CurrentUser,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
 ) -> Message:
     """
     Delete a connector.
     """
     connector = await _get_or_404(session, connector_id, current_user)
     await crud.delete(session, connector=connector)
+    await data_cache.invalidate_connector(connector_id)
     return Message(message="Connector deleted successfully")
 
 
@@ -437,8 +494,11 @@ async def fetch_rows(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    response: Response,
     connector_id: uuid.UUID,
     request: FetchRequest,
+    refresh: bool = False,
 ) -> Any:
     """
     Read a page of rows from a relation named by request.node_id.
@@ -453,7 +513,16 @@ async def fetch_rows(
             },
         )
     try:
-        return await adapter.fetch(request)
+        return await _cached(
+            data_cache=data_cache,
+            adapter=adapter,
+            key=_cache_key(
+                current_user, connector_id, "fetch", request.model_dump_json()
+            ),
+            refresh=refresh,
+            response=response,
+            load=lambda: adapter.fetch(request),
+        )
     except ValueError as exc:
         # A column the relation does not have. Caught before any SQL is built,
         # so this is a bad request rather than an upstream failure.
@@ -473,8 +542,11 @@ async def read_catalog(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    response: Response,
     connector_id: uuid.UUID,
     node_id: str | None = None,
+    refresh: bool = False,
 ) -> Any:
     """
     List the children of a catalog node, or the root when node_id is omitted.
@@ -493,7 +565,16 @@ async def read_catalog(
             },
         )
     try:
-        return await adapter.list_children(node_id)
+        return await _cached(
+            data_cache=data_cache,
+            adapter=adapter,
+            key=_cache_key(
+                current_user, connector_id, "catalog", json.dumps(node_id)
+            ),
+            refresh=refresh,
+            response=response,
+            load=lambda: adapter.list_children(node_id),
+        )
     except ValueError as exc:
         # 422: the node id names something this source may not or cannot
         # reach. That is the request being wrong, not the source failing.
@@ -568,6 +649,7 @@ async def update_cell(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
     connector_id: uuid.UUID,
     request: UpdateCellRequest,
 ) -> Any:
@@ -582,7 +664,9 @@ async def update_cell(
             },
         )
     try:
-        return await adapter.update_cell(request)
+        return await _invalidate_after(
+            lambda: adapter.update_cell(request), data_cache, connector_id
+        )
     except RowConflict:
         raise HTTPException(
             status_code=409,
@@ -605,6 +689,7 @@ async def insert_row(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
     connector_id: uuid.UUID,
     request: InsertRowRequest,
 ) -> Any:
@@ -619,7 +704,9 @@ async def insert_row(
             },
         )
     try:
-        return await adapter.insert_row(request)
+        return await _invalidate_after(
+            lambda: adapter.insert_row(request), data_cache, connector_id
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -637,6 +724,7 @@ async def delete_rows(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
     connector_id: uuid.UUID,
     request: DeleteRowsRequest,
 ) -> Any:
@@ -651,7 +739,9 @@ async def delete_rows(
             },
         )
     try:
-        return await adapter.delete_rows(request)
+        return await _invalidate_after(
+            lambda: adapter.delete_rows(request), data_cache, connector_id
+        )
     except RowConflict:
         raise HTTPException(
             status_code=409,
@@ -735,6 +825,7 @@ async def add_column(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
     connector_id: uuid.UUID,
     request: AddColumnRequest,
 ) -> ColumnChangeResult:
@@ -748,7 +839,11 @@ async def add_column(
                 "error_kind": "config",
             },
         )
-    return await _change_column(lambda: adapter.add_column(request))
+    return await _invalidate_after(
+        lambda: _change_column(lambda: adapter.add_column(request)),
+        data_cache,
+        connector_id,
+    )
 
 
 @router.delete("/{connector_id}/columns", response_model=ColumnChangeResult)
@@ -756,6 +851,7 @@ async def drop_column(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
     connector_id: uuid.UUID,
     request: DropColumnRequest,
 ) -> ColumnChangeResult:
@@ -769,7 +865,11 @@ async def drop_column(
                 "error_kind": "config",
             },
         )
-    return await _change_column(lambda: adapter.drop_column(request))
+    return await _invalidate_after(
+        lambda: _change_column(lambda: adapter.drop_column(request)),
+        data_cache,
+        connector_id,
+    )
 
 
 @router.patch("/{connector_id}/columns", response_model=ColumnChangeResult)
@@ -777,6 +877,7 @@ async def rename_column(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
     connector_id: uuid.UUID,
     request: RenameColumnRequest,
 ) -> ColumnChangeResult:
@@ -790,7 +891,11 @@ async def rename_column(
                 "error_kind": "config",
             },
         )
-    return await _change_column(lambda: adapter.rename_column(request))
+    return await _invalidate_after(
+        lambda: _change_column(lambda: adapter.rename_column(request)),
+        data_cache,
+        connector_id,
+    )
 
 
 @router.patch("/{connector_id}/columns/default", response_model=ColumnChangeResult)
@@ -798,6 +903,7 @@ async def change_column_default(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
     connector_id: uuid.UUID,
     request: ColumnDefaultRequest,
 ) -> ColumnChangeResult:
@@ -811,7 +917,11 @@ async def change_column_default(
                 "error_kind": "config",
             },
         )
-    return await _change_column(lambda: adapter.change_column_default(request))
+    return await _invalidate_after(
+        lambda: _change_column(lambda: adapter.change_column_default(request)),
+        data_cache,
+        connector_id,
+    )
 
 
 @router.get("/{connector_id}/catalog/path", response_model=list[CatalogNode])
@@ -1034,6 +1144,7 @@ async def run_action(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
     connector_id: uuid.UUID,
     action_name: str,
     body: ActionRequest,
@@ -1050,7 +1161,11 @@ async def run_action(
             status_code=415,
             detail={"message": f"{action.title} needs a file to be sent with it"},
         )
-    return await _perform(lambda: action.perform(body.node_id, body.params))
+    return await _invalidate_after(
+        lambda: _perform(lambda: action.perform(body.node_id, body.params)),
+        data_cache,
+        connector_id,
+    )
 
 
 @router.post("/{connector_id}/actions/{action_name}/file", response_model=ActionResult)
@@ -1058,6 +1173,7 @@ async def run_action_with_file(
     session: SessionDep,
     current_user: CurrentUser,
     resources: ResourcesDep,
+    data_cache: DataCacheDep,
     connector_id: uuid.UUID,
     action_name: str,
     file: Annotated[UploadFile, File()],
@@ -1095,4 +1211,8 @@ async def run_action_with_file(
             status_code=422, detail={"message": "The params field must be an object"}
         )
 
-    return await _perform(lambda: action.perform_with_file(target, given, file))
+    return await _invalidate_after(
+        lambda: _perform(lambda: action.perform_with_file(target, given, file)),
+        data_cache,
+        connector_id,
+    )

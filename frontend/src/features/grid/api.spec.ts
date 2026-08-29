@@ -36,8 +36,19 @@ describe("a rows page query", () => {
 
     expect(fetchRows).toHaveBeenCalledWith({
       path: { connector_id: "connector-1" },
+      query: {},
       body: REQUEST,
       signal,
     })
+  })
+
+  it("marks an explicit reload as a fresh source read", async () => {
+    const fetchRows = vi
+      .spyOn(ConnectorsService, "fetchRows")
+      .mockResolvedValue({ data: RESULT } as never)
+
+    await fetchRowsPage("connector-1", REQUEST, new AbortController().signal, true)
+
+    expect(fetchRows.mock.calls[0]?.[0].query).toEqual({ refresh: true })
   })
 })
