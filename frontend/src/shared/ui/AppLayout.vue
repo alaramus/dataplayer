@@ -30,10 +30,6 @@ async function logout() {
     <q-header class="app-layout__header">
       <q-toolbar class="app-layout__toolbar">
         <q-toolbar-title class="app-layout__title">
-          <q-icon
-            name="database"
-            size="18px"
-          />
           <span>DataPlayer</span>
         </q-toolbar-title>
         <!-- Beside signing out: both are about this session rather than about
