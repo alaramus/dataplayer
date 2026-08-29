@@ -248,7 +248,10 @@ async def read_connectors(
     connectors, count = await crud.list_for(
         session, owner=current_user, skip=skip, limit=limit
     )
-    return ConnectorsPublic(data=connectors, count=count)
+    return ConnectorsPublic(
+        data=[ConnectorPublic.model_validate(connector) for connector in connectors],
+        count=count,
+    )
 
 
 @router.get("/{connector_id}", response_model=ConnectorPublic)

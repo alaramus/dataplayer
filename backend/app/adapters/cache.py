@@ -9,7 +9,6 @@ from typing import Annotated, Literal, Protocol, cast, runtime_checkable
 
 from fastapi import Depends, Request
 
-_MISSING = object()
 CacheArea = Literal["catalog", "fetch"]
 CacheStatus = Literal["hit", "miss", "coalesced", "refreshed"]
 
@@ -118,25 +117,27 @@ class DataCache:
         ttl_seconds: float,
         load: Callable[[], Awaitable[T]],
     ) -> T:
-        value: object = _MISSING
         try:
             value = await load()
-        finally:
+        except BaseException:
             async with self._lock:
                 flight = self._flights.get(key)
                 if flight is not None and flight.task is asyncio.current_task():
                     self._flights.pop(key)
-                    if (
-                        value is not _MISSING
-                        and self._generations.get(key.connector_id, 0) == generation
-                    ):
-                        used_at = self._clock()
-                        self._entries[key] = _Entry(
-                            value=value,
-                            expires_at=used_at + ttl_seconds,
-                            used_at=used_at,
-                        )
-                        self._drop_overflow()
+            raise
+
+        async with self._lock:
+            flight = self._flights.get(key)
+            if flight is not None and flight.task is asyncio.current_task():
+                self._flights.pop(key)
+                if self._generations.get(key.connector_id, 0) == generation:
+                    used_at = self._clock()
+                    self._entries[key] = _Entry(
+                        value=value,
+                        expires_at=used_at + ttl_seconds,
+                        used_at=used_at,
+                    )
+                    self._drop_overflow()
         return value
 
     async def invalidate_connector(self, connector_id: uuid.UUID) -> None:
