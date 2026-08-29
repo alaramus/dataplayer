@@ -1,7 +1,7 @@
 import { inject } from "vue"
 import type { InjectionKey, Ref } from "vue"
 
-import type { ConnectorPublic } from "@/client"
+import type { ConnectorPublic, NodeReplacement } from "@/client"
 
 /**
  * What one panel may ask the workspace to open.
@@ -46,6 +46,7 @@ export interface WorkspaceActions {
   takeReveal: (connectorId: string) => RevealTarget | null
   openRows: (request: OpenRowsRequest) => void
   openStructure: (request: OpenStructureRequest) => void
+  replaceNode: (connectorId: string, replacement: NodeReplacement) => void
   /**
    * Show the window of one connection, or an empty one for a new connection.
    *

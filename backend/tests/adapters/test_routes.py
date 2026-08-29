@@ -100,6 +100,7 @@ async def test_reports_what_a_type_can_do(
         "Delete rows",
         "Add columns",
         "Drop columns",
+        "Rename",
     }
     assert "Upload a file" in files
     assert "Delete" in files

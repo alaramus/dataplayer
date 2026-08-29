@@ -3,9 +3,11 @@ import { computed, nextTick, ref, watch } from "vue"
 
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
+import { reloadedBy, replacementsOf } from "@/features/catalog/actions"
+import type { ActionOutcome } from "@/features/catalog/actions"
 import { useNodePathLoader } from "@/features/catalog/api"
-import { locationOf } from "@/features/catalog/location"
 import { useFadingMark } from "@/features/catalog/fadingMark"
+import { locationOf } from "@/features/catalog/location"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
@@ -197,8 +199,11 @@ function onToggle(id: string, on: boolean) {
     : level.checked.value.filter((other) => other !== id)
 }
 
-async function afterAction(reloadNodeIds: (string | null)[]) {
-  for (const nodeId of reloadNodeIds) await level.reload(nodeId)
+async function afterAction(outcome: ActionOutcome) {
+  for (const replacement of replacementsOf(outcome)) {
+    workspace.replaceNode(props.connectorId, replacement)
+  }
+  for (const nodeId of reloadedBy(outcome)) await level.reload(nodeId)
 }
 </script>
 

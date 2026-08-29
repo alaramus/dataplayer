@@ -4,7 +4,7 @@ What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
-D20, D21, D22, D23, D25, D26, D27, D29, D30, D31.
+D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32.
 
 ## What exists today
 
@@ -40,7 +40,8 @@ backend/app/adapters/
 │                    capabilities_of
 ├── routes.py        GET /adapter-types
 ├── postgres/        options.py (a union by auth_method), session.py, pool.py,
-│                    catalog.py, fetch.py, relation.py, adapter.py (facade)
+│                    catalog.py, fetch.py, relation.py, actions.py,
+│                    adapter.py (facade)
 └── file/            session.py (root and containment), catalog.py, fetch.py,
                      readers.py, actions.py, adapter.py (facade)
 ```
@@ -444,6 +445,35 @@ Known deviations:
 - **Entries are bounded by count, not bytes.** Fetch itself is bounded to 1000
   rows, but wide values make entry sizes unequal. A measured byte budget may
   replace the count ceiling later.
+
+## D32. Renaming a catalog node returns its replacement identity, and open work follows it in place
+
+PostgreSQL exposes relation rename through the same action registry used by the
+file source, not through a source-specific route or client branch. The action is
+offered for non-system tables, partitioned tables, views and materialized views.
+Its parameter schema accepts one exact new name, rejects surrounding whitespace
+and PostgreSQL names over 63 bytes, and the adapter checks the fresh schema for
+an existing relation before composing identifiers with `psycopg.sql.Identifier`.
+The source chooses `ALTER TABLE`, `ALTER VIEW` or `ALTER MATERIALIZED VIEW` from
+the catalog node it produced; no kind or SQL fragment comes from the client.
+
+A relation id contains its name, so rename changes identity as well as a label.
+`ActionResult.replacement` therefore carries `old_node_id`, `new_node_id` and
+the new title. The catalog reloads the source-named parent, while the workspace
+replaces rows and structure panel identities in its layout tree without moving
+their tabs. The client copies the opaque ids and never constructs the new one.
+This replacement shape belongs to the common action boundary so a future file
+rename or object-store move can preserve open work by returning the same fact.
+
+Known deviations:
+
+- **Only open rows and structure panels follow the replacement.** Saved grid
+  state remains under the old node id, so filters and column layout begin fresh
+  under the new identity. Migrating that state needs an explicit ownership and
+  expiry rule rather than copying local-storage keys opportunistically.
+- **External dependants follow PostgreSQL's own rename semantics.** Objects tied
+  to the relation identity continue to work; text outside PostgreSQL's dependency
+  graph is not searched or rewritten.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

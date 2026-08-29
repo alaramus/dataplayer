@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { ActionInfo } from "@/client"
 import { at, first } from "@/shared/testing/collections"
-import { reloadedBy, summarize, toCommands, toMenu } from "./actions"
+import { replacementsOf, reloadedBy, summarize, toCommands, toMenu } from "./actions"
 
 const only = (actions: ActionInfo[]) => first(toCommands(actions))
 
@@ -182,6 +182,21 @@ describe("what became of a set", () => {
     }
 
     expect(reloadedBy(outcome)).toEqual(["reports", null])
+  })
+
+  it("keeps source-issued node replacements", () => {
+    const replacement = {
+      old_node_id: "public.orders",
+      new_node_id: "public.sales",
+      title: "sales",
+    }
+    const outcome = {
+      done: [{ ...result("renamed", "public"), replacement }],
+      failures: [],
+      total: 1,
+    }
+
+    expect(replacementsOf(outcome)).toEqual([replacement])
   })
 
   it("says what the server said when one node was acted on", () => {

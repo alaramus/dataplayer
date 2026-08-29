@@ -1,17 +1,28 @@
 import json
 import uuid
+from collections.abc import AsyncGenerator
 from pathlib import Path
 
 import pytest
 from httpx import AsyncClient, Response
+from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters import registry
+from app.adapters.protocol import ConnectionCheckResult
 from app.core.config import settings
 from app.users import crud, storage
 from tests.utils.database import working_postgres_options
 from tests.utils.files import look
+from tests.utils.relation_fixture import make_schema
 
 BASE = f"{settings.API_V1_STR}/connectors"
+
+
+@pytest.fixture
+async def relation_schema() -> AsyncGenerator[str]:
+    async for schema in make_schema():
+        yield schema
 
 
 @pytest.fixture
@@ -56,6 +67,39 @@ async def _postgres_connector(client: AsyncClient, headers: dict[str, str]) -> s
     )
     assert response.status_code == 200
     return str(response.json()["id"])
+
+
+class NoActionOptions(BaseModel):
+    url: str
+
+
+class NoActionAdapter:
+    async def check_connection(self) -> ConnectionCheckResult:
+        return ConnectionCheckResult(ok=True, message="ok", latency_ms=1)
+
+
+async def _no_action_connector(
+    client: AsyncClient, headers: dict[str, str]
+) -> str:
+    registry.register(
+        name="no-actions",
+        title="No actions",
+        category="sql",
+        description="A source with no management actions",
+        options_schema=NoActionOptions,
+        adapter_class=NoActionAdapter,
+    )(lambda _options, _context: NoActionAdapter())
+    created = await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={
+            "name": f"no actions {uuid.uuid4()}",
+            "adapter_type": "no-actions",
+            "options": {"url": "https://example.com"},
+        },
+    )
+    assert created.status_code == 200
+    return str(created.json()["id"])
 
 
 async def _run(
@@ -171,26 +215,70 @@ async def test_what_does_not_apply_here_is_listed_and_marked(
     assert listed == {"create_folder", "upload", "rename", "delete"}
 
 
+@pytest.mark.usefixtures("isolated_registry")
 async def test_a_source_without_actions_says_so(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
-    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    connector_id = await _no_action_connector(client, normal_user_token_headers)
 
     response = await _offered(client, normal_user_token_headers, connector_id)
 
     assert response.status_code == 501
 
 
+@pytest.mark.usefixtures("isolated_registry")
 async def test_a_source_without_actions_refuses_to_run_one(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
-    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    connector_id = await _no_action_connector(client, normal_user_token_headers)
 
     response = await _run(
         client, normal_user_token_headers, connector_id, "delete", "public"
     )
 
     assert response.status_code == 501
+
+
+async def test_renaming_a_postgres_relation_returns_its_new_source_identity(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    old_node_id = f"{relation_schema}.customers"
+    new_node_id = f"{relation_schema}.clients"
+
+    offered = await _offered(
+        client, normal_user_token_headers, connector_id, [old_node_id]
+    )
+    rename = next(
+        action for action in offered.json() if action["name"] == "rename_relation"
+    )
+    assert rename["applicable"] is True
+
+    response = await _run(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "rename_relation",
+        old_node_id,
+        new_name="clients",
+    )
+
+    assert response.status_code == 200
+    assert response.json()["reload_node_id"] == relation_schema
+    assert response.json()["replacement"] == {
+        "old_node_id": old_node_id,
+        "new_node_id": new_node_id,
+        "title": "clients",
+    }
+    catalog = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": relation_schema},
+    )
+    assert "clients" in {node["name"] for node in catalog.json()}
+    assert "customers" not in {node["name"] for node in catalog.json()}
 
 
 # --- running an action -------------------------------------------------------

@@ -41,6 +41,7 @@
 | 2026-08-28 | [Переименование колонки](2026-08-28-column-rename-design.md) | D29: rename сохраняет identity и source-owned зависимости |
 | 2026-08-28 | [Значение по умолчанию колонки](2026-08-28-column-default-design.md) | D30: введённый default всегда литерал, не SQL-выражение |
 | 2026-08-29 | [Кеш чтения catalog и fetch](2026-08-29-read-cache-design.md) | D31: source-owned TTL, bounded cache, coalescing и generation invalidation |
+| 2026-08-29 | [Переименование таблицы и представления](2026-08-29-relation-rename-design.md) | D32: source-issued replacement identity, открытые вкладки следуют за rename |
 
 Планы реализации — в [../plans/](../plans/). Их пять: два на реестр
 коннекторов, по одному на рабочую область, relation model и grid; остальные

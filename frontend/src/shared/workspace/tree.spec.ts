@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { LeafNode, SplitNode } from "./model"
 import { makeLeaf, makeSplit } from "./model"
-import { leavesOf, nodeAt, normalize, pathOfNode, pathOfPanel, replaceAt } from "./tree"
+import { leavesOf, nodeAt, normalize, pathOfNode, pathOfPanel, renamePanel, replaceAt } from "./tree"
 import {
   activatePanel,
   addPanel,
@@ -53,6 +53,19 @@ describe("addressing a node", () => {
 
   it("lists every leaf in order", () => {
     expect(leavesOf(sample()).map((leaf) => leaf.id)).toEqual(["a", "b"])
+  })
+})
+
+describe("renaming a panel identity", () => {
+  it("keeps the tab in place and active", () => {
+    const renamed = renamePanel(activatePanel(sample(), "p3"), "p3", "p4") as SplitNode
+
+    expect(renamed.children[1]).toMatchObject({
+      panels: ["p2", "p4"],
+      activePanel: "p4",
+    })
+    expect(pathOfPanel(renamed, "p4")).toEqual([1])
+    expect(pathOfPanel(renamed, "p3")).toBeNull()
   })
 })
 

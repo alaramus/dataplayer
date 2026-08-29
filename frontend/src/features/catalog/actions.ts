@@ -96,6 +96,14 @@ export function reloadedBy(outcome: ActionOutcome): (string | null)[] {
   return [...seen]
 }
 
+export function replacementsOf(outcome: ActionOutcome) {
+  return outcome.done.flatMap((result) =>
+    result.replacement === null || result.replacement === undefined
+      ? []
+      : [result.replacement]
+  )
+}
+
 /**
  * What to tell the user, in one line.
  *

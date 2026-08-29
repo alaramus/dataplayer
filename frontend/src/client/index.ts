@@ -199,6 +199,7 @@ export type {
   loginTestTokenResponses,
   Message,
   NewPassword,
+  NodeReplacement,
   NullFilter,
   ParsedOptions,
   Partitioning,

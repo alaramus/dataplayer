@@ -46,6 +46,30 @@ export function leavesOf(root: LayoutNode): LeafNode[] {
   return root.children.flatMap(leavesOf)
 }
 
+/** Replace one opaque panel id everywhere without moving its tab. */
+export function renamePanel(
+  root: LayoutNode,
+  oldPanelId: PanelId,
+  newPanelId: PanelId
+): LayoutNode {
+  if (root.kind === "split") {
+    return {
+      ...root,
+      children: root.children.map((child) =>
+        renamePanel(child, oldPanelId, newPanelId)
+      ),
+    }
+  }
+  if (!root.panels.includes(oldPanelId)) return root
+  return {
+    ...root,
+    panels: root.panels.map((panelId) =>
+      panelId === oldPanelId ? newPanelId : panelId
+    ),
+    activePanel: root.activePanel === oldPanelId ? newPanelId : root.activePanel,
+  }
+}
+
 /**
  * Put `node` where `path` points, or remove what is there when `node` is null.
  *

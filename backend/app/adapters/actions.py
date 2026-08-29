@@ -20,6 +20,12 @@ from pydantic import BaseModel
 from app.adapters.catalog import NodeKind
 
 
+class NodeReplacement(BaseModel):
+    old_node_id: str
+    new_node_id: str
+    title: str
+
+
 class ActionResult(BaseModel):
     """What happened, and what the client should re-read because of it.
 
@@ -31,6 +37,9 @@ class ActionResult(BaseModel):
     message: str
     # The node whose children changed. None means the root of the connector.
     reload_node_id: str | None = None
+    # A node whose source identity changed. Panels holding the old opaque id
+    # replace it with the new one; the client never derives either id.
+    replacement: NodeReplacement | None = None
 
 
 # Why an action that is understood must still not be performed. Kept apart

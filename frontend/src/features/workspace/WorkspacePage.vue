@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, provide, ref } from "vue"
 
-import type { ConnectorPublic } from "@/client"
+import type { ConnectorPublic, NodeReplacement } from "@/client"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import {
@@ -257,6 +257,28 @@ function revealInCatalog(connectorId: string, nodeId: string, label: string) {
   revealTarget.value = { connectorId, nodeId, label }
 }
 
+function replaceNode(connectorId: string, replacement: NodeReplacement) {
+  for (const panel of [...workspace.panels.value]) {
+    if (
+      (panel.kind !== "rows" && panel.kind !== "structure") ||
+      panel.connectorId !== connectorId ||
+      panel.nodeId !== replacement.old_node_id
+    ) {
+      continue
+    }
+    const id =
+      panel.kind === "rows"
+        ? rowsPanelId(connectorId, replacement.new_node_id)
+        : structurePanelId(connectorId, replacement.new_node_id)
+    workspace.replace(panel.id, {
+      ...panel,
+      id,
+      nodeId: replacement.new_node_id,
+      title: replacement.title,
+    })
+  }
+}
+
 provide(workspaceActionsKey, {
   activeConnectorId,
   openConnectorIds: openConnectors,
@@ -283,6 +305,7 @@ provide(workspaceActionsKey, {
       ...request,
     })
   },
+  replaceNode,
   editConnector,
 })
 </script>

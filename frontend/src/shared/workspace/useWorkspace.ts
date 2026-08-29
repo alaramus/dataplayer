@@ -16,6 +16,7 @@ import {
   leavesOf,
   movePanel,
   removePanel,
+  renamePanel,
   resizeSplit,
   setCollapsed,
 } from "./tree"
@@ -68,6 +69,7 @@ export interface WorkspaceApi<P extends { id: string }> {
   context: WorkspaceContext
   panels: Ref<P[]>
   open: (panel: P, options?: OpenOptions) => void
+  replace: (oldPanelId: string, panel: P) => void
   reset: () => void
 }
 
@@ -127,6 +129,19 @@ export function useWorkspace<P extends { id: string }>(
     if (target === null) return
     panels.value = [...panels.value, panel]
     tree.value = addPanel(tree.value, target, panel.id)
+  }
+
+  function replace(oldPanelId: string, panel: P) {
+    if (panels.value.every((candidate) => candidate.id !== oldPanelId)) return
+    if (panel.id !== oldPanelId && panelOf(panel.id) !== undefined) {
+      close(panel.id)
+    }
+    const index = panels.value.findIndex((candidate) => candidate.id === oldPanelId)
+    if (index < 0) return
+    panels.value = panels.value.map((candidate, candidateIndex) =>
+      candidateIndex === index ? panel : candidate
+    )
+    tree.value = renamePanel(tree.value, oldPanelId, panel.id)
   }
 
   function close(panelId: PanelId) {
@@ -257,7 +272,7 @@ export function useWorkspace<P extends { id: string }>(
     focusedLeaf.value = null
   }
 
-  return { context, panels, open, reset }
+  return { context, panels, open, replace, reset }
 }
 
 function isCollapsed(root: LayoutNode, leafId: NodeId): boolean {

@@ -1038,6 +1038,8 @@ async def _available_or_422(
 ) -> list[Action[Any]]:
     try:
         return await adapter.available(node_id)
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail={"message": str(exc)}) from exc
     except AdapterError as exc:
@@ -1074,6 +1076,8 @@ async def _action_for_node(
 async def _perform(run: Callable[[], Awaitable[ActionResult]]) -> ActionResult:
     try:
         return await run()
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
     except ValidationError as exc:
         # ValidationError before ValueError on purpose: it is one of those, and
         # only it can say which field was wrong.

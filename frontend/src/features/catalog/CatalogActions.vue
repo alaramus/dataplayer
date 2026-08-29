@@ -3,7 +3,7 @@ import { computed, ref } from "vue"
 
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import { toMenu } from "@/features/catalog/actions"
-import type { MenuCommand } from "@/features/catalog/actions"
+import type { ActionOutcome, MenuCommand } from "@/features/catalog/actions"
 import { useNodeActions } from "@/features/catalog/api"
 import { AppIconButton, AppMenu } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
@@ -29,7 +29,7 @@ const props = defineProps<{
   checkedLabel: string
 }>()
 
-const emit = defineEmits<{ done: [reloadNodeIds: (string | null)[]] }>()
+const emit = defineEmits<{ done: [outcome: ActionOutcome] }>()
 
 const connectorId = computed(() => props.connectorId)
 

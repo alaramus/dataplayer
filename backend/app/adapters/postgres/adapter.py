@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from typing import Any
 
+from app.adapters.actions import Action, ActionType
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
@@ -11,6 +12,7 @@ from app.adapters.column_changes import (
     RenameColumnRequest,
 )
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.postgres.actions import POSTGRES_ACTION_TYPES, PostgresActions
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.columns import PostgresColumns
 from app.adapters.postgres.fetch import PostgresFetch
@@ -68,6 +70,7 @@ class PostgresAdapter:
     ) -> None:
         self._session = PostgresSession(options, pooling)
         self._catalog = PostgresCatalog(self._session)
+        self._actions = PostgresActions(self._session, self._catalog)
         self._fetch = PostgresFetch(self._session)
         self._update = PostgresUpdate(self._session, self._fetch)
         self._relation = PostgresRelation(self._session)
@@ -76,6 +79,20 @@ class PostgresAdapter:
     def cache_ttl(self, area: CacheArea) -> float:
         """A short stale window for reads whose source is under our control."""
         return 30.0 if area == "catalog" else 10.0
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        """The same declarations used to build the callable action set."""
+        return POSTGRES_ACTION_TYPES
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        return await self._actions.available(node_id)
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.action(name)
+
+    def all_actions(self) -> list[Action[Any]]:
+        return self._actions.all_actions()
 
     @classmethod
     def options_from_url(cls, url: str) -> dict[str, Any]:

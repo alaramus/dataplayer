@@ -76,6 +76,7 @@ export type ActionResult = {
    * Reload Node Id
    */
   reload_node_id?: string | null
+  replacement?: NodeReplacement | null
 }
 
 /**
@@ -1019,6 +1020,24 @@ export type NewPassword = {
    * New Password
    */
   new_password: string
+}
+
+/**
+ * NodeReplacement
+ */
+export type NodeReplacement = {
+  /**
+   * Old Node Id
+   */
+  old_node_id: string
+  /**
+   * New Node Id
+   */
+  new_node_id: string
+  /**
+   * Title
+   */
+  title: string
 }
 
 /**

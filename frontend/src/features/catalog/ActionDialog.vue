@@ -2,8 +2,8 @@
 import { computed, ref, watch } from "vue"
 
 import { useRunAction } from "@/features/catalog/api"
-import { reloadedBy, summarize } from "@/features/catalog/actions"
-import type { ActionCommand } from "@/features/catalog/actions"
+import { summarize } from "@/features/catalog/actions"
+import type { ActionCommand, ActionOutcome } from "@/features/catalog/actions"
 import { fieldErrorsFrom, messageOf } from "@/shared/api/errors"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
@@ -26,7 +26,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:command": [value: ActionCommand | null]
-  done: [reloadNodeIds: (string | null)[]]
+  done: [outcome: ActionOutcome]
 }>()
 
 const toast = useToast()
@@ -73,7 +73,7 @@ async function submit() {
     const said = summarize(outcome, command.label)
     if (outcome.failures.length > 0) toast.error(said)
     else toast.success(said)
-    emit("done", reloadedBy(outcome))
+    emit("done", outcome)
     close()
   } catch (cause) {
     const fieldErrors = fieldErrorsFrom(cause)

@@ -98,6 +98,17 @@ describe("a workspace", () => {
     expect(main.activePanel).toBe("p3")
   })
 
+  it("replaces a panel identity without moving its tab", () => {
+    const workspace = build()
+
+    workspace.replace("p2", { id: "renamed", kind: "rows" })
+
+    const main = (workspace.context.tree.value as SplitNode).children[1] as LeafNode
+    expect(main.panels).toEqual(["renamed"])
+    expect(main.activePanel).toBe("renamed")
+    expect(workspace.panels.value).toContainEqual({ id: "renamed", kind: "rows" })
+  })
+
   it("activates a panel that is already open instead of opening it twice", () => {
     const workspace = build()
     workspace.open({ id: "p1", kind: "catalog" })
