@@ -261,6 +261,25 @@ describe("re-reading after a change", () => {
       expect(at(level.items.value, 0).label).toBe("q4.csv")
     })
   })
+
+  it("keeps a non-default schema selected after a relation changes", async () => {
+    answers(
+      [schema("public"), schema("sales")],
+      [table("public.orders", "orders")],
+      [table("sales.leads", "leads")],
+      [schema("public"), schema("sales")],
+      [table("sales.prospects", "prospects")]
+    )
+
+    await withLevel(async (level) => {
+      await level.load()
+      await level.setGroups(["sales"])
+      await level.reload("sales")
+
+      expect(level.selectedGroups.value).toEqual(["sales"])
+      expect(level.items.value.map((node) => node.label)).toEqual(["prospects"])
+    })
+  })
 })
 describe("standing where a node lives", () => {
   it("walks to the level of the node and draws the trail to it", async () => {

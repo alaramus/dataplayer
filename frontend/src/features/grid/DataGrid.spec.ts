@@ -281,7 +281,7 @@ describe("the basic data grid", () => {
     expect(fetchRows).toHaveBeenLastCalledWith(
       expect.objectContaining({
         body: expect.objectContaining({ offset: 100, limit: 100 }),
-        query: { refresh: true },
+        query: {},
       })
     )
     expect(wrapper.get('[data-testid="grid-page-range"]').text()).toContain("Rows 101–200")

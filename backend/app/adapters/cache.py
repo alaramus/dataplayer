@@ -5,11 +5,10 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Annotated, Generic, Literal, Protocol, TypeVar, cast, runtime_checkable
+from typing import Annotated, Literal, Protocol, cast, runtime_checkable
 
 from fastapi import Depends, Request
 
-T = TypeVar("T")
 _MISSING = object()
 CacheArea = Literal["catalog", "fetch"]
 CacheStatus = Literal["hit", "miss", "coalesced", "refreshed"]
@@ -33,20 +32,20 @@ class CacheKey:
 
 
 @dataclass(frozen=True)
-class CacheResult(Generic[T]):
+class CacheResult[T]:
     value: T
     status: CacheStatus
 
 
 @dataclass
-class _Entry(Generic[T]):
+class _Entry[T]:
     value: T
     expires_at: float
     used_at: float
 
 
 @dataclass(frozen=True)
-class _Flight(Generic[T]):
+class _Flight[T]:
     task: asyncio.Task[T]
     generation: int
 
@@ -72,7 +71,7 @@ class DataCache:
         self._generations: dict[uuid.UUID, int] = {}
         self._lock = asyncio.Lock()
 
-    async def get_or_load(
+    async def get_or_load[T](
         self,
         key: CacheKey,
         *,
@@ -138,7 +137,7 @@ class DataCache:
                             used_at=used_at,
                         )
                         self._drop_overflow()
-        return cast(T, value)
+        return value
 
     async def invalidate_connector(self, connector_id: uuid.UUID) -> None:
         """Forget all areas and prevent older in-flight reads being stored."""

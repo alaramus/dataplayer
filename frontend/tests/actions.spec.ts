@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test"
 
-import { catalogAction, catalogCheck, catalogRow, openNode } from "./utils/catalog"
+import {
+  catalogAction,
+  catalogCheck,
+  catalogRow,
+  openNode,
+  pickSchema,
+} from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
@@ -128,18 +134,38 @@ test("two files at once admit only what can be done to many", async ({ page }) =
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
-test("a database offers no actions at all", async ({ page }) => {
+test("renames a relation without leaving its schema", async ({ page }) => {
   const name = `e2e-actions-pg-${Date.now()}`
+  const renamed = `audit_events_${Date.now()}`
   await login(page)
 
   await createPostgresConnector(page, name)
 
   await openConnector(page, name)
-  await expect(page.getByTestId("catalog-list")).toContainText("connector")
-  // The source does not implement the capability, so there is no menu at all —
-  // and the screen says so by offering nothing, not by an error.
-  await expect(page.getByTestId("catalog-actions")).toHaveCount(0)
+  await pickSchema(page, "demo_lab")
+  await expect(catalogRow(page, "audit_events")).toBeVisible()
+
+  await catalogCheck(page, "audit_events").click()
+  await catalogAction(page, "rename_relation")
+  await page.getByTestId("action-dialog").getByRole("textbox").first().fill(renamed)
+  await page.getByTestId("action-submit").click()
+
+  // Reloading the root must keep the grouping that contained the relation;
+  // otherwise the catalog silently falls back to `public` after the rename.
+  await expect(catalogRow(page, renamed)).toBeVisible()
+  await expect(page.getByTestId("catalog-groups")).toContainText("demo_lab")
   await expect(page.getByTestId("catalog-error")).toHaveCount(0)
+
+  // Leave the shared fixture exactly as the next scenario expects it.
+  await catalogCheck(page, renamed).click()
+  await catalogAction(page, "rename_relation")
+  await page
+    .getByTestId("action-dialog")
+    .getByRole("textbox")
+    .first()
+    .fill("audit_events")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, "audit_events")).toBeVisible()
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

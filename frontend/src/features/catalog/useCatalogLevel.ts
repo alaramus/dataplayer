@@ -115,6 +115,16 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     return first === undefined ? [] : [first.id]
   }
 
+  /** Keep an explicit grouping choice only while those groupings still exist. */
+  function availableGroups(requested: string[] | undefined, offered: ListNode[]): string[] {
+    if (requested === undefined) return defaultGroups(offered)
+    const offeredIds = new Set(offered.map((group) => group.id))
+    const remaining = requested.filter((id) => offeredIds.has(id))
+    return remaining.length > 0 || requested.length === 0
+      ? remaining
+      : defaultGroups(offered)
+  }
+
   async function show(nodeId: string | null, groupIds?: string[], refresh = false) {
     checked.value = []
     filter.value = ""
@@ -123,7 +133,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     try {
       const children = await childrenOf(nodeId, undefined, refresh)
       groups.value = groupsOf(children)
-      selectedGroups.value = groupIds ?? defaultGroups(groups.value)
+      selectedGroups.value = availableGroups(groupIds, groups.value)
       plain.value = children.filter((node) => node.role !== "group")
       await fillRows(refresh)
     } catch (cause) {
@@ -209,10 +219,11 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
    * asked to replace.
    */
   async function reload(nodeId: string | null) {
+    const groupsToKeep = [...selectedGroups.value]
     await forget(nodeId)
     await forget(currentId.value)
     for (const group of selectedGroups.value) await forget(group)
-    await show(currentId.value, undefined, true)
+    await show(currentId.value, groupsToKeep, true)
   }
 
   function toggleAll(on: boolean) {
