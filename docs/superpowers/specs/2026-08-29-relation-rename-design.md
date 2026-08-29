@@ -1,4 +1,4 @@
-# Переименование таблицы и представления
+# Renaming a table and a view
 
 ## Goal
 

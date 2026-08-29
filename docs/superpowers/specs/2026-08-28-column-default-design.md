@@ -1,23 +1,24 @@
-# Значение по умолчанию колонки
+# Column default
 
-## Решение
+## Decision
 
-Форма умеет установить литеральное значение или удалить default. Запрос —
-закрытое действие `set | drop`; при `set` строковое значение обязательно, при
-`drop` отсутствует. Пустая строка остаётся полноценным литералом.
+The form can set a literal value or drop the default. The request is a closed
+action, `set | drop`: `set` requires a string value, `drop` carries none. The
+empty string stays a full literal.
 
-Текст пользователя никогда не становится SQL-фрагментом. PostgreSQL получает
-quoted literal и сам приводит его к типу колонки. Поэтому кавычки безопасны, а
-невалидные числа, даты и UUID отклоняются источником. Генерируемые колонки не
-принимают default.
+User text never becomes an SQL fragment. PostgreSQL is given a quoted literal
+and coerces it to the column's own type. Quotes are therefore safe, and an
+invalid number, date or UUID is rejected by the source. A generated column
+takes no default.
 
-## Интерфейс
+## Interface
 
-Команда находится у строки колонки в Structure. Диалог показывает текущий
-default, принимает новое литеральное значение и отдельно предлагает удалить
-существующий default. После успеха перечитываются структура и данные.
+The command sits on the column's row in Structure. The dialog shows the current
+default, accepts a new literal value, and separately offers to drop the
+existing one. Structure and data are re-read after a success.
 
-## Отложено
+## Deferred
 
-SQL-выражения (`now()`, sequence, функции), изменение nullable и типа колонки.
-Выражения позже потребуют source-owned словаря, а не поля с произвольным SQL.
+SQL expressions (`now()`, sequences, functions), and changing a column's
+nullability or type. Expressions will need a source-owned vocabulary rather
+than a field holding arbitrary SQL.

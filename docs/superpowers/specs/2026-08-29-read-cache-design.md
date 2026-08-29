@@ -1,4 +1,4 @@
-# Кеш чтения catalog и fetch
+# The catalog and fetch read cache
 
 ## Problem
 

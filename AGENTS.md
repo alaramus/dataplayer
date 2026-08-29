@@ -33,7 +33,11 @@ not a constraint: any part of it may be rewritten or deleted, and most of it
 already has been.
 
 Everything in the repository is in **English**: code, comments, docstrings, UI
-strings, test names, commit messages and documentation.
+strings, test names, commit messages and documentation. Known deviation: the
+specs dated up to 2026-08-27 in `docs/superpowers/specs/`, and every plan in
+`docs/superpowers/plans/`, are working notes in Russian and stay that way as
+legacy. Anything written from 2026-08-28 onwards is English, those directories
+included; the spec index lists the older titles in translation.
 
 ## Where to read what
 
