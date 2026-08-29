@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive } from "vue"
+import { reactive, watch } from "vue"
 import type { CSSProperties } from "vue"
 
 import type { FetchColumn, InsertValue } from "@/client"
@@ -25,11 +25,31 @@ const included = reactive<Record<string, boolean>>({})
 const nulls = reactive<Record<string, boolean>>({})
 const drafts = reactive<Record<string, string>>({})
 
-for (const { column } of props.columns) {
-  included[column.name] = column.insert_required === true
-  nulls[column.name] = false
-  drafts[column.name] = column.type.category === "boolean" ? "false" : ""
-}
+/**
+ * Every column this row has been offered, in the order it first appeared.
+ *
+ * `columns` is only what the grid shows now, and the grid can hide, show or
+ * pin a column while the row is open. Seeded once per column and never
+ * dropped, so a column revealed later still starts from its own rules — a
+ * required one included, a boolean drafted as false — and a value already
+ * typed is still sent after its column leaves the view rather than being
+ * quietly discarded.
+ */
+const known = new Map<string, FetchColumn>()
+
+watch(
+  () => props.columns,
+  (columns) => {
+    for (const { column } of columns) {
+      known.set(column.name, column)
+      if (column.name in included) continue
+      included[column.name] = column.insert_required === true
+      nulls[column.name] = false
+      drafts[column.name] = column.type.category === "boolean" ? "false" : ""
+    }
+  },
+  { immediate: true }
+)
 
 function options(column: FetchColumn) {
   if (column.type.category === "boolean") {
@@ -66,7 +86,7 @@ function save() {
   if (props.saving) return
   emit(
     "save",
-    props.columns.flatMap(({ column }) =>
+    [...known.values()].flatMap((column) =>
       column.insertable === true && included[column.name] === true
         ? [
             {

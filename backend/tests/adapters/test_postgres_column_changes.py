@@ -283,3 +283,23 @@ async def test_default_rejects_invalid_literal_unknown_and_generated_column(
                 node_id=f"{schema}.customers", name="name_upper", action="drop"
             )
         )
+
+
+async def test_default_rejects_a_nul_character_before_composing_a_literal(
+    schema: str,
+) -> None:
+    """A NUL makes psycopg raise while quoting, which is not an upstream fault.
+
+    Left to the driver it escapes every handler the route has and answers 500.
+    """
+    adapter = _adapter()
+
+    with pytest.raises(ValueError, match="NUL character"):
+        await adapter.change_column_default(
+            ColumnDefaultRequest(
+                node_id=f"{schema}.customers",
+                name="name",
+                action="set",
+                value="Anon\x00ymous",
+            )
+        )

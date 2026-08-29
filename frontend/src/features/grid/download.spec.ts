@@ -12,16 +12,31 @@ describe("a CSV browser download", () => {
     ).toBe("PostgreSQL classes.csv")
   })
 
-  it("clicks one temporary link and releases its object URL", () => {
+  it("clicks a link that is in the document, and only then releases it", () => {
+    vi.useFakeTimers()
     const create = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:page")
     const revoke = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined)
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined)
+    let connectedAtClick: boolean | null = null
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        connectedAtClick = this.isConnected
+      })
     const blob = new Blob(["id\n1\n"], { type: "text/csv" })
 
     saveBrowserDownload(blob, "page.csv")
 
     expect(create).toHaveBeenCalledWith(blob)
     expect(click).toHaveBeenCalledOnce()
+    // A detached link is not followed by every browser, and an object URL
+    // released in the same tick can cancel the download it started.
+    expect(connectedAtClick).toBe(true)
+    expect(revoke).not.toHaveBeenCalled()
+
+    vi.runAllTimers()
+
     expect(revoke).toHaveBeenCalledWith("blob:page")
+    expect(document.querySelector("a[download]")).toBeNull()
+    vi.useRealTimers()
   })
 })

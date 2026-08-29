@@ -72,3 +72,24 @@ async def test_default_action_and_value_must_match(
     )
 
     assert response.status_code == 422
+
+
+async def test_a_nul_in_a_default_is_a_bad_request_not_a_failure(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    schema: str,
+) -> None:
+    connector_id = await _connector(client, normal_user_token_headers)
+
+    response = await client.patch(
+        f"{BASE}/{connector_id}/columns/default",
+        headers=normal_user_token_headers,
+        json={
+            "node_id": f"{schema}.customers",
+            "name": "name",
+            "action": "set",
+            "value": "Anon\x00ymous",
+        },
+    )
+
+    assert response.status_code == 422

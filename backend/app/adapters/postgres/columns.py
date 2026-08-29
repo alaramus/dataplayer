@@ -80,6 +80,11 @@ class PostgresColumns:
             raise ValueError(f'Relation has no column "{request.name}"')
         if column.generated is not None:
             raise ValueError("A generated column cannot have a default")
+        if request.value is not None and "\x00" in request.value:
+            # Composing the literal is what would fail, and it fails with a
+            # driver error rather than with a rejected value. Said here, it is
+            # a bad request like any other unusable default.
+            raise ValueError("A default value cannot contain a NUL character")
         statement = sql.SQL("ALTER TABLE {} ALTER COLUMN {} ").format(
             sql.Identifier(model.schema_name, model.name),
             sql.Identifier(request.name),

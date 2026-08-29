@@ -55,6 +55,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # A response header a browser does not safelist is invisible to the page
+    # unless it is named here. In development the frontend is served from its
+    # own port, so a download would silently fall back to a guessed filename
+    # while working in a deployment, where the same build is same-origin.
+    expose_headers=["Content-Disposition", "X-Data-Cache"],
 )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
