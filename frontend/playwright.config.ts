@@ -36,8 +36,8 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
-    // Отдельного проекта setup нет: вход выполняется внутри сценария, поэтому
-    // сохранённое состояние сессии не используется.
+    // There is no separate setup project: each scenario signs in itself, so no
+    // saved session state is used.
     {
       name: 'chromium',
       use: {

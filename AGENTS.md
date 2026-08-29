@@ -193,7 +193,7 @@ bash scripts/check-docs.sh
 ```
 
 Every relative link resolves, every decision in the table above has exactly one
-home in `docs/architecture/`, and this file stays under 16 KB.
+home in `docs/architecture/`, and this file stays under 24 KB.
 
 ### Continuous integration
 

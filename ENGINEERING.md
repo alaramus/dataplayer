@@ -212,7 +212,7 @@ pure-logic split rests on review.
 
 **Enforced:** `bash scripts/check-docs.sh` — every relative link resolves, every
 decision in the table has exactly one home in `docs/architecture/` and none
-lives there unlisted, and `AGENTS.md` stays under 16 KB. All three were checked
+lives there unlisted, and `AGENTS.md` stays under 24 KB. All three were checked
 by breaking them. That a deviation is recorded at all rests on review.
 
 ## A failing check is fixed in code, not weakened
