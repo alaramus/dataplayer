@@ -168,7 +168,7 @@ def test_the_variant_without_a_password_still_has_an_address() -> None:
 
 
 async def test_a_server_that_wants_a_password_refuses_the_variant_without_one() -> None:
-    """The compose database requires one, so this is the honest half of D-В4.
+    """The compose database requires one, so this is the honest half of the D16 deviation.
 
     What cannot be shown here is the other half — that `no_auth` succeeds
     against a server configured with `trust` — because there is no such server

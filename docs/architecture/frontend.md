@@ -177,6 +177,17 @@ Filters and sort are committed only after the server accepts their fetch, so a
 rejected query cannot become the view restored on the next open. The error state
 also offers a query reset that clears both without depending on column metadata
 from the failed response.
+
+A column renamed or dropped while the tab is open leaves a live query naming
+something the relation no longer has, and the source refuses it every time. The
+grid recovers by itself: it forgets the cleared page in the client cache, asks
+once with neither filters nor sorting, keeps back every filter and sort the
+fresh answer still knows, and names the ones it dropped. Nothing reads the
+refusal — the surviving columns come from an answer the source has just given,
+so the same recovery covers a change made outside the application. It is
+attempted once per exact query, so a 422 about anything other than a missing
+column surfaces as the error banner instead of being cleared and refused for
+ever.
 Unknown versions and contradictory shapes are discarded, and restored state is
 reconciled with the columns the server actually returned. Offset, selection and
 open editors are transient: reload starts at the first page and a page or
@@ -229,7 +240,11 @@ table boundary rather than a source-specific adapter capability.
 The server writes UTF-8 CSV to
 `downloads/<connector-id>/<table>-<timestamp>.csv` inside the current user's
 personal directory and returns that same file as the HTTP attachment. SQL null
-is `\N`, so it remains distinct from an empty string. The connector id in the
+is an empty unquoted field and every other value is quoted, which is what
+PostgreSQL's own `COPY ... CSV` writes and reads back, so null stays distinct
+from an empty string without a sentinel that a real value could equal. The
+`\N` sentinel this started with could not: a cell holding those two characters
+was indistinguishable from a null. The connector id in the
 path preserves provenance even when two connections or tables have the same
 display name.
 

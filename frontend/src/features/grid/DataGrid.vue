@@ -22,7 +22,7 @@ import { computed, nextTick, ref, toRef, useTemplateRef, watch } from "vue"
 import type { CSSProperties } from "vue"
 
 import type { FetchColumn, Sort } from "@/client"
-import { messageOf } from "@/shared/api/errors"
+import { messageOf, statusOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import {
   AppBanner,
@@ -33,7 +33,14 @@ import {
   useToast,
 } from "@/shared/ui"
 
-import { useDeleteRows, useDownloadPage, useInsertRow, useRowsPage, useUpdateCell } from "./api"
+import {
+  useDeleteRows,
+  useDownloadPage,
+  useForgetRowsPage,
+  useInsertRow,
+  useRowsPage,
+  useUpdateCell,
+} from "./api"
 import CellEditorDialog from "./CellEditorDialog.vue"
 import CellValueDialog from "./CellValueDialog.vue"
 import { toTsv } from "./clipboard"
@@ -52,7 +59,13 @@ import {
   saveGridState,
   savePageSize,
 } from "./persist"
-import { buildFetchRequest, withFilters, withPage, withPageSize } from "./queryState"
+import {
+  buildFetchRequest,
+  prunedToColumns,
+  withFilters,
+  withPage,
+  withPageSize,
+} from "./queryState"
 import { withSort } from "./queryState"
 import { toggleMultiSort, toggleSingleSort } from "./sortModel"
 import { selectedWholeRowIndexes, selectionMatrix } from "./selection"
@@ -86,7 +99,13 @@ const persistedQueryState = ref<GridQueryState>({ ...queryState.value })
 const queryAwaitingPersistence = ref<GridQueryState | null>(null)
 const request = computed(() => buildFetchRequest(props.nodeId, queryState.value))
 const refreshNext = ref(false)
-const rowsQuery = useRowsPage(toRef(props, "connectorId"), request, refreshNext)
+/** One explicit reload is spent by one fetch: whichever asks for it first. */
+function takeRefresh() {
+  const wanted = refreshNext.value
+  refreshNext.value = false
+  return wanted
+}
+const rowsQuery = useRowsPage(toRef(props, "connectorId"), request, takeRefresh)
 
 async function refreshRows() {
   refreshNext.value = true
@@ -117,6 +136,7 @@ const updateCell = useUpdateCell(toRef(props, "connectorId"))
 const insertRow = useInsertRow(toRef(props, "connectorId"))
 const deleteRows = useDeleteRows(toRef(props, "connectorId"))
 const downloadPage = useDownloadPage(toRef(props, "connectorId"))
+const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
 const gridFocus = useTemplateRef<HTMLElement>("gridFocus")
 const features = tableFeatures({
   columnSizingFeature,
@@ -561,6 +581,60 @@ function resetQuery() {
   queryState.value = next
 }
 
+/**
+ * The query a 422 interrupted, held while the grid asks the source what
+ * columns it has now.
+ *
+ * A filter and a sort name a column by name and both outlive a reload, so a
+ * column renamed or dropped — here, in another tab, or by somebody else —
+ * leaves a stored query the source refuses every time it is asked. Rather than
+ * reading the refusal, the grid asks again without filters or sorting and
+ * keeps back everything the fresh answer still knows about.
+ */
+const quarantinedQuery = ref<GridQueryState | null>(null)
+let recoveredFrom = ""
+
+watch(
+  () => rowsQuery.isError.value,
+  (failed) => {
+    if (!failed || quarantinedQuery.value !== null) return
+    if (statusOf(rowsQuery.error.value) !== 422) return
+    const current = queryState.value
+    if (current.filters.length === 0 && current.sort.length === 0) return
+    // Once per exact query: a 422 that is not about a missing column would
+    // otherwise be cleared, restored, refused and cleared again for ever.
+    const stamp = JSON.stringify(request.value)
+    if (recoveredFrom === stamp) return
+    recoveredFrom = stamp
+    const cleared = { ...current, page: 0, filters: [], sort: [] }
+    // Clearing the query lands on a key the client may already hold an answer
+    // for — the one read before the column changed, which still lists it.
+    // Pruning against that decides nothing, so the answer is forgotten first.
+    forgetRowsPage(buildFetchRequest(props.nodeId, cleared))
+    quarantinedQuery.value = current
+    queryState.value = cleared
+  }
+)
+
+watch(
+  () => result.value?.columns,
+  (serverColumns) => {
+    const quarantined = quarantinedQuery.value
+    if (serverColumns === undefined || quarantined === null) return
+    quarantinedQuery.value = null
+    const { state, dropped } = prunedToColumns(quarantined, serverColumns)
+    if (dropped.length > 0) {
+      toast.info(
+        `${dropped.join(", ")} ${dropped.length === 1 ? "is" : "are"} no longer in this relation, so the query no longer ${dropped.length === 1 ? "uses it" : "uses them"}`
+      )
+    }
+    queryAwaitingPersistence.value = null
+    persistedQueryState.value = state
+    saveQueryState(state)
+    queryState.value = state
+  }
+)
+
 let restoredKey = ""
 watch(
   () => result.value?.columns,
@@ -610,6 +684,8 @@ watch(
   () => [props.connectorId, props.nodeId],
   () => {
     restoredKey = ""
+    recoveredFrom = ""
+    quarantinedQuery.value = null
     selectedColumn.value = null
     insertOpen.value = false
     insertError.value = ""

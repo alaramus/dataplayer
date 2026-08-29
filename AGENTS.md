@@ -119,7 +119,7 @@ and the known deviations live there.
 | D28 | A download is a fresh copy of the bounded visible page, kept in personal storage | [frontend](docs/architecture/frontend.md) |
 | D29 | Renaming a column preserves its source identity and lets the source maintain dependencies | [adapters](docs/architecture/adapters.md) |
 | D30 | A column default entered by a user is a literal value, never a source expression | [adapters](docs/architecture/adapters.md) |
-| D31 | A source opts into bounded read caching, and a successful mutation advances its connector generation | [adapters](docs/architecture/adapters.md) |
+| D31 | A source opts into bounded read caching, and a successful mutation drops what it cached | [adapters](docs/architecture/adapters.md) |
 | D32 | Renaming a catalog node returns its replacement identity, and open work follows it in place | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit

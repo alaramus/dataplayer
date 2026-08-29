@@ -8,8 +8,8 @@ FASTAPI_ENV=development uv run python -c "import app.main; import json; print(js
 cd ..
 mv openapi.json frontend/
 bun run --filter frontend generate-client
-# Только сгенерированный клиент: линтер его игнорирует, поэтому формат ему
-# ставит prettier. По всему src/ его гонять нельзя — prettier и правила
-# форматирования ESLint расходятся, и такой прогон переформатировал бы
-# половину проекта заодно с генерацией.
+# The generated client only. ESLint ignores it, so prettier is what formats it.
+# Running prettier over all of src/ is not an option: it and the ESLint
+# formatting rules disagree, so such a run would reformat half the project
+# alongside the generation.
 bun run --filter frontend format:client

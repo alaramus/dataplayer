@@ -84,6 +84,11 @@ async def test_identical_concurrent_reads_share_one_load() -> None:
 
 
 async def test_invalidation_during_a_load_prevents_stale_reinsertion() -> None:
+    """Forgetting the flight is the whole mechanism, so both halves are asserted.
+
+    A later call must not coalesce with the read begun before the mutation, and
+    that read must not store what it returns once it finishes.
+    """
     cache = DataCache(max_entries=8)
     connector_id = uuid.uuid4()
     cache_key = key(connector_id)
@@ -101,9 +106,13 @@ async def test_invalidation_during_a_load_prevents_stale_reinsertion() -> None:
     await started.wait()
     await cache.invalidate_connector(connector_id)
 
-    fresh = await cache.get_or_load(
-        cache_key, ttl_seconds=60.0, load=lambda: asyncio.sleep(0, result="fresh")
-    )
+    # Bounded on purpose: were the flight left in place, this call would
+    # coalesce with the read still blocked above and the test would hang
+    # instead of failing, taking the suite with it.
+    async with asyncio.timeout(5):
+        fresh = await cache.get_or_load(
+            cache_key, ttl_seconds=60.0, load=lambda: asyncio.sleep(0, result="fresh")
+        )
     assert fresh.value == "fresh"
     assert fresh.status == "miss"
 

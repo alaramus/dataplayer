@@ -37,10 +37,17 @@ connector update or deletion does the same. Broad connector invalidation is
 intentional: optional adapter actions describe which catalog branch the client
 should reload, but they do not yet declare every cached projection they affect.
 
-Each connector has an invalidation generation. A load records the generation
-it began under and stores its answer only if that generation is still current.
-This closes the race where a slow SELECT begins, a write succeeds and clears
-the cache, then the older SELECT finishes and restores stale rows.
+Invalidation also forgets the connector's loads in flight, and a load stores
+its answer only while the flight table still names it. This closes the race
+where a slow SELECT begins, a write succeeds and clears the cache, then the
+older SELECT finishes and restores stale rows.
+
+Corrected during execution: this was first specified as a per-connector
+generation counter that a load recorded and re-checked before storing. Written
+that way it never decided anything — dropping the flight already prevents both
+the coalescing and the stale store, so the counter could be disabled without a
+single test noticing, while growing one entry per connector forever. The
+counter is gone; the guarantee is unchanged.
 
 ## Explicit freshness
 
@@ -61,6 +68,7 @@ transport metadata.
 - Redis first adds deployment and serialization work before process-local
   behavior is measured.
 - TTL without an entry bound does not bound memory.
-- Invalidation without generations allows an older in-flight read to undo it.
+- Invalidation that leaves loads in flight alone allows an older in-flight read
+  to undo it.
 - Returning stale data while refreshing in the background makes Reload unable
   to promise a source read and complicates row-handle conflicts.

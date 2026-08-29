@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest"
 
+import type { FetchColumn } from "@/client"
+
 import type { Filter, GridQueryState } from "./types"
-import { buildFetchRequest, withFilters, withPage, withPageSize, withSort } from "./queryState"
+import {
+  buildFetchRequest,
+  prunedToColumns,
+  withFilters,
+  withPage,
+  withPageSize,
+  withSort,
+} from "./queryState"
 
 const FILTER: Filter = { column: "status", op: "eq", value: "active" }
 
@@ -54,5 +63,54 @@ describe("grid query transitions", () => {
       sort: [{ column: "name", descending: true }],
     })
     expect(state).toEqual(snapshot)
+  })
+})
+
+describe("a query the relation can no longer answer", () => {
+  const column = (name: string): FetchColumn => ({
+    name,
+    type: { sql: "text", category: "string" },
+  })
+
+  it("keeps what still exists and names what went", () => {
+    const state: GridQueryState = {
+      page: 3,
+      pageSize: 100,
+      filters: [FILTER, { column: "owner", op: "eq", value: "ann" }],
+      sort: [
+        { column: "owner", descending: true },
+        { column: "name", descending: false },
+      ],
+    }
+
+    const { state: pruned, dropped } = prunedToColumns(state, [
+      column("status"),
+      column("name"),
+    ])
+
+    // Named once, though "owner" was both filtered and sorted on.
+    expect(dropped).toEqual(["owner"])
+    expect(pruned.filters).toEqual([FILTER])
+    expect(pruned.sort).toEqual([{ column: "name", descending: false }])
+    // The surviving query describes fewer rows, so the page it was on may not
+    // exist any more.
+    expect(pruned.page).toBe(0)
+  })
+
+  it("leaves a query every column of which still exists exactly as it was", () => {
+    const state: GridQueryState = {
+      page: 3,
+      pageSize: 100,
+      filters: [FILTER],
+      sort: [{ column: "name", descending: true }],
+    }
+
+    const { state: pruned, dropped } = prunedToColumns(state, [
+      column("status"),
+      column("name"),
+    ])
+
+    expect(dropped).toEqual([])
+    expect(pruned).toBe(state)
   })
 })

@@ -34,13 +34,34 @@ export async function fetchRowsPage(
 export function useRowsPage(
   connectorId: Ref<string>,
   request: Readonly<Ref<FetchRequest>>,
-  refreshNext?: Readonly<Ref<boolean>>
+  /**
+   * Asked once per fetch, and expected to consume what it reports. A standing
+   * flag would mark whichever fetch happens to start next as an explicit
+   * reload — including one for a different page the user asked for meanwhile.
+   */
+  takeRefresh?: () => boolean
 ) {
   return useQuery({
     queryKey: computed(() => rowsKey(connectorId.value, request.value)),
     queryFn: ({ signal }) =>
-      fetchRowsPage(connectorId.value, request.value, signal, refreshNext?.value === true),
+      fetchRowsPage(connectorId.value, request.value, signal, takeRefresh?.() === true),
   })
+}
+
+/**
+ * Forget one page, so the next read of it is a read and not a memory.
+ *
+ * Recovering from a query the source refused means asking what the relation
+ * holds now. An answer already in the client cache is the answer from before
+ * whatever changed, and judging by it decides nothing.
+ */
+export function useForgetRowsPage(connectorId: Ref<string>) {
+  const queryClient = useQueryClient()
+  return (request: FetchRequest) =>
+    queryClient.removeQueries({
+      queryKey: rowsKey(connectorId.value, request),
+      exact: true,
+    })
 }
 
 export function useUpdateCell(connectorId: Ref<string>) {

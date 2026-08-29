@@ -35,7 +35,7 @@ backend/app/adapters/
 ├── actions.py       Action, ActionSet, SupportsActions, ActionType,
 │                    DeclaresActions, transports, refusals
 ├── resources.py     ResourceStore: what outlives a request; Pooling
-├── cache.py         bounded read cache, coalescing and invalidation generations
+├── cache.py         bounded read cache, coalescing and connector invalidation
 ├── registry.py      type registry, AdapterContext, Category, Capability,
 │                    capabilities_of
 ├── routes.py        GET /adapter-types
@@ -409,7 +409,7 @@ Known deviations:
   the literal text `now()` where the column type accepts text. Expressions need
   a separate, source-owned vocabulary rather than a raw SQL field.
 
-## D31. A source opts into bounded read caching, and a successful mutation advances its connector generation
+## D31. A source opts into bounded read caching, and a successful mutation drops what it cached
 
 `DataCache` belongs to the application lifespan beside the resource store. Its
 key names the owner, connector, operation and exact normalized request, so two
@@ -427,10 +427,13 @@ The `X-Data-Cache` response header reports `hit`, `miss`, `coalesced`,
 `refreshed` or `bypass` without changing the source's response model.
 
 Every successful row edit, structural change, adapter action, connector update
-or connector deletion invalidates the entire connector. Invalidation advances a
-generation as well as removing entries: an older read already in flight may
-finish for the callers that started it, but cannot insert its stale answer after
-the mutation. A failed mutation changes nothing. Explicit Reload sends
+or connector deletion invalidates the entire connector. Invalidation removes the
+connector's entries and forgets its loads in flight, and forgetting the flight
+is what does the work twice over: a call begun after the mutation cannot
+coalesce with an older read, and that older read can no longer store what it
+returns, because a load stores only while the flight table still names it. So an
+older read may finish for the callers that started it and cannot insert its
+stale answer after the mutation. A failed mutation changes nothing. Explicit Reload sends
 `refresh=true`, skips a live entry and replaces it with a source read; downloads
 continue to read the source directly because D28 promises a fresh copy.
 

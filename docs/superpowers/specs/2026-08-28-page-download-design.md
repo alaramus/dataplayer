@@ -34,9 +34,15 @@ PostgreSQL, табличного файла и любого будущего и�
 оборванная операция не выглядела готовой выгрузкой.
 
 Кодировка — UTF-8 с BOM для практической совместимости с табличными
-редакторами. Заголовок содержит видимые колонки в экранном порядке. `NULL`
-пишется как `\N`, пустая строка остаётся пустой строкой. Стандартный CSV writer
-отвечает за кавычки, запятые и переносы строк внутри значений.
+редакторами. Заголовок содержит видимые колонки в экранном порядке. SQL null is
+written as an empty unquoted field and every other value is quoted, the
+convention PostgreSQL's own `COPY ... CSV` reads back, so null stays
+distinct from the empty string. The standard CSV writer handles quotes,
+commas and newlines inside values.
+
+Corrected during execution: this first specified `\N` for null. A cell
+whose value is literally those two characters was then indistinguishable
+from a null, which no round trip could recover.
 
 ## Интерфейс
 

@@ -1,15 +1,17 @@
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query"
+import { AxiosError } from "axios"
 import { flushPromises, mount } from "@vue/test-utils"
 import { Dialog, Notify, Quasar } from "quasar"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ConnectorsService } from "@/client"
-import type { FetchResult } from "@/client"
+import type { FetchColumn, FetchResult } from "@/client"
 import { AppSelect } from "@/shared/ui"
 import { AppInput } from "@/shared/ui"
 import { withWindowHost } from "@/shared/testing/windows"
 
 import DataGrid from "./DataGrid.vue"
+import type { Filter } from "./types"
 import { loadGridState, saveGridState } from "./persist"
 
 function result(offset: number, limit: number): FetchResult {
@@ -635,6 +637,87 @@ describe("the basic data grid", () => {
     )
     expect(loadGridState("connector-1", "public.projects")?.filters).toEqual([])
     expect(wrapper.get('[data-testid="grid-cell-0-name"]').text()).toBe("Project 1")
+  })
+
+  it("drops only what a renamed column left behind and goes on reading", async () => {
+    // A filter and a sort name a column by name. Rename that column while the
+    // tab is open — here, in another tab, or outside the application — and the
+    // stored query names something the relation no longer has.
+    const columns = (owner: boolean): FetchColumn[] => [
+      {
+        name: "id",
+        type: { sql: "bigint", category: "number" as const },
+        filter_operators: ["eq"],
+        sortable: true,
+      },
+      {
+        name: "name",
+        type: { sql: "text", category: "string" as const },
+        filter_operators: ["contains"],
+        sortable: true,
+      },
+      ...(owner
+        ? ([
+            {
+              name: "owner",
+              type: { sql: "text", category: "string" },
+              filter_operators: ["eq"],
+              sortable: true,
+            },
+          ] as FetchColumn[])
+        : []),
+    ]
+    const page = (owner: boolean): FetchResult => ({
+      columns: columns(owner),
+      rows: [owner ? ["1", "Project 1", "ann"] : ["1", "Project 1"]],
+      has_more: false,
+    })
+    const refused = new AxiosError("Request failed with status code 422")
+    refused.response = {
+      status: 422,
+      statusText: "",
+      headers: {},
+      config: {} as never,
+      data: {
+        detail: [
+          { loc: ["body"], msg: 'Relation has no column "owner"', type: "value_error" },
+        ],
+      },
+    }
+    const kept: Filter = { column: "name", op: "contains", value: "a" }
+    saveGridState("connector-1", "public.projects", {
+      columnOrder: [],
+      columnVisibility: {},
+      columnSizing: {},
+      pinnedLeft: [],
+      filters: [{ column: "owner", op: "eq", value: "ann" } as Filter, kept],
+      sort: [{ column: "owner", descending: true }],
+    })
+    let calls = 0
+    const fetchRows = vi.spyOn(ConnectorsService, "fetchRows").mockImplementation((options) => {
+      calls += 1
+      const named = [...(options.body.filters ?? []), ...(options.body.sort ?? [])]
+      return named.some((item) => item.column === "owner")
+        ? (Promise.reject(refused) as never)
+        : (Promise.resolve({ data: page(calls === 1) }) as never)
+    })
+
+    const wrapper = mountGrid()
+    await flushPromises()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="grid-error"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="grid-cell-0-name"]').text()).toBe("Project 1")
+    // The filter on a column that is still there survives; Reset query would
+    // have thrown it away with the other one.
+    expect(fetchRows).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({ filters: [kept], sort: [] }),
+      })
+    )
+    expect(loadGridState("connector-1", "public.projects")?.filters).toEqual([kept])
+    expect(loadGridState("connector-1", "public.projects")?.sort).toEqual([])
+    wrapper.unmount()
   })
 
   it("shows an empty page while Previous stays available", async () => {

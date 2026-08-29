@@ -4,10 +4,17 @@ import csv
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Final
 
 from app.adapters.fetch import FetchResult
 
-NULL_TEXT = r"\N"
+# SQL NULL is an empty unquoted field and every other value is quoted, so the
+# empty string stays distinguishable from the absence of one. This is the
+# convention PostgreSQL's own COPY ... CSV writes and reads back; a sentinel
+# such as \N would collide with a value that happens to equal it.
+NULL_QUOTING: Final = csv.QUOTE_NOTNULL
+
+
 def _safe_stem(title: str) -> str:
     # Keep letters from every language, but no separator or control character
     # can become part of a path. Repeated punctuation is harmless and keeping
@@ -58,12 +65,10 @@ def save_csv_page(
 
     try:
         with temporary.open("w", encoding="utf-8-sig", newline="") as output:
-            writer = csv.writer(output)
+            writer = csv.writer(output, quoting=NULL_QUOTING)
             writer.writerow(columns)
             for row in result.rows:
-                writer.writerow(
-                    NULL_TEXT if row[index] is None else row[index] for index in indexes
-                )
+                writer.writerow(row[index] for index in indexes)
         temporary.replace(destination)
     finally:
         temporary.unlink(missing_ok=True)

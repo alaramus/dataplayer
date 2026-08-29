@@ -379,7 +379,6 @@ const overlayStyle = computed((): CSSProperties => {
   gap: 4px;
   padding: 4px 8px;
   border: none;
-  border: none;
   border-radius: var(--dp-radius-control);
   background: transparent;
   /* A native button takes its colour from the browser, which is black, and

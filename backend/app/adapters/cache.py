@@ -43,18 +43,13 @@ class _Entry[T]:
     used_at: float
 
 
-@dataclass(frozen=True)
-class _Flight[T]:
-    task: asyncio.Task[T]
-    generation: int
-
-
 class DataCache:
     """TTL cache with LRU bounds and one in-flight load per exact key.
 
-    Invalidation advances a connector generation. A read that was already in
-    flight may still answer its callers, but cannot put its now-stale value
-    back after a successful mutation.
+    Invalidation drops the connector's entries and forgets its loads in
+    flight. A load only stores its answer while the flight table still names
+    it, so a read begun before a mutation may still answer the callers that
+    started it, and cannot put its now-stale value back afterwards.
     """
 
     def __init__(
@@ -65,9 +60,8 @@ class DataCache:
         self._max_entries = max_entries
         self._clock = clock
         self._entries: dict[CacheKey, _Entry[object]] = {}
-        self._flights: dict[CacheKey, _Flight[object]] = {}
+        self._flights: dict[CacheKey, asyncio.Task[object]] = {}
         self._tasks: set[asyncio.Task[object]] = set()
-        self._generations: dict[uuid.UUID, int] = {}
         self._lock = asyncio.Lock()
 
     async def get_or_load[T](
@@ -92,70 +86,63 @@ class DataCache:
 
             existing = self._flights.get(key)
             if existing is not None:
-                task = existing.task
+                task = existing
                 status: CacheStatus = "coalesced"
             else:
-                generation = self._generations.get(key.connector_id, 0)
                 task = cast(
                     asyncio.Task[object],
                     asyncio.create_task(
-                        self._load_and_store(key, generation, ttl_seconds, load)
+                        self._load_and_store(key, ttl_seconds, load)
                     ),
                 )
                 self._tasks.add(task)
                 task.add_done_callback(self._finish_task)
-                self._flights[key] = _Flight(task=task, generation=generation)
+                self._flights[key] = task
                 status = "refreshed" if refresh else "miss"
 
         value = await asyncio.shield(task)
         return CacheResult(cast(T, value), status)
 
     async def _load_and_store[T](
-        self,
-        key: CacheKey,
-        generation: int,
-        ttl_seconds: float,
-        load: Callable[[], Awaitable[T]],
+        self, key: CacheKey, ttl_seconds: float, load: Callable[[], Awaitable[T]]
     ) -> T:
         try:
             value = await load()
         except BaseException:
             async with self._lock:
-                flight = self._flights.get(key)
-                if flight is not None and flight.task is asyncio.current_task():
+                if self._flights.get(key) is asyncio.current_task():
                     self._flights.pop(key)
             raise
 
         async with self._lock:
-            flight = self._flights.get(key)
-            if flight is not None and flight.task is asyncio.current_task():
+            # Storing is conditional on this load still being the one the
+            # flight table names. Invalidation removes it from there, and that
+            # alone is what stops a read begun before a mutation from putting
+            # its stale answer back after it.
+            if self._flights.get(key) is asyncio.current_task():
                 self._flights.pop(key)
-                if self._generations.get(key.connector_id, 0) == generation:
-                    used_at = self._clock()
-                    self._entries[key] = _Entry(
-                        value=value,
-                        expires_at=used_at + ttl_seconds,
-                        used_at=used_at,
-                    )
-                    self._drop_overflow()
+                used_at = self._clock()
+                self._entries[key] = _Entry(
+                    value=value, expires_at=used_at + ttl_seconds, used_at=used_at
+                )
+                self._drop_overflow()
         return value
 
     async def invalidate_connector(self, connector_id: uuid.UUID) -> None:
         """Forget all areas and prevent older in-flight reads being stored."""
         async with self._lock:
-            self._generations[connector_id] = (
-                self._generations.get(connector_id, 0) + 1
-            )
             self._entries = {
                 key: entry
                 for key, entry in self._entries.items()
                 if key.connector_id != connector_id
             }
-            # Existing callers may still receive their older read, but a call
-            # begun after this mutation must not coalesce with it.
+            # Forgetting the flight does two things at once, and both matter: a
+            # call begun after this mutation cannot coalesce with an older read,
+            # and that older read can no longer store what it returns, because
+            # storing requires still being named here.
             self._flights = {
-                key: flight
-                for key, flight in self._flights.items()
+                key: task
+                for key, task in self._flights.items()
                 if key.connector_id != connector_id
             }
 

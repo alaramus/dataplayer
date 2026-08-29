@@ -9,7 +9,7 @@ from httpx import AsyncClient
 
 from app.adapters.fetch import FetchColumn, FetchResult
 from app.adapters.relation import ColumnType
-from app.connectors.downloads import NULL_TEXT, save_csv_page
+from app.connectors.downloads import NULL_QUOTING, save_csv_page
 from app.core.config import settings
 from app.users import crud, storage
 from tests.utils.database import working_postgres_options
@@ -24,7 +24,11 @@ def test_csv_page_keeps_visible_order_nulls_and_unicode(tmp_path: Path) -> None:
             FetchColumn(name="name", type=ColumnType(sql="text", category="string")),
             FetchColumn(name="hidden", type=ColumnType(sql="text", category="string")),
         ],
-        rows=[["1", "Київ", "not exported"], ["2", None, "not exported"]],
+        rows=[
+            ["1", "Київ", "not exported"],
+            ["2", None, "not exported"],
+            ["3", "", "not exported"],
+        ],
         has_more=True,
     )
 
@@ -39,8 +43,23 @@ def test_csv_page_keeps_visible_order_nulls_and_unicode(tmp_path: Path) -> None:
 
     assert path.parent == tmp_path / "downloads" / str(uuid.UUID(int=7))
     assert path.name.startswith("Projects-report-20260828-123000-")
+    # SQL NULL is an empty unquoted field and the empty string is a quoted one,
+    # so the two survive the round trip as different values rather than both
+    # arriving as "". A sentinel string could not tell them apart.
     with path.open(encoding="utf-8-sig", newline="") as source:
-        assert list(csv.reader(source)) == [["name", "id"], ["Київ", "1"], [NULL_TEXT, "2"]]
+        assert source.read().splitlines() == [
+            '"name","id"',
+            '"Київ","1"',
+            ',"2"',
+            '"","3"',
+        ]
+    with path.open(encoding="utf-8-sig", newline="") as source:
+        assert list(csv.reader(source, quoting=NULL_QUOTING)) == [
+            ["name", "id"],
+            ["Київ", "1"],
+            [None, "2"],
+            ["", "3"],
+        ]
 
 
 def test_csv_page_does_not_follow_a_downloads_symlink(tmp_path: Path) -> None:

@@ -49,7 +49,7 @@ watch(
       <AppInput
         :model-value="value"
         label="New literal value"
-        hint="Saved as a value, never executed as SQL"
+        hint="Saved as a value, never executed as SQL. An empty box sets the empty string."
         :disable="saving"
         data-testid="structure-default-value"
         @update:model-value="value = $event"

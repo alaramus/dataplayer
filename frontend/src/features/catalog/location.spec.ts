@@ -6,7 +6,7 @@ import type { CatalogNode } from "@/features/catalog/nodes"
 /**
  * A path from the server is a chain of nodes; a catalog level is a trail of
  * crumbs plus a set of ticked groupings. The translation is by role and never
- * by the type of the source — see the spec, Р3.
+ * by the type of the source — see the spec, P3.
  */
 
 const schema = (name: string): CatalogNode => ({
