@@ -8,6 +8,8 @@ cost time.
 - [ENGINEERING.md](ENGINEERING.md) — how code is written, with what enforces
   each rule. **Normative whenever you touch code, whatever the task.** Also
   loaded into every session.
+- [docs/migration-roadmap.md](docs/migration-roadmap.md) — what to port next,
+  in dependency order, and where the next session should resume.
 - `docs/architecture/` — what exists, why it was decided that way, and where it
   falls short. Read the file for the area you are touching.
 - `docs/superpowers/specs/` — the full argument behind each decision.
