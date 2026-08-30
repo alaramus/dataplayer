@@ -21,7 +21,7 @@ import type {
 import { computed, nextTick, ref, toRef, useTemplateRef, watch } from "vue"
 import type { CSSProperties } from "vue"
 
-import type { FetchColumn, Sort } from "@/client"
+import type { FetchColumn, FetchRequest, Sort } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import {
@@ -78,7 +78,10 @@ const props = defineProps<{
   title?: string
   canDescribe?: boolean
 }>()
-const emit = defineEmits<{ describe: [] }>()
+const emit = defineEmits<{
+  describe: []
+  chart: [request: FetchRequest, columns: string[]]
+}>()
 const toast = useToast()
 const confirm = useConfirm()
 
@@ -487,6 +490,15 @@ async function downloadVisiblePage() {
   }
 }
 
+function openChart(): void {
+  if (result.value === undefined || visibleGridColumns.value.length === 0) return
+  emit(
+    "chart",
+    { ...request.value, filters: [...queryState.value.filters], sort: [...queryState.value.sort] },
+    visibleGridColumns.value.map((column) => column.id)
+  )
+}
+
 function cellTitle(cell: Cell<GridFeatures, GridRow, unknown>): string | undefined {
   const column = serverColumn(cell.column.id)
   if (column?.editable !== true) return result.value?.update_reason ?? undefined
@@ -726,6 +738,7 @@ defineExpose({
       :can-download="result !== undefined && visibleGridColumns.length > 0"
       :downloading="downloadPage.isPending.value"
       :can-describe="canDescribe"
+      :can-chart="result !== undefined && visibleGridColumns.length > 0"
       @update:page-size="changePageSize"
       @update:filters="changeFilters"
       @update:sort="changeSort"
@@ -735,6 +748,7 @@ defineExpose({
       @delete="deleteSelection"
       @download="downloadVisiblePage"
       @describe="emit('describe')"
+      @chart="openChart"
     />
 
     <AppBanner

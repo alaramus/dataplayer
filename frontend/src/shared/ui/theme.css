@@ -56,6 +56,14 @@
   --dp-link: rgba(25, 118, 210, 0.9);
   --dp-focus-border: rgba(25, 118, 210, 0.5);
 
+  /* Ordered series colours. A chart asks for the next series, not for a
+     literal that would disappear on the other surface. */
+  --dp-chart-1: #1976d2;
+  --dp-chart-2: #00897b;
+  --dp-chart-3: #f57c00;
+  --dp-chart-4: #7b1fa2;
+  --dp-chart-5: #c62828;
+
   /* Where a dragged tab would land. */
   --dp-dropzone: rgba(25, 118, 210, 0.18);
   --dp-dropzone-border: rgba(25, 118, 210, 0.6);
@@ -93,6 +101,12 @@ body.body--dark {
   --dp-selected-quiet: rgba(100, 181, 246, 0.08);
   --dp-link: rgba(144, 202, 249, 0.95);
   --dp-focus-border: rgba(100, 181, 246, 0.6);
+
+  --dp-chart-1: #64b5f6;
+  --dp-chart-2: #4db6ac;
+  --dp-chart-3: #ffb74d;
+  --dp-chart-4: #ba68c8;
+  --dp-chart-5: #ef9a9a;
 
   --dp-dropzone: rgba(100, 181, 246, 0.26);
   --dp-dropzone-border: rgba(100, 181, 246, 0.7);

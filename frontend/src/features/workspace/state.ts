@@ -1,7 +1,7 @@
 import { inject } from "vue"
 import type { InjectionKey, Ref } from "vue"
 
-import type { ConnectorPublic, NodeReplacement } from "@/client"
+import type { ConnectorPublic, FetchRequest, NodeReplacement } from "@/client"
 
 /**
  * What one panel may ask the workspace to open.
@@ -46,6 +46,7 @@ export interface WorkspaceActions {
   takeReveal: (connectorId: string) => RevealTarget | null
   openRows: (request: OpenRowsRequest) => void
   openStructure: (request: OpenStructureRequest) => void
+  openChart: (request: OpenChartRequest) => void
   replaceNode: (connectorId: string, replacement: NodeReplacement) => void
   /**
    * Show the window of one connection, or an empty one for a new connection.
@@ -96,6 +97,15 @@ export interface OpenStructureRequest {
   title: string
   connectorName: string
   adapterType: string
+}
+
+export interface OpenChartRequest {
+  connectorId: string
+  title: string
+  connectorName: string
+  adapterType: string
+  request: FetchRequest
+  columns: string[]
 }
 
 export const workspaceActionsKey: InjectionKey<WorkspaceActions> = Symbol("workspace-actions")

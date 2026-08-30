@@ -27,6 +27,7 @@ const props = defineProps<{
   canDownload?: boolean
   downloading?: boolean
   canDescribe?: boolean
+  canChart?: boolean
 }>()
 const emit = defineEmits<{
   "update:pageSize": [value: PageSize]
@@ -38,6 +39,7 @@ const emit = defineEmits<{
   delete: []
   download: []
   describe: []
+  chart: []
 }>()
 const pageSizeOptions = PAGE_SIZES.map((size) => ({ label: String(size), value: size }))
 const filtersOpen = ref(false)
@@ -127,6 +129,15 @@ function selectPageSize(value: unknown) {
           :loading="downloading"
           data-testid="grid-download"
           @click="emit('download')"
+        />
+        <AppButton
+          label="Charts"
+          icon="insert_chart"
+          variant="quiet"
+          size="sm"
+          :disable="!canChart"
+          data-testid="grid-charts"
+          @click="emit('chart')"
         />
         <AppButton
           v-if="canDescribe"

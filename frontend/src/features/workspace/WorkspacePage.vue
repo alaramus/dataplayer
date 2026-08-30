@@ -14,9 +14,12 @@ import {
 } from "@/features/connectors/windows"
 import { useConnectors } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
+import { moveChartSpec } from "@/features/charts/persist"
+import { chartViewKey } from "@/features/charts/view"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import {
   catalogPanelId,
+  chartPanelId,
   collapsedOf,
   componentOf,
   emptyOf,
@@ -34,6 +37,7 @@ import {
 } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
 import type {
+  OpenChartRequest,
   OpenRowsRequest,
   OpenStructureRequest,
   RevealTarget,
@@ -79,7 +83,9 @@ const workspace = useWorkspace<Panel>({
   // a connection has two other ways in. See T5.
   onIconClick: (panel) => {
     if (panel.kind === "catalog") editConnector(panel.connectorId)
-    if (panel.kind === "rows") revealInCatalog(panel.connectorId, panel.nodeId, panel.title)
+    if (panel.kind === "rows") {
+      revealInCatalog(panel.connectorId, panel.nodeId, panel.title)
+    }
   },
   // What re-reading means belongs to the panel, so the panel says how and this
   // only calls it. A tab restored from storage and never opened has never
@@ -268,21 +274,40 @@ function revealInCatalog(connectorId: string, nodeId: string, label: string) {
 function replaceNode(connectorId: string, replacement: NodeReplacement) {
   for (const panel of [...workspace.panels.value]) {
     if (
-      (panel.kind !== "rows" && panel.kind !== "structure") ||
-      panel.connectorId !== connectorId ||
-      panel.nodeId !== replacement.old_node_id
+      (panel.kind !== "rows" && panel.kind !== "structure" && panel.kind !== "chart") ||
+      panel.connectorId !== connectorId
     ) {
       continue
     }
-    const id =
-      panel.kind === "rows"
-        ? rowsPanelId(connectorId, replacement.new_node_id)
-        : structurePanelId(connectorId, replacement.new_node_id)
+    const panelNodeId = panel.kind === "chart" ? panel.request.node_id : panel.nodeId
+    if (panelNodeId !== replacement.old_node_id) continue
+    if (panel.kind === "rows") {
+      workspace.replace(panel.id, {
+        ...panel,
+        id: rowsPanelId(connectorId, replacement.new_node_id),
+        nodeId: replacement.new_node_id,
+        title: replacement.title,
+      })
+      continue
+    }
+    if (panel.kind === "structure") {
+      workspace.replace(panel.id, {
+        ...panel,
+        id: structurePanelId(connectorId, replacement.new_node_id),
+        nodeId: replacement.new_node_id,
+        title: replacement.title,
+      })
+      continue
+    }
+    const request = { ...panel.request, node_id: replacement.new_node_id }
+    const viewKey = chartViewKey(connectorId, request, panel.columns)
+    moveChartSpec(panel.viewKey, viewKey)
     workspace.replace(panel.id, {
       ...panel,
-      id,
-      nodeId: replacement.new_node_id,
+      id: chartPanelId(viewKey),
+      viewKey,
       title: replacement.title,
+      request,
     })
   }
 }
@@ -310,6 +335,15 @@ provide(workspaceActionsKey, {
     workspace.open({
       id: structurePanelId(request.connectorId, request.nodeId),
       kind: "structure",
+      ...request,
+    })
+  },
+  openChart: (request: OpenChartRequest) => {
+    const viewKey = chartViewKey(request.connectorId, request.request, request.columns)
+    workspace.open({
+      id: chartPanelId(viewKey),
+      kind: "chart",
+      viewKey,
       ...request,
     })
   },

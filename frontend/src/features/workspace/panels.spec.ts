@@ -4,6 +4,7 @@ import { adapterIcon } from "@/features/connectors/adapters"
 
 import {
   catalogPanelId,
+  chartPanelId,
   collapsedOf,
   componentOf,
   emptyOf,
@@ -18,7 +19,7 @@ import {
 } from "./panels"
 import type { Panel, PanelKind } from "./panels"
 
-const KINDS: PanelKind[] = ["connectors", "catalog", "rows", "structure"]
+const KINDS: PanelKind[] = ["connectors", "catalog", "rows", "structure", "chart"]
 
 const samples: Record<PanelKind, Panel> = {
   connectors: { id: "connectors", kind: "connectors" },
@@ -48,6 +49,17 @@ const samples: Record<PanelKind, Panel> = {
     connectorName: "local pg",
     adapterType: "postgres",
   },
+  chart: {
+    id: chartPanelId("view-1"),
+    kind: "chart",
+    viewKey: "view-1",
+    connectorId: "c1",
+    title: "orders",
+    connectorName: "local pg",
+    adapterType: "postgres",
+    request: { node_id: "public.orders", limit: 100, offset: 0, filters: [], sort: [] },
+    columns: ["created_at", "total"],
+  },
 }
 
 describe("the panel registry", () => {
@@ -75,7 +87,7 @@ describe("the panel registry", () => {
     expect(lookOf(samples.connectors).closable).toBe(false)
   })
 
-  it.each(["catalog", "rows", "structure"] as PanelKind[])("lets %s be closed", (kind) => {
+  it.each(["catalog", "rows", "structure", "chart"] as PanelKind[])("lets %s be closed", (kind) => {
     expect(lookOf(samples[kind]).closable).not.toBe(false)
   })
 
@@ -165,7 +177,7 @@ describe("the panel registry", () => {
     expect(collapsedOf(samples.connectors)).not.toBeNull()
   })
 
-  it.each(["catalog", "rows", "structure"] as PanelKind[])(
+  it.each(["catalog", "rows", "structure", "chart"] as PanelKind[])(
     "has nothing worth forty pixels for %s",
     (kind) => {
       expect(collapsedOf(samples[kind])).toBeNull()
@@ -220,5 +232,37 @@ describe("the panel registry", () => {
     expect(structurePanelId("c1", "public.orders")).not.toBe(
       rowsPanelId("c1", "public.orders")
     )
+  })
+
+  it("puts a bounded chart view in the column of work", () => {
+    expect(roleOf(samples.chart)).toBe("work")
+    expect(lookOf(samples.chart).title).toBe("orders chart")
+  })
+
+  it("distinguishes a chart tab from its source and rows", () => {
+    expect(lookOf(samples.chart).icon).toBe("insert_chart")
+    expect(lookOf(samples.chart).icon).not.toBe(adapterIcon("postgres"))
+    expect(lookOf(samples.chart).iconTooltip).toBe("local pg · Chart")
+  })
+
+  it("identifies a chart by its complete view key", () => {
+    expect(chartPanelId("one-view")).toBe(chartPanelId("one-view"))
+    expect(chartPanelId("one-view")).not.toBe(chartPanelId("another-view"))
+  })
+
+  it("refuses a stored chart with an unbounded page", () => {
+    expect(
+      panelSchema.safeParse({
+        ...samples.chart,
+        request: { node_id: "public.orders", limit: 501, offset: 0 },
+      }).success
+    ).toBe(false)
+  })
+
+  it("refuses a stored chart whose visible columns are not a real ordered set", () => {
+    expect(panelSchema.safeParse({ ...samples.chart, columns: ["total", "total"] }).success).toBe(
+      false
+    )
+    expect(panelSchema.safeParse({ ...samples.chart, columns: [""] }).success).toBe(false)
   })
 })

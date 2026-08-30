@@ -67,6 +67,29 @@ beforeEach(() => {
 })
 
 describe("the basic data grid", () => {
+  it("opens a chart with the exact page and visible columns", async () => {
+    mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-columns"]').trigger("click")
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-column-visible-id"]').trigger("click")
+    await wrapper.get('[data-testid="grid-charts"]').trigger("click")
+
+    const emitted = wrapper.findComponent(DataGrid).emitted("chart")?.[0]
+    expect(emitted).toEqual([
+      {
+        node_id: "public.projects",
+        limit: 100,
+        offset: 0,
+        filters: [],
+        sort: [],
+      },
+      ["name"],
+    ])
+  })
+
   it("downloads only the current page and visible columns", async () => {
     mockPages()
     const download = vi.spyOn(ConnectorsService, "downloadPage").mockResolvedValue({

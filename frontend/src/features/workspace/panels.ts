@@ -2,6 +2,7 @@ import { defineComponent, h } from "vue"
 import type { Component, VNode } from "vue"
 import { z } from "zod"
 
+import ChartPanelView from "@/features/charts/ChartPanel.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
@@ -10,6 +11,28 @@ import RowsPanelView from "@/features/workspace/panels/RowsPanel.vue"
 import StructurePanelView from "@/features/workspace/panels/StructurePanel.vue"
 import WorkspaceSceneView from "@/features/workspace/panels/WorkspaceScene.vue"
 import type { PanelLook } from "@/shared/workspace"
+
+const scalarFilterSchema = z.object({
+  column: z.string(),
+  op: z.enum(["eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts_with"]),
+  value: z.string(),
+})
+const inFilterSchema = z.object({
+  column: z.string(),
+  op: z.literal("in"),
+  values: z.array(z.string()),
+})
+const nullFilterSchema = z.object({
+  column: z.string(),
+  op: z.enum(["is_null", "is_not_null"]),
+})
+const fetchRequestSchema = z.object({
+  node_id: z.string(),
+  limit: z.number().int().positive().max(500).optional(),
+  offset: z.number().int().nonnegative().optional(),
+  filters: z.array(z.union([scalarFilterSchema, inFilterSchema, nullFilterSchema])).optional(),
+  sort: z.array(z.object({ column: z.string(), descending: z.boolean().optional() })).optional(),
+})
 
 /**
  * What a panel is, and what renders it.
@@ -54,6 +77,20 @@ export const panelSchema = z.discriminatedUnion("kind", [
     connectorName: z.string(),
     adapterType: z.string(),
   }),
+  z.object({
+    id: z.string(),
+    kind: z.literal("chart"),
+    viewKey: z.string(),
+    connectorId: z.string(),
+    title: z.string(),
+    connectorName: z.string(),
+    adapterType: z.string(),
+    request: fetchRequestSchema,
+    columns: z
+      .array(z.string().min(1))
+      .min(1)
+      .refine((names) => new Set(names).size === names.length, "Columns must be distinct"),
+  }),
 ])
 
 export type Panel = z.infer<typeof panelSchema>
@@ -69,6 +106,7 @@ export const catalogPanelId = (connectorId: string) => `catalog:${connectorId}`
 export const rowsPanelId = (connectorId: string, nodeId: string) => `rows:${connectorId}:${nodeId}`
 export const structurePanelId = (connectorId: string, nodeId: string) =>
   `structure:${connectorId}:${nodeId}`
+export const chartPanelId = (viewKey: string) => `chart:${viewKey}`
 
 export function kindOf(panel: Panel): PanelKind {
   return panel.kind
@@ -108,6 +146,7 @@ export function roleOf(panel: Panel): PanelRole {
       return "navigate"
     case "rows":
     case "structure":
+    case "chart":
       return "work"
   }
 }
@@ -184,6 +223,13 @@ export function lookOf(panel: Panel): PanelLook {
         iconTooltip: `${panel.connectorName} · Structure`,
         reloadTooltip: "Re-read the structure",
       }
+    case "chart":
+      return {
+        title: `${panel.title} chart`,
+        icon: "insert_chart",
+        iconTooltip: `${panel.connectorName} · Chart`,
+        reloadTooltip: "Re-read this chart page",
+      }
   }
 }
 
@@ -244,6 +290,16 @@ export function componentOf(panel: Panel): Component {
           panelId: panel.id,
           connectorId: panel.connectorId,
           nodeId: panel.nodeId,
+        })
+      )
+    case "chart":
+      return boundComponent(panel.id, () =>
+        h(ChartPanelView, {
+          panelId: panel.id,
+          viewKey: panel.viewKey,
+          connectorId: panel.connectorId,
+          request: panel.request,
+          columns: panel.columns,
         })
       )
   }

@@ -4,7 +4,7 @@ How a screen is built, where state lives, and what the component kit is. The
 panel engine, the layout and floating windows are in
 [workspace.md](workspace.md).
 
-Decisions here: D6, D7, D11, D24, D28.
+Decisions here: D6, D7, D11, D24, D28, D35.
 
 ## What exists today
 
@@ -16,6 +16,11 @@ the structure tab adds and drops columns through source-declared capabilities.
 A connection can be shared with a colleague at a level, and an administrator
 manages accounts on a page of their own. Light and dark themes,
 switched by a button beside Sign out and remembered.
+
+The visible page of any tabular source can open as a chart beside its rows.
+The chart keeps that page's request and visible columns, offers line, bar and
+pie views, and derives a deterministic first choice without sending samples
+outside the browser.
 
 ```
 frontend/public/
@@ -51,6 +56,8 @@ frontend/src/
     │                    and nodes.ts holds the
     │                    table that says what a kind of node does;
     │                    useCatalogLevel.ts walks a catalog outside any component
+    ├── charts/          closed line, bar and pie views over one bounded page;
+    │                    pure builders and suggestions stay outside components
     ├── grid/            the controlled data explorer: query state, filter and
     │                    sort editors, column layout, selection, clipboard,
     │                    typed renderers and the full-value viewer
@@ -266,6 +273,40 @@ snapshot or version token, not trusting client-supplied cells.
 Commands concerning an open table live in its grid header. **Show structure**
 therefore opens the structure beside the rows and is no longer repeated on
 every describable catalog row; the catalog remains navigation and selection.
+
+## D35. A chart is a closed view over one bounded fetch, not another query language
+
+**Charts** in the grid header opens a work panel carrying the exact current
+`FetchRequest` and the visible column names in their displayed order. The panel
+asks through the same TanStack Query key as the grid, so opening it normally
+reuses the answer already held by the browser and reloading it reads the same
+bounded page again. The panel states its row range and whether more rows were
+left out; it never implies that a page is the whole relation.
+
+The chart vocabulary is a discriminated union of line, bar and pie with named
+fields. There is no raw ECharts option and no expression string. The source's
+column type is never rewritten: a declared number is a measure directly.
+Because a CSV deliberately declares every field as text, a text field is also
+offered as _numeric on this page_ only when every present value in this bounded
+answer passes a finite-number conversion. The label says so, and another page
+may honestly offer something different. A failed conversion and SQL null are
+omitted rather than silently turned into zero. Bar and pie categories are
+aggregated in the browser over this page only, and pie omits negative
+observations.
+
+Suggestions are deterministic and local. A datetime plus a number suggests a
+line, a categorical field plus a number suggests a bar, and the same pair may
+suggest a pie only when the page has non-negative values and more than one
+category. The model never sees the rows. The chosen chart is stored per exact
+connector, request and visible-column set, while server data stays in
+vue-query. Renaming a source node replaces the chart panel identity and moves
+that client-only choice with it, like the rows and structure panels follow the
+source-issued replacement identity under D32.
+
+The first slice deliberately has no whole-relation aggregation, multiple chart
+widgets, candlesticks or AI suggestions. Those require a source-owned aggregate
+contract, a dashboard layout and a separate disclosure decision respectively;
+none is smuggled into the bounded fetch contract.
 
 ## Screens
 

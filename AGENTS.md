@@ -85,6 +85,8 @@ included; the spec index lists the older titles in translation.
   renders lossless values by type with a full-value viewer. PostgreSQL cells in
   keyed tables can be edited with optimistic conflict detection; rows can be
   inserted with defaults preserved and selected rows deleted atomically.
+- Any bounded grid page can open as a line, bar or pie chart beside its rows;
+  the page boundary is explicit and field suggestions stay in the browser.
 
 ## Decisions
 
@@ -131,6 +133,7 @@ and the known deviations live there.
 | D32 | Renaming a catalog node returns its replacement identity, and open work follows it in place | [adapters](docs/architecture/adapters.md) |
 | D33 | Access to a connection is a grant of an ordered level, and a route states the level it needs | [backend](docs/architecture/backend.md) |
 | D34 | An administrator has rights over accounts, not over data | [backend](docs/architecture/backend.md) |
+| D35 | A chart is a closed view over one bounded fetch, not another query language | [frontend](docs/architecture/frontend.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.

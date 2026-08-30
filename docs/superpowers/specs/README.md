@@ -45,6 +45,7 @@ translations; those files are not.
 | 2026-08-29 | [The catalog and fetch read cache](2026-08-29-read-cache-design.md) | D31: source-owned TTL, bounded cache, coalescing and connector invalidation |
 | 2026-08-29 | [Renaming a table and a view](2026-08-29-relation-rename-design.md) | D32: source-issued replacement identity, open tabs follow the rename |
 | 2026-08-29 | [Sharing a connection](2026-08-29-connector-sharing-design.md) | D33, D34: an ordered grant level a route asks for, and an administrator with rights over accounts only |
+| 2026-08-30 | [Charts over a bounded page](2026-08-30-bounded-page-charts-design.md) | D35: a chart is a closed view over one bounded fetch |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

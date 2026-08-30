@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useTemplateRef } from "vue"
 
+import type { FetchRequest } from "@/client"
 import DataGrid from "@/features/grid/DataGrid.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -38,6 +39,17 @@ function showStructure() {
     adapterType: props.adapterType,
   })
 }
+
+function showChart(request: FetchRequest, columns: string[]) {
+  workspace.openChart({
+    connectorId: props.connectorId,
+    title: props.title,
+    connectorName: props.connectorName,
+    adapterType: props.adapterType,
+    request,
+    columns,
+  })
+}
 </script>
 
 <template>
@@ -49,6 +61,7 @@ function showStructure() {
       :title="title"
       :can-describe="describable"
       @describe="showStructure"
+      @chart="showChart"
     />
   </div>
 </template>
