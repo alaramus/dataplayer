@@ -4,7 +4,7 @@ How the application is divided, how it talks to the database, how secrets are
 handled, and what the API is. Read this before adding a module, a route or a
 migration.
 
-Decisions here: D3, D4, D5.
+Decisions here: D3, D4, D5, D33, D34.
 
 ## What exists today
 
@@ -28,10 +28,10 @@ the id.
 backend/app/
 ├── adapters/            source types — see adapters.md
 ├── connectors/          user connections
-│   ├── models.py        Connector + API schemas
-│   ├── crud.py          database access only
+│   ├── models.py        Connector, ConnectorGrant + API schemas
+│   ├── crud.py          database access only, including access resolution
 │   ├── service.py       option splitting, adapter construction
-│   └── routes.py        CRUD, connection checks, reading a pasted DSN
+│   └── routes.py        CRUD, connection checks, a pasted DSN, grants
 ├── users/               users and authentication
 │   ├── models.py        User, User* schemas, Token, NewPassword
 │   ├── crud.py          database access only
@@ -46,6 +46,7 @@ backend/app/
 ├── seed_database.py     dev tool: rebuilds the demo_lab PostgreSQL fixtures
 ├── seed_storage.py      dev tool: sample files into a personal directory
 ├── core/                depends on nothing else in the app
+│   ├── access.py        the ordered scale of what a user may do
 │   ├── crypto.py        AES-GCM for connector secrets
 │   ├── db.py            async engine, session, SessionDep, loop_factory
 │   ├── schemas.py       Message, get_datetime_utc
@@ -60,6 +61,7 @@ backend/app/
 
 ```
 POST   /api/v1/login/access-token
+GET    /api/v1/users/directory
 GET    /api/v1/adapter-types/
 POST   /api/v1/connectors/
 GET    /api/v1/connectors/
@@ -78,6 +80,9 @@ PATCH  /api/v1/connectors/{connector_id}/columns
 POST   /api/v1/connectors/{connector_id}/actions
 POST   /api/v1/connectors/{connector_id}/actions/{action_name}
 POST   /api/v1/connectors/{connector_id}/actions/{action_name}/file
+GET    /api/v1/connectors/{connector_id}/grants
+PUT    /api/v1/connectors/{connector_id}/grants
+DELETE /api/v1/connectors/{connector_id}/grants/{user_id}
 ```
 
 After changing a route or a schema, regenerate the typed client:
@@ -122,3 +127,83 @@ That is why `init_db` lives in `app/users/bootstrap.py` rather than in
 core would have made core import users.
 
 Enforced by `uv run lint-imports`.
+
+## D33. Access to a connection is a grant of an ordered level, and a route states the level it needs
+
+A grant is a row — connector, user, level — and nothing else. The question
+"may this user do this here" is a primary key lookup, not a policy to evaluate.
+
+The levels are a total order, and that order is the whole semantics:
+
+| Level | What it admits |
+| --- | --- |
+| `read` | catalog, relation model, rows, node path, page download, a connection check |
+| `write` | plus changing rows: cell update, insert, bulk delete |
+| `structure` | plus changing shape: add, drop, rename a column, a column default, renaming a relation |
+| `own` | plus the connection itself: its options, its credentials, its grants, deleting it |
+
+`own` is on the scale because routes compare against it and off `Grant`
+because ownership is a column on the connector, not a row somebody can be
+handed. `app/core/access.py` holds the scale: `connectors` resolves a level and
+an action in `adapters` declares the one it requires, and neither package may
+import the other.
+
+Enforcement is one funnel. `_resolve`, `_get_or_404` and `_adapter_for` take
+`requires` as a keyword argument with no default, so a route added later cannot
+reach a source without saying what it needs — the call does not type-check
+otherwise. No standing at all answers 404, the same as a connector that does
+not exist, so ids are not an oracle for what other people hold; a standing
+below what the route needs answers 403.
+
+**401 and 403 say different things, and now it matters.** Authentication
+answers 401 with `WWW-Authenticate: Bearer` — an unusable token, an unknown
+subject, an account switched off. Authorization answers 403. They were
+interchangeable while no level was ever refused, and `get_current_user`
+answered 403; the client signs a user out on an authentication failure, so
+under the old status the first grant too low for an action would have ended the
+session. Covered by `tests/users/test_deps.py`.
+
+An action declares its own level on the class beside `destructive`, defaulting
+to `write`. Listing the actions of a node filters by what the caller may run
+rather than offering what running would refuse — the same rule as D2d.
+`ConnectorPublic` carries `access` for the same reason: a screen that hid a
+button by knowing the rules would be a second place the rules live.
+
+A refusal is also stated in the answer where the answer already had a place
+for it, rather than only as a status the client must interpret. A caller below
+`write` gets a page whose columns are not editable and whose insert and delete
+are unsupported, with a reason (`as_read_only`); a caller below `structure`
+gets a relation that says its columns cannot be changed and why
+(`without_column_changes`). Both reuse fields the source already fills in for
+what *it* cannot do, so no screen learned a rule.
+
+Consequences kept deliberately:
+
+- A file connector's root stays the **owner's** personal directory, so sharing
+  one shares that directory at the granted level. D8 is unchanged.
+- A page download is written to the **caller's** own storage.
+- Cache keys already carry the caller's id, so sharing a connection does not
+  share cache entries.
+
+Known deviation:
+
+- **Groups do not exist.** The old application had them. A grant is resolved
+  by `crud.access_of`, so a second source of grants is an addition there rather
+  than a change to any route.
+- **Nothing is logged.** Who opened what is not recorded; that is a separate
+  concern with its own retention question.
+
+## D34. An administrator has rights over accounts, not over data
+
+`is_superuser` used to bypass the owner check, which put every connection of
+every user into an administrator's list and every data route within their
+reach. It no longer does: creating, deactivating and deleting users stays
+theirs, and reading somebody's rows needs a grant like anyone else's.
+
+Connector credentials are encrypted precisely so that holding the database does
+not mean holding the sources. An unconditional bypass handed back through the
+API what the encryption was protecting.
+
+What follows for the two places a superuser was special: `crud.get_with_access`
+knows nothing about the flag, and the connector list is what the caller owns
+plus what has been granted to them, for everyone alike.

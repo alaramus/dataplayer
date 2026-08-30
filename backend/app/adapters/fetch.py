@@ -106,3 +106,28 @@ class FetchResult(BaseModel):
     insert_reason: str | None = None
     delete_supported: bool = False
     delete_reason: str | None = None
+
+
+def as_read_only(result: FetchResult, reason: str) -> FetchResult:
+    """The same page, with everything that would change it withdrawn.
+
+    A caller who may read a connection and no more is told so through the
+    channel a source already uses to say what it cannot do (D2d), rather than
+    by a client knowing the rule: the grid draws an editable cell from
+    `editable` and offers insert and delete from the three flags, so
+    withdrawing them here is the same statement in the same place.
+    """
+    return result.model_copy(
+        update={
+            "columns": [
+                column.model_copy(update={"editable": False, "insertable": False})
+                for column in result.columns
+            ],
+            "update_supported": False,
+            "update_reason": reason,
+            "insert_supported": False,
+            "insert_reason": reason,
+            "delete_supported": False,
+            "delete_reason": reason,
+        }
+    )

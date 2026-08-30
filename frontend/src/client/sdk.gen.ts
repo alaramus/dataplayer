@@ -62,6 +62,9 @@ import type {
   connectorsReadConnectorsData,
   connectorsReadConnectorsErrors,
   connectorsReadConnectorsResponses,
+  connectorsReadGrantsData,
+  connectorsReadGrantsErrors,
+  connectorsReadGrantsResponses,
   connectorsReadNodePathData,
   connectorsReadNodePathErrors,
   connectorsReadNodePathResponses,
@@ -71,6 +74,9 @@ import type {
   connectorsRenameColumnData,
   connectorsRenameColumnErrors,
   connectorsRenameColumnResponses,
+  connectorsRevokeGrantData,
+  connectorsRevokeGrantErrors,
+  connectorsRevokeGrantResponses,
   connectorsRunActionData,
   connectorsRunActionErrors,
   connectorsRunActionResponses,
@@ -83,6 +89,9 @@ import type {
   connectorsUpdateConnectorData,
   connectorsUpdateConnectorErrors,
   connectorsUpdateConnectorResponses,
+  connectorsWriteGrantData,
+  connectorsWriteGrantErrors,
+  connectorsWriteGrantResponses,
   loginLoginAccessTokenData,
   loginLoginAccessTokenErrors,
   loginLoginAccessTokenResponses,
@@ -108,6 +117,8 @@ import type {
   usersDeleteUserMeData,
   usersDeleteUserMeResponses,
   usersDeleteUserResponses,
+  usersReadDirectoryData,
+  usersReadDirectoryResponses,
   usersReadUserByIdData,
   usersReadUserByIdErrors,
   usersReadUserByIdResponses,
@@ -299,6 +310,30 @@ export class UsersService {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Read Directory
+   *
+   * Everybody an account can be shared with.
+   *
+   * Open to any signed-in user, because sharing a connection is not an
+   * administrative act and the person doing it has to name a colleague. It
+   * tells nobody anything they could not learn by being handed a connection:
+   * who has an account here. Switched-off accounts are left out — a grant to
+   * one would never be used.
+   *
+   * Declared before `/{user_id}` so the literal path is not read as an id.
+   */
+  public static readDirectory<ThrowOnError extends boolean = true>(
+    options?: Options<usersReadDirectoryData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<usersReadDirectoryResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/users/directory",
+      ...options,
     })
   }
 
@@ -1104,6 +1139,82 @@ export class ConnectorsService {
         "Content-Type": null,
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Read Grants
+   *
+   * Who else may reach this connection, and at what level.
+   *
+   * The owner's business alone. Somebody holding a grant sees that the
+   * connection is shared with them and not who else has it: that is a list of
+   * people, and it is not theirs to read.
+   */
+  public static readGrants<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadGrantsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      connectorsReadGrantsResponses,
+      connectorsReadGrantsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/grants",
+      ...options,
+    })
+  }
+
+  /**
+   * Write Grant
+   *
+   * Give somebody a level on this connection, or change the one they have.
+   *
+   * One route for both because they are the same statement: this person's
+   * standing is now this. A client that had to know whether a grant already
+   * existed would race with another window of the same owner.
+   */
+  public static writeGrant<ThrowOnError extends boolean = true>(
+    options: Options<connectorsWriteGrantData, ThrowOnError>
+  ) {
+    return (options.client ?? client).put<
+      connectorsWriteGrantResponses,
+      connectorsWriteGrantErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/grants",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Revoke Grant
+   *
+   * Take a level away.
+   *
+   * Nothing cached needs clearing: a cache entry is keyed by the caller who
+   * filled it, and the person who lost the grant can no longer reach a route
+   * that would read one.
+   */
+  public static revokeGrant<ThrowOnError extends boolean = true>(
+    options: Options<connectorsRevokeGrantData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      connectorsRevokeGrantResponses,
+      connectorsRevokeGrantErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/grants/{user_id}",
+      ...options,
     })
   }
 }

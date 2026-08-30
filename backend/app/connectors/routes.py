@@ -36,7 +36,12 @@ from app.adapters.column_changes import (
     DropColumnRequest,
     RenameColumnRequest,
 )
-from app.adapters.fetch import DownloadPageRequest, FetchRequest, FetchResult
+from app.adapters.fetch import (
+    DownloadPageRequest,
+    FetchRequest,
+    FetchResult,
+    as_read_only,
+)
 from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
@@ -59,7 +64,7 @@ from app.adapters.protocol import (
 )
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
-from app.adapters.relation import RelationModel
+from app.adapters.relation import RelationModel, without_column_changes
 from app.adapters.resources import Pooling, ResourcesDep, ResourceStore
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -77,7 +82,11 @@ from app.connectors.models import (
     ConnectorPublic,
     ConnectorsPublic,
     ConnectorUpdate,
+    GrantPublic,
+    GrantsPublic,
+    GrantWrite,
 )
+from app.core.access import Access, at_least
 from app.core.db import SessionDep
 from app.core.schemas import Message, get_datetime_utc
 from app.realtime.topics import TopicsDep
@@ -166,13 +175,67 @@ def _split_or_422(
         )
 
 
-async def _get_or_404(
-    session: AsyncSession, connector_id: uuid.UUID, current_user: User
-) -> Connector:
-    connector = await crud.get(session, connector_id=connector_id, owner=current_user)
-    if connector is None:
+async def _resolve(
+    session: AsyncSession,
+    connector_id: uuid.UUID,
+    current_user: User,
+    *,
+    requires: Access,
+) -> tuple[Connector, Access]:
+    """The connection and the caller's standing, or the reason they get neither.
+
+    The one place the question is asked. `requires` has no default on purpose:
+    a route added later cannot reach a source without saying what it needs,
+    because the call does not type-check without it.
+
+    Two statuses, and the difference is what the caller already knows. No
+    standing at all answers 404, the same as a connection that does not exist,
+    so the id space is not an oracle for what other people hold. A standing
+    below what the route needs answers 403: they can already see this
+    connection, and hiding it now would only confuse.
+    """
+    found = await crud.get_with_access(
+        session, connector_id=connector_id, user=current_user
+    )
+    if found is None:
         raise HTTPException(status_code=404, detail="Connector not found")
+    connector, access = found
+    if not at_least(access, requires):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "message": f"This needs {requires} access to the connection",
+                "required": requires,
+                "held": access,
+            },
+        )
+    return connector, access
+
+
+async def _get_or_404(
+    session: AsyncSession,
+    connector_id: uuid.UUID,
+    current_user: User,
+    *,
+    requires: Access,
+) -> Connector:
+    connector, _ = await _resolve(
+        session, connector_id, current_user, requires=requires
+    )
     return connector
+
+
+async def _public(
+    session: AsyncSession, connector: Connector, access: Access
+) -> ConnectorPublic:
+    """A connection as the caller sees it, including what they may do with it."""
+    owner_email: str | None = None
+    if access != "own":
+        owner = await session.get(User, connector.owner_id)
+        owner_email = owner.email if owner is not None else None
+    return ConnectorPublic.model_validate(
+        connector, update={"access": access, "owner_email": owner_email}
+    )
 
 
 def _context_for(
@@ -184,12 +247,14 @@ def _context_for(
     return AdapterContext(home_dir=storage.home_dir(owner_id), pooling=pooling)
 
 
-async def _adapter_for(
+async def _adapter_and_access(
     session: AsyncSession,
     connector_id: uuid.UUID,
     current_user: User,
     resources: ResourceStore | None = None,
-) -> DataAdapter:
+    *,
+    requires: Access,
+) -> tuple[DataAdapter, Access]:
     """Resolve a stored connector into a live adapter.
 
     A stored connector has an identity, so whatever it keeps between requests
@@ -202,10 +267,13 @@ async def _adapter_for(
     ``_get_or_404`` and stay open — switching a connection off is not deleting
     it.
     """
-    connector = await _get_or_404(session, connector_id, current_user)
+    connector, access = await _resolve(
+        session, connector_id, current_user, requires=requires
+    )
     if not connector.enabled:
-        # 409 rather than 404: the connector exists and the client knows it.
-        # Nor 403: it is the caller's own, and rights are not what is missing.
+        # 409 rather than 404: the connector exists and the caller can see it.
+        # Nor 403: they hold the level this route asked for, and what is
+        # missing is not a right but a switch its owner turned off.
         raise HTTPException(status_code=409, detail="Connector is disabled")
     adapter_type = _resolve_type(connector.adapter_type)
     options = service.merge_options(connector.config, connector.secrets)
@@ -214,9 +282,27 @@ async def _adapter_for(
         if resources is not None
         else None
     )
-    return service.build_adapter(
-        adapter_type, options, _context_for(connector.owner_id, pooling=pooling)
+    return (
+        service.build_adapter(
+            adapter_type, options, _context_for(connector.owner_id, pooling=pooling)
+        ),
+        access,
     )
+
+
+async def _adapter_for(
+    session: AsyncSession,
+    connector_id: uuid.UUID,
+    current_user: User,
+    resources: ResourceStore | None = None,
+    *,
+    requires: Access,
+) -> DataAdapter:
+    """A live adapter, for the routes that do not need to report the level."""
+    adapter, _ = await _adapter_and_access(
+        session, connector_id, current_user, resources, requires=requires
+    )
+    return adapter
 
 
 @router.post("/", response_model=ConnectorPublic)
@@ -228,7 +314,7 @@ async def create_connector(
     """
     adapter_type = _resolve_type(connector_in.adapter_type)
     config, secrets = _split_or_422(adapter_type, connector_in.options)
-    return await crud.create(
+    connector = await crud.create(
         session,
         name=connector_in.name,
         adapter_type=adapter_type.name,
@@ -236,6 +322,7 @@ async def create_connector(
         secrets=secrets,
         owner_id=current_user.id,
     )
+    return await _public(session, connector, "own")
 
 
 @router.get("/", response_model=ConnectorsPublic)
@@ -246,10 +333,15 @@ async def read_connectors(
     Retrieve connectors.
     """
     connectors, count = await crud.list_for(
-        session, owner=current_user, skip=skip, limit=limit
+        session, user=current_user, skip=skip, limit=limit
     )
     return ConnectorsPublic(
-        data=[ConnectorPublic.model_validate(connector) for connector in connectors],
+        data=[
+            ConnectorPublic.model_validate(
+                connector, update={"access": access, "owner_email": owner_email}
+            )
+            for connector, access, owner_email in connectors
+        ],
         count=count,
     )
 
@@ -261,7 +353,10 @@ async def read_connector(
     """
     Get connector by ID.
     """
-    return await _get_or_404(session, connector_id, current_user)
+    connector, access = await _resolve(
+        session, connector_id, current_user, requires="read"
+    )
+    return await _public(session, connector, access)
 
 
 @router.patch("/{connector_id}", response_model=ConnectorPublic)
@@ -275,7 +370,9 @@ async def update_connector(
     """
     Update a connector.
     """
-    connector = await _get_or_404(session, connector_id, current_user)
+    connector = await _get_or_404(
+        session, connector_id, current_user, requires="own"
+    )
 
     if connector_in.name is not None:
         connector.name = connector_in.name
@@ -293,7 +390,7 @@ async def update_connector(
     connector.updated_at = get_datetime_utc()
     saved = await crud.save(session, connector=connector)
     await data_cache.invalidate_connector(connector_id)
-    return saved
+    return await _public(session, saved, "own")
 
 
 @router.delete("/{connector_id}")
@@ -306,7 +403,9 @@ async def delete_connector(
     """
     Delete a connector.
     """
-    connector = await _get_or_404(session, connector_id, current_user)
+    connector = await _get_or_404(
+        session, connector_id, current_user, requires="own"
+    )
     await crud.delete(session, connector=connector)
     await data_cache.invalidate_connector(connector_id)
     return Message(message="Connector deleted successfully")
@@ -333,7 +432,11 @@ async def _draft_adapter(
     adapter_type = _resolve_type(body.adapter_type)
     options = body.options
     if body.connector_id is not None:
-        connector = await _get_or_404(session, body.connector_id, current_user)
+        # Reading a draft against a stored connection only substitutes the
+        # secrets the caller did not retype, so seeing it is enough.
+        connector = await _get_or_404(
+            session, body.connector_id, current_user, requires="read"
+        )
         options = service.fill_missing_secrets(adapter_type, options, connector.secrets)
 
     try:
@@ -484,7 +587,9 @@ async def check_connector(
     """
     Check the connection of a stored connector.
     """
-    adapter = await _adapter_for(session, connector_id, current_user)
+    adapter = await _adapter_for(
+        session, connector_id, current_user, requires="read"
+    )
     result = await adapter.check_connection()
     # Told to whoever is watching, so that pressing the button and the dot on
     # the same connection cannot end up saying different things.
@@ -506,7 +611,9 @@ async def fetch_rows(
     """
     Read a page of rows from a relation named by request.node_id.
     """
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter, access = await _adapter_and_access(
+        session, connector_id, current_user, resources, requires="read"
+    )
     if not isinstance(adapter, SupportsFetch):
         raise HTTPException(
             status_code=501,
@@ -516,7 +623,7 @@ async def fetch_rows(
             },
         )
     try:
-        return await _cached(
+        result = await _cached(
             data_cache=data_cache,
             adapter=adapter,
             key=_cache_key(
@@ -526,6 +633,11 @@ async def fetch_rows(
             response=response,
             load=lambda: adapter.fetch(request),
         )
+        # After the cache and not before it: the page a source produced is the
+        # same page for everyone, and what one caller may do with it is not.
+        if not at_least(access, "write"):
+            return as_read_only(result, "You have read-only access to this connection")
+        return result
     except ValueError as exc:
         # A column the relation does not have. Caught before any SQL is built,
         # so this is a bad request rather than an upstream failure.
@@ -556,7 +668,9 @@ async def read_catalog(
 
     node_id is opaque: only the adapter that produced it knows how to read it.
     """
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
     if not isinstance(adapter, SupportsCatalog):
         # Browsing is an optional capability: a queue or a plain HTTP source
         # has no catalog to walk.
@@ -611,7 +725,9 @@ async def download_page(
     request: DownloadPageRequest,
 ) -> FileResponse:
     """Re-read, save and return the same bounded page the grid describes."""
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
     if not isinstance(adapter, SupportsFetch):
         raise HTTPException(
             status_code=501,
@@ -657,7 +773,9 @@ async def update_cell(
     request: UpdateCellRequest,
 ) -> Any:
     """Change one cell if the fetched row version is still current."""
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="write"
+    )
     if not isinstance(adapter, SupportsUpdate):
         raise HTTPException(
             status_code=501,
@@ -697,7 +815,9 @@ async def insert_row(
     request: InsertRowRequest,
 ) -> Any:
     """Insert one row, preserving defaults for columns the caller omitted."""
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="write"
+    )
     if not isinstance(adapter, SupportsInsert):
         raise HTTPException(
             status_code=501,
@@ -732,7 +852,9 @@ async def delete_rows(
     request: DeleteRowsRequest,
 ) -> Any:
     """Delete versioned rows only when every selected row is still current."""
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="write"
+    )
     if not isinstance(adapter, SupportsDelete):
         raise HTTPException(
             status_code=501,
@@ -773,7 +895,9 @@ async def read_relation_model(
     node_id: str,
 ) -> Any:
     """Describe one relation named by its opaque catalog node id."""
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter, access = await _adapter_and_access(
+        session, connector_id, current_user, resources, requires="read"
+    )
     if not isinstance(adapter, SupportsRelationModel):
         raise HTTPException(
             status_code=501,
@@ -783,7 +907,12 @@ async def read_relation_model(
             },
         )
     try:
-        return await adapter.relation_model(node_id)
+        model = await adapter.relation_model(node_id)
+        if not at_least(access, "structure"):
+            return without_column_changes(
+                model, "You may not change the structure of this connection"
+            )
+        return model
     except NodeNotFound as exc:
         raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
     except ValueError as exc:
@@ -833,7 +962,9 @@ async def add_column(
     request: AddColumnRequest,
 ) -> ColumnChangeResult:
     """Add one validated column to a relation."""
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
     if not isinstance(adapter, SupportsAddColumn):
         raise HTTPException(
             status_code=501,
@@ -859,7 +990,9 @@ async def drop_column(
     request: DropColumnRequest,
 ) -> ColumnChangeResult:
     """Drop one exact column after the caller's explicit confirmation."""
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
     if not isinstance(adapter, SupportsDropColumn):
         raise HTTPException(
             status_code=501,
@@ -885,7 +1018,9 @@ async def rename_column(
     request: RenameColumnRequest,
 ) -> ColumnChangeResult:
     """Rename one exact column without recreating it or its data."""
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
     if not isinstance(adapter, SupportsRenameColumn):
         raise HTTPException(
             status_code=501,
@@ -911,7 +1046,9 @@ async def change_column_default(
     request: ColumnDefaultRequest,
 ) -> ColumnChangeResult:
     """Set one literal column default, or remove its current default."""
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
     if not isinstance(adapter, SupportsColumnDefault):
         raise HTTPException(
             status_code=501,
@@ -943,7 +1080,9 @@ async def read_node_path(
     one apart. node_id is required — the root of a connector has no path,
     because the root is the connector.
     """
-    adapter = await _adapter_for(session, connector_id, current_user, resources)
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
     if not isinstance(adapter, SupportsNodePath):
         # A source may be able to list children without being able to walk
         # back up: its ids can be opaque handles from someone else's API.
@@ -1076,6 +1215,24 @@ async def _action_for_node(
     return action
 
 
+def _allowed_or_403(action: Action[Any], access: Access) -> None:
+    """Whether this caller may run this action, asked after it resolved.
+
+    A level cannot be checked at the door, because which one is needed is the
+    action's own statement and the name has not been resolved yet. Answering
+    404 for the name would be a different lie: the action exists.
+    """
+    if not at_least(access, action.requires):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "message": f"{action.title} needs {action.requires} access",
+                "required": action.requires,
+                "held": access,
+            },
+        )
+
+
 async def _perform(run: Callable[[], Awaitable[ActionResult]]) -> ActionResult:
     try:
         return await run()
@@ -1132,17 +1289,22 @@ async def read_actions(
     a list of opaque identifiers with no bound on its length, and selecting a
     directory of five hundred files leaves no room in a query string.
     """
-    adapter = _acting_or_501(
-        await _adapter_for(session, connector_id, current_user, resources)
+    adapter, access = await _adapter_and_access(
+        session, connector_id, current_user, resources, requires="read"
     )
+    acting = _acting_or_501(adapter)
     targets: list[str | None] = list(body.node_ids) if body.node_ids else [None]
-    offers = [await _available_or_422(adapter, node_id) for node_id in targets]
+    offers = [await _available_or_422(acting, node_id) for node_id in targets]
     admitted = {
         action.name for action in common_actions(offers, bulk_only=len(targets) > 1)
     }
+    # Filtered rather than greyed out: an action the caller may not run is not
+    # inapplicable here, it is not theirs, and saying so per action would put
+    # the level rules into the menu as well as into the route.
     return [
         _describe(action, applicable=action.name in admitted)
-        for action in adapter.all_actions()
+        for action in acting.all_actions()
+        if at_least(access, action.requires)
     ]
 
 
@@ -1159,10 +1321,13 @@ async def run_action(
     """
     Perform an action that needs nothing but its parameters.
     """
-    adapter = _acting_or_501(
-        await _adapter_for(session, connector_id, current_user, resources)
+    adapter, access = await _adapter_and_access(
+        session, connector_id, current_user, resources, requires="read"
     )
-    action = await _action_for_node(adapter, action_name, body.node_id)
+    action = await _action_for_node(
+        _acting_or_501(adapter), action_name, body.node_id
+    )
+    _allowed_or_403(action, access)
     if not isinstance(action, TakesParams):
         raise HTTPException(
             status_code=415,
@@ -1195,11 +1360,12 @@ async def run_action_with_file(
     Parameters travel as a JSON field of the form, so the action validates them
     by the same model either way.
     """
-    adapter = _acting_or_501(
-        await _adapter_for(session, connector_id, current_user, resources)
+    adapter, access = await _adapter_and_access(
+        session, connector_id, current_user, resources, requires="read"
     )
     target = node_id or None
-    action = await _action_for_node(adapter, action_name, target)
+    action = await _action_for_node(_acting_or_501(adapter), action_name, target)
+    _allowed_or_403(action, access)
     if not isinstance(action, TakesFile):
         raise HTTPException(
             status_code=415,
@@ -1223,3 +1389,101 @@ async def run_action_with_file(
         data_cache,
         connector_id,
     )
+
+
+@router.get("/{connector_id}/grants", response_model=GrantsPublic)
+async def read_grants(
+    session: SessionDep, current_user: CurrentUser, connector_id: uuid.UUID
+) -> Any:
+    """Who else may reach this connection, and at what level.
+
+    The owner's business alone. Somebody holding a grant sees that the
+    connection is shared with them and not who else has it: that is a list of
+    people, and it is not theirs to read.
+    """
+    await _get_or_404(session, connector_id, current_user, requires="own")
+    return GrantsPublic(
+        data=[
+            GrantPublic(
+                user_id=user.id,
+                email=user.email,
+                full_name=user.full_name,
+                access=access,
+            )
+            for user, access in await crud.list_grants(
+                session, connector_id=connector_id
+            )
+        ]
+    )
+
+
+@router.put("/{connector_id}/grants", response_model=GrantPublic)
+async def write_grant(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    body: GrantWrite,
+) -> Any:
+    """Give somebody a level on this connection, or change the one they have.
+
+    One route for both because they are the same statement: this person's
+    standing is now this. A client that had to know whether a grant already
+    existed would race with another window of the same owner.
+    """
+    await _get_or_404(session, connector_id, current_user, requires="own")
+    if body.user_id == current_user.id:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", "user_id"],
+                    "msg": "You already own this connection",
+                    "type": "value_error",
+                }
+            ],
+        )
+    user = await session.get(User, body.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", "user_id"],
+                    "msg": "No such user",
+                    "type": "value_error",
+                }
+            ],
+        )
+    grant = await crud.set_grant(
+        session,
+        connector_id=connector_id,
+        user_id=body.user_id,
+        access=body.access,
+    )
+    return GrantPublic(
+        user_id=user.id,
+        email=user.email,
+        full_name=user.full_name,
+        access=grant.access,
+    )
+
+
+@router.delete("/{connector_id}/grants/{user_id}")
+async def revoke_grant(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> Message:
+    """Take a level away.
+
+    Nothing cached needs clearing: a cache entry is keyed by the caller who
+    filled it, and the person who lost the grant can no longer reach a route
+    that would read one.
+    """
+    await _get_or_404(session, connector_id, current_user, requires="own")
+    if not await crud.remove_grant(
+        session, connector_id=connector_id, user_id=user_id
+    ):
+        raise HTTPException(status_code=404, detail="Grant not found")
+    return Message(message="Access revoked")

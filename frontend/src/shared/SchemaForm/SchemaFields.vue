@@ -19,6 +19,12 @@ const props = defineProps<{
    * a value it does not hold.
    */
   secretsAreStored?: boolean
+  /**
+   * Shown but not editable: the connection is somebody else's, and it is read
+   * through a grant. Every control is disabled rather than the form hidden,
+   * because seeing what one is connected to is part of what a grant gives.
+   */
+  disable?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -108,6 +114,7 @@ watch(
           :data-testid="`field-${field.name}`"
           :model-value="Boolean(modelValue[field.name])"
           :label="field.label"
+          :disable="disable"
           @update:model-value="update(field.name, $event)"
         />
 
@@ -120,6 +127,7 @@ watch(
           :options="field.choices ?? []"
           :label="field.label"
           :error="errors[field.name]"
+          :disable="disable"
           @update:model-value="update(field.name, $event)"
         />
 
@@ -131,6 +139,7 @@ watch(
           :model-value="numberValue(field.name)"
           :label="field.label"
           :error="errors[field.name]"
+          :disable="disable"
           @update:model-value="update(field.name, $event)"
         />
 
@@ -146,6 +155,7 @@ watch(
           :label="field.label"
           :type="field.kind === 'password' && !isHidden(field) ? 'password' : 'text'"
           :error="errors[field.name]"
+          :disable="disable"
           @focus="field.kind === 'password' ? reveal(field.name) : undefined"
           @blur="field.kind === 'password' ? restore(field.name) : undefined"
           @update:model-value="update(field.name, $event)"

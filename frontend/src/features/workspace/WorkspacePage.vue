@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, provide, ref } from "vue"
 
+import { useRouter } from "vue-router"
+
 import type { ConnectorPublic, NodeReplacement } from "@/client"
+import { useCurrentUser } from "@/features/auth/api"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import {
@@ -35,7 +38,7 @@ import type {
   OpenStructureRequest,
   RevealTarget,
 } from "@/features/workspace/state"
-import { AppLayout, useConfirm, useToast } from "@/shared/ui"
+import { AppButton, AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
 import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
 
@@ -118,6 +121,11 @@ const openConnectors = computed(() => openConnectorIds(workspace.panels.value))
  * unsaved changes is closed. See the spec, O1.
  */
 const connectors = useConnectors()
+const router = useRouter()
+// Only an administrator is offered the accounts screen. The routes behind it
+// refuse anybody else anyway; this keeps a door out of sight that would not
+// open (D34).
+const me = useCurrentUser()
 const windows = useWindowManager()
 const confirm = useConfirm()
 
@@ -312,6 +320,17 @@ provide(workspaceActionsKey, {
 
 <template>
   <AppLayout fill>
+    <template #actions>
+      <AppButton
+        v-if="me.data.value?.is_superuser"
+        variant="quiet"
+        size="sm"
+        label="Users"
+        data-testid="open-users"
+        @click="router.push({ name: 'users' })"
+      />
+    </template>
+
     <WorkspaceRoot :context="workspace.context" />
 
     <AdapterCatalogDialog

@@ -48,17 +48,37 @@ async def user_for_token(session: AsyncSession, token: str) -> User | None:
 
 
 async def get_current_user(session: SessionDep, token: TokenDep) -> User:
+    """Whom this request is from, or 401.
+
+    401 and not 403, which is what this used to answer. The two say different
+    things — "I do not know who you are" against "I know, and you may not" —
+    and while a level was never refused to anybody the difference cost nothing.
+    It does now: the client signs a user out when the server rejects who they
+    are, and under the old status a grant too low to run one action would have
+    signed them out of the application (D33).
+    """
     claim = _subject(token)
     if claim is None:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     user = await session.get(User, claim.sub)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     if not user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
+        # Also 401: the account exists and cannot be used, so the session it
+        # is holding is over.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Inactive user",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     return user
 
 

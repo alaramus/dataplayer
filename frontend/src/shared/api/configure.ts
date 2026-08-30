@@ -16,11 +16,17 @@ export function configureApiClient() {
   })
 }
 
-/** The server refusing who we are, as opposed to a request going wrong. */
+/**
+ * The server refusing who we are, as opposed to refusing what we asked.
+ *
+ * 401 only. 403 used to be on this list, back when it was what an unusable
+ * token got; it now means the caller is known and this is not theirs — too low
+ * a level on a connection, or an administrator's route. Signing somebody out
+ * for that would end the session over a button they should not have been
+ * offered. See D33.
+ */
 function isAuthFailure(error: Error): boolean {
-  return (
-    error instanceof AxiosError && [401, 403].includes(error.response?.status ?? 0)
-  )
+  return error instanceof AxiosError && error.response?.status === 401
 }
 
 function handleApiError(error: Error) {

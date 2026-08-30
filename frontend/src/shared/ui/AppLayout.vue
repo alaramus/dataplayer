@@ -32,6 +32,10 @@ async function logout() {
         <q-toolbar-title class="app-layout__title">
           <span>DataPlayer</span>
         </q-toolbar-title>
+        <!-- What a screen wants in the header, before the two things that
+             belong to the session. The kit knows no feature: whoever renders
+             the layout decides what goes here. -->
+        <slot name="actions" />
         <!-- Beside signing out: both are about this session rather than about
              what is on the screen. -->
         <AppThemeToggle />

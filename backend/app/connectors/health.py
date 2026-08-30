@@ -177,7 +177,7 @@ class HealthTopic:
             base = settings.HEALTH_INTERVAL_SECONDS
             cap = settings.HEALTH_BACKOFF_CAP_SECONDS
             async with async_session_maker() as session:
-                connectors = await crud.enabled_of(session, owner_id=user_id)
+                connectors = await crud.visible_enabled_of(session, user_id=user_id)
 
             live = {connector.id for connector in connectors}
             for gone in set(probes) - live:

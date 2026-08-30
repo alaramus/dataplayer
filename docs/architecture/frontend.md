@@ -13,7 +13,8 @@ source types, a form generated from the adapter's own schema, the list of
 connections, the catalog of a connection as a list of one level, and a typed
 data grid with server paging, filters, ordered sorting and guarded cell editing;
 the structure tab adds and drops columns through source-declared capabilities.
-Light and dark themes,
+A connection can be shared with a colleague at a level, and an administrator
+manages accounts on a page of their own. Light and dark themes,
 switched by a button beside Sign out and remembered.
 
 ```
@@ -42,6 +43,8 @@ frontend/src/
 ├── stores/              Pinia: client-side state only — the session, the theme,
 │                        and what the last connection check said
 └── features/
+    ├── admin/           the accounts page; users.ts is the form, as plain
+    │                    functions
     ├── auth/
     ├── catalog/         the list of one level and the menu of what the ticked
     │                    nodes admit; nodes.ts and actions.ts are pure mappers,
@@ -56,7 +59,9 @@ frontend/src/
     │                    and source-owned type choices drive column DDL
     ├── connectors/      the list of sources, the catalog of source types that
     │                    starts a new one, and the window that registers one;
-    │                    adapterSearch.ts is a pure mapper
+    │                    adapterSearch.ts is a pure mapper, access.ts is the
+    │                    scale of what a caller may do, and ShareDialog.vue is
+    │                    where a level is handed to a colleague
     ├── workspace/       the panels and their roles — see workspace.md
     └── dev/             /ui-kit and /workspace-demo, dev builds only
 ```
@@ -272,6 +277,22 @@ A connection is a row of two things: the icon of its type, with the dot of the
 last check standing on it, and its name. Everything else about it lives in the
 window that icon opens.
 
+**What a screen may offer, it is told.** A connection carries `access`, so the
+window of one that belongs to somebody else shows its options disabled, names
+who shared it, and drops Apply, Delete and Share; sharing is offered only to
+the owner. Nothing below that is decided here — a page that may not be edited
+arrives with its columns marked uneditable, and a relation whose shape is not
+the caller's arrives saying so, both through the fields those screens already
+read. The one comparison the client makes is `atLeast` in
+`features/connectors/access.ts`, and its scale is read off the generated client
+rather than written out again. See D33 in [backend.md](backend.md).
+
+Accounts are a page of their own at `/users`, opened from a header button that
+appears only for an administrator. It creates people, switches them off and
+removes them, and it decides nothing about data (D34). The form rules —
+a password required when there is no account and optional when there is — are
+plain functions in `features/admin/users.ts`.
+
 Known deviations:
 
 - **Where one was in a catalog is not remembered.** The layout survives a reload;
@@ -288,6 +309,10 @@ Known deviations:
   forty-pixel strip centres a thirty-two pixel button. Change the size of the
   button and the two drift apart; a scenario measures both and fails when they
   do.
+- **A revoked grant is noticed when something is asked.** The connection stays
+  on the colleague's screen until the list is read again; the socket says
+  nothing about a level being taken away. Every route refuses in the meantime,
+  so nothing is reachable — only the row is stale.
 - **The state dot only knows about this session.** A connection shows grey until
   the user checks it; nothing checks in the background, because that would mean
   opening a connection to every source on every load. The record is not

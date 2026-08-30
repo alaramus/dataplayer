@@ -15,7 +15,9 @@ from app.users.deps import CurrentUser, get_current_active_superuser
 from app.users.models import (
     UpdatePassword,
     User,
+    UserBrief,
     UserCreate,
+    UserDirectory,
     UserPublic,
     UserRegister,
     UsersPublic,
@@ -46,6 +48,27 @@ async def read_users(session: SessionDep, skip: int = 0, limit: int = 100) -> An
 
     users_public = [UserPublic.model_validate(user) for user in users]
     return UsersPublic(data=users_public, count=count)
+
+
+@router.get("/directory", response_model=UserDirectory)
+async def read_directory(session: SessionDep, current_user: CurrentUser) -> Any:
+    """Everybody an account can be shared with.
+
+    Open to any signed-in user, because sharing a connection is not an
+    administrative act and the person doing it has to name a colleague. It
+    tells nobody anything they could not learn by being handed a connection:
+    who has an account here. Switched-off accounts are left out — a grant to
+    one would never be used.
+
+    Declared before `/{user_id}` so the literal path is not read as an id.
+    """
+    statement = (
+        select(User)
+        .where(col(User.is_active).is_(True), User.id != current_user.id)
+        .order_by(col(User.email))
+    )
+    users = (await session.exec(statement)).all()
+    return UserDirectory(data=[UserBrief.model_validate(user) for user in users])
 
 
 @router.post(

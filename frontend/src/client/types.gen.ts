@@ -507,6 +507,14 @@ export type ConnectorPublic = {
    */
   enabled: boolean
   /**
+   * Access
+   */
+  access: "read" | "write" | "structure" | "own"
+  /**
+   * Owner Email
+   */
+  owner_email?: string | null
+  /**
    * Created At
    */
   created_at?: string | null
@@ -886,6 +894,56 @@ export type ForeignKey = {
    * Match
    */
   match?: "full" | "partial" | "simple"
+}
+
+/**
+ * GrantPublic
+ *
+ * A grant as the owner of the connection sees it.
+ */
+export type GrantPublic = {
+  /**
+   * User Id
+   */
+  user_id: string
+  /**
+   * Email
+   */
+  email: string
+  /**
+   * Full Name
+   */
+  full_name?: string | null
+  /**
+   * Access
+   */
+  access: "read" | "write" | "structure"
+}
+
+/**
+ * GrantWrite
+ *
+ * Give a level, or raise or lower one already given.
+ */
+export type GrantWrite = {
+  /**
+   * User Id
+   */
+  user_id: string
+  /**
+   * Access
+   */
+  access: "read" | "write" | "structure"
+}
+
+/**
+ * GrantsPublic
+ */
+export type GrantsPublic = {
+  /**
+   * Data
+   */
+  data: Array<GrantPublic>
 }
 
 /**
@@ -1417,6 +1475,30 @@ export type UpdatePassword = {
 }
 
 /**
+ * UserBrief
+ *
+ * A person, as somebody choosing whom to share with needs to see them.
+ *
+ * Deliberately less than `UserPublic`: whether an account is an
+ * administrator, and whether it is switched on, are administrative facts and
+ * have no place in a picker.
+ */
+export type UserBrief = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Email
+   */
+  email: string
+  /**
+   * Full Name
+   */
+  full_name?: string | null
+}
+
+/**
  * UserCreate
  */
 export type UserCreate = {
@@ -1440,6 +1522,16 @@ export type UserCreate = {
    * Password
    */
   password: string
+}
+
+/**
+ * UserDirectory
+ */
+export type UserDirectory = {
+  /**
+   * Data
+   */
+  data: Array<UserBrief>
 }
 
 /**
@@ -1792,6 +1884,23 @@ export type usersCreateUserResponses = {
 }
 
 export type usersCreateUserResponse = usersCreateUserResponses[keyof usersCreateUserResponses]
+
+export type usersReadDirectoryData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/users/directory"
+}
+
+export type usersReadDirectoryResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserDirectory
+}
+
+export type usersReadDirectoryResponse =
+  usersReadDirectoryResponses[keyof usersReadDirectoryResponses]
 
 export type usersDeleteUserMeData = {
   body?: never
@@ -2852,6 +2961,104 @@ export type connectorsRunActionWithFileResponses = {
 
 export type connectorsRunActionWithFileResponse =
   connectorsRunActionWithFileResponses[keyof connectorsRunActionWithFileResponses]
+
+export type connectorsReadGrantsData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/grants"
+}
+
+export type connectorsReadGrantsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsReadGrantsError = connectorsReadGrantsErrors[keyof connectorsReadGrantsErrors]
+
+export type connectorsReadGrantsResponses = {
+  /**
+   * Successful Response
+   */
+  200: GrantsPublic
+}
+
+export type connectorsReadGrantsResponse =
+  connectorsReadGrantsResponses[keyof connectorsReadGrantsResponses]
+
+export type connectorsWriteGrantData = {
+  body: GrantWrite
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/grants"
+}
+
+export type connectorsWriteGrantErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsWriteGrantError = connectorsWriteGrantErrors[keyof connectorsWriteGrantErrors]
+
+export type connectorsWriteGrantResponses = {
+  /**
+   * Successful Response
+   */
+  200: GrantPublic
+}
+
+export type connectorsWriteGrantResponse =
+  connectorsWriteGrantResponses[keyof connectorsWriteGrantResponses]
+
+export type connectorsRevokeGrantData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+    /**
+     * User Id
+     */
+    user_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/grants/{user_id}"
+}
+
+export type connectorsRevokeGrantErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsRevokeGrantError =
+  connectorsRevokeGrantErrors[keyof connectorsRevokeGrantErrors]
+
+export type connectorsRevokeGrantResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type connectorsRevokeGrantResponse =
+  connectorsRevokeGrantResponses[keyof connectorsRevokeGrantResponses]
 
 export type adaptersReadAdapterTypesData = {
   body?: never

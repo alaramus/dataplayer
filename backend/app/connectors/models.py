@@ -2,10 +2,11 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Column, DateTime, LargeBinary
+from sqlalchemy import Column, DateTime, LargeBinary, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
+from app.core.access import Access, Grant
 from app.core.schemas import get_datetime_utc
 
 
@@ -48,12 +49,42 @@ class ConnectorUpdate(SQLModel):
     enabled: bool | None = None
 
 
+class ConnectorGrant(SQLModel, table=True):
+    """One person's standing on one connection.
+
+    A row, not a rule: the question every route asks is answered by a primary
+    key lookup. `access` is a plain string column carrying a value of the
+    `Grant` union, so a level the application does not know fails to validate
+    on the way out of the database rather than being compared as an unranked
+    string.
+    """
+
+    connector_id: uuid.UUID = Field(
+        foreign_key="connector.id", primary_key=True, ondelete="CASCADE"
+    )
+    user_id: uuid.UUID = Field(
+        foreign_key="user.id", primary_key=True, ondelete="CASCADE"
+    )
+    access: Grant = Field(sa_column=Column(String(16), nullable=False))
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore
+    )
+
+
 class ConnectorPublic(SQLModel):
     id: uuid.UUID
     name: str
     adapter_type: str
     config: dict[str, Any]
     enabled: bool
+    # What the caller may do with this connection. Sent rather than derived on
+    # the client: a screen that hides a button by knowing the rules is a second
+    # place the rules live, and the first it would hear of a refusal is a 403.
+    access: Access
+    # Whose it is, when it is not the caller's own. None for your own
+    # connections, where naming the owner would only be your own address.
+    owner_email: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 
@@ -61,3 +92,23 @@ class ConnectorPublic(SQLModel):
 class ConnectorsPublic(SQLModel):
     data: list[ConnectorPublic]
     count: int
+
+
+class GrantPublic(SQLModel):
+    """A grant as the owner of the connection sees it."""
+
+    user_id: uuid.UUID
+    email: str
+    full_name: str | None = None
+    access: Grant
+
+
+class GrantsPublic(SQLModel):
+    data: list[GrantPublic]
+
+
+class GrantWrite(SQLModel):
+    """Give a level, or raise or lower one already given."""
+
+    user_id: uuid.UUID
+    access: Grant

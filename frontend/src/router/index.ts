@@ -39,6 +39,16 @@ export const router = createRouter({
       component: () => import("@/features/workspace/WorkspacePage.vue"),
       meta: { requiresAuth: true },
     },
+    {
+      // Whether the signed-in user is an administrator is not known here: it
+      // is server state, and a guard that waited for it would hold every
+      // navigation. The page says so instead, and the routes behind it answer
+      // 403 regardless — see D34.
+      path: "/users",
+      name: "users",
+      component: () => import("@/features/admin/UsersPage.vue"),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

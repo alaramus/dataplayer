@@ -18,6 +18,7 @@ from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 from pydantic import BaseModel
 
 from app.adapters.catalog import NodeKind
+from app.core.access import Access
 
 
 class NodeReplacement(BaseModel):
@@ -102,6 +103,11 @@ class Action[P: BaseModel](ABC):
     # of that node it changes.
     acts_on: ClassVar[ActsOn]
     destructive: ClassVar[bool] = False
+    # What a caller must hold on the connection to run this. Declared on the
+    # class beside `destructive` because it is the same sort of statement, and
+    # defaulting to `write` so that an action which says nothing about itself
+    # is not thereby free to anyone who can read.
+    requires: ClassVar[Access] = "write"
     # Whether one filled form may be applied to a set of nodes. Renaming five
     # files to one name is not five renames, and nothing in the shape of an
     # action says so — only the action itself knows.

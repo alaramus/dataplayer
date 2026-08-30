@@ -62,6 +62,10 @@ included; the spec index lists the older titles in translation.
   or several at once. What is offered comes from the server for exactly the
   nodes that are ticked, so the screen knows nothing about any particular
   source.
+- A connection can be shared with a colleague at one of three levels:
+  reading it, changing its rows, changing its shape. Its owner alone edits it,
+  deletes it and manages who holds what; an administrator manages accounts and
+  reaches nobody's data without a grant.
 - Credentials encrypted at rest, never leaving the server. PostgreSQL keeps its
   connections between requests.
 - One screen of three columns — connections, catalogs, data — with resizable
@@ -125,6 +129,8 @@ and the known deviations live there.
 | D30 | A column default entered by a user is a literal value, never a source expression | [adapters](docs/architecture/adapters.md) |
 | D31 | A source opts into bounded read caching, and a successful mutation drops what it cached | [adapters](docs/architecture/adapters.md) |
 | D32 | Renaming a catalog node returns its replacement identity, and open work follows it in place | [adapters](docs/architecture/adapters.md) |
+| D33 | Access to a connection is a grant of an ordered level, and a route states the level it needs | [backend](docs/architecture/backend.md) |
+| D34 | An administrator has rights over accounts, not over data | [backend](docs/architecture/backend.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.

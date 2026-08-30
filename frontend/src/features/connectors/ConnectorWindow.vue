@@ -2,7 +2,9 @@
 import { computed, ref, watch } from "vue"
 
 import type { ConnectionCheckResult, ConnectorPublic } from "@/client"
+import { ACCESS_LABELS } from "@/features/connectors/access"
 import ConnectionCheck from "@/features/connectors/ConnectionCheck.vue"
+import ShareDialog from "@/features/connectors/ShareDialog.vue"
 import {
   useAdapterTypes,
   useCheckDraft,
@@ -123,6 +125,27 @@ const dirty = computed(() => snapshot() !== baseline.value)
 const saved = ref<ConnectorPublic | null>(null)
 
 const isEdit = computed(() => saved.value !== null)
+
+/**
+ * What this window may do to the connection it is on.
+ *
+ * A connection that is not saved yet is the caller's own: they are creating
+ * it. A stored one says for itself (D33), so nothing here derives a right
+ * from who is signed in.
+ */
+const access = computed(() => saved.value?.access ?? "own")
+const isOwner = computed(() => access.value === "own")
+/**
+ * Shown, and not editable.
+ *
+ * A grant is access to the source, not to the record of how to reach it: the
+ * options and the credentials stay the owner's. The form is disabled rather
+ * than hidden, because seeing what one is connected to — which host, which
+ * database — is part of what reading it means. Testing the connection stays
+ * available: it opens nothing this window does not already read.
+ */
+const readOnly = computed(() => isEdit.value && !isOwner.value)
+const sharing = ref(false)
 const typeName = computed(() => saved.value?.adapter_type ?? props.adapterType ?? null)
 
 const selectedType = computed(
@@ -458,6 +481,7 @@ async function parseTyped(text: string) {
             class="connector-window__name"
             label="Name"
             data-testid="connector-name"
+            :disable="readOnly"
             :error="nameError"
           />
           <!-- Only for a connection that exists: there is nothing to switch
@@ -468,7 +492,20 @@ async function parseTyped(text: string) {
             v-model="enabled"
             label="In use"
             data-testid="connector-enabled"
+            :disable="readOnly"
           />
+        </div>
+
+        <!-- Whose it is and what was given. Stated in words rather than by the
+             name of the level, and only when it is somebody else's: a line
+             saying you own your own connection would be on every window. -->
+        <div
+          v-if="readOnly && saved"
+          class="connector-window__shared"
+          data-testid="connector-shared"
+        >
+          Shared by {{ saved.owner_email }} — you may
+          {{ ACCESS_LABELS[access].toLowerCase() }}
         </div>
 
         <!-- Only once the server names a second group: one tab is not a
@@ -499,6 +536,7 @@ async function parseTyped(text: string) {
           :fields="group.fields"
           :errors="optionErrors"
           :secrets-are-stored="secretsAreStored"
+          :disable="readOnly"
         />
       </div>
 
@@ -516,6 +554,7 @@ async function parseTyped(text: string) {
           :model-value="urlText"
           label="URL"
           data-testid="connector-url"
+          :disable="readOnly"
           :error="urlError"
           @focus="urlFocused = true"
           @blur="leaveUrl"
@@ -547,8 +586,17 @@ async function parseTyped(text: string) {
             :loading="checkDraft.isPending.value"
             @click="check"
           />
+          <!-- The owner's only: who else may reach a connection is decided by
+               whoever owns it, and a grant does not pass that on. -->
           <AppButton
-            v-if="isEdit"
+            v-if="isEdit && isOwner"
+            variant="secondary"
+            label="Share"
+            data-testid="share-connector"
+            @click="sharing = true"
+          />
+          <AppButton
+            v-if="isEdit && isOwner"
             variant="danger-quiet"
             label="Delete"
             data-testid="delete-connector"
@@ -557,6 +605,7 @@ async function parseTyped(text: string) {
           />
           <span class="connector-window__spacer" />
           <AppButton
+            v-if="!readOnly"
             label="OK"
             data-testid="save-connector"
             :disable="!typeName"
@@ -579,6 +628,7 @@ async function parseTyped(text: string) {
           <!-- Saves and stays: the reason several of these windows are open at
              once is to keep working in them. -->
           <AppButton
+            v-if="!readOnly"
             variant="secondary"
             label="Apply"
             data-testid="apply-connector"
@@ -588,6 +638,13 @@ async function parseTyped(text: string) {
           />
         </footer>
       </div>
+
+      <ShareDialog
+        v-if="saved && isOwner"
+        v-model="sharing"
+        :connector-id="saved.id"
+        :connector-name="saved.name"
+      />
     </template>
   </div>
 </template>
@@ -608,6 +665,12 @@ async function parseTyped(text: string) {
    name box that changed width with the label beside it would jump. */
 .connector-window__name {
   flex: 1;
+}
+/* A statement about the window, not a field in it: quieter than the form and
+   above it. */
+.connector-window__shared {
+  font-size: 12px;
+  color: var(--dp-text-muted);
 }
 .connector-window__body {
   flex: 1;

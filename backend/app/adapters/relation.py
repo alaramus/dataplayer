@@ -172,3 +172,21 @@ class RelationModel(BaseModel):
     column_changes_supported: bool = False
     column_changes_reason: str | None = None
     column_type_options: list[ColumnTypeOption] = Field(default_factory=list)
+
+
+def without_column_changes(model: RelationModel, reason: str) -> RelationModel:
+    """The same description, with the shape of it declared unchangeable.
+
+    The relation already says whether its columns can be changed and why not,
+    and the structure screen already reads that. A caller who may not change
+    the shape is told through the same two fields rather than by a screen
+    knowing the rule; the type choices go with them, since they exist only to
+    fill in a change nobody is being offered.
+    """
+    return model.model_copy(
+        update={
+            "column_changes_supported": False,
+            "column_changes_reason": reason,
+            "column_type_options": [],
+        }
+    )

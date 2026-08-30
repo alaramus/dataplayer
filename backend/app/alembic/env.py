@@ -26,7 +26,7 @@ from app.core.config import settings # noqa
 # SQLModel.metadata only when its module is loaded, and autogenerate compares
 # against that metadata. A model in a new module has to be added to this list.
 from app.users.models import User  # noqa
-from app.connectors.models import Connector  # noqa
+from app.connectors.models import Connector, ConnectorGrant  # noqa
 
 target_metadata = SQLModel.metadata
 

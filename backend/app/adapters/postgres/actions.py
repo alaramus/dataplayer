@@ -18,6 +18,7 @@ from app.adapters.actions import (
 from app.adapters.catalog import NodeKind, TableNode, ViewNode
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.session import PostgresSession
+from app.core.access import Access
 
 
 def _relation_name(value: str) -> str:
@@ -39,6 +40,9 @@ class RenameRelation(JsonAction[RenameRelationParams]):
     title: ClassVar[str] = "Rename"
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table", "view"})
     acts_on: ClassVar[ActsOn] = "node"
+    # Renaming a relation is DDL, and it is the shape of the source that
+    # changes; someone who may edit rows is not thereby allowed to do it.
+    requires: ClassVar[Access] = "structure"
     params_model = RenameRelationParams
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:

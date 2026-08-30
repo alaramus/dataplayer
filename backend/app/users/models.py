@@ -67,6 +67,23 @@ class UsersPublic(SQLModel):
     count: int
 
 
+class UserBrief(SQLModel):
+    """A person, as somebody choosing whom to share with needs to see them.
+
+    Deliberately less than `UserPublic`: whether an account is an
+    administrator, and whether it is switched on, are administrative facts and
+    have no place in a picker.
+    """
+
+    id: uuid.UUID
+    email: EmailStr
+    full_name: str | None = None
+
+
+class UserDirectory(SQLModel):
+    data: list[UserBrief]
+
+
 # JSON payload containing access token
 class Token(SQLModel):
     access_token: str
