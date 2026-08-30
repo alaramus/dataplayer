@@ -103,7 +103,7 @@ and every identifier and predicate is source-validated.
 
 ### 1.2 Safe PostgreSQL structure editing rounds
 
-- [ ] Specify and implement changing nullability.
+- [x] Specify and implement changing nullability.
 - [ ] Specify a safe type-change vocabulary, including what conversions are
   refused and how dependent defaults, indexes and constraints behave.
 - [ ] Add source-owned index creation and removal.
@@ -111,6 +111,20 @@ and every identifier and predicate is source-validated.
   lock behaviour is explicit.
 - [ ] Consider relation creation and drop as a separate destructive round; do
   not mix it into a column change.
+
+D37 settles the first bullet: `SupportsColumnNullability` takes one relation,
+one column and the state asked for, and answers either `NullabilityChanged` or
+`NullabilityBlocked`. Rows that contradict a requested `NOT NULL` are counted —
+to a ceiling of 1000 — before anything is locked, and the count is a 200 answer
+rather than an error, because the driver's own refusal names the offending row
+and cannot be passed on. Dropping the requirement is checked against the shape
+instead: a primary-key column and an identity column are named as such. Filling
+the empty rows is deliberately out of the round; it is a change to every row of
+a table and belongs to a data slice.
+
+Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
+frontend type check, lint, unit tests, the documentation check and the whole
+end-to-end suite, `tests/structure.spec.ts` included.
 
 Each bullet is its own spec-sized slice. Raw SQL fields are not an acceptable
 shortcut. PostgreSQL remains the first implementation; another relational
@@ -371,7 +385,8 @@ that they belong in the platform core.
 
 ## Next session
 
-Start **Phase 1.2** with column nullability. The first question there is what a
-source does with the rows that already break the constraint being asked for:
-whether it refuses, counts them first, or offers to fill them, and how that
-answer reaches the screen without the screen knowing any SQL.
+Continue **Phase 1.2** with the safe type-change vocabulary. The first question there is which conversions a source
+will accept without a `USING` expression written by a user, and what happens to
+a default, an index and a constraint that depend on the column being converted.
+The answer has to be source-owned in the same way the type list of D27 is: the
+client returns an opaque code, never a cast.

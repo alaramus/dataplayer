@@ -409,6 +409,51 @@ Known deviations:
   the literal text `now()` where the column type accepts text. Expressions need
   a separate, source-owned vocabulary rather than a raw SQL field.
 
+## D37. Changing nullability counts the rows in the way, and the count is the answer
+
+Nullability is its own optional capability, not add-and-drop with the data
+thrown away and not a variant of the default command. The request names one
+relation, one column and the state asked for.
+
+Requiring a value is a question about the rows, so the source asks it first:
+before any lock is taken it counts the rows that hold no value in that column,
+and answers `NullabilityBlocked` with that count rather than issuing DDL that
+would fail. The count stops at 1000 and reports whether it stopped, because an
+unbounded scan is not run here any more than it is run for a page of rows. It
+is not what makes the change safe — PostgreSQL's verification scan under
+`ACCESS EXCLUSIVE` is still the authority, and a row that gains a null in
+between comes back as the ordinary safe rejection. It is what makes the refusal
+useful: the driver's own message names row data and cannot be passed on.
+
+Allowing no value is a question about the shape, and the shape is already in
+the relation model that was read to validate the request. A column in the
+primary key and an identity column always have a value, and each is named as
+such instead of being sent to the server to be refused. Everything else,
+including a partitioned parent whose partition still requires the value, is
+left to PostgreSQL.
+
+`NullabilityBlocked` is a 200 answer beside `NullabilityChanged`, discriminated
+by `kind`, for the reason `NoReferencedRows` is (D2d): the request was
+well-formed and the source is reporting a fact about the data. A count that has
+to be read out of a sentence is a count a screen has to parse. Requests that
+are wrong about the relation rather than about its rows — an unknown column, a
+relation that cannot change columns, a column that already says what is being
+asked — stay 422. A `changed` answer invalidates the relation model and the
+connector's row queries; a `blocked` answer changed nothing and invalidates
+nothing.
+
+Known deviations:
+
+- **Empty rows are not offered a value.** Filling them is a change to every row
+  of the table and belongs to a data round with its own confirmation, under the
+  literal-value rule of D30.
+- **The verification scan is never skipped.** PostgreSQL can validate a
+  `NOT VALID` check separately and then adopt it, which is how large tables get
+  a `NOT NULL` without a long exclusive lock. That needs a vocabulary for a
+  two-step constraint, which this round does not have.
+- **One column at a time.** A relation-wide nullability edit would need a
+  partial-failure answer, and there is no shape for one.
+
 ## D31. A source opts into bounded read caching, and a successful mutation drops what it cached
 
 `DataCache` belongs to the application lifespan beside the resource store. Its

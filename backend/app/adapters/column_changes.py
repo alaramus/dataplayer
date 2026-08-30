@@ -1,6 +1,6 @@
 """Source-independent commands for changing relation columns."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -60,6 +60,52 @@ class ColumnDefaultRequest(BaseModel):
         if self.action == "drop" and self.value is not None:
             raise ValueError("A value cannot be supplied when dropping a default")
         return self
+
+
+class ColumnNullabilityRequest(BaseModel):
+    """Ask a column to require a value, or to stop requiring one."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+    name: str = Field(min_length=1, max_length=63)
+    nullable: bool
+
+
+class NullabilityChanged(BaseModel):
+    """The column now says what was asked of it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["changed"] = "changed"
+    name: str
+    nullable: bool
+
+
+class NullabilityBlocked(BaseModel):
+    """Rows already there contradict the constraint, and here are how many.
+
+    An answer rather than an error, for the reason `NoReferencedRows` is one:
+    the request was well formed and the source is reporting a fact about the
+    data. The number has to arrive as a number — a screen that reads it out of
+    a message is a screen parsing prose — and the driver's own refusal cannot
+    be passed on at all, because it quotes the offending row.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["blocked"] = "blocked"
+    name: str
+    rows_without_value: int
+    # False when counting stopped at its ceiling: an unbounded scan is no more
+    # acceptable here than it is for a page of rows.
+    exact: bool = True
+
+
+ColumnNullabilityResult = Annotated[
+    NullabilityChanged | NullabilityBlocked,
+    Field(discriminator="kind"),
+]
 
 
 class ColumnChangeResult(BaseModel):

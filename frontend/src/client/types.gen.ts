@@ -319,6 +319,26 @@ export type ColumnDefaultRequest = {
 }
 
 /**
+ * ColumnNullabilityRequest
+ *
+ * Ask a column to require a value, or to stop requiring one.
+ */
+export type ColumnNullabilityRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Nullable
+   */
+  nullable: boolean
+}
+
+/**
  * ColumnType
  *
  * A type's DDL spelling and its value semantics.
@@ -1183,6 +1203,56 @@ export type NullFilter = {
    * Op
    */
   op: "is_null" | "is_not_null"
+}
+
+/**
+ * NullabilityBlocked
+ *
+ * Rows already there contradict the constraint, and here are how many.
+ *
+ * An answer rather than an error, for the reason `NoReferencedRows` is one:
+ * the request was well formed and the source is reporting a fact about the
+ * data. The number has to arrive as a number — a screen that reads it out of
+ * a message is a screen parsing prose — and the driver's own refusal cannot
+ * be passed on at all, because it quotes the offending row.
+ */
+export type NullabilityBlocked = {
+  /**
+   * Kind
+   */
+  kind?: "blocked"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Rows Without Value
+   */
+  rows_without_value: number
+  /**
+   * Exact
+   */
+  exact?: boolean
+}
+
+/**
+ * NullabilityChanged
+ *
+ * The column now says what was asked of it.
+ */
+export type NullabilityChanged = {
+  /**
+   * Kind
+   */
+  kind?: "changed"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Nullable
+   */
+  nullable: boolean
 }
 
 /**
@@ -2980,6 +3050,46 @@ export type connectorsChangeColumnDefaultResponses = {
 
 export type connectorsChangeColumnDefaultResponse =
   connectorsChangeColumnDefaultResponses[keyof connectorsChangeColumnDefaultResponses]
+
+export type connectorsChangeColumnNullabilityData = {
+  body: ColumnNullabilityRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/columns/nullability"
+}
+
+export type connectorsChangeColumnNullabilityErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsChangeColumnNullabilityError =
+  connectorsChangeColumnNullabilityErrors[keyof connectorsChangeColumnNullabilityErrors]
+
+export type connectorsChangeColumnNullabilityResponses = {
+  /**
+   * Response Connectors-Change Column Nullability
+   *
+   * Successful Response
+   */
+  200:
+    | ({
+        kind: "changed"
+      } & NullabilityChanged)
+    | ({
+        kind: "blocked"
+      } & NullabilityBlocked)
+}
+
+export type connectorsChangeColumnNullabilityResponse =
+  connectorsChangeColumnNullabilityResponses[keyof connectorsChangeColumnNullabilityResponses]
 
 export type connectorsReadNodePathData = {
   body?: never

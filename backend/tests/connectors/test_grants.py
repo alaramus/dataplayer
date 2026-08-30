@@ -331,6 +331,27 @@ async def test_a_structure_grant_changes_the_shape(
     assert response.json() == {"name": "area_id"}
 
 
+async def test_a_write_grant_may_not_change_nullability(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+    schema: str,
+) -> None:
+    """Whether a column may be empty is the shape, not the rows."""
+    user, headers = colleague
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    await _grant(client, normal_user_token_headers, connector_id, user, "write")
+
+    response = await client.patch(
+        f"{BASE}/{connector_id}/columns/nullability",
+        headers=headers,
+        json={"node_id": f"{schema}.customers", "name": "name", "nullable": True},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["required"] == "structure"
+
+
 async def test_no_grant_reaches_the_connection_itself(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

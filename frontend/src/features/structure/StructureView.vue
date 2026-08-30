@@ -4,6 +4,7 @@ import { computed, ref, toRef } from "vue"
 import {
   useAddColumn,
   useColumnDefault,
+  useColumnNullability,
   useDropColumn,
   useRelationModel,
   useRenameColumn,
@@ -27,6 +28,7 @@ import {
 
 import AddColumnDialog from "./AddColumnDialog.vue"
 import ColumnDefaultDialog from "./ColumnDefaultDialog.vue"
+import ColumnNullabilityDialog from "./ColumnNullabilityDialog.vue"
 import RenameColumnDialog from "./RenameColumnDialog.vue"
 
 const props = defineProps<{ connectorId: string; nodeId: string }>()
@@ -37,6 +39,7 @@ const addColumn = useAddColumn(connectorId, nodeId)
 const dropColumn = useDropColumn(connectorId, nodeId)
 const renameColumn = useRenameColumn(connectorId, nodeId)
 const columnDefault = useColumnDefault(connectorId, nodeId)
+const columnNullability = useColumnNullability(connectorId, nodeId)
 const confirm = useConfirm()
 const toast = useToast()
 const addOpen = ref(false)
@@ -46,6 +49,9 @@ const renaming = ref<string | null>(null)
 const renameError = ref("")
 const defaultColumn = ref<{ name: string; currentDefault: string | null } | null>(null)
 const defaultError = ref("")
+const nullabilityColumn = ref<{ name: string; nullable: boolean } | null>(null)
+const nullabilityError = ref("")
+const nullabilityBlocked = ref<{ rows: number; exact: boolean } | null>(null)
 
 defineExpose({ reload: async () => void (await query.refetch()) })
 
@@ -62,7 +68,7 @@ const rows = computed(() =>
   (query.data.value?.columns ?? []).map((column) => ({
     name: column.name,
     type: column.type.sql,
-    nullable: column.nullable ? "yes" : "no",
+    nullable: column.nullable,
     default: column.generated ?? column.default ?? "",
     currentDefault: column.default ?? null,
     generated: column.generated !== null && column.generated !== undefined,
@@ -150,6 +156,51 @@ function openDefault(name: string, currentDefault: string | null) {
   defaultColumn.value = { name, currentDefault }
 }
 
+function nullabilityTooltip(nullable: boolean): string {
+  const model = query.data.value
+  if (model?.column_changes_supported !== true) {
+    return model?.column_changes_reason ?? "This column cannot be changed"
+  }
+  return nullable ? "Require a value in every row" : "Allow rows with no value"
+}
+
+function openNullability(name: string, nullable: boolean) {
+  nullabilityError.value = ""
+  nullabilityBlocked.value = null
+  nullabilityColumn.value = { name, nullable }
+}
+
+async function changeNullability(nullable: boolean) {
+  const column = nullabilityColumn.value
+  if (column === null) return
+  nullabilityError.value = ""
+  nullabilityBlocked.value = null
+  try {
+    const result = await columnNullability.mutateAsync({
+      node_id: props.nodeId,
+      name: column.name,
+      nullable,
+    })
+    // Not a failure: the source read the rows, changed nothing and said how
+    // many stand in the way. The dialog stays open so the number can be read.
+    if (result.kind === "blocked") {
+      nullabilityBlocked.value = {
+        rows: result.rows_without_value,
+        exact: result.exact ?? true,
+      }
+      return
+    }
+    nullabilityColumn.value = null
+    toast.success(
+      nullable
+        ? `${column.name} now accepts rows with no value`
+        : `${column.name} now requires a value`
+    )
+  } catch (error) {
+    nullabilityError.value = messageOf(error, "Could not change this column")
+  }
+}
+
 async function changeDefault(action: "set" | "drop", value?: string) {
   const column = defaultColumn.value
   if (column === null) return
@@ -212,6 +263,23 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           :paged="false"
           empty-text="No columns"
         >
+          <!-- The fact being changed is already printed here, so it is the
+               control: a fourth icon in the row of actions would have to name
+               in a tooltip which of a column's facts it changes. -->
+          <template #body-cell-nullable="cellProps">
+            <q-td :props="cellProps">
+              <AppButton
+                :label="cellProps.row.nullable ? 'yes' : 'no'"
+                variant="quiet"
+                size="sm"
+                :disable="query.data.value?.column_changes_supported !== true"
+                :data-testid="`structure-nullability-${cellProps.row.name}`"
+                @click="openNullability(String(cellProps.row.name), cellProps.row.nullable)"
+              >
+                <AppTooltip>{{ nullabilityTooltip(cellProps.row.nullable) }}</AppTooltip>
+              </AppButton>
+            </q-td>
+          </template>
           <template #body-cell-keys="cellProps">
             <q-td :props="cellProps">
               <span
@@ -341,6 +409,17 @@ async function changeDefault(action: "set" | "drop", value?: string) {
       :error="renameError"
       @save="saveRename"
       @update:model-value="renaming = null"
+    />
+    <ColumnNullabilityDialog
+      v-if="nullabilityColumn !== null"
+      :model-value="true"
+      :name="nullabilityColumn.name"
+      :nullable="nullabilityColumn.nullable"
+      :blocked="nullabilityBlocked"
+      :saving="columnNullability.isPending.value"
+      :error="nullabilityError"
+      @save="changeNullability"
+      @update:model-value="nullabilityColumn = null"
     />
     <ColumnDefaultDialog
       v-if="defaultColumn !== null"

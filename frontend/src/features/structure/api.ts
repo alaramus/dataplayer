@@ -6,6 +6,7 @@ import { ConnectorsService } from "@/client"
 import type {
   AddColumnRequest,
   ColumnDefaultRequest,
+  ColumnNullabilityRequest,
   DropColumnRequest,
   RenameColumnRequest,
 } from "@/client"
@@ -27,15 +28,24 @@ export function useRelationModel(connectorId: Ref<string>, nodeId: Ref<string>) 
   })
 }
 
-function useStructureMutation<TBody>(
+/**
+ * One column command, with both stale projections dropped after it.
+ *
+ * `changed` exists because not every answer is a change: a source may report
+ * that the data stands in the way and leave the relation exactly as it was,
+ * and re-reading it then costs a round trip to learn nothing.
+ */
+function useStructureMutation<TBody, TResult>(
   connectorId: Ref<string>,
   nodeId: Ref<string>,
-  run: (connectorId: string, body: TBody) => Promise<unknown>
+  run: (connectorId: string, body: TBody) => Promise<TResult>,
+  changed: (result: TResult) => boolean = () => true
 ) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (body: TBody) => run(connectorId.value, body),
-    onSuccess: async () => {
+    onSuccess: async (result: TResult) => {
+      if (!changed(result)) return
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: relationModelKey(connectorId.value, nodeId.value),
@@ -75,5 +85,20 @@ export function useColumnDefault(connectorId: Ref<string>, nodeId: Ref<string>) 
     (
       await ConnectorsService.changeColumnDefault({ path: { connector_id: id }, body })
     ).data
+  )
+}
+
+export function useColumnNullability(connectorId: Ref<string>, nodeId: Ref<string>) {
+  return useStructureMutation(
+    connectorId,
+    nodeId,
+    async (id, body: ColumnNullabilityRequest) =>
+      (
+        await ConnectorsService.changeColumnNullability({
+          path: { connector_id: id },
+          body,
+        })
+      ).data,
+    (result) => result.kind === "changed"
   )
 }

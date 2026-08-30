@@ -5,11 +5,16 @@ import pytest
 from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnDefaultRequest,
+    ColumnNullabilityRequest,
     DropColumnRequest,
+    NullabilityBlocked,
+    NullabilityChanged,
     RenameColumnRequest,
 )
 from app.adapters.postgres.adapter import PostgresAdapter
+from app.adapters.postgres.columns import NULL_COUNT_CEILING
 from app.adapters.postgres.options import PostgresUserPassword
+from app.adapters.relation import RelationModel
 from tests.utils.database import working_postgres_options
 from tests.utils.relation_fixture import make_schema, run
 
@@ -22,6 +27,16 @@ async def schema() -> AsyncGenerator[str]:
 
 def _adapter() -> PostgresAdapter:
     return PostgresAdapter(PostgresUserPassword(**working_postgres_options()))
+
+
+def _nullable(model: RelationModel, name: str) -> bool:
+    return next(column for column in model.columns if column.name == name).nullable
+
+
+async def _one_region(schema: str) -> None:
+    await run(
+        f"INSERT INTO {schema}.regions VALUES (1, 'EU')"  # noqa: S608 -- fixture-owned schema.
+    )
 
 
 async def test_table_describes_column_changes_and_source_owned_types(schema: str) -> None:
@@ -303,3 +318,141 @@ async def test_default_rejects_a_nul_character_before_composing_a_literal(
                 value="Anon\x00ymous",
             )
         )
+
+
+async def test_requires_a_value_when_nothing_stands_in_the_way(schema: str) -> None:
+    adapter = _adapter()
+
+    result = await adapter.change_column_nullability(
+        ColumnNullabilityRequest(
+            node_id=f"{schema}.customers", name="tags", nullable=False
+        )
+    )
+
+    assert isinstance(result, NullabilityChanged)
+    assert result.nullable is False
+    assert _nullable(await adapter.relation_model(f"{schema}.customers"), "tags") is False
+
+
+async def test_stops_requiring_a_value(schema: str) -> None:
+    adapter = _adapter()
+
+    result = await adapter.change_column_nullability(
+        ColumnNullabilityRequest(
+            node_id=f"{schema}.customers", name="name", nullable=True
+        )
+    )
+
+    assert isinstance(result, NullabilityChanged)
+    assert result.nullable is True
+    assert _nullable(await adapter.relation_model(f"{schema}.customers"), "name") is True
+
+
+async def test_rows_without_a_value_are_counted_rather_than_raised(schema: str) -> None:
+    adapter = _adapter()
+    await _one_region(schema)
+    await run(
+        f"INSERT INTO {schema}.customers (region_id, region_code, name) "  # noqa: S608 -- fixture-owned schema.
+        "VALUES (1, 'EU', 'ann'), (1, 'EU', 'bob')"
+    )
+
+    result = await adapter.change_column_nullability(
+        ColumnNullabilityRequest(
+            node_id=f"{schema}.customers", name="tags", nullable=False
+        )
+    )
+
+    assert isinstance(result, NullabilityBlocked)
+    assert result.rows_without_value == 2
+    assert result.exact is True
+    # Nothing was altered: the answer is about the rows, not about the shape.
+    assert _nullable(await adapter.relation_model(f"{schema}.customers"), "tags") is True
+
+
+async def test_the_count_of_rows_in_the_way_stops_at_its_ceiling(schema: str) -> None:
+    adapter = _adapter()
+    await _one_region(schema)
+    await run(
+        f"INSERT INTO {schema}.customers (region_id, region_code, name) "  # noqa: S608 -- fixture-owned schema.
+        "SELECT 1, 'EU', 'c' || g FROM generate_series(1, "
+        f"{NULL_COUNT_CEILING + 1}) AS g"
+    )
+
+    result = await adapter.change_column_nullability(
+        ColumnNullabilityRequest(
+            node_id=f"{schema}.customers", name="tags", nullable=False
+        )
+    )
+
+    assert isinstance(result, NullabilityBlocked)
+    assert result.rows_without_value == NULL_COUNT_CEILING
+    assert result.exact is False
+
+
+async def test_a_key_or_identity_column_is_named_rather_than_sent_to_the_server(
+    schema: str,
+) -> None:
+    adapter = _adapter()
+
+    with pytest.raises(ValueError, match="identity column"):
+        await adapter.change_column_nullability(
+            ColumnNullabilityRequest(
+                node_id=f"{schema}.customers", name="id", nullable=True
+            )
+        )
+    with pytest.raises(ValueError, match="primary key"):
+        await adapter.change_column_nullability(
+            ColumnNullabilityRequest(
+                node_id=f"{schema}.regions", name="code", nullable=True
+            )
+        )
+
+
+async def test_nullability_rejects_unknown_column_unchanged_state_and_a_view(
+    schema: str,
+) -> None:
+    adapter = _adapter()
+
+    with pytest.raises(ValueError, match="no column"):
+        await adapter.change_column_nullability(
+            ColumnNullabilityRequest(
+                node_id=f"{schema}.customers", name="missing", nullable=True
+            )
+        )
+    with pytest.raises(ValueError, match="already requires"):
+        await adapter.change_column_nullability(
+            ColumnNullabilityRequest(
+                node_id=f"{schema}.customers", name="name", nullable=False
+            )
+        )
+    with pytest.raises(ValueError, match="already accepts"):
+        await adapter.change_column_nullability(
+            ColumnNullabilityRequest(
+                node_id=f"{schema}.customers", name="tags", nullable=True
+            )
+        )
+    with pytest.raises(ValueError, match="Only tables"):
+        await adapter.change_column_nullability(
+            ColumnNullabilityRequest(
+                node_id=f"{schema}.rich_customers", name="name", nullable=True
+            )
+        )
+
+
+async def test_the_counting_query_composes_the_column_name_too(schema: str) -> None:
+    """The count is a second place an identifier enters SQL, so it is checked."""
+    adapter = _adapter()
+    name = 'note"; DROP TABLE regions; --'
+    await adapter.add_column(
+        AddColumnRequest(node_id=f"{schema}.customers", name=name, type_code="text")
+    )
+
+    result = await adapter.change_column_nullability(
+        ColumnNullabilityRequest(
+            node_id=f"{schema}.customers", name=name, nullable=False
+        )
+    )
+
+    assert isinstance(result, NullabilityChanged)
+    assert _nullable(await adapter.relation_model(f"{schema}.customers"), name) is False
+    assert (await adapter.relation_model(f"{schema}.regions")).name == "regions"

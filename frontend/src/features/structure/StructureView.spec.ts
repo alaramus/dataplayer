@@ -25,6 +25,13 @@ const MODEL: RelationModel = {
       nullable: false,
       storage: "extended",
     },
+    {
+      position: 2,
+      name: "note",
+      type: { sql: "text", category: "string" },
+      nullable: true,
+      storage: "extended",
+    },
   ],
   constraints: [],
   indexes: [],
@@ -117,6 +124,46 @@ describe("relation column changes", () => {
       path: { connector_id: "connector-1" },
       body: { node_id: "public.projects", name: "name", new_name: "display_name" },
     })
+    wrapper.unmount()
+  })
+
+  it("offers the one nullability change the column does not already have", async () => {
+    const change = vi.spyOn(ConnectorsService, "changeColumnNullability").mockResolvedValue({
+      data: { kind: "changed", name: "name", nullable: true },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="structure-nullability-name"]').trigger("click")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="structure-nullability-save"]')?.click()
+    await flushPromises()
+
+    expect(change).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: { node_id: "public.projects", name: "name", nullable: true },
+    })
+    wrapper.unmount()
+  })
+
+  it("reads the count of rows in the way instead of treating it as a failure", async () => {
+    vi.spyOn(ConnectorsService, "changeColumnNullability").mockResolvedValue({
+      data: { kind: "blocked", name: "note", rows_without_value: 4, exact: true },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="structure-nullability-note"]').trigger("click")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="structure-nullability-save"]')?.click()
+    await flushPromises()
+
+    const blocked = document.body.querySelector('[data-testid="structure-nullability-blocked"]')
+    expect(blocked?.textContent).toContain("4 rows have no value in note")
+    // The dialog stays open, and nothing was reported as an error.
+    expect(
+      document.body.querySelector('[data-testid="structure-nullability-error"]')
+    ).toBeNull()
     wrapper.unmount()
   })
 

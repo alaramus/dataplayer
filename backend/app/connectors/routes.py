@@ -33,7 +33,10 @@ from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
     ColumnDefaultRequest,
+    ColumnNullabilityRequest,
+    ColumnNullabilityResult,
     DropColumnRequest,
+    NullabilityChanged,
     RenameColumnRequest,
 )
 from app.adapters.fetch import (
@@ -52,6 +55,7 @@ from app.adapters.protocol import (
     SupportsAddColumn,
     SupportsCatalog,
     SupportsColumnDefault,
+    SupportsColumnNullability,
     SupportsConnectionString,
     SupportsDelete,
     SupportsDropColumn,
@@ -1108,6 +1112,60 @@ async def change_column_default(
         data_cache,
         connector_id,
     )
+
+
+async def _change_column_nullability(
+    adapter: SupportsColumnNullability, request: ColumnNullabilityRequest
+) -> ColumnNullabilityResult:
+    try:
+        return await adapter.change_column_nullability(request)
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.patch(
+    "/{connector_id}/columns/nullability", response_model=ColumnNullabilityResult
+)
+async def change_column_nullability(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: ColumnNullabilityRequest,
+) -> Any:
+    """
+    Require a value in one column, or stop requiring one.
+
+    Rows that already contradict the constraint are an answer rather than a
+    failure: the source counts them and says how many, having changed nothing.
+    Only a change invalidates what the connector cached.
+    """
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
+    if not isinstance(adapter, SupportsColumnNullability):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support changing nullability",
+                "error_kind": "config",
+            },
+        )
+    result = await _change_column_nullability(adapter, request)
+    if isinstance(result, NullabilityChanged):
+        await data_cache.invalidate_connector(connector_id)
+    return result
 
 
 @router.get("/{connector_id}/catalog/path", response_model=list[CatalogNode])

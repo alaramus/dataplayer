@@ -17,6 +17,9 @@ import type {
   connectorsChangeColumnDefaultData,
   connectorsChangeColumnDefaultErrors,
   connectorsChangeColumnDefaultResponses,
+  connectorsChangeColumnNullabilityData,
+  connectorsChangeColumnNullabilityErrors,
+  connectorsChangeColumnNullabilityResponses,
   connectorsCheckConnectorData,
   connectorsCheckConnectorErrors,
   connectorsCheckConnectorResponses,
@@ -1050,6 +1053,34 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/columns/default",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Change Column Nullability
+   *
+   * Require a value in one column, or stop requiring one.
+   *
+   * Rows that already contradict the constraint are an answer rather than a
+   * failure: the source counts them and says how many, having changed nothing.
+   * Only a change invalidates what the connector cached.
+   */
+  public static changeColumnNullability<ThrowOnError extends boolean = true>(
+    options: Options<connectorsChangeColumnNullabilityData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      connectorsChangeColumnNullabilityResponses,
+      connectorsChangeColumnNullabilityErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/columns/nullability",
       ...options,
       headers: {
         "Content-Type": "application/json",

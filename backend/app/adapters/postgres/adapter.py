@@ -8,6 +8,8 @@ from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
     ColumnDefaultRequest,
+    ColumnNullabilityRequest,
+    ColumnNullabilityResult,
     DropColumnRequest,
     RenameColumnRequest,
 )
@@ -170,6 +172,11 @@ class PostgresAdapter:
         self, request: ColumnDefaultRequest
     ) -> ColumnChangeResult:
         return await self._columns.change_column_default(request)
+
+    async def change_column_nullability(
+        self, request: ColumnNullabilityRequest
+    ) -> ColumnNullabilityResult:
+        return await self._columns.change_column_nullability(request)
 
 
 @register(

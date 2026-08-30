@@ -8,6 +8,8 @@ from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
     ColumnDefaultRequest,
+    ColumnNullabilityRequest,
+    ColumnNullabilityResult,
     DropColumnRequest,
     RenameColumnRequest,
 )
@@ -214,6 +216,23 @@ class SupportsColumnDefault(Protocol):
         self, request: ColumnDefaultRequest
     ) -> ColumnChangeResult:
         """Set a literal column default or remove it."""
+        ...
+
+
+@runtime_checkable
+class SupportsColumnNullability(Protocol):
+    async def change_column_nullability(
+        self, request: ColumnNullabilityRequest
+    ) -> ColumnNullabilityResult:
+        """Require a value in one column, or stop requiring one.
+
+        Answers rather than raises when the rows already there contradict the
+        constraint: that is a fact about the data, and the number of rows in
+        the way is the useful part of it. Raises ValueError for a request that
+        is wrong about the relation — an unknown column, a relation that
+        cannot change columns, a column that already says what is asked — and
+        AdapterError for source failures.
+        """
         ...
 
 

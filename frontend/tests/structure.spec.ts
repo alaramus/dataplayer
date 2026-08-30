@@ -94,3 +94,60 @@ test("renames a PostgreSQL column", async ({ page }) => {
 
   await deleteConnector(page, name)
 })
+
+test("stops requiring a value in a column and requires it again", async ({ page }) => {
+  const name = `e2e-nullability-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "tags")
+  await page.getByTestId("grid-structure").click()
+
+  const view = page.getByTestId("structure-view")
+  const cell = view.getByTestId("structure-nullability-label")
+  await expect(cell).toHaveText("no")
+
+  await cell.click()
+  await page.getByTestId("structure-nullability-save").click()
+  await expect(cell).toHaveText("yes")
+
+  await cell.click()
+  await page.getByTestId("structure-nullability-save").click()
+  await expect(cell).toHaveText("no")
+
+  await deleteConnector(page, name)
+})
+
+test("counts the rows in the way instead of failing to require a value", async ({ page }) => {
+  const name = `e2e-nullability-blocked-${Date.now()}`
+  const column = `needs_${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "tags")
+  await page.getByTestId("grid-structure").click()
+
+  const view = page.getByTestId("structure-view")
+  await view.getByTestId("structure-add-column").click()
+  await page.getByTestId("structure-add-name").fill(column)
+  await page.getByTestId("structure-add-save").click()
+  await expect(view).toContainText(column)
+
+  // Every existing row of tags is empty in a column added a moment ago, so
+  // this is the answer the feature exists for.
+  await view.getByTestId(`structure-nullability-${column}`).click()
+  await page.getByTestId("structure-nullability-save").click()
+  await expect(page.getByTestId("structure-nullability-blocked")).toContainText(
+    new RegExp(String.raw`\d+ rows? ha(?:ve|s) no value in ${column}`)
+  )
+  await expect(view.getByTestId(`structure-nullability-${column}`)).toHaveText("yes")
+
+  await page.getByRole("button", { name: "Cancel" }).click()
+  await view.getByTestId(`structure-drop-${column}`).click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(view.getByTestId(`structure-drop-${column}`)).toHaveCount(0)
+
+  await deleteConnector(page, name)
+})
