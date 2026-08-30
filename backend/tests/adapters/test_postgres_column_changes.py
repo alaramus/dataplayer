@@ -6,6 +6,9 @@ from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnDefaultRequest,
     ColumnNullabilityRequest,
+    ColumnTypeBlocked,
+    ColumnTypeChanged,
+    ColumnTypeRequest,
     DropColumnRequest,
     NullabilityBlocked,
     NullabilityChanged,
@@ -455,4 +458,218 @@ async def test_the_counting_query_composes_the_column_name_too(schema: str) -> N
 
     assert isinstance(result, NullabilityChanged)
     assert _nullable(await adapter.relation_model(f"{schema}.customers"), name) is False
+    assert (await adapter.relation_model(f"{schema}.regions")).name == "regions"
+
+
+def _type_sql(model: RelationModel, name: str) -> str:
+    return next(column for column in model.columns if column.name == name).type.sql
+
+
+async def _customer_with(schema: str, column: str, value: str) -> None:
+    """One row, with a value in a column the fixture itself does not have."""
+    await run(
+        f"INSERT INTO {schema}.customers "  # noqa: S608 -- fixture-owned schema.
+        f'(region_id, region_code, name, "{column}") '
+        f"VALUES (1, 'EU', 'c' || gen_random_uuid(), '{value}')"
+    )
+
+
+async def test_changes_a_type_the_rows_can_take(schema: str) -> None:
+    adapter = _adapter()
+    await _one_region(schema)
+    await adapter.add_column(
+        AddColumnRequest(node_id=f"{schema}.customers", name="score", type_code="text")
+    )
+    await _customer_with(schema, "score", "42")
+
+    result = await adapter.change_column_type(
+        ColumnTypeRequest(
+            node_id=f"{schema}.customers", name="score", type_code="integer"
+        )
+    )
+
+    assert isinstance(result, ColumnTypeChanged)
+    assert result.type_sql == "integer"
+    model = await adapter.relation_model(f"{schema}.customers")
+    assert _type_sql(model, "score") == "integer"
+
+
+async def test_counts_the_values_the_new_type_cannot_read(schema: str) -> None:
+    adapter = _adapter()
+    await _one_region(schema)
+    await adapter.add_column(
+        AddColumnRequest(node_id=f"{schema}.customers", name="score", type_code="text")
+    )
+    await _customer_with(schema, "score", "42")
+    await _customer_with(schema, "score", "ann")
+    await _customer_with(schema, "score", "bob")
+
+    result = await adapter.change_column_type(
+        ColumnTypeRequest(
+            node_id=f"{schema}.customers", name="score", type_code="integer"
+        )
+    )
+
+    assert isinstance(result, ColumnTypeBlocked)
+    assert result.rows_not_convertible == 2
+    assert result.exact is True
+    # Nothing was rewritten: the answer is about the values, not the shape.
+    model = await adapter.relation_model(f"{schema}.customers")
+    assert _type_sql(model, "score") == "text"
+
+
+async def test_the_count_of_unreadable_values_stops_at_its_ceiling(
+    schema: str,
+) -> None:
+    adapter = _adapter()
+    await _one_region(schema)
+    await adapter.add_column(
+        AddColumnRequest(node_id=f"{schema}.customers", name="score", type_code="text")
+    )
+    await run(
+        f"INSERT INTO {schema}.customers (region_id, region_code, name, score) "  # noqa: S608 -- fixture-owned schema.
+        "SELECT 1, 'EU', 'c' || g, 'not a number' FROM generate_series(1, "
+        f"{NULL_COUNT_CEILING + 1}) AS g"
+    )
+
+    result = await adapter.change_column_type(
+        ColumnTypeRequest(
+            node_id=f"{schema}.customers", name="score", type_code="integer"
+        )
+    )
+
+    assert isinstance(result, ColumnTypeBlocked)
+    assert result.rows_not_convertible == NULL_COUNT_CEILING
+    assert result.exact is False
+
+
+async def test_a_column_that_is_not_a_string_is_attempted_without_a_count(
+    schema: str,
+) -> None:
+    """There is no TRY_CAST, so a cast function is attempted, not predicted."""
+    adapter = _adapter()
+    await _one_region(schema)
+    await adapter.add_column(
+        AddColumnRequest(
+            node_id=f"{schema}.customers", name="score", type_code="integer"
+        )
+    )
+    await _customer_with(schema, "score", "7")
+
+    result = await adapter.change_column_type(
+        ColumnTypeRequest(node_id=f"{schema}.customers", name="score", type_code="text")
+    )
+
+    assert isinstance(result, ColumnTypeChanged)
+    assert result.type_sql == "text"
+
+
+async def test_two_types_with_no_conversion_are_refused_before_the_table(
+    schema: str,
+) -> None:
+    """The parser answers, so nothing here restates PostgreSQL's coercion rules."""
+    adapter = _adapter()
+
+    with pytest.raises(ValueError, match="no conversion"):
+        await adapter.change_column_type(
+            ColumnTypeRequest(
+                node_id=f"{schema}.customers", name="token", type_code="integer"
+            )
+        )
+    with pytest.raises(ValueError, match="no conversion"):
+        await adapter.change_column_type(
+            ColumnTypeRequest(
+                node_id=f"{schema}.customers", name="tags", type_code="integer"
+            )
+        )
+
+
+async def test_a_default_that_cannot_be_cast_is_named(schema: str) -> None:
+    adapter = _adapter()
+    await adapter.add_column(
+        AddColumnRequest(node_id=f"{schema}.customers", name="score", type_code="text")
+    )
+    await adapter.change_column_default(
+        ColumnDefaultRequest(
+            node_id=f"{schema}.customers", name="score", action="set", value="hello"
+        )
+    )
+
+    with pytest.raises(ValueError, match="Remove the column's default"):
+        await adapter.change_column_type(
+            ColumnTypeRequest(
+                node_id=f"{schema}.customers", name="score", type_code="integer"
+            )
+        )
+
+
+async def test_a_view_on_the_column_is_named(schema: str) -> None:
+    adapter = _adapter()
+
+    with pytest.raises(ValueError, match="view or rule"):
+        await adapter.change_column_type(
+            ColumnTypeRequest(
+                node_id=f"{schema}.customers", name="name", type_code="integer"
+            )
+        )
+
+
+async def test_type_change_rejects_unknown_column_code_generated_and_same_type(
+    schema: str,
+) -> None:
+    adapter = _adapter()
+
+    with pytest.raises(ValueError, match="no column"):
+        await adapter.change_column_type(
+            ColumnTypeRequest(
+                node_id=f"{schema}.customers", name="missing", type_code="text"
+            )
+        )
+    with pytest.raises(ValueError, match="Unknown column type"):
+        await adapter.change_column_type(
+            ColumnTypeRequest(
+                node_id=f"{schema}.customers",
+                name="payload",
+                type_code="text USING payload::text, DROP COLUMN tags",
+            )
+        )
+    with pytest.raises(ValueError, match="generated column"):
+        await adapter.change_column_type(
+            ColumnTypeRequest(
+                node_id=f"{schema}.customers", name="name_upper", type_code="integer"
+            )
+        )
+    with pytest.raises(ValueError, match="identity column"):
+        await adapter.change_column_type(
+            ColumnTypeRequest(node_id=f"{schema}.customers", name="id", type_code="text")
+        )
+    with pytest.raises(ValueError, match="already has type"):
+        await adapter.change_column_type(
+            ColumnTypeRequest(
+                node_id=f"{schema}.customers", name="payload", type_code="jsonb"
+            )
+        )
+    with pytest.raises(ValueError, match="Only tables"):
+        await adapter.change_column_type(
+            ColumnTypeRequest(
+                node_id=f"{schema}.rich_customers", name="name", type_code="text"
+            )
+        )
+
+
+async def test_the_conversion_composes_a_quoted_column_name(schema: str) -> None:
+    """Three statements name the column: the probe, the count and the ALTER."""
+    adapter = _adapter()
+    name = 'note"; DROP TABLE regions; --'
+    await adapter.add_column(
+        AddColumnRequest(node_id=f"{schema}.customers", name=name, type_code="text")
+    )
+
+    result = await adapter.change_column_type(
+        ColumnTypeRequest(node_id=f"{schema}.customers", name=name, type_code="integer")
+    )
+
+    assert isinstance(result, ColumnTypeChanged)
+    model = await adapter.relation_model(f"{schema}.customers")
+    assert _type_sql(model, name) == "integer"
     assert (await adapter.relation_model(f"{schema}.regions")).name == "regions"

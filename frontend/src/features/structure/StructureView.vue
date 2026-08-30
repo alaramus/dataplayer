@@ -5,6 +5,7 @@ import {
   useAddColumn,
   useColumnDefault,
   useColumnNullability,
+  useColumnType,
   useDropColumn,
   useRelationModel,
   useRenameColumn,
@@ -29,6 +30,7 @@ import {
 import AddColumnDialog from "./AddColumnDialog.vue"
 import ColumnDefaultDialog from "./ColumnDefaultDialog.vue"
 import ColumnNullabilityDialog from "./ColumnNullabilityDialog.vue"
+import ColumnTypeDialog from "./ColumnTypeDialog.vue"
 import RenameColumnDialog from "./RenameColumnDialog.vue"
 
 const props = defineProps<{ connectorId: string; nodeId: string }>()
@@ -40,6 +42,7 @@ const dropColumn = useDropColumn(connectorId, nodeId)
 const renameColumn = useRenameColumn(connectorId, nodeId)
 const columnDefault = useColumnDefault(connectorId, nodeId)
 const columnNullability = useColumnNullability(connectorId, nodeId)
+const columnType = useColumnType(connectorId, nodeId)
 const confirm = useConfirm()
 const toast = useToast()
 const addOpen = ref(false)
@@ -52,6 +55,9 @@ const defaultError = ref("")
 const nullabilityColumn = ref<{ name: string; nullable: boolean } | null>(null)
 const nullabilityError = ref("")
 const nullabilityBlocked = ref<{ rows: number; exact: boolean } | null>(null)
+const typeColumn = ref<{ name: string; currentType: string } | null>(null)
+const typeError = ref("")
+const typeBlocked = ref<{ rows: number; exact: boolean } | null>(null)
 
 defineExpose({ reload: async () => void (await query.refetch()) })
 
@@ -156,12 +162,51 @@ function openDefault(name: string, currentDefault: string | null) {
   defaultColumn.value = { name, currentDefault }
 }
 
-function nullabilityTooltip(nullable: boolean): string {
+function changeTooltip(what: string): string {
   const model = query.data.value
   if (model?.column_changes_supported !== true) {
     return model?.column_changes_reason ?? "This column cannot be changed"
   }
-  return nullable ? "Require a value in every row" : "Allow rows with no value"
+  return what
+}
+
+function openType(name: string, currentType: string) {
+  typeError.value = ""
+  typeBlocked.value = null
+  typeColumn.value = { name, currentType }
+}
+
+async function changeType(typeCode: string) {
+  const column = typeColumn.value
+  if (column === null) return
+  typeError.value = ""
+  typeBlocked.value = null
+  try {
+    const result = await columnType.mutateAsync({
+      node_id: props.nodeId,
+      name: column.name,
+      type_code: typeCode,
+    })
+    // Not a failure: the source read the values, rewrote nothing and said how
+    // many it could not read. The dialog stays open so the number can be read.
+    if (result.kind === "blocked") {
+      typeBlocked.value = {
+        rows: result.rows_not_convertible,
+        exact: result.exact ?? true,
+      }
+      return
+    }
+    typeColumn.value = null
+    toast.success(`${column.name} is now ${result.type_sql}`)
+  } catch (error) {
+    typeError.value = messageOf(error, "Could not change the type")
+  }
+}
+
+function nullabilityTooltip(nullable: boolean): string {
+  return changeTooltip(
+    nullable ? "Require a value in every row" : "Allow rows with no value"
+  )
 }
 
 function openNullability(name: string, nullable: boolean) {
@@ -264,8 +309,24 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           empty-text="No columns"
         >
           <!-- The fact being changed is already printed here, so it is the
-               control: a fourth icon in the row of actions would have to name
+               control: another icon in the row of actions would have to name
                in a tooltip which of a column's facts it changes. -->
+          <template #body-cell-type="cellProps">
+            <q-td :props="cellProps">
+              <AppButton
+                :label="String(cellProps.row.type)"
+                variant="quiet"
+                size="sm"
+                :disable="query.data.value?.column_changes_supported !== true || cellProps.row.generated"
+                :data-testid="`structure-type-${cellProps.row.name}`"
+                @click="openType(String(cellProps.row.name), String(cellProps.row.type))"
+              >
+                <AppTooltip>
+                  {{ cellProps.row.generated ? 'A generated column takes its type from its expression' : changeTooltip(`Change the type of ${cellProps.row.name}`) }}
+                </AppTooltip>
+              </AppButton>
+            </q-td>
+          </template>
           <template #body-cell-nullable="cellProps">
             <q-td :props="cellProps">
               <AppButton
@@ -409,6 +470,18 @@ async function changeDefault(action: "set" | "drop", value?: string) {
       :error="renameError"
       @save="saveRename"
       @update:model-value="renaming = null"
+    />
+    <ColumnTypeDialog
+      v-if="typeColumn !== null"
+      :model-value="true"
+      :name="typeColumn.name"
+      :current-type="typeColumn.currentType"
+      :types="query.data.value?.column_type_options ?? []"
+      :blocked="typeBlocked"
+      :saving="columnType.isPending.value"
+      :error="typeError"
+      @save="changeType"
+      @update:model-value="typeColumn = null"
     />
     <ColumnNullabilityDialog
       v-if="nullabilityColumn !== null"

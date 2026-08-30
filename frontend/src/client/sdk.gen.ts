@@ -20,6 +20,9 @@ import type {
   connectorsChangeColumnNullabilityData,
   connectorsChangeColumnNullabilityErrors,
   connectorsChangeColumnNullabilityResponses,
+  connectorsChangeColumnTypeData,
+  connectorsChangeColumnTypeErrors,
+  connectorsChangeColumnTypeResponses,
   connectorsCheckConnectorData,
   connectorsCheckConnectorErrors,
   connectorsCheckConnectorResponses,
@@ -1081,6 +1084,34 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/columns/nullability",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Change Column Type
+   *
+   * Give one column another type from the source's published list.
+   *
+   * The conversion is written by the source; there is no field a cast is read
+   * from. Rows the new type cannot read are an answer with a count where the
+   * source can produce one, and only a change invalidates what it cached.
+   */
+  public static changeColumnType<ThrowOnError extends boolean = true>(
+    options: Options<connectorsChangeColumnTypeData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      connectorsChangeColumnTypeResponses,
+      connectorsChangeColumnTypeErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/columns/type",
       ...options,
       headers: {
         "Content-Type": "application/json",

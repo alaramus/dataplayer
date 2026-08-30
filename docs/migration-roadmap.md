@@ -104,7 +104,7 @@ and every identifier and predicate is source-validated.
 ### 1.2 Safe PostgreSQL structure editing rounds
 
 - [x] Specify and implement changing nullability.
-- [ ] Specify a safe type-change vocabulary, including what conversions are
+- [x] Specify a safe type-change vocabulary, including what conversions are
   refused and how dependent defaults, indexes and constraints behave.
 - [ ] Add source-owned index creation and removal.
 - [ ] Add unique and foreign-key creation/removal only after dependency and
@@ -125,6 +125,19 @@ a table and belongs to a data slice.
 Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
 frontend type check, lint, unit tests, the documentation check and the whole
 end-to-end suite, `tests/structure.spec.ts` included.
+
+D38 settles the second: the target is a code from the same published list a
+new column is given, the conversion is composed by the source and never read
+from a request, and whether the two types convert at all is asked of PostgreSQL
+by a statement that reads no row. Where the column is a string the rows that
+the target cannot read are counted, as in D37; elsewhere there is no
+non-throwing way to try a cast, so the failure is named by its SQLSTATE
+instead — a default that cannot be cast, a view built on the column, a value
+out of range. Nothing dependent is dropped to make the change possible.
+
+Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
+frontend type check, lint, unit tests, the documentation check and the whole
+end-to-end suite.
 
 Each bullet is its own spec-sized slice. Raw SQL fields are not an acceptable
 shortcut. PostgreSQL remains the first implementation; another relational
@@ -385,8 +398,8 @@ that they belong in the platform core.
 
 ## Next session
 
-Continue **Phase 1.2** with the safe type-change vocabulary. The first question there is which conversions a source
-will accept without a `USING` expression written by a user, and what happens to
-a default, an index and a constraint that depend on the column being converted.
-The answer has to be source-owned in the same way the type list of D27 is: the
-client returns an opaque code, never a cast.
+Continue **Phase 1.2** with source-owned index creation and removal. The first question there is what
+names an index: a client cannot supply one — a name is an identifier — and two
+indexes on the same columns must be distinguishable. The second is what a
+concurrent build means when a request cannot wait for it, which is the same
+shape of problem Phase 4 has with image pulls.

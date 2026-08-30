@@ -35,6 +35,9 @@ from app.adapters.column_changes import (
     ColumnDefaultRequest,
     ColumnNullabilityRequest,
     ColumnNullabilityResult,
+    ColumnTypeChanged,
+    ColumnTypeChangeResult,
+    ColumnTypeRequest,
     DropColumnRequest,
     NullabilityChanged,
     RenameColumnRequest,
@@ -56,6 +59,7 @@ from app.adapters.protocol import (
     SupportsCatalog,
     SupportsColumnDefault,
     SupportsColumnNullability,
+    SupportsColumnType,
     SupportsConnectionString,
     SupportsDelete,
     SupportsDropColumn,
@@ -1164,6 +1168,58 @@ async def change_column_nullability(
         )
     result = await _change_column_nullability(adapter, request)
     if isinstance(result, NullabilityChanged):
+        await data_cache.invalidate_connector(connector_id)
+    return result
+
+
+async def _change_column_type(
+    adapter: SupportsColumnType, request: ColumnTypeRequest
+) -> ColumnTypeChangeResult:
+    try:
+        return await adapter.change_column_type(request)
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.patch("/{connector_id}/columns/type", response_model=ColumnTypeChangeResult)
+async def change_column_type(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: ColumnTypeRequest,
+) -> Any:
+    """
+    Give one column another type from the source's published list.
+
+    The conversion is written by the source; there is no field a cast is read
+    from. Rows the new type cannot read are an answer with a count where the
+    source can produce one, and only a change invalidates what it cached.
+    """
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
+    if not isinstance(adapter, SupportsColumnType):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support changing column types",
+                "error_kind": "config",
+            },
+        )
+    result = await _change_column_type(adapter, request)
+    if isinstance(result, ColumnTypeChanged):
         await data_cache.invalidate_connector(connector_id)
     return result
 

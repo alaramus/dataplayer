@@ -10,6 +10,8 @@ from app.adapters.column_changes import (
     ColumnDefaultRequest,
     ColumnNullabilityRequest,
     ColumnNullabilityResult,
+    ColumnTypeChangeResult,
+    ColumnTypeRequest,
     DropColumnRequest,
     RenameColumnRequest,
 )
@@ -232,6 +234,23 @@ class SupportsColumnNullability(Protocol):
         is wrong about the relation — an unknown column, a relation that
         cannot change columns, a column that already says what is asked — and
         AdapterError for source failures.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsColumnType(Protocol):
+    async def change_column_type(
+        self, request: ColumnTypeRequest
+    ) -> ColumnTypeChangeResult:
+        """Give one column another type from the source's published list.
+
+        Answers rather than raises when rows hold values the target cannot
+        read and the source can count them without attempting the conversion.
+        Raises ValueError for a request that is wrong about the relation, for
+        two types with no conversion between them, and for a refusal the
+        source can name — a default that cannot be cast, a view built on the
+        column. Raises AdapterError for source failures.
         """
         ...
 

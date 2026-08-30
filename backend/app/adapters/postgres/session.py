@@ -1,6 +1,6 @@
 import asyncio
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
 from typing import Any
 from urllib.parse import quote
@@ -48,6 +48,22 @@ def classify(
             return "config", "Database does not exist"
         return "network", "Could not reach the database server"
     return "unknown", fallback_message
+
+
+def named_refusal(
+    exc: BaseException, refusals: Mapping[str, str] | None
+) -> str | None:
+    """The caller's own sentence for a refusal it anticipated, or nothing.
+
+    A SQLSTATE is safe to look at and the message beside it is not: PostgreSQL
+    writes the offending value into the text of exactly the errors worth
+    explaining. So the code is matched here and the wording belongs to whoever
+    asked — only the caller knows that `42804` means "remove the default" in
+    one command and something else in another.
+    """
+    if refusals is None or not isinstance(exc, psycopg.Error):
+        return None
+    return refusals.get(exc.sqlstate or "")
 
 
 def compose_url(
@@ -218,7 +234,11 @@ class PostgresSession:
             yield connection
 
     async def query(
-        self, sql: str, params: tuple[object, ...] | None = None
+        self,
+        sql: str,
+        params: tuple[object, ...] | None = None,
+        *,
+        refusals: Mapping[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         """Run a read-only query.
 
@@ -226,6 +246,12 @@ class PostgresSession:
         supplied sequence, even an empty one, as a signal that the statement is
         parameterised, and then a literal % — as in LIKE 'pg_toast%' — is read
         as a placeholder.
+
+        refusals names the SQLSTATEs this caller expects and what to say about
+        each. A query can be refused for a reason that is about the request
+        rather than about the source being unwell — asking whether one type
+        converts to another, for instance — and that is a ValueError, not a
+        502.
         """
         try:
             async with self._connection() as connection:
@@ -237,6 +263,9 @@ class PostgresSession:
             error_kind, message = await self._why_no_connection()
             raise AdapterError(error_kind, message) from None
         except Exception as exc:
+            named = named_refusal(exc, refusals)
+            if named is not None:
+                raise ValueError(named) from None
             error_kind, message = classify(exc, fallback_message="Query failed")
             raise AdapterError(error_kind, message) from None
 
@@ -261,8 +290,15 @@ class PostgresSession:
             error_kind, message = classify(exc, fallback_message="Update failed")
             raise AdapterError(error_kind, message) from None
 
-    async def schema_change(self, sql: str) -> None:
-        """Run validated DDL without pretending it returns rows."""
+    async def schema_change(
+        self, sql: str, *, refusals: Mapping[str, str] | None = None
+    ) -> None:
+        """Run validated DDL without pretending it returns rows.
+
+        refusals names the SQLSTATEs this caller expects, so a refusal it
+        anticipated arrives as its own sentence instead of the one below, which
+        is all that can honestly be said about a code nobody claimed.
+        """
         try:
             async with self._connection() as connection:
                 await connection.execute(sql)
@@ -274,9 +310,14 @@ class PostgresSession:
             psycopg.IntegrityError,
             psycopg.InternalError,
             psycopg.ProgrammingError,
-        ):
-            raise ValueError("The source rejected the schema change") from None
+        ) as exc:
+            raise ValueError(
+                named_refusal(exc, refusals) or "The source rejected the schema change"
+            ) from None
         except Exception as exc:
+            named = named_refusal(exc, refusals)
+            if named is not None:
+                raise ValueError(named) from None
             error_kind, message = classify(exc, fallback_message="Schema change failed")
             raise AdapterError(error_kind, message) from None
 

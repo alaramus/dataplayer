@@ -454,6 +454,50 @@ Known deviations:
 - **One column at a time.** A relation-wide nullability edit would need a
   partial-failure answer, and there is no shape for one.
 
+## D38. A type change is composed by the source, and the way is checked before the table is locked
+
+Changing a column's type is its own optional capability, and it adds no
+vocabulary: the target is a code from the `ColumnTypeOption` list D27 already
+publishes. The statement is always `ALTER COLUMN … TYPE <target> USING
+<column>::<target>`, with the column through `Identifier` and the target from
+the closed registry. `USING` is written by the source and never read from a
+request — a `USING` field would be a general-purpose SQL channel — but it is
+written, because without it PostgreSQL uses assignment casts only and the
+commonest change people want fails with advice to supply exactly that
+expression.
+
+Three kinds of obstacle are distinguished. Whether a conversion exists at all is
+asked of PostgreSQL rather than restated here: `SELECT <column>::<target> FROM
+<relation> WHERE false` reads no row, takes no lock, and fails at parse time
+when there is no pathway. Whether the rows can be read as the target is
+answered exactly by `pg_input_is_valid` when the column is a string type, which
+is when the conversion is PostgreSQL's own input function; the source then
+counts the rows that would fail, bounded and reported as in D37. Where the
+conversion is a cast function there is no non-throwing way to try it, so no
+count is offered. Everything that only surfaces from the attempt — a default
+that cannot be cast, a view or rule on the column, a value out of range or too
+long — is reduced to a sentence by SQLSTATE rather than by driver text, which
+quotes the data.
+
+Nothing dependent is dropped to make the change possible, the rule D27 set for
+`DROP COLUMN`. PostgreSQL rebuilds indexes and revalidates checks itself; a
+default that blocks the change is removed by the user with the command D30 gave
+them. `ColumnTypeChanged` and `ColumnTypeBlocked` are one discriminated union
+as in D37, and everything that is a fact about the request rather than about
+the data is 422.
+
+Known deviations:
+
+- **A lossy conversion is not distinguished from a lossless one.** `numeric` to
+  `integer` rounds silently. The screen says once that a type change rewrites
+  every value and can lose information; there is no per-pair classification,
+  which would be a second implementation of PostgreSQL's cast semantics.
+- **A count exists only for string columns.** Elsewhere the failure is named by
+  kind. PostgreSQL has no `TRY_CAST`, and running the conversion to find out
+  would mean doing the thing being asked about.
+- **The target vocabulary carries no parameters.** No `varchar(n)`,
+  `numeric(p,s)`, arrays, enums or domains, exactly as for a new column.
+
 ## D31. A source opts into bounded read caching, and a successful mutation drops what it cached
 
 `DataCache` belongs to the application lifespan beside the resource store. Its

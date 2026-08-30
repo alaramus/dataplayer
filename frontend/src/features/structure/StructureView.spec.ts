@@ -167,6 +167,46 @@ describe("relation column changes", () => {
     wrapper.unmount()
   })
 
+  it("changes a type using a source-owned code and never a cast", async () => {
+    const change = vi.spyOn(ConnectorsService, "changeColumnType").mockResolvedValue({
+      data: { kind: "changed", name: "note", type_sql: "integer" },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="structure-type-note"]').trigger("click")
+    await flushPromises()
+    wrapper.findComponent(AppSelect).vm.$emit("update:modelValue", "integer")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="structure-type-save"]')?.click()
+    await flushPromises()
+
+    // The opaque code from the source's own list, and nothing resembling a cast.
+    expect(change).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: { node_id: "public.projects", name: "note", type_code: "integer" },
+    })
+    wrapper.unmount()
+  })
+
+  it("reads the count of values the new type cannot take", async () => {
+    vi.spyOn(ConnectorsService, "changeColumnType").mockResolvedValue({
+      data: { kind: "blocked", name: "note", rows_not_convertible: 7, exact: false },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="structure-type-note"]').trigger("click")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="structure-type-save"]')?.click()
+    await flushPromises()
+
+    const blocked = document.body.querySelector('[data-testid="structure-type-blocked"]')
+    expect(blocked?.textContent).toContain("More than 7 rows hold a value")
+    expect(document.body.querySelector('[data-testid="structure-type-error"]')).toBeNull()
+    wrapper.unmount()
+  })
+
   it("sets an exact literal column default", async () => {
     const changeDefault = vi.spyOn(ConnectorsService, "changeColumnDefault").mockResolvedValue({
       data: { name: "name" },

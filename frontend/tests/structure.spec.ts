@@ -151,3 +151,48 @@ test("counts the rows in the way instead of failing to require a value", async (
 
   await deleteConnector(page, name)
 })
+
+test("changes a column type and counts the values in the way", async ({ page }) => {
+  const name = `e2e-type-${Date.now()}`
+  const column = `score_${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "tags")
+  await page.getByTestId("grid-structure").click()
+
+  // A column full of words, asked to become a number: the source counts what
+  // it cannot read and rewrites nothing.
+  const view = page.getByTestId("structure-view")
+  await view.getByTestId("structure-type-label").click()
+  await page.getByTestId("structure-type-select").click()
+  await page.getByRole("option", { name: /^Integer/ }).click()
+  await page.getByTestId("structure-type-save").click()
+  await expect(page.getByTestId("structure-type-blocked")).toContainText(
+    String.raw`rows hold a value the chosen type cannot read`
+  )
+  await page.getByRole("button", { name: "Cancel" }).click()
+  await expect(view.getByTestId("structure-type-label")).toHaveText(
+    "character varying(40)"
+  )
+
+  // The same conversion on a column added a moment ago, which every row is
+  // empty in, goes through.
+  await view.getByTestId("structure-add-column").click()
+  await page.getByTestId("structure-add-name").fill(column)
+  await page.getByTestId("structure-add-save").click()
+  await expect(view.getByTestId(`structure-type-${column}`)).toHaveText("text")
+
+  await view.getByTestId(`structure-type-${column}`).click()
+  await page.getByTestId("structure-type-select").click()
+  await page.getByRole("option", { name: /^Integer/ }).click()
+  await page.getByTestId("structure-type-save").click()
+  await expect(view.getByTestId(`structure-type-${column}`)).toHaveText("integer")
+
+  await view.getByTestId(`structure-drop-${column}`).click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(view.getByTestId(`structure-drop-${column}`)).toHaveCount(0)
+
+  await deleteConnector(page, name)
+})

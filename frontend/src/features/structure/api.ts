@@ -7,6 +7,7 @@ import type {
   AddColumnRequest,
   ColumnDefaultRequest,
   ColumnNullabilityRequest,
+  ColumnTypeRequest,
   DropColumnRequest,
   RenameColumnRequest,
 } from "@/client"
@@ -98,6 +99,18 @@ export function useColumnNullability(connectorId: Ref<string>, nodeId: Ref<strin
           path: { connector_id: id },
           body,
         })
+      ).data,
+    (result) => result.kind === "changed"
+  )
+}
+
+export function useColumnType(connectorId: Ref<string>, nodeId: Ref<string>) {
+  return useStructureMutation(
+    connectorId,
+    nodeId,
+    async (id, body: ColumnTypeRequest) =>
+      (
+        await ConnectorsService.changeColumnType({ path: { connector_id: id }, body })
       ).data,
     (result) => result.kind === "changed"
   )

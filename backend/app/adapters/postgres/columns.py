@@ -8,20 +8,45 @@ from app.adapters.column_changes import (
     ColumnDefaultRequest,
     ColumnNullabilityRequest,
     ColumnNullabilityResult,
+    ColumnTypeBlocked,
+    ColumnTypeChanged,
+    ColumnTypeChangeResult,
+    ColumnTypeRequest,
     DropColumnRequest,
     NullabilityBlocked,
     NullabilityChanged,
     RenameColumnRequest,
 )
-from app.adapters.postgres.column_types import POSTGRES_COLUMN_TYPES
+from app.adapters.postgres.column_types import (
+    POSTGRES_COLUMN_TYPE_OPTIONS,
+    POSTGRES_COLUMN_TYPES,
+)
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.relation import PrimaryKey, RelationModel
+from app.adapters.relation import Column, PrimaryKey, RelationModel
 
-# How far a search for rows without a value goes before it stops counting.
-# Past this the answer is "a lot", which is all the next decision needs, and
-# an unbounded scan is not run here any more than it is for a page of rows.
+# How far a search for rows in the way goes before it stops counting. Past
+# this the answer is "a lot", which is all the next decision needs, and an
+# unbounded scan is not run here any more than it is for a page of rows.
 NULL_COUNT_CEILING = 1000
+
+# What a refused type change means, by SQLSTATE. The code is safe to look at
+# and the message beside it is not: PostgreSQL writes the offending value into
+# the text of exactly these errors.
+TYPE_CHANGE_REFUSALS = {
+    # cannot_coerce: no conversion exists between the two types at all.
+    "42846": "PostgreSQL has no conversion between these two types",
+    # datatype_mismatch: the column's default cannot be cast to the new type.
+    "42804": "Remove the column's default before changing its type",
+    # feature_not_supported: a view or rule is built on this column.
+    "0A000": "A view or rule uses this column, so its type cannot change",
+    # invalid_text_representation.
+    "22P02": "Some values cannot be read as the new type",
+    # numeric_value_out_of_range.
+    "22003": "Some values are out of range for the new type",
+    # string_data_right_truncation.
+    "22001": "Some values are too long for the new type",
+}
 
 
 class PostgresColumns:
@@ -141,6 +166,114 @@ class PostgresColumns:
         )
         await self._session.schema_change(statement.as_string())
         return NullabilityChanged(name=column.name, nullable=request.nullable)
+
+    async def change_column_type(
+        self, request: ColumnTypeRequest
+    ) -> ColumnTypeChangeResult:
+        model = await self._relation.relation_model(request.node_id)
+        self._check_supported(model)
+        column = next(
+            (item for item in model.columns if item.name == request.name), None
+        )
+        if column is None:
+            raise ValueError(f'Relation has no column "{request.name}"')
+        if column.generated is not None:
+            raise ValueError("A generated column takes its type from its expression")
+        if column.identity is not None:
+            raise ValueError("An identity column cannot change its type here")
+        type_sql = POSTGRES_COLUMN_TYPES.get(request.type_code)
+        option = next(
+            (
+                item
+                for item in POSTGRES_COLUMN_TYPE_OPTIONS
+                if item.code == request.type_code
+            ),
+            None,
+        )
+        if type_sql is None or option is None:
+            raise ValueError(f'Unknown column type "{request.type_code}"')
+        if column.type.sql == option.sql:
+            raise ValueError(f'The column already has type "{option.sql}"')
+
+        await self._check_conversion_exists(model, column.name, type_sql)
+        blocking, exact = await self._rows_the_target_cannot_read(
+            model, column, option.sql
+        )
+        if blocking > 0:
+            return ColumnTypeBlocked(
+                name=column.name, rows_not_convertible=blocking, exact=exact
+            )
+
+        # The conversion is composed here in full: the column through
+        # Identifier, the type from the closed registry. USING is written
+        # rather than left out because without it PostgreSQL uses assignment
+        # casts only, and the change people actually ask for — a text column
+        # that should be a number — would fail with advice to supply exactly
+        # the expression this design refuses to accept from a client.
+        statement = sql.SQL(
+            "ALTER TABLE {} ALTER COLUMN {} TYPE {} USING {}::{}"
+        ).format(
+            sql.Identifier(model.schema_name, model.name),
+            sql.Identifier(column.name),
+            type_sql,
+            sql.Identifier(column.name),
+            type_sql,
+        )
+        await self._session.schema_change(
+            statement.as_string(), refusals=TYPE_CHANGE_REFUSALS
+        )
+        return ColumnTypeChanged(name=column.name, type_sql=option.sql)
+
+    async def _check_conversion_exists(
+        self, model: RelationModel, name: str, type_sql: sql.SQL
+    ) -> None:
+        """Ask PostgreSQL whether these two types convert, reading no row.
+
+        Restating the coercion rules here would be a second implementation of
+        them, wrong the first time an extension adds a cast. `WHERE false`
+        still parses and plans the expression, so the parser answers; no row is
+        touched and no lock on the table is taken.
+        """
+        statement = sql.SQL("SELECT {}::{} FROM {} WHERE false").format(
+            sql.Identifier(name),
+            type_sql,
+            sql.Identifier(model.schema_name, model.name),
+        )
+        await self._session.query(statement.as_string(), refusals=TYPE_CHANGE_REFUSALS)
+
+    async def _rows_the_target_cannot_read(
+        self, model: RelationModel, column: Column, type_name: str
+    ) -> tuple[int, bool]:
+        """Rows the new type cannot read, counted to a ceiling — where it can be.
+
+        Only for a string column, and that is not a shortcut: converting a
+        string is PostgreSQL's own input function, which `pg_input_is_valid`
+        asks without raising, so the count is exactly what the conversion will
+        do. A cast function has no non-throwing form — there is no TRY_CAST —
+        and running it to find out would be doing the thing being asked about.
+        Elsewhere the count is zero and the failure is named by its SQLSTATE.
+        """
+        if column.type.category != "string":
+            return 0, True
+        statement = sql.SQL(
+            "SELECT count(*) AS found FROM ("
+            "SELECT 1 FROM {} WHERE {} IS NOT NULL "
+            "AND NOT pg_input_is_valid({}::text, %s) LIMIT {}"
+            ") AS sample"
+        ).format(
+            sql.Identifier(model.schema_name, model.name),
+            sql.Identifier(column.name),
+            sql.Identifier(column.name),
+            sql.Literal(NULL_COUNT_CEILING + 1),
+        )
+        # The type name travels as a value, not as syntax: it is the second
+        # argument of a function, so nothing here is composed into the
+        # statement at all.
+        rows = await self._session.query(
+            statement.as_string(), (type_name,), refusals=TYPE_CHANGE_REFUSALS
+        )
+        found = int(rows[0]["found"])
+        return min(found, NULL_COUNT_CEILING), found <= NULL_COUNT_CEILING
 
     async def _rows_without_value(
         self, model: RelationModel, name: str

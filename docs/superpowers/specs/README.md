@@ -48,6 +48,7 @@ translations; those files are not.
 | 2026-08-30 | [Charts over a bounded page](2026-08-30-bounded-page-charts-design.md) | D35: a chart is a closed view over one bounded fetch |
 | 2026-08-30 | [Navigating by a foreign key](2026-08-30-reference-navigation-design.md) | D36: the source issues the target of a reference, and the predicate with it |
 | 2026-08-30 | [Changing whether a column may be empty](2026-08-30-column-nullability-design.md) | D37: the rows in the way are counted, and the count is the answer |
+| 2026-08-30 | [Changing a column's type](2026-08-30-column-type-change-design.md) | D38: the target is a published code, the cast is the source's, the way is checked first |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

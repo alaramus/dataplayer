@@ -108,6 +108,52 @@ ColumnNullabilityResult = Annotated[
 ]
 
 
+class ColumnTypeRequest(BaseModel):
+    """Ask a column to take another type from the source's own list."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+    name: str = Field(min_length=1, max_length=63)
+    # The same opaque code a new column is given (D27). Never SQL, and never a
+    # conversion expression: the source composes both.
+    type_code: str
+
+
+class ColumnTypeChanged(BaseModel):
+    """The column has the new type, spelled as the source spells it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["changed"] = "changed"
+    name: str
+    type_sql: str
+
+
+class ColumnTypeBlocked(BaseModel):
+    """Rows hold a value the target type cannot read, and here are how many.
+
+    Kept apart from `NullabilityBlocked` although both count rows in the way:
+    one names rows that hold nothing, this one names rows that hold something
+    unreadable, and the two lead to different next moves. One model for both
+    would have to say which it meant in a sentence.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["blocked"] = "blocked"
+    name: str
+    rows_not_convertible: int
+    # False when counting stopped at its ceiling, as in NullabilityBlocked.
+    exact: bool = True
+
+
+ColumnTypeChangeResult = Annotated[
+    ColumnTypeChanged | ColumnTypeBlocked,
+    Field(discriminator="kind"),
+]
+
+
 class ColumnChangeResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

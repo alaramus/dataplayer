@@ -390,6 +390,55 @@ export type ColumnType = {
 }
 
 /**
+ * ColumnTypeBlocked
+ *
+ * Rows hold a value the target type cannot read, and here are how many.
+ *
+ * Kept apart from `NullabilityBlocked` although both count rows in the way:
+ * one names rows that hold nothing, this one names rows that hold something
+ * unreadable, and the two lead to different next moves. One model for both
+ * would have to say which it meant in a sentence.
+ */
+export type ColumnTypeBlocked = {
+  /**
+   * Kind
+   */
+  kind?: "blocked"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Rows Not Convertible
+   */
+  rows_not_convertible: number
+  /**
+   * Exact
+   */
+  exact?: boolean
+}
+
+/**
+ * ColumnTypeChanged
+ *
+ * The column has the new type, spelled as the source spells it.
+ */
+export type ColumnTypeChanged = {
+  /**
+   * Kind
+   */
+  kind?: "changed"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Type Sql
+   */
+  type_sql: string
+}
+
+/**
  * ColumnTypeOption
  *
  * One source-owned DDL type choice; its code is not SQL.
@@ -407,6 +456,26 @@ export type ColumnTypeOption = {
    * Sql
    */
   sql: string
+}
+
+/**
+ * ColumnTypeRequest
+ *
+ * Ask a column to take another type from the source's own list.
+ */
+export type ColumnTypeRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Type Code
+   */
+  type_code: string
 }
 
 /**
@@ -3090,6 +3159,46 @@ export type connectorsChangeColumnNullabilityResponses = {
 
 export type connectorsChangeColumnNullabilityResponse =
   connectorsChangeColumnNullabilityResponses[keyof connectorsChangeColumnNullabilityResponses]
+
+export type connectorsChangeColumnTypeData = {
+  body: ColumnTypeRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/columns/type"
+}
+
+export type connectorsChangeColumnTypeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsChangeColumnTypeError =
+  connectorsChangeColumnTypeErrors[keyof connectorsChangeColumnTypeErrors]
+
+export type connectorsChangeColumnTypeResponses = {
+  /**
+   * Response Connectors-Change Column Type
+   *
+   * Successful Response
+   */
+  200:
+    | ({
+        kind: "changed"
+      } & ColumnTypeChanged)
+    | ({
+        kind: "blocked"
+      } & ColumnTypeBlocked)
+}
+
+export type connectorsChangeColumnTypeResponse =
+  connectorsChangeColumnTypeResponses[keyof connectorsChangeColumnTypeResponses]
 
 export type connectorsReadNodePathData = {
   body?: never
