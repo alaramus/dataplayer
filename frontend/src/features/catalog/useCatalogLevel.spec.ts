@@ -35,6 +35,7 @@ const table = (id: string, name: string) => ({
   kind: "table" as const,
   has_children: true,
   row_count_estimate: 10,
+  representations: [{ kind: "table" as const, title: "View as table" }],
 })
 
 const schema = (name: string, isSystem = false) => ({
@@ -43,6 +44,7 @@ const schema = (name: string, isSystem = false) => ({
   kind: "schema" as const,
   has_children: true,
   is_system: isSystem,
+  representations: [],
 })
 
 const directory = (id: string, name: string) => ({
@@ -50,6 +52,7 @@ const directory = (id: string, name: string) => ({
   name,
   kind: "directory" as const,
   has_children: true,
+  representations: [],
 })
 
 /** One answer per call, in order, whatever node was asked about. */
@@ -125,11 +128,7 @@ describe("groupings", () => {
     await withLevel(async (level) => {
       await level.load()
 
-      expect(level.groups.value.map((group) => group.id)).toEqual([
-        "pg_catalog",
-        "public",
-        "sales",
-      ])
+      expect(level.groups.value.map((group) => group.id)).toEqual(["pg_catalog", "public", "sales"])
       expect(level.selectedGroups.value).toEqual(["public"])
       expect(level.items.value.map((node) => node.label)).toEqual(["orders"])
     })
@@ -231,10 +230,7 @@ describe("the filter", () => {
 
 describe("re-reading after a change", () => {
   it("shows what the level holds now, not what it held before", async () => {
-    const spy = answers(
-      [table("a", "a"), table("b", "b")],
-      [table("a", "a")]
-    )
+    const spy = answers([table("a", "a"), table("b", "b")], [table("a", "a")])
 
     await withLevel(async (level) => {
       await level.load()
@@ -296,11 +292,7 @@ describe("standing where a node lives", () => {
       })
 
       expect(level.currentId.value).toBe("reports/2026")
-      expect(level.path.value.map((crumb) => crumb.label)).toEqual([
-        "mydb",
-        "reports",
-        "2026",
-      ])
+      expect(level.path.value.map((crumb) => crumb.label)).toEqual(["mydb", "reports", "2026"])
     })
   })
 

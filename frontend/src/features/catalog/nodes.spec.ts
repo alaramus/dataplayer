@@ -5,7 +5,9 @@ import { groupsOf, roleOfKind, showsPath, toListNodes } from "./nodes"
 import type { CatalogNode } from "./nodes"
 
 function group(id: string) {
-  return first(toListNodes([{ kind: "schema", id, name: id, has_children: true }]))
+  return first(
+    toListNodes([{ kind: "schema", id, name: id, has_children: true, representations: [] }])
+  )
 }
 
 describe("what the catalog does with a node", () => {
@@ -25,14 +27,35 @@ describe("what the catalog does with a node", () => {
 
   it("names the grouping a node was listed under, when it was", () => {
     const mapped = first(
-      toListNodes([{ kind: "table", id: "sales.orders", name: "orders", has_children: true }], "sales")
+      toListNodes(
+        [
+          {
+            kind: "table",
+            id: "sales.orders",
+            name: "orders",
+            has_children: true,
+            representations: [{ kind: "table", title: "View as table" }],
+          },
+        ],
+        "sales"
+      )
     )
 
     expect(mapped.group).toBe("sales")
   })
 
   it("leaves the grouping out when a level was listed on its own", () => {
-    const mapped = first(toListNodes([{ kind: "table", id: "t", name: "t", has_children: true }]))
+    const mapped = first(
+      toListNodes([
+        {
+          kind: "table",
+          id: "t",
+          name: "t",
+          has_children: true,
+          representations: [{ kind: "table", title: "View as table" }],
+        },
+      ])
+    )
 
     expect(mapped.group).toBeUndefined()
   })
@@ -41,8 +64,14 @@ describe("what the catalog does with a node", () => {
 describe("groupsOf", () => {
   it("offers the schemas of a level and nothing else", () => {
     const nodes = toListNodes([
-      { kind: "schema", id: "public", name: "public", has_children: true },
-      { kind: "table", id: "t", name: "t", has_children: true },
+      { kind: "schema", id: "public", name: "public", has_children: true, representations: [] },
+      {
+        kind: "table",
+        id: "t",
+        name: "t",
+        has_children: true,
+        representations: [{ kind: "table", title: "View as table" }],
+      },
     ])
 
     expect(groupsOf(nodes).map((node) => node.id)).toEqual(["public"])
@@ -50,8 +79,15 @@ describe("groupsOf", () => {
 
   it("marks a system schema so it is not the one selected by default", () => {
     const nodes = toListNodes([
-      { kind: "schema", id: "pg_catalog", name: "pg_catalog", has_children: true, is_system: true },
-      { kind: "schema", id: "public", name: "public", has_children: true },
+      {
+        kind: "schema",
+        id: "pg_catalog",
+        name: "pg_catalog",
+        has_children: true,
+        is_system: true,
+        representations: [],
+      },
+      { kind: "schema", id: "public", name: "public", has_children: true, representations: [] },
     ])
 
     expect(at(nodes, 0).system).toBe(true)
@@ -64,13 +100,27 @@ describe("toListNodes", () => {
     expect(
       first(
         toListNodes([
-          { kind: "table", id: "public.orders", name: "orders", has_children: false },
+          {
+            kind: "table",
+            id: "public.orders",
+            name: "orders",
+            has_children: false,
+            representations: [{ kind: "table", title: "View as table" }],
+          },
         ])
       ).describable
     ).toBe(true)
     expect(
       first(
-        toListNodes([{ kind: "view", id: "public.v", name: "v", has_children: false }])
+        toListNodes([
+          {
+            kind: "view",
+            id: "public.v",
+            name: "v",
+            has_children: false,
+            representations: [{ kind: "table", title: "View as table" }],
+          },
+        ])
       ).describable
     ).toBe(true)
     expect(
@@ -82,7 +132,7 @@ describe("toListNodes", () => {
             name: "a.csv",
             has_children: false,
             size_bytes: 1,
-            content_kind: "table",
+            representations: [{ kind: "table", title: "View as table" }],
           },
         ])
       ).describable
@@ -91,7 +141,7 @@ describe("toListNodes", () => {
 
   it("keeps id and name", () => {
     const nodes: CatalogNode[] = [
-      { kind: "schema", id: "public", name: "public", has_children: true },
+      { kind: "schema", id: "public", name: "public", has_children: true, representations: [] },
     ]
 
     const node = first(toListNodes(nodes))
@@ -109,6 +159,7 @@ describe("toListNodes", () => {
           name: "users",
           has_children: true,
           row_count_estimate: 1234,
+          representations: [{ kind: "table", title: "View as table" }],
         },
       ])
     )
@@ -125,6 +176,7 @@ describe("toListNodes", () => {
           name: "users",
           has_children: true,
           row_count_estimate: null,
+          representations: [{ kind: "table", title: "View as table" }],
         },
       ])
     )
@@ -133,9 +185,28 @@ describe("toListNodes", () => {
   })
 
   it("distinguishes a materialized view from a plain one", () => {
-    const plain = first(toListNodes([{ kind: "view", id: "v", name: "v", has_children: true }]))
+    const plain = first(
+      toListNodes([
+        {
+          kind: "view",
+          id: "v",
+          name: "v",
+          has_children: true,
+          representations: [{ kind: "table", title: "View as table" }],
+        },
+      ])
+    )
     const materialized = first(
-      toListNodes([{ kind: "view", id: "m", name: "m", has_children: true, is_materialized: true }])
+      toListNodes([
+        {
+          kind: "view",
+          id: "m",
+          name: "m",
+          has_children: true,
+          is_materialized: true,
+          representations: [{ kind: "table", title: "View as table" }],
+        },
+      ])
     )
 
     expect(plain.caption).not.toBe(materialized.caption)
@@ -143,10 +214,22 @@ describe("toListNodes", () => {
 
   it("gives every visible kind its own icon", () => {
     const icons = toListNodes([
-      { kind: "schema", id: "s", name: "s", has_children: true },
-      { kind: "table", id: "t", name: "t", has_children: true },
-      { kind: "view", id: "v", name: "v", has_children: true },
-      { kind: "directory", id: "d", name: "d", has_children: true },
+      { kind: "schema", id: "s", name: "s", has_children: true, representations: [] },
+      {
+        kind: "table",
+        id: "t",
+        name: "t",
+        has_children: true,
+        representations: [{ kind: "table", title: "View as table" }],
+      },
+      {
+        kind: "view",
+        id: "v",
+        name: "v",
+        has_children: true,
+        representations: [{ kind: "table", title: "View as table" }],
+      },
+      { kind: "directory", id: "d", name: "d", has_children: true, representations: [] },
     ]).map((node) => node.icon)
 
     expect(new Set(icons).size).toBe(4)
@@ -154,8 +237,15 @@ describe("toListNodes", () => {
 
   it("carries the row estimate only for tables", () => {
     const mapped = toListNodes([
-      { kind: "schema", id: "s", name: "s", has_children: true },
-      { kind: "table", id: "t", name: "t", has_children: true, row_count_estimate: 12 },
+      { kind: "schema", id: "s", name: "s", has_children: true, representations: [] },
+      {
+        kind: "table",
+        id: "t",
+        name: "t",
+        has_children: true,
+        row_count_estimate: 12,
+        representations: [{ kind: "table", title: "View as table" }],
+      },
     ])
 
     expect(at(mapped, 0).rowEstimate).toBeNull()
@@ -166,7 +256,15 @@ describe("toListNodes", () => {
 describe("file sources", () => {
   it("labels a directory and does not call it readable", () => {
     const node = first(
-      toListNodes([{ kind: "directory", id: "reports", name: "reports", has_children: true }])
+      toListNodes([
+        {
+          kind: "directory",
+          id: "reports",
+          name: "reports",
+          has_children: true,
+          representations: [],
+        },
+      ])
     )
 
     expect(node.label).toBe("reports")
@@ -183,7 +281,7 @@ describe("file sources", () => {
           name: "q3.csv",
           has_children: false,
           size_bytes: 2048,
-          content_kind: "table",
+          representations: [{ kind: "table", title: "View as table" }],
         },
       ])
     )
@@ -200,7 +298,7 @@ describe("file sources", () => {
         name: "a.csv",
         has_children: false,
         size_bytes: 1,
-        content_kind: "table",
+        representations: [{ kind: "table", title: "View as table" }],
       },
       {
         kind: "file",
@@ -208,7 +306,10 @@ describe("file sources", () => {
         name: "b.txt",
         has_children: false,
         size_bytes: 1,
-        content_kind: "text",
+        representations: [
+          { kind: "text", title: "View as text" },
+          { kind: "table", title: "View as table" },
+        ],
       },
       {
         kind: "file",
@@ -216,7 +317,7 @@ describe("file sources", () => {
         name: "c.png",
         has_children: false,
         size_bytes: 1,
-        content_kind: "opaque",
+        representations: [],
       },
     ])
 
@@ -234,7 +335,7 @@ describe("file sources", () => {
           name: "a.csv",
           has_children: false,
           size_bytes: 1,
-          content_kind: "table",
+          representations: [{ kind: "table", title: "View as table" }],
         },
       ])
     )
@@ -250,7 +351,7 @@ describe("file sources", () => {
         name: "a.csv",
         has_children: false,
         size_bytes: 1,
-        content_kind: "table",
+        representations: [{ kind: "table", title: "View as table" }],
       },
       {
         kind: "file",
@@ -258,7 +359,7 @@ describe("file sources", () => {
         name: "b.txt",
         has_children: false,
         size_bytes: 1,
-        content_kind: "text",
+        representations: [{ kind: "text", title: "View as text" }],
       },
       {
         kind: "file",
@@ -266,7 +367,7 @@ describe("file sources", () => {
         name: "c.png",
         has_children: false,
         size_bytes: 1,
-        content_kind: "opaque",
+        representations: [],
       },
     ]).map((node) => node.icon)
 
@@ -275,9 +376,21 @@ describe("file sources", () => {
 
   it("marks a table and a view as readable and a schema as not", () => {
     const mapped = toListNodes([
-      { kind: "table", id: "t", name: "t", has_children: true },
-      { kind: "view", id: "v", name: "v", has_children: true },
-      { kind: "schema", id: "s", name: "s", has_children: true },
+      {
+        kind: "table",
+        id: "t",
+        name: "t",
+        has_children: true,
+        representations: [{ kind: "table", title: "View as table" }],
+      },
+      {
+        kind: "view",
+        id: "v",
+        name: "v",
+        has_children: true,
+        representations: [{ kind: "table", title: "View as table" }],
+      },
+      { kind: "schema", id: "s", name: "s", has_children: true, representations: [] },
     ])
 
     expect(at(mapped, 0).readable).toBe(true)

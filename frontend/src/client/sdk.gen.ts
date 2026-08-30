@@ -98,6 +98,9 @@ import type {
   connectorsReadConnectorsData,
   connectorsReadConnectorsErrors,
   connectorsReadConnectorsResponses,
+  connectorsReadContentData,
+  connectorsReadContentErrors,
+  connectorsReadContentResponses,
   connectorsReadGrantsData,
   connectorsReadGrantsErrors,
   connectorsReadGrantsResponses,
@@ -839,6 +842,30 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/fetch",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Content
+   *
+   * Read the requested bounded, content-native representation of a node.
+   */
+  public static readContent<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadContentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsReadContentResponses,
+      connectorsReadContentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/content",
       ...options,
       headers: {
         "Content-Type": "application/json",

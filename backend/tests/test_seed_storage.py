@@ -8,12 +8,20 @@ from app.seed_storage import SAMPLE_ROWS, remove_orphan_homes, write_samples
 from app.users import storage
 
 
-def test_samples_cover_every_content_kind(tmp_path: Path) -> None:
-    """A table, plain text and something unreadable: the three outcomes."""
+def test_samples_cover_the_native_file_viewers(tmp_path: Path) -> None:
+    """Tabular, plain-text and opaque files all have examples."""
     write_samples(tmp_path)
 
     names = {path.name for path in tmp_path.rglob("*")}
     assert {"sample.csv", "sample.tsv", "notes.txt", "logo.png", "reports"} <= names
+
+
+def test_samples_cover_both_structured_viewers(tmp_path: Path) -> None:
+    """A document, one value per line, and invalid source text (D47)."""
+    write_samples(tmp_path)
+
+    names = {path.name for path in tmp_path.rglob("*")}
+    assert {"people.json", "events.jsonl", "broken.json"} <= names
 
 
 def test_the_sample_table_spans_more_than_one_page(tmp_path: Path) -> None:

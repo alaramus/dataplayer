@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,10 @@ def root(tmp_path: Path) -> Path:
     (tmp_path / "semicolons.csv").write_text("id;name\n1;one\n", encoding="utf-8")
     (tmp_path / "tabbed.tsv").write_text("id\tname\n1\tone\n", encoding="utf-8")
     (tmp_path / "notes.txt").write_text("first\nsecond\nthird\n", encoding="utf-8")
+    people = [{"id": number, "name": f"person-{number}"} for number in range(1, 6)]
+    people[4]["city"] = "Riga"
+    (tmp_path / "people.json").write_text(json.dumps(people), encoding="utf-8")
+    (tmp_path / "broken.json").write_text('{"a" 1}', encoding="utf-8")
     (tmp_path / "logo.png").write_bytes(b"\x89PNG\r\n")
     (tmp_path / "disguised.txt").write_bytes(b"text\x00binary")
     (tmp_path / "reports").mkdir()
@@ -159,3 +164,42 @@ async def test_a_missing_file_is_refused(fetch: FileFetch) -> None:
 async def test_leaving_the_root_is_refused(fetch: FileFetch) -> None:
     with pytest.raises(ValueError):
         await fetch.fetch(FetchRequest(node_id="../secrets.txt"))
+
+
+async def test_explicit_json_table_projection_reads_records(fetch: FileFetch) -> None:
+    result = await fetch.fetch(FetchRequest(node_id="people.json", limit=2))
+
+    assert [column.name for column in result.columns] == ["id", "name", "city"]
+    assert result.rows[0] == ["1", "person-1", None]
+    assert result.has_more is True
+
+
+async def test_every_page_of_a_json_file_has_the_same_columns(
+    fetch: FileFetch,
+) -> None:
+    """The shape comes from the file, not from the page that was asked for."""
+    first = await fetch.fetch(FetchRequest(node_id="people.json", limit=2))
+    last = await fetch.fetch(FetchRequest(node_id="people.json", limit=2, offset=4))
+
+    assert [column.name for column in first.columns] == [
+        column.name for column in last.columns
+    ]
+    assert last.rows == [["5", "person-5", "Riga"]]
+    assert last.has_more is False
+
+
+async def test_a_json_file_that_does_not_parse_refuses_the_table_projection(
+    fetch: FileFetch,
+) -> None:
+    """A table request is not silently answered with another representation."""
+    with pytest.raises(ValueError, match="not valid JSON"):
+        await fetch.fetch(FetchRequest(node_id="broken.json"))
+
+
+async def test_a_json_file_is_read_only_like_every_other_file(
+    fetch: FileFetch,
+) -> None:
+    result = await fetch.fetch(FetchRequest(node_id="people.json"))
+
+    assert result.update_supported is False
+    assert result.row_handles == [None] * len(result.rows)

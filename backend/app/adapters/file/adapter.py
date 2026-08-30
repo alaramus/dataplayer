@@ -3,9 +3,11 @@ from typing import Any
 
 from app.adapters.actions import Action, ActionType
 from app.adapters.catalog import CatalogNode
+from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.file.actions import FILE_ACTION_TYPES, FileActions
 from app.adapters.file.catalog import FileCatalog
+from app.adapters.file.content import FileContent
 from app.adapters.file.fetch import FileFetch
 from app.adapters.file.options import FileOptions
 from app.adapters.file.session import FileSession
@@ -24,6 +26,7 @@ class FileAdapter:
         root = context.home_dir.joinpath(*PurePosixPath(options.path).parts)
         self._session = FileSession(root)
         self._catalog = FileCatalog(self._session)
+        self._content = FileContent(self._session)
         self._fetch = FileFetch(self._session)
         self._actions = FileActions(self._session)
 
@@ -42,6 +45,9 @@ class FileAdapter:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    async def read_content(self, request: ContentRequest) -> ContentResult:
+        return await self._content.read_content(request)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         return await self._actions.available(node_id)
@@ -67,8 +73,8 @@ class FileAdapter:
     title="Files",
     category="files",
     description=(
-        "Your personal storage on this server. Browse folders, read a "
-        "delimited file as columns and anything else as numbered lines."
+        "Your personal storage on this server. Browse folders and open files "
+        "through representations appropriate to their content."
     ),
     options_schema=FileOptions,
     adapter_class=FileAdapter,

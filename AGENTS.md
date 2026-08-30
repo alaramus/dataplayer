@@ -58,8 +58,9 @@ included; the spec index lists the older titles in translation.
   schema; check it before and after saving; manage the list of connections.
 - Two source types: PostgreSQL (schemas, relations, server-side paging and
   sorting) and the personal file storage every user owns (directories and files;
-  a delimited file becomes columns, anything else readable becomes numbered
-  lines).
+  each file declares its preferred viewer and any alternatives, JSON and JSONL
+  open as structured content, text opens as text, and supported files may be
+  projected into rows only when **View as table** is requested).
 - In that storage: create a folder, rename, delete, upload — one node at a time
   or several at once. What is offered comes from the server for exactly the
   nodes that are ticked, so the screen knows nothing about any particular
@@ -167,6 +168,7 @@ and the known deviations live there.
 | D44 | A whole export is a source-owned row stream, never an unbounded fetch | [adapters](docs/architecture/adapters.md) |
 | D45 | A CSV is loaded as a table by an action of the source, and the table arrives with its rows or not at all | [adapters](docs/architecture/adapters.md) |
 | D46 | An action can be asked what it would do, and a drop answers by doing it and rolling it back | [adapters](docs/architecture/adapters.md) |
+| D47 | A node declares its ordered representations, and opening content is not fetching rows | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.

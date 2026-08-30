@@ -15,6 +15,8 @@ def root(tmp_path: Path) -> Path:
     (tmp_path / "empty").mkdir()
     (tmp_path / "notes.txt").write_text("first\n")
     (tmp_path / "logo.png").write_bytes(b"\x89PNG\r\n")
+    (tmp_path / "people.json").write_text('[{"id": 1}]')
+    (tmp_path / "events.jsonl").write_text('{"id": 1}\n')
     return tmp_path
 
 
@@ -29,8 +31,10 @@ async def test_directories_come_before_files(catalog: FileCatalog) -> None:
     assert [child.name for child in children] == [
         "empty",
         "reports",
+        "events.jsonl",
         "logo.png",
         "notes.txt",
+        "people.json",
     ]
 
 
@@ -60,17 +64,23 @@ async def test_a_file_carries_its_size(catalog: FileCatalog, root: Path) -> None
 
 
 @pytest.mark.parametrize(
-    ("name", "content_kind"),
-    [("q3.csv", "table"), ("notes.txt", "text"), ("logo.png", "opaque")],
+    ("name", "representations"),
+    [
+        ("q3.csv", ["table"]),
+        ("people.json", ["json", "table"]),
+        ("events.jsonl", ["jsonl", "table"]),
+        ("notes.txt", ["text", "table"]),
+        ("logo.png", []),
+    ],
 )
-async def test_a_file_says_what_can_be_made_of_it(
-    catalog: FileCatalog, name: str, content_kind: str
+async def test_a_file_says_how_it_can_be_opened_in_preferred_order(
+    catalog: FileCatalog, name: str, representations: list[str]
 ) -> None:
     children = await catalog.list_children("reports" if name == "q3.csv" else None)
     node = next(child for child in children if child.name == name)
 
     assert isinstance(node, FileNode)
-    assert node.content_kind == content_kind
+    assert [item.kind for item in node.representations] == representations
 
 
 async def test_a_node_id_is_relative_to_the_root(catalog: FileCatalog) -> None:
@@ -108,6 +118,8 @@ async def test_too_many_entries_fail_instead_of_being_cut_short(
 
     with pytest.raises(AdapterError, match="pagination"):
         await catalog.list_children(None)
+
+
 async def test_path_to_a_nested_file_names_every_directory_above_it(
     catalog: FileCatalog,
 ) -> None:
@@ -118,7 +130,7 @@ async def test_path_to_a_nested_file_names_every_directory_above_it(
     assert path[0].id == "reports"
     assert isinstance(path[1], FileNode)
     assert path[1].id == "reports/q3.csv"
-    assert path[1].content_kind == "table"
+    assert [item.kind for item in path[1].representations] == ["table"]
 
 
 async def test_path_to_a_file_in_the_root_is_the_file_alone(

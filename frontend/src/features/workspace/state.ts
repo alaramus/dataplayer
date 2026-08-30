@@ -4,6 +4,7 @@ import type { InjectionKey, Ref } from "vue"
 import type {
   ConnectorPublic,
   FetchRequest,
+  NodeRepresentation,
   NodeReplacement,
   ReferencedRows,
 } from "@/client"
@@ -51,6 +52,8 @@ export interface WorkspaceActions {
    */
   takeReveal: (connectorId: string) => RevealTarget | null
   openRows: (request: OpenRowsRequest) => void
+  /** Open the source's chosen representation with the matching viewer. */
+  openRepresentation: (request: OpenRepresentationRequest) => void
   /**
    * Open what a foreign key points at, showing exactly the rows it names.
    *
@@ -112,6 +115,16 @@ export interface OpenRowsRequest {
   connectorName: string
   adapterType: string
   /** Whether this tabular node also has a relation model. */
+  describable: boolean
+}
+
+export interface OpenRepresentationRequest {
+  connectorId: string
+  nodeId: string
+  title: string
+  connectorName: string
+  adapterType: string
+  representations: NodeRepresentation[]
   describable: boolean
 }
 

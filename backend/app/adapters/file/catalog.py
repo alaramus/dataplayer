@@ -7,7 +7,7 @@ from pathlib import Path, PurePosixPath
 from anyio import to_thread
 
 from app.adapters.catalog import CatalogNode, DirectoryNode, FileNode
-from app.adapters.file.readers import classify
+from app.adapters.file.formats import representations_of
 from app.adapters.file.session import FileSession
 from app.adapters.protocol import AdapterError, NodeNotFound
 
@@ -118,13 +118,14 @@ class FileCatalog:
                 name=name,
                 has_children=_has_entries(str(path)),
                 modified_at=modified_at,
+                representations=[],
             )
         return FileNode(
             id=node_id,
             name=name,
             size_bytes=stat.st_size,
             modified_at=modified_at,
-            content_kind=classify(name),
+            representations=representations_of(name),
         )
 
 

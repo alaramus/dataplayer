@@ -5,7 +5,7 @@ do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
 D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36, D37, D38, D39,
-D40, D41, D42, D43, D44.
+D40, D41, D42, D43, D44, D47.
 
 ## What exists today
 
@@ -18,14 +18,16 @@ ways of connecting (`user_password` and `no_auth`), and connections that outlive
 a request in a pool.
 
 **File** — the personal directory every user owns. The catalog is directories
-and files; a delimited file becomes columns, anything else readable becomes
-numbered lines. Four actions: create a folder, rename, delete, upload. No
-sorting and no filtering, because a file has no index. No connection string.
+and files, and every leaf declares its ordered representations: delimited data
+opens as a table, JSON and JSONL as structured content, and plain files as text.
+Supported files may also be projected into a table by an explicit request. Four
+actions: create a folder, rename, delete, upload. No sorting and no filtering,
+because a file has no index. No connection string.
 
 ```
 backend/app/adapters/
 ├── protocol.py      DataAdapter, SupportsCatalog, SupportsNodePath,
-│                    SupportsFetch, SupportsRelationModel,
+│                    SupportsContent, SupportsFetch, SupportsRelationModel,
 │                    SupportsExport,
 │                    SupportsConnectionString,
 │                    ParsesConnectionString, AdapterError, NodeNotFound
@@ -33,6 +35,7 @@ backend/app/adapters/
 │                    json_schema / validate / variants / secret_field_names
 ├── layout.py        where a field goes in the window that edits it
 ├── catalog.py       CatalogNode: a union discriminated by kind; NodeKind
+├── content.py       ordered node representations and bounded content results
 ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
 ├── export.py        ExportRequest and bounded ExportBatch
 ├── relation.py      relation, column, constraint and index models
@@ -46,8 +49,9 @@ backend/app/adapters/
 ├── postgres/        options.py (a union by auth_method), session.py, pool.py,
 │                    catalog.py, fetch.py, export.py, relation.py, actions.py,
 │                    adapter.py (facade)
-└── file/            session.py (root and containment), catalog.py, fetch.py,
-                     readers.py, actions.py, adapter.py (facade)
+└── file/            session.py (root and containment), catalog.py, formats.py,
+                     content.py, fetch.py, readers.py, records.py, actions.py,
+                     adapter.py (facade)
 ```
 
 ## D1. The adapter type registry lives in code, not in the database
@@ -62,10 +66,10 @@ dynamically. That is why it has no typing and a 3685-line options file.
 ## D2. The adapter contract is a Protocol, and capabilities are optional
 
 `DataAdapter` requires only `check_connection()`. Everything else is a separate
-`runtime_checkable` protocol — `SupportsCatalog`, `SupportsFetch`,
-`SupportsActions`, `SupportsConnectionString`, `ParsesConnectionString` — that a
-route checks before using. An adapter that lacks the capability answers 501
-instead of faking it.
+`runtime_checkable` protocol — `SupportsCatalog`, `SupportsContent`,
+`SupportsFetch`, `SupportsActions`, `SupportsConnectionString`,
+`ParsesConnectionString` — that a route checks before using. An adapter that
+lacks the capability answers 501 instead of faking it.
 
 A queue has no columns and an object store has no SQL, so a contract demanding
 everything would force meaningless implementations.
@@ -1022,6 +1026,65 @@ Known deviations:
 - **A page costs one more catalog query.** The keys are read beside the columns
   on every fetch. The bounded read cache (D31) absorbs repeated paging, and
   nothing measures the difference yet.
+
+## D47. A node declares its ordered representations, and opening content is not fetching rows
+
+`CatalogNode.representations` is the source's ordered answer to “how may this
+node be opened?”. The first entry is preferred; the rest are explicit
+alternatives. Each entry has a closed `kind` and source-owned wording. The
+client neither infers a viewer from a suffix nor assumes that every readable
+leaf has rows. PostgreSQL relations declare `table`; a file may declare `json`,
+`jsonl`, `text`, `table`, several of them, or none while its viewer is not yet
+implemented.
+
+The boundary deliberately has two operations. `SupportsFetch` answers a
+tabular question with columns, rows, sorting and filtering capabilities.
+`SupportsContent` answers `ContentRequest` with one bounded native
+representation. Asking to open a JSON document therefore cannot silently
+flatten it into rows, and asking for a table cannot silently fall back to text.
+A viewer unsupported by the node is a 422; a source without content viewers is
+the ordinary capability-level 501.
+
+The first content results are a bounded text preview, one JSON value, and a
+page of JSONL values. Their shapes are discriminated unions rather than an
+untyped payload. JSON objects keep ordered entries, arrays keep nesting, and
+scalars keep their kind. Numbers remain lexical text across the boundary so a
+JavaScript number cannot round an identifier (D23). An invalid JSON document
+stays in the JSON viewer as source text with the parser's position. JSONL is
+independent by physical line: one invalid or oversized line is shown and named
+without hiding the valid values around it, and paging counts non-blank records
+while retaining their physical line numbers.
+
+Bounds belong to the representation. Text reads at most 256 KB. A whole JSON
+document is parsed only up to 4 MB because there is no honest partial tree;
+above that, the same JSON viewer shows a bounded source preview and the reason.
+JSONL pages at most 100 records and 4 MB of source, and reads each physical
+line through a 1 MB ceiling. All blocking file work runs in a worker thread.
+
+**View as table** is retained as a useful alternative, not as the meaning of
+opening JSON. It uses the existing fetch boundary. The whole JSON/JSONL file
+decides its columns before paging, so every page has one stable shape; a
+top-level object is one record, an array supplies records, and values without
+object keys use one `value` column. The projection is capped at 4 MB and refuses
+invalid input with its reason. Text still has an explicit numbered-line table
+projection, while CSV and TSV prefer their natural table representation.
+
+Known deviations:
+
+- **Catalog classification is by filename.** Opening the selected node checks
+  its bytes, but listing a directory does not open every file. A file with a
+  misleading suffix can therefore advertise a view that it later refuses.
+- **Media and archives declare no representation yet.** They remain visible in
+  the catalog and explain that no viewer exists; image, audio, video, PDF and
+  archive representations are later extensions of this contract.
+- **Whole-document JSON has a 4 MB parse ceiling.** Larger documents have a
+  source preview but no structural navigation. Streaming selection inside a
+  document is a separate capability, not an unbounded response.
+- **Content reads are not cached.** Reopening or paging JSONL reads the file
+  again. A file source has not opted into D31 and nothing yet versions a file
+  while it changes underneath an open viewer.
+- **The table projection equates an absent key with JSON null.** Both become the
+  grid's `None`; the native JSON viewer preserves the original distinction.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

@@ -20,6 +20,7 @@ async def home(db: AsyncSession) -> Path:
     (home / "reports").mkdir(exist_ok=True)
     (home / "reports" / "q3.csv").write_text("id,name\n1,one\n2,two\n")
     (home / "notes.txt").write_text("first\nsecond\n")
+    (home / "document.json").write_text('{"id": 10000000000000001, "name": "one"}')
     return home
 
 
@@ -53,6 +54,42 @@ async def test_the_catalog_shows_the_personal_directory(
     kinds = {node["name"]: node["kind"] for node in response.json()}
     assert kinds["reports"] == "directory"
     assert kinds["notes.txt"] == "file"
+
+
+@pytest.mark.usefixtures("home")
+async def test_the_catalog_declares_the_default_and_alternative_file_views(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await client.get(
+        f"{BASE}/{connector_id}/catalog", headers=normal_user_token_headers
+    )
+
+    document = next(node for node in response.json() if node["name"] == "document.json")
+    assert [item["kind"] for item in document["representations"]] == [
+        "json",
+        "table",
+    ]
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_json_document_is_read_through_the_content_route(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await client.post(
+        f"{BASE}/{connector_id}/content",
+        headers=normal_user_token_headers,
+        json={"node_id": "document.json", "representation": "json"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["kind"] == "json"
+    fields = {entry["name"]: entry["value"] for entry in body["value"]["entries"]}
+    assert fields["id"] == {"kind": "number", "value": "10000000000000001"}
 
 
 @pytest.mark.usefixtures("home")

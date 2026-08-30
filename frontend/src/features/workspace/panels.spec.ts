@@ -7,6 +7,7 @@ import {
   chartPanelId,
   collapsedOf,
   componentOf,
+  contentPanelId,
   emptyOf,
   kindOf,
   lookOf,
@@ -19,7 +20,7 @@ import {
 } from "./panels"
 import type { Panel, PanelKind } from "./panels"
 
-const KINDS: PanelKind[] = ["connectors", "catalog", "rows", "structure", "chart"]
+const KINDS: PanelKind[] = ["connectors", "catalog", "rows", "content", "structure", "chart"]
 
 const samples: Record<PanelKind, Panel> = {
   connectors: { id: "connectors", kind: "connectors" },
@@ -39,6 +40,17 @@ const samples: Record<PanelKind, Panel> = {
     connectorName: "local pg",
     adapterType: "postgres",
     describable: true,
+  },
+  content: {
+    id: contentPanelId("c1", "people.json", "json"),
+    kind: "content",
+    connectorId: "c1",
+    nodeId: "people.json",
+    title: "people.json",
+    connectorName: "my files",
+    adapterType: "file",
+    representation: "json",
+    tableTitle: "View as table",
   },
   structure: {
     id: structurePanelId("c1", "public.orders"),
@@ -87,9 +99,12 @@ describe("the panel registry", () => {
     expect(lookOf(samples.connectors).closable).toBe(false)
   })
 
-  it.each(["catalog", "rows", "structure", "chart"] as PanelKind[])("lets %s be closed", (kind) => {
-    expect(lookOf(samples[kind]).closable).not.toBe(false)
-  })
+  it.each(["catalog", "rows", "content", "structure", "chart"] as PanelKind[])(
+    "lets %s be closed",
+    (kind) => {
+      expect(lookOf(samples[kind]).closable).not.toBe(false)
+    }
+  )
 
   it.each(KINDS)("accepts a stored %s panel", (kind) => {
     expect(panelSchema.safeParse(samples[kind]).success).toBe(true)
@@ -177,7 +192,7 @@ describe("the panel registry", () => {
     expect(collapsedOf(samples.connectors)).not.toBeNull()
   })
 
-  it.each(["catalog", "rows", "structure", "chart"] as PanelKind[])(
+  it.each(["catalog", "rows", "content", "structure", "chart"] as PanelKind[])(
     "has nothing worth forty pixels for %s",
     (kind) => {
       expect(collapsedOf(samples[kind])).toBeNull()
@@ -211,6 +226,13 @@ describe("the panel registry", () => {
     expect(rowsPanelId("c1", "public.orders")).not.toBe(rowsPanelId("c2", "public.orders"))
   })
 
+  it("identifies two representations of one node as different work", () => {
+    expect(contentPanelId("c1", "people.json", "json")).not.toBe(
+      contentPanelId("c1", "people.json", "jsonl")
+    )
+    expect(contentPanelId("c1", "people.json", "json")).not.toBe(rowsPanelId("c1", "people.json"))
+  })
+
   it("puts structure in the column of work", () => {
     expect(
       roleOf({
@@ -226,12 +248,8 @@ describe("the panel registry", () => {
   })
 
   it("identifies a structure panel by what it shows", () => {
-    expect(structurePanelId("c1", "public.orders")).toBe(
-      structurePanelId("c1", "public.orders")
-    )
-    expect(structurePanelId("c1", "public.orders")).not.toBe(
-      rowsPanelId("c1", "public.orders")
-    )
+    expect(structurePanelId("c1", "public.orders")).toBe(structurePanelId("c1", "public.orders"))
+    expect(structurePanelId("c1", "public.orders")).not.toBe(rowsPanelId("c1", "public.orders"))
   })
 
   it("puts a bounded chart view in the column of work", () => {

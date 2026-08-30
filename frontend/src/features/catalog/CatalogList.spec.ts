@@ -13,6 +13,7 @@ function table(id: string, label: string): ListNode {
     kind: "table",
     role: "leaf",
     readable: true,
+    representations: [{ kind: "table", title: "View as table" }],
     describable: true,
     system: false,
   }
@@ -73,9 +74,7 @@ describe("a row that was pointed at", () => {
     const wrapper = mountList("public.orders")
     await flushPromises()
     expect(scroll).toHaveBeenCalledWith({ block: "nearest" })
-    expect(scroll.mock.contexts[0]).toBe(
-      wrapper.get('[data-testid="catalog-node-orders"]').element
-    )
+    expect(scroll.mock.contexts[0]).toBe(wrapper.get('[data-testid="catalog-node-orders"]').element)
   })
 
   it("brings nothing into view when nobody was pointed at", async () => {

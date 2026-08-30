@@ -1,74 +1,14 @@
-"""What can be made of a file, and how it is turned into rows."""
+"""Tabular projections of files."""
 
 import csv
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Protocol, TextIO
 
-from app.adapters.catalog import ContentKind
 from app.adapters.delimited import delimiter_of, fit, usable_names
 from app.adapters.fetch import FetchColumn
+from app.adapters.file import records
 from app.adapters.relation import ColumnType
-
-# Delimited files become columns. The delimiter of a .csv is decided from its
-# first line: the extension promises commas only by convention.
-TABLE_EXTENSIONS: frozenset[str] = frozenset({".csv", ".tsv"})
-
-# Everything that is not one of these is treated as text, so a file without an
-# extension, a Dockerfile or an unknown config still opens. The old
-# application worked the other way round, from white lists of readable
-# extensions, and anything unlisted simply could not be read.
-BINARY_EXTENSIONS: frozenset[str] = frozenset(
-    {
-        ".7z",
-        ".avi",
-        ".bin",
-        ".bz2",
-        ".class",
-        ".dll",
-        ".doc",
-        ".docx",
-        ".exe",
-        ".gif",
-        ".gz",
-        ".ico",
-        ".iso",
-        ".jar",
-        ".jpeg",
-        ".jpg",
-        ".mp3",
-        ".mp4",
-        ".odt",
-        ".ogg",
-        ".pdf",
-        ".png",
-        ".ppt",
-        ".pptx",
-        ".rar",
-        ".so",
-        ".tar",
-        ".tgz",
-        ".ttf",
-        ".wav",
-        ".webm",
-        ".webp",
-        ".woff",
-        ".woff2",
-        ".xls",
-        ".xlsx",
-        ".zip",
-        ".zst",
-    }
-)
-
-
-def classify(name: str) -> ContentKind:
-    suffix = PurePosixPath(name).suffix.lower()
-    if suffix in TABLE_EXTENSIONS:
-        return "table"
-    if suffix in BINARY_EXTENSIONS:
-        return "opaque"
-    return "text"
 
 
 @dataclass(frozen=True)
@@ -116,6 +56,24 @@ class CsvReader:
             for name in names
         ]
         return Page(columns=columns, rows=rows, has_more=has_more)
+
+
+class JsonTableReader:
+    """The explicit table projection of JSON/JSONL records."""
+
+    def read(self, path: Path, limit: int, offset: int) -> Page:
+        table = records.read(path)
+        if isinstance(table, records.NotRecords):
+            # The caller explicitly asked for a table. Returning numbered
+            # text rows would silently change representation under that
+            # request, so the projection is refused with its precise reason.
+            raise ValueError(table.reason)
+        page = table.rows[offset : offset + limit]
+        return Page(
+            columns=table.columns,
+            rows=page,
+            has_more=offset + len(page) < len(table.rows),
+        )
 
 
 class TextReader:

@@ -14,7 +14,7 @@ import {
 // The samples come from `docker compose exec backend python -m app.seed_storage`:
 // this sub-project cannot write files, so a personal directory is empty until
 // that script has run.
-test("browses a personal directory and reads files as rows", async ({ page }) => {
+test("browses a personal directory and opens each implemented viewer", async ({ page }) => {
   const name = `e2e-files-${Date.now()}`
   await login(page)
   await createFileConnector(page, name)
@@ -44,10 +44,7 @@ test("browses a personal directory and reads files as rows", async ({ page }) =>
 
   // The way back is the first row of the list, as it is in any other
   // explorer, rather than a button in the head.
-  await expect(list.locator("> div").first()).toHaveAttribute(
-    "data-testid",
-    "catalog-up"
-  )
+  await expect(list.locator("> div").first()).toHaveAttribute("data-testid", "catalog-up")
   // It lines up with the rows that have a tick box: the space is reserved by
   // the control itself, so nothing here depends on guessing how wide it is.
   const back = await page.getByTestId("catalog-up").getByText("..").boundingBox()
@@ -79,18 +76,48 @@ test("browses a personal directory and reads files as rows", async ({ page }) =>
   // The list is a column of its own, so nothing covered it and nothing had to
   // be clicked to get back to it.
   await openNode(page, "notes.txt")
-  await expect(grid).toContainText("line_no")
-  await expect(grid).toContainText("line 1")
+  await expect(page.getByTestId("text-content")).toContainText("line 1")
+  await expect(page.getByTestId("content-view-table")).toBeVisible()
 
-  // A file nothing can read as rows opens no tab, and says so: two remain, and
-  // the grid still shows the file that was read last.
+  // A file with no implemented viewer opens no tab and says so.
   await openNode(page, "logo.png")
   // Named rather than "the notification": several may still be on screen.
-  await expect(
-    page.locator(".q-notification", { hasText: "cannot be read" })
-  ).toBeVisible()
-  await expect(rowsTabs(page)).toHaveCount(2)
-  await expect(grid).toContainText("line_no")
+  await expect(page.locator(".q-notification", { hasText: "has no viewer yet" })).toBeVisible()
+  await expect(rowsTabs(page)).toHaveCount(1)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("opens JSON natively and turns it into a table only when asked", async ({ page }) => {
+  const name = `e2e-json-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  // Opening the file preserves the document. A number no JavaScript float
+  // could hold arrives as lossless text in the JSON tree.
+  await openNode(page, "people.json")
+  await expect(page.getByTestId("json-content")).toContainText("10000000000000001")
+  await expect(page.getByTestId("row-grid")).toHaveCount(0)
+
+  // The table is an alternative representation, opened by an explicit act.
+  await page.getByTestId("content-view-table").click()
+  const grid = page.getByTestId("row-grid")
+  await expect(grid).toContainText("name")
+  await expect(grid).toContainText("city")
+  await expect(grid.locator("tbody tr")).toHaveCount(3)
+
+  // JSONL keeps its record boundary and physical line numbers in its viewer.
+  await openNode(page, "events.jsonl")
+  await expect(page.getByTestId("jsonl-content")).toContainText("Line 1")
+  await expect(page.getByTestId("jsonl-content")).toContainText("login")
+
+  // A file named .json that is not JSON stays in the JSON viewer, showing its
+  // own source and the parser's precise refusal instead of becoming a table.
+  await openNode(page, "broken.json")
+  await expect(page.getByTestId("json-source")).toContainText('"b" 2')
+  await expect(page.getByTestId("content-notice")).toContainText("not valid JSON")
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

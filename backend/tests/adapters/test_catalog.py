@@ -16,13 +16,20 @@ nodes = TypeAdapter(list[CatalogNode])
 def test_union_discriminates_by_kind() -> None:
     parsed = nodes.validate_python(
         [
-            {"id": "public", "name": "public", "has_children": True, "kind": "schema"},
+            {
+                "id": "public",
+                "name": "public",
+                "has_children": True,
+                "kind": "schema",
+                "representations": [],
+            },
             {
                 "id": "public.users",
                 "name": "users",
                 "has_children": True,
                 "kind": "table",
                 "row_count_estimate": 42,
+                "representations": [{"kind": "table", "title": "View as table"}],
             },
         ]
     )
@@ -35,7 +42,15 @@ def test_union_discriminates_by_kind() -> None:
 def test_unknown_kind_is_rejected() -> None:
     with pytest.raises(ValidationError):
         nodes.validate_python(
-            [{"id": "x", "name": "x", "has_children": False, "kind": "wormhole"}]
+            [
+                {
+                    "id": "x",
+                    "name": "x",
+                    "has_children": False,
+                    "kind": "wormhole",
+                    "representations": [],
+                }
+            ]
         )
 
 
@@ -53,6 +68,7 @@ def test_a_field_of_one_kind_is_not_accepted_on_another() -> None:
                     "has_children": True,
                     "kind": "schema",
                     "data_type": "varchar",
+                    "representations": [],
                 }
             ]
         )
@@ -75,6 +91,7 @@ def test_directories_and_files_are_their_own_kinds() -> None:
                 "name": "reports",
                 "has_children": True,
                 "kind": "directory",
+                "representations": [],
             },
             {
                 "id": "reports/q3.csv",
@@ -82,14 +99,14 @@ def test_directories_and_files_are_their_own_kinds() -> None:
                 "has_children": False,
                 "kind": "file",
                 "size_bytes": 2048,
-                "content_kind": "table",
+                "representations": [{"kind": "table", "title": "View as table"}],
             },
         ]
     )
 
     assert isinstance(parsed[0], DirectoryNode)
     assert isinstance(parsed[1], FileNode)
-    assert parsed[1].content_kind == "table"
+    assert parsed[1].representations[0].kind == "table"
 
 
 def test_a_file_cannot_borrow_a_table_field() -> None:
@@ -102,14 +119,14 @@ def test_a_file_cannot_borrow_a_table_field() -> None:
                     "has_children": False,
                     "kind": "file",
                     "size_bytes": 2048,
-                    "content_kind": "table",
+                    "representations": [{"kind": "table", "title": "View as table"}],
                     "row_count_estimate": 100,
                 }
             ]
         )
 
 
-def test_unknown_content_kind_is_rejected() -> None:
+def test_unknown_representation_kind_is_rejected() -> None:
     with pytest.raises(ValidationError):
         nodes.validate_python(
             [
@@ -119,7 +136,7 @@ def test_unknown_content_kind_is_rejected() -> None:
                     "has_children": False,
                     "kind": "file",
                     "size_bytes": 1,
-                    "content_kind": "columnar",
+                    "representations": [{"kind": "columnar", "title": "Columnar"}],
                 }
             ]
         )

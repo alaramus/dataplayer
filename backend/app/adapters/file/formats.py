@@ -1,0 +1,97 @@
+"""File formats and the representations each one offers."""
+
+from pathlib import PurePosixPath
+from typing import Literal
+
+from app.adapters.content import NodeRepresentation
+
+
+DELIMITED_EXTENSIONS: frozenset[str] = frozenset({".csv", ".tsv"})
+JSON_EXTENSIONS: frozenset[str] = frozenset({".json"})
+JSON_LINES_EXTENSIONS: frozenset[str] = frozenset({".jsonl", ".ndjson"})
+
+# Classification is intentionally by name in the catalog: inspecting every
+# entry would cost one open per file. The content reader checks the bytes when
+# that one node is actually opened.
+BINARY_EXTENSIONS: frozenset[str] = frozenset(
+    {
+        ".7z",
+        ".avi",
+        ".bin",
+        ".bz2",
+        ".class",
+        ".dll",
+        ".doc",
+        ".docx",
+        ".exe",
+        ".gif",
+        ".gz",
+        ".ico",
+        ".iso",
+        ".jar",
+        ".jpeg",
+        ".jpg",
+        ".mp3",
+        ".mp4",
+        ".odt",
+        ".ogg",
+        ".pdf",
+        ".png",
+        ".ppt",
+        ".pptx",
+        ".rar",
+        ".so",
+        ".tar",
+        ".tgz",
+        ".ttf",
+        ".wav",
+        ".webm",
+        ".webp",
+        ".woff",
+        ".woff2",
+        ".xls",
+        ".xlsx",
+        ".zip",
+        ".zst",
+    }
+)
+
+FileFormat = Literal["delimited", "json", "jsonl", "text", "opaque"]
+
+TABLE = NodeRepresentation(kind="table", title="View as table")
+TEXT = NodeRepresentation(kind="text", title="View as text")
+JSON = NodeRepresentation(kind="json", title="View JSON")
+JSON_LINES = NodeRepresentation(kind="jsonl", title="View JSON lines")
+
+
+def format_of(name: str) -> FileFormat:
+    suffix = PurePosixPath(name).suffix.lower()
+    if suffix in DELIMITED_EXTENSIONS:
+        return "delimited"
+    if suffix in JSON_EXTENSIONS:
+        return "json"
+    if suffix in JSON_LINES_EXTENSIONS:
+        return "jsonl"
+    if suffix in BINARY_EXTENSIONS:
+        return "opaque"
+    return "text"
+
+
+def representations_of(name: str) -> list[NodeRepresentation]:
+    """Available representations, preferred one first."""
+    match format_of(name):
+        case "delimited":
+            return [TABLE]
+        case "json":
+            return [JSON, TABLE]
+        case "jsonl":
+            return [JSON_LINES, TABLE]
+        case "text":
+            # Numbered rows remain useful for import and grid operations, but
+            # opening a text file is no longer the act of asking for them.
+            return [TEXT, TABLE]
+        case "opaque":
+            # Media representations are added on this same contract in the
+            # next slice; claiming one before a safe content route exists
+            # would turn a click into a promise the source cannot keep.
+            return []

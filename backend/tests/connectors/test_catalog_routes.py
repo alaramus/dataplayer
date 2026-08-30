@@ -102,6 +102,9 @@ async def test_table_is_a_leaf_because_relation_model_returns_its_columns(
     connector = next(node for node in response.json() if node["name"] == "connector")
     assert connector["kind"] == "table"
     assert connector["has_children"] is False
+    assert connector["representations"] == [
+        {"kind": "table", "title": "View as table"}
+    ]
 
 
 async def test_unknown_node_returns_502_not_an_empty_list(
@@ -203,6 +206,25 @@ async def test_adapter_without_catalog_support_returns_501(
 
     assert response.status_code == 501
     assert "does not support browsing" in response.json()["detail"]["message"]
+
+
+async def test_adapter_without_content_support_returns_501(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(
+        client, normal_user_token_headers, f"content unsupported {uuid.uuid4()}"
+    )
+
+    response = await client.post(
+        f"{BASE}/{connector_id}/content",
+        headers=normal_user_token_headers,
+        json={"node_id": "public.connector", "representation": "json"},
+    )
+
+    assert response.status_code == 501
+    assert "does not support content viewers" in response.json()["detail"]["message"]
+
+
 async def test_path_names_every_node_from_the_root_down(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
@@ -279,7 +301,9 @@ async def test_a_source_that_cannot_walk_back_answers_501(
             return ConnectionCheckResult(ok=True, message="ok", latency_ms=1)
 
         async def list_children(self, node_id: str | None) -> list[CatalogNode]:
-            return [DirectoryNode(id="a", name="a", has_children=False)]
+            return [
+                DirectoryNode(id="a", name="a", has_children=False, representations=[])
+            ]
 
     registry.register(
         name="oneway",

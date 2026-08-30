@@ -13,6 +13,9 @@ source types, a form generated from the adapter's own schema, the list of
 connections, the catalog of a connection as a list of one level, and a typed
 data grid with server paging, filters, ordered sorting and guarded cell editing;
 the structure tab adds and drops columns through source-declared capabilities.
+Catalog leaves open through the source's preferred representation: JSON and
+JSONL have structured viewers, text has a bounded source viewer, and a declared
+table alternative opens the grid only when requested.
 A connection can be shared with a colleague at a level, and an administrator
 manages accounts on a page of their own. Light and dark themes,
 switched by a button beside Sign out and remembered.
@@ -58,6 +61,8 @@ frontend/src/
     │                    useCatalogLevel.ts walks a catalog outside any component
     ├── charts/          closed line, bar and pie views over one bounded page;
     │                    pure builders and suggestions stay outside components
+    ├── content/         bounded text, JSON and JSONL viewers; recursive JSON
+    │                    rendering preserves scalar kinds and numeric text
     ├── grid/            the controlled data explorer: query state, filter and
     │                    sort editors, column layout, selection, clipboard,
     │                    typed renderers and the full-value viewer

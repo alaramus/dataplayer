@@ -796,6 +796,30 @@ export type ConstraintDropped = {
 }
 
 /**
+ * ContentRequest
+ *
+ * One bounded content representation, distinct from tabular fetch.
+ */
+export type ContentRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Representation
+   */
+  representation: "text" | "json" | "jsonl"
+  /**
+   * Limit
+   */
+  limit?: number
+  /**
+   * Offset
+   */
+  offset?: number
+}
+
+/**
  * CreateConstraintRequest
  */
 export type CreateConstraintRequest = {
@@ -884,6 +908,10 @@ export type DirectoryNode = {
    * Has Children
    */
   has_children: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
   /**
    * Kind
    */
@@ -1254,6 +1282,10 @@ export type FileNode = {
    */
   has_children?: boolean
   /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
    * Kind
    */
   kind?: "file"
@@ -1265,10 +1297,6 @@ export type FileNode = {
    * Modified At
    */
   modified_at?: string | null
-  /**
-   * Content Kind
-   */
-  content_kind: "table" | "text" | "opaque"
 }
 
 /**
@@ -1654,6 +1682,179 @@ export type InsertValue = {
 }
 
 /**
+ * JsonArray
+ */
+export type JsonArray = {
+  /**
+   * Kind
+   */
+  kind?: "array"
+  /**
+   * Items
+   */
+  items: Array<
+    | ({
+        kind: "boolean" | "null" | "number" | "string"
+      } & JsonScalar)
+    | ({
+        kind: "array"
+      } & JsonArray)
+    | ({
+        kind: "object"
+      } & JsonObject)
+  >
+}
+
+/**
+ * JsonContent
+ *
+ * A document tree, or its honest bounded source when parsing failed.
+ */
+export type JsonContent = {
+  /**
+   * Kind
+   */
+  kind?: "json"
+  /**
+   * Value
+   */
+  value?:
+    | ({
+        kind: "boolean" | "null" | "number" | "string"
+      } & JsonScalar)
+    | ({
+        kind: "array"
+      } & JsonArray)
+    | ({
+        kind: "object"
+      } & JsonObject)
+    | null
+  /**
+   * Source Text
+   */
+  source_text?: string | null
+  /**
+   * Truncated
+   */
+  truncated?: boolean
+  /**
+   * Notice
+   */
+  notice?: string | null
+}
+
+/**
+ * JsonLine
+ *
+ * One physical JSONL record, valid or named as invalid.
+ */
+export type JsonLine = {
+  /**
+   * Line Number
+   */
+  line_number: number
+  /**
+   * Value
+   */
+  value?:
+    | ({
+        kind: "boolean" | "null" | "number" | "string"
+      } & JsonScalar)
+    | ({
+        kind: "array"
+      } & JsonArray)
+    | ({
+        kind: "object"
+      } & JsonObject)
+    | null
+  /**
+   * Source Text
+   */
+  source_text?: string | null
+  /**
+   * Truncated
+   */
+  truncated?: boolean
+  /**
+   * Notice
+   */
+  notice?: string | null
+}
+
+/**
+ * JsonLinesContent
+ */
+export type JsonLinesContent = {
+  /**
+   * Kind
+   */
+  kind?: "jsonl"
+  /**
+   * Items
+   */
+  items: Array<JsonLine>
+  /**
+   * Has More
+   */
+  has_more: boolean
+  /**
+   * Offset
+   */
+  offset: number
+}
+
+/**
+ * JsonObject
+ */
+export type JsonObject = {
+  /**
+   * Kind
+   */
+  kind?: "object"
+  /**
+   * Entries
+   */
+  entries: Array<JsonObjectEntry>
+}
+
+/**
+ * JsonObjectEntry
+ */
+export type JsonObjectEntry = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Value
+   */
+  value:
+    | ({
+        kind: "boolean" | "null" | "number" | "string"
+      } & JsonScalar)
+    | ({
+        kind: "array"
+      } & JsonArray)
+    | ({
+        kind: "object"
+      } & JsonObject)
+}
+
+/**
+ * JsonScalar
+ */
+export type JsonScalar = {
+  /**
+   * Kind
+   */
+  kind: "null" | "boolean" | "number" | "string"
+  /**
+   * Value
+   */
+  value: string | null
+}
+
+/**
  * Message
  */
 export type Message = {
@@ -1709,6 +1910,26 @@ export type NodeReplacement = {
    * New Node Id
    */
   new_node_id: string
+  /**
+   * Title
+   */
+  title: string
+}
+
+/**
+ * NodeRepresentation
+ *
+ * One way a source says a node may be opened.
+ *
+ * The order in ``CatalogNode.representations`` matters: the first one is the
+ * source's preferred representation. ``kind`` is the viewer contract and
+ * ``title`` is the wording used when another representation is offered.
+ */
+export type NodeRepresentation = {
+  /**
+   * Kind
+   */
+  kind: "table" | "text" | "json" | "jsonl"
   /**
    * Title
    */
@@ -2158,6 +2379,10 @@ export type SchemaNode = {
    */
   has_children: boolean
   /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
    * Kind
    */
   kind?: "schema"
@@ -2198,6 +2423,10 @@ export type TableNode = {
    */
   has_children: boolean
   /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
    * Kind
    */
   kind?: "table"
@@ -2213,6 +2442,28 @@ export type TableNode = {
    * Is System
    */
   is_system?: boolean
+}
+
+/**
+ * TextContent
+ */
+export type TextContent = {
+  /**
+   * Kind
+   */
+  kind?: "text"
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Truncated
+   */
+  truncated?: boolean
+  /**
+   * Notice
+   */
+  notice?: string | null
 }
 
 /**
@@ -2586,6 +2837,10 @@ export type ViewNode = {
    * Has Children
    */
   has_children: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
   /**
    * Kind
    */
@@ -3389,6 +3644,49 @@ export type connectorsFetchRowsResponses = {
 
 export type connectorsFetchRowsResponse =
   connectorsFetchRowsResponses[keyof connectorsFetchRowsResponses]
+
+export type connectorsReadContentData = {
+  body: ContentRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/content"
+}
+
+export type connectorsReadContentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsReadContentError =
+  connectorsReadContentErrors[keyof connectorsReadContentErrors]
+
+export type connectorsReadContentResponses = {
+  /**
+   * Response Connectors-Read Content
+   *
+   * Successful Response
+   */
+  200:
+    | ({
+        kind: "text"
+      } & TextContent)
+    | ({
+        kind: "json"
+      } & JsonContent)
+    | ({
+        kind: "jsonl"
+      } & JsonLinesContent)
+}
+
+export type connectorsReadContentResponse =
+  connectorsReadContentResponses[keyof connectorsReadContentResponses]
 
 export type connectorsReadCatalogData = {
   body?: never

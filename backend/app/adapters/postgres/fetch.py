@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
@@ -7,6 +6,7 @@ from uuid import UUID
 
 from psycopg import sql
 
+from app.adapters import jsontext
 from app.adapters.fetch import (
     FetchColumn,
     FetchReference,
@@ -116,13 +116,6 @@ TABLEOID = "__dp_tableoid"
 CTID = "__dp_ctid"
 
 
-class _JsonNumber:
-    """A JSON numeric token that must never become a Python float."""
-
-    def __init__(self, text: str) -> None:
-        self.text = text
-
-
 def _supports_filter_value_coercion(type_: ColumnType) -> bool:
     if type_.category == "datetime":
         return _is_supported_datetime_sql(type_.sql)
@@ -197,37 +190,8 @@ def encode_cell(value: Any, type_: ColumnType) -> str | None:
     if type_.category == "json":
         if not isinstance(value, str):
             raise TypeError("PostgreSQL JSON values must be selected as text")
-        return _compact_json(value)
+        return jsontext.compact(value)
     return str(value)
-
-
-def _compact_json(value: str) -> str:
-    """Remove JSON whitespace without parsing numeric tokens as floats."""
-    decoded = json.loads(value, parse_int=_JsonNumber, parse_float=_JsonNumber)
-    return _encode_json(decoded)
-
-
-def _encode_json(value: Any) -> str:
-    if isinstance(value, _JsonNumber):
-        return value.text
-    if value is None:
-        return "null"
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, str):
-        return json.dumps(value, ensure_ascii=False)
-    if isinstance(value, list):
-        return "[" + ",".join(_encode_json(item) for item in value) + "]"
-    if isinstance(value, dict):
-        return (
-            "{"
-            + ",".join(
-                f"{json.dumps(key, ensure_ascii=False)}:{_encode_json(item)}"
-                for key, item in value.items()
-            )
-            + "}"
-        )
-    raise TypeError("PostgreSQL JSON values must contain JSON data")
 
 
 class PostgresFetch:

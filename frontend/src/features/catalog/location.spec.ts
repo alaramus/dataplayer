@@ -15,6 +15,7 @@ const schema = (name: string): CatalogNode => ({
   name,
   has_children: true,
   is_system: false,
+  representations: [],
 })
 
 const table = (id: string, name: string): CatalogNode => ({
@@ -23,6 +24,7 @@ const table = (id: string, name: string): CatalogNode => ({
   name,
   has_children: true,
   is_system: false,
+  representations: [{ kind: "table", title: "View as table" }],
 })
 
 const directory = (id: string, name: string): CatalogNode => ({
@@ -30,6 +32,7 @@ const directory = (id: string, name: string): CatalogNode => ({
   id,
   name,
   has_children: true,
+  representations: [],
 })
 
 const file = (id: string, name: string): CatalogNode => ({
@@ -38,7 +41,7 @@ const file = (id: string, name: string): CatalogNode => ({
   name,
   has_children: false,
   size_bytes: 1,
-  content_kind: "table",
+  representations: [{ kind: "table", title: "View as table" }],
 })
 
 describe("locationOf", () => {

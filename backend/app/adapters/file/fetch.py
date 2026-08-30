@@ -1,7 +1,7 @@
 """Reading a file as rows.
 
-The reader is chosen from what the file is, matched exhaustively, so adding a
-content kind without a reader fails type checking. The old application
+The reader is chosen from the format of the file, matched exhaustively, so
+adding a format without a reader fails type checking. The old application
 branched on the extension in six places inside one method.
 """
 
@@ -11,14 +11,20 @@ from typing import assert_never
 from anyio import to_thread
 
 from app.adapters.fetch import FetchRequest, FetchResult
-from app.adapters.file.readers import CsvReader, Page, Reader, TextReader, classify
+from app.adapters.file.binary import looks_binary
+from app.adapters.file.formats import format_of
+from app.adapters.file.readers import (
+    CsvReader,
+    JsonTableReader,
+    Page,
+    Reader,
+    TextReader,
+)
 from app.adapters.file.session import FileSession
 
 CSV_READER = CsvReader()
 TEXT_READER = TextReader()
-
-# Enough to catch a binary file without reading it whole.
-_SNIFF_BYTES = 4096
+JSON_TABLE_READER = JsonTableReader()
 
 
 class FileFetch:
@@ -53,25 +59,21 @@ class FileFetch:
             raise ValueError(f"A directory cannot be read as rows: {request.node_id}")
 
         reader = _reader_for(path, request.node_id)
-        if _looks_binary(path):
+        if looks_binary(path):
             # Classification goes by name; the bytes get the last word.
             raise ValueError(f"This file is binary: {request.node_id}")
         return reader.read(path, request.limit, request.offset)
 
 
 def _reader_for(path: Path, node_id: str) -> Reader:
-    content_kind = classify(path.name)
-    match content_kind:
-        case "table":
+    match format_of(path.name):
+        case "delimited":
             return CSV_READER
+        case "json" | "jsonl":
+            return JSON_TABLE_READER
         case "text":
             return TEXT_READER
         case "opaque":
             raise ValueError(f"This file cannot be read as rows: {node_id}")
         case unreachable:
             assert_never(unreachable)
-
-
-def _looks_binary(path: Path) -> bool:
-    with path.open("rb") as handle:
-        return b"\x00" in handle.read(_SNIFF_BYTES)

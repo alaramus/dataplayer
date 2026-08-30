@@ -7,10 +7,12 @@ from app.adapters.catalog import (
     TableNode,
     ViewNode,
 )
+from app.adapters.content import NodeRepresentation
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError, NodeNotFound
 
 _SYSTEM_SCHEMAS = ("information_schema",)
+TABLE_REPRESENTATION = NodeRepresentation(kind="table", title="View as table")
 
 
 def _is_system_schema(name: str) -> bool:
@@ -48,6 +50,7 @@ class PostgresCatalog:
                 name=row["name"],
                 has_children=True,
                 is_system=_is_system_schema(row["name"]),
+                representations=[],
             )
             for row in rows
         ]
@@ -97,6 +100,7 @@ class PostgresCatalog:
             name=schema,
             has_children=True,
             is_system=_is_system_schema(schema),
+            representations=[],
         )
 
     async def _relation_node(
@@ -146,6 +150,7 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
             has_children=False,
             is_materialized=row["kind"] == "m",
             is_system=is_system,
+            representations=[TABLE_REPRESENTATION],
         )
     estimate = int(row["row_estimate"])
     return TableNode(
@@ -156,4 +161,5 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
         row_count_estimate=estimate if estimate >= 0 else None,
         size_bytes=row["size_bytes"],
         is_system=is_system,
+        representations=[TABLE_REPRESENTATION],
     )

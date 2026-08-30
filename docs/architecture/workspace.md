@@ -9,11 +9,12 @@ Decisions here: D12, D14.
 ## What exists today
 
 One screen of three columns: the connections, the catalog of every connection
-that was opened, and the rows of a node in tabs beside each other. Columns are
-resizable and bounded by the window so each scrolls inside itself, and the layout
-a user arrives at is the one they left. A column appears together with what goes
-in it; the right-hand one, while it is empty, says what to do next and offers the
-button that does it.
+that was opened, and the work opened from a node in tabs beside each other. Work
+may be rows, native file content, relation structure or a chart. Columns are
+resizable and bounded by the window so each scrolls inside itself, and the
+layout a user arrives at is the one they left. A column appears together with
+what goes in it; the right-hand one, while it is empty, says what to do next and
+offers the button that does it.
 
 The whole workspace sits inside one inset frame between a compact application
 toolbar and status line. Its panels spend the same surface, border, tab height,
@@ -71,6 +72,11 @@ Consequences:
   there while leaving the engine ignorant of what a column means, and what makes
   a source type that brings its own view a new kind with an existing role rather
   than a change to the layout.
+- **Two views of one node are two panels.** A JSON content panel and its explicit
+  table projection share a source node but not an identity, request contract or
+  component. Both use the existing `work` role, so adding native content changed
+  the feature registry and not the engine. Opening one again activates its own
+  tab; asking for the alternative leaves the first view intact beside it.
 - **A role is also what a section will take.** A panel may only be dragged into a
   section whose role matches it. A section split off another inherits its role, or
   the first split would make a corner of the screen that takes nothing; it does

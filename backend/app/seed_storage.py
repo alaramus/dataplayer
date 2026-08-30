@@ -9,6 +9,7 @@ suite leaves behind every time it empties the shared development database.
 """
 
 import asyncio
+import json
 import logging
 import sys
 import uuid
@@ -26,7 +27,7 @@ SAMPLE_ROWS = 250
 
 
 def write_samples(home: Path) -> None:
-    """Write one file of every outcome a reader can produce."""
+    """Write examples for the native viewers and explicit table projections."""
     home.mkdir(mode=0o700, parents=True, exist_ok=True)
 
     rows = "\n".join(
@@ -41,6 +42,25 @@ def write_samples(home: Path) -> None:
     (home / "notes.txt").write_text(
         "\n".join(f"line {index}" for index in range(1, 21)) + "\n", encoding="utf-8"
     )
+    # Structured content with a nested value and a number a float would round.
+    # Its alternative table projection also has a key only a later record carries.
+    people = [
+        {"id": 1, "name": "Ann", "tags": ["reader"]},
+        {"id": 2, "name": "Bo", "city": "Riga", "tags": []},
+        {"id": 3, "name": "Cyd", "account": 10000000000000001},
+    ]
+    (home / "people.json").write_text(
+        json.dumps(people, indent=2) + "\n", encoding="utf-8"
+    )
+    events = [
+        {"at": f"2026-08-{day:02d}", "kind": "login", "ok": day % 2 == 0}
+        for day in range(1, 6)
+    ]
+    (home / "events.jsonl").write_text(
+        "".join(f"{json.dumps(event)}\n" for event in events), encoding="utf-8"
+    )
+    # Named .json and not JSON: its JSON viewer shows the source and says why.
+    (home / "broken.json").write_text('{"a": 1,\n "b" 2}\n', encoding="utf-8")
     # Binary on purpose: it must show up in the tree and refuse to be read.
     (home / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\n\x00sample")
 

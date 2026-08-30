@@ -52,15 +52,21 @@ function mountGrid(
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
-  return mount(withWindowHost(DataGrid, {
-    connectorId: "connector-1",
-    nodeId: "public.projects",
-    ...props,
-  }), {
-    global: {
-      plugins: [[Quasar, { plugins: { Dialog, Notify } }], [VueQueryPlugin, { queryClient }]],
-    },
-  })
+  return mount(
+    withWindowHost(DataGrid, {
+      connectorId: "connector-1",
+      nodeId: "public.projects",
+      ...props,
+    }),
+    {
+      global: {
+        plugins: [
+          [Quasar, { plugins: { Dialog, Notify } }],
+          [VueQueryPlugin, { queryClient }],
+        ],
+      },
+    }
+  )
 }
 
 beforeEach(() => {
@@ -363,9 +369,7 @@ describe("the basic data grid", () => {
 
     await wrapper.get('[data-testid="grid-cell-0-name"]').trigger("dblclick")
     await flushPromises()
-    const input = document.body.querySelector<HTMLInputElement>(
-      '[data-testid="grid-edit-value"]'
-    )
+    const input = document.body.querySelector<HTMLInputElement>('[data-testid="grid-edit-value"]')
     expect(input).not.toBeNull()
     input?.focus()
     input?.setSelectionRange(0, input.value.length)
@@ -601,9 +605,7 @@ describe("the basic data grid", () => {
 
     await wrapper.get('[data-testid="grid-resize-name"]').trigger("dblclick")
 
-    expect(loadGridState("connector-1", "public.projects")?.columnSizing.name).toBeGreaterThan(
-      100
-    )
+    expect(loadGridState("connector-1", "public.projects")?.columnSizing.name).toBeGreaterThan(100)
   })
 
   it("commits a drag resize only when the pointer is released", async () => {
@@ -652,9 +654,7 @@ describe("the basic data grid", () => {
 
     await wrapper.get('[data-testid="grid-cell-0-id"]').trigger("mousedown")
     document.dispatchEvent(new MouseEvent("mouseup"))
-    expect(wrapper.get('[data-testid="grid-cell-0-id"]').classes()).toContain(
-      "data-grid__selected"
-    )
+    expect(wrapper.get('[data-testid="grid-cell-0-id"]').classes()).toContain("data-grid__selected")
 
     await grid.trigger("keydown", { key: "ArrowRight" })
     expect(wrapper.get('[data-testid="grid-cell-0-id"]').classes()).not.toContain(
@@ -677,9 +677,7 @@ describe("the basic data grid", () => {
 
     await wrapper.get('[data-testid="grid-cell-0-id"]').trigger("mousedown")
     document.dispatchEvent(new MouseEvent("mouseup"))
-    await wrapper
-      .get('[data-testid="grid-cell-1-name"]')
-      .trigger("mousedown", { shiftKey: true })
+    await wrapper.get('[data-testid="grid-cell-1-name"]').trigger("mousedown", { shiftKey: true })
     document.dispatchEvent(new MouseEvent("mouseup"))
 
     expect(wrapper.findAll(".data-grid__selected")).toHaveLength(4)
@@ -797,8 +795,8 @@ describe("the basic data grid", () => {
   it("does not persist a filter until the server accepts it", async () => {
     vi.spyOn(ConnectorsService, "fetchRows").mockImplementation((options) =>
       (options.body.filters?.length ?? 0) > 0
-        ? Promise.reject(new Error("Query failed")) as never
-        : Promise.resolve({ data: result(0, 1) }) as never
+        ? (Promise.reject(new Error("Query failed")) as never)
+        : (Promise.resolve({ data: result(0, 1) }) as never)
     )
     const wrapper = mountGrid()
     await flushPromises()
@@ -821,11 +819,13 @@ describe("the basic data grid", () => {
       filters: [{ column: "id", op: "eq", value: "not accepted" }],
       sort: [],
     })
-    const fetchRows = vi.spyOn(ConnectorsService, "fetchRows").mockImplementation((options) =>
-      (options.body.filters?.length ?? 0) > 0
-        ? Promise.reject(new Error("Query failed")) as never
-        : Promise.resolve({ data: result(0, 1) }) as never
-    )
+    const fetchRows = vi
+      .spyOn(ConnectorsService, "fetchRows")
+      .mockImplementation((options) =>
+        (options.body.filters?.length ?? 0) > 0
+          ? (Promise.reject(new Error("Query failed")) as never)
+          : (Promise.resolve({ data: result(0, 1) }) as never)
+      )
     const wrapper = mountGrid()
     await flushPromises()
     expect(wrapper.get('[data-testid="grid-error"]').text()).toContain("Could not read the rows")
@@ -880,9 +880,7 @@ describe("the basic data grid", () => {
       headers: {},
       config: {} as never,
       data: {
-        detail: [
-          { loc: ["body"], msg: 'Relation has no column "owner"', type: "value_error" },
-        ],
+        detail: [{ loc: ["body"], msg: 'Relation has no column "owner"', type: "value_error" }],
       },
     }
     const kept: Filter = { column: "name", op: "contains", value: "a" }
@@ -922,13 +920,14 @@ describe("the basic data grid", () => {
   })
 
   it("shows an empty page while Previous stays available", async () => {
-    vi.spyOn(ConnectorsService, "fetchRows").mockImplementation((options) =>
-      Promise.resolve({
-        data:
-          (options.body.offset ?? 0) === 0
-            ? { ...result(0, 1), has_more: true }
-            : { ...result(100, 0), has_more: false },
-      }) as never
+    vi.spyOn(ConnectorsService, "fetchRows").mockImplementation(
+      (options) =>
+        Promise.resolve({
+          data:
+            (options.body.offset ?? 0) === 0
+              ? { ...result(0, 1), has_more: true }
+              : { ...result(100, 0), has_more: false },
+        }) as never
     )
     const wrapper = mountGrid()
     await flushPromises()
@@ -994,9 +993,7 @@ describe("following a reference out of a row", () => {
   }
 
   function mockKeyedPage() {
-    return vi
-      .spyOn(ConnectorsService, "fetchRows")
-      .mockResolvedValue({ data: keyed } as never)
+    return vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({ data: keyed } as never)
   }
 
   it("sends the whole key of that row and emits where the source points", async () => {
@@ -1004,16 +1001,20 @@ describe("following a reference out of a row", () => {
     const follow = vi.spyOn(ConnectorsService, "followReference").mockResolvedValue({
       data: {
         kind: "rows",
-        node: { kind: "table", id: "sales.regions", name: "regions", has_children: false },
+        node: {
+          kind: "table",
+          id: "sales.regions",
+          name: "regions",
+          has_children: false,
+          representations: [{ kind: "table", title: "View as table" }],
+        },
         filters: [{ column: "id", op: "eq", value: "7" }],
       },
     } as never)
     const wrapper = mountGrid()
     await flushPromises()
 
-    await wrapper
-      .get('[data-testid="grid-follow-0-customers_region_fkey"]')
-      .trigger("click")
+    await wrapper.get('[data-testid="grid-follow-0-customers_region_fkey"]').trigger("click")
     await flushPromises()
 
     expect(follow).toHaveBeenCalledWith(
@@ -1036,12 +1037,8 @@ describe("following a reference out of a row", () => {
     const wrapper = mountGrid()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="grid-follow-0-customers_region_fkey"]').exists()).toBe(
-      true
-    )
-    expect(wrapper.find('[data-testid="grid-follow-1-customers_region_fkey"]').exists()).toBe(
-      false
-    )
+    expect(wrapper.find('[data-testid="grid-follow-0-customers_region_fkey"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="grid-follow-1-customers_region_fkey"]').exists()).toBe(false)
   })
 
   it("says what the source said when a key names nothing, and opens no tab", async () => {
@@ -1052,9 +1049,7 @@ describe("following a reference out of a row", () => {
     const wrapper = mountGrid()
     await flushPromises()
 
-    await wrapper
-      .get('[data-testid="grid-follow-0-customers_region_fkey"]')
-      .trigger("click")
+    await wrapper.get('[data-testid="grid-follow-0-customers_region_fkey"]').trigger("click")
     await flushPromises()
 
     expect(wrapper.findComponent(DataGrid).emitted("follow")).toBeUndefined()

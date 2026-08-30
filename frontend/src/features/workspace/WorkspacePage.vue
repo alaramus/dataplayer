@@ -7,11 +7,7 @@ import type { ConnectorPublic, NodeReplacement } from "@/client"
 import { useCurrentUser } from "@/features/auth/api"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
-import {
-  connectorWindow,
-  connectorWindowId,
-  draftWindowId,
-} from "@/features/connectors/windows"
+import { connectorWindow, connectorWindowId, draftWindowId } from "@/features/connectors/windows"
 import { useConnectors } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
 import { moveChartSpec } from "@/features/charts/persist"
@@ -23,6 +19,7 @@ import {
   chartPanelId,
   collapsedOf,
   componentOf,
+  contentPanelId,
   emptyOf,
   lookOf,
   openConnectorIds,
@@ -32,15 +29,13 @@ import {
   structurePanelId,
 } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
-import {
-  createReloadRegistry,
-  provideReloadRegistry,
-} from "@/features/workspace/reloadable"
+import { createReloadRegistry, provideReloadRegistry } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
 import type {
   FollowReferenceCommand,
   FollowTarget,
   OpenChartRequest,
+  OpenRepresentationRequest,
   OpenRowsRequest,
   OpenStructureRequest,
   RevealTarget,
@@ -50,7 +45,7 @@ import { useWindowManager } from "@/shared/windows"
 import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
 
 /**
- * The workspace: connections, a catalog and the data of one node, side by side.
+ * The workspace: connections, catalogs and node-specific work, side by side.
  *
  * Three columns that are always there, because each one is a role rather than
  * a place something was once dragged to: `accepts` puts a newly opened panel
@@ -81,12 +76,12 @@ const workspace = useWorkspace<Panel>({
   collapsed: collapsedOf,
   // A click on the icon of a tab does the thing that tab has no other way to
   // do, rather than activating it; the tab still activates on a click anywhere
-  // else. From a catalog that is the connection itself; from a table it is the
-  // catalog the table came from, which is reachable nowhere else while editing
-  // a connection has two other ways in. See T5.
+  // else. From a catalog that is the connection itself; from rows or content it
+  // is the catalog the node came from, which is reachable nowhere else while
+  // editing a connection has two other ways in. See T5.
   onIconClick: (panel) => {
     if (panel.kind === "catalog") editConnector(panel.connectorId)
-    if (panel.kind === "rows") {
+    if (panel.kind === "rows" || panel.kind === "content") {
       revealInCatalog(panel.connectorId, panel.nodeId, panel.title)
     }
   },
@@ -278,7 +273,10 @@ function revealInCatalog(connectorId: string, nodeId: string, label: string) {
 function replaceNode(connectorId: string, replacement: NodeReplacement) {
   for (const panel of [...workspace.panels.value]) {
     if (
-      (panel.kind !== "rows" && panel.kind !== "structure" && panel.kind !== "chart") ||
+      (panel.kind !== "rows" &&
+        panel.kind !== "content" &&
+        panel.kind !== "structure" &&
+        panel.kind !== "chart") ||
       panel.connectorId !== connectorId
     ) {
       continue
@@ -289,6 +287,15 @@ function replaceNode(connectorId: string, replacement: NodeReplacement) {
       workspace.replace(panel.id, {
         ...panel,
         id: rowsPanelId(connectorId, replacement.new_node_id),
+        nodeId: replacement.new_node_id,
+        title: replacement.title,
+      })
+      continue
+    }
+    if (panel.kind === "content") {
+      workspace.replace(panel.id, {
+        ...panel,
+        id: contentPanelId(connectorId, replacement.new_node_id, panel.representation),
         nodeId: replacement.new_node_id,
         title: replacement.title,
       })
@@ -333,6 +340,35 @@ provide(workspaceActionsKey, {
       id: rowsPanelId(request.connectorId, request.nodeId),
       kind: "rows",
       ...request,
+    })
+  },
+  openRepresentation: (request: OpenRepresentationRequest) => {
+    const preferred = request.representations[0]
+    if (preferred === undefined) return
+    if (preferred.kind === "table") {
+      workspace.open({
+        id: rowsPanelId(request.connectorId, request.nodeId),
+        kind: "rows",
+        connectorId: request.connectorId,
+        nodeId: request.nodeId,
+        title: request.title,
+        connectorName: request.connectorName,
+        adapterType: request.adapterType,
+        describable: request.describable,
+      })
+      return
+    }
+    const table = request.representations.find((representation) => representation.kind === "table")
+    workspace.open({
+      id: contentPanelId(request.connectorId, request.nodeId, preferred.kind),
+      kind: "content",
+      connectorId: request.connectorId,
+      nodeId: request.nodeId,
+      title: request.title,
+      connectorName: request.connectorName,
+      adapterType: request.adapterType,
+      representation: preferred.kind,
+      ...(table === undefined ? {} : { tableTitle: table.title }),
     })
   },
   /**
@@ -406,9 +442,6 @@ provide(workspaceActionsKey, {
 
     <WorkspaceRoot :context="workspace.context" />
 
-    <AdapterCatalogDialog
-      v-model="catalogOpen"
-      @pick="pickAdapterType"
-    />
+    <AdapterCatalogDialog v-model="catalogOpen" @pick="pickAdapterType" />
   </AppLayout>
 </template>

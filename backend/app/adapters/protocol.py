@@ -15,6 +15,7 @@ from app.adapters.column_changes import (
     DropColumnRequest,
     RenameColumnRequest,
 )
+from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.constraints import (
     ConstraintDropped,
     CreateConstraintRequest,
@@ -157,6 +158,19 @@ class SupportsFetch(Protocol):
         Raises AdapterError for source failures and ValueError for a request
         that names a column the relation does not have — that check happens
         before any SQL is built.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsContent(Protocol):
+    async def read_content(self, request: ContentRequest) -> ContentResult:
+        """Read one bounded, content-native representation of a node.
+
+        Separate from ``SupportsFetch``: opening a JSON document or a text
+        file says nothing about rows, columns, sorting or filtering. Raises
+        ValueError when the node or representation cannot be read and
+        AdapterError for source failures.
         """
         ...
 

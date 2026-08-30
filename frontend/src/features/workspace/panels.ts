@@ -3,6 +3,7 @@ import type { Component, VNode } from "vue"
 import { z } from "zod"
 
 import ChartPanelView from "@/features/charts/ChartPanel.vue"
+import ContentPanelView from "@/features/content/ContentPanel.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
@@ -79,6 +80,17 @@ export const panelSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     id: z.string(),
+    kind: z.literal("content"),
+    connectorId: z.string(),
+    nodeId: z.string(),
+    title: z.string(),
+    connectorName: z.string(),
+    adapterType: z.string(),
+    representation: z.enum(["text", "json", "jsonl"]),
+    tableTitle: z.string().min(1).optional(),
+  }),
+  z.object({
+    id: z.string(),
     kind: z.literal("chart"),
     viewKey: z.string(),
     connectorId: z.string(),
@@ -104,6 +116,11 @@ export type PanelKind = Panel["kind"]
  */
 export const catalogPanelId = (connectorId: string) => `catalog:${connectorId}`
 export const rowsPanelId = (connectorId: string, nodeId: string) => `rows:${connectorId}:${nodeId}`
+export const contentPanelId = (
+  connectorId: string,
+  nodeId: string,
+  representation: "text" | "json" | "jsonl"
+) => `content:${connectorId}:${nodeId}:${representation}`
 export const structurePanelId = (connectorId: string, nodeId: string) =>
   `structure:${connectorId}:${nodeId}`
 export const chartPanelId = (viewKey: string) => `chart:${viewKey}`
@@ -145,6 +162,7 @@ export function roleOf(panel: Panel): PanelRole {
     case "catalog":
       return "navigate"
     case "rows":
+    case "content":
     case "structure":
     case "chart":
       return "work"
@@ -216,6 +234,18 @@ export function lookOf(panel: Panel): PanelLook {
         iconTooltip: `${panel.connectorName} · Show in catalog`,
         reloadTooltip: "Re-read this table",
       }
+    case "content":
+      return {
+        title: panel.title,
+        icon:
+          panel.representation === "text"
+            ? "description"
+            : panel.representation === "jsonl"
+              ? "format_list_numbered"
+              : "data_object",
+        iconTooltip: `${panel.connectorName} · Show in catalog`,
+        reloadTooltip: "Re-read this file",
+      }
     case "structure":
       return {
         title: panel.title,
@@ -282,6 +312,19 @@ export function componentOf(panel: Panel): Component {
           connectorName: panel.connectorName,
           adapterType: panel.adapterType,
           describable: panel.describable === true,
+        })
+      )
+    case "content":
+      return boundComponent(panel.id, () =>
+        h(ContentPanelView, {
+          panelId: panel.id,
+          connectorId: panel.connectorId,
+          nodeId: panel.nodeId,
+          title: panel.title,
+          connectorName: panel.connectorName,
+          adapterType: panel.adapterType,
+          representation: panel.representation,
+          tableTitle: panel.tableTitle,
         })
       )
     case "structure":

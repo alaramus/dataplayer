@@ -11,6 +11,7 @@ from app.adapters.protocol import (
     DataAdapter,
     SupportsAddColumn,
     SupportsCatalog,
+    SupportsContent,
     SupportsDelete,
     SupportsDropColumn,
     SupportsExport,
@@ -97,6 +98,7 @@ class AdapterType:
     adapter_class: type[DataAdapter]
     factory: Factory
 
+
 _registry: dict[str, AdapterType] = {}
 
 
@@ -153,6 +155,8 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(Capability(group="explore", title="Browse the catalog"))
     if issubclass(driver, SupportsNodePath):
         found.append(Capability(group="explore", title="Locate a node"))
+    if issubclass(driver, SupportsContent):
+        found.append(Capability(group="explore", title="View content"))
     if issubclass(driver, SupportsFetch):
         found.append(Capability(group="explore", title="Read rows"))
     if issubclass(driver, SupportsExport):
@@ -189,4 +193,3 @@ def get(name: str) -> AdapterType:
 
 def all_types() -> list[AdapterType]:
     return sorted(_registry.values(), key=lambda t: t.title)
-

@@ -69,7 +69,7 @@ beforeEach(() => {
         name: "sample.tsv",
         has_children: false,
         size_bytes: 20,
-        content_kind: "table",
+        representations: [{ kind: "table", title: "View as table" }],
       },
     ],
   } as never)
@@ -96,9 +96,7 @@ describe("bringing rows in from another source", () => {
     // The source, then the file, then one pairing per target column.
     wrapper.findComponent(AppSelect).vm.$emit("update:modelValue", "source-1")
     await flushPromises()
-    document.body
-      .querySelector<HTMLElement>('[data-testid="grid-import-node-sample.tsv"]')
-      ?.click()
+    document.body.querySelector<HTMLElement>('[data-testid="grid-import-node-sample.tsv"]')?.click()
     await flushPromises()
 
     const selects = wrapper.findAllComponents(AppSelect)
@@ -107,9 +105,7 @@ describe("bringing rows in from another source", () => {
     selects[2]?.vm.$emit("update:modelValue", "name")
     await flushPromises()
 
-    document.body
-      .querySelector<HTMLElement>('[data-testid="grid-import-preview"]')
-      ?.click()
+    document.body.querySelector<HTMLElement>('[data-testid="grid-import-preview"]')?.click()
     await flushPromises()
 
     expect(preview).toHaveBeenCalledWith({
@@ -131,9 +127,7 @@ describe("bringing rows in from another source", () => {
     const wrapper = mountDialog()
     await flushPromises()
 
-    const run = document.body.querySelector<HTMLButtonElement>(
-      '[data-testid="grid-import-run"]'
-    )
+    const run = document.body.querySelector<HTMLButtonElement>('[data-testid="grid-import-run"]')
     expect(run?.disabled).toBe(true)
     wrapper.unmount()
   })
@@ -165,6 +159,7 @@ describe("bringing rows in from another source", () => {
             name: "demo_lab",
             has_children: true,
             is_system: false,
+            representations: [],
           },
         ],
       } as never)
@@ -177,6 +172,7 @@ describe("bringing rows in from another source", () => {
             has_children: false,
             row_count_estimate: 4,
             is_system: false,
+            representations: [{ kind: "table", title: "View as table" }],
           },
         ],
       } as never)
@@ -186,13 +182,9 @@ describe("bringing rows in from another source", () => {
     await flushPromises()
     wrapper.findComponent(AppSelect).vm.$emit("update:modelValue", "source-1")
     await flushPromises()
-    document.body
-      .querySelector<HTMLElement>('[data-testid="grid-import-node-demo_lab"]')
-      ?.click()
+    document.body.querySelector<HTMLElement>('[data-testid="grid-import-node-demo_lab"]')?.click()
     await flushPromises()
-    document.body
-      .querySelector<HTMLElement>('[data-testid="grid-import-node-tasks"]')
-      ?.click()
+    document.body.querySelector<HTMLElement>('[data-testid="grid-import-node-tasks"]')?.click()
     await flushPromises()
 
     expect(readCatalog.mock.calls.map(([request]) => request.query)).toEqual([

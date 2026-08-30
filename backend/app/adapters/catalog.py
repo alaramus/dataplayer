@@ -3,14 +3,16 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.adapters.content import NodeRepresentation
+
 
 class BaseNode(BaseModel):
     """Fields every catalog node has, whatever the source.
 
-    There are deliberately only three of them. In the old application every
+    There are deliberately only four of them. In the old application every
     node was a plain dict, which let each adapter give a shared key its own
     meaning — `schema` held a database schema name for PostgreSQL and the
-    literal "directory" for S3. Anything beyond these three lives on a node
+    literal "directory" for S3. Anything beyond these four lives on a node
     class of its own.
     """
 
@@ -23,6 +25,9 @@ class BaseNode(BaseModel):
     id: str
     name: str
     has_children: bool
+    # Preferred representation first. Empty means the node can be browsed or
+    # acted on but has no content viewer yet.
+    representations: list[NodeRepresentation]
 
 
 class SchemaNode(BaseNode):
@@ -50,17 +55,11 @@ class DirectoryNode(BaseNode):
     modified_at: datetime | None = None
 
 
-# What a reader can make of a file, decided from its name alone: reading the
-# first bytes of every entry would cost one open per file in a listing.
-ContentKind = Literal["table", "text", "opaque"]
-
-
 class FileNode(BaseNode):
     kind: Literal["file"] = "file"
     has_children: bool = False
     size_bytes: int
     modified_at: datetime | None = None
-    content_kind: ContentKind
 
 
 # Adding a kind means adding a class here. The friction is intended: a key can

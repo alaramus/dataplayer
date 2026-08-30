@@ -51,6 +51,7 @@ from app.adapters.constraints import (
     CreateConstraintResult,
     DropConstraintRequest,
 )
+from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.export import ExportRequest
 from app.adapters.fetch import (
     DownloadPageRequest,
@@ -78,6 +79,7 @@ from app.adapters.protocol import (
     SupportsColumnNullability,
     SupportsColumnType,
     SupportsConnectionString,
+    SupportsContent,
     SupportsConstraints,
     SupportsDelete,
     SupportsDropColumn,
@@ -717,6 +719,40 @@ async def fetch_rows(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         )
+
+
+@router.post("/{connector_id}/content", response_model=ContentResult)
+async def read_content(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: ContentRequest,
+) -> Any:
+    """Read the requested bounded, content-native representation of a node."""
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsContent):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support content viewers",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.read_content(request)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
 
 
 @router.get("/{connector_id}/catalog", response_model=list[CatalogNode])

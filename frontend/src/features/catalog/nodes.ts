@@ -1,4 +1,5 @@
 import type { connectorsReadCatalogResponses } from "@/client"
+import type { NodeRepresentation } from "@/client"
 
 /** One catalog node as the API returns it: a union discriminated by `kind`. */
 export type CatalogNode = connectorsReadCatalogResponses[200][number]
@@ -30,11 +31,13 @@ export interface ListNode {
   role: NodeRole
   kind: CatalogNode["kind"]
   /**
-   * Whether opening this node shows rows. Decided here rather than in a
-   * component: a table and a view have rows, a directory does not, and a file
-   * has them only when something can read it.
+   * Whether opening this node has any view. Decided from the representations
+   * rather than the source type: a directory has none, while a file may have
+   * a native content viewer, a table projection, both, or neither yet.
    */
   readable: boolean
+  /** Every representation, preferred one first, exactly as the source sent it. */
+  representations: NodeRepresentation[]
   describable: boolean
   rowEstimate?: number | null
   /**
@@ -55,10 +58,11 @@ const ICONS: Record<CatalogNode["kind"], string> = {
   file: "insert_drive_file",
 }
 
-const FILE_ICONS: Record<string, string> = {
+const FILE_ICONS: Partial<Record<NodeRepresentation["kind"], string>> = {
   table: "grid_on",
   text: "description",
-  opaque: "insert_drive_file",
+  json: "data_object",
+  jsonl: "format_list_numbered",
 }
 
 const UNITS = ["B", "KB", "MB", "GB", "TB"]
@@ -80,7 +84,9 @@ export function roleOfKind(kind: CatalogNode["kind"]): NodeRole {
 }
 
 function iconOf(node: CatalogNode): string {
-  return node.kind === "file" ? (FILE_ICONS[node.content_kind] ?? ICONS.file) : ICONS[node.kind]
+  if (node.kind !== "file") return ICONS[node.kind]
+  const preferred = node.representations[0]
+  return preferred === undefined ? ICONS.file : (FILE_ICONS[preferred.kind] ?? ICONS.file)
 }
 
 function captionOf(node: CatalogNode): string | undefined {
@@ -110,17 +116,9 @@ function isSystem(node: CatalogNode): boolean {
 }
 
 export function isReadableNode(node: CatalogNode): boolean {
-  switch (node.kind) {
-    case "table":
-    case "view":
-      return true
-    case "file":
-      // A picture or an archive stays visible in the list, but opening it
-      // would only produce an error the user did not ask for.
-      return node.content_kind !== "opaque"
-    default:
-      return false
-  }
+  // Kept as the rows-specific question used by the import dialog. Opening a
+  // catalog node uses the preferred representation instead.
+  return node.representations.some((representation) => representation.kind === "table")
 }
 
 /**
@@ -138,7 +136,8 @@ export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
     icon: iconOf(node),
     role: roleOfKind(node.kind),
     kind: node.kind,
-    readable: isReadableNode(node),
+    readable: node.representations.length > 0,
+    representations: node.representations,
     system: isSystem(node),
     describable: DESCRIBABLE[node.kind],
     // Only a table knows roughly how many rows it holds. A file would have

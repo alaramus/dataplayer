@@ -236,11 +236,40 @@ end-to-end suite.
 
 ### 1.4 File-source depth
 
-- [ ] Give JSON/JSONL a bounded tabular view with deterministic columns.
+- [~] Specify how a readable file declares its available representations and
+  which one opens by default. Opening a catalog node must not imply
+  `SupportsFetch` or a grid: text, structured documents, tabular data and media
+  need different viewers. The source identifies representations; the client
+  chooses a viewer by representation kind, never by connector type or a
+  hard-coded extension table.
+- [~] Give JSON and JSONL a bounded structured-data viewer that preserves the
+  document rather than flattening it into rows. JSON opens as one navigable
+  value; JSONL opens as a bounded sequence of independent values. Invalid or
+  truncated input keeps an honest text representation with a precise parse
+  notice instead of silently becoming a table.
+- [~] Keep a tabular interpretation of JSON/JSONL as an explicit **View as
+  table** representation, offered only when the source can project records.
+  It uses the existing bounded `FetchRequest` and grid after the user asks for
+  it; it is not the file's default viewer. A top-level array supplies records,
+  another top-level value is one record, columns are deterministic for the
+  whole projection, and neither the server nor the client guesses that a key
+  such as `data` contains the table.
+
+The D47 implementation is written but not yet validated. The catalog publishes
+ordered representations for every node; `SupportsContent` and its route carry
+bounded text, JSON and JSONL results separately from `SupportsFetch`; the
+workspace gives every representation its own stable panel; and JSON/text table
+projections remain explicit alternatives. JSON is bounded at 4 MB, text at
+256 KB, and JSONL at 100 records and 4 MB per request and 1 MB per physical
+line.
 - [ ] Add Parquet and XLSX as explicit optional capabilities, with sheet or
-  dataset selection and server-side bounds.
-- [ ] Add download and safe previews for images, audio, video and PDF without
-  loading an unbounded file into the normal row response.
+  dataset selection, format-specific metadata and server-side bounds. Their
+  natural representations may use the grid, but that does not make every file
+  tabular.
+- [ ] Add original-file download and safe, bounded viewers for images, audio,
+  video and PDF. Media bytes travel through a dedicated content path with
+  trustworthy type and size metadata, not through `FetchResult` and not as a
+  whole unbounded value in an ordinary JSON response.
 - [ ] Add archive browsing only after containment, decompression limits and
   symlink behaviour are specified.
 
@@ -251,9 +280,10 @@ end-to-end suite.
 - [ ] Port them one capability at a time as source-specific catalog node kinds
   and declared actions. Do not add PostgreSQL branches to generic screens.
 
-Exit condition for Phase 1: PostgreSQL and files cover the common daily table
-workflow, and remaining old behaviour is classified as a deliberate later
-capability rather than an unknown gap.
+Exit condition for Phase 1: PostgreSQL covers the common daily table workflow;
+files open in a representation appropriate to their content, with a grid only
+where a tabular representation is declared; and remaining old behaviour is
+classified as a deliberate later capability rather than an unknown gap.
 
 ## Phase 2 — share a bounded fetched snapshot
 
@@ -506,11 +536,8 @@ end-to-end suite.
 
 ## Next session
 
-Define the separate destructive relation-creation round before letting a CSV
-become a new table. The reusable operation is not a PostgreSQL-specific upload:
-the target source must publish a create-relation capability, safe column types
-and the replacement node identity, while the existing file source and D43 move
-the bounded rows into it. The spec must settle schema and table naming, name
-conflicts, type inference versus explicit overrides, and rollback when either
-creation or the row move fails. Relation drop remains part of the same
-destructive round but a distinct confirmed command.
+Validate the pending D47 implementation with the approved backend, frontend,
+documentation and end-to-end commands. Fix every failure before marking its
+three roadmap items complete. After that, add original-file download and the
+first bounded media representation on the same contract; Parquet, XLSX and
+archives remain later slices and must not teach the workspace file extensions.
