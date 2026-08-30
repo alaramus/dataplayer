@@ -403,3 +403,64 @@ test("copies a whole row and fills a new one from it", async ({ page, context })
 
   await deleteConnector(page, name)
 })
+
+test("brings rows in from a file in personal storage", async ({ page }) => {
+  const target = `e2e-import-target-${Date.now()}`
+  const source = `e2e-import-source-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, target)
+  await createFileConnector(page, source)
+  await openConnector(page, target)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "tags")
+
+  // Nothing of ours is there yet. By label, because the two the file carries
+  // are named uniquely enough that a test running beside this one cannot make
+  // them appear.
+  await addFilter(page, "label", "equals", "one", false)
+
+  await page.getByTestId("grid-import").click()
+  await page.getByTestId("grid-import-source").click()
+  await page.getByRole("option", { name: source, exact: true }).click()
+  await page.getByTestId("grid-import-node-sample.tsv").click()
+
+  // The file's own columns, paired by hand: nothing is matched silently.
+  // Every pair offers the same source columns, so a menu still closing from
+  // the previous one would swallow the click. Wait for exactly one list.
+  const lists = page.getByRole("listbox")
+  const pair = async (target: string, source: string) => {
+    await expect(lists).toHaveCount(0)
+    await page.getByTestId(`grid-import-pair-${target}`).click()
+    await expect(lists).toHaveCount(1)
+    await page.getByRole("option", { name: source, exact: true }).click()
+    await expect(page.getByTestId(`grid-import-pair-${target}`)).toContainText(source)
+  }
+  await pair("organization_id", "id")
+  await pair("label", "name")
+
+  await page.getByTestId("grid-import-preview").click()
+  await expect(page.getByTestId("grid-import-dialog")).toContainText("one")
+
+  await page.getByTestId("grid-import-run").click()
+  await expect(
+    page.locator(".q-notification", { hasText: "2 rows brought in" })
+  ).toBeVisible()
+
+  // The first of them, through the filter that showed nothing a moment ago.
+  await expect(page.getByTestId("grid-cell-0-label")).toHaveText("one")
+  await page.getByTestId("grid-select-row-0").click()
+  await page.getByTestId("grid-delete").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId("grid-empty")).toBeVisible()
+
+  // And the second, which proves both arrived.
+  await page.getByTestId("grid-filter-clear").click()
+  await addFilter(page, "label", "equals", "two")
+  await page.getByTestId("grid-select-row-0").click()
+  await page.getByTestId("grid-delete").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId("grid-empty")).toBeVisible()
+
+  await deleteConnector(page, target)
+  await deleteConnector(page, source)
+})

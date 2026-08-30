@@ -65,12 +65,18 @@ import type {
   connectorsFollowReferenceData,
   connectorsFollowReferenceErrors,
   connectorsFollowReferenceResponses,
+  connectorsImportRowsData,
+  connectorsImportRowsErrors,
+  connectorsImportRowsResponses,
   connectorsInsertRowData,
   connectorsInsertRowErrors,
   connectorsInsertRowResponses,
   connectorsParseUrlData,
   connectorsParseUrlErrors,
   connectorsParseUrlResponses,
+  connectorsPreviewImportData,
+  connectorsPreviewImportErrors,
+  connectorsPreviewImportResponses,
   connectorsReadActionsData,
   connectorsReadActionsErrors,
   connectorsReadActionsResponses,
@@ -955,6 +961,64 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/rows",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Preview Import
+   *
+   * The first rows as they would arrive, through the pairing that was given.
+   *
+   * It answers "have I paired these columns correctly", and deliberately says
+   * nothing about the target: the move itself checks every value and writes
+   * nothing when one cannot be read, so a second validating call would be the
+   * same answer one step earlier and a second contract to keep in step.
+   */
+  public static previewImport<ThrowOnError extends boolean = true>(
+    options: Options<connectorsPreviewImportData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsPreviewImportResponses,
+      connectorsPreviewImportErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/import/preview",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Import Rows
+   *
+   * Move a bounded set of rows from one source into a relation of another.
+   *
+   * Either every row arrives or none does. A value the target cannot read is
+   * named — row, column and the value itself — and nothing is written. A source
+   * holding more rows than the ceiling is not refused, but the answer says the
+   * rows were cut off.
+   */
+  public static importRows<ThrowOnError extends boolean = true>(
+    options: Options<connectorsImportRowsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsImportRowsResponses,
+      connectorsImportRowsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/import",
       ...options,
       headers: {
         "Content-Type": "application/json",

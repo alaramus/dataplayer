@@ -199,8 +199,25 @@ Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
 frontend type check, lint, unit tests, the documentation check and the whole
 end-to-end suite.
 
-- [ ] Import a bounded CSV into an existing relation with column mapping,
+- [x] Import a bounded CSV into an existing relation with column mapping,
   preview, transaction semantics and a downloadable error report.
+D43 settles the second bullet, and renames it on the way: it is not an import
+of a CSV but a bounded move of rows from any readable source into any source
+that accepts them, with a file in personal storage as the first pair. It is the
+first command naming two connectors, so it lives in `connectors` rather than in
+an adapter, and it checks two permissions. Columns are paired explicitly and
+both sides validated; the target checks every value before writing and names
+the ones it cannot read; one transaction, so a partial import cannot happen.
+
+The downloadable error report the plan asked for is deliberately absent, and
+the entry is marked done anyway: a report of what went wrong part-way only
+means something where part-way exists, and the same information is the answer
+to the request, bounded like everything else.
+
+Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
+frontend type check, lint, unit tests, the documentation check and the whole
+end-to-end suite.
+
 - [ ] Add export scopes beyond the current page only through an adapter-owned
   streaming/export capability; never raise the fetch ceiling to simulate an
   export.
@@ -467,10 +484,9 @@ end-to-end suite.
 
 ## Next session
 
-Continue **Phase 1.3** with importing a bounded CSV into an existing relation.
-The first question is where the file comes from: personal storage already holds
-files and already reads a delimited one as columns (D8), so an import should
-name a node of that source rather than invent a second upload path. The second
-is what a preview promises — D41 checks every value before writing because it
-holds them all, and a file does not fit that; the answer is probably a bounded
-sample checked the same way, and an explicit statement that the rest is not.
+Continue **Phase 1.3** with the third bullet: export scopes beyond the visible
+page. D28 downloads exactly what is on screen and D43 now moves rows the other
+way, so the shape is already half-known — the missing half is that an export
+of a whole relation cannot be held in memory the way an import of 5000 rows
+can. That is the adapter-owned streaming capability the bullet asks for, and it
+is the first place where raising a ceiling is not an option.

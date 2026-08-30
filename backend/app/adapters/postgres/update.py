@@ -22,13 +22,18 @@ from app.adapters.update import (
     DeleteRowsResult,
     InsertRowRequest,
     InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
     RejectedCell,
+    RejectedValue,
     RowConflict,
+    RowsInserted,
     UpdateCellRequest,
     UpdateCellResult,
     UpdateCellsRequest,
     UpdateCellsResult,
     UpdatedRow,
+    ValuesRejected,
 )
 
 
@@ -213,6 +218,55 @@ class PostgresUpdate:
         rows = await self._session.change(statement.as_string(), params)
         values, row_handle = self._result(rows[0], info)
         return InsertRowResult(values=values, row_handle=row_handle)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        schema, table = self._relation_name(request.node_id)
+        info = await self._fetch.relation_info(schema, table)
+        if not info.insert_supported:
+            raise ValueError(info.insert_reason or "This relation cannot accept rows")
+        known = {column.name: column for column in info.columns}
+        targets = []
+        for name in request.columns:
+            column = known.get(name)
+            if column is None:
+                raise ValueError(f'Relation has no column "{name}"')
+            if not column.insertable:
+                raise ValueError(f'Column "{name}" cannot be inserted')
+            targets.append(column)
+
+        # Everything unreadable is named before anything is written, so a move
+        # that cannot arrive whole does not arrive at all.
+        checked: list[tuple[str, str]] = []
+        places: list[tuple[int, str, str]] = []
+        for index, row in enumerate(request.rows):
+            for column, value in zip(targets, row, strict=True):
+                if value is None:
+                    continue
+                checked.append((value, column.type.sql))
+                places.append((index, column.name, value))
+        rejected = await unreadable_values(self._session, checked)
+        if rejected:
+            return ValuesRejected(
+                cells=[
+                    RejectedValue(
+                        row=places[at][0],
+                        column=places[at][1],
+                        value=places[at][2][:100],
+                    )
+                    for at in rejected[:200]
+                ]
+            )
+
+        statement = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+            sql.Identifier(schema, table),
+            sql.SQL(", ").join(sql.Identifier(column.name) for column in targets),
+            sql.SQL(", ").join(sql.Placeholder() for _ in targets),
+        )
+        async with self._session.transaction(refusals=VALUE_REFUSALS) as work:
+            await work.change_many(
+                statement.as_string(), [tuple(row) for row in request.rows]
+            )
+        return RowsInserted(inserted=len(request.rows))
 
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
         schema, table = self._relation_name(request.node_id)

@@ -98,13 +98,15 @@ from app.adapters.update import (
     DeleteRowsResult,
     InsertRowRequest,
     InsertRowResult,
+    InsertRowsRequest,
     RowConflict,
+    RowsInserted,
     UpdateCellRequest,
     UpdateCellResult,
     UpdateCellsRequest,
     UpdateCellsResult,
 )
-from app.connectors import crud, downloads, health, service
+from app.connectors import crud, downloads, health, imports, service
 from app.connectors.models import (
     Connector,
     ConnectorCreate,
@@ -962,6 +964,151 @@ async def delete_rows(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         ) from exc
+
+
+async def _import_sides(
+    session: SessionDep,
+    connector_id: uuid.UUID,
+    request: imports.ImportRowsRequest,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+) -> tuple[DataAdapter, SupportsFetch]:
+    """The two connectors this command names, each with its own permission.
+
+    Writing into the target and reading the source are separate grants (D33),
+    and neither implies the other.
+    """
+    try:
+        source_id = uuid.UUID(request.source_connector_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", "source_connector_id"],
+                    "msg": "That is not a connector id",
+                    "type": "value_error",
+                }
+            ],
+        ) from None
+    target = await _adapter_for(
+        session, connector_id, current_user, resources, requires="write"
+    )
+    source = await _adapter_for(
+        session, source_id, current_user, resources, requires="read"
+    )
+    if not isinstance(source, SupportsFetch):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "That source cannot be read as rows",
+                "error_kind": "config",
+            },
+        )
+    return target, source
+
+
+async def _read_for_import(
+    source: SupportsFetch, request: imports.ImportRowsRequest, ceiling: int
+) -> imports.ReadRows:
+    try:
+        return await imports.read_rows(
+            source, request.source_node_id, request.columns, ceiling
+        )
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.post("/{connector_id}/import/preview", response_model=imports.ImportPreview)
+async def preview_import(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: imports.ImportRowsRequest,
+) -> Any:
+    """
+    The first rows as they would arrive, through the pairing that was given.
+
+    It answers "have I paired these columns correctly", and deliberately says
+    nothing about the target: the move itself checks every value and writes
+    nothing when one cannot be read, so a second validating call would be the
+    same answer one step earlier and a second contract to keep in step.
+    """
+    _, source = await _import_sides(
+        session, connector_id, request, current_user, resources
+    )
+    read = await _read_for_import(source, request, imports.PREVIEW_ROWS)
+    return imports.ImportPreview(
+        columns=read.columns, rows=read.rows, more=read.truncated
+    )
+
+
+@router.post("/{connector_id}/import", response_model=imports.RowsMoved)
+async def import_rows(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: imports.ImportRowsRequest,
+) -> Any:
+    """
+    Move a bounded set of rows from one source into a relation of another.
+
+    Either every row arrives or none does. A value the target cannot read is
+    named — row, column and the value itself — and nothing is written. A source
+    holding more rows than the ceiling is not refused, but the answer says the
+    rows were cut off.
+    """
+    target, source = await _import_sides(
+        session, connector_id, request, current_user, resources
+    )
+    if not isinstance(target, SupportsInsert):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source cannot accept rows",
+                "error_kind": "config",
+            },
+        )
+    read = await _read_for_import(source, request, imports.IMPORT_CEILING)
+    if not read.rows:
+        return imports.RowsMoved(inserted=0, truncated=False)
+    result = await _shape_change(
+        lambda: target.insert_rows(
+            InsertRowsRequest(
+                node_id=request.node_id, columns=read.columns, rows=read.rows
+            )
+        )
+    )
+    if not isinstance(result, RowsInserted):
+        # Named values that could not be read, with nothing written. A 422
+        # rather than an answer, because unlike the counts of D37 this is a
+        # request that cannot be carried out as given.
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", "rows", cell.row, cell.column],
+                    "msg": f"{cell.value!r} cannot be read by {cell.column}",
+                    "type": "value_error",
+                }
+                for cell in result.cells
+            ],
+        )
+    await data_cache.invalidate_connector(connector_id)
+    return imports.RowsMoved(inserted=result.inserted, truncated=read.truncated)
 
 
 @router.post("/{connector_id}/references", response_model=ReferenceTarget)

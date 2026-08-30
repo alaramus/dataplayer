@@ -681,6 +681,52 @@ Known deviations:
 - **`ctid` never leaves the handle.** It is not offered as a column to filter
   or sort by.
 
+## D43. Rows move between two sources through the platform, bounded, and all or none
+
+The first command that names two connectors: the relation being written and the
+node being read. It lives in the `connectors` module rather than in an adapter,
+because an adapter knows itself and nothing else, and asking one to read
+another would be the first crack in that. Two connectors mean two permissions,
+checked separately against the grants of D33 — writing rows into the target,
+reading the node in the source. Neither implies the other.
+
+It is not an import of a file. The file source is one readable source among
+several and the relation is one writable target among several; everything
+between them — a bounded read, a mapping of names, a lossless text cell (D23),
+an all-or-nothing write — belongs to neither.
+
+The read has a ceiling of 5000 rows and pages the source at its own limit to
+reach it. More than that is not refused, since that would make the command
+useless for what it exists for, but the answer says the rows were cut off.
+Anything larger is a durable job with progress and cancellation, which is
+Phase 4; raising the number would only move where the request times out.
+
+Columns are paired explicitly, a source column to a target column, and both
+sides are validated against what each says it has before anything is read.
+Matching by position or by equal names would turn a wrong import into one that
+looks right.
+
+The target checks every value against its column's type before writing — the
+same pass D41 makes — and answers with the cells that cannot be read: row,
+column and the value itself, cut short. The value is echoed because it is the
+reader's own file content and because naming a cell without it sends them
+hunting. Then one transaction. A partial import is impossible, which is why
+there is no downloadable error report: a report of what went wrong part-way
+only means something where part-way exists.
+
+`preview` reads the first rows through the same mapping and hands them back. It
+answers "have I paired these columns correctly", which is the mistake that
+actually happens; it deliberately does not validate against the target, since
+the import does that and writes nothing when it fails.
+
+Known deviations:
+
+- **No transformation.** A value crosses as the text the source gave or it does
+  not cross. Trimming, date formats and decimal separators need a vocabulary.
+- **No new relation, no upsert, no key matching.** The target exists and rows
+  are inserted; creating a relation from a header is the destructive round
+  Phase 1.2 deferred.
+
 ## D31. A source opts into bounded read caching, and a successful mutation drops what it cached
 
 `DataCache` belongs to the application lifespan beside the resource store. Its

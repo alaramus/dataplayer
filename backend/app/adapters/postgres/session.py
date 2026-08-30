@@ -1,6 +1,6 @@
 import asyncio
 import time
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
 from urllib.parse import quote
@@ -163,6 +163,20 @@ class Transaction:
     ) -> list[dict[str, Any]]:
         cursor = await self._connection.cursor(row_factory=dict_row).execute(sql, params)
         return await cursor.fetchall()
+
+    async def change_many(
+        self, sql: str, rows: Sequence[tuple[object, ...]]
+    ) -> None:
+        """One statement, run for every row, pipelined by the driver.
+
+        Not one statement with a row list in it: PostgreSQL resolves the types
+        of the parameters in a multi-row VALUES from the list itself, so text
+        stays text and assigning it to an integer column is refused. A
+        single-row VALUES is resolved against the target's own columns
+        instead, which is the coercion every other write in this adapter
+        relies on.
+        """
+        await self._connection.cursor().executemany(sql, rows)
 
 
 class PostgresSession:

@@ -35,6 +35,8 @@ from app.adapters.update import (
     DeleteRowsResult,
     InsertRowRequest,
     InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
     UpdateCellRequest,
     UpdateCellResult,
     UpdateCellsRequest,
@@ -198,6 +200,19 @@ class SupportsUpdate(Protocol):
 class SupportsInsert(Protocol):
     async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
         """Insert one row while leaving omitted values to the source."""
+        ...
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        """Insert a block of rows, or none of them.
+
+        Part of the same capability rather than its own, for the reason
+        `update_cells` is part of `SupportsUpdate`: a source that can accept a
+        row can accept five thousand, and splitting them would be a
+        distinction with no source behind it.
+
+        Answers rather than raises when a value cannot be read as its column's
+        type, naming those cells and writing nothing.
+        """
         ...
 
 

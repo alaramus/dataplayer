@@ -67,6 +67,61 @@ class UpdateCellsRequest(BaseModel):
         return self
 
 
+class InsertRowsRequest(BaseModel):
+    """A block of rows for one relation, values in the order of `columns`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+    columns: Annotated[list[str], Field(min_length=1, max_length=100)]
+    rows: Annotated[list[list[str | None]], Field(min_length=1, max_length=5000)]
+
+    @model_validator(mode="after")
+    def rectangular_and_distinct(self) -> InsertRowsRequest:
+        if len(self.columns) != len(set(self.columns)):
+            raise ValueError("A column may be filled only once")
+        width = len(self.columns)
+        if any(len(row) != width for row in self.rows):
+            raise ValueError("Every row carries one value per column")
+        if width * len(self.rows) > 50_000:
+            raise ValueError("A single move may carry at most 50000 values")
+        return self
+
+
+class RejectedValue(BaseModel):
+    """A value the target column cannot read, and enough to go and find it.
+
+    The value travels back, cut short, because it is the reader's own content
+    and because naming a row and a column without it sends them hunting.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    row: int
+    column: str
+    value: str | None
+
+
+class RowsInserted(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["inserted"] = "inserted"
+    inserted: int
+
+
+class ValuesRejected(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["rejected"] = "rejected"
+    cells: list[RejectedValue]
+
+
+InsertRowsResult = Annotated[
+    RowsInserted | ValuesRejected,
+    Field(discriminator="kind"),
+]
+
+
 class UpdatedRow(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

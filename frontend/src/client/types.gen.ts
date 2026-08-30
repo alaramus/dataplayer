@@ -412,6 +412,22 @@ export type ColumnNullabilityRequest = {
 }
 
 /**
+ * ColumnPair
+ *
+ * One column of the source, and the column of the target it fills.
+ */
+export type ColumnPair = {
+  /**
+   * Source
+   */
+  source: string
+  /**
+   * Target
+   */
+  target: string
+}
+
+/**
  * ColumnType
  *
  * A type's DDL spelling and its value semantics.
@@ -1315,6 +1331,48 @@ export type HTTPValidationError = {
 }
 
 /**
+ * ImportPreview
+ *
+ * The first rows as they would arrive, and nothing about the target.
+ */
+export type ImportPreview = {
+  /**
+   * Columns
+   */
+  columns: Array<string>
+  /**
+   * Rows
+   */
+  rows: Array<Array<string | null>>
+  /**
+   * More
+   */
+  more: boolean
+}
+
+/**
+ * ImportRowsRequest
+ */
+export type ImportRowsRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Source Connector Id
+   */
+  source_connector_id: string
+  /**
+   * Source Node Id
+   */
+  source_node_id: string
+  /**
+   * Columns
+   */
+  columns: Array<ColumnPair>
+}
+
+/**
  * InFilter
  */
 export type InFilter = {
@@ -1948,6 +2006,24 @@ export type RowEdit = {
    * Cells
    */
   cells: Array<CellEdit>
+}
+
+/**
+ * RowsMoved
+ */
+export type RowsMoved = {
+  /**
+   * Kind
+   */
+  kind?: "moved"
+  /**
+   * Inserted
+   */
+  inserted: number
+  /**
+   * Truncated
+   */
+  truncated: boolean
 }
 
 /**
@@ -3411,6 +3487,69 @@ export type connectorsInsertRowResponses = {
 
 export type connectorsInsertRowResponse =
   connectorsInsertRowResponses[keyof connectorsInsertRowResponses]
+
+export type connectorsPreviewImportData = {
+  body: ImportRowsRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/import/preview"
+}
+
+export type connectorsPreviewImportErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsPreviewImportError =
+  connectorsPreviewImportErrors[keyof connectorsPreviewImportErrors]
+
+export type connectorsPreviewImportResponses = {
+  /**
+   * Successful Response
+   */
+  200: ImportPreview
+}
+
+export type connectorsPreviewImportResponse =
+  connectorsPreviewImportResponses[keyof connectorsPreviewImportResponses]
+
+export type connectorsImportRowsData = {
+  body: ImportRowsRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/import"
+}
+
+export type connectorsImportRowsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsImportRowsError = connectorsImportRowsErrors[keyof connectorsImportRowsErrors]
+
+export type connectorsImportRowsResponses = {
+  /**
+   * Successful Response
+   */
+  200: RowsMoved
+}
+
+export type connectorsImportRowsResponse =
+  connectorsImportRowsResponses[keyof connectorsImportRowsResponses]
 
 export type connectorsFollowReferenceData = {
   body: FollowReferenceRequest

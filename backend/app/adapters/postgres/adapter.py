@@ -53,6 +53,8 @@ from app.adapters.update import (
     DeleteRowsResult,
     InsertRowRequest,
     InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
     UpdateCellRequest,
     UpdateCellResult,
     UpdateCellsRequest,
@@ -170,6 +172,9 @@ class PostgresAdapter:
 
     async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
         return await self._update.insert_row(request)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._update.insert_rows(request)
 
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
         return await self._update.delete_rows(request)

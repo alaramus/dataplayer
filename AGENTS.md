@@ -97,6 +97,9 @@ included; the spec index lists the older titles in translation.
   renders lossless values by type with a full-value viewer. PostgreSQL cells in
   keyed tables can be edited with optimistic conflict detection; rows can be
   inserted with defaults preserved and selected rows deleted atomically.
+- A bounded set of rows moves from one connection into a relation of another —
+  a file in personal storage into a table — paired column by column, previewed
+  first, and either all of it arrives or none of it does.
 - Any bounded grid page can open as a line, bar or pie chart beside its rows;
   the page boundary is explicit and field suggestions stay in the browser.
 - A foreign key in the grid leads to the rows it names: the source says where
@@ -155,6 +158,7 @@ and the known deviations live there.
 | D40 | A relation publishes what may point at it, and a constraint is a promise the data can refuse | [adapters](docs/architecture/adapters.md) |
 | D41 | A block of cells is one versioned, all-or-nothing edit, and unreadable values are named first | [adapters](docs/architecture/adapters.md) |
 | D42 | A source names a row by whatever it can version, and the order of a page is part of the answer | [adapters](docs/architecture/adapters.md) |
+| D43 | Rows move between two sources through the platform, bounded, and all or none | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -389,5 +393,5 @@ vocabulary and dependency behaviour are specified; this is not a generic SQL edi
 Phases 1.1 and 1.2 are done — navigating by a foreign key, column nullability
 (D37), column type (D38), indexes (D39) and constraints (D40) — except for
 relation creation and drop, which stays a separate destructive round. Phase 1.3
-has begun: pasting a block of cells (D41) is done, and importing a bounded CSV
-is next.
+is under way: pasting a block of cells (D41) and moving rows between sources
+(D43) are done, and export scopes beyond the visible page are next.

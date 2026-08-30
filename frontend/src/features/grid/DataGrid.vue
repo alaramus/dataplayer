@@ -36,6 +36,7 @@ import {
 import {
   useDeleteRows,
   useDownloadPage,
+  useImportRows,
   useFollowReference,
   useForgetRowsPage,
   useInsertRow,
@@ -50,6 +51,7 @@ import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
 import { filenameFromDisposition, saveBrowserDownload } from "./download"
 import GridHeader from "./GridHeader.vue"
+import ImportDialog from "./ImportDialog.vue"
 import RowInsertRow from "./RowInsertRow.vue"
 import type { InsertGridColumn } from "./RowInsertRow.vue"
 import { cellPresentation, shouldOpenViewer, toGridRows } from "./model"
@@ -148,12 +150,15 @@ const editor = ref<{
 } | null>(null)
 const editError = ref("")
 const insertOpen = ref(false)
+const importOpen = ref(false)
+const importError = ref("")
 const insertError = ref("")
 const updateCell = useUpdateCell(toRef(props, "connectorId"))
 const updateCells = useUpdateCells(toRef(props, "connectorId"))
 const insertRow = useInsertRow(toRef(props, "connectorId"))
 const deleteRows = useDeleteRows(toRef(props, "connectorId"))
 const downloadPage = useDownloadPage(toRef(props, "connectorId"))
+const importRows = useImportRows(toRef(props, "connectorId"))
 const followReference = useFollowReference(toRef(props, "connectorId"))
 const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
 const gridFocus = useTemplateRef<HTMLElement>("gridFocus")
@@ -502,6 +507,39 @@ async function pasteSelection() {
  * cannot be dictated — those values are named as left out rather than
  * silently dropped.
  */
+const importColumns = computed(() =>
+  (result.value?.columns ?? []).filter((column) => column.insertable === true)
+)
+
+function openImport() {
+  importError.value = ""
+  importOpen.value = true
+}
+
+async function bringIn(value: {
+  connectorId: string
+  nodeId: string
+  columns: { source: string; target: string }[]
+}) {
+  importError.value = ""
+  try {
+    const answer = await importRows.mutateAsync({
+      node_id: props.nodeId,
+      source_connector_id: value.connectorId,
+      source_node_id: value.nodeId,
+      columns: value.columns,
+    })
+    importOpen.value = false
+    toast.success(
+      answer.truncated
+        ? `${answer.inserted} rows brought in; the source held more`
+        : `${answer.inserted} rows brought in`
+    )
+  } catch (error) {
+    importError.value = messageOf(error, "Could not bring those rows in")
+  }
+}
+
 async function pasteIntoInsert() {
   let text = ""
   try {
@@ -943,6 +981,7 @@ defineExpose({
       :can-copy="canCopy"
       :can-paste="canPaste"
       :can-insert="canInsert"
+      :can-import="canInsert && importColumns.length > 0"
       :insert-reason="result?.insert_reason ?? undefined"
       :can-delete="canDelete"
       :delete-reason="deleteReason"
@@ -958,6 +997,7 @@ defineExpose({
       @copy="copySelection"
       @paste="pasteSelection"
       @insert="openInsert"
+      @bring-in="openImport"
       @delete="deleteSelection"
       @download="downloadVisiblePage"
       @describe="emit('describe')"
@@ -1184,6 +1224,17 @@ defineExpose({
       :type-sql="viewer.typeSql"
       :value="viewer.value"
       @update:model-value="viewer = null"
+    />
+    <ImportDialog
+      v-if="importOpen"
+      :model-value="true"
+      :connector-id="connectorId"
+      :node-id="nodeId"
+      :target-columns="importColumns"
+      :running="importRows.isPending.value"
+      :error="importError"
+      @run="bringIn"
+      @update:model-value="importOpen = false"
     />
     <CellEditorDialog
       v-if="editor !== null"

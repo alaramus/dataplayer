@@ -10,6 +10,7 @@ import type {
   FetchResult,
   FollowReferenceRequest,
   InsertRowRequest,
+  ImportRowsRequest,
   UpdateCellRequest,
   UpdateCellsRequest,
 } from "@/client"
@@ -164,6 +165,22 @@ export function useDownloadPage(connectorId: Ref<string>) {
         blob: response.data,
         disposition: response.headers["content-disposition"] as string | undefined,
       }
+    },
+  })
+}
+
+export function useImportRows(connectorId: Ref<string>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: ImportRowsRequest) =>
+      (
+        await ConnectorsService.importRows({
+          path: { connector_id: connectorId.value },
+          body,
+        })
+      ).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["rows", connectorId.value] })
     },
   })
 }

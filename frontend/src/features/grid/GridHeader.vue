@@ -21,6 +21,7 @@ const props = defineProps<{
   canCopy?: boolean
   canPaste?: boolean
   canInsert?: boolean
+  canImport?: boolean
   insertReason?: string
   canDelete?: boolean
   deleteReason?: string
@@ -38,6 +39,7 @@ const emit = defineEmits<{
   copy: []
   paste: []
   insert: []
+  bringIn: []
   delete: []
   download: []
   describe: []
@@ -121,6 +123,15 @@ function selectPageSize(value: unknown) {
           :disable="!canCopy"
           data-testid="grid-copy"
           @click="emit('copy')"
+        />
+        <AppButton
+          label="Bring in"
+          icon="input"
+          variant="quiet"
+          size="sm"
+          :disable="!canImport"
+          data-testid="grid-import"
+          @click="emit('bringIn')"
         />
         <AppButton
           label="Paste"
