@@ -160,11 +160,11 @@ async def test_the_table_is_named_after_the_file_unless_one_is_typed(
 ) -> None:
     source = adapter()
 
-    await _load(source, schema, Upload(b"a\n1\n", filename="regions.csv"))
+    await _load(source, schema, Upload(b"a\n1\n", filename="loaded_regions.csv"))
     await _load(source, schema, Upload(b"a\n1\n"), name="chosen")
 
     names = {node.name for node in await source.list_children(schema)}
-    assert {"regions", "chosen"} <= names
+    assert {"loaded_regions", "chosen"} <= names
 
 
 async def test_a_tab_separated_file_is_read_by_its_name(schema: str) -> None:

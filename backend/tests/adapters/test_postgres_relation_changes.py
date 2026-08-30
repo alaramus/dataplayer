@@ -117,7 +117,9 @@ async def test_an_unknown_type_code_is_refused_before_anything_is_built(
 ) -> None:
     with pytest.raises(ValueError) as refusal:
         await _adapter().create_relation(
-            _request(schema, columns=[NewColumn(name="sku", type_code="money")])
+            _request(
+                schema, columns=[NewColumn(name="sku", type_code="money")], rows=[]
+            )
         )
 
     assert "money" in str(refusal.value)
@@ -132,7 +134,11 @@ async def test_an_identifier_longer_than_the_source_keeps_is_refused(
     # refusing — so the column would end up under a name nobody chose.
     with pytest.raises(ValueError) as refusal:
         await _adapter().create_relation(
-            _request(schema, columns=[NewColumn(name="я" * 63, type_code="text")])
+            _request(
+                schema,
+                columns=[NewColumn(name="я" * 63, type_code="text")],
+                rows=[],
+            )
         )
 
     assert "63 bytes" in str(refusal.value)

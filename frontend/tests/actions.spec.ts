@@ -185,7 +185,9 @@ test("loads a CSV into the schema being looked at", async ({ page }) => {
   // One schema on, because one file makes one table: with two places ticked
   // the action greys out the way renaming two folders does.
   await showOnlySchema(page, "demo_lab", "public")
-  await expect(catalogRow(page, "audit_events")).toBeVisible()
+  // By the grouping rather than by a table in it: the scenario above renames
+  // one while this runs, and the schema is what this test is standing in.
+  await expect(page.getByTestId("catalog-groups")).toContainText("demo_lab")
 
   // The button is in the menu because the source declares the action; nothing
   // in the catalog knows what PostgreSQL is.

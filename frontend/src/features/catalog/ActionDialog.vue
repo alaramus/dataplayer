@@ -221,12 +221,14 @@ async function submit() {
         data-testid="action-preview"
       >
         <div>{{ preview.summary }}</div>
+        <!-- The list is optional in the answer: a source with nothing to add
+             says its sentence and stops there. -->
         <ul
-          v-if="preview.items.length"
+          v-if="preview.items?.length"
           class="action-dialog__consequences"
         >
           <li
-            v-for="item in preview.items"
+            v-for="item in preview.items ?? []"
             :key="item"
           >
             {{ item }}
