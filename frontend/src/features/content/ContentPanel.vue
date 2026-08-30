@@ -92,7 +92,11 @@ function next() {
       />
     </div>
 
-    <AppBanner v-if="error" tone="error" data-testid="content-error">
+    <AppBanner
+      v-if="error"
+      tone="error"
+      data-testid="content-error"
+    >
       {{ error }}
     </AppBanner>
 
@@ -108,18 +112,28 @@ function next() {
         {{ notice }}
       </AppBanner>
 
-      <div v-if="content.data.value.kind === 'text'" class="content-panel__body">
+      <div
+        v-if="content.data.value.kind === 'text'"
+        class="content-panel__body"
+      >
         <pre
           class="content-panel__source"
           data-testid="text-content"
           v-text="content.data.value.text"
         />
-        <AppBanner v-if="content.data.value.truncated" tone="info" class="content-panel__bounded">
+        <AppBanner
+          v-if="content.data.value.truncated"
+          tone="info"
+          class="content-panel__bounded"
+        >
           This preview stops after the first bounded part of the file.
         </AppBanner>
       </div>
 
-      <div v-else-if="content.data.value.kind === 'json'" class="content-panel__body">
+      <div
+        v-else-if="content.data.value.kind === 'json'"
+        class="content-panel__body"
+      >
         <JsonValueView
           v-if="content.data.value.value"
           :value="content.data.value.value"
@@ -131,12 +145,20 @@ function next() {
           data-testid="json-source"
           v-text="content.data.value.source_text ?? ''"
         />
-        <AppBanner v-if="content.data.value.truncated" tone="info" class="content-panel__bounded">
+        <AppBanner
+          v-if="content.data.value.truncated"
+          tone="info"
+          class="content-panel__bounded"
+        >
           This source preview is truncated.
         </AppBanner>
       </div>
 
-      <div v-else class="content-panel__jsonl" data-testid="jsonl-content">
+      <div
+        v-else
+        class="content-panel__jsonl"
+        data-testid="jsonl-content"
+      >
         <AppEmptyState
           v-if="content.data.value.items.length === 0"
           text="No JSON values on this page"
@@ -146,12 +168,24 @@ function next() {
           :key="item.line_number"
           class="content-panel__record"
         >
-          <div class="content-panel__line">Line {{ item.line_number }}</div>
-          <AppBanner v-if="item.notice" tone="warning">
+          <div class="content-panel__line">
+            Line {{ item.line_number }}
+          </div>
+          <AppBanner
+            v-if="item.notice"
+            tone="warning"
+          >
             {{ item.notice }}
           </AppBanner>
-          <JsonValueView v-if="item.value" :value="item.value" />
-          <pre v-else class="content-panel__source" v-text="item.source_text ?? ''" />
+          <JsonValueView
+            v-if="item.value"
+            :value="item.value"
+          />
+          <pre
+            v-else
+            class="content-panel__source"
+            v-text="item.source_text ?? ''"
+          />
         </article>
         <div class="content-panel__pager">
           <AppButton

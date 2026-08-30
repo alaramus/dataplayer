@@ -42,7 +42,10 @@ function showMore() {
 
 <template>
   <div class="json-value">
-    <div v-if="value.kind === 'object' || value.kind === 'array'" class="json-value__branch">
+    <div
+      v-if="value.kind === 'object' || value.kind === 'array'"
+      class="json-value__branch"
+    >
       <div
         role="button"
         tabindex="0"
@@ -53,14 +56,21 @@ function showMore() {
         @keydown.space.prevent="toggle"
       >
         <q-icon :name="expanded ? 'expand_more' : 'chevron_right'" />
-        <span v-if="label !== undefined" class="json-value__key">{{ quoted(label) }}:</span>
+        <span
+          v-if="label !== undefined"
+          class="json-value__key"
+        >{{ quoted(label) }}:</span>
         <span>{{ value.kind === "object" ? "{" : "[" }}</span>
-        <span v-if="!expanded" class="json-value__count"
-          >{{ count }} {{ count === 1 ? "item" : "items" }}</span
-        >
+        <span
+          v-if="!expanded"
+          class="json-value__count"
+        >{{ count }} {{ count === 1 ? "item" : "items" }}</span>
       </div>
 
-      <div v-if="expanded" class="json-value__children">
+      <div
+        v-if="expanded"
+        class="json-value__children"
+      >
         <template v-if="value.kind === 'object'">
           <JsonValueView
             v-for="(entry, index) in objectEntries"
@@ -89,13 +99,22 @@ function showMore() {
         />
       </div>
 
-      <div v-if="expanded" class="json-value__closing">
+      <div
+        v-if="expanded"
+        class="json-value__closing"
+      >
         {{ value.kind === "object" ? "}" : "]" }}
       </div>
     </div>
 
-    <div v-else class="json-value__scalar">
-      <span v-if="label !== undefined" class="json-value__key">{{ quoted(label) }}:</span>
+    <div
+      v-else
+      class="json-value__scalar"
+    >
+      <span
+        v-if="label !== undefined"
+        class="json-value__key"
+      >{{ quoted(label) }}:</span>
       <span :class="`json-value__${value.kind}`">{{ scalarText(value) }}</span>
     </div>
   </div>

@@ -442,6 +442,9 @@ provide(workspaceActionsKey, {
 
     <WorkspaceRoot :context="workspace.context" />
 
-    <AdapterCatalogDialog v-model="catalogOpen" @pick="pickAdapterType" />
+    <AdapterCatalogDialog
+      v-model="catalogOpen"
+      @pick="pickAdapterType"
+    />
   </AppLayout>
 </template>

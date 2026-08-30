@@ -235,7 +235,11 @@ async function afterAction(outcome: ActionOutcome) {
              of a path means is "back to the top". Whether it is drawn at all
              follows from what the level holds and never from the type of the
              source: see `showsPath` in `nodes.ts`. -->
-        <div v-if="showPath" class="catalog-panel__crumbs" data-testid="catalog-path">
+        <div
+          v-if="showPath"
+          class="catalog-panel__crumbs"
+          data-testid="catalog-path"
+        >
           <AppIconButton
             icon="home"
             tooltip="The top of this connection"
@@ -247,8 +251,15 @@ async function afterAction(outcome: ActionOutcome) {
                enough to run out of the column must not carry away the one
                step that always gets back. -->
           <div class="catalog-panel__trail">
-            <template v-for="(crumb, index) in level.path.value.slice(1)" :key="index">
-              <q-icon name="chevron_right" size="14px" class="catalog-panel__chevron" />
+            <template
+              v-for="(crumb, index) in level.path.value.slice(1)"
+              :key="index"
+            >
+              <q-icon
+                name="chevron_right"
+                size="14px"
+                class="catalog-panel__chevron"
+              />
               <span
                 class="catalog-panel__crumb"
                 :class="{ 'catalog-panel__crumb--last': index === level.path.value.length - 2 }"
@@ -256,8 +267,7 @@ async function afterAction(outcome: ActionOutcome) {
                 tabindex="0"
                 @click="level.goTo(index + 1)"
                 @keydown.enter="level.goTo(index + 1)"
-                >{{ crumb.label }}</span
-              >
+              >{{ crumb.label }}</span>
             </template>
           </div>
         </div>
@@ -305,7 +315,11 @@ async function afterAction(outcome: ActionOutcome) {
       />
     </div>
 
-    <AppBanner v-if="level.error.value" tone="error" data-testid="catalog-error">
+    <AppBanner
+      v-if="level.error.value"
+      tone="error"
+      data-testid="catalog-error"
+    >
       {{ level.error.value }}
     </AppBanner>
 
