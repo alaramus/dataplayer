@@ -114,6 +114,6 @@ one name does: one file is one table, and `bulk` is what says so.
 - **Nothing but a name.** No types in the form, no NOT NULL, no default, no key
   and no index. Each of those already has a command against an existing
   relation, and each answers with what stands in its way.
-- **A taken name is refused, never replaced**, and nothing is dropped. Removing
-  a relation is the destructive round, still separate.
+- **A taken name is refused, never replaced**, and nothing is dropped here.
+  Removing a relation is D46, which asks first.
 - **No transformation**, as in D43: a value crosses as the text the file held.

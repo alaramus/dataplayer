@@ -3,7 +3,7 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
-import type { ActionResult } from "@/client"
+import type { ActionPreview, ActionResult } from "@/client"
 import { messageOf } from "@/shared/api/errors"
 import { reloadedBy } from "./actions"
 import type { ActionFailure, ActionOutcome } from "./actions"
@@ -182,5 +182,30 @@ export function useRunAction() {
       }
       await queryClient.invalidateQueries({ queryKey: ["actions", input.connectorId] })
     },
+  })
+}
+
+/**
+ * Ask one action what it would do, without doing it.
+ *
+ * A mutation although it changes nothing, for the reason following a
+ * reference is one: it is asked as a form is filled in, its answer is shown
+ * once beside that form and never read again, so there is nothing for a cache
+ * key to be about.
+ */
+export function usePreviewAction() {
+  return useMutation({
+    mutationFn: async (input: {
+      connectorId: string
+      name: string
+      nodeId: string | null
+      params: Record<string, unknown>
+    }): Promise<ActionPreview> =>
+      (
+        await ConnectorsService.previewAction({
+          path: { connector_id: input.connectorId, action_name: input.name },
+          body: { node_id: input.nodeId, params: input.params },
+        })
+      ).data,
   })
 }

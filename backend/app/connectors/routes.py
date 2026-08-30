@@ -11,9 +11,11 @@ from starlette.responses import FileResponse
 
 from app.adapters.actions import (
     Action,
+    ActionPreview,
     ActionRefused,
     ActionResult,
     ActsOn,
+    Previews,
     RefusalReason,
     SupportsActions,
     TakesFile,
@@ -1732,6 +1734,9 @@ class ActionInfo(BaseModel):
     # Derived from the action itself rather than declared beside it: a flag and
     # an implementation can disagree, an isinstance check cannot.
     takes_file: bool
+    # Whether it can be asked what it would do before it is done. Derived the
+    # same way, and for the same reason.
+    previews: bool
     # What the action changes, so a client knows what to send it: the nodes
     # that were ticked, or the level they are in.
     acts_on: ActsOn
@@ -1772,6 +1777,7 @@ def _describe(action: Action[Any], *, applicable: bool) -> ActionInfo:
         title=action.title,
         destructive=action.destructive,
         takes_file=isinstance(action, TakesFile),
+        previews=isinstance(action, Previews),
         acts_on=action.acts_on,
         applicable=applicable,
         params_schema=action.params_schema(),
@@ -1848,7 +1854,7 @@ def _allowed_or_403(action: Action[Any], access: Access) -> None:
         )
 
 
-async def _perform(run: Callable[[], Awaitable[ActionResult]]) -> ActionResult:
+async def _perform[T](run: Callable[[], Awaitable[T]]) -> T:
     try:
         return await run()
     except NodeNotFound as exc:
@@ -1953,6 +1959,46 @@ async def run_action(
         data_cache,
         connector_id,
     )
+
+
+@router.post(
+    "/{connector_id}/actions/{action_name}/preview", response_model=ActionPreview
+)
+async def preview_action(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    action_name: str,
+    body: ActionRequest,
+) -> Any:
+    """
+    What one action would do, without doing it.
+
+    Asked again whenever the form changes, because the answer depends on the
+    parameters — a cascade takes things with it that a plain drop does not.
+    Nothing is written and nothing the connector cached is dropped: this is a
+    question, and the source answers it in its own words.
+
+    It needs the level the action itself needs. Reading what a drop would
+    destroy is not a lesser thing than the drop for anyone deciding whether it
+    is safe, and the answer names objects the caller may not otherwise see.
+    """
+    adapter, access = await _adapter_and_access(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    target = body.node_id or None
+    action = await _action_for_node(_acting_or_501(adapter), action_name, target)
+    _allowed_or_403(action, access)
+    if not isinstance(action, Previews):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": f"{action.title} cannot say what it would do first",
+                "error_kind": "config",
+            },
+        )
+    return await _perform(lambda: action.preview(target, body.params))
 
 
 @router.post("/{connector_id}/actions/{action_name}/file", response_model=ActionResult)

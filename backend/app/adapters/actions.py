@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator, Mapping, Sequence
 from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.catalog import NodeKind
 from app.core.access import Access
@@ -175,6 +175,50 @@ class TakesFile(Protocol):
     async def perform_with_file(
         self, node_id: str | None, raw: Mapping[str, Any], payload: FilePayload
     ) -> ActionResult: ...
+
+
+class ActionPreview(BaseModel):
+    """What an action would do, asked of the source before it is done.
+
+    Every line of it is the source's own answer. The screen renders a sentence
+    and a list and knows nothing about what is being previewed — which is what
+    lets one dialog show the consequences of a cascade without any part of the
+    client learning what a cascade is.
+
+    Asked again whenever the form changes, because the answer depends on the
+    parameters: the whole point of it is that ticking a box changes what would
+    happen.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # One sentence about the whole thing.
+    summary: str
+    # A line per thing that would happen, in the source's words.
+    items: list[str] = Field(default_factory=list)
+    # True when the action cannot be performed as the form now stands. A
+    # statement rather than an error: the request to look was answered, and
+    # what it says is that the other request would not be.
+    blocked: bool = False
+
+
+@runtime_checkable
+class Previews(Protocol):
+    """An action that can be asked what it would do first.
+
+    A capability of the action rather than a flag on it, checked the way
+    `TakesFile` is, so what the API says about an action cannot drift from what
+    the action does. Most actions have nothing worth previewing: a folder that
+    is about to be created is described entirely by the name in the form.
+
+    Raises the same things `perform` raises, since it is the same request
+    asked in the subjunctive: ActionRefused for what may not be done at all,
+    ValueError for a request that is wrong about the node.
+    """
+
+    async def preview(
+        self, node_id: str | None, raw: Mapping[str, Any]
+    ) -> ActionPreview: ...
 
 
 class ActionSet:

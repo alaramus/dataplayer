@@ -109,8 +109,10 @@ and every identifier and predicate is source-validated.
 - [x] Add source-owned index creation and removal.
 - [x] Add unique and foreign-key creation/removal only after dependency and
   lock behaviour is explicit.
-- [ ] Consider relation creation and drop as a separate destructive round; do
-  not mix it into a column change.
+- [x] Consider relation creation and drop as a separate destructive round; do
+  not mix it into a column change. It was one: D45 makes a table out of an
+  uploaded CSV, D46 drops one after the source has said what a cascade would
+  take with it.
 
 D37 settles the first bullet: `SupportsColumnNullability` takes one relation,
 one column and the state asked for, and answers either `NullabilityChanged` or

@@ -850,3 +850,167 @@ async def test_a_file_source_cannot_be_asked_to_load_a_csv(
     )
 
     assert response.status_code == 404
+
+
+# --- asking what an action would do -----------------------------------------
+
+
+async def _preview(
+    client: AsyncClient,
+    headers: dict[str, str],
+    connector_id: str,
+    action: str,
+    node_id: str | None = None,
+    **params: object,
+) -> Response:
+    return await client.post(
+        f"{BASE}/{connector_id}/actions/{action}/preview",
+        headers=headers,
+        json={"node_id": node_id, "params": params},
+    )
+
+
+async def test_the_listing_says_which_actions_can_be_asked_first(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    offered = await _offered(
+        client, normal_user_token_headers, connector_id, [f"{relation_schema}.customers"]
+    )
+
+    previews = {
+        action["name"]: action["previews"] for action in offered.json()
+    }
+    assert previews["drop_relation"] is True
+    assert previews["rename_relation"] is False
+
+
+async def test_a_preview_of_a_cascade_names_what_would_go(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    plain = await _preview(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "drop_relation",
+        f"{relation_schema}.customers",
+    )
+    cascade = await _preview(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "drop_relation",
+        f"{relation_schema}.customers",
+        cascade=True,
+    )
+
+    assert plain.status_code == 200, plain.text
+    assert plain.json()["blocked"] is True
+    assert any("rich_customers" in item for item in plain.json()["items"])
+    assert cascade.status_code == 200
+    assert cascade.json()["blocked"] is False
+    assert any("rich_customers" in item for item in cascade.json()["items"])
+
+    # Nothing was kept: the question is not the deed.
+    catalog = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": relation_schema},
+    )
+    assert "customers" in {node["name"] for node in catalog.json()}
+
+
+async def test_an_action_with_nothing_to_preview_says_so(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _preview(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "rename_relation",
+        f"{relation_schema}.customers",
+        new_name="clients",
+    )
+
+    assert response.status_code == 501
+
+
+async def test_previewing_a_name_the_source_does_not_have_is_not_found(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _preview(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "drop_everything",
+        f"{relation_schema}.customers",
+    )
+
+    assert response.status_code == 404
+
+
+# --- dropping ----------------------------------------------------------------
+
+
+async def test_dropping_a_relation_takes_it_out_of_the_catalog(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    refused = await _run(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "drop_relation",
+        f"{relation_schema}.customers",
+    )
+    dropped = await _run(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "drop_relation",
+        f"{relation_schema}.customers",
+        cascade=True,
+    )
+
+    assert refused.status_code == 422
+    assert dropped.status_code == 200, dropped.text
+    assert dropped.json()["reload_node_id"] == relation_schema
+
+    catalog = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": relation_schema},
+    )
+    left = {node["name"] for node in catalog.json()}
+    assert "customers" not in left
+    assert "rich_customers" not in left
+
+
+async def test_a_file_source_has_no_drop_to_preview(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _preview(
+        client, normal_user_token_headers, connector_id, "drop_relation", "notes.txt"
+    )
+
+    assert response.status_code == 404

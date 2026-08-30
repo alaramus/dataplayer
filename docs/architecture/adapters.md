@@ -728,8 +728,7 @@ Known deviations:
 - **No transformation.** A value crosses as the text the source gave or it does
   not cross. Trimming, date formats and decimal separators need a vocabulary.
 - **No upsert and no key matching.** The target exists and rows are inserted;
-  making one out of a file is D45, and removing one is still the separate
-  destructive round.
+  making one out of a file is D45 and removing one is D46.
 
 ## D45. A CSV is loaded as a table by an action of the source, and the table arrives with its rows or not at all
 
@@ -794,11 +793,74 @@ Known deviations:
 - **Nothing but a name.** No column types, no NOT NULL, no default, no key and
   no index. Each has a command of its own against an existing relation, and
   each answers with what stands in its way (D37, D38, D39, D40).
-- **A taken name is refused, never replaced**, and nothing is dropped. Removing
-  a relation is still the separate destructive round.
+- **A taken name is refused, never replaced.** Removing a relation is D46.
 - **The file is held whole in memory** while it is parsed, which is what the
   16 MB ceiling is for. Staging it on disk would buy a larger ceiling and no
   new capability.
+
+## D46. An action can be asked what it would do, and a drop answers by doing it and rolling it back
+
+Dropping a relation is the destructive round every earlier one deferred, and
+what makes it safe is not a confirmation box. It is knowing what goes with it.
+
+**Asking is a capability of the action, checked the way `TakesFile` is.**
+`Previews` is a `runtime_checkable` Protocol with one method, and `ActionInfo`
+derives `previews` from an `isinstance` rather than from a declared flag, so
+what the API says cannot drift from what the action does. Most actions have
+nothing worth previewing — a folder about to be created is described entirely
+by the name in the form — and those answer 501.
+
+The answer is an `ActionPreview`: one summary, a list of lines, and `blocked`.
+Every part of it is the source's own words; the dialog renders a sentence and a
+list and knows nothing about what is being previewed, which is what lets one
+generic form show the consequences of a cascade without any part of the client
+learning what a cascade is. It is asked again whenever the form changes, since
+the whole point is that ticking a box changes the answer, and it needs the
+level the action itself needs: reading what a drop would destroy is not a
+lesser thing than the drop for anyone deciding whether it is safe.
+
+**The preview is the drop, rolled back.** What a cascade reaches is written in
+`pg_depend`, and restating those rules here would be a second implementation of
+them — wrong the first time an extension adds a kind of dependency, and wrong
+in the worst place, since somebody reads the answer while deciding whether to
+destroy something. So `PostgresSession.rehearse` runs the statement inside a
+transaction psycopg is told to roll back whatever happens, keeps what the
+server said about it, and returns that. What it lists cannot disagree with what
+the drop does, because it is the drop.
+
+Two kinds of answer are kept, and the difference matters. A successful
+rehearsal raises notices — `drop cascades to view …` — which are the server
+describing what it did. A refused one carries the list of what stands in the
+way in the DETAIL field of `2BP01`, and only that field is passed on: the text
+of an exception is what carries the connection string, so nothing else of a
+failure crosses the boundary. Neither is read for meaning; both are shown.
+
+A rehearsal takes the locks the real statement would, so it is held to a two
+second `lock_timeout`. A question about what would happen must not become an
+outage, and a rehearsal that cannot get the lock says so, which is itself worth
+knowing before pressing the button.
+
+`blocked` closes the loop: without a cascade, a relation something is built on
+refuses, the preview says so with the list, and the dialog turns the button
+off. The kind of relation comes from the catalog's own description of the node,
+because `DROP TABLE` does not drop a view and PostgreSQL's complaint about that
+names neither.
+
+Known deviations:
+
+- **One relation at a time.** `bulk` is false, unlike deleting files: one list
+  of consequences cannot be told apart into five relations' worth by whoever
+  reads it.
+- **The preview is a moment, not a promise.** Something can come to depend on
+  the relation between the question and the answer; the drop is what decides,
+  and it refuses on its own terms.
+- **A preview is asked for one node.** A form applied to several would come
+  back as several answers, and nothing on the client knows what to call each of
+  them. No action offered for a set previews today.
+- **An open tab outlives what it shows.** A dropped relation leaves its data
+  tab in place, to fail on its next read like any node that has gone; the
+  workspace can follow a renamed node (D32) and has no word yet for one that
+  is not there at all.
 
 ## D44. A whole export is a source-owned row stream, never an unbounded fetch
 

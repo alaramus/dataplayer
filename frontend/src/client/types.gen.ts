@@ -27,6 +27,10 @@ export type ActionInfo = {
    */
   takes_file: boolean
   /**
+   * Previews
+   */
+  previews: boolean
+  /**
    * Acts On
    */
   acts_on: "node" | "children"
@@ -40,6 +44,35 @@ export type ActionInfo = {
   params_schema: {
     [key: string]: unknown
   }
+}
+
+/**
+ * ActionPreview
+ *
+ * What an action would do, asked of the source before it is done.
+ *
+ * Every line of it is the source's own answer. The screen renders a sentence
+ * and a list and knows nothing about what is being previewed — which is what
+ * lets one dialog show the consequences of a cascade without any part of the
+ * client learning what a cascade is.
+ *
+ * Asked again whenever the form changes, because the answer depends on the
+ * parameters: the whole point of it is that ticking a box changes what would
+ * happen.
+ */
+export type ActionPreview = {
+  /**
+   * Summary
+   */
+  summary: string
+  /**
+   * Items
+   */
+  items?: Array<string>
+  /**
+   * Blocked
+   */
+  blocked?: boolean
 }
 
 /**
@@ -4228,6 +4261,42 @@ export type connectorsRunActionResponses = {
 
 export type connectorsRunActionResponse =
   connectorsRunActionResponses[keyof connectorsRunActionResponses]
+
+export type connectorsPreviewActionData = {
+  body: ActionRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+    /**
+     * Action Name
+     */
+    action_name: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/actions/{action_name}/preview"
+}
+
+export type connectorsPreviewActionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsPreviewActionError =
+  connectorsPreviewActionErrors[keyof connectorsPreviewActionErrors]
+
+export type connectorsPreviewActionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActionPreview
+}
+
+export type connectorsPreviewActionResponse =
+  connectorsPreviewActionResponses[keyof connectorsPreviewActionResponses]
 
 export type connectorsRunActionWithFileData = {
   body: Body_connectors_run_action_with_file

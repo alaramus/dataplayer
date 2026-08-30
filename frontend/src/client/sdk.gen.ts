@@ -80,6 +80,9 @@ import type {
   connectorsParseUrlData,
   connectorsParseUrlErrors,
   connectorsParseUrlResponses,
+  connectorsPreviewActionData,
+  connectorsPreviewActionErrors,
+  connectorsPreviewActionResponses,
   connectorsPreviewImportData,
   connectorsPreviewImportErrors,
   connectorsPreviewImportResponses,
@@ -1453,6 +1456,39 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/actions/{action_name}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Preview Action
+   *
+   * What one action would do, without doing it.
+   *
+   * Asked again whenever the form changes, because the answer depends on the
+   * parameters — a cascade takes things with it that a plain drop does not.
+   * Nothing is written and nothing the connector cached is dropped: this is a
+   * question, and the source answers it in its own words.
+   *
+   * It needs the level the action itself needs. Reading what a drop would
+   * destroy is not a lesser thing than the drop for anyone deciding whether it
+   * is safe, and the answer names objects the caller may not otherwise see.
+   */
+  public static previewAction<ThrowOnError extends boolean = true>(
+    options: Options<connectorsPreviewActionData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsPreviewActionResponses,
+      connectorsPreviewActionErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/actions/{action_name}/preview",
       ...options,
       headers: {
         "Content-Type": "application/json",

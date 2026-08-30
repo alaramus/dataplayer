@@ -2,7 +2,14 @@ from collections.abc import AsyncGenerator
 
 import pytest
 
-from app.adapters.actions import ActionRefused, ActionResult, TakesFile, TakesParams
+from app.adapters.actions import (
+    ActionPreview,
+    ActionRefused,
+    ActionResult,
+    Previews,
+    TakesFile,
+    TakesParams,
+)
 from app.adapters.fetch import FetchRequest
 from app.adapters.postgres import actions as postgres_actions
 from app.adapters.postgres.adapter import PostgresAdapter
@@ -28,8 +35,8 @@ async def test_rename_is_offered_only_for_non_system_relations(schema: str) -> N
     view = await source.available(f"{schema}.rich_customers")
     system = await source.available("pg_catalog.pg_class")
 
-    assert [action.name for action in table] == ["rename_relation"]
-    assert [action.name for action in view] == ["rename_relation"]
+    assert "rename_relation" in {action.name for action in table}
+    assert "rename_relation" in {action.name for action in view}
     assert system == []
 
 
@@ -239,3 +246,129 @@ async def test_a_column_named_like_a_statement_is_quoted_not_composed(
 
     model = await source.relation_model(f"{schema}.prices")
     assert [column.name for column in model.columns] == ['a"); drop table x; --', "b"]
+
+
+async def _preview(source: PostgresAdapter, node_id: str, **params: object) -> ActionPreview:
+    action = source.action("drop_relation")
+    assert isinstance(action, Previews)
+    return await action.preview(node_id, params)
+
+
+async def _drop(source: PostgresAdapter, node_id: str, **params: object) -> ActionResult:
+    action = source.action("drop_relation")
+    assert isinstance(action, TakesParams)
+    return await action.perform(node_id, params)
+
+
+async def _names(source: PostgresAdapter, schema: str) -> set[str]:
+    return {node.name for node in await source.list_children(schema)}
+
+
+async def test_drop_is_offered_for_a_table_and_a_view(schema: str) -> None:
+    source = adapter()
+
+    table = await source.available(f"{schema}.customers")
+    view = await source.available(f"{schema}.rich_customers")
+    system = await source.available("pg_catalog.pg_class")
+
+    assert "drop_relation" in {action.name for action in table}
+    assert "drop_relation" in {action.name for action in view}
+    assert system == []
+
+
+async def test_a_relation_nothing_stands_on_says_so(schema: str) -> None:
+    source = adapter()
+
+    answer = await _preview(source, f"{schema}.rich_customers")
+
+    assert answer.items == []
+    assert answer.blocked is False
+    assert "rich_customers" in answer.summary
+
+
+async def test_a_preview_names_what_stands_in_the_way_and_blocks(schema: str) -> None:
+    source = adapter()
+
+    answer = await _preview(source, f"{schema}.customers")
+
+    # The server's own account of it, not a rule restated here.
+    assert answer.blocked is True
+    assert any("rich_customers" in item for item in answer.items)
+
+
+async def test_a_preview_with_cascade_lists_what_would_go(schema: str) -> None:
+    source = adapter()
+
+    answer = await _preview(source, f"{schema}.customers", cascade=True)
+
+    assert answer.blocked is False
+    assert any("rich_customers" in item for item in answer.items)
+
+
+async def test_a_preview_changes_nothing(schema: str) -> None:
+    """The drop is performed to find out, and then not kept."""
+    source = adapter()
+
+    await _preview(source, f"{schema}.customers", cascade=True)
+
+    assert {"customers", "rich_customers"} <= await _names(source, schema)
+
+
+async def test_dropping_what_something_is_built_on_is_refused(schema: str) -> None:
+    source = adapter()
+
+    with pytest.raises(ValueError) as refused:
+        await _drop(source, f"{schema}.customers")
+
+    assert "built on" in str(refused.value)
+    assert "customers" in await _names(source, schema)
+
+
+async def test_dropping_with_cascade_takes_the_view_with_it(schema: str) -> None:
+    source = adapter()
+
+    result = await _drop(source, f"{schema}.customers", cascade=True)
+
+    assert result.message == "customers dropped"
+    # The schema is what lost a child, so it is what the client re-reads.
+    assert result.reload_node_id == schema
+    left = await _names(source, schema)
+    assert "customers" not in left
+    assert "rich_customers" not in left
+
+
+async def test_a_view_is_dropped_as_a_view(schema: str) -> None:
+    """DROP TABLE does not drop a view, and the kind comes from the catalog."""
+    source = adapter()
+
+    await _drop(source, f"{schema}.rich_customers")
+
+    assert "rich_customers" not in await _names(source, schema)
+
+
+async def test_a_materialized_view_is_dropped_as_one(schema: str) -> None:
+    await run(
+        f"CREATE MATERIALIZED VIEW {schema}.customer_snapshot "  # noqa: S608 -- fixture-owned schema.
+        f"AS SELECT id, name FROM {schema}.customers"  # noqa: S608 -- fixture-owned schema.
+    )
+    source = adapter()
+
+    await _drop(source, f"{schema}.customer_snapshot")
+
+    assert "customer_snapshot" not in await _names(source, schema)
+
+
+async def test_a_system_relation_cannot_be_dropped() -> None:
+    source = adapter()
+
+    with pytest.raises(ActionRefused) as refused:
+        await _drop(source, "pg_catalog.pg_class")
+
+    assert refused.value.reason == "not_applicable"
+
+
+async def test_a_schema_is_not_a_relation_to_drop(schema: str) -> None:
+    source = adapter()
+
+    with pytest.raises(ActionRefused):
+        await _drop(source, schema)

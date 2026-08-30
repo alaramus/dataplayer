@@ -564,6 +564,33 @@ async def test_loading_a_csv_needs_structure(
     assert response.json()["detail"]["required"] == "structure"
 
 
+async def test_dropping_a_relation_needs_structure(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+    schema: str,
+) -> None:
+    """And so does asking what it would take with it: the answer names them."""
+    user, headers = colleague
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    await _grant(client, normal_user_token_headers, connector_id, user, "write")
+
+    dropped = await client.post(
+        f"{BASE}/{connector_id}/actions/drop_relation",
+        headers=headers,
+        json={"node_id": f"{schema}.customers", "params": {"cascade": True}},
+    )
+    asked = await client.post(
+        f"{BASE}/{connector_id}/actions/drop_relation/preview",
+        headers=headers,
+        json={"node_id": f"{schema}.customers", "params": {}},
+    )
+
+    assert dropped.status_code == 403
+    assert dropped.json()["detail"]["required"] == "structure"
+    assert asked.status_code == 403
+
+
 # --- managing the grants themselves ---------------------------------------
 
 

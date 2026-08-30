@@ -102,7 +102,9 @@ included; the spec index lists the older titles in translation.
   first, and either all of it arrives or none of it does. A CSV on the reader's
   own machine becomes a new table of the schema they are looking at — one
   action of the source, offered in the catalog menu, with the table and its
-  rows arriving together or not at all.
+  rows arriving together or not at all. A relation is dropped from the same
+  menu, after the source has said what a cascade would take with it — the drop
+  itself, rehearsed and rolled back.
 - Any bounded grid page can open as a line, bar or pie chart beside its rows;
   the page boundary is explicit and field suggestions stay in the browser.
 - A foreign key in the grid leads to the rows it names: the source says where
@@ -164,6 +166,7 @@ and the known deviations live there.
 | D43 | Rows move between two sources through the platform, bounded, and all or none | [adapters](docs/architecture/adapters.md) |
 | D44 | A whole export is a source-owned row stream, never an unbounded fetch | [adapters](docs/architecture/adapters.md) |
 | D45 | A CSV is loaded as a table by an action of the source, and the table arrives with its rows or not at all | [adapters](docs/architecture/adapters.md) |
+| D46 | An action can be asked what it would do, and a drop answers by doing it and rolling it back | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -398,5 +401,5 @@ vocabulary and dependency behaviour are specified; this is not a generic SQL edi
 Phases 1.1 and 1.2 are done — navigating by a foreign key, column nullability
 (D37), column type (D38), indexes (D39) and constraints (D40). Phase 1.3 is
 done: pasting a block of cells (D41), moving rows between sources (D43),
-streaming every matching row into a download (D44) and loading a CSV as a new
-table (D45). Dropping a relation stays a separate destructive round.
+streaming every matching row into a download (D44), loading a CSV as a new
+table (D45) and dropping a relation with what stands on it (D46).

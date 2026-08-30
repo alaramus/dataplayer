@@ -85,7 +85,7 @@ from the first.
 - No transformation. A value goes across as the text the source gave (D23) or
   it does not go across. Trimming, date formats and decimal separators are a
   vocabulary of their own.
-- No new relation. The target exists; creating one from a file's header is the
-  destructive round that Phase 1.2 deferred.
+- No new relation. The target exists; creating one from a file's header became
+  D45, and dropping one D46.
 - No upsert, no key matching, no update of existing rows. Rows are inserted.
 - No streaming and no job. The ceiling is the honest form of that limit.

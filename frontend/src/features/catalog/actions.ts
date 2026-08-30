@@ -14,6 +14,8 @@ export interface ActionCommand {
   label: string
   destructive: boolean
   takesFile: boolean
+  /** Whether the source can say what this would do before it is done. */
+  previews: boolean
   /** Whether it changes the nodes it is given, or what the one node holds. */
   actsOn: ActionInfo["acts_on"]
   fields: FieldSpec[]
@@ -25,6 +27,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
     label: action.title,
     destructive: action.destructive,
     takesFile: action.takes_file,
+    previews: action.previews,
     actsOn: action.acts_on,
     fields: schemaToFields(action.params_schema as unknown as JsonSchema),
   }))

@@ -216,6 +216,44 @@ test("loads a CSV into the schema being looked at", async ({ page }) => {
   await expect(grid.locator("tbody tr")).toHaveCount(2)
   await expect(page.getByTestId("grid-cell-0-label")).toHaveText("Europe")
 
+  // --- and it can be dropped again, which is how this leaves nothing behind
+  await catalogCheck(page, table).click()
+  await catalogAction(page, "drop_relation")
+  await expect(page.getByTestId("action-preview")).toContainText("Nothing else")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, table)).toHaveCount(0)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("shows what a cascade would take before dropping anything", async ({ page }) => {
+  const name = `e2e-drop-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await showOnlySchema(page, "demo_lab", "public")
+
+  // A table with a view built on it, which is the case the preview exists for.
+  await catalogCheck(page, "projects").click()
+  await catalogAction(page, "drop_relation")
+
+  // Asked before anything is ticked in the form: without a cascade the source
+  // refuses, and says what is in the way. The button follows that answer.
+  const preview = page.getByTestId("action-preview")
+  await expect(preview).toContainText("project_rollup")
+  await expect(page.getByTestId("action-submit")).toBeDisabled()
+
+  // Ticking the box asks again, and the answer changes.
+  await page.getByTestId("field-cascade").click()
+  await expect(preview).toContainText("project_rollup")
+  await expect(page.getByTestId("action-submit")).toBeEnabled()
+
+  // Nothing is dropped here: the rehearsal was rolled back, and so is this.
+  await page.getByRole("button", { name: "Cancel" }).click()
+  await expect(catalogRow(page, "projects")).toBeVisible()
+  await expect(catalogRow(page, "project_rollup")).toBeVisible()
+
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })

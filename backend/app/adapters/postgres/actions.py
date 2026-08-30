@@ -1,5 +1,6 @@
 """Catalog actions owned by PostgreSQL."""
 
+from collections.abc import Mapping
 from functools import partial
 from pathlib import PurePosixPath
 from typing import Any, ClassVar, Protocol
@@ -11,6 +12,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.adapters.actions import (
     CHUNK_BYTES,
     Action,
+    ActionPreview,
     ActionRefused,
     ActionResult,
     ActionSet,
@@ -249,13 +251,136 @@ class LoadCsv(FileAction[LoadCsvParams]):
         )
 
 
+# What a refused drop means, by SQLSTATE. The code is safe to look at and the
+# message beside it is not, so the wording is ours; the DETAIL of the first of
+# them is the list of what stands in the way, and that is passed on.
+DROP_REFUSALS = {
+    # dependent_objects_still_exist.
+    "2BP01": "Something else is built on this relation",
+    # lock_not_available: somebody is reading or writing it right now.
+    "55P03": "Something is using this relation; try again in a moment",
+    # insufficient_privilege.
+    "42501": "This connection may not drop that relation",
+}
+
+
+class DropRelationParams(BaseModel):
+    cascade: bool = Field(
+        default=False,
+        title="Also drop everything built on it",
+        description="Required when a view or a reference depends on this relation",
+    )
+
+
+class DropRelation(JsonAction[DropRelationParams]):
+    """Drop one relation, with or without what stands on it.
+
+    Previewable, and that is the point of it: what a cascade takes with it is
+    written in `pg_depend`, and the only answer worth showing somebody about to
+    destroy something is PostgreSQL's own. So the preview is the drop itself,
+    rolled back, and what it lists cannot disagree with what happens.
+    """
+
+    name: ClassVar[str] = "drop_relation"
+    title: ClassVar[str] = "Drop"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table", "view"})
+    acts_on: ClassVar[ActsOn] = "node"
+    destructive: ClassVar[bool] = True
+    requires: ClassVar[Access] = "structure"
+    # One at a time, unlike deleting files: what a drop takes with it is the
+    # whole question here, and one list of consequences cannot be told apart
+    # into five relations' worth by whoever reads it.
+    bulk: ClassVar[bool] = False
+    params_model = DropRelationParams
+
+    def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
+        self._session = session
+        self._catalog = catalog
+
+    async def run(
+        self, node_id: str | None, params: DropRelationParams
+    ) -> ActionResult:
+        schema, node = await self._target(node_id)
+        await self._session.schema_change(
+            self._statement(schema, node, cascade=params.cascade),
+            refusals=DROP_REFUSALS,
+        )
+        return ActionResult(message=f"{node.name} dropped", reload_node_id=schema)
+
+    async def preview(
+        self, node_id: str | None, raw: Mapping[str, Any]
+    ) -> ActionPreview:
+        """What this drop would take with it, as the server itself reports it.
+
+        The same statement the form describes, so ticking the box changes the
+        answer: without a cascade a relation something is built on refuses, and
+        the refusal names what is in the way; with one, the server lists what
+        it would drop as it goes.
+        """
+        params = self._validated(raw)
+        schema, node = await self._target(node_id)
+        rehearsal = await self._session.rehearse(
+            self._statement(schema, node, cascade=params.cascade),
+            refusals=DROP_REFUSALS,
+        )
+        if rehearsal.refused is not None:
+            # An answer rather than a failure: the question was "what would
+            # happen", and what would happen is that it would be refused.
+            return ActionPreview(
+                summary=rehearsal.refused, items=rehearsal.said, blocked=True
+            )
+        if not rehearsal.said:
+            return ActionPreview(summary=f"Nothing else depends on {node.name}")
+        # The lines are the server's own sentences, so the summary leaves room
+        # for them to say what they say rather than repeating half of it.
+        return ActionPreview(
+            summary=f"What dropping {node.name} would do:", items=rehearsal.said
+        )
+
+    async def _target(self, node_id: str | None) -> tuple[str, TableNode | ViewNode]:
+        if node_id is None:
+            raise ActionRefused("not_applicable", "Choose a relation to drop")
+        path = await self._catalog.path_to(node_id)
+        node = path[-1]
+        if not isinstance(node, TableNode | ViewNode) or node.is_system:
+            raise ActionRefused("not_applicable", "This relation cannot be dropped")
+        return path[0].name, node
+
+    @staticmethod
+    def _statement(
+        schema: str, node: TableNode | ViewNode, *, cascade: bool
+    ) -> str:
+        """The DROP this node needs, with its own kind of relation named.
+
+        Composed from the catalog's description rather than from a guess: a
+        materialized view is not dropped by DROP VIEW, and PostgreSQL says so
+        with an error that names neither.
+        """
+        if isinstance(node, TableNode):
+            command = sql.SQL("DROP TABLE")
+        elif node.is_materialized:
+            command = sql.SQL("DROP MATERIALIZED VIEW")
+        else:
+            command = sql.SQL("DROP VIEW")
+        statement = sql.SQL("{} {}").format(
+            command, sql.Identifier(schema, node.name)
+        )
+        if cascade:
+            statement += sql.SQL(" CASCADE")
+        return statement.as_string()
+
+
 class PostgresActionType(ActionType, Protocol):
     def __call__(
         self, session: PostgresSession, catalog: PostgresCatalog
     ) -> Action[Any]: ...
 
 
-POSTGRES_ACTION_TYPES: tuple[PostgresActionType, ...] = (RenameRelation, LoadCsv)
+POSTGRES_ACTION_TYPES: tuple[PostgresActionType, ...] = (
+    RenameRelation,
+    LoadCsv,
+    DropRelation,
+)
 
 
 class PostgresActions:

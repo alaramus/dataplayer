@@ -11,6 +11,7 @@ const createFolder: ActionInfo = {
   title: "New folder",
   destructive: false,
   takes_file: false,
+  previews: false,
   acts_on: "children",
   applicable: true,
   params_schema: {
@@ -25,6 +26,7 @@ const remove: ActionInfo = {
   title: "Delete",
   destructive: true,
   takes_file: false,
+  previews: false,
   acts_on: "node",
   applicable: true,
   params_schema: {
@@ -44,6 +46,7 @@ const upload: ActionInfo = {
   title: "Upload a file",
   destructive: false,
   takes_file: true,
+  previews: false,
   acts_on: "children",
   applicable: true,
   params_schema: {
@@ -94,6 +97,7 @@ describe("toCommands", () => {
       title: "Extract",
       destructive: false,
       takes_file: false,
+      previews: true,
       acts_on: "node",
       applicable: true,
       params_schema: { type: "object", properties: {} },
@@ -103,6 +107,8 @@ describe("toCommands", () => {
 
     expect(command.label).toBe("Extract")
     expect(command.fields).toEqual([])
+    // Whether it can say what it would do is the server's statement too.
+    expect(command.previews).toBe(true)
   })
 })
 

@@ -99,6 +99,7 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
     assert [action.name for action in adapter.action_types()] == [
         "rename_relation",
         "load_csv",
+        "drop_relation",
     ]
 
 

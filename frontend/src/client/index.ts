@@ -11,6 +11,7 @@ export {
 } from "./sdk.gen"
 export type {
   ActionInfo,
+  ActionPreview,
   ActionRequest,
   ActionResult,
   ActionTargets,
@@ -158,6 +159,11 @@ export type {
   connectorsParseUrlErrors,
   connectorsParseUrlResponse,
   connectorsParseUrlResponses,
+  connectorsPreviewActionData,
+  connectorsPreviewActionError,
+  connectorsPreviewActionErrors,
+  connectorsPreviewActionResponse,
+  connectorsPreviewActionResponses,
   connectorsPreviewImportData,
   connectorsPreviewImportError,
   connectorsPreviewImportErrors,

@@ -3,10 +3,13 @@ import time
 import uuid
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
 
 import psycopg
+from psycopg import errors as e
+from psycopg import sql
 from psycopg.rows import dict_row
 from psycopg_pool import PoolTimeout
 
@@ -141,6 +144,52 @@ def options_from_url(url: str) -> dict[str, Any]:
     else:
         options["auth_method"] = "no_auth"
     return options
+
+
+# How long a rehearsal waits for the locks the real statement would take. It
+# takes them for real, so it is not left waiting behind whoever is reading the
+# table: a question about what would happen must not become an outage.
+REHEARSAL_LOCK_TIMEOUT = "2s"
+
+
+@dataclass(frozen=True)
+class Rehearsal:
+    """What the server said about a statement that was rolled back."""
+
+    # One line per thing the server named, in its own words.
+    said: list[str]
+    # The caller's sentence for a refusal it anticipated, or nothing. Not an
+    # error: a rehearsal that ends in a refusal has answered the question.
+    refused: str | None
+
+
+def _detail_lines(diagnostic: e.Diagnostic) -> list[str]:
+    """The objects a diagnostic named, one per line.
+
+    DETAIL only, and never read for meaning: PostgreSQL puts the list of
+    objects there and writes only a count in the primary message. This is the
+    field a refusal is allowed to pass on — the primary message of a failure
+    is about the failure rather than about what was asked, and the text of an
+    exception is what carries the connection string.
+    """
+    detail = diagnostic.message_detail
+    if not detail:
+        return []
+    return [line.strip() for line in detail.splitlines() if line.strip()]
+
+
+def _lines(diagnostic: e.Diagnostic) -> list[str]:
+    """The same, falling back to the primary message of a notice.
+
+    A notice about a single object writes it in the primary message and leaves
+    DETAIL empty; a notice is the server describing what it did, so there is
+    nothing there that a failure's text would carry.
+    """
+    lines = _detail_lines(diagnostic)
+    if lines:
+        return lines
+    primary = diagnostic.message_primary
+    return [primary] if primary else []
 
 
 class Transaction:
@@ -438,6 +487,64 @@ class PostgresSession:
                 raise ValueError(named) from None
             error_kind, message = classify(exc, fallback_message="Schema change failed")
             raise AdapterError(error_kind, message) from None
+
+    async def rehearse(
+        self, statement: str, *, refusals: Mapping[str, str] | None = None
+    ) -> Rehearsal:
+        """Run a statement, keep what the server said about it, and roll it back.
+
+        The only honest way to ask PostgreSQL what a cascade would take with
+        it. The rules live in `pg_depend`, and restating them here would be a
+        second implementation of them — wrong the first time an extension adds
+        a kind of dependency, and wrong in the worst place, since the answer is
+        read by somebody deciding whether to destroy something. So the drop is
+        performed and then not kept, and what comes back is the server's own
+        account of it.
+
+        `force_rollback` is psycopg's, so nothing is committed by any route out
+        of the block, including a clean one. Two kinds of answer are kept: the
+        notices a successful statement raised, and, for a code the caller
+        anticipated, the DETAIL of the refusal — which for a refused drop is
+        the list of what stands in the way. Only that field, and only for a
+        named code: the text of an exception is what carries the connection
+        string, and none of it is passed on.
+
+        A rehearsal takes the same locks the real statement would, so it is
+        held to `REHEARSAL_LOCK_TIMEOUT` rather than left to wait behind
+        whoever is reading the table.
+        """
+        said: list[str] = []
+        refused: str | None = None
+
+        def keep(diagnostic: e.Diagnostic) -> None:
+            said.extend(_lines(diagnostic))
+
+        try:
+            async with self._connection() as connection:
+                connection.add_notice_handler(keep)
+                try:
+                    async with connection.transaction(force_rollback=True):
+                        await connection.execute(
+                            sql.SQL("SET LOCAL lock_timeout = {}")
+                            .format(sql.Literal(REHEARSAL_LOCK_TIMEOUT))
+                            .as_string()
+                        )
+                        await connection.execute(statement)
+                except psycopg.Error as exc:
+                    named = named_refusal(exc, refusals)
+                    if named is None:
+                        raise
+                    refused = named
+                    said = _detail_lines(exc.diag)
+                finally:
+                    connection.remove_notice_handler(keep)
+        except PoolTimeout:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except Exception as exc:
+            error_kind, message = classify(exc, fallback_message="Rehearsal failed")
+            raise AdapterError(error_kind, message) from None
+        return Rehearsal(said=said, refused=refused)
 
     async def _why_no_connection(self) -> tuple[ErrorKind, str]:
         """Ask the server once, on the failure path, what is actually wrong.

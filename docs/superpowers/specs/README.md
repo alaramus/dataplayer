@@ -56,6 +56,7 @@ translations; those files are not.
 | 2026-08-30 | [Bringing rows from one source into another](2026-08-30-row-import-design.md) | D43: two connectors, two permissions, one bounded all-or-nothing move |
 | 2026-08-30 | [Exporting every matching row](2026-08-30-streaming-export-design.md) | D44: a source-owned row stream staged as an atomic personal download |
 | 2026-08-30 | [Loading a CSV as a new table](2026-08-30-relation-create-design.md) | D45: a catalog action, and the table and its rows in one transaction |
+| 2026-08-30 | [Dropping a relation, and seeing what goes with it](2026-08-30-relation-drop-design.md) | D46: an action can be asked what it would do, and the answer is the drop rolled back |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the
