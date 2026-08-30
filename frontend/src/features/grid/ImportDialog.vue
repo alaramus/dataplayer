@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type { ColumnPair, FetchColumn, ImportPreview } from "@/client"
+import { isReadableNode, roleOfKind } from "@/features/catalog/nodes"
 import type { CatalogNode } from "@/features/catalog/nodes"
 import { useConnectors } from "@/features/connectors/api"
 import { messageOf } from "@/shared/api/errors"
@@ -65,8 +66,8 @@ watch(
   { immediate: true }
 )
 
-async function openLevel(node: CatalogNode | null) {
-  if (sourceId.value === "") return
+async function openLevel(node: CatalogNode | null): Promise<boolean> {
+  if (sourceId.value === "") return false
   browsing.value = true
   trouble.value = ""
   try {
@@ -75,8 +76,10 @@ async function openLevel(node: CatalogNode | null) {
       query: node === null ? {} : { node_id: node.id },
     })
     nodes.value = answer.data
+    return true
   } catch (error) {
     trouble.value = messageOf(error, "Could not read that source")
+    return false
   } finally {
     browsing.value = false
   }
@@ -92,18 +95,16 @@ watch(sourceId, async () => {
 })
 
 async function step(node: CatalogNode) {
-  if (node.kind === "file") {
-    await choose(node)
+  if (roleOfKind(node.kind) === "leaf") {
+    if (isReadableNode(node)) await choose(node)
     return
   }
-  trail.value = [...trail.value, node]
-  await openLevel(node)
+  if (await openLevel(node)) trail.value = [...trail.value, node]
 }
 
 async function back() {
   const shorter = trail.value.slice(0, -1)
-  trail.value = shorter
-  await openLevel(shorter.at(-1) ?? null)
+  if (await openLevel(shorter.at(-1) ?? null)) trail.value = shorter
 }
 
 /** The source's own columns, read the way any other page of it is read. */
@@ -126,7 +127,7 @@ async function choose(node: CatalogNode) {
         .map((column) => [column.name, column.name])
     )
   } catch (error) {
-    trouble.value = messageOf(error, "Could not read that file as rows")
+    trouble.value = messageOf(error, "Could not read that source as rows")
     sourceColumns.value = []
   }
 }
@@ -139,7 +140,7 @@ const columnPairs = computed<ColumnPair[]>(() =>
 
 const here = computed(() =>
   trail.value.length === 0
-    ? "Pick a file"
+    ? "Pick a source node"
     : trail.value.map((node) => node.name).join(" / ")
 )
 
@@ -234,6 +235,7 @@ function run() {
               :label="node.name"
               variant="quiet"
               size="sm"
+              :disable="roleOfKind(node.kind) === 'leaf' && !isReadableNode(node)"
               :data-testid="`grid-import-node-${node.name}`"
               @click="step(node)"
             />

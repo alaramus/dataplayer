@@ -494,3 +494,57 @@ test("brings rows in from a file in personal storage", async ({ page }) => {
   await deleteConnector(page, target)
   await deleteConnector(page, source)
 })
+
+test("brings rows in from a table through another database connection", async ({ page }) => {
+  const target = `e2e-table-import-target-${Date.now()}`
+  const source = `e2e-table-import-source-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, target)
+  await createPostgresConnector(page, source)
+  await openConnector(page, target)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "tags")
+
+  await addFilter(page, "label", "equals", "Northstar Labs", false)
+  await page.getByTestId("grid-import").click()
+  await page.getByTestId("grid-import-source").click()
+  await page.getByRole("option", { name: source, exact: true }).click()
+  await page.getByTestId("grid-import-node-demo_lab").click()
+  await page.getByTestId("grid-import-node-organizations").click()
+
+  const lists = page.getByRole("listbox")
+  const pair = async (targetColumn: string, sourceColumn: string) => {
+    await expect(lists).toHaveCount(0)
+    await page.getByTestId(`grid-import-pair-${targetColumn}`).click()
+    await expect(lists).toHaveCount(1)
+    await page.getByRole("option", { name: sourceColumn, exact: true }).click()
+    await expect(page.getByTestId(`grid-import-pair-${targetColumn}`)).toContainText(
+      sourceColumn
+    )
+  }
+  await pair("organization_id", "organization_id")
+  await pair("label", "display_name")
+
+  await page.getByTestId("grid-import-preview").click()
+  await expect(page.getByTestId("grid-import-dialog")).toContainText("Northstar Labs")
+  await page.getByTestId("grid-import-run").click()
+  await expect(
+    page.locator(".q-notification", { hasText: "2 rows brought in" })
+  ).toBeVisible()
+
+  await expect(page.getByTestId("grid-cell-0-label")).toHaveText("Northstar Labs")
+  await page.getByTestId("grid-select-row-0").click()
+  await page.getByTestId("grid-delete").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId("grid-empty")).toBeVisible()
+
+  await page.getByTestId("grid-filter-clear").click()
+  await addFilter(page, "label", "equals", "Blue Orbit")
+  await page.getByTestId("grid-select-row-0").click()
+  await page.getByTestId("grid-delete").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId("grid-empty")).toBeVisible()
+
+  await deleteConnector(page, target)
+  await deleteConnector(page, source)
+})

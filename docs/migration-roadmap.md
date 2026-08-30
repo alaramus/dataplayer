@@ -488,9 +488,19 @@ they were found.
   a property of how the handle was built, not of the data. D42 lets such a row
   be named by its place, with the version check it always had.
 
-Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
+Those two corrections were validated on 2026-08-30: the whole backend suite,
+mypy, ruff, import contracts,
 frontend type check, lint, unit tests, the documentation check and the whole
 end-to-end suite.
+
+- **A table chosen as an import source was treated as another catalog level.**
+  The D43 route already reads any `SupportsFetch` source, but its dialog alone
+  called only a file a readable leaf. It now uses the catalog's one node-role
+  and readability table, so tables and views are selected while schemas and
+  directories are entered; a failed level read no longer invents a breadcrumb.
+  Validated on 2026-08-30 by frontend type check, lint, unit tests, production
+  build, the documentation check and the whole end-to-end suite, including the
+  PostgreSQL-to-PostgreSQL path.
 
 ## Next session
 

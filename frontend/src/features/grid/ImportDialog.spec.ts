@@ -62,7 +62,16 @@ beforeEach(() => {
     },
   } as never)
   vi.spyOn(ConnectorsService, "readCatalog").mockResolvedValue({
-    data: [{ id: "sample.tsv", kind: "file", name: "sample.tsv", content_kind: "table" }],
+    data: [
+      {
+        id: "sample.tsv",
+        kind: "file",
+        name: "sample.tsv",
+        has_children: false,
+        size_bytes: 20,
+        content_kind: "table",
+      },
+    ],
   } as never)
   vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({
     data: {
@@ -126,6 +135,75 @@ describe("bringing rows in from another source", () => {
       '[data-testid="grid-import-run"]'
     )
     expect(run?.disabled).toBe(true)
+    wrapper.unmount()
+  })
+
+  it("selects a database table instead of treating its id as another catalog level", async () => {
+    vi.mocked(ConnectorsService.readConnectors).mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: "source-1",
+            name: "database",
+            adapter_type: "postgres",
+            config: {},
+            enabled: true,
+            access: "own",
+          },
+        ],
+        count: 1,
+      },
+    } as never)
+    const readCatalog = vi.mocked(ConnectorsService.readCatalog)
+    readCatalog
+      .mockReset()
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "demo_lab",
+            kind: "schema",
+            name: "demo_lab",
+            has_children: true,
+            is_system: false,
+          },
+        ],
+      } as never)
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "demo_lab.tasks",
+            kind: "table",
+            name: "tasks",
+            has_children: false,
+            row_count_estimate: 4,
+            is_system: false,
+          },
+        ],
+      } as never)
+    const fetchRows = vi.mocked(ConnectorsService.fetchRows)
+
+    const wrapper = mountDialog()
+    await flushPromises()
+    wrapper.findComponent(AppSelect).vm.$emit("update:modelValue", "source-1")
+    await flushPromises()
+    document.body
+      .querySelector<HTMLElement>('[data-testid="grid-import-node-demo_lab"]')
+      ?.click()
+    await flushPromises()
+    document.body
+      .querySelector<HTMLElement>('[data-testid="grid-import-node-tasks"]')
+      ?.click()
+    await flushPromises()
+
+    expect(readCatalog.mock.calls.map(([request]) => request.query)).toEqual([
+      {},
+      { node_id: "demo_lab" },
+    ])
+    expect(fetchRows).toHaveBeenCalledWith({
+      path: { connector_id: "source-1" },
+      body: { node_id: "demo_lab.tasks", limit: 1 },
+    })
+    expect(document.body.querySelector('[data-testid="grid-import-trouble"]')).toBeNull()
     wrapper.unmount()
   })
 })

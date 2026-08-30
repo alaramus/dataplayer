@@ -109,7 +109,7 @@ function isSystem(node: CatalogNode): boolean {
   }
 }
 
-function isReadable(node: CatalogNode): boolean {
+export function isReadableNode(node: CatalogNode): boolean {
   switch (node.kind) {
     case "table":
     case "view":
@@ -138,7 +138,7 @@ export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
     icon: iconOf(node),
     role: roleOfKind(node.kind),
     kind: node.kind,
-    readable: isReadable(node),
+    readable: isReadableNode(node),
     system: isSystem(node),
     describable: DESCRIBABLE[node.kind],
     // Only a table knows roughly how many rows it holds. A file would have
