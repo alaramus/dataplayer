@@ -89,6 +89,8 @@ included; the spec index lists the older titles in translation.
   inserted with defaults preserved and selected rows deleted atomically.
 - Any bounded grid page can open as a line, bar or pie chart beside its rows;
   the page boundary is explicit and field suggestions stay in the browser.
+- A foreign key in the grid leads to the rows it names: the source says where
+  they are and builds the predicate, composite keys included.
 
 ## Decisions
 
@@ -136,6 +138,7 @@ and the known deviations live there.
 | D33 | Access to a connection is a grant of an ordered level, and a route states the level it needs | [backend](docs/architecture/backend.md) |
 | D34 | An administrator has rights over accounts, not over data | [backend](docs/architecture/backend.md) |
 | D35 | A chart is a closed view over one bounded fetch, not another query language | [frontend](docs/architecture/frontend.md) |
+| D36 | A source issues the target of a reference, and the client never pairs the columns | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -300,6 +303,17 @@ docker run --rm --network ci --network-alias … -w /repo/backend \
   ghcr.io/astral-sh/uv:bookworm-slim bash -c "uv sync --frozen && …"
 ```
 
+**The whole end-to-end suite needs a dev server that is already warm.**
+`playwright.config.ts` starts `bun run dev` itself, and four workers then hit a
+Vite that is still compiling: the first two dozen scenarios time out inside
+`login` on `page.waitForURL`, which reads exactly like a wiped superuser. Two
+full runs failed that way and a third passed 89/89 with nothing changed. Start
+the server first, load one spec against it, then run the suite pointed at it:
+
+```bash
+PLAYWRIGHT_BASE_URL=http://localhost:5173 bunx playwright test
+```
+
 **A closed port is refused at once on Linux and left hanging on Windows.** A
 test that wants a timeout cannot point at one: it would assert about the
 platform. `tests/utils/network.py` listens without accepting, so the handshake
@@ -355,3 +369,6 @@ Sub-projects 1–6 and the workspace rounds are done; see
 The first data and structure editing rounds are done: update, insert, atomic
 bulk delete, and add/drop column. Further DDL starts only after its safe
 vocabulary and dependency behaviour are specified; this is not a generic SQL editor.
+
+Phase 1.1 of the roadmap — navigating by a foreign key — is done; the next
+slice is the structure editing round that begins with column nullability.

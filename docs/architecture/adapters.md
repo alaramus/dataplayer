@@ -4,7 +4,7 @@ What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
-D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32.
+D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36.
 
 ## What exists today
 
@@ -477,6 +477,62 @@ Known deviations:
 - **External dependants follow PostgreSQL's own rename semantics.** Objects tied
   to the relation identity continue to work; text outside PostgreSQL's dependency
   graph is not searched or rewritten.
+
+## D36. A source issues the target of a reference, and the client never pairs the columns
+
+A fetched page says which foreign keys the relation has: `FetchResult.references`
+carries, for each one, the source's own name for it, its columns in key order,
+and a title for the target to put in a tooltip. It is one object per key, not a
+mark on each column, for the reason D22 gives: the old application copied a
+constraint onto every column it touched and thereby split a composite key into
+independent one-column links.
+
+`SupportsReferences.follow_reference` takes back the name of one reference and
+the values one row holds for its columns, and answers with a place to go. What
+the client never does is the pairing: which of the target's columns each local
+one stands for is read from the source at the moment of asking, and so are the
+target's identity and what it can be looked up by. The client's whole influence
+on the resulting query is which reference of which row it pointed at.
+
+The answer is a discriminated union. `ReferencedRows` carries the target as a
+whole `CatalogNode` — the same model `path_to` answers with (D21), so the screen
+opens it, names its tab and decides whether it can be described with the tables
+it already has — together with equality filters in the same closed vocabulary a
+typed filter uses. `NoReferencedRows` carries a reason: a key with a missing
+value names no row, and a key standing on a type this source cannot compare
+cannot be looked up. Both are answers about the data rather than failures of the
+request, which is D2d.
+
+A row handle was rejected as the way to name the row. Handles exist only where
+the source can version a row, and a keyless table can still hold a foreign key.
+The values travel instead, as canonical text, which is what the page already
+holds.
+
+PostgreSQL reads its keys from `pg_constraint` on every page rather than
+remembering them: `confrelid` is an oid, so a target renamed since the page was
+read answers with the name it has now, and a constraint dropped since is refused
+by name rather than turned into a predicate over a key that no longer exists.
+The target node comes from `path_to`, so a relation arrived at by following a
+key is described exactly as one walked into.
+
+Consequences:
+
+- **Following a key is a read.** The route asks for `read` access and no more:
+  it looks at rows the caller may already read.
+- **The predicate is a request the fetch route would have accepted anyway.**
+  There is no second validation path — the target's own fetch checks the column,
+  checks that the column declares the operator, and coerces the value, exactly
+  as it does for a filter somebody typed.
+
+Known deviations:
+
+- **Only the forward direction exists.** Going the other way — from a row to the
+  rows elsewhere that point at it — needs a search across a whole schema for keys
+  arriving at this relation, and a way to say which of several found relations is
+  meant. That is a slice of its own.
+- **A page costs one more catalog query.** The keys are read beside the columns
+  on every fetch. The bounded read cache (D31) absorbs repeated paging, and
+  nothing measures the difference yet.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

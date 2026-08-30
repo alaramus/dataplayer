@@ -8,6 +8,7 @@ import type {
   DownloadPageRequest,
   FetchRequest,
   FetchResult,
+  FollowReferenceRequest,
   InsertRowRequest,
   UpdateCellRequest,
 } from "@/client"
@@ -113,6 +114,25 @@ export function useDeleteRows(connectorId: Ref<string>) {
       })
     ).data
   )
+}
+
+/**
+ * Ask the source where one foreign key of one row leads.
+ *
+ * A mutation rather than a query although it changes nothing: it is a request
+ * made when a button is pressed, whose answer is acted on once and never
+ * shown again, so there is nothing for a cache key to be about.
+ */
+export function useFollowReference(connectorId: Ref<string>) {
+  return useMutation({
+    mutationFn: async (body: FollowReferenceRequest) =>
+      (
+        await ConnectorsService.followReference({
+          path: { connector_id: connectorId.value },
+          body,
+        })
+      ).data,
+  })
 }
 
 export function useDownloadPage(connectorId: Ref<string>) {

@@ -9,6 +9,7 @@ from psycopg import sql
 
 from app.adapters.fetch import (
     FetchColumn,
+    FetchReference,
     FetchRequest,
     FetchResult,
     Filter,
@@ -35,10 +36,51 @@ _COMPARISONS: dict[str, str] = {
     "lte": "<=",
 }
 
+# Foreign keys of one relation, in key order, with the relation they point at.
+# `confrelid` is an oid, so a target renamed since the constraint was written
+# still answers with the name it has now.
+_REFERENCES = """
+SELECT con.conname AS name,
+       (SELECT array_agg(att.attname ORDER BY u.ord)
+          FROM unnest(con.conkey) WITH ORDINALITY AS u(attnum, ord)
+          JOIN pg_attribute att
+            ON att.attrelid = con.conrelid AND att.attnum = u.attnum
+       ) AS column_names,
+       (SELECT array_agg(att.attname ORDER BY u.ord)
+          FROM unnest(con.confkey) WITH ORDINALITY AS u(attnum, ord)
+          JOIN pg_attribute att
+            ON att.attrelid = con.confrelid AND att.attnum = u.attnum
+       ) AS target_column_names,
+       fn.nspname AS target_schema,
+       fc.relname AS target_relation
+FROM pg_constraint con
+JOIN pg_class c ON c.oid = con.conrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+JOIN pg_class fc ON fc.oid = con.confrelid
+JOIN pg_namespace fn ON fn.oid = fc.relnamespace
+WHERE n.nspname = %s AND c.relname = %s AND con.contype = 'f'
+ORDER BY con.conname
+"""
+
 _ORDERED = frozenset({"number", "string", "boolean", "datetime", "uuid", "enum"})
 _COMPARED = frozenset({"number", "string", "datetime"})
 _EQUAL = frozenset({"number", "string", "datetime", "boolean", "uuid", "enum"})
 _SERVER_TEXT = frozenset({"array", "geometric", "json", "range", "composite", "other"})
+
+
+@dataclass(frozen=True)
+class RelationReference:
+    """One foreign key, with both ends of it.
+
+    The pair of column lists is what makes following a key the source's own
+    work: nothing outside this package ever sees which of the target's columns
+    a local one stands for, so nothing outside can pair them up wrongly.
+    """
+
+    name: str
+    columns: list[str]
+    target_node_id: str
+    target_columns: list[str]
 
 
 @dataclass(frozen=True)
@@ -107,7 +149,7 @@ def coerce_filter_value(value: str, type_: ColumnType) -> object:
                 return value
             case _:
                 raise ValueError
-    except InvalidOperation, ValueError:
+    except (InvalidOperation, ValueError):
         raise ValueError from None
 
 
@@ -194,6 +236,14 @@ class PostgresFetch:
         self._reject_unsortable_columns(request, known)
         request = request.model_copy(update={"filters": filters})
 
+        references = [
+            FetchReference(
+                name=reference.name,
+                columns=reference.columns,
+                target_title=reference.target_node_id,
+            )
+            for reference in await self.references(schema, table)
+        ]
         statement, params = self._build(schema, table, columns, request)
         rows = await self._session.query(statement.as_string(), tuple(params))
 
@@ -209,6 +259,7 @@ class PostgresFetch:
             ],
             has_more=has_more,
             row_handles=[self._row_handle(row, info, columns) for row in page],
+            references=references,
             update_supported=info.update_supported,
             update_reason=info.update_reason,
             insert_supported=info.insert_supported,
@@ -386,6 +437,39 @@ class PostgresFetch:
             delete_supported=delete_supported,
             delete_reason=delete_reason,
         )
+
+    async def references(self, schema: str, table: str) -> list[RelationReference]:
+        """The foreign keys of one relation, as the fetch result reports them.
+
+        Read on every page rather than remembered: the answer is what the
+        source says now, and a constraint added or dropped between two pages
+        would otherwise leave the grid offering a way out that no longer
+        exists. The read cache already keeps a whole page for a moment, which
+        is where the cost of asking again belongs.
+
+        A constraint whose two ends do not pair up column for column is left
+        out rather than reported half-read: the pairing is the whole of what
+        following it means, and PostgreSQL only produces such a row while the
+        catalog is being changed underneath the query.
+        """
+        rows = await self._session.query(_REFERENCES, (schema, table))
+        found: list[RelationReference] = []
+        for row in rows:
+            columns = [str(name) for name in (row["column_names"] or [])]
+            targets = [str(name) for name in (row["target_column_names"] or [])]
+            if len(columns) != len(targets) or not columns:
+                continue
+            found.append(
+                RelationReference(
+                    name=str(row["name"]),
+                    columns=columns,
+                    target_node_id=(
+                        f'{row["target_schema"]}.{row["target_relation"]}'
+                    ),
+                    target_columns=targets,
+                )
+            )
+        return found
 
     def _build(
         self,

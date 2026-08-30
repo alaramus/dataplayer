@@ -1,7 +1,13 @@
 import { inject } from "vue"
 import type { InjectionKey, Ref } from "vue"
 
-import type { ConnectorPublic, FetchRequest, NodeReplacement } from "@/client"
+import type {
+  ConnectorPublic,
+  FetchRequest,
+  NodeReplacement,
+  ReferencedRows,
+} from "@/client"
+import type { Filter } from "@/features/grid/types"
 
 /**
  * What one panel may ask the workspace to open.
@@ -45,6 +51,24 @@ export interface WorkspaceActions {
    */
   takeReveal: (connectorId: string) => RevealTarget | null
   openRows: (request: OpenRowsRequest) => void
+  /**
+   * Open what a foreign key points at, showing exactly the rows it names.
+   *
+   * The target arrived from the source: its node, as the catalog describes
+   * it, and a predicate built against that node's own columns. Nothing here
+   * composes either one, and nothing takes the id apart (D21).
+   */
+  followReference: (request: FollowReferenceCommand) => void
+  /**
+   * The predicate a tab has just been asked to show, or nothing.
+   *
+   * State to watch rather than a call into the panel, for the reason
+   * `revealTarget` is: the tab may have been opened a moment ago and not be
+   * mounted yet.
+   */
+  followTarget: Readonly<Ref<FollowTarget | null>>
+  /** Take the predicate meant for this tab, if this is the tab it named. */
+  takeFollow: (connectorId: string, nodeId: string) => FollowTarget | null
   openStructure: (request: OpenStructureRequest) => void
   openChart: (request: OpenChartRequest) => void
   replaceNode: (connectorId: string, replacement: NodeReplacement) => void
@@ -97,6 +121,21 @@ export interface OpenStructureRequest {
   title: string
   connectorName: string
   adapterType: string
+}
+
+/** What a grid asks for when somebody presses the arrow in a keyed cell. */
+export interface FollowReferenceCommand {
+  connectorId: string
+  connectorName: string
+  adapterType: string
+  target: ReferencedRows
+}
+
+/** One tab, and the predicate it is to show when it comes up. */
+export interface FollowTarget {
+  connectorId: string
+  nodeId: string
+  filters: Filter[]
 }
 
 export interface OpenChartRequest {

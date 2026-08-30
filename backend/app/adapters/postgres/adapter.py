@@ -17,6 +17,7 @@ from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.columns import PostgresColumns
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.options import PostgresOptions
+from app.adapters.postgres.references import PostgresReferences
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.session import (
     PostgresSession,
@@ -25,6 +26,7 @@ from app.adapters.postgres.session import (
 )
 from app.adapters.postgres.update import PostgresUpdate
 from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
 from app.adapters.resources import Pooling
@@ -73,6 +75,7 @@ class PostgresAdapter:
         self._actions = PostgresActions(self._session, self._catalog)
         self._fetch = PostgresFetch(self._session)
         self._update = PostgresUpdate(self._session, self._fetch)
+        self._references = PostgresReferences(self._catalog, self._fetch)
         self._relation = PostgresRelation(self._session)
         self._columns = PostgresColumns(self._session, self._relation)
 
@@ -145,6 +148,11 @@ class PostgresAdapter:
 
     async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
         return await self._update.delete_rows(request)
+
+    async def follow_reference(
+        self, request: FollowReferenceRequest
+    ) -> ReferenceTarget:
+        return await self._references.follow_reference(request)
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)

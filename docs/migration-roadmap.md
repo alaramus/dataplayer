@@ -81,12 +81,22 @@ Old sources to inspect:
 
 ### 1.1 Relationship navigation — first feature after chart validation
 
-- [ ] Let a source issue a navigable target for a foreign key. The client must
+- [x] Let a source issue a navigable target for a foreign key. The client must
   not compose or parse a catalog node id (D21).
-- [ ] From a foreign-key value, open the referenced relation with a safe equality
+- [x] From a foreign-key value, open the referenced relation with a safe equality
   filter; cover composite keys, nulls, missing grants and renamed relations.
-- [ ] Keep the relation model as the source of truth. Do not restore the old
+- [x] Keep the relation model as the source of truth. Do not restore the old
   client-side "weak link" registry in this slice.
+
+D36 settles the contract: `FetchResult.references` says which keys a page has,
+`SupportsReferences.follow_reference` answers with the target node and the
+predicate, and both nulls and unlookupable target types are answers rather than
+errors. Only the forward direction is in this slice; incoming references need a
+schema-wide search and a screen of their own.
+
+Validated on 2026-08-30: backend suite, mypy, ruff, import contracts, frontend
+type check, lint, unit tests, the documentation check and the whole end-to-end
+suite, `tests/references.spec.ts` included.
 
 Exit condition: a user can move from a PostgreSQL row to the referenced rows,
 and every identifier and predicate is source-validated.
@@ -361,6 +371,7 @@ that they belong in the platform core.
 
 ## Next session
 
-Start **Phase 1.1: relationship navigation**. The first design question is how
-a source issues the referenced node identity and safe key predicate without the
-client constructing either one.
+Start **Phase 1.2** with column nullability. The first question there is what a
+source does with the rows that already break the constraint being asked for:
+whether it refuses, counts them first, or offers to fill them, and how that
+answer reaches the screen without the screen knowing any SQL.

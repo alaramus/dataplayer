@@ -44,6 +44,9 @@ import type {
   connectorsFetchRowsData,
   connectorsFetchRowsErrors,
   connectorsFetchRowsResponses,
+  connectorsFollowReferenceData,
+  connectorsFollowReferenceErrors,
+  connectorsFollowReferenceResponses,
   connectorsInsertRowData,
   connectorsInsertRowErrors,
   connectorsInsertRowResponses,
@@ -903,6 +906,34 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/rows",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Follow Reference
+   *
+   * Follow one foreign key of one row to the rows it names.
+   *
+   * The answer carries the target node as the catalog describes it and the
+   * predicate the source built against that target's own columns. Reading is
+   * enough: following a key looks at rows the caller may already read.
+   */
+  public static followReference<ThrowOnError extends boolean = true>(
+    options: Options<connectorsFollowReferenceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsFollowReferenceResponses,
+      connectorsFollowReferenceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/references",
       ...options,
       headers: {
         "Content-Type": "application/json",

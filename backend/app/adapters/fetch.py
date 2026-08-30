@@ -87,6 +87,28 @@ class FetchColumn(BaseModel):
     has_default: bool = False
 
 
+class FetchReference(BaseModel):
+    """One foreign key of the fetched relation, as the grid needs to see it.
+
+    A whole key rather than a mark on each of its columns: the old application
+    copied a constraint onto every column it touched, which split a composite
+    foreign key into independent one-column links. `columns` is the key in its
+    own order, and `name` is the source's own name for it — the handle the
+    caller sends back to follow it, never a predicate the caller composes.
+
+    `target_title` is for the tooltip and nothing else. The identity of the
+    target is not in the answer at all: it arrives from the source when the
+    reference is actually followed, so there is no id here for a client to be
+    tempted to take apart (D21).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    columns: list[str] = Field(min_length=1)
+    target_title: str
+
+
 class FetchResult(BaseModel):
     """Rows as arrays, with the columns listed once.
 
@@ -100,6 +122,10 @@ class FetchResult(BaseModel):
     rows: list[list[str | None]]
     has_more: bool
     row_handles: list[str | None] = Field(default_factory=list)
+    # Empty for a source that has no such notion at all; a source that has
+    # references but no capability to follow them cannot arise, because the
+    # same module answers both.
+    references: list[FetchReference] = Field(default_factory=list)
     update_supported: bool = False
     update_reason: str | None = None
     insert_supported: bool = False

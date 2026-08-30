@@ -94,6 +94,8 @@ async def test_reports_what_a_type_can_do(
     assert "Read rows" in postgres
     assert "Describe a relation" in postgres
     assert "Describe a relation" not in files
+    assert "Follow references" in postgres
+    assert "Follow references" not in files
     assert {c["title"] for c in types["postgres"]["capabilities"] if c["group"] == "manage"} == {
         "Edit rows",
         "Insert rows",

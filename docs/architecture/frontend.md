@@ -215,6 +215,22 @@ full string in a read-only viewer. The page ceiling is 500 rows, with explicit
 pagination rather than virtualization until browser measurement demonstrates a
 need.
 
+A cell whose column stands in a foreign key carries an arrow out of the row, on
+the first of that key's columns that is on screen — one arrow per key, so a
+composite one does not become two links. An empty cell carries none: there is
+nothing in it to act on, which is the same reason a null value does not open the
+viewer. Whether an incomplete key names anything is not decided here; the source
+answers that when the arrow is pressed (D36).
+
+What comes back is a node and a predicate. The workspace opens the rows tab of
+that node, as the catalog would, and leaves the predicate where the tab picks it
+up — the same shape `revealTarget` uses, because a tab opened a moment ago is
+not mounted yet and a call into it would be lost. A followed predicate replaces
+the tab's query and is remembered exactly as a filter the user typed is: a tab
+shows the last question asked of its relation, whoever asked it. It lands over
+the remembered query rather than under it, which is why the grid knows it was
+navigated to.
+
 Double-click opens an editor only when the fetched column is marked editable and
 the row has a handle. A complex value keeps the established double-click viewer;
 Shift + double-click opens its technical editor. The value remains canonical

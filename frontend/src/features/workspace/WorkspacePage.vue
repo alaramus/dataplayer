@@ -16,6 +16,7 @@ import { useConnectors } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
 import { moveChartSpec } from "@/features/charts/persist"
 import { chartViewKey } from "@/features/charts/view"
+import { isDescribable } from "@/features/catalog/nodes"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import {
   catalogPanelId,
@@ -37,6 +38,8 @@ import {
 } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
 import type {
+  FollowReferenceCommand,
+  FollowTarget,
   OpenChartRequest,
   OpenRowsRequest,
   OpenStructureRequest,
@@ -147,6 +150,7 @@ provideReloadRegistry(reloads)
  * moment ago and not be mounted yet, and a call does not survive that.
  */
 const revealTarget = ref<RevealTarget | null>(null)
+const followTarget = ref<FollowTarget | null>(null)
 const toast = useToast()
 
 // The state of every connection, pushed while this screen is open. Called
@@ -330,6 +334,41 @@ provide(workspaceActionsKey, {
       kind: "rows",
       ...request,
     })
+  },
+  /**
+   * Open the target of a reference and hand its tab the predicate.
+   *
+   * Two steps rather than one because the tab may already be open: opening it
+   * brings it forward, and what it is to show is left where the tab picks it
+   * up. The tab is the relation, as every rows tab is — following a key from
+   * two different rows is the same table with a different question asked of
+   * it, and the answer to the last one is what a tab shows.
+   */
+  followReference: (request: FollowReferenceCommand) => {
+    const node = request.target.node
+    workspace.open({
+      id: rowsPanelId(request.connectorId, node.id),
+      kind: "rows",
+      connectorId: request.connectorId,
+      nodeId: node.id,
+      title: node.name,
+      connectorName: request.connectorName,
+      adapterType: request.adapterType,
+      describable: isDescribable(node.kind),
+    })
+    followTarget.value = {
+      connectorId: request.connectorId,
+      nodeId: node.id,
+      filters: request.target.filters,
+    }
+  },
+  followTarget,
+  takeFollow: (connectorId: string, nodeId: string) => {
+    const target = followTarget.value
+    if (target === null) return null
+    if (target.connectorId !== connectorId || target.nodeId !== nodeId) return null
+    followTarget.value = null
+    return target
   },
   openStructure: (request: OpenStructureRequest) => {
     workspace.open({

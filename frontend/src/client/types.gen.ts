@@ -738,6 +738,37 @@ export type FetchColumn = {
 }
 
 /**
+ * FetchReference
+ *
+ * One foreign key of the fetched relation, as the grid needs to see it.
+ *
+ * A whole key rather than a mark on each of its columns: the old application
+ * copied a constraint onto every column it touched, which split a composite
+ * foreign key into independent one-column links. `columns` is the key in its
+ * own order, and `name` is the source's own name for it — the handle the
+ * caller sends back to follow it, never a predicate the caller composes.
+ *
+ * `target_title` is for the tooltip and nothing else. The identity of the
+ * target is not in the answer at all: it arrives from the source when the
+ * reference is actually followed, so there is no id here for a client to be
+ * tempted to take apart (D21).
+ */
+export type FetchReference = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Columns
+   */
+  columns: Array<string>
+  /**
+   * Target Title
+   */
+  target_title: string
+}
+
+/**
  * FetchRequest
  */
 export type FetchRequest = {
@@ -799,6 +830,10 @@ export type FetchResult = {
    */
   row_handles?: Array<string | null>
   /**
+   * References
+   */
+  references?: Array<FetchReference>
+  /**
    * Update Supported
    */
   update_supported?: boolean
@@ -856,6 +891,24 @@ export type FileNode = {
    * Content Kind
    */
   content_kind: "table" | "text" | "opaque"
+}
+
+/**
+ * FollowReferenceRequest
+ */
+export type FollowReferenceRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Reference
+   */
+  reference: string
+  /**
+   * Values
+   */
+  values: Array<ReferenceValue>
 }
 
 /**
@@ -1081,6 +1134,26 @@ export type NewPassword = {
 }
 
 /**
+ * NoReferencedRows
+ *
+ * There is nowhere to go, and the source says why.
+ *
+ * Not an error: a row whose key is empty references nothing, and that is an
+ * answer about the data rather than a failure of the request. D2d — what a
+ * source cannot do is stated in the answer.
+ */
+export type NoReferencedRows = {
+  /**
+   * Kind
+   */
+  kind?: "none"
+  /**
+   * Reason
+   */
+  reason: string
+}
+
+/**
  * NodeReplacement
  */
 export type NodeReplacement = {
@@ -1192,6 +1265,72 @@ export type PrivateUserCreate = {
    * Is Verified
    */
   is_verified?: boolean
+}
+
+/**
+ * ReferenceValue
+ *
+ * One column of the key, with the value the caller read in that row.
+ */
+export type ReferenceValue = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Value
+   */
+  value: string | null
+}
+
+/**
+ * ReferencedRows
+ *
+ * Where to go, and the predicate that gets there.
+ *
+ * The target is a whole `CatalogNode` for the reason `path_to` answers with
+ * them (D21): the screen already knows how to open one, name its tab and
+ * decide whether it can be described, so nothing here needs a second model of
+ * a node or a second table of what a kind of node affords.
+ */
+export type ReferencedRows = {
+  /**
+   * Kind
+   */
+  kind?: "rows"
+  /**
+   * Node
+   */
+  node:
+    | ({
+        kind: "schema"
+      } & SchemaNode)
+    | ({
+        kind: "table"
+      } & TableNode)
+    | ({
+        kind: "view"
+      } & ViewNode)
+    | ({
+        kind: "directory"
+      } & DirectoryNode)
+    | ({
+        kind: "file"
+      } & FileNode)
+  /**
+   * Filters
+   */
+  filters: Array<
+    | ({
+        op: "contains" | "eq" | "gt" | "gte" | "lt" | "lte" | "ne" | "starts_with"
+      } & ScalarFilter)
+    | ({
+        op: "in"
+      } & InFilter)
+    | ({
+        op: "is_not_null" | "is_null"
+      } & NullFilter)
+  >
 }
 
 /**
@@ -2638,6 +2777,46 @@ export type connectorsInsertRowResponses = {
 
 export type connectorsInsertRowResponse =
   connectorsInsertRowResponses[keyof connectorsInsertRowResponses]
+
+export type connectorsFollowReferenceData = {
+  body: FollowReferenceRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/references"
+}
+
+export type connectorsFollowReferenceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsFollowReferenceError =
+  connectorsFollowReferenceErrors[keyof connectorsFollowReferenceErrors]
+
+export type connectorsFollowReferenceResponses = {
+  /**
+   * Response Connectors-Follow Reference
+   *
+   * Successful Response
+   */
+  200:
+    | ({
+        kind: "rows"
+      } & ReferencedRows)
+    | ({
+        kind: "none"
+      } & NoReferencedRows)
+}
+
+export type connectorsFollowReferenceResponse =
+  connectorsFollowReferenceResponses[keyof connectorsFollowReferenceResponses]
 
 export type connectorsReadRelationModelData = {
   body?: never

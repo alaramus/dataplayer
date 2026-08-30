@@ -45,7 +45,9 @@ function mockPages() {
   })
 }
 
-function mountGrid(props: { title?: string; canDescribe?: boolean } = {}) {
+function mountGrid(
+  props: { title?: string; canDescribe?: boolean; referenceFilters?: Filter[] | null } = {}
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
@@ -786,5 +788,121 @@ describe("the basic data grid", () => {
     await wrapper.get('[data-testid="grid-cell-0-payload"]').trigger("dblclick")
     await flushPromises()
     expect(document.body.textContent).toContain('{"full":"value"}')
+  })
+})
+
+describe("following a reference out of a row", () => {
+  const keyed = {
+    columns: [
+      {
+        name: "region_id",
+        type: { sql: "bigint", category: "number" },
+        sortable: true,
+        filter_operators: ["eq"],
+      },
+      {
+        name: "note",
+        type: { sql: "text", category: "string" },
+        sortable: true,
+        filter_operators: ["eq"],
+      },
+    ],
+    rows: [
+      ["7", "first"],
+      [null, "second"],
+    ],
+    has_more: false,
+    references: [
+      { name: "customers_region_fkey", columns: ["region_id"], target_title: "sales.regions" },
+    ],
+  }
+
+  function mockKeyedPage() {
+    return vi
+      .spyOn(ConnectorsService, "fetchRows")
+      .mockResolvedValue({ data: keyed } as never)
+  }
+
+  it("sends the whole key of that row and emits where the source points", async () => {
+    mockKeyedPage()
+    const follow = vi.spyOn(ConnectorsService, "followReference").mockResolvedValue({
+      data: {
+        kind: "rows",
+        node: { kind: "table", id: "sales.regions", name: "regions", has_children: false },
+        filters: [{ column: "id", op: "eq", value: "7" }],
+      },
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper
+      .get('[data-testid="grid-follow-0-customers_region_fkey"]')
+      .trigger("click")
+    await flushPromises()
+
+    expect(follow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          node_id: "public.projects",
+          reference: "customers_region_fkey",
+          values: [{ column: "region_id", value: "7" }],
+        },
+      })
+    )
+    expect(wrapper.findComponent(DataGrid).emitted("follow")?.[0]?.[0]).toMatchObject({
+      node: { id: "sales.regions" },
+      filters: [{ column: "id", op: "eq", value: "7" }],
+    })
+  })
+
+  it("draws no way out of an empty cell", async () => {
+    mockKeyedPage()
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="grid-follow-0-customers_region_fkey"]').exists()).toBe(
+      true
+    )
+    expect(wrapper.find('[data-testid="grid-follow-1-customers_region_fkey"]').exists()).toBe(
+      false
+    )
+  })
+
+  it("says what the source said when a key names nothing, and opens no tab", async () => {
+    mockKeyedPage()
+    vi.spyOn(ConnectorsService, "followReference").mockResolvedValue({
+      data: { kind: "none", reason: "This row has no value for that reference" },
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper
+      .get('[data-testid="grid-follow-0-customers_region_fkey"]')
+      .trigger("click")
+    await flushPromises()
+
+    expect(wrapper.findComponent(DataGrid).emitted("follow")).toBeUndefined()
+    expect(document.body.textContent).toContain("no value for that reference")
+  })
+
+  it("shows the predicate it was navigated to by, over the remembered query", async () => {
+    saveGridState("connector-1", "public.projects", {
+      columnOrder: ["region_id", "note"],
+      columnVisibility: {},
+      columnSizing: {},
+      pinnedLeft: [],
+      filters: [{ column: "note", op: "eq", value: "remembered" }],
+      sort: [],
+    })
+    const fetch = mockKeyedPage()
+    const wrapper = mountGrid({
+      referenceFilters: [{ column: "region_id", op: "eq", value: "7" }],
+    })
+    await flushPromises()
+
+    expect(fetch.mock.calls.at(-1)?.[0]?.body?.filters).toEqual([
+      { column: "region_id", op: "eq", value: "7" },
+    ])
+    expect(wrapper.get('[data-testid="grid-filter"]').text()).toContain("Filters (1)")
   })
 })

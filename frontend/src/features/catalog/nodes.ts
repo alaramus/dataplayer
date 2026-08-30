@@ -157,6 +157,17 @@ const DESCRIBABLE: Record<CatalogNode["kind"], boolean> = {
   file: false,
 }
 
+/**
+ * Whether opening this kind of node also offers its structure.
+ *
+ * The same table the list uses, for a node that arrives from somewhere other
+ * than a listing — the target of a reference, for one. A second table would
+ * be a second answer to the same question.
+ */
+export function isDescribable(kind: CatalogNode["kind"]): boolean {
+  return DESCRIBABLE[kind]
+}
+
 /** The groupings among a level's children: what the filter above it offers. */
 export function groupsOf(nodes: ListNode[]): ListNode[] {
   return nodes.filter((node) => node.role === "group")

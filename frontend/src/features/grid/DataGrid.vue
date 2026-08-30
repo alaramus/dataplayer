@@ -21,7 +21,7 @@ import type {
 import { computed, nextTick, ref, toRef, useTemplateRef, watch } from "vue"
 import type { CSSProperties } from "vue"
 
-import type { FetchColumn, FetchRequest, Sort } from "@/client"
+import type { FetchColumn, FetchReference, FetchRequest, ReferencedRows, Sort } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import {
@@ -36,6 +36,7 @@ import {
 import {
   useDeleteRows,
   useDownloadPage,
+  useFollowReference,
   useForgetRowsPage,
   useInsertRow,
   useRowsPage,
@@ -51,6 +52,7 @@ import GridHeader from "./GridHeader.vue"
 import RowInsertRow from "./RowInsertRow.vue"
 import type { InsertGridColumn } from "./RowInsertRow.vue"
 import { cellPresentation, shouldOpenViewer, toGridRows } from "./model"
+import { keyValues, referencesLedBy } from "./references"
 import type { CellPresentation } from "./model"
 import {
   loadGridState,
@@ -77,10 +79,19 @@ const props = defineProps<{
   nodeId: string
   title?: string
   canDescribe?: boolean
+  /**
+   * A predicate the source built for a reference somebody followed here.
+   *
+   * A prop rather than a call into the grid: the panel may have been created
+   * a moment ago and not be mounted yet, which a call does not survive. A new
+   * array each time, so following the same key twice applies twice.
+   */
+  referenceFilters?: Filter[] | null
 }>()
 const emit = defineEmits<{
   describe: []
   chart: [request: FetchRequest, columns: string[]]
+  follow: [target: ReferencedRows]
 }>()
 const toast = useToast()
 const confirm = useConfirm()
@@ -139,6 +150,7 @@ const updateCell = useUpdateCell(toRef(props, "connectorId"))
 const insertRow = useInsertRow(toRef(props, "connectorId"))
 const deleteRows = useDeleteRows(toRef(props, "connectorId"))
 const downloadPage = useDownloadPage(toRef(props, "connectorId"))
+const followReference = useFollowReference(toRef(props, "connectorId"))
 const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
 const gridFocus = useTemplateRef<HTMLElement>("gridFocus")
 const features = tableFeatures({
@@ -499,6 +511,60 @@ function openChart(): void {
   )
 }
 
+const NO_REFERENCES: FetchReference[] = []
+// Worked out once per answer rather than once per cell: the template asks
+// about every cell of every row on every render, and a page runs to five
+// hundred rows.
+const referencesByColumn = computed(() => {
+  const visible = visibleGridColumns.value.map((column) => column.id)
+  const references = result.value?.references ?? []
+  const led = new Map<string, FetchReference[]>()
+  for (const id of visible) {
+    const found = referencesLedBy(references, id, visible)
+    if (found.length > 0) led.set(id, found)
+  }
+  return led
+})
+
+/**
+ * The ways out drawn in this cell, for this row.
+ *
+ * A cell with nothing in it draws none: an empty cell has no value to act on,
+ * which is the same reason a null one does not open the viewer. Whether an
+ * incomplete key names a row is not decided here — the source answers that
+ * when the arrow is actually pressed.
+ */
+function cellReferences(cell: Cell<GridFeatures, GridRow, unknown>): FetchReference[] {
+  if ((cell.getValue() as string | null) === null) return NO_REFERENCES
+  return referencesByColumn.value.get(cell.column.id) ?? NO_REFERENCES
+}
+
+async function follow(row: GridRow, reference: FetchReference) {
+  const columns = result.value?.columns
+  if (columns === undefined) return
+  const values = keyValues(reference, columns, row.values)
+  if (values === null) {
+    toast.info("This page was read before the relation changed; reload it")
+    return
+  }
+  try {
+    const target = await followReference.mutateAsync({
+      node_id: props.nodeId,
+      reference: reference.name,
+      values,
+    })
+    // The source answered that the key names nothing. Not a failure: an empty
+    // key is a fact about the row, and it says so in the source's own words.
+    if (target.kind === "none") {
+      toast.info(target.reason)
+      return
+    }
+    emit("follow", target)
+  } catch (error) {
+    toast.error(messageOf(error, "Could not follow this reference"))
+  }
+}
+
 function cellTitle(cell: Cell<GridFeatures, GridRow, unknown>): string | undefined {
   const column = serverColumn(cell.column.id)
   if (column?.editable !== true) return result.value?.update_reason ?? undefined
@@ -647,6 +713,31 @@ watch(
   }
 )
 
+/**
+ * Whether a followed reference decided this tab's query.
+ *
+ * The stored query of a relation is restored the first time the source names
+ * its columns, which happens after the panel is opened — so without this the
+ * remembered filters would land on top of the ones somebody just navigated
+ * by. What was navigated to is stored in its turn, exactly as a filter the
+ * user typed is: the tab keeps showing what it was last asked to show.
+ */
+let referenceApplied = false
+
+watch(
+  () => props.referenceFilters,
+  (filters) => {
+    if (filters === undefined || filters === null) return
+    referenceApplied = true
+    const next = withFilters(queryState.value, filters)
+    queryAwaitingPersistence.value = null
+    persistedQueryState.value = next
+    saveQueryState(next)
+    queryState.value = next
+  },
+  { immediate: true }
+)
+
 let restoredKey = ""
 watch(
   () => result.value?.columns,
@@ -672,8 +763,8 @@ watch(
     const restored = {
       ...queryState.value,
       page: 0,
-      filters: reconciled.filters,
-      sort: reconciled.sort,
+      filters: referenceApplied ? queryState.value.filters : reconciled.filters,
+      sort: referenceApplied ? queryState.value.sort : reconciled.sort,
     }
     persistedQueryState.value = restored
     queryState.value = restored
@@ -697,6 +788,7 @@ watch(
   () => {
     restoredKey = ""
     recoveredFrom = ""
+    referenceApplied = false
     quarantinedQuery.value = null
     selectedColumn.value = null
     insertOpen.value = false
@@ -907,6 +999,17 @@ defineExpose({
                   'data-grid__monospace': presentCell(cell).monospace === true,
                 }"
               >{{ presentCell(cell).text }}</span>
+              <AppIconButton
+                v-for="reference in cellReferences(cell)"
+                :key="reference.name"
+                class="data-grid__follow"
+                icon="arrow_forward"
+                :tooltip="`Go to ${reference.target_title}`"
+                :disable="followReference.isPending.value"
+                :data-testid="`grid-follow-${row.id}-${reference.name}`"
+                @click.stop="follow(row.original, reference)"
+                @dblclick.stop
+              />
             </td>
           </tr>
           <RowInsertRow
@@ -991,6 +1094,21 @@ defineExpose({
 
 .data-grid__state {
   margin: 12px;
+}
+
+/* Out of the way of the value, and only there while the row is under the
+   pointer: a way out of every keyed cell drawn at full strength would compete
+   with the data for a grid that is mostly keys. Focus keeps it visible for a
+   reader who does not use a pointer at all. */
+.data-grid__follow {
+  opacity: 0;
+  margin-inline-start: 2px;
+  transition: opacity 120ms ease;
+}
+
+tr:hover .data-grid__follow,
+.data-grid__follow:focus-within {
+  opacity: 1;
 }
 
 .data-grid__insert-error {

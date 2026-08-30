@@ -12,6 +12,7 @@ from app.adapters.column_changes import (
     RenameColumnRequest,
 )
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.relation import RelationModel
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -130,6 +131,26 @@ class SupportsFetch(Protocol):
         Raises AdapterError for source failures and ValueError for a request
         that names a column the relation does not have — that check happens
         before any SQL is built.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsReferences(Protocol):
+    async def follow_reference(
+        self, request: FollowReferenceRequest
+    ) -> ReferenceTarget:
+        """Where one row's foreign key points, with the predicate built.
+
+        Separate from `SupportsFetch` because having rows says nothing about
+        having references: a delimited file has columns and no keys at all. A
+        source that lists references in its fetch result implements this, and
+        one that does not answers 501.
+
+        Raises NodeNotFound when the relation or the relation it points at is
+        gone, AdapterError for source failures, and ValueError for a request
+        that names a reference the relation does not have or supplies values
+        that are not exactly its key.
         """
         ...
 

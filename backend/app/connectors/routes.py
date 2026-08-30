@@ -58,10 +58,12 @@ from app.adapters.protocol import (
     SupportsFetch,
     SupportsInsert,
     SupportsNodePath,
+    SupportsReferences,
     SupportsRelationModel,
     SupportsRenameColumn,
     SupportsUpdate,
 )
+from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
 from app.adapters.relation import RelationModel, without_column_changes
@@ -875,6 +877,50 @@ async def delete_rows(
             },
         ) from None
     except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.post("/{connector_id}/references", response_model=ReferenceTarget)
+async def follow_reference(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: FollowReferenceRequest,
+) -> Any:
+    """
+    Follow one foreign key of one row to the rows it names.
+
+    The answer carries the target node as the catalog describes it and the
+    predicate the source built against that target's own columns. Reading is
+    enough: following a key looks at rows the caller may already read.
+    """
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsReferences):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source has no references to follow",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.follow_reference(request)
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
+        # The reference or its columns, checked against what the source says
+        # now. A bad request rather than an upstream failure: nothing was run.
         raise HTTPException(
             status_code=422,
             detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
