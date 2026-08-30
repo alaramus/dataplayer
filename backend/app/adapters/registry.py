@@ -13,6 +13,7 @@ from app.adapters.protocol import (
     SupportsCatalog,
     SupportsDelete,
     SupportsDropColumn,
+    SupportsExport,
     SupportsFetch,
     SupportsInsert,
     SupportsNodePath,
@@ -142,7 +143,7 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
     client and said so in its own README, at the cost it names there.
 
     `issubclass` rather than `isinstance` because the question is about the
-    type. All three protocols hold methods only, which is what makes the class
+    type. These protocols hold methods only, which is what makes the class
     check legal at all.
     """
     driver = adapter_type.adapter_class
@@ -154,6 +155,8 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(Capability(group="explore", title="Locate a node"))
     if issubclass(driver, SupportsFetch):
         found.append(Capability(group="explore", title="Read rows"))
+    if issubclass(driver, SupportsExport):
+        found.append(Capability(group="explore", title="Export all matching rows"))
     if issubclass(driver, SupportsRelationModel):
         found.append(Capability(group="explore", title="Describe a relation"))
     if issubclass(driver, SupportsReferences):

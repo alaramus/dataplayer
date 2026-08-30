@@ -76,6 +76,8 @@ GET    /api/v1/connectors/{connector_id}/catalog?refresh=false
 GET    /api/v1/connectors/{connector_id}/relation-model
 POST   /api/v1/connectors/{connector_id}/fetch?refresh=false
 POST   /api/v1/connectors/{connector_id}/downloads/page
+POST   /api/v1/connectors/{connector_id}/downloads/export
+GET    /api/v1/connectors/export-downloads/{ticket}
 PATCH  /api/v1/connectors/{connector_id}/columns
 POST   /api/v1/connectors/{connector_id}/actions
 POST   /api/v1/connectors/{connector_id}/actions/{action_name}
@@ -137,7 +139,7 @@ The levels are a total order, and that order is the whole semantics:
 
 | Level | What it admits |
 | --- | --- |
-| `read` | catalog, relation model, rows, node path, page download, a connection check |
+| `read` | catalog, relation model, rows, node path, page or whole export, a connection check |
 | `write` | plus changing rows: cell update, insert, bulk delete |
 | `structure` | plus changing shape: add, drop, rename a column, a column default, renaming a relation |
 | `own` | plus the connection itself: its options, its credentials, its grants, deleting it |

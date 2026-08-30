@@ -35,6 +35,7 @@ function result(offset: number, limit: number): FetchResult {
       `Project ${offset + index + 1}`,
     ]),
     has_more: true,
+    export_supported: true,
   }
 }
 
@@ -118,6 +119,8 @@ describe("the basic data grid", () => {
     await wrapper.get('[data-testid="grid-column-visible-id"]').trigger("click")
     await wrapper.get('[data-testid="grid-download"]').trigger("click")
     await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="grid-download-run"]')?.click()
+    await flushPromises()
 
     expect(download).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -132,6 +135,46 @@ describe("the basic data grid", () => {
         }),
       })
     )
+  })
+
+  it("exports every matching row without asking the client for a blob", async () => {
+    mockPages()
+    const exportRows = vi.spyOn(ConnectorsService, "exportAllRows").mockResolvedValue({
+      data: {
+        filename: "projects.csv",
+        row_count: 1201,
+        download_url: "/api/v1/connectors/export-downloads/ticket",
+      },
+    } as never)
+    let nativeHref = ""
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
+      this: HTMLAnchorElement
+    ) {
+      nativeHref = this.href
+    })
+    const wrapper = mountGrid({ title: "projects" })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-columns"]').trigger("click")
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-column-visible-id"]').trigger("click")
+    await wrapper.get('[data-testid="grid-download"]').trigger("click")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="download-scope-all"]')?.click()
+    document.body.querySelector<HTMLElement>('[data-testid="grid-download-run"]')?.click()
+    await flushPromises()
+
+    expect(exportRows).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: {
+        node_id: "public.projects",
+        title: "projects",
+        columns: ["name"],
+        filters: [],
+        sort: [],
+      },
+    })
+    expect(nativeHref).toContain("/api/v1/connectors/export-downloads/ticket")
   })
 
   it("offers structure in the grid only when the node is describable", async () => {

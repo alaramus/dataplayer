@@ -36,6 +36,7 @@ import {
 import {
   useDeleteRows,
   useDownloadPage,
+  useExportRows,
   useImportRows,
   useFollowReference,
   useForgetRowsPage,
@@ -49,7 +50,13 @@ import CellValueDialog from "./CellValueDialog.vue"
 import { fromTsv, toTsv } from "./clipboard"
 import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
-import { filenameFromDisposition, saveBrowserDownload } from "./download"
+import {
+  filenameFromDisposition,
+  saveBrowserDownload,
+  saveNativeDownload,
+} from "./download"
+import type { DownloadScope } from "./download"
+import DownloadDialog from "./DownloadDialog.vue"
 import GridHeader from "./GridHeader.vue"
 import ImportDialog from "./ImportDialog.vue"
 import RowInsertRow from "./RowInsertRow.vue"
@@ -151,6 +158,7 @@ const editor = ref<{
 const editError = ref("")
 const insertOpen = ref(false)
 const importOpen = ref(false)
+const downloadOpen = ref(false)
 const importError = ref("")
 const insertError = ref("")
 const updateCell = useUpdateCell(toRef(props, "connectorId"))
@@ -158,6 +166,7 @@ const updateCells = useUpdateCells(toRef(props, "connectorId"))
 const insertRow = useInsertRow(toRef(props, "connectorId"))
 const deleteRows = useDeleteRows(toRef(props, "connectorId"))
 const downloadPage = useDownloadPage(toRef(props, "connectorId"))
+const exportRows = useExportRows(toRef(props, "connectorId"))
 const importRows = useImportRows(toRef(props, "connectorId"))
 const followReference = useFollowReference(toRef(props, "connectorId"))
 const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
@@ -640,10 +649,25 @@ function openCell(cell: Cell<GridFeatures, GridRow, unknown>, event: MouseEvent)
   viewer.value = { columnName: column.name, typeSql: column.type.sql, value }
 }
 
-async function downloadVisiblePage() {
+async function runDownload(scope: DownloadScope) {
   if (result.value === undefined || visibleGridColumns.value.length === 0) return
   const fallback = `${props.title ?? "table"}.csv`
   try {
+    if (scope === "all") {
+      const exported = await exportRows.mutateAsync({
+        node_id: props.nodeId,
+        title: props.title ?? "table",
+        columns: visibleGridColumns.value.map((column) => column.id),
+        filters: [...queryState.value.filters],
+        sort: [...queryState.value.sort],
+      })
+      saveNativeDownload(exported.download_url)
+      downloadOpen.value = false
+      toast.success(
+        `${exported.row_count} rows exported and saved to your Downloads folder`
+      )
+      return
+    }
     const downloaded = await downloadPage.mutateAsync({
       ...request.value,
       title: props.title ?? "table",
@@ -653,9 +677,10 @@ async function downloadVisiblePage() {
       downloaded.blob,
       filenameFromDisposition(downloaded.disposition, fallback)
     )
+    downloadOpen.value = false
     toast.success("Page downloaded and saved to your Downloads folder")
   } catch (error) {
-    toast.error(messageOf(error, "Could not download this page"))
+    toast.error(messageOf(error, "Could not create this download"))
   }
 }
 
@@ -987,7 +1012,7 @@ defineExpose({
       :delete-reason="deleteReason"
       :delete-count="selectedRowHandles.length"
       :can-download="result !== undefined && visibleGridColumns.length > 0"
-      :downloading="downloadPage.isPending.value"
+      :downloading="downloadPage.isPending.value || exportRows.isPending.value"
       :can-describe="canDescribe"
       :can-chart="result !== undefined && visibleGridColumns.length > 0"
       @update:page-size="changePageSize"
@@ -999,7 +1024,7 @@ defineExpose({
       @insert="openInsert"
       @bring-in="openImport"
       @delete="deleteSelection"
-      @download="downloadVisiblePage"
+      @download="downloadOpen = true"
       @describe="emit('describe')"
       @chart="openChart"
     />
@@ -1224,6 +1249,18 @@ defineExpose({
       :type-sql="viewer.typeSql"
       :value="viewer.value"
       @update:model-value="viewer = null"
+    />
+    <DownloadDialog
+      v-if="downloadOpen && result !== undefined"
+      :model-value="true"
+      :page-range="range"
+      :column-count="visibleGridColumns.length"
+      :filter-count="queryState.filters.length"
+      :all-supported="result.export_supported === true"
+      :all-reason="result.export_reason ?? undefined"
+      :running="downloadPage.isPending.value || exportRows.isPending.value"
+      @run="runDownload"
+      @update:model-value="downloadOpen = false"
     />
     <ImportDialog
       v-if="importOpen"

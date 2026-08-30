@@ -6,6 +6,7 @@ import { ConnectorsService } from "@/client"
 import type {
   DeleteRowsRequest,
   DownloadPageRequest,
+  ExportDownloadRequest,
   FetchRequest,
   FetchResult,
   FollowReferenceRequest,
@@ -166,6 +167,18 @@ export function useDownloadPage(connectorId: Ref<string>) {
         disposition: response.headers["content-disposition"] as string | undefined,
       }
     },
+  })
+}
+
+export function useExportRows(connectorId: Ref<string>) {
+  return useMutation({
+    mutationFn: async (body: ExportDownloadRequest) =>
+      (
+        await ConnectorsService.exportAllRows({
+          path: { connector_id: connectorId.value },
+          body,
+        })
+      ).data,
   })
 }
 

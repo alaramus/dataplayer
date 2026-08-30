@@ -968,6 +968,62 @@ export type ExclusionConstraint = {
 }
 
 /**
+ * ExportDownloadRequest
+ *
+ * A whole-row export plus the human title of the open table.
+ */
+export type ExportDownloadRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Columns
+   */
+  columns: Array<string>
+  /**
+   * Filters
+   */
+  filters?: Array<
+    | ({
+        op: "contains" | "eq" | "gt" | "gte" | "lt" | "lte" | "ne" | "starts_with"
+      } & ScalarFilter)
+    | ({
+        op: "in"
+      } & InFilter)
+    | ({
+        op: "is_not_null" | "is_null"
+      } & NullFilter)
+  >
+  /**
+   * Sort
+   */
+  sort?: Array<Sort>
+  /**
+   * Title
+   */
+  title: string
+}
+
+/**
+ * ExportReady
+ */
+export type ExportReady = {
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Row Count
+   */
+  row_count: number
+  /**
+   * Download Url
+   */
+  download_url: string
+}
+
+/**
  * FetchColumn
  */
 export type FetchColumn = {
@@ -1138,6 +1194,14 @@ export type FetchResult = {
    * Delete Reason
    */
   delete_reason?: string | null
+  /**
+   * Export Supported
+   */
+  export_supported?: boolean
+  /**
+   * Export Reason
+   */
+  export_reason?: string | null
 }
 
 /**
@@ -2958,6 +3022,35 @@ export type utilsHealthCheckResponses = {
 
 export type utilsHealthCheckResponse = utilsHealthCheckResponses[keyof utilsHealthCheckResponses]
 
+export type connectorsDownloadFinishedExportData = {
+  body?: never
+  path: {
+    /**
+     * Ticket
+     */
+    ticket: string
+  }
+  query?: never
+  url: "/api/v1/connectors/export-downloads/{ticket}"
+}
+
+export type connectorsDownloadFinishedExportErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsDownloadFinishedExportError =
+  connectorsDownloadFinishedExportErrors[keyof connectorsDownloadFinishedExportErrors]
+
+export type connectorsDownloadFinishedExportResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown
+}
+
 export type connectorsReadConnectorsData = {
   body?: never
   path?: never
@@ -3354,6 +3447,38 @@ export type connectorsDownloadPageResponses = {
 
 export type connectorsDownloadPageResponse =
   connectorsDownloadPageResponses[keyof connectorsDownloadPageResponses]
+
+export type connectorsExportAllRowsData = {
+  body: ExportDownloadRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/downloads/export"
+}
+
+export type connectorsExportAllRowsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsExportAllRowsError =
+  connectorsExportAllRowsErrors[keyof connectorsExportAllRowsErrors]
+
+export type connectorsExportAllRowsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExportReady
+}
+
+export type connectorsExportAllRowsResponse =
+  connectorsExportAllRowsResponses[keyof connectorsExportAllRowsResponses]
 
 export type connectorsUpdateCellData = {
   body: UpdateCellRequest

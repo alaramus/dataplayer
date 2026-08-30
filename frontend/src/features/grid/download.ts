@@ -1,3 +1,7 @@
+import { client } from "@/client/client.gen"
+
+export type DownloadScope = "page" | "all"
+
 export function filenameFromDisposition(disposition: string | undefined, fallback: string): string {
   if (disposition === undefined) return fallback
   const encoded = /filename\*=UTF-8''([^;]+)/i.exec(disposition)?.[1]
@@ -31,4 +35,19 @@ export function saveBrowserDownload(blob: Blob, filename: string): void {
     link.remove()
     URL.revokeObjectURL(url)
   }, 0)
+}
+
+/**
+ * Let the browser stream an already-stored export straight to its download.
+ *
+ * The short-lived ticket in the URL is the authorization for this one file.
+ * Following it with a normal anchor is deliberate: an authenticated XHR would
+ * rebuild the whole response as a JavaScript Blob first.
+ */
+export function saveNativeDownload(downloadUrl: string): void {
+  const link = document.createElement("a")
+  link.href = client.buildUrl({ url: downloadUrl })
+  document.body.append(link)
+  link.click()
+  setTimeout(() => link.remove(), 0)
 }

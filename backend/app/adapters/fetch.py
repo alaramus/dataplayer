@@ -132,6 +132,11 @@ class FetchResult(BaseModel):
     insert_reason: str | None = None
     delete_supported: bool = False
     delete_reason: str | None = None
+    # Filled by the connector route from the facade's optional capability.
+    # A capability belongs to the composed adapter, not to the fetch module
+    # that produced this page.
+    export_supported: bool = False
+    export_reason: str | None = None
 
 
 def as_read_only(result: FetchResult, reason: str) -> FetchResult:

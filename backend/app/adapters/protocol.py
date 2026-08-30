@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel
@@ -21,6 +21,7 @@ from app.adapters.constraints import (
     CreateConstraintResult,
     DropConstraintRequest,
 )
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
     CreateIndexRequest,
@@ -151,6 +152,19 @@ class SupportsFetch(Protocol):
         Raises AdapterError for source failures and ValueError for a request
         that names a column the relation does not have — that check happens
         before any SQL is built.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsExport(Protocol):
+    def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        """Stream every matching row in bounded batches.
+
+        Separate from `SupportsFetch`: paging until a source stops is neither
+        one snapshot nor necessarily a streaming operation. The iterator
+        raises AdapterError for source failures and ValueError for identifiers
+        or query operations the source refuses.
         """
         ...
 

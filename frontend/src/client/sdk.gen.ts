@@ -47,6 +47,9 @@ import type {
   connectorsDescribeDraftData,
   connectorsDescribeDraftErrors,
   connectorsDescribeDraftResponses,
+  connectorsDownloadFinishedExportData,
+  connectorsDownloadFinishedExportErrors,
+  connectorsDownloadFinishedExportResponses,
   connectorsDownloadPageData,
   connectorsDownloadPageErrors,
   connectorsDownloadPageResponses,
@@ -59,6 +62,9 @@ import type {
   connectorsDropIndexData,
   connectorsDropIndexErrors,
   connectorsDropIndexResponses,
+  connectorsExportAllRowsData,
+  connectorsExportAllRowsErrors,
+  connectorsExportAllRowsResponses,
   connectorsFetchRowsData,
   connectorsFetchRowsErrors,
   connectorsFetchRowsResponses,
@@ -572,6 +578,21 @@ export class UtilsService {
 
 export class ConnectorsService {
   /**
+   * Download Finished Export
+   *
+   * Redeem a short-lived ticket for one already-stored export.
+   */
+  public static downloadFinishedExport<ThrowOnError extends boolean = true>(
+    options: Options<connectorsDownloadFinishedExportData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      connectorsDownloadFinishedExportResponses,
+      connectorsDownloadFinishedExportErrors,
+      ThrowOnError
+    >({ url: "/api/v1/connectors/export-downloads/{ticket}", ...options })
+  }
+
+  /**
    * Read Connectors
    *
    * Retrieve connectors.
@@ -861,6 +882,30 @@ export class ConnectorsService {
       responseType: "text",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/downloads/page",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Export All Rows
+   *
+   * Stage every matching row without assembling the relation in memory.
+   */
+  public static exportAllRows<ThrowOnError extends boolean = true>(
+    options: Options<connectorsExportAllRowsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsExportAllRowsResponses,
+      connectorsExportAllRowsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/downloads/export",
       ...options,
       headers: {
         "Content-Type": "application/json",

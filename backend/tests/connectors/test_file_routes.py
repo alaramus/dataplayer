@@ -72,6 +72,8 @@ async def test_a_delimited_file_is_read_as_rows(
     assert [column["name"] for column in body["columns"]] == ["id", "name"]
     assert body["rows"] == [["1", "one"]]
     assert body["has_more"] is True
+    assert body["export_supported"] is False
+    assert body["export_reason"] == "This source cannot export all matching rows"
 
 
 @pytest.mark.usefixtures("home")

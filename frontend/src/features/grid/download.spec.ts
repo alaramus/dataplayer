@@ -1,6 +1,18 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { filenameFromDisposition, saveBrowserDownload } from "./download"
+import { client } from "@/client/client.gen"
+
+import {
+  filenameFromDisposition,
+  saveBrowserDownload,
+  saveNativeDownload,
+} from "./download"
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+  client.setConfig({ baseURL: "" })
+})
 
 describe("a CSV browser download", () => {
   it("uses the UTF-8 attachment name returned by the server", () => {
@@ -38,5 +50,26 @@ describe("a CSV browser download", () => {
     expect(revoke).toHaveBeenCalledWith("blob:page")
     expect(document.querySelector("a[download]")).toBeNull()
     vi.useRealTimers()
+  })
+
+  it("follows a stored export without creating a browser blob", () => {
+    vi.useFakeTimers()
+    client.setConfig({ baseURL: "https://api.example.test" })
+    const create = vi.spyOn(URL, "createObjectURL")
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, "click")
+      .mockImplementation(() => undefined)
+
+    saveNativeDownload("/api/v1/connectors/export-downloads/a-ticket")
+
+    const link = document.querySelector<HTMLAnchorElement>('a[href*="a-ticket"]')
+    expect(link?.href).toBe(
+      "https://api.example.test/api/v1/connectors/export-downloads/a-ticket"
+    )
+    expect(click).toHaveBeenCalledOnce()
+    expect(create).not.toHaveBeenCalled()
+
+    vi.runAllTimers()
+    expect(document.querySelector('a[href*="a-ticket"]')).toBeNull()
   })
 })

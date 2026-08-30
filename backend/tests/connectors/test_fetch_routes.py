@@ -51,6 +51,8 @@ async def test_returns_columns_and_rows(
     assert all("data_type" not in column for column in body["columns"])
     assert len(body["rows"]) == 5
     assert body["has_more"] is True
+    assert body["export_supported"] is True
+    assert body["export_reason"] is None
     assert "data_type" not in body
     assert "sortable" not in body
     assert "filterable" not in body

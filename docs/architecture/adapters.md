@@ -4,13 +4,15 @@ What a source type is, what it must implement, and what the two existing types
 do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
-D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36.
+D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36, D37, D38, D39,
+D40, D41, D42, D43, D44.
 
 ## What exists today
 
 Two source types.
 
-**PostgreSQL** — schemas, relations, server-side paging and sorting, a
+**PostgreSQL** — schemas, relations, server-side paging and sorting, streaming
+whole-relation export, a
 connection string composed by the driver and parsed back from a pasted one, two
 ways of connecting (`user_password` and `no_auth`), and connections that outlive
 a request in a pool.
@@ -24,6 +26,7 @@ sorting and no filtering, because a file has no index. No connection string.
 backend/app/adapters/
 ├── protocol.py      DataAdapter, SupportsCatalog, SupportsNodePath,
 │                    SupportsFetch, SupportsRelationModel,
+│                    SupportsExport,
 │                    SupportsConnectionString,
 │                    ParsesConnectionString, AdapterError, NodeNotFound
 ├── options.py       the one seam over an options schema, model or union:
@@ -31,6 +34,7 @@ backend/app/adapters/
 ├── layout.py        where a field goes in the window that edits it
 ├── catalog.py       CatalogNode: a union discriminated by kind; NodeKind
 ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
+├── export.py        ExportRequest and bounded ExportBatch
 ├── relation.py      relation, column, constraint and index models
 ├── actions.py       Action, ActionSet, SupportsActions, ActionType,
 │                    DeclaresActions, transports, refusals
@@ -40,7 +44,7 @@ backend/app/adapters/
 │                    capabilities_of
 ├── routes.py        GET /adapter-types
 ├── postgres/        options.py (a union by auth_method), session.py, pool.py,
-│                    catalog.py, fetch.py, relation.py, actions.py,
+│                    catalog.py, fetch.py, export.py, relation.py, actions.py,
 │                    adapter.py (facade)
 └── file/            session.py (root and containment), catalog.py, fetch.py,
                      readers.py, actions.py, adapter.py (facade)
@@ -726,6 +730,42 @@ Known deviations:
 - **No new relation, no upsert, no key matching.** The target exists and rows
   are inserted; creating a relation from a header is the destructive round
   Phase 1.2 deferred.
+
+## D44. A whole export is a source-owned row stream, never an unbounded fetch
+
+The current-page download of D28 repeats one bounded `FetchRequest`; an export
+of every matching row does not. `SupportsExport` takes the node, committed
+filters, ordered sort and visible columns, and yields `ExportBatch` objects of
+at most 500 rows. There is no limit or offset in that request. A source either
+has a real streaming read or does not implement the capability; paging
+`SupportsFetch` until it stops would make a changing source several snapshots
+and would put offset cost in the platform rather than in the driver.
+
+PostgreSQL is the first implementation. One validated query stays open through
+a server-side cursor and each batch crosses the adapter boundary as D23's
+lossless text cells. The requested sort keeps its source-owned stable
+tie-breaker, filters and identifiers go through the same validation and safe
+composition as a page, and only the requested visible columns are selected.
+The file source deliberately does not opt in: downloading original bytes and
+exporting its tabular interpretation are separate Phase 1.4 operations.
+
+CSV remains outside the adapter. The connector layer encodes one batch at a
+time with D28's null and quoting rules and writes a `.part` under the caller's
+personal `downloads/<connector-id>` directory. A clean end atomically renames
+it; failure or cancellation removes it. The request then returns only a row
+count, filename and one-minute signed ticket for that exact stored path. A
+normal browser download follows the ticket without assembling a whole Blob in
+JavaScript, so both sides of the HTTP boundary remain bounded in memory.
+
+Known deviations:
+
+- **It is a long request, not a job.** There is no durable progress, resume or
+  background completion. Those need the job lifecycle in Phase 4; an upstream
+  timeout or full disk refuses the export rather than returning a truncated
+  success.
+- **A ticket is reusable until it expires.** It is a bearer capability for one
+  already-created file, not a second account session. One-time redemption
+  would require shared state across backend processes.
 
 ## D31. A source opts into bounded read caching, and a successful mutation drops what it cached
 

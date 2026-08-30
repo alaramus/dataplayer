@@ -159,6 +159,7 @@ and the known deviations live there.
 | D41 | A block of cells is one versioned, all-or-nothing edit, and unreadable values are named first | [adapters](docs/architecture/adapters.md) |
 | D42 | A source names a row by whatever it can version, and the order of a page is part of the answer | [adapters](docs/architecture/adapters.md) |
 | D43 | Rows move between two sources through the platform, bounded, and all or none | [adapters](docs/architecture/adapters.md) |
+| D44 | A whole export is a source-owned row stream, never an unbounded fetch | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -393,5 +394,6 @@ vocabulary and dependency behaviour are specified; this is not a generic SQL edi
 Phases 1.1 and 1.2 are done — navigating by a foreign key, column nullability
 (D37), column type (D38), indexes (D39) and constraints (D40) — except for
 relation creation and drop, which stays a separate destructive round. Phase 1.3
-is under way: pasting a block of cells (D41) and moving rows between sources
-(D43) are done, and export scopes beyond the visible page are next.
+is done: pasting a block of cells (D41), moving rows between sources (D43) and
+streaming every matching row into a download (D44). A CSV becoming a new table
+depends on the still-separate relation-creation round rather than bypassing it.

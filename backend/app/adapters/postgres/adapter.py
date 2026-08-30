@@ -1,4 +1,4 @@
-from collections.abc import Mapping
+from collections.abc import AsyncIterator, Mapping
 from typing import Any
 
 from app.adapters.actions import Action, ActionType
@@ -21,6 +21,7 @@ from app.adapters.constraints import (
     CreateConstraintResult,
     DropConstraintRequest,
 )
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
     CreateIndexRequest,
@@ -32,6 +33,7 @@ from app.adapters.postgres.actions import POSTGRES_ACTION_TYPES, PostgresActions
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.columns import PostgresColumns
 from app.adapters.postgres.constraints import PostgresConstraints
+from app.adapters.postgres.export import PostgresExport
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.indexes import PostgresIndexes
 from app.adapters.postgres.options import PostgresOptions
@@ -96,6 +98,7 @@ class PostgresAdapter:
         self._catalog = PostgresCatalog(self._session)
         self._actions = PostgresActions(self._session, self._catalog)
         self._fetch = PostgresFetch(self._session)
+        self._export = PostgresExport(self._session, self._fetch)
         self._update = PostgresUpdate(self._session, self._fetch)
         self._references = PostgresReferences(self._catalog, self._fetch)
         self._relation = PostgresRelation(self._session)
@@ -163,6 +166,9 @@ class PostgresAdapter:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        return self._export.export_rows(request)
 
     async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
         return await self._update.update_cell(request)

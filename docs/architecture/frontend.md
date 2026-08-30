@@ -290,6 +290,13 @@ Commands concerning an open table live in its grid header. **Show structure**
 therefore opens the structure beside the rows and is no longer repeated on
 every describable catalog row; the catalog remains navigation and selection.
 
+Download now asks which of two honest scopes is meant. **Current page** is the
+bounded operation above. **All matching rows** keeps the committed filters,
+ordered sort and visible-column order but drops paging, and is enabled only
+when the source implements D44's streaming export. Its finished personal file
+is followed through a native browser download rather than an XHR Blob, so a
+whole relation is not reassembled in browser memory.
+
 ## D35. A chart is a closed view over one bounded fetch, not another query language
 
 **Charts** in the grid header opens a work panel carrying the exact current

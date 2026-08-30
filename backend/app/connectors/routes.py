@@ -49,6 +49,7 @@ from app.adapters.constraints import (
     CreateConstraintResult,
     DropConstraintRequest,
 )
+from app.adapters.export import ExportRequest
 from app.adapters.fetch import (
     DownloadPageRequest,
     FetchRequest,
@@ -78,6 +79,7 @@ from app.adapters.protocol import (
     SupportsConstraints,
     SupportsDelete,
     SupportsDropColumn,
+    SupportsExport,
     SupportsFetch,
     SupportsIndexes,
     SupportsInsert,
@@ -118,6 +120,7 @@ from app.connectors.models import (
     GrantWrite,
 )
 from app.core.access import Access, at_least
+from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.schemas import Message, get_datetime_utc
 from app.realtime.topics import TopicsDep
@@ -334,6 +337,27 @@ async def _adapter_for(
         session, connector_id, current_user, resources, requires=requires
     )
     return adapter
+
+
+@router.get("/export-downloads/{ticket}", response_class=FileResponse)
+async def download_finished_export(ticket: str) -> FileResponse:
+    """Redeem a short-lived ticket for one already-stored export."""
+    claims = downloads.read_export_ticket(ticket)
+    if claims is None:
+        raise HTTPException(status_code=404, detail="Export not found")
+    path = await to_thread.run_sync(
+        lambda: downloads.stored_export_path(
+            storage.home_dir(claims.user_id), claims
+        )
+    )
+    if path is None:
+        raise HTTPException(status_code=404, detail="Export not found")
+    return FileResponse(
+        path,
+        media_type="text/csv",
+        filename=path.name,
+        headers={"Cache-Control": "private, no-store"},
+    )
 
 
 @router.post("/", response_model=ConnectorPublic)
@@ -664,6 +688,16 @@ async def fetch_rows(
             response=response,
             load=lambda: adapter.fetch(request),
         )
+        result = result.model_copy(
+            update={
+                "export_supported": isinstance(adapter, SupportsExport),
+                "export_reason": (
+                    None
+                    if isinstance(adapter, SupportsExport)
+                    else "This source cannot export all matching rows"
+                ),
+            }
+        )
         # After the cache and not before it: the page a source produced is the
         # same page for everyone, and what one caller may do with it is not.
         if not at_least(access, "write"):
@@ -792,6 +826,68 @@ async def download_page(
             detail={"message": exc.message, "error_kind": exc.error_kind},
         ) from None
     return FileResponse(path, media_type="text/csv", filename=path.name)
+
+
+@router.post(
+    "/{connector_id}/downloads/export",
+    response_model=downloads.ExportReady,
+)
+async def export_all_rows(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: downloads.ExportDownloadRequest,
+) -> downloads.ExportReady:
+    """Stage every matching row without assembling the relation in memory."""
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsExport):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support exporting all rows",
+                "error_kind": "config",
+            },
+        )
+    export_request = ExportRequest.model_validate(
+        request.model_dump(exclude={"title"})
+    )
+    try:
+        path, row_count = await downloads.save_csv_export(
+            home=storage.home_dir(current_user.id),
+            connector_id=connector_id,
+            title=request.title,
+            columns=request.columns,
+            batches=adapter.export_rows(export_request),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from None
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from None
+    except OSError:
+        raise HTTPException(
+            status_code=507,
+            detail={"message": "The export could not be stored", "error_kind": "config"},
+        ) from None
+
+    ticket = downloads.issue_export_ticket(
+        user_id=current_user.id,
+        connector_id=connector_id,
+        filename=path.name,
+    )
+    return downloads.ExportReady(
+        filename=path.name,
+        row_count=row_count,
+        download_url=f"{settings.API_V1_STR}/connectors/export-downloads/{ticket}",
+    )
 
 
 @router.patch("/{connector_id}/rows/cell", response_model=UpdateCellResult)

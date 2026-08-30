@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,7 @@ from pydantic import BaseModel, SecretStr
 from app.adapters import registry
 from app.adapters.actions import Action, ActionResult, JsonAction
 from app.adapters.catalog import CatalogNode
+from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.protocol import ConnectionCheckResult
 
@@ -74,6 +76,9 @@ class FullAdapter(FakeAdapter):
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         raise NotImplementedError
+
+    async def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
+        yield ExportBatch(rows=[])
 
     @classmethod
     def action_types(cls) -> tuple[type[Action[Any]], ...]:
@@ -176,6 +181,7 @@ def test_capabilities_are_read_off_the_protocols_the_driver_satisfies() -> None:
     titles = [c.title for c in registry.capabilities_of(registry.get("fake"))]
 
     assert titles[:3] == ["Browse the catalog", "Locate a node", "Read rows"]
+    assert "Export all matching rows" in titles
 
 
 def test_capabilities_carry_the_titles_of_the_declared_actions() -> None:

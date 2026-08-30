@@ -100,6 +100,16 @@ class RelationFetchInfo:
     delete_reason: str | None
 
 
+@dataclass(frozen=True)
+class PreparedRead:
+    """One validated relation query shared by page and export capabilities."""
+
+    schema: str
+    table: str
+    info: RelationFetchInfo
+    request: FetchRequest
+
+
 # What a physical row identity is read and written as. Both are needed: on a
 # partitioned parent two rows in different partitions share a ctid.
 TABLEOID = "__dp_tableoid"
@@ -233,19 +243,9 @@ class PostgresFetch:
         self._session = session
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
-        schema, _, table = request.node_id.partition(".")
-        if not table:
-            raise ValueError(
-                f'"{request.node_id}" is not a relation: expected schema.table'
-            )
-
-        info = await self.relation_info(schema, table)
+        prepared = await self.prepare(request)
+        info = prepared.info
         columns = info.columns
-        known = {column.name: column for column in columns}
-        self._reject_unknown_columns(request, known)
-        filters = self._validate_filters(request.filters, known)
-        self._reject_unsortable_columns(request, known)
-        request = request.model_copy(update={"filters": filters})
 
         references = [
             FetchReference(
@@ -253,9 +253,15 @@ class PostgresFetch:
                 columns=reference.columns,
                 target_title=reference.target_node_id,
             )
-            for reference in await self.references(schema, table)
+            for reference in await self.references(prepared.schema, prepared.table)
         ]
-        statement, params = self._build(schema, table, columns, request, info)
+        statement, params = self._build(
+            prepared.schema,
+            prepared.table,
+            columns,
+            prepared.request,
+            info,
+        )
         rows = await self._session.query(statement.as_string(), tuple(params))
 
         # One row beyond the page tells us whether another page exists, without
@@ -278,6 +284,58 @@ class PostgresFetch:
             delete_supported=info.delete_supported,
             delete_reason=info.delete_reason,
         )
+
+    async def prepare(self, request: FetchRequest) -> PreparedRead:
+        """Validate the relation and query once for a page or an export."""
+        schema, _, table = request.node_id.partition(".")
+        if not table:
+            raise ValueError(
+                f'"{request.node_id}" is not a relation: expected schema.table'
+            )
+
+        info = await self.relation_info(schema, table)
+        columns = info.columns
+        known = {column.name: column for column in columns}
+        self._reject_unknown_columns(request, known)
+        filters = self._validate_filters(request.filters, known)
+        self._reject_unsortable_columns(request, known)
+        request = request.model_copy(update={"filters": filters})
+        return PreparedRead(schema=schema, table=table, info=info, request=request)
+
+    def build_export(
+        self, prepared: PreparedRead, requested_columns: list[str]
+    ) -> tuple[sql.Composed, list[Any], list[FetchColumn]]:
+        """Compose the unbounded SQL behind a server-side export cursor."""
+        known = {column.name: column for column in prepared.info.columns}
+        unknown = [name for name in requested_columns if name not in known]
+        if unknown:
+            raise ValueError(f'Unknown export column: "{unknown[0]}"')
+        columns = [known[name] for name in requested_columns]
+        params: list[Any] = []
+        selected = sql.SQL(", ").join(select_expression(column) for column in columns)
+        statement = sql.SQL("SELECT {} FROM {}").format(
+            selected, sql.Identifier(prepared.schema, prepared.table)
+        )
+        conditions = [
+            self._condition(filter_, params) for filter_ in prepared.request.filters
+        ]
+        if conditions:
+            statement = (
+                statement + sql.SQL(" WHERE ") + sql.SQL(" AND ").join(conditions)
+            )
+        ordering: list[sql.Composable] = [
+            sql.SQL("{} {}").format(
+                sql.Identifier(item.column),
+                sql.SQL("DESC" if item.descending else "ASC"),
+            )
+            for item in prepared.request.sort
+        ]
+        ordering.extend(_tiebreak(prepared.info))
+        if ordering:
+            statement = (
+                statement + sql.SQL(" ORDER BY ") + sql.SQL(", ").join(ordering)
+            )
+        return statement, params, columns
 
     @staticmethod
     def _row_handle(

@@ -1,5 +1,6 @@
 import asyncio
 import time
+import uuid
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from typing import Any
@@ -304,6 +305,31 @@ class PostgresSession:
             if named is not None:
                 raise ValueError(named) from None
             error_kind, message = classify(exc, fallback_message="Query failed")
+            raise AdapterError(error_kind, message) from None
+
+    async def stream_query(
+        self,
+        sql: str,
+        params: tuple[object, ...] | None,
+        *,
+        batch_size: int,
+    ) -> AsyncIterator[list[dict[str, Any]]]:
+        """Read one query through a server-side cursor, one bounded batch at a time."""
+        try:
+            async with self._connection() as connection:
+                async with connection.transaction():
+                    async with connection.cursor(
+                        name=f"dataplayer_export_{uuid.uuid4().hex}",
+                        row_factory=dict_row,
+                    ) as cursor:
+                        await cursor.execute(sql, params)
+                        while rows := await cursor.fetchmany(batch_size):
+                            yield rows
+        except PoolTimeout:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except Exception as exc:
+            error_kind, message = classify(exc, fallback_message="Export failed")
             raise AdapterError(error_kind, message) from None
 
     async def change(

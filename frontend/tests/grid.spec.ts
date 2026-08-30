@@ -51,6 +51,36 @@ test("explores a relation and restores its view", async ({ page, context }) => {
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("streams every matching row into a CSV download", async ({ page }) => {
+  const name = `e2e-grid-export-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "projects")
+
+  await addFilter(page, "status", "equals", "active")
+  await page.getByTestId("grid-columns").click()
+  await page.getByRole("checkbox", { name: "priority", exact: true }).click()
+  await page.getByTestId("grid-columns").click()
+  await page.getByTestId("grid-download").click()
+  await expect(page.getByTestId("grid-download-dialog")).toContainText(
+    "1 active filters"
+  )
+  await page.getByTestId("download-scope-all").click()
+
+  const started = page.waitForEvent("download")
+  await page.getByTestId("grid-download-run").click()
+  const download = await started
+
+  expect(download.suggestedFilename()).toMatch(/^projects-.*\.csv$/)
+  await expect(
+    page.locator(".q-notification", { hasText: "rows exported" })
+  ).toBeVisible()
+
+  await deleteConnector(page, name)
+})
+
 test("recovers from a rejected query without restoring it", async ({ page }) => {
   test.setTimeout(60_000)
   const name = `e2e-grid-query-error-${Date.now()}`

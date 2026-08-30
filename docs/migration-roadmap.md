@@ -218,9 +218,19 @@ Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
 frontend type check, lint, unit tests, the documentation check and the whole
 end-to-end suite.
 
-- [ ] Add export scopes beyond the current page only through an adapter-owned
+- [x] Add export scopes beyond the current page only through an adapter-owned
   streaming/export capability; never raise the fetch ceiling to simulate an
   export.
+D44 settles the third bullet. PostgreSQL holds one server-side cursor and emits
+bounded batches; the platform writes those batches to a temporary CSV in the
+user's personal storage and atomically publishes it only after the stream ends.
+The browser receives a short-lived ticket for that exact file and lets the
+native download path carry it, so neither Python nor JavaScript assembles the
+whole relation in memory. Page download remains D28's separate bounded path.
+
+Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
+frontend type check, lint, unit tests, the documentation check and the whole
+end-to-end suite.
 
 ### 1.4 File-source depth
 
@@ -484,9 +494,11 @@ end-to-end suite.
 
 ## Next session
 
-Continue **Phase 1.3** with the third bullet: export scopes beyond the visible
-page. D28 downloads exactly what is on screen and D43 now moves rows the other
-way, so the shape is already half-known — the missing half is that an export
-of a whole relation cannot be held in memory the way an import of 5000 rows
-can. That is the adapter-owned streaming capability the bullet asks for, and it
-is the first place where raising a ceiling is not an option.
+Define the separate destructive relation-creation round before letting a CSV
+become a new table. The reusable operation is not a PostgreSQL-specific upload:
+the target source must publish a create-relation capability, safe column types
+and the replacement node identity, while the existing file source and D43 move
+the bounded rows into it. The spec must settle schema and table naming, name
+conflicts, type inference versus explicit overrides, and rollback when either
+creation or the row move fails. Relation drop remains part of the same
+destructive round but a distinct confirmed command.
