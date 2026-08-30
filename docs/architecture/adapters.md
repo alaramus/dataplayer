@@ -634,6 +634,44 @@ Known deviations:
 - **The single-cell route stays separate.** It now shares the type check, so
   its refusal names the type, but merging the two paths is a tidy-up.
 
+## D42. A source names a row by whatever it can version, and the order of a page is part of the answer
+
+Two defects had one cause: neither identity nor order was stated, so both were
+whatever the plan produced.
+
+The fetch used to add `ORDER BY` only when the user chose a sort. Without one
+PostgreSQL returns rows in plan order, and because an `UPDATE` writes a new
+version rather than changing one in place, editing a cell sent its row to the
+end of the page. The same gap made `LIMIT`/`OFFSET` paging unable to promise
+that page two omits page one. So every fetch now ends with a deterministic
+tiebreaker appended after the user's own sort: the primary key ascending where
+there is one, `tableoid, ctid` where there is not.
+
+The handle of D25 no longer requires a primary key. `ctid` names a tuple's
+physical position and is not stable, but it does not need to be: the handle
+carries `xmin` and every operation checks it, so `ctid + xmin` says "this exact
+version of this row" at least as precisely as `key + xmin` does. Anything that
+moves the row changes both, the handle then matches nothing, and the answer is
+the conflict it already was — what cannot happen is a write to the wrong row.
+On a partitioned parent `ctid` alone is ambiguous, since two rows in different
+partitions share one, so the physical identity is `tableoid` and `ctid`
+together.
+
+The key is still preferred where the relation has one, because a ctid handle is
+fragile in a way the reader cannot see: `VACUUM FULL`, `CLUSTER` or a repack
+move every row and invalidate every open page's handles at once, and the reader
+is told their row changed when it did not.
+
+Known deviations:
+
+- **A keyless relation still cannot hold its place.** Its rows are ordered
+  physically, so editing one moves it. There is nothing stable to order by, and
+  the same fact is what makes its handle fragile.
+- **Paging stays `LIMIT`/`OFFSET`.** A stable order makes it correct, not fast;
+  keyset paging is a separate contract.
+- **`ctid` never leaves the handle.** It is not offered as a column to filter
+  or sort by.
+
 ## D31. A source opts into bounded read caching, and a successful mutation drops what it cached
 
 `DataCache` belongs to the application lifespan beside the resource store. Its

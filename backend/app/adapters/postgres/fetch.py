@@ -2,7 +2,7 @@ import json
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
-from typing import Any, assert_never
+from typing import Any, Literal, assert_never
 from uuid import UUID
 
 from psycopg import sql
@@ -87,12 +87,23 @@ class RelationReference:
 class RelationFetchInfo:
     columns: list[FetchColumn]
     primary_key: list[str]
+    # How a row is named. The key where there is one, because a physical
+    # position is invalidated wholesale by anything that rewrites the table;
+    # its place where there is not, because that is better than refusing to
+    # edit a table that is perfectly editable (D42).
+    row_identity: Literal["primary_key", "physical", "none"]
     update_supported: bool
     update_reason: str | None
     insert_supported: bool
     insert_reason: str | None
     delete_supported: bool
     delete_reason: str | None
+
+
+# What a physical row identity is read and written as. Both are needed: on a
+# partitioned parent two rows in different partitions share a ctid.
+TABLEOID = "__dp_tableoid"
+CTID = "__dp_ctid"
 
 
 class _JsonNumber:
@@ -244,7 +255,7 @@ class PostgresFetch:
             )
             for reference in await self.references(schema, table)
         ]
-        statement, params = self._build(schema, table, columns, request)
+        statement, params = self._build(schema, table, columns, request, info)
         rows = await self._session.query(statement.as_string(), tuple(params))
 
         # One row beyond the page tells us whether another page exists, without
@@ -274,13 +285,10 @@ class PostgresFetch:
     ) -> str | None:
         if not info.delete_supported:
             return None
-        known = {column.name: column for column in columns}
-        keys = [encode_cell(row[name], known[name].type) for name in info.primary_key]
-        if any(value is None for value in keys):
+        keys = row_identity_values(row, info, columns)
+        if keys is None:
             return None
-        return encode_row_handle(
-            [value for value in keys if value is not None], str(row["__dp_xmin"])
-        )
+        return encode_row_handle(keys, str(row["__dp_xmin"]))
 
     @staticmethod
     def _reject_unknown_columns(
@@ -384,22 +392,23 @@ class PostgresFetch:
             raise AdapterError("config", f'Relation "{schema}.{table}" does not exist')
         primary_key = [str(value) for value in (rows[0]["primary_key"] or [])]
         table_kind = str(rows[0]["relation_kind"]) in {"r", "p"}
-        update_supported = table_kind and bool(primary_key)
-        if not table_kind:
-            update_reason = "Only tables can be edited"
-        elif not primary_key:
-            update_reason = "A primary key is required to edit rows"
-        else:
-            update_reason = None
+        # A key is not required to name a row any more: where there is none,
+        # the row's own place plus its version says which row and which version
+        # of it, which is all an optimistic edit ever needed (D42).
+        # A view has neither: no key of its own and no ctid to fall back on,
+        # which is why there is a third answer rather than a second.
+        physical_kind = str(rows[0]["relation_kind"]) in {"r", "p", "m"}
+        row_identity: Literal["primary_key", "physical", "none"] = (
+            "primary_key"
+            if primary_key
+            else ("physical" if physical_kind else "none")
+        )
+        update_supported = table_kind
+        update_reason = None if table_kind else "Only tables can be edited"
         insert_supported = table_kind
         insert_reason = None if table_kind else "Only tables accept inserted rows"
-        delete_supported = table_kind and bool(primary_key)
-        if not table_kind:
-            delete_reason = "Only tables can delete rows"
-        elif not primary_key:
-            delete_reason = "A primary key is required to delete rows"
-        else:
-            delete_reason = None
+        delete_supported = table_kind
+        delete_reason = None if table_kind else "Only tables can delete rows"
         columns: list[FetchColumn] = []
         for row in rows:
             type_ = build_column_type(row)
@@ -430,6 +439,7 @@ class PostgresFetch:
         return RelationFetchInfo(
             columns=columns,
             primary_key=primary_key,
+            row_identity=row_identity,
             update_supported=update_supported,
             update_reason=update_reason,
             insert_supported=insert_supported,
@@ -477,11 +487,16 @@ class PostgresFetch:
         table: str,
         columns: list[FetchColumn],
         request: FetchRequest,
+        info: RelationFetchInfo,
     ) -> tuple[sql.Composed, list[Any]]:
         params: list[Any] = []
         selected = sql.SQL(", ").join(select_expression(column) for column in columns)
         if any(column.editable for column in columns):
             selected = selected + sql.SQL(", xmin::text AS __dp_xmin")
+        if info.row_identity == "physical":
+            selected = selected + sql.SQL(
+                ", tableoid::text AS __dp_tableoid, ctid::text AS __dp_ctid"
+            )
         statement = sql.SQL("SELECT {} FROM {}").format(
             selected, sql.Identifier(schema, table)
         )
@@ -492,15 +507,23 @@ class PostgresFetch:
                 statement + sql.SQL(" WHERE ") + sql.SQL(" AND ").join(conditions)
             )
 
-        if request.sort:
-            ordering = [
-                sql.SQL("{} {}").format(
-                    sql.Identifier(item.column),
-                    sql.SQL("DESC" if item.descending else "ASC"),
-                )
-                for item in request.sort
-            ]
-            statement = statement + sql.SQL(" ORDER BY ") + sql.SQL(", ").join(ordering)
+        ordering: list[sql.Composable] = [
+            sql.SQL("{} {}").format(
+                sql.Identifier(item.column),
+                sql.SQL("DESC" if item.descending else "ASC"),
+            )
+            for item in request.sort
+        ]
+        # Always, and after whatever the reader asked for. Without it the order
+        # is the plan's, an edited row moves because MVCC writes a new version
+        # elsewhere, and page two does not promise to omit page one (D42).
+        ordering.extend(_tiebreak(info))
+        # A relation with nothing to break ties by and no sort asked for gets
+        # no ORDER BY at all, rather than an empty one.
+        if ordering:
+            statement = (
+                statement + sql.SQL(" ORDER BY ") + sql.SQL(", ").join(ordering)
+            )
 
         # limit + 1 so the extra row can answer has_more.
         statement = statement + sql.SQL(" LIMIT %s OFFSET %s")
@@ -529,6 +552,43 @@ class PostgresFetch:
                 )
             case unreachable:
                 assert_never(unreachable)
+
+
+def row_identity_values(
+    row: dict[str, Any], info: RelationFetchInfo, columns: list[FetchColumn]
+) -> list[str] | None:
+    """What goes into this row's handle, in the order the match expects."""
+    if info.row_identity == "physical":
+        return [str(row[TABLEOID]), str(row[CTID])]
+    known = {column.name: column for column in columns}
+    keys = [encode_cell(row[name], known[name].type) for name in info.primary_key]
+    if any(value is None for value in keys):
+        return None
+    return [value for value in keys if value is not None]
+
+
+def row_match(info: RelationFetchInfo) -> list[sql.Composable]:
+    """The conditions that pick out one exact row, one placeholder each.
+
+    In one place because three commands ask the same question — change a cell,
+    change a block, delete a set — and a fourth would otherwise ask it a fourth
+    way.
+    """
+    if info.row_identity == "physical":
+        return [sql.SQL("tableoid = %s::oid"), sql.SQL("ctid = %s::tid")]
+    return [sql.SQL("{} = %s").format(sql.Identifier(name)) for name in info.primary_key]
+
+
+def _tiebreak(info: RelationFetchInfo) -> list[sql.Composable]:
+    """What settles the order once the reader's own sort has had its say.
+
+    A relation with neither a key nor a place of its own — a view — gets
+    nothing, because there is nothing honest to add. Its pages are as stable as
+    its own definition makes them.
+    """
+    if info.row_identity == "physical":
+        return [sql.SQL("tableoid"), sql.SQL("ctid")]
+    return [sql.SQL("{} ASC").format(sql.Identifier(name)) for name in info.primary_key]
 
 
 def select_expression(column: FetchColumn) -> sql.Composed:

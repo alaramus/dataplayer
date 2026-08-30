@@ -9,6 +9,8 @@ from app.adapters.postgres.fetch import (
     PostgresFetch,
     RelationFetchInfo,
     encode_cell,
+    row_identity_values,
+    row_match,
     select_expression,
 )
 from app.adapters.postgres.row_handle import decode_row_handle, encode_row_handle
@@ -30,6 +32,22 @@ from app.adapters.update import (
 )
 
 
+def _returning(info: RelationFetchInfo) -> sql.Composed:
+    """Everything a changed row has to say about itself afterwards.
+
+    The identity is part of it: a physically identified row has a new place
+    after every write, so the handle can only be built from what came back.
+    """
+    columns = sql.SQL(", ").join(
+        select_expression(column) for column in info.columns
+    ) + sql.SQL(", xmin::text AS __dp_xmin")
+    if info.row_identity == "physical":
+        columns = columns + sql.SQL(
+            ", tableoid::text AS __dp_tableoid, ctid::text AS __dp_ctid"
+        )
+    return columns
+
+
 class PostgresUpdate:
     def __init__(self, session: PostgresSession, fetch: PostgresFetch) -> None:
         self._session = session
@@ -48,17 +66,12 @@ class PostgresUpdate:
             raise ValueError(f'Column "{request.column}" cannot be edited')
 
         handle = decode_row_handle(request.row_handle)
-        if len(handle.keys) != len(info.primary_key):
+        if len(handle.keys) != len(row_match(info)):
             raise ValueError("The row handle is not valid for this relation")
 
         assignments = sql.SQL("{} = %s").format(sql.Identifier(request.column))
-        conditions: list[sql.Composable] = [
-            sql.SQL("{} = %s").format(sql.Identifier(name)) for name in info.primary_key
-        ]
-        conditions.append(sql.SQL("xmin::text = %s"))
-        returning = sql.SQL(", ").join(
-            select_expression(item) for item in info.columns
-        ) + sql.SQL(", xmin::text AS __dp_xmin")
+        conditions: list[sql.Composable] = [*row_match(info), sql.SQL("xmin::text = %s")]
+        returning = _returning(info)
         statement = sql.SQL("UPDATE {} SET {} WHERE {} RETURNING {}").format(
             sql.Identifier(schema, table),
             assignments,
@@ -101,7 +114,7 @@ class PostgresUpdate:
         places: list[tuple[int, str]] = []
         for index, row in enumerate(request.rows):
             handle = decode_row_handle(row.row_handle)
-            if len(handle.keys) != len(info.primary_key):
+            if len(handle.keys) != len(row_match(info)):
                 raise ValueError("The row handle is not valid for this relation")
             handles.append(handle)
             for cell in row.cells:
@@ -126,12 +139,8 @@ class PostgresUpdate:
                 ]
             )
 
-        returning = sql.SQL(", ").join(
-            select_expression(column) for column in info.columns
-        ) + sql.SQL(", xmin::text AS __dp_xmin")
-        conditions = [
-            sql.SQL("{} = %s").format(sql.Identifier(name)) for name in info.primary_key
-        ] + [sql.SQL("xmin::text = %s")]
+        returning = _returning(info)
+        conditions = [*row_match(info), sql.SQL("xmin::text = %s")]
 
         updated: list[UpdatedRow] = []
         async with self._session.transaction(refusals=VALUE_REFUSALS) as work:
@@ -184,9 +193,7 @@ class PostgresUpdate:
         if missing:
             raise ValueError(f"Required columns were not supplied: {', '.join(missing)}")
 
-        returning = sql.SQL(", ").join(
-            select_expression(column) for column in info.columns
-        ) + sql.SQL(", xmin::text AS __dp_xmin")
+        returning = _returning(info)
         if request.values:
             names = sql.SQL(", ").join(
                 sql.Identifier(item.column) for item in request.values
@@ -215,18 +222,14 @@ class PostgresUpdate:
 
         handles = [decode_row_handle(value) for value in request.row_handles]
         for handle in handles:
-            if len(handle.keys) != len(info.primary_key):
+            if len(handle.keys) != len(row_match(info)):
                 raise ValueError("The row handle is not valid for this relation")
         identities = {(tuple(handle.keys), handle.version) for handle in handles}
         if len(identities) != len(handles):
             raise ValueError("A row may be deleted only once")
 
         one_row = sql.SQL(" AND ").join(
-            [
-                sql.SQL("{} = %s").format(sql.Identifier(name))
-                for name in info.primary_key
-            ]
-            + [sql.SQL("xmin::text = %s")]
+            [*row_match(info), sql.SQL("xmin::text = %s")]
         )
         matches = sql.SQL(" OR ").join(
             sql.SQL("({})").format(one_row) for _ in handles
@@ -261,12 +264,9 @@ class PostgresUpdate:
         row: dict[str, Any], info: RelationFetchInfo
     ) -> tuple[list[str | None], str | None]:
         values = [encode_cell(row[column.name], column.type) for column in info.columns]
-        if not info.primary_key:
+        # From the same RETURNING that produced the values, so the handle names
+        # the version that was just written rather than the one that was read.
+        keys = row_identity_values(row, info, info.columns)
+        if keys is None:
             return values, None
-        positions = {column.name: index for index, column in enumerate(info.columns)}
-        keys = [values[positions[name]] for name in info.primary_key]
-        if any(value is None for value in keys):
-            return values, None
-        return values, encode_row_handle(
-            [value for value in keys if value is not None], str(row["__dp_xmin"])
-        )
+        return values, encode_row_handle(keys, str(row["__dp_xmin"]))

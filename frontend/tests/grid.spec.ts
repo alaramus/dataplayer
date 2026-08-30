@@ -320,3 +320,36 @@ test("pastes a block of cells and refuses one the column cannot read", async ({
 
   await deleteConnector(page, name)
 })
+
+test("keeps a row in its place when one of its cells is edited", async ({ page }) => {
+  const name = `e2e-grid-order-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "app_users")
+
+  // Two rows are enough to tell an order from an accident.
+  const first = await page.getByTestId("grid-cell-0-email").textContent()
+  const second = await page.getByTestId("grid-cell-1-email").textContent()
+  expect(first).not.toBe(second)
+
+  const cell = page.getByTestId("grid-cell-0-full_name")
+  const before = (await cell.textContent()) ?? ""
+  await cell.dblclick()
+  await page.getByTestId("grid-edit-value").fill(`${before} edited`)
+  await page.getByTestId("grid-edit-save").click()
+  await expect(cell).toHaveText(`${before} edited`)
+
+  // PostgreSQL wrote the changed row somewhere else in the heap; the page is
+  // ordered by the key, so the reader does not see it move (D42).
+  await expect(page.getByTestId("grid-cell-0-email")).toHaveText(first ?? "")
+  await expect(page.getByTestId("grid-cell-1-email")).toHaveText(second ?? "")
+
+  await cell.dblclick()
+  await page.getByTestId("grid-edit-value").fill(before)
+  await page.getByTestId("grid-edit-save").click()
+  await expect(cell).toHaveText(before)
+
+  await deleteConnector(page, name)
+})

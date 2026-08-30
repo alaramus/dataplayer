@@ -87,6 +87,9 @@ included; the spec index lists the older titles in translation.
   may be pointed at — is added over chosen columns and dropped again, with the
   source naming it. Rows that stand in the way of any of these are counted and
   reported rather than turned into a failure.
+- Every page comes back in a stated order, so an edited row keeps its place and
+  two pages do not overlap. A relation without a primary key is edited and
+  deleted like any other, by the place of its rows.
 - The row grid filters and ordered multi-sorts on the server, pages up to 500
   rows, remembers its query and column layout, selects and copies exact TSV,
   takes a copied block back as one all-or-nothing edit, and
@@ -150,6 +153,7 @@ and the known deviations live there.
 | D39 | The source names an index, and the method's limits are read from the server | [adapters](docs/architecture/adapters.md) |
 | D40 | A relation publishes what may point at it, and a constraint is a promise the data can refuse | [adapters](docs/architecture/adapters.md) |
 | D41 | A block of cells is one versioned, all-or-nothing edit, and unreadable values are named first | [adapters](docs/architecture/adapters.md) |
+| D42 | A source names a row by whatever it can version, and the order of a page is part of the answer | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.

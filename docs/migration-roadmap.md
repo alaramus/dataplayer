@@ -448,6 +448,23 @@ that they belong in the platform core.
 - chart or AI payloads accepting executable renderer/tool configuration;
 - a large fetch limit used as export, sharing or aggregation.
 
+## Corrections found while using it
+
+Reported from the running application rather than by a check, and fixed where
+they were found.
+
+- **A row moved when it was edited, and pages overlapped.** The fetch ordered
+  rows only when the reader had chosen a sort, so the order was the plan's and
+  an updated row — written elsewhere by MVCC — reappeared at the end. D42 makes
+  the order part of the answer.
+- **A relation without a primary key could not be edited or deleted.** That was
+  a property of how the handle was built, not of the data. D42 lets such a row
+  be named by its place, with the version check it always had.
+
+Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
+frontend type check, lint, unit tests, the documentation check and the whole
+end-to-end suite.
+
 ## Next session
 
 Continue **Phase 1.3** with importing a bounded CSV into an existing relation.

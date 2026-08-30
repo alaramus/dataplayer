@@ -61,21 +61,67 @@ async def test_fetch_marks_primary_key_table_and_returns_row_handles(
     ).insertable
 
 
-async def test_relation_without_primary_key_explains_why_it_is_read_only(
+async def test_a_relation_without_a_primary_key_is_edited_by_its_place(
     schema: str,
 ) -> None:
+    """D42: a key is one way to name a row, not the only one."""
     await run(f"CREATE TABLE {schema}.notes (body text NOT NULL)")
+    await run(
+        f"INSERT INTO {schema}.notes VALUES ('one'), ('two')"  # noqa: S608 -- fixture-owned schema.
+    )
+    adapter = _adapter()
 
-    result = await _adapter().fetch(FetchRequest(node_id=f"{schema}.notes"))
+    result = await adapter.fetch(FetchRequest(node_id=f"{schema}.notes"))
 
-    assert result.update_supported is False
-    assert result.update_reason == "A primary key is required to edit rows"
-    assert result.insert_supported is True
-    assert result.insert_reason is None
-    assert result.delete_supported is False
-    assert result.delete_reason == "A primary key is required to delete rows"
-    assert result.row_handles == [None for _ in result.rows]
-    assert not any(column.editable for column in result.columns)
+    assert result.update_supported is True
+    assert result.update_reason is None
+    assert result.delete_supported is True
+    assert result.delete_reason is None
+    assert all(handle is not None for handle in result.row_handles)
+    assert all(column.editable for column in result.columns)
+
+    handle = result.row_handles[0]
+    assert handle is not None
+    changed = await adapter.update_cell(
+        UpdateCellRequest(
+            node_id=f"{schema}.notes", row_handle=handle, column="body", value="ONE"
+        )
+    )
+    assert changed.values == ["ONE"]
+
+    # The row moved when it was written, so the handle that came back is the
+    # one that works and the one that was used is spent.
+    with pytest.raises(RowConflict):
+        await adapter.update_cell(
+            UpdateCellRequest(
+                node_id=f"{schema}.notes",
+                row_handle=handle,
+                column="body",
+                value="again",
+            )
+        )
+    await adapter.update_cell(
+        UpdateCellRequest(
+            node_id=f"{schema}.notes",
+            row_handle=changed.row_handle,
+            column="body",
+            value="ONCE",
+        )
+    )
+
+    deleted = await adapter.delete_rows(
+        DeleteRowsRequest(
+            node_id=f"{schema}.notes",
+            row_handles=[
+                handle
+                for handle in (
+                    await adapter.fetch(FetchRequest(node_id=f"{schema}.notes"))
+                ).row_handles
+                if handle is not None
+            ],
+        )
+    )
+    assert deleted.deleted == 2
 
 
 async def test_updates_one_cell_and_returns_the_canonical_row(schema: str) -> None:
@@ -181,6 +227,59 @@ async def test_value_rejected_by_postgres_is_a_safe_validation_error(
         )
     assert "cannot be read as numeric" in str(raised.value)
     assert "not-a-number" not in str(raised.value)
+
+
+async def test_a_view_still_says_it_cannot_be_edited(schema: str) -> None:
+    result = await _adapter().fetch(FetchRequest(node_id=f"{schema}.rich_customers"))
+
+    assert result.update_supported is False
+    assert result.update_reason == "Only tables can be edited"
+    assert result.row_handles == [None for _ in result.rows]
+
+
+async def test_a_page_keeps_its_order_when_a_row_is_edited(schema: str) -> None:
+    """The defect D42 was written for: MVCC writes a changed row somewhere else."""
+    await run(
+        f"INSERT INTO {schema}.customers (region_id, region_code, name) "  # noqa: S608 -- fixture-owned schema.
+        "VALUES (1, 'EU', 'ann'), (1, 'EU', 'bob'), (1, 'EU', 'cai')"
+    )
+    adapter = _adapter()
+    before = await adapter.fetch(FetchRequest(node_id=f"{schema}.customers"))
+    keys = [row[0] for row in before.rows]
+    handle = before.row_handles[0]
+    assert handle is not None
+
+    await adapter.update_cell(
+        UpdateCellRequest(
+            node_id=f"{schema}.customers",
+            row_handle=handle,
+            column="name",
+            value="anna",
+        )
+    )
+
+    after = await adapter.fetch(FetchRequest(node_id=f"{schema}.customers"))
+    assert [row[0] for row in after.rows] == keys
+
+
+async def test_two_pages_of_an_unsorted_read_do_not_overlap(schema: str) -> None:
+    """Without an order, LIMIT/OFFSET promises nothing about what page two holds."""
+    await run(
+        f"INSERT INTO {schema}.customers (region_id, region_code, name) "  # noqa: S608 -- fixture-owned schema.
+        "SELECT 1, 'EU', 'c' || g FROM generate_series(1, 20) AS g"
+    )
+    adapter = _adapter()
+
+    first = await adapter.fetch(
+        FetchRequest(node_id=f"{schema}.customers", limit=10, offset=0)
+    )
+    second = await adapter.fetch(
+        FetchRequest(node_id=f"{schema}.customers", limit=10, offset=10)
+    )
+
+    seen = [row[0] for row in first.rows] + [row[0] for row in second.rows]
+    assert len(seen) == 20
+    assert len(set(seen)) == 20
 
 
 async def test_inserts_a_row_with_defaults_and_returns_canonical_values(
