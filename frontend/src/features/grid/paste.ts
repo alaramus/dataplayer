@@ -103,3 +103,54 @@ export function planPaste(
   }
   return { ok: true, rows: planned }
 }
+
+export interface InsertablePasteColumn {
+  name: string
+  insertable: boolean
+}
+
+export interface RowFill {
+  values: { column: string; value: string | null }[]
+  /** Columns the line covered that the source fills itself. */
+  skipped: string[]
+}
+
+export type RowPastePlan = { ok: true; fill: RowFill } | { ok: false; reason: string }
+
+/**
+ * A copied line read back into the fields of a row being inserted.
+ *
+ * Positional, and that is exact rather than lucky: the grid and the insert row
+ * are built from the same ordered list of visible columns, so the nth value of
+ * a copied line belongs to the nth field. What the source fills itself — an
+ * identity, a generated column — is left out rather than refused, since a
+ * copied row always carries those and refusing would make the gesture useless.
+ */
+export function planRowPaste(
+  block: readonly (readonly (string | null)[])[],
+  columns: readonly InsertablePasteColumn[]
+): RowPastePlan {
+  if (block.length !== 1) {
+    return { ok: false, reason: "One row is inserted at a time" }
+  }
+  const line = block[0] ?? []
+  if (line.length === 0) return { ok: false, reason: "Nothing to paste" }
+  if (line.length > columns.length) {
+    return {
+      ok: false,
+      reason: `That line has ${line.length} values and ${columns.length} columns are shown`,
+    }
+  }
+  const values: { column: string; value: string | null }[] = []
+  const skipped: string[] = []
+  line.forEach((value, index) => {
+    const column = columns[index]
+    if (column === undefined) return
+    if (column.insertable) values.push({ column: column.name, value })
+    else skipped.push(column.name)
+  })
+  if (values.length === 0) {
+    return { ok: false, reason: "The source fills every one of those columns itself" }
+  }
+  return { ok: true, fill: { values, skipped } }
+}

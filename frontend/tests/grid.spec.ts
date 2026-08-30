@@ -353,3 +353,53 @@ test("keeps a row in its place when one of its cells is edited", async ({ page }
 
   await deleteConnector(page, name)
 })
+
+test("copies a whole row and fills a new one from it", async ({ page, context }) => {
+  const name = `e2e-grid-duplicate-${Date.now()}`
+  const label = `e2e-dup-${Date.now()}`
+  const copy = `${label}-copy`
+  await context.grantPermissions(["clipboard-read", "clipboard-write"])
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "tags")
+
+  // One row of our own to copy, so nothing in the fixture is duplicated.
+  await addFilter(page, "label", "contains", label, false)
+  await page.getByTestId("grid-insert").click()
+  await page.getByTestId("grid-insert-value-organization_id").fill("1")
+  await page.getByTestId("grid-insert-value-label").fill(label)
+  await page.getByTestId("grid-insert-value-color").fill("#ABCDEF")
+  await page.getByTestId("grid-insert-save").click()
+  await expect(page.getByTestId("grid-cell-0-label")).toHaveText(label)
+
+  // Select the whole row and copy it.
+  await page.getByTestId("grid-cell-0-tag_id").click()
+  await page.getByTestId("grid-cell-0-color").click({ modifiers: ["Shift"] })
+  await page.getByTestId("grid-copy").click()
+
+  // A new row filled from that line: the identity is the source's, so it is
+  // named as left out rather than dictated.
+  await page.getByTestId("grid-insert").click()
+  await page.getByTestId("grid-insert-paste").click()
+  await expect(
+    page.locator(".q-notification", { hasText: "Left to the source: tag_id" })
+  ).toBeVisible()
+  await expect(page.getByTestId("grid-insert-value-color")).toHaveValue("#ABCDEF")
+  await page.getByTestId("grid-insert-value-label").fill(copy)
+  await page.getByTestId("grid-insert-save").click()
+
+  await expect(page.getByTestId("grid-cell-1-label")).toHaveText(copy)
+  await expect(page.getByTestId("grid-cell-1-color")).toHaveText("#ABCDEF")
+
+  // One at a time: ticking a row replaces the selection rather than adding to it.
+  for (let left = 2; left > 0; left -= 1) {
+    await page.getByTestId("grid-select-row-0").click()
+    await page.getByTestId("grid-delete").click()
+    await page.getByTestId("confirm-accept").click()
+  }
+  await expect(page.getByTestId("grid-empty")).toBeVisible()
+
+  await deleteConnector(page, name)
+})

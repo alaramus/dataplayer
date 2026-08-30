@@ -626,11 +626,20 @@ The TSV the grid writes is now lossless: an unquoted empty field means null and
 a quoted one means the empty string, in both directions, so the grid's own copy
 and paste round-trip exactly.
 
+A copied line also fills the row being inserted, which is how a row is
+duplicated. Positional, and exactly so rather than by luck: the grid and the
+insert row are built from the same ordered list of visible columns, so the nth
+value belongs to the nth field. Values landing on a column the source fills
+itself — an identity, a generated column — are left out and named, because a
+copied row always carries those and refusing over them would make the gesture
+useless. One line at a time: inserting several rows at once is a command this
+does not have.
+
 Known deviations:
 
-- **No fill, no new rows, no file.** A block taller than what is loaded is
-  refused rather than appended; inserting is D26 and importing a file is the
-  next slice.
+- **No fill, no new rows in a block paste, no file.** A block taller than what
+  is loaded is refused rather than appended; inserting is D26 and importing a
+  file is the next slice.
 - **The single-cell route stays separate.** It now shares the type check, so
   its refusal names the type, but merging the two paths is a tidy-up.
 

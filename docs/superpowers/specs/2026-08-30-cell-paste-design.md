@@ -81,10 +81,24 @@ null. An unquoted empty field now means null and a quoted one means the empty
 string, in both directions. That makes the grid's own round trip exact, which
 is the least a paste can be expected to do.
 
+## The same line fills a new row
+
+Copying a whole row and filling a new one from it is how a row is duplicated,
+and it is the same clipboard and the same TSV. What differs is where the line
+lands: the row being inserted, by position, which is exact rather than lucky
+because the grid and the insert row are built from the same ordered list of
+visible columns.
+
+A copied row always carries the columns the source fills for itself — an
+identity, a generated column — so refusing over them would make the gesture
+useless. They are left out and named instead. One line at a time: inserting
+several rows at once is a command this does not have.
+
 ## Deliberate boundary
 
-- No new rows. A block taller than what is loaded is refused, not appended;
-  inserting is its own command (D26) with its own defaults.
+- No new rows from a block paste. A block taller than what is loaded is
+  refused, not appended; inserting is its own command (D26) with its own
+  defaults.
 - No fill, no formulas, no transpose, no paste into the header.
 - No file. Importing a CSV is the next bullet of this phase and needs mapping,
   preview and an error report of its own.

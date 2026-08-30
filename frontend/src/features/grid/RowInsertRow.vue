@@ -18,6 +18,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   cancel: []
+  paste: []
   save: [values: InsertValue[]]
 }>()
 
@@ -99,6 +100,25 @@ function save() {
   )
 }
 
+/**
+ * Fill the fields from a copied row.
+ *
+ * Exposed rather than taken as a prop: this is an event that happens once, and
+ * a prop holding the last thing pasted would refill the form every time the
+ * component re-rendered. A null means the row being copied held nothing there,
+ * which is a value like any other and not an instruction to use the default.
+ */
+function fill(values: { column: string; value: string | null }[]) {
+  for (const { column, value } of values) {
+    if (known.get(column)?.insertable !== true) continue
+    included[column] = true
+    nulls[column] = value === null
+    drafts[column] = value ?? ""
+  }
+}
+
+defineExpose({ fill })
+
 function handleKey(event: KeyboardEvent) {
   if (event.key === "Escape" && !props.saving) {
     event.preventDefault()
@@ -106,6 +126,13 @@ function handleKey(event: KeyboardEvent) {
   } else if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
     event.preventDefault()
     save()
+  } else if (event.key.toLowerCase() === "v" && (event.ctrlKey || event.metaKey)) {
+    // Only when the press did not land in a field: inside one, Ctrl+V is the
+    // browser pasting text into that field, which is also what a reader means.
+    if ((event.target as HTMLElement | null)?.tagName !== "INPUT") {
+      event.preventDefault()
+      emit("paste")
+    }
   }
 }
 </script>
@@ -125,6 +152,13 @@ function handleKey(event: KeyboardEvent) {
           :loading="saving"
           data-testid="grid-insert-save"
           @click="save"
+        />
+        <AppIconButton
+          icon="content_paste"
+          tooltip="Fill these fields from a copied row"
+          :disable="saving"
+          data-testid="grid-insert-paste"
+          @click="emit('paste')"
         />
         <AppIconButton
           icon="close"

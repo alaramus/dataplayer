@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { planPaste } from "./paste"
+import { planPaste, planRowPaste } from "./paste"
 import type { PasteColumn } from "./paste"
 import type { GridRow } from "./types"
 
@@ -101,5 +101,51 @@ describe("where a pasted block lands", () => {
 
     expect(plan.ok).toBe(false)
     expect(plan.ok === false && plan.reason).toContain("cannot identify")
+  })
+})
+
+describe("a copied line read into a row being inserted", () => {
+  const INSERT_COLUMNS = [
+    { name: "id", insertable: false },
+    { name: "name", insertable: true },
+    { name: "note", insertable: true },
+  ]
+
+  it("pairs values with fields by position and leaves the source its own", () => {
+    const plan = planRowPaste([["7", "ann", null]], INSERT_COLUMNS)
+
+    expect(plan).toEqual({
+      ok: true,
+      fill: {
+        values: [
+          { column: "name", value: "ann" },
+          { column: "note", value: null },
+        ],
+        skipped: ["id"],
+      },
+    })
+  })
+
+  it("takes a line shorter than the columns shown", () => {
+    const plan = planRowPaste([["7", "ann"]], INSERT_COLUMNS)
+
+    expect(plan.ok).toBe(true)
+    expect(plan.ok === true && plan.fill.values).toEqual([
+      { column: "name", value: "ann" },
+    ])
+  })
+
+  it("refuses more than one line, since one row is inserted at a time", () => {
+    const plan = planRowPaste([["7", "ann"], ["8", "bob"]], INSERT_COLUMNS)
+
+    expect(plan.ok).toBe(false)
+    expect(plan.ok === false && plan.reason).toContain("One row")
+  })
+
+  it("refuses a line wider than the columns shown", () => {
+    const plan = planRowPaste([["7", "ann", "x", "extra"]], INSERT_COLUMNS)
+
+    expect(plan.ok).toBe(false)
+    expect(plan.ok === false && plan.reason).toContain("4 values")
   })
 })

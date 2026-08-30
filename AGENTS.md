@@ -92,7 +92,8 @@ included; the spec index lists the older titles in translation.
   deleted like any other, by the place of its rows.
 - The row grid filters and ordered multi-sorts on the server, pages up to 500
   rows, remembers its query and column layout, selects and copies exact TSV,
-  takes a copied block back as one all-or-nothing edit, and
+  takes a copied block back as one all-or-nothing edit, fills a new row from a
+  copied one, and
   renders lossless values by type with a full-value viewer. PostgreSQL cells in
   keyed tables can be edited with optimistic conflict detection; rows can be
   inserted with defaults preserved and selected rows deleted atomically.

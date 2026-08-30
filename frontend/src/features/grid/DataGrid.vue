@@ -71,7 +71,7 @@ import {
 } from "./queryState"
 import { withSort } from "./queryState"
 import { toggleMultiSort, toggleSingleSort } from "./sortModel"
-import { planPaste } from "./paste"
+import { planPaste, planRowPaste } from "./paste"
 import type { PasteColumn } from "./paste"
 import { selectedWholeRowIndexes, selectionMatrix } from "./selection"
 import type { VisibleGridColumn } from "./selection"
@@ -157,6 +157,9 @@ const downloadPage = useDownloadPage(toRef(props, "connectorId"))
 const followReference = useFollowReference(toRef(props, "connectorId"))
 const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
 const gridFocus = useTemplateRef<HTMLElement>("gridFocus")
+const insertForm = useTemplateRef<{
+  fill: (values: { column: string; value: string | null }[]) => void
+}>("insertForm")
 const features = tableFeatures({
   columnSizingFeature,
   columnResizingFeature,
@@ -488,6 +491,44 @@ async function pasteSelection() {
     )
   } catch (error) {
     toast.error(messageOf(error, "Could not paste those cells"))
+  }
+}
+
+/**
+ * Fill the row being inserted from a copied one.
+ *
+ * The same clipboard and the same TSV as everywhere else; what differs is
+ * where it lands, and that a row the source numbers or generates for itself
+ * cannot be dictated — those values are named as left out rather than
+ * silently dropped.
+ */
+async function pasteIntoInsert() {
+  let text = ""
+  try {
+    text = await readText()
+  } catch {
+    toast.error("Could not read the clipboard")
+    return
+  }
+  const block = fromTsv(text)
+  if (block === null) {
+    toast.info("The clipboard does not hold a row of cells")
+    return
+  }
+  const plan = planRowPaste(
+    block,
+    insertGridColumns.value.map((entry) => ({
+      name: entry.column.name,
+      insertable: entry.column.insertable === true,
+    }))
+  )
+  if (!plan.ok) {
+    toast.info(plan.reason)
+    return
+  }
+  insertForm.value?.fill(plan.fill.values)
+  if (plan.fill.skipped.length > 0) {
+    toast.info(`Left to the source: ${plan.fill.skipped.join(", ")}`)
   }
 }
 
@@ -1094,11 +1135,13 @@ defineExpose({
           </tr>
           <RowInsertRow
             v-if="insertOpen"
+            ref="insertForm"
             :columns="insertGridColumns"
             :row-number="offset + rows.length + 1"
             :saving="insertRow.isPending.value"
             @save="saveInsert"
             @cancel="cancelInsert"
+            @paste="pasteIntoInsert"
           />
         </tbody>
       </table>

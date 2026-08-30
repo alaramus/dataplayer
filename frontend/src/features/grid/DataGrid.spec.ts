@@ -219,6 +219,65 @@ describe("the basic data grid", () => {
     wrapper.unmount()
   })
 
+  it("fills the row being inserted from a copied line", async () => {
+    const page = {
+      columns: [
+        {
+          name: "id",
+          type: { sql: "bigint", category: "number" },
+          insertable: false,
+        },
+        {
+          name: "name",
+          type: { sql: "text", category: "string" },
+          editable: true,
+          insertable: true,
+          nullable: false,
+        },
+        {
+          name: "note",
+          type: { sql: "text", category: "string" },
+          editable: true,
+          insertable: true,
+          nullable: true,
+        },
+      ],
+      rows: [["1", "Ada", "x"]],
+      row_handles: ["row-0"],
+      update_supported: true,
+      insert_supported: true,
+      has_more: false,
+    }
+    vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({ data: page } as never)
+    const insert = vi.spyOn(ConnectorsService, "insertRow").mockResolvedValue({
+      data: { values: ["2", "Ann", "p"], row_handle: "row-1" },
+    } as never)
+    vi.spyOn(navigator.clipboard, "readText").mockResolvedValue("9\tAnn\tp")
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-insert"]').trigger("click")
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-insert-paste"]').trigger("click")
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-insert-save"]').trigger("click")
+    await flushPromises()
+
+    // The identity the source fills itself is left out; the rest lands by
+    // position.
+    expect(insert).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: {
+        node_id: "public.projects",
+        values: [
+          { column: "name", value: "Ann" },
+          { column: "note", value: "p" },
+        ],
+      },
+    })
+    wrapper.unmount()
+  })
+
   it("edits only a server-declared cell with its opaque row handle", async () => {
     vi.spyOn(ConnectorsService, "fetchRows")
       .mockResolvedValueOnce({
