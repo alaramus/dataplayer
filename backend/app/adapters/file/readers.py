@@ -6,6 +6,7 @@ from pathlib import Path, PurePosixPath
 from typing import Protocol, TextIO
 
 from app.adapters.catalog import ContentKind
+from app.adapters.delimited import delimiter_of, fit, usable_names
 from app.adapters.fetch import FetchColumn
 from app.adapters.relation import ColumnType
 
@@ -95,7 +96,7 @@ class CsvReader:
             if header is None:
                 return Page(columns=[], rows=[], has_more=False)
 
-            names = _usable_names(header)
+            names = usable_names(header)
             for _ in range(offset):
                 if next(reader, None) is None:
                     break
@@ -106,7 +107,7 @@ class CsvReader:
                 if len(rows) == limit:
                     has_more = True
                     break
-                rows.append(_fit(row, len(names)))
+                rows.append(fit(row, len(names)))
 
         # A CSV states no types, and guessing one from the first page would
         # make the answer depend on where the reader happened to stop.
@@ -141,35 +142,11 @@ class TextReader:
 
 
 def _delimiter(path: Path, handle: TextIO) -> str:
-    """The delimiter of a delimited file, without consuming the header."""
-    if path.suffix.lower() == ".tsv":
-        return "\t"
+    """The delimiter of this file, without consuming the header.
+
+    The peek is here and the rule is in `delimited`: a file source has a
+    handle to rewind, and an upload has only the text it arrived as.
+    """
     first_line = handle.readline()
     handle.seek(0)
-    try:
-        return csv.Sniffer().sniff(first_line, delimiters=",;\t|").delimiter
-    except csv.Error:
-        return ","
-
-
-def _usable_names(header: list[str]) -> list[str]:
-    """Column names a grid can address: non-empty and distinct.
-
-    A header is written by hand and regularly has neither property.
-    """
-    names: list[str] = []
-    for position, raw in enumerate(header, start=1):
-        name = raw.strip() or f"column_{position}"
-        if name in names:
-            name = f"{name}_{position}"
-        names.append(name)
-    return names
-
-
-def _fit(row: list[str], width: int) -> list[str | None]:
-    """One row shaped to the header, which decides the width of the table."""
-    if len(row) < width:
-        return [*row, *[None] * (width - len(row))]
-    fitted: list[str | None] = []
-    fitted.extend(row[:width])
-    return fitted
+    return delimiter_of(path.name, first_line)

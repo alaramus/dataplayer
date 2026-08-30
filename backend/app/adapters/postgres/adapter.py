@@ -39,6 +39,7 @@ from app.adapters.postgres.indexes import PostgresIndexes
 from app.adapters.postgres.options import PostgresOptions
 from app.adapters.postgres.references import PostgresReferences
 from app.adapters.postgres.relation import PostgresRelation
+from app.adapters.postgres.relation_changes import PostgresRelationChanges
 from app.adapters.postgres.session import (
     PostgresSession,
     compose_url,
@@ -49,6 +50,11 @@ from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
+from app.adapters.relation_changes import (
+    CreateRelationRequest,
+    CreateRelationResult,
+    NewRelationOptions,
+)
 from app.adapters.resources import Pooling
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -105,6 +111,7 @@ class PostgresAdapter:
         self._columns = PostgresColumns(self._session, self._relation)
         self._indexes = PostgresIndexes(self._session, self._relation)
         self._constraints = PostgresConstraints(self._session, self._relation)
+        self._relations = PostgresRelationChanges(self._session, self._catalog)
 
     def cache_ttl(self, area: CacheArea) -> float:
         """A short stale window for reads whose source is under our control."""
@@ -192,6 +199,14 @@ class PostgresAdapter:
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)
+
+    async def new_relation_options(self, parent_node_id: str) -> NewRelationOptions:
+        return await self._relations.new_relation_options(parent_node_id)
+
+    async def create_relation(
+        self, request: CreateRelationRequest
+    ) -> CreateRelationResult:
+        return await self._relations.create_relation(request)
 
     async def add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
         return await self._columns.add_column(request)

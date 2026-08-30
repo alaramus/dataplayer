@@ -164,6 +164,29 @@ const levelLabel = computed(
   () => level.path.value[level.path.value.length - 1]?.label ?? props.title
 )
 
+/**
+ * Where something new would be made, as the server names it.
+ *
+ * The groupings that are ticked, because their contents are what the list is
+ * showing: a table is loaded into a schema, and a schema is a grouping here
+ * rather than a folder one walks into. A source that offers no groupings — a
+ * personal directory — puts new things in the level itself.
+ */
+const places = computed<(string | null)[]>(() =>
+  level.selectedGroups.value.length > 0
+    ? [...level.selectedGroups.value]
+    : [level.currentId.value]
+)
+
+const placeLabel = computed(() => {
+  const chosen = level.groups.value.filter((group) =>
+    level.selectedGroups.value.includes(group.id)
+  )
+  return chosen.length === 0
+    ? levelLabel.value
+    : chosen.map((group) => group.label).join(", ")
+})
+
 /** What is ticked, in one phrase, for a form that acts on the ticked nodes. */
 const checkedLabel = computed(() => {
   const ticked = level.checkedNodes.value
@@ -279,9 +302,9 @@ async function afterAction(outcome: ActionOutcome) {
         <CatalogActions
           class="catalog-panel__menu"
           :connector-id="connectorId"
-          :level-id="level.currentId.value"
+          :places="places"
           :checked-ids="level.checked.value"
-          :level-label="levelLabel"
+          :place-label="placeLabel"
           :checked-label="checkedLabel"
           @done="afterAction"
         />

@@ -96,7 +96,10 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
     adapter = PostgresAdapter(_working_options())
 
     assert isinstance(adapter, SupportsActions)
-    assert [action.name for action in adapter.action_types()] == ["rename_relation"]
+    assert [action.name for action in adapter.action_types()] == [
+        "rename_relation",
+        "load_csv",
+    ]
 
 
 def test_connection_string_is_a_url_anyone_can_paste() -> None:

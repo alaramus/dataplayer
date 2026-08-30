@@ -727,9 +727,78 @@ Known deviations:
 
 - **No transformation.** A value crosses as the text the source gave or it does
   not cross. Trimming, date formats and decimal separators need a vocabulary.
-- **No new relation, no upsert, no key matching.** The target exists and rows
-  are inserted; creating a relation from a header is the destructive round
-  Phase 1.2 deferred.
+- **No upsert and no key matching.** The target exists and rows are inserted;
+  making one out of a file is D45, and removing one is still the separate
+  destructive round.
+
+## D45. A CSV is loaded as a table by an action of the source, and the table arrives with its rows or not at all
+
+D43 moves rows into a relation that already exists, which is the half of "load
+this file" that a reader rarely has. This is the other half, and it is a
+catalog action rather than a route of its own: the button appears in the
+catalog menu, and the window behind it is the same window every action with a
+file opens. Nothing on the screen learned anything about PostgreSQL — that it
+takes a file, what its form holds, which nodes admit it and what level it needs
+are all read off the declaration (D9, D13). A source that gains the same
+ability tomorrow needs no client change either.
+
+**A relation is created through a capability, not by the action's own SQL.**
+`SupportsCreateRelation` has two methods, and it is one capability because
+either alone is useless: `new_relation_options` says what a container will
+accept a new relation with — `supported`, a `reason` when not, and D27's
+`ColumnTypeOption` list — and `create_relation` makes it. Asking a *container*
+rather than a relation is what lets a schema the server owns say why it admits
+nothing, which is D2d one step earlier than usual; the action reads the same
+answer to decide whether to offer itself at all, so the gate is stated once.
+
+**The rows travel with the request.** That is what makes `create_relation` do
+two things, and it is deliberate: with a separate create and insert, a value
+the column could not take would leave behind an empty relation nobody asked
+for, and this platform has no way to drop one. Only the source can put the DDL
+and the rows in one transaction — PostgreSQL rolls DDL back like anything else
+— so either the table arrives with its rows or nothing is made. Every value is
+checked first by the same `pg_input_is_valid` pass D41 and D43 make, and the
+rejected cells come back in `ValuesRejected`, the model an insert answers with.
+`Transaction` gained `schema_change` for this: `change` fetches, and a
+statement returning no rows would fail inside the cursor.
+
+**Every column is text.** A delimited file states no types, and one read off
+its rows would depend on how many of them were looked at — the same reason the
+file source gives for typing nothing it reads. A column takes another type
+afterwards through D38, which counts the rows in the way before it locks
+anything. Guessing here and being wrong on row 4001 would be a failed load
+instead of a change the reader can make deliberately.
+
+**The reading of a delimited file is shared, not copied.** `adapters/delimited`
+holds the delimiter rule, the naming of a header written by hand and the
+fitting of a short row; the file source pages a file through it and this action
+takes a whole one. Neither adapter imports the other.
+
+**Both ceilings refuse rather than truncate.** At most 5000 rows and 16 MB, and
+a file over either is refused with what the limit is. D43 truncates and says so
+because it samples a live source; here the reader handed over a whole file, and
+a part of one arriving would go unnoticed. Anything larger is the durable job
+of Phase 4.
+
+**Where the table goes is where the catalog is looking.** An action that makes
+something inside — a folder, an upload, a loaded table — is offered for the
+places whose contents are on screen: the groupings that are ticked, or the
+level itself where a source has none. A schema is a grouping rather than a
+folder one walks into (D12), so "in this schema" and "in this folder" became
+the same statement instead of a second one. With two schemas ticked the action
+greys out, exactly as renaming two folders to one name does: one file is one
+table.
+
+Known deviations:
+
+- **Nothing but a name.** No column types, no NOT NULL, no default, no key and
+  no index. Each has a command of its own against an existing relation, and
+  each answers with what stands in its way (D37, D38, D39, D40).
+- **A taken name is refused, never replaced**, and nothing is dropped. Removing
+  a relation is still the separate destructive round.
+- **The file is held whole in memory** while it is parsed, which is what the
+  16 MB ceiling is for. Staging it on disk would buy a larger ceiling and no
+  new capability.
 
 ## D44. A whole export is a source-owned row stream, never an unbounded fetch
 

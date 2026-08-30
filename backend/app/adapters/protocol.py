@@ -31,6 +31,11 @@ from app.adapters.indexes import (
 )
 from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.relation import RelationModel
+from app.adapters.relation_changes import (
+    CreateRelationRequest,
+    CreateRelationResult,
+    NewRelationOptions,
+)
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -244,6 +249,45 @@ class SupportsRelationModel(Protocol):
 
         Raises NodeNotFound for an id that names nothing, AdapterError for
         source failures, and ValueError for an id this source may not reach.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsCreateRelation(Protocol):
+    """One capability for both halves, because one is useless without the other.
+
+    A screen cannot offer a new relation without knowing what a container will
+    accept it with, and a source that publishes that and then refuses to
+    create anything has said nothing. Unlike `SupportsIndexes`, which is one
+    capability so that what can be made can also be unmade, this pairs a
+    question with the command it exists to prepare.
+    """
+
+    async def new_relation_options(self, parent_node_id: str) -> NewRelationOptions:
+        """What this container will accept a new relation with.
+
+        Answers rather than raises when the container admits none — a schema
+        the server owns is a real schema, and saying why is more use than
+        pretending it is not there. Raises NodeNotFound for an id that names
+        nothing, AdapterError for source failures, and ValueError for an id
+        this source may not reach.
+        """
+        ...
+
+    async def create_relation(
+        self, request: CreateRelationRequest
+    ) -> CreateRelationResult:
+        """Create one relation from the published type vocabulary, with its rows.
+
+        The relation and the rows arrive together or neither does: creating a
+        relation whose rows were refused would leave behind something nobody
+        asked for and nothing here can drop.
+
+        Answers rather than raises when a value cannot be read as its column's
+        type, naming those cells and creating nothing. Raises ValueError for a
+        request the container refuses — a taken name, an unknown type code, a
+        container that admits no relations — and AdapterError for failures.
         """
         ...
 

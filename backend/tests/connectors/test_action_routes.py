@@ -696,3 +696,157 @@ async def test_a_node_that_is_not_there_is_refused_inside_a_set(
     )
 
     assert response.status_code == 422
+
+
+# --- loading a CSV into a database ------------------------------------------
+
+
+async def _load_csv(
+    client: AsyncClient,
+    headers: dict[str, str],
+    connector_id: str,
+    schema: str,
+    filename: str,
+    body: bytes,
+    **params: object,
+) -> Response:
+    return await client.post(
+        f"{BASE}/{connector_id}/actions/load_csv/file",
+        headers=headers,
+        files={"file": (filename, body, "text/csv")},
+        data={"node_id": schema, "params": json.dumps(params)},
+    )
+
+
+async def test_a_schema_offers_loading_a_csv_and_says_it_takes_a_file(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    offered = await _offered(
+        client, normal_user_token_headers, connector_id, [relation_schema]
+    )
+
+    load = next(
+        action for action in offered.json() if action["name"] == "load_csv"
+    )
+    assert load["applicable"] is True
+    # The screen learns all of this from the answer: that there is a file to
+    # attach, that the form has one field, and where the action puts things.
+    assert load["takes_file"] is True
+    assert load["acts_on"] == "children"
+    assert list(load["params_schema"]["properties"]) == ["name"]
+
+
+async def test_a_system_schema_does_not_admit_a_loaded_csv(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    offered = await _offered(
+        client, normal_user_token_headers, connector_id, ["pg_catalog"]
+    )
+
+    assert "load_csv" not in _applicable(offered)
+
+
+async def test_an_uploaded_csv_becomes_a_table_that_can_be_read(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _load_csv(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        relation_schema,
+        "regions.csv",
+        b"id,code\n7,US\n8,AP\n",
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["message"] == "regions created with 2 rows"
+    assert response.json()["reload_node_id"] == relation_schema
+
+    catalog = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": relation_schema},
+    )
+    assert "regions" in {node["name"] for node in catalog.json()}
+
+    rows = await client.post(
+        f"{BASE}/{connector_id}/fetch",
+        headers=normal_user_token_headers,
+        json={"node_id": f"{relation_schema}.regions", "limit": 10},
+    )
+    assert sorted(row[1] for row in rows.json()["rows"]) == ["AP", "US"]
+
+
+async def test_a_typed_name_wins_over_the_name_of_the_file(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _load_csv(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        relation_schema,
+        "regions.csv",
+        b"id,code\n7,US\n",
+        name="chosen",
+    )
+
+    assert response.status_code == 200, response.text
+    catalog = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": relation_schema},
+    )
+    names = {node["name"] for node in catalog.json()}
+    assert "chosen" in names
+    assert "regions" not in names
+
+
+async def test_loading_over_a_taken_name_is_a_conflict(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _load_csv(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        relation_schema,
+        "customers.csv",
+        b"id\n1\n",
+    )
+
+    assert response.status_code == 409
+
+
+async def test_a_file_source_cannot_be_asked_to_load_a_csv(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """A name that is not in the source's own set does not resolve."""
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _load_csv(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "",
+        "regions.csv",
+        b"id\n1\n",
+    )
+
+    assert response.status_code == 404

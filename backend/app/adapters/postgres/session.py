@@ -165,6 +165,17 @@ class Transaction:
         cursor = await self._connection.cursor(row_factory=dict_row).execute(sql, params)
         return await cursor.fetchall()
 
+    async def schema_change(self, sql: str) -> None:
+        """Validated DDL inside this transaction, fetching nothing.
+
+        `change` cannot stand in for it: a statement that produces no result
+        makes `fetchall` raise, and the failure would be about the cursor
+        rather than about the source. PostgreSQL rolls DDL back like anything
+        else, which is what lets a relation and its first rows arrive together
+        or not at all (D45).
+        """
+        await self._connection.execute(sql)
+
     async def change_many(
         self, sql: str, rows: Sequence[tuple[object, ...]]
     ) -> None:

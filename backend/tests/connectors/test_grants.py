@@ -536,6 +536,34 @@ async def test_renaming_a_relation_needs_structure(
     assert response.json()["detail"]["required"] == "structure"
 
 
+async def test_loading_a_csv_needs_structure(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+    schema: str,
+) -> None:
+    """Making a table is DDL, and it is not offered to someone who may not."""
+    user, headers = colleague
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    await _grant(client, normal_user_token_headers, connector_id, user, "write")
+
+    offered = await client.post(
+        f"{BASE}/{connector_id}/actions",
+        headers=headers,
+        json={"node_ids": [schema]},
+    )
+    response = await client.post(
+        f"{BASE}/{connector_id}/actions/load_csv/file",
+        headers=headers,
+        files={"file": ("regions.csv", b"id\n1\n", "text/csv")},
+        data={"node_id": schema, "params": "{}"},
+    )
+
+    assert "load_csv" not in {action["name"] for action in offered.json()}
+    assert response.status_code == 403
+    assert response.json()["detail"]["required"] == "structure"
+
+
 # --- managing the grants themselves ---------------------------------------
 
 

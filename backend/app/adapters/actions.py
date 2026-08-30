@@ -69,6 +69,13 @@ class UnknownAction(Exception):
         self.name = name
 
 
+# How much of an upload is taken at a time. Big enough that a large file is
+# not a million round trips, small enough that a refused one is caught long
+# before it is all in memory. Beside `FilePayload` rather than in one adapter,
+# because both sources that read an upload read it the same way.
+CHUNK_BYTES = 64 * 1024
+
+
 class FilePayload(Protocol):
     """The bytes of an upload, read in chunks.
 

@@ -43,15 +43,21 @@ export interface MenuCommand extends ActionCommand {
  * Every action the source has is a line, whether or not it applies: a menu
  * that lost its entries as the user walked the catalog would teach nobody what
  * the source can do. What decides each line is the answer of the server —
- * `here` for the level being looked at, `picked` for what is ticked — and
+ * `here` for the places being looked at, `picked` for what is ticked — and
  * which of the two a line reads follows from `acts_on`, never from its name.
  * Ticking nothing therefore leaves everything that changes a node greyed out:
  * standing in a folder is not the same as choosing it.
+ *
+ * `places` is where something new would be made. A source that offers
+ * groupings shows the contents of the ones that are ticked, and those are the
+ * places — a table is made in a schema, and a schema is a grouping rather than
+ * a folder one walks into. Where there are none, the place is the level
+ * itself, which is what a file source has.
  */
 export function toMenu(
   here: ActionInfo[],
   picked: ActionInfo[],
-  levelId: string | null,
+  places: (string | null)[],
   checkedIds: string[]
 ): MenuCommand[] {
   const admitted = new Set(
@@ -62,7 +68,11 @@ export function toMenu(
   )
   return toCommands(here).map((command) =>
     command.actsOn === "children"
-      ? { ...command, targets: [levelId], enabled: applicableHere.has(command.name) }
+      ? {
+          ...command,
+          targets: [...places],
+          enabled: places.length > 0 && applicableHere.has(command.name),
+        }
       : {
           ...command,
           targets: [...checkedIds],

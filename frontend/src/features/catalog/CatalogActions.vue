@@ -13,19 +13,23 @@ import type { MenuItem } from "@/shared/ui"
  *
  * Every action the source has is a line, and the server decides which of them
  * are live: what changes a node waits for a node to be ticked, and what
- * changes what a node holds — a new folder, an upload — belongs to the level
- * being looked at. Standing in a folder is not choosing it, so nothing is
- * renamed or removed because of where the user happens to be. A source that
- * has no actions at all shows no menu rather than an empty one. See the spec,
- * S6.
+ * changes what a node holds — a new folder, an upload, a table loaded from a
+ * file — belongs to the place being looked at. Standing in a folder is not
+ * choosing it, so nothing is renamed or removed because of where the user
+ * happens to be. A source that has no actions at all shows no menu rather than
+ * an empty one. See the spec, S6.
  */
 const props = defineProps<{
   connectorId: string
-  /** The level being looked at. `null` is the root of the connector. */
-  levelId: string | null
+  /**
+   * Where something new would be made: the groupings whose contents are on
+   * screen, or the level itself when the source offers none. `null` is the
+   * root of the connector.
+   */
+  places: (string | null)[]
   /** The nodes that are ticked. */
   checkedIds: string[]
-  levelLabel: string
+  placeLabel: string
   checkedLabel: string
 }>()
 
@@ -34,22 +38,23 @@ const emit = defineEmits<{ done: [outcome: ActionOutcome] }>()
 const connectorId = computed(() => props.connectorId)
 
 // The route takes null for the root and a non-empty list otherwise.
-const levelIds = computed<string[] | null>(() =>
-  props.levelId === null || props.levelId === "" ? null : [props.levelId]
-)
+const placeIds = computed<string[] | null>(() => {
+  const named = props.places.filter((id): id is string => id !== null && id !== "")
+  return named.length === 0 ? null : named
+})
 const checkedIds = computed<string[] | null>(() =>
   props.checkedIds.length === 0 ? null : [...props.checkedIds]
 )
 const anyChecked = computed(() => props.checkedIds.length > 0)
 
-// Two questions, because a menu line is about one of two subjects: the level,
-// or what is ticked in it. The vocabulary is the same in both answers, so the
-// first is enough to draw the menu before anything has been ticked.
-const here = useNodeActions(connectorId, levelIds)
+// Two questions, because a menu line is about one of two subjects: the place
+// being looked at, or what is ticked in it. The vocabulary is the same in both
+// answers, so the first is enough to draw the menu before anything is ticked.
+const here = useNodeActions(connectorId, placeIds)
 const picked = useNodeActions(connectorId, checkedIds, anyChecked)
 
 const commands = computed(() =>
-  toMenu(here.data.value ?? [], picked.data.value ?? [], props.levelId, props.checkedIds)
+  toMenu(here.data.value ?? [], picked.data.value ?? [], props.places, props.checkedIds)
 )
 
 const items = computed<MenuItem[]>(() =>
@@ -64,7 +69,7 @@ const items = computed<MenuItem[]>(() =>
 const active = ref<MenuCommand | null>(null)
 
 const targetLabel = computed(() =>
-  active.value?.actsOn === "children" ? props.levelLabel : props.checkedLabel
+  active.value?.actsOn === "children" ? props.placeLabel : props.checkedLabel
 )
 
 function pick(name: string) {

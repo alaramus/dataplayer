@@ -6,6 +6,7 @@ import {
   catalogRow,
   openNode,
   pickSchema,
+  showOnlySchema,
 } from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
@@ -166,6 +167,54 @@ test("renames a relation without leaving its schema", async ({ page }) => {
     .fill("audit_events")
   await page.getByTestId("action-submit").click()
   await expect(catalogRow(page, "audit_events")).toBeVisible()
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("loads a CSV into the schema being looked at", async ({ page }) => {
+  const name = `e2e-load-csv-${Date.now()}`
+  // Unique, because nothing here drops a relation yet: the fixture schema is
+  // rebuilt from sql/ on every `docker compose up`, and until then a rerun
+  // must not collide with what the last one made.
+  const table = `loaded_${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  // One schema on, because one file makes one table: with two places ticked
+  // the action greys out the way renaming two folders does.
+  await showOnlySchema(page, "demo_lab", "public")
+  await expect(catalogRow(page, "audit_events")).toBeVisible()
+
+  // The button is in the menu because the source declares the action; nothing
+  // in the catalog knows what PostgreSQL is.
+  await page.getByTestId("catalog-actions").click()
+  await expect(page.getByTestId("menu-item-load_csv")).not.toHaveAttribute(
+    "aria-disabled",
+    "true"
+  )
+  await page.keyboard.press("Escape")
+
+  await catalogAction(page, "load_csv")
+  await expect(page.getByTestId("action-dialog")).toContainText("demo_lab")
+  await page.getByTestId("action-file").setInputFiles({
+    name: "regions.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from("code,label\nEU,Europe\nUS,United States\n"),
+  })
+  await page.getByTestId("field-name").fill(table)
+  await page.getByTestId("action-submit").click()
+
+  // The schema is what gained a child, and the list says so without a reload.
+  await expect(page.getByTestId("catalog-list")).toContainText(table)
+
+  // Reading it back proves the rows arrived, with the header as the columns.
+  await openNode(page, table)
+  const grid = page.getByTestId("row-grid")
+  await expect(grid).toContainText("label")
+  await expect(grid.locator("tbody tr")).toHaveCount(2)
+  await expect(page.getByTestId("grid-cell-0-label")).toHaveText("Europe")
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

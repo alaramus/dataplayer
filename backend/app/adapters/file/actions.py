@@ -17,6 +17,7 @@ from anyio import to_thread
 from pydantic import BaseModel, Field, field_validator
 
 from app.adapters.actions import (
+    CHUNK_BYTES,
     Action,
     ActionRefused,
     ActionResult,
@@ -30,10 +31,6 @@ from app.adapters.actions import (
 from app.adapters.catalog import NodeKind
 from app.adapters.file.session import FileSession, is_plain_name
 from app.core.config import settings
-
-# Big enough that a large upload is not a million round trips, small enough
-# that a refused one is caught long before it is all in memory.
-CHUNK_BYTES = 64 * 1024
 
 
 def _plain_name(value: str) -> str:
