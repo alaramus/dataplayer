@@ -48,6 +48,13 @@ from app.adapters.fetch import (
     FetchResult,
     as_read_only,
 )
+from app.adapters.indexes import (
+    CreateIndexRequest,
+    CreateIndexResult,
+    DropIndexRequest,
+    IndexCreated,
+    IndexDropped,
+)
 from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
@@ -64,6 +71,7 @@ from app.adapters.protocol import (
     SupportsDelete,
     SupportsDropColumn,
     SupportsFetch,
+    SupportsIndexes,
     SupportsInsert,
     SupportsNodePath,
     SupportsReferences,
@@ -74,7 +82,7 @@ from app.adapters.protocol import (
 from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
-from app.adapters.relation import RelationModel, without_column_changes
+from app.adapters.relation import RelationModel, without_structure_changes
 from app.adapters.resources import Pooling, ResourcesDep, ResourceStore
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -963,7 +971,7 @@ async def read_relation_model(
     try:
         model = await adapter.relation_model(node_id)
         if not at_least(access, "structure"):
-            return without_column_changes(
+            return without_structure_changes(
                 model, "You may not change the structure of this connection"
             )
         return model
@@ -1222,6 +1230,84 @@ async def change_column_type(
     if isinstance(result, ColumnTypeChanged):
         await data_cache.invalidate_connector(connector_id)
     return result
+
+
+async def _index_change[T](adapter_call: Callable[[], Awaitable[T]]) -> T:
+    try:
+        return await adapter_call()
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+async def _indexing_adapter(
+    session: SessionDep,
+    connector_id: uuid.UUID,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+) -> SupportsIndexes:
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
+    if not isinstance(adapter, SupportsIndexes):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support changing indexes",
+                "error_kind": "config",
+            },
+        )
+    return adapter
+
+
+@router.post("/{connector_id}/indexes", response_model=CreateIndexResult)
+async def create_index(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: CreateIndexRequest,
+) -> Any:
+    """
+    Index the named columns of one relation, in the order they are given.
+
+    The source names the index; the request carries no name and no expression.
+    Rows that already repeat under a unique index are an answer with a count,
+    and only a created index invalidates what the connector cached.
+    """
+    adapter = await _indexing_adapter(session, connector_id, current_user, resources)
+    result = await _index_change(lambda: adapter.create_index(request))
+    if isinstance(result, IndexCreated):
+        await data_cache.invalidate_connector(connector_id)
+    return result
+
+
+@router.delete("/{connector_id}/indexes", response_model=IndexDropped)
+async def drop_index(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: DropIndexRequest,
+) -> IndexDropped:
+    """Drop one index of a relation, without an implicit cascade."""
+    adapter = await _indexing_adapter(session, connector_id, current_user, resources)
+    return await _invalidate_after(
+        lambda: _index_change(lambda: adapter.drop_index(request)),
+        data_cache,
+        connector_id,
+    )
 
 
 @router.get("/{connector_id}/catalog/path", response_model=list[CatalogNode])

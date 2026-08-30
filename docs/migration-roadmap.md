@@ -106,7 +106,7 @@ and every identifier and predicate is source-validated.
 - [x] Specify and implement changing nullability.
 - [x] Specify a safe type-change vocabulary, including what conversions are
   refused and how dependent defaults, indexes and constraints behave.
-- [ ] Add source-owned index creation and removal.
+- [x] Add source-owned index creation and removal.
 - [ ] Add unique and foreign-key creation/removal only after dependency and
   lock behaviour is explicit.
 - [ ] Consider relation creation and drop as a separate destructive round; do
@@ -134,6 +134,22 @@ the target cannot read are counted, as in D37; elsewhere there is no
 non-throwing way to try a cast, so the failure is named by its SQLSTATE
 instead — a default that cannot be cast, a view built on the column, a value
 out of range. Nothing dependent is dropped to make the change possible.
+
+Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
+frontend type check, lint, unit tests, the documentation check and the whole
+end-to-end suite.
+
+D39 settles the third: creating and dropping are one capability, because an
+index that can be made and not unmade is a trap. The request carries columns in
+index order, a method code and uniqueness, and no name — an index means nothing
+to a person beyond the columns it covers, and PostgreSQL already derives a name
+and uniquifies it, so the answer reads back which index appeared. What each
+method can do is read from `pg_indexam_has_property` and travels with it, so
+neither the screen nor the adapter restates it; whether a method fits a column's
+type is left to the server, because operator classes change with what is
+installed. A unique index over values that already repeat is answered with the
+number of repeating values, as in D37, counted with NULLS DISTINCT so nulls do
+not count as collisions.
 
 Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
 frontend type check, lint, unit tests, the documentation check and the whole
@@ -398,8 +414,9 @@ that they belong in the platform core.
 
 ## Next session
 
-Continue **Phase 1.2** with source-owned index creation and removal. The first question there is what
-names an index: a client cannot supply one — a name is an identifier — and two
-indexes on the same columns must be distinguishable. The second is what a
-concurrent build means when a request cannot wait for it, which is the same
-shape of problem Phase 4 has with image pulls.
+Continue **Phase 1.2** with unique and foreign-key constraints, whose bullet asks for dependency and lock behaviour to be explicit first. The first question there is what a constraint
+adds over the index D39 already builds: a unique constraint owns its index and
+cannot be dropped through it, which is the refusal that slice already names. The
+second is what a foreign key needs from the relation it points at — an index
+there, a lock on both tables, and a validation scan that can be deferred with
+`NOT VALID`, which is the two-step vocabulary D38 deliberately did without.

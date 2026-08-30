@@ -152,6 +152,24 @@ class ColumnTypeOption(BaseModel):
     sql: str
 
 
+class IndexMethodOption(BaseModel):
+    """One source-owned index method, with the two limits the server states.
+
+    `unique_supported` and `multi_column_supported` are read from the source
+    rather than written down here: which access method can do what changes with
+    what is installed, and a table kept in this repository would be wrong
+    within a release.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    code: str
+    title: str
+    sql: str
+    unique_supported: bool
+    multi_column_supported: bool
+
+
 class RelationModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -172,21 +190,32 @@ class RelationModel(BaseModel):
     column_changes_supported: bool = False
     column_changes_reason: str | None = None
     column_type_options: list[ColumnTypeOption] = Field(default_factory=list)
+    # A second gate rather than a reuse of the first: a view cannot be indexed
+    # and a materialized view can, so the two answers differ per relation.
+    index_changes_supported: bool = False
+    index_changes_reason: str | None = None
+    index_methods: list[IndexMethodOption] = Field(default_factory=list)
 
 
-def without_column_changes(model: RelationModel, reason: str) -> RelationModel:
+def without_structure_changes(model: RelationModel, reason: str) -> RelationModel:
     """The same description, with the shape of it declared unchangeable.
 
-    The relation already says whether its columns can be changed and why not,
-    and the structure screen already reads that. A caller who may not change
-    the shape is told through the same two fields rather than by a screen
-    knowing the rule; the type choices go with them, since they exist only to
+    The relation already says whether its shape can be changed and why not, and
+    the structure screen already reads that. A caller who may not change the
+    shape is told through the same fields rather than by a screen knowing the
+    rule; the type and method choices go with them, since they exist only to
     fill in a change nobody is being offered.
+
+    Both gates at once: an access level is about the whole shape, and a caller
+    who may not add a column may not add an index either.
     """
     return model.model_copy(
         update={
             "column_changes_supported": False,
             "column_changes_reason": reason,
             "column_type_options": [],
+            "index_changes_supported": False,
+            "index_changes_reason": reason,
+            "index_methods": [],
         }
     )

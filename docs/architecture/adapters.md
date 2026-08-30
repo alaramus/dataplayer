@@ -498,6 +498,51 @@ Known deviations:
 - **The target vocabulary carries no parameters.** No `varchar(n)`,
   `numeric(p,s)`, arrays, enums or domains, exactly as for a new column.
 
+## D39. The source names an index, and the method's limits are read from the server
+
+Creating and dropping an index is one capability rather than two: a source that
+could make an index and not unmake it would let a user build something they
+cannot remove. The gate is its own — a view cannot be indexed and a
+materialized view can — so `RelationModel` carries `index_changes_supported`
+and its reason beside the column ones, and a caller without a structure grant
+loses both at once.
+
+The request carries columns of this relation in index order, a method code and
+whether the index is unique, and nothing else. A name is deliberately absent:
+an index has no meaning to a user beyond the columns it covers, and PostgreSQL
+already derives one and uniquifies it against the schema. Since `CREATE INDEX`
+reports nothing, the answer names the index by reading the relation again and
+taking the one that was not there before whose columns, method and uniqueness
+are the ones asked for. A predicate, an expression, an operator class, sort or
+nulls ordering and `INCLUDE` are all out: the first two are the expressions
+D2c refuses, the rest need a vocabulary of their own.
+
+The offered methods are a closed registry, but their limits are not restated
+here: `pg_indexam_has_property` answers `can_unique` and `can_multi_col`, and
+both travel with each method so a screen can grey out an impossible
+combination and the source can refuse it without asking the server to fail.
+Whether a method suits a column's type is left to the server, because it
+depends on installed operator classes, and comes back as a refusal named by
+SQLSTATE.
+
+A unique index is the third command the data can stop, after D37 and D38, and
+the rows in the way are the groups that repeat. They are counted before
+anything is created, bounded and reported as in D37, and the count excludes
+groups holding a null because PostgreSQL's default is `NULLS DISTINCT`.
+Dropping issues no `CASCADE`, the rule D27 set for a column, and the indexes
+behind a primary key or a unique constraint are refused by name from the model
+rather than relayed as a code.
+
+Known deviations:
+
+- **The request waits for the build.** `CREATE INDEX CONCURRENTLY` cannot run
+  in a transaction block and can leave an invalid index behind, and returning
+  before the work is done needs the durable jobs of Phase 4. The model reports
+  `valid`, so an invalid index is at least visible.
+- **A unique index is not a unique constraint.** They are different objects and
+  constraint creation is a separate round.
+- **No reindex or rebuild**, and no storage parameters or tablespace.
+
 ## D31. A source opts into bounded read caching, and a successful mutation drops what it cached
 
 `DataCache` belongs to the application lifespan beside the resource store. Its

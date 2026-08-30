@@ -4,6 +4,10 @@ from typing import Any, Literal, cast
 
 from app.adapters.postgres.column_type import build_column_type
 from app.adapters.postgres.column_types import POSTGRES_COLUMN_TYPE_OPTIONS
+from app.adapters.postgres.index_methods import (
+    INDEX_METHOD_PROPERTIES,
+    index_method_options,
+)
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import (
@@ -13,6 +17,7 @@ from app.adapters.relation import (
     ExclusionConstraint,
     ForeignKey,
     Index,
+    IndexMethodOption,
     Partitioning,
     PartitionOf,
     Persistence,
@@ -203,6 +208,13 @@ class PostgresRelation:
         for row in index_rows:
             indexes.setdefault(str(row["relation"]), []).append(_index(row))
 
+        # What each access method can do is the server's answer, not ours, so
+        # it is read rather than written down. Whole-server rather than
+        # per-relation, which is why it takes no schema parameter.
+        methods = index_method_options(
+            await self._session.query(INDEX_METHOD_PROPERTIES)
+        )
+
         return [
             _relation_model(
                 schema,
@@ -210,6 +222,7 @@ class PostgresRelation:
                 columns.get(str(row["name"]), []),
                 constraints.get(str(row["name"]), []),
                 indexes.get(str(row["name"]), []),
+                methods,
             )
             for row in relations
         ]
@@ -306,6 +319,7 @@ def _relation_model(
     columns: list[Column],
     constraints: list[Constraint],
     indexes: list[Index],
+    index_methods: list[IndexMethodOption],
 ) -> RelationModel:
     name = str(row["name"])
     estimate = row.get("row_estimate")
@@ -337,6 +351,13 @@ def _relation_model(
         column_changes_reason = "Only tables can change columns"
     else:
         column_changes_reason = None
+    # A different question from the one above: a materialized view has no
+    # columns to change and can still be indexed, and a child partition holds
+    # indexes of its own even though its shape belongs to its parent.
+    if kind in {"table", "partitioned_table", "materialized_view"}:
+        index_changes_reason = None
+    else:
+        index_changes_reason = "Only tables and materialized views can be indexed"
     return RelationModel(
         node_id=f"{schema}.{name}",
         schema_name=schema,
@@ -357,4 +378,7 @@ def _relation_model(
         column_type_options=(
             POSTGRES_COLUMN_TYPE_OPTIONS if column_changes_reason is None else []
         ),
+        index_changes_supported=index_changes_reason is None,
+        index_changes_reason=index_changes_reason,
+        index_methods=[] if index_changes_reason is not None else index_methods,
     )

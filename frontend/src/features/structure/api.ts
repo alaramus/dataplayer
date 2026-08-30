@@ -8,7 +8,9 @@ import type {
   ColumnDefaultRequest,
   ColumnNullabilityRequest,
   ColumnTypeRequest,
+  CreateIndexRequest,
   DropColumnRequest,
+  DropIndexRequest,
   RenameColumnRequest,
 } from "@/client"
 
@@ -113,5 +115,25 @@ export function useColumnType(connectorId: Ref<string>, nodeId: Ref<string>) {
         await ConnectorsService.changeColumnType({ path: { connector_id: id }, body })
       ).data,
     (result) => result.kind === "changed"
+  )
+}
+
+export function useCreateIndex(connectorId: Ref<string>, nodeId: Ref<string>) {
+  return useStructureMutation(
+    connectorId,
+    nodeId,
+    async (id, body: CreateIndexRequest) =>
+      (
+        await ConnectorsService.createIndex({ path: { connector_id: id }, body })
+      ).data,
+    (result) => result.kind === "created"
+  )
+}
+
+export function useDropIndex(connectorId: Ref<string>, nodeId: Ref<string>) {
+  return useStructureMutation(connectorId, nodeId, async (id, body: DropIndexRequest) =>
+    (
+      await ConnectorsService.dropIndex({ path: { connector_id: id }, body })
+    ).data
   )
 }

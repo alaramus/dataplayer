@@ -196,3 +196,61 @@ test("changes a column type and counts the values in the way", async ({ page }) 
 
   await deleteConnector(page, name)
 })
+
+test("indexes a column, refuses a unique one that repeats, and drops it again", async ({
+  page,
+}) => {
+  const name = `e2e-index-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "app_users")
+  await page.getByTestId("grid-structure").click()
+
+  const view = page.getByTestId("structure-view")
+  // The name is the source's to choose, so the test does not predict it: it
+  // takes the row that appeared. Predicting it would also make the test depend
+  // on what earlier runs left behind, since PostgreSQL suffixes a taken name.
+  const rowIds = () =>
+    view
+      .locator('[data-testid^="structure-index-row-"]')
+      .evaluateAll((rows) => rows.map((row) => row.getAttribute("data-testid") ?? ""))
+
+  // One organisation owns more than one user, so a unique index cannot be
+  // built and the source says how many values repeat.
+  await view.getByTestId("structure-add-index").click()
+  await page.getByTestId("structure-index-columns").click()
+  await page.getByRole("option", { name: "organization_id" }).click()
+  await page.keyboard.press("Escape")
+  await page.getByTestId("structure-index-unique").click()
+  await page.getByTestId("structure-index-save").click()
+  await expect(page.getByTestId("structure-index-blocked")).toContainText(
+    "appear more than once"
+  )
+
+  // The same columns without uniqueness go through, under a name the source
+  // chose: nothing was typed for it.
+  const before = await rowIds()
+  await page.getByTestId("structure-index-unique").click()
+  await page.getByTestId("structure-index-save").click()
+  await expect.poll(async () => (await rowIds()).length).toBe(before.length + 1)
+
+  const added = (await rowIds()).find((id) => !before.includes(id)) ?? ""
+  const row = view.locator(`[data-testid="${added}"]`)
+  await expect(row).toContainText("(organization_id)")
+  await expect(row).toContainText("btree")
+
+  await row.getByRole("button").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(row).toHaveCount(0)
+
+  // An index a constraint stands on is named, not relayed as a driver error.
+  await view.getByTestId("structure-drop-index-app_users_organization_id_email_key").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(
+    page.locator(".q-notification", { hasText: "app_users_organization_id_email_key" })
+  ).toBeVisible()
+
+  await deleteConnector(page, name)
+})

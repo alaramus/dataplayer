@@ -372,6 +372,53 @@ async def test_a_write_grant_may_not_change_a_column_type(
     assert response.json()["detail"]["required"] == "structure"
 
 
+async def test_a_write_grant_may_not_index_a_relation(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+    schema: str,
+) -> None:
+    """An index is the shape of a relation, not its rows."""
+    user, headers = colleague
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    await _grant(client, normal_user_token_headers, connector_id, user, "write")
+
+    response = await client.post(
+        f"{BASE}/{connector_id}/indexes",
+        headers=headers,
+        json={
+            "node_id": f"{schema}.customers",
+            "columns": ["name"],
+            "method": "btree",
+        },
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["required"] == "structure"
+
+
+async def test_a_write_grant_is_not_offered_index_methods(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+    schema: str,
+) -> None:
+    user, headers = colleague
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    await _grant(client, normal_user_token_headers, connector_id, user, "write")
+
+    response = await client.get(
+        f"{BASE}/{connector_id}/relation-model",
+        headers=headers,
+        params={"node_id": f"{schema}.customers"},
+    )
+
+    body = response.json()
+    assert body["index_changes_supported"] is False
+    assert body["index_changes_reason"] is not None
+    assert body["index_methods"] == []
+
+
 async def test_no_grant_reaches_the_connection_itself(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

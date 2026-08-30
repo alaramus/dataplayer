@@ -16,10 +16,17 @@ from app.adapters.column_changes import (
     RenameColumnRequest,
 )
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.indexes import (
+    CreateIndexRequest,
+    CreateIndexResult,
+    DropIndexRequest,
+    IndexDropped,
+)
 from app.adapters.postgres.actions import POSTGRES_ACTION_TYPES, PostgresActions
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.columns import PostgresColumns
 from app.adapters.postgres.fetch import PostgresFetch
+from app.adapters.postgres.indexes import PostgresIndexes
 from app.adapters.postgres.options import PostgresOptions
 from app.adapters.postgres.references import PostgresReferences
 from app.adapters.postgres.relation import PostgresRelation
@@ -82,6 +89,7 @@ class PostgresAdapter:
         self._references = PostgresReferences(self._catalog, self._fetch)
         self._relation = PostgresRelation(self._session)
         self._columns = PostgresColumns(self._session, self._relation)
+        self._indexes = PostgresIndexes(self._session, self._relation)
 
     def cache_ttl(self, area: CacheArea) -> float:
         """A short stale window for reads whose source is under our control."""
@@ -184,6 +192,12 @@ class PostgresAdapter:
         self, request: ColumnTypeRequest
     ) -> ColumnTypeChangeResult:
         return await self._columns.change_column_type(request)
+
+    async def create_index(self, request: CreateIndexRequest) -> CreateIndexResult:
+        return await self._indexes.create_index(request)
+
+    async def drop_index(self, request: DropIndexRequest) -> IndexDropped:
+        return await self._indexes.drop_index(request)
 
 
 @register(

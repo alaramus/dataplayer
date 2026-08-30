@@ -32,6 +32,9 @@ import type {
   connectorsCreateConnectorData,
   connectorsCreateConnectorErrors,
   connectorsCreateConnectorResponses,
+  connectorsCreateIndexData,
+  connectorsCreateIndexErrors,
+  connectorsCreateIndexResponses,
   connectorsDeleteConnectorData,
   connectorsDeleteConnectorErrors,
   connectorsDeleteConnectorResponses,
@@ -47,6 +50,9 @@ import type {
   connectorsDropColumnData,
   connectorsDropColumnErrors,
   connectorsDropColumnResponses,
+  connectorsDropIndexData,
+  connectorsDropIndexErrors,
+  connectorsDropIndexResponses,
   connectorsFetchRowsData,
   connectorsFetchRowsErrors,
   connectorsFetchRowsResponses,
@@ -1112,6 +1118,58 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/columns/type",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Drop Index
+   *
+   * Drop one index of a relation, without an implicit cascade.
+   */
+  public static dropIndex<ThrowOnError extends boolean = true>(
+    options: Options<connectorsDropIndexData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      connectorsDropIndexResponses,
+      connectorsDropIndexErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/indexes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Create Index
+   *
+   * Index the named columns of one relation, in the order they are given.
+   *
+   * The source names the index; the request carries no name and no expression.
+   * Rows that already repeat under a unique index are an answer with a count,
+   * and only a created index invalidates what the connector cached.
+   */
+  public static createIndex<ThrowOnError extends boolean = true>(
+    options: Options<connectorsCreateIndexData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsCreateIndexResponses,
+      connectorsCreateIndexErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/indexes",
       ...options,
       headers: {
         "Content-Type": "application/json",

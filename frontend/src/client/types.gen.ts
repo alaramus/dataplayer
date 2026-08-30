@@ -648,6 +648,35 @@ export type ConnectorsPublic = {
 }
 
 /**
+ * CreateIndexRequest
+ *
+ * Columns of this relation, a published method code, and uniqueness.
+ *
+ * No name: an index means nothing to a person beyond the columns it covers,
+ * so asking for one asks for a fact that has no answer, and the source
+ * already derives a name and makes it unique against its own schema. No
+ * predicate and no expression either — those are what D2c refuses.
+ */
+export type CreateIndexRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Columns
+   */
+  columns: Array<string>
+  /**
+   * Method
+   */
+  method: string
+  /**
+   * Unique
+   */
+  unique?: boolean
+}
+
+/**
  * DeleteRowsRequest
  */
 export type DeleteRowsRequest = {
@@ -747,6 +776,20 @@ export type DownloadPageRequest = {
  * DropColumnRequest
  */
 export type DropColumnRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * DropIndexRequest
+ */
+export type DropIndexRequest = {
   /**
    * Node Id
    */
@@ -1155,6 +1198,90 @@ export type Index = {
 }
 
 /**
+ * IndexBlocked
+ *
+ * A unique index was asked for and the rows repeat, this many times over.
+ *
+ * Groups rather than rows: what breaks uniqueness is a value appearing more
+ * than once, and the number of such values is what somebody has to go and
+ * look at. Groups holding a null are not counted — PostgreSQL's default is
+ * NULLS DISTINCT, and two nulls do not collide.
+ */
+export type IndexBlocked = {
+  /**
+   * Kind
+   */
+  kind?: "blocked"
+  /**
+   * Duplicate Groups
+   */
+  duplicate_groups: number
+  /**
+   * Exact
+   */
+  exact?: boolean
+}
+
+/**
+ * IndexCreated
+ *
+ * The index exists, under the name the source gave it.
+ */
+export type IndexCreated = {
+  /**
+   * Kind
+   */
+  kind?: "created"
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * IndexDropped
+ */
+export type IndexDropped = {
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * IndexMethodOption
+ *
+ * One source-owned index method, with the two limits the server states.
+ *
+ * `unique_supported` and `multi_column_supported` are read from the source
+ * rather than written down here: which access method can do what changes with
+ * what is installed, and a table kept in this repository would be wrong
+ * within a release.
+ */
+export type IndexMethodOption = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Sql
+   */
+  sql: string
+  /**
+   * Unique Supported
+   */
+  unique_supported: boolean
+  /**
+   * Multi Column Supported
+   */
+  multi_column_supported: boolean
+}
+
+/**
  * InsertRowRequest
  */
 export type InsertRowRequest = {
@@ -1554,6 +1681,18 @@ export type RelationModel = {
    * Column Type Options
    */
   column_type_options?: Array<ColumnTypeOption>
+  /**
+   * Index Changes Supported
+   */
+  index_changes_supported?: boolean
+  /**
+   * Index Changes Reason
+   */
+  index_changes_reason?: string | null
+  /**
+   * Index Methods
+   */
+  index_methods?: Array<IndexMethodOption>
 }
 
 /**
@@ -3199,6 +3338,77 @@ export type connectorsChangeColumnTypeResponses = {
 
 export type connectorsChangeColumnTypeResponse =
   connectorsChangeColumnTypeResponses[keyof connectorsChangeColumnTypeResponses]
+
+export type connectorsDropIndexData = {
+  body: DropIndexRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/indexes"
+}
+
+export type connectorsDropIndexErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsDropIndexError = connectorsDropIndexErrors[keyof connectorsDropIndexErrors]
+
+export type connectorsDropIndexResponses = {
+  /**
+   * Successful Response
+   */
+  200: IndexDropped
+}
+
+export type connectorsDropIndexResponse =
+  connectorsDropIndexResponses[keyof connectorsDropIndexResponses]
+
+export type connectorsCreateIndexData = {
+  body: CreateIndexRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/indexes"
+}
+
+export type connectorsCreateIndexErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsCreateIndexError =
+  connectorsCreateIndexErrors[keyof connectorsCreateIndexErrors]
+
+export type connectorsCreateIndexResponses = {
+  /**
+   * Response Connectors-Create Index
+   *
+   * Successful Response
+   */
+  200:
+    | ({
+        kind: "created"
+      } & IndexCreated)
+    | ({
+        kind: "blocked"
+      } & IndexBlocked)
+}
+
+export type connectorsCreateIndexResponse =
+  connectorsCreateIndexResponses[keyof connectorsCreateIndexResponses]
 
 export type connectorsReadNodePathData = {
   body?: never

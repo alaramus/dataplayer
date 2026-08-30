@@ -82,9 +82,10 @@ included; the spec index lists the older titles in translation.
 - A relation describes itself: columns with a parsed type, ordered constraints,
   indexes and partitioning. Its structure opens in a tab beside its rows, where
   PostgreSQL columns can be added from a safe type list or explicitly dropped,
-  asked to require a value or to take another type from the same list; rows
-  that stand in the way are counted and reported rather than turned into a
-  failure.
+  asked to require a value or to take another type from the same list. An index
+  is added over chosen columns and dropped again, with the source naming it.
+  Rows that stand in the way of any of these are counted and reported rather
+  than turned into a failure.
 - The row grid filters and ordered multi-sorts on the server, pages up to 500
   rows, remembers its query and column layout, selects and copies exact TSV, and
   renders lossless values by type with a full-value viewer. PostgreSQL cells in
@@ -144,6 +145,7 @@ and the known deviations live there.
 | D36 | A source issues the target of a reference, and the client never pairs the columns | [adapters](docs/architecture/adapters.md) |
 | D37 | Changing nullability counts the rows in the way, and the count is the answer | [adapters](docs/architecture/adapters.md) |
 | D38 | A type change is composed by the source, and the way is checked before the table is locked | [adapters](docs/architecture/adapters.md) |
+| D39 | The source names an index, and the method's limits are read from the server | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -375,6 +377,6 @@ The first data and structure editing rounds are done: update, insert, atomic
 bulk delete, and add/drop column. Further DDL starts only after its safe
 vocabulary and dependency behaviour are specified; this is not a generic SQL editor.
 
-Phase 1.1 and the first two slices of 1.2 are done: navigating by a foreign
-key, changing column nullability (D37) and changing a column's type (D38). The
-next slice is source-owned index creation and removal.
+Phase 1.1 and the first three slices of 1.2 are done: navigating by a foreign
+key, column nullability (D37), column type (D38) and indexes (D39). The next
+slice is unique and foreign-key constraints.

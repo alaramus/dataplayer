@@ -6,7 +6,9 @@ import {
   useColumnDefault,
   useColumnNullability,
   useColumnType,
+  useCreateIndex,
   useDropColumn,
+  useDropIndex,
   useRelationModel,
   useRenameColumn,
 } from "@/features/structure/api"
@@ -31,6 +33,7 @@ import AddColumnDialog from "./AddColumnDialog.vue"
 import ColumnDefaultDialog from "./ColumnDefaultDialog.vue"
 import ColumnNullabilityDialog from "./ColumnNullabilityDialog.vue"
 import ColumnTypeDialog from "./ColumnTypeDialog.vue"
+import CreateIndexDialog from "./CreateIndexDialog.vue"
 import RenameColumnDialog from "./RenameColumnDialog.vue"
 
 const props = defineProps<{ connectorId: string; nodeId: string }>()
@@ -43,6 +46,8 @@ const renameColumn = useRenameColumn(connectorId, nodeId)
 const columnDefault = useColumnDefault(connectorId, nodeId)
 const columnNullability = useColumnNullability(connectorId, nodeId)
 const columnType = useColumnType(connectorId, nodeId)
+const createIndex = useCreateIndex(connectorId, nodeId)
+const dropIndex = useDropIndex(connectorId, nodeId)
 const confirm = useConfirm()
 const toast = useToast()
 const addOpen = ref(false)
@@ -58,6 +63,10 @@ const nullabilityBlocked = ref<{ rows: number; exact: boolean } | null>(null)
 const typeColumn = ref<{ name: string; currentType: string } | null>(null)
 const typeError = ref("")
 const typeBlocked = ref<{ rows: number; exact: boolean } | null>(null)
+const indexOpen = ref(false)
+const indexError = ref("")
+const indexBlocked = ref<{ groups: number; exact: boolean } | null>(null)
+const droppingIndex = ref<string | null>(null)
 
 defineExpose({ reload: async () => void (await query.refetch()) })
 
@@ -200,6 +209,61 @@ async function changeType(typeCode: string) {
     toast.success(`${column.name} is now ${result.type_sql}`)
   } catch (error) {
     typeError.value = messageOf(error, "Could not change the type")
+  }
+}
+
+function openIndex() {
+  indexError.value = ""
+  indexBlocked.value = null
+  indexOpen.value = true
+}
+
+async function saveIndex(value: {
+  columns: string[]
+  method: string
+  unique: boolean
+}) {
+  indexError.value = ""
+  indexBlocked.value = null
+  try {
+    const result = await createIndex.mutateAsync({
+      node_id: props.nodeId,
+      columns: value.columns,
+      method: value.method,
+      unique: value.unique,
+    })
+    // Not a failure: the source counted the repeats and built nothing, so the
+    // dialog stays open with the number.
+    if (result.kind === "blocked") {
+      indexBlocked.value = {
+        groups: result.duplicate_groups,
+        exact: result.exact ?? true,
+      }
+      return
+    }
+    indexOpen.value = false
+    toast.success(`Index ${result.name} created`)
+  } catch (error) {
+    indexError.value = messageOf(error, "Could not create the index")
+  }
+}
+
+async function removeIndex(name: string) {
+  const accepted = await confirm({
+    title: `Drop index ${name}?`,
+    message: "Queries that rely on it will be planned without it.",
+    confirmLabel: "Drop",
+    danger: true,
+  })
+  if (!accepted) return
+  droppingIndex.value = name
+  try {
+    await dropIndex.mutateAsync({ node_id: props.nodeId, name })
+    toast.success(`Index ${name} dropped`)
+  } catch (error) {
+    toast.error(messageOf(error, "Could not drop the index"))
+  } finally {
+    droppingIndex.value = null
   }
 }
 
@@ -429,8 +493,23 @@ async function changeDefault(action: "set" | "drop", value?: string) {
       </AppSection>
 
       <AppSection divided>
-        <div class="structure-view__title">
-          Indexes
+        <div class="structure-view__heading">
+          <div class="structure-view__title">
+            Indexes
+          </div>
+          <span :title="query.data.value.index_changes_supported ? undefined : query.data.value.index_changes_reason ?? undefined">
+            <AppButton
+              label="Add index"
+              variant="secondary"
+              size="sm"
+              :disable="query.data.value.index_changes_supported !== true"
+              data-testid="structure-add-index"
+              @click="openIndex"
+            />
+            <AppTooltip v-if="query.data.value.index_changes_supported !== true && query.data.value.index_changes_reason">
+              {{ query.data.value.index_changes_reason }}
+            </AppTooltip>
+          </span>
         </div>
         <AppEmptyState
           v-if="(query.data.value.indexes ?? []).length === 0"
@@ -443,11 +522,26 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           <li
             v-for="index in query.data.value.indexes ?? []"
             :key="index.name"
+            class="structure-view__index"
+            :data-testid="`structure-index-row-${index.name}`"
           >
-            {{ index.name }} · {{ index.method }}
-            <template v-if="(index.columns ?? []).length">
-              ({{ (index.columns ?? []).join(", ") }})
-            </template>
+            <span>
+              {{ index.name }} · {{ index.method }}
+              <template v-if="(index.columns ?? []).length">
+                ({{ (index.columns ?? []).join(", ") }})
+              </template>
+              <template v-if="index.unique"> · unique</template>
+              <template v-if="index.valid === false"> · invalid</template>
+            </span>
+            <AppIconButton
+              icon="delete_outline"
+              :tooltip="query.data.value?.index_changes_supported === true ? `Drop index ${index.name}` : query.data.value?.index_changes_reason ?? 'This index cannot be dropped'"
+              variant="danger-quiet"
+              :disable="query.data.value?.index_changes_supported !== true"
+              :loading="droppingIndex === index.name"
+              :data-testid="`structure-drop-index-${index.name}`"
+              @click="removeIndex(index.name)"
+            />
           </li>
         </ul>
       </AppSection>
@@ -470,6 +564,17 @@ async function changeDefault(action: "set" | "drop", value?: string) {
       :error="renameError"
       @save="saveRename"
       @update:model-value="renaming = null"
+    />
+    <CreateIndexDialog
+      v-if="indexOpen"
+      :model-value="true"
+      :columns="(query.data.value?.columns ?? []).map((column) => column.name)"
+      :methods="query.data.value?.index_methods ?? []"
+      :blocked="indexBlocked"
+      :saving="createIndex.isPending.value"
+      :error="indexError"
+      @save="saveIndex"
+      @update:model-value="indexOpen = false"
     />
     <ColumnTypeDialog
       v-if="typeColumn !== null"
@@ -532,5 +637,11 @@ async function changeDefault(action: "set" | "drop", value?: string) {
   margin: 0;
   padding-left: 18px;
   font-size: 12px;
+}
+.structure-view__index {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 </style>

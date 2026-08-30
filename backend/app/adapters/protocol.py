@@ -16,6 +16,12 @@ from app.adapters.column_changes import (
     RenameColumnRequest,
 )
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.indexes import (
+    CreateIndexRequest,
+    CreateIndexResult,
+    DropIndexRequest,
+    IndexDropped,
+)
 from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.relation import RelationModel
 from app.adapters.update import (
@@ -251,6 +257,34 @@ class SupportsColumnType(Protocol):
         two types with no conversion between them, and for a refusal the
         source can name — a default that cannot be cast, a view built on the
         column. Raises AdapterError for source failures.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsIndexes(Protocol):
+    """One capability for both halves, deliberately.
+
+    Unlike adding and dropping a column, which are independent enough to be
+    asked for separately, an index that can be made and not unmade is a trap:
+    the user is offered a way to build something they cannot remove.
+    """
+
+    async def create_index(self, request: CreateIndexRequest) -> CreateIndexResult:
+        """Index the named columns, letting the source name the index.
+
+        Answers rather than raises when a unique index is asked for and the
+        rows already repeat. Raises ValueError for a request that is wrong
+        about the relation — an unknown column or method, a method that cannot
+        do what was asked — and AdapterError for source failures.
+        """
+        ...
+
+    async def drop_index(self, request: DropIndexRequest) -> IndexDropped:
+        """Drop one index of this relation, without an implicit cascade.
+
+        Raises ValueError for an index this relation does not have and for one
+        that belongs to a constraint, which is dropped through the constraint.
         """
         ...
 

@@ -34,8 +34,32 @@ const MODEL: RelationModel = {
     },
   ],
   constraints: [],
-  indexes: [],
+  indexes: [
+    {
+      name: "projects_name_idx",
+      method: "btree",
+      columns: ["name"],
+      definition: "CREATE INDEX projects_name_idx ON public.projects (name)",
+    },
+  ],
   column_changes_supported: true,
+  index_changes_supported: true,
+  index_methods: [
+    {
+      code: "btree",
+      title: "B-tree",
+      sql: "btree",
+      unique_supported: true,
+      multi_column_supported: true,
+    },
+    {
+      code: "hash",
+      title: "Hash",
+      sql: "hash",
+      unique_supported: false,
+      multi_column_supported: false,
+    },
+  ],
   column_type_options: [
     { code: "text", title: "Text", sql: "text" },
     { code: "integer", title: "Integer", sql: "integer" },
@@ -204,6 +228,72 @@ describe("relation column changes", () => {
     const blocked = document.body.querySelector('[data-testid="structure-type-blocked"]')
     expect(blocked?.textContent).toContain("More than 7 rows hold a value")
     expect(document.body.querySelector('[data-testid="structure-type-error"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it("creates an index without naming it", async () => {
+    const create = vi.spyOn(ConnectorsService, "createIndex").mockResolvedValue({
+      data: { kind: "created", name: "projects_note_idx" },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="structure-add-index"]').trigger("click")
+    await flushPromises()
+    wrapper.findComponent(AppSelect).vm.$emit("update:modelValue", ["note", "name"])
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="structure-index-save"]')?.click()
+    await flushPromises()
+
+    // Columns in the order they were picked, a published method code, no name.
+    expect(create).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: {
+        node_id: "public.projects",
+        columns: ["note", "name"],
+        method: "btree",
+        unique: false,
+      },
+    })
+    wrapper.unmount()
+  })
+
+  it("reads the count of values that already repeat", async () => {
+    vi.spyOn(ConnectorsService, "createIndex").mockResolvedValue({
+      data: { kind: "blocked", duplicate_groups: 3, exact: true },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="structure-add-index"]').trigger("click")
+    await flushPromises()
+    wrapper.findComponent(AppSelect).vm.$emit("update:modelValue", ["name"])
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="structure-index-save"]')?.click()
+    await flushPromises()
+
+    const blocked = document.body.querySelector('[data-testid="structure-index-blocked"]')
+    expect(blocked?.textContent).toContain("3 values already appear more than once")
+    expect(document.body.querySelector('[data-testid="structure-index-error"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it("drops an index the model named, after confirmation", async () => {
+    const drop = vi.spyOn(ConnectorsService, "dropIndex").mockResolvedValue({
+      data: { name: "projects_name_idx" },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="structure-drop-index-projects_name_idx"]').trigger("click")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="confirm-accept"]')?.click()
+    await flushPromises()
+
+    expect(drop).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: { node_id: "public.projects", name: "projects_name_idx" },
+    })
     wrapper.unmount()
   })
 
