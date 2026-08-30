@@ -181,8 +181,24 @@ adapter follows only after the capability contract has settled.
 
 ### 1.3 Bulk data movement through the grid
 
-- [ ] Paste a rectangular TSV selection into editable cells with type-aware
+- [x] Paste a rectangular TSV selection into editable cells with type-aware
   validation and one atomic server request.
+D41 settles the first bullet. The block travels as rows, because D25 versions a
+row rather than a cell, and every row must still hold the version it was read
+with or nothing is written. All-or-nothing is a transaction now: the session
+gained one, since setting a different value in each row cannot be written as
+the single statement D26 used. Every arriving value is checked against its
+column's type with `pg_input_is_valid` before anything is written, and the
+cells that fail come back named rather than counted — the mirror of D37 through
+D40, where what stands in the way is data the reader has not seen. Where the
+block lands is decided in the browser and refused there if it would run past
+the loaded rows or the visible columns; the grid's TSV also became lossless in
+both directions, so a copy survives its own paste.
+
+Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
+frontend type check, lint, unit tests, the documentation check and the whole
+end-to-end suite.
+
 - [ ] Import a bounded CSV into an existing relation with column mapping,
   preview, transaction semantics and a downloadable error report.
 - [ ] Add export scopes beyond the current page only through an adapter-owned
@@ -434,13 +450,10 @@ that they belong in the platform core.
 
 ## Next session
 
-Phase 1.2 is complete except for the destructive round it deliberately defers:
-relation creation and drop, which is not started until it says what happens to
-open tabs, to grants and to a relation other things point at.
-
-Start **Phase 1.3** with pasting a rectangular TSV selection into editable
-cells. The first question there is what one atomic request looks like when the
-cells belong to different rows, since D25 versions a row rather than a cell,
-and the second is what the answer says when some cells convert and others do
-not — the counting shape of D37 through D40 is about rows already in the
-source, and this is about values arriving from outside it.
+Continue **Phase 1.3** with importing a bounded CSV into an existing relation.
+The first question is where the file comes from: personal storage already holds
+files and already reads a delimited one as columns (D8), so an import should
+name a node of that source rather than invent a second upload path. The second
+is what a preview promises — D41 checks every value before writing because it
+holds them all, and a file does not fit that; the answer is probably a bounded
+sample checked the same way, and an explicit statement that the rest is not.

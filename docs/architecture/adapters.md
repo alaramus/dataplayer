@@ -591,6 +591,49 @@ Known deviations:
 - **The request waits for the scan**, as it waits for an index build in D39.
 - **No cross-connector references.** The target is a node of the same source.
 
+## D41. A block of cells is one versioned, all-or-nothing edit, and unreadable values are named before anything is written
+
+Pasting travels as rows rather than as cells: D25 versions a row, so a handle
+carries the key and the `xmin` it was fetched with, and the cells being changed
+hang off it. Every row must still hold that version or nothing is written, and
+the answer is the conflict a single-cell edit already gives. The request is
+bounded at 500 rows, 100 cells in a row and 2000 cells altogether.
+
+This is the mirror of D37 through D40. There the source counts what is already
+in it that contradicts the request; here the rows are fine and the arriving
+values may not be readable. Before anything is written, one query checks every
+value against its column's type with `pg_input_is_valid` — the function D38
+uses — and the cells that fail come back named by request row and column rather
+than counted, because the reader is looking at those values and there are at
+most two thousand of them. Nothing is written if any cell is rejected. The
+query carries the same SQLSTATE mapping the area uses, so a type whose input
+function still raises degrades to one honest sentence instead of a 502.
+
+All-or-nothing is a transaction. D26 got it out of a single statement with a
+CTE because the session could run only one statement; setting different values
+in different rows cannot be done that way without composing per-column casts
+into the statement, so `PostgresSession` gained a transaction that runs several
+statements on one connection and rolls back unless all of them did what they
+said. Each row is one `UPDATE … WHERE key = … AND xmin = …`; a row that matches
+nothing is a conflict.
+
+The block lands from the top-left of the selection and is refused before it is
+sent if it would run past the loaded rows or the visible columns, or across a
+column the source calls uneditable. Nothing is truncated and no row is
+invented.
+
+The TSV the grid writes is now lossless: an unquoted empty field means null and
+a quoted one means the empty string, in both directions, so the grid's own copy
+and paste round-trip exactly.
+
+Known deviations:
+
+- **No fill, no new rows, no file.** A block taller than what is loaded is
+  refused rather than appended; inserting is D26 and importing a file is the
+  next slice.
+- **The single-cell route stays separate.** It now shares the type check, so
+  its refusal names the type, but merging the two paths is a tidy-up.
+
 ## D31. A source opts into bounded read caching, and a successful mutation drops what it cached
 
 `DataCache` belongs to the application lifespan beside the resource store. Its

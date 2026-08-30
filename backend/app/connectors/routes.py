@@ -93,6 +93,7 @@ from app.adapters.registry import get as get_adapter_type
 from app.adapters.relation import RelationModel, without_structure_changes
 from app.adapters.resources import Pooling, ResourcesDep, ResourceStore
 from app.adapters.update import (
+    CellsUpdated,
     DeleteRowsRequest,
     DeleteRowsResult,
     InsertRowRequest,
@@ -100,6 +101,8 @@ from app.adapters.update import (
     RowConflict,
     UpdateCellRequest,
     UpdateCellResult,
+    UpdateCellsRequest,
+    UpdateCellsResult,
 )
 from app.connectors import crud, downloads, health, service
 from app.connectors.models import (
@@ -829,6 +832,55 @@ async def update_cell(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         ) from exc
+
+
+@router.patch("/{connector_id}/rows/cells", response_model=UpdateCellsResult)
+async def update_cells(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: UpdateCellsRequest,
+) -> Any:
+    """
+    Change a block of cells across several rows, or none of them.
+
+    Values the column's type cannot read are an answer naming every such cell,
+    with nothing written; a row that no longer holds the version it was read
+    with is the same conflict a single-cell edit gives.
+    """
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="write"
+    )
+    if not isinstance(adapter, SupportsUpdate):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source cannot change rows",
+                "error_kind": "config",
+            },
+        )
+    try:
+        result = await adapter.update_cells(request)
+    except RowConflict:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": "A row changed or was deleted; reload and try again"},
+        ) from None
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+    if isinstance(result, CellsUpdated):
+        await data_cache.invalidate_connector(connector_id)
+    return result
 
 
 @router.post("/{connector_id}/rows", response_model=InsertRowResult)

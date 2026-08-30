@@ -160,6 +160,7 @@ async def test_unknown_or_generated_column_is_rejected_before_update(
 async def test_value_rejected_by_postgres_is_a_safe_validation_error(
     schema: str,
 ) -> None:
+    """Named by the type since D41, and still without a word from the driver."""
     await run(
         f"INSERT INTO {schema}.customers (region_id, region_code, name) "  # noqa: S608 -- fixture-owned schema.
         "VALUES (1, 'EU', 'Ada')"
@@ -169,7 +170,7 @@ async def test_value_rejected_by_postgres_is_a_safe_validation_error(
     handle = fetched.row_handles[0]
     assert handle is not None
 
-    with pytest.raises(ValueError, match="source rejected"):
+    with pytest.raises(ValueError) as raised:
         await adapter.update_cell(
             UpdateCellRequest(
                 node_id=f"{schema}.customers",
@@ -178,6 +179,8 @@ async def test_value_rejected_by_postgres_is_a_safe_validation_error(
                 value="not-a-number",
             )
         )
+    assert "cannot be read as numeric" in str(raised.value)
+    assert "not-a-number" not in str(raised.value)
 
 
 async def test_inserts_a_row_with_defaults_and_returns_canonical_values(

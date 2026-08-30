@@ -11,6 +11,7 @@ import type {
   FollowReferenceRequest,
   InsertRowRequest,
   UpdateCellRequest,
+  UpdateCellsRequest,
 } from "@/client"
 
 export const rowsKey = (connectorId: string, request: FetchRequest) =>
@@ -63,6 +64,22 @@ export function useForgetRowsPage(connectorId: Ref<string>) {
       queryKey: rowsKey(connectorId.value, request),
       exact: true,
     })
+}
+
+export function useUpdateCells(connectorId: Ref<string>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: UpdateCellsRequest) =>
+      (
+        await ConnectorsService.updateCells({
+          path: { connector_id: connectorId.value },
+          body,
+        })
+      ).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["rows", connectorId.value] })
+    },
+  })
 }
 
 export function useUpdateCell(connectorId: Ref<string>) {

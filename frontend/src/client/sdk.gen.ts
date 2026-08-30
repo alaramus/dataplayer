@@ -107,6 +107,9 @@ import type {
   connectorsUpdateCellData,
   connectorsUpdateCellErrors,
   connectorsUpdateCellResponses,
+  connectorsUpdateCellsData,
+  connectorsUpdateCellsErrors,
+  connectorsUpdateCellsResponses,
   connectorsUpdateConnectorData,
   connectorsUpdateConnectorErrors,
   connectorsUpdateConnectorResponses,
@@ -876,6 +879,34 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/rows/cell",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Update Cells
+   *
+   * Change a block of cells across several rows, or none of them.
+   *
+   * Values the column's type cannot read are an answer naming every such cell,
+   * with nothing written; a row that no longer holds the version it was read
+   * with is the same conflict a single-cell edit gives.
+   */
+  public static updateCells<ThrowOnError extends boolean = true>(
+    options: Options<connectorsUpdateCellsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      connectorsUpdateCellsResponses,
+      connectorsUpdateCellsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/rows/cells",
       ...options,
       headers: {
         "Content-Type": "application/json",

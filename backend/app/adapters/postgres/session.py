@@ -142,6 +142,29 @@ def options_from_url(url: str) -> dict[str, Any]:
     return options
 
 
+class Transaction:
+    """Statements inside one open transaction.
+
+    Deliberately thin: it exists so that a caller can run several changes as
+    one, not so that it can grow a second query interface. Its errors are the
+    session's errors, raised where the caller can still abandon the block.
+    """
+
+    def __init__(
+        self,
+        connection: psycopg.AsyncConnection[Any],
+        refusals: Mapping[str, str] | None,
+    ) -> None:
+        self._connection = connection
+        self._refusals = refusals
+
+    async def change(
+        self, sql: str, params: tuple[object, ...]
+    ) -> list[dict[str, Any]]:
+        cursor = await self._connection.cursor(row_factory=dict_row).execute(sql, params)
+        return await cursor.fetchall()
+
+
 class PostgresSession:
     """How to talk to a PostgreSQL server.
 
@@ -270,7 +293,11 @@ class PostgresSession:
             raise AdapterError(error_kind, message) from None
 
     async def change(
-        self, sql: str, params: tuple[object, ...]
+        self,
+        sql: str,
+        params: tuple[object, ...],
+        *,
+        refusals: Mapping[str, str] | None = None,
     ) -> list[dict[str, Any]]:
         """Run a data change and keep rejected values separate from failures."""
         try:
@@ -282,11 +309,51 @@ class PostgresSession:
         except PoolTimeout:
             error_kind, message = await self._why_no_connection()
             raise AdapterError(error_kind, message) from None
-        except (psycopg.DataError, psycopg.IntegrityError):
+        except (psycopg.DataError, psycopg.IntegrityError) as exc:
             # Constraint and conversion messages may quote source data and
             # schema details. The status is useful; the driver text is not.
-            raise ValueError("The source rejected the new value") from None
+            raise ValueError(
+                named_refusal(exc, refusals) or "The source rejected the new value"
+            ) from None
         except Exception as exc:
+            error_kind, message = classify(exc, fallback_message="Update failed")
+            raise AdapterError(error_kind, message) from None
+
+    @asynccontextmanager
+    async def transaction(
+        self, *, refusals: Mapping[str, str] | None = None
+    ) -> AsyncIterator[Transaction]:
+        """Several statements on one connection, committed together or not at all.
+
+        The one thing `change` cannot do. D26 got all-or-nothing out of a
+        single statement with a CTE, which works while every row is being
+        treated the same way; setting a different value in each row cannot be
+        written that way without composing per-column casts into the
+        statement, which is the boundary D2c draws.
+
+        Leaving the block by any route other than the end rolls back, because
+        the connection's own context manager commits only on a clean exit.
+        """
+        try:
+            async with self._connection() as connection:
+                async with connection.transaction():
+                    yield Transaction(connection, refusals)
+        except PoolTimeout:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except (
+            psycopg.DataError,
+            psycopg.IntegrityError,
+            psycopg.InternalError,
+            psycopg.ProgrammingError,
+        ) as exc:
+            raise ValueError(
+                named_refusal(exc, refusals) or "The source rejected the change"
+            ) from None
+        except psycopg.Error as exc:
+            named = named_refusal(exc, refusals)
+            if named is not None:
+                raise ValueError(named) from None
             error_kind, message = classify(exc, fallback_message="Update failed")
             raise AdapterError(error_kind, message) from None
 

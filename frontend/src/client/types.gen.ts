@@ -241,6 +241,54 @@ export type Capability = {
 }
 
 /**
+ * CellEdit
+ */
+export type CellEdit = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Value
+   */
+  value: string | null
+}
+
+/**
+ * CellsRejected
+ *
+ * Values the column's type cannot read, named rather than counted.
+ *
+ * The mirror of the counts in D37 through D40: those describe data the reader
+ * has not looked at, so a number is the useful answer; these are the values
+ * in front of them, and there are at most two thousand.
+ */
+export type CellsRejected = {
+  /**
+   * Kind
+   */
+  kind?: "rejected"
+  /**
+   * Cells
+   */
+  cells: Array<RejectedCell>
+}
+
+/**
+ * CellsUpdated
+ */
+export type CellsUpdated = {
+  /**
+   * Kind
+   */
+  kind?: "updated"
+  /**
+   * Rows
+   */
+  rows: Array<UpdatedRow>
+}
+
+/**
  * CheckConstraint
  */
 export type CheckConstraint = {
@@ -1725,6 +1773,22 @@ export type ReferencedRows = {
 }
 
 /**
+ * RejectedCell
+ *
+ * Where an unreadable value sits, in the request's own coordinates.
+ */
+export type RejectedCell = {
+  /**
+   * Row
+   */
+  row: number
+  /**
+   * Column
+   */
+  column: string
+}
+
+/**
  * RelationModel
  */
 export type RelationModel = {
@@ -1868,6 +1932,22 @@ export type RepeatingValues = {
    * Exact
    */
   exact?: boolean
+}
+
+/**
+ * RowEdit
+ *
+ * One row of a pasted block, named by the version it was read with.
+ */
+export type RowEdit = {
+  /**
+   * Row Handle
+   */
+  row_handle: string
+  /**
+   * Cells
+   */
+  cells: Array<CellEdit>
 }
 
 /**
@@ -2080,6 +2160,26 @@ export type UpdateCellResult = {
 }
 
 /**
+ * UpdateCellsRequest
+ *
+ * A rectangle of cells, as rows rather than as a flat list of cells.
+ *
+ * Rows, because D25 versions a row: the handle carries the key and the xmin
+ * it was read with, and repeating that on every cell would invite two cells
+ * of one row to disagree about which version they are editing.
+ */
+export type UpdateCellsRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Rows
+   */
+  rows: Array<RowEdit>
+}
+
+/**
  * UpdatePassword
  */
 export type UpdatePassword = {
@@ -2091,6 +2191,20 @@ export type UpdatePassword = {
    * New Password
    */
   new_password: string
+}
+
+/**
+ * UpdatedRow
+ */
+export type UpdatedRow = {
+  /**
+   * Row Handle
+   */
+  row_handle: string
+  /**
+   * Values
+   */
+  values: Array<string | null>
 }
 
 /**
@@ -3195,6 +3309,46 @@ export type connectorsUpdateCellResponses = {
 
 export type connectorsUpdateCellResponse =
   connectorsUpdateCellResponses[keyof connectorsUpdateCellResponses]
+
+export type connectorsUpdateCellsData = {
+  body: UpdateCellsRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/rows/cells"
+}
+
+export type connectorsUpdateCellsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsUpdateCellsError =
+  connectorsUpdateCellsErrors[keyof connectorsUpdateCellsErrors]
+
+export type connectorsUpdateCellsResponses = {
+  /**
+   * Response Connectors-Update Cells
+   *
+   * Successful Response
+   */
+  200:
+    | ({
+        kind: "updated"
+      } & CellsUpdated)
+    | ({
+        kind: "rejected"
+      } & CellsRejected)
+}
+
+export type connectorsUpdateCellsResponse =
+  connectorsUpdateCellsResponses[keyof connectorsUpdateCellsResponses]
 
 export type connectorsDeleteRowsData = {
   body: DeleteRowsRequest

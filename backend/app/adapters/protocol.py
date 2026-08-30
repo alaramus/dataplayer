@@ -37,6 +37,8 @@ from app.adapters.update import (
     InsertRowResult,
     UpdateCellRequest,
     UpdateCellResult,
+    UpdateCellsRequest,
+    UpdateCellsResult,
 )
 
 ErrorKind = Literal["auth", "network", "timeout", "config", "unknown"]
@@ -175,6 +177,20 @@ class SupportsReferences(Protocol):
 class SupportsUpdate(Protocol):
     async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
         """Change one cell if the row still has the fetched version."""
+        ...
+
+    async def update_cells(self, request: UpdateCellsRequest) -> UpdateCellsResult:
+        """Change a block of cells across several rows, or none of them.
+
+        Part of the same capability rather than its own: a source that can
+        version a row and change a cell in it can do so for twenty rows, and
+        offering only one of the two would be a distinction with no source
+        behind it.
+
+        Answers rather than raises when a value cannot be read as its column's
+        type, naming every such cell and writing nothing. Raises RowConflict
+        when any row no longer holds the version it was read with.
+        """
         ...
 
 

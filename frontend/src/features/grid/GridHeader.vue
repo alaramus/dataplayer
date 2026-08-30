@@ -19,6 +19,7 @@ const props = defineProps<{
   layout: ColumnLayoutState
   selectedColumn: string | null
   canCopy?: boolean
+  canPaste?: boolean
   canInsert?: boolean
   insertReason?: string
   canDelete?: boolean
@@ -35,6 +36,7 @@ const emit = defineEmits<{
   "update:sort": [value: Sort[]]
   "update:layout": [value: ColumnLayoutState]
   copy: []
+  paste: []
   insert: []
   delete: []
   download: []
@@ -119,6 +121,15 @@ function selectPageSize(value: unknown) {
           :disable="!canCopy"
           data-testid="grid-copy"
           @click="emit('copy')"
+        />
+        <AppButton
+          label="Paste"
+          icon="content_paste"
+          variant="quiet"
+          size="sm"
+          :disable="!canPaste"
+          data-testid="grid-paste"
+          @click="emit('paste')"
         />
         <AppButton
           label="Download"

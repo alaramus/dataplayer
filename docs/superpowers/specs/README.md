@@ -51,6 +51,7 @@ translations; those files are not.
 | 2026-08-30 | [Changing a column's type](2026-08-30-column-type-change-design.md) | D38: the target is a published code, the cast is the source's, the way is checked first |
 | 2026-08-30 | [Creating and dropping an index](2026-08-30-index-create-drop-design.md) | D39: no name from a client, and the method's limits come from the server |
 | 2026-08-30 | [Promising uniqueness, and pointing at another relation](2026-08-30-constraint-create-drop-design.md) | D40: the target publishes what may point at it, and the data can refuse a promise |
+| 2026-08-30 | [Pasting a block of cells](2026-08-30-cell-paste-design.md) | D41: rows carry the version, and unreadable values are named before anything is written |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

@@ -268,3 +268,55 @@ test("keeps the 500-row page mode interactive", async ({ page, context }) => {
 
   await deleteConnector(page, name)
 })
+
+test("pastes a block of cells and refuses one the column cannot read", async ({
+  page,
+  context,
+}) => {
+  const name = `e2e-grid-paste-${Date.now()}`
+  const label = `e2e-paste-${Date.now()}`
+  const pasted = `${label}-done`
+  await context.grantPermissions(["clipboard-read", "clipboard-write"])
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "tags")
+
+  await addFilter(page, "label", "contains", label, false)
+  await expect(page.getByTestId("grid-empty")).toBeVisible()
+  await page.getByTestId("grid-insert").click()
+  await page.getByTestId("grid-insert-value-organization_id").fill("1")
+  await page.getByTestId("grid-insert-value-label").fill(label)
+  await page.getByTestId("grid-insert-save").click()
+  await expect(page.getByTestId("grid-cell-0-label")).toHaveText(label)
+
+  // Two cells at once, landing from the selected one: the block is the app's
+  // own TSV, and nothing about it is typed into a form.
+  await page.evaluate(
+    (text) => navigator.clipboard.writeText(text),
+    `${pasted}\t#123456`
+  )
+  await page.getByTestId("grid-cell-0-label").click()
+  await page.getByTestId("grid-paste").click()
+  await expect(page.getByTestId("grid-cell-0-label")).toHaveText(pasted)
+  await expect(page.getByTestId("grid-cell-0-color")).toHaveText("#123456")
+
+  // A value the column's type cannot read is named, and nothing is written.
+  await page.evaluate(() => navigator.clipboard.writeText("not a number"))
+  await page.getByTestId("grid-cell-0-organization_id").click()
+  await page.getByTestId("grid-paste").click()
+  await expect(page.locator(".q-notification", { hasText: "cannot be read" })).toBeVisible()
+  // Contains rather than equals: a foreign-key cell also carries the arrow
+  // that leads to the row it names.
+  const key = page.getByTestId("grid-cell-0-organization_id")
+  await expect(key).not.toContainText("not a number")
+  await expect(key).toContainText("1")
+
+  await page.getByTestId("grid-select-row-0").click()
+  await page.getByTestId("grid-delete").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId("grid-empty")).toBeVisible()
+
+  await deleteConnector(page, name)
+})

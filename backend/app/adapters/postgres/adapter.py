@@ -55,6 +55,8 @@ from app.adapters.update import (
     InsertRowResult,
     UpdateCellRequest,
     UpdateCellResult,
+    UpdateCellsRequest,
+    UpdateCellsResult,
 )
 
 
@@ -162,6 +164,9 @@ class PostgresAdapter:
 
     async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
         return await self._update.update_cell(request)
+
+    async def update_cells(self, request: UpdateCellsRequest) -> UpdateCellsResult:
+        return await self._update.update_cells(request)
 
     async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
         return await self._update.insert_row(request)

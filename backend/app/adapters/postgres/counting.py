@@ -127,3 +127,42 @@ async def rows_pointing_nowhere(
         matches,
     )
     return await _count(session, body, None, refusals)
+
+
+# A value that cannot be read is the same failure whichever route reaches it,
+# and the sentence is all that can honestly be said when the check itself is
+# the thing that failed.
+VALUE_REFUSALS = {
+    "22P02": "Some values cannot be read as the column's type",
+    "22003": "Some values are out of range for the column's type",
+    "22001": "Some values are too long for the column's type",
+}
+
+
+async def unreadable_values(
+    session: PostgresSession, values: list[tuple[str, str]]
+) -> list[int]:
+    """Which of these (value, type) pairs the type's input function refuses.
+
+    One query for the whole block, and no ceiling: the caller is holding every
+    one of these values already, and the point is to say which of them is
+    wrong rather than how many. Both arrays travel as bound parameters, so
+    neither a value nor a type name is composed into the statement.
+
+    `pg_input_is_valid` reports softly for every core type. One that still
+    raises would take the query with it, which is what the refusals are for:
+    the answer degrades to a sentence rather than to a failure of the source.
+    """
+    if not values:
+        return []
+    statement = (
+        "SELECT position - 1 AS at FROM unnest(%s::text[], %s::text[]) "
+        "WITH ORDINALITY AS pair(value, type_name, position) "
+        "WHERE NOT pg_input_is_valid(value, type_name)"
+    )
+    rows = await session.query(
+        statement,
+        ([value for value, _ in values], [name for _, name in values]),
+        refusals=VALUE_REFUSALS,
+    )
+    return [int(row["at"]) for row in rows]

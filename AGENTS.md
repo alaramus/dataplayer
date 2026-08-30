@@ -88,7 +88,8 @@ included; the spec index lists the older titles in translation.
   source naming it. Rows that stand in the way of any of these are counted and
   reported rather than turned into a failure.
 - The row grid filters and ordered multi-sorts on the server, pages up to 500
-  rows, remembers its query and column layout, selects and copies exact TSV, and
+  rows, remembers its query and column layout, selects and copies exact TSV,
+  takes a copied block back as one all-or-nothing edit, and
   renders lossless values by type with a full-value viewer. PostgreSQL cells in
   keyed tables can be edited with optimistic conflict detection; rows can be
   inserted with defaults preserved and selected rows deleted atomically.
@@ -148,6 +149,7 @@ and the known deviations live there.
 | D38 | A type change is composed by the source, and the way is checked before the table is locked | [adapters](docs/architecture/adapters.md) |
 | D39 | The source names an index, and the method's limits are read from the server | [adapters](docs/architecture/adapters.md) |
 | D40 | A relation publishes what may point at it, and a constraint is a promise the data can refuse | [adapters](docs/architecture/adapters.md) |
+| D41 | A block of cells is one versioned, all-or-nothing edit, and unreadable values are named first | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -379,7 +381,8 @@ The first data and structure editing rounds are done: update, insert, atomic
 bulk delete, and add/drop column. Further DDL starts only after its safe
 vocabulary and dependency behaviour are specified; this is not a generic SQL editor.
 
-Phase 1.1 and 1.2 are done: navigating by a foreign key, column nullability
-(D37), column type (D38), indexes (D39) and constraints (D40). Relation
-creation and drop stays a separate destructive round; the next phase is 1.3,
-bulk data movement through the grid.
+Phases 1.1 and 1.2 are done — navigating by a foreign key, column nullability
+(D37), column type (D38), indexes (D39) and constraints (D40) — except for
+relation creation and drop, which stays a separate destructive round. Phase 1.3
+has begun: pasting a block of cells (D41) is done, and importing a bounded CSV
+is next.

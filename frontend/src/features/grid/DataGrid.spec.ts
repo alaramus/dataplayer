@@ -63,6 +63,15 @@ function mountGrid(
 }
 
 beforeEach(() => {
+  // jsdom does not let navigator.clipboard be assigned over, and the grid
+  // reaches it through the kit's own boundary in both directions.
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: {
+      writeText: () => Promise.resolve(),
+      readText: () => Promise.resolve(""),
+    },
+  })
   localStorage.clear()
   vi.restoreAllMocks()
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined)
@@ -143,6 +152,71 @@ describe("the basic data grid", () => {
     expect(fetchRows).toHaveBeenLastCalledWith(
       expect.objectContaining({ body: expect.objectContaining({ offset: 0, limit: 100 }) })
     )
+  })
+
+  it("pastes a block from the clipboard as one request", async () => {
+    const page = {
+      columns: [
+        {
+          name: "name",
+          type: { sql: "text", category: "string" },
+          editable: true,
+          nullable: false,
+        },
+        {
+          name: "note",
+          type: { sql: "text", category: "string" },
+          editable: true,
+          nullable: true,
+        },
+      ],
+      rows: [
+        ["Ada", "x"],
+        ["Grace", "y"],
+      ],
+      row_handles: ["row-0", "row-1"],
+      update_supported: true,
+      has_more: false,
+    }
+    vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({ data: page } as never)
+    const update = vi.spyOn(ConnectorsService, "updateCells").mockResolvedValue({
+      data: { kind: "updated", rows: [] },
+    } as never)
+    vi.spyOn(navigator.clipboard, "readText").mockResolvedValue("Ann\tp\r\nBob\tq")
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-cell-0-name"]').trigger("mousedown")
+    document.dispatchEvent(new MouseEvent("mouseup"))
+    await flushPromises()
+    await wrapper.get('[data-testid="grid-paste"]').trigger("click")
+    await flushPromises()
+
+    // One request, rows rather than cells, and the block landing from the
+    // selected cell.
+    expect(update).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: {
+        node_id: "public.projects",
+        rows: [
+          {
+            row_handle: "row-0",
+            cells: [
+              { column: "name", value: "Ann" },
+              { column: "note", value: "p" },
+            ],
+          },
+          {
+            row_handle: "row-1",
+            cells: [
+              { column: "name", value: "Bob" },
+              { column: "note", value: "q" },
+            ],
+          },
+        ],
+      },
+    })
+    wrapper.unmount()
   })
 
   it("edits only a server-declared cell with its opaque row handle", async () => {

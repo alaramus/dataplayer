@@ -23,7 +23,7 @@ import type { CSSProperties } from "vue"
 
 import type { FetchColumn, FetchReference, FetchRequest, ReferencedRows, Sort } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
-import { copyText } from "@/shared/clipboard"
+import { copyText, readText } from "@/shared/clipboard"
 import {
   AppBanner,
   AppButton,
@@ -41,10 +41,11 @@ import {
   useInsertRow,
   useRowsPage,
   useUpdateCell,
+  useUpdateCells,
 } from "./api"
 import CellEditorDialog from "./CellEditorDialog.vue"
 import CellValueDialog from "./CellValueDialog.vue"
-import { toTsv } from "./clipboard"
+import { fromTsv, toTsv } from "./clipboard"
 import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
 import { filenameFromDisposition, saveBrowserDownload } from "./download"
@@ -70,6 +71,8 @@ import {
 } from "./queryState"
 import { withSort } from "./queryState"
 import { toggleMultiSort, toggleSingleSort } from "./sortModel"
+import { planPaste } from "./paste"
+import type { PasteColumn } from "./paste"
 import { selectedWholeRowIndexes, selectionMatrix } from "./selection"
 import type { VisibleGridColumn } from "./selection"
 import type { Filter, GridQueryState, GridRow, PageSize, StoredGridState } from "./types"
@@ -147,6 +150,7 @@ const editError = ref("")
 const insertOpen = ref(false)
 const insertError = ref("")
 const updateCell = useUpdateCell(toRef(props, "connectorId"))
+const updateCells = useUpdateCells(toRef(props, "connectorId"))
 const insertRow = useInsertRow(toRef(props, "connectorId"))
 const deleteRows = useDeleteRows(toRef(props, "connectorId"))
 const downloadPage = useDownloadPage(toRef(props, "connectorId"))
@@ -213,6 +217,9 @@ const columnWidthVariables = computed<Record<string, string>>(() =>
   )
 )
 const canCopy = computed(() => table.getSelectedCellCount() > 0)
+const canPaste = computed(
+  () => canCopy.value && result.value?.update_supported === true
+)
 const visibleGridColumns = computed<VisibleGridColumn[]>(() => {
   const ordered = [
     ...table.getStartVisibleLeafColumns(),
@@ -418,6 +425,72 @@ function selectPage() {
   })
 }
 
+const pasteColumns = computed<PasteColumn[]>(() =>
+  visibleGridColumns.value.map((column) => ({
+    name: column.id,
+    valueIndex: column.valueIndex,
+    editable: serverColumn(column.id)?.editable === true,
+  }))
+)
+
+/**
+ * Put a copied block back, from the top-left of the selection.
+ *
+ * Everything that can be known here is checked here — where the block lands,
+ * whether it fits, whether those columns may be edited — and everything that
+ * cannot is the source's answer: whether the rows still hold their version,
+ * and whether each value can be read as its column's type.
+ */
+async function pasteSelection() {
+  const bounds = table.getCellSelectionBounds()[0]
+  if (bounds === undefined) return
+  let text = ""
+  try {
+    text = await readText()
+  } catch {
+    toast.error("Could not read the clipboard")
+    return
+  }
+  const block = fromTsv(text)
+  if (block === null) {
+    toast.info("The clipboard does not hold a rectangle of cells")
+    return
+  }
+  const plan = planPaste(
+    block,
+    rows.value,
+    result.value?.row_handles ?? [],
+    pasteColumns.value,
+    { rowIndex: bounds.minRowIndex, columnIndex: bounds.minColumnIndex }
+  )
+  if (!plan.ok) {
+    toast.info(plan.reason)
+    return
+  }
+  try {
+    const answer = await updateCells.mutateAsync({
+      node_id: props.nodeId,
+      rows: plan.rows,
+    })
+    // Not a failure: the source read the values, wrote nothing, and said
+    // which of them its columns cannot take.
+    if (answer.kind === "rejected") {
+      const first = answer.cells[0]
+      const where = first === undefined ? "" : ` (${first.column})`
+      toast.error(
+        `${answer.cells.length} pasted ${answer.cells.length === 1 ? "value" : "values"} ` +
+          `cannot be read by ${answer.cells.length === 1 ? "its" : "their"} column${where}`
+      )
+      return
+    }
+    toast.success(
+      `${answer.rows.length} ${answer.rows.length === 1 ? "row" : "rows"} updated`
+    )
+  } catch (error) {
+    toast.error(messageOf(error, "Could not paste those cells"))
+  }
+}
+
 async function copySelection() {
   const matrix = selectionMatrix(rows.value, visibleGridColumns.value, table.getCellSelectionBounds())
   if (matrix.length === 0) return
@@ -445,6 +518,11 @@ function handleGridKey(event: KeyboardEvent) {
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
     event.preventDefault()
     void copySelection()
+    return
+  }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+    event.preventDefault()
+    void pasteSelection()
   }
 }
 
@@ -822,6 +900,7 @@ defineExpose({
       :layout="layout"
       :selected-column="selectedColumn"
       :can-copy="canCopy"
+      :can-paste="canPaste"
       :can-insert="canInsert"
       :insert-reason="result?.insert_reason ?? undefined"
       :can-delete="canDelete"
@@ -836,6 +915,7 @@ defineExpose({
       @update:sort="changeSort"
       @update:layout="changeLayout"
       @copy="copySelection"
+      @paste="pasteSelection"
       @insert="openInsert"
       @delete="deleteSelection"
       @download="downloadVisiblePage"
