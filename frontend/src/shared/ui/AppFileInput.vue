@@ -12,5 +12,12 @@ const emit = defineEmits<{ "update:modelValue": [value: File | null] }>()
     :model-value="modelValue"
     :label="label"
     @update:model-value="emit('update:modelValue', $event)"
-  />
+  >
+    <template
+      v-if="$slots.after"
+      #after
+    >
+      <slot name="after" />
+    </template>
+  </q-file>
 </template>

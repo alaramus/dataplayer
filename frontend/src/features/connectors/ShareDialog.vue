@@ -125,18 +125,21 @@ async function revoke(userId: string) {
           />
           <AppSelect
             v-model="pickedLevel"
-            class="share__level"
+            class="share__level share__level--with-action"
             label="May"
             data-testid="share-level"
             :options="GRANT_OPTIONS"
-          />
-          <AppButton
-            label="Share"
-            data-testid="share-submit"
-            :disable="pickedUser === null"
-            :loading="writeGrant.isPending.value"
-            @click="share"
-          />
+          >
+            <template #after>
+              <AppButton
+                label="Share"
+                data-testid="share-submit"
+                :disable="pickedUser === null"
+                :loading="writeGrant.isPending.value"
+                @click="share"
+              />
+            </template>
+          </AppSelect>
         </div>
 
         <AppEmptyState
@@ -204,7 +207,7 @@ async function revoke(userId: string) {
 }
 .share__add {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: var(--dp-space-2);
 }
 .share__person {
@@ -215,6 +218,12 @@ async function revoke(userId: string) {
    change width as a level is chosen. */
 .share__level {
   width: 160px;
+}
+/* The select keeps its 160px while QField's own `after` area holds Share.
+   The action is deliberately inside the field so its vertical position does
+   not include the error-message line below the control. */
+.share__level--with-action {
+  width: 240px;
 }
 .share__list {
   display: flex;

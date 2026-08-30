@@ -552,6 +552,7 @@ async function parseTyped(text: string) {
       >
         <AppInput
           :model-value="urlText"
+          class="connector-window__url-field"
           label="URL"
           data-testid="connector-url"
           :disable="readOnly"
@@ -559,13 +560,16 @@ async function parseTyped(text: string) {
           @focus="urlFocused = true"
           @blur="leaveUrl"
           @update:model-value="editUrl"
-        />
-        <AppCopyButton
-          tooltip="Copy the connection string. The password is not part of it."
-          data-testid="copy-url"
-          :disable="urlText === ''"
-          @click="copyUrl"
-        />
+        >
+          <template #after>
+            <AppCopyButton
+              tooltip="Copy the connection string. The password is not part of it."
+              data-testid="copy-url"
+              :disable="urlText === ''"
+              @click="copyUrl"
+            />
+          </template>
+        </AppInput>
       </div>
 
       <!-- The result of the last check floats over this strip rather than
@@ -708,21 +712,13 @@ async function parseTyped(text: string) {
 .connector-window__url {
   flex: none;
   display: flex;
-  align-items: flex-end;
-  gap: 4px;
   min-width: 0;
   padding: 0 16px 8px;
   border-top: 1px solid var(--dp-border);
 }
-.connector-window__url > *:first-child {
+.connector-window__url-field {
   flex: 1;
   min-width: 0;
-}
-/* A Quasar field reserves a line under its control for an error message, so
-   aligning to the bottom of the box puts a button that height below the one
-   thing it belongs to. */
-.connector-window__url > button {
-  margin-bottom: 20px;
 }
 .connector-window__foot {
   flex: none;

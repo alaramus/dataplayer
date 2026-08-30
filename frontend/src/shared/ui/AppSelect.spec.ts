@@ -56,4 +56,16 @@ describe("AppSelect", () => {
   it("treats an empty error string as no error", () => {
     expect(mountSelect({ options: ["a"], error: "" }).find(".q-field--error").exists()).toBe(false)
   })
+
+  it("keeps a companion action in the field's marginal area", () => {
+    const wrapper = mount(AppSelect, {
+      global: { plugins: [Quasar] },
+      props: { modelValue: "read", options: ["read"] },
+      slots: { after: '<button data-testid="field-action">Share</button>' },
+    })
+
+    expect(wrapper.get('[data-testid="field-action"]').element.parentElement?.classList).toContain(
+      "q-field__after"
+    )
+  })
 })

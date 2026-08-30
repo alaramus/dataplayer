@@ -37,4 +37,16 @@ describe("AppNumberInput", () => {
   it("shows the error message", () => {
     expect(mountInput({ error: "Out of range" }).text()).toContain("Out of range")
   })
+
+  it("keeps a companion action in the field's marginal area", () => {
+    const wrapper = mount(AppNumberInput, {
+      global: { plugins: [Quasar] },
+      props: { modelValue: 5432, label: "Port" },
+      slots: { after: '<button data-testid="field-action">Reset</button>' },
+    })
+
+    expect(wrapper.get('[data-testid="field-action"]').element.parentElement?.classList).toContain(
+      "q-field__after"
+    )
+  })
 })

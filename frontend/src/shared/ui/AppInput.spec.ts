@@ -42,6 +42,18 @@ describe("AppInput", () => {
     expect(mountInput({ error: "Required" }).text()).toContain("Required")
   })
 
+  it("keeps a companion action in the field's marginal area", () => {
+    const wrapper = mount(AppInput, {
+      global: { plugins: [Quasar] },
+      props: { modelValue: "localhost", label: "Host" },
+      slots: { after: '<button data-testid="field-action">Copy</button>' },
+    })
+
+    expect(wrapper.get('[data-testid="field-action"]').element.parentElement?.classList).toContain(
+      "q-field__after"
+    )
+  })
+
   it("reports what the user typed", async () => {
     const wrapper = mountInput()
 

@@ -63,5 +63,15 @@ const labelled = computed(() => props.options.some((option) => typeof option ===
     :error="Boolean(error)"
     :error-message="error"
     @update:model-value="emit('update:modelValue', $event)"
-  />
+  >
+    <!-- Keep companion actions in the field's 56px marginal area, above the
+         separately reserved error-message line. AppInput exposes the same
+         contract, so screens never compensate for QField geometry themselves. -->
+    <template
+      v-if="$slots.after"
+      #after
+    >
+      <slot name="after" />
+    </template>
+  </q-select>
 </template>

@@ -110,7 +110,10 @@ Consequences:
 - **Density and geometry are shared too.** `metrics.css` names the application
   header, status line, tab strip, workspace inset, spacing and radii. A feature
   may arrange its own content, but it does not invent another height for the
-  same kind of toolbar or another almost-equal panel corner.
+  same kind of toolbar or another almost-equal panel corner. A button belonging
+  beside one of the kit's fields goes through its `after` slot: the field kit
+  then aligns it with the control rather than with the extra line reserved
+  underneath for a validation message.
 - **The rule is a lint rule, not a habit.** `vue/no-restricted-html-elements`
   forbids, outside `shared/ui`, exactly those `q-*` that have a replacement, in
   both spellings Vue accepts — matching only `q-btn` would let `<QBtn>` walk

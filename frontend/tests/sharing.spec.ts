@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test"
 
 import { createPostgresConnector } from "./utils/connectors"
 import { firstSuperuser } from "./config"
+import { expectFieldActionAligned } from "./utils/layout"
 import { login } from "./utils/login"
 import { connectorRow, editConnector } from "./utils/workspace"
 
@@ -68,6 +69,10 @@ test("a shared connection appears for the colleague and stays the owner's", asyn
   await page.getByTestId("share-connector").click()
   await page.getByTestId("share-user").click()
   await page.getByRole("option", { name: email }).click()
+  await expectFieldActionAligned(
+    page.getByTestId("share-level"),
+    page.getByTestId("share-submit")
+  )
   await page.getByTestId("share-submit").click()
   await expect(page.getByTestId(`share-row-${email}`)).toBeVisible()
   await page.getByTestId("share-close").click()

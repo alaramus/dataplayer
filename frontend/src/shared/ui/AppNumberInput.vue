@@ -33,5 +33,12 @@ function report(value: string | number | null) {
     :error="Boolean(error)"
     :error-message="error"
     @update:model-value="report"
-  />
+  >
+    <template
+      v-if="$slots.after"
+      #after
+    >
+      <slot name="after" />
+    </template>
+  </q-input>
 </template>

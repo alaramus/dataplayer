@@ -3,6 +3,7 @@ import type { Locator, Page } from "@playwright/test"
 
 import { openNode, pickSchema } from "./utils/catalog"
 import { createPostgresConnector, DATABASE, pickAdapterType } from "./utils/connectors"
+import { expectFieldActionAligned } from "./utils/layout"
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector, editConnector, openConnector } from "./utils/workspace"
 
@@ -245,6 +246,7 @@ test("shows the connection string, and hides it for a source that has none", asy
   await expect(page.getByTestId("connector-url")).not.toHaveValue(
     new RegExp(DATABASE.password === "" ? "\\u0000never" : DATABASE.password)
   )
+  await expectFieldActionAligned(page.getByTestId("connector-url"), page.getByTestId("copy-url"))
   await page.getByTestId("save-connector").click()
   await expect(connectorRow(page, postgres)).toBeVisible()
 

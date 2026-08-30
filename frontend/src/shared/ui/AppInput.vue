@@ -76,5 +76,15 @@ function report(value: string | number | null) {
     >
       <slot name="prepend" />
     </template>
+    <!-- A button that belongs beside a field must live in QField's marginal
+         area. It is centred against the 56px control there, while the 20px
+         message area stays underneath; a flex row around the whole field
+         otherwise puts the button one message line too low. -->
+    <template
+      v-if="$slots.after"
+      #after
+    >
+      <slot name="after" />
+    </template>
   </q-input>
 </template>
