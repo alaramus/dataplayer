@@ -47,18 +47,18 @@ Legend:
 
 ## Phase 0 — stabilise the current chart slice
 
-Status: current working tree.
+Status: validated on 2026-08-30.
 
-- [~] A grid page opens as a line, bar or pie chart using the exact bounded
+- [x] A grid page opens as a line, bar or pie chart using the exact bounded
   `FetchRequest` and visible-column order.
-- [~] Numeric text in a file page is labelled as numeric only on that page.
-- [~] Chart choice persists per exact view and follows a renamed relation.
-- [~] Chart tabs use their own `insert_chart` icon rather than the connector
+- [x] Numeric text in a file page is labelled as numeric only on that page.
+- [x] Chart choice persists per exact view and follows a renamed relation.
+- [x] Chart tabs use their own `insert_chart` icon rather than the connector
   icon.
-- [ ] Run the user-approved frontend unit tests, type check, lint, build,
+- [x] Run the user-approved frontend unit tests, type check, lint, build,
   documentation check and `tests/charts.spec.ts` browser scenario.
-- [ ] Fix only evidence from those checks, then change the four `[~]` markers
-  above to `[x]`.
+- [x] No chart defect was reported by those checks; the four implementation
+  markers above are complete.
 
 Exit condition: the chart slice is validated and the working tree contains no
 known chart regression.
@@ -361,8 +361,6 @@ that they belong in the platform core.
 
 ## Next session
 
-Unless validation has already been completed elsewhere, continue **Phase 0** by
-asking approval for and running the listed chart checks. After Phase 0 is green,
-start **Phase 1.1: relationship navigation**. The first design question is how a
-source issues the referenced node identity and safe key predicate without the
+Start **Phase 1.1: relationship navigation**. The first design question is how
+a source issues the referenced node identity and safe key predicate without the
 client constructing either one.

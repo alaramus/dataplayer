@@ -160,7 +160,10 @@ const pageLabel = computed(() => {
 </script>
 
 <template>
-  <div class="chart-panel" data-testid="chart-panel">
+  <div
+    class="chart-panel"
+    data-testid="chart-panel"
+  >
     <AppBanner
       v-if="rowsQuery.isError.value"
       tone="error"
@@ -170,7 +173,10 @@ const pageLabel = computed(() => {
       {{ messageOf(rowsQuery.error.value, "Could not read the chart page") }}
     </AppBanner>
 
-    <div v-else-if="rowsQuery.isPending.value" class="chart-panel__loading">
+    <div
+      v-else-if="rowsQuery.isPending.value"
+      class="chart-panel__loading"
+    >
       <AppSpinner />
     </div>
 
@@ -187,7 +193,10 @@ const pageLabel = computed(() => {
         data-testid="chart-no-measure"
       />
 
-      <div v-else-if="spec !== null" class="chart-panel__body">
+      <div
+        v-else-if="spec !== null"
+        class="chart-panel__body"
+      >
         <aside class="chart-panel__controls">
           <AppSelect
             :model-value="selectedSuggestion"

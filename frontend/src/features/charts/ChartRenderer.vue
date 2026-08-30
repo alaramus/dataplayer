@@ -87,7 +87,11 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="chart-renderer">
-    <div v-if="built === null" class="chart-renderer__empty" data-testid="chart-no-data">
+    <div
+      v-if="built === null"
+      class="chart-renderer__empty"
+      data-testid="chart-no-data"
+    >
       No plottable values on this page
     </div>
     <div
