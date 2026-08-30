@@ -83,9 +83,10 @@ included; the spec index lists the older titles in translation.
   indexes and partitioning. Its structure opens in a tab beside its rows, where
   PostgreSQL columns can be added from a safe type list or explicitly dropped,
   asked to require a value or to take another type from the same list. An index
-  is added over chosen columns and dropped again, with the source naming it.
-  Rows that stand in the way of any of these are counted and reported rather
-  than turned into a failure.
+  or a constraint — uniqueness, or a reference to another table the source says
+  may be pointed at — is added over chosen columns and dropped again, with the
+  source naming it. Rows that stand in the way of any of these are counted and
+  reported rather than turned into a failure.
 - The row grid filters and ordered multi-sorts on the server, pages up to 500
   rows, remembers its query and column layout, selects and copies exact TSV, and
   renders lossless values by type with a full-value viewer. PostgreSQL cells in
@@ -146,6 +147,7 @@ and the known deviations live there.
 | D37 | Changing nullability counts the rows in the way, and the count is the answer | [adapters](docs/architecture/adapters.md) |
 | D38 | A type change is composed by the source, and the way is checked before the table is locked | [adapters](docs/architecture/adapters.md) |
 | D39 | The source names an index, and the method's limits are read from the server | [adapters](docs/architecture/adapters.md) |
+| D40 | A relation publishes what may point at it, and a constraint is a promise the data can refuse | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -377,6 +379,7 @@ The first data and structure editing rounds are done: update, insert, atomic
 bulk delete, and add/drop column. Further DDL starts only after its safe
 vocabulary and dependency behaviour are specified; this is not a generic SQL editor.
 
-Phase 1.1 and the first three slices of 1.2 are done: navigating by a foreign
-key, column nullability (D37), column type (D38) and indexes (D39). The next
-slice is unique and foreign-key constraints.
+Phase 1.1 and 1.2 are done: navigating by a foreign key, column nullability
+(D37), column type (D38), indexes (D39) and constraints (D40). Relation
+creation and drop stays a separate destructive round; the next phase is 1.3,
+bulk data movement through the grid.

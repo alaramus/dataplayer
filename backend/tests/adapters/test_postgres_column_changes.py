@@ -15,7 +15,7 @@ from app.adapters.column_changes import (
     RenameColumnRequest,
 )
 from app.adapters.postgres.adapter import PostgresAdapter
-from app.adapters.postgres.columns import NULL_COUNT_CEILING
+from app.adapters.postgres.counting import COUNT_CEILING
 from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.relation import RelationModel
 from tests.utils.database import working_postgres_options
@@ -378,7 +378,7 @@ async def test_the_count_of_rows_in_the_way_stops_at_its_ceiling(schema: str) ->
     await run(
         f"INSERT INTO {schema}.customers (region_id, region_code, name) "  # noqa: S608 -- fixture-owned schema.
         "SELECT 1, 'EU', 'c' || g FROM generate_series(1, "
-        f"{NULL_COUNT_CEILING + 1}) AS g"
+        f"{COUNT_CEILING + 1}) AS g"
     )
 
     result = await adapter.change_column_nullability(
@@ -388,7 +388,7 @@ async def test_the_count_of_rows_in_the_way_stops_at_its_ceiling(schema: str) ->
     )
 
     assert isinstance(result, NullabilityBlocked)
-    assert result.rows_without_value == NULL_COUNT_CEILING
+    assert result.rows_without_value == COUNT_CEILING
     assert result.exact is False
 
 
@@ -529,7 +529,7 @@ async def test_the_count_of_unreadable_values_stops_at_its_ceiling(
     await run(
         f"INSERT INTO {schema}.customers (region_id, region_code, name, score) "  # noqa: S608 -- fixture-owned schema.
         "SELECT 1, 'EU', 'c' || g, 'not a number' FROM generate_series(1, "
-        f"{NULL_COUNT_CEILING + 1}) AS g"
+        f"{COUNT_CEILING + 1}) AS g"
     )
 
     result = await adapter.change_column_type(
@@ -539,7 +539,7 @@ async def test_the_count_of_unreadable_values_stops_at_its_ceiling(
     )
 
     assert isinstance(result, ColumnTypeBlocked)
-    assert result.rows_not_convertible == NULL_COUNT_CEILING
+    assert result.rows_not_convertible == COUNT_CEILING
     assert result.exact is False
 
 

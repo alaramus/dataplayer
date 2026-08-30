@@ -21,14 +21,13 @@ from app.adapters.postgres.column_types import (
     POSTGRES_COLUMN_TYPE_OPTIONS,
     POSTGRES_COLUMN_TYPES,
 )
+from app.adapters.postgres.counting import (
+    rows_the_type_cannot_read,
+    rows_without_value,
+)
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.relation import Column, PrimaryKey, RelationModel
-
-# How far a search for rows in the way goes before it stops counting. Past
-# this the answer is "a lot", which is all the next decision needs, and an
-# unbounded scan is not run here any more than it is for a page of rows.
-NULL_COUNT_CEILING = 1000
 
 # What a refused type change means, by SQLSTATE. The code is safe to look at
 # and the message beside it is not: PostgreSQL writes the offending value into
@@ -151,7 +150,13 @@ class PostgresColumns:
         if request.nullable:
             self._check_may_stop_requiring(model, column.name, column.identity)
         else:
-            blocking, exact = await self._rows_without_value(model, column.name)
+            # Before the ALTER and outside its lock, so it is not what makes
+            # the change safe: PostgreSQL rescans under ACCESS EXCLUSIVE and
+            # remains the authority. It is what makes a refusal useful — the
+            # driver's own message names the offending row.
+            blocking, exact = await rows_without_value(
+                self._session, model.schema_name, model.name, column.name
+            )
             if blocking > 0:
                 # Nothing has been locked and nothing has been altered: the
                 # count is the whole answer, and the caller decides what to do
@@ -244,7 +249,7 @@ class PostgresColumns:
     async def _rows_the_target_cannot_read(
         self, model: RelationModel, column: Column, type_name: str
     ) -> tuple[int, bool]:
-        """Rows the new type cannot read, counted to a ceiling — where it can be.
+        """Rows the new type cannot read — where the source can know without trying.
 
         Only for a string column, and that is not a shortcut: converting a
         string is PostgreSQL's own input function, which `pg_input_is_valid`
@@ -255,49 +260,14 @@ class PostgresColumns:
         """
         if column.type.category != "string":
             return 0, True
-        statement = sql.SQL(
-            "SELECT count(*) AS found FROM ("
-            "SELECT 1 FROM {} WHERE {} IS NOT NULL "
-            "AND NOT pg_input_is_valid({}::text, %s) LIMIT {}"
-            ") AS sample"
-        ).format(
-            sql.Identifier(model.schema_name, model.name),
-            sql.Identifier(column.name),
-            sql.Identifier(column.name),
-            sql.Literal(NULL_COUNT_CEILING + 1),
+        return await rows_the_type_cannot_read(
+            self._session,
+            model.schema_name,
+            model.name,
+            column.name,
+            type_name,
+            TYPE_CHANGE_REFUSALS,
         )
-        # The type name travels as a value, not as syntax: it is the second
-        # argument of a function, so nothing here is composed into the
-        # statement at all.
-        rows = await self._session.query(
-            statement.as_string(), (type_name,), refusals=TYPE_CHANGE_REFUSALS
-        )
-        found = int(rows[0]["found"])
-        return min(found, NULL_COUNT_CEILING), found <= NULL_COUNT_CEILING
-
-    async def _rows_without_value(
-        self, model: RelationModel, name: str
-    ) -> tuple[int, bool]:
-        """How many rows hold no value in this column, counted to a ceiling.
-
-        Runs before the ALTER and outside its lock, so it is not what makes the
-        change safe: PostgreSQL rescans under ACCESS EXCLUSIVE and remains the
-        authority. It is what makes a refusal useful — the driver's own message
-        names the offending row and therefore cannot be passed on.
-        """
-        statement = sql.SQL(
-            "SELECT count(*) AS found FROM "
-            "(SELECT 1 FROM {} WHERE {} IS NULL LIMIT {}) AS sample"
-        ).format(
-            sql.Identifier(model.schema_name, model.name),
-            sql.Identifier(name),
-            sql.Literal(NULL_COUNT_CEILING + 1),
-        )
-        # No parameters at all rather than an empty tuple: psycopg reads a
-        # literal % as a placeholder as soon as any are supplied.
-        rows = await self._session.query(statement.as_string())
-        found = int(rows[0]["found"])
-        return min(found, NULL_COUNT_CEILING), found <= NULL_COUNT_CEILING
 
     @staticmethod
     def _check_may_stop_requiring(

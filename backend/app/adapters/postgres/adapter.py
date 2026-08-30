@@ -15,6 +15,12 @@ from app.adapters.column_changes import (
     DropColumnRequest,
     RenameColumnRequest,
 )
+from app.adapters.constraints import (
+    ConstraintDropped,
+    CreateConstraintRequest,
+    CreateConstraintResult,
+    DropConstraintRequest,
+)
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
     CreateIndexRequest,
@@ -25,6 +31,7 @@ from app.adapters.indexes import (
 from app.adapters.postgres.actions import POSTGRES_ACTION_TYPES, PostgresActions
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.columns import PostgresColumns
+from app.adapters.postgres.constraints import PostgresConstraints
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.indexes import PostgresIndexes
 from app.adapters.postgres.options import PostgresOptions
@@ -90,6 +97,7 @@ class PostgresAdapter:
         self._relation = PostgresRelation(self._session)
         self._columns = PostgresColumns(self._session, self._relation)
         self._indexes = PostgresIndexes(self._session, self._relation)
+        self._constraints = PostgresConstraints(self._session, self._relation)
 
     def cache_ttl(self, area: CacheArea) -> float:
         """A short stale window for reads whose source is under our control."""
@@ -198,6 +206,16 @@ class PostgresAdapter:
 
     async def drop_index(self, request: DropIndexRequest) -> IndexDropped:
         return await self._indexes.drop_index(request)
+
+    async def create_constraint(
+        self, request: CreateConstraintRequest
+    ) -> CreateConstraintResult:
+        return await self._constraints.create_constraint(request)
+
+    async def drop_constraint(
+        self, request: DropConstraintRequest
+    ) -> ConstraintDropped:
+        return await self._constraints.drop_constraint(request)
 
 
 @register(

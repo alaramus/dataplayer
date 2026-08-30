@@ -10,7 +10,7 @@ from app.adapters.indexes import (
     IndexCreated,
 )
 from app.adapters.postgres.adapter import PostgresAdapter
-from app.adapters.postgres.indexes import DUPLICATE_COUNT_CEILING
+from app.adapters.postgres.counting import COUNT_CEILING
 from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.relation import Index, RelationModel
 from tests.utils.database import working_postgres_options
@@ -174,7 +174,7 @@ async def test_the_count_of_repeating_values_stops_at_its_ceiling(
     await run(
         f"INSERT INTO {schema}.customers (region_id, region_code, name, note) "  # noqa: S608 -- fixture-owned schema.
         "SELECT 1, 'EU', 'c' || g || '-' || r, 'n' || g "
-        f"FROM generate_series(1, {DUPLICATE_COUNT_CEILING + 1}) AS g, "
+        f"FROM generate_series(1, {COUNT_CEILING + 1}) AS g, "
         "generate_series(1, 2) AS r"
     )
 
@@ -188,7 +188,7 @@ async def test_the_count_of_repeating_values_stops_at_its_ceiling(
     )
 
     assert isinstance(result, IndexBlocked)
-    assert result.duplicate_groups == DUPLICATE_COUNT_CEILING
+    assert result.duplicate_groups == COUNT_CEILING
     assert result.exact is False
 
 

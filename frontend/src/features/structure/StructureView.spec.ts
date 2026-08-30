@@ -33,7 +33,14 @@ const MODEL: RelationModel = {
       storage: "extended",
     },
   ],
-  constraints: [],
+  constraints: [
+    {
+      kind: "unique",
+      name: "projects_name_key",
+      columns: ["name"],
+      nulls_not_distinct: false,
+    },
+  ],
   indexes: [
     {
       name: "projects_name_idx",
@@ -44,6 +51,8 @@ const MODEL: RelationModel = {
   ],
   column_changes_supported: true,
   index_changes_supported: true,
+  constraint_changes_supported: true,
+  candidate_keys: [{ name: "projects_name_key", columns: ["name"] }],
   index_methods: [
     {
       code: "btree",
@@ -81,6 +90,17 @@ beforeEach(() => {
   vi.restoreAllMocks()
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined)
   vi.spyOn(ConnectorsService, "readRelationModel").mockResolvedValue({ data: MODEL } as never)
+  // The constraint dialog asks the source where this relation lives and what
+  // else lives there; without these it would reach for the network.
+  vi.spyOn(ConnectorsService, "readNodePath").mockResolvedValue({
+    data: [
+      { id: "public", kind: "schema", name: "public" },
+      { id: "public.projects", kind: "table", name: "projects" },
+    ],
+  } as never)
+  vi.spyOn(ConnectorsService, "readCatalog").mockResolvedValue({
+    data: [{ id: "public.people", kind: "table", name: "people" }],
+  } as never)
 })
 
 describe("relation column changes", () => {
@@ -293,6 +313,77 @@ describe("relation column changes", () => {
     expect(drop).toHaveBeenCalledWith({
       path: { connector_id: "connector-1" },
       body: { node_id: "public.projects", name: "projects_name_idx" },
+    })
+    wrapper.unmount()
+  })
+
+  it("adds a unique constraint without naming it", async () => {
+    const create = vi.spyOn(ConnectorsService, "createConstraint").mockResolvedValue({
+      data: { kind: "created", name: "projects_note_key" },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="structure-add-constraint"]').trigger("click")
+    await flushPromises()
+    // The second select in the dialog is the columns; the first is the kind.
+    wrapper.findAllComponents(AppSelect)[1]?.vm.$emit("update:modelValue", ["note"])
+    await flushPromises()
+    document.body
+      .querySelector<HTMLElement>('[data-testid="structure-constraint-save"]')
+      ?.click()
+    await flushPromises()
+
+    expect(create).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: {
+        node_id: "public.projects",
+        constraint: { kind: "unique", columns: ["note"] },
+      },
+    })
+    wrapper.unmount()
+  })
+
+  it("reads the count of rows that point at nothing", async () => {
+    vi.spyOn(ConnectorsService, "createConstraint").mockResolvedValue({
+      data: { kind: "unmatched", rows: 5, exact: true },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="structure-add-constraint"]').trigger("click")
+    await flushPromises()
+    wrapper.findAllComponents(AppSelect)[1]?.vm.$emit("update:modelValue", ["note"])
+    await flushPromises()
+    document.body
+      .querySelector<HTMLElement>('[data-testid="structure-constraint-save"]')
+      ?.click()
+    await flushPromises()
+
+    const blocked = document.body.querySelector(
+      '[data-testid="structure-constraint-blocked"]'
+    )
+    expect(blocked?.textContent).toContain("5 rows point at nothing")
+    wrapper.unmount()
+  })
+
+  it("drops a constraint the model named, after confirmation", async () => {
+    const drop = vi.spyOn(ConnectorsService, "dropConstraint").mockResolvedValue({
+      data: { name: "projects_name_key" },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper
+      .get('[data-testid="structure-drop-constraint-projects_name_key"]')
+      .trigger("click")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="confirm-accept"]')?.click()
+    await flushPromises()
+
+    expect(drop).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: { node_id: "public.projects", name: "projects_name_key" },
     })
     wrapper.unmount()
   })

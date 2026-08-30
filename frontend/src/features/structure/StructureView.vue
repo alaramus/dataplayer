@@ -6,14 +6,16 @@ import {
   useColumnDefault,
   useColumnNullability,
   useColumnType,
+  useCreateConstraint,
   useCreateIndex,
   useDropColumn,
+  useDropConstraint,
   useDropIndex,
   useRelationModel,
   useRenameColumn,
 } from "@/features/structure/api"
 import { badgesFor, foreignKeyLabel } from "@/features/structure/model"
-import type { ForeignKey } from "@/features/structure/model"
+import type { ForeignKey, RefAction } from "@/features/structure/model"
 import { messageOf } from "@/shared/api/errors"
 import {
   AppBadge,
@@ -30,6 +32,7 @@ import {
 } from "@/shared/ui"
 
 import AddColumnDialog from "./AddColumnDialog.vue"
+import AddConstraintDialog from "./AddConstraintDialog.vue"
 import ColumnDefaultDialog from "./ColumnDefaultDialog.vue"
 import ColumnNullabilityDialog from "./ColumnNullabilityDialog.vue"
 import ColumnTypeDialog from "./ColumnTypeDialog.vue"
@@ -48,6 +51,8 @@ const columnNullability = useColumnNullability(connectorId, nodeId)
 const columnType = useColumnType(connectorId, nodeId)
 const createIndex = useCreateIndex(connectorId, nodeId)
 const dropIndex = useDropIndex(connectorId, nodeId)
+const createConstraint = useCreateConstraint(connectorId, nodeId)
+const dropConstraint = useDropConstraint(connectorId, nodeId)
 const confirm = useConfirm()
 const toast = useToast()
 const addOpen = ref(false)
@@ -67,6 +72,14 @@ const indexOpen = ref(false)
 const indexError = ref("")
 const indexBlocked = ref<{ groups: number; exact: boolean } | null>(null)
 const droppingIndex = ref<string | null>(null)
+const constraintOpen = ref(false)
+const constraintError = ref("")
+const constraintBlocked = ref<{
+  kind: "repeating" | "unmatched"
+  count: number
+  exact: boolean
+} | null>(null)
+const droppingConstraint = ref<string | null>(null)
 
 defineExpose({ reload: async () => void (await query.refetch()) })
 
@@ -171,6 +184,14 @@ function openDefault(name: string, currentDefault: string | null) {
   defaultColumn.value = { name, currentDefault }
 }
 
+function constraintTooltip(name: string): string {
+  const model = query.data.value
+  if (model?.constraint_changes_supported !== true) {
+    return model?.constraint_changes_reason ?? "This constraint cannot be dropped"
+  }
+  return `Drop constraint ${name}`
+}
+
 function changeTooltip(what: string): string {
   const model = query.data.value
   if (model?.column_changes_supported !== true) {
@@ -209,6 +230,77 @@ async function changeType(typeCode: string) {
     toast.success(`${column.name} is now ${result.type_sql}`)
   } catch (error) {
     typeError.value = messageOf(error, "Could not change the type")
+  }
+}
+
+function openConstraint() {
+  constraintError.value = ""
+  constraintBlocked.value = null
+  constraintOpen.value = true
+}
+
+type ConstraintChoice =
+  | { kind: "unique"; columns: string[] }
+  | {
+      kind: "foreign_key"
+      columns: string[]
+      targetNodeId: string
+      targetColumns: string[]
+      onUpdate: RefAction
+      onDelete: RefAction
+    }
+
+async function saveConstraint(value: ConstraintChoice) {
+  constraintError.value = ""
+  constraintBlocked.value = null
+  try {
+    const result = await createConstraint.mutateAsync({
+      node_id: props.nodeId,
+      constraint:
+        value.kind === "unique"
+          ? { kind: "unique", columns: value.columns }
+          : {
+              kind: "foreign_key",
+              columns: value.columns,
+              target_node_id: value.targetNodeId,
+              target_columns: value.targetColumns,
+              on_update: value.onUpdate,
+              on_delete: value.onDelete,
+            },
+    })
+    // Not a failure: the source counted what contradicts the promise and
+    // added nothing, so the dialog stays open with the number.
+    if (result.kind !== "created") {
+      constraintBlocked.value = {
+        kind: result.kind,
+        count: result.kind === "repeating" ? result.groups : result.rows,
+        exact: result.exact ?? true,
+      }
+      return
+    }
+    constraintOpen.value = false
+    toast.success(`Constraint ${result.name} added`)
+  } catch (error) {
+    constraintError.value = messageOf(error, "Could not add the constraint")
+  }
+}
+
+async function removeConstraint(name: string) {
+  const accepted = await confirm({
+    title: `Drop constraint ${name}?`,
+    message: "The promise it makes about the rows stops being enforced.",
+    confirmLabel: "Drop",
+    danger: true,
+  })
+  if (!accepted) return
+  droppingConstraint.value = name
+  try {
+    await dropConstraint.mutateAsync({ node_id: props.nodeId, name })
+    toast.success(`Constraint ${name} dropped`)
+  } catch (error) {
+    toast.error(messageOf(error, "Could not drop the constraint"))
+  } finally {
+    droppingConstraint.value = null
   }
 }
 
@@ -450,11 +542,26 @@ async function changeDefault(action: "set" | "drop", value?: string) {
       </AppSection>
 
       <AppSection divided>
-        <div class="structure-view__title">
-          Foreign keys
+        <div class="structure-view__heading">
+          <div class="structure-view__title">
+            Constraints
+          </div>
+          <span :title="query.data.value.constraint_changes_supported ? undefined : query.data.value.constraint_changes_reason ?? undefined">
+            <AppButton
+              label="Add constraint"
+              variant="secondary"
+              size="sm"
+              :disable="query.data.value.constraint_changes_supported !== true"
+              data-testid="structure-add-constraint"
+              @click="openConstraint"
+            />
+            <AppTooltip v-if="query.data.value.constraint_changes_supported !== true && query.data.value.constraint_changes_reason">
+              {{ query.data.value.constraint_changes_reason }}
+            </AppTooltip>
+          </span>
         </div>
         <AppEmptyState
-          v-if="foreignKeys.length === 0"
+          v-if="foreignKeys.length === 0 && otherConstraints.length === 0"
           text="None"
         />
         <ul
@@ -464,30 +571,40 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           <li
             v-for="key in foreignKeys"
             :key="key.name"
+            class="structure-view__index"
             data-testid="structure-fk"
+            :data-constraint="key.name"
           >
-            {{ foreignKeyLabel(key) }}
+            <span>
+              {{ foreignKeyLabel(key) }}
+              <template v-if="key.validated === false"> · not validated</template>
+            </span>
+            <AppIconButton
+              icon="delete_outline"
+              :tooltip="constraintTooltip(key.name)"
+              variant="danger-quiet"
+              :disable="query.data.value?.constraint_changes_supported !== true"
+              :loading="droppingConstraint === key.name"
+              :data-testid="`structure-drop-constraint-${key.name}`"
+              @click="removeConstraint(key.name)"
+            />
           </li>
-        </ul>
-      </AppSection>
-
-      <AppSection divided>
-        <div class="structure-view__title">
-          Constraints
-        </div>
-        <AppEmptyState
-          v-if="otherConstraints.length === 0"
-          text="None"
-        />
-        <ul
-          v-else
-          class="structure-view__list"
-        >
           <li
             v-for="constraint in otherConstraints"
             :key="constraint.name"
+            class="structure-view__index"
+            :data-constraint="constraint.name"
           >
-            {{ constraint.kind }} · {{ constraint.name }}
+            <span>{{ constraint.kind }} · {{ constraint.name }}</span>
+            <AppIconButton
+              icon="delete_outline"
+              :tooltip="constraintTooltip(constraint.name)"
+              variant="danger-quiet"
+              :disable="query.data.value?.constraint_changes_supported !== true"
+              :loading="droppingConstraint === constraint.name"
+              :data-testid="`structure-drop-constraint-${constraint.name}`"
+              @click="removeConstraint(constraint.name)"
+            />
           </li>
         </ul>
       </AppSection>
@@ -564,6 +681,18 @@ async function changeDefault(action: "set" | "drop", value?: string) {
       :error="renameError"
       @save="saveRename"
       @update:model-value="renaming = null"
+    />
+    <AddConstraintDialog
+      v-if="constraintOpen"
+      :model-value="true"
+      :connector-id="connectorId"
+      :node-id="nodeId"
+      :columns="(query.data.value?.columns ?? []).map((column) => column.name)"
+      :blocked="constraintBlocked"
+      :saving="createConstraint.isPending.value"
+      :error="constraintError"
+      @save="saveConstraint"
+      @update:model-value="constraintOpen = false"
     />
     <CreateIndexDialog
       v-if="indexOpen"

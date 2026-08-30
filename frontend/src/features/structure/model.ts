@@ -3,6 +3,13 @@ import type { connectorsReadRelationModelResponses } from "@/client"
 export type RelationModel = connectorsReadRelationModelResponses[200]
 export type Constraint = NonNullable<RelationModel["constraints"]>[number]
 export type ForeignKey = Extract<Constraint, { kind: "foreign_key" }>
+/**
+ * What happens to a referencing row, in the source's own closed vocabulary.
+ *
+ * Read off the generated key rather than written out again: the two cannot
+ * then drift apart, and the generator inlines the union instead of naming it.
+ */
+export type RefAction = NonNullable<ForeignKey["on_delete"]>
 export type Column = NonNullable<RelationModel["columns"]>[number]
 
 export interface ColumnBadge {

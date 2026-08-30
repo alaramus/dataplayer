@@ -11,6 +11,7 @@ from app.adapters.postgres.index_methods import (
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import NodeNotFound
 from app.adapters.relation import (
+    CandidateKey,
     CheckConstraint,
     Column,
     Constraint,
@@ -132,6 +133,7 @@ SELECT c.relname AS relation,
        con.confupdtype AS on_update,
        con.confdeltype AS on_delete,
        con.confmatchtype AS match_type,
+       con.convalidated AS validated,
        pg_get_expr(con.conbin, con.conrelid) AS expression,
        pg_get_constraintdef(con.oid) AS definition
 FROM pg_constraint con
@@ -264,6 +266,38 @@ def _names(value: Any) -> list[str]:
     return [str(item) for item in value] if isinstance(value, list) else []
 
 
+def _candidate_keys(
+    constraints: list[Constraint], indexes: list[Index]
+) -> list[CandidateKey]:
+    """Column sets a foreign key may point at, each named by what provides it.
+
+    PostgreSQL accepts a primary key, a unique constraint or a bare unique
+    index as the target of a reference. A partial unique index is not one: it
+    promises uniqueness only among the rows its predicate admits. The same
+    column set can be provided twice — a unique constraint and its own index —
+    so it is offered once, under the first name that provides it.
+    """
+    keys: list[CandidateKey] = []
+    seen: set[tuple[str, ...]] = set()
+    for constraint in constraints:
+        if not isinstance(constraint, PrimaryKey | UniqueConstraint):
+            continue
+        shape = tuple(constraint.columns)
+        if shape in seen:
+            continue
+        seen.add(shape)
+        keys.append(CandidateKey(name=constraint.name, columns=constraint.columns))
+    for index in indexes:
+        if not index.unique or index.predicate is not None or not index.valid:
+            continue
+        shape = tuple(index.columns)
+        if shape in seen:
+            continue
+        seen.add(shape)
+        keys.append(CandidateKey(name=index.name, columns=index.columns))
+    return keys
+
+
 def _constraint(row: dict[str, Any]) -> Constraint | None:
     contype = str(row["contype"])
     name = str(row["name"])
@@ -286,12 +320,14 @@ def _constraint(row: dict[str, Any]) -> Constraint | None:
             on_update=_REF_ACTIONS.get(str(row["on_update"]), "no_action"),
             on_delete=_REF_ACTIONS.get(str(row["on_delete"]), "no_action"),
             match=_MATCH.get(str(row["match_type"]), "simple"),
+            validated=bool(row.get("validated", True)),
         )
     if contype == "c":
         return CheckConstraint(
             name=name,
             expression=str(row.get("expression") or ""),
             columns=columns,
+            validated=bool(row.get("validated", True)),
         )
     if contype == "x":
         return ExclusionConstraint(
@@ -358,6 +394,13 @@ def _relation_model(
         index_changes_reason = None
     else:
         index_changes_reason = "Only tables and materialized views can be indexed"
+    # And a third question again: a materialized view is indexable and holds no
+    # constraints, while a child partition holds its own even though its
+    # columns belong to its parent.
+    if kind in {"table", "partitioned_table"}:
+        constraint_changes_reason = None
+    else:
+        constraint_changes_reason = "Only tables can have constraints"
     return RelationModel(
         node_id=f"{schema}.{name}",
         schema_name=schema,
@@ -381,4 +424,7 @@ def _relation_model(
         index_changes_supported=index_changes_reason is None,
         index_changes_reason=index_changes_reason,
         index_methods=[] if index_changes_reason is not None else index_methods,
+        constraint_changes_supported=constraint_changes_reason is None,
+        constraint_changes_reason=constraint_changes_reason,
+        candidate_keys=_candidate_keys(constraints, indexes),
     )

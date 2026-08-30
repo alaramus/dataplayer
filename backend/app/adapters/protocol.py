@@ -15,6 +15,12 @@ from app.adapters.column_changes import (
     DropColumnRequest,
     RenameColumnRequest,
 )
+from app.adapters.constraints import (
+    ConstraintDropped,
+    CreateConstraintRequest,
+    CreateConstraintResult,
+    DropConstraintRequest,
+)
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
     CreateIndexRequest,
@@ -286,6 +292,29 @@ class SupportsIndexes(Protocol):
         Raises ValueError for an index this relation does not have and for one
         that belongs to a constraint, which is dropped through the constraint.
         """
+        ...
+
+
+@runtime_checkable
+class SupportsConstraints(Protocol):
+    """One capability for both halves, for the reason SupportsIndexes is one."""
+
+    async def create_constraint(
+        self, request: CreateConstraintRequest
+    ) -> CreateConstraintResult:
+        """Promise uniqueness, or a reference to another relation.
+
+        Answers rather than raises when the rows already contradict the
+        promise, with a count of what repeats or of what points at nothing.
+        Raises ValueError for a request that is wrong about either relation,
+        NodeNotFound when the target is gone, and AdapterError for failures.
+        """
+        ...
+
+    async def drop_constraint(
+        self, request: DropConstraintRequest
+    ) -> ConstraintDropped:
+        """Drop one constraint of this relation, without an implicit cascade."""
         ...
 
 

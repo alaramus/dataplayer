@@ -10,14 +10,11 @@ from app.adapters.indexes import (
     IndexCreated,
     IndexDropped,
 )
+from app.adapters.postgres.counting import repeating_groups
 from app.adapters.postgres.index_methods import POSTGRES_INDEX_METHOD_SQL
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.relation import Index, PrimaryKey, RelationModel, UniqueConstraint
-
-# The same ceiling the other structure commands count to: past this the answer
-# is "a lot", and an unbounded scan is not run here.
-DUPLICATE_COUNT_CEILING = 1000
 
 # What a refused index command means, by SQLSTATE. The message beside the code
 # is not safe to pass on: PostgreSQL writes the duplicated key value into it.
@@ -64,7 +61,9 @@ class PostgresIndexes:
             raise ValueError(f"{method.title} cannot index more than one column")
 
         if request.unique:
-            groups, exact = await self._repeating_groups(model, request.columns)
+            groups, exact = await repeating_groups(
+                self._session, model.schema_name, model.name, request.columns
+            )
             if groups > 0:
                 # Nothing was built and nothing was locked: the count is the
                 # whole answer, and the caller decides what to do about it.
@@ -126,32 +125,6 @@ class PostgresIndexes:
             and index.method == method_name
         ]
         return made[0] if made else ""
-
-    async def _repeating_groups(
-        self, model: RelationModel, columns: list[str]
-    ) -> tuple[int, bool]:
-        """How many values repeat across these columns, counted to a ceiling.
-
-        Rows holding a null in any of the columns are left out: PostgreSQL
-        indexes with NULLS DISTINCT by default, so two of them do not collide,
-        and counting them would refuse an index the server would have built.
-        """
-        names = [sql.Identifier(name) for name in columns]
-        statement = sql.SQL(
-            "SELECT count(*) AS found FROM ("
-            "SELECT 1 FROM {} WHERE {} GROUP BY {} HAVING count(*) > 1 LIMIT {}"
-            ") AS sample"
-        ).format(
-            sql.Identifier(model.schema_name, model.name),
-            sql.SQL(" AND ").join(
-                sql.SQL("{} IS NOT NULL").format(name) for name in names
-            ),
-            sql.SQL(", ").join(names),
-            sql.Literal(DUPLICATE_COUNT_CEILING + 1),
-        )
-        rows = await self._session.query(statement.as_string())
-        found = int(rows[0]["found"])
-        return min(found, DUPLICATE_COUNT_CEILING), found <= DUPLICATE_COUNT_CEILING
 
     @staticmethod
     def _check_supported(model: RelationModel) -> None:

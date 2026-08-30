@@ -254,3 +254,52 @@ test("indexes a column, refuses a unique one that repeats, and drops it again", 
 
   await deleteConnector(page, name)
 })
+
+test("promises uniqueness, refuses what repeats, and points at another table", async ({
+  page,
+}) => {
+  const name = `e2e-constraint-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "app_users")
+  await page.getByTestId("grid-structure").click()
+
+  const view = page.getByTestId("structure-view")
+  const named = () => view.locator("[data-constraint]").evaluateAll(
+    (rows) => rows.map((row) => row.getAttribute("data-constraint") ?? "")
+  )
+
+  // One organisation owns more than one user, so uniqueness cannot be
+  // promised and the source says how many values repeat.
+  await view.getByTestId("structure-add-constraint").click()
+  await page.getByTestId("structure-constraint-columns").click()
+  await page.getByRole("option", { name: "organization_id" }).click()
+  await page.keyboard.press("Escape")
+  await page.getByTestId("structure-constraint-save").click()
+  await expect(page.getByTestId("structure-constraint-blocked")).toContainText(
+    "appear more than once"
+  )
+
+  // The same columns as a foreign key: the target says which of its keys may
+  // be pointed at, and nothing here composes an id or a predicate.
+  const before = await named()
+  await page.getByTestId("structure-constraint-kind").click()
+  await page.getByRole("option", { name: "Foreign key" }).click()
+  await page.getByTestId("structure-constraint-target").click()
+  await page.getByRole("option", { name: "organizations", exact: true }).click()
+  await expect(page.getByTestId("structure-constraint-key")).toBeVisible()
+  await page.getByTestId("structure-constraint-save").click()
+  await expect.poll(async () => (await named()).length).toBe(before.length + 1)
+
+  const added = (await named()).find((item) => !before.includes(item)) ?? ""
+  const row = view.locator(`[data-constraint="${added}"]`)
+  await expect(row).toContainText("demo_lab.organizations")
+
+  await row.getByRole("button").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(row).toHaveCount(0)
+
+  await deleteConnector(page, name)
+})

@@ -8,8 +8,10 @@ import type {
   ColumnDefaultRequest,
   ColumnNullabilityRequest,
   ColumnTypeRequest,
+  CreateConstraintRequest,
   CreateIndexRequest,
   DropColumnRequest,
+  DropConstraintRequest,
   DropIndexRequest,
   RenameColumnRequest,
 } from "@/client"
@@ -136,4 +138,74 @@ export function useDropIndex(connectorId: Ref<string>, nodeId: Ref<string>) {
       await ConnectorsService.dropIndex({ path: { connector_id: id }, body })
     ).data
   )
+}
+
+export function useCreateConstraint(connectorId: Ref<string>, nodeId: Ref<string>) {
+  return useStructureMutation(
+    connectorId,
+    nodeId,
+    async (id, body: CreateConstraintRequest) =>
+      (
+        await ConnectorsService.createConstraint({ path: { connector_id: id }, body })
+      ).data,
+    (result) => result.kind === "created"
+  )
+}
+
+export function useDropConstraint(connectorId: Ref<string>, nodeId: Ref<string>) {
+  return useStructureMutation(
+    connectorId,
+    nodeId,
+    async (id, body: DropConstraintRequest) =>
+      (
+        await ConnectorsService.dropConstraint({ path: { connector_id: id }, body })
+      ).data
+  )
+}
+
+/**
+ * The tables a foreign key from this relation could point at.
+ *
+ * Found by asking the source where this relation lives and what else lives
+ * there — never by taking its id apart (D21). Only tables: a view has nothing
+ * to be pointed at.
+ */
+export function useSiblingTables(connectorId: Ref<string>, nodeId: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => ["siblingTables", connectorId.value, nodeId.value] as const),
+    queryFn: async () => {
+      const path = (
+        await ConnectorsService.readNodePath({
+          path: { connector_id: connectorId.value },
+          query: { node_id: nodeId.value },
+        })
+      ).data
+      const parent = path.at(-2)
+      if (parent === undefined) return []
+      const children = (
+        await ConnectorsService.readCatalog({
+          path: { connector_id: connectorId.value },
+          query: { node_id: parent.id },
+        })
+      ).data
+      return children.filter((node) => node.kind === "table")
+    },
+    staleTime: 60_000,
+  })
+}
+
+/** What the chosen target says it can be pointed at by. */
+export function useCandidateKeys(connectorId: Ref<string>, targetNodeId: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => relationModelKey(connectorId.value, targetNodeId.value)),
+    queryFn: async () =>
+      (
+        await ConnectorsService.readRelationModel({
+          path: { connector_id: connectorId.value },
+          query: { node_id: targetNodeId.value },
+        })
+      ).data,
+    enabled: computed(() => targetNodeId.value !== ""),
+    staleTime: 5 * 60_000,
+  })
 }

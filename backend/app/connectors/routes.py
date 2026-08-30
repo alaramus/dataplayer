@@ -42,6 +42,13 @@ from app.adapters.column_changes import (
     NullabilityChanged,
     RenameColumnRequest,
 )
+from app.adapters.constraints import (
+    ConstraintCreated,
+    ConstraintDropped,
+    CreateConstraintRequest,
+    CreateConstraintResult,
+    DropConstraintRequest,
+)
 from app.adapters.fetch import (
     DownloadPageRequest,
     FetchRequest,
@@ -68,6 +75,7 @@ from app.adapters.protocol import (
     SupportsColumnNullability,
     SupportsColumnType,
     SupportsConnectionString,
+    SupportsConstraints,
     SupportsDelete,
     SupportsDropColumn,
     SupportsFetch,
@@ -1232,7 +1240,8 @@ async def change_column_type(
     return result
 
 
-async def _index_change[T](adapter_call: Callable[[], Awaitable[T]]) -> T:
+async def _shape_change[T](adapter_call: Callable[[], Awaitable[T]]) -> T:
+    """One reading of what an adapter can say about changing a shape."""
     try:
         return await adapter_call()
     except NodeNotFound as exc:
@@ -1286,7 +1295,7 @@ async def create_index(
     and only a created index invalidates what the connector cached.
     """
     adapter = await _indexing_adapter(session, connector_id, current_user, resources)
-    result = await _index_change(lambda: adapter.create_index(request))
+    result = await _shape_change(lambda: adapter.create_index(request))
     if isinstance(result, IndexCreated):
         await data_cache.invalidate_connector(connector_id)
     return result
@@ -1304,7 +1313,72 @@ async def drop_index(
     """Drop one index of a relation, without an implicit cascade."""
     adapter = await _indexing_adapter(session, connector_id, current_user, resources)
     return await _invalidate_after(
-        lambda: _index_change(lambda: adapter.drop_index(request)),
+        lambda: _shape_change(lambda: adapter.drop_index(request)),
+        data_cache,
+        connector_id,
+    )
+
+
+async def _constraining_adapter(
+    session: SessionDep,
+    connector_id: uuid.UUID,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+) -> SupportsConstraints:
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
+    if not isinstance(adapter, SupportsConstraints):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support changing constraints",
+                "error_kind": "config",
+            },
+        )
+    return adapter
+
+
+@router.post("/{connector_id}/constraints", response_model=CreateConstraintResult)
+async def create_constraint(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: CreateConstraintRequest,
+) -> Any:
+    """
+    Promise uniqueness over columns, or a reference to another relation.
+
+    The source names the constraint, and rows that already contradict the
+    promise are an answer with a count rather than a failure. Only a created
+    constraint invalidates what the connector cached.
+    """
+    adapter = await _constraining_adapter(
+        session, connector_id, current_user, resources
+    )
+    result = await _shape_change(lambda: adapter.create_constraint(request))
+    if isinstance(result, ConstraintCreated):
+        await data_cache.invalidate_connector(connector_id)
+    return result
+
+
+@router.delete("/{connector_id}/constraints", response_model=ConstraintDropped)
+async def drop_constraint(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: DropConstraintRequest,
+) -> ConstraintDropped:
+    """Drop one constraint of a relation, without an implicit cascade."""
+    adapter = await _constraining_adapter(
+        session, connector_id, current_user, resources
+    )
+    return await _invalidate_after(
+        lambda: _shape_change(lambda: adapter.drop_constraint(request)),
         data_cache,
         connector_id,
     )

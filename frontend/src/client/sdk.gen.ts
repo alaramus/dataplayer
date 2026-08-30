@@ -32,6 +32,9 @@ import type {
   connectorsCreateConnectorData,
   connectorsCreateConnectorErrors,
   connectorsCreateConnectorResponses,
+  connectorsCreateConstraintData,
+  connectorsCreateConstraintErrors,
+  connectorsCreateConstraintResponses,
   connectorsCreateIndexData,
   connectorsCreateIndexErrors,
   connectorsCreateIndexResponses,
@@ -50,6 +53,9 @@ import type {
   connectorsDropColumnData,
   connectorsDropColumnErrors,
   connectorsDropColumnResponses,
+  connectorsDropConstraintData,
+  connectorsDropConstraintErrors,
+  connectorsDropConstraintResponses,
   connectorsDropIndexData,
   connectorsDropIndexErrors,
   connectorsDropIndexResponses,
@@ -1170,6 +1176,58 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/indexes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Drop Constraint
+   *
+   * Drop one constraint of a relation, without an implicit cascade.
+   */
+  public static dropConstraint<ThrowOnError extends boolean = true>(
+    options: Options<connectorsDropConstraintData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      connectorsDropConstraintResponses,
+      connectorsDropConstraintErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/constraints",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Create Constraint
+   *
+   * Promise uniqueness over columns, or a reference to another relation.
+   *
+   * The source names the constraint, and rows that already contradict the
+   * promise are an answer with a count rather than a failure. Only a created
+   * constraint invalidates what the connector cached.
+   */
+  public static createConstraint<ThrowOnError extends boolean = true>(
+    options: Options<connectorsCreateConstraintData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsCreateConstraintResponses,
+      connectorsCreateConstraintErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/constraints",
       ...options,
       headers: {
         "Content-Type": "application/json",

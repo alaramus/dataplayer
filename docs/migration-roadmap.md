@@ -107,7 +107,7 @@ and every identifier and predicate is source-validated.
 - [x] Specify a safe type-change vocabulary, including what conversions are
   refused and how dependent defaults, indexes and constraints behave.
 - [x] Add source-owned index creation and removal.
-- [ ] Add unique and foreign-key creation/removal only after dependency and
+- [x] Add unique and foreign-key creation/removal only after dependency and
   lock behaviour is explicit.
 - [ ] Consider relation creation and drop as a separate destructive round; do
   not mix it into a column change.
@@ -150,6 +150,26 @@ type is left to the server, because operator classes change with what is
 installed. A unique index over values that already repeat is answered with the
 number of repeating values, as in D37, counted with NULLS DISTINCT so nulls do
 not count as collisions.
+
+Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
+frontend type check, lint, unit tests, the documentation check and the whole
+end-to-end suite.
+
+D40 settles the fourth. A constraint is what an index is not: a named promise
+other objects can depend on, carrying the closed `RefAction` behaviour, and
+possibly unenforced — so `validated` now travels with every foreign key and
+check. What a foreign key may point at is published as `candidate_keys` rather
+than worked out by the reader, and the target is a catalog node id handed back
+as given. The data refuses both kinds and is counted: repeating values for a
+unique constraint, rows pointing nowhere for a foreign key, the latter under
+MATCH SIMPLE. Dependency behaviour is explicit — no `CASCADE`, a foreign key
+holds its unique constraint in place, and a primary key is not dropped here
+because rows can only be edited while one exists (D25). Lock behaviour is
+explicit too: the request waits for the scan, as it waits for an index build,
+and jobs remain Phase 4.
+
+This is the fourth command the data can stop, so the counting moved into one
+module shared by all four.
 
 Validated on 2026-08-30: the whole backend suite, mypy, ruff, import contracts,
 frontend type check, lint, unit tests, the documentation check and the whole
@@ -414,9 +434,13 @@ that they belong in the platform core.
 
 ## Next session
 
-Continue **Phase 1.2** with unique and foreign-key constraints, whose bullet asks for dependency and lock behaviour to be explicit first. The first question there is what a constraint
-adds over the index D39 already builds: a unique constraint owns its index and
-cannot be dropped through it, which is the refusal that slice already names. The
-second is what a foreign key needs from the relation it points at — an index
-there, a lock on both tables, and a validation scan that can be deferred with
-`NOT VALID`, which is the two-step vocabulary D38 deliberately did without.
+Phase 1.2 is complete except for the destructive round it deliberately defers:
+relation creation and drop, which is not started until it says what happens to
+open tabs, to grants and to a relation other things point at.
+
+Start **Phase 1.3** with pasting a rectangular TSV selection into editable
+cells. The first question there is what one atomic request looks like when the
+cells belong to different rows, since D25 versions a row rather than a cell,
+and the second is what the answer says when some cells convert and others do
+not — the counting shape of D37 through D40 is about rows already in the
+source, and this is about values arriving from outside it.

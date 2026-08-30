@@ -90,6 +90,10 @@ class ForeignKey(BaseModel):
     on_update: RefAction = "no_action"
     on_delete: RefAction = "no_action"
     match: Literal["full", "partial", "simple"] = "simple"
+    # A constraint added NOT VALID promises nothing about the rows that were
+    # already there. Showing it as if it did would be a lie the reader has no
+    # way to catch.
+    validated: bool = True
 
 
 class CheckConstraint(BaseModel):
@@ -99,6 +103,7 @@ class CheckConstraint(BaseModel):
     name: str
     expression: str
     columns: list[str] = Field(default_factory=list)
+    validated: bool = True
 
 
 class ExclusionConstraint(BaseModel):
@@ -170,6 +175,21 @@ class IndexMethodOption(BaseModel):
     multi_column_supported: bool
 
 
+class CandidateKey(BaseModel):
+    """A set of columns a foreign key may point at, and what provides it.
+
+    Published rather than derived by the reader: which of a relation's
+    constraints and indexes can be referenced is the source's rule, and a
+    client working it out from the constraint list would be the second
+    implementation of it.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    columns: list[str]
+
+
 class RelationModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -195,6 +215,13 @@ class RelationModel(BaseModel):
     index_changes_supported: bool = False
     index_changes_reason: str | None = None
     index_methods: list[IndexMethodOption] = Field(default_factory=list)
+    # A third gate, for the third question. The three admit different kinds of
+    # relation — a materialized view can be indexed but has no constraints, a
+    # child partition takes its columns from its parent but holds constraints
+    # of its own — so one flag could only be wrong about two of them.
+    constraint_changes_supported: bool = False
+    constraint_changes_reason: str | None = None
+    candidate_keys: list[CandidateKey] = Field(default_factory=list)
 
 
 def without_structure_changes(model: RelationModel, reason: str) -> RelationModel:
@@ -206,8 +233,10 @@ def without_structure_changes(model: RelationModel, reason: str) -> RelationMode
     rule; the type and method choices go with them, since they exist only to
     fill in a change nobody is being offered.
 
-    Both gates at once: an access level is about the whole shape, and a caller
-    who may not add a column may not add an index either.
+    Every gate at once: an access level is about the whole shape, and a caller
+    who may not add a column may not add an index or a constraint either. The
+    candidate keys stay: they say what this relation can be pointed at from
+    elsewhere, which is true whatever this caller may do to it.
     """
     return model.model_copy(
         update={
@@ -217,5 +246,7 @@ def without_structure_changes(model: RelationModel, reason: str) -> RelationMode
             "index_changes_supported": False,
             "index_changes_reason": reason,
             "index_methods": [],
+            "constraint_changes_supported": False,
+            "constraint_changes_reason": reason,
         }
     )

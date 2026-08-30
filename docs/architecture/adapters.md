@@ -543,6 +543,54 @@ Known deviations:
   constraint creation is a separate round.
 - **No reindex or rebuild**, and no storage parameters or tablespace.
 
+## D40. A relation publishes what may point at it, and a constraint is a promise the data can refuse
+
+Two constraint kinds are reachable: unique and foreign key. A check constraint
+is not, and will not be — its body is an expression, which is what D2c refuses.
+Creating and dropping are one capability, for the reason D39 gives, and the
+gate is its own third one: a materialized view is indexable and holds no
+constraints, a child partition holds its own even though its columns belong to
+its parent, so one flag could only be wrong about two of them.
+
+The name is the source's, as in D39, and the answer reads back which constraint
+appeared. What a foreign key may point at is published rather than inferred:
+`RelationModel.candidate_keys` lists the column sets that carry a unique key —
+a primary key, a unique constraint or a bare unique index, but never a partial
+one — each named by whatever provides it. The screen offers those and the
+adapter checks against those, so a target with no matching key is named instead
+of being handed SQLSTATE 42830. The target itself is a catalog node id handed
+back as it was given (D21), and the screen finds the candidates through two
+ordinary catalog calls rather than by composing an id.
+
+Behaviour on update and delete is the closed `RefAction` set the relation model
+already reports. `validated` now travels with every foreign key and check,
+because a constraint added `NOT VALID` promises nothing about the rows that
+were already there and showing it as enforced is a lie the reader cannot catch.
+
+This is the fourth command the data can stop, so the shape is one module:
+`counting.py` holds a bounded count and whether it is the whole truth, and
+D37's, D38's, D39's and this one's counts all go through it. A unique
+constraint is stopped by values that repeat; a foreign key by rows whose key
+names nothing, counted under MATCH SIMPLE so a row with a null in its key is
+not counted. The two answers stay separate — `RepeatingValues` and
+`UnmatchedRows` — because they lead to different work. A count can itself be
+refused, when the two column lists cannot be compared, and the SQLSTATE mapping
+therefore travels with the count as well as with the change.
+
+Dropping issues no `CASCADE`, and a primary key is refused outright: without
+one a relation's rows cannot be edited at all, since the versioned handle of
+D25 is built from the key.
+
+Known deviations:
+
+- **No `NOT VALID` and no `VALIDATE CONSTRAINT`.** A two-step constraint is a
+  second state and a second command; the count already says what a validation
+  scan would find.
+- **No deferrability, `MATCH FULL` or `NULLS NOT DISTINCT`**, and no check or
+  exclusion constraints.
+- **The request waits for the scan**, as it waits for an index build in D39.
+- **No cross-connector references.** The target is a node of the same source.
+
 ## D31. A source opts into bounded read caching, and a successful mutation drops what it cached
 
 `DataCache` belongs to the application lifespan beside the resource store. Its

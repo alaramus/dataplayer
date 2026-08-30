@@ -202,6 +202,27 @@ export type Body_login_login_access_token = {
 }
 
 /**
+ * CandidateKey
+ *
+ * A set of columns a foreign key may point at, and what provides it.
+ *
+ * Published rather than derived by the reader: which of a relation's
+ * constraints and indexes can be referenced is the source's rule, and a
+ * client working it out from the constraint list would be the second
+ * implementation of it.
+ */
+export type CandidateKey = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Columns
+   */
+  columns: Array<string>
+}
+
+/**
  * Capability
  *
  * One thing a source type can do, in words a user reads.
@@ -239,6 +260,10 @@ export type CheckConstraint = {
    * Columns
    */
   columns?: Array<string>
+  /**
+   * Validated
+   */
+  validated?: boolean
 }
 
 /**
@@ -648,6 +673,52 @@ export type ConnectorsPublic = {
 }
 
 /**
+ * ConstraintCreated
+ *
+ * The constraint exists, under the name the source gave it.
+ */
+export type ConstraintCreated = {
+  /**
+   * Kind
+   */
+  kind?: "created"
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * ConstraintDropped
+ */
+export type ConstraintDropped = {
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * CreateConstraintRequest
+ */
+export type CreateConstraintRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Constraint
+   */
+  constraint:
+    | ({
+        kind: "unique"
+      } & UniqueConstraintSpec)
+    | ({
+        kind: "foreign_key"
+      } & ForeignKeySpec)
+}
+
+/**
  * CreateIndexRequest
  *
  * Columns of this relation, a published method code, and uniqueness.
@@ -776,6 +847,20 @@ export type DownloadPageRequest = {
  * DropColumnRequest
  */
 export type DropColumnRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * DropConstraintRequest
+ */
+export type DropConstraintRequest = {
   /**
    * Node Id
    */
@@ -1079,6 +1164,46 @@ export type ForeignKey = {
    * Match
    */
   match?: "full" | "partial" | "simple"
+  /**
+   * Validated
+   */
+  validated?: boolean
+}
+
+/**
+ * ForeignKeySpec
+ *
+ * A promise that these columns name a row of another relation.
+ *
+ * The target is a catalog node id, handed back exactly as it was given (D21);
+ * its columns are one of the candidate keys the target itself publishes, so
+ * the client never decides what may be referenced.
+ */
+export type ForeignKeySpec = {
+  /**
+   * Kind
+   */
+  kind?: "foreign_key"
+  /**
+   * Columns
+   */
+  columns: Array<string>
+  /**
+   * Target Node Id
+   */
+  target_node_id: string
+  /**
+   * Target Columns
+   */
+  target_columns: Array<string>
+  /**
+   * On Update
+   */
+  on_update?: "no_action" | "restrict" | "cascade" | "set_null" | "set_default"
+  /**
+   * On Delete
+   */
+  on_delete?: "no_action" | "restrict" | "cascade" | "set_null" | "set_default"
 }
 
 /**
@@ -1693,6 +1818,18 @@ export type RelationModel = {
    * Index Methods
    */
   index_methods?: Array<IndexMethodOption>
+  /**
+   * Constraint Changes Supported
+   */
+  constraint_changes_supported?: boolean
+  /**
+   * Constraint Changes Reason
+   */
+  constraint_changes_reason?: string | null
+  /**
+   * Candidate Keys
+   */
+  candidate_keys?: Array<CandidateKey>
 }
 
 /**
@@ -1711,6 +1848,26 @@ export type RenameColumnRequest = {
    * New Name
    */
   new_name: string
+}
+
+/**
+ * RepeatingValues
+ *
+ * A unique constraint was asked for and these many values already repeat.
+ */
+export type RepeatingValues = {
+  /**
+   * Kind
+   */
+  kind?: "repeating"
+  /**
+   * Groups
+   */
+  groups: number
+  /**
+   * Exact
+   */
+  exact?: boolean
 }
 
 /**
@@ -1839,6 +1996,51 @@ export type UniqueConstraint = {
    * Nulls Not Distinct
    */
   nulls_not_distinct?: boolean
+}
+
+/**
+ * UniqueConstraintSpec
+ *
+ * A promise that these columns together name at most one row.
+ */
+export type UniqueConstraintSpec = {
+  /**
+   * Kind
+   */
+  kind?: "unique"
+  /**
+   * Columns
+   */
+  columns: Array<string>
+}
+
+/**
+ * UnmatchedRows
+ *
+ * A foreign key was asked for and these many rows point at nothing.
+ *
+ * Separate from `RepeatingValues` rather than one count with a reason beside
+ * it: the two lead to different work — one value has to be made unique, one
+ * row has to be corrected or removed — and a screen that had to read which it
+ * was out of a sentence would be parsing prose.
+ *
+ * Rows holding a null anywhere in the key are not counted. That is MATCH
+ * SIMPLE, which is what PostgreSQL would apply, and counting them would
+ * refuse a key the server would have accepted.
+ */
+export type UnmatchedRows = {
+  /**
+   * Kind
+   */
+  kind?: "unmatched"
+  /**
+   * Rows
+   */
+  rows: number
+  /**
+   * Exact
+   */
+  exact?: boolean
 }
 
 /**
@@ -3409,6 +3611,81 @@ export type connectorsCreateIndexResponses = {
 
 export type connectorsCreateIndexResponse =
   connectorsCreateIndexResponses[keyof connectorsCreateIndexResponses]
+
+export type connectorsDropConstraintData = {
+  body: DropConstraintRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/constraints"
+}
+
+export type connectorsDropConstraintErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsDropConstraintError =
+  connectorsDropConstraintErrors[keyof connectorsDropConstraintErrors]
+
+export type connectorsDropConstraintResponses = {
+  /**
+   * Successful Response
+   */
+  200: ConstraintDropped
+}
+
+export type connectorsDropConstraintResponse =
+  connectorsDropConstraintResponses[keyof connectorsDropConstraintResponses]
+
+export type connectorsCreateConstraintData = {
+  body: CreateConstraintRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/constraints"
+}
+
+export type connectorsCreateConstraintErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsCreateConstraintError =
+  connectorsCreateConstraintErrors[keyof connectorsCreateConstraintErrors]
+
+export type connectorsCreateConstraintResponses = {
+  /**
+   * Response Connectors-Create Constraint
+   *
+   * Successful Response
+   */
+  200:
+    | ({
+        kind: "created"
+      } & ConstraintCreated)
+    | ({
+        kind: "repeating"
+      } & RepeatingValues)
+    | ({
+        kind: "unmatched"
+      } & UnmatchedRows)
+}
+
+export type connectorsCreateConstraintResponse =
+  connectorsCreateConstraintResponses[keyof connectorsCreateConstraintResponses]
 
 export type connectorsReadNodePathData = {
   body?: never
