@@ -7,3 +7,12 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv
 }
+
+/**
+ * `markdown-it-task-lists` ships no types. It is a plain markdown-it plugin, so
+ * the shape it is used with is the whole contract.
+ */
+declare module "markdown-it-task-lists" {
+  const plugin: (parser: unknown, options?: { enabled?: boolean; label?: boolean }) => void
+  export default plugin
+}

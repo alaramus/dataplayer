@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import type { Locator } from "@playwright/test"
 
 import { catalogAction, catalogCheck, catalogRow, openNode } from "./utils/catalog"
 import { createFileConnector } from "./utils/connectors"
@@ -140,6 +141,86 @@ test("opens JSON natively and turns it into a table only when asked", async ({ p
   // source, so a document that no parser accepts is exactly what it can fix.
   await openNode(page, "broken.json")
   await expect(page.getByTestId("content-editor")).toContainText('"b" 2')
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+/**
+ * Reach a block the way a reader does.
+ *
+ * Heavy blocks mount when they are scrolled to, so a locator for one does not
+ * exist until the document has been scrolled that far. Scrolling until it
+ * appears is both how the assertion gets its element and the proof that
+ * nothing was drawn before it was needed.
+ */
+async function scrollTo(document: Locator, testId: string): Promise<Locator> {
+  const block = document.getByTestId(testId)
+  for (let step = 0; step < 30 && (await block.count()) === 0; step += 1) {
+    await document.evaluate((element) => {
+      element.scrollBy(0, 300)
+    })
+    await document.page().waitForTimeout(100)
+  }
+  return block
+}
+
+test("opens Markdown as a document, with its diagram, chart and source", async ({
+  page,
+}) => {
+  const name = `e2e-markdown-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  // Opening the file gives the document, not its characters: the heading is a
+  // heading and the hashes are gone.
+  await openNode(page, "guide.md")
+  const rendered = page.getByTestId("markdown-document")
+  await expect(rendered.getByRole("heading", { name: "Sample document" })).toBeVisible()
+  await expect(rendered).not.toContainText("# Sample document")
+  await expect(rendered.locator("table")).toBeVisible()
+  await expect(page.getByTestId("content-editor")).toHaveCount(0)
+
+  // A callout an agent wrote is a card, not a listing: its kind is named and
+  // its leading key lines are laid out as fields.
+  const decision = rendered.getByTestId("agent-decision")
+  await expect(rendered.getByTestId("agent-summary")).toContainText("Every block this viewer")
+  await expect(decision).toContainText("Keep documents portable Markdown")
+  await expect(decision).not.toContainText("Decision:")
+  await expect(rendered).not.toContainText("```")
+
+  // Nothing below the fold has been drawn yet.
+  await expect(rendered.getByTestId("echarts-figure")).toHaveCount(0)
+
+  // The rich blocks draw as they are reached, each in its own language.
+  await expect((await scrollTo(rendered, "mermaid-figure")).locator("svg")).toBeVisible()
+  await expect((await scrollTo(rendered, "echarts-figure")).locator("svg")).toBeVisible()
+  await expect(await scrollTo(rendered, "code-fence")).toContainText("def total")
+
+  // Every block says what it is and what can be done with it: its source can
+  // be copied, and what was drawn can be saved.
+  await expect(rendered.getByTestId("mermaid-download")).toBeVisible()
+  await expect(rendered.getByTestId("echarts-download")).toBeVisible()
+  await expect(rendered.getByTestId("code-copy")).toBeVisible()
+
+  // A drawing can be read as its own source, and shown again.
+  await scrollTo(rendered, "svg-figure")
+  await rendered.getByTestId("svg-source-toggle").click()
+  await expect(rendered.getByTestId("svg-source")).toContainText("<circle")
+  await expect(rendered.getByTestId("svg-figure")).toHaveCount(0)
+  await rendered.getByTestId("svg-source-toggle").click()
+  await expect(rendered.getByTestId("svg-figure").locator("svg")).toBeVisible()
+
+  // Nothing was fetched from another site, and the document says so.
+  await expect(rendered.locator("img[data-remote-blocked]")).toHaveCount(1)
+  await expect(page.getByText(/image\(s\) in this document are hosted elsewhere/)).toBeVisible()
+
+  // The same bytes are one click away in the editor, which is where a
+  // document is changed.
+  await page.getByTestId("markdown-view-source").click()
+  await expect(page.getByTestId("content-editor")).toContainText("# Sample document")
+  await expect(page.getByTestId("editor-language")).toHaveText("Markdown")
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

@@ -340,6 +340,7 @@ export type {
   loginTestTokenData,
   loginTestTokenResponse,
   loginTestTokenResponses,
+  MarkdownContent,
   Message,
   NewPassword,
   NodeReplacement,

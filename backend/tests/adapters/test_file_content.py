@@ -13,6 +13,7 @@ from app.adapters.content import (
     JsonLinesContent,
     JsonObject,
     JsonScalar,
+    MarkdownContent,
     TextContent,
     UpdateContentRequest,
 )
@@ -22,6 +23,7 @@ from app.adapters.file.content import (
     MAX_JSON_BYTES,
     MAX_JSON_LINE_BYTES,
     MAX_JSON_LINES_PAGE_BYTES,
+    MAX_MARKDOWN_BYTES,
     MAX_TEXT_BYTES,
     FileContent,
 )
@@ -47,6 +49,9 @@ def root(tmp_path: Path) -> Path:
     )
     (tmp_path / "notes.txt").write_text("first\nsecond\n", encoding="utf-8", newline="\n")
     (tmp_path / "pixel.png").write_bytes(PNG_1X1)
+    (tmp_path / "guide.md").write_text(
+        "# Title\n\n```mermaid\ngraph TD;\n  a-->b;\n```\n", encoding="utf-8", newline="\n"
+    )
     return tmp_path
 
 
@@ -198,6 +203,54 @@ async def test_a_text_preview_is_cut_without_claiming_to_be_the_whole_file(
     assert isinstance(result, TextContent)
     assert len(result.text) == MAX_TEXT_BYTES
     assert result.truncated is True
+
+
+async def test_markdown_arrives_as_the_source_the_browser_will_render(
+    content: FileContent,
+) -> None:
+    """No HTML crosses this boundary: the client renders and sanitises it."""
+    result = await content.read_content(
+        ContentRequest(node_id="guide.md", representation="markdown")
+    )
+
+    assert isinstance(result, MarkdownContent)
+    assert result.text == "# Title\n\n```mermaid\ngraph TD;\n  a-->b;\n```\n"
+    assert result.truncated is False
+
+
+async def test_a_document_over_the_ceiling_is_cut_without_claiming_to_be_whole(
+    content: FileContent, root: Path
+) -> None:
+    (root / "long.md").write_text("x" * (MAX_MARKDOWN_BYTES + 1), encoding="utf-8")
+
+    result = await content.read_content(
+        ContentRequest(node_id="long.md", representation="markdown")
+    )
+
+    assert isinstance(result, MarkdownContent)
+    assert len(result.text) == MAX_MARKDOWN_BYTES
+    assert result.truncated is True
+
+
+async def test_binary_bytes_named_as_a_document_are_refused(
+    content: FileContent, root: Path
+) -> None:
+    (root / "fake.md").write_bytes(b"# title\x00binary")
+
+    with pytest.raises(ValueError, match="binary"):
+        await content.read_content(
+            ContentRequest(node_id="fake.md", representation="markdown")
+        )
+
+
+async def test_a_document_is_still_edited_as_its_own_source(
+    content: FileContent,
+) -> None:
+    """Rendering is a second representation, not a replacement for D48."""
+    result = await content.read_editor_content(EditorContentRequest(node_id="guide.md"))
+
+    assert result.writable is True
+    assert result.language_hint == "markdown"
 
 
 async def test_binary_bytes_disguised_as_text_are_refused(

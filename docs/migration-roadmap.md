@@ -304,6 +304,39 @@ was asked to delete an already deleted row and rightly refused.
   returns; they write bytes now. The documentation check refused AGENTS.md over
   its budget, so the trap about `../.env` and rehearsing CI moved into the
   backend architecture file.
+- [x] Add Markdown as a rendered representation, ported from `rich-md-viewer`.
+  D50 gives `.md` two representations — rendered first, source second — and the
+  document is parsed, sanitised and drawn entirely in the browser: prose through
+  `markdown-it` with KaTeX and task lists, and `mermaid`, `echarts`, `svg` and
+  code fences as bounded blocks that mount when they are scrolled to. Code
+  fences reuse the editor's CodeMirror rather than a second highlighter, and the
+  whole stack is loaded only when a document is opened. What was left in the old
+  project: its tabs, table of contents, in-document search, export, share links
+  and i18n.
+  Validated on 2026-08-31 by the whole backend suite, mypy, ruff, import
+  contracts, frontend type check, lint, unit tests, the documentation check and
+  the whole end-to-end suite, and then read in the browser: the sample document,
+  this repository's AGENTS.md, and the demo document of the project the viewer
+  came from. Six defects came out of reading rather than running — a relative
+  link styled as a live link while being inert; `_require_editable_file`
+  refusing to edit a document once `.md` stopped being a text file; four
+  diagrams taking each other's output because Mermaid renders through one shared
+  element; those diagrams arriving as empty shapes because Mermaid labels are
+  HTML in a `foreignObject`; charts drawn as empty boxes because the option
+  named a series this bundle did not carry; and tall inline maths colliding with
+  the line above it. A second reading, against the standalone viewer this came
+  from, added four more: edge labels boxed by the background rectangle Mermaid
+  draws once labels are native text; a chart title sitting on its own legend;
+  code highlighted with CodeMirror's light-theme palette on a dark ground, in
+  the editor as well as in a fence; and no way to copy a block or save a drawing.
+  Every block now wears one frame with those actions in it, and a callout an
+  agent wrote — `summary`, `decision`, `risk` and six more — is drawn as a card
+  with its fields laid out. Video embeds stay out: a `component:YouTubePlayer`
+  fence is left as code.
+- [ ] Extend the rendered document once it is being used: a table of contents,
+  in-document search, export, and relative paths resolved against the
+  document's own directory so an image beside a `.md` file can be shown. Each
+  needs the byte path of D49 or a place in the workspace, not a new contract.
 - [ ] Add bounded audio, video and PDF viewers. Their bytes use D49's dedicated
   content path and trustworthy metadata; audio and video first need a range
   contract, and PDF needs an isolation/rendering decision.
@@ -573,12 +606,18 @@ end-to-end suite.
 
 ## Next session
 
-D49 is done and validated: download is an action of the source over the ticked
-nodes — one file unchanged, a selection or a directory as a ZIP — and a
-verified PNG or JPEG opens in its own panel.
+D49 and D50 are done: download is an action of the source over the ticked nodes,
+a verified PNG or JPEG opens in its own panel, and a Markdown file opens as a
+rendered document with its source one click away.
 
-The bounded text/JSON/JSONL results stay: image makes `SupportsContent` visible
-again, and JSONL paging remains useful above the editor ceiling. They are not a
-second document mode yet. Resume by specifying byte ranges and trustworthy
-metadata for audio/video, or the isolated PDF path; Parquet, XLSX and archives
-remain later slices and must not teach the workspace file extensions.
+Two decisions were taken during D50 and are worth knowing before the next
+slice. There is no general preview mode and there will not be one: a node's
+representations are the mechanism, and a second view of the same bytes is a
+second representation, not a mode. And a link inside a document that is not
+`http(s)`, `mailto`, `tel` or a fragment is deliberately inert, because nothing
+resolves a path against the document's own directory yet — that is the first
+thing to fix if documents start referring to their neighbours.
+
+Resume by specifying byte ranges and trustworthy metadata for audio/video, or
+the isolated PDF path; Parquet, XLSX and archives remain later slices and must
+not teach the workspace file extensions.

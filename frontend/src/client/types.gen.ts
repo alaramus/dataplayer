@@ -824,7 +824,7 @@ export type ContentRequest = {
   /**
    * Representation
    */
-  representation: "text" | "json" | "jsonl" | "image"
+  representation: "text" | "json" | "jsonl" | "image" | "markdown"
   /**
    * Limit
    */
@@ -1981,6 +1981,33 @@ export type JsonScalar = {
 }
 
 /**
+ * MarkdownContent
+ *
+ * The bounded source of a document that the browser renders itself.
+ *
+ * No HTML crosses this boundary: rendering, and every sanitising step it
+ * needs, happens in one place in the client. See D50.
+ */
+export type MarkdownContent = {
+  /**
+   * Kind
+   */
+  kind?: "markdown"
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Truncated
+   */
+  truncated?: boolean
+  /**
+   * Notice
+   */
+  notice?: string | null
+}
+
+/**
  * Message
  */
 export type Message = {
@@ -2055,7 +2082,7 @@ export type NodeRepresentation = {
   /**
    * Kind
    */
-  kind: "table" | "text" | "json" | "jsonl" | "image"
+  kind: "table" | "text" | "json" | "jsonl" | "image" | "markdown"
   /**
    * Title
    */
@@ -3823,6 +3850,9 @@ export type connectorsReadContentResponses = {
     | ({
         kind: "text"
       } & TextContent)
+    | ({
+        kind: "markdown"
+      } & MarkdownContent)
     | ({
         kind: "json"
       } & JsonContent)

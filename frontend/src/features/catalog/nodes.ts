@@ -64,6 +64,7 @@ const FILE_ICONS: Partial<Record<NodeRepresentation["kind"], string>> = {
   json: "data_object",
   jsonl: "format_list_numbered",
   image: "image",
+  markdown: "article",
 }
 
 const UNITS = ["B", "KB", "MB", "GB", "TB"]

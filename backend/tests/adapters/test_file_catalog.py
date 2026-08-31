@@ -17,6 +17,7 @@ def root(tmp_path: Path) -> Path:
     (tmp_path / "logo.png").write_bytes(b"\x89PNG\r\n")
     (tmp_path / "people.json").write_text('[{"id": 1}]')
     (tmp_path / "events.jsonl").write_text('{"id": 1}\n')
+    (tmp_path / "readme.md").write_text("# Title\n")
     return tmp_path
 
 
@@ -35,6 +36,7 @@ async def test_directories_come_before_files(catalog: FileCatalog) -> None:
         "logo.png",
         "notes.txt",
         "people.json",
+        "readme.md",
     ]
 
 
@@ -70,6 +72,7 @@ async def test_a_file_carries_its_size(catalog: FileCatalog, root: Path) -> None
         ("people.json", ["json", "table"]),
         ("events.jsonl", ["jsonl", "table"]),
         ("notes.txt", ["text"]),
+        ("readme.md", ["markdown", "text"]),
         ("logo.png", ["image"]),
     ],
 )

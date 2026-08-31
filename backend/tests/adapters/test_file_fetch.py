@@ -20,6 +20,7 @@ def root(tmp_path: Path) -> Path:
     (tmp_path / "people.json").write_text(json.dumps(people), encoding="utf-8")
     (tmp_path / "broken.json").write_text('{"a" 1}', encoding="utf-8")
     (tmp_path / "logo.png").write_bytes(b"\x89PNG\r\n")
+    (tmp_path / "guide.md").write_text("# Title\n")
     (tmp_path / "disguised.txt").write_bytes(b"text\x00binary")
     (tmp_path / "reports").mkdir()
     return tmp_path
@@ -149,6 +150,12 @@ async def test_a_file_that_lies_about_its_extension_is_refused(
     """Classification is by name; the bytes get the last word."""
     with pytest.raises(ValueError):
         await fetch.fetch(FetchRequest(node_id="disguised.txt"))
+
+
+async def test_a_document_is_not_a_table(fetch: FileFetch) -> None:
+    """Markdown declares a document and a source, and neither one is rows."""
+    with pytest.raises(ValueError, match="cannot be read as rows"):
+        await fetch.fetch(FetchRequest(node_id="guide.md"))
 
 
 async def test_a_directory_cannot_be_read_as_rows(fetch: FileFetch) -> None:

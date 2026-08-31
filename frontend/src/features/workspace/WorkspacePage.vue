@@ -359,6 +359,9 @@ provide(workspaceActionsKey, {
       return
     }
     const table = request.representations.find((representation) => representation.kind === "table")
+    const source = request.representations.find(
+      (representation) => representation.kind === "text" && preferred.kind !== "text"
+    )
     workspace.open({
       id: contentPanelId(request.connectorId, request.nodeId, preferred.kind),
       kind: "content",
@@ -369,6 +372,7 @@ provide(workspaceActionsKey, {
       adapterType: request.adapterType,
       representation: preferred.kind,
       ...(table === undefined ? {} : { tableTitle: table.title }),
+      ...(source === undefined ? {} : { sourceTitle: source.title }),
     })
   },
   /**

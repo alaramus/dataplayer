@@ -13,6 +13,8 @@ import { useThemeStore } from "@/stores/theme"
 import { buildChart } from "./model"
 import type { ChartSpec } from "./types"
 
+// D35's vocabulary, and only it: this panel composes the option itself, so
+// what it can draw is what it offers to build.
 use([LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent, SVGRenderer])
 
 const props = defineProps<{

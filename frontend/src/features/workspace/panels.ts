@@ -1,4 +1,4 @@
-import { defineComponent, h } from "vue"
+import { defineAsyncComponent, defineComponent, h } from "vue"
 import type { Component, VNode } from "vue"
 import { z } from "zod"
 
@@ -87,8 +87,11 @@ export const panelSchema = z.discriminatedUnion("kind", [
     title: z.string(),
     connectorName: z.string(),
     adapterType: z.string(),
-    representation: z.enum(["text", "json", "jsonl", "image"]),
+    representation: z.enum(["text", "json", "jsonl", "image", "markdown"]),
     tableTitle: z.string().min(1).optional(),
+    // What the source calls this document's other representation, so the
+    // button says the source's words rather than this screen's.
+    sourceTitle: z.string().min(1).optional(),
   }),
   z.object({
     id: z.string(),
@@ -120,11 +123,30 @@ export const rowsPanelId = (connectorId: string, nodeId: string) => `rows:${conn
 export const contentPanelId = (
   connectorId: string,
   nodeId: string,
-  representation: "text" | "json" | "jsonl" | "image"
+  representation: "text" | "json" | "jsonl" | "image" | "markdown"
 ) => `content:${connectorId}:${nodeId}:${representation}`
 export const structurePanelId = (connectorId: string, nodeId: string) =>
   `structure:${connectorId}:${nodeId}`
 export const chartPanelId = (viewKey: string) => `chart:${viewKey}`
+
+const CONTENT_ICONS: Record<
+  "text" | "json" | "jsonl" | "image" | "markdown",
+  string
+> = {
+  text: "description",
+  json: "data_object",
+  jsonl: "format_list_numbered",
+  image: "image",
+  markdown: "article",
+}
+
+/**
+ * The whole Markdown stack — parser, sanitiser, KaTeX — is loaded only when a
+ * document is opened. Somebody who never opens one never downloads it.
+ */
+const MarkdownPanelView = defineAsyncComponent(
+  () => import("@/features/content/markdown/MarkdownPanel.vue")
+)
 
 export function kindOf(panel: Panel): PanelKind {
   return panel.kind
@@ -238,14 +260,7 @@ export function lookOf(panel: Panel): PanelLook {
     case "content":
       return {
         title: panel.title,
-        icon:
-          panel.representation === "image"
-            ? "image"
-            : panel.representation === "text"
-              ? "description"
-              : panel.representation === "jsonl"
-                ? "format_list_numbered"
-                : "data_object",
+        icon: CONTENT_ICONS[panel.representation],
         iconTooltip: `${panel.connectorName} · Show in catalog`,
         reloadTooltip: "Re-read this file",
       }
@@ -327,6 +342,19 @@ export function componentOf(panel: Panel): Component {
             connectorId: panel.connectorId,
             nodeId: panel.nodeId,
             title: panel.title,
+          })
+        )
+      }
+      if (representation === "markdown") {
+        return boundComponent(panel.id, () =>
+          h(MarkdownPanelView, {
+            panelId: panel.id,
+            connectorId: panel.connectorId,
+            nodeId: panel.nodeId,
+            title: panel.title,
+            connectorName: panel.connectorName,
+            adapterType: panel.adapterType,
+            sourceTitle: panel.sourceTitle,
           })
         )
       }

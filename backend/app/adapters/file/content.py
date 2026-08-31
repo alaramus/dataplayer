@@ -32,6 +32,7 @@ from app.adapters.content import (
     JsonObjectEntry,
     JsonScalar,
     JsonValue,
+    MarkdownContent,
     TextContent,
     UpdateContentRequest,
 )
@@ -63,6 +64,10 @@ MAX_EDITOR_BYTES = 4 * 1024 * 1024
 # Preview is allowed to hold its verified bytes, but only below this independent
 # transport bound. Pixel count separately bounds browser decode memory.
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
+
+# Between the text preview and the editor: a rendered document is parsed,
+# tokenised and turned into DOM in the browser, which neither of those is.
+MAX_MARKDOWN_BYTES = 1024 * 1024
 MAX_IMAGE_PIXELS = 40_000_000
 
 IMAGE_MEDIA_TYPES: dict[str, ImageMediaType] = {
@@ -114,6 +119,8 @@ class FileContent:
                 return _read_json(path)
             case "jsonl":
                 return _read_json_lines(path, request.limit, request.offset)
+            case "markdown":
+                return _read_markdown(path)
             case "image":
                 preview = self._read_image_preview(path, request)
                 return _image_content(preview)
@@ -217,6 +224,13 @@ def _read_text(path: Path) -> TextContent:
         raise ValueError("This file contains binary data and cannot be shown as text")
     text, truncated, notice = _text_prefix(path, MAX_TEXT_BYTES)
     return TextContent(text=text, truncated=truncated, notice=notice)
+
+
+def _read_markdown(path: Path) -> MarkdownContent:
+    if looks_binary(path):
+        raise ValueError("This file contains binary data and is not a document")
+    text, truncated, notice = _text_prefix(path, MAX_MARKDOWN_BYTES)
+    return MarkdownContent(text=text, truncated=truncated, notice=notice)
 
 
 def _verified_image(raw: bytes) -> tuple[ImageMediaType, int, int]:
@@ -410,7 +424,7 @@ def _require_editable_file(path: Path, node_id: str) -> None:
         raise ValueError(f"No such file: {node_id}")
     if path.is_dir():
         raise ValueError(f"A directory has no source editor: {node_id}")
-    if format_of(path.name) not in {"text", "json", "jsonl"}:
+    if format_of(path.name) not in {"text", "markdown", "json", "jsonl"}:
         raise ValueError("This file does not offer source editing")
     if looks_binary(path):
         raise ValueError("This file contains binary data and cannot be edited as text")
@@ -424,6 +438,8 @@ def _editor_language(
         return "json", "json"
     if file_format == "jsonl":
         return "json", "jsonl"
+    if file_format == "markdown":
+        return "markdown", None
     return None, None
 
 

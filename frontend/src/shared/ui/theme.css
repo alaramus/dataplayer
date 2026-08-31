@@ -35,6 +35,26 @@
   --dp-hover: rgba(0, 0, 0, 0.04);
   --dp-active: rgba(0, 0, 0, 0.06);
 
+  /* Callouts an agent writes into a document: the colour is the meaning, and
+     these are the only place it is decided. */
+  --dp-callout-note: #2563eb;
+  --dp-callout-decision: #7c3aed;
+  --dp-callout-caution: #b45309;
+  --dp-callout-done: #15803d;
+  --dp-callout-plain: #64748b;
+  --dp-callout-question: #be185d;
+
+  /* Code, wherever it is shown: the source editor and a fence inside a
+     rendered document use one palette, so the same language looks the same in
+     both. */
+  --dp-code-keyword: #7c3aed;
+  --dp-code-function: #1d4ed8;
+  --dp-code-type: #0e7490;
+  --dp-code-number: #b45309;
+  --dp-code-string: #15803d;
+  --dp-code-operator: #9333ea;
+  --dp-code-comment: #64748b;
+
   /* The handle between two columns, and the same handle being dragged. */
   --dp-separator: rgba(0, 0, 0, 0.12);
   --dp-separator-active: rgba(0, 0, 0, 0.28);
@@ -86,6 +106,21 @@ body.body--dark {
 
   --dp-hover: rgba(255, 255, 255, 0.06);
   --dp-active: rgba(255, 255, 255, 0.11);
+
+  --dp-callout-note: #82aaff;
+  --dp-callout-decision: #c792ea;
+  --dp-callout-caution: #f0a35e;
+  --dp-callout-done: #a5d6a7;
+  --dp-callout-plain: #a8b1c1;
+  --dp-callout-question: #f48fb1;
+
+  --dp-code-keyword: #c792ea;
+  --dp-code-function: #82aaff;
+  --dp-code-type: #7fdbca;
+  --dp-code-number: #f78c6c;
+  --dp-code-string: #c3e88d;
+  --dp-code-operator: #89ddff;
+  --dp-code-comment: #7a869a;
 
   --dp-separator: rgba(255, 255, 255, 0.16);
   --dp-separator-active: rgba(255, 255, 255, 0.38);

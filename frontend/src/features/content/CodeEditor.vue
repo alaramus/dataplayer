@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { jsonParseLinter } from "@codemirror/lang-json"
+import { syntaxHighlighting } from "@codemirror/language"
 import { type Diagnostic, linter } from "@codemirror/lint"
 import { Compartment, EditorState, type Extension } from "@codemirror/state"
 import { EditorView } from "@codemirror/view"
 import { basicSetup } from "codemirror"
 import { onBeforeUnmount, onMounted, ref, watch } from "vue"
 
+import { syntaxColours } from "@/features/content/highlight"
 import { languageFor } from "@/features/content/language"
 
 const props = withDefaults(
@@ -86,6 +88,9 @@ onMounted(() => {
     state: EditorState.create({
       doc: props.modelValue,
       extensions: [
+        // Before basicSetup: an earlier extension wins the facet, and what
+        // basicSetup carries is a light-theme palette.
+        syntaxHighlighting(syntaxColours),
         basicSetup,
         languageSlot.of([]),
         permissionSlot.of(permissionExtensions()),

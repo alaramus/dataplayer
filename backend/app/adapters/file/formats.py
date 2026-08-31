@@ -9,6 +9,7 @@ DELIMITED_EXTENSIONS: frozenset[str] = frozenset({".csv", ".tsv"})
 JSON_EXTENSIONS: frozenset[str] = frozenset({".json"})
 JSON_LINES_EXTENSIONS: frozenset[str] = frozenset({".jsonl", ".ndjson"})
 IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpeg", ".jpg", ".png"})
+MARKDOWN_EXTENSIONS: frozenset[str] = frozenset({".markdown", ".md"})
 
 # Classification is intentionally by name in the catalog: inspecting every
 # entry would cost one open per file. The content reader checks the bytes when
@@ -56,13 +57,16 @@ BINARY_EXTENSIONS: frozenset[str] = frozenset(
     }
 )
 
-FileFormat = Literal["delimited", "json", "jsonl", "text", "image", "opaque"]
+FileFormat = Literal[
+    "delimited", "json", "jsonl", "text", "markdown", "image", "opaque"
+]
 
 TABLE = NodeRepresentation(kind="table", title="View as table")
 TEXT = NodeRepresentation(kind="text", title="View as text")
 JSON = NodeRepresentation(kind="json", title="View JSON")
 JSON_LINES = NodeRepresentation(kind="jsonl", title="View JSON lines")
 IMAGE = NodeRepresentation(kind="image", title="View image")
+MARKDOWN = NodeRepresentation(kind="markdown", title="View as document")
 
 
 def format_of(name: str) -> FileFormat:
@@ -75,6 +79,8 @@ def format_of(name: str) -> FileFormat:
         return "jsonl"
     if suffix in IMAGE_EXTENSIONS:
         return "image"
+    if suffix in MARKDOWN_EXTENSIONS:
+        return "markdown"
     if suffix in BINARY_EXTENSIONS:
         return "opaque"
     return "text"
@@ -94,6 +100,10 @@ def representations_of(name: str) -> list[NodeRepresentation]:
             # was a table in name only. It is offered as source, and nothing
             # else.
             return [TEXT]
+        case "markdown":
+            # Rendered first, source second: the same bytes, and the editor of
+            # D48 is what the second one opens.
+            return [MARKDOWN, TEXT]
         case "image":
             return [IMAGE]
         case "opaque":

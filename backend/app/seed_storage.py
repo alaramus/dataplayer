@@ -33,6 +33,82 @@ SAMPLE_PNG = base64.b64decode(
 )
 
 
+# Every block the rendered representation knows, in one document: the
+# remote image at the end is there to show that it is blocked, not fetched.
+SAMPLE_MARKDOWN = r"""# Sample document
+
+This file exists so the rendered Markdown representation has something
+to show. Its source is one click away in the editor.
+
+```summary
+Every block this viewer knows, in one file, so a change to any of them has
+somewhere to be seen.
+```
+
+```decision
+Decision: Keep documents portable Markdown
+Reason: A callout is a fenced code block anywhere else, so nothing is lost.
+```
+
+## What it renders
+
+| Block | Comes from |
+| --- | --- |
+| Diagram | a `mermaid` fence |
+| Chart | an `echarts` fence |
+| Formula | KaTeX |
+
+- [x] tables, lists and task lists
+- [x] fenced code with the editor's own highlighting
+- [ ] a table of contents, search and export
+
+The mass-energy equivalence is $E = mc^2$, and a block formula reads
+
+$$
+\sum_{i=1}^{n} i = \frac{n(n+1)}{2}
+$$
+
+## A diagram
+
+```mermaid
+graph LR
+  A[Catalog] --> B[Document]
+  B --> C[Editor]
+```
+
+## A chart
+
+```echarts
+{
+  "xAxis": { "type": "category", "data": ["Q1", "Q2", "Q3"] },
+  "yAxis": { "type": "value" },
+  "series": [{ "type": "bar", "data": [820, 932, 1200] }]
+}
+```
+
+## A drawing
+
+```svg
+<svg viewBox="0 0 240 80" width="240" height="80" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="40" cy="40" r="24" fill="#6ea8fe"/>
+  <circle cx="120" cy="40" r="24" fill="#c6f24e"/>
+  <circle cx="200" cy="40" r="24" fill="#f78c6c"/>
+</svg>
+```
+
+## Some code
+
+```python
+def total(rows: list[int]) -> int:
+    return sum(rows)
+```
+
+A [relative link](notes.txt) and a remote image, which is blocked:
+
+![remote](https://example.invalid/logo.png)
+"""
+
+
 def write_samples(home: Path) -> None:
     """Write examples for the native viewers and explicit table projections."""
     home.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -69,6 +145,7 @@ def write_samples(home: Path) -> None:
     # Named .json and not JSON: its JSON viewer shows the source and says why.
     (home / "broken.json").write_text('{"a": 1,\n "b" 2}\n', encoding="utf-8")
     (home / "logo.png").write_bytes(SAMPLE_PNG)
+    (home / "guide.md").write_text(SAMPLE_MARKDOWN, encoding="utf-8")
 
     reports = home / "reports"
     reports.mkdir(exist_ok=True)

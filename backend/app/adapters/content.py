@@ -7,8 +7,12 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-RepresentationKind = Literal["table", "text", "json", "jsonl", "image"]
-ContentRepresentationKind = Literal["text", "json", "jsonl", "image"]
+RepresentationKind = Literal[
+    "table", "text", "json", "jsonl", "image", "markdown"
+]
+ContentRepresentationKind = Literal[
+    "text", "json", "jsonl", "image", "markdown"
+]
 EditorValidationKind = Literal["json", "jsonl"]
 ImageMediaType = Literal["image/png", "image/jpeg"]
 
@@ -139,6 +143,21 @@ class TextContent(BaseModel):
     notice: str | None = None
 
 
+class MarkdownContent(BaseModel):
+    """The bounded source of a document that the browser renders itself.
+
+    No HTML crosses this boundary: rendering, and every sanitising step it
+    needs, happens in one place in the client. See D50.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["markdown"] = "markdown"
+    text: str
+    truncated: bool = False
+    notice: str | None = None
+
+
 class JsonContent(BaseModel):
     """A document tree, or its honest bounded source when parsing failed."""
 
@@ -212,7 +231,7 @@ class BoundedContentPreview:
 
 
 ContentResult = Annotated[
-    TextContent | JsonContent | JsonLinesContent | ImageContent,
+    TextContent | MarkdownContent | JsonContent | JsonLinesContent | ImageContent,
     Field(discriminator="kind"),
 ]
 

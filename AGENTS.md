@@ -60,7 +60,9 @@ included; the spec index lists the older titles in translation.
   sorting) and the personal file storage every user owns (a file declares how
   it opens; text, JSON and JSONL open in a source editor that highlights by
   type and saves under the version it read, JSON and JSONL are also shown as
-  rows on request, and a verified PNG or JPEG opens as a picture).
+  rows on request, a verified PNG or JPEG opens as a picture, and Markdown
+  opens rendered — diagrams, formulas and charts included — with its source one
+  click away).
 - In that storage: create a folder, rename, delete, upload — one node at a time
   or several at once. What is offered comes from the server for exactly the
   nodes that are ticked, so the screen knows nothing about any particular
@@ -172,6 +174,7 @@ and the known deviations live there.
 | D47 | A node declares its ordered representations, and opening content is not fetching rows | [adapters](docs/architecture/adapters.md) |
 | D48 | Editing a document is its own capability, and a save must match the version it read | [adapters](docs/architecture/adapters.md) |
 | D49 | Download is a source-declared action over selected nodes; previews are bounded and verified | [adapters](docs/architecture/adapters.md) |
+| D50 | Markdown is rendered in the browser, and what becomes DOM is sanitised twice | [frontend](docs/architecture/frontend.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -269,14 +272,11 @@ driver in the next. Tests share one loop
 (`asyncio_default_test_loop_scope = "session"`). A background script that opens
 its own loop must not be handed a store built in another.
 
-**`vue-tsc` has two ways of checking nothing at all, and both look clean.** Under
-the bun runtime it fails to register the `.vue` extension, so every component
-drops out of the compiler program — measured: 4 files under Node, 0 under bun. On
-Windows the `.cmd` shim invokes Node, so that half is hidden. The other half is
-configuration: `vue-tsc --noEmit` against `tsconfig.json`, which lists project
-references and `"files": []`, reads no file at all and exits 0. `type-check`
-therefore runs `vue-tsc -b --force`. If a check has never been seen to fail,
-break something on purpose and confirm that it does.
+**`vue-tsc` has two ways of checking nothing at all, and both look clean.** It
+must run under Node rather than bun, and in build mode rather than against
+`tsconfig.json`; `type-check` already does both. Why, and what was measured:
+[frontend](docs/architecture/frontend.md). If a check has never been seen to
+fail, break something on purpose and confirm that it does.
 
 **Running the backend test suite wipes all users**, including the superuser,
 because the tests share the development database. `docker compose up -d db

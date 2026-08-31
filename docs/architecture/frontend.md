@@ -339,6 +339,111 @@ widgets, candlesticks or AI suggestions. Those require a source-owned aggregate
 contract, a dashboard layout and a separate disclosure decision respectively;
 none is smuggled into the bounded fetch contract.
 
+**Known deviation.** An `echarts` fence inside a Markdown document (D50) does
+carry a raw option object, and draws from a wider vocabulary than this panel —
+scatter, radar, heatmap, gauge and funnel, with titles, zooming and marks. It is
+not a chart over a connection: it reads no rows, names no relation and cannot
+express a filter — the numbers were typed into the document by its author. The
+rule above governs charts built from a source's data, and it is not extended to
+pictures drawn inside documents. The two registrations are deliberately
+separate: this panel can draw what it offers to build, and a document can draw
+what documents contain.
+
+## Checking the types at all
+
+`vue-tsc` has two ways of checking nothing while looking clean, and this project
+has been bitten by both. Under the bun runtime it fails to register the `.vue`
+extension, so every component drops out of the compiler program — measured: 4
+files under Node, 0 under bun. On Windows the `.cmd` shim invokes Node, which
+hides that half. The other half is configuration: `vue-tsc --noEmit` against
+`tsconfig.json`, which lists project references and `"files": []`, reads no file
+at all and exits 0. `type-check` therefore runs `vue-tsc -b --force`, under Node.
+
+## D50. Markdown is rendered in the browser, and everything that becomes DOM is sanitised twice
+
+`.md` and `.markdown` declare two representations under D47 — `markdown` first,
+`text` second — so a document opens rendered and its source is one click away in
+the editor D48 already provides. The server sends the document's text and
+nothing else: no HTML crosses the API boundary and nothing is stored rendered.
+The ceiling is 1 MB, between the 256 KB text preview and the 4 MB editor,
+because a rendered document is parsed, tokenised and turned into DOM in the
+browser. Above it the panel says it is showing the first megabyte.
+
+The document is split at fence boundaries before it is parsed, so a `mermaid`,
+`echarts` or `svg` fence never reaches the Markdown parser. Prose is rendered by
+`markdown-it` with KaTeX and task lists, and sanitised at two levels that are
+not duplicates: author-written raw HTML goes through DOMPurify at token level
+with `style` forbidden, and the assembled result goes through it again keeping
+inline `style` only inside `.katex`, whose layout depends on generated styles.
+Links and images are then hardened. An `http(s)`, `mailto` or `tel` link opens
+in a new window with `rel="noopener noreferrer"`, because a document lives
+inside a panel and following a link in place would take the application with it;
+an anchor is left alone; anything else — including every relative path — is left
+inert, since nothing resolves a path against the document's own directory yet.
+Images are lazy and send no referrer, and `iframe`, `object`, `embed`, `form`
+and `button` cannot appear at all. SVG, including everything Mermaid draws under `securityLevel: "strict"`,
+goes through the SVG profile with `script` and `foreignObject` forbidden.
+
+**Remote resources are blocked by default and the block is visible.** A document
+can arrive from somebody else's connection through a read grant (D33), and a
+remote image in it is a read receipt for whoever hosts it. The reader did not
+ask to send one.
+
+Rich blocks are bounded and lazy: a fence over 250 000 characters is refused by
+the block itself, and Mermaid, ECharts, SVG and code blocks mount through an
+`IntersectionObserver` when they scroll into view, so a document of forty
+diagrams costs one to open. Code fences reuse the CodeMirror of the editor in
+read-only mode and resolve their language through the same `language.ts`, so
+there is no second syntax highlighter in the bundle. Both take their colours
+from `highlight.ts`, whose palette is theme tokens rather than CodeMirror's
+built-in one — that default is a light-theme palette, and it was putting dark
+purple keywords on a near-black ground in both places.
+
+**A callout an agent wrote is a card.** A fence named `summary`, `warning`,
+`decision`, `risk`, `file`, `verification`, `command`, `result` or `question`
+— with or without a `callout:` prefix — is shown with that kind named, an icon,
+and a colour that is the meaning rather than decoration; the leading run of
+`Key: value` lines becomes a field list and the rest is Markdown. The convention
+costs the document nothing: in any other tool the same fence is an ordinary code
+block, which is why it is worth reading here.
+
+**Every rich block wears the same frame.** `BlockChrome` gives a diagram, a
+chart, a drawing and a listing one header: what the block is on the left, what
+can be done with it on the right. The source of any of them goes to the
+clipboard, anything drawn as SVG can be saved as a file, and an `svg` fence can
+be read as its own source instead of its picture. Copying and saving go through
+`shared/clipboard.ts` and `shared/download.ts`, the boundaries the application
+already has.
+
+Three things about drawing that were found by reading a real document rather
+than by any test. **Mermaid is not re-entrant**: it renders through one shared
+element and re-reads global configuration on every call, so diagrams drawn at
+once take each other's output — ids and a queue therefore live in module scope,
+in `mermaid.ts`. **Mermaid writes labels into a `foreignObject` of HTML** unless
+told not to, and that element is forbidden for content nobody here wrote, so
+`htmlLabels` is off and labels come back as native SVG text. **An ECharts option
+naming a series this bundle does not carry is reported to the console and then
+drawn as an empty box**, so the option is asked first and the series is named in
+the block.
+
+Two further corrections come from the same reading. Without HTML labels Mermaid
+draws an opaque `rect.background` behind every edge label, so `yes` and `no` on
+a flowchart arrived boxed; CSS scoped to the diagram's own id hides it, and
+gives a subgraph frame this application's colours. And a document names a
+chart's parts but rarely their geometry, while ECharts places each part
+independently: a title and a legend both default to the top and overlap.
+`normalizeLayout` stacks title, legend and plot in order and fills in only what
+the document left unsaid.
+
+The renderer is ported from `rich-md-viewer`, a standalone application by the
+same author, on this repository's usual terms: its two-stage sanitisation,
+fence splitting, remote-resource gating and block ceilings are the ideas worth
+having. Its tabs, table of contents, in-document search, export, share links and
+i18n are not ported — the workspace, the file source and D49 already own those
+concerns. This slice deliberately leaves out the table of contents, in-document
+search, export, embeds, agent callout cards, progressive rendering by token
+batch, and relative image paths resolved against the document's own directory.
+
 ## Screens
 
 The catalog is a list of one level: a click opens what can be read and walks into

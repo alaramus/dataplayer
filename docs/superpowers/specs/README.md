@@ -60,6 +60,7 @@ translations; those files are not.
 | 2026-08-30 | [Native file representations](2026-08-30-file-representations-design.md) | D47: a node declares ordered views; native content and table fetch stay separate |
 | 2026-08-30 | [Editing a file in place](2026-08-30-content-editing-design.md) | D48: the source issues an opaque version, and a save must still match it |
 | 2026-08-31 | [Download actions and bounded image content](2026-08-31-original-file-and-image-content-design.md) | D49: download is a source-declared action over selected nodes; image preview is bounded and verified |
+| 2026-08-31 | [Markdown as a rendered document representation](2026-08-31-markdown-document-representation-design.md) | D50: rendered first and source second, with everything that becomes DOM sanitised twice |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the
