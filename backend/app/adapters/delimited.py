@@ -9,6 +9,7 @@ decide the delimiter, what a column is called and how wide a row is live here.
 
 import csv
 import io
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 
@@ -41,8 +42,13 @@ def usable_names(header: list[str]) -> list[str]:
     return names
 
 
-def fit(row: list[str], width: int) -> list[str | None]:
-    """One row shaped to the header, which decides the width of the table."""
+def fit(row: Sequence[str | None], width: int) -> list[str | None]:
+    """One row shaped to the header, which decides the width of the table.
+
+    A cell may already be absent — a spreadsheet has empty cells in the middle
+    of a row, where a delimited file only has short rows — so the width is the
+    only thing this decides.
+    """
     if len(row) < width:
         return [*row, *[None] * (width - len(row))]
     fitted: list[str | None] = []

@@ -10,6 +10,10 @@ JSON_EXTENSIONS: frozenset[str] = frozenset({".json"})
 JSON_LINES_EXTENSIONS: frozenset[str] = frozenset({".jsonl", ".ndjson"})
 IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpeg", ".jpg", ".png"})
 MARKDOWN_EXTENSIONS: frozenset[str] = frozenset({".markdown", ".md"})
+PARQUET_EXTENSIONS: frozenset[str] = frozenset({".parquet"})
+# `.xls` is deliberately absent: the legacy binary format is a different
+# container needing a different library, so it stays opaque and downloadable.
+WORKBOOK_EXTENSIONS: frozenset[str] = frozenset({".xlsm", ".xlsx"})
 
 # Classification is intentionally by name in the catalog: inspecting every
 # entry would cost one open per file. The content reader checks the bytes when
@@ -51,14 +55,21 @@ BINARY_EXTENSIONS: frozenset[str] = frozenset(
         ".woff",
         ".woff2",
         ".xls",
-        ".xlsx",
         ".zip",
         ".zst",
     }
 )
 
 FileFormat = Literal[
-    "delimited", "json", "jsonl", "text", "markdown", "image", "opaque"
+    "delimited",
+    "json",
+    "jsonl",
+    "text",
+    "markdown",
+    "image",
+    "parquet",
+    "workbook",
+    "opaque",
 ]
 
 TABLE = NodeRepresentation(kind="table", title="View as table")
@@ -81,6 +92,10 @@ def format_of(name: str) -> FileFormat:
         return "image"
     if suffix in MARKDOWN_EXTENSIONS:
         return "markdown"
+    if suffix in PARQUET_EXTENSIONS:
+        return "parquet"
+    if suffix in WORKBOOK_EXTENSIONS:
+        return "workbook"
     if suffix in BINARY_EXTENSIONS:
         return "opaque"
     return "text"
@@ -106,8 +121,25 @@ def representations_of(name: str) -> list[NodeRepresentation]:
             return [MARKDOWN, TEXT]
         case "image":
             return [IMAGE]
+        case "parquet":
+            # A columnar file states its own columns and their types, so its
+            # table is the file rather than a projection of one (D51).
+            return [TABLE]
+        case "workbook":
+            # A workbook is not one table. Its sheets are children, and each of
+            # them declares the table; the file itself opens nothing.
+            return []
         case "opaque":
             # Media representations are added on this same contract in the
             # next slice; claiming one before a safe content route exists
             # would turn a click into a promise the source cannot keep.
             return []
+
+
+def is_container(name: str) -> bool:
+    """Whether this file holds nodes of its own, rather than one document.
+
+    Asked by the catalog before it says a file has children and by the id
+    resolver before it reads the last segment of an id as a member.
+    """
+    return format_of(name) == "workbook"

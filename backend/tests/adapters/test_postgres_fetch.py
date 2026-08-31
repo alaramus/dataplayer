@@ -4,9 +4,10 @@ from decimal import Decimal
 
 import pytest
 
+from app.adapters.cells import encode_cell
 from app.adapters.fetch import FetchRequest, Sort
 from app.adapters.postgres.adapter import PostgresAdapter
-from app.adapters.postgres.fetch import column_capabilities, encode_cell
+from app.adapters.postgres.fetch import column_capabilities
 from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.protocol import AdapterError
 from app.adapters.relation import ColumnType

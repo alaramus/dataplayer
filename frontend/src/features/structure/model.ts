@@ -1,4 +1,5 @@
 import type { connectorsReadRelationModelResponses } from "@/client"
+import { formatSize } from "@/features/catalog/nodes"
 
 export type RelationModel = connectorsReadRelationModelResponses[200]
 export type Constraint = NonNullable<RelationModel["constraints"]>[number]
@@ -42,4 +43,61 @@ export function badgesFor(model: RelationModel, columnName: string): ColumnBadge
 
 export function foreignKeyLabel(key: ForeignKey): string {
   return `${key.columns.join(", ")} → ${key.target_node_id} (${key.target_columns.join(", ")})`
+}
+
+/** What only this relation's own file format knows about it (D51). */
+export type DatasetInfo = NonNullable<RelationModel["dataset"]>
+
+export interface DatasetFact {
+  label: string
+  value: string
+}
+
+/**
+ * The format's own facts, as lines to print.
+ *
+ * The switch is exhaustive: a format added to the union on the server is a
+ * type error here until somebody decides what a reader should be told about
+ * it. That is the whole reason the facts travel as a union rather than as
+ * pairs of strings the source wrote.
+ */
+export function datasetFacts(dataset: DatasetInfo): DatasetFact[] {
+  switch (dataset.kind) {
+    case "parquet":
+      return [
+        { label: "Format", value: `Parquet ${dataset.format_version}` },
+        { label: "Rows", value: String(dataset.rows) },
+        { label: "Row groups", value: String(dataset.row_groups) },
+        { label: "Columns", value: String(dataset.columns) },
+        ...((dataset.compression ?? []).length === 0
+          ? []
+          : [{ label: "Compression", value: (dataset.compression ?? []).join(", ") }]),
+        ...(dataset.created_by === null || dataset.created_by === undefined
+          ? []
+          : [{ label: "Written by", value: dataset.created_by }]),
+        { label: "Size", value: formatSize(dataset.size_bytes) },
+      ]
+    case "worksheet":
+      return [
+        { label: "Format", value: "Worksheet" },
+        { label: "Workbook", value: dataset.workbook },
+        {
+          label: "Sheet",
+          value: `${dataset.sheet_name} (${String(dataset.sheet_position)} of ${String(dataset.sheet_count)})`,
+        },
+        ...(dataset.hidden === true ? [{ label: "Hidden", value: "yes" }] : []),
+        ...(dataset.rows === null || dataset.rows === undefined
+          ? []
+          : [{ label: "Rows", value: String(dataset.rows) }]),
+        ...(dataset.columns === null || dataset.columns === undefined
+          ? []
+          : [{ label: "Columns", value: String(dataset.columns) }]),
+      ]
+    default:
+      return unknownFormat(dataset)
+  }
+}
+
+function unknownFormat(dataset: never): never {
+  throw new Error(`Unknown dataset format: ${JSON.stringify(dataset)}`)
 }

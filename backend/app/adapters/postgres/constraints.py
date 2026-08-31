@@ -14,7 +14,7 @@ from app.adapters.constraints import (
     UnmatchedRows,
 )
 from app.adapters.postgres.counting import repeating_groups, rows_pointing_nowhere
-from app.adapters.postgres.relation import PostgresRelation
+from app.adapters.postgres.relation import PostgresRelation, qualified, schema_of
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.relation import Constraint, PrimaryKey, RefAction, RelationModel
 
@@ -72,7 +72,7 @@ class PostgresConstraints:
         before = {constraint.name for constraint in model.constraints}
         if isinstance(spec, UniqueConstraintSpec):
             groups, exact = await repeating_groups(
-                self._session, model.schema_name, model.name, spec.columns
+                self._session, schema_of(model), model.name, spec.columns
             )
             if groups > 0:
                 # Nothing was added and nothing was locked: the count is the
@@ -83,10 +83,10 @@ class PostgresConstraints:
             target = await self._target(spec)
             rows, exact = await rows_pointing_nowhere(
                 self._session,
-                model.schema_name,
+                schema_of(model),
                 model.name,
                 spec.columns,
-                target.schema_name,
+                schema_of(target),
                 target.name,
                 spec.target_columns,
                 CONSTRAINT_REFUSALS,
@@ -97,7 +97,7 @@ class PostgresConstraints:
                 "FOREIGN KEY ({}) REFERENCES {} ({}) ON UPDATE {} ON DELETE {}"
             ).format(
                 _columns(spec.columns),
-                sql.Identifier(target.schema_name, target.name),
+                qualified(target),
                 _columns(spec.target_columns),
                 REF_ACTION_SQL[spec.on_update],
                 REF_ACTION_SQL[spec.on_delete],
@@ -108,7 +108,7 @@ class PostgresConstraints:
         # against the schema, which no client could do without reading the
         # catalog.
         statement = sql.SQL("ALTER TABLE {} ADD {}").format(
-            sql.Identifier(model.schema_name, model.name), body
+            qualified(model), body
         )
         await self._session.schema_change(
             statement.as_string(), refusals=CONSTRAINT_REFUSALS
@@ -133,7 +133,7 @@ class PostgresConstraints:
         # standing on this unique constraint is such a dependency, and it is
         # PostgreSQL that knows about the ones in other schemas.
         statement = sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
-            sql.Identifier(model.schema_name, model.name),
+            qualified(model),
             sql.Identifier(existing.name),
         )
         await self._session.schema_change(
@@ -154,7 +154,7 @@ class PostgresConstraints:
             key.columns == spec.target_columns for key in target.candidate_keys
         ):
             raise ValueError(
-                f'"{target.schema_name}.{target.name}" has no unique key over '
+                f'"{schema_of(target)}.{target.name}" has no unique key over '
                 f"those columns"
             )
         return target

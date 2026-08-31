@@ -6,7 +6,7 @@ from uuid import UUID
 
 from psycopg import sql
 
-from app.adapters import jsontext
+from app.adapters.cells import encode_cell
 from app.adapters.fetch import (
     FetchColumn,
     FetchReference,
@@ -175,23 +175,6 @@ def _coerce_datetime(value: str, sql_type: str) -> date | datetime | time:
     if sql_type == "date":
         return date.fromisoformat(value)
     raise ValueError
-
-
-def encode_cell(value: Any, type_: ColumnType) -> str | None:
-    """Render one value with the canonical representation for its type."""
-    if value is None:
-        return None
-    if type_.category == "boolean":
-        return "true" if value else "false"
-    if type_.category == "datetime" and isinstance(value, datetime | date | time):
-        return value.isoformat()
-    if type_.category == "binary" and isinstance(value, bytes | bytearray | memoryview):
-        return f"0x{bytes(value).hex().upper()}"
-    if type_.category == "json":
-        if not isinstance(value, str):
-            raise TypeError("PostgreSQL JSON values must be selected as text")
-        return jsontext.compact(value)
-    return str(value)
 
 
 class PostgresFetch:

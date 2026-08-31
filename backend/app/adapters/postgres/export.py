@@ -2,9 +2,10 @@
 
 from collections.abc import AsyncIterator
 
+from app.adapters.cells import encode_cell
 from app.adapters.export import EXPORT_BATCH_SIZE, ExportBatch, ExportRequest
 from app.adapters.fetch import FetchRequest
-from app.adapters.postgres.fetch import PostgresFetch, encode_cell
+from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.session import PostgresSession
 
 

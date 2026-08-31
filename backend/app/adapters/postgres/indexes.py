@@ -12,7 +12,7 @@ from app.adapters.indexes import (
 )
 from app.adapters.postgres.counting import repeating_groups
 from app.adapters.postgres.index_methods import POSTGRES_INDEX_METHOD_SQL
-from app.adapters.postgres.relation import PostgresRelation
+from app.adapters.postgres.relation import PostgresRelation, qualified, schema_of
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.relation import Index, PrimaryKey, RelationModel, UniqueConstraint
 
@@ -62,7 +62,7 @@ class PostgresIndexes:
 
         if request.unique:
             groups, exact = await repeating_groups(
-                self._session, model.schema_name, model.name, request.columns
+                self._session, schema_of(model), model.name, request.columns
             )
             if groups > 0:
                 # Nothing was built and nothing was locked: the count is the
@@ -75,7 +75,7 @@ class PostgresIndexes:
         # client could do without reading the catalog.
         statement = sql.SQL("CREATE {}INDEX ON {} USING {} ({})").format(
             sql.SQL("UNIQUE ") if request.unique else sql.SQL(""),
-            sql.Identifier(model.schema_name, model.name),
+            qualified(model),
             method_sql,
             sql.SQL(", ").join(sql.Identifier(name) for name in request.columns),
         )
@@ -98,7 +98,7 @@ class PostgresIndexes:
         # No CASCADE, the rule D27 set for a column: an outside dependency
         # stops the operation instead of disappearing under it.
         statement = sql.SQL("DROP INDEX {}").format(
-            sql.Identifier(model.schema_name, index.name)
+            sql.Identifier(schema_of(model), index.name)
         )
         await self._session.schema_change(
             statement.as_string(), refusals=INDEX_REFUSALS

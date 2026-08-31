@@ -6,7 +6,6 @@ import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch }
 import type { ContentRequest } from "@/client"
 import { client } from "@/client/client.gen"
 import { useCatalogLoader, useNodePathLoader } from "@/features/catalog/api"
-import { isDescribable } from "@/features/catalog/nodes"
 import { useContent, useContentLoader } from "@/features/content/api"
 import AgentBlock from "@/features/content/markdown/AgentBlock.vue"
 import DeferredBlock from "@/features/content/markdown/DeferredBlock.vue"
@@ -415,7 +414,7 @@ async function onDocumentClick(event: MouseEvent): Promise<void> {
       connectorName: props.connectorName,
       adapterType: props.adapterType,
       representations: target.node.representations,
-      describable: isDescribable(target.node.kind),
+      describable: target.node.describable === true,
       ...(target.fragment === "" ? {} : { fragment: target.fragment }),
     })
   } catch (cause) {

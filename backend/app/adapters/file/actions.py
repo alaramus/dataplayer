@@ -32,6 +32,7 @@ from app.adapters.actions import (
 )
 from app.adapters.catalog import NodeKind
 from app.adapters.file.download import FileDownload
+from app.adapters.file.members import resolve_node
 from app.adapters.file.session import FileSession, is_plain_name
 from app.core.access import Access
 from app.core.config import settings
@@ -310,14 +311,28 @@ class FileActions:
         return list(self._actions)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
-        path = self._session.resolve(node_id)
-        kind = await to_thread.run_sync(partial(_kind_of, path, node_id))
+        path, kind = await to_thread.run_sync(partial(self._look_at, node_id))
         offered = self._actions.for_kind(kind)
         if path == self._session.resolved_root:
             # The root is an ordinary directory, and its state — not its kind —
             # is what rules the two actions out.
             return [action for action in offered if not isinstance(action, _ActsOnNode)]
         return offered
+
+    def _look_at(self, node_id: str | None) -> tuple[Path, NodeKind]:
+        """What the id names, and of what kind. Blocking: it stats the path.
+
+        A member of a container file is a node like any other, and answering
+        with its kind is what leaves it out of every action: the four that act
+        on a file and the one that acts on a directory name those kinds, and a
+        dataset is neither (D51).
+        """
+        if node_id is None or node_id == "":
+            return self._session.root, "directory"
+        resolved = resolve_node(self._session, node_id)
+        if resolved.member is not None:
+            return resolved.path, "dataset"
+        return resolved.path, _kind_of(resolved.path, node_id)
 
 
 def _kind_of(path: Path, node_id: str | None) -> NodeKind:

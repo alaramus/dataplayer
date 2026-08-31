@@ -21,6 +21,7 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   table: "leaf",
   view: "leaf",
   file: "leaf",
+  dataset: "leaf",
 }
 
 export interface ListNode {
@@ -56,6 +57,7 @@ const ICONS: Record<CatalogNode["kind"], string> = {
   view: "visibility",
   directory: "folder_open",
   file: "insert_drive_file",
+  dataset: "grid_on",
 }
 
 const FILE_ICONS: Partial<Record<NodeRepresentation["kind"], string>> = {
@@ -81,14 +83,27 @@ export function formatSize(bytes: number): string {
   return `${rounded} ${UNITS[unit]}`
 }
 
-export function roleOfKind(kind: CatalogNode["kind"]): NodeRole {
-  return ROLES[kind]
+/**
+ * What the catalog does with one node.
+ *
+ * The kind decides it, with one exception the kind cannot express: a file that
+ * says it has children is a place one walks into, because a workbook holds
+ * sheets and each of them is a node of its own (D51). An empty directory is
+ * still a directory, so the exception only ever adds a way in.
+ */
+export function roleOf(node: CatalogNode): NodeRole {
+  const role = ROLES[node.kind]
+  return role === "leaf" && node.has_children ? "container" : role
 }
 
 function iconOf(node: CatalogNode): string {
   if (node.kind !== "file") return ICONS[node.kind]
   const preferred = node.representations[0]
-  return preferred === undefined ? ICONS.file : (FILE_ICONS[preferred.kind] ?? ICONS.file)
+  if (preferred === undefined) {
+    // A workbook opens nothing itself: it is walked into, like a folder.
+    return node.has_children ? ICONS.directory : ICONS.file
+  }
+  return FILE_ICONS[preferred.kind] ?? ICONS.file
 }
 
 function captionOf(node: CatalogNode): string | undefined {
@@ -101,9 +116,30 @@ function captionOf(node: CatalogNode): string | undefined {
       return node.is_materialized ? "materialized view" : "view"
     case "file":
       return formatSize(node.size_bytes)
+    case "dataset":
+      return datasetCaption(node)
     default:
       return undefined
   }
+}
+
+/** What a sheet says about itself before it is opened. */
+function datasetCaption(node: Extract<CatalogNode, { kind: "dataset" }>): string | undefined {
+  const parts: string[] = []
+  if (node.row_count !== null && node.row_count !== undefined) {
+    parts.push(counted(node.row_count, "row"))
+  }
+  if (node.column_count !== null && node.column_count !== undefined) {
+    parts.push(counted(node.column_count, "column"))
+  }
+  // A sheet hidden in the spreadsheet is still listed: hiding is presentation
+  // rather than permission, and saying so is what keeps that honest.
+  if (node.hidden === true) parts.push("hidden")
+  return parts.length === 0 ? undefined : parts.join(" · ")
+}
+
+function counted(count: number, noun: string): string {
+  return `${String(count)} ${noun}${count === 1 ? "" : "s"}`
 }
 
 function isSystem(node: CatalogNode): boolean {
@@ -136,37 +172,18 @@ export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
     label: node.name,
     caption: captionOf(node),
     icon: iconOf(node),
-    role: roleOfKind(node.kind),
+    role: roleOf(node),
     kind: node.kind,
     readable: node.representations.length > 0,
     representations: node.representations,
     system: isSystem(node),
-    describable: DESCRIBABLE[node.kind],
+    describable: node.describable === true,
     // Only a table knows roughly how many rows it holds. A file would have
     // to be read from end to end to answer, so the grid pages without a
     // total.
     rowEstimate: node.kind === "table" ? node.row_count_estimate : null,
     ...(group === undefined ? {} : { group }),
   }))
-}
-
-const DESCRIBABLE: Record<CatalogNode["kind"], boolean> = {
-  schema: false,
-  table: true,
-  view: true,
-  directory: false,
-  file: false,
-}
-
-/**
- * Whether opening this kind of node also offers its structure.
- *
- * The same table the list uses, for a node that arrives from somewhere other
- * than a listing — the target of a reference, for one. A second table would
- * be a second answer to the same question.
- */
-export function isDescribable(kind: CatalogNode["kind"]): boolean {
-  return DESCRIBABLE[kind]
 }
 
 /** The groupings among a level's children: what the filter above it offers. */

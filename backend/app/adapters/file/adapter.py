@@ -18,9 +18,11 @@ from app.adapters.file.catalog import FileCatalog
 from app.adapters.file.content import FileContent
 from app.adapters.file.fetch import FileFetch
 from app.adapters.file.options import FileOptions
+from app.adapters.file.relation import FileRelations
 from app.adapters.file.session import FileSession
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
+from app.adapters.relation import RelationModel
 
 
 class FileAdapter:
@@ -36,6 +38,7 @@ class FileAdapter:
         self._catalog = FileCatalog(self._session)
         self._content = FileContent(self._session)
         self._fetch = FileFetch(self._session)
+        self._relations = FileRelations(self._session)
         self._actions = FileActions(self._session)
 
     @property
@@ -53,6 +56,9 @@ class FileAdapter:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    async def relation_model(self, node_id: str) -> RelationModel:
+        return await self._relations.relation_model(node_id)
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)

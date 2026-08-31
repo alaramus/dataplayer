@@ -6,8 +6,15 @@ from pathlib import Path, PurePosixPath
 
 from anyio import to_thread
 
-from app.adapters.catalog import CatalogNode, DirectoryNode, FileNode
-from app.adapters.file.formats import representations_of
+from app.adapters.catalog import CatalogNode, DatasetNode, DirectoryNode, FileNode
+from app.adapters.file import workbook
+from app.adapters.file.formats import (
+    TABLE,
+    format_of,
+    is_container,
+    representations_of,
+)
+from app.adapters.file.members import member_id, resolve_node
 from app.adapters.file.session import FileSession
 from app.adapters.protocol import AdapterError, NodeNotFound
 
@@ -33,6 +40,11 @@ class FileCatalog:
                     "config", "The directory of this connector does not exist"
                 )
             raise ValueError(f"No such directory: {node_id}")
+        if node_id is not None and path.is_file() and is_container(path.name):
+            # A workbook is opened once here, and each of its sheets becomes a
+            # node of its own (D51). This is the one place a file is read while
+            # listing, and it happens because the user asked for this file.
+            return self._sheet_nodes(path, node_id)
         if not path.is_dir():
             raise ValueError(f"Not a directory: {node_id}")
 
@@ -53,21 +65,29 @@ class FileCatalog:
         return nodes
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
-        path = self._session.resolve(node_id)
-        return await to_thread.run_sync(self._walk, path, node_id)
+        return await to_thread.run_sync(self._walk, node_id)
 
-    def _walk(self, path: Path, node_id: str) -> list[CatalogNode]:
+    def _walk(self, node_id: str) -> list[CatalogNode]:
         """The node and every directory above it, root first.
 
         The root itself is left out: it is the connector. `resolve` has
         already judged containment, so what is left is to confirm the node is
         there and to describe each step — one stat per level, and a path is a
         handful of levels.
+
+        A member of a container file has one step more: the file it is in, and
+        then the member itself, described exactly as the file's listing does.
         """
-        if not path.exists():
+        resolved = resolve_node(self._session, node_id)
+        if not resolved.path.exists():
             raise NodeNotFound(node_id)
 
-        parts = PurePosixPath(node_id).parts
+        container_id = (
+            node_id
+            if resolved.member is None
+            else PurePosixPath(node_id).parent.as_posix()
+        )
+        parts = PurePosixPath(container_id).parts
         nodes: list[CatalogNode] = []
         for depth in range(1, len(parts) + 1):
             step = self._session.resolve("/".join(parts[:depth]))
@@ -75,7 +95,35 @@ class FileCatalog:
             if node is None:
                 raise NodeNotFound(node_id)
             nodes.append(node)
+
+        if resolved.member is not None:
+            member = next(
+                (
+                    node
+                    for node in self._sheet_nodes(resolved.path, container_id)
+                    if node.id == node_id
+                ),
+                None,
+            )
+            if member is None:
+                raise NodeNotFound(node_id)
+            nodes.append(member)
         return nodes
+
+    def _sheet_nodes(self, path: Path, node_id: str) -> list[CatalogNode]:
+        """Every sheet of one workbook as a node the client can open."""
+        return [
+            DatasetNode(
+                id=member_id(node_id, str(facts.position)),
+                name=facts.title,
+                representations=[TABLE],
+                describable=True,
+                row_count=facts.rows,
+                column_count=facts.columns,
+                hidden=facts.hidden,
+            )
+            for facts in workbook.sheets(path)
+        ]
 
     def _node(self, entry: os.DirEntry[str]) -> CatalogNode | None:
         """One entry of a listing, or None for one this source does not own.
@@ -123,9 +171,15 @@ class FileCatalog:
         return FileNode(
             id=node_id,
             name=name,
+            # A workbook holds sheets, and they are read only when this node
+            # is walked into.
+            has_children=is_container(name),
             size_bytes=stat.st_size,
             modified_at=modified_at,
             representations=representations_of(name),
+            # Only a file that states its own columns has a structure to show;
+            # a CSV's columns are read off a line of text (D51).
+            describable=format_of(name) == "parquet",
         )
 
 

@@ -298,3 +298,51 @@ test("opens a file as its own source and saves an edit back", async ({ page }) =
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
+
+test("opens a columnar file and a workbook sheet as datasets", async ({ page }) => {
+  const name = `e2e-datasets-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  const list = page.getByTestId("catalog-list")
+  await expect(list).toContainText("cities.parquet")
+  await expect(list).toContainText("budget.xlsx")
+
+  // A columnar file opens as rows whose columns keep the types it declares.
+  await openNode(page, "cities.parquet")
+  const grid = page.getByTestId("row-grid")
+  await expect(grid).toContainText("population")
+  await expect(grid.locator("tbody tr")).toHaveCount(100)
+
+  // And it has a structure, because it states its own columns. The facts of
+  // the format are shown beside them.
+  await page.getByTestId("grid-structure").click()
+  const structure = page.getByTestId("structure-view")
+  await expect(structure).toContainText("int64")
+  const format = page.getByTestId("structure-format")
+  await expect(format).toContainText("Parquet")
+  await expect(format).toContainText("Row groups")
+  // Nothing about a file dataset can be changed, and the screen says so.
+  await expect(page.getByTestId("structure-add-column")).toBeDisabled()
+
+  // A workbook is a place: it is walked into, and its sheets are the nodes.
+  await openConnector(page, name)
+  await openNode(page, "budget.xlsx")
+  await expect(page.getByTestId("catalog-path")).toContainText("budget.xlsx")
+  await expect(list).toContainText("Revenue")
+  await expect(list).toContainText("People")
+  await expect(list).toContainText("rows")
+
+  await openNode(page, "People")
+  await expect(page.getByTestId("row-grid")).toContainText("name")
+  await expect(page.getByTestId("row-grid")).toContainText("Ann")
+
+  // A sheet knows where it sits, and cannot be renamed, deleted or downloaded.
+  await page.getByTestId("grid-structure").click()
+  await expect(page.getByTestId("structure-format")).toContainText("budget.xlsx")
+  await expect(page.getByTestId("structure-format")).toContainText("2 of 3")
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})

@@ -2,6 +2,8 @@
 
 from typing import Any, Literal, cast
 
+from psycopg import sql
+
 from app.adapters.postgres.column_type import build_column_type
 from app.adapters.postgres.column_types import POSTGRES_COLUMN_TYPE_OPTIONS
 from app.adapters.postgres.index_methods import (
@@ -9,7 +11,7 @@ from app.adapters.postgres.index_methods import (
     index_method_options,
 )
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.protocol import NodeNotFound
+from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.relation import (
     CandidateKey,
     CheckConstraint,
@@ -167,6 +169,24 @@ JOIN pg_namespace n ON n.oid = c.relnamespace
 JOIN pg_am am ON am.oid = ic.relam
 WHERE n.nspname = %s
 """
+
+
+def schema_of(model: RelationModel) -> str:
+    """The schema of a relation this driver described.
+
+    `RelationModel.schema_name` is optional because a source may have no such
+    notion — a file dataset sits in no schema (D51). Everything reached from
+    here described the relation itself, so the impossible case is named once
+    rather than narrowed at every statement.
+    """
+    if model.schema_name is None:
+        raise AdapterError("unknown", "This relation is not in a schema")
+    return model.schema_name
+
+
+def qualified(model: RelationModel) -> sql.Identifier:
+    """The schema-qualified identifier of a described relation."""
+    return sql.Identifier(schema_of(model), model.name)
 
 
 class PostgresRelation:

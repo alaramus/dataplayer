@@ -100,7 +100,10 @@ async def test_reports_what_a_type_can_do(
         if c["group"] == "explore"
     }
     assert "Describe a relation" in postgres
-    assert "Describe a relation" not in files
+    # A file source describes the two formats that state their own columns
+    # (D51); what it still cannot do is answer for the rest, which is a node
+    # question rather than a type one.
+    assert "Describe a relation" in files
     assert "Follow references" in postgres
     assert "Follow references" not in files
     assert {c["title"] for c in types["postgres"]["capabilities"] if c["group"] == "manage"} == {

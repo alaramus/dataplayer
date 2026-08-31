@@ -33,7 +33,7 @@ const table = (id: string, name: string) => ({
   id,
   name,
   kind: "table" as const,
-  has_children: true,
+  has_children: false,
   row_count_estimate: 10,
   representations: [{ kind: "table" as const, title: "View as table" }],
 })

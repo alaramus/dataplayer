@@ -28,6 +28,11 @@ class BaseNode(BaseModel):
     # Preferred representation first. Empty means the node can be browsed or
     # acted on but has no content viewer yet.
     representations: list[NodeRepresentation]
+    # Whether this node also answers `relation-model`. Said by the source
+    # rather than worked out by the client from the kind: a PostgreSQL schema
+    # is not describable while its tables are, and among files only the ones
+    # that declare their own columns are (D51).
+    describable: bool = False
 
 
 class SchemaNode(BaseNode):
@@ -62,10 +67,27 @@ class FileNode(BaseNode):
     modified_at: datetime | None = None
 
 
+class DatasetNode(BaseNode):
+    """A tabular member of a container file, such as one sheet of a workbook.
+
+    Deliberately not a file: it has no bytes of its own, so rename, delete and
+    download are ruled out by the kinds those actions name, and it needs no
+    rule of its own (D51). Its counts are what the container stated when it was
+    listed; a container that states none leaves them empty rather than making
+    the listing read the whole member to find out.
+    """
+
+    kind: Literal["dataset"] = "dataset"
+    has_children: bool = False
+    row_count: int | None = None
+    column_count: int | None = None
+    hidden: bool = False
+
+
 # Adding a kind means adding a class here. The friction is intended: a key can
 # be added to a dict silently, a class cannot.
 CatalogNode = Annotated[
-    SchemaNode | TableNode | ViewNode | DirectoryNode | FileNode,
+    SchemaNode | TableNode | ViewNode | DirectoryNode | FileNode | DatasetNode,
     Field(discriminator="kind"),
 ]
 
@@ -74,4 +96,4 @@ CatalogNode = Annotated[
 # of a node without holding one — deciding which actions a directory admits,
 # for instance — and a bare string there would let a typo through silently.
 # The test that this matches the union keeps the two from drifting apart.
-NodeKind = Literal["schema", "table", "view", "directory", "file"]
+NodeKind = Literal["schema", "table", "view", "directory", "file", "dataset"]

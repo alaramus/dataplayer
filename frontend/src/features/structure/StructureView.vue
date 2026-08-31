@@ -14,7 +14,7 @@ import {
   useRelationModel,
   useRenameColumn,
 } from "@/features/structure/api"
-import { badgesFor, foreignKeyLabel } from "@/features/structure/model"
+import { badgesFor, datasetFacts, foreignKeyLabel } from "@/features/structure/model"
 import type { ForeignKey, RefAction } from "@/features/structure/model"
 import { messageOf } from "@/shared/api/errors"
 import {
@@ -115,6 +115,11 @@ const otherConstraints = computed(() =>
     (constraint) => constraint.kind !== "foreign_key"
   )
 )
+/** The format's own facts, for a relation that is a file (D51). */
+const facts = computed(() => {
+  const dataset = query.data.value?.dataset
+  return dataset === null || dataset === undefined ? [] : datasetFacts(dataset)
+})
 const errorText = computed(() =>
   query.error.value === null
     ? ""
@@ -437,7 +442,27 @@ async function changeDefault(action: "set" | "drop", value?: string) {
     <AppSpinner v-else-if="query.isPending.value" />
 
     <template v-else-if="query.data.value">
-      <AppSection>
+      <AppSection
+        v-if="facts.length > 0"
+        data-testid="structure-format"
+      >
+        <div class="structure-view__title">
+          Format
+        </div>
+        <dl class="structure-view__facts">
+          <template
+            v-for="fact in facts"
+            :key="fact.label"
+          >
+            <dt>{{ fact.label }}</dt>
+            <dd :data-testid="`structure-fact-${fact.label}`">
+              {{ fact.value }}
+            </dd>
+          </template>
+        </dl>
+      </AppSection>
+
+      <AppSection :divided="facts.length > 0">
         <div class="structure-view__heading">
           <div class="structure-view__title">
             Columns
@@ -772,5 +797,18 @@ async function changeDefault(action: "set" | "drop", value?: string) {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+.structure-view__facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 12px;
+}
+.structure-view__facts dt {
+  color: var(--dp-text-muted);
+}
+.structure-view__facts dd {
+  margin: 0;
 }
 </style>

@@ -21,6 +21,8 @@ dependencies = [
     "cryptography>=50.0.1",
     "psycopg-pool>=3.3.1",
     "pillow>=11.3.0,<13.0.0",
+    "pyarrow>=21.0.0,<26.0.0",
+    "openpyxl>=3.1.5,<4.0.0",
 ]
 
 [dependency-groups]
@@ -33,6 +35,7 @@ dev = [
     "ruff<1.0.0,>=0.2.2",
     "coverage<8.0.0,>=7.4.3",
     "httpx-ws>=0.9.0",
+    "types-openpyxl>=3.1",
 ]
 
 [build-system]
@@ -42,6 +45,14 @@ build-backend = "hatchling.build"
 [tool.mypy]
 strict = true
 exclude = ["venv", ".venv", "alembic"]
+
+# pyarrow ships no type information and no stub package this project trusts:
+# the community stubs lag its releases, and a wrong signature is worse than an
+# untyped call. The Parquet reader is the only module that imports it, and it
+# converts every value it takes from the library before returning one.
+[[tool.mypy.overrides]]
+module = ["pyarrow.*"]
+ignore_missing_imports = true
 
 [tool.ruff]
 target-version = "py314"

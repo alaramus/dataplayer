@@ -4,6 +4,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.adapters.dataset import DatasetInfo
+
 TypeCategory = Literal[
     "number",
     "string",
@@ -26,6 +28,9 @@ RelationKind = Literal[
     "view",
     "materialized_view",
     "foreign_table",
+    # A file that states its own columns: a Parquet file, a worksheet. Not a
+    # table, because nothing in it can be changed and no server owns it (D51).
+    "dataset",
 ]
 Persistence = Literal["permanent", "unlogged", "temporary"]
 RefAction = Literal["no_action", "restrict", "cascade", "set_null", "set_default"]
@@ -54,7 +59,9 @@ class Column(BaseModel):
     name: str
     type: ColumnType
     nullable: bool
-    storage: Storage
+    # A storage strategy is something a server decides for a column it owns. A
+    # file has none, and saying "plain" about it would be a plausible lie.
+    storage: Storage | None = None
     comment: str | None = None
     default: str | None = None
     identity: Literal["always", "by_default"] | None = None
@@ -194,11 +201,15 @@ class RelationModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     node_id: str
-    schema_name: str
+    # The three fields below are relational vocabulary. A source that has no
+    # such notion leaves them out rather than filling them in: a Parquet file
+    # sits in no schema, is owned by no role and is not "permanent" in the
+    # sense a table is.
+    schema_name: str | None = None
     name: str
     kind: RelationKind
-    owner: str
-    persistence: Persistence
+    owner: str | None = None
+    persistence: Persistence | None = None
     comment: str | None = None
     row_estimate: int | None = None
     size_bytes: int | None = None
@@ -222,6 +233,8 @@ class RelationModel(BaseModel):
     constraint_changes_supported: bool = False
     constraint_changes_reason: str | None = None
     candidate_keys: list[CandidateKey] = Field(default_factory=list)
+    # What only this relation's own format knows, when it is a file (D51).
+    dataset: DatasetInfo | None = None
 
 
 def without_structure_changes(model: RelationModel, reason: str) -> RelationModel:

@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type { ColumnPair, FetchColumn, ImportPreview } from "@/client"
-import { isReadableNode, roleOfKind } from "@/features/catalog/nodes"
+import { isReadableNode, roleOf } from "@/features/catalog/nodes"
 import type { CatalogNode } from "@/features/catalog/nodes"
 import { useConnectors } from "@/features/connectors/api"
 import { messageOf } from "@/shared/api/errors"
@@ -95,7 +95,7 @@ watch(sourceId, async () => {
 })
 
 async function step(node: CatalogNode) {
-  if (roleOfKind(node.kind) === "leaf") {
+  if (roleOf(node) === "leaf") {
     if (isReadableNode(node)) await choose(node)
     return
   }
@@ -235,7 +235,7 @@ function run() {
               :label="node.name"
               variant="quiet"
               size="sm"
-              :disable="roleOfKind(node.kind) === 'leaf' && !isReadableNode(node)"
+              :disable="roleOf(node) === 'leaf' && !isReadableNode(node)"
               :data-testid="`grid-import-node-${node.name}`"
               @click="step(node)"
             />

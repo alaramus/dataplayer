@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { badgesFor, foreignKeyLabel } from "./model"
+import { badgesFor, datasetFacts, foreignKeyLabel } from "./model"
 import type { RelationModel } from "./model"
 
 const model = {
@@ -70,5 +70,88 @@ describe("foreignKeyLabel", () => {
     expect(foreignKeyLabel(key as never)).toBe(
       "region_id, region_code → public.regions (id, code)"
     )
+  })
+})
+
+describe("datasetFacts", () => {
+  it("states what a columnar file knows about itself", () => {
+    const facts = datasetFacts({
+      kind: "parquet",
+      rows: 250,
+      row_groups: 3,
+      columns: 7,
+      compression: ["SNAPPY"],
+      created_by: "parquet-cpp-arrow version 25.0.1",
+      format_version: "2.6",
+      size_bytes: 8812,
+    })
+
+    expect(facts.map((fact) => `${fact.label}: ${fact.value}`)).toEqual([
+      "Format: Parquet 2.6",
+      "Rows: 250",
+      "Row groups: 3",
+      "Columns: 7",
+      "Compression: SNAPPY",
+      "Written by: parquet-cpp-arrow version 25.0.1",
+      "Size: 8.6 KB",
+    ])
+  })
+
+  it("leaves out what a file did not say", () => {
+    const facts = datasetFacts({
+      kind: "parquet",
+      rows: 0,
+      row_groups: 0,
+      columns: 2,
+      compression: [],
+      created_by: null,
+      format_version: "2.6",
+      size_bytes: 100,
+    })
+
+    expect(facts.map((fact) => fact.label)).toEqual([
+      "Format",
+      "Rows",
+      "Row groups",
+      "Columns",
+      "Size",
+    ])
+  })
+
+  it("says where a sheet sits among the others", () => {
+    const facts = datasetFacts({
+      kind: "worksheet",
+      workbook: "budget.xlsx",
+      sheet_name: "Working notes",
+      sheet_position: 3,
+      sheet_count: 3,
+      hidden: true,
+      rows: 12,
+      columns: 4,
+    })
+
+    expect(facts.map((fact) => `${fact.label}: ${fact.value}`)).toEqual([
+      "Format: Worksheet",
+      "Workbook: budget.xlsx",
+      "Sheet: Working notes (3 of 3)",
+      "Hidden: yes",
+      "Rows: 12",
+      "Columns: 4",
+    ])
+  })
+
+  it("says nothing about a sheet being hidden when it is not", () => {
+    const facts = datasetFacts({
+      kind: "worksheet",
+      workbook: "budget.xlsx",
+      sheet_name: "Revenue",
+      sheet_position: 1,
+      sheet_count: 3,
+      hidden: false,
+      rows: null,
+      columns: null,
+    })
+
+    expect(facts.map((fact) => fact.label)).toEqual(["Format", "Workbook", "Sheet"])
   })
 })

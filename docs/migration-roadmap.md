@@ -303,10 +303,31 @@ was asked to delete an already deleted row and rightly refused.
   whole 105-scenario end-to-end suite. One old workspace geometry scenario
   failed once under parallel load, passed 3/3 in isolation, and the repeated
   whole suite passed 105/105.
-- [ ] Add Parquet and XLSX as explicit optional capabilities, with sheet or
+- [x] Add Parquet and XLSX as explicit optional capabilities, with sheet or
   dataset selection, format-specific metadata and server-side bounds. Their
   natural representations may use the grid, but that does not make every file
   tabular.
+  D51 settles it. Sheet selection is browsing rather than a parameter: a
+  workbook is a file with children, and each sheet is a `dataset` node whose id
+  the source issues. A Parquet file stays one file and keeps the `table`
+  representation. Both answer `relation-model` — which node can be described is
+  now said by the source in `CatalogNode.describable` instead of decided by the
+  client from a kind — and the facts only their format knows travel as a typed
+  union in `RelationModel.dataset`. Three fields of the relation model and one
+  of a column turned out to be relational vocabulary a file has none of, and
+  are absent rather than filled in. Nothing reads a whole file: a Parquet page
+  is streamed from the row groups it falls in, a sheet through the read-only
+  iterator, and a workbook is refused from the zip's own directory before a
+  byte is inflated. `encode_cell` moved out of the PostgreSQL adapter into
+  `adapters/cells.py`, since the canonical text of a value belongs to no driver.
+  Validated on 2026-08-31: the whole backend suite, mypy, ruff, import
+  contracts (the new one verified by breaking it), frontend type check, lint,
+  unit tests, production build, the documentation check and the whole
+  106-scenario end-to-end suite, then read in the browser. Two defects came out
+  of that reading rather than a check: a Parquet handle stayed open after a
+  malformed file was refused, which on Windows also blocks the delete; and a
+  sheet's caption read "1 rows · 1 columns" and said nothing about a sheet the
+  spreadsheet hides.
 - [x] Add source-declared download and the first safe, bounded image viewer.
   D49 gives every adapter one download-action transport over selected nodes.
   The file source returns one file unchanged or archives a set or directory;
@@ -621,9 +642,9 @@ end-to-end suite.
 
 ## Next session
 
-The rendered-document follow-up is complete and validated. Resume with Parquet
-and XLSX as explicit optional capabilities, with sheet or dataset selection,
-format-specific metadata and server-side bounds. Inspect their old adapters and
-screens before specifying the slice; reusing the grid must not turn every file
-into a tabular source. Audio, video, PDF and archives remain behind their stated
-contract decisions.
+Parquet and workbook datasets are complete and validated. Resume with bounded
+audio, video and PDF viewers: their bytes use D49's dedicated content path and
+trustworthy metadata, audio and video first need a range contract, and PDF
+needs an isolation and rendering decision. Archive browsing follows, and only
+after containment, decompression limits and symlink behaviour are specified —
+D51's member ids are the shape an archive's entries would reuse.

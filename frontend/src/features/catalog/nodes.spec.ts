@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { at, first } from "@/shared/testing/collections"
-import { groupsOf, roleOfKind, showsPath, toListNodes } from "./nodes"
+import { groupsOf, roleOf, showsPath, toListNodes } from "./nodes"
 import type { CatalogNode } from "./nodes"
 
 function group(id: string) {
@@ -10,19 +10,46 @@ function group(id: string) {
   )
 }
 
+const leaf = (kind: "table" | "view" | "file" | "dataset", hasChildren = false) =>
+  kind === "file"
+    ? ({
+        kind,
+        id: "a",
+        name: "a",
+        has_children: hasChildren,
+        size_bytes: 1,
+        representations: [],
+      } as CatalogNode)
+    : ({
+        kind,
+        id: "a",
+        name: "a",
+        has_children: hasChildren,
+        representations: [],
+      } as CatalogNode)
+
 describe("what the catalog does with a node", () => {
   it("puts a schema in the filter rather than in the list", () => {
-    expect(roleOfKind("schema")).toBe("group")
+    expect(
+      roleOf({ kind: "schema", id: "public", name: "public", has_children: true, representations: [] })
+    ).toBe("group")
   })
 
-  it("walks into a directory", () => {
-    expect(roleOfKind("directory")).toBe("container")
+  it("walks into a directory, empty or not", () => {
+    expect(
+      roleOf({ kind: "directory", id: "d", name: "d", has_children: false, representations: [] })
+    ).toBe("container")
   })
 
   it("opens a table, a view and a file", () => {
-    expect(roleOfKind("table")).toBe("leaf")
-    expect(roleOfKind("view")).toBe("leaf")
-    expect(roleOfKind("file")).toBe("leaf")
+    expect(roleOf(leaf("table"))).toBe("leaf")
+    expect(roleOf(leaf("view"))).toBe("leaf")
+    expect(roleOf(leaf("file"))).toBe("leaf")
+    expect(roleOf(leaf("dataset"))).toBe("leaf")
+  })
+
+  it("walks into a file that says it holds nodes of its own", () => {
+    expect(roleOf(leaf("file", true))).toBe("container")
   })
 
   it("names the grouping a node was listed under, when it was", () => {
@@ -96,7 +123,7 @@ describe("groupsOf", () => {
 })
 
 describe("toListNodes", () => {
-  it("offers structure for a relation and not for a file", () => {
+  it("offers structure where the source says the node has one", () => {
     expect(
       first(
         toListNodes([
@@ -105,19 +132,7 @@ describe("toListNodes", () => {
             id: "public.orders",
             name: "orders",
             has_children: false,
-            representations: [{ kind: "table", title: "View as table" }],
-          },
-        ])
-      ).describable
-    ).toBe(true)
-    expect(
-      first(
-        toListNodes([
-          {
-            kind: "view",
-            id: "public.v",
-            name: "v",
-            has_children: false,
+            describable: true,
             representations: [{ kind: "table", title: "View as table" }],
           },
         ])
@@ -137,6 +152,76 @@ describe("toListNodes", () => {
         ])
       ).describable
     ).toBe(false)
+    expect(
+      first(
+        toListNodes([
+          {
+            kind: "dataset",
+            id: "b.xlsx/1",
+            name: "Revenue",
+            has_children: false,
+            describable: true,
+            representations: [{ kind: "table", title: "View as table" }],
+          },
+        ])
+      ).describable
+    ).toBe(true)
+  })
+
+  it("says what a sheet holds before it is opened", () => {
+    const node = first(
+      toListNodes([
+        {
+          kind: "dataset",
+          id: "b.xlsx/1",
+          name: "Revenue",
+          has_children: false,
+          row_count: 120,
+          column_count: 3,
+          representations: [{ kind: "table", title: "View as table" }],
+        },
+      ])
+    )
+
+    expect(node.caption).toBe("120 rows · 3 columns")
+    expect(node.icon).toBe("grid_on")
+  })
+
+  it("counts one row as one, and says when a sheet is hidden", () => {
+    const node = first(
+      toListNodes([
+        {
+          kind: "dataset",
+          id: "b.xlsx/3",
+          name: "Working notes",
+          has_children: false,
+          row_count: 1,
+          column_count: 1,
+          hidden: true,
+          representations: [{ kind: "table", title: "View as table" }],
+        },
+      ])
+    )
+
+    expect(node.caption).toBe("1 row · 1 column · hidden")
+  })
+
+  it("draws a workbook as a place, since that is what it is", () => {
+    const node = first(
+      toListNodes([
+        {
+          kind: "file",
+          id: "b.xlsx",
+          name: "b.xlsx",
+          has_children: true,
+          size_bytes: 4096,
+          representations: [],
+        },
+      ])
+    )
+
+    expect(node.role).toBe("container")
+    expect(node.icon).toBe("folder_open")
   })
 
   it("keeps id and name", () => {

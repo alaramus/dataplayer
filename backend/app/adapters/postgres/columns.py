@@ -25,7 +25,7 @@ from app.adapters.postgres.counting import (
     rows_the_type_cannot_read,
     rows_without_value,
 )
-from app.adapters.postgres.relation import PostgresRelation
+from app.adapters.postgres.relation import PostgresRelation, qualified, schema_of
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.relation import Column, PrimaryKey, RelationModel
 
@@ -64,7 +64,7 @@ class PostgresColumns:
         if type_sql is None:
             raise ValueError(f'Unknown column type "{request.type_code}"')
         statement = sql.SQL("ALTER TABLE {} ADD COLUMN {} {}").format(
-            sql.Identifier(model.schema_name, model.name),
+            qualified(model),
             sql.Identifier(request.name),
             type_sql,
         )
@@ -79,7 +79,7 @@ class PostgresColumns:
         if request.name not in {column.name for column in model.columns}:
             raise ValueError(f'Relation has no column "{request.name}"')
         statement = sql.SQL("ALTER TABLE {} DROP COLUMN {}").format(
-            sql.Identifier(model.schema_name, model.name),
+            qualified(model),
             sql.Identifier(request.name),
         )
         await self._session.schema_change(statement.as_string())
@@ -96,7 +96,7 @@ class PostgresColumns:
         if len(request.new_name.encode("utf-8")) > 63:
             raise ValueError("A PostgreSQL column name cannot exceed 63 bytes")
         statement = sql.SQL("ALTER TABLE {} RENAME COLUMN {} TO {}").format(
-            sql.Identifier(model.schema_name, model.name),
+            qualified(model),
             sql.Identifier(request.name),
             sql.Identifier(request.new_name),
         )
@@ -119,7 +119,7 @@ class PostgresColumns:
             # a bad request like any other unusable default.
             raise ValueError("A default value cannot contain a NUL character")
         statement = sql.SQL("ALTER TABLE {} ALTER COLUMN {} ").format(
-            sql.Identifier(model.schema_name, model.name),
+            qualified(model),
             sql.Identifier(request.name),
         )
         if request.action == "drop":
@@ -155,7 +155,7 @@ class PostgresColumns:
             # remains the authority. It is what makes a refusal useful — the
             # driver's own message names the offending row.
             blocking, exact = await rows_without_value(
-                self._session, model.schema_name, model.name, column.name
+                self._session, schema_of(model), model.name, column.name
             )
             if blocking > 0:
                 # Nothing has been locked and nothing has been altered: the
@@ -165,7 +165,7 @@ class PostgresColumns:
                     name=column.name, rows_without_value=blocking, exact=exact
                 )
         statement = sql.SQL("ALTER TABLE {} ALTER COLUMN {} {} NOT NULL").format(
-            sql.Identifier(model.schema_name, model.name),
+            qualified(model),
             sql.Identifier(column.name),
             sql.SQL("DROP") if request.nullable else sql.SQL("SET"),
         )
@@ -218,7 +218,7 @@ class PostgresColumns:
         statement = sql.SQL(
             "ALTER TABLE {} ALTER COLUMN {} TYPE {} USING {}::{}"
         ).format(
-            sql.Identifier(model.schema_name, model.name),
+            qualified(model),
             sql.Identifier(column.name),
             type_sql,
             sql.Identifier(column.name),
@@ -242,7 +242,7 @@ class PostgresColumns:
         statement = sql.SQL("SELECT {}::{} FROM {} WHERE false").format(
             sql.Identifier(name),
             type_sql,
-            sql.Identifier(model.schema_name, model.name),
+            qualified(model),
         )
         await self._session.query(statement.as_string(), refusals=TYPE_CHANGE_REFUSALS)
 
@@ -262,7 +262,7 @@ class PostgresColumns:
             return 0, True
         return await rows_the_type_cannot_read(
             self._session,
-            model.schema_name,
+            schema_of(model),
             model.name,
             column.name,
             type_name,

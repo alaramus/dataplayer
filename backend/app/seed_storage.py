@@ -14,6 +14,7 @@ import json
 import logging
 import sys
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.core.config import settings
@@ -150,10 +151,61 @@ def write_samples(home: Path) -> None:
     (home / "logo.png").write_bytes(SAMPLE_PNG)
     (home / "guide.md").write_text(SAMPLE_MARKDOWN, encoding="utf-8")
 
+    _write_dataset_samples(home)
+
     reports = home / "reports"
     reports.mkdir(exist_ok=True)
     (reports / "q3.csv").write_text("quarter,revenue\nQ3,1200\n", encoding="utf-8")
     (home / "empty").mkdir(exist_ok=True)
+
+
+def _write_dataset_samples(home: Path) -> None:
+    """A columnar file and a workbook, for the datasets of D51.
+
+    Written here rather than committed as fixtures so the samples stay honest
+    about the libraries that read them, and so nothing binary lives in the
+    repository. This is the one place outside the file adapter that touches
+    either library, and it is a development tool rather than the application.
+    """
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from openpyxl import Workbook
+
+    table = pa.table(
+        {
+            "id": pa.array(range(1, SAMPLE_ROWS + 1), type=pa.int64()),
+            "city": pa.array([f"city-{index}" for index in range(1, SAMPLE_ROWS + 1)]),
+            "population": pa.array(
+                [index * 1000.5 for index in range(1, SAMPLE_ROWS + 1)],
+                type=pa.float64(),
+            ),
+            "capital": pa.array([index % 7 == 0 for index in range(1, SAMPLE_ROWS + 1)]),
+            "tags": pa.array(
+                [["north"] if index % 2 else ["south", "coast"] for index in range(1, SAMPLE_ROWS + 1)],
+                type=pa.list_(pa.string()),
+            ),
+        }
+    )
+    # Several row groups on purpose: a page then begins inside one of them.
+    pq.write_table(table, home / "cities.parquet", row_group_size=100)
+
+    book = Workbook()
+    revenue = book.active
+    if revenue is None:  # pragma: no cover - a new workbook always has one sheet
+        raise RuntimeError("A new workbook has no active sheet")
+    revenue.title = "Revenue"
+    revenue.append(["quarter", "amount", "closed"])
+    for quarter, amount in (("Q1", 820), ("Q2", 932), ("Q3", 1200), ("Q4", 1310)):
+        revenue.append([quarter, amount, quarter != "Q4"])
+    people = book.create_sheet("People")
+    people.append(["name", "started"])
+    people.append(["Ann", datetime(2026, 1, 14, tzinfo=UTC).date()])
+    people.append(["Bo", datetime(2026, 3, 2, tzinfo=UTC).date()])
+    hidden = book.create_sheet("Working notes")
+    hidden.append(["note"])
+    hidden.append(["not for the report"])
+    hidden.sheet_state = "hidden"
+    book.save(home / "budget.xlsx")
 
 
 def remove_orphan_homes(*, keep: set[uuid.UUID]) -> list[uuid.UUID]:

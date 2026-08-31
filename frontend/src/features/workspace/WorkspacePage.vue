@@ -12,7 +12,6 @@ import { useConnectors } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
 import { moveChartSpec } from "@/features/charts/persist"
 import { chartViewKey } from "@/features/charts/view"
-import { isDescribable } from "@/features/catalog/nodes"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import {
   catalogPanelId,
@@ -414,7 +413,7 @@ provide(workspaceActionsKey, {
       title: node.name,
       connectorName: request.connectorName,
       adapterType: request.adapterType,
-      describable: isDescribable(node.kind),
+      describable: node.describable === true,
     })
     followTarget.value = {
       connectorId: request.connectorId,

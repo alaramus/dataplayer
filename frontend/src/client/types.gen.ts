@@ -383,7 +383,7 @@ export type Column = {
   /**
    * Storage
    */
-  storage: "plain" | "main" | "external" | "extended"
+  storage?: "plain" | "main" | "external" | "extended" | null
   /**
    * Comment
    */
@@ -895,6 +895,56 @@ export type CreateIndexRequest = {
 }
 
 /**
+ * DatasetNode
+ *
+ * A tabular member of a container file, such as one sheet of a workbook.
+ *
+ * Deliberately not a file: it has no bytes of its own, so rename, delete and
+ * download are ruled out by the kinds those actions name, and it needs no
+ * rule of its own (D51). Its counts are what the container stated when it was
+ * listed; a container that states none leaves them empty rather than making
+ * the listing read the whole member to find out.
+ */
+export type DatasetNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "dataset"
+  /**
+   * Row Count
+   */
+  row_count?: number | null
+  /**
+   * Column Count
+   */
+  column_count?: number | null
+  /**
+   * Hidden
+   */
+  hidden?: boolean
+}
+
+/**
  * DeleteRowsRequest
  */
 export type DeleteRowsRequest = {
@@ -938,6 +988,10 @@ export type DirectoryNode = {
    * Representations
    */
   representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
   /**
    * Kind
    */
@@ -1375,6 +1429,10 @@ export type FileNode = {
    * Representations
    */
   representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
   /**
    * Kind
    */
@@ -2154,6 +2212,46 @@ export type NullabilityChanged = {
 }
 
 /**
+ * ParquetDataset
+ *
+ * A columnar file, described from its own footer.
+ */
+export type ParquetDataset = {
+  /**
+   * Kind
+   */
+  kind?: "parquet"
+  /**
+   * Rows
+   */
+  rows: number
+  /**
+   * Row Groups
+   */
+  row_groups: number
+  /**
+   * Columns
+   */
+  columns: number
+  /**
+   * Compression
+   */
+  compression?: Array<string>
+  /**
+   * Created By
+   */
+  created_by?: string | null
+  /**
+   * Format Version
+   */
+  format_version: string
+  /**
+   * Size Bytes
+   */
+  size_bytes: number
+}
+
+/**
  * ParsedOptions
  *
  * Form values, in the shape the type's own schema declares.
@@ -2285,6 +2383,9 @@ export type ReferencedRows = {
     | ({
         kind: "file"
       } & FileNode)
+    | ({
+        kind: "dataset"
+      } & DatasetNode)
   /**
    * Filters
    */
@@ -2328,7 +2429,7 @@ export type RelationModel = {
   /**
    * Schema Name
    */
-  schema_name: string
+  schema_name?: string | null
   /**
    * Name
    */
@@ -2336,15 +2437,15 @@ export type RelationModel = {
   /**
    * Kind
    */
-  kind: "table" | "partitioned_table" | "view" | "materialized_view" | "foreign_table"
+  kind: "table" | "partitioned_table" | "view" | "materialized_view" | "foreign_table" | "dataset"
   /**
    * Owner
    */
-  owner: string
+  owner?: string | null
   /**
    * Persistence
    */
-  persistence: "permanent" | "unlogged" | "temporary"
+  persistence?: "permanent" | "unlogged" | "temporary" | null
   /**
    * Comment
    */
@@ -2423,6 +2524,17 @@ export type RelationModel = {
    * Candidate Keys
    */
   candidate_keys?: Array<CandidateKey>
+  /**
+   * Dataset
+   */
+  dataset?:
+    | ({
+        kind: "parquet"
+      } & ParquetDataset)
+    | ({
+        kind: "worksheet"
+      } & WorksheetDataset)
+    | null
 }
 
 /**
@@ -2536,6 +2648,10 @@ export type SchemaNode = {
    */
   representations: Array<NodeRepresentation>
   /**
+   * Describable
+   */
+  describable?: boolean
+  /**
    * Kind
    */
   kind?: "schema"
@@ -2579,6 +2695,10 @@ export type TableNode = {
    * Representations
    */
   representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
   /**
    * Kind
    */
@@ -3015,6 +3135,10 @@ export type ViewNode = {
    */
   representations: Array<NodeRepresentation>
   /**
+   * Describable
+   */
+  describable?: boolean
+  /**
    * Kind
    */
   kind?: "view"
@@ -3026,6 +3150,46 @@ export type ViewNode = {
    * Is System
    */
   is_system?: boolean
+}
+
+/**
+ * WorksheetDataset
+ *
+ * One sheet of a workbook, and where it sits among the others.
+ */
+export type WorksheetDataset = {
+  /**
+   * Kind
+   */
+  kind?: "worksheet"
+  /**
+   * Workbook
+   */
+  workbook: string
+  /**
+   * Sheet Name
+   */
+  sheet_name: string
+  /**
+   * Sheet Position
+   */
+  sheet_position: number
+  /**
+   * Sheet Count
+   */
+  sheet_count: number
+  /**
+   * Hidden
+   */
+  hidden?: boolean
+  /**
+   * Rows
+   */
+  rows?: number | null
+  /**
+   * Columns
+   */
+  columns?: number | null
 }
 
 export type loginLoginAccessTokenData = {
@@ -3984,6 +4148,9 @@ export type connectorsReadCatalogResponses = {
     | ({
         kind: "file"
       } & FileNode)
+    | ({
+        kind: "dataset"
+      } & DatasetNode)
   >
 }
 
@@ -4728,6 +4895,9 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "file"
       } & FileNode)
+    | ({
+        kind: "dataset"
+      } & DatasetNode)
   >
 }
 

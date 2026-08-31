@@ -1,4 +1,4 @@
-import { roleOfKind } from "@/features/catalog/nodes"
+import { roleOf } from "@/features/catalog/nodes"
 import type { CatalogNode } from "@/features/catalog/nodes"
 
 /** One step of the way down from the root of a connector. */
@@ -24,7 +24,7 @@ export interface Location {
  * those are not the same thing as crumbs. In PostgreSQL a schema is a node of
  * the path but a grouping on the screen — `public.users` lies on the root
  * level, under a ticked `public` — while a directory is a level one walks
- * into. The difference is `roleOfKind`, the same table that lets the catalog
+ * into. The difference is `roleOf`, the same rule that lets the catalog
  * never ask what type of source it is looking at, so a source with levels of
  * its own above a grouping needs no branch here.
  *
@@ -37,7 +37,7 @@ export function locationOf(path: CatalogNode[]): Location {
   const groups: string[] = []
 
   for (const node of ancestors) {
-    if (roleOfKind(node.kind) === "group") groups.push(node.id)
+    if (roleOf(node) === "group") groups.push(node.id)
     else crumbs.push({ id: node.id, label: node.name })
   }
 

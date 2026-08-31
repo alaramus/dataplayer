@@ -151,6 +151,7 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
             is_materialized=row["kind"] == "m",
             is_system=is_system,
             representations=[TABLE_REPRESENTATION],
+            describable=True,
         )
     estimate = int(row["row_estimate"])
     return TableNode(
@@ -162,4 +163,5 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
         size_bytes=row["size_bytes"],
         is_system=is_system,
         representations=[TABLE_REPRESENTATION],
+        describable=True,
     )

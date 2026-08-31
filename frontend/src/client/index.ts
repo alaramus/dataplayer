@@ -273,6 +273,7 @@ export type {
   ContentUpdated,
   CreateConstraintRequest,
   CreateIndexRequest,
+  DatasetNode,
   DeleteRowsRequest,
   DeleteRowsResult,
   DirectoryNode,
@@ -349,6 +350,7 @@ export type {
   NullabilityBlocked,
   NullabilityChanged,
   NullFilter,
+  ParquetDataset,
   ParsedOptions,
   Partitioning,
   PartitionOf,
@@ -449,4 +451,5 @@ export type {
   utilsTestEmailResponses,
   ValidationError,
   ViewNode,
+  WorksheetDataset,
 } from "./types.gen"

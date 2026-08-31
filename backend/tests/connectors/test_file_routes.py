@@ -27,7 +27,35 @@ async def home(db: AsyncSession) -> Path:
     (home / "document.json").write_text('{"id": 10000000000000001, "name": "one"}')
     (home / "pixel.png").write_bytes(PNG_1X1)
     (home / "opaque.zip").write_bytes(b"opaque archive bytes")
+    _write_datasets(home)
     return home
+
+
+def _write_datasets(home: Path) -> None:
+    """A columnar file and a workbook, the two datasets of D51."""
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from openpyxl import Workbook
+
+    pq.write_table(
+        pa.table(
+            {
+                "id": pa.array([1, 2, 3], type=pa.int64()),
+                "city": pa.array(["one", "two", "three"]),
+            }
+        ),
+        home / "cities.parquet",
+    )
+    book = Workbook()
+    revenue = book.active
+    assert revenue is not None
+    revenue.title = "Revenue"
+    revenue.append(["quarter", "amount"])
+    revenue.append(["Q1", 820])
+    people = book.create_sheet("People")
+    people.append(["name"])
+    people.append(["Ann"])
+    book.save(home / "budget.xlsx")
 
 
 async def _create_connector(
@@ -337,3 +365,139 @@ async def test_the_error_never_names_the_server_layout(
 
     assert response.status_code == 422
     assert str(home) not in response.text
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_workbook_lists_its_sheets_as_children(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    listing = await client.get(
+        f"{BASE}/{connector_id}/catalog", headers=normal_user_token_headers
+    )
+    workbook = next(
+        node for node in listing.json() if node["name"] == "budget.xlsx"
+    )
+    assert workbook["has_children"] is True
+    assert workbook["representations"] == []
+
+    response = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": workbook["id"]},
+    )
+
+    assert response.status_code == 200
+    sheets = response.json()
+    assert [sheet["name"] for sheet in sheets] == ["Revenue", "People"]
+    assert sheets[0]["kind"] == "dataset"
+    assert sheets[0]["describable"] is True
+    assert [item["kind"] for item in sheets[0]["representations"]] == ["table"]
+
+
+@pytest.mark.usefixtures("home")
+async def test_one_sheet_is_fetched_by_the_id_the_source_issued(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+    sheets = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": "budget.xlsx"},
+    )
+    second = sheets.json()[1]["id"]
+
+    response = await client.post(
+        f"{BASE}/{connector_id}/fetch",
+        headers=normal_user_token_headers,
+        json={"node_id": second},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [column["name"] for column in body["columns"]] == ["name"]
+    assert body["rows"] == [["Ann"]]
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_columnar_file_is_described_with_the_facts_of_its_format(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await client.get(
+        f"{BASE}/{connector_id}/relation-model",
+        headers=normal_user_token_headers,
+        params={"node_id": "cities.parquet"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["kind"] == "dataset"
+    assert [column["name"] for column in body["columns"]] == ["id", "city"]
+    assert body["dataset"]["kind"] == "parquet"
+    assert body["dataset"]["rows"] == 3
+    assert body["schema_name"] is None
+    assert body["owner"] is None
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_sheet_is_described_by_where_it_sits(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await client.get(
+        f"{BASE}/{connector_id}/relation-model",
+        headers=normal_user_token_headers,
+        params={"node_id": "budget.xlsx/2"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["dataset"] == {
+        "kind": "worksheet",
+        "workbook": "budget.xlsx",
+        "sheet_name": "People",
+        "sheet_position": 2,
+        "sheet_count": 2,
+        "hidden": False,
+        "rows": 1,
+        "columns": 1,
+    }
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_file_that_states_no_columns_has_no_structure(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """A CSV reads its names off a line of text, which is a header, not a shape."""
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await client.get(
+        f"{BASE}/{connector_id}/relation-model",
+        headers=normal_user_token_headers,
+        params={"node_id": "notes.txt"},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_sheet_admits_no_action(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Every action names the kinds it acts on, and a dataset is none of them."""
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await client.post(
+        f"{BASE}/{connector_id}/actions",
+        headers=normal_user_token_headers,
+        json={"node_ids": ["budget.xlsx/1"]},
+    )
+
+    assert response.status_code == 200
+    offered = response.json()
+    assert offered != []
+    assert all(action["applicable"] is False for action in offered)

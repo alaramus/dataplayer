@@ -4,11 +4,11 @@ from typing import Any
 
 from psycopg import sql
 
+from app.adapters.cells import encode_cell
 from app.adapters.postgres.counting import VALUE_REFUSALS, unreadable_values
 from app.adapters.postgres.fetch import (
     PostgresFetch,
     RelationFetchInfo,
-    encode_cell,
     row_identity_values,
     row_match,
     select_expression,

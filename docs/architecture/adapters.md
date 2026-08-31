@@ -5,7 +5,7 @@ do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
 D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36, D37, D38, D39,
-D40, D41, D42, D43, D44, D47, D48, D49.
+D40, D41, D42, D43, D44, D47, D48, D49, D51.
 
 ## What exists today
 
@@ -19,8 +19,11 @@ a request in a pool.
 
 **File** — the personal directory every user owns. The catalog is directories
 and files, and every leaf declares its ordered representations: delimited data
-opens as a table, JSON and JSONL as structured content, and plain files as text.
-Supported files may also be projected into a table by an explicit request. Five
+opens as a table, JSON and JSONL as structured content, Markdown as a rendered
+document, and plain files as text. Supported files may also be projected into a
+table by an explicit request. A Parquet file and each sheet of a workbook are
+datasets: they state their own columns, so they are read as rows and described
+like a relation, and a workbook is walked into rather than opened. Five
 actions: create a folder, upload, download, rename and delete. Download returns
 one file unchanged or archives a directory or selection. No sorting and no filtering,
 because a file has no index. No connection string.
@@ -36,7 +39,9 @@ backend/app/adapters/
 │                    json_schema / validate / variants / secret_field_names
 ├── layout.py        where a field goes in the window that edits it
 ├── catalog.py       CatalogNode: a union discriminated by kind; NodeKind
+├── cells.py         the canonical text of one value, shared by every source
 ├── content.py       ordered node representations and bounded content results
+├── dataset.py       what only a file format knows about the dataset in it
 ├── fetch.py         FetchRequest, FetchResult, closed set of predicates
 ├── export.py        ExportRequest and bounded ExportBatch
 ├── relation.py      relation, column, constraint and index models
@@ -51,8 +56,9 @@ backend/app/adapters/
 │                    catalog.py, fetch.py, export.py, relation.py, actions.py,
 │                    adapter.py (facade)
 └── file/            session.py (root and containment), catalog.py, formats.py,
-                     content.py, download.py, fetch.py, readers.py, records.py, actions.py,
-                     adapter.py (facade)
+                     members.py (a node inside a file), content.py, download.py,
+                     fetch.py, readers.py, records.py, parquet.py, workbook.py,
+                     relation.py, actions.py, adapter.py (facade)
 ```
 
 ## D1. The adapter type registry lives in code, not in the database
@@ -1191,6 +1197,81 @@ Known deviations:
 - **The JSON and JSONL bounded viewers remain API-only.** Image makes the
   content boundary visible again, but a large-document fallback still needs a
   screen that does not imply a partial document is editable.
+
+## D51. A file that states its own schema is a dataset, and a workbook is a container of them
+
+Parquet and XLSX are not text with a table read out of it. Parquet declares its
+columns, their types and its exact row count; a workbook declares nothing at
+all as a whole, because it holds several sheets and one of them has to be
+chosen before rows exist.
+
+The choice is made in the catalog rather than in the request. An `.xlsx` or
+`.xlsm` file has children: listing it opens the workbook once and answers with
+one node per worksheet, in workbook order, each declaring the `table`
+representation. `FetchRequest` keeps its single opaque `node_id`, and no
+generic contract learns that one file can hold several tables — which is what
+the old `sheet_title` parameter and its `sheets_names` reply did to every
+caller.
+
+`dataset` is the node kind for a tabular member of a container file. It is
+deliberately not a `file`: it has no bytes of its own, and rename, delete and
+download are ruled out by the kind their `applies_to` already names, without a
+second rule. Its id is the workbook's id plus the sheet's one-based position
+among the worksheets — a position, because a sheet title is written by a person
+and need not survive the containment rule of D8, which judges every segment of
+a node id. A node id is split at most once, and only when the whole of it names
+nothing on disk, so a directory named `book.xlsx` holding a file named `1`
+keeps its ordinary meaning.
+
+A Parquet file is one dataset in one file, so it stays a `file` node that
+declares `table`.
+
+Both answer `relation-model` with their declared columns, and what only their
+format knows travels typed in `RelationModel.dataset`: a discriminated union
+whose Parquet member states rows, row groups, compression codecs, writer and
+format version, and whose worksheet member states the sheet's title, position,
+sibling count, hidden state and declared used range. Which node can be
+described is now said by the source in `CatalogNode.describable` instead of
+being decided by the client from the node's kind. Four fields of the relation
+model are relational vocabulary a file does not have — `schema_name`, `owner`,
+`persistence` and `Column.storage` — and they are absent rather than filled
+with something plausible; `RelationKind` gains `dataset`.
+
+Nothing reads a whole file to answer a bounded question. A Parquet page is read
+from the row groups it falls in, located through the footer, so groups before
+the offset are never decompressed. A worksheet streams through the read-only
+iterator and stops one row past the page. Because XLSX is a zip, the central
+directory is read before anything else and a workbook declaring more
+uncompressed bytes than the ceiling is refused before a byte is inflated:
+64 MB encoded, 512 MB declared, 10,000 entries, and 1024 columns for either
+format.
+
+Values cross the boundary through the same `encode_cell` PostgreSQL rows use,
+which moved to `adapters/cells.py`: the canonical text of a boolean, a
+timestamp or a byte string is not a property of one driver. Parquet columns
+keep their declared types; worksheet columns are text for the reason a CSV's
+are — Excel types cells, not columns, so a type read off one page would change
+with the page.
+
+Known deviations:
+
+- **A formula cell shows the value the spreadsheet last saved.** The workbook
+  is opened with `data_only=True`; a file written by a program that never
+  evaluated its formulas has empty cells there, and no formula engine is run to
+  fill them.
+- **Paging deep into a sheet walks the rows before it.** XLSX has no row index,
+  so the tenth page costs ten pages of iteration.
+- **`.xls` is not read.** The legacy binary format is a different container and
+  needs a different library; it stays opaque and downloadable.
+- **A sheet's node id follows its position, not its title.** Reordering the
+  sheets of an open workbook changes what a reopened tab shows.
+- **Merged ranges, formatting and formulas are not carried.** The grid shows
+  rows; a spreadsheet viewer is a different screen.
+- **A directory of Parquet part files is a directory.** One dataset over many
+  files needs a decision about schema unification that this slice does not
+  take.
+- **The page reads every column.** Parquet can prune columns, but the grid's
+  visible-column choice does not yet reach the reader.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

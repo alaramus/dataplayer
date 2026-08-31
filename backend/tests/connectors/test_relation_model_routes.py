@@ -1,5 +1,6 @@
 import uuid
 
+import pytest
 from httpx import AsyncClient
 
 from app.core.config import settings
@@ -68,16 +69,73 @@ async def test_a_relation_that_is_gone_is_not_a_failure(
     assert response.status_code == 404
 
 
+@pytest.mark.usefixtures("isolated_registry")
 async def test_a_source_without_relations_says_so(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
+    """Describing is optional, and a source that cannot must not fake one.
+
+    Written against a source with no capability at all: both real adapters
+    describe something now, the file one since D51, so the capability-level
+    answer needs a source that has none.
+    """
+    from pydantic import BaseModel
+
+    from app.adapters import registry
+    from app.adapters.protocol import ConnectionCheckResult
+
+    class PingOptions(BaseModel):
+        url: str
+
+    class PingAdapter:
+        def __init__(
+            self, options: PingOptions, _context: registry.AdapterContext
+        ) -> None:
+            self.options = options
+
+        async def check_connection(self) -> ConnectionCheckResult:
+            return ConnectionCheckResult(ok=True, message="pong", latency_ms=1)
+
+    registry.register(
+        name="ping",
+        title="Ping",
+        category="sql",
+        description="A source that can only be reached.",
+        options_schema=PingOptions,
+        adapter_class=PingAdapter,
+    )(PingAdapter)
+
+    created = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={
+            "name": f"ping {uuid.uuid4()}",
+            "adapter_type": "ping",
+            "options": {"url": "https://example.com"},
+        },
+    )
+    assert created.status_code == 200
+
+    response = await client.get(
+        f"{BASE}/{created.json()['id']}/relation-model",
+        params={"node_id": "anything"},
+        headers=normal_user_token_headers,
+    )
+
+    assert response.status_code == 501
+
+
+async def test_a_file_node_that_is_not_there_is_not_found(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """A file source describes datasets, so a missing node is a node answer."""
     connector_id = await _file_connector(client, normal_user_token_headers)
     response = await client.get(
         f"{BASE}/{connector_id}/relation-model",
         params={"node_id": "anything"},
         headers=normal_user_token_headers,
     )
-    assert response.status_code == 501
+    assert response.status_code == 404
 
 
 async def test_a_source_without_column_changes_says_so(

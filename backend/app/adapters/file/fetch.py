@@ -5,14 +5,15 @@ adding a format without a reader fails type checking. The old application
 branched on the extension in six places inside one method.
 """
 
-from pathlib import Path
-from typing import assert_never
+from typing import Literal, assert_never
 
 from anyio import to_thread
 
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.file import parquet, workbook
 from app.adapters.file.binary import looks_binary
 from app.adapters.file.formats import format_of
+from app.adapters.file.members import ResolvedNode, resolve_node
 from app.adapters.file.readers import (
     CsvReader,
     JsonTableReader,
@@ -25,6 +26,8 @@ from app.adapters.file.session import FileSession
 CSV_READER = CsvReader()
 TEXT_READER = TextReader()
 JSON_TABLE_READER = JsonTableReader()
+
+TextualFormat = Literal["delimited", "json", "jsonl", "text"]
 
 
 class FileFetch:
@@ -40,8 +43,9 @@ class FileFetch:
         if request.filters:
             raise ValueError("This source cannot filter rows")
 
-        path = self._session.resolve(request.node_id)
-        page = await to_thread.run_sync(self._read, path, request)
+        # One hop into the worker thread, resolution included: deciding what a
+        # node id names asks the filesystem, which blocks like the read does.
+        page = await to_thread.run_sync(self._read, request)
         return FetchResult(
             columns=page.columns,
             rows=page.rows,
@@ -52,28 +56,53 @@ class FileFetch:
             delete_reason="This source is read-only",
         )
 
-    def _read(self, path: Path, request: FetchRequest) -> Page:
+    def _read(self, request: FetchRequest) -> Page:
+        resolved = resolve_node(self._session, request.node_id)
+        if resolved.member is not None:
+            return self._sheet(resolved, request)
+
+        path = resolved.path
         if not path.exists():
             raise ValueError(f"No such file: {request.node_id}")
         if path.is_dir():
             raise ValueError(f"A directory cannot be read as rows: {request.node_id}")
 
-        reader = _reader_for(path, request.node_id)
-        if looks_binary(path):
-            # Classification goes by name; the bytes get the last word.
-            raise ValueError(f"This file is binary: {request.node_id}")
-        return reader.read(path, request.limit, request.offset)
+        match format_of(path.name):
+            case "parquet":
+                # Binary by nature, so the sniff below would refuse it. Its own
+                # magic bytes are what the footer read checks instead.
+                return parquet.read_page(path, request.limit, request.offset)
+            case "workbook":
+                raise ValueError(
+                    f"A workbook is read one sheet at a time: {request.node_id}"
+                )
+            case "delimited" | "json" | "jsonl" | "text" as textual:
+                if looks_binary(path):
+                    # Classification goes by name; the bytes get the last word.
+                    raise ValueError(f"This file is binary: {request.node_id}")
+                return _reader_for(textual).read(path, request.limit, request.offset)
+            case "markdown" | "image" | "opaque":
+                raise ValueError(f"This file cannot be read as rows: {request.node_id}")
+            case unreachable:
+                assert_never(unreachable)
+
+    def _sheet(self, resolved: ResolvedNode, request: FetchRequest) -> Page:
+        """One page of one worksheet, named by the member part of the id."""
+        member = resolved.member
+        if member is None or not member.isdigit():  # pragma: no cover - defensive
+            raise ValueError(f"No such sheet: {request.node_id}")
+        return workbook.read_page(
+            resolved.path, int(member), request.limit, request.offset
+        )
 
 
-def _reader_for(path: Path, node_id: str) -> Reader:
-    match format_of(path.name):
+def _reader_for(file_format: TextualFormat) -> Reader:
+    match file_format:
         case "delimited":
             return CSV_READER
         case "json" | "jsonl":
             return JSON_TABLE_READER
         case "text":
             return TEXT_READER
-        case "markdown" | "image" | "opaque":
-            raise ValueError(f"This file cannot be read as rows: {node_id}")
         case unreachable:
             assert_never(unreachable)
