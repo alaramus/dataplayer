@@ -2,19 +2,30 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 RepresentationKind = Literal[
-    "table", "text", "json", "jsonl", "image", "markdown"
+    "table", "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf"
 ]
 ContentRepresentationKind = Literal[
-    "text", "json", "jsonl", "image", "markdown"
+    "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf"
 ]
+# The representations whose bytes a client reads through the ranged transport
+# of D52 rather than holding whole.
+StreamableRepresentationKind = Literal["audio", "video", "pdf"]
 EditorValidationKind = Literal["json", "jsonl"]
 ImageMediaType = Literal["image/png", "image/jpeg"]
+# Closed sets, because each one is a promise about bytes the source verified.
+AudioMediaType = Literal[
+    "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/flac"
+]
+VideoMediaType = Literal[
+    "video/mp4", "video/webm", "video/ogg", "video/quicktime"
+]
 
 
 class NodeRepresentation(BaseModel):
@@ -219,6 +230,74 @@ class ImageContent(BaseModel):
     preview_url: str | None = None
 
 
+class AudioContent(BaseModel):
+    """Verified facts about one sound file, and where its bytes are read.
+
+    What the container states and nothing more: a duration the header does not
+    carry is absent rather than estimated, and whether this browser can play
+    the codecs inside is the browser's answer (D52).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["audio"] = "audio"
+    filename: str = Field(min_length=1)
+    media_type: AudioMediaType
+    size_bytes: int = Field(ge=0)
+    duration_seconds: float | None = Field(default=None, ge=0)
+    channels: int | None = Field(default=None, ge=1)
+    sample_rate: int | None = Field(default=None, ge=1)
+    # Minted by the transport after the source has verified the container.
+    stream_url: str | None = None
+
+
+class VideoContent(BaseModel):
+    """Verified facts about one recording, and where its bytes are read."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["video"] = "video"
+    filename: str = Field(min_length=1)
+    media_type: VideoMediaType
+    size_bytes: int = Field(ge=0)
+    duration_seconds: float | None = Field(default=None, ge=0)
+    width: int | None = Field(default=None, ge=1)
+    height: int | None = Field(default=None, ge=1)
+    stream_url: str | None = None
+
+
+class PdfContent(BaseModel):
+    """A verified PDF, which the application draws rather than the browser."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["pdf"] = "pdf"
+    filename: str = Field(min_length=1)
+    media_type: Literal["application/pdf"] = "application/pdf"
+    size_bytes: int = Field(ge=0)
+    # As the header spells it, "1.7" or "2.0". A file that states none is not
+    # a PDF this source serves.
+    version: str = Field(min_length=1)
+    stream_url: str | None = None
+
+
+@dataclass(frozen=True)
+class ContentStream:
+    """Bytes a caller reads part of, after the source has verified them.
+
+    Separate from `BoundedContentPreview`, which is bytes already held whole:
+    a recording is asked for by range, and the range is decided by the
+    transport once it knows the size — so the reader is a function of two
+    offsets rather than one iterator (D52).
+    """
+
+    media_type: str
+    filename: str
+    size_bytes: int
+    # Inclusive offsets, as HTTP names them.
+    read: Callable[[int, int], AsyncIterator[bytes]]
+
+
 @dataclass(frozen=True)
 class BoundedContentPreview:
     """Verified bytes for one inline preview, already below its hard bound."""
@@ -231,9 +310,21 @@ class BoundedContentPreview:
 
 
 ContentResult = Annotated[
-    TextContent | MarkdownContent | JsonContent | JsonLinesContent | ImageContent,
+    TextContent
+    | MarkdownContent
+    | JsonContent
+    | JsonLinesContent
+    | ImageContent
+    | AudioContent
+    | VideoContent
+    | PdfContent,
     Field(discriminator="kind"),
 ]
+
+# The results whose bytes arrive through the ranged route rather than in the
+# answer itself. One tuple, so the route that mints a ticket and the test that
+# checks every streamable representation cannot drift apart.
+STREAMED_CONTENT = (AudioContent, VideoContent, PdfContent)
 
 
 # Resolve the recursive aliases after every class participating in them exists.

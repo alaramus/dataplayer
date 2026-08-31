@@ -12,8 +12,11 @@ import asyncio
 import base64
 import json
 import logging
+import math
+import struct
 import sys
 import uuid
+import wave
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -27,10 +30,70 @@ logger = logging.getLogger(__name__)
 # More than one page of the default size, so paging is exercised.
 SAMPLE_ROWS = 250
 
+SAMPLE_RATE = 8000
+SAMPLE_PDF_PAGES = [
+    [
+        "DataPlayer",
+        "",
+        "This document exists so the PDF viewer has something to draw.",
+        "It is rendered by the application rather than by the browser's",
+        "own viewer, so nothing in it can run.",
+    ],
+    [
+        "Page two",
+        "",
+        "Pages are drawn as they are scrolled to.",
+    ],
+]
+
 # One real 1×1 PNG: the viewer verifies bytes, so a signature followed by
 # sample text would advertise an image that correctly refuses to open.
 SAMPLE_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
+
+# Two seconds of real H.264 in an MP4, for the same reason the PNG is real: a
+# hand-built container verifies and then fails in the player, which is a worse
+# sample than none. 1.8 KB, encoded here because nothing binary is committed.
+SAMPLE_MP4 = base64.b64decode(
+    "".join(
+        [
+    "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAANkbW9vdgAAAGxtdmhkAAAAAAAA"
+    "AAAAAAAAAAAD6AAAB9AAAQAAAQAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAA"
+    "AAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAo50cmFrAAAAXHRr"
+    "aGQAAAADAAAAAAAAAAAAAAABAAAAAAAAB9AAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAA"
+    "AAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAKAAAAB4AAAAAAAkZWR0cwAAABxlbHN0AAAAAAAA"
+    "AAEAAAfQAAAAAAABAAAAAAIGbWRpYQAAACBtZGhkAAAAAAAAAAAAAAAAAABAAAAAgABVxAAA"
+    "AAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABsW1pbmYA"
+    "AAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAA"
+    "AQAAAXFzdGJsAAAAuXN0c2QAAAAAAAAAAQAAAKlhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAA"
+    "AAAAAKAAeABIAAAASAAAAAAAAAABFUxhdmM2Mi4yOC4xMDIgbGlieDI2NAAAAAAAAAAAAAAA"
+    "GP//AAAAL2F2Y0MBQsAe/+EAF2dCwB7ZAoR+XARAAAADAEAAAAQDxYuSAQAFaMuDyyAAAAAQ"
+    "cGFzcAAAAAEAAAABAAAAFGJ0cnQAAAAAAAANrAAAAAAAAAAYc3R0cwAAAAAAAAABAAAAEAAA"
+    "CAAAAAAUc3RzcwAAAAAAAAABAAAAAQAAABxzdHNjAAAAAAAAAAEAAAABAAAAEAAAAAEAAABU"
+    "c3RzegAAAAAAAAAAAAAAEAAAAskAAAALAAAACwAAAAsAAAALAAAACwAAAAsAAAALAAAACwAA"
+    "AAsAAAALAAAACwAAAAsAAAAKAAAACgAAAAoAAAAUc3RjbwAAAAAAAAABAAADlAAAAGJ1ZHRh"
+    "AAAAWm1ldGEAAAAAAAAAIWhkbHIAAAAAAAAAAG1kaXJhcHBsAAAAAAAAAAAAAAAALWlsc3QA"
+    "AAAlqXRvbwAAAB1kYXRhAAAAAQAAAABMYXZmNjIuMTIuMTAyAAAACGZyZWUAAANzbWRhdAAA"
+    "AnAGBf//bNxF6b3m2Ui3lizYINkj7u94MjY0IC0gY29yZSAxNjUgcjMyMjMgMDQ4MGNiMCAt"
+    "IEguMjY0L01QRUctNCBBVkMgY29kZWMgLSBDb3B5bGVmdCAyMDAzLTIwMjUgLSBodHRwOi8v"
+    "d3d3LnZpZGVvbGFuLm9yZy94MjY0Lmh0bWwgLSBvcHRpb25zOiBjYWJhYz0wIHJlZj0zIGRl"
+    "YmxvY2s9MTowOjAgYW5hbHlzZT0weDE6MHgxMTEgbWU9aGV4IHN1Ym1lPTcgcHN5PTEgcHN5"
+    "X3JkPTEuMDA6MC4wMCBtaXhlZF9yZWY9MSBtZV9yYW5nZT0xNiBjaHJvbWFfbWU9MSB0cmVs"
+    "bGlzPTEgOHg4ZGN0PTAgY3FtPTAgZGVhZHpvbmU9MjEsMTEgZmFzdF9wc2tpcD0xIGNocm9t"
+    "YV9xcF9vZmZzZXQ9LTIgdGhyZWFkcz00IGxvb2thaGVhZF90aHJlYWRzPTEgc2xpY2VkX3Ro"
+    "cmVhZHM9MCBucj0wIGRlY2ltYXRlPTEgaW50ZXJsYWNlZD0wIGJsdXJheV9jb21wYXQ9MCBj"
+    "b25zdHJhaW5lZF9pbnRyYT0wIGJmcmFtZXM9MCB3ZWlnaHRwPTAga2V5aW50PTI1MCBrZXlp"
+    "bnRfbWluPTggc2NlbmVjdXQ9NDAgaW50cmFfcmVmcmVzaD0wIHJjX2xvb2thaGVhZD00MCBy"
+    "Yz1jcmYgbWJ0cmVlPTEgY3JmPTIzLjAgcWNvbXA9MC42MCBxcG1pbj0wIHFwbWF4PTY5IHFw"
+    "c3RlcD00IGlwX3JhdGlvPTEuNDAgYXE9MToxLjAwAIAAAABRZYiEBDxGKAAJEscAATgo4AAk"
+    "lycnJycnJycnJ11111111111111111111111111111111111111111111111111111111111"
+    "111111111114AAAAB0GaOAh4FGAAAAAHQZpUAh4FGAAAAAdBmmAQ8CjAAAAAB0GagBDwKMAA"
+    "AAAHQZqgEPAowAAAAAdBmsAQ8CjAAAAAB0Ga4BDwKMAAAAAHQZsAEPAowAAAAAdBmyAQ8CjA"
+    "AAAAB0GbQBDwKMAAAAAHQZtgEPAowAAAAAdBm4AQ8CjAAAAABkGboD/AowAAAAZBm8A/wKMA"
+    "AAAGQZvgO8Cj"
+        ]
+    )
 )
 
 
@@ -152,6 +215,7 @@ def write_samples(home: Path) -> None:
     (home / "guide.md").write_text(SAMPLE_MARKDOWN, encoding="utf-8")
 
     _write_dataset_samples(home)
+    _write_media_samples(home)
 
     reports = home / "reports"
     reports.mkdir(exist_ok=True)
@@ -206,6 +270,81 @@ def _write_dataset_samples(home: Path) -> None:
     hidden.append(["not for the report"])
     hidden.sheet_state = "hidden"
     book.save(home / "budget.xlsx")
+
+
+def _write_media_samples(home: Path) -> None:
+    """A sound file, a recording and a document, for the viewers of D52."""
+    with wave.open(str(home / "tone.wav"), "wb") as sound:
+        sound.setnchannels(1)
+        sound.setsampwidth(2)
+        sound.setframerate(SAMPLE_RATE)
+        sound.writeframes(_tone(seconds=2, hertz=440))
+    (home / "clip.mp4").write_bytes(SAMPLE_MP4)
+    (home / "guide.pdf").write_bytes(_pdf(SAMPLE_PDF_PAGES))
+
+
+def _tone(*, seconds: int, hertz: int) -> bytes:
+    """A sine wave, so the sample is something a person can hear."""
+    frames = bytearray()
+    for index in range(seconds * SAMPLE_RATE):
+        value = int(12000 * math.sin(2 * math.pi * hertz * index / SAMPLE_RATE))
+        frames += struct.pack("<h", value)
+    return bytes(frames)
+
+
+def _pdf(pages: list[list[str]]) -> bytes:
+    """A real PDF of a few lines a page, written out object by object.
+
+    Small enough to keep here and honest enough for the viewer to draw: the
+    cross-reference table is computed from the offsets, as a reader expects.
+    """
+    objects: list[bytes] = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"",  # the page tree, once the page objects are numbered
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    kids: list[str] = []
+    for lines in pages:
+        content = "BT /F1 16 Tf 72 760 Td 20 TL\n"
+        content += "".join(f"({line}) Tj T*\n" for line in lines)
+        content += "ET"
+        stream = content.encode("ascii")
+        objects.append(
+            b"<< /Length " + str(len(stream)).encode() + b" >>\nstream\n"
+            + stream
+            + b"\nendstream"
+        )
+        page_number = len(objects) + 1
+        objects.append(
+            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+            b"/Resources << /Font << /F1 3 0 R >> >> /Contents "
+            + str(page_number - 1).encode()
+            + b" 0 R >>"
+        )
+        kids.append(f"{page_number} 0 R")
+    objects[1] = (
+        b"<< /Type /Pages /Kids [" + " ".join(kids).encode() + b"] /Count "
+        + str(len(pages)).encode()
+        + b" >>"
+    )
+
+    out = bytearray(b"%PDF-1.7\n")
+    offsets: list[int] = []
+    for number, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += str(number).encode() + b" 0 obj\n" + body + b"\nendobj\n"
+    start = len(out)
+    out += b"xref\n0 " + str(len(objects) + 1).encode() + b"\n"
+    out += b"0000000000 65535 f \n"
+    for offset in offsets:
+        out += f"{offset:010d} 00000 n \n".encode()
+    out += (
+        b"trailer\n<< /Size " + str(len(objects) + 1).encode()
+        + b" /Root 1 0 R >>\nstartxref\n"
+        + str(start).encode()
+        + b"\n%%EOF\n"
+    )
+    return bytes(out)
 
 
 def remove_orphan_homes(*, keep: set[uuid.UUID]) -> list[uuid.UUID]:

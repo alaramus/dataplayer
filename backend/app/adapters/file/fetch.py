@@ -81,7 +81,7 @@ class FileFetch:
                     # Classification goes by name; the bytes get the last word.
                     raise ValueError(f"This file is binary: {request.node_id}")
                 return _reader_for(textual).read(path, request.limit, request.offset)
-            case "markdown" | "image" | "opaque":
+            case "markdown" | "image" | "audio" | "video" | "pdf" | "opaque":
                 raise ValueError(f"This file cannot be read as rows: {request.node_id}")
             case unreachable:
                 assert_never(unreachable)
@@ -89,7 +89,7 @@ class FileFetch:
     def _sheet(self, resolved: ResolvedNode, request: FetchRequest) -> Page:
         """One page of one worksheet, named by the member part of the id."""
         member = resolved.member
-        if member is None or not member.isdigit():  # pragma: no cover - defensive
+        if member is None or not member.isdigit():
             raise ValueError(f"No such sheet: {request.node_id}")
         return workbook.read_page(
             resolved.path, int(member), request.limit, request.offset

@@ -203,6 +203,50 @@ export type AddColumnRequest = {
 }
 
 /**
+ * AudioContent
+ *
+ * Verified facts about one sound file, and where its bytes are read.
+ *
+ * What the container states and nothing more: a duration the header does not
+ * carry is absent rather than estimated, and whether this browser can play
+ * the codecs inside is the browser's answer (D52).
+ */
+export type AudioContent = {
+  /**
+   * Kind
+   */
+  kind?: "audio"
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Media Type
+   */
+  media_type: "audio/mpeg" | "audio/wav" | "audio/ogg" | "audio/mp4" | "audio/flac"
+  /**
+   * Size Bytes
+   */
+  size_bytes: number
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null
+  /**
+   * Channels
+   */
+  channels?: number | null
+  /**
+   * Sample Rate
+   */
+  sample_rate?: number | null
+  /**
+   * Stream Url
+   */
+  stream_url?: string | null
+}
+
+/**
  * Body_connectors-run_action_with_file
  */
 export type Body_connectors_run_action_with_file = {
@@ -824,7 +868,7 @@ export type ContentRequest = {
   /**
    * Representation
    */
-  representation: "text" | "json" | "jsonl" | "image" | "markdown"
+  representation: "text" | "json" | "jsonl" | "image" | "markdown" | "audio" | "video" | "pdf"
   /**
    * Limit
    */
@@ -2140,7 +2184,7 @@ export type NodeRepresentation = {
   /**
    * Kind
    */
-  kind: "table" | "text" | "json" | "jsonl" | "image" | "markdown"
+  kind: "table" | "text" | "json" | "jsonl" | "image" | "markdown" | "audio" | "video" | "pdf"
   /**
    * Title
    */
@@ -2291,6 +2335,38 @@ export type Partitioning = {
    * Key
    */
   key: string
+}
+
+/**
+ * PdfContent
+ *
+ * A verified PDF, which the application draws rather than the browser.
+ */
+export type PdfContent = {
+  /**
+   * Kind
+   */
+  kind?: "pdf"
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Media Type
+   */
+  media_type?: "application/pdf"
+  /**
+   * Size Bytes
+   */
+  size_bytes: number
+  /**
+   * Version
+   */
+  version: string
+  /**
+   * Stream Url
+   */
+  stream_url?: string | null
 }
 
 /**
@@ -3112,6 +3188,46 @@ export type ValidationError = {
   ctx?: {
     [key: string]: unknown
   }
+}
+
+/**
+ * VideoContent
+ *
+ * Verified facts about one recording, and where its bytes are read.
+ */
+export type VideoContent = {
+  /**
+   * Kind
+   */
+  kind?: "video"
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Media Type
+   */
+  media_type: "video/mp4" | "video/webm" | "video/ogg" | "video/quicktime"
+  /**
+   * Size Bytes
+   */
+  size_bytes: number
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null
+  /**
+   * Width
+   */
+  width?: number | null
+  /**
+   * Height
+   */
+  height?: number | null
+  /**
+   * Stream Url
+   */
+  stream_url?: string | null
 }
 
 /**
@@ -4026,6 +4142,15 @@ export type connectorsReadContentResponses = {
     | ({
         kind: "image"
       } & ImageContent)
+    | ({
+        kind: "audio"
+      } & AudioContent)
+    | ({
+        kind: "video"
+      } & VideoContent)
+    | ({
+        kind: "pdf"
+      } & PdfContent)
 }
 
 export type connectorsReadContentResponse =

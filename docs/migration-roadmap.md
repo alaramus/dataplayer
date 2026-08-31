@@ -373,9 +373,33 @@ was asked to delete an already deleted row and rightly refused.
   agent wrote — `summary`, `decision`, `risk` and six more — is drawn as a card
   with its fields laid out. Video embeds stay out: a `component:YouTubePlayer`
   fence is left as code.
-- [ ] Add bounded audio, video and PDF viewers. Their bytes use D49's dedicated
+- [x] Add bounded audio, video and PDF viewers. Their bytes use D49's dedicated
   content path and trustworthy metadata; audio and video first need a range
   contract, and PDF needs an isolation/rendering decision.
+  D52 settles both. The range contract is a capability of its own —
+  `SupportsContentStream` answers with the verified media type, the size and a
+  reader over two offsets, and the HTTP of `206`, `416` and `Accept-Ranges`
+  belongs to the route, which is what lets a player ask for the end of an MP4
+  before it asks for the beginning. Metadata is trustworthy because the
+  container is parsed rather than the suffix believed: an exact duration from a
+  WAV and a FLAC, duration and picture size from an MP4 whose index may sit at
+  the end, and a refusal where the bytes are not what the name promised. The
+  isolation decision is that a PDF is drawn by the application with `pdf.js` —
+  canvas plus a text layer, no annotations, no forms, no scripting — rather
+  than handed to the browser's own viewer, which understands all three. A
+  stream ticket lives an hour rather than a minute, because a recording is
+  seeked over its own length and every seek is a new request.
+  Validated on 2026-08-31: the whole backend suite, mypy, ruff, import
+  contracts, frontend type check, lint, unit tests, production build, the
+  documentation check and the whole end-to-end suite, then read in the browser
+  — the WAV plays, the MP4 plays to its end, and the PDF draws its page and
+  its text. Three things came out of that reading. The plan named an
+  `isEvalSupported: false` option that version 6 of the renderer no longer has,
+  so the decision was corrected to what actually holds; a page was laid out one
+  scrollbar too wide, and the panel now re-fits itself when its room changes,
+  which is also what a document opened behind another tab needs; and the first
+  page is drawn without waiting to be scrolled to, because intersection is
+  delivered only while the browser paints.
 - [ ] Add archive browsing only after containment, decompression limits and
   symlink behaviour are specified.
 
@@ -642,9 +666,9 @@ end-to-end suite.
 
 ## Next session
 
-Parquet and workbook datasets are complete and validated. Resume with bounded
-audio, video and PDF viewers: their bytes use D49's dedicated content path and
-trustworthy metadata, audio and video first need a range contract, and PDF
-needs an isolation and rendering decision. Archive browsing follows, and only
-after containment, decompression limits and symlink behaviour are specified —
-D51's member ids are the shape an archive's entries would reuse.
+The media and PDF viewers are complete and validated. Resume with archive
+browsing, the last item of 1.4, and specify containment, decompression limits
+and symlink behaviour before implementing it: an archive's entries are members
+of a file, which is the shape D51 gave a workbook's sheets, and its bytes are
+the ranged stream of D52. After 1.4 the phase closes with 1.5, the inventory of
+PostgreSQL-specific operations in the old adapter.

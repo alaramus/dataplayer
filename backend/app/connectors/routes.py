@@ -4,7 +4,16 @@ from collections.abc import Awaitable, Callable
 from typing import Annotated, Any, cast
 
 from anyio import to_thread
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from pydantic import BaseModel, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.responses import FileResponse, StreamingResponse
@@ -54,6 +63,7 @@ from app.adapters.constraints import (
     DropConstraintRequest,
 )
 from app.adapters.content import (
+    STREAMED_CONTENT,
     ContentConflict,
     ContentRequest,
     ContentResult,
@@ -94,6 +104,7 @@ from app.adapters.protocol import (
     SupportsContent,
     SupportsContentEdit,
     SupportsContentPreview,
+    SupportsContentStream,
     SupportsDelete,
     SupportsDropColumn,
     SupportsExport,
@@ -132,6 +143,7 @@ from app.connectors import (
     downloads,
     health,
     imports,
+    ranges,
     service,
 )
 from app.connectors.models import (
@@ -372,7 +384,9 @@ async def preview_content_file(
 ) -> Response:
     """Redeem one short-lived inline-preview ticket."""
     claims = content_tickets.read_content_ticket(ticket)
-    if claims is None:
+    # The purpose is checked, not merely the signature: a ticket minted for the
+    # ranged route of D52 is not authority for bytes held whole.
+    if not isinstance(claims, content_tickets.ImagePreviewClaims):
         raise HTTPException(status_code=404, detail="Content not found")
     user = await session.get(User, claims.user_id)
     if user is None or not user.is_active:
@@ -414,6 +428,89 @@ async def preview_content_file(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         ) from exc
+
+
+@router.get("/content-streams/{ticket}", include_in_schema=False)
+async def stream_content_file(
+    session: SessionDep,
+    resources: ResourcesDep,
+    ticket: str,
+    request: Request,
+) -> Response:
+    """Redeem one short-lived stream ticket, answering `Range` (D52).
+
+    The HTTP is here and the bytes are the source's: one range is parsed
+    against the size the source states, and the source is asked only for the
+    bytes between two offsets. A player asks for the end of a file before it
+    asks for the beginning, so an answer of the whole body every time would
+    mean downloading a recording to hear its last second.
+    """
+    claims = content_tickets.read_content_ticket(ticket)
+    if not isinstance(claims, content_tickets.ContentStreamClaims):
+        raise HTTPException(status_code=404, detail="Content not found")
+    user = await session.get(User, claims.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=404, detail="Content not found")
+
+    adapter = await _adapter_for(
+        session, claims.connector_id, user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsContentStream):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not stream content",
+                "error_kind": "config",
+            },
+        )
+    try:
+        stream = await adapter.open_content_stream(
+            ContentRequest(
+                node_id=claims.node_id, representation=claims.representation
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Content not found") from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+    headers = {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "private, no-store",
+        "Content-Disposition": content_tickets.content_disposition(
+            stream.filename, inline=True
+        ),
+        "X-Content-Type-Options": "nosniff",
+    }
+    try:
+        wanted = ranges.parse_range(
+            request.headers.get("range"), stream.size_bytes
+        )
+    except ranges.UnsatisfiableRange:
+        headers["Content-Range"] = f"bytes */{stream.size_bytes}"
+        raise HTTPException(
+            status_code=416, detail="Requested range not satisfiable", headers=headers
+        ) from None
+
+    if wanted is None:
+        return StreamingResponse(
+            stream.read(0, max(stream.size_bytes - 1, 0)),
+            media_type=stream.media_type,
+            headers={**headers, "Content-Length": str(stream.size_bytes)},
+        )
+    return StreamingResponse(
+        stream.read(wanted.start, wanted.end),
+        status_code=206,
+        media_type=stream.media_type,
+        headers={
+            **headers,
+            "Content-Length": str(wanted.length),
+            "Content-Range": wanted.content_range(stream.size_bytes),
+        },
+    )
 
 
 @router.get("/action-downloads/{ticket}", include_in_schema=False)
@@ -867,13 +964,32 @@ async def read_content(
                     },
                 )
             ticket = content_tickets.issue_content_ticket(
-                purpose="image_preview",
                 user_id=current_user.id,
                 connector_id=connector_id,
                 node_id=request.node_id,
             )
             return result.model_copy(
                 update={"preview_url": content_tickets.content_ticket_url(ticket)}
+            )
+        if isinstance(result, STREAMED_CONTENT):
+            if not isinstance(adapter, SupportsContentStream):
+                raise HTTPException(
+                    status_code=501,
+                    detail={
+                        "message": "This source does not stream content",
+                        "error_kind": "config",
+                    },
+                )
+            stream_ticket = content_tickets.issue_stream_ticket(
+                representation=result.kind,
+                user_id=current_user.id,
+                connector_id=connector_id,
+                node_id=request.node_id,
+            )
+            return result.model_copy(
+                update={
+                    "stream_url": content_tickets.content_stream_url(stream_ticket)
+                }
             )
         return result
     except ValueError as exc:

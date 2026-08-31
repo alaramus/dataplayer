@@ -25,6 +25,7 @@ from app.adapters.content import (
     BoundedContentPreview,
     ContentRequest,
     ContentResult,
+    ContentStream,
     ContentUpdated,
     EditorContent,
     EditorContentRequest,
@@ -189,6 +190,19 @@ class SupportsContentPreview(Protocol):
         self, request: ContentRequest
     ) -> BoundedContentPreview:
         """Return verified bytes already below the representation's hard bound."""
+        ...
+
+
+@runtime_checkable
+class SupportsContentStream(Protocol):
+    async def open_content_stream(self, request: ContentRequest) -> ContentStream:
+        """Verify a node's bytes and answer with a reader over byte ranges.
+
+        Separate from `SupportsContentPreview`, which returns bytes already
+        held whole: a recording is asked for by range and is never held (D52).
+        Raises ValueError when the node or representation cannot be streamed
+        and AdapterError for source failures.
+        """
         ...
 
 

@@ -5,7 +5,7 @@ do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
 D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36, D37, D38, D39,
-D40, D41, D42, D43, D44, D47, D48, D49, D51.
+D40, D41, D42, D43, D44, D47, D48, D49, D51, D52.
 
 ## What exists today
 
@@ -1197,6 +1197,60 @@ Known deviations:
 - **The JSON and JSONL bounded viewers remain API-only.** Image makes the
   content boundary visible again, but a large-document fallback still needs a
   screen that does not imply a partial document is editable.
+
+## D52. Bytes a player seeks in are a ranged stream, and a PDF is drawn by the application
+
+D49's preview returns verified bytes whole, which is right for an image and
+wrong for a recording: a player asks for the end of an MP4 first, because that
+is where its index may be, and a browser that gets no answer to `Range` will
+not seek and may not play.
+
+`SupportsContentStream` is the capability for that: `open_content_stream`
+answers with the verified media type, the filename, the exact size and a reader
+over an inclusive byte range. It is separate from `SupportsContentPreview`, and
+a source may have either. The HTTP belongs to the route — one `Range` parsed,
+`206` with `Content-Range`, `200` for no range or a multi-range request, `416`
+with `bytes */size` for a range outside the file, and `Accept-Ranges: bytes`
+always. Nothing about ranges reaches the adapter and nothing about files
+reaches the route. Authority is D49's ticket, because a media element cannot
+send a header, and the ticket now names the representation it was minted for,
+so one for a sound file cannot be redeemed for a video.
+
+The media type is what the container proves, never what the suffix suggests.
+Verification is a bounded header read with no third-party decoder: an ID3 tag
+or frame sync for MP3; `RIFF`/`WAVE` with the `fmt ` and `data` chunks for WAV,
+which give channels, sample rate and an exact duration; `fLaC` with STREAMINFO,
+which gives an exact duration too; `OggS` for Ogg; `ftyp` for ISO base media,
+whose top-level boxes are walked by their sizes until `moov`, where `mvhd`
+states the duration and `tkhd` the picture size; the EBML header read to its
+`DocType` for Matroska; and `%PDF-` within the first kilobyte for PDF. What a
+container does not state is absent rather than guessed, and whether a browser
+can play the codecs inside is the browser's answer, shown when it fails.
+
+A PDF is rendered by the application with `pdf.js` — pages to a canvas, no
+annotation layer, no forms and no scripting manager wired — and not handed to
+the browser's own viewer, which understands all of those. The one
+thing besides pixels that reaches the DOM is the text layer, which is text
+nodes positioned over the page, so selection and the browser's find work
+without markup crossing. Pages render as they are scrolled to, and `pdf.js`
+reads the file through the same ranged route.
+
+Known deviations:
+
+- **A stream has no byte ceiling.** It is ranged and chunked, so what is held
+  is one chunk; a ceiling would forbid what costs nothing to serve. Concurrent
+  streams are not pooled per user, as archive staging is not (D49).
+- **Codecs are not verified, only containers.** A file whose container is
+  sound and whose codec this browser lacks fails in the player, and the panel
+  shows that failure rather than predicting it.
+- **Duration is absent for Matroska and Ogg.** Both keep it where a demuxer
+  reads, not in a header this slice parses.
+- **No posters, waveforms, captions or chapters**, and no transcoding: each is
+  a decode or a second contract between two nodes.
+- **AVI has no viewer.** No browser plays it; it stays downloadable, like every
+  other opaque file.
+- **A PDF shows no annotations, links or forms.** They are the active part of
+  the format, and drawing them is a decision of its own.
 
 ## D51. A file that states its own schema is a dataset, and a workbook is a container of them
 

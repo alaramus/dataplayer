@@ -3,6 +3,7 @@ import { computed, ref } from "vue"
 
 import type { ContentRequest } from "@/client"
 import { client } from "@/client/client.gen"
+import { formatSize } from "@/features/catalog/nodes"
 import { useContent } from "@/features/content/api"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { messageOf } from "@/shared/api/errors"
@@ -40,7 +41,7 @@ const details = computed(() => {
   const format = value.media_type === "image/png" ? "PNG" : "JPEG"
   return (
     `${format} · ${String(value.width)} × ${String(value.height)} · ` +
-    `${value.size_bytes.toLocaleString()} bytes`
+    formatSize(value.size_bytes)
   )
 })
 

@@ -64,8 +64,10 @@ frontend/src/
     │                    useCatalogLevel.ts walks a catalog outside any component
     ├── charts/          closed line, bar and pie views over one bounded page;
     │                    pure builders and suggestions stay outside components
-    ├── content/         source editing, bounded native content and the first
-    │                    verified binary viewer
+    ├── content/         source editing, bounded native content, the rendered
+    │                    document, and the verified binary viewers: an image,
+    │                    a player over the ranged stream, and a PDF the
+    │                    application draws itself
     ├── grid/            the controlled data explorer: query state, filter and
     │                    sort editors, column layout, selection, clipboard,
     │                    typed renderers and the full-value viewer

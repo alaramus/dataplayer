@@ -5,6 +5,7 @@ import { z } from "zod"
 import ChartPanelView from "@/features/charts/ChartPanel.vue"
 import ContentPanelView from "@/features/content/ContentPanel.vue"
 import ImagePanelView from "@/features/content/ImagePanel.vue"
+import MediaPanelView from "@/features/content/MediaPanel.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
@@ -43,6 +44,25 @@ const fetchRequestSchema = z.object({
  * without a component fails to compile and fails the test beside this file.
  * The engine sees none of this — see the spec, W1.
  */
+
+/**
+ * What a content panel may show, in one place.
+ *
+ * The schema validates against it, the panel id is typed by it and the icon
+ * table is keyed by it, so a representation added to the source cannot arrive
+ * here half-known.
+ */
+export const CONTENT_REPRESENTATIONS = [
+  "text",
+  "json",
+  "jsonl",
+  "image",
+  "markdown",
+  "audio",
+  "video",
+  "pdf",
+] as const
+export type ContentRepresentation = (typeof CONTENT_REPRESENTATIONS)[number]
 
 export const panelSchema = z.discriminatedUnion("kind", [
   z.object({ id: z.string(), kind: z.literal("connectors") }),
@@ -87,7 +107,7 @@ export const panelSchema = z.discriminatedUnion("kind", [
     title: z.string(),
     connectorName: z.string(),
     adapterType: z.string(),
-    representation: z.enum(["text", "json", "jsonl", "image", "markdown"]),
+    representation: z.enum(CONTENT_REPRESENTATIONS),
     tableTitle: z.string().min(1).optional(),
     // What the source calls this document's other representation, so the
     // button says the source's words rather than this screen's.
@@ -123,21 +143,21 @@ export const rowsPanelId = (connectorId: string, nodeId: string) => `rows:${conn
 export const contentPanelId = (
   connectorId: string,
   nodeId: string,
-  representation: "text" | "json" | "jsonl" | "image" | "markdown"
+  representation: ContentRepresentation
 ) => `content:${connectorId}:${nodeId}:${representation}`
 export const structurePanelId = (connectorId: string, nodeId: string) =>
   `structure:${connectorId}:${nodeId}`
 export const chartPanelId = (viewKey: string) => `chart:${viewKey}`
 
-const CONTENT_ICONS: Record<
-  "text" | "json" | "jsonl" | "image" | "markdown",
-  string
-> = {
+const CONTENT_ICONS: Record<ContentRepresentation, string> = {
   text: "description",
   json: "data_object",
   jsonl: "format_list_numbered",
   image: "image",
   markdown: "article",
+  audio: "graphic_eq",
+  video: "movie",
+  pdf: "picture_as_pdf",
 }
 
 /**
@@ -146,6 +166,14 @@ const CONTENT_ICONS: Record<
  */
 const MarkdownPanelView = defineAsyncComponent(
   () => import("@/features/content/markdown/MarkdownPanel.vue")
+)
+
+/**
+ * The PDF renderer is the same kind of cost as the document stack: nobody who
+ * does not open a PDF downloads it.
+ */
+const PdfPanelView = defineAsyncComponent(
+  () => import("@/features/content/PdfPanel.vue")
 )
 
 export function kindOf(panel: Panel): PanelKind {
@@ -338,6 +366,27 @@ export function componentOf(panel: Panel): Component {
       if (representation === "image") {
         return boundComponent(panel.id, () =>
           h(ImagePanelView, {
+            panelId: panel.id,
+            connectorId: panel.connectorId,
+            nodeId: panel.nodeId,
+            title: panel.title,
+          })
+        )
+      }
+      if (representation === "audio" || representation === "video") {
+        return boundComponent(panel.id, () =>
+          h(MediaPanelView, {
+            panelId: panel.id,
+            connectorId: panel.connectorId,
+            nodeId: panel.nodeId,
+            title: panel.title,
+            representation,
+          })
+        )
+      }
+      if (representation === "pdf") {
+        return boundComponent(panel.id, () =>
+          h(PdfPanelView, {
             panelId: panel.id,
             connectorId: panel.connectorId,
             nodeId: panel.nodeId,

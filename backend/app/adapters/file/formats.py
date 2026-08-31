@@ -11,6 +11,15 @@ JSON_LINES_EXTENSIONS: frozenset[str] = frozenset({".jsonl", ".ndjson"})
 IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpeg", ".jpg", ".png"})
 MARKDOWN_EXTENSIONS: frozenset[str] = frozenset({".markdown", ".md"})
 PARQUET_EXTENSIONS: frozenset[str] = frozenset({".parquet"})
+# What a browser can play, and nothing beyond it: `.avi` stays opaque because
+# no browser plays it, and a viewer would be a promise this source cannot keep.
+AUDIO_EXTENSIONS: frozenset[str] = frozenset(
+    {".flac", ".m4a", ".mp3", ".oga", ".ogg", ".opus", ".wav"}
+)
+VIDEO_EXTENSIONS: frozenset[str] = frozenset(
+    {".m4v", ".mov", ".mp4", ".ogv", ".webm"}
+)
+PDF_EXTENSIONS: frozenset[str] = frozenset({".pdf"})
 # `.xls` is deliberately absent: the legacy binary format is a different
 # container needing a different library, so it stays opaque and downloadable.
 WORKBOOK_EXTENSIONS: frozenset[str] = frozenset({".xlsm", ".xlsx"})
@@ -36,11 +45,7 @@ BINARY_EXTENSIONS: frozenset[str] = frozenset(
         ".jar",
         ".jpeg",
         ".jpg",
-        ".mp3",
-        ".mp4",
         ".odt",
-        ".ogg",
-        ".pdf",
         ".png",
         ".ppt",
         ".pptx",
@@ -49,8 +54,6 @@ BINARY_EXTENSIONS: frozenset[str] = frozenset(
         ".tar",
         ".tgz",
         ".ttf",
-        ".wav",
-        ".webm",
         ".webp",
         ".woff",
         ".woff2",
@@ -69,6 +72,9 @@ FileFormat = Literal[
     "image",
     "parquet",
     "workbook",
+    "audio",
+    "video",
+    "pdf",
     "opaque",
 ]
 
@@ -78,6 +84,9 @@ JSON = NodeRepresentation(kind="json", title="View JSON")
 JSON_LINES = NodeRepresentation(kind="jsonl", title="View JSON lines")
 IMAGE = NodeRepresentation(kind="image", title="View image")
 MARKDOWN = NodeRepresentation(kind="markdown", title="View as document")
+AUDIO = NodeRepresentation(kind="audio", title="Play")
+VIDEO = NodeRepresentation(kind="video", title="Play")
+PDF = NodeRepresentation(kind="pdf", title="Read")
 
 
 def format_of(name: str) -> FileFormat:
@@ -96,6 +105,12 @@ def format_of(name: str) -> FileFormat:
         return "parquet"
     if suffix in WORKBOOK_EXTENSIONS:
         return "workbook"
+    if suffix in AUDIO_EXTENSIONS:
+        return "audio"
+    if suffix in VIDEO_EXTENSIONS:
+        return "video"
+    if suffix in PDF_EXTENSIONS:
+        return "pdf"
     if suffix in BINARY_EXTENSIONS:
         return "opaque"
     return "text"
@@ -129,10 +144,16 @@ def representations_of(name: str) -> list[NodeRepresentation]:
             # A workbook is not one table. Its sheets are children, and each of
             # them declares the table; the file itself opens nothing.
             return []
+        case "audio":
+            return [AUDIO]
+        case "video":
+            return [VIDEO]
+        case "pdf":
+            return [PDF]
         case "opaque":
-            # Media representations are added on this same contract in the
-            # next slice; claiming one before a safe content route exists
-            # would turn a click into a promise the source cannot keep.
+            # An archive, a font, a legacy document: still listed, still
+            # downloadable, and honest about having no viewer rather than
+            # opening something that cannot be shown.
             return []
 
 

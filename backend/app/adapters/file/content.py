@@ -4,7 +4,8 @@ import hashlib
 import io
 import os
 import tempfile
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
+from functools import partial
 from json import JSONDecodeError
 from pathlib import Path
 from typing import Any, assert_never
@@ -14,10 +15,12 @@ from PIL import Image, UnidentifiedImageError
 
 from app.adapters import jsontext
 from app.adapters.content import (
+    AudioContent,
     BoundedContentPreview,
     ContentConflict,
     ContentRequest,
     ContentResult,
+    ContentStream,
     ContentUpdated,
     EditorContent,
     EditorContentRequest,
@@ -33,11 +36,14 @@ from app.adapters.content import (
     JsonScalar,
     JsonValue,
     MarkdownContent,
+    PdfContent,
     TextContent,
     UpdateContentRequest,
+    VideoContent,
 )
 from app.adapters.file.binary import looks_binary
 from app.adapters.file.formats import format_of, representations_of
+from app.adapters.file.media import audio_facts, pdf_facts, video_facts
 from app.adapters.file.session import FileSession
 
 # A text viewer is a preview, not a download. Keeping the source path separate
@@ -69,6 +75,10 @@ MAX_IMAGE_BYTES = 20 * 1024 * 1024
 # tokenised and turned into DOM in the browser, which neither of those is.
 MAX_MARKDOWN_BYTES = 1024 * 1024
 MAX_IMAGE_PIXELS = 40_000_000
+
+# What a ranged read hands over at a time. A stream has no size ceiling — it is
+# ranged and chunked, so what is held is one of these (D52).
+STREAM_CHUNK_BYTES = 256 * 1024
 
 IMAGE_MEDIA_TYPES: dict[str, ImageMediaType] = {
     "JPEG": "image/jpeg",
@@ -124,8 +134,32 @@ class FileContent:
             case "image":
                 preview = self._read_image_preview(path, request)
                 return _image_content(preview)
+            case "audio":
+                return _audio_content(path)
+            case "video":
+                return _video_content(path)
+            case "pdf":
+                return _pdf_content(path)
             case unreachable:
                 assert_never(unreachable)
+
+    async def open_content_stream(self, request: ContentRequest) -> ContentStream:
+        """Bytes a player or a reader takes part of, verified first (D52)."""
+        path = self._session.resolve(request.node_id)
+        return await to_thread.run_sync(self._open_stream, path, request)
+
+    def _open_stream(self, path: Path, request: ContentRequest) -> ContentStream:
+        result = self._read(path, request)
+        if not isinstance(result, AudioContent | VideoContent | PdfContent):
+            raise ValueError(
+                f'The "{request.representation}" representation is not streamed'
+            )
+        return ContentStream(
+            media_type=result.media_type,
+            filename=result.filename,
+            size_bytes=result.size_bytes,
+            read=partial(_range_chunks, path),
+        )
 
     def _read_image_preview(
         self, path: Path, request: ContentRequest
@@ -217,6 +251,61 @@ class FileContent:
         _validate_replacement(path, request.text)
         _replace_bytes(path, replacement)
         return ContentUpdated(version=_version(replacement))
+
+
+def _audio_content(path: Path) -> AudioContent:
+    facts = audio_facts(path)
+    return AudioContent(
+        filename=path.name,
+        media_type=facts.media_type,
+        size_bytes=path.stat().st_size,
+        duration_seconds=facts.duration_seconds,
+        channels=facts.channels,
+        sample_rate=facts.sample_rate,
+    )
+
+
+def _video_content(path: Path) -> VideoContent:
+    facts = video_facts(path)
+    return VideoContent(
+        filename=path.name,
+        media_type=facts.media_type,
+        size_bytes=path.stat().st_size,
+        duration_seconds=facts.duration_seconds,
+        width=facts.width,
+        height=facts.height,
+    )
+
+
+def _pdf_content(path: Path) -> PdfContent:
+    return PdfContent(
+        filename=path.name,
+        size_bytes=path.stat().st_size,
+        version=pdf_facts(path).version,
+    )
+
+
+async def _range_chunks(path: Path, start: int, end: int) -> AsyncIterator[bytes]:
+    """The inclusive range, in chunks, and never a byte past it.
+
+    Opened per request rather than held open between them: a player asks for
+    the end of a file, then the beginning, then a piece in the middle, and each
+    of those is its own HTTP request.
+    """
+    remaining = end - start + 1
+    handle = await to_thread.run_sync(path.open, "rb")
+    try:
+        await to_thread.run_sync(handle.seek, start)
+        while remaining > 0:
+            chunk = await to_thread.run_sync(
+                handle.read, min(STREAM_CHUNK_BYTES, remaining)
+            )
+            if not chunk:
+                return
+            remaining -= len(chunk)
+            yield chunk
+    finally:
+        await to_thread.run_sync(handle.close)
 
 
 def _read_text(path: Path) -> TextContent:

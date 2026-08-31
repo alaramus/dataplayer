@@ -21,6 +21,7 @@ export type {
   adaptersReadAdapterTypesResponses,
   AdapterTypeInfo,
   AddColumnRequest,
+  AudioContent,
   Body_connectors_run_action_with_file,
   Body_login_login_access_token,
   CandidateKey,
@@ -354,6 +355,7 @@ export type {
   ParsedOptions,
   Partitioning,
   PartitionOf,
+  PdfContent,
   PrimaryKey,
   privateCreateUserData,
   privateCreateUserError,
@@ -450,6 +452,7 @@ export type {
   utilsTestEmailResponse,
   utilsTestEmailResponses,
   ValidationError,
+  VideoContent,
   ViewNode,
   WorksheetDataset,
 } from "./types.gen"

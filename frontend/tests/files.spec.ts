@@ -346,3 +346,44 @@ test("opens a columnar file and a workbook sheet as datasets", async ({ page }) 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
+
+test("plays a sound file and a recording, and draws a PDF", async ({ page }) => {
+  const name = `e2e-media-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  // A sound file states what its container proved before anything plays.
+  await openNode(page, "tone.wav")
+  await expect(page.getByTestId("media-details")).toContainText("WAV")
+  await expect(page.getByTestId("media-details")).toContainText("8 kHz")
+  await expect(page.getByTestId("media-details")).toContainText("0:02")
+  const audio = page.getByTestId("media-player")
+  await expect(audio).toBeVisible()
+
+  // The element loads through the ranged route, so it knows the length.
+  await expect
+    .poll(async () => audio.evaluate((element: HTMLMediaElement) => element.duration))
+    .toBeCloseTo(2, 1)
+
+  // A recording opens in the same panel with the picture size beside it.
+  await openNode(page, "clip.mp4")
+  await expect(page.getByTestId("media-details")).toContainText("160 × 120")
+  const video = page.getByTestId("media-player")
+  await expect(video).toBeVisible()
+  await expect
+    .poll(async () => video.evaluate((element: HTMLMediaElement) => element.readyState))
+    .toBeGreaterThan(0)
+
+  // A PDF is drawn by the application: a canvas per page, and the text over it.
+  await openNode(page, "guide.pdf")
+  await expect(page.getByTestId("pdf-details")).toContainText("PDF 1.7")
+  await expect(page.getByTestId("pdf-details")).toContainText("2 pages")
+  const firstPage = page.getByTestId("pdf-page-1")
+  await expect(firstPage.locator("canvas")).toBeVisible()
+  // The text layer is what makes the page selectable and findable.
+  await expect(firstPage.locator(".textLayer")).toContainText("DataPlayer")
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})

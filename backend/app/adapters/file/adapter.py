@@ -7,6 +7,7 @@ from app.adapters.content import (
     BoundedContentPreview,
     ContentRequest,
     ContentResult,
+    ContentStream,
     ContentUpdated,
     EditorContent,
     EditorContentRequest,
@@ -75,6 +76,9 @@ class FileAdapter:
         self, request: ContentRequest
     ) -> BoundedContentPreview:
         return await self._content.preview_content(request)
+
+    async def open_content_stream(self, request: ContentRequest) -> ContentStream:
+        return await self._content.open_content_stream(request)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         return await self._actions.available(node_id)
