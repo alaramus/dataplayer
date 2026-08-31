@@ -26,7 +26,7 @@ the id.
 
 ```
 backend/app/
-├── adapters/            source types — see adapters.md
+├── adapters/            source types — see sources/README.md
 ├── connectors/          user connections
 │   ├── models.py        Connector, ConnectorGrant + API schemas
 │   ├── crud.py          database access only, including access resolution
@@ -121,12 +121,14 @@ handler stalls the whole event loop and must go through `run_in_threadpool`, and
 anything holding connections belongs to the loop that created it. Both are in
 the traps list in [AGENTS.md](../../AGENTS.md).
 
+Spec: [The connector registry and the adapter contract](../superpowers/specs/2026-08-15-connector-registry-design.md)
+
 ## D4. Secrets are split by schema, not by hand
 
 Fields declared as `SecretStr` go into the encrypted `Connector.secrets` blob;
 everything else goes into the `config` jsonb column. No list of secret fields
 exists anywhere, so a field cannot be forgotten. With a union of options the
-split reads every variant — see D16 in [adapters.md](adapters.md).
+split reads every variant — see D16 in [sources/connecting.md](sources/connecting.md).
 
 `CONNECTOR_SECRET_KEY` is deliberately separate from `SECRET_KEY`: rotating the
 latter only logs everyone out, rotating the former requires migrating stored
@@ -137,6 +139,8 @@ Known deviation:
 - **`.env` is in the git history.** It was tracked before being removed, so the
   values it held at the time are still recoverable from earlier commits. They are
   development placeholders, but a real deployment must not reuse them.
+
+Spec: [The connector registry and the adapter contract](../superpowers/specs/2026-08-15-connector-registry-design.md)
 
 ## D5. Everything lives in feature modules, and dependencies point one way
 
@@ -150,6 +154,8 @@ That is why `init_db` lives in `app/users/bootstrap.py` rather than in
 core would have made core import users.
 
 Enforced by `uv run lint-imports`.
+
+Spec: [Breaking the flat layer up into a users module](../superpowers/specs/2026-08-15-users-module-design.md)
 
 ## D33. Access to a connection is a grant of an ordered level, and a route states the level it needs
 
@@ -218,6 +224,8 @@ Known deviation:
 - **Nothing is logged.** Who opened what is not recorded; that is a separate
   concern with its own retention question.
 
+Spec: [Sharing a connection](../superpowers/specs/2026-08-29-connector-sharing-design.md)
+
 ## D34. An administrator has rights over accounts, not over data
 
 `is_superuser` used to bypass the owner check, which put every connection of
@@ -232,3 +240,5 @@ API what the encryption was protecting.
 What follows for the two places a superuser was special: `crud.get_with_access`
 knows nothing about the flag, and the connector list is what the caller owns
 plus what has been granted to them, for everyone alike.
+
+Spec: [Sharing a connection](../superpowers/specs/2026-08-29-connector-sharing-design.md)

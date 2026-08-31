@@ -106,11 +106,15 @@ and its own invalidation, and that is where its desynchronisation bugs come from
 Enforced by ESLint: `src/stores/**` may not import the generated client or any
 feature.
 
+Spec: [The connector registry and the adapter contract](../superpowers/specs/2026-08-15-connector-registry-design.md)
+
 ## D7. The frontend is Vue 3 with Quasar
 
 The value of the rewrite is backend architecture and end-to-end typing; the UI
 kit was never the problem. The typed client generated from OpenAPI is kept — it
 does not depend on the framework.
+
+Spec: [The connector registry and the adapter contract](../superpowers/specs/2026-08-15-connector-registry-design.md)
 
 ## D11. A screen asks the kit for meaning, not Quasar for a look
 
@@ -186,6 +190,8 @@ Known deviations:
 - **The dark palette was picked, not derived.** The values under
   `body.body--dark` were chosen by eye against Quasar's own dark colours; nothing
   measures contrast against WCAG.
+
+Spec: [The shared UI kit](../superpowers/specs/2026-08-22-shared-ui-kit-design.md)
 
 ## D24. The grid is controlled state around a headless engine, and source operations stay server-side
 
@@ -285,6 +291,8 @@ Known deviations:
 - **Clipboard and selection stop at the current page.** Exporting rows that are
   not loaded needs a server-side export capability, not a larger client page.
 
+Spec: [The data exploration grid](../superpowers/specs/2026-08-27-data-grid-design.md)
+
 ## D28. A download is a fresh copy of the bounded visible page, kept in personal storage
 
 Download repeats the grid's current `FetchRequest`, including its bounded
@@ -336,6 +344,8 @@ when the source implements D44's streaming export. Its finished personal file
 is followed through a native browser download rather than an XHR Blob, so a
 whole relation is not reassembled in browser memory.
 
+Spec: [Downloading the visible page, and the commands of an open table](../superpowers/specs/2026-08-28-page-download-design.md)
+
 ## D35. A chart is a closed view over one bounded fetch, not another query language
 
 **Charts** in the grid header opens a work panel carrying the exact current
@@ -379,6 +389,8 @@ rule above governs charts built from a source's data, and it is not extended to
 pictures drawn inside documents. The two registrations are deliberately
 separate: this panel can draw what it offers to build, and a document can draw
 what documents contain.
+
+Spec: [Charts over a bounded page](../superpowers/specs/2026-08-30-bounded-page-charts-design.md)
 
 ## Checking the types at all
 
@@ -487,6 +499,8 @@ Progressive rendering by token batch and embeds remain out. The 1 MB document
 ceiling bounds parsing for now, and an explicitly allowed remote image remains
 an external reference in an export rather than being fetched a second time.
 
+Spec: [Markdown as a rendered document representation](../superpowers/specs/2026-08-31-markdown-document-representation-design.md)
+
 ## Screens
 
 The catalog is a list of one level: a click opens what can be read and walks into
@@ -494,7 +508,7 @@ what cannot, a tick box picks a node out without opening it, the way back is the
 first row, and the path above it starts at a home button. One menu in the head
 carries everything the source can do, live for what is ticked and greyed out for
 the rest — standing in a folder is not choosing it. What that menu offers comes
-from the server; see D9 in [adapters.md](adapters.md).
+from the server; see D9 in [sources/actions.md](sources/actions.md).
 
 A connection is a row of two things: the icon of its type, with the dot of the
 last check standing on it, and its name. Everything else about it lives in the
