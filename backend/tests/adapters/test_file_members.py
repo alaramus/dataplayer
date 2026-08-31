@@ -1,5 +1,6 @@
 """How a node id that may name something inside a file is read (D51)."""
 
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,10 @@ def session(tmp_path: Path) -> FileSession:
     (tmp_path / "reports" / "q3.csv").write_text("id\n1\n", encoding="utf-8")
     (tmp_path / "trap.xlsx").mkdir()
     (tmp_path / "trap.xlsx" / "1").write_text("id\n1\n", encoding="utf-8")
+    with zipfile.ZipFile(tmp_path / "bundle.zip", "w") as bundle:
+        bundle.writestr("docs/readme.md", "# Inside\n")
+    with zipfile.ZipFile(tmp_path / "reports" / "inner.zip", "w") as inner:
+        inner.writestr("notes.txt", "one\n")
     return FileSession(tmp_path)
 
 
@@ -59,11 +64,28 @@ def test_a_member_of_something_that_holds_none_is_simply_missing(
     assert not resolved.path.exists()
 
 
-def test_only_one_segment_is_read_as_a_member(session: FileSession) -> None:
+def test_everything_after_the_container_is_the_member(session: FileSession) -> None:
+    """A sheet is one segment and an archive entry is a path, so the resolver
+    hands over the whole remainder and the container decides what it may be."""
     resolved = resolve_node(session, "budget.xlsx/1/2")
 
-    assert resolved.member is None
-    assert not resolved.path.exists()
+    assert resolved.member == "1/2"
+    assert resolved.path.name == "budget.xlsx"
+
+
+def test_an_archive_takes_a_path_as_its_member(session: FileSession) -> None:
+    resolved = resolve_node(session, "bundle.zip/docs/readme.md")
+
+    assert resolved.member == "docs/readme.md"
+    assert resolved.path.name == "bundle.zip"
+
+
+def test_the_longest_container_prefix_wins(session: FileSession) -> None:
+    """An archive inside a folder is found before the folder is."""
+    resolved = resolve_node(session, "reports/inner.zip/notes.txt")
+
+    assert resolved.member == "notes.txt"
+    assert resolved.path.name == "inner.zip"
 
 
 def test_containment_is_judged_before_anything_is_split(

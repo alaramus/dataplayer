@@ -1,5 +1,6 @@
 import base64
 import uuid
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,9 @@ async def home(db: AsyncSession) -> Path:
     (home / "pixel.png").write_bytes(PNG_1X1)
     (home / "opaque.zip").write_bytes(b"opaque archive bytes")
     _write_datasets(home)
+    with zipfile.ZipFile(home / "bundle.zip", "w") as bundle:
+        bundle.writestr("readme.md", "# Inside\n")
+        bundle.writestr("docs/notes.txt", "first\nsecond\n")
     return home
 
 
@@ -501,3 +505,104 @@ async def test_a_sheet_admits_no_action(
     offered = response.json()
     assert offered != []
     assert all(action["applicable"] is False for action in offered)
+
+
+@pytest.mark.usefixtures("home")
+async def test_an_archive_lists_its_entries_as_a_tree(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    listing = await client.get(
+        f"{BASE}/{connector_id}/catalog", headers=normal_user_token_headers
+    )
+    bundle = next(node for node in listing.json() if node["name"] == "bundle.zip")
+    assert bundle["has_children"] is True
+    assert bundle["representations"] == []
+
+    inside = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": "bundle.zip"},
+    )
+    assert inside.status_code == 200
+    entries = inside.json()
+    assert [entry["name"] for entry in entries] == ["docs", "readme.md"]
+    assert entries[0]["kind"] == "entry"
+
+    folder = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": "bundle.zip/docs"},
+    )
+    assert [entry["name"] for entry in folder.json()] == ["notes.txt"]
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_document_inside_an_archive_is_read_without_unpacking_it(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await client.post(
+        f"{BASE}/{connector_id}/content",
+        headers=normal_user_token_headers,
+        json={"node_id": "bundle.zip/docs/notes.txt", "representation": "text"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["text"].startswith("first")
+
+
+@pytest.mark.usefixtures("home")
+async def test_an_entry_that_is_not_there_is_a_bad_request(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await client.post(
+        f"{BASE}/{connector_id}/content",
+        headers=normal_user_token_headers,
+        json={"node_id": "bundle.zip/docs/missing.txt", "representation": "text"},
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.usefixtures("home")
+async def test_an_entry_offers_download_and_no_other_action(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await client.post(
+        f"{BASE}/{connector_id}/actions",
+        headers=normal_user_token_headers,
+        json={"node_ids": ["bundle.zip/docs/notes.txt"]},
+    )
+
+    assert response.status_code == 200
+    applicable = [
+        action["name"] for action in response.json() if action["applicable"]
+    ]
+    assert applicable == ["download"]
+
+
+@pytest.mark.usefixtures("home")
+async def test_one_entry_is_downloaded_through_the_ticket_route(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    started = await client.post(
+        f"{BASE}/{connector_id}/actions/download/download",
+        headers=normal_user_token_headers,
+        json={"node_ids": ["bundle.zip/docs/notes.txt"]},
+    )
+    assert started.status_code == 200, started.text
+
+    response = await client.get(started.json()["download_url"])
+
+    assert response.status_code == 200
+    assert response.content == b"first\nsecond\n"
+    assert "notes.txt" in response.headers["content-disposition"]

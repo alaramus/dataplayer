@@ -2,16 +2,24 @@
 
 import os
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path, PurePosixPath
 
 from anyio import to_thread
 
-from app.adapters.catalog import CatalogNode, DatasetNode, DirectoryNode, FileNode
-from app.adapters.file import workbook
+from app.adapters.catalog import (
+    CatalogNode,
+    DatasetNode,
+    DirectoryNode,
+    EntryNode,
+    FileNode,
+)
+from app.adapters.file import archive, workbook
 from app.adapters.file.formats import (
     TABLE,
     format_of,
     is_container,
+    representations_inside_archive,
     representations_of,
 )
 from app.adapters.file.members import member_id, resolve_node
@@ -30,6 +38,19 @@ class FileCatalog:
         self._session = session
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
+        if node_id is not None and node_id != "":
+            resolved = await to_thread.run_sync(
+                resolve_node, self._session, node_id
+            )
+            if resolved.member is not None:
+                return await to_thread.run_sync(
+                    partial(
+                        self._member_nodes,
+                        resolved.path,
+                        node_id,
+                        inside=resolved.member,
+                    )
+                )
         path = self._session.resolve(node_id)
         return await to_thread.run_sync(self._list, path, node_id)
 
@@ -41,10 +62,10 @@ class FileCatalog:
                 )
             raise ValueError(f"No such directory: {node_id}")
         if node_id is not None and path.is_file() and is_container(path.name):
-            # A workbook is opened once here, and each of its sheets becomes a
-            # node of its own (D51). This is the one place a file is read while
-            # listing, and it happens because the user asked for this file.
-            return self._sheet_nodes(path, node_id)
+            # A container is opened once here, and what is inside it becomes
+            # nodes of its own (D51, D53). This is the one place a file is read
+            # while listing, and it happens because the user asked for it.
+            return self._member_nodes(path, node_id, inside=None)
         if not path.is_dir():
             raise ValueError(f"Not a directory: {node_id}")
 
@@ -85,7 +106,7 @@ class FileCatalog:
         container_id = (
             node_id
             if resolved.member is None
-            else PurePosixPath(node_id).parent.as_posix()
+            else _above(node_id, resolved.member)
         )
         parts = PurePosixPath(container_id).parts
         nodes: list[CatalogNode] = []
@@ -97,21 +118,52 @@ class FileCatalog:
             nodes.append(node)
 
         if resolved.member is not None:
-            member = next(
+            nodes.extend(self._member_path(resolved.path, container_id, node_id))
+        return nodes
+
+    def _member_path(
+        self, path: Path, container_id: str, node_id: str
+    ) -> list[CatalogNode]:
+        """Every step inside a container, from its first level to the node."""
+        member = PurePosixPath(node_id).relative_to(container_id).as_posix()
+        if format_of(path.name) != "archive":
+            found = next(
                 (
                     node
-                    for node in self._sheet_nodes(resolved.path, container_id)
+                    for node in self._member_nodes(path, container_id, inside=None)
                     if node.id == node_id
                 ),
                 None,
             )
-            if member is None:
+            if found is None:
                 raise NodeNotFound(node_id)
-            nodes.append(member)
-        return nodes
+            return [found]
 
-    def _sheet_nodes(self, path: Path, node_id: str) -> list[CatalogNode]:
-        """Every sheet of one workbook as a node the client can open."""
+        steps: list[CatalogNode] = []
+        parts = PurePosixPath(member).parts
+        for depth in range(1, len(parts) + 1):
+            inside = "/".join(parts[:depth])
+            try:
+                entry = archive.entry_at(path, inside)
+            except ValueError:
+                raise NodeNotFound(node_id) from None
+            steps.append(_entry_node(container_id, entry))
+        return steps
+
+    def _member_nodes(
+        self, path: Path, node_id: str, *, inside: str | None
+    ) -> list[CatalogNode]:
+        """What one container holds, one level at a time.
+
+        A workbook holds sheets and nothing below them; an archive holds a tree,
+        so the level being looked at is part of the question.
+        """
+        if format_of(path.name) == "archive":
+            container_id = node_id if inside is None else _above(node_id, inside)
+            return [
+                _entry_node(container_id, entry)
+                for entry in archive.children(path, inside)
+            ]
         return [
             DatasetNode(
                 id=member_id(node_id, str(facts.position)),
@@ -181,6 +233,28 @@ class FileCatalog:
             # a CSV's columns are read off a line of text (D51).
             describable=format_of(name) == "parquet",
         )
+
+
+def _entry_node(container_id: str, entry: archive.Entry) -> CatalogNode:
+    """One member of an archive as a node the client can walk into or open."""
+    return EntryNode(
+        id=member_id(container_id, entry.path),
+        name=entry.name,
+        has_children=entry.is_directory,
+        representations=(
+            representations_inside_archive(entry.name) if entry.readable else []
+        ),
+        size_bytes=None if entry.is_directory else entry.size_bytes,
+        compressed_bytes=None if entry.is_directory else entry.compressed_bytes,
+        modified_at=entry.modified_at,
+        is_link=entry.is_link,
+        is_encrypted=entry.is_encrypted,
+    )
+
+
+def _above(node_id: str, member: str) -> str:
+    """The id of the container a member is in, taken off the member's own id."""
+    return node_id[: -(len(member) + 1)]
 
 
 def _has_entries(path: str) -> bool:

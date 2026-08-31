@@ -22,6 +22,7 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   view: "leaf",
   file: "leaf",
   dataset: "leaf",
+  entry: "leaf",
 }
 
 export interface ListNode {
@@ -58,6 +59,7 @@ const ICONS: Record<CatalogNode["kind"], string> = {
   directory: "folder_open",
   file: "insert_drive_file",
   dataset: "grid_on",
+  entry: "insert_drive_file",
 }
 
 const FILE_ICONS: Partial<Record<NodeRepresentation["kind"], string>> = {
@@ -100,13 +102,14 @@ export function roleOf(node: CatalogNode): NodeRole {
 }
 
 function iconOf(node: CatalogNode): string {
-  if (node.kind !== "file") return ICONS[node.kind]
+  // A file and a member of one are drawn the same way: by what opening them
+  // shows, and as a folder when they are walked into instead.
+  if (node.kind !== "file" && node.kind !== "entry") return ICONS[node.kind]
   const preferred = node.representations[0]
   if (preferred === undefined) {
-    // A workbook opens nothing itself: it is walked into, like a folder.
-    return node.has_children ? ICONS.directory : ICONS.file
+    return node.has_children ? ICONS.directory : ICONS[node.kind]
   }
-  return FILE_ICONS[preferred.kind] ?? ICONS.file
+  return FILE_ICONS[preferred.kind] ?? ICONS[node.kind]
 }
 
 function captionOf(node: CatalogNode): string | undefined {
@@ -121,6 +124,8 @@ function captionOf(node: CatalogNode): string | undefined {
       return formatSize(node.size_bytes)
     case "dataset":
       return datasetCaption(node)
+    case "entry":
+      return entryCaption(node)
     default:
       return undefined
   }
@@ -139,6 +144,16 @@ function datasetCaption(node: Extract<CatalogNode, { kind: "dataset" }>): string
   // rather than permission, and saying so is what keeps that honest.
   if (node.hidden === true) parts.push("hidden")
   return parts.length === 0 ? undefined : parts.join(" · ")
+}
+
+/** What an entry of an archive says about itself before it is opened. */
+function entryCaption(node: Extract<CatalogNode, { kind: "entry" }>): string | undefined {
+  if (node.is_link === true) return "link"
+  if (node.is_encrypted === true) return "encrypted"
+  if (node.has_children) return undefined
+  return node.size_bytes === null || node.size_bytes === undefined
+    ? undefined
+    : formatSize(node.size_bytes)
 }
 
 function counted(count: number, noun: string): string {

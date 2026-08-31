@@ -5,9 +5,12 @@ is the workbook's id plus one more segment, so every id in this source is still
 a relative path judged by the containment rule of D8 — the extra segment is
 read only after that rule has been applied to the whole of it.
 
-The split happens at most once, and only when the whole id names nothing on
-disk. A directory called `book.xlsx` holding a file called `1` therefore keeps
-its ordinary meaning, and no id can mean two things at once.
+The split happens only when the whole id names nothing on disk, and at the
+longest prefix that is a container. A directory called `book.xlsx` holding a
+file called `1` therefore keeps its ordinary meaning, and no id can mean two
+things at once. What follows the container is one segment for a workbook sheet
+and a path for an archive entry (D53), and it has already passed the
+containment rule as part of the whole id.
 """
 
 from dataclasses import dataclass
@@ -42,15 +45,15 @@ def resolve_node(session: FileSession, node_id: str) -> ResolvedNode:
         return ResolvedNode(path=path, member=None)
 
     parts = PurePosixPath(node_id).parts
-    if len(parts) < 2:
-        return ResolvedNode(path=path, member=None)
-
-    container = session.resolve("/".join(parts[:-1]))
-    if not container.is_file() or not is_container(container.name):
-        # Not a container: the id names something that is simply not there,
-        # and the caller's own "no such node" message is the honest answer.
-        return ResolvedNode(path=path, member=None)
-    return ResolvedNode(path=container, member=parts[-1])
+    # The longest prefix first, so an archive inside a folder is found before
+    # the folder is, and a member path may itself have several segments.
+    for cut in range(len(parts) - 1, 0, -1):
+        container = session.resolve("/".join(parts[:cut]))
+        if container.is_file() and is_container(container.name):
+            return ResolvedNode(path=container, member="/".join(parts[cut:]))
+    # Not a container: the id names something that is simply not there, and
+    # the caller's own "no such node" message is the honest answer.
+    return ResolvedNode(path=path, member=None)
 
 
 def member_id(container_id: str, member: str) -> str:

@@ -32,6 +32,7 @@ from app.adapters.actions import (
 )
 from app.adapters.catalog import NodeKind
 from app.adapters.file.download import FileDownload
+from app.adapters.file.formats import format_of
 from app.adapters.file.members import resolve_node
 from app.adapters.file.session import FileSession, is_plain_name
 from app.core.access import Access
@@ -176,12 +177,29 @@ class Download(_ActsOnNode, Action[DownloadParams]):
 
     name: ClassVar[str] = "download"
     title: ClassVar[str] = "Download"
-    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory", "file"})
+    # An entry too, because a file inside an archive is exactly what a reader
+    # wants out of it (D53); everything that changes a node keeps to the two
+    # kinds that exist on disk.
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset(
+        {"directory", "file", "entry"}
+    )
     requires: ClassVar[Access] = "read"
     bulk: ClassVar[bool] = True
     params_model = DownloadParams
 
     async def download(self, node_ids: Sequence[str]) -> ActionDownload:
+        entries = [
+            resolved
+            for node_id in node_ids
+            if (resolved := resolve_node(self._session, node_id)).member is not None
+        ]
+        if entries:
+            if len(node_ids) > 1:
+                raise ActionRefused(
+                    "not_applicable",
+                    "A file inside an archive is downloaded on its own",
+                )
+            return await FileDownload(self._session).entry(entries[0])
         # Reapply the same root and existence rule the availability check uses;
         # tickets are redeemed later, when the source may have changed.
         for node_id in node_ids:
@@ -331,7 +349,10 @@ class FileActions:
             return self._session.root, "directory"
         resolved = resolve_node(self._session, node_id)
         if resolved.member is not None:
-            return resolved.path, "dataset"
+            kind: NodeKind = (
+                "entry" if format_of(resolved.path.name) == "archive" else "dataset"
+            )
+            return resolved.path, kind
         return resolved.path, _kind_of(resolved.path, node_id)
 
 

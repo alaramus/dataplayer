@@ -84,10 +84,34 @@ class DatasetNode(BaseNode):
     hidden: bool = False
 
 
+class EntryNode(BaseNode):
+    """One member of an archive, which may itself hold others (D53).
+
+    Not a file: it has no bytes on disk of its own, so rename, delete, a new
+    folder and an upload are out of it by the kinds those actions name. Not a
+    directory either, for the same reason — a folder inside an archive is an
+    entry whose `has_children` is true.
+    """
+
+    kind: Literal["entry"] = "entry"
+    size_bytes: int | None = None
+    compressed_bytes: int | None = None
+    modified_at: datetime | None = None
+    # Listed and never followed: a link written inside a file is still a link.
+    is_link: bool = False
+    is_encrypted: bool = False
+
+
 # Adding a kind means adding a class here. The friction is intended: a key can
 # be added to a dict silently, a class cannot.
 CatalogNode = Annotated[
-    SchemaNode | TableNode | ViewNode | DirectoryNode | FileNode | DatasetNode,
+    SchemaNode
+    | TableNode
+    | ViewNode
+    | DirectoryNode
+    | FileNode
+    | DatasetNode
+    | EntryNode,
     Field(discriminator="kind"),
 ]
 
@@ -96,4 +120,6 @@ CatalogNode = Annotated[
 # of a node without holding one — deciding which actions a directory admits,
 # for instance — and a bare string there would let a typo through silently.
 # The test that this matches the union keeps the two from drifting apart.
-NodeKind = Literal["schema", "table", "view", "directory", "file", "dataset"]
+NodeKind = Literal[
+    "schema", "table", "view", "directory", "file", "dataset", "entry"
+]

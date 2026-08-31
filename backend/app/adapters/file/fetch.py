@@ -5,12 +5,13 @@ adding a format without a reader fails type checking. The old application
 branched on the extension in six places inside one method.
 """
 
+from pathlib import Path
 from typing import Literal, assert_never
 
 from anyio import to_thread
 
 from app.adapters.fetch import FetchRequest, FetchResult
-from app.adapters.file import parquet, workbook
+from app.adapters.file import archive, parquet, workbook
 from app.adapters.file.binary import looks_binary
 from app.adapters.file.formats import format_of
 from app.adapters.file.members import ResolvedNode, resolve_node
@@ -59,6 +60,12 @@ class FileFetch:
     def _read(self, request: FetchRequest) -> Page:
         resolved = resolve_node(self._session, request.node_id)
         if resolved.member is not None:
+            if format_of(resolved.path.name) == "archive":
+                # Expanded into a temporary file and read like any other, so a
+                # table inside an archive needs no second reader (D53). Paging
+                # expands it once per page, which is what the ceiling is for.
+                with archive.expanded(resolved.path, resolved.member) as entry:
+                    return self._read_path(entry, request, name=entry_name(resolved))
             return self._sheet(resolved, request)
 
         path = resolved.path
@@ -66,8 +73,16 @@ class FileFetch:
             raise ValueError(f"No such file: {request.node_id}")
         if path.is_dir():
             raise ValueError(f"A directory cannot be read as rows: {request.node_id}")
+        return self._read_path(path, request, name=path.name)
 
-        match format_of(path.name):
+    def _read_path(self, path: Path, request: FetchRequest, *, name: str) -> Page:
+        """One page out of a path, with the reader chosen by the node's name.
+
+        The name is passed rather than taken from the path, because an entry
+        expanded out of an archive lives in a temporary file whose name says
+        nothing about what is in it.
+        """
+        match format_of(name):
             case "parquet":
                 # Binary by nature, so the sniff below would refuse it. Its own
                 # magic bytes are what the footer read checks instead.
@@ -81,7 +96,7 @@ class FileFetch:
                     # Classification goes by name; the bytes get the last word.
                     raise ValueError(f"This file is binary: {request.node_id}")
                 return _reader_for(textual).read(path, request.limit, request.offset)
-            case "markdown" | "image" | "audio" | "video" | "pdf" | "opaque":
+            case "markdown" | "image" | "audio" | "video" | "pdf" | "archive" | "opaque":
                 raise ValueError(f"This file cannot be read as rows: {request.node_id}")
             case unreachable:
                 assert_never(unreachable)
@@ -94,6 +109,12 @@ class FileFetch:
         return workbook.read_page(
             resolved.path, int(member), request.limit, request.offset
         )
+
+
+def entry_name(resolved: ResolvedNode) -> str:
+    """The name of a member, which is what decides how it is read."""
+    member = resolved.member or ""
+    return member.rsplit("/", 1)[-1]
 
 
 def _reader_for(file_format: TextualFormat) -> Reader:

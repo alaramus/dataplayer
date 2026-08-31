@@ -15,6 +15,9 @@ from app.adapters.actions import (
     ActionDownloadMetadata,
     ActionRefused,
 )
+from app.adapters.file import archive
+from app.adapters.file.formats import format_of
+from app.adapters.file.members import ResolvedNode
 from app.adapters.file.session import FileSession
 
 DOWNLOAD_CHUNK_BYTES = 256 * 1024
@@ -37,7 +40,7 @@ class FileDownload:
         if len(targets) == 1 and await to_thread.run_sync(targets[0].is_file):
             return await self._original(targets[0], node_ids[0])
 
-        archive, filename, size = await to_thread.run_sync(
+        staged, filename, size = await to_thread.run_sync(
             self._build_archive, targets
         )
         return ActionDownload(
@@ -46,7 +49,30 @@ class FileDownload:
                 media_type="application/zip",
                 size_bytes=size,
             ),
-            body=_temporary_chunks(archive),
+            body=_temporary_chunks(staged),
+        )
+
+    async def entry(self, resolved: ResolvedNode) -> ActionDownload:
+        """One file inside an archive, expanded and streamed on its own (D53).
+
+        A folder inside an archive is refused rather than repacked: a zip made
+        out of a zip is a different result, and nothing has decided yet what it
+        should be.
+        """
+        member = resolved.member or ""
+        if format_of(resolved.path.name) != "archive":
+            raise ActionRefused(
+                "not_applicable", "This node is not a file inside an archive"
+            )
+        prepared = await to_thread.run_sync(archive.extract, resolved.path, member)
+        size = await to_thread.run_sync(lambda: prepared.stat().st_size)
+        return ActionDownload(
+            metadata=ActionDownloadMetadata(
+                filename=member.rsplit("/", 1)[-1],
+                media_type="application/octet-stream",
+                size_bytes=size,
+            ),
+            body=_temporary_chunks(prepared),
         )
 
     async def _original(self, path: Path, node_id: str) -> ActionDownload:
@@ -85,10 +111,10 @@ class FileDownload:
             prefix="dataplayer-download-", suffix=".zip"
         )
         os.close(descriptor)
-        archive = Path(temporary)
+        staged = Path(temporary)
         try:
             with ZipFile(
-                archive, "w", compression=ZIP_DEFLATED, allowZip64=True
+                staged, "w", compression=ZIP_DEFLATED, allowZip64=True
             ) as output:
                 count = 0
                 total = 0
@@ -101,9 +127,9 @@ class FileDownload:
                 if len(targets) == 1 and targets[0].is_dir()
                 else "download.zip"
             )
-            return archive, filename, archive.stat().st_size
+            return staged, filename, staged.stat().st_size
         except BaseException:
-            archive.unlink(missing_ok=True)
+            staged.unlink(missing_ok=True)
             raise
 
     def _add_target(

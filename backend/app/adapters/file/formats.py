@@ -20,6 +20,9 @@ VIDEO_EXTENSIONS: frozenset[str] = frozenset(
     {".m4v", ".mov", ".mp4", ".ogv", ".webm"}
 )
 PDF_EXTENSIONS: frozenset[str] = frozenset({".pdf"})
+# ZIP alone: a tar has no index, so listing it means reading it end to end and
+# reading one entry means reading it again (D53).
+ARCHIVE_EXTENSIONS: frozenset[str] = frozenset({".zip"})
 # `.xls` is deliberately absent: the legacy binary format is a different
 # container needing a different library, so it stays opaque and downloadable.
 WORKBOOK_EXTENSIONS: frozenset[str] = frozenset({".xlsm", ".xlsx"})
@@ -58,7 +61,6 @@ BINARY_EXTENSIONS: frozenset[str] = frozenset(
         ".woff",
         ".woff2",
         ".xls",
-        ".zip",
         ".zst",
     }
 )
@@ -75,6 +77,7 @@ FileFormat = Literal[
     "audio",
     "video",
     "pdf",
+    "archive",
     "opaque",
 ]
 
@@ -111,6 +114,8 @@ def format_of(name: str) -> FileFormat:
         return "video"
     if suffix in PDF_EXTENSIONS:
         return "pdf"
+    if suffix in ARCHIVE_EXTENSIONS:
+        return "archive"
     if suffix in BINARY_EXTENSIONS:
         return "opaque"
     return "text"
@@ -150,6 +155,10 @@ def representations_of(name: str) -> list[NodeRepresentation]:
             return [VIDEO]
         case "pdf":
             return [PDF]
+        case "archive":
+            # An archive has no viewer of its own: it is walked into, and what
+            # is inside it has the viewers (D53).
+            return []
         case "opaque":
             # An archive, a font, a legacy document: still listed, still
             # downloadable, and honest about having no viewer rather than
@@ -161,6 +170,22 @@ def is_container(name: str) -> bool:
     """Whether this file holds nodes of its own, rather than one document.
 
     Asked by the catalog before it says a file has children and by the id
-    resolver before it reads the last segment of an id as a member.
+    resolver before it reads what follows a file's id as a member.
     """
-    return format_of(name) == "workbook"
+    return format_of(name) in {"workbook", "archive"}
+
+
+# What can be read out of an archive entry: every viewer a bounded expansion
+# can feed. Parquet and workbooks seek around their own bytes, media and PDF
+# are streamed by range, and a nested archive would need a reader inside a
+# reader — those entries are listed with no viewer at all (D53).
+INSIDE_ARCHIVE: frozenset[str] = frozenset(
+    {"table", "text", "json", "jsonl", "markdown", "image"}
+)
+
+
+def representations_inside_archive(name: str) -> list[NodeRepresentation]:
+    """The representations of one entry, which are fewer than a file's."""
+    return [
+        item for item in representations_of(name) if item.kind in INSIDE_ARCHIVE
+    ]

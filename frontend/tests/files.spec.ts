@@ -387,3 +387,43 @@ test("plays a sound file and a recording, and draws a PDF", async ({ page }) => 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
+
+test("walks into an archive and reads what is inside it", async ({ page }) => {
+  const name = `e2e-archive-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  const list = page.getByTestId("catalog-list")
+  await expect(list).toContainText("bundle.zip")
+
+  // An archive is a place: it is walked into, and the path says where we are.
+  await openNode(page, "bundle.zip")
+  await expect(page.getByTestId("catalog-path")).toContainText("bundle.zip")
+  await expect(list).toContainText("docs")
+  await expect(list).toContainText("readme.md")
+
+  // A document inside it opens in its own viewer, unpacked by nobody.
+  await openNode(page, "readme.md")
+  await expect(page.getByTestId("markdown-document")).toContainText("Inside an archive")
+
+  // A folder inside the archive is another level of the same catalog.
+  await openNode(page, "docs")
+  await expect(page.getByTestId("catalog-path")).toContainText("docs")
+  await expect(list).toContainText("cities.csv")
+
+  // And a table inside an archive is read like any other table.
+  await openNode(page, "cities.csv")
+  const grid = page.getByTestId("row-grid")
+  await expect(grid).toContainText("name")
+  await expect(grid.locator("tbody tr")).toHaveCount(3)
+
+  // What is inside an archive is downloaded on its own, and changed by nothing.
+  await catalogCheck(page, "cities.csv").click()
+  const started = page.waitForEvent("download")
+  await catalogAction(page, "download")
+  expect((await started).suggestedFilename()).toBe("cities.csv")
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})

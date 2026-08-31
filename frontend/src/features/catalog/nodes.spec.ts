@@ -206,6 +206,41 @@ describe("toListNodes", () => {
     expect(node.caption).toBe("1 row · 1 column · hidden")
   })
 
+  it("draws an entry of an archive by what opening it shows", () => {
+    const [file, folder, link] = toListNodes([
+      {
+        kind: "entry",
+        id: "bundle.zip/readme.md",
+        name: "readme.md",
+        has_children: false,
+        size_bytes: 2048,
+        representations: [{ kind: "markdown", title: "View as document" }],
+      },
+      {
+        kind: "entry",
+        id: "bundle.zip/docs",
+        name: "docs",
+        has_children: true,
+        representations: [],
+      },
+      {
+        kind: "entry",
+        id: "bundle.zip/elsewhere",
+        name: "elsewhere",
+        has_children: false,
+        is_link: true,
+        representations: [],
+      },
+    ])
+
+    expect(file?.icon).toBe("article")
+    expect(file?.caption).toBe("2.0 KB")
+    expect(file?.role).toBe("leaf")
+    expect(folder?.icon).toBe("folder_open")
+    expect(folder?.role).toBe("container")
+    expect(link?.caption).toBe("link")
+  })
+
   it("draws a workbook as a place, since that is what it is", () => {
     const node = first(
       toListNodes([

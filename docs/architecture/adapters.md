@@ -5,7 +5,7 @@ do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
 D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36, D37, D38, D39,
-D40, D41, D42, D43, D44, D47, D48, D49, D51, D52.
+D40, D41, D42, D43, D44, D47, D48, D49, D51, D52, D53.
 
 ## What exists today
 
@@ -1326,6 +1326,74 @@ Known deviations:
   take.
 - **The page reads every column.** Parquet can prune columns, but the grid's
   visible-column choice does not yet reach the reader.
+
+## D53. An archive is a container of entries, and an entry name is judged by the rule every path is judged by
+
+A `.zip` is a directory that happens to be one file, so it is a container in
+the sense D51 gave the word: it has children, walking into it lists them, and
+each entry is a node whose id is the archive's id plus the entry's path.
+
+**Containment.** An entry name is written by whoever built the archive, and
+zip-slip is an entry called `../../etc/passwd`. It goes through the rule in
+`FileSession` that every other path goes through — a relative path whose every
+segment is a plain name by the rules of both platforms — because a name typed
+into a form, a filename inside a multipart upload and an entry name are the
+same kind of string and the whole value of that rule is that there is one of
+it. An archive holding a name that fails it is refused whole, with the name in
+the message: listing the rest would be a second rule, "mostly contained", and
+a reader could not tell that what they see is not what the file holds. A node
+id may therefore carry the entry path, and resolution splits an id at the
+longest prefix naming a container file on disk, so a directory called
+`backup.zip` keeps its ordinary meaning.
+
+**Limits.** Listing reads the central directory, which is metadata, so nothing
+is inflated to build the tree and the only bound listing needs is the entry
+count — 10,000, the number D49 refuses to archive past. Reading one entry
+expands it into a temporary file bounded at 32 MB, and the viewer that asked
+reads that file under its own ceiling. Both ends are checked: the declared size
+before anything is read, and the bytes as they are written. The second bound is
+this module's own — `zipfile` stops at the declared size itself, and an entry
+holding more than it admits to fails its checksum there, which is reported as a
+damaged entry — but a ceiling should rest on something this module can see. Expanding
+rather than streaming is deliberate — every reader here reads a path, and one
+bounded temporary file lets text, Markdown, JSON, JSONL, the image viewer and
+the table projection all work inside an archive with no second implementation.
+It costs one write per open, and paging a CSV inside an archive expands it once
+per page.
+
+**Symbolic links.** A zip entry can say it is a link whose content is a path.
+It is listed, because it is in the archive, and it declares no viewer and
+cannot be read: a source that will not follow a link out of its root on disk
+does not follow one written inside a file either. An encrypted entry is listed
+the same way and refused for the same shape of reason.
+
+`entry` joins `dataset` as a kind of member, with `has_children` telling a
+directory inside the archive from a file inside it. Rename, delete, new folder
+and upload name `file` and `directory`, so an entry is out of all four without
+a rule of its own; download names `entry` too and streams one entry's
+decompressed bytes.
+
+Known deviations:
+
+- **Only ZIP.** A tar has no index, so listing means reading it end to end and
+  every entry read means reading it again — a different contract.
+- **Parquet, workbooks, media and PDF have no viewer inside an archive.** The
+  first two seek around their own bytes and the others are streamed by range
+  (D52); expansion answers neither. They are listed with their size and no
+  viewer, as any file with no viewer is.
+- **A nested archive is not walked into.** It is an entry with no viewer; a
+  reader inside a reader is not this slice.
+- **Nothing is written into an archive**, and nothing is extracted out of one
+  into the personal directory: unpacking is an action with its own containment
+  story and belongs beside upload. An entry still opens in the editor, as an
+  unwritable document carrying the reason — the same channel a file too large
+  to edit and a read-only connection already use (D48) — because refusing it
+  would take the reading away with the writing.
+- **A directory inside an archive cannot be downloaded.** Building a zip out of
+  a zip is a different result, and the action refuses rather than guessing.
+- **An archive claims children by its name.** Listing must not open every file,
+  so bytes that are not an archive under a `.zip` name are found when the node
+  is walked into, as D47 already says of every misleading suffix.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

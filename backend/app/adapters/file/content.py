@@ -41,9 +41,15 @@ from app.adapters.content import (
     UpdateContentRequest,
     VideoContent,
 )
+from app.adapters.file import archive
 from app.adapters.file.binary import looks_binary
-from app.adapters.file.formats import format_of, representations_of
+from app.adapters.file.formats import (
+    format_of,
+    representations_inside_archive,
+    representations_of,
+)
 from app.adapters.file.media import audio_facts, pdf_facts, video_facts
+from app.adapters.file.members import ResolvedNode, resolve_node
 from app.adapters.file.session import FileSession
 
 # A text viewer is a preview, not a download. Keeping the source path separate
@@ -91,32 +97,90 @@ class FileContent:
         self._session = session
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
-        path = self._session.resolve(request.node_id)
-        return await to_thread.run_sync(self._read, path, request)
+        return await to_thread.run_sync(self._read_node, request)
+
+    def _read_node(self, request: ContentRequest) -> ContentResult:
+        """One representation, whether the node is a file or inside one."""
+        entry = _archive_entry(self._session, request.node_id)
+        if entry is None:
+            return self._read(self._session.resolve(request.node_id), request)
+        # An entry is expanded into a bounded temporary file and read by the
+        # ordinary viewer, which is what lets every one of them work inside an
+        # archive without a second implementation (D53).
+        name = entry.member or ""
+        if request.representation not in {
+            item.kind for item in representations_inside_archive(name)
+        }:
+            raise ValueError(
+                f'This entry does not offer the "{request.representation}" '
+                "representation"
+            )
+        with archive.expanded(entry.path, name) as expanded:
+            return self._read(expanded, request, name=_entry_name(name))
 
     async def read_editor_content(
         self, request: EditorContentRequest
     ) -> EditorContent:
-        path = self._session.resolve(request.node_id)
-        return await to_thread.run_sync(self._read_editor, path, request)
+        return await to_thread.run_sync(self._editor_for, request)
+
+    def _editor_for(self, request: EditorContentRequest) -> EditorContent:
+        """The source of one document, whether it is a file or inside one.
+
+        An entry is shown and never saved: the document is read, and the same
+        `writable` flag that carries "this file is too large" or "you may only
+        read this connection" carries the reason (D48, D53). Refusing to show
+        it at all would take the reading away with the writing.
+        """
+        entry = _archive_entry(self._session, request.node_id)
+        if entry is None:
+            return self._read_editor(self._session.resolve(request.node_id), request)
+        member = entry.member or ""
+        with archive.expanded(entry.path, member) as expanded:
+            document = self._read_editor(
+                expanded, request, name=_entry_name(member)
+            )
+        return document.model_copy(
+            update={
+                "writable": False,
+                "version": None,
+                "reason": "A file inside an archive cannot be edited here",
+            }
+        )
 
     async def update_content(self, request: UpdateContentRequest) -> ContentUpdated:
+        _refuse_inside_archive(self._session, request.node_id, "written")
         path = self._session.resolve(request.node_id)
         return await to_thread.run_sync(self._update, path, request)
 
     async def preview_content(
         self, request: ContentRequest
     ) -> BoundedContentPreview:
-        path = self._session.resolve(request.node_id)
-        return await to_thread.run_sync(self._read_image_preview, path, request)
+        return await to_thread.run_sync(self._preview, request)
 
-    def _read(self, path: Path, request: ContentRequest) -> ContentResult:
+    def _preview(self, request: ContentRequest) -> BoundedContentPreview:
+        entry = _archive_entry(self._session, request.node_id)
+        if entry is None:
+            return self._read_image_preview(
+                self._session.resolve(request.node_id), request
+            )
+        name = entry.member or ""
+        with archive.expanded(entry.path, name) as expanded:
+            return self._read_image_preview(
+                expanded, request, name=_entry_name(name)
+            )
+
+    def _read(
+        self, path: Path, request: ContentRequest, *, name: str | None = None
+    ) -> ContentResult:
         if not path.exists():
             raise ValueError(f"No such file: {request.node_id}")
         if path.is_dir():
             raise ValueError(f"A directory has no content viewer: {request.node_id}")
 
-        available = {item.kind for item in representations_of(path.name)}
+        # The name decides the viewer, and an entry expanded out of an archive
+        # lives in a temporary file whose own name says nothing about it.
+        named = name or path.name
+        available = {item.kind for item in representations_of(named)}
         if request.representation not in available:
             raise ValueError(
                 f'This file does not offer the "{request.representation}" representation'
@@ -132,7 +196,7 @@ class FileContent:
             case "markdown":
                 return _read_markdown(path)
             case "image":
-                preview = self._read_image_preview(path, request)
+                preview = self._read_image_preview(path, request, name=named)
                 return _image_content(preview)
             case "audio":
                 return _audio_content(path)
@@ -145,6 +209,7 @@ class FileContent:
 
     async def open_content_stream(self, request: ContentRequest) -> ContentStream:
         """Bytes a player or a reader takes part of, verified first (D52)."""
+        _refuse_inside_archive(self._session, request.node_id, "streamed")
         path = self._session.resolve(request.node_id)
         return await to_thread.run_sync(self._open_stream, path, request)
 
@@ -162,14 +227,15 @@ class FileContent:
         )
 
     def _read_image_preview(
-        self, path: Path, request: ContentRequest
+        self, path: Path, request: ContentRequest, *, name: str | None = None
     ) -> BoundedContentPreview:
+        named = name or path.name
         if not path.exists():
             raise ValueError(f"No such file: {request.node_id}")
         if not path.is_file():
             raise ValueError(f"A directory has no image viewer: {request.node_id}")
         if request.representation != "image" or "image" not in {
-            item.kind for item in representations_of(path.name)
+            item.kind for item in representations_of(named)
         }:
             raise ValueError('This file does not offer the "image" representation')
         raw, truncated = _byte_prefix(path, MAX_IMAGE_BYTES)
@@ -182,23 +248,24 @@ class FileContent:
         return BoundedContentPreview(
             body=raw,
             media_type=media_type,
-            filename=path.name,
+            filename=named,
             width=width,
             height=height,
         )
 
     def _read_editor(
-        self, path: Path, request: EditorContentRequest
+        self, path: Path, request: EditorContentRequest, *, name: str | None = None
     ) -> EditorContent:
-        _require_editable_file(path, request.node_id)
-        language_hint, validation = _editor_language(path)
+        named = name or path.name
+        _require_editable_file(path, request.node_id, named)
+        language_hint, validation = _editor_language(named)
         raw, truncated = _byte_prefix(path, MAX_EDITOR_BYTES)
         try:
             text = raw.decode("utf-8")
         except UnicodeDecodeError as exc:
             return EditorContent(
                 text=raw.decode("utf-8", errors="replace"),
-                filename=path.name,
+                filename=named,
                 writable=False,
                 truncated=truncated,
                 reason=f"This file is not valid UTF-8 at byte {exc.start + 1}.",
@@ -208,7 +275,7 @@ class FileContent:
         if truncated:
             return EditorContent(
                 text=text,
-                filename=path.name,
+                filename=named,
                 writable=False,
                 truncated=True,
                 reason=(
@@ -220,7 +287,7 @@ class FileContent:
             )
         return EditorContent(
             text=text,
-            filename=path.name,
+            filename=named,
             version=_version(raw),
             writable=True,
             language_hint=language_hint,
@@ -306,6 +373,28 @@ async def _range_chunks(path: Path, start: int, end: int) -> AsyncIterator[bytes
             yield chunk
     finally:
         await to_thread.run_sync(handle.close)
+
+
+def _archive_entry(session: FileSession, node_id: str) -> ResolvedNode | None:
+    """The node as a member of an archive, or None when it is a file."""
+    resolved = resolve_node(session, node_id)
+    if resolved.member is None or format_of(resolved.path.name) != "archive":
+        return None
+    return resolved
+
+
+def _refuse_inside_archive(session: FileSession, node_id: str, verb: str) -> None:
+    """What an archive does not admit, said before anything is opened.
+
+    Editing writes and streaming seeks, and an entry is neither writable nor
+    seekable: it is expanded whole or not read at all (D53).
+    """
+    if _archive_entry(session, node_id) is not None:
+        raise ValueError(f"A file inside an archive cannot be {verb}")
+
+
+def _entry_name(member: str) -> str:
+    return member.rsplit("/", 1)[-1]
 
 
 def _read_text(path: Path) -> TextContent:
@@ -508,21 +597,21 @@ def _byte_prefix(path: Path, ceiling: int) -> tuple[bytes, bool]:
     return raw[:ceiling], len(raw) > ceiling
 
 
-def _require_editable_file(path: Path, node_id: str) -> None:
+def _require_editable_file(path: Path, node_id: str, name: str | None = None) -> None:
     if not path.exists():
         raise ValueError(f"No such file: {node_id}")
     if path.is_dir():
         raise ValueError(f"A directory has no source editor: {node_id}")
-    if format_of(path.name) not in {"text", "markdown", "json", "jsonl"}:
+    if format_of(name or path.name) not in {"text", "markdown", "json", "jsonl"}:
         raise ValueError("This file does not offer source editing")
     if looks_binary(path):
         raise ValueError("This file contains binary data and cannot be edited as text")
 
 
 def _editor_language(
-    path: Path,
+    name: str,
 ) -> tuple[str | None, EditorValidationKind | None]:
-    file_format = format_of(path.name)
+    file_format = format_of(name)
     if file_format == "json":
         return "json", "json"
     if file_format == "jsonl":

@@ -400,8 +400,35 @@ was asked to delete an already deleted row and rightly refused.
   which is also what a document opened behind another tab needs; and the first
   page is drawn without waiting to be scrolled to, because intersection is
   delivered only while the browser paints.
-- [ ] Add archive browsing only after containment, decompression limits and
+- [x] Add archive browsing only after containment, decompression limits and
   symlink behaviour are specified.
+  All three were specified first, and D53 states them. Containment is the rule
+  that already exists: an entry name is judged exactly as a name typed into a
+  form and a filename inside an upload are, and an archive holding one that
+  leaves it is refused whole rather than listed with the bad entry dropped —
+  "mostly contained" would be a second rule. Limits are two: listing reads the
+  central directory and inflates nothing, so only the entry count is bounded,
+  while reading expands one entry into a temporary file bounded at 32 MB with
+  the declared size checked first and the bytes counted as they are written.
+  A symbolic link is listed, never followed and never read, like an encrypted
+  entry beside it. `entry` joins `dataset` as a kind of member, so rename,
+  delete, new folder and upload are out of it by the kinds they already name,
+  and download is in.
+  Expanding rather than streaming is what lets every existing viewer work
+  inside an archive: a Markdown document, text, JSON, an image and the table
+  projection all read the temporary file with their own ceilings on top. What
+  needs to seek or stream — Parquet, workbooks, media and PDF — is listed with
+  no viewer, and a nested archive with it.
+  Validated on 2026-08-31: the whole backend suite, mypy, ruff, import
+  contracts, frontend type check, lint, unit tests, production build, the
+  documentation check and the whole 108-scenario end-to-end suite, then read in
+  the browser. Two things came out of the work rather than the plan. A checksum
+  that fails while an entry is being read was being reported as "this file is
+  not an archive", because the open and the read shared one `try`; a damaged
+  entry now says so. And the editor was refusing an entry outright, which would
+  have taken the reading away with the writing — an entry now opens in the
+  editor as an unwritable document with the reason, which is the same mechanism
+  a too-large file and a read-only connection already use.
 
 ### 1.5 PostgreSQL-specific operations, after the general table rounds
 
@@ -666,9 +693,11 @@ end-to-end suite.
 
 ## Next session
 
-The media and PDF viewers are complete and validated. Resume with archive
-browsing, the last item of 1.4, and specify containment, decompression limits
-and symlink behaviour before implementing it: an archive's entries are members
-of a file, which is the shape D51 gave a workbook's sheets, and its bytes are
-the ranged stream of D52. After 1.4 the phase closes with 1.5, the inventory of
-PostgreSQL-specific operations in the old adapter.
+File-source depth is finished: 1.4 is complete. Resume with 1.5 — first the
+discovery item, an inventory of what the old PostgreSQL adapter does beyond the
+general table rounds: extensions, processes, tablespaces, backups and the
+TimescaleDB operations. Read `dbwebtool/webdb/data_adapter/postgre/` and
+classify each one as a source-specific catalog node kind, a declared action, or
+something deliberately left out; then port them one capability at a time,
+without adding PostgreSQL branches to generic screens. Phase 1 closes with
+that, and Phase 2 is sharing a bounded fetched snapshot.

@@ -63,6 +63,7 @@ translations; those files are not.
 | 2026-08-31 | [Markdown as a rendered document representation](2026-08-31-markdown-document-representation-design.md) | D50: rendered first and source second, with everything that becomes DOM sanitised twice |
 | 2026-08-31 | [Parquet files and workbook sheets as declared datasets](2026-08-31-parquet-and-workbook-datasets-design.md) | D51: a file that states its own schema is a dataset, and a workbook is a container of them |
 | 2026-08-31 | [Playing media, and reading a PDF](2026-08-31-media-and-pdf-viewers-design.md) | D52: bytes a player seeks in are a ranged stream, and a PDF is drawn by the application |
+| 2026-08-31 | [Walking into an archive](2026-08-31-archive-browsing-design.md) | D53: an archive is a container of entries, and an entry name goes through the one containment rule |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

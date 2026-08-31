@@ -17,6 +17,7 @@ import struct
 import sys
 import uuid
 import wave
+import zipfile
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -31,6 +32,11 @@ logger = logging.getLogger(__name__)
 SAMPLE_ROWS = 250
 
 SAMPLE_RATE = 8000
+SAMPLE_ARCHIVE_README = """# Inside an archive
+
+This document lives in `bundle.zip` and is read without unpacking it.
+The folder beside it holds a text file, a table and a picture.
+"""
 SAMPLE_PDF_PAGES = [
     [
         "DataPlayer",
@@ -216,6 +222,7 @@ def write_samples(home: Path) -> None:
 
     _write_dataset_samples(home)
     _write_media_samples(home)
+    _write_archive_sample(home)
 
     reports = home / "reports"
     reports.mkdir(exist_ok=True)
@@ -345,6 +352,15 @@ def _pdf(pages: list[list[str]]) -> bytes:
         + b"\n%%EOF\n"
     )
     return bytes(out)
+
+
+def _write_archive_sample(home: Path) -> None:
+    """One archive with a folder in it, for the browsing of D53."""
+    with zipfile.ZipFile(home / "bundle.zip", "w", zipfile.ZIP_DEFLATED) as bundle:
+        bundle.writestr("readme.md", SAMPLE_ARCHIVE_README)
+        bundle.writestr("docs/notes.txt", "one\ntwo\nthree\n")
+        bundle.writestr("docs/cities.csv", "id,name\n1,one\n2,two\n3,three\n")
+        bundle.writestr("docs/logo.png", SAMPLE_PNG)
 
 
 def remove_orphan_homes(*, keep: set[uuid.UUID]) -> list[uuid.UUID]:

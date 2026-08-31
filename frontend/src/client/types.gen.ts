@@ -1199,6 +1199,63 @@ export type EditorContentRequest = {
 }
 
 /**
+ * EntryNode
+ *
+ * One member of an archive, which may itself hold others (D53).
+ *
+ * Not a file: it has no bytes on disk of its own, so rename, delete, a new
+ * folder and an upload are out of it by the kinds those actions name. Not a
+ * directory either, for the same reason — a folder inside an archive is an
+ * entry whose `has_children` is true.
+ */
+export type EntryNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "entry"
+  /**
+   * Size Bytes
+   */
+  size_bytes?: number | null
+  /**
+   * Compressed Bytes
+   */
+  compressed_bytes?: number | null
+  /**
+   * Modified At
+   */
+  modified_at?: string | null
+  /**
+   * Is Link
+   */
+  is_link?: boolean
+  /**
+   * Is Encrypted
+   */
+  is_encrypted?: boolean
+}
+
+/**
  * ExclusionConstraint
  */
 export type ExclusionConstraint = {
@@ -2462,6 +2519,9 @@ export type ReferencedRows = {
     | ({
         kind: "dataset"
       } & DatasetNode)
+    | ({
+        kind: "entry"
+      } & EntryNode)
   /**
    * Filters
    */
@@ -4276,6 +4336,9 @@ export type connectorsReadCatalogResponses = {
     | ({
         kind: "dataset"
       } & DatasetNode)
+    | ({
+        kind: "entry"
+      } & EntryNode)
   >
 }
 
@@ -5023,6 +5086,9 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "dataset"
       } & DatasetNode)
+    | ({
+        kind: "entry"
+      } & EntryNode)
   >
 }
 

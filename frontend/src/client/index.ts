@@ -285,6 +285,7 @@ export type {
   DropIndexRequest,
   EditorContent,
   EditorContentRequest,
+  EntryNode,
   ExclusionConstraint,
   ExportDownloadRequest,
   ExportReady,
