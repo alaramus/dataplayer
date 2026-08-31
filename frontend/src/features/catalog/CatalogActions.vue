@@ -62,7 +62,7 @@ const nodeTargetIds = computed(() =>
     ? [...props.checkedIds]
     : props.selectedGroups.map((group) => group.id)
 )
-const checkedIds = computed<string[] | null>(() =>
+const pickedIds = computed<string[] | null>(() =>
   nodeTargetIds.value.length === 0 ? null : [...nodeTargetIds.value]
 )
 const nodeTargetNodes = computed(() =>
@@ -76,7 +76,7 @@ const anyChecked = computed(() => nodeTargetIds.value.length > 0)
 // is enough to draw the stable menu before anything is selected.
 const level = useNodeActions(connectorId, levelIds)
 const here = useNodeActions(connectorId, placeIds)
-const picked = useNodeActions(connectorId, checkedIds, anyChecked)
+const picked = useNodeActions(connectorId, pickedIds, anyChecked)
 
 const commands = computed(() =>
   toMenu(

@@ -116,6 +116,10 @@ async def test_reports_what_a_type_can_do(
         "Rename",
         "Load from CSV",
         "Drop",
+        "New schema",
+        "Rename schema",
+        "Move to schema",
+        "Drop schema",
         "Install extension",
         "Remove extension",
     }
