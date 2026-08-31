@@ -5,6 +5,7 @@ import pytest
 from app.adapters.fetch import FetchRequest
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.options import PostgresUserPassword
+from app.adapters.postgres.row_handle import encode_row_handle
 from app.adapters.update import (
     DeleteRowsRequest,
     InsertRowRequest,
@@ -398,3 +399,40 @@ async def test_stale_handle_makes_bulk_delete_atomic(schema: str) -> None:
         )
 
     assert len((await adapter.fetch(FetchRequest(node_id=f"{schema}.customers"))).rows) == 2
+
+
+SERVER_TABLE = "pg_catalog.pg_tablespace"
+# A well-formed handle of the shape this relation would issue if it issued any.
+# It is never decoded: the refusal comes before the row matters, which is the
+# point of asserting with one rather than without.
+SERVER_HANDLE = encode_row_handle(["1", "(0,1)"], "1")
+
+
+async def test_a_cell_of_a_relation_the_server_owns_is_not_written() -> None:
+    """Renaming pg_default this way succeeds in psql as a superuser."""
+    with pytest.raises(ValueError, match="pg_catalog"):
+        await _adapter().update_cell(
+            UpdateCellRequest(
+                node_id=SERVER_TABLE,
+                row_handle=SERVER_HANDLE,
+                column="spcname",
+                value="taken_over",
+            )
+        )
+
+
+async def test_a_row_of_a_relation_the_server_owns_is_not_deleted() -> None:
+    with pytest.raises(ValueError, match="pg_catalog"):
+        await _adapter().delete_rows(
+            DeleteRowsRequest(node_id=SERVER_TABLE, row_handles=[SERVER_HANDLE])
+        )
+
+
+async def test_a_row_is_not_inserted_into_a_relation_the_server_owns() -> None:
+    with pytest.raises(ValueError, match="pg_catalog"):
+        await _adapter().insert_row(
+            InsertRowRequest(
+                node_id=SERVER_TABLE,
+                values=[InsertValue(column="spcname", value="intruder")],
+            )
+        )

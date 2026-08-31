@@ -184,3 +184,25 @@ async def test_a_partition_names_its_parent_as_a_node_id(schema: str) -> None:
     assert model.partition_of is not None
     assert model.partition_of.parent_node_id == f"{schema}.events"
     assert "2026-01-01" in model.partition_of.bounds
+
+
+SERVER_TABLE = "pg_catalog.pg_tablespace"
+
+
+async def test_the_structure_of_a_relation_the_server_owns_does_not_change() -> None:
+    """PostgreSQL refuses this DDL itself; the source says so before it is tried."""
+    model = await _relation().relation_model(SERVER_TABLE)
+
+    assert model.columns
+    assert model.column_changes_supported is False
+    assert model.index_changes_supported is False
+    assert model.constraint_changes_supported is False
+    assert model.column_operations == []
+    assert model.index_methods == []
+    for reason in (
+        model.column_changes_reason,
+        model.index_changes_reason,
+        model.constraint_changes_reason,
+    ):
+        assert reason is not None
+        assert "pg_catalog" in reason

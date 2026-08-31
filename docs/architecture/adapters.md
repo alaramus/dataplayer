@@ -1417,6 +1417,61 @@ Known deviations:
   so bytes that are not an archive under a `.zip` name are found when the node
   is walked into, as D47 already says of every misleading suffix.
 
+## D54. A relation the server owns is described but never changed
+
+`pg_catalog` and `information_schema` are listed like any other schema, and
+their relations are read like any other relation. What they are not is
+writable, and until this decision they were: `pg_tablespace`, `pg_extension`
+and every other catalog stored as a real table has `relkind = 'r'`, so the only
+question fetch asked — "is this a table?" — answered yes, and the grid offered
+to edit cells, insert rows and delete them.
+
+That is not theoretical. This tool connects as an administrator more often than
+not, and PostgreSQL lets a superuser write a system catalog:
+
+    BEGIN;
+    UPDATE pg_catalog.pg_tablespace SET spcname = 'x' WHERE spcname = 'pg_default';
+    -- UPDATE 1
+
+DDL is refused by the server — `ALTER TABLE pg_catalog.pg_tablespace ADD COLUMN`
+and `CREATE INDEX` on one both answer "permission denied: it is a system
+catalog" — so the structure commands were never a corruption path. They were
+still wrong in a smaller way: the command was offered, and the answer came back
+as a driver message.
+
+**The rule is the one that already existed.** Creating a table in `pg_catalog`
+has been refused since D45, with the words `"pg_catalog" belongs to the server`.
+Rows and structure now give the same answer, from the same predicate, which is
+why `is_system_schema` is public in `postgres/catalog.py` and imported by fetch
+and by the relation model rather than restated in each.
+
+The refusal is the source's, not the route's, and it is a capability rather than
+an error: `update_supported`, `insert_supported`, `delete_supported`,
+`column_changes_supported`, `index_changes_supported` and
+`constraint_changes_supported` all become false with a reason, so the screen
+stops offering the command instead of showing what happened after it was tried.
+Because per-column `editable` and `insertable` are derived from those flags,
+nothing else had to learn the rule.
+
+Consequences:
+
+- **Reading is untouched.** Paging, sorting, filtering, charts and export over
+  `pg_stat_activity` or `pg_settings` work exactly as before, which is what
+  makes most of the old application's PostgreSQL "system objects" screens
+  unnecessary rather than unported.
+- **The predicate is the schema's name, not a privilege check.** `pg_%` and
+  `information_schema`. A catalog is identified by where it lives, which is
+  stable, rather than by what this connection happens to be allowed to do,
+  which is not.
+
+Known deviations:
+
+- **A user's own table inside a schema named `pg_something` is refused too.**
+  The name is reserved by PostgreSQL for exactly this reason, and a rule that
+  asked the server instead would be a query per relation.
+- **`pg_temp` and `pg_toast` are not listed at all**, so the rule never reaches
+  them.
+
 ## D8. Every user owns one directory, and a file connector cannot leave it
 
 `USER_STORAGE_ROOT / <user_id>` is created when the user is created. The root of

@@ -4,6 +4,7 @@ from typing import Any, Literal, cast
 
 from psycopg import sql
 
+from app.adapters.postgres.catalog import is_system_schema
 from app.adapters.postgres.column_type import build_column_type
 from app.adapters.postgres.column_types import POSTGRES_COLUMN_TYPE_OPTIONS
 from app.adapters.postgres.index_methods import (
@@ -401,7 +402,15 @@ def _relation_model(
         else None
     )
     kind = _KINDS[str(row["relkind"])]
-    if partition_of is not None:
+    # A relation the server owns is described in full and changed by
+    # nothing, whatever its kind would otherwise allow. PostgreSQL refuses
+    # the DDL itself, but a refusal the source states is a capability the
+    # screen can read, where a driver message is only an error (D54).
+    server_owned = is_system_schema(schema)
+    owned_reason = f'"{schema}" belongs to the server'
+    if server_owned:
+        column_changes_reason = owned_reason
+    elif partition_of is not None:
         column_changes_reason = "Change columns on the partitioned parent"
     elif kind not in {"table", "partitioned_table"}:
         column_changes_reason = "Only tables can change columns"
@@ -410,14 +419,18 @@ def _relation_model(
     # A different question from the one above: a materialized view has no
     # columns to change and can still be indexed, and a child partition holds
     # indexes of its own even though its shape belongs to its parent.
-    if kind in {"table", "partitioned_table", "materialized_view"}:
+    if server_owned:
+        index_changes_reason = owned_reason
+    elif kind in {"table", "partitioned_table", "materialized_view"}:
         index_changes_reason = None
     else:
         index_changes_reason = "Only tables and materialized views can be indexed"
     # And a third question again: a materialized view is indexable and holds no
     # constraints, while a child partition holds its own even though its
     # columns belong to its parent.
-    if kind in {"table", "partitioned_table"}:
+    if server_owned:
+        constraint_changes_reason = owned_reason
+    elif kind in {"table", "partitioned_table"}:
         constraint_changes_reason = None
     else:
         constraint_changes_reason = "Only tables can have constraints"

@@ -64,6 +64,7 @@ translations; those files are not.
 | 2026-08-31 | [Parquet files and workbook sheets as declared datasets](2026-08-31-parquet-and-workbook-datasets-design.md) | D51: a file that states its own schema is a dataset, and a workbook is a container of them |
 | 2026-08-31 | [Playing media, and reading a PDF](2026-08-31-media-and-pdf-viewers-design.md) | D52: bytes a player seeks in are a ranged stream, and a PDF is drawn by the application |
 | 2026-08-31 | [Walking into an archive](2026-08-31-archive-browsing-design.md) | D53: an archive is a container of entries, and an entry name goes through the one containment rule |
+| 2026-08-31 | [What the old PostgreSQL adapter does beyond the table rounds](2026-08-31-postgres-system-operations-design.md) | D54: a relation the server owns is described but never changed; the rest of the old PostgreSQL surface is classified |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

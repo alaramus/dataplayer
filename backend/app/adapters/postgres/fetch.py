@@ -18,6 +18,7 @@ from app.adapters.fetch import (
     NullFilter,
     ScalarFilter,
 )
+from app.adapters.postgres.catalog import is_system_schema
 from app.adapters.postgres.column_type import build_column_type
 from app.adapters.postgres.row_handle import encode_row_handle
 from app.adapters.postgres.session import PostgresSession
@@ -408,12 +409,26 @@ class PostgresFetch:
             if primary_key
             else ("physical" if physical_kind else "none")
         )
-        update_supported = table_kind
-        update_reason = None if table_kind else "Only tables can be edited"
-        insert_supported = table_kind
-        insert_reason = None if table_kind else "Only tables accept inserted rows"
-        delete_supported = table_kind
-        delete_reason = None if table_kind else "Only tables can delete rows"
+        # A catalog of the server is an ordinary table by relkind, and on a
+        # superuser connection PostgreSQL performs the write: renaming
+        # pg_default in pg_tablespace succeeds. Refused here rather than
+        # left to the driver, which is the same rule that already refuses a
+        # new table in pg_catalog, now said for rows too (D54).
+        server_owned = is_system_schema(schema)
+        writable = table_kind and not server_owned
+        owned = f'"{schema}" belongs to the server'
+
+        def refusal(not_a_table: str) -> str | None:
+            if writable:
+                return None
+            return owned if server_owned else not_a_table
+
+        update_supported = writable
+        update_reason = refusal("Only tables can be edited")
+        insert_supported = writable
+        insert_reason = refusal("Only tables accept inserted rows")
+        delete_supported = writable
+        delete_reason = refusal("Only tables can delete rows")
         columns: list[FetchColumn] = []
         for row in rows:
             type_ = build_column_type(row)

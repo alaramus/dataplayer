@@ -15,7 +15,13 @@ _SYSTEM_SCHEMAS = ("information_schema",)
 TABLE_REPRESENTATION = NodeRepresentation(kind="table", title="View as table")
 
 
-def _is_system_schema(name: str) -> bool:
+def is_system_schema(name: str) -> bool:
+    """Whether a schema belongs to the server rather than to the reader.
+
+    In one place because three modules ask it: the catalog to mark a
+    node, the relation model to refuse a structure change, and fetch to
+    refuse a write (D54).
+    """
     return name.startswith("pg_") or name in _SYSTEM_SCHEMAS
 
 
@@ -49,7 +55,7 @@ class PostgresCatalog:
                 id=row["name"],
                 name=row["name"],
                 has_children=True,
-                is_system=_is_system_schema(row["name"]),
+                is_system=is_system_schema(row["name"]),
                 representations=[],
             )
             for row in rows
@@ -99,7 +105,7 @@ class PostgresCatalog:
             id=schema,
             name=schema,
             has_children=True,
-            is_system=_is_system_schema(schema),
+            is_system=is_system_schema(schema),
             representations=[],
         )
 
@@ -142,7 +148,7 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
     Shared by the listing and by `path_to` so a table cannot be described one
     way when walked into and another way when pointed at.
     """
-    is_system = _is_system_schema(schema)
+    is_system = is_system_schema(schema)
     if row["kind"] in ("v", "m"):
         return ViewNode(
             id=f"{schema}.{name}",

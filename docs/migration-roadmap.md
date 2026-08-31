@@ -432,10 +432,56 @@ was asked to delete an already deleted row and rightly refused.
 
 ### 1.5 PostgreSQL-specific operations, after the general table rounds
 
-- [?] Inventory extensions, processes, tablespaces, backups and TimescaleDB
+- [x] Inventory extensions, processes, tablespaces, backups and TimescaleDB
   operations from the old adapter.
-- [ ] Port them one capability at a time as source-specific catalog node kinds
-  and declared actions. Do not add PostgreSQL branches to generic screens.
+
+The inventory is
+[the 1.5 spec](superpowers/specs/2026-08-31-postgres-system-operations-design.md),
+and it corrected the plan twice.
+
+First, the largest group needs no porting at all. Every read-only list in the
+old "System's objects" menu is a `SELECT` from one relation in `pg_catalog` or
+`information_schema`. Those schemas are not hidden here and those relations are
+listed and fetched today, with paging, sorting, filtering, charts and export
+that the old bespoke fetches never had. Seven of the ten are covered outright;
+three lose a computed column or a filter. What is missing is a name, not a
+capability, so it is one small slice below rather than ten node kinds.
+
+Second, TimescaleDB is not a source type, and treating it as one is what the
+old application did. It is an extension present or absent per connection, so
+the whole family waits on per-connection capability discovery rather than on
+thirty queued operations.
+
+- [x] A relation the server owns is described but never changed.
+- [ ] Publish the handful of system relations worth opening by name, and the
+  three that are a query rather than a relation.
+- [ ] Create and drop an extension, as two connector-root actions.
+- [ ] Create, drop and rename a schema, and move a relation between schemas.
+- [ ] Offer a relation's DDL as a content representation under D47.
+
+Deliberately later capabilities, with the reason in the spec: backup and
+restore (needs Phase 4's owned jobs), monitoring statistics (Phase 7), Grafana
+(Phase 6), database roles, ORM code generation, diagram and similarity
+features, and every TimescaleDB operation. An action over ticked rows —
+cancelling a query is the first one to want it — is a contract gap the project
+does not have and will not invent for a single command.
+
+D54 settles the first implemented bullet, and it came out of the inventory
+rather than the plan. `pg_tablespace`, `pg_extension` and their neighbours are
+stored as real tables, so `relkind = 'r'`, and fetch asked only whether a
+relation was a table before letting the grid edit it. PostgreSQL performs that
+write for a superuser, which is how this tool usually connects: renaming
+`pg_default` through `UPDATE pg_catalog.pg_tablespace` succeeds. The refusal
+that already covered creating a table in `pg_catalog` now covers rows and
+structure too, from one shared predicate, and it is a capability the screen
+reads rather than an error it reports.
+
+No frontend change was needed: the refusal travels through capability flags the
+grid and the structure view already read, so both show the command disabled
+with the reason in its tooltip.
+
+Validated on 2026-08-31: the whole backend suite (1053 passed), mypy, ruff, the
+import contracts and the documentation check. The frontend was not touched.
 
 Exit condition for Phase 1: PostgreSQL covers the common daily table workflow;
 files open in a representation appropriate to their content, with a grid only
@@ -693,11 +739,15 @@ end-to-end suite.
 
 ## Next session
 
-File-source depth is finished: 1.4 is complete. Resume with 1.5 — first the
-discovery item, an inventory of what the old PostgreSQL adapter does beyond the
-general table rounds: extensions, processes, tablespaces, backups and the
-TimescaleDB operations. Read `dbwebtool/webdb/data_adapter/postgre/` and
-classify each one as a source-specific catalog node kind, a declared action, or
-something deliberately left out; then port them one capability at a time,
-without adding PostgreSQL branches to generic screens. Phase 1 closes with
-that, and Phase 2 is sharing a bounded fetched snapshot.
+1.5's discovery is done and written up in
+[its spec](superpowers/specs/2026-08-31-postgres-system-operations-design.md).
+D54 is implemented and not yet validated: run the backend suite, mypy, ruff and
+the import contracts, plus the documentation check. The frontend was not
+touched — the refusal travels through capability flags it already reads — so a
+browser check of an editable table and of `pg_catalog.pg_tablespace` side by
+side is worth more here than a frontend suite.
+
+Then continue 1.5 in the order listed there: name the system relations worth
+opening by name, then extension create and drop, then schema commands, then DDL
+as a content representation. Phase 1 closes with those four; Phase 2 is sharing
+a bounded fetched snapshot.

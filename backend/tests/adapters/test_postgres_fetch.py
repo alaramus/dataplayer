@@ -389,3 +389,34 @@ async def test_page_size_never_exceeds_the_limit() -> None:
     result = await _adapter().fetch(FetchRequest(node_id=CATALOG_TABLE, limit=7))
 
     assert len(result.rows) == 7
+
+
+# A catalog of the server, and an ordinary table by relkind: before D54 the
+# grid offered to edit it, and on a superuser connection PostgreSQL obliged.
+SERVER_TABLE = "pg_catalog.pg_tablespace"
+
+
+async def test_a_relation_the_server_owns_is_read_only() -> None:
+    result = await _adapter().fetch(FetchRequest(node_id=SERVER_TABLE, limit=5))
+
+    assert result.rows
+    assert result.update_supported is False
+    assert result.insert_supported is False
+    assert result.delete_supported is False
+    assert result.update_reason is not None
+    assert "pg_catalog" in result.update_reason
+    assert not any(column.editable for column in result.columns)
+    assert not any(column.insertable for column in result.columns)
+    # And no handle at all: a handle exists to name a row for a write, so a
+    # relation that takes none has no reason to issue one.
+    assert all(handle is None for handle in result.row_handles)
+
+
+async def test_a_relation_the_server_owns_is_still_readable() -> None:
+    """The refusal is about writing, and must not cost the reading."""
+    result = await _adapter().fetch(
+        FetchRequest(node_id=SERVER_TABLE, limit=5, sort=[Sort(column="spcname")])
+    )
+
+    assert result.rows
+    assert any(column.name == "spcname" for column in result.columns)
