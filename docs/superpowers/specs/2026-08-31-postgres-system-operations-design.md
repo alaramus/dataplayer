@@ -142,12 +142,7 @@ this query" is half a feature, and half a feature is the honest state.
 
 ## Queued, in order
 
-1. **Named system relations.** One small slice: the source publishes a short
-   list of relations worth opening by name, and the three that are a query
-   rather than a relation come with it. Whether that needs a node kind or is
-   only a naming layer over ids the catalog already issues is the question that
-   slice answers; it is not answered here, because both shapes are cheap and
-   the choice depends on whether a source-defined query must be fetchable.
+1. ~~**Named system relations.**~~ Done; the answer is below.
 2. **Extension create and drop**, as two connector-root actions.
 3. **Schema create, drop and rename**, and moving a relation between schemas.
 4. **DDL as a content representation** of a relation.
@@ -157,3 +152,47 @@ this query" is half a feature, and half a feature is the honest state.
 
 Items 1 to 4 close Phase 1. Items 5 and 6 are deliberate later capabilities,
 which is what the phase's exit condition asks for.
+
+
+## The deferred question, answered: a report is a statement
+
+Item 1 above asked whether a source-defined query must be fetchable, and left
+the shape open because the answer decides it. It must. Two of the three that
+are a query rather than a relation are worth having precisely for the column
+that no relation holds — the size and object count beside a tablespace, and a
+sentence saying what changing a setting takes — and a reader cannot be asked to
+write the join that produces them.
+
+So the mechanism is one registry of statements, and the shortcut and the
+computed answer use the same one. That is a correction to the caution written
+above, that naming the seven plain relations would be "a second way to read one
+relation". It would be, if each were a second implementation. It is not: a
+registry entry is a `SELECT` and a title, every entry is read by the same
+builder, and a curated shortcut to rows a reader could also reach the long way
+is what a shortcut is. The alternative — six reports the reader cannot find and
+two they can — was worse for no gain in code.
+
+D55 states the contract, and
+[adapters.md](../../architecture/adapters.md) carries the reasoning. The parts
+worth restating here, because they are where the design could have gone wrong:
+
+- **Columns are described, not declared.** The registry could have listed each
+  report's columns beside its statement. The two would have drifted the first
+  time a statement changed, and a wrong `ColumnType` is not a cosmetic error —
+  `encode_cell` uses it. The statement is run with `LIMIT 0` instead, and
+  psycopg's cursor description plus one `pg_type` lookup builds exactly the
+  `ColumnType` a relation's columns are built from.
+- **The report becomes the `FROM` of the existing builder**, so filters, sort,
+  paging, the limit ceiling and identifier validation are the same code. The
+  only new thing `PreparedRead` carries is what to select from.
+- **The section's id is `pg_dataplayer`.** PostgreSQL refuses to create a schema
+  whose name starts with `pg_`, so this cannot collide with a schema a user
+  makes. The guarantee is the server's, not a convention.
+
+Six reports are registered: processes, settings, tablespaces, roles, routines
+and extensions. Extensions is one where the old application had two, because
+`pg_available_extensions` already states the installed version.
+
+What this does not do, deliberately: a report has no row estimate, offers no
+foreign key to follow, and answers no relation model. Each is written up as a
+known deviation beside D55 rather than left to be discovered.

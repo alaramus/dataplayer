@@ -2606,6 +2606,9 @@ export type ReferencedRows = {
     | ({
         kind: "entry"
       } & EntryNode)
+    | ({
+        kind: "report"
+      } & ReportNode)
   /**
    * Filters
    */
@@ -2671,6 +2674,9 @@ export type RelationCreated = {
     | ({
         kind: "entry"
       } & EntryNode)
+    | ({
+        kind: "report"
+      } & ReportNode)
   /**
    * Inserted
    */
@@ -2836,6 +2842,51 @@ export type RepeatingValues = {
    * Exact
    */
   exact?: boolean
+}
+
+/**
+ * ReportNode
+ *
+ * A named read-only answer a source gives about itself, or a section of them.
+ *
+ * Not a view: there is no relation to describe, no owner and no constraint,
+ * and the statement behind it lives in this repository rather than on the
+ * server (D55). The section holding a source's reports is a report with
+ * children, the way a folder inside an archive is an entry with children.
+ *
+ * `description` is the one line that makes a name like "Processes" mean
+ * something without opening it; the source writes it, because only the source
+ * knows what its report answers.
+ */
+export type ReportNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "report"
+  /**
+   * Description
+   */
+  description?: string | null
 }
 
 /**
@@ -4466,6 +4517,9 @@ export type connectorsReadCatalogResponses = {
     | ({
         kind: "entry"
       } & EntryNode)
+    | ({
+        kind: "report"
+      } & ReportNode)
   >
 }
 
@@ -5280,6 +5334,9 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "entry"
       } & EntryNode)
+    | ({
+        kind: "report"
+      } & ReportNode)
   >
 }
 

@@ -3,12 +3,22 @@ from typing import Any
 
 from app.adapters.catalog import (
     CatalogNode,
+    ReportNode,
     SchemaNode,
     TableNode,
     ViewNode,
 )
 from app.adapters.content import NodeRepresentation
 from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.system_reports import (
+    REPORTS,
+    SECTION_DESCRIPTION,
+    SECTION_ID,
+    SECTION_TITLE,
+    SystemReport,
+    is_section,
+    report_for,
+)
 from app.adapters.protocol import AdapterError, NodeNotFound
 
 _SYSTEM_SCHEMAS = ("information_schema",)
@@ -37,7 +47,9 @@ class PostgresCatalog:
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         if node_id is None:
-            return await self._list_schemas()
+            return [*await self._list_schemas(), _section_node()]
+        if is_section(node_id):
+            return [_report_node(report) for report in REPORTS]
         return await self._list_relations(node_id)
 
     async def _list_schemas(self) -> list[CatalogNode]:
@@ -89,6 +101,17 @@ class PostgresCatalog:
         an id survives in a tab across a `DROP TABLE`, and the caller has to
         be able to tell "it moved" from "it is gone".
         """
+        if is_section(node_id):
+            return [_section_node()]
+        report = report_for(node_id)
+        if report is not None:
+            return [_section_node(), _report_node(report)]
+        # An id in the reports' namespace naming no report is gone rather than
+        # a relation to look for: no schema can be called `pg_dataplayer`,
+        # because PostgreSQL reserves the prefix.
+        if node_id.startswith(f"{SECTION_ID}."):
+            raise NodeNotFound(node_id)
+
         schema, _, relation = node_id.partition(".")
 
         path: list[CatalogNode] = [await self._schema_node(schema, node_id)]
@@ -140,6 +163,32 @@ class PostgresCatalog:
             "SELECT 1 FROM pg_namespace WHERE nspname = %s", (schema,)
         )
         return bool(rows)
+
+
+def _section_node() -> ReportNode:
+    """The connector's own section of reports, listed beside its schemas.
+
+    A grouping like a schema is, and last, because a reader came for their own
+    data. What it holds is fixed in code, so nothing is asked of the server to
+    say that it has children (D55).
+    """
+    return ReportNode(
+        id=SECTION_ID,
+        name=SECTION_TITLE,
+        description=SECTION_DESCRIPTION,
+        has_children=True,
+        representations=[],
+    )
+
+
+def _report_node(report: SystemReport) -> ReportNode:
+    return ReportNode(
+        id=report.node_id,
+        name=report.title,
+        description=report.description,
+        has_children=False,
+        representations=[TABLE_REPRESENTATION],
+    )
 
 
 def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:

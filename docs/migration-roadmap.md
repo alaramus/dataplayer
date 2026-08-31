@@ -453,8 +453,31 @@ the whole family waits on per-connection capability discovery rather than on
 thirty queued operations.
 
 - [x] A relation the server owns is described but never changed.
-- [ ] Publish the handful of system relations worth opening by name, and the
+- [x] Publish the handful of system relations worth opening by name, and the
   three that are a query rather than a relation.
+
+D55 settles that one, and answers the question the spec deferred to it: a
+source-defined query must be fetchable. Two of the three exist only for the
+column no relation holds — size and object count beside a tablespace, a
+sentence saying what changing a setting takes — and a reader cannot be asked to
+write the join. So there is one registry of statements, and the plain
+shortcuts use it too; the caution that this would be "a second way to read one
+relation" was wrong, because a registry entry is a SELECT and a title read by
+the same builder, not a second implementation.
+
+A report is a catalog node of kind `report`; the section holding them is a
+report with children, as a folder inside an archive is an entry with children.
+Its columns are described by running the statement with LIMIT 0 rather than
+declared beside it, because a hand-written column list drifts and a wrong
+ColumnType is not cosmetic. The section's id is `pg_dataplayer`, which cannot
+collide with a schema because PostgreSQL refuses to create one under `pg_`.
+Six reports: processes, settings, tablespaces, roles, routines, extensions.
+
+Validated on 2026-08-31: the whole backend suite (1068 passed), mypy, ruff, the
+import contracts, the regenerated client, frontend type check, lint, unit tests,
+the production build, the documentation check, and the whole end-to-end suite
+(109 scenarios) including a new one that walks into the section and opens
+Tablespaces.
 - [ ] Create and drop an extension, as two connector-root actions.
 - [ ] Create, drop and rename a schema, and move a relation between schemas.
 - [ ] Offer a relation's DDL as a content representation under D47.
@@ -740,14 +763,10 @@ end-to-end suite.
 ## Next session
 
 1.5's discovery is done and written up in
-[its spec](superpowers/specs/2026-08-31-postgres-system-operations-design.md).
-D54 is implemented and not yet validated: run the backend suite, mypy, ruff and
-the import contracts, plus the documentation check. The frontend was not
-touched — the refusal travels through capability flags it already reads — so a
-browser check of an editable table and of `pg_catalog.pg_tablespace` side by
-side is worth more here than a frontend suite.
+[its spec](superpowers/specs/2026-08-31-postgres-system-operations-design.md);
+D54 and D55 are implemented and validated.
 
-Then continue 1.5 in the order listed there: name the system relations worth
-opening by name, then extension create and drop, then schema commands, then DDL
-as a content representation. Phase 1 closes with those four; Phase 2 is sharing
-a bounded fetched snapshot.
+Continue 1.5 in the order listed there: extension create and drop as two
+connector-root actions, then the schema commands, then DDL as a content
+representation. Phase 1 closes with those three; Phase 2 is sharing a bounded
+fetched snapshot.

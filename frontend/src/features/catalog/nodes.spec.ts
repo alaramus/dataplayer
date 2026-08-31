@@ -534,4 +534,35 @@ describe("file sources", () => {
     // of one step beside it would say nothing.
     expect(showsPath(1, [group("public")])).toBe(false)
   })
+
+  it("walks into the section of reports and opens a report", () => {
+    // One kind covers both, as `entry` does for an archive: the section has
+    // children and a report does not (D55).
+    const section: CatalogNode = {
+      kind: "report",
+      id: "pg_dataplayer",
+      name: "System",
+      has_children: true,
+      representations: [],
+    }
+    const report: CatalogNode = {
+      kind: "report",
+      id: "pg_dataplayer.processes",
+      name: "Processes",
+      description: "Backends connected now",
+      has_children: false,
+      representations: [{ kind: "table", title: "View as table" }],
+    }
+
+    expect(roleOf(section)).toBe("container")
+    expect(roleOf(report)).toBe("leaf")
+
+    const mapped = toListNodes([section, report])
+    expect(at(mapped, 0).readable).toBe(false)
+    expect(at(mapped, 1).readable).toBe(true)
+    // The source writes the line; the list does not invent one.
+    expect(at(mapped, 0).caption).toBeUndefined()
+    expect(at(mapped, 1).caption).toBe("Backends connected now")
+    expect(at(mapped, 0).icon).not.toBe(at(mapped, 1).icon)
+  })
 })

@@ -385,6 +385,7 @@ export type {
   RelationModel,
   RenameColumnRequest,
   RepeatingValues,
+  ReportNode,
   RowEdit,
   RowsMoved,
   ScalarFilter,

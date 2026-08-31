@@ -23,6 +23,9 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   file: "leaf",
   dataset: "leaf",
   entry: "leaf",
+  // A report is opened; the section holding them has children, so the rule
+  // below turns that one into a place to walk into (D55).
+  report: "leaf",
 }
 
 export interface ListNode {
@@ -60,7 +63,11 @@ const ICONS: Record<CatalogNode["kind"], string> = {
   file: "insert_drive_file",
   dataset: "grid_on",
   entry: "insert_drive_file",
+  report: "monitoring",
 }
+
+/** The section of reports, which is a report with children rather than a folder. */
+const REPORT_SECTION_ICON = "dns"
 
 const FILE_ICONS: Partial<Record<NodeRepresentation["kind"], string>> = {
   table: "grid_on",
@@ -102,6 +109,9 @@ export function roleOf(node: CatalogNode): NodeRole {
 }
 
 function iconOf(node: CatalogNode): string {
+  if (node.kind === "report") {
+    return node.has_children ? REPORT_SECTION_ICON : ICONS.report
+  }
   // A file and a member of one are drawn the same way: by what opening them
   // shows, and as a folder when they are walked into instead.
   if (node.kind !== "file" && node.kind !== "entry") return ICONS[node.kind]
@@ -120,6 +130,10 @@ function captionOf(node: CatalogNode): string | undefined {
         : `~${node.row_count_estimate} rows`
     case "view":
       return node.is_materialized ? "materialized view" : "view"
+    case "report":
+      // The source's own line about what the report answers. Nothing here
+      // rewrites it: only the source knows what its statement is for.
+      return node.description ?? undefined
     case "file":
       return formatSize(node.size_bytes)
     case "dataset":

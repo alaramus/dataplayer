@@ -38,7 +38,10 @@ async def test_root_returns_schemas(
 
     assert response.status_code == 200
     nodes = response.json()
-    assert all(node["kind"] == "schema" for node in nodes)
+    assert all(node["kind"] == "schema" for node in nodes[:-1])
+    # The source's own section of reports travels through the route as any
+    # other node kind does (D55).
+    assert nodes[-1]["kind"] == "report"
     assert "public" in [node["name"] for node in nodes]
 
 

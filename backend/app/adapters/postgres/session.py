@@ -367,6 +367,28 @@ class PostgresSession:
             error_kind, message = classify(exc, fallback_message="Query failed")
             raise AdapterError(error_kind, message) from None
 
+    async def describe(self, sql: str) -> list[tuple[str, int]]:
+        """The name and type OID of each column a statement returns.
+
+        Asked of the server rather than declared beside the statement: a list
+        of columns written by hand drifts from its statement the first time one
+        of them changes (D55). The statement is executed, so a caller bounds it
+        with LIMIT 0.
+        """
+        try:
+            async with self._connection() as connection:
+                cursor = await connection.execute(sql)
+                return [
+                    (column.name, column.type_code)
+                    for column in cursor.description or []
+                ]
+        except PoolTimeout:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except Exception as exc:
+            error_kind, message = classify(exc, fallback_message="Describe failed")
+            raise AdapterError(error_kind, message) from None
+
     async def stream_query(
         self,
         sql: str,

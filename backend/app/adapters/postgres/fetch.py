@@ -22,6 +22,11 @@ from app.adapters.postgres.catalog import is_system_schema
 from app.adapters.postgres.column_type import build_column_type
 from app.adapters.postgres.row_handle import encode_row_handle
 from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.system_reports import (
+    SECTION_ID,
+    SystemReport,
+    report_for,
+)
 from app.adapters.protocol import AdapterError
 from app.adapters.relation import ColumnType
 
@@ -103,10 +108,16 @@ class RelationFetchInfo:
 
 @dataclass(frozen=True)
 class PreparedRead:
-    """One validated relation query shared by page and export capabilities."""
+    """One validated read shared by the page and export capabilities.
 
-    schema: str
-    table: str
+    `source` is what the statement selects from — a relation, or a report's own
+    statement wrapped as a subquery (D55) — so neither builder below has to ask
+    which of the two it is holding. `relation` names the relation when there is
+    one, for the questions only a relation can answer.
+    """
+
+    source: sql.Composable
+    relation: tuple[str, str] | None
     info: RelationFetchInfo
     request: FetchRequest
 
@@ -195,17 +206,23 @@ class PostgresFetch:
         info = prepared.info
         columns = info.columns
 
+        # A report has no constraints to report: the columns of a join carry
+        # none, and inventing one from a column name is the guessing D36
+        # exists to avoid.
         references = [
             FetchReference(
                 name=reference.name,
                 columns=reference.columns,
                 target_title=reference.target_node_id,
             )
-            for reference in await self.references(prepared.schema, prepared.table)
+            for reference in (
+                []
+                if prepared.relation is None
+                else await self.references(*prepared.relation)
+            )
         ]
         statement, params = self._build(
-            prepared.schema,
-            prepared.table,
+            prepared.source,
             columns,
             prepared.request,
             info,
@@ -234,21 +251,100 @@ class PostgresFetch:
         )
 
     async def prepare(self, request: FetchRequest) -> PreparedRead:
-        """Validate the relation and query once for a page or an export."""
-        schema, _, table = request.node_id.partition(".")
-        if not table:
-            raise ValueError(
-                f'"{request.node_id}" is not a relation: expected schema.table'
-            )
-
-        info = await self.relation_info(schema, table)
-        columns = info.columns
-        known = {column.name: column for column in columns}
+        """Validate the source and the query once for a page or an export."""
+        source, relation, info = await self._read_source(request.node_id)
+        known = {column.name: column for column in info.columns}
         self._reject_unknown_columns(request, known)
         filters = self._validate_filters(request.filters, known)
         self._reject_unsortable_columns(request, known)
         request = request.model_copy(update={"filters": filters})
-        return PreparedRead(schema=schema, table=table, info=info, request=request)
+        return PreparedRead(
+            source=source, relation=relation, info=info, request=request
+        )
+
+    async def _read_source(
+        self, node_id: str
+    ) -> tuple[sql.Composable, tuple[str, str] | None, RelationFetchInfo]:
+        """What a node id selects from, and what is known about its rows."""
+        report = report_for(node_id)
+        if report is not None:
+            return (
+                sql.SQL("({}) AS report").format(report.statement),
+                None,
+                await self._report_info(report),
+            )
+        # An id in the reports' own namespace that names no report is wrong
+        # about the reports, not about a relation, and saying "expected
+        # schema.table" about it would send the reader looking in the wrong
+        # place.
+        if node_id == SECTION_ID or node_id.startswith(f"{SECTION_ID}."):
+            raise ValueError(f'"{node_id}" is not a report of this source')
+
+        schema, _, table = node_id.partition(".")
+        if not table:
+            raise ValueError(f'"{node_id}" is not a relation: expected schema.table')
+        return (
+            sql.Identifier(schema, table),
+            (schema, table),
+            await self.relation_info(schema, table),
+        )
+
+    async def _report_info(self, report: SystemReport) -> RelationFetchInfo:
+        """The columns of a report, described by the server that will run it.
+
+        Nothing is written through a report and no row handle is issued: there
+        is no row to name behind a subquery, which is the position D42 already
+        leaves a view in.
+        """
+        described = await self._session.describe(
+            sql.SQL("SELECT * FROM ({}) AS report LIMIT 0")
+            .format(report.statement)
+            .as_string()
+        )
+        types = await self._types_by_oid([oid for _, oid in described])
+        columns: list[FetchColumn] = []
+        for name, oid in described:
+            type_ = build_column_type(types[oid])
+            sortable, filter_operators = column_capabilities(type_)
+            columns.append(
+                FetchColumn(
+                    name=name,
+                    type=type_,
+                    sortable=sortable,
+                    filter_operators=filter_operators,
+                )
+            )
+        refused = f'"{report.title}" is a report and holds no rows of its own'
+        return RelationFetchInfo(
+            columns=columns,
+            primary_key=[],
+            row_identity="none",
+            update_supported=False,
+            update_reason=refused,
+            insert_supported=False,
+            insert_reason=refused,
+            delete_supported=False,
+            delete_reason=refused,
+        )
+
+    async def _types_by_oid(self, oids: list[int]) -> dict[int, dict[str, Any]]:
+        """The same type facts a relation's columns are built from, by OID."""
+        rows = await self._session.query(
+            """
+            SELECT t.oid AS oid,
+                   format_type(t.oid, NULL) AS sql_type,
+                   t.typname AS type_name,
+                   t.typcategory AS type_category,
+                   format_type(t.typelem, NULL) AS element_sql,
+                   et.typname AS element_name,
+                   et.typcategory AS element_category
+            FROM pg_type t
+            LEFT JOIN pg_type et ON et.oid = t.typelem
+            WHERE t.oid = ANY(%s)
+            """,
+            (sorted(set(oids)),),
+        )
+        return {int(row["oid"]): row for row in rows}
 
     def build_export(
         self, prepared: PreparedRead, requested_columns: list[str]
@@ -262,7 +358,7 @@ class PostgresFetch:
         params: list[Any] = []
         selected = sql.SQL(", ").join(select_expression(column) for column in columns)
         statement = sql.SQL("SELECT {} FROM {}").format(
-            selected, sql.Identifier(prepared.schema, prepared.table)
+            selected, prepared.source
         )
         conditions = [
             self._condition(filter_, params) for filter_ in prepared.request.filters
@@ -503,8 +599,7 @@ class PostgresFetch:
 
     def _build(
         self,
-        schema: str,
-        table: str,
+        source: sql.Composable,
         columns: list[FetchColumn],
         request: FetchRequest,
         info: RelationFetchInfo,
@@ -517,9 +612,7 @@ class PostgresFetch:
             selected = selected + sql.SQL(
                 ", tableoid::text AS __dp_tableoid, ctid::text AS __dp_ctid"
             )
-        statement = sql.SQL("SELECT {} FROM {}").format(
-            selected, sql.Identifier(schema, table)
-        )
+        statement = sql.SQL("SELECT {} FROM {}").format(selected, source)
 
         conditions = [self._condition(f, params) for f in request.filters]
         if conditions:

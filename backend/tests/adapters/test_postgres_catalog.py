@@ -3,7 +3,7 @@ from collections.abc import AsyncGenerator
 import psycopg
 import pytest
 
-from app.adapters.catalog import SchemaNode, TableNode, ViewNode
+from app.adapters.catalog import ReportNode, SchemaNode, TableNode, ViewNode
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.protocol import AdapterError, NodeNotFound
@@ -39,10 +39,17 @@ async def temporary_view() -> AsyncGenerator[str]:
             await conn.execute(f"DROP VIEW IF EXISTS {VIEW_NAME}")
 
 
-async def test_root_lists_schemas_including_public() -> None:
+async def test_root_lists_schemas_and_the_reports_section_last() -> None:
+    """Every node is a schema but the last, which is the section of D55.
+
+    Stated as "all but the last" rather than loosened to "some are schemas":
+    the order is what makes `public` the grouping the catalog turns on by
+    default, and a section that drifted to the front would take that away.
+    """
     nodes = await _adapter().list_children(None)
 
-    assert all(isinstance(node, SchemaNode) for node in nodes)
+    assert all(isinstance(node, SchemaNode) for node in nodes[:-1])
+    assert isinstance(nodes[-1], ReportNode)
     names = [node.name for node in nodes]
     assert "public" in names
 

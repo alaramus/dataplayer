@@ -1417,6 +1417,76 @@ Known deviations:
   so bytes that are not an archive under a `.zip` name are found when the node
   is walked into, as D47 already says of every misleading suffix.
 
+## D55. A source may publish reports of its own, and a report is a statement the source holds
+
+The old application reached its "System's objects" screens through ten bespoke
+fetches. Seven of them are a `SELECT` from one relation that DataPlayer already
+lists, so the 1.5 inventory left them alone. Three are not: tablespaces need
+`pg_tablespace` joined to `pg_roles` and `pg_class` with `pg_tablespace_size`
+and a count of objects, and settings are worth reading only with an explanation
+of what `context` means for changing one. There is no relation to open for
+those, and there will not be — a reader cannot be asked to write the join.
+
+A **report** is a named, read-only, tabular answer a source gives about itself.
+It is a catalog node of kind `report`, so it is walked to and opened like
+anything else, and the section holding them is a report with children, the way
+a folder inside an archive is an entry with children (D53).
+
+**The statement is the source's, and the client's influence on it is the same
+as anywhere else.** The registry in `postgres/system_reports.py` holds one
+`sql.SQL` per report, written in this repository and never composed from
+anything a request carries. A node id selects one entry from a closed tuple; an
+id naming no entry is `NodeNotFound`, not a query. Filters, sorting and paging
+arrive as the ordinary `FetchRequest` and are validated against the report's own
+columns exactly as they are validated against a relation's, because the report
+becomes the `FROM` of the same builder — `SELECT … FROM (statement) AS report`.
+So D2c holds unchanged: identifiers are checked against columns the server
+described, values go through placeholders, and `limit` keeps its ceiling.
+
+**The columns are described, not declared.** The registry could have listed each
+report's columns beside its statement, and the two would have drifted the first
+time a statement changed. Instead the statement is executed with `LIMIT 0`,
+psycopg's cursor description gives the name and type OID of each column, and one
+lookup in `pg_type` turns those OIDs into the same `ColumnType` a relation's
+columns are built from. A report therefore sorts, filters, charts and downloads
+with no code that knows it is a report.
+
+**Nothing is written through a report**, and this needs no rule: `update`,
+`insert` and `delete` are refused for it as they are for a view, and no row
+handle is issued, because there is no row to name.
+
+**The section's node id is `pg_dataplayer`.** PostgreSQL refuses to create a
+schema whose name begins with `pg_` — "the prefix pg_ is reserved for system
+schemas" — so the id cannot collide with a schema a user could make. That is the
+server's own guarantee rather than a convention this project hopes holds, which
+is why the prefix was chosen over a punctuation mark no one would type.
+
+Consequences:
+
+- **The six reports PostgreSQL publishes** are processes, settings, tablespaces,
+  roles, routines and extensions. Each is what the old menu opened, and three
+  of them carry a column the old screen computed. Extensions is one report where
+  the old application had two, because `pg_available_extensions` already states
+  the installed version.
+- **A report is not a relation and answers no relation model.** `describable` is
+  false, so the structure screen is not offered, and there is nothing to
+  describe: a subquery has no constraints, indexes or owner.
+- **Another adapter gets this for nothing.** A queue's consumer lag and a
+  container runtime's process list are the same shape, and the kind is not named
+  after PostgreSQL.
+
+Known deviations:
+
+- **A report has no row count and no estimate.** `pg_class.reltuples` is about a
+  relation; running the statement to count would cost what reading it costs.
+- **Following a foreign key out of a report is not offered.** The columns of a
+  join carry no constraint, and inventing a reference from a column name is the
+  guessing D36 exists to avoid.
+- **Ordering falls back to the statement's own.** A report has neither a key nor
+  a `ctid`, so it is in the position D42 leaves a view in: pages are as stable as
+  the statement makes them, which is why every registered statement ends in an
+  `ORDER BY` of its own.
+
 ## D54. A relation the server owns is described but never changed
 
 `pg_catalog` and `information_schema` are listed like any other schema, and

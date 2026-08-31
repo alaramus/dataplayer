@@ -112,3 +112,29 @@ test("the head of a catalog is one height across source types", async ({ page })
     await expect(connectorRow(page, name)).toHaveCount(0)
   }
 })
+
+test("opens a report the connection publishes about itself", async ({ page }) => {
+  const name = `e2e-reports-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  // The section sits at the root beside the schemas and is walked into, so
+  // eight rows about the server never sit above the reader's own tables.
+  await catalogRow(page, "System").click()
+  await expect(page.getByTestId("catalog-list")).toContainText("Tablespaces")
+  // The source's own line about each report, not a caption the list invents.
+  await expect(catalogRow(page, "Tablespaces")).toContainText("size")
+
+  // A report opens in the ordinary grid, and carries the columns no relation
+  // holds: this is the whole reason a report is a statement (D55).
+  await catalogRow(page, "Tablespaces").click()
+  await expect(page.getByTestId("grid-cell-0-name")).toContainText("pg_default")
+  await expect(page.getByTestId("grid-cell-0-objects")).toBeVisible()
+
+  // Read-only: nothing about a subquery names a row to write back to.
+  await expect(page.getByTestId("grid-insert-row")).toHaveCount(0)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})

@@ -102,6 +102,23 @@ class EntryNode(BaseNode):
     is_encrypted: bool = False
 
 
+class ReportNode(BaseNode):
+    """A named read-only answer a source gives about itself, or a section of them.
+
+    Not a view: there is no relation to describe, no owner and no constraint,
+    and the statement behind it lives in this repository rather than on the
+    server (D55). The section holding a source's reports is a report with
+    children, the way a folder inside an archive is an entry with children.
+
+    `description` is the one line that makes a name like "Processes" mean
+    something without opening it; the source writes it, because only the source
+    knows what its report answers.
+    """
+
+    kind: Literal["report"] = "report"
+    description: str | None = None
+
+
 # Adding a kind means adding a class here. The friction is intended: a key can
 # be added to a dict silently, a class cannot.
 CatalogNode = Annotated[
@@ -111,7 +128,8 @@ CatalogNode = Annotated[
     | DirectoryNode
     | FileNode
     | DatasetNode
-    | EntryNode,
+    | EntryNode
+    | ReportNode,
     Field(discriminator="kind"),
 ]
 
@@ -121,5 +139,5 @@ CatalogNode = Annotated[
 # for instance — and a bare string there would let a typo through silently.
 # The test that this matches the union keeps the two from drifting apart.
 NodeKind = Literal[
-    "schema", "table", "view", "directory", "file", "dataset", "entry"
+    "schema", "table", "view", "directory", "file", "dataset", "entry", "report"
 ]
