@@ -1,30 +1,67 @@
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query"
 import { flushPromises, mount } from "@vue/test-utils"
-import { Quasar } from "quasar"
+import { AxiosError } from "axios"
+import { Notify, Quasar } from "quasar"
+import { defineComponent } from "vue"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ConnectorsService } from "@/client"
+import { createReloadRegistry, provideReloadRegistry } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
 
 import ContentPanel from "./ContentPanel.vue"
 
 const openRows = vi.fn()
+let registry = createReloadRegistry()
 
-function mountPanel(representation: "text" | "json" | "jsonl" = "json") {
-  return mount(ContentPanel, {
+// A plain options object rather than defineComponent: two defineComponent
+// calls in one file trip vue/one-component-per-file, and only the mounted
+// host needs its props typed.
+const CodeEditorStub = {
+  props: {
+    modelValue: { type: String, required: true },
+    filename: { type: String, required: true },
+    readonly: { type: Boolean, default: false },
+  },
+  emits: ["update:modelValue"],
+  template: `
+    <textarea
+      :value="modelValue"
+      :readonly="readonly"
+      :aria-label="filename + ' source'"
+      @input="$emit('update:modelValue', $event.target.value)"
+    />
+  `,
+}
+
+const panelId = "content:c1:worker.py:text"
+
+const Host = defineComponent({
+  components: { ContentPanel },
+  props: { panel: { type: Object, required: true } },
+  setup() {
+    provideReloadRegistry(registry)
+  },
+  template: `<ContentPanel v-bind="panel" />`,
+})
+
+function mountPanel(overrides: Record<string, unknown> = {}) {
+  return mount(Host, {
     props: {
-      panelId: `content:c1:file:${representation}`,
-      connectorId: "c1",
-      nodeId: representation === "jsonl" ? "events.jsonl" : "people.json",
-      title: representation === "jsonl" ? "events.jsonl" : "people.json",
-      connectorName: "my files",
-      adapterType: "file",
-      representation,
-      tableTitle: "View as table",
+      panel: {
+        panelId,
+        connectorId: "c1",
+        nodeId: "worker.py",
+        title: "worker.py",
+        connectorName: "my files",
+        adapterType: "file",
+        representation: "text",
+        ...overrides,
+      },
     },
     global: {
       plugins: [
-        Quasar,
+        [Quasar, { plugins: { Notify } }],
         [
           VueQueryPlugin,
           {
@@ -37,116 +74,163 @@ function mountPanel(representation: "text" | "json" | "jsonl" = "json") {
       provide: {
         [workspaceActionsKey as symbol]: { openRows },
       },
+      stubs: { CodeEditor: CodeEditorStub },
     },
   })
+}
+
+function editorAnswer(overrides: Record<string, unknown> = {}) {
+  return {
+    data: {
+      text: "print('before')\n",
+      filename: "worker.py",
+      language_hint: null,
+      validation: null,
+      version: "version-one",
+      writable: true,
+      truncated: false,
+      reason: null,
+      ...overrides,
+    },
+  } as never
+}
+
+function failure(status: number, message: string): AxiosError {
+  const cause = new AxiosError("request failed")
+  cause.response = { status, data: { detail: { message } } } as never
+  return cause
 }
 
 beforeEach(() => {
   vi.restoreAllMocks()
   openRows.mockReset()
+  registry = createReloadRegistry()
 })
 
-describe("the file content viewer", () => {
-  it("renders a JSON tree without rounding numeric text", async () => {
-    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue({
-      data: {
-        kind: "json",
-        value: {
-          kind: "object",
-          entries: [{ name: "id", value: { kind: "number", value: "10000000000000001" } }],
-        },
-      },
-    } as never)
+describe("the file content editor", () => {
+  it("opens the source itself, without asking for a separate viewer", async () => {
+    const open = vi.spyOn(ConnectorsService, "readEditorContent").mockResolvedValue(editorAnswer())
+    const viewer = vi.spyOn(ConnectorsService, "readContent")
 
     const wrapper = mountPanel()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="json-content"]').text()).toContain("10000000000000001")
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(viewer).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="content-editor"]').element).toHaveProperty(
+      "value",
+      "print('before')\n"
+    )
   })
 
-  it("reveals a wide JSON branch in bounded chunks", async () => {
-    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue({
-      data: {
-        kind: "json",
-        value: {
-          kind: "array",
-          items: Array.from({ length: 101 }, (_, index) => ({
-            kind: "number",
-            value: String(index),
-          })),
-        },
-      },
-    } as never)
+  it("saves under the version it loaded and edits on from the one it is given", async () => {
+    vi.spyOn(ConnectorsService, "readEditorContent").mockResolvedValue(editorAnswer())
+    const save = vi
+      .spyOn(ConnectorsService, "updateContent")
+      .mockResolvedValueOnce({ data: { version: "version-two" } } as never)
+      .mockResolvedValueOnce({ data: { version: "version-three" } } as never)
 
     const wrapper = mountPanel()
     await flushPromises()
+    // Nothing has changed yet, so there is nothing to save.
+    expect(wrapper.get('[data-testid="content-save"]').attributes("disabled")).toBeDefined()
 
-    expect(wrapper.get('[data-testid="json-content"]').text()).not.toContain('"100":')
-    await wrapper.get('[data-testid="json-show-more"]').trigger("click")
-    expect(wrapper.get('[data-testid="json-content"]').text()).toContain('"100":')
+    await wrapper.get('[data-testid="content-editor"]').setValue("print('after')\n")
+    await wrapper.get('[data-testid="content-save"]').trigger("click")
+    await flushPromises()
+
+    expect(save).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        body: { node_id: "worker.py", text: "print('after')\n", version: "version-one" },
+      })
+    )
+    expect(wrapper.find('[data-testid="content-dirty"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="content-editor"]').setValue("print('again')\n")
+    await wrapper.get('[data-testid="content-save"]').trigger("click")
+    await flushPromises()
+
+    expect(save).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        body: { node_id: "worker.py", text: "print('again')\n", version: "version-two" },
+      })
+    )
   })
 
-  it("keeps invalid JSON in the JSON viewer with the parser notice", async () => {
-    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue({
-      data: {
-        kind: "json",
-        value: null,
-        source_text: '{"id" 1}',
-        notice: "This file is not valid JSON (line 1 column 7).",
-      },
-    } as never)
+  it("keeps the draft and offers a reload when the file moved on underneath", async () => {
+    vi.spyOn(ConnectorsService, "readEditorContent").mockResolvedValue(editorAnswer())
+    vi.spyOn(ConnectorsService, "updateContent").mockRejectedValue(
+      failure(409, "The file changed or was deleted; reload it and try again")
+    )
 
     const wrapper = mountPanel()
     await flushPromises()
+    await wrapper.get('[data-testid="content-editor"]').setValue("print('mine')\n")
+    await wrapper.get('[data-testid="content-save"]').trigger("click")
+    await flushPromises()
 
-    expect(wrapper.get('[data-testid="json-source"]').text()).toContain('{"id" 1}')
-    expect(wrapper.get('[data-testid="content-notice"]').text()).toContain("not valid JSON")
+    expect(wrapper.get('[data-testid="content-save-error"]').text()).toContain("reload it")
+    expect(wrapper.find('[data-testid="content-reload"]').exists()).toBe(true)
+    // The edit is still on screen: the failure took nothing away.
+    expect(wrapper.get('[data-testid="content-editor"]').element).toHaveProperty(
+      "value",
+      "print('mine')\n"
+    )
   })
 
-  it("opens the alternative table only after its button is pressed", async () => {
-    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue({
-      data: { kind: "json", value: { kind: "array", items: [] } },
-    } as never)
+  it("says why a file cannot be written and offers no save at all", async () => {
+    vi.spyOn(ConnectorsService, "readEditorContent").mockResolvedValue(
+      editorAnswer({
+        writable: false,
+        version: null,
+        truncated: true,
+        reason: "Files larger than 4 MB are shown as a preview and cannot be edited here.",
+      })
+    )
 
     const wrapper = mountPanel()
     await flushPromises()
-    await wrapper.get('[data-testid="content-view-table"]').trigger("click")
 
-    expect(openRows).toHaveBeenCalledWith({
-      connectorId: "c1",
+    expect(wrapper.get('[data-testid="content-notice"]').text()).toContain("cannot be edited")
+    expect(wrapper.find('[data-testid="content-save"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="content-editor"]').attributes("readonly")).toBeDefined()
+  })
+
+  it("offers the table only for a node whose source says it has one", async () => {
+    vi.spyOn(ConnectorsService, "readEditorContent").mockResolvedValue(editorAnswer())
+
+    const text = mountPanel()
+    await flushPromises()
+    expect(text.find('[data-testid="content-view-table"]').exists()).toBe(false)
+
+    const json = mountPanel({
       nodeId: "people.json",
       title: "people.json",
-      connectorName: "my files",
-      adapterType: "file",
-      describable: false,
+      representation: "json",
+      tableTitle: "View as table",
     })
+    await flushPromises()
+    await json.get('[data-testid="content-view-table"]').trigger("click")
+
+    expect(openRows).toHaveBeenCalledWith(expect.objectContaining({ nodeId: "people.json" }))
   })
 
-  it("pages JSONL as records and keeps their physical line numbers", async () => {
-    const read = vi.spyOn(ConnectorsService, "readContent")
-    read.mockResolvedValueOnce({
-      data: {
-        kind: "jsonl",
-        items: [
-          {
-            line_number: 3,
-            value: { kind: "object", entries: [] },
-          },
-        ],
-        has_more: true,
-        offset: 0,
-      },
-    } as never)
-    read.mockResolvedValueOnce({
-      data: { kind: "jsonl", items: [], has_more: false, offset: 50 },
-    } as never)
+  it("refuses to re-read a file that has unsaved changes", async () => {
+    const open = vi.spyOn(ConnectorsService, "readEditorContent").mockResolvedValue(editorAnswer())
 
-    const wrapper = mountPanel("jsonl")
+    const wrapper = mountPanel()
     await flushPromises()
-    expect(wrapper.get('[data-testid="jsonl-content"]').text()).toContain("Line 3")
-    await wrapper.get('[data-testid="content-next"]').trigger("click")
+    await wrapper.get('[data-testid="content-editor"]').setValue("print('mine')\n")
+
+    expect(await registry.reload(panelId)).toBe(true)
     await flushPromises()
 
-    expect(read.mock.calls[1]?.[0].body).toMatchObject({ offset: 1, limit: 50 })
+    expect(open).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[data-testid="content-editor"]').element).toHaveProperty(
+      "value",
+      "print('mine')\n"
+    )
   })
 })

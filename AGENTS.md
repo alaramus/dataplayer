@@ -57,10 +57,10 @@ included; the spec index lists the older titles in translation.
 - Sign in; register a connection through a form built from the adapter's own
   schema; check it before and after saving; manage the list of connections.
 - Two source types: PostgreSQL (schemas, relations, server-side paging and
-  sorting) and the personal file storage every user owns (directories and files;
-  each file declares its preferred viewer and any alternatives, JSON and JSONL
-  open as structured content, text opens as text, and supported files may be
-  projected into rows only when **View as table** is requested).
+  sorting) and the personal file storage every user owns (a file declares how
+  it opens; text, JSON and JSONL open in a source editor that highlights by
+  type and saves under the version it read, and JSON and JSONL are also shown
+  as rows on request).
 - In that storage: create a folder, rename, delete, upload — one node at a time
   or several at once. What is offered comes from the server for exactly the
   nodes that are ticked, so the screen knows nothing about any particular
@@ -169,6 +169,7 @@ and the known deviations live there.
 | D45 | A CSV is loaded as a table by an action of the source, and the table arrives with its rows or not at all | [adapters](docs/architecture/adapters.md) |
 | D46 | An action can be asked what it would do, and a drop answers by doing it and rolling it back | [adapters](docs/architecture/adapters.md) |
 | D47 | A node declares its ordered representations, and opening content is not fetching rows | [adapters](docs/architecture/adapters.md) |
+| D48 | Editing a document is its own capability, and a save must match the version it read | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -398,10 +399,10 @@ Sub-projects 1–6 and the workspace rounds are done; see
 
 The first data and structure editing rounds are done: update, insert, atomic
 bulk delete, and add/drop column. Further DDL starts only after its safe
-vocabulary and dependency behaviour are specified; this is not a generic SQL editor.
+vocabulary and dependency behaviour are specified; this is not a generic SQL
+editor.
 
-Phases 1.1 and 1.2 are done — navigating by a foreign key, column nullability
-(D37), column type (D38), indexes (D39) and constraints (D40). Phase 1.3 is
-done: pasting a block of cells (D41), moving rows between sources (D43),
-streaming every matching row into a download (D44), loading a CSV as a new
-table (D45) and dropping a relation with what stands on it (D46).
+Phases 1.1 to 1.3 are done — D36 to D46, from navigating by a foreign key to
+dropping a relation with everything that stands on it. Phase 1.4 is under way:
+a file opens in its own viewer (D47) and is edited in place (D48); media, PDF
+and archives come next. The roadmap has the detail.

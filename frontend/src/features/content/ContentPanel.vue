@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed, ref, watch } from "vue"
 
-import type { ContentRequest } from "@/client"
-import { useContent } from "@/features/content/api"
-import JsonValueView from "@/features/content/JsonValueView.vue"
+import type { EditorContent, EditorContentRequest } from "@/client"
+import CodeEditor from "@/features/content/CodeEditor.vue"
+import { useEditorContent, useUpdateContent } from "@/features/content/api"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
-import { messageOf } from "@/shared/api/errors"
-import { AppBanner, AppButton, AppEmptyState, AppSpinner } from "@/shared/ui"
+import { messageOf, statusOf } from "@/shared/api/errors"
+import { AppBanner, AppButton, AppSpinner, useToast } from "@/shared/ui"
 
 const props = defineProps<{
   panelId: string
@@ -21,36 +21,71 @@ const props = defineProps<{
 }>()
 
 const connectorId = computed(() => props.connectorId)
-const offset = ref(0)
-const previousOffsets = ref<number[]>([])
-const pageSize = 50
-const request = computed<ContentRequest>(() => ({
-  node_id: props.nodeId,
-  representation: props.representation,
-  limit: pageSize,
-  offset: props.representation === "jsonl" ? offset.value : 0,
-}))
-const content = useContent(connectorId, request)
+const request = computed<EditorContentRequest>(() => ({ node_id: props.nodeId }))
+const editor = useEditorContent(connectorId, request)
+const updateContent = useUpdateContent(connectorId)
 const workspace = useWorkspaceActions()
+const toast = useToast()
 
-useReloadable(props.panelId, async () => {
-  await content.refetch()
-})
+const draft = ref("")
+const baseline = ref("")
+const loadedVersion = ref<string | null>(null)
+const saveError = ref("")
+const saveConflict = ref(false)
 
+const dirty = computed(() => draft.value !== baseline.value)
+const writable = computed(() => editor.data.value?.writable === true)
+const canSave = computed(() => writable.value && loadedVersion.value !== null && dirty.value)
 const error = computed(() =>
-  content.isError.value ? messageOf(content.error.value, "Could not read this file") : ""
+  editor.isError.value ? messageOf(editor.error.value, "Could not open this file") : ""
 )
-const notice = computed(() => {
-  const value = content.data.value
-  return value !== undefined && "notice" in value ? value.notice : undefined
-})
-const rangeLabel = computed(() => {
-  const value = content.data.value
-  if (value === undefined || value.kind !== "jsonl" || value.items.length === 0) {
-    return "No records on this page"
+const kindLabel = computed(() =>
+  props.representation === "jsonl" ? "JSON lines" : props.representation.toUpperCase()
+)
+
+function hydrate(value: EditorContent) {
+  draft.value = value.text
+  baseline.value = value.text
+  loadedVersion.value = value.version ?? null
+  saveError.value = ""
+  saveConflict.value = false
+}
+
+async function reload() {
+  const result = await editor.refetch()
+  if (result.data) hydrate(result.data)
+}
+
+// Re-reading would discard an edit that only exists here, so an unsaved
+// document is left alone and the reason is said rather than guessed at.
+useReloadable(props.panelId, async () => {
+  if (dirty.value) {
+    toast.info("This file has unsaved changes; save or undo them before reloading")
+    return
   }
-  return `Records ${offset.value + 1}–${offset.value + value.items.length}`
+  await reload()
 })
+
+async function save() {
+  const version = loadedVersion.value
+  if (!canSave.value || version === null) return
+  saveError.value = ""
+  saveConflict.value = false
+  const saved = draft.value
+  try {
+    const result = await updateContent.mutateAsync({
+      node_id: props.nodeId,
+      text: saved,
+      version,
+    })
+    baseline.value = saved
+    loadedVersion.value = result.version
+    toast.success(`${props.title} saved`)
+  } catch (cause) {
+    saveError.value = messageOf(cause, "Could not save this file")
+    saveConflict.value = statusOf(cause) === 409
+  }
+}
 
 function showTable() {
   workspace.openRows({
@@ -59,37 +94,56 @@ function showTable() {
     title: props.title,
     connectorName: props.connectorName,
     adapterType: props.adapterType,
+    // A file has no structure to describe: its columns exist only in the
+    // projection this tab is asking for.
     describable: false,
   })
 }
 
-function previous() {
-  offset.value = previousOffsets.value.pop() ?? 0
-}
-
-function next() {
-  const value = content.data.value
-  if (value === undefined || value.kind !== "jsonl" || value.items.length === 0) return
-  previousOffsets.value.push(offset.value)
-  offset.value += value.items.length
-}
+watch(
+  () => editor.data.value,
+  (value) => {
+    // Only the first answer fills the editor: a later refetch must not take
+    // back what is being typed.
+    if (value && loadedVersion.value === null && !dirty.value) hydrate(value)
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
   <div class="content-panel">
     <div class="content-panel__head">
-      <span class="content-panel__kind">
-        {{ representation === "jsonl" ? "JSON lines" : representation.toUpperCase() }}
-      </span>
-      <AppButton
-        v-if="tableTitle"
-        variant="secondary"
-        size="sm"
-        icon="grid_on"
-        :label="tableTitle"
-        data-testid="content-view-table"
-        @click="showTable"
-      />
+      <span class="content-panel__kind">{{ kindLabel }}</span>
+      <div class="content-panel__actions">
+        <span
+          v-if="dirty"
+          class="content-panel__dirty"
+          data-testid="content-dirty"
+        >
+          Unsaved changes
+        </span>
+        <AppButton
+          v-if="writable"
+          variant="primary"
+          size="sm"
+          icon="save"
+          label="Save"
+          :loading="updateContent.isPending.value"
+          :disable="!canSave"
+          data-testid="content-save"
+          @click="save"
+        />
+        <AppButton
+          v-if="tableTitle"
+          variant="quiet"
+          size="sm"
+          icon="grid_on"
+          :label="tableTitle"
+          data-testid="content-view-table"
+          @click="showTable"
+        />
+      </div>
     </div>
 
     <AppBanner
@@ -100,114 +154,46 @@ function next() {
       {{ error }}
     </AppBanner>
 
-    <AppSpinner v-else-if="content.isPending.value" />
+    <AppSpinner v-else-if="editor.isPending.value" />
 
-    <template v-else-if="content.data.value">
+    <div
+      v-else-if="editor.data.value"
+      class="content-panel__editor"
+    >
       <AppBanner
-        v-if="notice"
+        v-if="editor.data.value.reason"
         tone="warning"
         class="content-panel__notice"
         data-testid="content-notice"
       >
-        {{ notice }}
+        {{ editor.data.value.reason }}
       </AppBanner>
-
-      <div
-        v-if="content.data.value.kind === 'text'"
-        class="content-panel__body"
+      <AppBanner
+        v-if="saveError"
+        tone="error"
+        class="content-panel__notice"
+        data-testid="content-save-error"
       >
-        <pre
-          class="content-panel__source"
-          data-testid="text-content"
-          v-text="content.data.value.text"
+        {{ saveError }}
+        <AppButton
+          v-if="saveConflict"
+          variant="quiet"
+          size="sm"
+          label="Reload file"
+          data-testid="content-reload"
+          @click="reload"
         />
-        <AppBanner
-          v-if="content.data.value.truncated"
-          tone="info"
-          class="content-panel__bounded"
-        >
-          This preview stops after the first bounded part of the file.
-        </AppBanner>
-      </div>
-
-      <div
-        v-else-if="content.data.value.kind === 'json'"
-        class="content-panel__body"
-      >
-        <JsonValueView
-          v-if="content.data.value.value"
-          :value="content.data.value.value"
-          data-testid="json-content"
-        />
-        <pre
-          v-else
-          class="content-panel__source"
-          data-testid="json-source"
-          v-text="content.data.value.source_text ?? ''"
-        />
-        <AppBanner
-          v-if="content.data.value.truncated"
-          tone="info"
-          class="content-panel__bounded"
-        >
-          This source preview is truncated.
-        </AppBanner>
-      </div>
-
-      <div
-        v-else
-        class="content-panel__jsonl"
-        data-testid="jsonl-content"
-      >
-        <AppEmptyState
-          v-if="content.data.value.items.length === 0"
-          text="No JSON values on this page"
-        />
-        <article
-          v-for="item in content.data.value.items"
-          :key="item.line_number"
-          class="content-panel__record"
-        >
-          <div class="content-panel__line">
-            Line {{ item.line_number }}
-          </div>
-          <AppBanner
-            v-if="item.notice"
-            tone="warning"
-          >
-            {{ item.notice }}
-          </AppBanner>
-          <JsonValueView
-            v-if="item.value"
-            :value="item.value"
-          />
-          <pre
-            v-else
-            class="content-panel__source"
-            v-text="item.source_text ?? ''"
-          />
-        </article>
-        <div class="content-panel__pager">
-          <AppButton
-            variant="quiet"
-            size="sm"
-            label="Previous"
-            :disable="previousOffsets.length === 0"
-            data-testid="content-previous"
-            @click="previous"
-          />
-          <span>{{ rangeLabel }}</span>
-          <AppButton
-            variant="quiet"
-            size="sm"
-            label="Next"
-            :disable="!content.data.value.has_more"
-            data-testid="content-next"
-            @click="next"
-          />
-        </div>
-      </div>
-    </template>
+      </AppBanner>
+      <CodeEditor
+        v-model="draft"
+        class="content-panel__editor-control"
+        :filename="editor.data.value.filename"
+        :language-hint="editor.data.value.language_hint"
+        :validation="editor.data.value.validation"
+        :readonly="!writable"
+        data-testid="content-editor"
+      />
+    </div>
   </div>
 </template>
 
@@ -227,47 +213,29 @@ function next() {
   padding: 0 8px;
   border-bottom: 1px solid var(--dp-border-faint);
 }
-.content-panel__kind,
-.content-panel__line {
-  color: var(--dp-text-muted);
-  font-size: 11px;
-}
-.content-panel__body,
-.content-panel__jsonl {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 12px;
-}
-.content-panel__notice,
-.content-panel__bounded {
-  margin: 8px;
-}
-.content-panel__source {
-  margin: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
-}
-.content-panel__record {
-  padding: 8px 0 12px;
-  border-bottom: 1px solid var(--dp-border-faint);
-}
-.content-panel__line {
-  margin-bottom: 4px;
-}
-.content-panel__pager {
-  position: sticky;
-  bottom: 0;
+.content-panel__actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px;
-  border-top: 1px solid var(--dp-border);
-  background: var(--dp-surface);
+  gap: 4px;
+}
+.content-panel__kind,
+.content-panel__dirty {
   color: var(--dp-text-muted);
   font-size: 11px;
+}
+.content-panel__editor {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px;
+}
+.content-panel__notice {
+  flex: none;
+  margin-bottom: 8px;
+}
+.content-panel__editor-control {
+  flex: 1;
+  min-height: 0;
 }
 </style>

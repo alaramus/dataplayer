@@ -3,15 +3,19 @@ from pathlib import Path
 import pytest
 
 from app.adapters.content import (
+    ContentConflict,
     ContentRequest,
+    EditorContentRequest,
     JsonArray,
     JsonContent,
     JsonLinesContent,
     JsonObject,
     JsonScalar,
     TextContent,
+    UpdateContentRequest,
 )
 from app.adapters.file.content import (
+    MAX_EDITOR_BYTES,
     MAX_JSON_BYTES,
     MAX_JSON_LINE_BYTES,
     MAX_JSON_LINES_PAGE_BYTES,
@@ -23,15 +27,18 @@ from app.adapters.file.session import FileSession
 
 @pytest.fixture
 def root(tmp_path: Path) -> Path:
+    # The line ending is pinned rather than left to the platform: these tests
+    # assert about the bytes of a document, and Windows would otherwise store
+    # CRLF and fail only here.
     (tmp_path / "document.json").write_text(
         '{"id": 10000000000000001, "active": true, "tags": ["one"]}',
         encoding="utf-8",
     )
     (tmp_path / "broken.json").write_text('{"id" 1}', encoding="utf-8")
     (tmp_path / "events.jsonl").write_text(
-        '{"id": 1}\nnot json\n\n{"id": 3}\n', encoding="utf-8"
+        '{"id": 1}\nnot json\n\n{"id": 3}\n', encoding="utf-8", newline="\n"
     )
-    (tmp_path / "notes.txt").write_text("first\nsecond\n", encoding="utf-8")
+    (tmp_path / "notes.txt").write_text("first\nsecond\n", encoding="utf-8", newline="\n")
     return tmp_path
 
 
@@ -203,3 +210,91 @@ async def test_a_representation_the_node_did_not_offer_is_refused(
         await content.read_content(
             ContentRequest(node_id="notes.txt", representation="json")
         )
+
+
+async def test_an_editor_read_carries_the_complete_source_and_opaque_version(
+    content: FileContent,
+) -> None:
+    result = await content.read_editor_content(
+        EditorContentRequest(node_id="document.json")
+    )
+
+    assert result.text.startswith('{"id": 10000000000000001')
+    assert result.filename == "document.json"
+    assert result.language_hint == "json"
+    assert result.validation == "json"
+    assert result.version is not None
+    assert result.writable is True
+
+
+async def test_saving_text_replaces_the_file_and_issues_its_new_version(
+    content: FileContent, root: Path
+) -> None:
+    opened = await content.read_editor_content(
+        EditorContentRequest(node_id="notes.txt")
+    )
+    assert opened.version is not None
+
+    updated = await content.update_content(
+        UpdateContentRequest(
+            node_id="notes.txt", text="changed\n", version=opened.version
+        )
+    )
+
+    assert (root / "notes.txt").read_text(encoding="utf-8") == "changed\n"
+    assert updated.version != opened.version
+
+
+async def test_a_stale_editor_cannot_overwrite_an_external_change(
+    content: FileContent, root: Path
+) -> None:
+    opened = await content.read_editor_content(
+        EditorContentRequest(node_id="notes.txt")
+    )
+    assert opened.version is not None
+    (root / "notes.txt").write_text("external\n", encoding="utf-8")
+
+    with pytest.raises(ContentConflict):
+        await content.update_content(
+            UpdateContentRequest(
+                node_id="notes.txt", text="mine\n", version=opened.version
+            )
+        )
+
+    assert (root / "notes.txt").read_text(encoding="utf-8") == "external\n"
+
+
+async def test_invalid_json_is_not_saved(
+    content: FileContent, root: Path
+) -> None:
+    opened = await content.read_editor_content(
+        EditorContentRequest(node_id="document.json")
+    )
+    assert opened.version is not None
+
+    with pytest.raises(ValueError, match="Invalid JSON"):
+        await content.update_content(
+            UpdateContentRequest(
+                node_id="document.json", text='{"id" 1}', version=opened.version
+            )
+        )
+
+    assert (root / "document.json").read_text(encoding="utf-8").startswith(
+        '{"id": 10000000000000001'
+    )
+
+
+async def test_an_oversized_editor_document_is_a_read_only_preview(
+    content: FileContent, root: Path
+) -> None:
+    (root / "large.py").write_text("x" * (MAX_EDITOR_BYTES + 1), encoding="utf-8")
+
+    result = await content.read_editor_content(
+        EditorContentRequest(node_id="large.py")
+    )
+
+    assert len(result.text) == MAX_EDITOR_BYTES
+    assert result.truncated is True
+    assert result.writable is False
+    assert result.version is None
+    assert result.reason is not None

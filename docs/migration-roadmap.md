@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Last updated: 2026-08-30.
+Last updated: 2026-08-31.
 
 This is the persistent order for moving useful behaviour from `dbwebtool` and
 `myquasar` into DataPlayer. It is a route, not a promise to reproduce every old
@@ -236,32 +236,54 @@ end-to-end suite.
 
 ### 1.4 File-source depth
 
-- [~] Specify how a readable file declares its available representations and
+- [x] Specify how a readable file declares its available representations and
   which one opens by default. Opening a catalog node must not imply
   `SupportsFetch` or a grid: text, structured documents, tabular data and media
   need different viewers. The source identifies representations; the client
   chooses a viewer by representation kind, never by connector type or a
   hard-coded extension table.
-- [~] Give JSON and JSONL a bounded structured-data viewer that preserves the
+- [x] Give JSON and JSONL a bounded structured-data viewer that preserves the
   document rather than flattening it into rows. JSON opens as one navigable
   value; JSONL opens as a bounded sequence of independent values. Invalid or
   truncated input keeps an honest text representation with a precise parse
   notice instead of silently becoming a table.
-- [~] Keep a tabular interpretation of JSON/JSONL as an explicit **View as
+- [x] Keep a tabular interpretation of JSON/JSONL as an explicit **View as
   table** representation, offered only when the source can project records.
   It uses the existing bounded `FetchRequest` and grid after the user asks for
   it; it is not the file's default viewer. A top-level array supplies records,
   another top-level value is one record, columns are deterministic for the
   whole projection, and neither the server nor the client guesses that a key
   such as `data` contains the table.
+- [x] Open text, JSON and JSONL in a source editor that highlights by file
+  type, and save the document back under the version it was read at. Editing
+  is a capability of its own (D48): the source issues an opaque version, a
+  stale one is a conflict rather than an overwrite, and the format is checked
+  by the server before anything is written.
 
-The D47 implementation is written but not yet validated. The catalog publishes
-ordered representations for every node; `SupportsContent` and its route carry
-bounded text, JSON and JSONL results separately from `SupportsFetch`; the
-workspace gives every representation its own stable panel; and JSON/text table
-projections remain explicit alternatives. JSON is bounded at 4 MB, text at
-256 KB, and JSONL at 100 records and 4 MB per request and 1 MB per physical
-line.
+D47 and D48 are implemented. The catalog publishes ordered representations for
+every node; `SupportsContent` and its route carry bounded text, JSON and JSONL
+results separately from `SupportsFetch`; `SupportsContentEdit` carries the
+whole document with its version; and the workspace gives every representation
+its own stable panel. JSON is bounded at 4 MB, text at 256 KB, JSONL at 100
+records and 4 MB per request and 1 MB per physical line, and the editor at 4 MB
+in both directions.
+
+Two things were decided against D47 as first written. A content tab has one
+mode — it opens the editor, and the JSON tree was removed from the screen, so
+the bounded viewers of `SupportsContent` are currently reached by tests alone;
+they are kept because paging a large JSONL file is the one thing the editor's
+ceiling cannot do. And a text file no longer declares a table representation,
+so it can no longer be chosen as the source of an import (D43); CSV, TSV, JSON
+and JSONL still can.
+
+Validated on 2026-08-31: the whole backend suite, mypy, ruff, import contracts,
+frontend type check, lint, unit tests, the documentation check and the whole
+end-to-end suite. Two end-to-end scenarios had to be repaired on the way and
+neither was about this slice — `reload.spec.ts` still expected a text file to
+open as rows, which D47 had already changed, and the delete loop in
+`grid.spec.ts` ticked a row before the page had been re-read, so the source
+was asked to delete an already deleted row and rightly refused.
+
 - [ ] Add Parquet and XLSX as explicit optional capabilities, with sheet or
   dataset selection, format-specific metadata and server-side bounds. Their
   natural representations may use the grid, but that does not make every file
@@ -536,8 +558,11 @@ end-to-end suite.
 
 ## Next session
 
-Validate the pending D47 implementation with the approved backend, frontend,
-documentation and end-to-end commands. Fix every failure before marking its
-three roadmap items complete. After that, add original-file download and the
-first bounded media representation on the same contract; Parquet, XLSX and
-archives remain later slices and must not teach the workspace file extensions.
+D47 and D48 are done. Add original-file download and the first bounded media
+representation on the same contract; Parquet, XLSX and archives remain later
+slices and must not teach the workspace file extensions.
+
+Decide what becomes of the bounded content viewers while doing it. Since a
+content tab opens the editor, `SupportsContent` has no screen; media needs a
+content path of its own, and that is the moment to say whether the JSON and
+JSONL viewers come back for documents too large to edit, or go.

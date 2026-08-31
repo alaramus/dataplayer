@@ -101,6 +101,9 @@ import type {
   connectorsReadContentData,
   connectorsReadContentErrors,
   connectorsReadContentResponses,
+  connectorsReadEditorContentData,
+  connectorsReadEditorContentErrors,
+  connectorsReadEditorContentResponses,
   connectorsReadGrantsData,
   connectorsReadGrantsErrors,
   connectorsReadGrantsResponses,
@@ -131,6 +134,9 @@ import type {
   connectorsUpdateConnectorData,
   connectorsUpdateConnectorErrors,
   connectorsUpdateConnectorResponses,
+  connectorsUpdateContentData,
+  connectorsUpdateContentErrors,
+  connectorsUpdateContentResponses,
   connectorsWriteGrantData,
   connectorsWriteGrantErrors,
   connectorsWriteGrantResponses,
@@ -866,6 +872,54 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/content",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Update Content
+   *
+   * Atomically replace editable content while its loaded version still matches.
+   */
+  public static updateContent<ThrowOnError extends boolean = true>(
+    options: Options<connectorsUpdateContentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      connectorsUpdateContentResponses,
+      connectorsUpdateContentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/content/editor",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Editor Content
+   *
+   * Read bounded source text and the opaque version required to save it.
+   */
+  public static readEditorContent<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadEditorContentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsReadEditorContentResponses,
+      connectorsReadEditorContentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/content/editor",
       ...options,
       headers: {
         "Content-Type": "application/json",

@@ -820,6 +820,16 @@ export type ContentRequest = {
 }
 
 /**
+ * ContentUpdated
+ */
+export type ContentUpdated = {
+  /**
+   * Version
+   */
+  version: string
+}
+
+/**
  * CreateConstraintRequest
  */
 export type CreateConstraintRequest = {
@@ -1008,6 +1018,58 @@ export type DropIndexRequest = {
    * Name
    */
   name: string
+}
+
+/**
+ * EditorContent
+ *
+ * A bounded source document and the version an update must still match.
+ */
+export type EditorContent = {
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Language Hint
+   */
+  language_hint?: string | null
+  /**
+   * Validation
+   */
+  validation?: "json" | "jsonl" | null
+  /**
+   * Version
+   */
+  version?: string | null
+  /**
+   * Writable
+   */
+  writable: boolean
+  /**
+   * Truncated
+   */
+  truncated?: boolean
+  /**
+   * Reason
+   */
+  reason?: string | null
+}
+
+/**
+ * EditorContentRequest
+ *
+ * Ask a source for the editable source of one content node.
+ */
+export type EditorContentRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
 }
 
 /**
@@ -2604,6 +2666,26 @@ export type UpdateCellsRequest = {
 }
 
 /**
+ * UpdateContentRequest
+ *
+ * Replace one source document if its previously read version still exists.
+ */
+export type UpdateContentRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Version
+   */
+  version: string
+}
+
+/**
  * UpdatePassword
  */
 export type UpdatePassword = {
@@ -3687,6 +3769,70 @@ export type connectorsReadContentResponses = {
 
 export type connectorsReadContentResponse =
   connectorsReadContentResponses[keyof connectorsReadContentResponses]
+
+export type connectorsUpdateContentData = {
+  body: UpdateContentRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/content/editor"
+}
+
+export type connectorsUpdateContentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsUpdateContentError =
+  connectorsUpdateContentErrors[keyof connectorsUpdateContentErrors]
+
+export type connectorsUpdateContentResponses = {
+  /**
+   * Successful Response
+   */
+  200: ContentUpdated
+}
+
+export type connectorsUpdateContentResponse =
+  connectorsUpdateContentResponses[keyof connectorsUpdateContentResponses]
+
+export type connectorsReadEditorContentData = {
+  body: EditorContentRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/content/editor"
+}
+
+export type connectorsReadEditorContentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsReadEditorContentError =
+  connectorsReadEditorContentErrors[keyof connectorsReadEditorContentErrors]
+
+export type connectorsReadEditorContentResponses = {
+  /**
+   * Successful Response
+   */
+  200: EditorContent
+}
+
+export type connectorsReadEditorContentResponse =
+  connectorsReadEditorContentResponses[keyof connectorsReadEditorContentResponses]
 
 export type connectorsReadCatalogData = {
   body?: never

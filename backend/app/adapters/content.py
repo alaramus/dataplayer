@@ -6,9 +6,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-
 RepresentationKind = Literal["table", "text", "json", "jsonl"]
 ContentRepresentationKind = Literal["text", "json", "jsonl"]
+EditorValidationKind = Literal["json", "jsonl"]
 
 
 class NodeRepresentation(BaseModel):
@@ -36,6 +36,49 @@ class ContentRequest(BaseModel):
     # text preview ignore paging because their own byte ceilings bound them.
     limit: int = Field(default=50, ge=1, le=100)
     offset: int = Field(default=0, ge=0)
+
+
+class EditorContentRequest(BaseModel):
+    """Ask a source for the editable source of one content node."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+
+
+class EditorContent(BaseModel):
+    """A bounded source document and the version an update must still match."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str
+    filename: str
+    language_hint: str | None = None
+    validation: EditorValidationKind | None = None
+    version: str | None = None
+    writable: bool
+    truncated: bool = False
+    reason: str | None = None
+
+
+class UpdateContentRequest(BaseModel):
+    """Replace one source document if its previously read version still exists."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+    text: str
+    version: str = Field(min_length=1)
+
+
+class ContentUpdated(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: str
+
+
+class ContentConflict(Exception):
+    """The source document no longer has the version the editor loaded."""
 
 
 JsonScalarKind = Literal["null", "boolean", "number", "string"]

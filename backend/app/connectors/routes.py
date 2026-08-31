@@ -51,7 +51,15 @@ from app.adapters.constraints import (
     CreateConstraintResult,
     DropConstraintRequest,
 )
-from app.adapters.content import ContentRequest, ContentResult
+from app.adapters.content import (
+    ContentConflict,
+    ContentRequest,
+    ContentResult,
+    ContentUpdated,
+    EditorContent,
+    EditorContentRequest,
+    UpdateContentRequest,
+)
 from app.adapters.export import ExportRequest
 from app.adapters.fetch import (
     DownloadPageRequest,
@@ -79,8 +87,9 @@ from app.adapters.protocol import (
     SupportsColumnNullability,
     SupportsColumnType,
     SupportsConnectionString,
-    SupportsContent,
     SupportsConstraints,
+    SupportsContent,
+    SupportsContentEdit,
     SupportsDelete,
     SupportsDropColumn,
     SupportsExport,
@@ -743,6 +752,92 @@ async def read_content(
         )
     try:
         return await adapter.read_content(request)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.post("/{connector_id}/content/editor", response_model=EditorContent)
+async def read_editor_content(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: EditorContentRequest,
+) -> Any:
+    """Read bounded source text and the opaque version required to save it."""
+    adapter, access = await _adapter_and_access(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsContentEdit):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support editing content",
+                "error_kind": "config",
+            },
+        )
+    try:
+        result = await adapter.read_editor_content(request)
+        if not at_least(access, "write"):
+            return result.model_copy(
+                update={
+                    "writable": False,
+                    "reason": "You have read-only access to this connection",
+                }
+            )
+        return result
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.patch("/{connector_id}/content/editor", response_model=ContentUpdated)
+async def update_content(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: UpdateContentRequest,
+) -> Any:
+    """Atomically replace editable content while its loaded version still matches."""
+    adapter = await _adapter_for(
+        session, connector_id, current_user, resources, requires="write"
+    )
+    if not isinstance(adapter, SupportsContentEdit):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support editing content",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await _invalidate_after(
+            lambda: adapter.update_content(request), data_cache, connector_id
+        )
+    except ContentConflict:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "The file changed or was deleted; reload it and try again"
+            },
+        ) from None
     except ValueError as exc:
         raise HTTPException(
             status_code=422,

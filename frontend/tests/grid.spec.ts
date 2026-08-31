@@ -428,6 +428,12 @@ test("copies a whole row and fills a new one from it", async ({ page, context })
     await page.getByTestId("grid-select-row-0").click()
     await page.getByTestId("grid-delete").click()
     await page.getByTestId("confirm-accept").click()
+    // The page has to be re-read before row 0 is ticked again. Without this
+    // the second tick lands on the row still being deleted, and the source
+    // correctly refuses to delete it twice.
+    await expect(page.getByTestId("row-grid").locator("tbody tr")).toHaveCount(
+      left - 1
+    )
   }
   await expect(page.getByTestId("grid-empty")).toBeVisible()
 

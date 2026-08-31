@@ -70,7 +70,10 @@ test("a tab restored but never opened is read by showing it", async ({ page }) =
 
   await openNode(page, "sample.csv")
   await openNode(page, "notes.txt")
-  await expect(rowsTabs(page)).toHaveCount(2)
+  // Two work tabs of different kinds: a CSV is rows, a text file is its own
+  // source. Which one is cold after the reload is what this test is about.
+  await expect(rowsTabs(page)).toHaveCount(1)
+  await expect(page.locator('[data-testid^="workspace-tab-content:"]')).toHaveCount(1)
 
   // After a reload of the page only the active tab is mounted, so the other
   // one has registered no way of being re-read. Pressing its button has to do

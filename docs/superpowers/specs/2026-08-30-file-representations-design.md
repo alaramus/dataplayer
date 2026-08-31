@@ -177,8 +177,10 @@ with physical line labels and per-line notices. Text and invalid JSON use
 - Object member order is preserved, but duplicate JSON object names have the
   ordinary parser behaviour: the last value wins. A lossless source editor
   would need a token-level model rather than a semantic JSON viewer.
-- Content reads are not cached and files carry no version token. Reloading or
-  paging can therefore observe a file changed between requests.
+- Content reads are not cached. Reloading or paging can therefore observe a
+  file changed between requests. The version a save must match is issued by
+  the editor read instead, and only there: see
+  [Editing a file in place](2026-08-30-content-editing-design.md).
 - Large whole-document JSON has a source preview but no structural navigation.
 - Media, PDF, spreadsheet and archive representations are deliberately not
   advertised yet. They extend this same contract in later slices.

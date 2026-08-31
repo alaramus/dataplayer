@@ -58,6 +58,7 @@ translations; those files are not.
 | 2026-08-30 | [Loading a CSV as a new table](2026-08-30-relation-create-design.md) | D45: a catalog action, and the table and its rows in one transaction |
 | 2026-08-30 | [Dropping a relation, and seeing what goes with it](2026-08-30-relation-drop-design.md) | D46: an action can be asked what it would do, and the answer is the drop rolled back |
 | 2026-08-30 | [Native file representations](2026-08-30-file-representations-design.md) | D47: a node declares ordered views; native content and table fetch stay separate |
+| 2026-08-30 | [Editing a file in place](2026-08-30-content-editing-design.md) | D48: the source issues an opaque version, and a save must still match it |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

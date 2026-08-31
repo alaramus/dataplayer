@@ -12,6 +12,7 @@ from app.adapters.protocol import (
     SupportsAddColumn,
     SupportsCatalog,
     SupportsContent,
+    SupportsContentEdit,
     SupportsDelete,
     SupportsDropColumn,
     SupportsExport,
@@ -157,6 +158,8 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(Capability(group="explore", title="Locate a node"))
     if issubclass(driver, SupportsContent):
         found.append(Capability(group="explore", title="View content"))
+    if issubclass(driver, SupportsContentEdit):
+        found.append(Capability(group="manage", title="Edit content"))
     if issubclass(driver, SupportsFetch):
         found.append(Capability(group="explore", title="Read rows"))
     if issubclass(driver, SupportsExport):

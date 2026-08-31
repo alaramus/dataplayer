@@ -5,7 +5,7 @@ do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
 D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36, D37, D38, D39,
-D40, D41, D42, D43, D44, D47.
+D40, D41, D42, D43, D44, D47, D48.
 
 ## What exists today
 
@@ -1066,8 +1066,9 @@ opening JSON. It uses the existing fetch boundary. The whole JSON/JSONL file
 decides its columns before paging, so every page has one stable shape; a
 top-level object is one record, an array supplies records, and values without
 object keys use one `value` column. The projection is capped at 4 MB and refuses
-invalid input with its reason. Text still has an explicit numbered-line table
-projection, while CSV and TSV prefer their natural table representation.
+invalid input with its reason. It is offered by JSON and JSONL, and by CSV and
+TSV as their natural representation. A text file does not offer it: numbering
+the lines of a source file produced a table with one column and no meaning.
 
 Known deviations:
 
@@ -1081,10 +1082,59 @@ Known deviations:
   source preview but no structural navigation. Streaming selection inside a
   document is a separate capability, not an unbounded response.
 - **Content reads are not cached.** Reopening or paging JSONL reads the file
-  again. A file source has not opted into D31 and nothing yet versions a file
-  while it changes underneath an open viewer.
+  again. A file source has not opted into D31; what a save must match is
+  versioned by the editor read of D48 instead.
+- **The bounded viewers have no screen.** Since D48 a content tab opens the
+  editor, so `read_content` and its JSON, JSONL and text results are reached by
+  tests alone. They are kept because paging a large JSONL file is the one thing
+  the editor's ceiling cannot do, and removing them would take that with it.
 - **The table projection equates an absent key with JSON null.** Both become the
   grid's `None`; the native JSON viewer preserves the original distinction.
+
+## D48. Editing a document is a capability of its own, and a save must still match the version that was read
+
+`SupportsContentEdit` is separate from `SupportsContent`, and a source may have
+either. `read_editor_content` returns the whole source, its filename, an
+optional language hint, an optional validation kind and an opaque `version`;
+`update_content` takes that version back and replaces the document. A source
+without the capability answers 501, as every other optional capability does.
+
+The two reads are kept apart because a viewer is allowed to bound, page and
+parse, and none of those results is the document. What `read_editor_content`
+returns is exactly what a save is compared against.
+
+The version is a SHA-256 of the bytes read, and the client only carries it.
+A mismatch is 409 with nothing written. A modification time was rejected: its
+granularity hides a change, and it moves when none happened. A file source has
+no transaction to borrow a row version from (D25).
+
+Both sides are bounded at 4 MB. Above it the read returns a prefix with
+`writable=false` and the reason; a file that is not valid UTF-8 comes back
+unwritable and names the byte that failed, because bytes that had to be guessed
+at cannot be written back. Editing needs `write` on the connection (D33), and a
+reader holding only `read` gets the document unwritable with that as the reason
+rather than a failure at the save.
+
+Before writing, the source validates what the format promises: a `.json`
+document must parse, and every non-blank line of a `.jsonl` document must, with
+the position of the first failure. The browser lints as well, but the file is
+the server's. The write goes to a temporary file in the same directory, is
+flushed and synced, takes the original's mode and replaces it with
+`os.replace`, so a failure leaves the previous document rather than half of the
+new one.
+
+A content tab has one mode. Opening a file opens its source; there is no
+viewer/editor switch, and the JSON tree was removed from the screen rather than
+kept as a second, unwritable view of the same document.
+
+Known deviations:
+
+- **Nothing watches an open file.** A change underneath is found by the version
+  check at save, not before it.
+- **Only text, JSON and JSONL are editable.** Everything the file source calls
+  binary or opaque is refused, media and PDF included.
+- **The document is held whole on both sides.** Above 4 MB the editor is
+  read-only; there is no partial or streaming edit.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 

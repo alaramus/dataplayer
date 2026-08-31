@@ -93,6 +93,75 @@ async def test_a_json_document_is_read_through_the_content_route(
 
 
 @pytest.mark.usefixtures("home")
+async def test_text_content_can_be_opened_and_saved_through_the_editor_route(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    opened = await client.post(
+        f"{BASE}/{connector_id}/content/editor",
+        headers=normal_user_token_headers,
+        json={"node_id": "notes.txt"},
+    )
+    assert opened.status_code == 200
+    assert opened.json()["writable"] is True
+
+    saved = await client.patch(
+        f"{BASE}/{connector_id}/content/editor",
+        headers=normal_user_token_headers,
+        json={
+            "node_id": "notes.txt",
+            "text": "edited through the API\n",
+            "version": opened.json()["version"],
+        },
+    )
+
+    assert saved.status_code == 200
+    reopened = await client.post(
+        f"{BASE}/{connector_id}/content/editor",
+        headers=normal_user_token_headers,
+        json={"node_id": "notes.txt"},
+    )
+    assert reopened.json()["text"] == "edited through the API\n"
+    assert reopened.json()["version"] == saved.json()["version"]
+
+
+@pytest.mark.usefixtures("home")
+async def test_saving_a_stale_file_version_answers_with_a_conflict(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+    opened = await client.post(
+        f"{BASE}/{connector_id}/content/editor",
+        headers=normal_user_token_headers,
+        json={"node_id": "notes.txt"},
+    )
+
+    first = await client.patch(
+        f"{BASE}/{connector_id}/content/editor",
+        headers=normal_user_token_headers,
+        json={
+            "node_id": "notes.txt",
+            "text": "first writer\n",
+            "version": opened.json()["version"],
+        },
+    )
+    stale = await client.patch(
+        f"{BASE}/{connector_id}/content/editor",
+        headers=normal_user_token_headers,
+        json={
+            "node_id": "notes.txt",
+            "text": "stale writer\n",
+            "version": opened.json()["version"],
+        },
+    )
+
+    assert first.status_code == 200
+    assert stale.status_code == 409
+    assert "changed" in stale.json()["detail"]["message"]
+
+
+@pytest.mark.usefixtures("home")
 async def test_a_delimited_file_is_read_as_rows(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

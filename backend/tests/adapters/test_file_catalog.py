@@ -69,7 +69,7 @@ async def test_a_file_carries_its_size(catalog: FileCatalog, root: Path) -> None
         ("q3.csv", ["table"]),
         ("people.json", ["json", "table"]),
         ("events.jsonl", ["jsonl", "table"]),
-        ("notes.txt", ["text", "table"]),
+        ("notes.txt", ["text"]),
         ("logo.png", []),
     ],
 )

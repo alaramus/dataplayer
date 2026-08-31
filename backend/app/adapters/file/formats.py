@@ -5,7 +5,6 @@ from typing import Literal
 
 from app.adapters.content import NodeRepresentation
 
-
 DELIMITED_EXTENSIONS: frozenset[str] = frozenset({".csv", ".tsv"})
 JSON_EXTENSIONS: frozenset[str] = frozenset({".json"})
 JSON_LINES_EXTENSIONS: frozenset[str] = frozenset({".jsonl", ".ndjson"})
@@ -87,9 +86,10 @@ def representations_of(name: str) -> list[NodeRepresentation]:
         case "jsonl":
             return [JSON_LINES, TABLE]
         case "text":
-            # Numbered rows remain useful for import and grid operations, but
-            # opening a text file is no longer the act of asking for them.
-            return [TEXT, TABLE]
+            # A text file has no columns of its own, so numbering its lines
+            # was a table in name only. It is offered as source, and nothing
+            # else.
+            return [TEXT]
         case "opaque":
             # Media representations are added on this same contract in the
             # next slice; claiming one before a safe content route exists

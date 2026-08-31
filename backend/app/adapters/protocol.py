@@ -15,12 +15,19 @@ from app.adapters.column_changes import (
     DropColumnRequest,
     RenameColumnRequest,
 )
-from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.constraints import (
     ConstraintDropped,
     CreateConstraintRequest,
     CreateConstraintResult,
     DropConstraintRequest,
+)
+from app.adapters.content import (
+    ContentRequest,
+    ContentResult,
+    ContentUpdated,
+    EditorContent,
+    EditorContentRequest,
+    UpdateContentRequest,
 )
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchRequest, FetchResult
@@ -172,6 +179,19 @@ class SupportsContent(Protocol):
         ValueError when the node or representation cannot be read and
         AdapterError for source failures.
         """
+        ...
+
+
+@runtime_checkable
+class SupportsContentEdit(Protocol):
+    async def read_editor_content(
+        self, request: EditorContentRequest
+    ) -> EditorContent:
+        """Read bounded UTF-8 source together with an opaque version."""
+        ...
+
+    async def update_content(self, request: UpdateContentRequest) -> ContentUpdated:
+        """Atomically replace source only while its opaque version still matches."""
         ...
 
 

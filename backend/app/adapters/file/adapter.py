@@ -3,7 +3,14 @@ from typing import Any
 
 from app.adapters.actions import Action, ActionType
 from app.adapters.catalog import CatalogNode
-from app.adapters.content import ContentRequest, ContentResult
+from app.adapters.content import (
+    ContentRequest,
+    ContentResult,
+    ContentUpdated,
+    EditorContent,
+    EditorContentRequest,
+    UpdateContentRequest,
+)
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.file.actions import FILE_ACTION_TYPES, FileActions
 from app.adapters.file.catalog import FileCatalog
@@ -48,6 +55,14 @@ class FileAdapter:
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)
+
+    async def read_editor_content(
+        self, request: EditorContentRequest
+    ) -> EditorContent:
+        return await self._content.read_editor_content(request)
+
+    async def update_content(self, request: UpdateContentRequest) -> ContentUpdated:
+        return await self._content.update_content(request)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         return await self._actions.available(node_id)
