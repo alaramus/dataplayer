@@ -143,7 +143,12 @@ this query" is half a feature, and half a feature is the honest state.
 ## Queued, in order
 
 1. ~~**Named system relations.**~~ Done; the answer is below.
-2. **Extension create and drop**, as two connector-root actions.
+2. ~~**Extension create and drop.**~~ Done, and not at the connector root after
+   all: they are offered on the Extensions report, because that is where a
+   reader is when they want one. `applies_to` says "a report" and
+   `PostgresActions.available` says which report — the split the action
+   contract already draws between what a command is for and what one node
+   admits.
 3. **Schema create, drop and rename**, and moving a relation between schemas.
 4. **DDL as a content representation** of a relation.
 5. **Row-scoped actions**, the contract gap above, whenever a second use for it

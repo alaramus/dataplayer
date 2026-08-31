@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import {
+  addFilter,
   catalogAction,
   catalogCheck,
   catalogRow,
@@ -277,6 +278,51 @@ test("shows what a cascade would take before dropping anything", async ({ page }
   await page.getByRole("button", { name: "Cancel" }).click()
   await expect(catalogRow(page, "projects")).toBeVisible()
   await expect(catalogRow(page, "project_rollup")).toBeVisible()
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("installs an extension from the report that lists them, and removes it", async ({
+  page,
+}) => {
+  const name = `e2e-extension-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  await catalogRow(page, "System").click()
+  // Wait for the level to finish arriving: walking in clears what was ticked,
+  // so a tick placed while it is still loading is thrown away.
+  await expect(page.getByTestId("catalog-list")).toContainText("Tablespaces")
+  await catalogCheck(page, "Extensions").click()
+
+  // Offered on this report and on no other: the kind says "a report", the
+  // driver says which one (D55).
+  await page.getByTestId("catalog-actions").click()
+  await expect(page.getByTestId("menu-item-create_extension")).not.toHaveAttribute(
+    "aria-disabled",
+    "true"
+  )
+  await page.getByTestId("menu-item-create_extension").click()
+
+  const dialog = page.getByTestId("action-dialog")
+  await dialog.getByRole("textbox").first().fill("pg_trgm")
+  // Previewed first, and asking installs nothing: the rehearsal is rolled back.
+  await expect(page.getByTestId("action-preview")).toContainText("pg_trgm")
+  await page.getByTestId("action-submit").click()
+
+  // Filtered rather than read off row 0: the report lists every extension the
+  // server offers, so the name alone proves nothing — `installed` does.
+  await catalogRow(page, "Extensions").click()
+  await addFilter(page, "name", "equals", "pg_trgm")
+  await expect(page.getByTestId("grid-cell-0-installed")).toHaveText("true")
+
+  await catalogCheck(page, "Extensions").click()
+  await catalogAction(page, "drop_extension")
+  await page.getByTestId("action-dialog").getByRole("textbox").first().fill("pg_trgm")
+  await expect(page.getByTestId("action-preview")).toContainText("pg_trgm")
+  await page.getByTestId("action-submit").click()
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

@@ -100,6 +100,8 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
         "rename_relation",
         "load_csv",
         "drop_relation",
+        "create_extension",
+        "drop_extension",
     ]
 
 

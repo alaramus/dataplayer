@@ -55,7 +55,14 @@ export interface ListNode {
   group?: string
 }
 
-const ICONS: Record<CatalogNode["kind"], string> = {
+/**
+ * The icon of each kind, by its ligature name in the bundled Material Icons.
+ *
+ * Exported so a test can check every name against the set that actually ships:
+ * a name from the newer Material Symbols is not a missing picture but a broken
+ * row, because `q-icon` draws the literal word and it overflows its box.
+ */
+export const ICONS: Record<CatalogNode["kind"], string> = {
   schema: "folder",
   table: "table_chart",
   view: "visibility",
@@ -63,11 +70,15 @@ const ICONS: Record<CatalogNode["kind"], string> = {
   file: "insert_drive_file",
   dataset: "grid_on",
   entry: "insert_drive_file",
-  report: "monitoring",
+  // Names from the Material Icons set the app actually bundles. A name that is
+  // only in the newer Material Symbols renders as the literal word, which
+  // overflows its 18px box and covers the row's tick box — the icon is drawn
+  // over the control beside it, and the row cannot be ticked.
+  report: "assessment",
 }
 
 /** The section of reports, which is a report with children rather than a folder. */
-const REPORT_SECTION_ICON = "dns"
+export const REPORT_SECTION_ICON = "dns"
 
 const FILE_ICONS: Partial<Record<NodeRepresentation["kind"], string>> = {
   table: "grid_on",

@@ -177,6 +177,10 @@ REPORTS: tuple[SystemReport, ...] = (
 
 _BY_KEY = {report.key: report for report in REPORTS}
 
+# Named because a command is offered on this report and on no other. In one
+# place so the action and the registry cannot disagree about which one it is.
+EXTENSIONS_REPORT_ID = _BY_KEY["extensions"].node_id
+
 
 def report_for(node_id: str) -> SystemReport | None:
     """The report a node id names, or nothing when it names no report.

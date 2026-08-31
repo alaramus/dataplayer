@@ -478,7 +478,31 @@ import contracts, the regenerated client, frontend type check, lint, unit tests,
 the production build, the documentation check, and the whole end-to-end suite
 (109 scenarios) including a new one that walks into the section and opens
 Tablespaces.
-- [ ] Create and drop an extension, as two connector-root actions.
+- [x] Create and drop an extension.
+
+Not at the connector root after all: the two commands are offered on the
+Extensions report, because that is where a reader is when they want one.
+`applies_to` says "a report", `available` says which report — the split the
+action contract already draws. The name is never interpolated: the typed text
+selects a row from `pg_available_extensions` and the identifier that reaches
+the statement is the `extname` that came back, so the only extension that can
+be named is one the server already lists. Both commands are previewable
+through the same rolled-back rehearsal D46 uses, so "install what it requires"
+says what else it would install before it does it. Removing offers no cascade:
+a relation dropped with one is a thing the reader can see, while an
+extension's cascade reaches whatever anyone ever built on its types.
+
+Two things came out of the work rather than the plan. Installing an extension
+that was already installed raised an unhandled driver error; a taken name is
+now a `conflict` refusal, the shape a taken folder name already had. And the
+report rows could not be ticked at all: the icon was named `monitoring`, which
+exists only in the newer Material Symbols, so `q-icon` drew the literal word,
+which overflowed its 18px box and covered the tick box beside it. Found only
+because the browser scenario tried to tick a row; every unit test passed. The
+guard against it is now a unit test rather than a browser measurement: the set
+that ships is a file in `node_modules`, so every icon name in `nodes.ts` is
+checked against it directly. It was verified by putting `monitoring` back and
+watching it fail.
 - [ ] Create, drop and rename a schema, and move a relation between schemas.
 - [ ] Offer a relation's DDL as a content representation under D47.
 
@@ -766,7 +790,7 @@ end-to-end suite.
 [its spec](superpowers/specs/2026-08-31-postgres-system-operations-design.md);
 D54 and D55 are implemented and validated.
 
-Continue 1.5 in the order listed there: extension create and drop as two
-connector-root actions, then the schema commands, then DDL as a content
-representation. Phase 1 closes with those three; Phase 2 is sharing a bounded
+Continue 1.5 in the order listed there: the schema commands — create, drop and
+rename a schema, and move a relation between schemas — then DDL as a content
+representation. Phase 1 closes with those two; Phase 2 is sharing a bounded
 fetched snapshot.

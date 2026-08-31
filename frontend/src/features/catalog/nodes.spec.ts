@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest"
 
 import { at, first } from "@/shared/testing/collections"
-import { groupsOf, roleOf, showsPath, toListNodes } from "./nodes"
+import bundledIcons from "@quasar/extras/material-icons/icons.json"
+
+import {
+  ICONS,
+  REPORT_SECTION_ICON,
+  groupsOf,
+  roleOf,
+  showsPath,
+  toListNodes,
+} from "./nodes"
 import type { CatalogNode } from "./nodes"
 
 function group(id: string) {
@@ -564,5 +573,32 @@ describe("file sources", () => {
     expect(at(mapped, 0).caption).toBeUndefined()
     expect(at(mapped, 1).caption).toBe("Backends connected now")
     expect(at(mapped, 0).icon).not.toBe(at(mapped, 1).icon)
+  })
+})
+
+describe("the icons a catalog row draws", () => {
+  /**
+   * Every name must exist in the Material Icons set the application bundles.
+   *
+   * A name that only exists in the newer Material Symbols is not a missing
+   * picture: `q-icon` falls back to drawing the literal word, which overflows
+   * its 18px box, covers the tick box beside it and makes the row impossible
+   * to tick. That is how `monitoring` was found, and only a browser noticed —
+   * which is what this test is here to change.
+   *
+   * The bundled list keys each icon by its camel-cased name, so `grid_on` is
+   * `matGridOn`.
+   */
+  it("are all in the bundled font", () => {
+    const bundled: unknown = bundledIcons
+    const known = new Set(
+      Array.isArray(bundled) ? (bundled as string[]) : Object.keys(bundled as object)
+    )
+    const keyOf = (name: string) =>
+      "mat" + name.split("_").map((part) => part[0]?.toUpperCase() + part.slice(1)).join("")
+
+    const used = [...Object.values(ICONS), REPORT_SECTION_ICON]
+    expect(used.length).toBeGreaterThan(0)
+    expect(used.filter((name) => !known.has(keyOf(name)))).toEqual([])
   })
 })

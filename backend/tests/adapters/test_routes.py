@@ -115,6 +115,8 @@ async def test_reports_what_a_type_can_do(
         "Rename",
         "Load from CSV",
         "Drop",
+        "Install extension",
+        "Remove extension",
     }
     assert "Upload files" in files
     assert "Delete" in files
