@@ -9,6 +9,7 @@ suite leaves behind every time it empties the shared development database.
 """
 
 import asyncio
+import base64
 import json
 import logging
 import sys
@@ -24,6 +25,12 @@ logger = logging.getLogger(__name__)
 
 # More than one page of the default size, so paging is exercised.
 SAMPLE_ROWS = 250
+
+# One real 1×1 PNG: the viewer verifies bytes, so a signature followed by
+# sample text would advertise an image that correctly refuses to open.
+SAMPLE_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
 
 
 def write_samples(home: Path) -> None:
@@ -61,8 +68,7 @@ def write_samples(home: Path) -> None:
     )
     # Named .json and not JSON: its JSON viewer shows the source and says why.
     (home / "broken.json").write_text('{"a": 1,\n "b" 2}\n', encoding="utf-8")
-    # Binary on purpose: it must show up in the tree and refuse to be read.
-    (home / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\n\x00sample")
+    (home / "logo.png").write_bytes(SAMPLE_PNG)
 
     reports = home / "reports"
     reports.mkdir(exist_ok=True)

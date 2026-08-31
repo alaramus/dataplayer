@@ -16,6 +16,7 @@ const DROP: ActionCommand = {
   destructive: true,
   takesFile: false,
   previews: true,
+  downloads: false,
   actsOn: "node",
   fields: [
     {

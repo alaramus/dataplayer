@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import ChartPanelView from "@/features/charts/ChartPanel.vue"
 import ContentPanelView from "@/features/content/ContentPanel.vue"
+import ImagePanelView from "@/features/content/ImagePanel.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
@@ -86,7 +87,7 @@ export const panelSchema = z.discriminatedUnion("kind", [
     title: z.string(),
     connectorName: z.string(),
     adapterType: z.string(),
-    representation: z.enum(["text", "json", "jsonl"]),
+    representation: z.enum(["text", "json", "jsonl", "image"]),
     tableTitle: z.string().min(1).optional(),
   }),
   z.object({
@@ -119,7 +120,7 @@ export const rowsPanelId = (connectorId: string, nodeId: string) => `rows:${conn
 export const contentPanelId = (
   connectorId: string,
   nodeId: string,
-  representation: "text" | "json" | "jsonl"
+  representation: "text" | "json" | "jsonl" | "image"
 ) => `content:${connectorId}:${nodeId}:${representation}`
 export const structurePanelId = (connectorId: string, nodeId: string) =>
   `structure:${connectorId}:${nodeId}`
@@ -238,11 +239,13 @@ export function lookOf(panel: Panel): PanelLook {
       return {
         title: panel.title,
         icon:
-          panel.representation === "text"
-            ? "description"
-            : panel.representation === "jsonl"
-              ? "format_list_numbered"
-              : "data_object",
+          panel.representation === "image"
+            ? "image"
+            : panel.representation === "text"
+              ? "description"
+              : panel.representation === "jsonl"
+                ? "format_list_numbered"
+                : "data_object",
         iconTooltip: `${panel.connectorName} · Show in catalog`,
         reloadTooltip: "Re-read this file",
       }
@@ -314,7 +317,19 @@ export function componentOf(panel: Panel): Component {
           describable: panel.describable === true,
         })
       )
-    case "content":
+    case "content": {
+      // Read once: a narrowing on a property does not survive into the closure.
+      const representation = panel.representation
+      if (representation === "image") {
+        return boundComponent(panel.id, () =>
+          h(ImagePanelView, {
+            panelId: panel.id,
+            connectorId: panel.connectorId,
+            nodeId: panel.nodeId,
+            title: panel.title,
+          })
+        )
+      }
       return boundComponent(panel.id, () =>
         h(ContentPanelView, {
           panelId: panel.id,
@@ -323,10 +338,11 @@ export function componentOf(panel: Panel): Component {
           title: panel.title,
           connectorName: panel.connectorName,
           adapterType: panel.adapterType,
-          representation: panel.representation,
+          representation,
           tableTitle: panel.tableTitle,
         })
       )
+    }
     case "structure":
       return boundComponent(panel.id, () =>
         h(StructurePanelView, {

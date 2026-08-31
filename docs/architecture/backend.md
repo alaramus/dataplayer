@@ -75,13 +75,19 @@ POST   /api/v1/connectors/parse-url
 GET    /api/v1/connectors/{connector_id}/catalog?refresh=false
 GET    /api/v1/connectors/{connector_id}/relation-model
 POST   /api/v1/connectors/{connector_id}/fetch?refresh=false
+POST   /api/v1/connectors/{connector_id}/content
+POST   /api/v1/connectors/{connector_id}/content/editor
+PATCH  /api/v1/connectors/{connector_id}/content/editor
+GET    /api/v1/connectors/content-files/{ticket}
 POST   /api/v1/connectors/{connector_id}/downloads/page
 POST   /api/v1/connectors/{connector_id}/downloads/export
 GET    /api/v1/connectors/export-downloads/{ticket}
 PATCH  /api/v1/connectors/{connector_id}/columns
 POST   /api/v1/connectors/{connector_id}/actions
 POST   /api/v1/connectors/{connector_id}/actions/{action_name}
+POST   /api/v1/connectors/{connector_id}/actions/{action_name}/download
 POST   /api/v1/connectors/{connector_id}/actions/{action_name}/file
+GET    /api/v1/connectors/action-downloads/{ticket}
 GET    /api/v1/connectors/{connector_id}/grants
 PUT    /api/v1/connectors/{connector_id}/grants
 DELETE /api/v1/connectors/{connector_id}/grants/{user_id}
@@ -89,6 +95,21 @@ DELETE /api/v1/connectors/{connector_id}/grants/{user_id}
 
 After changing a route or a schema, regenerate the typed client:
 `bash scripts/generate-client.sh`.
+
+## Rehearsing the pipeline locally
+
+Settings name `../.env`, so a run started from `backend/` reads whatever the
+developer keeps there — `FASTAPI_ENV`, `SMTP_HOST`, `EMAILS_FROM_EMAIL` — and
+silently fills the gaps that CI, which has no such file, will not fill. Two
+pipelines went red on variables that a local run appeared to prove present. A
+rehearsal that means anything therefore uses a checkout without `.env`, on
+Linux:
+
+```bash
+git archive HEAD | tar -x -C /tmp/rehearsal
+docker run --rm --network ci --network-alias … -w /repo/backend \
+  ghcr.io/astral-sh/uv:bookworm-slim bash -c "uv sync --frozen && …"
+```
 
 ## D3. The backend is fully asynchronous
 
@@ -184,6 +205,8 @@ Consequences kept deliberately:
 - A file connector's root stays the **owner's** personal directory, so sharing
   one shares that directory at the granted level. D8 is unchanged.
 - A page download is written to the **caller's** own storage.
+- An original-content or preview ticket re-checks the caller's current grant
+  when it is redeemed; it carries no bearer token or server path.
 - Cache keys already carry the caller's id, so sharing a connection does not
   share cache entries.
 

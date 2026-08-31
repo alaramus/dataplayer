@@ -463,7 +463,7 @@ async def test_no_grant_reaches_the_connection_itself(
 # --- actions carry their own level ----------------------------------------
 
 
-async def test_a_read_grant_is_offered_no_file_actions(
+async def test_a_read_grant_is_offered_only_the_read_level_download_action(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
     colleague: tuple[User, dict[str, str]],
@@ -477,7 +477,7 @@ async def test_a_read_grant_is_offered_no_file_actions(
     )
 
     assert response.status_code == 200
-    assert response.json() == []
+    assert {item["name"] for item in response.json()} == {"download"}
 
 
 async def test_a_write_grant_is_offered_file_actions(
@@ -514,6 +514,32 @@ async def test_a_read_grant_cannot_run_a_file_action(
 
     assert response.status_code == 403
     assert response.json()["detail"]["required"] == "write"
+
+
+async def test_a_read_grant_can_run_the_download_action(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+) -> None:
+    user, headers = colleague
+    connector_id = await _file_connector(client, normal_user_token_headers)
+    uploaded = await client.post(
+        f"{BASE}/{connector_id}/actions/upload/file",
+        headers=normal_user_token_headers,
+        files={"file": ("shared.txt", b"shared body", "text/plain")},
+        data={"node_id": "", "params": "{}"},
+    )
+    assert uploaded.status_code == 200, uploaded.text
+    await _grant(client, normal_user_token_headers, connector_id, user, "read")
+
+    prepared = await client.post(
+        f"{BASE}/{connector_id}/actions/download/download",
+        headers=headers,
+        json={"node_ids": ["shared.txt"]},
+    )
+    assert prepared.status_code == 200
+    downloaded = await client.get(prepared.json()["download_url"])
+    assert downloaded.content == b"shared body"
 
 
 async def test_renaming_a_relation_needs_structure(

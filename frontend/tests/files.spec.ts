@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { catalogAction, catalogRow, openNode } from "./utils/catalog"
+import { catalogAction, catalogCheck, catalogRow, openNode } from "./utils/catalog"
 import { createFileConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import {
@@ -80,10 +80,32 @@ test("browses a personal directory and opens each implemented viewer", async ({ 
   // A text file has no columns, so nothing offers to read it as rows.
   await expect(page.getByTestId("content-view-table")).toHaveCount(0)
 
-  // A file with no implemented viewer opens no tab and says so.
+  // An image is checked by the source and opens in its bounded native viewer.
   await openNode(page, "logo.png")
-  // Named rather than "the notification": several may still be on screen.
-  await expect(page.locator(".q-notification", { hasText: "has no viewer yet" })).toBeVisible()
+  await expect(page.getByTestId("image-preview")).toBeVisible()
+  await expect(page.getByTestId("image-details")).toContainText("PNG")
+  await expect(page.getByTestId("image-details")).toContainText("1 × 1")
+
+  // Download belongs to the selected catalog node, not to its viewer.
+  await expect(page.getByTestId("content-download-original")).toHaveCount(0)
+  await catalogCheck(page, "logo.png").click()
+  const downloadStarted = page.waitForEvent("download")
+  await catalogAction(page, "download")
+  const downloaded = await downloadStarted
+  expect(downloaded.suggestedFilename()).toBe("logo.png")
+
+  // A folder is archived even when it is the only selected node.
+  await catalogCheck(page, "logo.png").click()
+  await catalogCheck(page, "reports").click()
+  const folderStarted = page.waitForEvent("download")
+  await catalogAction(page, "download")
+  expect((await folderStarted).suggestedFilename()).toBe("reports.zip")
+
+  // Several nodes become one archive through the same action.
+  await catalogCheck(page, "notes.txt").click()
+  const severalStarted = page.waitForEvent("download")
+  await catalogAction(page, "download")
+  expect((await severalStarted).suggestedFilename()).toBe("download.zip")
   await expect(rowsTabs(page)).toHaveCount(1)
 
   await deleteConnector(page, name)

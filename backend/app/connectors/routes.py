@@ -7,15 +7,17 @@ from anyio import to_thread
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
-from starlette.responses import FileResponse
+from starlette.responses import FileResponse, StreamingResponse
 
 from app.adapters.actions import (
     Action,
+    ActionDownloadReady,
     ActionPreview,
     ActionRefused,
     ActionResult,
     ActsOn,
     Previews,
+    ProducesDownload,
     RefusalReason,
     SupportsActions,
     TakesFile,
@@ -58,6 +60,7 @@ from app.adapters.content import (
     ContentUpdated,
     EditorContent,
     EditorContentRequest,
+    ImageContent,
     UpdateContentRequest,
 )
 from app.adapters.export import ExportRequest
@@ -90,6 +93,7 @@ from app.adapters.protocol import (
     SupportsConstraints,
     SupportsContent,
     SupportsContentEdit,
+    SupportsContentPreview,
     SupportsDelete,
     SupportsDropColumn,
     SupportsExport,
@@ -121,7 +125,15 @@ from app.adapters.update import (
     UpdateCellsRequest,
     UpdateCellsResult,
 )
-from app.connectors import crud, downloads, health, imports, service
+from app.connectors import (
+    action_downloads,
+    content_tickets,
+    crud,
+    downloads,
+    health,
+    imports,
+    service,
+)
 from app.connectors.models import (
     Connector,
     ConnectorCreate,
@@ -350,6 +362,99 @@ async def _adapter_for(
         session, connector_id, current_user, resources, requires=requires
     )
     return adapter
+
+
+@router.get("/content-files/{ticket}", include_in_schema=False)
+async def preview_content_file(
+    session: SessionDep,
+    resources: ResourcesDep,
+    ticket: str,
+) -> Response:
+    """Redeem one short-lived inline-preview ticket."""
+    claims = content_tickets.read_content_ticket(ticket)
+    if claims is None:
+        raise HTTPException(status_code=404, detail="Content not found")
+    user = await session.get(User, claims.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=404, detail="Content not found")
+
+    adapter = await _adapter_for(
+        session, claims.connector_id, user, resources, requires="read"
+    )
+    try:
+        if not isinstance(adapter, SupportsContentPreview):
+            raise HTTPException(
+                status_code=501,
+                detail={
+                    "message": "This source does not support content previews",
+                    "error_kind": "config",
+                },
+            )
+        preview = await adapter.preview_content(
+            ContentRequest(
+                node_id=claims.node_id,
+                representation=claims.representation,
+            )
+        )
+        return Response(
+            content=preview.body,
+            media_type=preview.media_type,
+            headers={
+                "Cache-Control": "private, no-store",
+                "Content-Disposition": content_tickets.content_disposition(
+                    preview.filename, inline=True
+                ),
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Content not found") from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.get("/action-downloads/{ticket}", include_in_schema=False)
+async def download_action_result(
+    session: SessionDep,
+    resources: ResourcesDep,
+    ticket: str,
+) -> StreamingResponse:
+    """Redeem one source action ticket after rechecking access and targets."""
+    claims = action_downloads.read_action_download_ticket(ticket)
+    if claims is None:
+        raise HTTPException(status_code=404, detail="Download not found")
+    user = await session.get(User, claims.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=404, detail="Download not found")
+
+    adapter, access = await _adapter_and_access(
+        session, claims.connector_id, user, resources, requires="read"
+    )
+    action = await _action_for_nodes(
+        _acting_or_501(adapter), claims.action_name, claims.node_ids
+    )
+    _allowed_or_403(action, access)
+    if not isinstance(action, ProducesDownload):
+        raise HTTPException(
+            status_code=415,
+            detail={"message": f"{action.title} does not produce a download"},
+        )
+    prepared = await _perform(lambda: action.download(claims.node_ids))
+    return StreamingResponse(
+        prepared.body,
+        media_type=prepared.metadata.media_type,
+        headers={
+            "Cache-Control": "private, no-store",
+            "Content-Disposition": content_tickets.content_disposition(
+                prepared.metadata.filename, inline=False
+            ),
+            "Content-Length": str(prepared.metadata.size_bytes),
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get("/export-downloads/{ticket}", response_class=FileResponse)
@@ -751,7 +856,26 @@ async def read_content(
             },
         )
     try:
-        return await adapter.read_content(request)
+        result = await adapter.read_content(request)
+        if isinstance(result, ImageContent):
+            if not isinstance(adapter, SupportsContentPreview):
+                raise HTTPException(
+                    status_code=501,
+                    detail={
+                        "message": "This source does not support content previews",
+                        "error_kind": "config",
+                    },
+                )
+            ticket = content_tickets.issue_content_ticket(
+                purpose="image_preview",
+                user_id=current_user.id,
+                connector_id=connector_id,
+                node_id=request.node_id,
+            )
+            return result.model_copy(
+                update={"preview_url": content_tickets.content_ticket_url(ticket)}
+            )
+        return result
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -1868,6 +1992,9 @@ class ActionInfo(BaseModel):
     # Whether it can be asked what it would do before it is done. Derived the
     # same way, and for the same reason.
     previews: bool
+    # Whether selecting this action produces bytes through the native browser
+    # download transport. Derived from the callable action capability.
+    downloads: bool
     # What the action changes, so a client knows what to send it: the nodes
     # that were ticked, or the level they are in.
     acts_on: ActsOn
@@ -1886,6 +2013,12 @@ class ActionTargets(BaseModel):
     """
 
     node_ids: Annotated[list[str], Field(min_length=1, max_length=1000)] | None = None
+
+
+class DownloadActionTargets(BaseModel):
+    """The non-empty selection one download action receives as a whole."""
+
+    node_ids: Annotated[list[str], Field(min_length=1, max_length=1000)]
 
 
 class ActionRequest(BaseModel):
@@ -1909,6 +2042,7 @@ def _describe(action: Action[Any], *, applicable: bool) -> ActionInfo:
         destructive=action.destructive,
         takes_file=isinstance(action, TakesFile),
         previews=isinstance(action, Previews),
+        downloads=isinstance(action, ProducesDownload),
         acts_on=action.acts_on,
         applicable=applicable,
         params_schema=action.params_schema(),
@@ -1963,6 +2097,27 @@ async def _action_for_node(
         raise HTTPException(
             status_code=422,
             detail={"message": f"{action.title} cannot be done to this node"},
+        )
+    return action
+
+
+async def _action_for_nodes(
+    adapter: SupportsActions, action_name: str, node_ids: list[str]
+) -> Action[Any]:
+    """One bulk action admitted by every selected node, checked together."""
+    if len(set(node_ids)) != len(node_ids):
+        raise HTTPException(
+            status_code=422, detail={"message": "A node may be selected only once"}
+        )
+    action: Action[Any] | None = None
+    for node_id in node_ids:
+        action = await _action_for_node(adapter, action_name, node_id)
+    if action is None:
+        raise HTTPException(status_code=422, detail={"message": "Choose a node"})
+    if len(node_ids) > 1 and not action.bulk:
+        raise HTTPException(
+            status_code=422,
+            detail={"message": f"{action.title} cannot be done in bulk"},
         )
     return action
 
@@ -2083,7 +2238,7 @@ async def run_action(
     if not isinstance(action, TakesParams):
         raise HTTPException(
             status_code=415,
-            detail={"message": f"{action.title} needs a file to be sent with it"},
+            detail={"message": f"{action.title} uses a different request transport"},
         )
     return await _invalidate_after(
         lambda: _perform(lambda: action.perform(body.node_id, body.params)),
@@ -2130,6 +2285,42 @@ async def preview_action(
             },
         )
     return await _perform(lambda: action.preview(target, body.params))
+
+
+@router.post(
+    "/{connector_id}/actions/{action_name}/download",
+    response_model=ActionDownloadReady,
+)
+async def prepare_action_download(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    action_name: str,
+    body: DownloadActionTargets,
+) -> ActionDownloadReady:
+    """Issue a short-lived native-browser ticket for one download action."""
+    adapter, access = await _adapter_and_access(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    action = await _action_for_nodes(
+        _acting_or_501(adapter), action_name, body.node_ids
+    )
+    _allowed_or_403(action, access)
+    if not isinstance(action, ProducesDownload):
+        raise HTTPException(
+            status_code=415,
+            detail={"message": f"{action.title} does not produce a download"},
+        )
+    ticket = action_downloads.issue_action_download_ticket(
+        user_id=current_user.id,
+        connector_id=connector_id,
+        action_name=action_name,
+        node_ids=body.node_ids,
+    )
+    return ActionDownloadReady(
+        download_url=action_downloads.action_download_url(ticket)
+    )
 
 
 @router.post("/{connector_id}/actions/{action_name}/file", response_model=ActionResult)

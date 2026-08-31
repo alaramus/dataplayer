@@ -10,7 +10,7 @@ Decisions here: D12, D14.
 
 One screen of three columns: the connections, the catalog of every connection
 that was opened, and the work opened from a node in tabs beside each other. Work
-may be rows, native file content, relation structure or a chart. Columns are
+may be rows, editable source, bounded media, relation structure or a chart. Columns are
 resizable and bounded by the window so each scrolls inside itself, and the
 layout a user arrives at is the one they left. A column appears together with
 what goes in it; the right-hand one, while it is empty, says what to do next and

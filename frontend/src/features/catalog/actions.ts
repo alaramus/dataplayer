@@ -16,6 +16,8 @@ export interface ActionCommand {
   takesFile: boolean
   /** Whether the source can say what this would do before it is done. */
   previews: boolean
+  /** Whether the action returns one native browser download for all targets. */
+  downloads: boolean
   /** Whether it changes the nodes it is given, or what the one node holds. */
   actsOn: ActionInfo["acts_on"]
   fields: FieldSpec[]
@@ -28,6 +30,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
     destructive: action.destructive,
     takesFile: action.takes_file,
     previews: action.previews,
+    downloads: action.downloads,
     actsOn: action.acts_on,
     fields: schemaToFields(action.params_schema as unknown as JsonSchema),
   }))

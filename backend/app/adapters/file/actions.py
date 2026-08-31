@@ -9,6 +9,7 @@ through the session, so the containment rule of decision D8 stays in one place.
 import os
 import shutil
 import tempfile
+from collections.abc import Sequence
 from functools import partial
 from pathlib import Path
 from typing import Any, ClassVar, Protocol
@@ -19,6 +20,7 @@ from pydantic import BaseModel, Field, field_validator
 from app.adapters.actions import (
     CHUNK_BYTES,
     Action,
+    ActionDownload,
     ActionRefused,
     ActionResult,
     ActionSet,
@@ -29,7 +31,9 @@ from app.adapters.actions import (
     JsonAction,
 )
 from app.adapters.catalog import NodeKind
+from app.adapters.file.download import FileDownload
 from app.adapters.file.session import FileSession, is_plain_name
+from app.core.access import Access
 from app.core.config import settings
 
 
@@ -66,6 +70,12 @@ class UploadParams(BaseModel):
         title="Replace an existing file",
         description="Required when a file of that name is already there",
     )
+
+
+class DownloadParams(BaseModel):
+    """Download has no form; its complete input is the selected nodes."""
+
+    pass
 
 
 class _Bound:
@@ -158,6 +168,24 @@ class Delete(_ActsOnNode, JsonAction[DeleteParams]):
         return ActionResult(
             message=f"{path.name} deleted", reload_node_id=reload_node_id
         )
+
+
+class Download(_ActsOnNode, Action[DownloadParams]):
+    """Return one original file, or archive the whole selected set."""
+
+    name: ClassVar[str] = "download"
+    title: ClassVar[str] = "Download"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory", "file"})
+    requires: ClassVar[Access] = "read"
+    bulk: ClassVar[bool] = True
+    params_model = DownloadParams
+
+    async def download(self, node_ids: Sequence[str]) -> ActionDownload:
+        # Reapply the same root and existence rule the availability check uses;
+        # tickets are redeemed later, when the source may have changed.
+        for node_id in node_ids:
+            self._target(node_id)
+        return await FileDownload(self._session).prepare(node_ids)
 
 
 class Upload(_Bound, FileAction[UploadParams]):
@@ -260,6 +288,7 @@ class FileActionType(ActionType, Protocol):
 FILE_ACTION_TYPES: tuple[FileActionType, ...] = (
     CreateFolder,
     Upload,
+    Download,
     Rename,
     Delete,
 )

@@ -1,6 +1,7 @@
 """Bounded native content viewers for files."""
 
 import hashlib
+import io
 import os
 import tempfile
 from collections.abc import Iterator
@@ -9,9 +10,11 @@ from pathlib import Path
 from typing import Any, assert_never
 
 from anyio import to_thread
+from PIL import Image, UnidentifiedImageError
 
 from app.adapters import jsontext
 from app.adapters.content import (
+    BoundedContentPreview,
     ContentConflict,
     ContentRequest,
     ContentResult,
@@ -19,6 +22,8 @@ from app.adapters.content import (
     EditorContent,
     EditorContentRequest,
     EditorValidationKind,
+    ImageContent,
+    ImageMediaType,
     JsonArray,
     JsonContent,
     JsonLine,
@@ -55,6 +60,16 @@ MAX_JSON_LINES_PAGE_BYTES = 4 * 1024 * 1024
 # viewer and name why the editor cannot write them.
 MAX_EDITOR_BYTES = 4 * 1024 * 1024
 
+# Preview is allowed to hold its verified bytes, but only below this independent
+# transport bound. Pixel count separately bounds browser decode memory.
+MAX_IMAGE_BYTES = 20 * 1024 * 1024
+MAX_IMAGE_PIXELS = 40_000_000
+
+IMAGE_MEDIA_TYPES: dict[str, ImageMediaType] = {
+    "JPEG": "image/jpeg",
+    "PNG": "image/png",
+}
+
 
 class FileContent:
     def __init__(self, session: FileSession) -> None:
@@ -73,6 +88,12 @@ class FileContent:
     async def update_content(self, request: UpdateContentRequest) -> ContentUpdated:
         path = self._session.resolve(request.node_id)
         return await to_thread.run_sync(self._update, path, request)
+
+    async def preview_content(
+        self, request: ContentRequest
+    ) -> BoundedContentPreview:
+        path = self._session.resolve(request.node_id)
+        return await to_thread.run_sync(self._read_image_preview, path, request)
 
     def _read(self, path: Path, request: ContentRequest) -> ContentResult:
         if not path.exists():
@@ -93,8 +114,37 @@ class FileContent:
                 return _read_json(path)
             case "jsonl":
                 return _read_json_lines(path, request.limit, request.offset)
+            case "image":
+                preview = self._read_image_preview(path, request)
+                return _image_content(preview)
             case unreachable:
                 assert_never(unreachable)
+
+    def _read_image_preview(
+        self, path: Path, request: ContentRequest
+    ) -> BoundedContentPreview:
+        if not path.exists():
+            raise ValueError(f"No such file: {request.node_id}")
+        if not path.is_file():
+            raise ValueError(f"A directory has no image viewer: {request.node_id}")
+        if request.representation != "image" or "image" not in {
+            item.kind for item in representations_of(path.name)
+        }:
+            raise ValueError('This file does not offer the "image" representation')
+        raw, truncated = _byte_prefix(path, MAX_IMAGE_BYTES)
+        if truncated:
+            raise ValueError(
+                f"Images larger than {MAX_IMAGE_BYTES // (1024 * 1024)} MB "
+                "cannot be previewed"
+            )
+        media_type, width, height = _verified_image(raw)
+        return BoundedContentPreview(
+            body=raw,
+            media_type=media_type,
+            filename=path.name,
+            width=width,
+            height=height,
+        )
 
     def _read_editor(
         self, path: Path, request: EditorContentRequest
@@ -167,6 +217,40 @@ def _read_text(path: Path) -> TextContent:
         raise ValueError("This file contains binary data and cannot be shown as text")
     text, truncated, notice = _text_prefix(path, MAX_TEXT_BYTES)
     return TextContent(text=text, truncated=truncated, notice=notice)
+
+
+def _verified_image(raw: bytes) -> tuple[ImageMediaType, int, int]:
+    try:
+        with Image.open(io.BytesIO(raw)) as image:
+            media_type = IMAGE_MEDIA_TYPES.get(image.format or "")
+            if media_type is None:
+                raise ValueError("Only PNG and JPEG images can be previewed")
+            width, height = image.size
+            if width < 1 or height < 1:
+                raise ValueError("This image has invalid dimensions")
+            if getattr(image, "n_frames", 1) != 1:
+                raise ValueError("Animated images are not supported by this viewer yet")
+            if width * height > MAX_IMAGE_PIXELS:
+                raise ValueError(
+                    f"Images larger than {MAX_IMAGE_PIXELS:,} pixels cannot be previewed"
+                )
+            image.verify()
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError):
+        raise ValueError("This file is not a valid PNG or JPEG image") from None
+    return media_type, width, height
+
+
+def _image_content(preview: BoundedContentPreview) -> ImageContent:
+    media_type = preview.media_type
+    if media_type not in {"image/png", "image/jpeg"}:
+        raise ValueError("This file is not a supported image")
+    return ImageContent(
+        filename=preview.filename,
+        media_type=media_type,
+        size_bytes=len(preview.body),
+        width=preview.width,
+        height=preview.height,
+    )
 
 
 def _read_json(path: Path) -> JsonContent:

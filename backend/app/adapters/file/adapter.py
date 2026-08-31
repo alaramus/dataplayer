@@ -4,6 +4,7 @@ from typing import Any
 from app.adapters.actions import Action, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.content import (
+    BoundedContentPreview,
     ContentRequest,
     ContentResult,
     ContentUpdated,
@@ -63,6 +64,11 @@ class FileAdapter:
 
     async def update_content(self, request: UpdateContentRequest) -> ContentUpdated:
         return await self._content.update_content(request)
+
+    async def preview_content(
+        self, request: ContentRequest
+    ) -> BoundedContentPreview:
+        return await self._content.preview_content(request)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         return await self._actions.available(node_id)

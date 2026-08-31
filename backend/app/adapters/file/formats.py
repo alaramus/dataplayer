@@ -8,6 +8,7 @@ from app.adapters.content import NodeRepresentation
 DELIMITED_EXTENSIONS: frozenset[str] = frozenset({".csv", ".tsv"})
 JSON_EXTENSIONS: frozenset[str] = frozenset({".json"})
 JSON_LINES_EXTENSIONS: frozenset[str] = frozenset({".jsonl", ".ndjson"})
+IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpeg", ".jpg", ".png"})
 
 # Classification is intentionally by name in the catalog: inspecting every
 # entry would cost one open per file. The content reader checks the bytes when
@@ -55,12 +56,13 @@ BINARY_EXTENSIONS: frozenset[str] = frozenset(
     }
 )
 
-FileFormat = Literal["delimited", "json", "jsonl", "text", "opaque"]
+FileFormat = Literal["delimited", "json", "jsonl", "text", "image", "opaque"]
 
 TABLE = NodeRepresentation(kind="table", title="View as table")
 TEXT = NodeRepresentation(kind="text", title="View as text")
 JSON = NodeRepresentation(kind="json", title="View JSON")
 JSON_LINES = NodeRepresentation(kind="jsonl", title="View JSON lines")
+IMAGE = NodeRepresentation(kind="image", title="View image")
 
 
 def format_of(name: str) -> FileFormat:
@@ -71,6 +73,8 @@ def format_of(name: str) -> FileFormat:
         return "json"
     if suffix in JSON_LINES_EXTENSIONS:
         return "jsonl"
+    if suffix in IMAGE_EXTENSIONS:
+        return "image"
     if suffix in BINARY_EXTENSIONS:
         return "opaque"
     return "text"
@@ -90,6 +94,8 @@ def representations_of(name: str) -> list[NodeRepresentation]:
             # was a table in name only. It is offered as source, and nothing
             # else.
             return [TEXT]
+        case "image":
+            return [IMAGE]
         case "opaque":
             # Media representations are added on this same contract in the
             # next slice; claiming one before a safe content route exists

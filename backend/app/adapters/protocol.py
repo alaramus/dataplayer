@@ -22,6 +22,7 @@ from app.adapters.constraints import (
     DropConstraintRequest,
 )
 from app.adapters.content import (
+    BoundedContentPreview,
     ContentRequest,
     ContentResult,
     ContentUpdated,
@@ -179,6 +180,15 @@ class SupportsContent(Protocol):
         ValueError when the node or representation cannot be read and
         AdapterError for source failures.
         """
+        ...
+
+
+@runtime_checkable
+class SupportsContentPreview(Protocol):
+    async def preview_content(
+        self, request: ContentRequest
+    ) -> BoundedContentPreview:
+        """Return verified bytes already below the representation's hard bound."""
         ...
 
 

@@ -59,12 +59,13 @@ included; the spec index lists the older titles in translation.
 - Two source types: PostgreSQL (schemas, relations, server-side paging and
   sorting) and the personal file storage every user owns (a file declares how
   it opens; text, JSON and JSONL open in a source editor that highlights by
-  type and saves under the version it read, and JSON and JSONL are also shown
-  as rows on request).
+  type and saves under the version it read, JSON and JSONL are also shown as
+  rows on request, and a verified PNG or JPEG opens as a picture).
 - In that storage: create a folder, rename, delete, upload — one node at a time
   or several at once. What is offered comes from the server for exactly the
   nodes that are ticked, so the screen knows nothing about any particular
-  source.
+  source. Download lives in the same Actions menu: one file is streamed
+  unchanged, while a selection or directory is archived first.
 - A connection can be shared with a colleague at one of three levels:
   reading it, changing its rows, changing its shape. Its owner alone edits it,
   deletes it and manages who holds what; an administrator manages accounts and
@@ -170,6 +171,7 @@ and the known deviations live there.
 | D46 | An action can be asked what it would do, and a drop answers by doing it and rolling it back | [adapters](docs/architecture/adapters.md) |
 | D47 | A node declares its ordered representations, and opening content is not fetching rows | [adapters](docs/architecture/adapters.md) |
 | D48 | Editing a document is its own capability, and a save must match the version it read | [adapters](docs/architecture/adapters.md) |
+| D49 | Download is a source-declared action over selected nodes; previews are bounded and verified | [adapters](docs/architecture/adapters.md) |
 
 Numbers have gaps and suffixes. They are referenced by specs and commit
 messages, so they are never renumbered.
@@ -322,17 +324,10 @@ The same rewrite is worth watching on any tracked text file. AGENTS.md once went
 in as CRLF and turned a five-line edit into a 597-line diff. `git show :FILE |
 file -` says what is actually about to be stored.
 
-**A local test run reads `../.env`, and CI has none.** Settings name that file,
-so anything the developer keeps there — `FASTAPI_ENV`, `SMTP_HOST`,
-`EMAILS_FROM_EMAIL` — silently fills the gaps in a run started from `backend/`.
-Two pipelines went red on variables that a local run appeared to prove present.
-A rehearsal that means anything uses a checkout without `.env`, on Linux:
-
-```bash
-git archive HEAD | tar -x -C /tmp/rehearsal
-docker run --rm --network ci --network-alias … -w /repo/backend \
-  ghcr.io/astral-sh/uv:bookworm-slim bash -c "uv sync --frozen && …"
-```
+**A local test run reads `../.env`, and CI has none.** A run started from
+`backend/` silently borrows whatever the developer keeps there; two pipelines
+went red on variables such a run appeared to prove present. How to rehearse
+without them: [backend](docs/architecture/backend.md).
 
 **The whole end-to-end suite needs a dev server that is already warm.**
 `playwright.config.ts` starts `bun run dev` itself, and four workers then hit a
@@ -404,5 +399,6 @@ editor.
 
 Phases 1.1 to 1.3 are done — D36 to D46, from navigating by a foreign key to
 dropping a relation with everything that stands on it. Phase 1.4 is under way:
-a file opens in its own viewer (D47) and is edited in place (D48); media, PDF
-and archives come next. The roadmap has the detail.
+a file opens in its own viewer (D47), is edited in place (D48) and is
+downloaded or seen as an image (D49); audio, video, PDF and archives come next.
+The roadmap has the detail.

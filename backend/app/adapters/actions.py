@@ -12,7 +12,8 @@ resolve.
 """
 
 from abc import ABC, abstractmethod
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import AsyncIterator, Iterator, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -41,6 +42,30 @@ class ActionResult(BaseModel):
     # A node whose source identity changed. Panels holding the old opaque id
     # replace it with the new one; the client never derives either id.
     replacement: NodeReplacement | None = None
+
+
+class ActionDownloadMetadata(BaseModel):
+    """The exact response metadata for bytes produced by an action."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    filename: str = Field(min_length=1)
+    media_type: str = Field(min_length=1)
+    size_bytes: int = Field(ge=0)
+
+
+@dataclass(frozen=True)
+class ActionDownload:
+    """One prepared action result, streamed without assembling it in memory."""
+
+    metadata: ActionDownloadMetadata
+    body: AsyncIterator[bytes]
+
+
+class ActionDownloadReady(BaseModel):
+    """A short-lived native-browser route for one action invocation."""
+
+    download_url: str
 
 
 # Why an action that is understood must still not be performed. Kept apart
@@ -177,6 +202,19 @@ class TakesFile(Protocol):
     ) -> ActionResult: ...
 
 
+@runtime_checkable
+class ProducesDownload(Protocol):
+    """An action whose result is a download over its whole target set.
+
+    This is a transport of an action, like JSON or multipart upload, not a
+    property of a catalog node. The source owns both the selection semantics
+    and the bytes: one adapter may return an original object while another
+    may build an archive or export through the same client command.
+    """
+
+    async def download(self, node_ids: Sequence[str]) -> ActionDownload: ...
+
+
 class ActionPreview(BaseModel):
     """What an action would do, asked of the source before it is done.
 
@@ -289,6 +327,7 @@ class ActionType(Protocol):
 
     name: str
     title: str
+    requires: Access
 
 
 @runtime_checkable

@@ -79,6 +79,22 @@ class FileSession:
             raise ValueError(f"Path outside the connector root: {node_id}")
         return candidate
 
+    def resolve_without_symlinks(self, node_id: str) -> Path:
+        """Resolve one entry while refusing a link in any named segment.
+
+        Reading a single node may safely follow a link that remains inside the
+        root. Recursive archive traversal is different: aliases can duplicate
+        a tree or form cycles, so that operation asks for this stricter path.
+        """
+        if not stays_inside_root(node_id):
+            raise ValueError(f"Path outside the connector root: {node_id}")
+        candidate = self._root
+        for part in PurePosixPath(node_id).parts:
+            candidate /= part
+            if candidate.is_symlink():
+                raise ValueError("Symbolic links are not downloaded")
+        return self.resolve(node_id)
+
     def relative_id(self, path: Path) -> str:
         """The node id of a path: what the client gets back and may send in."""
         return path.relative_to(self.resolved_root).as_posix()

@@ -5,7 +5,7 @@ do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
 D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36, D37, D38, D39,
-D40, D41, D42, D43, D44, D47, D48.
+D40, D41, D42, D43, D44, D47, D48, D49.
 
 ## What exists today
 
@@ -20,8 +20,9 @@ a request in a pool.
 **File** — the personal directory every user owns. The catalog is directories
 and files, and every leaf declares its ordered representations: delimited data
 opens as a table, JSON and JSONL as structured content, and plain files as text.
-Supported files may also be projected into a table by an explicit request. Four
-actions: create a folder, rename, delete, upload. No sorting and no filtering,
+Supported files may also be projected into a table by an explicit request. Five
+actions: create a folder, upload, download, rename and delete. Download returns
+one file unchanged or archives a directory or selection. No sorting and no filtering,
 because a file has no index. No connection string.
 
 ```
@@ -50,7 +51,7 @@ backend/app/adapters/
 │                    catalog.py, fetch.py, export.py, relation.py, actions.py,
 │                    adapter.py (facade)
 └── file/            session.py (root and containment), catalog.py, formats.py,
-                     content.py, fetch.py, readers.py, records.py, actions.py,
+                     content.py, download.py, fetch.py, readers.py, records.py, actions.py,
                      adapter.py (facade)
 ```
 
@@ -881,8 +882,8 @@ a server-side cursor and each batch crosses the adapter boundary as D23's
 lossless text cells. The requested sort keeps its source-owned stable
 tie-breaker, filters and identifiers go through the same validation and safe
 composition as a page, and only the requested visible columns are selected.
-The file source deliberately does not opt in: downloading original bytes and
-exporting its tabular interpretation are separate Phase 1.4 operations.
+The file source deliberately does not opt in: D49's node download action and
+exporting a tabular interpretation are different operations.
 
 CSV remains outside the adapter. The connector layer encodes one batch at a
 time with D28's null and quoting rules and writes a `.part` under the caller's
@@ -1075,19 +1076,19 @@ Known deviations:
 - **Catalog classification is by filename.** Opening the selected node checks
   its bytes, but listing a directory does not open every file. A file with a
   misleading suffix can therefore advertise a view that it later refuses.
-- **Media and archives declare no representation yet.** They remain visible in
-  the catalog and explain that no viewer exists; image, audio, video, PDF and
-  archive representations are later extensions of this contract.
+- **Only PNG and JPEG have a binary representation.** Audio, video, PDF,
+  archives and other image formats remain visible and can still be selected
+  for a source-declared download action, but explain that no viewer exists yet.
 - **Whole-document JSON has a 4 MB parse ceiling.** Larger documents have a
   source preview but no structural navigation. Streaming selection inside a
   document is a separate capability, not an unbounded response.
 - **Content reads are not cached.** Reopening or paging JSONL reads the file
   again. A file source has not opted into D31; what a save must match is
   versioned by the editor read of D48 instead.
-- **The bounded viewers have no screen.** Since D48 a content tab opens the
-  editor, so `read_content` and its JSON, JSONL and text results are reached by
-  tests alone. They are kept because paging a large JSONL file is the one thing
-  the editor's ceiling cannot do, and removing them would take that with it.
+- **The document viewers have no screen.** Image uses `read_content`, while
+  text, JSON and JSONL open the D48 editor. Their bounded results remain tested
+  because paging a large JSONL file is the one thing the editor's ceiling
+  cannot do, and removing them would take that with it.
 - **The table projection equates an absent key with JSON null.** Both become the
   grid's `None`; the native JSON viewer preserves the original distinction.
 
@@ -1135,6 +1136,61 @@ Known deviations:
   binary or opaque is refused, media and PDF included.
 - **The document is held whole on both sides.** Above 4 MB the editor is
   read-only; there is no partial or streaming edit.
+
+## D49. Download is a source-declared action over selected nodes, and a preview is bounded and verified
+
+Download is not a property of a file node or its viewer. A source declares an
+ordinary action named `download`, and the callable action implements
+`ProducesDownload`. The action listing derives `downloads` from that protocol,
+as it derives file upload and preview transports, so every adapter uses the
+same Actions menu without an adapter-name or action-name branch.
+
+The action receives the whole non-empty selection once. The file source returns
+one selected file unchanged. More than one node, or any selected directory,
+becomes one recursive ZIP: `<directory>.zip` for one folder and `download.zip`
+for a set. Empty directories are retained. ZIP staging runs in a worker thread
+and a temporary file, with ceilings of 10,000 entries and 2 GiB of uncompressed
+source bytes; symbolic links and ambiguous duplicate top-level names are
+refused. The archive is removed after the stream closes.
+
+The authenticated action request issues a signed one-minute ticket containing
+the user, connector, action and opaque node ids. Following it with a normal
+browser navigation re-checks the user, access, enabled connector, action and
+every target before asking the source for `ActionDownload`. A server path never
+enters the ticket or the client. This transport is available to every adapter;
+the file adapter is only its first implementation.
+
+`image` is the first binary `NodeRepresentation`. The catalog classifies PNG
+and JPEG by name because listing must not open every file, while the content
+read verifies the bytes with Pillow and returns the verified MIME type, width,
+height and byte length. Its dedicated preview ticket returns the verified bytes
+inline with `nosniff`; it is not the download action's ticket or transport.
+
+Preview has two independent ceilings: 20 MB of encoded bytes and 40 million
+decoded pixels. The verified bytes are the bounded bytes returned, so a file
+cannot change between checking and rendering. A single-file action stream is
+yielded in 256 KB chunks and never assembled in Python or JavaScript.
+
+The first viewer accepts only PNG and JPEG. GIF and WebP need animation/frame
+bounds; SVG needs an active-content decision; TIFF and icons need their own
+format behaviour. All can still be selected for Download even while they
+declare no viewer.
+
+Known deviations:
+
+- **Tickets may be replayed until they expire.** Every redemption re-checks
+  current access, the action and its targets, but the signed token is not
+  consumed.
+- **Download streams have no byte-range contract.** Images do not require one;
+  audio and video will.
+- **Archive staging has no per-user or process-wide quota.** Each result has
+  hard entry and source-byte bounds, but concurrent staging is not yet pooled.
+- **Preview returns the bounded original image, not a thumbnail.** A later
+  source-owned thumbnail can reduce transfer without changing the
+  representation.
+- **The JSON and JSONL bounded viewers remain API-only.** Image makes the
+  content boundary visible again, but a large-document fallback still needs a
+  screen that does not imply a partial document is editable.
 
 ## D8. Every user owns one directory, and a file connector cannot leave it
 
@@ -1197,9 +1253,6 @@ Consequences:
 
 Known deviations:
 
-- **A file can be uploaded but not downloaded.** Reading bytes back out is
-  sub-project 7, so a picture in personal storage can be listed and deleted but
-  not opened.
 - **Nothing moves or copies.** An action works inside one node of one connector;
   moving a file to another folder means downloading and uploading it again.
 - **A conflict is detected, then acted upon.** `create_folder`, `rename` and

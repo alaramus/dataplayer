@@ -185,6 +185,23 @@ export function useRunAction() {
   })
 }
 
+/** Ask one source-declared action to download its whole selected target set. */
+export function useDownloadAction() {
+  return useMutation({
+    mutationFn: async (input: {
+      connectorId: string
+      name: string
+      nodeIds: string[]
+    }) =>
+      (
+        await ConnectorsService.prepareActionDownload({
+          path: { connector_id: input.connectorId, action_name: input.name },
+          body: { node_ids: input.nodeIds },
+        })
+      ).data,
+  })
+}
+
 /**
  * Ask one action what it would do, without doing it.
  *

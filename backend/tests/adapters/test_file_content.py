@@ -1,3 +1,4 @@
+import base64
 from pathlib import Path
 
 import pytest
@@ -6,6 +7,7 @@ from app.adapters.content import (
     ContentConflict,
     ContentRequest,
     EditorContentRequest,
+    ImageContent,
     JsonArray,
     JsonContent,
     JsonLinesContent,
@@ -16,6 +18,7 @@ from app.adapters.content import (
 )
 from app.adapters.file.content import (
     MAX_EDITOR_BYTES,
+    MAX_IMAGE_BYTES,
     MAX_JSON_BYTES,
     MAX_JSON_LINE_BYTES,
     MAX_JSON_LINES_PAGE_BYTES,
@@ -23,6 +26,10 @@ from app.adapters.file.content import (
     FileContent,
 )
 from app.adapters.file.session import FileSession
+
+PNG_1X1 = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
 
 
 @pytest.fixture
@@ -39,6 +46,7 @@ def root(tmp_path: Path) -> Path:
         '{"id": 1}\nnot json\n\n{"id": 3}\n', encoding="utf-8", newline="\n"
     )
     (tmp_path / "notes.txt").write_text("first\nsecond\n", encoding="utf-8", newline="\n")
+    (tmp_path / "pixel.png").write_bytes(PNG_1X1)
     return tmp_path
 
 
@@ -200,6 +208,46 @@ async def test_binary_bytes_disguised_as_text_are_refused(
     with pytest.raises(ValueError, match="binary"):
         await content.read_content(
             ContentRequest(node_id="binary.txt", representation="text")
+        )
+
+
+async def test_an_image_is_verified_and_described_before_it_is_shown(
+    content: FileContent,
+) -> None:
+    result = await content.read_content(
+        ContentRequest(node_id="pixel.png", representation="image")
+    )
+
+    assert isinstance(result, ImageContent)
+    assert result.media_type == "image/png"
+    assert (result.width, result.height) == (1, 1)
+    assert result.size_bytes == len(PNG_1X1)
+
+    preview = await content.preview_content(
+        ContentRequest(node_id="pixel.png", representation="image")
+    )
+    assert preview.body == PNG_1X1
+
+
+async def test_an_image_suffix_does_not_make_unverified_bytes_renderable(
+    content: FileContent, root: Path
+) -> None:
+    (root / "forged.png").write_bytes(b"not an image")
+
+    with pytest.raises(ValueError, match="valid PNG or JPEG"):
+        await content.read_content(
+            ContentRequest(node_id="forged.png", representation="image")
+        )
+
+
+async def test_an_image_preview_has_a_byte_ceiling(
+    content: FileContent, root: Path
+) -> None:
+    (root / "huge.png").write_bytes(b"x" * (MAX_IMAGE_BYTES + 1))
+
+    with pytest.raises(ValueError, match="larger than"):
+        await content.read_content(
+            ContentRequest(node_id="huge.png", representation="image")
         )
 
 

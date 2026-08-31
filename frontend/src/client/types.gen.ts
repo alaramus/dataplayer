@@ -5,6 +5,18 @@ export type ClientOptions = {
 }
 
 /**
+ * ActionDownloadReady
+ *
+ * A short-lived native-browser route for one action invocation.
+ */
+export type ActionDownloadReady = {
+  /**
+   * Download Url
+   */
+  download_url: string
+}
+
+/**
  * ActionInfo
  *
  * One action, as much as a client needs to offer and perform it.
@@ -30,6 +42,10 @@ export type ActionInfo = {
    * Previews
    */
   previews: boolean
+  /**
+   * Downloads
+   */
+  downloads: boolean
   /**
    * Acts On
    */
@@ -808,7 +824,7 @@ export type ContentRequest = {
   /**
    * Representation
    */
-  representation: "text" | "json" | "jsonl"
+  representation: "text" | "json" | "jsonl" | "image"
   /**
    * Limit
    */
@@ -930,6 +946,18 @@ export type DirectoryNode = {
    * Modified At
    */
   modified_at?: string | null
+}
+
+/**
+ * DownloadActionTargets
+ *
+ * The non-empty selection one download action receives as a whole.
+ */
+export type DownloadActionTargets = {
+  /**
+   * Node Ids
+   */
+  node_ids: Array<string>
 }
 
 /**
@@ -1518,6 +1546,42 @@ export type HTTPValidationError = {
 }
 
 /**
+ * ImageContent
+ *
+ * Verified facts about one bounded image preview.
+ */
+export type ImageContent = {
+  /**
+   * Kind
+   */
+  kind?: "image"
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Media Type
+   */
+  media_type: "image/png" | "image/jpeg"
+  /**
+   * Size Bytes
+   */
+  size_bytes: number
+  /**
+   * Width
+   */
+  width: number
+  /**
+   * Height
+   */
+  height: number
+  /**
+   * Preview Url
+   */
+  preview_url?: string | null
+}
+
+/**
  * ImportPreview
  *
  * The first rows as they would arrive, and nothing about the target.
@@ -1991,7 +2055,7 @@ export type NodeRepresentation = {
   /**
    * Kind
    */
-  kind: "table" | "text" | "json" | "jsonl"
+  kind: "table" | "text" | "json" | "jsonl" | "image"
   /**
    * Title
    */
@@ -3765,6 +3829,9 @@ export type connectorsReadContentResponses = {
     | ({
         kind: "jsonl"
       } & JsonLinesContent)
+    | ({
+        kind: "image"
+      } & ImageContent)
 }
 
 export type connectorsReadContentResponse =
@@ -4741,6 +4808,42 @@ export type connectorsPreviewActionResponses = {
 
 export type connectorsPreviewActionResponse =
   connectorsPreviewActionResponses[keyof connectorsPreviewActionResponses]
+
+export type connectorsPrepareActionDownloadData = {
+  body: DownloadActionTargets
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+    /**
+     * Action Name
+     */
+    action_name: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/actions/{action_name}/download"
+}
+
+export type connectorsPrepareActionDownloadErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsPrepareActionDownloadError =
+  connectorsPrepareActionDownloadErrors[keyof connectorsPrepareActionDownloadErrors]
+
+export type connectorsPrepareActionDownloadResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActionDownloadReady
+}
+
+export type connectorsPrepareActionDownloadResponse =
+  connectorsPrepareActionDownloadResponses[keyof connectorsPrepareActionDownloadResponses]
 
 export type connectorsRunActionWithFileData = {
   body: Body_connectors_run_action_with_file

@@ -9,7 +9,7 @@ from app.users import storage
 
 
 def test_samples_cover_the_native_file_viewers(tmp_path: Path) -> None:
-    """Tabular, plain-text and opaque files all have examples."""
+    """Tabular, plain-text and image files all have examples."""
     write_samples(tmp_path)
 
     names = {path.name for path in tmp_path.rglob("*")}

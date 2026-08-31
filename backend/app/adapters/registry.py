@@ -180,7 +180,10 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(Capability(group="manage", title="Delete rows"))
     if issubclass(driver, DeclaresActions):
         found.extend(
-            Capability(group="manage", title=action_type.title)
+            Capability(
+                group="explore" if action_type.requires == "read" else "manage",
+                title=action_type.title,
+            )
             for action_type in driver.action_types()
         )
 

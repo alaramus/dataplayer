@@ -58,13 +58,13 @@ async def test_a_directory_admits_creating_uploading_renaming_and_deleting(
 ) -> None:
     names = {action.name for action in await actions.available("reports")}
 
-    assert names == {"create_folder", "upload", "rename", "delete"}
+    assert names == {"create_folder", "upload", "download", "rename", "delete"}
 
 
 async def test_a_file_admits_only_renaming_and_deleting(actions: FileActions) -> None:
     names = {action.name for action in await actions.available("notes.txt")}
 
-    assert names == {"rename", "delete"}
+    assert names == {"download", "rename", "delete"}
 
 
 async def test_the_root_of_the_connector_cannot_be_renamed_or_deleted(
@@ -87,7 +87,7 @@ async def test_the_whole_vocabulary_is_offered_whatever_the_node(
     """
     names = {action.name for action in actions.all_actions()}
 
-    assert names == {"create_folder", "upload", "rename", "delete"}
+    assert names == {"create_folder", "upload", "download", "rename", "delete"}
 
 
 async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
@@ -98,6 +98,7 @@ async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
     assert by_name == {
         "create_folder": "children",
         "upload": "children",
+        "download": "node",
         "rename": "node",
         "delete": "node",
     }

@@ -80,6 +80,9 @@ import type {
   connectorsParseUrlData,
   connectorsParseUrlErrors,
   connectorsParseUrlResponses,
+  connectorsPrepareActionDownloadData,
+  connectorsPrepareActionDownloadErrors,
+  connectorsPrepareActionDownloadResponses,
   connectorsPreviewActionData,
   connectorsPreviewActionErrors,
   connectorsPreviewActionResponses,
@@ -1570,6 +1573,30 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/actions/{action_name}/preview",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Prepare Action Download
+   *
+   * Issue a short-lived native-browser ticket for one download action.
+   */
+  public static prepareActionDownload<ThrowOnError extends boolean = true>(
+    options: Options<connectorsPrepareActionDownloadData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsPrepareActionDownloadResponses,
+      connectorsPrepareActionDownloadErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/actions/{action_name}/download",
       ...options,
       headers: {
         "Content-Type": "application/json",

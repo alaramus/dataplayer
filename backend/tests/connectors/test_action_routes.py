@@ -1,7 +1,9 @@
+import io
 import json
 import uuid
 from collections.abc import AsyncGenerator
 from pathlib import Path
+from zipfile import ZipFile
 
 import pytest
 from httpx import AsyncClient, Response
@@ -35,8 +37,10 @@ async def home(db: AsyncSession) -> Path:
             continue
         stale.unlink()
     (home / "reports").mkdir(exist_ok=True)
-    (home / "reports" / "q3.csv").write_text("id,name\n1,one\n", encoding="utf-8")
-    (home / "notes.txt").write_text("first\n", encoding="utf-8")
+    # Written as bytes: a download is asserted byte for byte, and write_text
+    # stores CRLF on Windows.
+    (home / "reports" / "q3.csv").write_bytes(b"id,name\n1,one\n")
+    (home / "notes.txt").write_bytes(b"first\n")
     return home
 
 
@@ -155,9 +159,17 @@ async def test_a_directory_offers_the_actions_that_change_it(
 
     assert response.status_code == 200
     offered = {action["name"]: action for action in response.json()}
-    assert _applicable(response) == {"create_folder", "upload", "rename", "delete"}
+    assert _applicable(response) == {
+        "create_folder",
+        "upload",
+        "download",
+        "rename",
+        "delete",
+    }
     assert offered["delete"]["destructive"] is True
     assert offered["upload"]["takes_file"] is True
+    assert offered["download"]["downloads"] is True
+    assert offered["delete"]["downloads"] is False
     assert offered["create_folder"]["takes_file"] is False
     assert "name" in offered["create_folder"]["params_schema"]["properties"]
 
@@ -182,6 +194,7 @@ async def test_an_action_says_whether_it_changes_the_node_or_its_contents(
     assert scopes == {
         "create_folder": "children",
         "upload": "children",
+        "download": "node",
         "rename": "node",
         "delete": "node",
     }
@@ -212,7 +225,7 @@ async def test_what_does_not_apply_here_is_listed_and_marked(
     response = await _offered(client, normal_user_token_headers, connector_id)
 
     listed = {action["name"] for action in response.json()}
-    assert listed == {"create_folder", "upload", "rename", "delete"}
+    assert listed == {"create_folder", "upload", "download", "rename", "delete"}
 
 
 @pytest.mark.usefixtures("isolated_registry")
@@ -452,6 +465,89 @@ async def test_a_taken_name_is_a_conflict(
     assert response.status_code == 409
 
 
+# --- downloading -------------------------------------------------------------
+
+
+async def _prepare_download(
+    client: AsyncClient,
+    headers: dict[str, str],
+    connector_id: str,
+    node_ids: list[str],
+) -> Response:
+    return await client.post(
+        f"{BASE}/{connector_id}/actions/download/download",
+        headers=headers,
+        json={"node_ids": node_ids},
+    )
+
+
+async def test_an_invalid_download_ticket_is_not_a_connector_id(
+    client: AsyncClient,
+) -> None:
+    response = await client.get(f"{BASE}/action-downloads/not-a-ticket")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Download not found"
+
+
+@pytest.mark.usefixtures("home")
+async def test_one_file_downloads_unchanged_through_its_action(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    prepared = await _prepare_download(
+        client, normal_user_token_headers, connector_id, ["notes.txt"]
+    )
+    assert prepared.status_code == 200, prepared.text
+    downloaded = await client.get(prepared.json()["download_url"])
+
+    assert downloaded.status_code == 200
+    assert downloaded.content == b"first\n"
+    assert "notes.txt" in downloaded.headers["content-disposition"]
+    assert downloaded.headers["content-type"] == "application/octet-stream"
+
+
+@pytest.mark.usefixtures("home")
+async def test_several_nodes_download_as_one_archive(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    prepared = await _prepare_download(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        ["notes.txt", "reports"],
+    )
+    assert prepared.status_code == 200, prepared.text
+    downloaded = await client.get(prepared.json()["download_url"])
+
+    assert downloaded.status_code == 200
+    assert "download.zip" in downloaded.headers["content-disposition"]
+    with ZipFile(io.BytesIO(downloaded.content)) as archive:
+        assert archive.read("notes.txt") == b"first\n"
+        assert archive.read("reports/q3.csv") == b"id,name\n1,one\n"
+
+
+@pytest.mark.usefixtures("home")
+async def test_one_folder_is_archived_before_it_downloads(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    prepared = await _prepare_download(
+        client, normal_user_token_headers, connector_id, ["reports"]
+    )
+    assert prepared.status_code == 200, prepared.text
+    downloaded = await client.get(prepared.json()["download_url"])
+
+    assert downloaded.status_code == 200
+    assert "reports.zip" in downloaded.headers["content-disposition"]
+    with ZipFile(io.BytesIO(downloaded.content)) as archive:
+        assert archive.read("reports/q3.csv") == b"id,name\n1,one\n"
+
+
 # --- uploading ---------------------------------------------------------------
 
 
@@ -642,7 +738,7 @@ async def test_two_files_admit_only_what_can_be_done_to_many(
     )
 
     assert response.status_code == 200
-    assert _applicable(response) == {"delete"}
+    assert _applicable(response) == {"download", "delete"}
 
 
 @pytest.mark.usefixtures("home")
@@ -655,7 +751,7 @@ async def test_one_node_in_a_set_admits_everything_it_would_alone(
         client, normal_user_token_headers, connector_id, ["notes.txt"]
     )
 
-    assert _applicable(response) == {"rename", "delete"}
+    assert _applicable(response) == {"download", "rename", "delete"}
 
 
 @pytest.mark.usefixtures("home")

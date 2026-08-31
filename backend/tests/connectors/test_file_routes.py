@@ -1,3 +1,4 @@
+import base64
 import uuid
 from pathlib import Path
 
@@ -9,6 +10,9 @@ from app.core.config import settings
 from app.users import crud, storage
 
 BASE = f"{settings.API_V1_STR}/connectors"
+PNG_1X1 = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
 
 
 @pytest.fixture
@@ -21,6 +25,8 @@ async def home(db: AsyncSession) -> Path:
     (home / "reports" / "q3.csv").write_text("id,name\n1,one\n2,two\n")
     (home / "notes.txt").write_text("first\nsecond\n")
     (home / "document.json").write_text('{"id": 10000000000000001, "name": "one"}')
+    (home / "pixel.png").write_bytes(PNG_1X1)
+    (home / "opaque.zip").write_bytes(b"opaque archive bytes")
     return home
 
 
@@ -71,6 +77,41 @@ async def test_the_catalog_declares_the_default_and_alternative_file_views(
         "json",
         "table",
     ]
+    image = next(node for node in response.json() if node["name"] == "pixel.png")
+    opaque = next(node for node in response.json() if node["name"] == "opaque.zip")
+    assert image["representations"] == [{"kind": "image", "title": "View image"}]
+    assert opaque["representations"] == []
+
+
+@pytest.mark.usefixtures("home")
+async def test_an_image_preview_uses_verified_bytes_and_a_separate_ticket(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    opened = await client.post(
+        f"{BASE}/{connector_id}/content",
+        headers=normal_user_token_headers,
+        json={"node_id": "pixel.png", "representation": "image"},
+    )
+
+    assert opened.status_code == 200, opened.text
+    assert opened.json()["media_type"] == "image/png"
+    preview = await client.get(opened.json()["preview_url"])
+    assert preview.status_code == 200
+    assert preview.content == PNG_1X1
+    assert preview.headers["content-type"] == "image/png"
+    assert preview.headers["content-disposition"].startswith("inline;")
+    assert preview.headers["x-content-type-options"] == "nosniff"
+
+
+async def test_an_invalid_content_ticket_is_not_a_connector_id(
+    client: AsyncClient,
+) -> None:
+    response = await client.get(f"{BASE}/content-files/not-a-ticket")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Content not found"
 
 
 @pytest.mark.usefixtures("home")

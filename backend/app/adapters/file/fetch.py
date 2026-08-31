@@ -73,7 +73,7 @@ def _reader_for(path: Path, node_id: str) -> Reader:
             return JSON_TABLE_READER
         case "text":
             return TEXT_READER
-        case "opaque":
+        case "image" | "opaque":
             raise ValueError(f"This file cannot be read as rows: {node_id}")
         case unreachable:
             assert_never(unreachable)

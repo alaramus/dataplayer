@@ -268,13 +268,14 @@ its own stable panel. JSON is bounded at 4 MB, text at 256 KB, JSONL at 100
 records and 4 MB per request and 1 MB per physical line, and the editor at 4 MB
 in both directions.
 
-Two things were decided against D47 as first written. A content tab has one
+Two things were decided against D47 as first written. A document tab has one
 mode — it opens the editor, and the JSON tree was removed from the screen, so
-the bounded viewers of `SupportsContent` are currently reached by tests alone;
+the bounded text, JSON and JSONL results are currently reached by tests alone;
 they are kept because paging a large JSONL file is the one thing the editor's
-ceiling cannot do. And a text file no longer declares a table representation,
-so it can no longer be chosen as the source of an import (D43); CSV, TSV, JSON
-and JSONL still can.
+ceiling cannot do. D49 now gives `SupportsContent` a screen for verified image
+content. And a text file no longer declares a table representation, so it can
+no longer be chosen as the source of an import (D43); CSV, TSV, JSON and JSONL
+still can.
 
 Validated on 2026-08-31: the whole backend suite, mypy, ruff, import contracts,
 frontend type check, lint, unit tests, the documentation check and the whole
@@ -288,10 +289,24 @@ was asked to delete an already deleted row and rightly refused.
   dataset selection, format-specific metadata and server-side bounds. Their
   natural representations may use the grid, but that does not make every file
   tabular.
-- [ ] Add original-file download and safe, bounded viewers for images, audio,
-  video and PDF. Media bytes travel through a dedicated content path with
-  trustworthy type and size metadata, not through `FetchResult` and not as a
-  whole unbounded value in an ordinary JSON response.
+- [x] Add source-declared download and the first safe, bounded image viewer.
+  D49 gives every adapter one download-action transport over selected nodes.
+  The file source returns one file unchanged or archives a set or directory;
+  PNG/JPEG previews are verified under byte and pixel ceilings.
+  Validated on 2026-08-31 by the whole backend suite, mypy, ruff, import
+  contracts, frontend type check, lint, unit tests, the documentation check and
+  the whole end-to-end suite. They found four defects, each in code no test had
+  reached: an undefined name in the download error path, a blocking stat inside
+  an async method, the new `image` format falling through `assert_never` when a
+  picture was asked for as rows, and a type narrowing that did not survive into
+  a render closure. Four download tests wrote their fixtures with `write_text`
+  and then compared bytes, which only holds where the platform adds no carriage
+  returns; they write bytes now. The documentation check refused AGENTS.md over
+  its budget, so the trap about `../.env` and rehearsing CI moved into the
+  backend architecture file.
+- [ ] Add bounded audio, video and PDF viewers. Their bytes use D49's dedicated
+  content path and trustworthy metadata; audio and video first need a range
+  contract, and PDF needs an isolation/rendering decision.
 - [ ] Add archive browsing only after containment, decompression limits and
   symlink behaviour are specified.
 
@@ -558,11 +573,12 @@ end-to-end suite.
 
 ## Next session
 
-D47 and D48 are done. Add original-file download and the first bounded media
-representation on the same contract; Parquet, XLSX and archives remain later
-slices and must not teach the workspace file extensions.
+D49 is done and validated: download is an action of the source over the ticked
+nodes — one file unchanged, a selection or a directory as a ZIP — and a
+verified PNG or JPEG opens in its own panel.
 
-Decide what becomes of the bounded content viewers while doing it. Since a
-content tab opens the editor, `SupportsContent` has no screen; media needs a
-content path of its own, and that is the moment to say whether the JSON and
-JSONL viewers come back for documents too large to edit, or go.
+The bounded text/JSON/JSONL results stay: image makes `SupportsContent` visible
+again, and JSONL paging remains useful above the editor ceiling. They are not a
+second document mode yet. Resume by specifying byte ranges and trustworthy
+metadata for audio/video, or the isolated PDF path; Parquet, XLSX and archives
+remain later slices and must not teach the workspace file extensions.

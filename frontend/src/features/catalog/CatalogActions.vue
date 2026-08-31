@@ -4,8 +4,10 @@ import { computed, ref } from "vue"
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import { toMenu } from "@/features/catalog/actions"
 import type { ActionOutcome, MenuCommand } from "@/features/catalog/actions"
-import { useNodeActions } from "@/features/catalog/api"
-import { AppIconButton, AppMenu } from "@/shared/ui"
+import { useDownloadAction, useNodeActions } from "@/features/catalog/api"
+import { messageOf } from "@/shared/api/errors"
+import { saveNativeDownload } from "@/shared/download"
+import { AppIconButton, AppMenu, useToast } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
 /**
@@ -34,6 +36,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ done: [outcome: ActionOutcome] }>()
+const toast = useToast()
+const downloadAction = useDownloadAction()
 
 const connectorId = computed(() => props.connectorId)
 
@@ -72,11 +76,32 @@ const targetLabel = computed(() =>
   active.value?.actsOn === "children" ? props.placeLabel : props.checkedLabel
 )
 
-function pick(name: string) {
+async function pick(name: string) {
   const command = commands.value.find((one) => one.name === name) ?? null
   // A disabled item raises no click in Quasar; this is the second guard, so
   // that nothing opens a form for what the server would refuse anyway.
-  active.value = command !== null && command.enabled ? command : null
+  if (command === null || !command.enabled) {
+    active.value = null
+    return
+  }
+  if (!command.downloads) {
+    active.value = command
+    return
+  }
+
+  // A download action receives the selection once. Whether that becomes one
+  // original object, an archive or another source-native result belongs to
+  // the source; this menu only follows the returned native-browser route.
+  try {
+    const ready = await downloadAction.mutateAsync({
+      connectorId: props.connectorId,
+      name: command.name,
+      nodeIds: command.targets.filter((id): id is string => id !== null),
+    })
+    saveNativeDownload(ready.download_url)
+  } catch (cause) {
+    toast.error(messageOf(cause, "The download could not be prepared"))
+  }
 }
 </script>
 

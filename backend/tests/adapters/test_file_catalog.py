@@ -70,7 +70,7 @@ async def test_a_file_carries_its_size(catalog: FileCatalog, root: Path) -> None
         ("people.json", ["json", "table"]),
         ("events.jsonl", ["jsonl", "table"]),
         ("notes.txt", ["text"]),
-        ("logo.png", []),
+        ("logo.png", ["image"]),
     ],
 )
 async def test_a_file_says_how_it_can_be_opened_in_preferred_order(

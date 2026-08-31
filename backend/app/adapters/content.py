@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-RepresentationKind = Literal["table", "text", "json", "jsonl"]
-ContentRepresentationKind = Literal["text", "json", "jsonl"]
+RepresentationKind = Literal["table", "text", "json", "jsonl", "image"]
+ContentRepresentationKind = Literal["text", "json", "jsonl", "image"]
 EditorValidationKind = Literal["json", "jsonl"]
+ImageMediaType = Literal["image/png", "image/jpeg"]
 
 
 class NodeRepresentation(BaseModel):
@@ -182,8 +184,35 @@ class JsonLinesContent(BaseModel):
     offset: int = Field(ge=0)
 
 
+class ImageContent(BaseModel):
+    """Verified facts about one bounded image preview."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["image"] = "image"
+    filename: str = Field(min_length=1)
+    media_type: ImageMediaType
+    size_bytes: int = Field(ge=0)
+    width: int = Field(ge=1)
+    height: int = Field(ge=1)
+    # Minted by the transport after the source has verified the representation.
+    # Optional inside the adapter boundary; the HTTP route always fills it.
+    preview_url: str | None = None
+
+
+@dataclass(frozen=True)
+class BoundedContentPreview:
+    """Verified bytes for one inline preview, already below its hard bound."""
+
+    body: bytes
+    media_type: ImageMediaType
+    filename: str
+    width: int
+    height: int
+
+
 ContentResult = Annotated[
-    TextContent | JsonContent | JsonLinesContent,
+    TextContent | JsonContent | JsonLinesContent | ImageContent,
     Field(discriminator="kind"),
 ]
 

@@ -231,6 +231,26 @@ describe("the panel registry", () => {
       contentPanelId("c1", "people.json", "jsonl")
     )
     expect(contentPanelId("c1", "people.json", "json")).not.toBe(rowsPanelId("c1", "people.json"))
+    expect(contentPanelId("c1", "people.json", "json")).not.toBe(
+      contentPanelId("c1", "people.json", "image")
+    )
+  })
+
+  it("accepts an image as bounded content with its own component and icon", () => {
+    const panel: Panel = {
+      id: contentPanelId("c1", "logo.png", "image"),
+      kind: "content",
+      connectorId: "c1",
+      nodeId: "logo.png",
+      title: "logo.png",
+      connectorName: "my files",
+      adapterType: "file",
+      representation: "image",
+    }
+
+    expect(panelSchema.safeParse(panel).success).toBe(true)
+    expect(componentOf(panel)).toBeDefined()
+    expect(lookOf(panel).icon).toBe("image")
   })
 
   it("puts structure in the column of work", () => {
