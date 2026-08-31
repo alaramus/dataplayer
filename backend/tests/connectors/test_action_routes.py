@@ -215,6 +215,21 @@ async def test_the_root_offers_no_way_to_remove_itself(
     assert _applicable(response) == {"create_folder", "upload"}
 
 
+async def test_postgres_declares_schema_creation_as_an_action_on_the_level(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _offered(client, normal_user_token_headers, connector_id)
+
+    assert response.status_code == 200
+    create = next(
+        action for action in response.json() if action["name"] == "create_schema"
+    )
+    assert create["applicable"] is True
+    assert create["acts_on"] == "level"
+
+
 @pytest.mark.usefixtures("home")
 async def test_what_does_not_apply_here_is_listed_and_marked(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
@@ -283,7 +298,7 @@ async def test_renaming_a_postgres_relation_returns_its_new_source_identity(
     )
 
     assert response.status_code == 200
-    assert response.json()["reload_node_id"] == relation_schema
+    assert response.json()["reload_node_ids"] == [relation_schema]
     assert response.json()["replacement"] == {
         "old_node_id": old_node_id,
         "new_node_id": new_node_id,
@@ -317,7 +332,7 @@ async def test_creating_a_folder_shows_it_in_the_catalog(
     )
 
     assert response.status_code == 200
-    assert response.json()["reload_node_id"] == "reports"
+    assert response.json()["reload_node_ids"] == ["reports"]
 
     catalog = await client.get(
         f"{BASE}/{connector_id}/catalog",
@@ -890,7 +905,7 @@ async def test_an_uploaded_csv_becomes_a_table_that_can_be_read(
 
     assert response.status_code == 200, response.text
     assert response.json()["message"] == "loaded_regions created with 2 rows"
-    assert response.json()["reload_node_id"] == relation_schema
+    assert response.json()["reload_node_ids"] == [relation_schema]
 
     catalog = await client.get(
         f"{BASE}/{connector_id}/catalog",
@@ -1112,7 +1127,7 @@ async def test_dropping_a_relation_takes_it_out_of_the_catalog(
 
     assert refused.status_code == 422
     assert dropped.status_code == 200, dropped.text
-    assert dropped.json()["reload_node_id"] == relation_schema
+    assert dropped.json()["reload_node_ids"] == [relation_schema]
 
     catalog = await client.get(
         f"{BASE}/{connector_id}/catalog",

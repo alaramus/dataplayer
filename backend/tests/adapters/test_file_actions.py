@@ -122,7 +122,7 @@ async def test_creating_a_folder_makes_it(actions: FileActions, root: Path) -> N
     result = await _run(actions, "create_folder", "reports", name="2026")
 
     assert (root / "reports" / "2026").is_dir()
-    assert result.reload_node_id == "reports"
+    assert result.reload_node_ids == ["reports"]
 
 
 async def test_creating_a_folder_in_the_root_reloads_the_root(
@@ -131,7 +131,7 @@ async def test_creating_a_folder_in_the_root_reloads_the_root(
     result = await _run(actions, "create_folder", None, name="inbox")
 
     assert (root / "inbox").is_dir()
-    assert result.reload_node_id is None
+    assert result.reload_node_ids == [None]
 
 
 async def test_default_folder_names_are_numbered_when_taken(
@@ -165,7 +165,7 @@ async def test_renaming_a_file_moves_it_within_its_folder(
 
     assert not (root / "reports" / "q3.csv").exists()
     assert (root / "reports" / "q4.csv").read_text(encoding="utf-8").startswith("id,")
-    assert result.reload_node_id == "reports"
+    assert result.reload_node_ids == ["reports"]
 
 
 async def test_renaming_a_folder_keeps_what_is_inside(
@@ -205,7 +205,7 @@ async def test_deleting_a_file_removes_it(actions: FileActions, root: Path) -> N
     result = await _run(actions, "delete", "notes.txt")
 
     assert not (root / "notes.txt").exists()
-    assert result.reload_node_id is None
+    assert result.reload_node_ids == [None]
 
 
 async def test_deleting_an_empty_folder_removes_it(
@@ -246,7 +246,7 @@ async def test_uploading_writes_the_file(actions: FileActions, root: Path) -> No
     assert (root / "reports" / "uploaded.csv").read_text(encoding="utf-8") == (
         "id,name\n7,seven\n"
     )
-    assert result.reload_node_id == "reports"
+    assert result.reload_node_ids == ["reports"]
 
 
 async def test_uploading_leaves_no_temporary_file_behind(

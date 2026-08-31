@@ -5,13 +5,15 @@ do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
 D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36, D37, D38, D39,
-D40, D41, D42, D43, D44, D45, D46, D47, D48, D49, D51, D52, D53.
+D40, D41, D42, D43, D44, D45, D46, D47, D48, D49, D51, D52, D53, D54, D55,
+D56.
 
 ## What exists today
 
 Two source types.
 
-**PostgreSQL** — schemas, relations, server-side paging and sorting, streaming
+**PostgreSQL** — schemas and relations, safe schema create/rename/drop and
+relation moves, server-side paging and sorting, streaming
 whole-relation export, a
 connection string composed by the driver and parsed back from a pasted one, two
 ways of connecting (`user_password` and `no_auth`), and connections that outlive
@@ -1487,6 +1489,52 @@ Known deviations:
   the statement makes them, which is why every registered statement ends in an
   `ORDER BY` of its own.
 
+## D56. A catalog action distinguishes the level, shown places and explicitly selected nodes
+
+PostgreSQL schema commands exposed a distinction the original two action
+targets did not carry. A new schema is made in the database level even while
+one existing schema is selected to show its relations. A table loaded from a
+CSV is made inside that selected schema. Renaming or dropping the schema acts
+on the selected grouping itself. Treating all three as `children` would make
+the form's displayed target and the node sent to the source false for one of
+them.
+
+`Action.acts_on` therefore has three closed values. `level` receives the exact
+catalog level being viewed, `children` receives the shown places, and `node`
+receives an explicit selection: ticked rows when there are any, otherwise the
+groupings selected in the grouping control. Merely standing in a directory is
+still not a node selection, so the file root and current folder cannot become
+rename or delete targets by this change. The screen asks applicability for all
+three subjects and remains ignorant of action names and adapter types.
+
+**One result names every changed catalog branch.** `ActionResult.reload_node_ids`
+is an ordered list. Creation and removal of a schema name the root and the
+schema id, rename names the root plus both old and new ids, and moving a
+relation names both schemas. The client invalidates every exact source-issued
+id and redraws its current level once; it never derives a parent from a node
+id. This replaces the former singular `reload_node_id`, which could not tell
+the truth about a move.
+
+Schema create, rename and move refuse a taken name before DDL and compose every
+identifier with `psycopg.sql.Identifier`. A move accepts only the exact name of
+an existing non-system schema returned by `pg_namespace`, and returns D32's
+`NodeReplacement` so an open relation follows its new identity. Schema drop is
+previewed by executing the exact `DROP SCHEMA` with or without `CASCADE` and
+rolling it back, as D46 requires; the server, rather than a client-side object
+inventory, says what would be removed.
+
+Known deviations:
+
+- **Open descendants do not follow a schema rename.** The schema grouping
+  follows its exact replacement, but every relation id below it changes too.
+  Returning an unbounded replacement for every relation would make an action
+  result scale with the whole schema, and the client may not construct the new
+  ids. Tabs below a renamed schema therefore become stale until a bounded
+  branch-replacement contract exists.
+- **A schema name can race another creator.** The fresh existence check gives
+  the useful conflict answer, but another session can take the name before the
+  DDL. PostgreSQL then refuses the statement safely; there is no overwrite.
+
 ## D54. A relation the server owns is described but never changed
 
 `pg_catalog` and `information_schema` are listed like any other schema, and
@@ -1588,10 +1636,11 @@ Consequences:
   applicable to the current place or selection. Applicability depends on state
   as well as kind: the root of a connector is an ordinary directory that may
   not be renamed or removed.
-- **An action says what it changes.** `acts_on` is `"node"` for what is done to
-  the ticked rows and `"children"` for what is made inside the current level.
-  Without it the screen would read the difference off the names of actions. It is
-  also what keeps a folder from being deleted by being stood in.
+- **An action says what it changes.** `acts_on` is `"node"` for an explicit
+  node selection, `"children"` for what is made inside the shown places and
+  `"level"` for the catalog level itself. Without it the screen would read the
+  difference off the names of actions. It is also what keeps a folder from
+  being deleted by being stood in; D56 adds the third subject and explains why.
 - **Whether one filled form may be applied to many is the action's own
   business.** `Action.bulk`; `Delete` says yes, `Rename` cannot. The flag never
   leaves the server: when more than one node is asked about, the server leaves
@@ -1607,8 +1656,9 @@ Consequences:
   satisfies `TakesFile`; `takes_file` in the API answer is an `isinstance` check.
   There are two routes because HTTP has two shapes of body, and each refuses an
   action of the other transport with 415.
-- **What to re-read is in the answer.** `ActionResult.reload_node_id` names the
-  branch that changed, rather than the client inferring it from the action name.
+- **What to re-read is in the answer.** `ActionResult.reload_node_ids` names
+  every branch that changed, rather than the client inferring one from the
+  action name. D56 replaced the singular field when relation move needed two.
 - **Personal-file defaults are resolved by the source.** A folder submitted
   unchanged becomes `new folder`, then `new folder (1)` and so on. Deleting a
   directory removes its contents after the action's one destructive

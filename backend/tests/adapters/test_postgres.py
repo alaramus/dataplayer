@@ -97,9 +97,13 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
 
     assert isinstance(adapter, SupportsActions)
     assert [action.name for action in adapter.action_types()] == [
+        "create_schema",
+        "rename_schema",
         "rename_relation",
+        "move_relation",
         "load_csv",
         "drop_relation",
+        "drop_schema",
         "create_extension",
         "drop_extension",
     ]

@@ -131,52 +131,58 @@ describe("toCommands", () => {
 
 describe("toMenu", () => {
   const vocabulary = [createFolder, upload, remove]
+  const menu = (
+    here: ActionInfo[],
+    picked: ActionInfo[],
+    places: (string | null)[],
+    nodeTargets: string[]
+  ) => toMenu(vocabulary, here, picked, null, places, nodeTargets)
   const named = (commands: { name: string }[]) => commands.map((command) => command.name)
   const enabled = (commands: { name: string; enabled: boolean }[]) =>
     named(commands.filter((command) => command.enabled))
 
   it("keeps the whole action vocabulary visible in the current place", () => {
-    const menu = toMenu(vocabulary, [], ["reports"], [])
+    const commands = menu(vocabulary, [], ["reports"], [])
 
-    expect(named(menu)).toEqual(["create_folder", "upload", "delete"])
+    expect(named(commands)).toEqual(["create_folder", "upload", "delete"])
   })
 
   it("disables what changes a node until one is ticked", () => {
     /* Standing in a folder is not choosing it. */
-    const menu = toMenu(vocabulary, [], ["reports"], [])
+    const commands = menu(vocabulary, [], ["reports"], [])
 
-    expect(enabled(menu)).toEqual(["create_folder", "upload"])
+    expect(enabled(commands)).toEqual(["create_folder", "upload"])
   })
 
   it("turns on what the server says the ticked nodes admit", () => {
-    const menu = toMenu(vocabulary, [{ ...remove, applicable: true }], ["reports"], [
+    const commands = menu(vocabulary, [{ ...remove, applicable: true }], ["reports"], [
       "reports/q3.csv",
     ])
 
-    expect(enabled(menu)).toEqual(["create_folder", "upload", "delete"])
+    expect(enabled(commands)).toEqual(["create_folder", "upload", "delete"])
   })
 
   it("disables what the server refuses for the ticked nodes", () => {
-    const menu = toMenu(vocabulary, [{ ...remove, applicable: false }], [null], ["", "a"])
+    const commands = menu(vocabulary, [{ ...remove, applicable: false }], [null], ["", "a"])
 
-    expect(enabled(menu)).toEqual(["create_folder", "upload"])
+    expect(enabled(commands)).toEqual(["create_folder", "upload"])
   })
 
   it("disables what does not apply to the level being looked at", () => {
-    const menu = toMenu(
+    const commands = menu(
       [{ ...createFolder, applicable: false }, upload, remove],
       [],
       ["notes.txt"],
       []
     )
 
-    expect(named(menu)).toEqual(["create_folder", "upload", "delete"])
-    expect(enabled(menu)).toEqual(["upload"])
+    expect(named(commands)).toEqual(["create_folder", "upload", "delete"])
+    expect(enabled(commands)).toEqual(["upload"])
   })
 
   it("sends what changes a node to the ticked ones, and the rest to the level", () => {
-    const menu = toMenu(vocabulary, [remove], ["reports"], ["reports/q3.csv"])
-    const targets = Object.fromEntries(menu.map((command) => [command.name, command.targets]))
+    const commands = menu(vocabulary, [remove], ["reports"], ["reports/q3.csv"])
+    const targets = Object.fromEntries(commands.map((command) => [command.name, command.targets]))
 
     expect(targets).toEqual({
       create_folder: ["reports"],
@@ -186,41 +192,66 @@ describe("toMenu", () => {
   })
 
   it("names the root as null when that is the level", () => {
-    const menu = toMenu(vocabulary, [], [null], [])
+    const commands = menu(vocabulary, [], [null], [])
 
-    expect(at(menu, 0).targets).toEqual([null])
+    expect(at(commands, 0).targets).toEqual([null])
   })
 
   it("sends what is made inside to every place whose contents are shown", () => {
     /* A schema is a grouping rather than a folder, and two of them ticked is
        two places — which is why a form that is not bulk goes grey there. */
-    const menu = toMenu(vocabulary, [], ["public", "demo_lab"], [])
-    const targets = Object.fromEntries(menu.map((command) => [command.name, command.targets]))
+    const commands = menu(vocabulary, [], ["public", "demo_lab"], [])
+    const targets = Object.fromEntries(commands.map((command) => [command.name, command.targets]))
 
     expect(targets.upload).toEqual(["public", "demo_lab"])
   })
 
   it("offers nothing to make when there is nowhere to make it", () => {
-    const menu = toMenu(vocabulary, [], [], [])
+    const commands = menu(vocabulary, [], [], [])
 
-    expect(enabled(menu)).toEqual([])
+    expect(enabled(commands)).toEqual([])
+  })
+
+  it("keeps an action on the level separate from selected groupings", () => {
+    const createSchema: ActionInfo = {
+      ...createFolder,
+      name: "create_schema",
+      title: "New schema",
+      acts_on: "level",
+    }
+
+    const commands = toMenu(
+      [createSchema],
+      [{ ...createSchema, applicable: false }],
+      [],
+      null,
+      ["public"],
+      ["public"]
+    )
+
+    expect(at(commands, 0).enabled).toBe(true)
+    expect(at(commands, 0).targets).toEqual([null])
   })
 })
 
 describe("what became of a set", () => {
   const result = (message: string, reload: string | null) => ({
     message,
-    reload_node_id: reload,
+    reload_node_ids: [reload],
   })
 
   it("names each branch to re-read once", () => {
     const outcome = {
-      done: [result("a gone", "reports"), result("b gone", "reports"), result("c gone", null)],
+      done: [
+        result("a gone", "reports"),
+        { message: "moved", reload_node_ids: ["reports", "archive"] },
+        result("c gone", null),
+      ],
       failures: [],
       total: 3,
     }
 
-    expect(reloadedBy(outcome)).toEqual(["reports", null])
+    expect(reloadedBy(outcome)).toEqual(["reports", "archive", null])
   })
 
   it("keeps source-issued node replacements", () => {

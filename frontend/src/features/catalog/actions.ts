@@ -20,7 +20,7 @@ export interface ActionCommand {
   previews: boolean
   /** Whether the action returns one native browser download for all targets. */
   downloads: boolean
-  /** Whether it changes the nodes it is given, or what the one node holds. */
+  /** Whether it changes selected nodes, their shown place, or the level itself. */
   actsOn: ActionInfo["acts_on"]
   fields: FieldSpec[]
   workflow?: JsonSchema["x-ui-workflow"]
@@ -55,11 +55,10 @@ export interface MenuCommand extends ActionCommand {
  * The menu of what can be done here, in the order the server listed it.
  *
  * Every action the caller is allowed to know about stays visible. What decides
- * whether each line is enabled is the answer of the server — `here` for the
- * places being looked at, `picked` for what is ticked — and which of the two a
- * line reads follows from `acts_on`, never from its name. Ticking nothing
- * therefore disables everything that changes a node: standing in a folder is
- * not choosing it.
+ * whether each line is enabled is the matching answer of the server — `level`
+ * for the level itself, `here` for the places being looked at and `picked` for
+ * an explicit node selection. Which answer a line reads follows from
+ * `acts_on`, never from its name. Standing in a folder is not choosing it.
  *
  * `places` is where something new would be made. A source that offers
  * groupings shows the contents of the ones that are ticked, and those are the
@@ -68,10 +67,12 @@ export interface MenuCommand extends ActionCommand {
  * itself, which is what a file source has.
  */
 export function toMenu(
+  level: ActionInfo[],
   here: ActionInfo[],
   picked: ActionInfo[],
+  levelId: string | null,
   places: (string | null)[],
-  checkedIds: string[]
+  nodeTargets: string[]
 ): MenuCommand[] {
   const admitted = new Set(
     picked.filter((action) => action.applicable).map((action) => action.name)
@@ -79,14 +80,26 @@ export function toMenu(
   const applicableHere = new Set(
     here.filter((action) => action.applicable).map((action) => action.name)
   )
-  return toCommands(here).map((command) => {
-    const enabled =
-      command.actsOn === "children"
-        ? places.length > 0 && applicableHere.has(command.name)
-        : checkedIds.length > 0 && admitted.has(command.name)
+  const applicableLevel = new Set(
+    level.filter((action) => action.applicable).map((action) => action.name)
+  )
+  return toCommands(level).map((command) => {
+    const targets =
+      command.actsOn === "level"
+        ? [levelId]
+        : command.actsOn === "children"
+          ? [...places]
+          : [...nodeTargets]
+    const enabled = (() => {
+      if (command.actsOn === "level") return applicableLevel.has(command.name)
+      if (command.actsOn === "children") {
+        return places.length > 0 && applicableHere.has(command.name)
+      }
+      return nodeTargets.length > 0 && admitted.has(command.name)
+    })()
     return {
       ...command,
-      targets: command.actsOn === "children" ? [...places] : [...checkedIds],
+      targets,
       enabled,
     }
   })
@@ -117,7 +130,9 @@ export interface ActionOutcome {
  */
 export function reloadedBy(outcome: ActionOutcome): (string | null)[] {
   const seen = new Set<string | null>()
-  for (const result of outcome.done) seen.add(result.reload_node_id ?? null)
+  for (const result of outcome.done) {
+    for (const nodeId of result.reload_node_ids) seen.add(nodeId)
+  }
   return [...seen]
 }
 

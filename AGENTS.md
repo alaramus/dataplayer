@@ -107,6 +107,7 @@ files. IDs are stable because specs and commits refer to them.
 | D53 | [adapters](docs/architecture/adapters.md) |
 | D54 | [adapters](docs/architecture/adapters.md) |
 | D55 | [adapters](docs/architecture/adapters.md) |
+| D56 | [adapters](docs/architecture/adapters.md) |
 
 ## Working rules
 

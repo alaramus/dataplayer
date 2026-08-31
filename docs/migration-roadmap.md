@@ -503,7 +503,20 @@ guard against it is now a unit test rather than a browser measurement: the set
 that ships is a file in `node_modules`, so every icon name in `nodes.ts` is
 checked against it directly. It was verified by putting `monitoring` back and
 watching it fail.
-- [ ] Create, drop and rename a schema, and move a relation between schemas.
+- [~] Create, drop and rename a schema, and move a relation between schemas.
+
+D56 settles this round. A database level, the selected schemas whose contents
+are shown, and explicitly selected nodes are three different action targets;
+creating a schema while `public` is shown must still target the database, while
+renaming that selected schema targets the grouping itself. A move also exposed
+that one `reload_node_id` could not describe two changed parents, so action
+results now name every branch to invalidate and the catalog redraws once.
+
+Create and rename reject reserved or taken schema names, move accepts only a
+server-confirmed non-system target and returns the relation's replacement id,
+and drop uses D46's rolled-back rehearsal to show what a cascade would remove.
+Backend, frontend unit and browser tests are written; validation is pending.
+
 - [ ] Offer a relation's DDL as a content representation under D47.
 
 Deliberately later capabilities, with the reason in the spec: backup and
@@ -788,9 +801,10 @@ end-to-end suite.
 
 1.5's discovery is done and written up in
 [its spec](superpowers/specs/2026-08-31-postgres-system-operations-design.md);
-D54 and D55 are implemented and validated.
+D54 and D55 are implemented and validated. D56's schema commands are written
+with tests and await validation.
 
-Continue 1.5 in the order listed there: the schema commands — create, drop and
-rename a schema, and move a relation between schemas — then DDL as a content
-representation. Phase 1 closes with those two; Phase 2 is sharing a bounded
-fetched snapshot.
+Validate D56 with the affected backend and frontend checks after approval. If
+they are clean, mark it complete and continue 1.5 with DDL as a content
+representation. Phase 1 then closes; Phase 2 is sharing a bounded fetched
+snapshot.

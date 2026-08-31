@@ -267,7 +267,7 @@ describe("renaming a file", () => {
 
   it("keeps the old extension when no new extension is typed", async () => {
     const run = vi.spyOn(ConnectorsService, "runAction").mockResolvedValue({
-      data: { message: "renamed", reload_node_id: "reports" },
+      data: { message: "renamed", reload_node_ids: ["reports"] },
     } as never)
     const wrapper = mountDialog(RENAME, ["reports/uploaded.csv"], {
       label: "uploaded.csv",
@@ -330,7 +330,7 @@ describe("uploading files", () => {
 
   it("does not send a file that was taken off the list", async () => {
     const upload = vi.spyOn(ConnectorsService, "runActionWithFile").mockResolvedValue({
-      data: { message: "second.csv uploaded", reload_node_id: null },
+      data: { message: "second.csv uploaded", reload_node_ids: [null] },
     } as never)
     const wrapper = mountDialog(UPLOAD, [null])
     await flushPromises()
@@ -359,11 +359,11 @@ describe("uploading files", () => {
     const upload = vi
       .spyOn(ConnectorsService, "runActionWithFile")
       .mockResolvedValueOnce({
-        data: { message: "first.csv uploaded", reload_node_id: null },
+        data: { message: "first.csv uploaded", reload_node_ids: [null] },
       } as never)
       .mockRejectedValueOnce(refused(409))
       .mockResolvedValueOnce({
-        data: { message: "second (1).csv uploaded", reload_node_id: null },
+        data: { message: "second (1).csv uploaded", reload_node_ids: [null] },
       } as never)
     const wrapper = mountDialog(UPLOAD, [null])
     await flushPromises()
@@ -401,7 +401,7 @@ describe("uploading files", () => {
       .spyOn(ConnectorsService, "runActionWithFile")
       .mockRejectedValueOnce(refused(409))
       .mockResolvedValueOnce({
-        data: { message: "report (1).csv uploaded", reload_node_id: null },
+        data: { message: "report (1).csv uploaded", reload_node_ids: [null] },
       } as never)
     const wrapper = mountDialog(UPLOAD, [null])
     await flushPromises()

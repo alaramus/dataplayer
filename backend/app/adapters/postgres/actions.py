@@ -31,7 +31,7 @@ from app.adapters.catalog import (
     ViewNode,
 )
 from app.adapters.delimited import DelimitedTable, read_table
-from app.adapters.postgres.catalog import PostgresCatalog
+from app.adapters.postgres.catalog import PostgresCatalog, is_system_schema
 from app.adapters.postgres.relation_changes import PostgresRelationChanges
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import EXTENSIONS_REPORT_ID
@@ -49,6 +49,141 @@ def _relation_name(value: str) -> str:
     if len(value.encode("utf-8")) > 63:
         raise ValueError("A PostgreSQL relation name cannot exceed 63 bytes")
     return value
+
+
+def _schema_name(value: str) -> str:
+    if value == "" or value != value.strip():
+        raise ValueError("A schema name cannot be empty or start or end with spaces")
+    if len(value.encode("utf-8")) > 63:
+        raise ValueError("A PostgreSQL schema name cannot exceed 63 bytes")
+    return value
+
+
+SCHEMA_CHANGE_REFUSALS = {
+    # insufficient_privilege.
+    "42501": "This connection may not change schemas",
+    # reserved_name: PostgreSQL reserves pg_ for its own schemas.
+    "42939": "That schema name is reserved by PostgreSQL",
+}
+
+
+async def _existing_schema(session: PostgresSession, name: str) -> str | None:
+    """The server's exact spelling of one schema, or nothing."""
+    rows = await session.query(
+        "SELECT nspname AS name FROM pg_catalog.pg_namespace WHERE nspname = %s",
+        (name,),
+    )
+    return None if not rows else str(rows[0]["name"])
+
+
+async def _schema_target(
+    catalog: PostgresCatalog, node_id: str | None, *, action: str, refused_as: str
+) -> SchemaNode:
+    if node_id is None:
+        raise ActionRefused("not_applicable", f"Choose a schema to {action}")
+    node = (await catalog.path_to(node_id))[-1]
+    if not isinstance(node, SchemaNode) or node.is_system:
+        raise ActionRefused("not_applicable", f"This schema cannot be {refused_as}")
+    return node
+
+
+class CreateSchemaParams(BaseModel):
+    name: str = Field(title="Name")
+
+    _check = field_validator("name")(_schema_name)
+
+
+class CreateSchema(JsonAction[CreateSchemaParams]):
+    """Create a grouping at the current catalog level, not inside one."""
+
+    name: ClassVar[str] = "create_schema"
+    title: ClassVar[str] = "New schema"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset()
+    acts_on: ClassVar[ActsOn] = "level"
+    requires: ClassVar[Access] = "structure"
+    params_model = CreateSchemaParams
+
+    def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
+        self._session = session
+
+    async def run(
+        self, node_id: str | None, params: CreateSchemaParams
+    ) -> ActionResult:
+        if node_id is not None:
+            raise ActionRefused(
+                "not_applicable", "Schemas are created at the top of the connection"
+            )
+        if is_system_schema(params.name):
+            raise ActionRefused(
+                "not_applicable", "That schema name belongs to the server"
+            )
+        if await _existing_schema(self._session, params.name) is not None:
+            raise ActionRefused(
+                "conflict", f'Schema "{params.name}" already exists'
+            )
+        statement = sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(params.name))
+        await self._session.schema_change(
+            statement.as_string(), refusals=SCHEMA_CHANGE_REFUSALS
+        )
+        return ActionResult(
+            message=f"Schema {params.name} created",
+            # Clear a branch left under the same opaque id by an earlier drop,
+            # as well as the root that gained this grouping.
+            reload_node_ids=[None, params.name],
+        )
+
+
+class RenameSchemaParams(BaseModel):
+    new_name: str = Field(
+        title="New name", json_schema_extra={"x-ui-purpose": "node-name"}
+    )
+
+    _check = field_validator("new_name")(_schema_name)
+
+
+class RenameSchema(JsonAction[RenameSchemaParams]):
+    name: ClassVar[str] = "rename_schema"
+    title: ClassVar[str] = "Rename schema"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"schema"})
+    acts_on: ClassVar[ActsOn] = "node"
+    requires: ClassVar[Access] = "structure"
+    params_model = RenameSchemaParams
+
+    def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
+        self._session = session
+        self._catalog = catalog
+
+    async def run(
+        self, node_id: str | None, params: RenameSchemaParams
+    ) -> ActionResult:
+        node = await _schema_target(
+            self._catalog, node_id, action="rename", refused_as="renamed"
+        )
+        if params.new_name == node.name:
+            raise ActionRefused("conflict", "The schema already has that name")
+        if is_system_schema(params.new_name):
+            raise ActionRefused(
+                "not_applicable", "That schema name belongs to the server"
+            )
+        if await _existing_schema(self._session, params.new_name) is not None:
+            raise ActionRefused(
+                "conflict", f'Schema "{params.new_name}" already exists'
+            )
+        statement = sql.SQL("ALTER SCHEMA {} RENAME TO {}").format(
+            sql.Identifier(node.name), sql.Identifier(params.new_name)
+        )
+        await self._session.schema_change(
+            statement.as_string(), refusals=SCHEMA_CHANGE_REFUSALS
+        )
+        return ActionResult(
+            message=f"Schema {node.name} renamed to {params.new_name}",
+            reload_node_ids=[None, node.name, params.new_name],
+            replacement=NodeReplacement(
+                old_node_id=node.name,
+                new_node_id=params.new_name,
+                title=params.new_name,
+            ),
+        )
 
 
 class RenameRelationParams(BaseModel):
@@ -107,11 +242,90 @@ class RenameRelation(JsonAction[RenameRelationParams]):
         new_node_id = f"{schema}.{params.new_name}"
         return ActionResult(
             message=f"Renamed to {params.new_name}",
-            reload_node_id=schema,
+            reload_node_ids=[schema],
             replacement=NodeReplacement(
                 old_node_id=node_id,
                 new_node_id=new_node_id,
                 title=params.new_name,
+            ),
+        )
+
+
+class MoveRelationParams(BaseModel):
+    target_schema: str = Field(title="Target schema")
+
+    _check = field_validator("target_schema")(_schema_name)
+
+
+class MoveRelation(JsonAction[MoveRelationParams]):
+    """Move one source-issued relation and name both changed branches."""
+
+    name: ClassVar[str] = "move_relation"
+    title: ClassVar[str] = "Move to schema"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table", "view"})
+    acts_on: ClassVar[ActsOn] = "node"
+    requires: ClassVar[Access] = "structure"
+    params_model = MoveRelationParams
+
+    def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
+        self._session = session
+        self._catalog = catalog
+
+    async def run(
+        self, node_id: str | None, params: MoveRelationParams
+    ) -> ActionResult:
+        if node_id is None:
+            raise ActionRefused("not_applicable", "Choose a relation to move")
+        path = await self._catalog.path_to(node_id)
+        node = path[-1]
+        if not isinstance(node, TableNode | ViewNode) or node.is_system:
+            raise ActionRefused("not_applicable", "This relation cannot be moved")
+
+        source_schema = path[0].name
+        if params.target_schema == source_schema:
+            raise ActionRefused(
+                "conflict", f"The relation is already in {source_schema}"
+            )
+        target_name = await _existing_schema(self._session, params.target_schema)
+        if target_name is None:
+            raise ActionRefused(
+                "not_applicable",
+                f'Schema "{params.target_schema}" does not exist',
+            )
+        if is_system_schema(target_name):
+            raise ActionRefused(
+                "not_applicable", "Relations cannot be moved into a system schema"
+            )
+        siblings = await self._catalog.list_children(target_name)
+        if node.name in {sibling.name for sibling in siblings}:
+            raise ActionRefused(
+                "conflict",
+                f'{target_name} already has a relation named "{node.name}"',
+            )
+
+        if isinstance(node, TableNode):
+            command = sql.SQL("ALTER TABLE")
+        elif node.is_materialized:
+            command = sql.SQL("ALTER MATERIALIZED VIEW")
+        else:
+            command = sql.SQL("ALTER VIEW")
+        statement = sql.SQL("{} {} SET SCHEMA {}").format(
+            command,
+            sql.Identifier(source_schema, node.name),
+            sql.Identifier(target_name),
+        )
+        await self._session.schema_change(
+            statement.as_string(),
+            refusals={"42501": "This connection may not move that relation"},
+        )
+        new_node_id = f"{target_name}.{node.name}"
+        return ActionResult(
+            message=f"{node.name} moved to {target_name}",
+            reload_node_ids=[source_schema, target_name],
+            replacement=NodeReplacement(
+                old_node_id=node_id,
+                new_node_id=new_node_id,
+                title=node.name,
             ),
         )
 
@@ -286,11 +500,11 @@ class LoadCsv(FileAction[LoadCsvParams]):
             message=f"{name} created with {result.inserted} rows",
             # A new schema itself is a child of the root. Existing schemas only
             # gain the relation below them.
-            reload_node_id=None if params.create_schema else schema,
+            reload_node_ids=[None, schema] if params.create_schema else [schema],
         )
 
     async def _create_schema(self, schema: str) -> None:
-        _relation_name(schema)
+        _schema_name(schema)
         schemas = await self._catalog.list_children(None)
         if schema in {node.id for node in schemas if isinstance(node, SchemaNode)}:
             raise ActionRefused("conflict", f'Schema "{schema}" already exists')
@@ -379,7 +593,7 @@ class DropRelation(JsonAction[DropRelationParams]):
             self._statement(schema, node, cascade=params.cascade),
             refusals=DROP_REFUSALS,
         )
-        return ActionResult(message=f"{node.name} dropped", reload_node_id=schema)
+        return ActionResult(message=f"{node.name} dropped", reload_node_ids=[schema])
 
     async def preview(
         self, node_id: str | None, raw: Mapping[str, Any]
@@ -439,6 +653,83 @@ class DropRelation(JsonAction[DropRelationParams]):
         statement = sql.SQL("{} {}").format(
             command, sql.Identifier(schema, node.name)
         )
+        if cascade:
+            statement += sql.SQL(" CASCADE")
+        return statement.as_string()
+
+
+DROP_SCHEMA_REFUSALS = {
+    # dependent_objects_still_exist.
+    "2BP01": "The schema is not empty",
+    # lock_not_available.
+    "55P03": "Something is using this schema; try again in a moment",
+    # insufficient_privilege.
+    "42501": "This connection may not drop that schema",
+}
+
+
+class DropSchemaParams(BaseModel):
+    cascade: bool = Field(
+        default=False,
+        title="Also drop everything in it",
+        description="Required when the schema still contains objects",
+    )
+
+
+class DropSchema(JsonAction[DropSchemaParams]):
+    """Drop one user schema after rehearsing PostgreSQL's exact statement."""
+
+    name: ClassVar[str] = "drop_schema"
+    title: ClassVar[str] = "Drop schema"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"schema"})
+    acts_on: ClassVar[ActsOn] = "node"
+    destructive: ClassVar[bool] = True
+    requires: ClassVar[Access] = "structure"
+    params_model = DropSchemaParams
+
+    def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
+        self._session = session
+        self._catalog = catalog
+
+    async def run(
+        self, node_id: str | None, params: DropSchemaParams
+    ) -> ActionResult:
+        node = await _schema_target(
+            self._catalog, node_id, action="drop", refused_as="dropped"
+        )
+        await self._session.schema_change(
+            self._statement(node.name, cascade=params.cascade),
+            refusals=DROP_SCHEMA_REFUSALS,
+        )
+        return ActionResult(
+            message=f"Schema {node.name} dropped",
+            reload_node_ids=[None, node.name],
+        )
+
+    async def preview(
+        self, node_id: str | None, raw: Mapping[str, Any]
+    ) -> ActionPreview:
+        params = self._validated(raw)
+        node = await _schema_target(
+            self._catalog, node_id, action="drop", refused_as="dropped"
+        )
+        rehearsal = await self._session.rehearse(
+            self._statement(node.name, cascade=params.cascade),
+            refusals=DROP_SCHEMA_REFUSALS,
+        )
+        if rehearsal.refused is not None:
+            return ActionPreview(
+                summary=rehearsal.refused, items=rehearsal.said, blocked=True
+            )
+        if not rehearsal.said:
+            return ActionPreview(summary=f"Schema {node.name} is empty")
+        return ActionPreview(
+            summary=f"What dropping {node.name} would do:", items=rehearsal.said
+        )
+
+    @staticmethod
+    def _statement(schema: str, *, cascade: bool) -> str:
+        statement = sql.SQL("DROP SCHEMA {}").format(sql.Identifier(schema))
         if cascade:
             statement += sql.SQL(" CASCADE")
         return statement.as_string()
@@ -548,7 +839,7 @@ class CreateExtension(ExtensionAction[CreateExtensionParams]):
         )
         # The root, not the report: an extension may bring a schema of its own,
         # and what changed is more than the list it was installed from.
-        return ActionResult(message=f"{named} installed", reload_node_id=None)
+        return ActionResult(message=f"{named} installed", reload_node_ids=[None])
 
     async def preview(
         self, node_id: str | None, raw: Mapping[str, Any]
@@ -606,7 +897,7 @@ class DropExtension(ExtensionAction[ExtensionParams]):
         await self._session.schema_change(
             self._statement(named), refusals=EXTENSION_REFUSALS
         )
-        return ActionResult(message=f"{named} removed", reload_node_id=None)
+        return ActionResult(message=f"{named} removed", reload_node_ids=[None])
 
     async def preview(
         self, node_id: str | None, raw: Mapping[str, Any]
@@ -635,9 +926,13 @@ class PostgresActionType(ActionType, Protocol):
 
 
 POSTGRES_ACTION_TYPES: tuple[PostgresActionType, ...] = (
+    CreateSchema,
+    RenameSchema,
     RenameRelation,
+    MoveRelation,
     LoadCsv,
     DropRelation,
+    DropSchema,
     CreateExtension,
     DropExtension,
 )
@@ -659,7 +954,7 @@ class PostgresActions:
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         if node_id is None:
-            return []
+            return [self._actions.get(CreateSchema.name)]
         path = await self._catalog.path_to(node_id)
         node = path[-1]
         if isinstance(node, SchemaNode):

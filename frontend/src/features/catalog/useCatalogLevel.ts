@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/vue-query"
 import { computed, ref, watch } from "vue"
 import type { ComputedRef, Ref } from "vue"
 
+import type { NodeReplacement } from "@/client"
 import { catalogKey, useCatalogLoader } from "@/features/catalog/api"
 import type { Crumb, Location } from "@/features/catalog/location"
 import { groupsOf, toListNodes } from "@/features/catalog/nodes"
@@ -30,6 +31,9 @@ export interface CatalogLevel {
   goTo: (index: number) => Promise<void>
   showLocation: (location: Location) => Promise<void>
   reload: (nodeId: string | null) => Promise<void>
+  reloadMany: (nodeIds: (string | null)[]) => Promise<void>
+  /** Apply one exact source-issued identity change before the reload lands. */
+  replaceNode: (replacement: NodeReplacement) => void
   toggleAll: (on: boolean) => void
 }
 
@@ -218,12 +222,39 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
    * fresh, so a reload that did not say so would hand back exactly what it was
    * asked to replace.
    */
-  async function reload(nodeId: string | null) {
+  async function reloadMany(nodeIds: (string | null)[]) {
     const groupsToKeep = [...selectedGroups.value]
-    await forget(nodeId)
-    await forget(currentId.value)
-    for (const group of selectedGroups.value) await forget(group)
+    const branches = new Set<string | null>([
+      ...nodeIds,
+      currentId.value,
+      ...selectedGroups.value,
+    ])
+    for (const nodeId of branches) await forget(nodeId)
     await show(currentId.value, groupsToKeep, true)
+  }
+
+  async function reload(nodeId: string | null) {
+    await reloadMany([nodeId])
+  }
+
+  function replaceNode(replacement: NodeReplacement) {
+    const replaceId = (id: string) =>
+      id === replacement.old_node_id ? replacement.new_node_id : id
+    const replaceListNode = (node: ListNode): ListNode =>
+      node.id === replacement.old_node_id
+        ? { ...node, id: replacement.new_node_id, label: replacement.title }
+        : node
+
+    path.value = path.value.map((crumb) =>
+      crumb.id === replacement.old_node_id
+        ? { id: replacement.new_node_id, label: replacement.title }
+        : crumb
+    )
+    groups.value = groups.value.map(replaceListNode)
+    selectedGroups.value = selectedGroups.value.map(replaceId)
+    plain.value = plain.value.map(replaceListNode)
+    rows.value = rows.value.map(replaceListNode)
+    checked.value = checked.value.map(replaceId)
   }
 
   function toggleAll(on: boolean) {
@@ -249,6 +280,8 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     goTo,
     showLocation,
     reload,
+    reloadMany,
+    replaceNode,
     toggleAll,
   }
 }

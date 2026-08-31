@@ -181,6 +181,12 @@ const placeLabel = computed(() => {
   return chosen.length === 0 ? levelLabel.value : chosen.map((group) => group.label).join(", ")
 })
 
+const selectedGroupNodes = computed(() =>
+  level.groups.value
+    .filter((group) => level.selectedGroups.value.includes(group.id))
+    .map((group) => ({ id: group.id, label: group.label, kind: group.kind }))
+)
+
 /** What is ticked, in one phrase, for a form that acts on the ticked nodes. */
 const checkedLabel = computed(() => {
   const ticked = level.checkedNodes.value
@@ -219,9 +225,11 @@ function onToggle(id: string, on: boolean) {
 
 async function afterAction(outcome: ActionOutcome) {
   for (const replacement of replacementsOf(outcome)) {
+    level.replaceNode(replacement)
     workspace.replaceNode(props.connectorId, replacement)
   }
-  for (const nodeId of reloadedBy(outcome)) await level.reload(nodeId)
+  const branches = reloadedBy(outcome)
+  if (branches.length > 0) await level.reloadMany(branches)
 }
 </script>
 
@@ -297,7 +305,10 @@ async function afterAction(outcome: ActionOutcome) {
         <CatalogActions
           class="catalog-panel__menu"
           :connector-id="connectorId"
+          :level-id="level.currentId.value"
+          :level-label="levelLabel"
           :places="places"
+          :selected-groups="selectedGroupNodes"
           :checked-ids="level.checked.value"
           :checked-nodes="level.checkedNodes.value.map((node) => ({ label: node.label, kind: node.kind }))"
           :place-label="placeLabel"

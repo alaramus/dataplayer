@@ -59,7 +59,7 @@ async def test_an_extension_is_installed_and_removed_again() -> None:
     )
     assert SPARE in created.message
     # The whole connector re-reads: an extension may bring a schema of its own.
-    assert created.reload_node_id is None
+    assert created.reload_node_ids == [None]
     assert await _installed(adapter, SPARE) is True
 
     removed = await adapter.action("drop_extension").perform(

@@ -160,6 +160,30 @@ describe("groupings", () => {
       expect(level.items.value.map((node) => node.label)).toEqual(["orders", "leads"])
     })
   })
+
+  it("follows a selected grouping renamed by the source", async () => {
+    answers(
+      [schema("public"), schema("sales")],
+      [table("public.orders", "orders")],
+      [table("sales.leads", "leads")]
+    )
+
+    await withLevel(async (level) => {
+      await level.load()
+      await level.setGroups(["sales"])
+      level.replaceNode({
+        old_node_id: "sales",
+        new_node_id: "archive",
+        title: "archive",
+      })
+
+      expect(level.selectedGroups.value).toEqual(["archive"])
+      expect(level.groups.value.map((group) => group.label)).toEqual([
+        "public",
+        "archive",
+      ])
+    })
+  })
 })
 
 describe("what is ticked", () => {

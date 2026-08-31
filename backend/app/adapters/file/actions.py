@@ -131,7 +131,8 @@ class CreateFolder(_Bound, JsonAction[NameParams]):
         target = await to_thread.run_sync(partial(_available_path, parent, params.name))
         await to_thread.run_sync(partial(_make_directory, target))
         return ActionResult(
-            message=f"Folder {target.name} created", reload_node_id=node_id or None
+            message=f"Folder {target.name} created",
+            reload_node_ids=[node_id or None],
         )
 
 
@@ -147,7 +148,7 @@ class Rename(_ActsOnNode, JsonAction[RenameParams]):
         await to_thread.run_sync(partial(_rename, path, target))
         return ActionResult(
             message=f"Renamed to {params.new_name}",
-            reload_node_id=self._parent_id(path),
+            reload_node_ids=[self._parent_id(path)],
         )
 
 
@@ -166,7 +167,7 @@ class Delete(_ActsOnNode, JsonAction[DeleteParams]):
         reload_node_id = self._parent_id(path)
         await to_thread.run_sync(partial(_remove, path))
         return ActionResult(
-            message=f"{path.name} deleted", reload_node_id=reload_node_id
+            message=f"{path.name} deleted", reload_node_ids=[reload_node_id]
         )
 
 
@@ -236,7 +237,7 @@ class Upload(_Bound, FileAction[UploadParams]):
         finally:
             await to_thread.run_sync(partial(temporary.unlink, missing_ok=True))
         return ActionResult(
-            message=f"{target.name} uploaded", reload_node_id=node_id or None
+            message=f"{target.name} uploaded", reload_node_ids=[node_id or None]
         )
 
     async def _stream_into(self, parent: Path, payload: FilePayload) -> Path:

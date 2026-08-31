@@ -2232,8 +2232,8 @@ class ActionInfo(BaseModel):
     # Whether selecting this action produces bytes through the native browser
     # download transport. Derived from the callable action capability.
     downloads: bool
-    # What the action changes, so a client knows what to send it: the nodes
-    # that were ticked, or the level they are in.
+    # What the action changes, so a client knows what to send it: selected
+    # nodes, the places whose children are shown, or the level itself.
     acts_on: ActsOn
     # Whether it can be done to the nodes that were asked about. Every action
     # the source has is listed; this says which of them apply here.

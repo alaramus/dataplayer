@@ -15,21 +15,26 @@ import type { MenuItem } from "@/shared/ui"
  * What can be done, in one menu whose shape stays stable.
  *
  * The server decides which actions are live, and the client disables the rest:
- * what changes a node waits for a node to be ticked, and what
- * changes what a node holds — a new folder, an upload, a table loaded from a
- * file — belongs to the place being looked at. Standing in a folder is not
+ * what changes a node waits for a ticked row or an explicitly selected
+ * grouping; what changes children belongs to the shown place; and what changes
+ * the level itself ignores the grouping filter. Standing in a folder is not
  * choosing it, so nothing is renamed or removed because of where the user
  * happens to be. A source that has no actions at all shows no menu rather than
- * an empty one. See the spec, S6.
+ * an empty one. See D56.
  */
 const props = defineProps<{
   connectorId: string
+  /** The level itself, before selected groupings contribute their children. */
+  levelId: string | null
+  levelLabel: string
   /**
    * Where something new would be made: the groupings whose contents are on
    * screen, or the level itself when the source offers none. `null` is the
    * root of the connector.
    */
   places: (string | null)[]
+  /** Groupings explicitly selected in the level control. */
+  selectedGroups: { id: string; label: string; kind: CatalogNode["kind"] }[]
   /** The nodes that are ticked. */
   checkedIds: string[]
   checkedNodes: { label: string; kind: CatalogNode["kind"] }[]
@@ -43,24 +48,45 @@ const downloadAction = useDownloadAction()
 
 const connectorId = computed(() => props.connectorId)
 
+const levelIds = computed<string[] | null>(() =>
+  props.levelId === null || props.levelId === "" ? null : [props.levelId]
+)
+
 // The route takes null for the root and a non-empty list otherwise.
 const placeIds = computed<string[] | null>(() => {
   const named = props.places.filter((id): id is string => id !== null && id !== "")
   return named.length === 0 ? null : named
 })
-const checkedIds = computed<string[] | null>(() =>
-  props.checkedIds.length === 0 ? null : [...props.checkedIds]
+const nodeTargetIds = computed(() =>
+  props.checkedIds.length > 0
+    ? [...props.checkedIds]
+    : props.selectedGroups.map((group) => group.id)
 )
-const anyChecked = computed(() => props.checkedIds.length > 0)
+const checkedIds = computed<string[] | null>(() =>
+  nodeTargetIds.value.length === 0 ? null : [...nodeTargetIds.value]
+)
+const nodeTargetNodes = computed(() =>
+  props.checkedIds.length > 0 ? props.checkedNodes : props.selectedGroups
+)
+const anyChecked = computed(() => nodeTargetIds.value.length > 0)
 
-// Two questions, because a menu line is about one of two subjects: the place
-// being looked at, or what is ticked in it. The vocabulary is the same in both
-// answers, so the first is enough to draw the menu before anything is ticked.
+// Three questions, because a menu line is about one of three subjects: the
+// level itself, the places whose contents are shown, or an explicit node
+// selection. The vocabulary is the same in every answer, so the level answer
+// is enough to draw the stable menu before anything is selected.
+const level = useNodeActions(connectorId, levelIds)
 const here = useNodeActions(connectorId, placeIds)
 const picked = useNodeActions(connectorId, checkedIds, anyChecked)
 
 const commands = computed(() =>
-  toMenu(here.data.value ?? [], picked.data.value ?? [], props.places, props.checkedIds)
+  toMenu(
+    level.data.value ?? [],
+    here.data.value ?? [],
+    picked.data.value ?? [],
+    props.levelId,
+    props.places,
+    nodeTargetIds.value
+  )
 )
 
 const items = computed<MenuItem[]>(() =>
@@ -74,12 +100,15 @@ const items = computed<MenuItem[]>(() =>
 
 const active = ref<MenuCommand | null>(null)
 
-const targetLabel = computed(() =>
-  active.value?.actsOn === "children" ? props.placeLabel : props.checkedLabel
-)
+const targetLabel = computed(() => {
+  if (active.value?.actsOn === "level") return props.levelLabel
+  if (active.value?.actsOn === "children") return props.placeLabel
+  if (props.checkedIds.length > 0) return props.checkedLabel
+  return props.selectedGroups.map((group) => group.label).join(", ")
+})
 const targetNode = computed(() =>
-  active.value?.actsOn === "node" && props.checkedNodes.length === 1
-    ? props.checkedNodes[0] ?? null
+  active.value?.actsOn === "node" && nodeTargetNodes.value.length === 1
+    ? nodeTargetNodes.value[0] ?? null
     : null
 )
 

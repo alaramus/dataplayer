@@ -53,7 +53,7 @@ export type ActionInfo = {
   /**
    * Acts On
    */
-  acts_on: "node" | "children"
+  acts_on: "node" | "children" | "level"
   /**
    * Applicable
    */
@@ -126,9 +126,9 @@ export type ActionResult = {
    */
   message: string
   /**
-   * Reload Node Id
+   * Reload Node Ids
    */
-  reload_node_id?: string | null
+  reload_node_ids: Array<string | null>
   replacement?: NodeReplacement | null
 }
 

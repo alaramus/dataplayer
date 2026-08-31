@@ -30,9 +30,11 @@ def adapter() -> PostgresAdapter:
 
 
 def test_rename_marks_the_field_as_the_current_node_name() -> None:
-    properties = postgres_actions.RenameRelationParams.model_json_schema()["properties"]
+    relation = postgres_actions.RenameRelationParams.model_json_schema()["properties"]
+    schema = postgres_actions.RenameSchemaParams.model_json_schema()["properties"]
 
-    assert properties["new_name"]["x-ui-purpose"] == "node-name"
+    assert relation["new_name"]["x-ui-purpose"] == "node-name"
+    assert schema["new_name"]["x-ui-purpose"] == "node-name"
 
 
 async def test_rename_is_offered_only_for_non_system_relations(schema: str) -> None:
@@ -44,6 +46,8 @@ async def test_rename_is_offered_only_for_non_system_relations(schema: str) -> N
 
     assert "rename_relation" in {action.name for action in table}
     assert "rename_relation" in {action.name for action in view}
+    assert "move_relation" in {action.name for action in table}
+    assert "move_relation" in {action.name for action in view}
     assert system == []
 
 
@@ -56,7 +60,7 @@ async def test_renames_a_view_with_a_source_issued_replacement(schema: str) -> N
         f"{schema}.rich_customers", {"new_name": "valuable_customers"}
     )
 
-    assert result.reload_node_id == schema
+    assert result.reload_node_ids == [schema]
     assert result.replacement is not None
     assert result.replacement.old_node_id == f"{schema}.rich_customers"
     assert result.replacement.new_node_id == f"{schema}.valuable_customers"
@@ -100,6 +104,148 @@ async def test_rejects_a_name_postgres_would_truncate(schema: str) -> None:
         await action.perform(f"{schema}.customers", {"new_name": "x" * 64})
 
 
+async def test_schema_actions_are_offered_at_the_level_and_on_a_user_schema(
+    schema: str,
+) -> None:
+    source = adapter()
+
+    root = await source.available(None)
+    user_schema = await source.available(schema)
+    system_schema = await source.available("pg_catalog")
+
+    assert [action.name for action in root] == ["create_schema"]
+    assert {action.name for action in user_schema} == {
+        "rename_schema",
+        "load_csv",
+        "drop_schema",
+    }
+    assert system_schema == []
+
+
+async def test_creates_a_schema_and_names_every_branch_to_refresh() -> None:
+    source = adapter()
+    name = f"created_{uuid.uuid4().hex}"
+    action = source.action("create_schema")
+    assert isinstance(action, TakesParams)
+    try:
+        result = await action.perform(None, {"name": name})
+
+        assert result.reload_node_ids == [None, name]
+        assert (await source.path_to(name))[-1].name == name
+    finally:
+        await run(
+            f'DROP SCHEMA IF EXISTS "{name}" CASCADE'  # noqa: S608 -- generated test schema.
+        )
+
+
+async def test_refuses_a_schema_name_that_is_already_taken(schema: str) -> None:
+    source = adapter()
+    action = source.action("create_schema")
+    assert isinstance(action, TakesParams)
+
+    with pytest.raises(ActionRefused) as refused:
+        await action.perform(None, {"name": schema})
+
+    assert refused.value.reason == "conflict"
+
+
+async def test_rejects_a_schema_name_postgres_would_truncate() -> None:
+    source = adapter()
+    action = source.action("create_schema")
+    assert isinstance(action, TakesParams)
+
+    with pytest.raises(ValueError, match="63 bytes"):
+        await action.perform(None, {"name": "x" * 64})
+
+
+async def test_renames_a_schema_with_its_source_issued_identity() -> None:
+    source = adapter()
+    old = f"old_{uuid.uuid4().hex}"
+    new = f"new_{uuid.uuid4().hex}"
+    await run(f'CREATE SCHEMA "{old}"')  # noqa: S608 -- generated test schema.
+    action = source.action("rename_schema")
+    assert isinstance(action, TakesParams)
+    try:
+        result = await action.perform(old, {"new_name": new})
+
+        assert result.reload_node_ids == [None, old, new]
+        assert result.replacement is not None
+        assert result.replacement.old_node_id == old
+        assert result.replacement.new_node_id == new
+        assert (await source.path_to(new))[-1].name == new
+    finally:
+        await run(
+            f'DROP SCHEMA IF EXISTS "{new}" CASCADE'  # noqa: S608 -- generated test schema.
+        )
+        await run(
+            f'DROP SCHEMA IF EXISTS "{old}" CASCADE'  # noqa: S608 -- generated test schema.
+        )
+
+
+async def test_moves_a_relation_and_refreshes_both_schemas(schema: str) -> None:
+    source = adapter()
+    target = f"target_{uuid.uuid4().hex}"
+    relation = f"movable_{uuid.uuid4().hex}"
+    await run(f'CREATE SCHEMA "{target}"')  # noqa: S608 -- generated test schema.
+    await run(
+        f'CREATE TABLE "{schema}"."{relation}" (id integer)'  # noqa: S608 -- generated fixture names.
+    )
+    action = source.action("move_relation")
+    assert isinstance(action, TakesParams)
+    try:
+        result = await action.perform(
+            f"{schema}.{relation}", {"target_schema": target}
+        )
+
+        assert result.reload_node_ids == [schema, target]
+        assert result.replacement is not None
+        assert result.replacement.new_node_id == f"{target}.{relation}"
+        moved = (await source.path_to(result.replacement.new_node_id))[-1]
+        assert moved.name == relation
+    finally:
+        await run(
+            f'DROP SCHEMA IF EXISTS "{target}" CASCADE'  # noqa: S608 -- generated test schema.
+        )
+
+
+async def test_refuses_moving_a_relation_into_a_system_schema(schema: str) -> None:
+    source = adapter()
+    action = source.action("move_relation")
+    assert isinstance(action, TakesParams)
+
+    with pytest.raises(ActionRefused, match="system schema"):
+        await action.perform(
+            f"{schema}.rich_customers", {"target_schema": "pg_catalog"}
+        )
+
+
+async def test_a_schema_drop_is_rehearsed_and_can_include_its_contents() -> None:
+    source = adapter()
+    name = f"drop_{uuid.uuid4().hex}"
+    await run(f'CREATE SCHEMA "{name}"')  # noqa: S608 -- generated test schema.
+    await run(
+        f'CREATE TABLE "{name}"."kept_until_drop" (id integer)'  # noqa: S608 -- generated test schema.
+    )
+    action = source.action("drop_schema")
+    assert isinstance(action, Previews)
+    assert isinstance(action, TakesParams)
+    try:
+        blocked = await action.preview(name, {"cascade": False})
+        cascade = await action.preview(name, {"cascade": True})
+
+        assert blocked.blocked is True
+        assert cascade.blocked is False
+        assert any("kept_until_drop" in item for item in cascade.items)
+
+        result = await action.perform(name, {"cascade": True})
+        assert result.reload_node_ids == [None, name]
+        assert name not in {node.name for node in await source.list_children(None)}
+    finally:
+        await run(
+            f'DROP SCHEMA IF EXISTS "{name}" CASCADE'  # noqa: S608 -- generated test schema.
+        )
+
+
 class Upload:
     """The smallest thing that satisfies FilePayload."""
 
@@ -129,7 +275,11 @@ async def test_load_from_csv_is_offered_on_a_schema_and_not_on_a_relation(
     table = await source.available(f"{schema}.customers")
     system = await source.available("pg_catalog")
 
-    assert [action.name for action in here] == ["load_csv"]
+    assert {action.name for action in here} == {
+        "rename_schema",
+        "load_csv",
+        "drop_schema",
+    }
     assert "load_csv" not in [action.name for action in table]
     # A schema the server owns is a real schema, and it admits nothing.
     assert system == []
@@ -142,7 +292,7 @@ async def test_a_csv_becomes_a_table_of_that_schema(schema: str) -> None:
 
     assert result.message == "prices created with 2 rows"
     # The schema is what gained a child, so it is what the client re-reads.
-    assert result.reload_node_id == schema
+    assert result.reload_node_ids == [schema]
 
     page = await source.fetch(FetchRequest(node_id=f"{schema}.prices", limit=10))
     assert [column.name for column in page.columns] == ["sku", "amount"]
@@ -203,7 +353,7 @@ async def test_a_csv_can_create_its_destination_schema(schema: str) -> None:
 
         path = await source.path_to(f"{destination}.prices")
         assert path[-1].name == "prices"
-        assert result.reload_node_id is None
+        assert result.reload_node_ids == [None, destination]
     finally:
         await run(
             f'DROP SCHEMA IF EXISTS "{destination}" CASCADE'  # noqa: S608 -- generated test schema.
@@ -386,7 +536,7 @@ async def test_dropping_with_cascade_takes_the_view_with_it(schema: str) -> None
 
     assert result.message == "customers dropped"
     # The schema is what lost a child, so it is what the client re-reads.
-    assert result.reload_node_id == schema
+    assert result.reload_node_ids == [schema]
     left = await _names(source, schema)
     assert "customers" not in left
     assert "rich_customers" not in left

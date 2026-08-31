@@ -31,14 +31,16 @@ class NodeReplacement(BaseModel):
 class ActionResult(BaseModel):
     """What happened, and what the client should re-read because of it.
 
-    Which branch of the catalog changed is known to whoever performed the
-    action; deriving it on the client from the name of the action would put
+    Which branches of the catalog changed are known to whoever performed the
+    action; deriving them on the client from the name of the action would put
     the same rule in two places.
     """
 
     message: str
-    # The node whose children changed. None means the root of the connector.
-    reload_node_id: str | None = None
+    # Every node whose children changed. None means the root of the connector.
+    # A move names both parents; making the client infer either one from the
+    # moved node's opaque id would break D21.
+    reload_node_ids: list[str | None]
     # A node whose source identity changed. Panels holding the old opaque id
     # replace it with the new one; the client never derives either id.
     replacement: NodeReplacement | None = None
@@ -73,12 +75,11 @@ class ActionDownloadReady(BaseModel):
 # a failure of the file system, and answering 502 for it would be a lie.
 RefusalReason = Literal["conflict", "not_applicable", "too_large"]
 
-# What an action changes: the node it is given, or what that node holds.
-# Renaming and deleting are done to the rows a user ticked; a new folder and an
-# upload are made inside the level being looked at. A client has to tell the
-# two apart to know what to send an action, and reading it off the names would
-# mean teaching the client every action that is ever added.
-ActsOn = Literal["node", "children"]
+# What an action changes: an explicitly selected node, a shown place's
+# children, or the catalog level itself. A client has to tell the three apart
+# to know what to send an action, and reading it off the names would mean
+# teaching the client every action that is ever added (D56).
+ActsOn = Literal["node", "children", "level"]
 
 
 class ActionRefused(Exception):
@@ -132,7 +133,8 @@ class Action[P: BaseModel](ABC):
     applies_to: ClassVar[frozenset[NodeKind]]
     # Declared beside applies_to because it is the same sort of statement: one
     # says which kinds of node an action makes sense for, the other says what
-    # of that node it changes.
+    # of that node it changes. `level` is the catalog level itself, kept apart
+    # from a selected grouping whose children happen to be shown in it.
     acts_on: ClassVar[ActsOn]
     destructive: ClassVar[bool] = False
     # What a caller must hold on the connection to run this. Declared on the

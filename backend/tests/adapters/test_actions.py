@@ -35,7 +35,7 @@ class CreateThing(JsonAction[Named]):
 
     async def run(self, node_id: str | None, params: Named) -> ActionResult:
         self.seen = params
-        return ActionResult(message="done", reload_node_id=node_id)
+        return ActionResult(message="done", reload_node_ids=[node_id])
 
 
 class DropThing(JsonAction[BaseModel]):
@@ -48,7 +48,7 @@ class DropThing(JsonAction[BaseModel]):
     params_model = BaseModel
 
     async def run(self, node_id: str | None, params: BaseModel) -> ActionResult:
-        return ActionResult(message="dropped", reload_node_id=None)
+        return ActionResult(message="dropped", reload_node_ids=[None])
 
 
 class PutThing(FileAction[Named]):
@@ -62,7 +62,7 @@ class PutThing(FileAction[Named]):
         self, node_id: str | None, params: Named, payload: FilePayload
     ) -> ActionResult:
         body = await payload.read(1024)
-        return ActionResult(message=body.decode(), reload_node_id=node_id)
+        return ActionResult(message=body.decode(), reload_node_ids=[node_id])
 
 
 class Bytes:
@@ -158,9 +158,9 @@ def test_a_refusal_carries_the_reason_it_was_refused() -> None:
 
 
 def test_the_result_says_which_branch_to_reload() -> None:
-    result: ActionResult = ActionResult(message="done", reload_node_id="reports")
+    result: ActionResult = ActionResult(message="done", reload_node_ids=["reports"])
 
-    assert result.reload_node_id == "reports"
+    assert result.reload_node_ids == ["reports"]
 
 
 def test_an_action_declares_whether_it_destroys_anything() -> None:

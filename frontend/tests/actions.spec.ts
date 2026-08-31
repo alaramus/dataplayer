@@ -195,6 +195,60 @@ test("renames a relation without leaving its schema", async ({ page }) => {
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("creates and renames a schema, moves a relation, then drops the schema", async ({
+  page,
+}) => {
+  const connector = `e2e-schema-${Date.now()}`
+  const created = `stage_${Date.now()}`
+  const renamed = `archive_${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, connector)
+  await openConnector(page, connector)
+
+  // A schema belongs to the database level, not inside whichever schema is
+  // currently filtering the rows below it.
+  await catalogAction(page, "create_schema")
+  await page.getByTestId("field-name").fill(created)
+  await page.getByTestId("action-submit").click()
+
+  await showOnlySchema(page, created, "public")
+  await catalogAction(page, "rename_schema")
+  const rename = page.getByTestId("field-new_name")
+  await expect(rename).toHaveValue(created)
+  await rename.fill(renamed)
+  await page.getByTestId("action-submit").click()
+  // The grouping follows the exact replacement identity the source returned.
+  await expect(page.getByTestId("catalog-groups")).toContainText(renamed)
+  await expect(page.getByTestId("catalog-groups")).not.toContainText(created)
+
+  // Moving one relation changes two catalog branches. Both are named by the
+  // action result; neither schema is parsed out of an opaque node id here.
+  await showOnlySchema(page, "demo_lab", renamed)
+  await catalogCheck(page, "audit_events").click()
+  await catalogAction(page, "move_relation")
+  await page.getByTestId("field-target_schema").fill(renamed)
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, "audit_events")).toHaveCount(0)
+
+  await showOnlySchema(page, renamed, "demo_lab")
+  await expect(catalogRow(page, "audit_events")).toBeVisible()
+  await catalogCheck(page, "audit_events").click()
+  await catalogAction(page, "move_relation")
+  await page.getByTestId("field-target_schema").fill("demo_lab")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, "audit_events")).toHaveCount(0)
+
+  // Empty now, so the source's rolled-back preview says the drop is bounded
+  // to the schema itself before the destructive confirmation is accepted.
+  await catalogAction(page, "drop_schema")
+  await expect(page.getByTestId("action-preview")).toContainText("is empty")
+  await page.getByTestId("action-submit").click()
+  await expect(page.getByTestId("catalog-groups")).toContainText("public")
+
+  await deleteConnector(page, connector)
+  await expect(connectorRow(page, connector)).toHaveCount(0)
+})
+
 test("loads a CSV into the schema being looked at", async ({ page }) => {
   const name = `e2e-load-csv-${Date.now()}`
   // Unique, because nothing here drops a relation yet: the fixture schema is

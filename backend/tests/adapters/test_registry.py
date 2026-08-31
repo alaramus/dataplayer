@@ -48,7 +48,7 @@ class Sweep(JsonAction[NoParams]):
     params_model = NoParams
 
     async def run(self, node_id: str | None, params: NoParams) -> ActionResult:
-        return ActionResult(message="swept")
+        return ActionResult(message="swept", reload_node_ids=[])
 
 
 class Polish(JsonAction[NoParams]):
@@ -59,7 +59,7 @@ class Polish(JsonAction[NoParams]):
     params_model = NoParams
 
     async def run(self, node_id: str | None, params: NoParams) -> ActionResult:
-        return ActionResult(message="polished")
+        return ActionResult(message="polished", reload_node_ids=[])
 
 
 FULL_ACTION_TYPES: tuple[type[Action[Any]], ...] = (Sweep, Polish)
