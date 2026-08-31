@@ -185,10 +185,16 @@ function run() {
           data-testid="field-name"
         />
       </div>
-      <AppBanner v-if="schemaMode === 'new'" tone="info">
+      <AppBanner
+        v-if="schemaMode === 'new'"
+        tone="info"
+      >
         The database may refuse this if the connection is not allowed to create schemas.
       </AppBanner>
-      <div v-if="mappings.length" class="file-to-relation__mapping">
+      <div
+        v-if="mappings.length"
+        class="file-to-relation__mapping"
+      >
         <div
           v-for="mapping in mappings"
           :key="mapping.source"

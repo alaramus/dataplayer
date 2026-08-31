@@ -273,25 +273,62 @@ async def test_the_answer_says_the_source_cannot_sort_or_filter(
 
 
 @pytest.mark.usefixtures("home")
-async def test_a_file_source_has_no_row_mutation_capabilities(
+async def test_a_delimited_file_takes_a_row_and_gives_it_back_deletable(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
+    """A CSV is a table the row routes may change, handles and all."""
     connector_id = await _create_connector(client, normal_user_token_headers)
 
     inserted = await client.post(
         f"{BASE}/{connector_id}/rows",
         headers=normal_user_token_headers,
-        json={"node_id": "reports/q3.csv", "values": []},
+        json={
+            "node_id": "reports/q3.csv",
+            "values": [
+                {"column": "id", "value": "3"},
+                {"column": "name", "value": "three"},
+            ],
+        },
     )
+
+    assert inserted.status_code == 200, inserted.text
+    assert inserted.json()["values"] == ["3", "three"]
+
     deleted = await client.request(
         "DELETE",
         f"{BASE}/{connector_id}/rows",
         headers=normal_user_token_headers,
-        json={"node_id": "reports/q3.csv", "row_handles": ["opaque"]},
+        json={
+            "node_id": "reports/q3.csv",
+            "row_handles": [inserted.json()["row_handle"]],
+        },
     )
 
-    assert inserted.status_code == 501
-    assert deleted.status_code == 501
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["deleted"] == 1
+
+    read = await client.post(
+        f"{BASE}/{connector_id}/fetch",
+        headers=normal_user_token_headers,
+        json={"node_id": "reports/q3.csv"},
+    )
+    assert read.json()["rows"] == [["1", "one"], ["2", "two"]]
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_file_that_is_not_a_table_is_not_edited_as_one(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The capability is the source's; whether a node admits it is per node."""
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    inserted = await client.post(
+        f"{BASE}/{connector_id}/rows",
+        headers=normal_user_token_headers,
+        json={"node_id": "notes.txt", "values": [{"column": "line", "value": "x"}]},
+    )
+
+    assert inserted.status_code == 422
 
 
 @pytest.mark.usefixtures("home")

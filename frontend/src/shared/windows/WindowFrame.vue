@@ -3,6 +3,8 @@ import { nextTick, onBeforeUnmount, onMounted, ref } from "vue"
 
 import { AppIconButton } from "@/shared/ui"
 
+import { FIT_MARGIN } from "./geometry"
+
 import type { WindowState } from "./useWindows"
 import type { ResizeEdge } from "./geometry"
 
@@ -110,6 +112,8 @@ const resizeEdges: ResizeEdge[] = [
       top: `${window.rect.y}px`,
       width: `${window.rect.width}px`,
       height: window.autoFit !== false ? 'auto' : `${window.rect.height}px`,
+      maxHeight:
+        window.autoFit !== false ? `calc(100vh - ${FIT_MARGIN}px)` : undefined,
     }"
     :data-testid="`window-${window.id}`"
     role="dialog"

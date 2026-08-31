@@ -41,6 +41,16 @@ export const CASCADE_STEP = 32
 export const GRAB_MARGIN = 120
 
 /**
+ * How much shorter than the viewport a content-sized window may be.
+ *
+ * A viewport-tall window fits only at y=0, which makes an ordinary drag a way
+ * to lose its footer immediately. The store keeps the margin when it measures
+ * content, and the frame keeps it when it draws itself: with `height: auto`
+ * the drawn box is the content's, and nothing else would stop it.
+ */
+export const FIT_MARGIN = 16
+
+/**
  * Where the cascade begins: the middle of the viewport.
  *
  * Not the top left, which is where this started and where it was wrong. A

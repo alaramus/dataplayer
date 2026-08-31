@@ -1,7 +1,15 @@
 import { computed, inject, onScopeDispose, provide, ref, shallowRef } from "vue"
 import type { Component, InjectionKey, Ref } from "vue"
 
-import { bringToFront, clamp, fit, place, resize, resizeTo } from "./geometry"
+import {
+  FIT_MARGIN,
+  bringToFront,
+  clamp,
+  fit,
+  place,
+  resize,
+  resizeTo,
+} from "./geometry"
 import type { Rect, ResizeEdge, Size } from "./geometry"
 
 /**
@@ -187,11 +195,10 @@ export function useWindows(
       const wanted = {
         width: Math.max(minimum.width, size.width),
         // Leave a small moving margin even when the contents are taller than
-        // the viewport. A viewport-tall window fits only at y=0, which makes
-        // an ordinary drag a way to lose its footer immediately.
+        // the viewport (FIT_MARGIN).
         height: Math.min(
           Math.max(minimum.height, size.height),
-          Math.max(minimum.height, viewport.height - 16)
+          Math.max(minimum.height, viewport.height - FIT_MARGIN)
         ),
       }
       return {

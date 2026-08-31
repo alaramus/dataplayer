@@ -265,11 +265,8 @@ function takenNames(taken: File[]): string {
 }
 
 function initialValues(command: ActionCommand | null): Record<string, unknown> {
-  if (
-    command === null ||
-    props.targetNode === null ||
-    props.targetNode === undefined
-  ) {
+  const node = props.targetNode
+  if (command === null || node === null || node === undefined) {
     return {}
   }
   return Object.fromEntries(
@@ -277,9 +274,7 @@ function initialValues(command: ActionCommand | null): Record<string, unknown> {
       .filter((field) => field.purpose === "node-name")
       .map((field) => [
         field.name,
-        props.targetNode.kind === "file"
-          ? splitExtension(props.targetNode.label).stem
-          : props.targetNode.label,
+        node.kind === "file" ? splitExtension(node.label).stem : node.label,
       ])
   )
 }

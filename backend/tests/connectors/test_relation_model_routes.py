@@ -2,7 +2,10 @@ import uuid
 
 import pytest
 from httpx import AsyncClient
+from pydantic import BaseModel
 
+from app.adapters import registry
+from app.adapters.protocol import ConnectionCheckResult
 from app.core.config import settings
 from tests.utils.database import working_postgres_options
 
@@ -69,20 +72,13 @@ async def test_a_relation_that_is_gone_is_not_a_failure(
     assert response.status_code == 404
 
 
-@pytest.mark.usefixtures("isolated_registry")
-async def test_a_source_without_relations_says_so(
-    client: AsyncClient, normal_user_token_headers: dict[str, str]
-) -> None:
-    """Describing is optional, and a source that cannot must not fake one.
+async def _ping_connector(client: AsyncClient, headers: dict[str, str]) -> str:
+    """A source with no capability beyond being reachable.
 
-    Written against a source with no capability at all: both real adapters
-    describe something now, the file one since D51, so the capability-level
-    answer needs a source that has none.
+    The capability-level answers need one: both real adapters describe
+    relations now, and the file source changes rows and columns of a
+    delimited file since D53, so neither can stand for a source that cannot.
     """
-    from pydantic import BaseModel
-
-    from app.adapters import registry
-    from app.adapters.protocol import ConnectionCheckResult
 
     class PingOptions(BaseModel):
         url: str
@@ -107,7 +103,7 @@ async def test_a_source_without_relations_says_so(
 
     created = await client.post(
         f"{BASE}/",
-        headers=normal_user_token_headers,
+        headers=headers,
         json={
             "name": f"ping {uuid.uuid4()}",
             "adapter_type": "ping",
@@ -115,9 +111,18 @@ async def test_a_source_without_relations_says_so(
         },
     )
     assert created.status_code == 200
+    return str(created.json()["id"])
+
+
+@pytest.mark.usefixtures("isolated_registry")
+async def test_a_source_without_relations_says_so(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Describing is optional, and a source that cannot must not fake one."""
+    connector_id = await _ping_connector(client, normal_user_token_headers)
 
     response = await client.get(
-        f"{BASE}/{created.json()['id']}/relation-model",
+        f"{BASE}/{connector_id}/relation-model",
         params={"node_id": "anything"},
         headers=normal_user_token_headers,
     )
@@ -138,10 +143,11 @@ async def test_a_file_node_that_is_not_there_is_not_found(
     assert response.status_code == 404
 
 
+@pytest.mark.usefixtures("isolated_registry")
 async def test_a_source_without_column_changes_says_so(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
-    connector_id = await _file_connector(client, normal_user_token_headers)
+    connector_id = await _ping_connector(client, normal_user_token_headers)
 
     added = await client.post(
         f"{BASE}/{connector_id}/columns",
@@ -157,6 +163,28 @@ async def test_a_source_without_column_changes_says_so(
 
     assert added.status_code == 501
     assert dropped.status_code == 501
+
+
+@pytest.mark.usefixtures("isolated_registry")
+async def test_a_source_without_row_changes_says_so(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _ping_connector(client, normal_user_token_headers)
+
+    inserted = await client.post(
+        f"{BASE}/{connector_id}/rows",
+        headers=normal_user_token_headers,
+        json={"node_id": "anything", "values": []},
+    )
+    deleted = await client.request(
+        "DELETE",
+        f"{BASE}/{connector_id}/rows",
+        headers=normal_user_token_headers,
+        json={"node_id": "anything", "row_handles": ["opaque"]},
+    )
+
+    assert inserted.status_code == 501
+    assert deleted.status_code == 501
 
 
 async def test_requires_authentication(client: AsyncClient) -> None:

@@ -3,7 +3,6 @@ import { Quasar } from "quasar"
 import { describe, expect, it } from "vitest"
 
 import type { FetchColumn, Sort } from "@/client"
-import { AppTooltip } from "@/shared/ui"
 import { first } from "@/shared/testing/collections"
 
 import GridHeader from "./GridHeader.vue"
@@ -86,12 +85,10 @@ describe("the sort editor", () => {
     expect(first(wrapper.emitted("apply") ?? [])[0]).toEqual([])
   })
 
-  it("disables sorting when every server column refuses it", () => {
+  it("offers no sorting when every server column refuses it", () => {
     const wrapper = mountHeader(COLUMNS.map((column) => ({ ...column, sortable: false })))
-    const command = wrapper.get('[data-testid="grid-sort-command"]')
 
-    expect(command.attributes("title")).toBeUndefined()
-    expect(command.findComponent(AppTooltip).exists()).toBe(true)
-    expect(command.get('[data-testid="grid-sort"]').attributes("disabled")).toBeDefined()
+    expect(wrapper.find('[data-testid="grid-sort-command"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="grid-sort"]').exists()).toBe(false)
   })
 })

@@ -215,20 +215,19 @@ test("inserts and deletes a PostgreSQL row", async ({ page }) => {
   await deleteConnector(page, name)
 })
 
-test("states that a CSV cannot be filtered or sorted", async ({ page }) => {
+test("offers a CSV no filtering and no sorting", async ({ page }) => {
   const name = `e2e-grid-csv-${Date.now()}`
   await login(page)
   await createFileConnector(page, name)
   await openConnector(page, name)
   await openNode(page, "sample.csv")
 
-  await expect(page.getByTestId("grid-filter")).toBeDisabled()
-  await expect(page.getByTestId("grid-sort")).toBeDisabled()
-  await page.getByTestId("grid-filter-command").hover()
-  await expect(page.locator(".app-tooltip")).toHaveCount(1)
-  await expect(page.locator(".app-tooltip")).toHaveText(
-    "This source does not support filtering"
-  )
+  // The header carries only what this representation can do, so the two
+  // commands the source refuses are absent rather than dead.
+  await expect(page.getByTestId("grid-columns")).toBeVisible()
+  await expect(page.getByTestId("grid-filter")).toHaveCount(0)
+  await expect(page.getByTestId("grid-sort")).toHaveCount(0)
+  await expect(page.locator('[data-testid^="grid-sort-direction-"]')).toHaveCount(0)
 
   await deleteConnector(page, name)
 })

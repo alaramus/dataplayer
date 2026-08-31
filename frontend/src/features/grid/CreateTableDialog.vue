@@ -214,7 +214,10 @@ function run() {
       >
         {{ error }}
       </AppBanner>
-      <AppBanner v-if="trouble" tone="warning">
+      <AppBanner
+        v-if="trouble"
+        tone="warning"
+      >
         {{ trouble }}
       </AppBanner>
       <div class="create-table__destination">

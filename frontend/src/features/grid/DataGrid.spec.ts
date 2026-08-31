@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ConnectorsService } from "@/client"
 import type { FetchColumn, FetchResult } from "@/client"
 import { AppSelect } from "@/shared/ui"
-import { AppInput } from "@/shared/ui"
+import { AppIconButton, AppInput } from "@/shared/ui"
 import { withWindowHost } from "@/shared/testing/windows"
 
 import CreateTableDialog from "./CreateTableDialog.vue"
@@ -225,7 +225,7 @@ describe("the basic data grid", () => {
     mockPages()
     const wrapper = mountGrid({ canDescribe: true })
     await flushPromises()
-    expect(wrapper.get('[data-testid="grid-structure"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="grid-structure"]').exists()).toBe(true)
   })
 
   it("renders server columns and requests 100 rows by default", async () => {
@@ -1130,6 +1130,9 @@ describe("following a reference out of a row", () => {
     expect(fetch.mock.calls.at(-1)?.[0]?.body?.filters).toEqual([
       { column: "region_id", op: "eq", value: "7" },
     ])
-    expect(wrapper.get('[data-testid="grid-filter"]').text()).toContain("Filters (1)")
+    const command = wrapper
+      .findAllComponents(AppIconButton)
+      .find((button) => button.attributes("data-testid") === "grid-filter")
+    expect(command?.props("tooltip")).toBe("Filters (1)")
   })
 })

@@ -3,7 +3,7 @@ import { Quasar } from "quasar"
 import { beforeEach, describe, expect, it } from "vitest"
 
 import type { FetchColumn } from "@/client"
-import { AppInput, AppTooltip } from "@/shared/ui"
+import { AppInput } from "@/shared/ui"
 import { at, first } from "@/shared/testing/collections"
 
 import FilterEditor from "./FilterEditor.vue"
@@ -119,12 +119,10 @@ describe("the filter band", () => {
     expect(first(wrapper.emitted("apply") ?? [])[0]).toEqual([])
   })
 
-  it("disables filtering with the source explanation when no operator exists", () => {
+  it("offers no filtering when no column has an operator", () => {
     const wrapper = mountHeader([FILE_COLUMN])
-    const command = wrapper.get('[data-testid="grid-filter-command"]')
 
-    expect(command.attributes("title")).toBeUndefined()
-    expect(command.findComponent(AppTooltip).exists()).toBe(true)
-    expect(command.get('[data-testid="grid-filter"]').attributes("disabled")).toBeDefined()
+    expect(wrapper.find('[data-testid="grid-filter-command"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="grid-filter"]').exists()).toBe(false)
   })
 })

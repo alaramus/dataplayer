@@ -2,13 +2,13 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from app.adapters.actions import Action, ActionType
+from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
     AddColumnRequest,
     ColumnChangeResult,
     DropColumnRequest,
     RenameColumnRequest,
 )
-from app.adapters.catalog import CatalogNode
 from app.adapters.content import (
     BoundedContentPreview,
     ContentRequest,

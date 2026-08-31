@@ -376,6 +376,7 @@ async function removeIndex(name: string) {
 
 function nullabilityTooltip(nullable: boolean): string {
   return changeTooltip(
+    "nullability",
     nullable ? "Require a value in every row" : "Allow rows with no value"
   )
 }

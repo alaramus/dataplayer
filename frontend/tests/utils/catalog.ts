@@ -89,14 +89,11 @@ export async function sortColumn(page: Page, name: string, shift = false) {
     (response) =>
       response.request().method() === "POST" && response.url().endsWith("/fetch")
   )
-  if (shift) await page.keyboard.down("Shift")
   await page
-    .getByTestId(`grid-column-${name}`)
-    .getByText(name, { exact: true })
-    .click()
-  if (shift) await page.keyboard.up("Shift")
+    .getByTestId(`grid-sort-direction-${name}`)
+    .click({ modifiers: shift ? ["Shift"] : [] })
   await fetched
-  await page.getByTestId(`grid-sort-direction-${name}`).waitFor({ state: "visible" })
+  await page.getByTestId(`grid-sort-priority-${name}`).waitFor({ state: "visible" })
 }
 
 export async function selectRange(

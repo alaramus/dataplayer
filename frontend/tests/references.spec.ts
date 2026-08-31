@@ -39,7 +39,8 @@ test("opens the referenced relation showing only the rows the key names", async 
 
   await expect(rowsTabs(page)).toHaveCount(2)
   await expect(rowsTabs(page).last()).toContainText("organizations")
-  await expect(page.getByTestId("grid-filter")).toContainText("Filters (1)")
+  await page.getByTestId("grid-filter").hover()
+  await expect(page.locator(".app-tooltip")).toHaveText("Filters (1)")
   await expect(page.getByTestId("grid-page-range")).toHaveText("Rows 1–1")
   await expect(cellValue(page, "grid-cell-0-organization_id")).toHaveText(owner)
 

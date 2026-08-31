@@ -394,6 +394,7 @@ async def test_a_folder_name_defaults_when_the_form_is_submitted_unchanged(
     catalog = await client.get(
         f"{BASE}/{connector_id}/catalog",
         headers=normal_user_token_headers,
+        params={"node_id": "reports"},
     )
     assert "new folder" in {node["name"] for node in catalog.json()}
 
@@ -843,12 +844,20 @@ async def test_a_schema_offers_loading_a_csv_and_says_it_takes_a_file(
     )
     assert load["applicable"] is True
     # The screen learns all of this from the answer: that there is a file to
-    # attach, that the form has one field, and where the action puts things.
+    # attach, which fields the form has, and where the action puts things.
     assert load["takes_file"] is True
     # One file makes one table, so this one is not offered as a set.
     assert load["takes_many_files"] is False
     assert load["acts_on"] == "children"
-    assert list(load["params_schema"]["properties"]) == ["name"]
+    assert list(load["params_schema"]["properties"]) == [
+        "name",
+        "schema_name",
+        "create_schema",
+        "columns",
+    ]
+    # The pairing of file columns to table columns is a workflow of its own,
+    # not a field the generic form knows how to draw.
+    assert load["params_schema"]["x-ui-workflow"] == "file-to-relation"
 
 
 async def test_a_system_schema_does_not_admit_a_loaded_csv(
