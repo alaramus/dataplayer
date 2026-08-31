@@ -210,10 +210,14 @@ pure-logic split rests on review.
 - `AGENTS.md` is loaded into every session, so it holds no reasoning. What grows
   there belongs in `docs/architecture/`.
 
-**Enforced:** `bash scripts/check-docs.sh` — every relative link resolves, every
-decision in the table has exactly one home in `docs/architecture/` and none
-lives there unlisted, and `AGENTS.md` stays under 24 KB. All three were checked
-by breaking them. That a deviation is recorded at all rests on review.
+**Enforced:** `bash scripts/check-docs.sh` — six assertions: every relative link
+resolves; every decision lives in exactly the file the `AGENTS.md` table names,
+and none lives in `docs/architecture/` unlisted; `AGENTS.md` stays under 24 KB;
+every decision carries exactly one `Spec:` line, so the argument is reachable
+from the statement; no architecture file and not the roadmap exceeds 40 KB —
+the ceiling `adapters.md` never had, which is how it reached 114 KB; and no
+architecture file is an orphan. Each was checked by breaking it. That a
+deviation is recorded at all rests on review.
 
 ## A failing check is fixed in code, not weakened
 
@@ -235,7 +239,7 @@ the way to a green run.
 | `bun run lint` | frontend style, stores not reaching the API | works |
 | `bun run test:unit` | pure frontend logic | works |
 | `bunx playwright test` | end-to-end, needs db + backend + dev server | works |
-| `bash scripts/check-docs.sh` | doc links, decisions with one home, AGENTS.md size | works |
+| `bash scripts/check-docs.sh` | doc links, each decision in the file the registry names and naming its spec, no orphan architecture file, AGENTS.md and per-file size | works |
 
 A change is ready when every command touching the affected side is clean. That
 is necessary, not sufficient: it says nothing about whether the thing asked for
