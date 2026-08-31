@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest"
 
-import { renderProse } from "./render"
+import { outlineProse, renderProse } from "./render"
 import { sanitizeDocument, sanitizeFragment, sanitizeSvg } from "./sanitize"
 
 describe("what a document may put into the page", () => {
   it("removes a script wherever the author writes it", () => {
-    expect(sanitizeFragment('<p>ok</p><script>alert(1)</script>')).toBe("<p>ok</p>")
+    expect(sanitizeFragment("<p>ok</p><script>alert(1)</script>")).toBe("<p>ok</p>")
     expect(renderProse("<script>alert(1)</script>\n\ntext")).not.toContain("alert(1)")
   })
 
@@ -27,11 +27,11 @@ describe("what a document may put into the page", () => {
     expect(sanitizeFragment('<a href="javascript:alert(1)">x</a>')).not.toContain("javascript:")
   })
 
-  it("leaves a relative link inert, because nothing resolves it yet", () => {
+  it("leaves a relative link for the source-aware panel to resolve", () => {
     const html = sanitizeFragment('<a href="./notes.txt">x</a>')
 
     expect(html).not.toContain("href")
-    expect(html).toContain("data-unresolved-link")
+    expect(html).toContain('data-relative-link="./notes.txt"')
   })
 
   it("sends an external link to a new window that cannot reach the opener", () => {
@@ -62,8 +62,10 @@ describe("what a document may put into the page", () => {
   })
 
   it("keeps a local image, lazy and without a referrer", () => {
-    const html = sanitizeFragment('<img src="/api/v1/pixel.png">')
+    const html = sanitizeFragment('<img src="./pixel.png">')
 
+    expect(html).not.toContain("src=")
+    expect(html).toContain('data-relative-source="./pixel.png"')
     expect(html).toContain('loading="lazy"')
     expect(html).toContain('referrerpolicy="no-referrer"')
   })
@@ -107,5 +109,22 @@ describe("rendering prose", () => {
 
   it("renders a formula through KaTeX", () => {
     expect(renderProse("$E = mc^2$")).toContain("katex")
+  })
+
+  it("gives duplicate and Unicode headings the outline's stable ids", () => {
+    const prose = ["# Привет, мир\n\n## Again", "# Привет, мир"]
+    const outline = outlineProse(prose)
+
+    expect(outline.headings).toEqual([
+      { id: "привет-мир", title: "Привет, мир", level: 1 },
+      { id: "again", title: "Again", level: 2 },
+      { id: "привет-мир-2", title: "Привет, мир", level: 1 },
+    ])
+    expect(renderProse(prose[0] ?? "", { headingIds: outline.blockHeadingIds[0] })).toContain(
+      'id="привет-мир"'
+    )
+    expect(renderProse(prose[1] ?? "", { headingIds: outline.blockHeadingIds[1] })).toContain(
+      'id="привет-мир-2"'
+    )
   })
 })

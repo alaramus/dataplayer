@@ -1,7 +1,7 @@
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query"
 import { flushPromises, mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
-import { defineComponent } from "vue"
+import { defineComponent, ref } from "vue"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ConnectorsService } from "@/client"
@@ -11,6 +11,9 @@ import { workspaceActionsKey } from "@/features/workspace/state"
 import MarkdownPanel from "./MarkdownPanel.vue"
 
 const openRepresentation = vi.fn()
+const revealInCatalog = vi.fn()
+const documentTarget = ref(null)
+const takeDocumentTarget = vi.fn().mockReturnValue(null)
 let registry = createReloadRegistry()
 
 const Host = defineComponent({
@@ -49,7 +52,12 @@ function mountPanel(overrides: Record<string, unknown> = {}) {
         ],
       ],
       provide: {
-        [workspaceActionsKey as symbol]: { openRepresentation },
+        [workspaceActionsKey as symbol]: {
+          openRepresentation,
+          revealInCatalog,
+          documentTarget,
+          takeDocumentTarget,
+        },
       },
     },
   })
@@ -70,6 +78,9 @@ function document(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.restoreAllMocks()
   openRepresentation.mockClear()
+  revealInCatalog.mockClear()
+  takeDocumentTarget.mockReset().mockReturnValue(null)
+  documentTarget.value = null
   registry = createReloadRegistry()
 })
 
@@ -83,6 +94,48 @@ describe("the rendered document panel", () => {
     const rendered = wrapper.get('[data-testid="markdown-document"]')
     expect(rendered.find("h1").text()).toBe("Title")
     expect(rendered.text()).not.toContain("# Title")
+  })
+
+  it("builds a duplicate-safe table of contents and navigates from it", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(
+      document({ text: "# One\n\n## Two\n\n# One" })
+    )
+
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="markdown-contents"]').text()).toContain("Two")
+    expect(wrapper.find('[data-testid="markdown-document"] #one').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="markdown-document"] #one-2').exists()).toBe(true)
+    await wrapper.get('[data-testid="markdown-heading-two"]').trigger("click")
+    expect(wrapper.get("#two").attributes("tabindex")).toBe("-1")
+  })
+
+  it("searches visible prose and callouts without searching a code payload", async () => {
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(
+      document({
+        text: [
+          "# Search",
+          "Find this phrase.",
+          "```json",
+          '"find stays payload"',
+          "```",
+          "```summary",
+          "Find this callout.",
+          "```",
+        ].join("\n"),
+      })
+    )
+
+    const wrapper = mountPanel()
+    await flushPromises()
+    await wrapper.get('[data-testid="markdown-search"]').setValue("find")
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="markdown-search-position"]').text()).toBe("1/2")
+    expect(wrapper.findAll("mark[data-search-highlight]")).toHaveLength(2)
+    await wrapper.get('[data-testid="markdown-search-next"]').trigger("click")
+    expect(wrapper.get('[data-testid="markdown-search-position"]').text()).toBe("2/2")
   })
 
   it("asks for the markdown representation of the node it was opened on", async () => {
@@ -103,9 +156,7 @@ describe("the rendered document panel", () => {
     const wrapper = mountPanel()
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="markdown-truncated"]').text()).toContain(
-      "only its beginning"
-    )
+    expect(wrapper.get('[data-testid="markdown-truncated"]').text()).toContain("only its beginning")
   })
 
   it("counts the images it did not request, and asks before requesting them", async () => {
@@ -122,9 +173,7 @@ describe("the rendered document panel", () => {
     await wrapper.get('[data-testid="markdown-allow-remote"]').trigger("click")
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="markdown-document"]').html()).toContain(
-      "example.test/a.png"
-    )
+    expect(wrapper.get('[data-testid="markdown-document"]').html()).toContain("example.test/a.png")
   })
 
   it("opens the source in the editor under the name the source gave it", async () => {
@@ -138,6 +187,88 @@ describe("the rendered document panel", () => {
       expect.objectContaining({
         nodeId: "guide.md",
         representations: [{ kind: "text", title: "View as text" }],
+      })
+    )
+  })
+
+  it("opens a relative link from the source-issued catalog node", async () => {
+    const current = {
+      kind: "file",
+      id: "opaque-guide",
+      name: "guide.md",
+      size_bytes: 10,
+      representations: [{ kind: "markdown", title: "View as document" }],
+    }
+    const target = {
+      kind: "file",
+      id: "opaque-notes",
+      name: "notes.md",
+      size_bytes: 10,
+      representations: [{ kind: "markdown", title: "View as document" }],
+    }
+    vi.spyOn(ConnectorsService, "readContent").mockResolvedValue(
+      document({ text: "[Open the notes](notes.md#details)" })
+    )
+    vi.spyOn(ConnectorsService, "readNodePath").mockResolvedValue({ data: [current] } as never)
+    vi.spyOn(ConnectorsService, "readCatalog").mockResolvedValue({ data: [target] } as never)
+
+    const wrapper = mountPanel({ nodeId: "opaque-guide" })
+    await flushPromises()
+    await wrapper.get('[data-relative-link="notes.md#details"]').trigger("click")
+    await flushPromises()
+
+    expect(openRepresentation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nodeId: "opaque-notes",
+        fragment: "details",
+        representations: target.representations,
+      })
+    )
+  })
+
+  it("loads a relative image only through its declared verified preview", async () => {
+    const current = {
+      kind: "file",
+      id: "opaque-guide",
+      name: "guide.md",
+      size_bytes: 10,
+      representations: [{ kind: "markdown", title: "View as document" }],
+    }
+    const picture = {
+      kind: "file",
+      id: "opaque-picture",
+      name: "picture.png",
+      size_bytes: 10,
+      representations: [{ kind: "image", title: "View image" }],
+    }
+    vi.spyOn(ConnectorsService, "readContent").mockImplementation(async (input) =>
+      input.body.representation === "markdown"
+        ? document({ text: "![Local](picture.png)" })
+        : ({
+            data: {
+              kind: "image",
+              filename: "picture.png",
+              media_type: "image/png",
+              size_bytes: 10,
+              width: 2,
+              height: 2,
+              preview_url: "/api/v1/connectors/content-files/ticket",
+            },
+          } as never)
+    )
+    vi.spyOn(ConnectorsService, "readNodePath").mockResolvedValue({ data: [current] } as never)
+    vi.spyOn(ConnectorsService, "readCatalog").mockResolvedValue({ data: [picture] } as never)
+
+    const wrapper = mountPanel({ nodeId: "opaque-guide" })
+    await flushPromises()
+    await flushPromises()
+
+    expect(wrapper.get('img[alt="Local"]').attributes("src")).toContain(
+      "/api/v1/connectors/content-files/ticket"
+    )
+    expect(ConnectorsService.readContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: { node_id: "opaque-picture", representation: "image" },
       })
     )
   })

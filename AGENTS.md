@@ -60,9 +60,9 @@ included; the spec index lists the older titles in translation.
   sorting) and the personal file storage every user owns (a file declares how
   it opens; text, JSON and JSONL open in a source editor that highlights by
   type and saves under the version it read, JSON and JSONL are also shown as
-  rows on request, a verified PNG or JPEG opens as a picture, and Markdown
-  opens rendered — diagrams, formulas and charts included — with its source one
-  click away).
+  rows on request, PNG/JPEG opens as a verified picture, and Markdown opens as
+  a document — diagrams, formulas, charts, contents, search, export and relative
+  neighbours included — with its source one click away).
 - In that storage: create a folder, rename, delete, upload — one node at a time
   or several at once. What is offered comes from the server for exactly the
   nodes that are ticked, so the screen knows nothing about any particular

@@ -33,7 +33,10 @@ withDefaults(
         />
         {{ label }}
       </span>
-      <span class="block-chrome__actions">
+      <span
+        class="block-chrome__actions"
+        data-export-exclude
+      >
         <slot name="actions" />
       </span>
     </figcaption>

@@ -60,7 +60,7 @@ Reason: A callout is a fenced code block anywhere else, so nothing is lost.
 
 - [x] tables, lists and task lists
 - [x] fenced code with the editor's own highlighting
-- [ ] a table of contents, search and export
+- [x] a table of contents, search and export
 
 The mass-energy equivalence is $E = mc^2$, and a block formula reads
 
@@ -103,7 +103,10 @@ def total(rows: list[int]) -> int:
     return sum(rows)
 ```
 
-A [relative link](notes.txt) and a remote image, which is blocked:
+A [relative link](notes.txt), a local image beside this document, and a remote
+image, which is blocked:
+
+![local logo](logo.png)
 
 ![remote](https://example.invalid/logo.png)
 """

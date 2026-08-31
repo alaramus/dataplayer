@@ -36,8 +36,8 @@ this repository: read it, then write the DataPlayer version. What is taken:
 - blocking remote resources by default;
 - a per-block size ceiling and mounting heavy blocks only when they are seen.
 
-What is left behind: its tabs, table of contents, in-document search, export,
-share links, recent documents, service worker, five-language i18n and its
+What the first slice leaves behind: its tabs, table of contents, in-document
+search, export, share links, recent documents, service worker, five-language i18n and its
 `highlight.js` code blocks. DataPlayer already owns tabs (workspace), files (the
 file source), download (D49) and code highlighting (CodeMirror).
 
@@ -82,9 +82,9 @@ Then links and images are hardened. An `http(s)`, `mailto` or `tel` link is sent
 to a new window with `rel="noopener noreferrer"` — a document is shown inside a
 workspace panel, and a link followed in place would take the application with
 it. A fragment stays as it is. Everything else, relative paths included, keeps
-its text and loses its `href`: nothing resolves a path against the document's
-own directory yet, and a link that navigates the workspace to a page that does
-not exist is worse than a link that does nothing. Every image is
+its text and loses its browser `href` or `src`: the follow-up below resolves it
+through the source, and a link that first navigates the workspace as a web page
+would still be wrong. Every image is
 `loading="lazy"` and `referrerpolicy="no-referrer"`; inputs other than
 checkboxes are removed and checkboxes are disabled. `iframe`, `object`, `embed`, `form` and `button` are
 forbidden outright, so an embedded player is not a thing a document can ask for.
@@ -181,12 +181,48 @@ colour that carries the meaning, the leading `Key: value` lines are laid out as
 fields, and the rest is rendered as Markdown through the same sanitised path as
 any other prose. Nine kinds are drawn; anything else stays a code block.
 
-## What this slice does not do
+## Follow-up: the document is navigable and portable
 
-No table of contents, no in-document search, no export to HTML or PDF, no
-YouTube or other embeds — a video is a fence this viewer leaves as code, because
-`iframe` is forbidden for content the reader did not write — and no resolution
-of relative image paths against the document's own directory — a relative image is
-simply not fetched yet. Progressive rendering by token batches is not ported
-either; the 1 MB ceiling is what bounds the work for now. Each of these is
-separable and none of them changes the contract above.
+The next slice stays inside D50 and changes no adapter contract. Markdown
+headings receive stable, duplicate-safe Unicode ids and form a table of
+contents beside the document. Search walks the visible prose and callout text,
+marks every literal case-insensitive match and moves between matches without
+indexing code, Mermaid, ECharts or SVG payloads. Neither tool parses the HTML
+back into Markdown: heading metadata comes from the same Markdown parser that
+renders the prose, while search works over the final, sanitised DOM the reader
+can actually see.
+
+Rendered export has two forms. HTML clones the document, removes search marks
+and block controls, turns verified same-origin images into data URLs and embeds
+the application's readable styles. Print/PDF opens that same inert HTML in an
+isolated print frame. Both force deferred blocks to mount first, but wait only
+to a bounded deadline; a broken diagram remains the named failure the viewer
+already shows. No script is exported and the exported page has a restrictive
+content-security policy.
+
+A relative reference is resolved through D21 rather than by joining strings to
+a node id. The client asks for the current node's source-issued path, walks
+`..` over that chain and each ordinary segment through the source's existing
+one-level catalog listing, choosing a child by the name the source returned.
+The resulting node id is copied unchanged. A linked node opens through its
+declared preferred representation; a directory is revealed in its catalog.
+A relative image is accepted only if that resolved node declares `image`, then
+uses D49's ordinary verified image read and short-lived byte ticket. Images are
+resolved only near the viewport, except that export deliberately resolves all
+of them before cloning. Missing, ambiguous and non-image targets remain visible
+failures rather than browser requests to the DataPlayer origin.
+
+A fragment in the current document scrolls locally. A fragment on another
+Markdown document is handed through the workspace with the open command and is
+consumed by that document panel after it renders, in the same one-shot style as
+reference navigation. Query strings do not choose a source node and are
+ignored during resolution.
+
+## What this slice still does not do
+
+No YouTube or other embeds — a video is a fence this viewer leaves as code,
+because `iframe` is forbidden for content the reader did not write. Progressive
+rendering by token batches is not ported either; the 1 MB ceiling is what bounds
+the work for now. HTML export keeps explicitly allowed remote images as remote
+references rather than fetching them again, and a relative link does not embed
+the linked document into the export.

@@ -3,11 +3,7 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
-import type {
-  ContentRequest,
-  EditorContentRequest,
-  UpdateContentRequest,
-} from "@/client"
+import type { ContentRequest, EditorContentRequest, UpdateContentRequest } from "@/client"
 
 export const contentKey = (connectorId: string, request: ContentRequest) =>
   ["content", connectorId, request] as const
@@ -24,6 +20,26 @@ export function useContent(connectorId: Ref<string>, request: Readonly<Ref<Conte
         })
       ).data,
   })
+}
+
+/** An imperative content read that still shares vue-query's server-state cache. */
+export function useContentLoader() {
+  const queryClient = useQueryClient()
+  return async function loadContent(connectorId: string, request: ContentRequest) {
+    return queryClient.fetchQuery({
+      queryKey: contentKey(connectorId, request),
+      queryFn: async () =>
+        (
+          await ConnectorsService.readContent({
+            path: { connector_id: connectorId },
+            body: request,
+          })
+        ).data,
+      // Preview tickets live for one minute. Leave enough margin that an
+      // image resolved from Markdown is not handed an almost-expired URL.
+      staleTime: 45_000,
+    })
+  }
 }
 
 export const editorContentKey = (connectorId: string, request: EditorContentRequest) =>

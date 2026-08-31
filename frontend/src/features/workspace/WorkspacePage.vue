@@ -32,6 +32,7 @@ import type { Panel } from "@/features/workspace/panels"
 import { createReloadRegistry, provideReloadRegistry } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
 import type {
+  DocumentTarget,
   FollowReferenceCommand,
   FollowTarget,
   OpenChartRequest,
@@ -146,6 +147,7 @@ provideReloadRegistry(reloads)
  */
 const revealTarget = ref<RevealTarget | null>(null)
 const followTarget = ref<FollowTarget | null>(null)
+const documentTarget = ref<DocumentTarget | null>(null)
 const toast = useToast()
 
 // The state of every connection, pushed while this screen is open. Called
@@ -345,6 +347,15 @@ provide(workspaceActionsKey, {
   openRepresentation: (request: OpenRepresentationRequest) => {
     const preferred = request.representations[0]
     if (preferred === undefined) return
+    if (preferred.kind === "markdown" && request.fragment) {
+      // Set before opening: a newly mounted panel can take it immediately,
+      // while an already mounted one observes the same piece of state.
+      documentTarget.value = {
+        connectorId: request.connectorId,
+        nodeId: request.nodeId,
+        fragment: request.fragment,
+      }
+    }
     if (preferred.kind === "table") {
       workspace.open({
         id: rowsPanelId(request.connectorId, request.nodeId),
@@ -374,6 +385,15 @@ provide(workspaceActionsKey, {
       ...(table === undefined ? {} : { tableTitle: table.title }),
       ...(source === undefined ? {} : { sourceTitle: source.title }),
     })
+  },
+  documentTarget,
+  takeDocumentTarget: (connectorId: string, nodeId: string) => {
+    const target = documentTarget.value
+    if (target === null || target.connectorId !== connectorId || target.nodeId !== nodeId) {
+      return null
+    }
+    documentTarget.value = null
+    return target
   },
   /**
    * Open the target of a reference and hand its tab the predicate.

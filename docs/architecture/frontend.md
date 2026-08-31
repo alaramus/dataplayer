@@ -378,9 +378,9 @@ inline `style` only inside `.katex`, whose layout depends on generated styles.
 Links and images are then hardened. An `http(s)`, `mailto` or `tel` link opens
 in a new window with `rel="noopener noreferrer"`, because a document lives
 inside a panel and following a link in place would take the application with it;
-an anchor is left alone; anything else — including every relative path — is left
-inert, since nothing resolves a path against the document's own directory yet.
-Images are lazy and send no referrer, and `iframe`, `object`, `embed`, `form`
+an anchor is left alone; anything else — including every relative path — loses
+its browser `href` or `src` and is marked for source-aware resolution after the
+DOM is mounted. Images are lazy and send no referrer, and `iframe`, `object`, `embed`, `form`
 and `button` cannot appear at all. SVG, including everything Mermaid draws under `securityLevel: "strict"`,
 goes through the SVG profile with `script` and `foreignObject` forbidden.
 
@@ -438,11 +438,23 @@ the document left unsaid.
 The renderer is ported from `rich-md-viewer`, a standalone application by the
 same author, on this repository's usual terms: its two-stage sanitisation,
 fence splitting, remote-resource gating and block ceilings are the ideas worth
-having. Its tabs, table of contents, in-document search, export, share links and
-i18n are not ported — the workspace, the file source and D49 already own those
-concerns. This slice deliberately leaves out the table of contents, in-document
-search, export, embeds, agent callout cards, progressive rendering by token
-batch, and relative image paths resolved against the document's own directory.
+having. Its tabs, share links and i18n are not ported — the workspace and file
+source already own those concerns. Its table of contents, visible-text search
+and inert rendered export are now adapted to a panel rather than a page.
+
+Relative document references do not weaken D21. The client never joins a path
+to an id: it starts from the source-issued path of the open node, walks every
+segment through the existing one-level catalog read and copies the node it
+finds. A link opens that node's preferred declared representation, while an
+image additionally has to declare `image` and then travels through D49's
+verified preview ticket. Resolution is lazy near the viewport; HTML/PDF export
+resolves every local image, embeds its bytes, removes viewer controls and
+search marks, and exports no script. A cross-document fragment is a one-shot
+workspace target consumed after the destination document renders.
+
+Progressive rendering by token batch and embeds remain out. The 1 MB document
+ceiling bounds parsing for now, and an explicitly allowed remote image remains
+an external reference in an export rather than being fetched a second time.
 
 ## Screens
 

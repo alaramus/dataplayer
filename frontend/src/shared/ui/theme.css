@@ -76,6 +76,10 @@
   --dp-link: rgba(25, 118, 210, 0.9);
   --dp-focus-border: rgba(25, 118, 210, 0.5);
 
+  /* A literal match in a document, and content that could not be resolved. */
+  --dp-find: #f59e0b;
+  --dp-content-error: #c62828;
+
   /* Ordered series colours. A chart asks for the next series, not for a
      literal that would disappear on the other surface. */
   --dp-chart-1: #1976d2;
@@ -136,6 +140,8 @@ body.body--dark {
   --dp-selected-quiet: rgba(100, 181, 246, 0.08);
   --dp-link: rgba(144, 202, 249, 0.95);
   --dp-focus-border: rgba(100, 181, 246, 0.6);
+  --dp-find: #fbbf24;
+  --dp-content-error: #ef9a9a;
 
   --dp-chart-1: #64b5f6;
   --dp-chart-2: #4db6ac;

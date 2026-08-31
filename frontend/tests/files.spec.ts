@@ -165,9 +165,7 @@ async function scrollTo(document: Locator, testId: string): Promise<Locator> {
   return block
 }
 
-test("opens Markdown as a document, with its diagram, chart and source", async ({
-  page,
-}) => {
+test("opens Markdown as a document, with its diagram, chart and source", async ({ page }) => {
   const name = `e2e-markdown-${Date.now()}`
   await login(page)
   await createFileConnector(page, name)
@@ -181,6 +179,18 @@ test("opens Markdown as a document, with its diagram, chart and source", async (
   await expect(rendered).not.toContainText("# Sample document")
   await expect(rendered.locator("table")).toBeVisible()
   await expect(page.getByTestId("content-editor")).toHaveCount(0)
+
+  // Headings form one duplicate-safe outline, and search visits the literal
+  // text the reader sees rather than fenced payloads.
+  const contents = page.getByTestId("markdown-contents")
+  await expect(contents).toContainText("What it renders")
+  await contents.getByRole("button", { name: "What it renders" }).click()
+  await expect(rendered.locator("#what-it-renders")).toBeFocused()
+  await page.getByTestId("markdown-search").fill("document")
+  await expect(page.getByTestId("markdown-search-position")).toHaveText(/1\/\d+/)
+  await page.getByTestId("markdown-search-next").click()
+  await expect(page.getByTestId("markdown-search-position")).toHaveText(/2\/\d+/)
+  await page.getByTestId("markdown-search").fill("")
 
   // A callout an agent wrote is a card, not a listing: its kind is named and
   // its leading key lines are laid out as fields.
@@ -212,9 +222,21 @@ test("opens Markdown as a document, with its diagram, chart and source", async (
   await rendered.getByTestId("svg-source-toggle").click()
   await expect(rendered.getByTestId("svg-figure").locator("svg")).toBeVisible()
 
+  // A path beside the Markdown is resolved through the catalog, then opened
+  // only through the image representation's verified content ticket.
+  const localImage = rendered.getByRole("img", { name: "local logo" })
+  await localImage.scrollIntoViewIfNeeded()
+  await expect(localImage).toHaveAttribute("src", /\/content-files\//)
+
   // Nothing was fetched from another site, and the document says so.
   await expect(rendered.locator("img[data-remote-blocked]")).toHaveCount(1)
   await expect(page.getByText(/image\(s\) in this document are hosted elsewhere/)).toBeVisible()
+
+  // Export is the rendered document alone, not the workspace around it.
+  const download = page.waitForEvent("download")
+  await page.getByTestId("markdown-export").click()
+  await page.getByTestId("menu-item-html").click()
+  expect((await download).suggestedFilename()).toBe("guide.html")
 
   // The same bytes are one click away in the editor, which is where a
   // document is changed.

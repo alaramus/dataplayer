@@ -54,6 +54,9 @@ export interface WorkspaceActions {
   openRows: (request: OpenRowsRequest) => void
   /** Open the source's chosen representation with the matching viewer. */
   openRepresentation: (request: OpenRepresentationRequest) => void
+  /** A one-shot fragment handed to a Markdown panel opened from another document. */
+  documentTarget: Readonly<Ref<DocumentTarget | null>>
+  takeDocumentTarget: (connectorId: string, nodeId: string) => DocumentTarget | null
   /**
    * Open what a foreign key points at, showing exactly the rows it names.
    *
@@ -126,6 +129,14 @@ export interface OpenRepresentationRequest {
   adapterType: string
   representations: NodeRepresentation[]
   describable: boolean
+  /** A heading id from a relative document link, not part of panel identity. */
+  fragment?: string
+}
+
+export interface DocumentTarget {
+  connectorId: string
+  nodeId: string
+  fragment: string
 }
 
 export interface OpenStructureRequest {

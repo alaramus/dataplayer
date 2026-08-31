@@ -12,7 +12,7 @@ import DOMPurify from "dompurify"
 
 /** Links that lead somewhere outside this application, and may be followed. */
 const EXTERNAL_HREF = /^(?:https?|mailto|tel):/i
-const SAFE_IMAGE_SRC = /^(?:https?:|data:image\/(?:png|gif|jpe?g|webp);base64,|[/.])/i
+const INLINE_IMAGE = /^data:image\/(?:png|gif|jpe?g|webp);base64,/i
 const REMOTE = /^(?:https?:)?\/\//i
 
 /** Tags no document may introduce, whatever it writes. */
@@ -37,22 +37,25 @@ function harden(root: ParentNode, options: SanitizeOptions): void {
       link.setAttribute("rel", "noopener noreferrer")
       continue
     }
-    // Anything else is relative, and nothing resolves it against the
-    // document's own directory yet. An inert link is better than one that
-    // navigates the workspace to a page that does not exist.
+    // The panel resolves this through the source's path and catalog contracts.
+    // It must not become a browser navigation to the DataPlayer origin first.
     link.removeAttribute("href")
-    if (href) link.setAttribute("data-unresolved-link", "")
+    if (href) link.setAttribute("data-relative-link", href)
   }
 
   for (const image of root.querySelectorAll("img")) {
     const source = image.getAttribute("src")?.trim() ?? ""
-    if (source && !SAFE_IMAGE_SRC.test(source)) {
-      image.removeAttribute("src")
-    } else if (source && isRemoteSource(source) && options.allowRemoteImages !== true) {
+    if (source && isRemoteSource(source) && options.allowRemoteImages !== true) {
       // Kept as an attribute rather than dropped silently: the panel counts
       // these and says that something was not fetched.
       image.removeAttribute("src")
       image.setAttribute("data-remote-blocked", "")
+    } else if (source && !isRemoteSource(source) && !INLINE_IMAGE.test(source)) {
+      // A same-origin-looking path belongs to the source, not this web app.
+      // The document panel resolves it to an opaque node before requesting a
+      // verified D49 preview ticket.
+      image.removeAttribute("src")
+      image.setAttribute("data-relative-source", source)
     }
     image.setAttribute("loading", "lazy")
     image.setAttribute("referrerpolicy", "no-referrer")

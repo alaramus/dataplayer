@@ -285,7 +285,7 @@ open as rows, which D47 had already changed, and the delete loop in
 `grid.spec.ts` ticked a row before the page had been re-read, so the source
 was asked to delete an already deleted row and rightly refused.
 
-- [ ] Finish the rendered document while it is fresh: a table of contents,
+- [x] Finish the rendered document while it is fresh: a table of contents,
   in-document search, export, and relative paths resolved against the
   document's own directory — that last one is what makes a link to a
   neighbouring file inert today, and what would let an image beside a `.md`
@@ -293,6 +293,16 @@ was asked to delete an already deleted row and rightly refused.
   not a new contract. Deliberately ahead of Parquet: it is the same code, read
   by the same people, and the reason a document cannot yet point at its
   neighbour.
+  The implementation and its tests are written. Headings form a duplicate-safe
+  Unicode outline; literal search visits visible prose and callouts; rendered
+  HTML embeds verified local images and the same inert copy prints to PDF; and
+  relative references walk source-issued paths and catalog nodes without
+  composing an id. Validated on 2026-08-31 by the whole backend suite, mypy,
+  ruff, import contracts, frontend type check, lint, unit tests, production
+  build, the documentation check, the four file end-to-end scenarios and the
+  whole 105-scenario end-to-end suite. One old workspace geometry scenario
+  failed once under parallel load, passed 3/3 in isolation, and the repeated
+  whole suite passed 105/105.
 - [ ] Add Parquet and XLSX as explicit optional capabilities, with sheet or
   dataset selection, format-specific metadata and server-side bounds. Their
   natural representations may use the grid, but that does not make every file
@@ -318,9 +328,10 @@ was asked to delete an already deleted row and rightly refused.
   `markdown-it` with KaTeX and task lists, and `mermaid`, `echarts`, `svg` and
   code fences as bounded blocks that mount when they are scrolled to. Code
   fences reuse the editor's CodeMirror rather than a second highlighter, and the
-  whole stack is loaded only when a document is opened. What was left in the old
-  project: its tabs, table of contents, in-document search, export, share links
-  and i18n.
+  whole stack is loaded only when a document is opened. The initial slice left
+  its tabs, table of contents, in-document search, export, share links and i18n
+  in the old project; the `[x]` follow-up above brings the middle three into the
+  existing panel without bringing its tabs or sharing model.
   Validated on 2026-08-31 by the whole backend suite, mypy, ruff, import
   contracts, frontend type check, lint, unit tests, the documentation check and
   the whole end-to-end suite, and then read in the browser: the sample document,
@@ -610,21 +621,9 @@ end-to-end suite.
 
 ## Next session
 
-D49 and D50 are done: download is an action of the source over the ticked nodes,
-a verified PNG or JPEG opens in its own panel, and a Markdown file opens as a
-rendered document with its source one click away.
-
-Two decisions were taken during D50 and are worth knowing before the next
-slice. There is no general preview mode and there will not be one: a node's
-representations are the mechanism, and a second view of the same bytes is a
-second representation, not a mode. And a link inside a document that is not
-`http(s)`, `mailto`, `tel` or a fragment is deliberately inert, because nothing
-resolves a path against the document's own directory yet — that is the first
-thing to fix if documents start referring to their neighbours.
-
-Resume with the rest of the rendered document: a table of contents, search
-inside the document, export, and relative paths resolved against the document's
-own directory. That order was chosen deliberately over the list's — the code is
-fresh, the four belong together, and the last of them is why a link to a
-neighbouring file does nothing today. Parquet, XLSX, audio, video, PDF and
-archives come after, and must not teach the workspace file extensions.
+The rendered-document follow-up is complete and validated. Resume with Parquet
+and XLSX as explicit optional capabilities, with sheet or dataset selection,
+format-specific metadata and server-side bounds. Inspect their old adapters and
+screens before specifying the slice; reusing the grid must not turn every file
+into a tabular source. Audio, video, PDF and archives remain behind their stated
+contract decisions.

@@ -3,7 +3,9 @@
  * Mount a heavy block only when it is about to be seen, so a document of forty
  * diagrams costs one diagram to open. See D50.
  */
-import { onBeforeUnmount, onMounted, ref } from "vue"
+import { onBeforeUnmount, onMounted, ref, watch } from "vue"
+
+const props = withDefaults(defineProps<{ eager?: boolean }>(), { eager: false })
 
 const host = ref<HTMLElement | null>(null)
 const shown = ref(false)
@@ -20,6 +22,10 @@ function show() {
 }
 
 onMounted(() => {
+  if (props.eager) {
+    show()
+    return
+  }
   // jsdom and any browser without the observer get the block immediately: the
   // fallback is showing more, never showing nothing.
   if (!host.value || typeof IntersectionObserver === "undefined") {
@@ -34,6 +40,13 @@ onMounted(() => {
   )
   observer.observe(host.value)
 })
+
+watch(
+  () => props.eager,
+  (eager) => {
+    if (eager) show()
+  }
+)
 
 onBeforeUnmount(stop)
 </script>
