@@ -6,6 +6,7 @@ import ChartPanelView from "@/features/charts/ChartPanel.vue"
 import ContentPanelView from "@/features/content/ContentPanel.vue"
 import ImagePanelView from "@/features/content/ImagePanel.vue"
 import MediaPanelView from "@/features/content/MediaPanel.vue"
+import SqlPanelView from "@/features/content/SqlPanel.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
@@ -61,6 +62,7 @@ export const CONTENT_REPRESENTATIONS = [
   "audio",
   "video",
   "pdf",
+  "sql",
 ] as const
 export type ContentRepresentation = (typeof CONTENT_REPRESENTATIONS)[number]
 
@@ -89,6 +91,17 @@ export const panelSchema = z.discriminatedUnion("kind", [
     // Optional so a layout saved before D28 still restores. It gains the
     // source-declared value the next time the node is opened from its catalog.
     describable: z.boolean().optional(),
+    // Retained only when the node was opened from a catalog that had just
+    // declared its views. Old stored layouts and tabs opened by a reference
+    // still restore without inventing alternatives.
+    representations: z
+      .array(
+        z.object({
+          kind: z.enum(["table", ...CONTENT_REPRESENTATIONS]),
+          title: z.string().min(1),
+        })
+      )
+      .optional(),
   }),
   z.object({
     id: z.string(),
@@ -158,6 +171,7 @@ const CONTENT_ICONS: Record<ContentRepresentation, string> = {
   audio: "graphic_eq",
   video: "movie",
   pdf: "picture_as_pdf",
+  sql: "code",
 }
 
 /**
@@ -290,7 +304,8 @@ export function lookOf(panel: Panel): PanelLook {
         title: panel.title,
         icon: CONTENT_ICONS[panel.representation],
         iconTooltip: `${panel.connectorName} · Show in catalog`,
-        reloadTooltip: "Re-read this file",
+        reloadTooltip:
+          panel.representation === "sql" ? "Re-read this DDL" : "Re-read this file",
       }
     case "structure":
       return {
@@ -358,6 +373,7 @@ export function componentOf(panel: Panel): Component {
           connectorName: panel.connectorName,
           adapterType: panel.adapterType,
           describable: panel.describable === true,
+          representations: panel.representations,
         })
       )
     case "content": {
@@ -404,6 +420,19 @@ export function componentOf(panel: Panel): Component {
             connectorName: panel.connectorName,
             adapterType: panel.adapterType,
             sourceTitle: panel.sourceTitle,
+          })
+        )
+      }
+      if (representation === "sql") {
+        return boundComponent(panel.id, () =>
+          h(SqlPanelView, {
+            panelId: panel.id,
+            connectorId: panel.connectorId,
+            nodeId: panel.nodeId,
+            title: panel.title,
+            connectorName: panel.connectorName,
+            adapterType: panel.adapterType,
+            tableTitle: panel.tableTitle,
           })
         )
       }

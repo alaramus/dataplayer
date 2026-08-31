@@ -48,7 +48,12 @@ function mockPages() {
 }
 
 function mountGrid(
-  props: { title?: string; canDescribe?: boolean; referenceFilters?: Filter[] | null } = {}
+  props: {
+    title?: string
+    canDescribe?: boolean
+    contentTitle?: string
+    referenceFilters?: Filter[] | null
+  } = {}
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -226,6 +231,17 @@ describe("the basic data grid", () => {
     const wrapper = mountGrid({ canDescribe: true })
     await flushPromises()
     expect(wrapper.find('[data-testid="grid-structure"]').exists()).toBe(true)
+  })
+
+  it("offers the source-named content representation and emits its command", async () => {
+    mockPages()
+    const wrapper = mountGrid({ contentTitle: "View DDL" })
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="grid-content"]').exists()).toBe(true)
+    await wrapper.get('[data-testid="grid-content"]').trigger("click")
+
+    expect(wrapper.findComponent(DataGrid).emitted("content")).toHaveLength(1)
   })
 
   it("renders server columns and requests 100 rows by default", async () => {

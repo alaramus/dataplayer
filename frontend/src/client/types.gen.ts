@@ -116,8 +116,8 @@ export type ActionRequest = {
  *
  * What happened, and what the client should re-read because of it.
  *
- * Which branch of the catalog changed is known to whoever performed the
- * action; deriving it on the client from the name of the action would put
+ * Which branches of the catalog changed are known to whoever performed the
+ * action; deriving them on the client from the name of the action would put
  * the same rule in two places.
  */
 export type ActionResult = {
@@ -872,7 +872,16 @@ export type ContentRequest = {
   /**
    * Representation
    */
-  representation: "text" | "json" | "jsonl" | "image" | "markdown" | "audio" | "video" | "pdf"
+  representation:
+    | "text"
+    | "json"
+    | "jsonl"
+    | "image"
+    | "markdown"
+    | "audio"
+    | "video"
+    | "pdf"
+    | "sql"
   /**
    * Limit
    */
@@ -2325,7 +2334,17 @@ export type NodeRepresentation = {
   /**
    * Kind
    */
-  kind: "table" | "text" | "json" | "jsonl" | "image" | "markdown" | "audio" | "video" | "pdf"
+  kind:
+    | "table"
+    | "text"
+    | "json"
+    | "jsonl"
+    | "image"
+    | "markdown"
+    | "audio"
+    | "video"
+    | "pdf"
+    | "sql"
   /**
    * Title
    */
@@ -2987,6 +3006,34 @@ export type Sort = {
    * Descending
    */
   descending?: boolean
+}
+
+/**
+ * SqlContent
+ *
+ * A bounded, read-only SQL document issued by its source.
+ *
+ * It is not ``TextContent`` because ``text`` is the editable source-document
+ * contract of D48 in the current client. SQL shown here is a representation
+ * of another object and cannot honestly be saved back as that object's text.
+ */
+export type SqlContent = {
+  /**
+   * Kind
+   */
+  kind?: "sql"
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Truncated
+   */
+  truncated?: boolean
+  /**
+   * Notice
+   */
+  notice?: string | null
 }
 
 /**
@@ -4368,6 +4415,9 @@ export type connectorsReadContentResponses = {
     | ({
         kind: "text"
       } & TextContent)
+    | ({
+        kind: "sql"
+      } & SqlContent)
     | ({
         kind: "markdown"
       } & MarkdownContent)

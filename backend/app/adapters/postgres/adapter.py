@@ -21,6 +21,7 @@ from app.adapters.constraints import (
     CreateConstraintResult,
     DropConstraintRequest,
 )
+from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.export import ExportBatch, ExportRequest
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
@@ -33,6 +34,7 @@ from app.adapters.postgres.actions import POSTGRES_ACTION_TYPES, PostgresActions
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.columns import PostgresColumns
 from app.adapters.postgres.constraints import PostgresConstraints
+from app.adapters.postgres.content import PostgresContent
 from app.adapters.postgres.export import PostgresExport
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.indexes import PostgresIndexes
@@ -112,6 +114,7 @@ class PostgresAdapter:
         self._indexes = PostgresIndexes(self._session, self._relation)
         self._constraints = PostgresConstraints(self._session, self._relation)
         self._relations = PostgresRelationChanges(self._session, self._catalog)
+        self._content = PostgresContent(self._session)
 
     def cache_ttl(self, area: CacheArea) -> float:
         """A short stale window for reads whose source is under our control."""
@@ -173,6 +176,9 @@ class PostgresAdapter:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    async def read_content(self, request: ContentRequest) -> ContentResult:
+        return await self._content.read_content(request)
 
     def export_rows(self, request: ExportRequest) -> AsyncIterator[ExportBatch]:
         return self._export.export_rows(request)

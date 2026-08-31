@@ -391,6 +391,7 @@ export type {
   ScalarFilter,
   SchemaNode,
   Sort,
+  SqlContent,
   TableNode,
   TextContent,
   Token,

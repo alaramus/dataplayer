@@ -138,3 +138,26 @@ test("opens a report the connection publishes about itself", async ({ page }) =>
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
+
+test("opens a relation's source-issued DDL without making it editable", async ({ page }) => {
+  const name = `e2e-ddl-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  await catalogRow(page, "connector").click()
+  await expect(page.getByTestId("grid-content")).toBeVisible()
+  await page.getByTestId("grid-content").click()
+
+  const ddl = page.getByTestId("sql-editor")
+  await expect(ddl).toBeVisible()
+  await expect(ddl).toContainText("CREATE TABLE")
+  await expect(ddl).toContainText("connector")
+  await expect(ddl.locator(".cm-content")).toHaveAttribute("contenteditable", "false")
+
+  await page.getByTestId("sql-view-table").click()
+  await expect(page.getByTestId("grid-header")).toBeVisible()
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})

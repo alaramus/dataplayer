@@ -23,6 +23,7 @@ from app.adapters.protocol import AdapterError, NodeNotFound
 
 _SYSTEM_SCHEMAS = ("information_schema",)
 TABLE_REPRESENTATION = NodeRepresentation(kind="table", title="View as table")
+DDL_REPRESENTATION = NodeRepresentation(kind="sql", title="View DDL")
 
 
 def is_system_schema(name: str) -> bool:
@@ -205,7 +206,7 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
             has_children=False,
             is_materialized=row["kind"] == "m",
             is_system=is_system,
-            representations=[TABLE_REPRESENTATION],
+            representations=[TABLE_REPRESENTATION, DDL_REPRESENTATION],
             describable=True,
         )
     estimate = int(row["row_estimate"])
@@ -217,6 +218,6 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
         row_count_estimate=estimate if estimate >= 0 else None,
         size_bytes=row["size_bytes"],
         is_system=is_system,
-        representations=[TABLE_REPRESENTATION],
+        representations=[TABLE_REPRESENTATION, DDL_REPRESENTATION],
         describable=True,
     )

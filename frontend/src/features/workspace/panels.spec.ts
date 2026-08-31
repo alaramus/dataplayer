@@ -253,6 +253,25 @@ describe("the panel registry", () => {
     expect(lookOf(panel).icon).toBe("image")
   })
 
+  it("accepts source-issued SQL as read-only content with its own component", () => {
+    const panel: Panel = {
+      id: contentPanelId("c1", "public.orders", "sql"),
+      kind: "content",
+      connectorId: "c1",
+      nodeId: "public.orders",
+      title: "orders",
+      connectorName: "local pg",
+      adapterType: "postgres",
+      representation: "sql",
+      tableTitle: "View as table",
+    }
+
+    expect(panelSchema.safeParse(panel).success).toBe(true)
+    expect(componentOf(panel)).toBeDefined()
+    expect(lookOf(panel).icon).toBe("code")
+    expect(lookOf(panel).reloadTooltip).toBe("Re-read this DDL")
+  })
+
   it("puts structure in the column of work", () => {
     expect(
       roleOf({

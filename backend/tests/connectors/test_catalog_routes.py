@@ -106,7 +106,8 @@ async def test_table_is_a_leaf_because_relation_model_returns_its_columns(
     assert connector["kind"] == "table"
     assert connector["has_children"] is False
     assert connector["representations"] == [
-        {"kind": "table", "title": "View as table"}
+        {"kind": "table", "title": "View as table"},
+        {"kind": "sql", "title": "View DDL"},
     ]
 
 
@@ -210,22 +211,31 @@ async def test_adapter_without_catalog_support_returns_501(
     assert response.status_code == 501
     assert "does not support browsing" in response.json()["detail"]["message"]
 
+    content = await client.post(
+        f"{BASE}/{created.json()['id']}/content",
+        headers=normal_user_token_headers,
+        json={"node_id": "anything", "representation": "sql"},
+    )
+    assert content.status_code == 501
+    assert "does not support content viewers" in content.json()["detail"]["message"]
 
-async def test_adapter_without_content_support_returns_501(
+
+async def test_postgres_reads_relation_ddl_as_bounded_content(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     connector_id = await _create_connector(
-        client, normal_user_token_headers, f"content unsupported {uuid.uuid4()}"
+        client, normal_user_token_headers, f"relation DDL {uuid.uuid4()}"
     )
 
     response = await client.post(
         f"{BASE}/{connector_id}/content",
         headers=normal_user_token_headers,
-        json={"node_id": "public.connector", "representation": "json"},
+        json={"node_id": "public.connector", "representation": "sql"},
     )
 
-    assert response.status_code == 501
-    assert "does not support content viewers" in response.json()["detail"]["message"]
+    assert response.status_code == 200
+    assert response.json()["kind"] == "sql"
+    assert 'CREATE TABLE "public"."connector"' in response.json()["text"]
 
 
 async def test_path_names_every_node_from_the_root_down(

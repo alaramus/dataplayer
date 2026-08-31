@@ -92,6 +92,7 @@ async def test_reports_what_a_type_can_do(
 
     assert "Browse the catalog" in postgres
     assert "Read rows" in postgres
+    assert "View content" in postgres
     assert "View content" in files
     assert "Download" in files
     assert "Download" in {

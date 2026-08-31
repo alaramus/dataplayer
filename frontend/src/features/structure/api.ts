@@ -19,6 +19,13 @@ import type {
 export const relationModelKey = (connectorId: string, nodeId: string) =>
   ["relationModel", connectorId, nodeId] as const
 
+export const structureInvalidationKeys = (connectorId: string, nodeId: string) =>
+  [
+    relationModelKey(connectorId, nodeId),
+    ["rows", connectorId] as const,
+    ["content", connectorId] as const,
+  ] as const
+
 export function useRelationModel(connectorId: Ref<string>, nodeId: Ref<string>) {
   return useQuery({
     queryKey: computed(() => relationModelKey(connectorId.value, nodeId.value)),
@@ -51,12 +58,11 @@ function useStructureMutation<TBody, TResult>(
     mutationFn: (body: TBody) => run(connectorId.value, body),
     onSuccess: async (result: TResult) => {
       if (!changed(result)) return
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: relationModelKey(connectorId.value, nodeId.value),
-        }),
-        queryClient.invalidateQueries({ queryKey: ["rows", connectorId.value] }),
-      ])
+      await Promise.all(
+        structureInvalidationKeys(connectorId.value, nodeId.value).map((queryKey) =>
+          queryClient.invalidateQueries({ queryKey })
+        )
+      )
     },
   })
 }

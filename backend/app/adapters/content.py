@@ -9,10 +9,19 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 RepresentationKind = Literal[
-    "table", "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf"
+    "table",
+    "text",
+    "json",
+    "jsonl",
+    "image",
+    "markdown",
+    "audio",
+    "video",
+    "pdf",
+    "sql",
 ]
 ContentRepresentationKind = Literal[
-    "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf"
+    "text", "json", "jsonl", "image", "markdown", "audio", "video", "pdf", "sql"
 ]
 # The representations whose bytes a client reads through the ranged transport
 # of D52 rather than holding whole.
@@ -149,6 +158,22 @@ class TextContent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     kind: Literal["text"] = "text"
+    text: str
+    truncated: bool = False
+    notice: str | None = None
+
+
+class SqlContent(BaseModel):
+    """A bounded, read-only SQL document issued by its source.
+
+    It is not ``TextContent`` because ``text`` is the editable source-document
+    contract of D48 in the current client. SQL shown here is a representation
+    of another object and cannot honestly be saved back as that object's text.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["sql"] = "sql"
     text: str
     truncated: bool = False
     notice: str | None = None
@@ -311,6 +336,7 @@ class BoundedContentPreview:
 
 ContentResult = Annotated[
     TextContent
+    | SqlContent
     | MarkdownContent
     | JsonContent
     | JsonLinesContent

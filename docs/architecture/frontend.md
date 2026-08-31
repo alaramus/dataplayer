@@ -16,8 +16,10 @@ the structure tab adds and drops columns through source-declared capabilities.
 Catalog leaves open through the source's preferred representation: editable
 text, JSON and JSONL open as source, PNG and JPEG open in a bounded verified
 image viewer, and a declared table alternative opens the grid only when
-requested. Download is a source-declared catalog action over the checked nodes;
-there is no adapter-specific button in a row or an open content panel.
+requested. PostgreSQL relations keep that grid as preferred and expose their
+source-issued DDL in a bounded read-only SQL panel. Download is a
+source-declared catalog action over the checked nodes; there is no
+adapter-specific button in a row or an open content panel.
 A connection can be shared with a colleague at a level, and an administrator
 manages accounts on a page of their own. Light and dark themes,
 switched by a button beside Sign out and remembered.
@@ -76,8 +78,9 @@ frontend/src/
     │                    useCatalogLevel.ts walks a catalog outside any component
     ├── charts/          closed line, bar and pie views over one bounded page;
     │                    pure builders and suggestions stay outside components
-    ├── content/         source editing, bounded native content, the rendered
-    │                    document, and the verified binary viewers: an image,
+    ├── content/         source editing, bounded native content and read-only SQL,
+    │                    the rendered document, and the verified binary viewers:
+    │                    an image,
     │                    a player over the ranged stream, and a PDF the
     │                    application draws itself
     ├── grid/            the controlled data explorer: query state, filter and
@@ -312,8 +315,11 @@ Commands concerning an open table live in its grid header. **Show structure**
 therefore opens the structure beside the rows and is no longer repeated on
 every describable catalog row; the catalog remains navigation and selection.
 The header shows only commands the current representation supports, as icon
-buttons with tooltips. Column names select whole columns; sorting, pinning and
-hiding are separate controls inside each column header. The row-number column
+buttons with tooltips. A rows tab opened from the catalog retains the source's
+ordered representations, so a source-named content alternative such as
+**View DDL** is reachable without the grid inferring one. Column names select
+whole columns; sorting, pinning and hiding are separate controls inside each
+column header. The row-number column
 and pinned data columns remain at the left edge, while reference controls sit
 over the top-right of their cells without changing row geometry. Cell content
 is aligned left regardless of its source type.

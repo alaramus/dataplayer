@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, useTemplateRef, watch } from "vue"
+import { computed, ref, useTemplateRef, watch } from "vue"
 
-import type { FetchRequest, ReferencedRows } from "@/client"
+import type { FetchRequest, NodeRepresentation, ReferencedRows } from "@/client"
 import DataGrid from "@/features/grid/DataGrid.vue"
 import type { Filter } from "@/features/grid/types"
 import { useReloadable } from "@/features/workspace/reloadable"
@@ -22,8 +22,13 @@ const props = defineProps<{
   connectorName: string
   adapterType: string
   describable: boolean
+  representations?: NodeRepresentation[]
 }>()
 const workspace = useWorkspaceActions()
+
+const contentRepresentation = computed(() =>
+  props.representations?.find((representation) => representation.kind !== "table")
+)
 
 const grid = useTemplateRef<{ reload: () => Promise<void> }>("grid")
 
@@ -60,6 +65,23 @@ function showStructure() {
   })
 }
 
+function showContent() {
+  const representation = contentRepresentation.value
+  if (representation === undefined) return
+  const others = (props.representations ?? []).filter(
+    (candidate) => candidate.kind !== representation.kind
+  )
+  workspace.openRepresentation({
+    connectorId: props.connectorId,
+    nodeId: props.nodeId,
+    title: props.title,
+    connectorName: props.connectorName,
+    adapterType: props.adapterType,
+    representations: [representation, ...others],
+    describable: props.describable,
+  })
+}
+
 function showChart(request: FetchRequest, columns: string[]) {
   workspace.openChart({
     connectorId: props.connectorId,
@@ -89,8 +111,10 @@ function showReferenced(target: ReferencedRows) {
       :node-id="nodeId"
       :title="title"
       :can-describe="describable"
+      :content-title="contentRepresentation?.title"
       :reference-filters="referenceFilters"
       @describe="showStructure"
+      @content="showContent"
       @chart="showChart"
       @follow="showReferenced"
     />

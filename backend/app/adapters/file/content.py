@@ -204,6 +204,10 @@ class FileContent:
                 return _video_content(path)
             case "pdf":
                 return _pdf_content(path)
+            case "sql":
+                # The catalog guard above makes this unreachable for a file,
+                # but the closed content vocabulary includes source-issued SQL.
+                raise ValueError('A file does not offer the "sql" representation')
             case unreachable:
                 assert_never(unreachable)
 

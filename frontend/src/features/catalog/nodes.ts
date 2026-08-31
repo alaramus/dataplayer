@@ -90,6 +90,7 @@ const FILE_ICONS: Partial<Record<NodeRepresentation["kind"], string>> = {
   audio: "graphic_eq",
   video: "movie",
   pdf: "picture_as_pdf",
+  sql: "code",
 }
 
 const UNITS = ["B", "KB", "MB", "GB", "TB"]

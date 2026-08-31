@@ -517,7 +517,14 @@ server-confirmed non-system target and returns the relation's replacement id,
 and drop uses D46's rolled-back rehearsal to show what a cascade would remove.
 Backend, frontend unit and browser tests are written; validation is pending.
 
-- [ ] Offer a relation's DDL as a content representation under D47.
+- [~] Offer a relation's DDL as a content representation under D47.
+
+D57 makes source-issued SQL a distinct bounded, read-only content contract
+rather than sending a derived relation definition to D48's file editor.
+PostgreSQL relations keep table first and declare **View DDL** second; the grid
+retains that ordered declaration and opens a 256 KB SQL result assembled from
+PostgreSQL's catalog deparsers. Backend, frontend unit and browser tests are
+written; validation is pending together with D56.
 
 Deliberately later capabilities, with the reason in the spec: backup and
 restore (needs Phase 4's owned jobs), monitoring statistics (Phase 7), Grafana
@@ -801,10 +808,9 @@ end-to-end suite.
 
 1.5's discovery is done and written up in
 [its spec](superpowers/specs/2026-08-31-postgres-system-operations-design.md);
-D54 and D55 are implemented and validated. D56's schema commands are written
-with tests and await validation.
+D54 and D55 are implemented and validated. D56's schema commands and D57's
+bounded relation DDL are written with tests and await validation.
 
-Validate D56 with the affected backend and frontend checks after approval. If
-they are clean, mark it complete and continue 1.5 with DDL as a content
-representation. Phase 1 then closes; Phase 2 is sharing a bounded fetched
-snapshot.
+Validate D56 and D57 with the affected backend and frontend checks after
+approval. If they are clean, mark both complete and close Phase 1. Phase 2 is
+sharing a bounded fetched snapshot.

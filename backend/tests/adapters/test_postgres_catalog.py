@@ -77,6 +77,10 @@ async def test_schema_lists_its_tables() -> None:
     assert "connector" in tables
     assert tables["connector"].has_children is False
     assert tables["connector"].size_bytes is not None
+    assert [(item.kind, item.title) for item in tables["connector"].representations] == [
+        ("table", "View as table"),
+        ("sql", "View DDL"),
+    ]
 
 
 async def test_schema_lists_views_separately_from_tables(temporary_view: str) -> None:

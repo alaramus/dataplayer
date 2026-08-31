@@ -93,6 +93,8 @@ const props = defineProps<{
   nodeId: string
   title?: string
   canDescribe?: boolean
+  /** The source's wording for one non-tabular view of these rows. */
+  contentTitle?: string
   /**
    * A predicate the source built for a reference somebody followed here.
    *
@@ -104,6 +106,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   describe: []
+  content: []
   chart: [request: FetchRequest, columns: string[]]
   follow: [target: ReferencedRows]
 }>()
@@ -1076,6 +1079,7 @@ defineExpose({
       :can-download="result !== undefined && visibleGridColumns.length > 0"
       :downloading="downloadPage.isPending.value || exportRows.isPending.value"
       :can-describe="canDescribe"
+      :content-title="contentTitle"
       :can-chart="result !== undefined && visibleGridColumns.length > 0"
       :can-create-table="result !== undefined && result.columns.length > 0"
       @update:page-size="changePageSize"
@@ -1089,6 +1093,7 @@ defineExpose({
       @delete="deleteSelection"
       @download="downloadOpen = true"
       @describe="emit('describe')"
+      @content="emit('content')"
       @chart="openChart"
       @create-table="openCreateTable"
     />

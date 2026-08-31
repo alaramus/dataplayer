@@ -365,6 +365,7 @@ provide(workspaceActionsKey, {
         connectorName: request.connectorName,
         adapterType: request.adapterType,
         describable: request.describable,
+        representations: request.representations,
       })
       return
     }

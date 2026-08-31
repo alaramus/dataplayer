@@ -66,6 +66,7 @@ translations; those files are not.
 | 2026-08-31 | [Walking into an archive](2026-08-31-archive-browsing-design.md) | D53: an archive is a container of entries, and an entry name goes through the one containment rule |
 | 2026-08-31 | [What the old PostgreSQL adapter does beyond the table rounds](2026-08-31-postgres-system-operations-design.md) | D54: a relation the server owns is described but never changed. D55: a source publishes reports of its own, and a report is a statement it holds |
 | 2026-08-31 | [PostgreSQL schema actions](2026-08-31-postgres-schema-actions-design.md) | D56: level, shown places and selected nodes are distinct action targets; a result names every changed branch |
+| 2026-08-31 | [PostgreSQL relation DDL](2026-08-31-postgres-relation-ddl-design.md) | D57: source-issued SQL is bounded read-only content, not an editable text file |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

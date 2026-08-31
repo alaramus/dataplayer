@@ -29,6 +29,7 @@ const props = defineProps<{
   canDownload?: boolean
   downloading?: boolean
   canDescribe?: boolean
+  contentTitle?: string
   canChart?: boolean
   canCreateTable?: boolean
 }>()
@@ -44,6 +45,7 @@ const emit = defineEmits<{
   delete: []
   download: []
   describe: []
+  content: []
   chart: []
   createTable: []
 }>()
@@ -143,6 +145,13 @@ function selectPageSize(value: unknown) {
           tooltip="Create table from these rows"
           data-testid="grid-create-table"
           @click="emit('createTable')"
+        />
+        <AppIconButton
+          v-if="contentTitle"
+          icon="code"
+          :tooltip="contentTitle"
+          data-testid="grid-content"
+          @click="emit('content')"
         />
         <AppIconButton
           v-if="canDescribe"

@@ -6,14 +6,14 @@ do. Read this before adding a source type or changing the adapter contract.
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
 D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36, D37, D38, D39,
 D40, D41, D42, D43, D44, D45, D46, D47, D48, D49, D51, D52, D53, D54, D55,
-D56.
+D56, D57.
 
 ## What exists today
 
 Two source types.
 
 **PostgreSQL** — schemas and relations, safe schema create/rename/drop and
-relation moves, server-side paging and sorting, streaming
+relation moves, bounded relation DDL, server-side paging and sorting, streaming
 whole-relation export, a
 connection string composed by the driver and parsed back from a pasted one, two
 ways of connecting (`user_password` and `no_auth`), and connections that outlive
@@ -56,8 +56,8 @@ backend/app/adapters/
 │                    capabilities_of
 ├── routes.py        GET /adapter-types
 ├── postgres/        options.py (a union by auth_method), session.py, pool.py,
-│                    catalog.py, fetch.py, export.py, relation.py, actions.py,
-│                    adapter.py (facade)
+│                    catalog.py, fetch.py, export.py, relation.py, content.py,
+│                    actions.py, adapter.py (facade)
 └── file/            session.py (root and containment), catalog.py, formats.py,
                      members.py (a node inside a file), content.py, download.py,
                      fetch.py, readers.py, records.py, parquet.py, workbook.py,
@@ -1534,6 +1534,53 @@ Known deviations:
 - **A schema name can race another creator.** The fresh existence check gives
   the useful conflict answer, but another session can take the name before the
   DDL. PostgreSQL then refuses the statement safely; there is no overwrite.
+
+## D57. Source-issued SQL is read-only content, not an editable text file
+
+A PostgreSQL relation declares two ordered representations: `table` remains
+preferred and `sql` is the explicit **View DDL** alternative. `sql` is its own
+closed representation and `SqlContent` is its bounded result. It is not
+`text`: the current text screen is D48's source editor, while a relation has no
+text file to save back. Pretending otherwise would make a read-only derived
+document claim an update capability the source does not have.
+
+PostgreSQL implements `SupportsContent` and issues recreate-oriented SQL from
+its catalogs. Names are catalog facts quoted with `psycopg.sql.Identifier`;
+column types and expressions come from `format_type`, `pg_get_expr`,
+`pg_get_constraintdef`, `pg_get_indexdef` and `pg_get_viewdef`. Table remains
+the catalog's first representation. A rows panel retains the exact ordered
+representations it was opened with and exposes the first content alternative
+under the source's wording, so an alternative that is declared is also
+reachable. A stored rows panel predating this decision still restores without
+inventing one.
+
+The result is capped at 256 KB of UTF-8. Individual catalog expressions are
+clipped before crossing the connection and the assembled document is clipped
+again by bytes without splitting a character. A clipped answer remains `sql`
+and carries a notice; it never falls back to a different viewer. The SQL panel
+uses the same code editor surface for syntax and selection, but fixes it read
+only and calls `read_content`, never D48's editor or update routes.
+Every successful structure mutation invalidates that content query together
+with the relation model and rows, so an already opened DDL tab does not retain
+the definition from before the change.
+
+Known deviations:
+
+- **This is a recreate-oriented definition, not a backup.** It includes the
+  create statement, constraints, independent indexes, owner and relation
+  comment. Grants, triggers, rules, row-security policies, storage parameters,
+  column comments, identity sequence options/current values and dependent
+  objects are outside one relation representation. Phase 4 owns backups.
+- **A partition child is stated as `PARTITION OF` plus its bounds.** Independent
+  indexes are included, but local column `WITH OPTIONS` and independently
+  attached constraints are not reconstructed. The parent remains the source
+  of the inherited shape.
+- **Old-style table inheritance is flattened.** For an ordinary `INHERITS`
+  table, the visible inherited columns and constraints are emitted as one
+  standalone table definition; the parent relationship itself is not.
+- **Only one content alternative is surfaced from the grid.** Today a relation
+  has one (`sql`). If a source later declares several, choosing among them needs
+  a source-worded menu rather than silently picking the first forever.
 
 ## D54. A relation the server owns is described but never changed
 
