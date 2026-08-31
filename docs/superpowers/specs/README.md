@@ -11,7 +11,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
-| 2026-08-15 | [The connector registry and the adapter contract](2026-08-15-connector-registry-design.md) | D1, D2, D2b: a source type is a class in code, the contract is a Protocol |
+| 2026-08-15 | [The connector registry and the adapter contract](2026-08-15-connector-registry-design.md) | D1, D2, D2b: a source type is a class in code, the contract is a Protocol. D3, D4, D6, D7: async throughout, secrets split by schema, Vue with Quasar, server state in vue-query |
 | 2026-08-15 | [Breaking the flat layer up into a users module](2026-08-15-users-module-design.md) | D5: modules by area, dependencies pointing one way |
 | 2026-08-15 | [The catalog of a data source](2026-08-15-catalog-design.md) | D2a: nodes differ by kind, not by source family |
 | 2026-08-15 | [Reading data](2026-08-15-fetch-design.md) | D2c: a query is not assembled from client strings |
@@ -35,7 +35,7 @@ translations; those files are not.
 | 2026-08-24 | [From a table's tab to its catalog](2026-08-24-reveal-in-catalog-design.md) | The table tab's icon leads to the catalog, and the connection name moves into the tooltip |
 | 2026-08-24 | [A source says for itself where a node lives](2026-08-24-node-path-design.md) | D21: the path to a node is an adapter capability, and the client does not take an id apart |
 | 2026-08-24 | [The relation model](2026-08-24-relation-model-design.md) | D22: a source describes a relation in full, and a column type is an object |
-| 2026-08-27 | [The data exploration grid](2026-08-27-data-grid-design.md) | Filters, multi-sort, column layout, selection and exact copying |
+| 2026-08-27 | [The data exploration grid](2026-08-27-data-grid-design.md) | D23, D24: a cell crosses as lossless text; the grid is controlled state around a headless engine |
 | 2026-08-27 | [Editing data](2026-08-27-data-editing-design.md) | D25: a versioned row handle and an optimistic update of one cell |
 | 2026-08-27 | [Inserting and deleting rows](2026-08-27-row-insert-delete-design.md) | D26: omitted/default/NULL, and an atomic bulk delete |
 | 2026-08-27 | [Adding and dropping columns](2026-08-27-column-add-drop-design.md) | D27: source-owned types, and DDL without client SQL |

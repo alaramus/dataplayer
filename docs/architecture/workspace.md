@@ -208,6 +208,8 @@ Known deviations:
   were given for as long as the page lives. Bounded by how many distinct panels
   one session opens.
 
+Spec: [The workspace and the panel engine](../superpowers/specs/2026-08-22-workspace-design.md)
+
 ## D14. Work opens in floating windows, and there may be several
 
 Not modal, and that is the requirement rather than a detail: the reason for the
@@ -275,3 +277,5 @@ Known deviations:
   thing you do and then close, not a place you live in.
 - **A window reopened does not return to where it was.** It joins the cascade
   again.
+
+Spec: [The connection window: floating windows and form layout](../superpowers/specs/2026-08-23-connector-window-design.md)

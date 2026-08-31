@@ -31,15 +31,20 @@ legacy notes and stay unchanged.
 
 | Area | Read first |
 | --- | --- |
-| Adapters, source types, actions, pooling | [adapters.md](docs/architecture/adapters.md) |
+| A source type, a capability, a node kind, untrusted input | [sources/contract.md](docs/architecture/sources/contract.md) |
+| Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
+| Reading a relation, changing rows, export, import | [sources/relations.md](docs/architecture/sources/relations.md) |
+| Columns, indexes, constraints, renaming a node | [sources/ddl.md](docs/architecture/sources/ddl.md) |
+| Opening a node as anything but rows: documents, media, archives | [sources/content.md](docs/architecture/sources/content.md) |
+| Actions, action previews, downloads, reports | [sources/actions.md](docs/architecture/sources/actions.md) |
 | Backend modules, routes, migrations, secrets, database | [backend.md](docs/architecture/backend.md) |
 | Screens, components, colours, layers | [frontend.md](docs/architecture/frontend.md) |
 | Layout, tabs, dragging, floating windows | [workspace.md](docs/architecture/workspace.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | Any code | [ENGINEERING.md](ENGINEERING.md) |
 
-The roadmap is the source of truth for completed behaviour and what comes next;
-do not duplicate its feature inventory here.
+The roadmap says what comes next. What is already done is recorded by the spec
+index and by git; do not inventory it here or there.
 
 ## Decision registry
 
@@ -48,67 +53,67 @@ files. IDs are stable because specs and commits refer to them.
 
 | ID | Home |
 | --- | --- |
-| D1 | [adapters](docs/architecture/adapters.md) |
-| D2 | [adapters](docs/architecture/adapters.md) |
-| D2a | [adapters](docs/architecture/adapters.md) |
-| D2b | [adapters](docs/architecture/adapters.md) |
-| D2c | [adapters](docs/architecture/adapters.md) |
-| D2d | [adapters](docs/architecture/adapters.md) |
+| D1 | [sources/contract](docs/architecture/sources/contract.md) |
+| D2 | [sources/contract](docs/architecture/sources/contract.md) |
+| D2a | [sources/contract](docs/architecture/sources/contract.md) |
+| D2b | [sources/contract](docs/architecture/sources/contract.md) |
+| D2c | [sources/contract](docs/architecture/sources/contract.md) |
+| D2d | [sources/contract](docs/architecture/sources/contract.md) |
 | D3 | [backend](docs/architecture/backend.md) |
 | D4 | [backend](docs/architecture/backend.md) |
 | D5 | [backend](docs/architecture/backend.md) |
 | D6 | [frontend](docs/architecture/frontend.md) |
 | D7 | [frontend](docs/architecture/frontend.md) |
-| D8 | [adapters](docs/architecture/adapters.md) |
-| D9 | [adapters](docs/architecture/adapters.md) |
-| D10 | [adapters](docs/architecture/adapters.md) |
+| D8 | [sources/contract](docs/architecture/sources/contract.md) |
+| D9 | [sources/actions](docs/architecture/sources/actions.md) |
+| D10 | [sources/connecting](docs/architecture/sources/connecting.md) |
 | D11 | [frontend](docs/architecture/frontend.md) |
 | D12 | [workspace](docs/architecture/workspace.md) |
-| D13 | [adapters](docs/architecture/adapters.md) |
+| D13 | [sources/contract](docs/architecture/sources/contract.md) |
 | D14 | [workspace](docs/architecture/workspace.md) |
-| D15 | [adapters](docs/architecture/adapters.md) |
-| D16 | [adapters](docs/architecture/adapters.md) |
-| D17 | [adapters](docs/architecture/adapters.md) |
+| D15 | [sources/connecting](docs/architecture/sources/connecting.md) |
+| D16 | [sources/connecting](docs/architecture/sources/connecting.md) |
+| D17 | [sources/connecting](docs/architecture/sources/connecting.md) |
 | D18 | [realtime](docs/architecture/realtime.md) |
 | D19 | [realtime](docs/architecture/realtime.md) |
-| D20 | [adapters](docs/architecture/adapters.md) |
-| D21 | [adapters](docs/architecture/adapters.md) |
-| D22 | [adapters](docs/architecture/adapters.md) |
-| D23 | [adapters](docs/architecture/adapters.md) |
+| D20 | [sources/contract](docs/architecture/sources/contract.md) |
+| D21 | [sources/contract](docs/architecture/sources/contract.md) |
+| D22 | [sources/relations](docs/architecture/sources/relations.md) |
+| D23 | [sources/relations](docs/architecture/sources/relations.md) |
 | D24 | [frontend](docs/architecture/frontend.md) |
-| D25 | [adapters](docs/architecture/adapters.md) |
-| D26 | [adapters](docs/architecture/adapters.md) |
-| D27 | [adapters](docs/architecture/adapters.md) |
+| D25 | [sources/relations](docs/architecture/sources/relations.md) |
+| D26 | [sources/relations](docs/architecture/sources/relations.md) |
+| D27 | [sources/ddl](docs/architecture/sources/ddl.md) |
 | D28 | [frontend](docs/architecture/frontend.md) |
-| D29 | [adapters](docs/architecture/adapters.md) |
-| D30 | [adapters](docs/architecture/adapters.md) |
-| D31 | [adapters](docs/architecture/adapters.md) |
-| D32 | [adapters](docs/architecture/adapters.md) |
+| D29 | [sources/ddl](docs/architecture/sources/ddl.md) |
+| D30 | [sources/ddl](docs/architecture/sources/ddl.md) |
+| D31 | [sources/connecting](docs/architecture/sources/connecting.md) |
+| D32 | [sources/ddl](docs/architecture/sources/ddl.md) |
 | D33 | [backend](docs/architecture/backend.md) |
 | D34 | [backend](docs/architecture/backend.md) |
 | D35 | [frontend](docs/architecture/frontend.md) |
-| D36 | [adapters](docs/architecture/adapters.md) |
-| D37 | [adapters](docs/architecture/adapters.md) |
-| D38 | [adapters](docs/architecture/adapters.md) |
-| D39 | [adapters](docs/architecture/adapters.md) |
-| D40 | [adapters](docs/architecture/adapters.md) |
-| D41 | [adapters](docs/architecture/adapters.md) |
-| D42 | [adapters](docs/architecture/adapters.md) |
-| D43 | [adapters](docs/architecture/adapters.md) |
-| D44 | [adapters](docs/architecture/adapters.md) |
-| D45 | [adapters](docs/architecture/adapters.md) |
-| D46 | [adapters](docs/architecture/adapters.md) |
-| D47 | [adapters](docs/architecture/adapters.md) |
-| D48 | [adapters](docs/architecture/adapters.md) |
-| D49 | [adapters](docs/architecture/adapters.md) |
+| D36 | [sources/relations](docs/architecture/sources/relations.md) |
+| D37 | [sources/ddl](docs/architecture/sources/ddl.md) |
+| D38 | [sources/ddl](docs/architecture/sources/ddl.md) |
+| D39 | [sources/ddl](docs/architecture/sources/ddl.md) |
+| D40 | [sources/ddl](docs/architecture/sources/ddl.md) |
+| D41 | [sources/relations](docs/architecture/sources/relations.md) |
+| D42 | [sources/relations](docs/architecture/sources/relations.md) |
+| D43 | [sources/relations](docs/architecture/sources/relations.md) |
+| D44 | [sources/relations](docs/architecture/sources/relations.md) |
+| D45 | [sources/relations](docs/architecture/sources/relations.md) |
+| D46 | [sources/actions](docs/architecture/sources/actions.md) |
+| D47 | [sources/content](docs/architecture/sources/content.md) |
+| D48 | [sources/content](docs/architecture/sources/content.md) |
+| D49 | [sources/actions](docs/architecture/sources/actions.md) |
 | D50 | [frontend](docs/architecture/frontend.md) |
-| D51 | [adapters](docs/architecture/adapters.md) |
-| D52 | [adapters](docs/architecture/adapters.md) |
-| D53 | [adapters](docs/architecture/adapters.md) |
-| D54 | [adapters](docs/architecture/adapters.md) |
-| D55 | [adapters](docs/architecture/adapters.md) |
-| D56 | [adapters](docs/architecture/adapters.md) |
-| D57 | [adapters](docs/architecture/adapters.md) |
+| D51 | [sources/content](docs/architecture/sources/content.md) |
+| D52 | [sources/content](docs/architecture/sources/content.md) |
+| D53 | [sources/content](docs/architecture/sources/content.md) |
+| D54 | [sources/relations](docs/architecture/sources/relations.md) |
+| D55 | [sources/actions](docs/architecture/sources/actions.md) |
+| D56 | [sources/actions](docs/architecture/sources/actions.md) |
+| D57 | [sources/content](docs/architecture/sources/content.md) |
 
 ## Working rules
 

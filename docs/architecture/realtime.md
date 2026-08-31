@@ -67,6 +67,8 @@ the WebSocket handshake, and a token in the query string is written into every
 access log, into browser history, and into the Referer of anything the page
 loads next.
 
+Spec: [The socket, health and a switched-off connector](../superpowers/specs/2026-08-24-realtime-and-connector-health-design.md)
+
 ## D19. A monitor belongs to a user, and lives only while somebody watches
 
 Subscribing to `connector.health` means "watch my connections", without naming
@@ -97,6 +99,8 @@ each would have its own, the probing would be multiplied by their number, and a
 socket would only ever hear what its own process found out. Today there is one
 process. The honest fix is a shared channel — Redis pub/sub — and it is written
 down here rather than left to be discovered.
+
+Spec: [The socket, health and a switched-off connector](../superpowers/specs/2026-08-24-realtime-and-connector-health-design.md)
 
 ## A trap in the end-to-end scenarios
 
