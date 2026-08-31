@@ -43,15 +43,19 @@ Legend:
 | 1.2 — safe PostgreSQL structure editing | 2026-08-30 | D27, D29, D30, D37, D38, D39, D40 |
 | 1.3 — bulk data movement through the grid | 2026-08-30 | D41, D42, D43, D44, D45, D46 |
 | 1.4 — file-source depth | 2026-08-31 | D47, D48, D49, D51, D52, D53 |
+| 1.5 — PostgreSQL-specific operations | 2026-09-01 | D54, D55, D56, D57 |
 
 Each of those has a spec in [the index](superpowers/specs/README.md), dated the
-day it closed, and a home in `docs/architecture/sources/`.
+day it closed, and a home in `docs/architecture/sources/`. With 1.5 validated,
+phase 1 is closed: PostgreSQL covers the common daily table workflow, files
+open in a representation appropriate to their content, and what remains of the
+old behaviour is classified as a deliberate later capability rather than an
+unknown gap.
 
 ## Priority order at a glance
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 1 | Finish PostgreSQL-specific operations | Small | Two rounds are written and await validation |
 | 2 | Share a bounded fetched snapshot | Medium | High user value and already expressible without raw SQL or a new adapter |
 | 3 | Query editor | Large | Supplies an explicit query capability and a reusable result surface before AI is allowed to call it |
 | 4 | Managed Docker services in connector creation | Very large | Adds a safe service lifecycle before service-backed adapters multiply |
@@ -59,34 +63,6 @@ day it closed, and a home in `docs/architecture/sources/`.
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation and saved layouts require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
-
-## Phase 1 — PostgreSQL-specific operations
-
-Everything else in phase 1 is closed. Two rounds are implemented with tests and
-await the user-approved validation commands.
-
-- [~] Create, drop and rename a schema, and move a relation between schemas.
-  Create and rename reject reserved or taken names, move accepts only a
-  server-confirmed non-system target and returns the relation's replacement id,
-  and drop uses D46's rolled-back rehearsal to show what a cascade would remove.
-  Settled by [D56](superpowers/specs/2026-08-31-postgres-schema-actions-design.md).
-- [~] Offer a relation's DDL as a content representation under D47. PostgreSQL
-  relations keep table first and declare **View DDL** second; the grid retains
-  that ordered declaration and opens a 256 KB SQL result assembled from
-  PostgreSQL's catalog deparsers. Settled by
-  [D57](superpowers/specs/2026-08-31-postgres-relation-ddl-design.md).
-
-Deliberately later capabilities, with the reason in the spec: backup and
-restore (needs Phase 4's owned jobs), monitoring statistics (Phase 7), Grafana
-(Phase 6), database roles, ORM code generation, diagram and similarity
-features, and every TimescaleDB operation. An action over ticked rows —
-cancelling a query is the first one to want it — is a contract gap the project
-does not have and will not invent for a single command.
-
-Exit condition for Phase 1: PostgreSQL covers the common daily table workflow;
-files open in a representation appropriate to their content, with a grid only
-where a tabular representation is declared; and remaining old behaviour is
-classified as a deliberate later capability rather than an unknown gap.
 
 ## Phase 2 — share a bounded fetched snapshot
 
@@ -297,6 +273,13 @@ one of them: web terminal, MRP, trading screens, translation, karaoke/media
 generation, generic monitoring agents, Kubernetes/cloud control panels and
 one-off adapter demos. Their presence in the old repository is not evidence
 that they belong in the platform core.
+
+Deferred inside PostgreSQL, with the reason in the spec that deferred it:
+backup and restore (needs Phase 4's owned jobs), monitoring statistics
+(Phase 7), Grafana (Phase 6), database roles, ORM code generation, diagram and
+similarity features, and every TimescaleDB operation. An action over ticked
+rows — cancelling a query is the first one to want it — is a contract gap the
+project does not have and will not invent for a single command.
 
 ## Patterns that must not be ported
 
