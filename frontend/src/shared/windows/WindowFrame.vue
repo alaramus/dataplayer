@@ -99,6 +99,8 @@ const resizeEdges: ResizeEdge[] = [
 </script>
 
 <template>
+  <!-- An automatically fitted window keeps measuring for its whole lifetime.
+       A manual resize turns autoFit off and restores a fixed height. -->
   <section
     ref="frame"
     class="app-window"
@@ -107,7 +109,7 @@ const resizeEdges: ResizeEdge[] = [
       left: `${window.rect.x}px`,
       top: `${window.rect.y}px`,
       width: `${window.rect.width}px`,
-      height: window.autoFit !== false && !window.hasFit ? 'auto' : `${window.rect.height}px`,
+      height: window.autoFit !== false ? 'auto' : `${window.rect.height}px`,
     }"
     :data-testid="`window-${window.id}`"
     role="dialog"

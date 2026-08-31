@@ -5,16 +5,17 @@ import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import { toMenu } from "@/features/catalog/actions"
 import type { ActionOutcome, MenuCommand } from "@/features/catalog/actions"
 import { useDownloadAction, useNodeActions } from "@/features/catalog/api"
+import type { CatalogNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
 import { saveNativeDownload } from "@/shared/download"
 import { AppIconButton, AppMenu, useToast } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
 /**
- * What can be done, in one menu that keeps its shape.
+ * What can be done, in one menu whose shape stays stable.
  *
- * Every action the source has is a line, and the server decides which of them
- * are live: what changes a node waits for a node to be ticked, and what
+ * The server decides which actions are live, and the client disables the rest:
+ * what changes a node waits for a node to be ticked, and what
  * changes what a node holds — a new folder, an upload, a table loaded from a
  * file — belongs to the place being looked at. Standing in a folder is not
  * choosing it, so nothing is renamed or removed because of where the user
@@ -31,6 +32,7 @@ const props = defineProps<{
   places: (string | null)[]
   /** The nodes that are ticked. */
   checkedIds: string[]
+  checkedNodes: { label: string; kind: CatalogNode["kind"] }[]
   placeLabel: string
   checkedLabel: string
 }>()
@@ -74,6 +76,11 @@ const active = ref<MenuCommand | null>(null)
 
 const targetLabel = computed(() =>
   active.value?.actsOn === "children" ? props.placeLabel : props.checkedLabel
+)
+const targetNode = computed(() =>
+  active.value?.actsOn === "node" && props.checkedNodes.length === 1
+    ? props.checkedNodes[0] ?? null
+    : null
 )
 
 async function pick(name: string) {
@@ -124,6 +131,7 @@ async function pick(name: string) {
       :connector-id="connectorId"
       :node-ids="active?.targets ?? []"
       :node-label="targetLabel"
+      :target-node="targetNode"
       @update:command="active = null"
       @done="emit('done', $event)"
     />

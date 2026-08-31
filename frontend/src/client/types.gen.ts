@@ -39,6 +39,10 @@ export type ActionInfo = {
    */
   takes_file: boolean
   /**
+   * Takes Many Files
+   */
+  takes_many_files: boolean
+  /**
    * Previews
    */
   previews: boolean
@@ -936,6 +940,32 @@ export type CreateIndexRequest = {
    * Unique
    */
   unique?: boolean
+}
+
+/**
+ * CreateRelationFromSourceRequest
+ */
+export type CreateRelationFromSourceRequest = {
+  /**
+   * Parent Node Id
+   */
+  parent_node_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Source Connector Id
+   */
+  source_connector_id: string
+  /**
+   * Source Node Id
+   */
+  source_node_id: string
+  /**
+   * Columns
+   */
+  columns: Array<NewRelationColumn>
 }
 
 /**
@@ -2191,6 +2221,60 @@ export type NewPassword = {
 }
 
 /**
+ * NewRelationColumn
+ */
+export type NewRelationColumn = {
+  /**
+   * Source
+   */
+  source: string
+  /**
+   * Target
+   */
+  target: string
+  /**
+   * Type Code
+   */
+  type_code: string
+}
+
+/**
+ * NewRelationOptions
+ *
+ * What one container will accept a new relation with.
+ *
+ * Asked of a container rather than read off a relation, because there is no
+ * relation yet: `RelationModel` publishes the same vocabulary for a table
+ * that exists, and this is the answer to the same question one step earlier.
+ * A container that admits nothing says so with a reason, the way every other
+ * gate in that model does.
+ */
+export type NewRelationOptions = {
+  /**
+   * Supported
+   */
+  supported?: boolean
+  /**
+   * Reason
+   */
+  reason?: string | null
+  /**
+   * Column Type Options
+   */
+  column_type_options?: Array<ColumnTypeOption>
+}
+
+/**
+ * NewRelationTarget
+ */
+export type NewRelationTarget = {
+  /**
+   * Parent Node Id
+   */
+  parent_node_id: string
+}
+
+/**
  * NoReferencedRows
  *
  * There is nowhere to go, and the source says why.
@@ -2555,6 +2639,45 @@ export type RejectedCell = {
 }
 
 /**
+ * RelationCreated
+ */
+export type RelationCreated = {
+  /**
+   * Kind
+   */
+  kind?: "created"
+  /**
+   * Node
+   */
+  node:
+    | ({
+        kind: "schema"
+      } & SchemaNode)
+    | ({
+        kind: "table"
+      } & TableNode)
+    | ({
+        kind: "view"
+      } & ViewNode)
+    | ({
+        kind: "directory"
+      } & DirectoryNode)
+    | ({
+        kind: "file"
+      } & FileNode)
+    | ({
+        kind: "dataset"
+      } & DatasetNode)
+    | ({
+        kind: "entry"
+      } & EntryNode)
+  /**
+   * Inserted
+   */
+  inserted: number
+}
+
+/**
  * RelationModel
  */
 export type RelationModel = {
@@ -2632,6 +2755,10 @@ export type RelationModel = {
    * Column Changes Reason
    */
   column_changes_reason?: string | null
+  /**
+   * Column Operations
+   */
+  column_operations?: Array<"add" | "drop" | "rename" | "default" | "nullability" | "type">
   /**
    * Column Type Options
    */
@@ -4604,6 +4731,70 @@ export type connectorsImportRowsResponses = {
 
 export type connectorsImportRowsResponse =
   connectorsImportRowsResponses[keyof connectorsImportRowsResponses]
+
+export type connectorsNewRelationOptionsData = {
+  body: NewRelationTarget
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/relations/options"
+}
+
+export type connectorsNewRelationOptionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsNewRelationOptionsError =
+  connectorsNewRelationOptionsErrors[keyof connectorsNewRelationOptionsErrors]
+
+export type connectorsNewRelationOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NewRelationOptions
+}
+
+export type connectorsNewRelationOptionsResponse =
+  connectorsNewRelationOptionsResponses[keyof connectorsNewRelationOptionsResponses]
+
+export type connectorsCreateRelationFromSourceData = {
+  body: CreateRelationFromSourceRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/relations/from-source"
+}
+
+export type connectorsCreateRelationFromSourceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsCreateRelationFromSourceError =
+  connectorsCreateRelationFromSourceErrors[keyof connectorsCreateRelationFromSourceErrors]
+
+export type connectorsCreateRelationFromSourceResponses = {
+  /**
+   * Successful Response
+   */
+  200: RelationCreated
+}
+
+export type connectorsCreateRelationFromSourceResponse =
+  connectorsCreateRelationFromSourceResponses[keyof connectorsCreateRelationFromSourceResponses]
 
 export type connectorsFollowReferenceData = {
   body: FollowReferenceRequest

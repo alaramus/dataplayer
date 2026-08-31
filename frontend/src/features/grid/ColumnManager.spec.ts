@@ -76,7 +76,7 @@ describe("the column manager", () => {
     expect(first(wrapper.emitted("update:layout") ?? [])[0]).toEqual(defaultColumnLayout(COLUMNS))
   })
 
-  it("keeps the current-column pin command disabled until a column is selected", () => {
+  it("does not keep a separate pin command in the toolbar", () => {
     const wrapper = mount(GridHeader, {
       props: {
         pageSize: 100,
@@ -84,15 +84,14 @@ describe("the column manager", () => {
         filters: [],
         sort: [],
         layout: defaultColumnLayout(COLUMNS),
-        selectedColumn: null,
       },
       global: { plugins: [Quasar] },
     })
 
-    expect(wrapper.get('[data-testid="grid-pin-current"]').attributes("disabled")).toBeDefined()
+    expect(wrapper.find('[data-testid="grid-pin-current"]').exists()).toBe(false)
   })
 
-  it("uses one component tooltip for disabled commands, without a native duplicate", () => {
+  it("hides commands the current representation does not support", () => {
     const wrapper = mount(GridHeader, {
       props: {
         pageSize: 100,
@@ -100,11 +99,11 @@ describe("the column manager", () => {
         filters: [],
         sort: [],
         layout: defaultColumnLayout([]),
-        selectedColumn: null,
         canInsert: false,
-        insertReason: "Insert unavailable",
+        insertSupported: false,
         canDelete: false,
-        deleteReason: "Delete unavailable",
+        deleteSupported: false,
+        pasteSupported: false,
       },
       global: { plugins: [Quasar] },
     })
@@ -115,7 +114,7 @@ describe("the column manager", () => {
       "grid-insert-command",
       "grid-delete-command",
     ]) {
-      expect(wrapper.get(`[data-testid="${testId}"]`).attributes("title")).toBeUndefined()
+      expect(wrapper.find(`[data-testid="${testId}"]`).exists()).toBe(false)
     }
   })
 })

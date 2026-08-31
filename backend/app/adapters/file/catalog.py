@@ -229,9 +229,9 @@ class FileCatalog:
             size_bytes=stat.st_size,
             modified_at=modified_at,
             representations=representations_of(name),
-            # Only a file that states its own columns has a structure to show;
-            # a CSV's columns are read off a line of text (D51).
-            describable=format_of(name) == "parquet",
+            # A delimited header is editable structure even though it carries
+            # no source types beyond text.
+            describable=format_of(name) in {"parquet", "delimited"},
         )
 
 

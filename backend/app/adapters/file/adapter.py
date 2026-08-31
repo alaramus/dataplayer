@@ -2,6 +2,12 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from app.adapters.actions import Action, ActionType
+from app.adapters.column_changes import (
+    AddColumnRequest,
+    ColumnChangeResult,
+    DropColumnRequest,
+    RenameColumnRequest,
+)
 from app.adapters.catalog import CatalogNode
 from app.adapters.content import (
     BoundedContentPreview,
@@ -21,9 +27,22 @@ from app.adapters.file.fetch import FileFetch
 from app.adapters.file.options import FileOptions
 from app.adapters.file.relation import FileRelations
 from app.adapters.file.session import FileSession
+from app.adapters.file.update import FileTableChanges
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
+from app.adapters.update import (
+    DeleteRowsRequest,
+    DeleteRowsResult,
+    InsertRowRequest,
+    InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
+    UpdateCellRequest,
+    UpdateCellResult,
+    UpdateCellsRequest,
+    UpdateCellsResult,
+)
 
 
 class FileAdapter:
@@ -41,6 +60,7 @@ class FileAdapter:
         self._fetch = FileFetch(self._session)
         self._relations = FileRelations(self._session)
         self._actions = FileActions(self._session)
+        self._table_changes = FileTableChanges(self._session)
 
     @property
     def root(self) -> Path:
@@ -57,6 +77,30 @@ class FileAdapter:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
+        return await self._table_changes.update_cell(request)
+
+    async def update_cells(self, request: UpdateCellsRequest) -> UpdateCellsResult:
+        return await self._table_changes.update_cells(request)
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        return await self._table_changes.insert_row(request)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._table_changes.insert_rows(request)
+
+    async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
+        return await self._table_changes.delete_rows(request)
+
+    async def add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
+        return await self._table_changes.add_column(request)
+
+    async def drop_column(self, request: DropColumnRequest) -> ColumnChangeResult:
+        return await self._table_changes.drop_column(request)
+
+    async def rename_column(self, request: RenameColumnRequest) -> ColumnChangeResult:
+        return await self._table_changes.rename_column(request)
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relations.relation_model(node_id)

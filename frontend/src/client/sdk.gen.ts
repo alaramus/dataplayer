@@ -38,6 +38,9 @@ import type {
   connectorsCreateIndexData,
   connectorsCreateIndexErrors,
   connectorsCreateIndexResponses,
+  connectorsCreateRelationFromSourceData,
+  connectorsCreateRelationFromSourceErrors,
+  connectorsCreateRelationFromSourceResponses,
   connectorsDeleteConnectorData,
   connectorsDeleteConnectorErrors,
   connectorsDeleteConnectorResponses,
@@ -77,6 +80,9 @@ import type {
   connectorsInsertRowData,
   connectorsInsertRowErrors,
   connectorsInsertRowResponses,
+  connectorsNewRelationOptionsData,
+  connectorsNewRelationOptionsErrors,
+  connectorsNewRelationOptionsResponses,
   connectorsParseUrlData,
   connectorsParseUrlErrors,
   connectorsParseUrlResponses,
@@ -1151,6 +1157,54 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/import",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * New Relation Options
+   *
+   * What one source-owned container accepts for a new relation.
+   */
+  public static newRelationOptions<ThrowOnError extends boolean = true>(
+    options: Options<connectorsNewRelationOptionsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsNewRelationOptionsResponses,
+      connectorsNewRelationOptionsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/relations/options",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Create Relation From Source
+   *
+   * Create and fill one relation from any bounded readable source.
+   */
+  public static createRelationFromSource<ThrowOnError extends boolean = true>(
+    options: Options<connectorsCreateRelationFromSourceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsCreateRelationFromSourceResponses,
+      connectorsCreateRelationFromSourceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/relations/from-source",
       ...options,
       headers: {
         "Content-Type": "application/json",

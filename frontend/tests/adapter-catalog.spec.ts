@@ -31,14 +31,14 @@ test("shows what a source type can do before anything is filled in", async ({ pa
   await expect(panel).toContainText("Browse the catalog")
   // Derived from the action classes the driver dispatches, so this chip and
   // the menu in the catalog cannot disagree about what a file source offers.
-  await expect(panel).toContainText("Upload a file")
+  await expect(panel).toContainText("Upload files")
   await expect(panel).toContainText("Delete")
 
   // PostgreSQL implements no actions, and must therefore claim none: the
   // whole point of deriving the list rather than writing it down.
   await page.getByTestId("adapter-postgres").click()
   await expect(panel).toContainText("Read rows")
-  await expect(panel).not.toContainText("Upload a file")
+  await expect(panel).not.toContainText("Upload files")
 })
 
 test("finds a type by what it can do, not only by its name", async ({ page }) => {

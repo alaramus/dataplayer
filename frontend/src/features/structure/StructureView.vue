@@ -197,9 +197,19 @@ function constraintTooltip(name: string): string {
   return `Drop constraint ${name}`
 }
 
-function changeTooltip(what: string): string {
+type ColumnOperation = "add" | "drop" | "rename" | "default" | "nullability" | "type"
+
+function supportsColumn(operation: ColumnOperation): boolean {
   const model = query.data.value
-  if (model?.column_changes_supported !== true) {
+  if (model?.column_operations !== undefined && model.column_operations.length > 0) {
+    return model.column_operations.includes(operation)
+  }
+  return model?.column_changes_supported === true
+}
+
+function changeTooltip(operation: ColumnOperation, what: string): string {
+  const model = query.data.value
+  if (!supportsColumn(operation)) {
     return model?.column_changes_reason ?? "This column cannot be changed"
   }
   return what
@@ -467,16 +477,20 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           <div class="structure-view__title">
             Columns
           </div>
-          <span :title="query.data.value.column_changes_supported ? undefined : query.data.value.column_changes_reason ?? undefined">
+          <span
+            :title="query.data.value.column_changes_supported
+              ? undefined
+              : query.data.value.column_changes_reason ?? undefined"
+          >
             <AppButton
               label="Add column"
               variant="secondary"
               size="sm"
-              :disable="query.data.value.column_changes_supported !== true"
+              :disable="!supportsColumn('add')"
               data-testid="structure-add-column"
               @click="openAdd"
             />
-            <AppTooltip v-if="query.data.value.column_changes_supported !== true && query.data.value.column_changes_reason">
+            <AppTooltip v-if="!supportsColumn('add') && query.data.value.column_changes_reason">
               {{ query.data.value.column_changes_reason }}
             </AppTooltip>
           </span>
@@ -498,12 +512,14 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                 :label="String(cellProps.row.type)"
                 variant="quiet"
                 size="sm"
-                :disable="query.data.value?.column_changes_supported !== true || cellProps.row.generated"
+                :disable="!supportsColumn('type') || cellProps.row.generated"
                 :data-testid="`structure-type-${cellProps.row.name}`"
                 @click="openType(String(cellProps.row.name), String(cellProps.row.type))"
               >
                 <AppTooltip>
-                  {{ cellProps.row.generated ? 'A generated column takes its type from its expression' : changeTooltip(`Change the type of ${cellProps.row.name}`) }}
+                  {{ cellProps.row.generated
+                    ? 'A generated column takes its type from its expression'
+                    : changeTooltip('type', `Change the type of ${cellProps.row.name}`) }}
                 </AppTooltip>
               </AppButton>
             </q-td>
@@ -514,7 +530,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                 :label="cellProps.row.nullable ? 'yes' : 'no'"
                 variant="quiet"
                 size="sm"
-                :disable="query.data.value?.column_changes_supported !== true"
+                :disable="!supportsColumn('nullability')"
                 :data-testid="`structure-nullability-${cellProps.row.name}`"
                 @click="openNullability(String(cellProps.row.name), cellProps.row.nullable)"
               >
@@ -540,23 +556,25 @@ async function changeDefault(action: "set" | "drop", value?: string) {
             <q-td :props="cellProps">
               <AppIconButton
                 icon="data_object"
-                :tooltip="cellProps.row.generated ? 'A generated column cannot have a default' : `Change default for ${cellProps.row.name}`"
-                :disable="query.data.value?.column_changes_supported !== true || cellProps.row.generated"
+                :tooltip="cellProps.row.generated
+                  ? 'A generated column cannot have a default'
+                  : `Change default for ${cellProps.row.name}`"
+                :disable="!supportsColumn('default') || cellProps.row.generated"
                 :data-testid="`structure-default-${cellProps.row.name}`"
                 @click="openDefault(String(cellProps.row.name), cellProps.row.currentDefault)"
               />
               <AppIconButton
                 icon="edit"
-                :tooltip="query.data.value?.column_changes_supported === true ? `Rename column ${cellProps.row.name}` : query.data.value?.column_changes_reason ?? 'This column cannot be renamed'"
-                :disable="query.data.value?.column_changes_supported !== true"
+                :tooltip="changeTooltip('rename', `Rename column ${cellProps.row.name}`)"
+                :disable="!supportsColumn('rename')"
                 :data-testid="`structure-rename-${cellProps.row.name}`"
                 @click="openRename(String(cellProps.row.name))"
               />
               <AppIconButton
                 icon="delete_outline"
-                :tooltip="query.data.value?.column_changes_supported === true ? `Drop column ${cellProps.row.name}` : query.data.value?.column_changes_reason ?? 'This column cannot be dropped'"
+                :tooltip="changeTooltip('drop', `Drop column ${cellProps.row.name}`)"
                 variant="danger-quiet"
-                :disable="query.data.value?.column_changes_supported !== true"
+                :disable="!supportsColumn('drop')"
                 :loading="dropping === cellProps.row.name"
                 :data-testid="`structure-drop-${cellProps.row.name}`"
                 @click="drop(String(cellProps.row.name))"

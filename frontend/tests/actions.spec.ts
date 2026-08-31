@@ -46,18 +46,41 @@ test("creates, fills, renames and removes a folder in personal storage", async (
   await page.getByTestId("action-submit").click()
   await expect(list).toContainText(folder)
 
-  // --- upload a file into it. The folder is walked into, not ticked: an
+  // --- upload files into it. The folder is walked into, not ticked: an
   // upload belongs to the directory one is looking at.
   await openNode(page, folder)
   await catalogAction(page, "upload")
   // Quasar puts data-testid on the input itself, so it is addressed directly.
-  await page.getByTestId("action-file").setInputFiles({
-    name: "uploaded.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from("id,name\n1,one\n2,two\n"),
-  })
+  await page.getByTestId("action-file").setInputFiles([
+    {
+      name: "uploaded.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("id,name\n1,one\n2,two\n"),
+    },
+    {
+      name: "notes.md",
+      mimeType: "text/markdown",
+      buffer: Buffer.from("# hi\n"),
+    },
+    {
+      name: "dropped.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("no\n"),
+    },
+  ])
+
+  // Choosing stages the files and sends nothing, so the list is still the
+  // place to change one's mind: a row taken out never leaves the browser.
+  const staged = page.getByTestId("action-files")
+  await expect(staged).toContainText("dropped.txt")
+  await expect(list).not.toContainText("uploaded.csv")
+  await page.getByTestId("action-file-remove-2").click()
+  await expect(staged).not.toContainText("dropped.txt")
+
   await page.getByTestId("action-submit").click()
   await expect(list).toContainText("uploaded.csv")
+  await expect(list).toContainText("notes.md")
+  await expect(list).not.toContainText("dropped.txt")
 
   // --- what was uploaded is readable, which proves the bytes arrived whole
   await openNode(page, "uploaded.csv")
@@ -77,16 +100,13 @@ test("creates, fills, renames and removes a folder in personal storage", async (
   await expect(list).toContainText("renamed.csv")
   await expect(list).not.toContainText("uploaded.csv")
 
-  // --- a folder with something inside refuses to go quietly
+  // --- one destructive confirmation removes the folder and its contents
   await page.getByTestId("catalog-up").click()
   await catalogCheck(page, folder).click()
   await catalogAction(page, "delete")
-  await expect(page.getByTestId("action-warning")).toContainText("cannot be undone")
-  await page.getByTestId("action-submit").click()
-  await expect(page.getByTestId("action-error")).toContainText("not empty")
-
-  // --- saying so explicitly removes it
-  await page.getByTestId("field-recursive").click()
+  await expect(page.getByTestId("action-confirmation")).toHaveText(
+    `Are you sure you want to delete ${folder}?`
+  )
   await page.getByTestId("action-submit").click()
   await expect(catalogRow(page, folder)).toHaveCount(0)
 
@@ -148,7 +168,9 @@ test("renames a relation without leaving its schema", async ({ page }) => {
 
   await catalogCheck(page, "audit_events").click()
   await catalogAction(page, "rename_relation")
-  await page.getByTestId("action-dialog").getByRole("textbox").first().fill(renamed)
+  const renameInput = page.getByTestId("action-dialog").getByRole("textbox").first()
+  await expect(renameInput).toHaveValue("audit_events")
+  await renameInput.fill(renamed)
   await page.getByTestId("action-submit").click()
 
   // Reloading the root must keep the grouping that contained the relation;
@@ -182,8 +204,8 @@ test("loads a CSV into the schema being looked at", async ({ page }) => {
   await createPostgresConnector(page, name)
   await openConnector(page, name)
 
-  // One schema on, because one file makes one table: with two places ticked
-  // the action greys out the way renaming two folders does.
+  // One schema on as the workflow's initial destination; the dialog can then
+  // choose another existing schema or ask the database to create one.
   await showOnlySchema(page, "demo_lab", "public")
   // By the grouping rather than by a table in it: the scenario above renames
   // one while this runs, and the schema is what this test is standing in.
@@ -199,14 +221,14 @@ test("loads a CSV into the schema being looked at", async ({ page }) => {
   await page.keyboard.press("Escape")
 
   await catalogAction(page, "load_csv")
-  await expect(page.getByTestId("action-dialog")).toContainText("demo_lab")
-  await page.getByTestId("action-file").setInputFiles({
+  await expect(page.getByTestId("file-to-relation-dialog")).toContainText("demo_lab")
+  await page.getByTestId("load-file").setInputFiles({
     name: "regions.csv",
     mimeType: "text/csv",
     buffer: Buffer.from("code,label\nEU,Europe\nUS,United States\n"),
   })
   await page.getByTestId("field-name").fill(table)
-  await page.getByTestId("action-submit").click()
+  await page.getByTestId("load-create").click()
 
   // The schema is what gained a child, and the list says so without a reload.
   await expect(page.getByTestId("catalog-list")).toContainText(table)

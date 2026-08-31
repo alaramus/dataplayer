@@ -2,7 +2,7 @@
 import { computed, ref } from "vue"
 
 import type { FetchColumn, Sort } from "@/client"
-import { AppButton, AppCopyButton, AppSelect, AppTooltip } from "@/shared/ui"
+import { AppCopyButton, AppIconButton, AppSelect } from "@/shared/ui"
 
 import FilterEditor from "./FilterEditor.vue"
 import ColumnManager from "./ColumnManager.vue"
@@ -17,19 +17,20 @@ const props = defineProps<{
   filters: Filter[]
   sort: Sort[]
   layout: ColumnLayoutState
-  selectedColumn: string | null
   canCopy?: boolean
   canPaste?: boolean
+  pasteSupported?: boolean
   canInsert?: boolean
   canImport?: boolean
-  insertReason?: string
+  insertSupported?: boolean
   canDelete?: boolean
-  deleteReason?: string
+  deleteSupported?: boolean
   deleteCount?: number
   canDownload?: boolean
   downloading?: boolean
   canDescribe?: boolean
   canChart?: boolean
+  canCreateTable?: boolean
 }>()
 const emit = defineEmits<{
   "update:pageSize": [value: PageSize]
@@ -44,6 +45,7 @@ const emit = defineEmits<{
   download: []
   describe: []
   chart: []
+  createTable: []
 }>()
 const pageSizeOptions = PAGE_SIZES.map((size) => ({ label: String(size), value: size }))
 const filtersOpen = ref(false)
@@ -53,14 +55,6 @@ const canFilter = computed(() =>
   props.columns.some((column) => (column.filter_operators?.length ?? 0) > 0)
 )
 const canSort = computed(() => props.columns.some((column) => column.sortable === true))
-
-function toggleSelectedPin() {
-  if (props.selectedColumn === null) return
-  const pinnedLeft = props.layout.pinnedLeft.includes(props.selectedColumn)
-    ? props.layout.pinnedLeft.filter((name) => name !== props.selectedColumn)
-    : [...props.layout.pinnedLeft, props.selectedColumn]
-  emit("update:layout", { ...props.layout, pinnedLeft })
-}
 
 function selectPageSize(value: unknown) {
   if (typeof value === "number" && PAGE_SIZES.some((size) => size === value)) {
@@ -77,120 +71,109 @@ function selectPageSize(value: unknown) {
     <div class="grid-header__bar">
       <div class="grid-header__commands">
         <span
+          v-if="canFilter"
           data-testid="grid-filter-command"
         >
-          <AppButton
-            :label="filters.length > 0 ? `Filters (${filters.length})` : 'Filters'"
-            variant="quiet"
-            size="sm"
-            :disable="!canFilter"
+          <AppIconButton
+            icon="filter_alt"
+            :tooltip="filters.length > 0 ? `Filters (${filters.length})` : 'Filters'"
             data-testid="grid-filter"
             @click="filtersOpen = !filtersOpen"
           />
-          <AppTooltip v-if="!canFilter">This source does not support filtering</AppTooltip>
         </span>
         <span
+          v-if="canSort"
           data-testid="grid-sort-command"
         >
-          <AppButton
-            :label="sort.length > 0 ? `Sort (${sort.length})` : 'Sort'"
-            variant="quiet"
-            size="sm"
-            :disable="!canSort"
+          <AppIconButton
+            icon="sort"
+            :tooltip="sort.length > 0 ? `Sort (${sort.length})` : 'Sort'"
             data-testid="grid-sort"
             @click="sortOpen = !sortOpen"
           />
-          <AppTooltip v-if="!canSort">This source does not support sorting</AppTooltip>
         </span>
-        <AppButton
-          label="Columns"
-          variant="quiet"
-          size="sm"
-          :disable="columns.length === 0"
+        <AppIconButton
+          v-if="columns.length > 0"
+          icon="view_column"
+          tooltip="Columns"
           data-testid="grid-columns"
           @click="columnsOpen = !columnsOpen"
         />
-        <AppButton
-          :label="selectedColumn !== null && layout.pinnedLeft.includes(selectedColumn) ? 'Unpin' : 'Pin'"
-          variant="quiet"
-          size="sm"
-          :disable="selectedColumn === null"
-          :data-testid="selectedColumn === null ? 'grid-pin-current' : `grid-pin-${selectedColumn}`"
-          @click="toggleSelectedPin"
-        />
         <AppCopyButton
+          v-if="columns.length > 0"
           tooltip="Copy the selection"
           :disable="!canCopy"
           data-testid="grid-copy"
           @click="emit('copy')"
         />
-        <AppButton
-          label="Bring in"
+        <AppIconButton
+          v-if="canImport"
           icon="input"
-          variant="quiet"
-          size="sm"
-          :disable="!canImport"
+          tooltip="Bring rows in"
           data-testid="grid-import"
           @click="emit('bringIn')"
         />
-        <AppButton
-          label="Paste"
+        <AppIconButton
+          v-if="pasteSupported"
           icon="content_paste"
-          variant="quiet"
-          size="sm"
+          tooltip="Paste into the selection"
           :disable="!canPaste"
           data-testid="grid-paste"
           @click="emit('paste')"
         />
-        <AppButton
-          label="Download"
+        <AppIconButton
+          v-if="canDownload"
           icon="download"
-          variant="quiet"
-          size="sm"
+          tooltip="Download"
           :disable="!canDownload || downloading"
           :loading="downloading"
           data-testid="grid-download"
           @click="emit('download')"
         />
-        <AppButton
-          label="Charts"
+        <AppIconButton
+          v-if="canChart"
           icon="insert_chart"
-          variant="quiet"
-          size="sm"
-          :disable="!canChart"
+          tooltip="Charts"
           data-testid="grid-charts"
           @click="emit('chart')"
         />
-        <AppButton
+        <AppIconButton
+          v-if="canCreateTable"
+          icon="post_add"
+          tooltip="Create table from these rows"
+          data-testid="grid-create-table"
+          @click="emit('createTable')"
+        />
+        <AppIconButton
           v-if="canDescribe"
-          label="Structure"
           icon="account_tree"
-          variant="quiet"
-          size="sm"
+          tooltip="Structure"
           data-testid="grid-structure"
           @click="emit('describe')"
         />
-        <span data-testid="grid-insert-command">
-          <AppButton
-            label="Insert"
-            variant="quiet"
-            size="sm"
+        <span
+          v-if="insertSupported"
+          data-testid="grid-insert-command"
+        >
+          <AppIconButton
+            icon="add"
+            tooltip="Insert row"
             :disable="!canInsert"
             data-testid="grid-insert"
             @click="emit('insert')"
           />
-          <AppTooltip v-if="!canInsert && insertReason">{{ insertReason }}</AppTooltip>
         </span>
-        <span data-testid="grid-delete-command">
-          <AppButton
-            :label="deleteCount ? `Delete (${deleteCount})` : 'Delete'"
-            variant="quiet"
-            size="sm"
+        <span
+          v-if="deleteSupported"
+          data-testid="grid-delete-command"
+        >
+          <AppIconButton
+            icon="remove"
+            :tooltip="deleteCount ? `Delete ${deleteCount} selected rows` : 'Delete selected rows'"
             :disable="!canDelete"
             data-testid="grid-delete"
             @click="emit('delete')"
           />
-          <AppTooltip v-if="!canDelete && deleteReason">{{ deleteReason }}</AppTooltip>
         </span>
       </div>
 

@@ -224,11 +224,12 @@ secret shows as `<hidden>`, empties the moment the field is entered and comes ba
 if it is left untyped-in; what a check said appears in a panel over the button
 that ran it rather than as a line that moves the form about.
 
-Every window opens at a content-measured height, bounded by the viewport, and
-can then be resized from every edge or corner. Manual resizing ends automatic
-fitting for that window, so a later validation message does not undo the
-user's chosen geometry. Repeated questions use presets in `shared/windows`
-rather than restating deletion and ordinary-question geometry in each feature.
+Every window opens at a content-measured height and continues to follow content
+that appears or disappears inside it, bounded by the viewport. It can be
+resized from every edge or corner; manual resizing ends automatic fitting for
+that window, so a later validation message does not undo the user's chosen
+geometry. Repeated questions use presets in `shared/windows` rather than
+restating deletion and ordinary-question geometry in each feature.
 
 The old application had such an engine. Three things it got wrong are inverted
 here: a z-index counter that only ever grew is now a position in a list; geometry

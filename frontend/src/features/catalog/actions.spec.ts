@@ -11,14 +11,14 @@ const createFolder: ActionInfo = {
   title: "New folder",
   destructive: false,
   takes_file: false,
+  takes_many_files: false,
   previews: false,
   downloads: false,
   acts_on: "children",
   applicable: true,
   params_schema: {
     type: "object",
-    required: ["name"],
-    properties: { name: { type: "string", title: "Name" } },
+    properties: { name: { type: "string", title: "Name", default: "new folder" } },
   },
 }
 
@@ -27,27 +27,23 @@ const remove: ActionInfo = {
   title: "Delete",
   destructive: true,
   takes_file: false,
+  takes_many_files: false,
   previews: false,
   downloads: false,
   acts_on: "node",
   applicable: true,
   params_schema: {
     type: "object",
-    properties: {
-      recursive: {
-        type: "boolean",
-        title: "Delete everything inside",
-        default: false,
-      },
-    },
+    properties: {},
   },
 }
 
 const upload: ActionInfo = {
   name: "upload",
-  title: "Upload a file",
+  title: "Upload files",
   destructive: false,
   takes_file: true,
+  takes_many_files: true,
   previews: false,
   downloads: false,
   acts_on: "children",
@@ -55,7 +51,14 @@ const upload: ActionInfo = {
   params_schema: {
     type: "object",
     properties: {
-      overwrite: { type: "boolean", title: "Replace an existing file", default: false },
+      conflict: {
+        type: "string",
+        title: "File conflict",
+        default: "refuse",
+        enum: ["refuse", "replace", "rename"],
+        "x-ui-hidden": true,
+        "x-ui-purpose": "file-conflict",
+      },
     },
   },
 }
@@ -69,11 +72,11 @@ describe("toCommands", () => {
     const command = only([createFolder])
 
     expect(command.fields.map((field) => field.name)).toEqual(["name"])
-    expect(at(command.fields, 0).required).toBe(true)
+    expect(at(command.fields, 0).defaultValue).toBe("new folder")
   })
 
-  it("reads a boolean parameter as a checkbox", () => {
-    expect(at(only([remove]).fields, 0).kind).toBe("boolean")
+  it("keeps workflow-only parameters out of the visible form", () => {
+    expect(at(only([upload]).fields, 0).kind).toBe("hidden")
   })
 
   it("marks what destroys something, so the dialog can ask twice", () => {
@@ -83,6 +86,14 @@ describe("toCommands", () => {
 
   it("marks what needs a file to be chosen", () => {
     expect(only([upload]).takesFile).toBe(true)
+  })
+
+  it("marks what may be handed several files at once", () => {
+    // The picker offers a set or one file by this, never by the name of
+    // the action: loading a table from a CSV takes one file, and the
+    // server is what says so.
+    expect(only([upload]).takesManyFiles).toBe(true)
+    expect(only([createFolder]).takesManyFiles).toBe(false)
   })
 
   it("keeps the order the server sent", () => {
@@ -100,6 +111,7 @@ describe("toCommands", () => {
       title: "Extract",
       destructive: false,
       takes_file: false,
+      takes_many_files: false,
       previews: true,
       downloads: true,
       acts_on: "node",
@@ -123,13 +135,13 @@ describe("toMenu", () => {
   const enabled = (commands: { name: string; enabled: boolean }[]) =>
     named(commands.filter((command) => command.enabled))
 
-  it("lists everything the source can do, whatever is ticked", () => {
+  it("keeps the whole action vocabulary visible in the current place", () => {
     const menu = toMenu(vocabulary, [], ["reports"], [])
 
     expect(named(menu)).toEqual(["create_folder", "upload", "delete"])
   })
 
-  it("leaves what changes a node greyed out until one is ticked", () => {
+  it("disables what changes a node until one is ticked", () => {
     /* Standing in a folder is not choosing it. */
     const menu = toMenu(vocabulary, [], ["reports"], [])
 
@@ -144,13 +156,13 @@ describe("toMenu", () => {
     expect(enabled(menu)).toEqual(["create_folder", "upload", "delete"])
   })
 
-  it("leaves off what the server refuses for the ticked nodes", () => {
+  it("disables what the server refuses for the ticked nodes", () => {
     const menu = toMenu(vocabulary, [{ ...remove, applicable: false }], [null], ["", "a"])
 
     expect(enabled(menu)).toEqual(["create_folder", "upload"])
   })
 
-  it("greys out what does not apply to the level being looked at", () => {
+  it("disables what does not apply to the level being looked at", () => {
     const menu = toMenu(
       [{ ...createFolder, applicable: false }, upload, remove],
       [],
@@ -158,6 +170,7 @@ describe("toMenu", () => {
       []
     )
 
+    expect(named(menu)).toEqual(["create_folder", "upload", "delete"])
     expect(enabled(menu)).toEqual(["upload"])
   })
 
@@ -249,5 +262,26 @@ describe("what became of a set", () => {
     }
 
     expect(summarize(outcome, "Delete")).toBe("Delete: 1 of 2. reports — not empty")
+  })
+
+  it("names the file a refusal was about, not the folder it went into", () => {
+    // Three files into one folder are three requests about the same node,
+    // so naming the node would not say which of them was refused.
+    const outcome = {
+      done: [result("first.csv uploaded", "reports")],
+      failures: [
+        {
+          nodeId: "reports",
+          message: "second.csv is already there",
+          file: new File(["id"], "second.csv"),
+          conflict: true,
+        },
+      ],
+      total: 2,
+    }
+
+    expect(summarize(outcome, "Upload files")).toBe(
+      "Upload files: 1 of 2. second.csv — second.csv is already there"
+    )
   })
 })

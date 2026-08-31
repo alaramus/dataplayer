@@ -299,6 +299,7 @@ async function afterAction(outcome: ActionOutcome) {
           :connector-id="connectorId"
           :places="places"
           :checked-ids="level.checked.value"
+          :checked-nodes="level.checkedNodes.value.map((node) => ({ label: node.label, kind: node.kind }))"
           :place-label="placeLabel"
           :checked-label="checkedLabel"
           @done="afterAction"

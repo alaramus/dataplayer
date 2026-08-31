@@ -86,6 +86,15 @@ async def test_a_file_says_how_it_can_be_opened_in_preferred_order(
     assert [item.kind for item in node.representations] == representations
 
 
+async def test_a_delimited_file_declares_its_editable_structure(
+    catalog: FileCatalog,
+) -> None:
+    children = await catalog.list_children("reports")
+    node = next(child for child in children if child.name == "q3.csv")
+
+    assert node.describable is True
+
+
 async def test_a_node_id_is_relative_to_the_root(catalog: FileCatalog) -> None:
     """Ids travel back to the client, so they must not name the server."""
     children = await catalog.list_children("reports")

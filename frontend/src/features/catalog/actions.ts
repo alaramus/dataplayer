@@ -14,6 +14,8 @@ export interface ActionCommand {
   label: string
   destructive: boolean
   takesFile: boolean
+  /** Whether one filled form may carry several files, a request each. */
+  takesManyFiles: boolean
   /** Whether the source can say what this would do before it is done. */
   previews: boolean
   /** Whether the action returns one native browser download for all targets. */
@@ -21,22 +23,28 @@ export interface ActionCommand {
   /** Whether it changes the nodes it is given, or what the one node holds. */
   actsOn: ActionInfo["acts_on"]
   fields: FieldSpec[]
+  workflow?: JsonSchema["x-ui-workflow"]
 }
 
 export function toCommands(actions: ActionInfo[]): ActionCommand[] {
-  return actions.map((action) => ({
-    name: action.name,
-    label: action.title,
-    destructive: action.destructive,
-    takesFile: action.takes_file,
-    previews: action.previews,
-    downloads: action.downloads,
-    actsOn: action.acts_on,
-    fields: schemaToFields(action.params_schema as unknown as JsonSchema),
-  }))
+  return actions.map((action) => {
+    const schema = action.params_schema as unknown as JsonSchema
+    return {
+      name: action.name,
+      label: action.title,
+      destructive: action.destructive,
+      takesFile: action.takes_file,
+      takesManyFiles: action.takes_many_files,
+      previews: action.previews,
+      downloads: action.downloads,
+      actsOn: action.acts_on,
+      fields: schema["x-ui-workflow"] === undefined ? schemaToFields(schema) : [],
+      workflow: schema["x-ui-workflow"],
+    }
+  })
 }
 
-/** One line of the menu: what it would be done to, and whether it may be. */
+/** One line of the stable menu and what it will be done to. */
 export interface MenuCommand extends ActionCommand {
   /** The nodes the filled form is applied to. `[null]` is the root. */
   targets: (string | null)[]
@@ -46,13 +54,12 @@ export interface MenuCommand extends ActionCommand {
 /**
  * The menu of what can be done here, in the order the server listed it.
  *
- * Every action the source has is a line, whether or not it applies: a menu
- * that lost its entries as the user walked the catalog would teach nobody what
- * the source can do. What decides each line is the answer of the server —
- * `here` for the places being looked at, `picked` for what is ticked — and
- * which of the two a line reads follows from `acts_on`, never from its name.
- * Ticking nothing therefore leaves everything that changes a node greyed out:
- * standing in a folder is not the same as choosing it.
+ * Every action the caller is allowed to know about stays visible. What decides
+ * whether each line is enabled is the answer of the server — `here` for the
+ * places being looked at, `picked` for what is ticked — and which of the two a
+ * line reads follows from `acts_on`, never from its name. Ticking nothing
+ * therefore disables everything that changes a node: standing in a folder is
+ * not choosing it.
  *
  * `places` is where something new would be made. A source that offers
  * groupings shows the contents of the ones that are ticked, and those are the
@@ -72,25 +79,27 @@ export function toMenu(
   const applicableHere = new Set(
     here.filter((action) => action.applicable).map((action) => action.name)
   )
-  return toCommands(here).map((command) =>
-    command.actsOn === "children"
-      ? {
-          ...command,
-          targets: [...places],
-          enabled: places.length > 0 && applicableHere.has(command.name),
-        }
-      : {
-          ...command,
-          targets: [...checkedIds],
-          enabled: checkedIds.length > 0 && admitted.has(command.name),
-        }
-  )
+  return toCommands(here).map((command) => {
+    const enabled =
+      command.actsOn === "children"
+        ? places.length > 0 && applicableHere.has(command.name)
+        : checkedIds.length > 0 && admitted.has(command.name)
+    return {
+      ...command,
+      targets: command.actsOn === "children" ? [...places] : [...checkedIds],
+      enabled,
+    }
+  })
 }
 
-/** One node the action could not be done to, and what the server said. */
+/** One request the action could not be done by, and what the server said. */
 export interface ActionFailure {
   nodeId: string | null
   message: string
+  /** The file that request was carrying, when it was carrying one. */
+  file?: File
+  /** Whether the source refused because the name is already taken. */
+  conflict?: boolean
 }
 
 /** What became of one filled form applied to a set of nodes. */
@@ -121,6 +130,17 @@ export function replacementsOf(outcome: ActionOutcome) {
 }
 
 /**
+ * What one refusal was about.
+ *
+ * The file when the request carried one: three files going into the same
+ * folder are three requests about the same node, and naming that node three
+ * times would say nothing about which of them was refused.
+ */
+function subjectOf(failure: ActionFailure): string {
+  return failure.file?.name ?? failure.nodeId ?? "?"
+}
+
+/**
  * What to tell the user, in one line.
  *
  * A count only when there was more than one node: "Deleted 1 of 1" is a report
@@ -134,7 +154,7 @@ export function summarize(outcome: ActionOutcome, label: string): string {
   const head = `${label}: ${String(outcome.done.length)} of ${String(outcome.total)}`
   if (outcome.failures.length === 0) return head
   const said = outcome.failures
-    .map((failure) => `${failure.nodeId ?? "?"} — ${failure.message}`)
+    .map((failure) => `${subjectOf(failure)} — ${failure.message}`)
     .join("; ")
   return `${head}. ${said}`
 }

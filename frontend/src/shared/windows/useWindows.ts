@@ -28,7 +28,7 @@ export interface OpenWindow {
   look: WindowLook
   size: Size
   component: Component
-  /** Measure the rendered contents once and use that as the opening height. */
+  /** Follow rendered content size until the user manually resizes the window. */
   autoFit?: boolean
   minSize?: Size
   beforeClose?: () => boolean | Promise<boolean>

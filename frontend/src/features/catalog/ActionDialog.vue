@@ -4,15 +4,23 @@ import { computed, onBeforeUnmount, ref, watch } from "vue"
 import type { ActionPreview } from "@/client"
 import { usePreviewAction, useRunAction } from "@/features/catalog/api"
 import { summarize } from "@/features/catalog/actions"
-import type { ActionCommand, ActionOutcome } from "@/features/catalog/actions"
-import { fieldErrorsFrom, messageOf } from "@/shared/api/errors"
+import type {
+  ActionCommand,
+  ActionFailure,
+  ActionOutcome,
+} from "@/features/catalog/actions"
+import FileToRelationDialog from "@/features/catalog/FileToRelationDialog.vue"
+import { formatSize } from "@/features/catalog/nodes"
+import { fieldErrorsFrom, messageOf, statusOf } from "@/shared/api/errors"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
 import {
   AppBanner,
   AppButton,
   AppFileInput,
+  AppIconButton,
   AppSection,
+  useConfirm,
   useToast,
 } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
@@ -23,6 +31,7 @@ const props = defineProps<{
   /** Everything the filled form is applied to, one node at a time. */
   nodeIds: (string | null)[]
   nodeLabel: string
+  targetNode?: { label: string; kind: string } | null
 }>()
 
 const emit = defineEmits<{
@@ -31,11 +40,27 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const confirm = useConfirm()
 const runAction = useRunAction()
 const { values, errors, reset, applyServerErrors } = useSchemaForm()
 
-const file = ref<File | null>(null)
+/**
+ * What was chosen and has not been sent yet.
+ *
+ * Choosing stages files; it starts nothing. A list that is wrong can be
+ * corrected before any of it leaves the browser, which is the whole reason
+ * the picker no longer submits by itself. One list either way: whether the
+ * action takes a set decides what the picker offers, not what is held here.
+ */
+const files = ref<File[]>([])
 const failure = ref("")
+const conflict = ref(false)
+const visibleFields = computed(
+  () => props.command?.fields.filter((field) => field.kind !== "hidden") ?? []
+)
+const conflictField = computed(() =>
+  props.command?.fields.find((field) => field.purpose === "file-conflict") ?? null
+)
 
 /**
  * How long the form is left alone before the source is asked again.
@@ -103,14 +128,18 @@ function forgetPreview() {
 }
 
 const open = computed(() => props.command !== null)
+const destructiveQuestion = computed(
+  () => `Are you sure you want to delete ${props.nodeLabel}?`
+)
 
 watch(
   () => props.command,
   (command) => {
     failure.value = ""
-    file.value = null
+    conflict.value = false
+    files.value = []
     forgetPreview()
-    reset(command?.fields ?? [])
+    reset(command?.fields ?? [], initialValues(command))
     schedulePreview()
   },
   // Immediately, so the form and its preview do not depend on this component
@@ -128,23 +157,53 @@ function close() {
   emit("update:command", null)
 }
 
+/**
+ * A fresh choice from the picker.
+ *
+ * It is a new attempt, so whatever the last one was refused for is dropped:
+ * a taken name was the answer about the files that were there, and these
+ * are asked about first like any others.
+ */
+function choose(chosen: File[]) {
+  files.value = chosen
+  conflict.value = false
+  failure.value = ""
+  const field = conflictField.value
+  if (field !== null) values.value = { ...values.value, [field.name]: "refuse" }
+}
+
+/** Take one file off the list. Nothing was sent, so nothing is undone. */
+function forget(index: number) {
+  files.value = files.value.filter((_, at) => at !== index)
+}
+
 async function submit() {
   const command = props.command
   if (!command) return
-  if (command.takesFile && !file.value) {
+  if (command.takesFile && files.value.length === 0) {
     failure.value = "Choose a file first"
     return
   }
 
   failure.value = ""
+  const params = await normalizedParams()
+  if (params === null) return
   try {
     const outcome = await runAction.mutateAsync({
       connectorId: props.connectorId,
       name: command.name,
       nodeIds: props.nodeIds,
-      params: { ...values.value },
-      file: file.value,
+      params,
+      files: files.value,
     })
+    // A file that was refused keeps the dialog open, because the answer to
+    // it is here: take that file off the list, or say what to do about the
+    // name. What did land is reported all the same.
+    if (outcome.failures.length > 0 && command.takesFile) {
+      emit("done", outcome)
+      report(outcome.failures)
+      return
+    }
     // One line whatever the size of the set: what was done, and what was
     // refused by whom. A refusal in the middle does not stop the rest.
     const said = summarize(outcome, command.label)
@@ -153,19 +212,156 @@ async function submit() {
     emit("done", outcome)
     close()
   } catch (cause) {
+    // One request was sent, so its refusal arrives as an exception rather
+    // than in the outcome. It says the same thing and is read the same way.
     const fieldErrors = fieldErrorsFrom(cause)
     if (fieldErrors) {
       applyServerErrors(fieldErrors)
-    } else {
-      failure.value = messageOf(cause, "The action could not be performed")
+      return
     }
+    const sent = files.value[0]
+    report([
+      {
+        nodeId: props.nodeIds[0] ?? null,
+        message: messageOf(cause, "The action could not be performed"),
+        ...(sent === undefined ? {} : { file: sent }),
+        conflict: statusOf(cause) === 409,
+      },
+    ])
+  }
+}
+
+/**
+ * What is left standing after a run that did not finish.
+ *
+ * A file that was sent leaves the list and a refused one stays in it, so
+ * what is on the screen is always what still has to happen. When every
+ * refusal is a name already taken and the action has a question about that,
+ * the two answers to it are offered in place of the plain message.
+ */
+function report(failed: ActionFailure[]) {
+  const left = failed.flatMap((one) => (one.file === undefined ? [] : [one.file]))
+  if (left.length > 0) files.value = left
+  conflict.value =
+    conflictField.value !== null &&
+    left.length === failed.length &&
+    failed.length > 0 &&
+    failed.every((one) => one.conflict === true)
+  failure.value = conflict.value
+    ? takenNames(left)
+    : failed.map((one) => one.message).join("; ")
+}
+
+/** The conflict, in the words the two buttons under it answer. */
+function takenNames(taken: File[]): string {
+  const first = taken[0]
+  if (taken.length === 1 && first !== undefined) {
+    return `${first.name} already exists. Replace it or keep both files.`
+  }
+  return (
+    `${String(taken.length)} of these files already exist. ` +
+    "Replace them or keep both copies of each."
+  )
+}
+
+function initialValues(command: ActionCommand | null): Record<string, unknown> {
+  if (
+    command === null ||
+    props.targetNode === null ||
+    props.targetNode === undefined
+  ) {
+    return {}
+  }
+  return Object.fromEntries(
+    command.fields
+      .filter((field) => field.purpose === "node-name")
+      .map((field) => [
+        field.name,
+        props.targetNode.kind === "file"
+          ? splitExtension(props.targetNode.label).stem
+          : props.targetNode.label,
+      ])
+  )
+}
+
+function splitExtension(name: string): { stem: string; extension: string } {
+  const at = name.lastIndexOf(".")
+  if (at <= 0) return { stem: name, extension: "" }
+  return { stem: name.slice(0, at), extension: name.slice(at) }
+}
+
+async function normalizedParams(): Promise<Record<string, unknown> | null> {
+  const params = { ...values.value }
+  if (props.targetNode?.kind !== "file") return params
+  const original = splitExtension(props.targetNode.label)
+  const field = props.command?.fields.find(
+    (candidate) => candidate.purpose === "node-name"
+  )
+  if (field === undefined || original.extension === "") return params
+  const typed = String(params[field.name] ?? "")
+  const requested = splitExtension(typed)
+  if (requested.extension === "") {
+    params[field.name] = `${typed}${original.extension}`
+    return params
+  }
+  if (requested.extension === original.extension) return params
+  const accepted = await confirm({
+    title: "Change file extension?",
+    message:
+      `Change ${original.extension} to ${requested.extension}? ` +
+      "The file contents will not be converted.",
+    confirmLabel: "Change extension",
+    danger: true,
+  })
+  return accepted ? params : null
+}
+
+function retryConflict(policy: "replace" | "rename") {
+  const field = conflictField.value
+  if (field === null) return
+  conflict.value = false
+  values.value = { ...values.value, [field.name]: policy }
+  void submit()
+}
+
+async function runWorkflow(value: {
+  nodeId: string
+  file: File
+  params: Record<string, unknown>
+}) {
+  const command = props.command
+  if (command === null) return
+  failure.value = ""
+  try {
+    const outcome = await runAction.mutateAsync({
+      connectorId: props.connectorId,
+      name: command.name,
+      nodeIds: [value.nodeId],
+      params: value.params,
+      files: [value.file],
+    })
+    toast.success(summarize(outcome, command.label))
+    emit("done", outcome)
+    close()
+  } catch (cause) {
+    failure.value = messageOf(cause, "The table could not be created")
   }
 }
 </script>
 
 <template>
+  <FileToRelationDialog
+    v-if="command?.workflow === 'file-to-relation'"
+    :model-value="open"
+    :connector-id="connectorId"
+    :initial-schema="String(nodeIds[0] ?? '')"
+    :running="runAction.isPending.value"
+    :error="failure"
+    @run="runWorkflow"
+    @update:model-value="close"
+  />
   <WindowDialog
-    v-if="command"
+    v-else-if="command"
     :model-value="open"
     size="sm"
     :title="command.label"
@@ -174,15 +370,15 @@ async function submit() {
     @update:model-value="close"
   >
     <AppSection gutter>
-      <!-- The warning follows the declared flag, not a list of names kept
-           here: an action that destroys something says so itself. -->
-      <AppBanner
+      <!-- The question follows the action's declaration rather than a list of
+           destructive action names kept by the client. It stays ordinary text:
+           the target name is the useful part of this confirmation. -->
+      <p
         v-if="command.destructive"
-        tone="warning"
-        data-testid="action-warning"
+        data-testid="action-confirmation"
       >
-        This cannot be undone.
-      </AppBanner>
+        {{ destructiveQuestion }}
+      </p>
 
       <AppBanner
         v-if="failure"
@@ -194,15 +390,43 @@ async function submit() {
 
       <AppFileInput
         v-if="command.takesFile"
-        v-model="file"
-        label="File"
+        :model-value="files"
+        :multiple="command.takesManyFiles"
+        :append="command.takesManyFiles"
+        :label="command.takesManyFiles ? 'Files' : 'File'"
         data-testid="action-file"
+        @update:model-value="choose"
       />
 
+      <!-- What was chosen, before any of it is sent. Choosing a file only
+           puts it here, so a list that is wrong is corrected by taking a
+           row out of it: that file never leaves the browser. -->
+      <ul
+        v-if="command.takesFile && files.length > 0"
+        class="action-dialog__files"
+        data-testid="action-files"
+      >
+        <li
+          v-for="(chosen, index) in files"
+          :key="`${String(index)}:${chosen.name}`"
+          class="action-dialog__file"
+        >
+          <span class="action-dialog__file-name">{{ chosen.name }}</span>
+          <span class="action-dialog__file-size">{{ formatSize(chosen.size) }}</span>
+          <AppIconButton
+            icon="close"
+            :tooltip="`Take ${chosen.name} off the list`"
+            :disable="runAction.isPending.value"
+            :data-testid="`action-file-remove-${String(index)}`"
+            @click="forget(index)"
+          />
+        </li>
+      </ul>
+
       <SchemaFields
-        v-if="command.fields.length"
+        v-if="visibleFields.length"
         v-model="values"
-        :fields="command.fields"
+        :fields="visibleFields"
         :errors="errors"
       />
 
@@ -243,9 +467,24 @@ async function submit() {
         label="Cancel"
         @click="close"
       />
+      <AppButton
+        v-if="conflict"
+        variant="secondary"
+        label="Keep both"
+        data-testid="action-keep-both"
+        @click="retryConflict('rename')"
+      />
+      <AppButton
+        v-if="conflict"
+        variant="danger"
+        label="Replace"
+        data-testid="action-replace"
+        @click="retryConflict('replace')"
+      />
       <!-- A preview that says the source would refuse turns the button off:
            the answer to "what would happen" was "nothing, and here is why". -->
       <AppButton
+        v-else
         :variant="command.destructive ? 'danger' : 'primary'"
         :label="command.label"
         :loading="runAction.isPending.value"
@@ -258,6 +497,32 @@ async function submit() {
 </template>
 
 <style scoped>
+.action-dialog__files {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.action-dialog__file {
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-2);
+}
+
+.action-dialog__file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-dialog__file-size {
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
 .action-dialog__consequences {
   margin: 4px 0 0;
   padding-left: 20px;

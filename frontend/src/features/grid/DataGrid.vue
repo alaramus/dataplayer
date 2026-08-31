@@ -34,6 +34,7 @@ import {
 } from "@/shared/ui"
 
 import {
+  useCreateRelationFromSource,
   useDeleteRows,
   useDownloadPage,
   useExportRows,
@@ -47,6 +48,7 @@ import {
 } from "./api"
 import CellEditorDialog from "./CellEditorDialog.vue"
 import CellValueDialog from "./CellValueDialog.vue"
+import CreateTableDialog from "./CreateTableDialog.vue"
 import { fromTsv, toTsv } from "./clipboard"
 import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
@@ -148,7 +150,6 @@ const rows = computed(() =>
     : toGridRows(result.value, request.value.offset ?? 0)
 )
 const layout = ref<ColumnLayoutState>({ ...EMPTY_LAYOUT })
-const selectedColumn = ref<string | null>(null)
 const viewer = ref<{ columnName: string; typeSql: string; value: string } | null>(null)
 const editor = ref<{
   column: FetchColumn
@@ -158,8 +159,10 @@ const editor = ref<{
 const editError = ref("")
 const insertOpen = ref(false)
 const importOpen = ref(false)
+const createTableOpen = ref(false)
 const downloadOpen = ref(false)
 const importError = ref("")
+const createTableError = ref("")
 const insertError = ref("")
 const updateCell = useUpdateCell(toRef(props, "connectorId"))
 const updateCells = useUpdateCells(toRef(props, "connectorId"))
@@ -168,6 +171,7 @@ const deleteRows = useDeleteRows(toRef(props, "connectorId"))
 const downloadPage = useDownloadPage(toRef(props, "connectorId"))
 const exportRows = useExportRows(toRef(props, "connectorId"))
 const importRows = useImportRows(toRef(props, "connectorId"))
+const createRelation = useCreateRelationFromSource()
 const followReference = useFollowReference(toRef(props, "connectorId"))
 const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
 const gridFocus = useTemplateRef<HTMLElement>("gridFocus")
@@ -277,14 +281,6 @@ const canDelete = computed(
     selectedRowIndexes.value.length > 0 &&
     selectedRowHandles.value.length === selectedRowIndexes.value.length
 )
-const deleteReason = computed(() => {
-  if (result.value?.delete_supported !== true) return result.value?.delete_reason ?? undefined
-  if (selectedRowIndexes.value.length === 0) return "Select complete rows to delete"
-  return selectedRowHandles.value.length === selectedRowIndexes.value.length
-    ? undefined
-    : "The selected rows cannot be deleted"
-})
-
 const offset = computed(() => queryState.value.page * queryState.value.pageSize)
 const range = computed(() => {
   if (rows.value.length === 0) return "Rows 0"
@@ -352,6 +348,30 @@ function sortIndex(columnName: string): number {
   return queryState.value.sort.findIndex((item) => item.column === columnName)
 }
 
+function sortIcon(columnName: string): string {
+  const index = sortIndex(columnName)
+  if (index < 0) return "unfold_more"
+  return queryState.value.sort[index]?.descending === true
+    ? "arrow_downward"
+    : "arrow_upward"
+}
+
+function sortDirection(columnName: string): "none" | "asc" | "desc" {
+  const index = sortIndex(columnName)
+  if (index < 0) return "none"
+  return queryState.value.sort[index]?.descending === true ? "desc" : "asc"
+}
+
+function columnIsSortable(columnName: string): boolean {
+  return (
+    result.value?.columns.find((column) => column.name === columnName)?.sortable === true
+  )
+}
+
+function pinTooltip(column: Column<GridFeatures, GridRow, unknown>): string {
+  return `${column.getIsPinned() === "start" ? "Unpin" : "Pin"} ${column.id}`
+}
+
 function columnVariable(columnName: string): string {
   const index = result.value?.columns.findIndex((column) => column.name === columnName) ?? -1
   return `--grid-column-${Math.max(0, index)}`
@@ -361,8 +381,18 @@ function columnStyle(column: Column<GridFeatures, GridRow, unknown>): CSSPropert
   return {
     width: `var(${columnVariable(column.id)})`,
     insetInlineStart:
-      column.getIsPinned() === "start" ? `${column.getStart("start")}px` : undefined,
+      column.getIsPinned() === "start"
+        ? `calc(72px + ${column.getStart("start")}px)`
+        : undefined,
   }
+}
+
+function togglePin(column: Column<GridFeatures, GridRow, unknown>) {
+  column.pin(column.getIsPinned() === "start" ? false : "start")
+}
+
+function hideColumn(column: Column<GridFeatures, GridRow, unknown>) {
+  column.toggleVisibility(false)
 }
 
 let textContext: CanvasRenderingContext2D | null | undefined
@@ -409,7 +439,6 @@ function selectRow(rowId: string) {
 }
 
 function selectColumn(columnId: string) {
-  selectedColumn.value = columnId
   const first = rows.value[0]
   const last = rows.value.at(-1)
   if (first === undefined || last === undefined) return
@@ -546,6 +575,36 @@ async function bringIn(value: {
     )
   } catch (error) {
     importError.value = messageOf(error, "Could not bring those rows in")
+  }
+}
+
+function openCreateTable() {
+  createTableError.value = ""
+  createTableOpen.value = true
+}
+
+async function createTable(value: {
+  connectorId: string
+  parentNodeId: string
+  name: string
+  columns: { source: string; target: string; type_code: string }[]
+}) {
+  createTableError.value = ""
+  try {
+    const answer = await createRelation.mutateAsync({
+      connectorId: value.connectorId,
+      body: {
+        parent_node_id: value.parentNodeId,
+        name: value.name,
+        source_connector_id: props.connectorId,
+        source_node_id: props.nodeId,
+        columns: value.columns,
+      },
+    })
+    createTableOpen.value = false
+    toast.success(`Created ${answer.node.name} with ${answer.inserted} rows`)
+  } catch (error) {
+    createTableError.value = messageOf(error, "Could not create that table")
   }
 }
 
@@ -972,9 +1031,12 @@ watch(
     recoveredFrom = ""
     referenceApplied = false
     quarantinedQuery.value = null
-    selectedColumn.value = null
     insertOpen.value = false
     insertError.value = ""
+    importOpen.value = false
+    importError.value = ""
+    createTableOpen.value = false
+    createTableError.value = ""
     layout.value = { ...EMPTY_LAYOUT }
     const reset = { ...withPage(queryState.value, 0), filters: [], sort: [] }
     queryAwaitingPersistence.value = null
@@ -1002,19 +1064,20 @@ defineExpose({
       :filters="queryState.filters"
       :sort="queryState.sort"
       :layout="layout"
-      :selected-column="selectedColumn"
       :can-copy="canCopy"
       :can-paste="canPaste"
+      :paste-supported="result?.update_supported === true"
       :can-insert="canInsert"
       :can-import="canInsert && importColumns.length > 0"
-      :insert-reason="result?.insert_reason ?? undefined"
+      :insert-supported="result?.insert_supported === true"
       :can-delete="canDelete"
-      :delete-reason="deleteReason"
+      :delete-supported="result?.delete_supported === true"
       :delete-count="selectedRowHandles.length"
       :can-download="result !== undefined && visibleGridColumns.length > 0"
       :downloading="downloadPage.isPending.value || exportRows.isPending.value"
       :can-describe="canDescribe"
       :can-chart="result !== undefined && visibleGridColumns.length > 0"
+      :can-create-table="result !== undefined && result.columns.length > 0"
       @update:page-size="changePageSize"
       @update:filters="changeFilters"
       @update:sort="changeSort"
@@ -1027,6 +1090,7 @@ defineExpose({
       @download="downloadOpen = true"
       @describe="emit('describe')"
       @chart="openChart"
+      @create-table="openCreateTable"
     />
 
     <AppBanner
@@ -1111,30 +1175,51 @@ defineExpose({
               scope="col"
               :data-testid="`grid-column-${header.column.id}`"
               :class="{
-                'data-grid__sortable': result?.columns.find((column) => column.name === header.column.id)?.sortable === true,
+                'data-grid__sortable': columnIsSortable(header.column.id),
                 'data-grid__pinned': header.column.getIsPinned() === 'start',
               }"
               :style="columnStyle(header.column)"
-              @click="sortColumn(header.column.id, $event)"
             >
-              <span>{{ header.column.id }}</span>
-              <template v-if="sortIndex(header.column.id) >= 0">
-                <q-icon
-                  :name="queryState.sort[sortIndex(header.column.id)]?.descending === true ? 'arrow_downward' : 'arrow_upward'"
-                  :data-direction="queryState.sort[sortIndex(header.column.id)]?.descending === true ? 'desc' : 'asc'"
-                  :data-testid="`grid-sort-direction-${header.column.id}`"
-                  size="14px"
-                />
-                <span :data-testid="`grid-sort-priority-${header.column.id}`">
-                  {{ sortIndex(header.column.id) + 1 }}
-                </span>
-              </template>
-              <AppIconButton
-                icon="more_horiz"
-                :tooltip="`Select column ${header.column.id}`"
+              <button
+                type="button"
+                class="data-grid__column-name"
+                :aria-label="`Select column ${header.column.id}`"
                 :data-testid="`grid-column-select-${header.column.id}`"
-                @click.stop="selectColumn(header.column.id)"
-              />
+                @click="selectColumn(header.column.id)"
+              >
+                {{ header.column.id }}
+              </button>
+              <span class="data-grid__column-actions">
+                <span
+                  v-if="sortIndex(header.column.id) >= 0"
+                  :data-testid="`grid-sort-priority-${header.column.id}`"
+                  class="data-grid__sort-priority"
+                >{{ sortIndex(header.column.id) + 1 }}</span>
+                <AppIconButton
+                  v-if="columnIsSortable(header.column.id)"
+                  :icon="sortIcon(header.column.id)"
+                  :tooltip="`Sort by ${header.column.id}`"
+                  :data-direction="sortDirection(header.column.id)"
+                  :data-testid="`grid-sort-direction-${header.column.id}`"
+                  @click.stop="sortColumn(header.column.id, $event)"
+                />
+                <AppIconButton
+                  icon="push_pin"
+                  :class="{
+                    'data-grid__pin--active': header.column.getIsPinned() === 'start',
+                  }"
+                  :aria-pressed="header.column.getIsPinned() === 'start'"
+                  :tooltip="pinTooltip(header.column)"
+                  :data-testid="`grid-pin-${header.column.id}`"
+                  @click.stop="togglePin(header.column)"
+                />
+                <AppIconButton
+                  icon="visibility_off"
+                  :tooltip="`Hide ${header.column.id}`"
+                  :data-testid="`grid-hide-${header.column.id}`"
+                  @click.stop="hideColumn(header.column)"
+                />
+              </span>
               <span
                 class="data-grid__resize"
                 :data-testid="`grid-resize-${header.column.id}`"
@@ -1179,8 +1264,6 @@ defineExpose({
             >
               <span
                 :class="{
-                  'data-grid__align-right': presentCell(cell).align === 'right',
-                  'data-grid__align-center': presentCell(cell).align === 'center',
                   'data-grid__null': presentCell(cell).tone === 'null',
                   'data-grid__monospace': presentCell(cell).monospace === true,
                 }"
@@ -1273,6 +1356,16 @@ defineExpose({
       @run="bringIn"
       @update:model-value="importOpen = false"
     />
+    <CreateTableDialog
+      v-if="createTableOpen && result !== undefined"
+      :model-value="true"
+      :source-title="title ?? nodeId"
+      :source-columns="result.columns"
+      :running="createRelation.isPending.value"
+      :error="createTableError"
+      @run="createTable"
+      @update:model-value="createTableOpen = false"
+    />
     <CellEditorDialog
       v-if="editor !== null"
       :model-value="true"
@@ -1307,19 +1400,13 @@ defineExpose({
   margin: 12px;
 }
 
-/* Out of the way of the value, and only there while the row is under the
-   pointer: a way out of every keyed cell drawn at full strength would compete
-   with the data for a grid that is mostly keys. Focus keeps it visible for a
-   reader who does not use a pointer at all. */
+/* A relationship is a cell control, not content. It occupies the corner
+   without changing the row height or the width of the value. */
 .data-grid__follow {
-  opacity: 0;
-  margin-inline-start: 2px;
-  transition: opacity 120ms ease;
-}
-
-tr:hover .data-grid__follow,
-.data-grid__follow:focus-within {
-  opacity: 1;
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  z-index: var(--dp-layer-sticky);
 }
 
 .data-grid__insert-error {
@@ -1383,8 +1470,12 @@ tr:hover .data-grid__follow,
   color: var(--dp-text-strong);
 }
 
+.data-grid__table th:not(.data-grid__selector) {
+  padding-inline-end: 80px;
+}
+
 .data-grid__sortable {
-  cursor: pointer;
+  padding-inline-end: 112px !important;
 }
 
 .data-grid__pinned {
@@ -1397,7 +1488,7 @@ tr:hover .data-grid__follow,
 .data-grid__resize {
   position: absolute;
   inset-block: 0;
-  inset-inline-end: -3px;
+  inset-inline-end: 0;
   width: 6px;
   cursor: col-resize;
   touch-action: none;
@@ -1414,6 +1505,46 @@ tr:hover .data-grid__follow,
   max-width: 72px !important;
   text-align: center !important;
   background: var(--dp-surface);
+  position: sticky !important;
+  inset-inline-start: 0;
+  z-index: var(--dp-layer-sticky);
+  border-left: 1px solid var(--dp-border-faint);
+}
+
+.data-grid__table thead .data-grid__selector {
+  z-index: var(--dp-layer-overlay);
+}
+
+.data-grid__column-name {
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.data-grid__column-actions {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.data-grid__pin--active {
+  color: var(--dp-link);
+}
+
+.data-grid__sort-priority {
+  min-width: 12px;
+  color: var(--dp-text-muted);
+  font-size: 10px;
+  text-align: center;
 }
 
 .data-grid__row-selector {
@@ -1437,14 +1568,6 @@ tr:hover .data-grid__follow,
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.data-grid__align-right {
-  text-align: right;
-}
-
-.data-grid__align-center {
-  text-align: center;
 }
 
 .data-grid__null {

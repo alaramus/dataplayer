@@ -12,7 +12,7 @@ import tempfile
 from collections.abc import Sequence
 from functools import partial
 from pathlib import Path
-from typing import Any, ClassVar, Protocol
+from typing import Any, ClassVar, Literal, Protocol
 
 from anyio import to_thread
 from pydantic import BaseModel, Field, field_validator
@@ -47,30 +47,28 @@ def _plain_name(value: str) -> str:
 
 
 class NameParams(BaseModel):
-    name: str = Field(title="Name")
+    name: str = Field(default="new folder", title="Name")
 
     _check = field_validator("name")(_plain_name)
 
 
 class RenameParams(BaseModel):
-    new_name: str = Field(title="New name")
+    new_name: str = Field(
+        title="New name", json_schema_extra={"x-ui-purpose": "node-name"}
+    )
 
     _check = field_validator("new_name")(_plain_name)
 
 
 class DeleteParams(BaseModel):
-    recursive: bool = Field(
-        default=False,
-        title="Delete everything inside",
-        description="Required to delete a folder that is not empty",
-    )
+    pass
 
 
 class UploadParams(BaseModel):
-    overwrite: bool = Field(
-        default=False,
-        title="Replace an existing file",
-        description="Required when a file of that name is already there",
+    conflict: Literal["refuse", "replace", "rename"] = Field(
+        default="refuse",
+        title="File conflict",
+        json_schema_extra={"x-ui-purpose": "file-conflict", "x-ui-hidden": True},
     )
 
 
@@ -130,10 +128,10 @@ class CreateFolder(_Bound, JsonAction[NameParams]):
 
     async def run(self, node_id: str | None, params: NameParams) -> ActionResult:
         parent = self._directory(node_id)
-        target = parent / params.name
+        target = await to_thread.run_sync(partial(_available_path, parent, params.name))
         await to_thread.run_sync(partial(_make_directory, target))
         return ActionResult(
-            message=f"Folder {params.name} created", reload_node_id=node_id or None
+            message=f"Folder {target.name} created", reload_node_id=node_id or None
         )
 
 
@@ -166,7 +164,7 @@ class Delete(_ActsOnNode, JsonAction[DeleteParams]):
     async def run(self, node_id: str | None, params: DeleteParams) -> ActionResult:
         path = self._target(node_id)
         reload_node_id = self._parent_id(path)
-        await to_thread.run_sync(partial(_remove, path, params.recursive))
+        await to_thread.run_sync(partial(_remove, path))
         return ActionResult(
             message=f"{path.name} deleted", reload_node_id=reload_node_id
         )
@@ -209,9 +207,12 @@ class Download(_ActsOnNode, Action[DownloadParams]):
 
 class Upload(_Bound, FileAction[UploadParams]):
     name: ClassVar[str] = "upload"
-    title: ClassVar[str] = "Upload a file"
+    title: ClassVar[str] = "Upload files"
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
     acts_on: ClassVar[ActsOn] = "children"
+    # A folder takes as many files as are handed to it, and each one is a
+    # whole upload of its own: one refused name does not spoil the rest.
+    many_files: ClassVar[bool] = True
     params_model = UploadParams
 
     async def run(
@@ -220,17 +221,25 @@ class Upload(_Bound, FileAction[UploadParams]):
         parent = self._directory(node_id)
         filename = _plain_name(payload.filename or "")
         target = parent / filename
-        if target.exists() and not params.overwrite:
+        if target.exists() and params.conflict == "refuse":
             raise ActionRefused("conflict", f"{filename} is already there")
-
-        await self._stream_into(parent, target, payload)
+        temporary = await self._stream_into(parent, payload)
+        try:
+            if params.conflict == "replace":
+                await to_thread.run_sync(partial(os.replace, temporary, target))
+            elif params.conflict == "rename":
+                target = await to_thread.run_sync(
+                    partial(_publish_with_available_name, temporary, parent, filename)
+                )
+            else:
+                await to_thread.run_sync(partial(_publish_new, temporary, target))
+        finally:
+            await to_thread.run_sync(partial(temporary.unlink, missing_ok=True))
         return ActionResult(
-            message=f"{filename} uploaded", reload_node_id=node_id or None
+            message=f"{target.name} uploaded", reload_node_id=node_id or None
         )
 
-    async def _stream_into(
-        self, parent: Path, target: Path, payload: FilePayload
-    ) -> None:
+    async def _stream_into(self, parent: Path, payload: FilePayload) -> Path:
         """Write the upload beside its destination, then move it into place.
 
         A reader of the catalog never sees a half-written file under the real
@@ -253,7 +262,7 @@ class Upload(_Bound, FileAction[UploadParams]):
                             "The file is larger than this server accepts",
                         )
                     await to_thread.run_sync(handle.write, chunk)
-            await to_thread.run_sync(partial(os.replace, path, target))
+            return path
         except BaseException:
             await to_thread.run_sync(partial(path.unlink, missing_ok=True))
             raise
@@ -272,20 +281,48 @@ def _rename(path: Path, target: Path) -> None:
     path.rename(target)
 
 
-def _remove(path: Path, recursive: bool) -> None:
+def _remove(path: Path) -> None:
     if not path.is_dir():
         path.unlink()
         return
-    if recursive:
-        shutil.rmtree(path)
-        return
+    shutil.rmtree(path)
+
+
+def _numbered_name(name: str, number: int) -> str:
+    """Put a copy number before the uploaded file's suffix."""
+    path = Path(name)
+    suffix = path.suffix if path.suffix != name else ""
+    stem = name[: -len(suffix)] if suffix else name
+    return f"{stem} ({number}){suffix}"
+
+
+def _available_path(parent: Path, name: str) -> Path:
+    candidate = parent / name
+    number = 1
+    while candidate.exists():
+        candidate = parent / f"{name} ({number})"
+        number += 1
+    return candidate
+
+
+def _publish_new(temporary: Path, target: Path) -> None:
+    """Publish without replacing a file that appeared after the first check."""
     try:
-        path.rmdir()
-    except OSError:
-        raise ActionRefused(
-            "conflict",
-            f"{path.name} is not empty; say so explicitly to delete what is inside",
-        ) from None
+        os.link(temporary, target)
+    except FileExistsError:
+        raise ActionRefused("conflict", f"{target.name} is already there") from None
+
+
+def _publish_with_available_name(temporary: Path, parent: Path, name: str) -> Path:
+    number = 1
+    while True:
+        target = parent / _numbered_name(name, number)
+        try:
+            os.link(temporary, target)
+        except FileExistsError:
+            number += 1
+            continue
+        return target
 
 
 class FileActionType(ActionType, Protocol):

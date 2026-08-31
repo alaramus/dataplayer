@@ -116,5 +116,5 @@ async def test_reports_what_a_type_can_do(
         "Load from CSV",
         "Drop",
     }
-    assert "Upload a file" in files
+    assert "Upload files" in files
     assert "Delete" in files

@@ -438,6 +438,11 @@ def _relation_model(
         partition_of=partition_of,
         column_changes_supported=column_changes_reason is None,
         column_changes_reason=column_changes_reason,
+        column_operations=(
+            ["add", "drop", "rename", "default", "nullability", "type"]
+            if column_changes_reason is None
+            else []
+        ),
         column_type_options=(
             POSTGRES_COLUMN_TYPE_OPTIONS if column_changes_reason is None else []
         ),

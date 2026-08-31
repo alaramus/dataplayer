@@ -7,7 +7,7 @@ from typing import Any, ClassVar, Protocol
 
 from anyio import to_thread
 from psycopg import sql
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.adapters.actions import (
     CHUNK_BYTES,
@@ -45,7 +45,9 @@ def _relation_name(value: str) -> str:
 
 
 class RenameRelationParams(BaseModel):
-    new_name: str = Field(title="New name")
+    new_name: str = Field(
+        title="New name", json_schema_extra={"x-ui-purpose": "node-name"}
+    )
 
     _check = field_validator("new_name")(_relation_name)
 
@@ -130,17 +132,43 @@ def _stem(filename: str) -> str:
     return PurePosixPath(tail).stem
 
 
+class LoadCsvColumn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(min_length=1)
+    target: str = Field(min_length=1)
+
+
 class LoadCsvParams(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra={"x-ui-workflow": "file-to-relation"}
+    )
+
     name: str = Field(
         default="",
         title="Table name",
         description="Leave empty to name the table after the file",
+        json_schema_extra={"x-ui-purpose": "filename-stem"},
     )
+    schema_name: str = Field(default="", title="Schema")
+    create_schema: bool = False
+    columns: list[LoadCsvColumn] | None = Field(default=None, max_length=100)
 
     @field_validator("name")
     @classmethod
     def named_or_empty(cls, value: str) -> str:
         return value if value == "" else _relation_name(value)
+
+    @model_validator(mode="after")
+    def distinct_columns(self) -> LoadCsvParams:
+        columns = self.columns or []
+        sources = [column.source for column in columns]
+        targets = [column.target for column in columns]
+        if len(sources) != len(set(sources)):
+            raise ValueError("A source column may be selected only once")
+        if len(targets) != len(set(targets)):
+            raise ValueError("A target column may be named only once")
+        return self
 
 
 class LoadCsv(FileAction[LoadCsvParams]):
@@ -166,6 +194,7 @@ class LoadCsv(FileAction[LoadCsvParams]):
     params_model = LoadCsvParams
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
+        self._session = session
         self._catalog = catalog
         self._relations = PostgresRelationChanges(session, catalog)
 
@@ -174,6 +203,14 @@ class LoadCsv(FileAction[LoadCsvParams]):
     ) -> ActionResult:
         if node_id is None:
             raise ActionRefused("not_applicable", "Choose a schema to load into")
+        schema = params.schema_name or node_id
+        if params.create_schema:
+            await self._create_schema(schema)
+        else:
+            schemas = await self._catalog.list_children(None)
+            if schema not in {node.id for node in schemas if isinstance(node, SchemaNode)}:
+                raise ActionRefused("not_applicable", f'Schema "{schema}" does not exist')
+
         name = params.name or _stem(payload.filename or "")
         if name.strip() == "":
             raise ActionRefused(
@@ -181,7 +218,7 @@ class LoadCsv(FileAction[LoadCsvParams]):
             )
         _relation_name(name)
 
-        siblings = await self._catalog.list_children(node_id)
+        siblings = await self._catalog.list_children(schema)
         if name in {sibling.name for sibling in siblings}:
             raise ActionRefused("conflict", f"{name} is already there")
 
@@ -196,19 +233,37 @@ class LoadCsv(FileAction[LoadCsvParams]):
                 f"A file loaded this way may hold at most {CSV_ROW_CEILING} rows",
             )
 
+        selected = (
+            [LoadCsvColumn(source=column, target=column) for column in table.columns]
+            if params.columns is None
+            else params.columns
+        )
+        positions = {column: index for index, column in enumerate(table.columns)}
+        for column in selected:
+            if column.source not in positions:
+                raise ActionRefused(
+                    "not_applicable", f'The file has no column "{column.source}"'
+                )
+            _relation_name(column.target)
+        if not selected:
+            raise ActionRefused("not_applicable", "Choose at least one column")
+
         result = await self._relations.create_relation(
             CreateRelationRequest(
-                parent_node_id=node_id,
+                parent_node_id=schema,
                 name=name,
                 # Every column is text, because a delimited file states no
                 # types and one read off its rows would depend on how many of
                 # them were looked at. A column takes another type afterwards
                 # through the change that counts the rows in its way (D38).
                 columns=[
-                    NewColumn(name=column, type_code="text")
-                    for column in table.columns
+                    NewColumn(name=column.target, type_code="text")
+                    for column in selected
                 ],
-                rows=table.rows,
+                rows=[
+                    [row[positions[column.source]] for column in selected]
+                    for row in table.rows
+                ],
             )
         )
         if not isinstance(result, RelationCreated):
@@ -222,7 +277,19 @@ class LoadCsv(FileAction[LoadCsvParams]):
             )
         return ActionResult(
             message=f"{name} created with {result.inserted} rows",
-            reload_node_id=node_id,
+            # A new schema itself is a child of the root. Existing schemas only
+            # gain the relation below them.
+            reload_node_id=None if params.create_schema else schema,
+        )
+
+    async def _create_schema(self, schema: str) -> None:
+        _relation_name(schema)
+        schemas = await self._catalog.list_children(None)
+        if schema in {node.id for node in schemas if isinstance(node, SchemaNode)}:
+            raise ActionRefused("conflict", f'Schema "{schema}" already exists')
+        await self._session.schema_change(
+            sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)).as_string(),
+            refusals={"42501": "This connection may not create schemas"},
         )
 
     async def _read(self, payload: FilePayload) -> DelimitedTable:

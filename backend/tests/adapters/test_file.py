@@ -7,7 +7,13 @@ from app.adapters import registry
 from app.adapters.actions import SupportsActions
 from app.adapters.file.adapter import FileAdapter
 from app.adapters.file.options import FileOptions
-from app.adapters.protocol import SupportsCatalog, SupportsFetch
+from app.adapters.protocol import (
+    SupportsCatalog,
+    SupportsDelete,
+    SupportsFetch,
+    SupportsInsert,
+    SupportsUpdate,
+)
 
 
 def _context(home: Path) -> registry.AdapterContext:
@@ -25,6 +31,9 @@ def test_a_file_source_can_browse_and_read() -> None:
 
     assert isinstance(adapter, SupportsCatalog)
     assert isinstance(adapter, SupportsFetch)
+    assert isinstance(adapter, SupportsUpdate)
+    assert isinstance(adapter, SupportsInsert)
+    assert isinstance(adapter, SupportsDelete)
 
 
 def test_the_default_path_is_the_home_directory(tmp_path: Path) -> None:

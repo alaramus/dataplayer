@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.fetch import MAX_LIMIT, FetchColumn, FetchRequest
 from app.adapters.protocol import SupportsFetch
+from app.adapters.relation_changes import NewColumn
 
 # How many rows one move may carry. More than this is a durable job with
 # progress and cancellation, which is Phase 4; a larger number here would only
@@ -66,6 +67,52 @@ class RowsMoved(BaseModel):
     inserted: int
     # True when the source held more rows than the ceiling allows.
     truncated: bool
+
+
+class NewRelationColumn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str
+    target: str
+    type_code: str
+
+
+class CreateRelationFromSourceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    parent_node_id: str
+    name: str = Field(min_length=1, max_length=63)
+    source_connector_id: str
+    source_node_id: str
+    columns: Annotated[list[NewRelationColumn], Field(min_length=1, max_length=100)]
+
+    @model_validator(mode="after")
+    def distinct_columns(self) -> CreateRelationFromSourceRequest:
+        sources = [column.source for column in self.columns]
+        targets = [column.target for column in self.columns]
+        if len(sources) != len(set(sources)):
+            raise ValueError("A source column may be selected only once")
+        if len(targets) != len(set(targets)):
+            raise ValueError("A new column may be named only once")
+        return self
+
+    def pairs(self) -> list[ColumnPair]:
+        return [
+            ColumnPair(source=column.source, target=column.target)
+            for column in self.columns
+        ]
+
+    def new_columns(self) -> list[NewColumn]:
+        return [
+            NewColumn(name=column.target, type_code=column.type_code)
+            for column in self.columns
+        ]
+
+
+class NewRelationTarget(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    parent_node_id: str
 
 
 class ReadRows(BaseModel):

@@ -1,0 +1,82 @@
+const DELIMITERS = [",", ";", "\t", "|"] as const
+
+export interface DelimitedFile {
+  columns: string[]
+  preview: string[][]
+}
+
+function delimiterOf(name: string, text: string): string {
+  if (name.toLowerCase().endsWith(".tsv")) return "\t"
+  const firstLine = text.split(/\r?\n/, 1)[0] ?? ""
+  let quoted = false
+  const counts = new Map(DELIMITERS.map((delimiter) => [delimiter, 0]))
+  for (let index = 0; index < firstLine.length; index += 1) {
+    const character = firstLine[index]
+    if (character === '"') {
+      if (quoted && firstLine[index + 1] === '"') index += 1
+      else quoted = !quoted
+    } else if (!quoted && counts.has(character as (typeof DELIMITERS)[number])) {
+      const delimiter = character as (typeof DELIMITERS)[number]
+      counts.set(delimiter, (counts.get(delimiter) ?? 0) + 1)
+    }
+  }
+  return [...counts.entries()].sort((one, two) => two[1] - one[1])[0]?.[0] ?? ","
+}
+
+export function parseDelimited(text: string, name: string, previewRows = 20): DelimitedFile {
+  const delimiter = delimiterOf(name, text)
+  const records: string[][] = []
+  let record: string[] = []
+  let value = ""
+  let quoted = false
+  for (let index = 0; index <= text.length; index += 1) {
+    const character = text[index]
+    if (quoted) {
+      if (character === '"' && text[index + 1] === '"') {
+        value += '"'
+        index += 1
+      } else if (character === '"') quoted = false
+      else if (character === undefined) throw new Error("The file ends inside a quoted value")
+      else value += character
+      continue
+    }
+    if (character === '"' && value === "") quoted = true
+    else if (character === delimiter) {
+      record.push(value)
+      value = ""
+    } else if (character === "\n" || character === undefined) {
+      if (character === undefined && value === "" && record.length === 0) break
+      if (value.endsWith("\r")) value = value.slice(0, -1)
+      record.push(value)
+      records.push(record)
+      record = []
+      value = ""
+      if (records.length > previewRows) break
+    } else value += character
+  }
+  const header = records.shift()
+  if (header === undefined || header.every((name) => name.trim() === "")) {
+    throw new Error("The file has no header row")
+  }
+  const columns: string[] = []
+  for (const [index, raw] of header.entries()) {
+    let name = raw.trim() || `column_${index + 1}`
+    if (columns.includes(name)) name = `${name}_${index + 1}`
+    columns.push(name)
+  }
+  return {
+    columns,
+    preview: records.map((row) => columns.map((_, index) => row[index] ?? "")),
+  }
+}
+
+export async function readDelimited(file: File): Promise<DelimitedFile> {
+  if (file.size > 16 * 1024 * 1024) throw new Error("The file must be under 16 MB")
+  return parseDelimited(await file.text(), file.name)
+}
+
+export function filenameStem(name: string): string {
+  const tail = name.replaceAll("\\", "/").split("/").at(-1) ?? name
+  const at = tail.lastIndexOf(".")
+  return at <= 0 ? tail : tail.slice(0, at)
+}

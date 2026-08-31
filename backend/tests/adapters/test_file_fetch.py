@@ -51,6 +51,14 @@ async def test_columns_of_a_delimited_file_have_string_types(fetch: FileFetch) -
         for cell in row
         if cell is not None
     )
+    assert result.update_supported is True
+    assert result.insert_supported is True
+    assert result.delete_supported is True
+    assert all(
+        column.editable and column.nullable and column.insertable
+        for column in result.columns
+    )
+    assert all(handle is not None for handle in result.row_handles)
 
 
 async def test_a_page_in_the_middle_knows_there_is_more(fetch: FileFetch) -> None:
@@ -203,7 +211,7 @@ async def test_a_json_file_that_does_not_parse_refuses_the_table_projection(
         await fetch.fetch(FetchRequest(node_id="broken.json"))
 
 
-async def test_a_json_file_is_read_only_like_every_other_file(
+async def test_a_json_table_projection_remains_read_only(
     fetch: FileFetch,
 ) -> None:
     result = await fetch.fetch(FetchRequest(node_id="people.json"))

@@ -26,7 +26,7 @@ const FILES = adapterType({
   description: "Your personal storage on this server.",
   capabilities: [
     { group: "explore", title: "Browse the catalog" },
-    { group: "manage", title: "Upload a file" },
+    { group: "manage", title: "Upload files" },
   ],
 })
 

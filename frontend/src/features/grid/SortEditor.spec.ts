@@ -33,7 +33,6 @@ function mountHeader(columns: FetchColumn[] = COLUMNS) {
       filters: [],
       sort: [],
       layout: defaultColumnLayout(columns),
-      selectedColumn: null,
     },
     global: { plugins: [Quasar] },
   })

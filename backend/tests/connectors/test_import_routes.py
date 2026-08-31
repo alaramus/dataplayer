@@ -78,6 +78,81 @@ def _move(
     }
 
 
+def _create(
+    schema: str,
+    files: str,
+    node: str,
+    name: str,
+    columns: list[tuple[str, str, str]],
+) -> dict[str, object]:
+    return {
+        "parent_node_id": schema,
+        "name": name,
+        "source_connector_id": files,
+        "source_node_id": node,
+        "columns": [
+            {"source": source, "target": target, "type_code": type_code}
+            for source, target, type_code in columns
+        ],
+    }
+
+
+async def test_describes_how_a_schema_accepts_a_new_relation(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    schema: str,
+) -> None:
+    target = await _postgres(client, normal_user_token_headers)
+
+    response = await client.post(
+        f"{BASE}/{target}/relations/options",
+        headers=normal_user_token_headers,
+        json={"parent_node_id": schema},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["supported"] is True
+    assert "text" in {
+        option["code"] for option in response.json()["column_type_options"]
+    }
+
+
+async def test_creates_a_relation_from_another_source_with_chosen_columns(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    schema: str,
+    home: Path,
+) -> None:
+    target = await _postgres(client, normal_user_token_headers)
+    files = await _files(client, normal_user_token_headers)
+    node = _csv(home, "id,code,ignored\n7,US,x\n8,AP,y\n")
+
+    response = await client.post(
+        f"{BASE}/{target}/relations/from-source",
+        headers=normal_user_token_headers,
+        json=_create(
+            schema,
+            files,
+            node,
+            "imported_regions",
+            [("code", "region_code", "text"), ("id", "source_id", "integer")],
+        ),
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["inserted"] == 2
+    rows = await client.post(
+        f"{BASE}/{target}/fetch",
+        headers=normal_user_token_headers,
+        json={"node_id": f"{schema}.imported_regions", "limit": 10},
+    )
+    assert [column["name"] for column in rows.json()["columns"]] == [
+        "region_code",
+        "source_id",
+    ]
+    assert sorted(rows.json()["rows"]) == [["AP", "8"], ["US", "7"]]
+
+
 async def test_moves_rows_from_a_file_into_a_relation(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

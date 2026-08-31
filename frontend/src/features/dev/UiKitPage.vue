@@ -71,6 +71,7 @@ const plain = ref("prefer")
 const several = ref<string[]>(["public"])
 const flag = ref(true)
 const file = ref<File | null>(null)
+const files = ref<File[]>([])
 const loading = ref(false)
 
 const treeNodes = [
@@ -306,6 +307,12 @@ function flash() {
         <AppFileInput
           v-model="file"
           label="File"
+        />
+        <AppFileInput
+          v-model="files"
+          label="Files"
+          multiple
+          append
         />
       </AppSection>
     </AppCard>

@@ -23,6 +23,8 @@ from app.adapters.file.readers import (
     TextReader,
 )
 from app.adapters.file.session import FileSession
+from app.adapters.file.update import encode_handle, file_version
+from app.core.config import settings
 
 CSV_READER = CsvReader()
 TEXT_READER = TextReader()
@@ -46,18 +48,33 @@ class FileFetch:
 
         # One hop into the worker thread, resolution included: deciding what a
         # node id names asks the filesystem, which blocks like the read does.
-        page = await to_thread.run_sync(self._read, request)
+        page, editable, version = await to_thread.run_sync(self._read, request)
+        columns = [
+            column.model_copy(
+                update={"editable": True, "nullable": True, "insertable": True}
+            )
+            if editable
+            else column
+            for column in page.columns
+        ]
         return FetchResult(
-            columns=page.columns,
+            columns=columns,
             rows=page.rows,
             has_more=page.has_more,
-            row_handles=[None for _ in page.rows],
-            update_reason="This source is read-only",
-            insert_reason="This source is read-only",
-            delete_reason="This source is read-only",
+            row_handles=(
+                [encode_handle(request.offset + index, version) for index in range(len(page.rows))]
+                if editable and version is not None
+                else [None for _ in page.rows]
+            ),
+            update_supported=editable,
+            update_reason=None if editable else "This file representation is read-only",
+            insert_supported=editable,
+            insert_reason=None if editable else "This file representation is read-only",
+            delete_supported=editable,
+            delete_reason=None if editable else "This file representation is read-only",
         )
 
-    def _read(self, request: FetchRequest) -> Page:
+    def _read(self, request: FetchRequest) -> tuple[Page, bool, str | None]:
         resolved = resolve_node(self._session, request.node_id)
         if resolved.member is not None:
             if format_of(resolved.path.name) == "archive":
@@ -65,15 +82,25 @@ class FileFetch:
                 # table inside an archive needs no second reader (D53). Paging
                 # expands it once per page, which is what the ceiling is for.
                 with archive.expanded(resolved.path, resolved.member) as entry:
-                    return self._read_path(entry, request, name=entry_name(resolved))
-            return self._sheet(resolved, request)
+                    return self._read_path(entry, request, name=entry_name(resolved)), False, None
+            return self._sheet(resolved, request), False, None
 
         path = resolved.path
         if not path.exists():
             raise ValueError(f"No such file: {request.node_id}")
         if path.is_dir():
             raise ValueError(f"A directory cannot be read as rows: {request.node_id}")
-        return self._read_path(path, request, name=path.name)
+        before = file_version(path)
+        page = self._read_path(path, request, name=path.name)
+        editable = (
+            format_of(path.name) == "delimited"
+            and path.stat().st_size <= settings.MAX_UPLOAD_BYTES
+            and len(page.columns) > 0
+        )
+        after = file_version(path)
+        if editable and before != after:
+            raise ValueError("The file changed while this page was being read; reload it")
+        return page, editable, after if editable else None
 
     def _read_path(self, path: Path, request: FetchRequest, *, name: str) -> Page:
         """One page out of a path, with the reader chosen by the node's name.

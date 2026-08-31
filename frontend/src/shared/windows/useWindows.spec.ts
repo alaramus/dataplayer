@@ -138,3 +138,26 @@ describe("moving a window", () => {
     expect(rect.height).toBeGreaterThan(300)
   })
 })
+
+describe("content-sized windows", () => {
+  it("keeps following content that changes after the first measurement", () => {
+    const windows = useWindows()
+    windows.open(windowOf("a"))
+
+    windows.context.fit("a", { width: 400, height: 220 })
+    windows.context.fit("a", { width: 400, height: 480 })
+
+    expect(first(windows.context.windows.value).rect.height).toBe(480)
+  })
+
+  it("stops automatic fitting after the user resizes the window", () => {
+    const windows = useWindows()
+    windows.open(windowOf("a"))
+    windows.context.resize("a", "bottom-right", { x: 700, y: 600 })
+    const chosen = first(windows.context.windows.value).rect.height
+
+    windows.context.fit("a", { width: 400, height: 200 })
+
+    expect(first(windows.context.windows.value).rect.height).toBe(chosen)
+  })
+})

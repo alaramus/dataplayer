@@ -4,7 +4,7 @@ import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type { ActionPreview, ActionResult } from "@/client"
-import { messageOf } from "@/shared/api/errors"
+import { messageOf, statusOf } from "@/shared/api/errors"
 import { reloadedBy } from "./actions"
 import type { ActionFailure, ActionOutcome } from "./actions"
 import type { CatalogNode } from "./nodes"
@@ -117,20 +117,28 @@ export interface ActionInput {
   /** The nodes to act on. One filled form, applied to each in turn. */
   nodeIds: (string | null)[]
   params: Record<string, unknown>
-  file?: File | null
+  /**
+   * The files to carry, one request each.
+   *
+   * An action that takes a file may be handed several, and the transport is
+   * then the same request repeated: a refused name is one file's answer
+   * rather than the whole set's, and what did arrive stays arrived.
+   */
+  files?: File[]
 }
 
 async function performOne(
   input: ActionInput,
-  nodeId: string | null
+  nodeId: string | null,
+  file: File | null
 ): Promise<ActionResult> {
   const path = { connector_id: input.connectorId, action_name: input.name }
-  if (input.file) {
+  if (file) {
     return (
       await ConnectorsService.runActionWithFile({
         path,
         body: {
-          file: input.file,
+          file,
           node_id: nodeId ?? "",
           params: JSON.stringify(input.params),
         },
@@ -152,6 +160,10 @@ async function performOne(
  * was chosen, and the action itself declared that in the listing. A set is
  * done one at a time and a refusal does not stop the rest — deleting four of
  * five files and saying which one survived beats stopping at the first.
+ *
+ * A set of files is the same statement about the other axis: one request per
+ * node and file, so three files into one folder are three uploads and the
+ * second being refused says nothing about the third.
  */
 export function useRunAction() {
   const queryClient = useQueryClient()
@@ -160,17 +172,29 @@ export function useRunAction() {
     mutationFn: async (input: ActionInput): Promise<ActionOutcome> => {
       const done: ActionResult[] = []
       const failures: ActionFailure[] = []
+      // An action carrying nothing is one request per node all the same; the
+      // loop below is over pairs either way.
+      const carried: (File | null)[] =
+        input.files !== undefined && input.files.length > 0 ? input.files : [null]
+      const total = input.nodeIds.length * carried.length
       for (const nodeId of input.nodeIds) {
-        try {
-          done.push(await performOne(input, nodeId))
-        } catch (cause) {
-          // The first refusal is re-raised when it is the only node: a single
-          // action must still be able to show a field error in its form.
-          if (input.nodeIds.length === 1) throw cause
-          failures.push({ nodeId, message: messageOf(cause, "Could not be done") })
+        for (const file of carried) {
+          try {
+            done.push(await performOne(input, nodeId, file))
+          } catch (cause) {
+            // The first refusal is re-raised when it is the only request: a
+            // single action must still show a field error in its own form.
+            if (total === 1) throw cause
+            failures.push({
+              nodeId,
+              message: messageOf(cause, "Could not be done"),
+              ...(file === null ? {} : { file }),
+              conflict: statusOf(cause) === 409,
+            })
+          }
         }
       }
-      return { done, failures, total: input.nodeIds.length }
+      return { done, failures, total }
     },
     onSuccess: async (outcome, input) => {
       // The server says which branch changed; the client does not derive it

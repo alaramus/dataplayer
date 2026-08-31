@@ -22,6 +22,7 @@ TypeCategory = Literal[
     "array",
     "other",
 ]
+ColumnOperation = Literal["add", "drop", "rename", "default", "nullability", "type"]
 RelationKind = Literal[
     "table",
     "partitioned_table",
@@ -220,6 +221,10 @@ class RelationModel(BaseModel):
     partition_of: PartitionOf | None = None
     column_changes_supported: bool = False
     column_changes_reason: str | None = None
+    # The exact subset behind the broad gate. Existing relational adapters
+    # offer all six; a delimited file can change its header without claiming
+    # defaults, nullability or source types it does not have.
+    column_operations: list[ColumnOperation] = Field(default_factory=list)
     column_type_options: list[ColumnTypeOption] = Field(default_factory=list)
     # A second gate rather than a reuse of the first: a view cannot be indexed
     # and a materialized view can, so the two answers differ per relation.
@@ -255,6 +260,7 @@ def without_structure_changes(model: RelationModel, reason: str) -> RelationMode
         update={
             "column_changes_supported": False,
             "column_changes_reason": reason,
+            "column_operations": [],
             "column_type_options": [],
             "index_changes_supported": False,
             "index_changes_reason": reason,

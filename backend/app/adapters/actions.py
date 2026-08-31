@@ -144,6 +144,14 @@ class Action[P: BaseModel](ABC):
     # files to one name is not five renames, and nothing in the shape of an
     # action says so — only the action itself knows.
     bulk: ClassVar[bool] = False
+    # Whether one filled form may be carried by several files at once.
+    # Declared beside bulk because it is the same sort of statement about a
+    # set, and declared rather than derived because the transport is one
+    # file per request either way: there is no second method for an
+    # isinstance check to find. Five files into a folder are five uploads;
+    # a table loaded from a CSV is one file, and a second would be a second
+    # table.
+    many_files: ClassVar[bool] = False
 
     params_model: type[P]
 

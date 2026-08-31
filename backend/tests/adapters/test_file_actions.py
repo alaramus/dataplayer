@@ -81,9 +81,8 @@ async def test_the_whole_vocabulary_is_offered_whatever_the_node(
 ) -> None:
     """What the source can do at all, apart from what this node admits.
 
-    A menu built from the applicable set alone changes shape as the user walks
-    the tree; one built from the vocabulary stays put and greys out what does
-    not apply here.
+    The vocabulary and applicability remain separate source statements; the
+    client may then omit commands that do not apply to the current selection.
     """
     names = {action.name for action in actions.all_actions()}
 
@@ -135,13 +134,16 @@ async def test_creating_a_folder_in_the_root_reloads_the_root(
     assert result.reload_node_id is None
 
 
-async def test_creating_a_folder_over_a_taken_name_is_refused(
-    actions: FileActions,
+async def test_default_folder_names_are_numbered_when_taken(
+    actions: FileActions, root: Path
 ) -> None:
-    with pytest.raises(ActionRefused) as caught:
-        await _run(actions, "create_folder", None, name="reports")
+    first = await _run(actions, "create_folder", None)
+    second = await _run(actions, "create_folder", None)
 
-    assert caught.value.reason == "conflict"
+    assert (root / "new folder").is_dir()
+    assert (root / "new folder (1)").is_dir()
+    assert first.message == "Folder new folder created"
+    assert second.message == "Folder new folder (1) created"
 
 
 @pytest.mark.parametrize("name", ["..", "../evil", "/etc", "C:", "a/b", ".", ""])
@@ -214,27 +216,17 @@ async def test_deleting_an_empty_folder_removes_it(
     assert not (root / "empty").exists()
 
 
-async def test_deleting_a_folder_with_files_needs_saying_so(
+async def test_deleting_a_folder_removes_everything_inside_after_confirmation(
     actions: FileActions, root: Path
 ) -> None:
-    with pytest.raises(ActionRefused) as caught:
-        await _run(actions, "delete", "reports")
-
-    assert caught.value.reason == "conflict"
-    assert (root / "reports" / "q3.csv").exists()
-
-
-async def test_deleting_a_folder_with_files_recursively_removes_it(
-    actions: FileActions, root: Path
-) -> None:
-    await _run(actions, "delete", "reports", recursive=True)
+    await _run(actions, "delete", "reports")
 
     assert not (root / "reports").exists()
 
 
 async def test_deleting_the_root_is_refused(actions: FileActions, root: Path) -> None:
     with pytest.raises(ActionRefused) as caught:
-        await _run(actions, "delete", None, recursive=True)
+        await _run(actions, "delete", None)
 
     assert caught.value.reason == "not_applicable"
     assert await look(root.is_dir)
@@ -280,10 +272,29 @@ async def test_uploading_over_a_taken_name_is_allowed_when_asked(
     actions: FileActions, root: Path
 ) -> None:
     await _upload(
-        actions, "reports", Upload(b"new", filename="q3.csv"), overwrite=True
+        actions,
+        "reports",
+        Upload(b"new", filename="q3.csv"),
+        conflict="replace",
     )
 
     assert (root / "reports" / "q3.csv").read_text(encoding="utf-8") == "new"
+
+
+async def test_uploading_over_a_taken_name_can_keep_both(
+    actions: FileActions, root: Path
+) -> None:
+    (root / "reports" / "q3 (1).csv").write_text("older", encoding="utf-8")
+
+    result = await _upload(
+        actions, "reports", Upload(b"new", filename="q3.csv"), conflict="rename"
+    )
+
+    assert (root / "reports" / "q3.csv").read_text(encoding="utf-8") == (
+        "id,name\n1,one\n"
+    )
+    assert (root / "reports" / "q3 (2).csv").read_text(encoding="utf-8") == "new"
+    assert result.message == "q3 (2).csv uploaded"
 
 
 @pytest.mark.parametrize("filename", ["../evil.txt", "/etc/passwd", "C:evil", "", None])

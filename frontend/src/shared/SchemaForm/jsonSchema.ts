@@ -12,6 +12,8 @@ export interface JsonSchemaProperty {
   minLength?: number
   minimum?: number
   maximum?: number
+  "x-ui-hidden"?: boolean
+  "x-ui-purpose"?: "file-conflict" | "filename-stem" | "node-name"
   // Where the field goes, put here by `layout()` on the server. A statement
   // about the fields, so it is made where the fields are declared — the form
   // would otherwise have to infer that a port is narrow from its being a
@@ -38,9 +40,10 @@ export interface JsonSchema {
     /** The code of a variant to the definition that describes it. */
     mapping: Record<string, string>
   }
+  "x-ui-workflow"?: "file-to-relation"
 }
 
-export type FieldKind = "text" | "password" | "number" | "boolean" | "select"
+export type FieldKind = "text" | "password" | "number" | "boolean" | "select" | "hidden"
 
 export interface FieldSpec {
   name: string
@@ -52,6 +55,7 @@ export interface FieldSpec {
   minLength?: number
   minimum?: number
   maximum?: number
+  purpose?: JsonSchemaProperty["x-ui-purpose"]
   /** The tab this field belongs to. */
   group: string
   /** Fields sharing a row are laid out on one line. */
@@ -59,6 +63,7 @@ export interface FieldSpec {
 }
 
 function kindOf(property: JsonSchemaProperty, name: string): FieldKind {
+  if (property["x-ui-hidden"] === true) return "hidden"
   if (property.enum) return "select"
   switch (property.type) {
     case "string":
@@ -89,6 +94,7 @@ export function schemaToFields(schema: JsonSchema): FieldSpec[] {
     minLength: property.minLength,
     minimum: property.minimum,
     maximum: property.maximum,
+    purpose: property["x-ui-purpose"],
     group: property.group ?? DEFAULT_GROUP,
     row: property.row,
   }))
@@ -150,6 +156,8 @@ export function fieldRows(fields: FieldSpec[]): FieldSpec[][] {
 
 function zodForField(field: FieldSpec): z.ZodType {
   switch (field.kind) {
+    case "hidden":
+      return z.string()
     case "select":
       return z.enum(
         (field.choices ?? []).map((choice) => choice.value) as [string, ...string[]]

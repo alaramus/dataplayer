@@ -109,8 +109,9 @@ watch(
         v-for="field in row"
         :key="field.name"
       >
+        <template v-if="field.kind === 'hidden'" />
         <AppToggle
-          v-if="field.kind === 'boolean'"
+          v-else-if="field.kind === 'boolean'"
           :data-testid="`field-${field.name}`"
           :model-value="Boolean(modelValue[field.name])"
           :label="field.label"

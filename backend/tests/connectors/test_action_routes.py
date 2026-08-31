@@ -168,9 +168,13 @@ async def test_a_directory_offers_the_actions_that_change_it(
     }
     assert offered["delete"]["destructive"] is True
     assert offered["upload"]["takes_file"] is True
+    # Several files go into a folder through one filled form, a request
+    # each. A client reads this to offer a set rather than one file.
+    assert offered["upload"]["takes_many_files"] is True
     assert offered["download"]["downloads"] is True
     assert offered["delete"]["downloads"] is False
     assert offered["create_folder"]["takes_file"] is False
+    assert offered["create_folder"]["takes_many_files"] is False
     assert "name" in offered["create_folder"]["params_schema"]["properties"]
 
 
@@ -377,7 +381,7 @@ async def test_an_unknown_action_is_not_found(
 
 
 @pytest.mark.usefixtures("home")
-async def test_parameters_that_miss_the_schema_are_a_bad_request(
+async def test_a_folder_name_defaults_when_the_form_is_submitted_unchanged(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     connector_id = await _file_connector(client, normal_user_token_headers)
@@ -386,8 +390,12 @@ async def test_parameters_that_miss_the_schema_are_a_bad_request(
         client, normal_user_token_headers, connector_id, "create_folder", "reports"
     )
 
-    assert response.status_code == 422
-    assert response.json()["detail"][0]["loc"] == ["body", "params", "name"]
+    assert response.status_code == 200
+    catalog = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+    )
+    assert "new folder" in {node["name"] for node in catalog.json()}
 
 
 @pytest.mark.usefixtures("home")
@@ -415,7 +423,7 @@ async def test_the_root_of_a_connector_cannot_be_deleted(
     connector_id = await _file_connector(client, normal_user_token_headers)
 
     response = await _run(
-        client, normal_user_token_headers, connector_id, "delete", None, recursive=True
+        client, normal_user_token_headers, connector_id, "delete", None
     )
 
     assert response.status_code == 422
@@ -435,7 +443,7 @@ async def test_a_node_outside_the_root_cannot_be_acted_on(
 
 
 @pytest.mark.usefixtures("home")
-async def test_deleting_a_folder_with_files_is_a_conflict(
+async def test_deleting_a_folder_removes_its_contents_after_confirmation(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     connector_id = await _file_connector(client, normal_user_token_headers)
@@ -444,11 +452,11 @@ async def test_deleting_a_folder_with_files_is_a_conflict(
         client, normal_user_token_headers, connector_id, "delete", "reports"
     )
 
-    assert response.status_code == 409
+    assert response.status_code == 200
 
 
 @pytest.mark.usefixtures("home")
-async def test_a_taken_name_is_a_conflict(
+async def test_a_taken_folder_name_gets_the_first_free_number(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     connector_id = await _file_connector(client, normal_user_token_headers)
@@ -462,7 +470,12 @@ async def test_a_taken_name_is_a_conflict(
         name="reports",
     )
 
-    assert response.status_code == 409
+    assert response.status_code == 200
+    catalog = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+    )
+    assert "reports (1)" in {node["name"] for node in catalog.json()}
 
 
 # --- downloading -------------------------------------------------------------
@@ -618,7 +631,7 @@ async def test_uploading_over_a_taken_name_is_allowed_when_asked(
         "q3.csv",
         b"id,name\n9,nine\n",
         "reports",
-        overwrite=True,
+        conflict="replace",
     )
 
     assert response.status_code == 200
@@ -832,6 +845,8 @@ async def test_a_schema_offers_loading_a_csv_and_says_it_takes_a_file(
     # The screen learns all of this from the answer: that there is a file to
     # attach, that the form has one field, and where the action puts things.
     assert load["takes_file"] is True
+    # One file makes one table, so this one is not offered as a set.
+    assert load["takes_many_files"] is False
     assert load["acts_on"] == "children"
     assert list(load["params_schema"]["properties"]) == ["name"]
 

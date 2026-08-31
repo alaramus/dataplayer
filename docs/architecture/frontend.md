@@ -27,6 +27,18 @@ The chart keeps that page's request and visible columns, offers line, bar and
 pie views, and derives a deterministic first choice without sending samples
 outside the browser.
 
+File upload presents its file field without opening the native picker on its
+own, and choosing stages files instead of sending them: the dialog lists what
+was chosen, any row can be taken out again, and the action's own button starts
+the upload. Several files at once where the action says it takes them, one
+request each; what arrives leaves the list and what is refused stays in it.
+Only after a file is chosen can a name conflict be meaningful, so that refusal
+offers Replace and Keep both; the latter uses the source-issued numbered name. Rename starts from the existing node name, omits a file
+extension while editing, keeps the old extension when none is typed and
+confirms an explicit extension change. Renaming a database relation starts
+from its current name as well. A destructive catalog action asks one plain
+question that names its target; it carries no separate warning banner.
+
 ```
 frontend/public/
 └── icons/services/      the logo of a source type, one SVG per type
@@ -299,6 +311,17 @@ snapshot or version token, not trusting client-supplied cells.
 Commands concerning an open table live in its grid header. **Show structure**
 therefore opens the structure beside the rows and is no longer repeated on
 every describable catalog row; the catalog remains navigation and selection.
+The header shows only commands the current representation supports, as icon
+buttons with tooltips. Column names select whole columns; sorting, pinning and
+hiding are separate controls inside each column header. The row-number column
+and pinned data columns remain at the left edge, while reference controls sit
+over the top-right of their cells without changing row geometry. Cell content
+is aligned left regardless of its source type.
+
+**Create table from these rows** uses D43's bounded cross-connector creation.
+The grid remains the source: the workflow chooses a structure-writable target
+connection and schema, starts the name from the source title, and maps each
+source column to a target name and a target-declared type.
 
 Download now asks which of two honest scopes is meant. **Current page** is the
 bounded operation above. **All matching rows** keeps the committed filters,

@@ -1,9 +1,9 @@
 """Describing a file that states its own columns.
 
-Only two nodes have an answer here: a Parquet file and a worksheet (D51). A
-delimited file reads its column names off a line of text and gives them no
-type, which is a header rather than a structure, and a document has no columns
-at all. Everything else is refused with that as the reason.
+Three nodes have an answer here: a Parquet file, a worksheet and an editable
+delimited file (D51). The first two state their types. A delimited header can
+be added to, renamed or reduced, while every one of its columns remains text.
+A document has no columns at all; everything else is refused with that reason.
 
 The relational vocabulary a file has no notion of — a schema, an owner, a
 persistence class, a storage strategy — is left out rather than filled in.
@@ -17,9 +17,10 @@ from app.adapters.dataset import DatasetInfo, WorksheetDataset
 from app.adapters.file import parquet, workbook
 from app.adapters.file.formats import format_of
 from app.adapters.file.members import ResolvedNode, resolve_node
+from app.adapters.file.readers import CsvReader
 from app.adapters.file.session import FileSession
 from app.adapters.protocol import NodeNotFound
-from app.adapters.relation import Column, RelationModel
+from app.adapters.relation import Column, ColumnTypeOption, RelationModel
 
 # One reason for all three gates: nothing about the shape of a file dataset is
 # changed through this source, so the structure screen says so once per gate
@@ -42,7 +43,10 @@ class FileRelations:
             raise NodeNotFound(node_id)
         if resolved.member is not None:
             return _worksheet_model(resolved, node_id)
-        if format_of(resolved.path.name) != "parquet":
+        file_format = format_of(resolved.path.name)
+        if file_format == "delimited":
+            return _delimited_model(resolved.path, node_id)
+        if file_format != "parquet":
             raise ValueError("This node states no columns of its own")
         return _parquet_model(resolved.path, node_id)
 
@@ -56,6 +60,30 @@ def _parquet_model(path: Path, node_id: str) -> RelationModel:
         row_estimate=dataset.rows,
         size_bytes=dataset.size_bytes,
         dataset=dataset,
+    )
+
+
+def _delimited_model(path: Path, node_id: str) -> RelationModel:
+    page = CsvReader().read(path, 1, 0)
+    return RelationModel(
+        node_id=node_id,
+        name=path.name,
+        kind="dataset",
+        size_bytes=path.stat().st_size,
+        columns=[
+            Column(
+                position=position,
+                name=column.name,
+                type=column.type,
+                nullable=True,
+            )
+            for position, column in enumerate(page.columns, start=1)
+        ],
+        column_changes_supported=True,
+        column_operations=["add", "drop", "rename"],
+        column_type_options=[ColumnTypeOption(code="text", title="Text", sql="text")],
+        index_changes_reason="A delimited file has no indexes",
+        constraint_changes_reason="A delimited file has no constraints",
     )
 
 

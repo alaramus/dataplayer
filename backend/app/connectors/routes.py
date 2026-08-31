@@ -105,6 +105,7 @@ from app.adapters.protocol import (
     SupportsContentEdit,
     SupportsContentPreview,
     SupportsContentStream,
+    SupportsCreateRelation,
     SupportsDelete,
     SupportsDropColumn,
     SupportsExport,
@@ -121,6 +122,11 @@ from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
 from app.adapters.registry import get as get_adapter_type
 from app.adapters.relation import RelationModel, without_structure_changes
+from app.adapters.relation_changes import (
+    CreateRelationRequest,
+    NewRelationOptions,
+    RelationCreated,
+)
 from app.adapters.resources import Pooling, ResourcesDep, ResourceStore
 from app.adapters.update import (
     CellsUpdated,
@@ -1478,12 +1484,17 @@ async def _import_sides(
 
 
 async def _read_for_import(
-    source: SupportsFetch, request: imports.ImportRowsRequest, ceiling: int
+    source: SupportsFetch,
+    request: imports.ImportRowsRequest | imports.CreateRelationFromSourceRequest,
+    ceiling: int,
 ) -> imports.ReadRows:
     try:
-        return await imports.read_rows(
-            source, request.source_node_id, request.columns, ceiling
+        pairs = (
+            request.columns
+            if isinstance(request, imports.ImportRowsRequest)
+            else request.pairs()
         )
+        return await imports.read_rows(source, request.source_node_id, pairs, ceiling)
     except NodeNotFound as exc:
         raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
     except ValueError as exc:
@@ -1578,6 +1589,111 @@ async def import_rows(
         )
     await data_cache.invalidate_connector(connector_id)
     return imports.RowsMoved(inserted=result.inserted, truncated=read.truncated)
+
+
+@router.post("/{connector_id}/relations/options", response_model=NewRelationOptions)
+async def new_relation_options(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: imports.NewRelationTarget,
+) -> Any:
+    """What one source-owned container accepts for a new relation."""
+    target = await _adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
+    if not isinstance(target, SupportsCreateRelation):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source cannot create relations",
+                "error_kind": "config",
+            },
+        )
+    return await _shape_change(
+        lambda: target.new_relation_options(request.parent_node_id)
+    )
+
+
+@router.post("/{connector_id}/relations/from-source", response_model=RelationCreated)
+async def create_relation_from_source(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    request: imports.CreateRelationFromSourceRequest,
+) -> Any:
+    """Create and fill one relation from any bounded readable source."""
+    try:
+        source_id = uuid.UUID(request.source_connector_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", "source_connector_id"],
+                    "msg": "That is not a connector id",
+                    "type": "value_error",
+                }
+            ],
+        ) from None
+    target = await _adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
+    source = await _adapter_for(
+        session, source_id, current_user, resources, requires="read"
+    )
+    if not isinstance(target, SupportsCreateRelation):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source cannot create relations",
+                "error_kind": "config",
+            },
+        )
+    if not isinstance(source, SupportsFetch):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "That source cannot be read as rows",
+                "error_kind": "config",
+            },
+        )
+    read = await _read_for_import(source, request, imports.IMPORT_CEILING)
+    if read.truncated:
+        raise HTTPException(
+            status_code=413,
+            detail={
+                "message": "A new table may be filled with at most "
+                f"{imports.IMPORT_CEILING} rows"
+            },
+        )
+    result = await _shape_change(
+        lambda: target.create_relation(
+            CreateRelationRequest(
+                parent_node_id=request.parent_node_id,
+                name=request.name,
+                columns=request.new_columns(),
+                rows=read.rows,
+            )
+        )
+    )
+    if not isinstance(result, RelationCreated):
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", "rows", cell.row, cell.column],
+                    "msg": f"{cell.value!r} cannot be read by {cell.column}",
+                    "type": "value_error",
+                }
+                for cell in result.cells
+            ],
+        )
+    await data_cache.invalidate_connector(connector_id)
+    return result
 
 
 @router.post("/{connector_id}/references", response_model=ReferenceTarget)
@@ -2105,6 +2221,11 @@ class ActionInfo(BaseModel):
     # Derived from the action itself rather than declared beside it: a flag and
     # an implementation can disagree, an isinstance check cannot.
     takes_file: bool
+    # Whether one filled form may be carried by several files, one request
+    # each. Declared by the action rather than derived: both shapes use the
+    # same route, and a client needs the answer to offer one picker or a
+    # set.
+    takes_many_files: bool
     # Whether it can be asked what it would do before it is done. Derived the
     # same way, and for the same reason.
     previews: bool
@@ -2157,6 +2278,7 @@ def _describe(action: Action[Any], *, applicable: bool) -> ActionInfo:
         title=action.title,
         destructive=action.destructive,
         takes_file=isinstance(action, TakesFile),
+        takes_many_files=action.many_files,
         previews=isinstance(action, Previews),
         downloads=isinstance(action, ProducesDownload),
         acts_on=action.acts_on,

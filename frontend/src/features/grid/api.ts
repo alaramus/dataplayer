@@ -4,6 +4,7 @@ import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type {
+  CreateRelationFromSourceRequest,
   DeleteRowsRequest,
   DownloadPageRequest,
   ExportDownloadRequest,
@@ -194,6 +195,25 @@ export function useImportRows(connectorId: Ref<string>) {
       ).data,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["rows", connectorId.value] })
+    },
+  })
+}
+
+export function useCreateRelationFromSource() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      connectorId: string
+      body: CreateRelationFromSourceRequest
+    }) =>
+      (
+        await ConnectorsService.createRelationFromSource({
+          path: { connector_id: input.connectorId },
+          body: input.body,
+        })
+      ).data,
+    onSuccess: async (_result, input) => {
+      await queryClient.invalidateQueries({ queryKey: ["catalog", input.connectorId] })
     },
   })
 }

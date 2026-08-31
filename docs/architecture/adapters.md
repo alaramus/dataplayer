@@ -5,7 +5,7 @@ do. Read this before adding a source type or changing the adapter contract.
 
 Decisions here: D1, D2, D2a, D2b, D2c, D2d, D8, D9, D10, D13, D15, D16, D17,
 D20, D21, D22, D23, D25, D26, D27, D29, D30, D31, D32, D36, D37, D38, D39,
-D40, D41, D42, D43, D44, D47, D48, D49, D51, D52, D53.
+D40, D41, D42, D43, D44, D45, D46, D47, D48, D49, D51, D52, D53.
 
 ## What exists today
 
@@ -21,7 +21,8 @@ a request in a pool.
 and files, and every leaf declares its ordered representations: delimited data
 opens as a table, JSON and JSONL as structured content, Markdown as a rendered
 document, and plain files as text. Supported files may also be projected into a
-table by an explicit request. A Parquet file and each sheet of a workbook are
+table by an explicit request. Delimited files expose atomic row and header
+changes while keeping every column text. A Parquet file and each sheet of a workbook are
 datasets: they state their own columns, so they are read as rows and described
 like a relation, and a workbook is walked into rather than opened. Five
 actions: create a folder, upload, download, rename and delete. Download returns
@@ -734,23 +735,34 @@ answers "have I paired these columns correctly", which is the mistake that
 actually happens; it deliberately does not validate against the target, since
 the import does that and writes nothing when it fails.
 
+The same bounded read can prepare a relation that does not exist yet. The
+connector route first asks the target container's `SupportsCreateRelation`
+capability for its type vocabulary, then accepts an explicit source/name/type
+mapping and passes the mapped rows to `create_relation`. The source still only
+knows how to read itself and the target still only knows how to create itself.
+Unlike importing into an existing relation, creation refuses a source beyond
+the 5000-row ceiling: silently making a new table from only its first part would
+give that table a false identity. The target's transaction keeps its DDL and
+first rows all-or-none.
+
 Known deviations:
 
 - **No transformation.** A value crosses as the text the source gave or it does
   not cross. Trimming, date formats and decimal separators need a vocabulary.
-- **No upsert and no key matching.** The target exists and rows are inserted;
-  making one out of a file is D45 and removing one is D46.
+- **No upsert and no key matching.** Existing targets receive inserts; a new
+  target receives plain columns and rows, with constraints left to D40.
 
 ## D45. A CSV is loaded as a table by an action of the source, and the table arrives with its rows or not at all
 
 D43 moves rows into a relation that already exists, which is the half of "load
 this file" that a reader rarely has. This is the other half, and it is a
 catalog action rather than a route of its own: the button appears in the
-catalog menu, and the window behind it is the same window every action with a
-file opens. Nothing on the screen learned anything about PostgreSQL — that it
-takes a file, what its form holds, which nodes admit it and what level it needs
-are all read off the declaration (D9, D13). A source that gains the same
-ability tomorrow needs no client change either.
+catalog menu, and its parameter schema declares the reusable
+`file-to-relation` workflow. Nothing on the screen learned anything about
+PostgreSQL — that it takes a file, which nodes admit it and what level it needs
+are all read off the declaration (D9, D13); the workflow asks the source for
+schemas through its catalog and submits the source-declared action. A source
+that gains the same workflow tomorrow needs no client change either.
 
 **A relation is created through a capability, not by the action's own SQL.**
 `SupportsCreateRelation` has two methods, and it is one capability because
@@ -790,20 +802,20 @@ because it samples a live source; here the reader handed over a whole file, and
 a part of one arriving would go unnoticed. Anything larger is the durable job
 of Phase 4.
 
-**Where the table goes is where the catalog is looking.** An action that makes
-something inside — a folder, an upload, a loaded table — is offered for the
-places whose contents are on screen: the groupings that are ticked, or the
-level itself where a source has none. A schema is a grouping rather than a
-folder one walks into (D12), so "in this schema" and "in this folder" became
-the same statement instead of a second one. With two schemas ticked the action
-greys out, exactly as renaming two folders to one name does: one file is one
-table.
+**The destination and columns are explicit.** The schema being looked at is the
+initial destination, not a hidden constraint. The workflow lists the existing
+schemas and can instead request a new one; PostgreSQL remains the authority and
+may refuse creation when the connection lacks that privilege. The table name
+starts as the uploaded filename without its extension. Every header column is
+selected initially, and the reader may omit or rename columns before the file
+is sent. Delimited columns remain text for the reason above.
 
 Known deviations:
 
-- **Nothing but a name.** No column types, no NOT NULL, no default, no key and
-  no index. Each has a command of its own against an existing relation, and
-  each answers with what stands in its way (D37, D38, D39, D40).
+- **No inferred structure beyond names.** Columns may be omitted or renamed,
+  but there is no inferred type, NOT NULL, default, key or index. Each has a
+  command of its own against an existing relation and answers with what stands
+  in its way (D37, D38, D39, D40).
 - **A taken name is refused, never replaced.** Removing a relation is D46.
 - **The file is held whole in memory** while it is parsed, which is what the
   16 MB ceiling is for. Staging it on disk would buy a larger ceiling and no
@@ -1280,6 +1292,16 @@ keeps its ordinary meaning.
 A Parquet file is one dataset in one file, so it stays a `file` node that
 declares `table`.
 
+A CSV or TSV still states no source types, but its header is addressable and
+its on-disk representation is safely rewritable within the upload-size bound.
+It therefore declares editable, insertable and deletable rows with versioned
+row handles. Each rewrite stages a complete replacement beside the file and
+publishes it atomically; a handle names the row position and the file version,
+so an external edit makes a stale write conflict instead of overwriting it.
+Its relation model offers only the structural operations the format can mean:
+add, rename and drop a text column. Defaults, nullability rules, type changes,
+indexes and constraints remain unsupported rather than simulated.
+
 Both answer `relation-model` with their declared columns, and what only their
 format knows travels typed in `RelationModel.dataset`: a discriminated union
 whose Parquet member states rows, row groups, compression codecs, writer and
@@ -1435,10 +1457,12 @@ Consequences:
   everything the source can do, with `applicable` saying which of it every one of
   them admits. The same call decides what the client offers and what the server
   allows, so the two cannot drift — running an action asks `available` again, so
-  being listed permits nothing. A flag rather than a shorter list, because a menu
-  that lost its entries as the user walked the catalog would teach nobody what
-  the source can do. Applicability depends on state as well as kind: the root of
-  a connector is an ordinary directory that may not be renamed or removed.
+  being listed permits nothing. A flag rather than a shorter API answer keeps
+  the source vocabulary and the answer about one selection distinct; the
+  catalog keeps the permitted vocabulary visible and disables what is not
+  applicable to the current place or selection. Applicability depends on state
+  as well as kind: the root of a connector is an ordinary directory that may
+  not be renamed or removed.
 - **An action says what it changes.** `acts_on` is `"node"` for what is done to
   the ticked rows and `"children"` for what is made inside the current level.
   Without it the screen would read the difference off the names of actions. It is
@@ -1447,26 +1471,40 @@ Consequences:
   business.** `Action.bulk`; `Delete` says yes, `Rename` cannot. The flag never
   leaves the server: when more than one node is asked about, the server leaves
   out what did not declare it.
+- **Whether it may carry several files is the action's own business too.**
+  `Action.many_files`; `Upload` says yes, loading a table from a CSV cannot,
+  because a second file there would be a second table. This one does leave the
+  server, as `takes_many_files` in the listing: the transport is one file per
+  request either way, so what the declaration decides is whether the client
+  offers to choose a set — and a client left to guess would offer it for every
+  action that takes a file at all.
 - **The transport is a protocol, not a flag.** An action that carries a file
   satisfies `TakesFile`; `takes_file` in the API answer is an `isinstance` check.
   There are two routes because HTTP has two shapes of body, and each refuses an
   action of the other transport with 415.
 - **What to re-read is in the answer.** `ActionResult.reload_node_id` names the
   branch that changed, rather than the client inferring it from the action name.
+- **Personal-file defaults are resolved by the source.** A folder submitted
+  unchanged becomes `new folder`, then `new folder (1)` and so on. Deleting a
+  directory removes its contents after the action's one destructive
+  confirmation; there is no second recursive parameter. Upload first refuses a
+  taken name, then accepts an explicit retry to replace it or to publish the
+  first free `name (n).ext` without overwriting a file that appeared meanwhile.
 
 Known deviations:
 
 - **Nothing moves or copies.** An action works inside one node of one connector;
   moving a file to another folder means downloading and uploading it again.
-- **A conflict is detected, then acted upon.** `create_folder`, `rename` and
-  `upload` check that a name is free and then use it; another writer in that gap
-  wins. The window is small and the directory belongs to one user.
+- **Folder creation and rename can still race another writer.** Upload retries
+  through no-overwrite publication, but the other two use ordinary filesystem
+  operations after choosing their target. The directory belongs to one user.
 - **An upload gives no progress and cannot be resumed.** A large file is one
   request that either finishes or leaves nothing behind.
 - **Nothing records what was done.** No audit trail, no history of deletions.
 - **A set is acted on one call at a time.** Deleting five files is five requests
-  run in order; a refusal in the middle is collected and reported rather than
-  stopping the rest. Nothing is transactional: four of five may be gone.
+  run in order, and uploading five is five in the same way; a refusal in the
+  middle is collected and reported rather than stopping the rest. Nothing is
+  transactional: four of five may be gone, or four of five may have arrived.
 - **Applicability costs a call per node.** Ticking a thousand files means a
   thousand filesystem checks behind one request. Bounded by a ceiling of a
   thousand node ids and by the 2000-entry listing refusal.

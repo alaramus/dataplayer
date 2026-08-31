@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import AsyncGenerator
 
 import pytest
@@ -26,6 +27,12 @@ async def schema() -> AsyncGenerator[str]:
 
 def adapter() -> PostgresAdapter:
     return PostgresAdapter(PostgresUserPassword(**working_postgres_options()))
+
+
+def test_rename_marks_the_field_as_the_current_node_name() -> None:
+    properties = postgres_actions.RenameRelationParams.model_json_schema()["properties"]
+
+    assert properties["new_name"]["x-ui-purpose"] == "node-name"
 
 
 async def test_rename_is_offered_only_for_non_system_relations(schema: str) -> None:
@@ -153,6 +160,54 @@ async def test_every_column_arrives_as_text(schema: str) -> None:
         ("sku", "text"),
         ("amount", "text"),
     ]
+
+
+async def test_only_chosen_csv_columns_arrive_under_their_new_names(
+    schema: str,
+) -> None:
+    source = adapter()
+
+    await _load(
+        source,
+        schema,
+        Upload(b"sku,amount,note\na-1,10,old\n"),
+        columns=[
+            {"source": "amount", "target": "price"},
+            {"source": "sku", "target": "product"},
+        ],
+    )
+
+    page = await source.fetch(FetchRequest(node_id=f"{schema}.prices", limit=10))
+    assert [column.name for column in page.columns] == ["price", "product"]
+    assert page.rows == [["10", "a-1"]]
+
+
+async def test_at_least_one_csv_column_must_be_chosen(schema: str) -> None:
+    source = adapter()
+
+    with pytest.raises(ActionRefused, match="at least one"):
+        await _load(source, schema, Upload(b"sku\na-1\n"), columns=[])
+
+
+async def test_a_csv_can_create_its_destination_schema(schema: str) -> None:
+    source = adapter()
+    destination = f"loaded_{uuid.uuid4().hex}"
+    try:
+        result = await _load(
+            source,
+            schema,
+            Upload(b"sku\na-1\n"),
+            schema_name=destination,
+            create_schema=True,
+        )
+
+        path = await source.path_to(f"{destination}.prices")
+        assert path[-1].name == "prices"
+        assert result.reload_node_id is None
+    finally:
+        await run(
+            f'DROP SCHEMA IF EXISTS "{destination}" CASCADE'  # noqa: S608 -- generated test schema.
+        )
 
 
 async def test_the_table_is_named_after_the_file_unless_one_is_typed(

@@ -10,6 +10,7 @@ import { AppSelect } from "@/shared/ui"
 import { AppInput } from "@/shared/ui"
 import { withWindowHost } from "@/shared/testing/windows"
 
+import CreateTableDialog from "./CreateTableDialog.vue"
 import DataGrid from "./DataGrid.vue"
 import type { Filter } from "./types"
 import { loadGridState, saveGridState } from "./persist"
@@ -85,6 +86,43 @@ beforeEach(() => {
 })
 
 describe("the basic data grid", () => {
+  it("creates a new table from the rows through the chosen destination", async () => {
+    mockPages()
+    vi.spyOn(ConnectorsService, "readConnectors").mockResolvedValue({
+      data: { data: [] },
+    } as never)
+    const create = vi
+      .spyOn(ConnectorsService, "createRelationFromSource")
+      .mockResolvedValue({
+        data: { node: { name: "project_copy" }, inserted: 100 },
+      } as never)
+    const wrapper = mountGrid({ title: "projects.csv" })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="grid-create-table"]').trigger("click")
+    const dialog = wrapper.findComponent(CreateTableDialog)
+    dialog.vm.$emit("run", {
+      connectorId: "target-1",
+      parentNodeId: "public",
+      name: "project_copy",
+      columns: [{ source: "name", target: "project_name", type_code: "text" }],
+    })
+    await flushPromises()
+
+    expect(create).toHaveBeenCalledWith({
+      path: { connector_id: "target-1" },
+      body: {
+        parent_node_id: "public",
+        name: "project_copy",
+        source_connector_id: "connector-1",
+        source_node_id: "public.projects",
+        columns: [
+          { source: "name", target: "project_name", type_code: "text" },
+        ],
+      },
+    })
+  })
+
   it("opens a chart with the exact page and visible columns", async () => {
     mockPages()
     const wrapper = mountGrid()
@@ -187,7 +225,7 @@ describe("the basic data grid", () => {
     mockPages()
     const wrapper = mountGrid({ canDescribe: true })
     await flushPromises()
-    expect(wrapper.get('[data-testid="grid-structure"]').text()).toContain("Structure")
+    expect(wrapper.get('[data-testid="grid-structure"]').exists()).toBe(true)
   })
 
   it("renders server columns and requests 100 rows by default", async () => {
@@ -546,14 +584,16 @@ describe("the basic data grid", () => {
     expect(loadGridState("connector-1", "public.projects")?.filters).toEqual(filters)
   })
 
-  it("uses normal and Shift header clicks for one ordered server sort", async () => {
+  it("uses normal and Shift sort-button clicks for one ordered server sort", async () => {
     const fetchRows = mockPages()
     const wrapper = mountGrid()
     await flushPromises()
 
-    await wrapper.get('[data-testid="grid-column-id"]').trigger("click")
+    await wrapper.get('[data-testid="grid-sort-direction-id"]').trigger("click")
     await flushPromises()
-    await wrapper.get('[data-testid="grid-column-name"]').trigger("click", { shiftKey: true })
+    await wrapper
+      .get('[data-testid="grid-sort-direction-name"]')
+      .trigger("click", { shiftKey: true })
     await flushPromises()
 
     expect(fetchRows).toHaveBeenLastCalledWith(
@@ -592,8 +632,7 @@ describe("the basic data grid", () => {
     await flushPromises()
     const callsBeforeClick = fetchRows.mock.calls.length
 
-    await wrapper.get('[data-testid="grid-column-payload"]').trigger("click")
-    await flushPromises()
+    expect(wrapper.find('[data-testid="grid-sort-direction-payload"]').exists()).toBe(false)
 
     expect(fetchRows).toHaveBeenCalledTimes(callsBeforeClick)
   })
@@ -644,6 +683,23 @@ describe("the basic data grid", () => {
       "--grid-column-1: 220px"
     )
     expect(wrapper.get('[data-testid="grid-column-name"]').classes()).toContain("data-grid__pinned")
+  })
+
+  it("keeps the pin icon visible while the column is pinned", async () => {
+    mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    const pin = wrapper.get('[data-testid="grid-pin-name"]')
+    expect(pin.get(".q-icon").text()).toContain("push_pin")
+    expect(pin.attributes("aria-pressed")).toBe("false")
+
+    await pin.trigger("click")
+
+    const unpin = wrapper.get('[data-testid="grid-pin-name"]')
+    expect(unpin.get(".q-icon").text()).toContain("push_pin")
+    expect(unpin.attributes("aria-pressed")).toBe("true")
+    expect(unpin.classes()).toContain("data-grid__pin--active")
   })
 
   it("selects and extends cells with mouse and keyboard", async () => {

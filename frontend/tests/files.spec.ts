@@ -270,6 +270,7 @@ test("opens a file as its own source and saves an edit back", async ({ page }) =
     mimeType: "text/x-python",
     buffer: Buffer.from("VALUE = 'before'\n"),
   })
+  // The picker stages the file; the upload is the button under the list.
   await page.getByTestId("action-submit").click()
   await expect(list).toContainText("worker.py")
 
