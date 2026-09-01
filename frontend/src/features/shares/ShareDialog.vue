@@ -25,7 +25,6 @@ import { copyText } from "@/shared/clipboard"
 import {
   AppButton,
   AppCopyButton,
-  AppDialog,
   AppEmptyState,
   AppIconButton,
   AppInput,
@@ -33,6 +32,7 @@ import {
   AppSpinner,
   useToast,
 } from "@/shared/ui"
+import { WindowDialog } from "@/shared/windows"
 
 /**
  * One dialog for both halves of sharing: the address, and who may follow it.
@@ -219,11 +219,16 @@ async function forget(shareId: string) {
 </script>
 
 <template>
-  <AppDialog
+  <!--
+    A floating window rather than a modal: everything else opened from a tab is
+    one, and the point of it here is the same as everywhere — the link and the
+    grid it was made from can be looked at together. See D14.
+  -->
+  <WindowDialog
     :model-value="modelValue"
     title="Share"
     :subtitle="nodeLabel ?? connectorName"
-    size="md"
+    size="lg"
     data-testid="share-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -440,7 +445,7 @@ async function forget(shareId: string) {
         @click="emit('update:modelValue', false)"
       />
     </template>
-  </AppDialog>
+  </WindowDialog>
 </template>
 
 <style scoped>

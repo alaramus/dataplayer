@@ -53,9 +53,10 @@ test("a link shows nothing to a stranger and the sender's view to a colleague", 
   await page.getByTestId("grid-share").click()
   const link = await page.getByTestId("share-link").inputValue()
   expect(link).toContain("/s/")
-  // The dialog itself: an element screenshot waits for it to stop animating,
-  // which a page screenshot does not.
-  await page.getByTestId("share-dialog").screenshot({ path: "test-results/share-dialog.png" })
+  // The whole screen: what matters is that this is a window over the grid it
+  // was opened from, not a modal that hides it.
+  await expect(page.getByTestId("share-dialog")).toBeVisible()
+  await page.screenshot({ path: "test-results/share-dialog.png" })
   await page.getByTestId("share-close").click()
 
   const origin = new URL(link).origin

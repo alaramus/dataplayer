@@ -14,10 +14,12 @@ Decisions here: D58, D59, D60, D61.
 ## What exists today
 
 A grid tab has a Share command next to its download command. It opens one
-dialog: everybody who can reach the connection sees the link to this view and
-who has opened it, and the owner of the connection also sees who holds a grant
-and every link made to that connection. The same dialog opens from the
-connection's own window, without the link half.
+floating window, like every other transient form opened from a tab (D14), so
+the link and the grid it was made from are looked at together rather than one
+covering the other. Everybody who can reach the connection sees the link to
+this view and who has opened it; the owner of the connection also sees who
+holds a grant, who is waiting for one, and every link made to that connection.
+The same window opens from the connection's own window, without the link half.
 
 Opening a link signs the reader in if needed, then reveals the node in the
 catalog and opens the tab with the filters, sorting, column layout and page
