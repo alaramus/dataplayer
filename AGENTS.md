@@ -32,6 +32,7 @@ legacy notes and stay unchanged.
 | Area | Read first |
 | --- | --- |
 | A source type, a capability, a node kind, untrusted input | [sources/contract.md](docs/architecture/sources/contract.md) |
+| Query documents, SQL execution, results, history, transactions | [querying.md](docs/architecture/querying.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
 | Reading a relation, changing rows, export, import | [sources/relations.md](docs/architecture/sources/relations.md) |
 | Columns, indexes, constraints, renaming a node | [sources/ddl.md](docs/architecture/sources/ddl.md) |
@@ -119,6 +120,11 @@ files. IDs are stable because specs and commits refer to them.
 | D59 | [sharing](docs/architecture/sharing.md) |
 | D60 | [sharing](docs/architecture/sharing.md) |
 | D61 | [sharing](docs/architecture/sharing.md) |
+| D62 | [querying](docs/architecture/querying.md) |
+| D63 | [querying](docs/architecture/querying.md) |
+| D64 | [querying](docs/architecture/querying.md) |
+| D65 | [querying](docs/architecture/querying.md) |
+| D66 | [querying](docs/architecture/querying.md) |
 
 ## Working rules
 

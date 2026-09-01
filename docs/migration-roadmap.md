@@ -59,7 +59,7 @@ request rather than a message that is lost when nobody is listening.
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 3 | Query editor | Large | Supplies an explicit query capability and a reusable result surface before AI is allowed to call it |
+| 3 | Query editor | Very large | Supplies a durable SQL workspace, a bounded query capability and explicit transaction safety before AI is allowed to call it |
 | 4 | Managed Docker services in connector creation | Very large | Adds a safe service lifecycle before service-backed adapters multiply |
 | 5 | Optional Redis infrastructure | Medium | Needed only when multiple backend processes must share cache or coordination state |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
@@ -68,11 +68,16 @@ request rather than a message that is lost when nobody is listening.
 
 ## Phase 3 — query editor
 
-The query editor is an explicit source capability, not a generic text box added
-to every connector. It needs a decision that reconciles intentionally supplied
-SQL with D2c: DataPlayer may pass a complete statement to a source that declares
-the capability, but must never interpolate client identifiers or fragments into
-another query.
+The query editor is a durable workspace for developing SQL, not a generic text
+box and not a popup around `execute()`. A document, an execution, a statement
+output and a materialised result are separate objects. Complete SQL is accepted
+only through the explicit source capability of D62; D2c remains unchanged for
+every platform-built query.
+
+The full design is [D62-D66](superpowers/specs/2026-09-01-query-editor-design.md)
+and its concise contract is [querying.md](architecture/querying.md). Phase 3 is
+PostgreSQL only. DuckDB or SQLite proves the generic contract later in phase 6,
+after file paths have a query-safe exposure model.
 
 Old sources to inspect:
 
@@ -83,21 +88,49 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] Define `SupportsQuery` with dialect, statement policy, timeout, row cap,
-  cancellation support and read/write classification.
-- [ ] First slice: one PostgreSQL read statement, server-enforced timeout and
-  result bound, cancellation, safe errors and no multi-statement execution.
-- [ ] Render results through the existing typed grid boundary so copy, download
-  and bounded charts are reused rather than rebuilt inside the editor.
-- [ ] Add per-user query history with an explicit retention/delete policy;
-  queries may themselves contain sensitive literals.
-- [ ] Add write/DDL execution only as a later slice with a transaction policy,
-  affected-object summary and explicit confirmation.
-- [ ] Add file querying through DuckDB only after the file capability says which
-  files and paths may be exposed to it.
+- [ ] **3A.1 — shared tabular surface.** Extract the controlled presentation of
+  typed columns, pages, layout, selection, clipboard and full values from the
+  relation grid. Prove the refactor without query code before adding a
+  `QueryResultController`.
+- [ ] **3A.2 — query documents.** Add encrypted server-owned drafts and named
+  documents, connector and ordered schema context, revisioned autosave,
+  conflict recovery, a thirty-day Trash and a Queries navigation panel. A
+  browser keeps only an unsynchronised session shadow.
+- [ ] **3A.3 — read execution kernel.** Add PostgreSQL prepare and classification,
+  durable idempotent runs, access resolution, admission control, database-side
+  read-only transactions and timeout, explicit cancellation, safe diagnostics,
+  bounded materialised snapshots and recovery after a backend restart.
+- [ ] **3A.4 — complete read console.** Execute the selection, current statement
+  or an explicit script; bind named parameters; preserve ordered statement
+  outputs and messages; add encrypted retained history, result pin/promotion,
+  snapshot paging/filtering/sorting, captured-result download and the existing
+  page-bounded chart.
+- [ ] **3A.5 — SQL intelligence.** Add progressive source metadata, dialect
+  completion, conservative diagnostics, formatting and source-generated SELECT.
+  PostgreSQL publishes its query capability to users only when 3A.1-3A.5 are
+  complete and verified together.
+- [ ] **3A.6 — Explain.** Add a separately declared, non-executing Explain
+  capability with synchronised tree, table and raw-plan views. Explain Analyze
+  stays out until its execution effects have the same policy as the statement.
+- [ ] **3B — DML transactions.** Add owner-controlled connector execution policy,
+  read-only/auto-commit/manual modes, a leased-session lifecycle, strengthened
+  confirmations, commit summaries, affected rows and `RETURNING`. Query results
+  remain read-only; relation editing keeps its source-issued row handles.
+- [ ] **3C — bounded DDL.** Admit the closed PostgreSQL schema/table/view/index
+  allowlist, destructive preview by rollback rehearsal, high-risk confirmation
+  and source-issued cache/catalog/workspace invalidation. Server-level commands,
+  permission administration and maintenance jobs remain outside the editor.
 
-Exit condition: PostgreSQL read queries are bounded, cancellable and reusable by
-the same result tools as a fetched relation.
+No query document, retained run or temporary result is shareable in this phase.
+Old history and favourites are not migrated: their ownership, context and
+retention cannot be established safely.
+
+Exit condition: the full 3A, 3B and 3C acceptance matrix is verified. A user can
+develop parameterised PostgreSQL SQL with metadata-aware assistance, run and
+cancel bounded read scripts, inspect and reuse stable result snapshots, recover
+documents and history, and execute explicitly unlocked DML and bounded DDL with
+honest transaction state. Code written without the approved validation remains
+`[~]`; phase 4 does not become the resume point until phase 3 is verified.
 
 ## Phase 4 — managed Docker services in connector creation
 
