@@ -11,6 +11,8 @@ from app.adapters.resources import ResourceStore
 from app.api.main import api_router
 from app.core.config import settings
 from app.queries.cleanup import sweeping
+from app.queries.execution import QueryRunner
+from app.queries.results import QueryResults
 from app.realtime import topics
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
@@ -35,6 +37,15 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     )
     application.state.data_cache = DataCache(max_entries=settings.DATA_CACHE_MAX_ENTRIES)
     application.state.topics = topics.build_all()
+    # Captured results and the runs producing them: both process-local, both
+    # holding what cannot cross a process — memory and a connection (D64).
+    application.state.query_results = QueryResults(
+        max_bytes=settings.QUERY_RESULT_STORE_MAX_BYTES,
+        ttl_seconds=settings.QUERY_RESULT_TTL_SECONDS,
+    )
+    application.state.query_runner = QueryRunner(
+        results=application.state.query_results
+    )
     # Emptying query Trash is the one thing here that is not a resource: it is
     # a timer, and it belongs to the application for the same reason a pool
     # does — nothing else outlives a request.
@@ -42,6 +53,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         async with sweeping():
             yield
     finally:
+        await application.state.query_runner.aclose()
+        await application.state.query_results.aclose()
         await application.state.topics.aclose()
         await application.state.data_cache.aclose()
         await application.state.resources.aclose()

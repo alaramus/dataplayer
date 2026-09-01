@@ -12,9 +12,14 @@ import uuid
 from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.connectors import crud
+from app.adapters.protocol import DataAdapter
+from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
+from app.adapters.registry import get as get_adapter_type
+from app.adapters.resources import Pooling, ResourceStore
+from app.connectors import crud, service
 from app.connectors.models import Connector
 from app.core.access import Access, at_least
+from app.users import storage
 from app.users.models import User
 
 
@@ -64,3 +69,88 @@ async def get_or_404(
 ) -> Connector:
     connector, _ = await resolve(session, connector_id, current_user, requires=requires)
     return connector
+
+
+def adapter_type_or_422(adapter_type: str) -> AdapterType:
+    """The declared type of a stored connection, or a refusal a caller can read."""
+    try:
+        found: AdapterType = get_adapter_type(adapter_type)
+        return found
+    except UnknownAdapterType:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["body", "adapter_type"],
+                    "msg": f"Unknown adapter type: {adapter_type}",
+                    "type": "value_error",
+                }
+            ],
+        )
+
+
+def context_for(
+    owner_id: uuid.UUID,
+    *,
+    pooling: Pooling | None = None,
+) -> AdapterContext:
+    """What the driver may reach, decided here rather than by the request."""
+    return AdapterContext(home_dir=storage.home_dir(owner_id), pooling=pooling)
+
+
+async def resolve_adapter(
+    session: AsyncSession,
+    connector_id: uuid.UUID,
+    current_user: User,
+    resources: ResourceStore | None = None,
+    *,
+    requires: Access,
+) -> tuple[DataAdapter, Access]:
+    """Resolve a stored connector into a live adapter.
+
+    A stored connector has an identity, so whatever it keeps between requests
+    can be found again. Without a store — a check, which is meant to exercise
+    the credentials — the driver connects on its own.
+
+    A disabled connector is refused here rather than in each route: this is the
+    one door to a live source, so the rule is written once and cannot be
+    forgotten by a route added later. Reading and editing the row go through
+    ``get_or_404`` and stay open — switching a connection off is not deleting
+    it.
+    """
+    connector, access = await resolve(
+        session, connector_id, current_user, requires=requires
+    )
+    if not connector.enabled:
+        # 409 rather than 404: the connector exists and the caller can see it.
+        # Nor 403: they hold the level this route asked for, and what is
+        # missing is not a right but a switch its owner turned off.
+        raise HTTPException(status_code=409, detail="Connector is disabled")
+    adapter_type = adapter_type_or_422(connector.adapter_type)
+    options = service.merge_options(connector.config, connector.secrets)
+    pooling = (
+        Pooling(store=resources, connector_id=connector.id)
+        if resources is not None
+        else None
+    )
+    return (
+        service.build_adapter(
+            adapter_type, options, context_for(connector.owner_id, pooling=pooling)
+        ),
+        access,
+    )
+
+
+async def adapter_for(
+    session: AsyncSession,
+    connector_id: uuid.UUID,
+    current_user: User,
+    resources: ResourceStore | None = None,
+    *,
+    requires: Access,
+) -> DataAdapter:
+    """A live adapter, for the routes that do not need to report the level."""
+    adapter, _ = await resolve_adapter(
+        session, connector_id, current_user, resources, requires=requires
+    )
+    return adapter

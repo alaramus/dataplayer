@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.queries import crud
+from app.queries.execution import recover_interrupted
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,16 @@ logger = logging.getLogger(__name__)
 async def sweep_once() -> int:
     async with async_session_maker() as session:
         return await crud.sweep_trash(session)
+
+
+async def recover_once() -> int:
+    """Settle what a stopped process left behind (D64).
+
+    At startup and once: a run in a non-terminal state has no task and no
+    connection any more, so it is marked interrupted. SQL is never replayed.
+    """
+    async with async_session_maker() as session:
+        return await recover_interrupted(session)
 
 
 async def _sweep_forever() -> None:
@@ -42,6 +53,13 @@ async def _sweep_forever() -> None:
 @asynccontextmanager
 async def sweeping() -> AsyncIterator[None]:
     """Run the sweep for as long as the application does."""
+    try:
+        stranded = await recover_once()
+    except Exception:
+        logger.exception("Settling interrupted query runs failed")
+    else:
+        if stranded:
+            logger.info("Marked %d query runs interrupted", stranded)
     task = asyncio.create_task(_sweep_forever())
     try:
         yield

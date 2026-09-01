@@ -119,15 +119,14 @@ from app.adapters.protocol import (
     SupportsUpdate,
 )
 from app.adapters.references import FollowReferenceRequest, ReferenceTarget
-from app.adapters.registry import AdapterContext, AdapterType, UnknownAdapterType
-from app.adapters.registry import get as get_adapter_type
+from app.adapters.registry import AdapterType
 from app.adapters.relation import RelationModel, without_structure_changes
 from app.adapters.relation_changes import (
     CreateRelationRequest,
     NewRelationOptions,
     RelationCreated,
 )
-from app.adapters.resources import Pooling, ResourcesDep, ResourceStore
+from app.adapters.resources import ResourcesDep
 from app.adapters.update import (
     CellsUpdated,
     DeleteRowsRequest,
@@ -152,7 +151,14 @@ from app.connectors import (
     ranges,
     service,
 )
-from app.connectors.access import get_or_404, resolve
+from app.connectors.access import (
+    adapter_for,
+    adapter_type_or_422,
+    context_for,
+    get_or_404,
+    resolve,
+    resolve_adapter,
+)
 from app.connectors.models import (
     Connector,
     ConnectorCreate,
@@ -218,22 +224,6 @@ async def _invalidate_after[T](
     return result
 
 
-def _resolve_type(adapter_type: str) -> AdapterType:
-    try:
-        return get_adapter_type(adapter_type)
-    except UnknownAdapterType:
-        raise HTTPException(
-            status_code=422,
-            detail=[
-                {
-                    "loc": ["body", "adapter_type"],
-                    "msg": f"Unknown adapter type: {adapter_type}",
-                    "type": "value_error",
-                }
-            ],
-        )
-
-
 def _split_or_422(
     adapter_type: AdapterType, options: dict[str, Any]
 ) -> tuple[dict[str, Any], bytes]:
@@ -266,73 +256,6 @@ async def _public(
     )
 
 
-def _context_for(
-    owner_id: uuid.UUID,
-    *,
-    pooling: Pooling | None = None,
-) -> AdapterContext:
-    """What the driver may reach, decided here rather than by the request."""
-    return AdapterContext(home_dir=storage.home_dir(owner_id), pooling=pooling)
-
-
-async def _adapter_and_access(
-    session: AsyncSession,
-    connector_id: uuid.UUID,
-    current_user: User,
-    resources: ResourceStore | None = None,
-    *,
-    requires: Access,
-) -> tuple[DataAdapter, Access]:
-    """Resolve a stored connector into a live adapter.
-
-    A stored connector has an identity, so whatever it keeps between requests
-    can be found again. Without a store — a check, which is meant to exercise
-    the credentials — the driver connects on its own.
-
-    A disabled connector is refused here rather than in each route: this is the
-    one door to a live source, so the rule is written once and cannot be
-    forgotten by a route added later. Reading and editing the row go through
-    ``get_or_404`` and stay open — switching a connection off is not deleting
-    it.
-    """
-    connector, access = await resolve(
-        session, connector_id, current_user, requires=requires
-    )
-    if not connector.enabled:
-        # 409 rather than 404: the connector exists and the caller can see it.
-        # Nor 403: they hold the level this route asked for, and what is
-        # missing is not a right but a switch its owner turned off.
-        raise HTTPException(status_code=409, detail="Connector is disabled")
-    adapter_type = _resolve_type(connector.adapter_type)
-    options = service.merge_options(connector.config, connector.secrets)
-    pooling = (
-        Pooling(store=resources, connector_id=connector.id)
-        if resources is not None
-        else None
-    )
-    return (
-        service.build_adapter(
-            adapter_type, options, _context_for(connector.owner_id, pooling=pooling)
-        ),
-        access,
-    )
-
-
-async def _adapter_for(
-    session: AsyncSession,
-    connector_id: uuid.UUID,
-    current_user: User,
-    resources: ResourceStore | None = None,
-    *,
-    requires: Access,
-) -> DataAdapter:
-    """A live adapter, for the routes that do not need to report the level."""
-    adapter, _ = await _adapter_and_access(
-        session, connector_id, current_user, resources, requires=requires
-    )
-    return adapter
-
-
 @router.get("/content-files/{ticket}", include_in_schema=False)
 async def preview_content_file(
     session: SessionDep,
@@ -349,7 +272,7 @@ async def preview_content_file(
     if user is None or not user.is_active:
         raise HTTPException(status_code=404, detail="Content not found")
 
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, claims.connector_id, user, resources, requires="read"
     )
     try:
@@ -409,7 +332,7 @@ async def stream_content_file(
     if user is None or not user.is_active:
         raise HTTPException(status_code=404, detail="Content not found")
 
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, claims.connector_id, user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsContentStream):
@@ -484,7 +407,7 @@ async def download_action_result(
     if user is None or not user.is_active:
         raise HTTPException(status_code=404, detail="Download not found")
 
-    adapter, access = await _adapter_and_access(
+    adapter, access = await resolve_adapter(
         session, claims.connector_id, user, resources, requires="read"
     )
     action = await _action_for_nodes(
@@ -539,7 +462,7 @@ async def create_connector(
     """
     Create a new connector.
     """
-    adapter_type = _resolve_type(connector_in.adapter_type)
+    adapter_type = adapter_type_or_422(connector_in.adapter_type)
     config, secrets = _split_or_422(adapter_type, connector_in.options)
     connector = await crud.create(
         session,
@@ -608,7 +531,7 @@ async def update_connector(
         connector.enabled = connector_in.enabled
 
     if connector_in.options is not None:
-        adapter_type = _resolve_type(connector.adapter_type)
+        adapter_type = adapter_type_or_422(connector.adapter_type)
         options = service.fill_missing_secrets(
             adapter_type, connector_in.options, connector.secrets
         )
@@ -656,7 +579,7 @@ async def _draft_adapter(
     No pooling: a draft has no identity to key a pool by, and a check is meant
     to exercise the credentials rather than reuse a connection.
     """
-    adapter_type = _resolve_type(body.adapter_type)
+    adapter_type = adapter_type_or_422(body.adapter_type)
     options = body.options
     if body.connector_id is not None:
         # Reading a draft against a stored connection only substitutes the
@@ -668,7 +591,7 @@ async def _draft_adapter(
 
     try:
         return service.build_adapter(
-            adapter_type, options, _context_for(current_user.id)
+            adapter_type, options, context_for(current_user.id)
         )
     except ValidationError as exc:
         raise HTTPException(
@@ -723,7 +646,7 @@ async def describe_draft(
     source with no address at all is still the 501, which is a different
     answer and stays one.
     """
-    driver = _resolve_type(body.adapter_type).adapter_class
+    driver = adapter_type_or_422(body.adapter_type).adapter_class
     if not issubclass(driver, SupportsConnectionString):
         raise HTTPException(
             status_code=501,
@@ -783,7 +706,7 @@ async def parse_url(body: ConnectionStringRequest) -> Any:
     The password in the answer discloses nothing: the client sent that very
     string a moment ago. It must not be written to a log, all the same.
     """
-    adapter_type = _resolve_type(body.adapter_type)
+    adapter_type = adapter_type_or_422(body.adapter_type)
     driver = adapter_type.adapter_class
     if not issubclass(driver, ParsesConnectionString):
         raise HTTPException(
@@ -814,7 +737,7 @@ async def check_connector(
     """
     Check the connection of a stored connector.
     """
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, requires="read"
     )
     result = await adapter.check_connection()
@@ -838,7 +761,7 @@ async def fetch_rows(
     """
     Read a page of rows from a relation named by request.node_id.
     """
-    adapter, access = await _adapter_and_access(
+    adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsFetch):
@@ -898,7 +821,7 @@ async def read_content(
     request: ContentRequest,
 ) -> Any:
     """Read the requested bounded, content-native representation of a node."""
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsContent):
@@ -970,7 +893,7 @@ async def read_editor_content(
     request: EditorContentRequest,
 ) -> Any:
     """Read bounded source text and the opaque version required to save it."""
-    adapter, access = await _adapter_and_access(
+    adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsContentEdit):
@@ -1013,7 +936,7 @@ async def update_content(
     request: UpdateContentRequest,
 ) -> Any:
     """Atomically replace editable content while its loaded version still matches."""
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="write"
     )
     if not isinstance(adapter, SupportsContentEdit):
@@ -1063,7 +986,7 @@ async def read_catalog(
 
     node_id is opaque: only the adapter that produced it knows how to read it.
     """
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsCatalog):
@@ -1120,7 +1043,7 @@ async def download_page(
     request: DownloadPageRequest,
 ) -> FileResponse:
     """Re-read, save and return the same bounded page the grid describes."""
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsFetch):
@@ -1170,7 +1093,7 @@ async def export_all_rows(
     request: downloads.ExportDownloadRequest,
 ) -> downloads.ExportReady:
     """Stage every matching row without assembling the relation in memory."""
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsExport):
@@ -1230,7 +1153,7 @@ async def update_cell(
     request: UpdateCellRequest,
 ) -> Any:
     """Change one cell if the fetched row version is still current."""
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="write"
     )
     if not isinstance(adapter, SupportsUpdate):
@@ -1278,7 +1201,7 @@ async def update_cells(
     with nothing written; a row that no longer holds the version it was read
     with is the same conflict a single-cell edit gives.
     """
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="write"
     )
     if not isinstance(adapter, SupportsUpdate):
@@ -1321,7 +1244,7 @@ async def insert_row(
     request: InsertRowRequest,
 ) -> Any:
     """Insert one row, preserving defaults for columns the caller omitted."""
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="write"
     )
     if not isinstance(adapter, SupportsInsert):
@@ -1358,7 +1281,7 @@ async def delete_rows(
     request: DeleteRowsRequest,
 ) -> Any:
     """Delete versioned rows only when every selected row is still current."""
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="write"
     )
     if not isinstance(adapter, SupportsDelete):
@@ -1417,10 +1340,10 @@ async def _import_sides(
                 }
             ],
         ) from None
-    target = await _adapter_for(
+    target = await adapter_for(
         session, connector_id, current_user, resources, requires="write"
     )
-    source = await _adapter_for(
+    source = await adapter_for(
         session, source_id, current_user, resources, requires="read"
     )
     if not isinstance(source, SupportsFetch):
@@ -1551,7 +1474,7 @@ async def new_relation_options(
     request: imports.NewRelationTarget,
 ) -> Any:
     """What one source-owned container accepts for a new relation."""
-    target = await _adapter_for(
+    target = await adapter_for(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(target, SupportsCreateRelation):
@@ -1590,10 +1513,10 @@ async def create_relation_from_source(
                 }
             ],
         ) from None
-    target = await _adapter_for(
+    target = await adapter_for(
         session, connector_id, current_user, resources, requires="structure"
     )
-    source = await _adapter_for(
+    source = await adapter_for(
         session, source_id, current_user, resources, requires="read"
     )
     if not isinstance(target, SupportsCreateRelation):
@@ -1662,7 +1585,7 @@ async def follow_reference(
     predicate the source built against that target's own columns. Reading is
     enough: following a key looks at rows the caller may already read.
     """
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsReferences):
@@ -1700,7 +1623,7 @@ async def read_relation_model(
     node_id: str,
 ) -> Any:
     """Describe one relation named by its opaque catalog node id."""
-    adapter, access = await _adapter_and_access(
+    adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsRelationModel):
@@ -1767,7 +1690,7 @@ async def add_column(
     request: AddColumnRequest,
 ) -> ColumnChangeResult:
     """Add one validated column to a relation."""
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsAddColumn):
@@ -1795,7 +1718,7 @@ async def drop_column(
     request: DropColumnRequest,
 ) -> ColumnChangeResult:
     """Drop one exact column after the caller's explicit confirmation."""
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsDropColumn):
@@ -1823,7 +1746,7 @@ async def rename_column(
     request: RenameColumnRequest,
 ) -> ColumnChangeResult:
     """Rename one exact column without recreating it or its data."""
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsRenameColumn):
@@ -1851,7 +1774,7 @@ async def change_column_default(
     request: ColumnDefaultRequest,
 ) -> ColumnChangeResult:
     """Set one literal column default, or remove its current default."""
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsColumnDefault):
@@ -1906,7 +1829,7 @@ async def change_column_nullability(
     failure: the source counts them and says how many, having changed nothing.
     Only a change invalidates what the connector cached.
     """
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsColumnNullability):
@@ -1958,7 +1881,7 @@ async def change_column_type(
     from. Rows the new type cannot read are an answer with a count where the
     source can produce one, and only a change invalidates what it cached.
     """
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsColumnType):
@@ -1999,7 +1922,7 @@ async def _indexing_adapter(
     current_user: CurrentUser,
     resources: ResourcesDep,
 ) -> SupportsIndexes:
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsIndexes):
@@ -2060,7 +1983,7 @@ async def _constraining_adapter(
     current_user: CurrentUser,
     resources: ResourcesDep,
 ) -> SupportsConstraints:
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="structure"
     )
     if not isinstance(adapter, SupportsConstraints):
@@ -2135,7 +2058,7 @@ async def read_node_path(
     one apart. node_id is required — the root of a connector has no path,
     because the root is the connector.
     """
-    adapter = await _adapter_for(
+    adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="read"
     )
     if not isinstance(adapter, SupportsNodePath):
@@ -2385,7 +2308,7 @@ async def read_actions(
     a list of opaque identifiers with no bound on its length, and selecting a
     directory of five hundred files leaves no room in a query string.
     """
-    adapter, access = await _adapter_and_access(
+    adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
     acting = _acting_or_501(adapter)
@@ -2417,7 +2340,7 @@ async def run_action(
     """
     Perform an action that needs nothing but its parameters.
     """
-    adapter, access = await _adapter_and_access(
+    adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
     action = await _action_for_node(
@@ -2459,7 +2382,7 @@ async def preview_action(
     destroy is not a lesser thing than the drop for anyone deciding whether it
     is safe, and the answer names objects the caller may not otherwise see.
     """
-    adapter, access = await _adapter_and_access(
+    adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
     target = body.node_id or None
@@ -2489,7 +2412,7 @@ async def prepare_action_download(
     body: DownloadActionTargets,
 ) -> ActionDownloadReady:
     """Issue a short-lived native-browser ticket for one download action."""
-    adapter, access = await _adapter_and_access(
+    adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
     action = await _action_for_nodes(
@@ -2532,7 +2455,7 @@ async def run_action_with_file(
     Parameters travel as a JSON field of the form, so the action validates them
     by the same model either way.
     """
-    adapter, access = await _adapter_and_access(
+    adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
     target = node_id or None

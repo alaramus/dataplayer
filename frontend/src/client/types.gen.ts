@@ -2643,6 +2643,47 @@ export type PrivateUserCreate = {
 }
 
 /**
+ * QueryDiagnostic
+ *
+ * Why a statement failed, reduced to what is safe to show.
+ *
+ * Driver text is never passed through: it carries the connection string,
+ * password included. What crosses is a code, a category, one normalised
+ * sentence and where in the submitted text it happened.
+ */
+export type QueryDiagnostic = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Category
+   */
+  category:
+    | "syntax"
+    | "missing_object"
+    | "permission"
+    | "read_only"
+    | "timeout"
+    | "cancelled"
+    | "data"
+    | "resource"
+    | "unknown"
+  /**
+   * Message
+   */
+  message: string
+  /**
+   * Position
+   */
+  position?: number | null
+  /**
+   * Hint
+   */
+  hint?: string | null
+}
+
+/**
  * QueryDocumentCreate
  *
  * A new console, or a copy of one whose owner chose to keep both.
@@ -2813,6 +2854,62 @@ export type QueryDocumentsPublic = {
    * Count
    */
   count: number
+}
+
+/**
+ * QueryNotice
+ *
+ * One message the source raised while running, bounded and stripped.
+ */
+export type QueryNotice = {
+  /**
+   * Severity
+   */
+  severity: string
+  /**
+   * Message
+   */
+  message: string
+}
+
+/**
+ * QueryProfile
+ *
+ * What this source accepts, said by the source rather than guessed.
+ *
+ * Derived from what the adapter implements, so a capability cannot be
+ * announced and then be missing — and a screen never branches on the name of
+ * an adapter type to find any of this out (D62).
+ */
+export type QueryProfile = {
+  /**
+   * Dialect
+   */
+  dialect: string
+  /**
+   * Parameter Syntax
+   */
+  parameter_syntax: "named_colon"
+  /**
+   * Statement Modes
+   */
+  statement_modes: Array<"read">
+  /**
+   * Supports Cancel
+   */
+  supports_cancel: boolean
+  /**
+   * Supports Explain
+   */
+  supports_explain: boolean
+  /**
+   * Default Timeout Seconds
+   */
+  default_timeout_seconds: number
+  /**
+   * Max Timeout Seconds
+   */
+  max_timeout_seconds: number
 }
 
 /**
@@ -3170,6 +3267,66 @@ export type RequestApproval = {
 }
 
 /**
+ * ResultColumn
+ *
+ * One column of a result, whose identity is its position.
+ *
+ * SQL results have duplicate and empty headings as a matter of course, so the
+ * name is what is shown and the id is what is addressed (D64).
+ */
+export type ResultColumn = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  type: ColumnType
+}
+
+/**
+ * ResultPage
+ *
+ * A bounded window on one captured result.
+ *
+ * Paging reads the snapshot and never the source: the rows were read once,
+ * inside the transaction that produced them, and page two of a re-execution
+ * would be a different set of rows (D64).
+ */
+export type ResultPage = {
+  /**
+   * Result Id
+   */
+  result_id: string
+  /**
+   * Columns
+   */
+  columns: Array<ResultColumn>
+  /**
+   * Rows
+   */
+  rows: Array<Array<string | null>>
+  /**
+   * Offset
+   */
+  offset: number
+  /**
+   * Limit
+   */
+  limit: number
+  /**
+   * Total Rows
+   */
+  total_rows: number
+  /**
+   * Truncated
+   */
+  truncated: boolean
+}
+
+/**
  * RowEdit
  *
  * One row of a pasted block, named by the version it was read with.
@@ -3259,6 +3416,126 @@ export type RowsView = {
   column_sizing?: {
     [key: string]: number
   }
+}
+
+/**
+ * RunPublic
+ *
+ * A run and everything durable about it.
+ *
+ * This is the authority on what happened. The socket says the same thing
+ * sooner, and a client that missed the message still reaches a terminal
+ * state by reading this (D64).
+ */
+export type RunPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Connector Id
+   */
+  connector_id: string | null
+  /**
+   * Document Id
+   */
+  document_id: string | null
+  /**
+   * Document Revision
+   */
+  document_revision: number | null
+  /**
+   * Status
+   */
+  status:
+    | "accepted"
+    | "running"
+    | "cancelling"
+    | "cancelled"
+    | "succeeded"
+    | "failed"
+    | "timed_out"
+    | "interrupted"
+  /**
+   * Mode
+   */
+  mode: "read"
+  /**
+   * Timeout Seconds
+   */
+  timeout_seconds: number
+  /**
+   * Statement Count
+   */
+  statement_count: number
+  /**
+   * Error
+   */
+  error?: string | null
+  /**
+   * Created At
+   */
+  created_at?: string | null
+  /**
+   * Started At
+   */
+  started_at?: string | null
+  /**
+   * Finished At
+   */
+  finished_at?: string | null
+  /**
+   * Statements
+   */
+  statements?: Array<StatementPublic>
+}
+
+/**
+ * RunStart
+ *
+ * What a client sends to run something.
+ *
+ * The id is the client's, and so is the exact text: the caller has already
+ * decided whether this is a selection, the statement under the caret or a
+ * whole document, and the run keeps what it was given.
+ */
+export type RunStart = {
+  /**
+   * Run Id
+   */
+  run_id: string
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Document Id
+   */
+  document_id?: string | null
+  /**
+   * Document Revision
+   */
+  document_revision?: number | null
+  /**
+   * Range Start
+   */
+  range_start?: number | null
+  /**
+   * Range End
+   */
+  range_end?: number | null
+  /**
+   * Mode
+   */
+  mode?: "read"
+  /**
+   * Timeout Seconds
+   */
+  timeout_seconds?: number | null
 }
 
 /**
@@ -3546,6 +3823,51 @@ export type SqlContent = {
    * Notice
    */
   notice?: string | null
+}
+
+/**
+ * StatementPublic
+ *
+ * One statement of a run, as the console reads it.
+ */
+export type StatementPublic = {
+  /**
+   * Ordinal
+   */
+  ordinal: number
+  /**
+   * Kind
+   */
+  kind: "read" | "explain" | "dml" | "ddl" | "transaction" | "session" | "copy" | "unknown"
+  /**
+   * Status
+   */
+  status: "pending" | "running" | "succeeded" | "failed" | "cancelled" | "timed_out" | "not_run"
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null
+  /**
+   * Command Tag
+   */
+  command_tag?: string | null
+  /**
+   * Row Count
+   */
+  row_count?: number | null
+  /**
+   * Result Id
+   */
+  result_id?: string | null
+  /**
+   * Truncated
+   */
+  truncated?: boolean
+  diagnostic?: QueryDiagnostic | null
+  /**
+   * Notices
+   */
+  notices?: Array<QueryNotice>
 }
 
 /**
@@ -6708,6 +7030,161 @@ export type queriesPurgeDocumentResponses = {
 
 export type queriesPurgeDocumentResponse =
   queriesPurgeDocumentResponses[keyof queriesPurgeDocumentResponses]
+
+export type queriesReadProfileData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/connectors/{connector_id}/profile"
+}
+
+export type queriesReadProfileErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesReadProfileError = queriesReadProfileErrors[keyof queriesReadProfileErrors]
+
+export type queriesReadProfileResponses = {
+  /**
+   * Successful Response
+   */
+  200: QueryProfile
+}
+
+export type queriesReadProfileResponse =
+  queriesReadProfileResponses[keyof queriesReadProfileResponses]
+
+export type queriesStartRunData = {
+  body: RunStart
+  path?: never
+  query?: never
+  url: "/api/v1/queries/runs"
+}
+
+export type queriesStartRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesStartRunError = queriesStartRunErrors[keyof queriesStartRunErrors]
+
+export type queriesStartRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: RunPublic
+}
+
+export type queriesStartRunResponse = queriesStartRunResponses[keyof queriesStartRunResponses]
+
+export type queriesReadRunData = {
+  body?: never
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/runs/{run_id}"
+}
+
+export type queriesReadRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesReadRunError = queriesReadRunErrors[keyof queriesReadRunErrors]
+
+export type queriesReadRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: RunPublic
+}
+
+export type queriesReadRunResponse = queriesReadRunResponses[keyof queriesReadRunResponses]
+
+export type queriesCancelRunData = {
+  body?: never
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/runs/{run_id}/cancel"
+}
+
+export type queriesCancelRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesCancelRunError = queriesCancelRunErrors[keyof queriesCancelRunErrors]
+
+export type queriesCancelRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: RunPublic
+}
+
+export type queriesCancelRunResponse = queriesCancelRunResponses[keyof queriesCancelRunResponses]
+
+export type queriesReadResultData = {
+  body?: never
+  path: {
+    /**
+     * Result Id
+     */
+    result_id: string
+  }
+  query?: {
+    /**
+     * Offset
+     */
+    offset?: number
+    /**
+     * Limit
+     */
+    limit?: number
+  }
+  url: "/api/v1/queries/results/{result_id}"
+}
+
+export type queriesReadResultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesReadResultError = queriesReadResultErrors[keyof queriesReadResultErrors]
+
+export type queriesReadResultResponses = {
+  /**
+   * Successful Response
+   */
+  200: ResultPage
+}
+
+export type queriesReadResultResponse = queriesReadResultResponses[keyof queriesReadResultResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

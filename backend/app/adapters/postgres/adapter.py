@@ -39,6 +39,7 @@ from app.adapters.postgres.export import PostgresExport
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.indexes import PostgresIndexes
 from app.adapters.postgres.options import PostgresOptions
+from app.adapters.postgres.query import PostgresExecution, PostgresQuery
 from app.adapters.postgres.references import PostgresReferences
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.relation_changes import PostgresRelationChanges
@@ -49,6 +50,7 @@ from app.adapters.postgres.session import (
 )
 from app.adapters.postgres.update import PostgresUpdate
 from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.query import PreparedScript, QueryProfile, QueryRequest
 from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
@@ -115,6 +117,17 @@ class PostgresAdapter:
         self._constraints = PostgresConstraints(self._session, self._relation)
         self._relations = PostgresRelationChanges(self._session, self._catalog)
         self._content = PostgresContent(self._session)
+        self._query = PostgresQuery(self._session)
+
+    def query_profile(self) -> QueryProfile:
+        """What this source accepts as a complete statement (D62)."""
+        return self._query.profile()
+
+    def prepare_query(self, text: str) -> PreparedScript:
+        return self._query.prepare(text)
+
+    def open_query(self, request: QueryRequest) -> PostgresExecution:
+        return self._query.open(request)
 
     def cache_ttl(self, area: CacheArea) -> float:
         """A short stale window for reads whose source is under our control."""

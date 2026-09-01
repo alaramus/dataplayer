@@ -15,10 +15,21 @@ is verified.
 
 Documents exist: `app/queries` owns `QueryDocument`, the library, revisioned
 autosave, Trash and its sweep, and the frontend has a Queries navigation panel
-and a console panel. There is still no `SupportsQuery`, no execution route, no
-run or result table and no Run: this slice is deliberately a document without a
-way to run it, so the shapes and the state machine are proved before anything
-reaches a source.
+and a console panel.
+
+The read kernel exists too. `SupportsQuery` is declared, PostgreSQL implements
+it, and there are routes to start, read and cancel a run and to page a captured
+result. What is deliberately missing is the way to reach any of it: the console
+has no Run, no parameters, no history and no result view, so the state machine
+is proved before a user is offered a primitive product. The capability is
+published to users only when 3A.1-3A.5 are complete.
+
+Two things are process-local and stated as such: captured results and the runs
+being carried out. Both hold what cannot cross a process — memory and a
+connection. A run recorded elsewhere is still readable, because it is a row,
+and a restart marks whatever was left non-terminal as interrupted. Cancelling a
+run this process is not carrying out marks it `cancelling`; the process that
+holds it, or the next restart, settles it.
 
 The application module sits above connectors and adapters:
 

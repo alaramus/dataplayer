@@ -88,10 +88,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] **3A.3 — read execution kernel.** Add PostgreSQL prepare and classification,
-  durable idempotent runs, access resolution, admission control, database-side
-  read-only transactions and timeout, explicit cancellation, safe diagnostics,
-  bounded materialised snapshots and recovery after a backend restart.
 - [ ] **3A.4 — complete read console.** Execute the selection, current statement
   or an explicit script; bind named parameters; preserve ordered statement
   outputs and messages; add encrypted retained history, result pin/promotion,

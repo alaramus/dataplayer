@@ -42,12 +42,16 @@ backend/app/
 │   ├── routes.py        /users
 │   ├── auth_routes.py   /login, /password-recovery, /reset-password
 │   └── private_routes.py
-├── queries/             query documents — see querying.md
+├── queries/             query documents and runs — see querying.md
 │   ├── models.py        QueryDocument, EditorLayout + API schemas
+│   ├── runs.py          ExecutionRun, StatementRun + API schemas
 │   ├── content.py       the one place the query content key is used
 │   ├── crud.py          database access only, including the Trash sweep
+│   ├── execution.py     admission, the run task, restart recovery
+│   ├── results.py       captured results, process-local and bounded
+│   ├── topic.py         run state on the socket
 │   ├── cleanup.py       the lifespan timer that empties Trash
-│   └── routes.py        the library, one document, Trash
+│   └── routes.py        the library, one document, Trash, runs, results
 ├── system/              operational routes: /utils health check, test email
 ├── seed_database.py     dev tool: rebuilds the demo_lab PostgreSQL fixtures
 ├── seed_storage.py      dev tool: sample files into a personal directory

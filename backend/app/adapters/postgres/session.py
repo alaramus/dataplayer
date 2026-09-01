@@ -331,6 +331,18 @@ class PostgresSession:
         async with pool.connection() as connection:
             yield connection
 
+    @asynccontextmanager
+    async def acquire(self) -> AsyncIterator[psycopg.AsyncConnection[Any]]:
+        """One connection, for a caller that owns its transaction.
+
+        Everything else here runs a statement and hands back rows. A user's own
+        query needs more than that: its own transaction, its own session
+        settings, and something to cancel — so it borrows the connection and
+        does the rest itself.
+        """
+        async with self._connection() as connection:
+            yield connection
+
     async def query(
         self,
         sql: str,

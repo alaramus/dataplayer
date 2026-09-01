@@ -166,6 +166,9 @@ import type {
   privateCreateUserData,
   privateCreateUserErrors,
   privateCreateUserResponses,
+  queriesCancelRunData,
+  queriesCancelRunErrors,
+  queriesCancelRunResponses,
   queriesCreateDocumentData,
   queriesCreateDocumentErrors,
   queriesCreateDocumentResponses,
@@ -178,9 +181,21 @@ import type {
   queriesReadDocumentData,
   queriesReadDocumentErrors,
   queriesReadDocumentResponses,
+  queriesReadProfileData,
+  queriesReadProfileErrors,
+  queriesReadProfileResponses,
+  queriesReadResultData,
+  queriesReadResultErrors,
+  queriesReadResultResponses,
+  queriesReadRunData,
+  queriesReadRunErrors,
+  queriesReadRunResponses,
   queriesRestoreDocumentData,
   queriesRestoreDocumentErrors,
   queriesRestoreDocumentResponses,
+  queriesStartRunData,
+  queriesStartRunErrors,
+  queriesStartRunResponses,
   queriesTrashDocumentData,
   queriesTrashDocumentErrors,
   queriesTrashDocumentResponses,
@@ -2216,6 +2231,122 @@ export class QueriesService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/queries/documents/{document_id}/purge",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Profile
+   *
+   * What this source accepts as a complete statement, in its own words.
+   */
+  public static readProfile<ThrowOnError extends boolean = true>(
+    options: Options<queriesReadProfileData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      queriesReadProfileResponses,
+      queriesReadProfileErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/connectors/{connector_id}/profile",
+      ...options,
+    })
+  }
+
+  /**
+   * Start Run
+   *
+   * Accept a run, record it, and start carrying it out.
+   *
+   * Idempotent by the id the client chose: the same command twice is one run,
+   * and the same id with a different command is a conflict rather than a second
+   * execution nobody asked for (D64).
+   */
+  public static startRun<ThrowOnError extends boolean = true>(
+    options: Options<queriesStartRunData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesStartRunResponses,
+      queriesStartRunErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/runs",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Run
+   *
+   * What this run is doing, or did. The authority, and the fallback.
+   */
+  public static readRun<ThrowOnError extends boolean = true>(
+    options: Options<queriesReadRunData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      queriesReadRunResponses,
+      queriesReadRunErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/runs/{run_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Cancel Run
+   *
+   * Ask a run to stop.
+   *
+   * Idempotent, and not optimistic: the run moves to `cancelling` and stays
+   * there until the source says what actually happened. A query that won the
+   * race honestly finishes as a success (D64).
+   */
+  public static cancelRun<ThrowOnError extends boolean = true>(
+    options: Options<queriesCancelRunData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesCancelRunResponses,
+      queriesCancelRunErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/runs/{run_id}/cancel",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Result
+   *
+   * A page of a captured result.
+   *
+   * Of the snapshot, never of the source: these rows were read once, inside the
+   * transaction that produced them. A result that has expired is gone, and the
+   * run that produced it — which is durable — still says what happened (D64).
+   */
+  public static readResult<ThrowOnError extends boolean = true>(
+    options: Options<queriesReadResultData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      queriesReadResultResponses,
+      queriesReadResultErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/results/{result_id}",
       ...options,
     })
   }

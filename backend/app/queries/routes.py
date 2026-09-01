@@ -1,27 +1,32 @@
-"""Query documents: the library, one console, and Trash.
+"""Query documents, and the runs made from them.
 
 D63: a document belongs to one user and is bound to one connection. Creating
 one asks for `read` on that connection, because a console is a way of looking
-at a source. Reading and editing an existing one does not: a document survives
-losing its context, and only running it — which does not exist yet — needs the
-source at all.
+at a source; reading and editing an existing one asks for nothing, because a
+document survives losing its context. Running it needs the source, and asks
+for the level the statements need.
 
-Nothing here publishes a query capability. There is no execution in this
-module, by design: the early slices are deliberately hidden so the shapes and
-the state machine can be proved without offering a primitive product.
+The read kernel is here without a console to drive it: the editor gains Run in
+a later slice, so these shapes and this state machine are proved before
+anything is offered to a user (D62).
 """
 
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters.query import QueryProfile, QueryRequest, SupportsQuery
+from app.adapters.resources import ResourcesDep, ResourceStore
 from app.connectors import crud as connector_crud
-from app.connectors.access import get_or_404
+from app.connectors.access import adapter_for, get_or_404
+from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.schemas import Message
-from app.queries import crud
+from app.queries import crud, execution
 from app.queries.content import body_of, encrypted, preview_of
+from app.queries.execution import RunnerDep, RunRefused
 from app.queries.models import (
     EditorLayout,
     QueryDocument,
@@ -31,6 +36,17 @@ from app.queries.models import (
     QueryDocumentSummary,
     QueryDocumentUpdate,
 )
+from app.queries.results import ResultsDep
+from app.queries.runs import (
+    TERMINAL,
+    ExecutionRun,
+    ResultPage,
+    RunPublic,
+    RunStart,
+    StatementPublic,
+    StatementRun,
+)
+from app.realtime.topics import TopicsDep
 from app.users.deps import CurrentUser
 from app.users.models import User
 
@@ -279,3 +295,236 @@ async def purge_document(
         )
     await crud.purge(session, document=document)
     return Message(message="Document deleted")
+
+
+# --- runs -------------------------------------------------------------------
+#
+# D64: starting a run validates and records, then answers. What runs is a task,
+# what says how it is going is the socket, and what settles it is the route
+# below — which is the authority and the fallback when a message is missed.
+
+
+async def _source_or_501(
+    session: AsyncSession,
+    connector_id: uuid.UUID,
+    user: User,
+    resources: ResourceStore,
+) -> SupportsQuery:
+    """A source that accepts complete SQL, or the reason it does not.
+
+    `read` and no more: this slice runs reads, and the level a script needs is
+    the highest level any of its statements needs (D62).
+    """
+    adapter = await adapter_for(session, connector_id, user, resources, requires="read")
+    if not isinstance(adapter, SupportsQuery):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not run queries",
+                "capability": "query",
+            },
+        )
+    return adapter
+
+
+def _statements_public(rows: list[StatementRun]) -> list[StatementPublic]:
+    return [
+        StatementPublic.model_validate(
+            {
+                **row.model_dump(exclude={"run_id"}),
+                "notices": row.notices,
+            }
+        )
+        for row in sorted(rows, key=lambda row: row.ordinal)
+    ]
+
+
+async def _run_public(session: AsyncSession, run: ExecutionRun) -> RunPublic:
+    rows = (
+        await session.exec(
+            select(StatementRun).where(StatementRun.run_id == run.id)
+        )
+    ).all()
+    return RunPublic.model_validate(
+        {**run.model_dump(), "statements": _statements_public(list(rows))}
+    )
+
+
+async def _owned_run_or_404(
+    session: AsyncSession, run_id: uuid.UUID, user: User
+) -> ExecutionRun:
+    run = await session.get(ExecutionRun, run_id)
+    if run is None or run.owner_id != user.id:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return run
+
+
+@router.get("/connectors/{connector_id}/profile", response_model=QueryProfile)
+async def read_profile(
+    session: SessionDep,
+    resources: ResourcesDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+) -> QueryProfile:
+    """What this source accepts as a complete statement, in its own words."""
+    source = await _source_or_501(session, connector_id, current_user, resources)
+    return source.query_profile()
+
+
+@router.post("/runs", response_model=RunPublic)
+async def start_run(
+    session: SessionDep,
+    resources: ResourcesDep,
+    topics: TopicsDep,
+    runner: RunnerDep,
+    current_user: CurrentUser,
+    body: RunStart,
+) -> RunPublic:
+    """Accept a run, record it, and start carrying it out.
+
+    Idempotent by the id the client chose: the same command twice is one run,
+    and the same id with a different command is a conflict rather than a second
+    execution nobody asked for (D64).
+    """
+    existing = await session.get(ExecutionRun, body.run_id)
+    if existing is not None:
+        if (
+            existing.owner_id != current_user.id
+            or existing.fingerprint != execution.fingerprint(body)
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="This run id was already used for a different run",
+            )
+        return await _run_public(session, existing)
+
+    source = await _source_or_501(session, body.connector_id, current_user, resources)
+    profile = source.query_profile()
+    if body.mode not in profile.statement_modes:
+        raise HTTPException(
+            status_code=422, detail=f"This source does not run in {body.mode} mode"
+        )
+    timeout = min(
+        body.timeout_seconds or profile.default_timeout_seconds,
+        profile.max_timeout_seconds,
+    )
+    bounds = execution.limits(statement_timeout_seconds=timeout)
+
+    document: QueryDocument | None = None
+    if body.document_id is not None:
+        document = await _owned_or_404(session, body.document_id, current_user)
+        # One document, one run at a time. Another document is the explicit way
+        # to run two things at once (D64).
+        if await runner.is_running_document(document.id):
+            raise HTTPException(
+                status_code=409, detail="This document is already running something"
+            )
+
+    try:
+        statements = execution.admit(source.prepare_query(body.text), bounds)
+    except RunRefused as refusal:
+        raise HTTPException(
+            status_code=refusal.status_code, detail=refusal.message
+        ) from None
+
+    # Refused rather than queued where nobody can see it (D64).
+    if await runner.active_count(current_user.id) >= settings.QUERY_MAX_ACTIVE_RUNS:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"You already have {settings.QUERY_MAX_ACTIVE_RUNS} runs going; "
+                "wait for one to finish or cancel it"
+            ),
+        )
+
+    search_path = list(document.search_path) if document is not None else []
+    run = await execution.record(
+        session,
+        owner_id=current_user.id,
+        body=body,
+        statements=statements,
+        timeout_seconds=timeout,
+        search_path=search_path,
+    )
+    await runner.launch(
+        run_id=run.id,
+        owner_id=current_user.id,
+        document_id=body.document_id,
+        source=source,
+        request=QueryRequest(
+            text=body.text,
+            mode=body.mode,
+            search_path=search_path,
+            limits=bounds,
+        ),
+        topics=topics,
+    )
+    return await _run_public(session, run)
+
+
+@router.get("/runs/{run_id}", response_model=RunPublic)
+async def read_run(
+    session: SessionDep, current_user: CurrentUser, run_id: uuid.UUID
+) -> RunPublic:
+    """What this run is doing, or did. The authority, and the fallback."""
+    run = await _owned_run_or_404(session, run_id, current_user)
+    # Written by the task on its own session, so this one must not answer from
+    # what it read before the task committed.
+    await session.refresh(run)
+    return await _run_public(session, run)
+
+
+@router.post("/runs/{run_id}/cancel", response_model=RunPublic)
+async def cancel_run(
+    session: SessionDep, runner: RunnerDep, current_user: CurrentUser, run_id: uuid.UUID
+) -> RunPublic:
+    """Ask a run to stop.
+
+    Idempotent, and not optimistic: the run moves to `cancelling` and stays
+    there until the source says what actually happened. A query that won the
+    race honestly finishes as a success (D64).
+    """
+    run = await _owned_run_or_404(session, run_id, current_user)
+    if run.status in TERMINAL:
+        return await _run_public(session, run)
+    if run.status != "cancelling":
+        run.status = "cancelling"
+        session.add(run)
+        await session.commit()
+        await session.refresh(run)
+    await runner.cancel(run_id)
+    return await _run_public(session, run)
+
+
+@router.get("/results/{result_id}", response_model=ResultPage)
+async def read_result(
+    results: ResultsDep,
+    current_user: CurrentUser,
+    result_id: str,
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(
+        default=settings.QUERY_PAGE_DEFAULT_ROWS,
+        ge=1,
+        le=settings.QUERY_PAGE_MAX_ROWS,
+    ),
+) -> ResultPage:
+    """A page of a captured result.
+
+    Of the snapshot, never of the source: these rows were read once, inside the
+    transaction that produced them. A result that has expired is gone, and the
+    run that produced it — which is durable — still says what happened (D64).
+    """
+    result = await results.get(result_id, owner_id=current_user.id)
+    if result is None:
+        raise HTTPException(
+            status_code=404, detail="This result is no longer available"
+        )
+    return ResultPage(
+        result_id=result_id,
+        columns=result.columns,
+        rows=result.rows[offset : offset + limit],
+        offset=offset,
+        limit=limit,
+        total_rows=len(result.rows),
+        truncated=result.truncated,
+    )

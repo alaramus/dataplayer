@@ -96,6 +96,29 @@ class Settings(BaseSettings):
     QUERY_DOCUMENT_MAX_BYTES: int = 1024 * 1024
     QUERY_SEARCH_MAX_DOCUMENTS: int = 500
 
+    # What one run is held to. Every number here is a boundary D64 states:
+    # input bounds first, then time, then how much of a result may be kept.
+    QUERY_MAX_STATEMENTS: int = 100
+    QUERY_STATEMENT_MAX_BYTES: int = 256 * 1024
+    QUERY_SCRIPT_TIMEOUT_SECONDS: int = 600
+    QUERY_RESULT_MAX_ROWS: int = 10_000
+    QUERY_RESULT_MAX_BYTES: int = 32 * 1024 * 1024
+    QUERY_CELL_MAX_BYTES: int = 4 * 1024 * 1024
+    QUERY_RUN_MAX_RESULTS: int = 20
+    QUERY_RUN_MAX_BYTES: int = 64 * 1024 * 1024
+    QUERY_RUN_MAX_MESSAGES: int = 1000
+    # A browser asks for a hundred rows of a snapshot and never more than five
+    # hundred.
+    QUERY_PAGE_DEFAULT_ROWS: int = 100
+    QUERY_PAGE_MAX_ROWS: int = 500
+    # Runs one person may have in flight at once. Excess is refused rather than
+    # queued where nobody can see it.
+    QUERY_MAX_ACTIVE_RUNS: int = 3
+    # Captured results are kept in this process, bounded by bytes and by how
+    # long ago each was last read.
+    QUERY_RESULT_STORE_MAX_BYTES: int = 256 * 1024 * 1024
+    QUERY_RESULT_TTL_SECONDS: float = 1800.0
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def _use_psycopg_driver(cls, value: str | PostgresDsn) -> str:
