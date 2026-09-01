@@ -118,7 +118,9 @@ test("recovers from a rejected query without restoring it", async ({ page }) => 
     await page.getByRole("option", { name: "equals", exact: true }).click()
     await editor.getByLabel("Value").fill("rejected")
     await editor.getByTestId("grid-filter-apply").click()
-    await expect(page.getByTestId("grid-error")).toContainText("Could not read the rows", {
+    // What the server said, not what the screen would say instead of it: a
+    // refusal written as a sentence is shown as it stands.
+    await expect(page.getByTestId("grid-error")).toContainText("Query failed", {
       timeout: 15_000,
     })
   }

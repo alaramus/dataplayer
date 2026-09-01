@@ -33,6 +33,8 @@ import {
 import type { DraftState, SaveState } from "@/features/queries/draft"
 import ExplainView from "@/features/queries/ExplainView.vue"
 import ParameterForm from "@/features/queries/ParameterForm.vue"
+import TransactionBar from "@/features/queries/TransactionBar.vue"
+import WriteMode from "@/features/queries/WriteMode.vue"
 import RunOutcome from "@/features/queries/RunOutcome.vue"
 import {
   marks,
@@ -43,14 +45,21 @@ import {
 } from "@/features/queries/intelligence"
 import {
   useCancelRun,
+  useCloseWrites,
+  useEndTransaction,
   useExplainQuery,
   useFormatQuery,
+  useOpenTransaction,
+  useOpenWrites,
+  useTransaction,
+  useUnlockState,
   usePrepareQuery,
   useQueryMetadata,
   useQueryProfile,
   useRun,
   useStartRun,
 } from "@/features/queries/runs"
+import { useClosable } from "@/features/workspace/closable"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
@@ -60,6 +69,7 @@ import {
   AppIconButton,
   AppInput,
   AppSpinner,
+  useConfirm,
   useToast,
 } from "@/shared/ui"
 
@@ -77,6 +87,7 @@ const props = defineProps<{ panelId: string; documentId: string }>()
 
 const workspace = useWorkspaceActions()
 const toast = useToast()
+const confirm = useConfirm()
 const document = useQueryDocument(toRef(props, "documentId"))
 const save = useSaveQueryDocument()
 const create = useCreateQueryDocument()
@@ -86,6 +97,10 @@ const startRun = useStartRun()
 const cancelRun = useCancelRun()
 const formatting = useFormatQuery()
 const explaining = useExplainQuery()
+const openWrites = useOpenWrites()
+const closeWrites = useCloseWrites()
+const openTransaction = useOpenTransaction()
+const endTransaction = useEndTransaction()
 
 /** How long typing has to stop before a save is worth spending a revision on. */
 const AUTOSAVE_PAUSE = 800
@@ -107,6 +122,14 @@ const pinned = ref(false)
 const startedAt = ref(0)
 const now = ref(0)
 const plan = ref<ExplainResult | null>(null)
+/**
+ * What this console may do, chosen every time it is opened.
+ *
+ * Never restored from anywhere: a document opens read-only, and leaving that
+ * is a movement somebody makes deliberately in front of this screen (D66).
+ */
+const mode = ref<"read" | "auto_commit" | "manual">("read")
+const transactionId = ref<string | null>(null)
 const narrow = ref(false)
 const showing = ref<"editor" | "results">("editor")
 const frame = useTemplateRef<HTMLElement>("frame")
@@ -124,6 +147,8 @@ let loadedId = ""
 const server = computed(() => document.data.value)
 const connectorId = computed(() => server.value?.connector_id ?? null)
 const profile = useQueryProfile(connectorId)
+const unlockState = useUnlockState(connectorId)
+const transaction = useTransaction(transactionId)
 /**
  * What this connection holds, asked for progressively (D65).
  *
@@ -167,7 +192,22 @@ const runnable = computed(
 const going = computed(() =>
   ["accepted", "running", "cancelling"].includes(run.data.value?.status ?? "")
 )
-const canRun = computed(() => runnable.value && !going.value && ready(parameters.value))
+const canRun = computed(
+  () =>
+    runnable.value &&
+    !going.value &&
+    ready(parameters.value) &&
+    (mode.value === "read" || unlockState.data.value?.unlocked === true)
+)
+/** What the statements about to run would do that cannot be undone (D66). */
+const risky = computed(() => {
+  const statements = script.value?.statements ?? []
+  const mutating = statements.filter(
+    (statement) => statement.kind === "dml" || statement.kind === "ddl"
+  )
+  if (mutating.length === 0) return false
+  return mutating.some((statement) => statement.risk === "high") || statements.length > 1
+})
 /**
  * What the result area shows.
  *
@@ -186,8 +226,45 @@ const running = computed(() =>
   going.value ? elapsed(Math.max(0, now.value - startedAt.value)) : ""
 )
 
+/**
+ * The bar answers as soon as a run does, not at the next poll.
+ *
+ * The transaction is asked every five seconds because it also expires without
+ * anybody touching it. But a run that has just finished is a change this
+ * screen already knows about, and a commit preview still saying "0 changing
+ * statements" under a statement that has visibly succeeded is the one moment
+ * it must not be behind (D66).
+ */
+watch(going, async (now, before) => {
+  if (before && !now && transactionId.value !== null) await transaction.refetch()
+})
+
 useReloadable(props.panelId, async () => {
   await document.refetch()
+})
+
+/**
+ * An open transaction is not left behind by closing the tab (D66).
+ *
+ * Two ways out rather than three: keeping it open, or rolling it back and
+ * going. Committing is deliberately not offered here — a commit is a decision
+ * made while looking at what it would commit, which is the bar above the
+ * editor, and the tab closing is not where somebody decides that.
+ */
+useClosable(props.panelId, async () => {
+  if (transactionId.value === null) return true
+  const leaving = await confirm({
+    title: "Roll back the open transaction?",
+    message:
+      "This console is holding a transaction open. Closing it rolls back " +
+      "everything it has done. Commit it first if you want to keep it.",
+    confirmLabel: "Roll back and close",
+    cancelLabel: "Keep it open",
+    danger: true,
+  })
+  if (!leaving) return false
+  await endTheTransaction(false)
+  return true
 })
 
 /**
@@ -345,6 +422,33 @@ async function go(target: RunTarget | null) {
     toast.info("Fill in the parameters this query asks for")
     return
   }
+  // Asked every time, with what it would do in front of the person (D66).
+  if (risky.value) {
+    const accepted = await confirm({
+      title: "Run something that cannot be undone?",
+      message:
+        `This changes ${loaded.connector_label ?? "the source"} and there is no ` +
+        "undo. In a transaction you can still roll it back; with auto-commit " +
+        "you cannot.",
+      confirmLabel: "Run it",
+      danger: true,
+    })
+    if (!accepted) return
+  }
+  // A transaction is opened when the first statement needs one, not when the
+  // mode is chosen: an empty transaction would hold a connection for nothing.
+  if (mode.value === "manual" && transactionId.value === null) {
+    try {
+      const opened = await openTransaction.mutateAsync({
+        connector_id: connector,
+        document_id: loaded.id,
+      })
+      transactionId.value = opened.id
+    } catch (cause) {
+      toast.error(messageOf(cause, "Could not open a transaction"))
+      return
+    }
+  }
   // What is on screen now becomes what stays on screen while the next runs.
   if (run.data.value !== undefined && !pinned.value) keptRunId.value = run.data.value.id
   try {
@@ -357,6 +461,9 @@ async function go(target: RunTarget | null) {
       range_start: target.start,
       range_end: target.end,
       scope: target.scope,
+      mode: mode.value,
+      transaction_id: mode.value === "manual" ? transactionId.value : null,
+      confirm_high_risk: risky.value,
       parameters: bindingsOf(parameters.value),
     })
     plan.value = null
@@ -447,6 +554,37 @@ async function format(scope: "document" | "selection") {
     }
   } catch (cause) {
     toast.error(messageOf(cause, "Could not format this query"))
+  }
+}
+
+async function unlockWrites(typedName: string) {
+  const connector = connectorId.value
+  if (connector === null) return
+  try {
+    await openWrites.mutateAsync({ connectorId: connector, connectorName: typedName })
+  } catch (cause) {
+    toast.error(messageOf(cause, "Writing was not unlocked"))
+  }
+}
+
+async function lockWrites() {
+  const connector = connectorId.value
+  if (connector === null) return
+  await closeWrites.mutateAsync(connector)
+  mode.value = "read"
+}
+
+/** End the transaction, and say what became of what it did. */
+async function endTheTransaction(commit: boolean) {
+  const id = transactionId.value
+  if (id === null) return
+  try {
+    const answer = await endTransaction.mutateAsync({ transactionId: id, commit })
+    transactionId.value = null
+    toast.success(answer.message)
+    if (run.data.value !== undefined) await run.refetch()
+  } catch (cause) {
+    toast.error(messageOf(cause, "Could not end this transaction"))
   }
 }
 
@@ -754,6 +892,26 @@ onBeforeUnmount(() => {
       </div>
     </AppBanner>
 
+    <WriteMode
+      v-if="profile.data.value !== undefined"
+      :mode="mode"
+      :unlock="unlockState.data.value"
+      :connector-label="connectorLabel"
+      :busy="openWrites.isPending.value"
+      class="query-panel__mode"
+      @update:mode="mode = $event"
+      @unlock="unlockWrites"
+      @relock="lockWrites"
+    />
+
+    <TransactionBar
+      v-if="transaction.data.value !== undefined"
+      :transaction="transaction.data.value"
+      :busy="endTransaction.isPending.value || going"
+      @commit="endTheTransaction(true)"
+      @rollback="endTheTransaction(false)"
+    />
+
     <ParameterForm
       v-if="parameters.length > 0"
       :entries="parameters"
@@ -887,6 +1045,7 @@ onBeforeUnmount(() => {
 }
 .query-panel__banner,
 .query-panel__parameters,
+.query-panel__mode,
 .query-panel__switch {
   flex: none;
 }

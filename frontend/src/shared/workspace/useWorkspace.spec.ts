@@ -122,26 +122,93 @@ describe("a workspace", () => {
     expect(workspace.context.tree.value.id).toBe("main")
   })
 
-  it("closes every tab of a section but the active one", () => {
+  it("keeps a panel that says it is not ready to go", async () => {
+    const asked: string[] = []
+    const workspace = useWorkspace<DemoPanel>({
+      storageKey: "test-workspace",
+      panelSchema,
+      defaults,
+      kindOf: (panel) => panel.kind,
+      look: (panel) => ({ title: panel.id, icon: "square" }),
+      component: () => Stub,
+      beforeClose: (panelId) => {
+        asked.push(panelId)
+        return false
+      },
+    })
+
+    await workspace.context.requestClose("p1")
+
+    expect(asked).toEqual(["p1"])
+    expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p1", "p2"])
+  })
+
+  it("closes a panel that says it may go", async () => {
+    const workspace = useWorkspace<DemoPanel>({
+      storageKey: "test-workspace",
+      panelSchema,
+      defaults,
+      kindOf: (panel) => panel.kind,
+      look: (panel) => ({ title: panel.id, icon: "square" }),
+      component: () => Stub,
+      beforeClose: () => Promise.resolve(true),
+    })
+
+    await workspace.context.requestClose("p1")
+
+    expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p2"])
+  })
+
+  // Nothing asked is the same as yes, so a screen that never sets the hook
+  // keeps the plain behaviour of the cross.
+  it("closes a panel when nothing was asked", async () => {
+    const workspace = build()
+    await workspace.context.requestClose("p1")
+    expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p2"])
+  })
+
+  it("closes every tab of a section but the active one", async () => {
     const workspace = build()
     workspace.open({ id: "p3", kind: "rows" })
     workspace.open({ id: "p4", kind: "rows" })
 
-    workspace.context.closeOthers("main")
+    await workspace.context.closeOthers("main")
 
     expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p1", "p4"])
   })
 
-  it("leaves the tabs of every other section alone", () => {
+  it("leaves the tabs of every other section alone", async () => {
     const workspace = build()
     workspace.open({ id: "p3", kind: "rows" })
 
-    workspace.context.closeOthers("main")
+    await workspace.context.closeOthers("main")
 
     expect(workspace.panels.value.map((panel) => panel.id)).toContain("p1")
   })
 
-  it("keeps a panel the feature says has no cross", () => {
+  // The command means "the crosses of all the others", so it asks what a
+  // cross would ask - and one panel keeping itself does not keep the rest.
+  it("keeps a panel that says it is not ready to go when the others are closed", async () => {
+    const workspace = useWorkspace<DemoPanel>({
+      storageKey: "test-workspace",
+      panelSchema,
+      defaults,
+      kindOf: (panel) => panel.kind,
+      look: (panel) => ({ title: panel.id, icon: "square" }),
+      component: () => Stub,
+      beforeClose: (panelId) => panelId !== "p3",
+    })
+    workspace.open({ id: "p3", kind: "rows" })
+    workspace.open({ id: "p4", kind: "rows" })
+
+    await workspace.context.closeOthers("main")
+
+    // p2 went, p3 kept itself, p4 is the one being looked at, and p1 is in
+    // another section entirely.
+    expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p1", "p3", "p4"])
+  })
+
+  it("keeps a panel the feature says has no cross", async () => {
     /* The command means "the crosses of all the others", and a panel with no
        cross of its own has none to press. */
     const workspace = useWorkspace<DemoPanel>({
@@ -160,7 +227,7 @@ describe("a workspace", () => {
     })
     workspace.open({ id: "p3", kind: "rows" })
 
-    workspace.context.closeOthers("main")
+    await workspace.context.closeOthers("main")
 
     expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p1", "p2", "p3"])
   })

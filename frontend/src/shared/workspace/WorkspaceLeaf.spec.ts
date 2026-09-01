@@ -25,7 +25,8 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
     collapsedOf: () => null,
     activate: () => undefined,
     close: () => undefined,
-    closeOthers: () => undefined,
+    requestClose: async () => undefined,
+    closeOthers: async () => undefined,
     focus: () => undefined,
     toggleCollapse: () => undefined,
     resize: () => undefined,
@@ -73,9 +74,17 @@ describe("a section", () => {
     expect(seen).toEqual(["p2"])
   })
 
-  it("closes the panel whose cross is clicked", async () => {
+  it("asks to close the panel whose cross is clicked", async () => {
+    // Asks rather than closes: the panel may be holding something it has to
+    // ask about first, and only the request path goes through that.
     const seen: string[] = []
-    const wrapper = mountLeaf(contextFor({ close: (id) => seen.push(id) }))
+    const wrapper = mountLeaf(
+      contextFor({
+        requestClose: async (id) => {
+          seen.push(id)
+        },
+      })
+    )
     await wrapper.get('[data-testid="workspace-close-p2"]').trigger("click")
     expect(seen).toEqual(["p2"])
   })
@@ -189,7 +198,11 @@ describe("a section", () => {
 
   it("closes every tab but the active one when asked", async () => {
     const seen: string[] = []
-    const wrapper = mountLeaf(contextFor({ closeOthers: (id) => seen.push(id) }))
+    const wrapper = mountLeaf(contextFor({
+        closeOthers: async (id) => {
+          seen.push(id)
+        },
+      }))
     await wrapper.get('[data-testid="workspace-close-others-a"]').trigger("click")
     expect(seen).toEqual(["a"])
   })

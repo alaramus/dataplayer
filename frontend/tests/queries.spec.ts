@@ -4,7 +4,7 @@ import type { Page } from "@playwright/test"
 import { openNode, pickSchema } from "./utils/catalog"
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { deleteConnector, openConnector } from "./utils/workspace"
+import { deleteConnector, editConnector, openConnector } from "./utils/workspace"
 
 /**
  * A query document, end to end.
@@ -325,6 +325,132 @@ test("plans a statement without running it, in three views of one selection", as
   // --- and it never became a run -------------------------------------------
   await page.getByTestId("explain-close").click()
   await expect(page.getByTestId("query-nothing-run")).toBeVisible()
+
+  await deleteConnector(page, name)
+})
+
+/** Choose what the console may do, the way the strip above the editor does. */
+async function chooseMode(page: Page, label: string) {
+  await page.getByTestId("query-mode").click()
+  await page.getByRole("option", { name: label, exact: true }).click()
+}
+
+/**
+ * A row nothing else in the fixture owns.
+ *
+ * Written into `demo_lab.tags`, and the organisation is looked up rather than
+ * numbered: the fixture is rebuilt with generated keys, so 1 is a guess.
+ */
+function insertTag(label: string): string {
+  return (
+    `insert into demo_lab.tags (organization_id, label) ` +
+    `select min(organization_id), '${label}' from demo_lab.organizations`
+  )
+}
+
+function countTag(label: string): string {
+  return `select count(*) as n from demo_lab.tags where label = '${label}'`
+}
+
+test("a console reads until somebody unlocks it, and auto-commit keeps what it did", async ({
+  page,
+}) => {
+  const name = `e2e-write-${Date.now()}`
+  const label = `e2e-w-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+
+  // --- read-only is where every document starts, and it holds --------------
+  await typeQuery(page, insertTag(label))
+  await page.getByTestId("query-run").click()
+  await expect(
+    page.locator(".q-notification", { hasText: "this run is a read" })
+  ).toBeVisible()
+
+  // --- leaving it is typing the name of the connection, and only that ------
+  await chooseMode(page, "Auto-commit")
+  await expect(page.getByTestId("query-unlock")).toBeVisible()
+  await page.getByTestId("query-unlock-name").fill("not the name")
+  await page.getByTestId("query-unlock-submit").click()
+  await expect(page.locator(".q-notification", { hasText: "exactly" })).toBeVisible()
+
+  await page.getByTestId("query-unlock-name").fill(name)
+  await page.getByTestId("query-unlock-submit").click()
+  await expect(page.getByTestId("query-relock")).toBeVisible()
+
+  // --- and then the same statement goes through, and stays -----------------
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("run-no-rows")).toContainText("INSERT")
+
+  await typeQuery(page, countTag(label))
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("1")
+
+  // --- a script that changes something is asked about first (D66) ----------
+  await typeQuery(page, `delete from demo_lab.tags where label = '${label}';
+${countTag(label)}`)
+  await page.getByTestId("query-run-script").click()
+  await expect(page.getByTestId("confirm-accept")).toBeVisible()
+  await page.getByTestId("confirm-accept").click()
+
+  await page.getByTestId("run-statement-1").click()
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("0")
+
+  await deleteConnector(page, name)
+})
+
+test("a transaction says what it has done, and closing the console rolls it back", async ({
+  page,
+}) => {
+  const name = `e2e-tx-${Date.now()}`
+  const label = `e2e-t-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+
+  // --- how far a console may go is the connection's own setting ------------
+  await editConnector(page, name)
+  await page.getByTestId("connector-policy").click()
+  await page.getByRole("option", { name: "Writing allowed", exact: true }).click()
+  await page.getByTestId("save-connector").click()
+
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+
+  // --- allowed means no name to type, but still a movement one makes ------
+  await chooseMode(page, "Transaction")
+  await expect(page.getByTestId("query-unlock")).toContainText("will change")
+  await page.getByTestId("query-unlock-submit").click()
+  await expect(page.getByTestId("query-relock")).toBeVisible()
+
+  // --- the bar is the commit preview: what it did, and how long it has -----
+  await typeQuery(page, insertTag(label))
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("transaction-bar")).toContainText("1 changing statement")
+  await expect(page.getByTestId("transaction-bar")).toContainText("demo_lab.tags")
+  await expect(page.getByTestId("transaction-countdown")).toContainText("Rolls back in")
+
+  await page.getByTestId("transaction-rollback").click()
+  await expect(page.getByTestId("transaction-bar")).toBeHidden()
+
+  // --- and rolling back left nothing behind --------------------------------
+  await typeQuery(page, countTag(label))
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("0")
+  // Reading in this mode opened a transaction of its own, which is what the
+  // cross now has to reckon with.
+  await expect(page.getByTestId("transaction-bar")).toBeVisible()
+
+  // --- the tab does not take an open transaction away quietly (D66) --------
+  const cross = page.locator('[data-testid^="workspace-close-query:"]')
+  await cross.click()
+  await page.getByTestId("confirm-cancel").click()
+  await expect(page.getByTestId("transaction-bar")).toBeVisible()
+
+  await cross.click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.locator('[data-testid^="workspace-tab-query:"]')).toHaveCount(0)
 
   await deleteConnector(page, name)
 })

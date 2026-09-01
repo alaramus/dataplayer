@@ -34,6 +34,7 @@ import {
   structurePanelId,
 } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
+import { createCloseRegistry, provideCloseRegistry } from "@/features/workspace/closable"
 import { createReloadRegistry, provideReloadRegistry } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
 import type {
@@ -101,6 +102,9 @@ const workspace = useWorkspace<Panel>({
   onReload: async (panel) => {
     if (!(await reloads.reload(panel.id))) workspace.context.activate(panel.id)
   },
+  // A tab is a person's decision to close something; what that costs is the
+  // panel's to say. A console holding an open transaction is the reason (D66).
+  beforeClose: (panelId) => closings.mayClose(panelId),
 })
 
 /**
@@ -146,6 +150,10 @@ const confirm = useConfirm()
 // here so that every panel of this screen registers into the same one.
 const reloads = createReloadRegistry()
 provideReloadRegistry(reloads)
+
+// The same arrangement for the other direction: panels say when they may go.
+const closings = createCloseRegistry()
+provideCloseRegistry(closings)
 
 /**
  * The node a catalog has just been asked to point at.

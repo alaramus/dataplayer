@@ -25,6 +25,7 @@ import {
   AppButton,
   AppCopyButton,
   AppInput,
+  AppSelect,
   AppSpinner,
   AppToggle,
   useConfirm,
@@ -83,6 +84,27 @@ const {
 
 const name = ref("")
 const enabled = ref(true)
+/**
+ * How far a console may go through this connection (D66).
+ *
+ * A property of the connection and not of a session, because it answers a
+ * question about the source itself — whether anybody may write to it from
+ * here at all. Confirmation is the middle setting and the default: writing is
+ * possible, and never without somebody saying so first.
+ */
+type ExecutionPolicy = ConnectorPublic["execution_policy"]
+const executionPolicy = ref<ExecutionPolicy>("confirm_writes")
+const POLICY_OPTIONS: { label: string; value: ExecutionPolicy }[] = [
+  { label: "Read only", value: "read_only" },
+  { label: "Ask before writing", value: "confirm_writes" },
+  { label: "Writing allowed", value: "allow_writes" },
+]
+
+function choosePolicy(value: unknown) {
+  if (POLICY_OPTIONS.some((option) => option.value === value)) {
+    executionPolicy.value = value as ExecutionPolicy
+  }
+}
 const nameError = ref("")
 const checkResult = ref<ConnectionCheckResult | null>(null)
 const connectionString = ref("")
@@ -114,7 +136,7 @@ function snapshot(): string {
   const ordered = Object.keys(values)
     .sort()
     .map((key) => [key, values[key]])
-  return JSON.stringify([name.value, enabled.value, ordered])
+  return JSON.stringify([name.value, enabled.value, executionPolicy.value, ordered])
 }
 
 const dirty = computed(() => snapshot() !== baseline.value)
@@ -282,6 +304,7 @@ function load() {
   if (props.connector) {
     name.value = props.connector.name
     enabled.value = props.connector.enabled
+    executionPolicy.value = props.connector.execution_policy
     resetOptions(allFields.value, props.connector.config as Record<string, unknown>)
   } else {
     // Named after the type it connects to, so the form says which one was
@@ -289,6 +312,7 @@ function load() {
     // beats an empty box, and a connection nobody renames still has a name.
     name.value = selectedType.value?.title ?? ""
     enabled.value = true
+    executionPolicy.value = "confirm_writes"
     resetOptions(allFields.value)
   }
   baseline.value = snapshot()
@@ -361,7 +385,12 @@ async function apply(): Promise<boolean> {
     if (saved.value) {
       await updateConnector.mutateAsync({
         connectorId: saved.value.id,
-        body: { name: name.value, enabled: enabled.value, options: filledOptions() },
+        body: {
+          name: name.value,
+          enabled: enabled.value,
+          execution_policy: executionPolicy.value,
+          options: filledOptions(),
+        },
       })
     } else {
       const created = await createConnector.mutateAsync({
@@ -494,6 +523,34 @@ async function parseTyped(text: string) {
             data-testid="connector-enabled"
             :disable="readOnly"
           />
+        </div>
+
+        <!-- The owner's alone, like sharing below: how far anybody may go
+             through this connection is a property of the connection, and a
+             person given access to it does not widen their own (D66). Only
+             for a saved one, for the same reason as the switch above. -->
+        <div
+          v-if="saved && isOwner"
+          class="connector-window__policy"
+        >
+          <AppSelect
+            :model-value="executionPolicy"
+            :options="POLICY_OPTIONS"
+            label="Statements from a console"
+            compact
+            class="connector-window__policy-select"
+            data-testid="connector-policy"
+            @update:model-value="choosePolicy"
+          />
+          <span class="connector-window__policy-note">
+            {{
+              executionPolicy === "read_only"
+                ? "Consoles on this connection can only read."
+                : executionPolicy === "allow_writes"
+                  ? "Writing is unlocked by choosing a writing mode."
+                  : "Writing asks for the name of this connection first."
+            }}
+          </span>
         </div>
 
         <!-- Whose it is and what was given. Stated in words rather than by the
@@ -672,6 +729,20 @@ async function parseTyped(text: string) {
 /* A statement about the window, not a field in it: quieter than the form and
    above it. */
 .connector-window__shared {
+  font-size: 12px;
+  color: var(--dp-text-muted);
+}
+.connector-window__policy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.connector-window__policy-select {
+  flex: 0 1 240px;
+}
+.connector-window__policy-note {
+  flex: 1;
+  min-width: 0;
   font-size: 12px;
   color: var(--dp-text-muted);
 }

@@ -29,9 +29,18 @@ describe("messageOf", () => {
     expect(messageOf(cause, "fallback")).toBe("too large")
   })
 
+  // What a route refuses with when the reason is a sentence rather than a
+  // field or an adapter failure, which is how the console says why a run was
+  // not started.
+  it("reads a detail that is a sentence on its own", () => {
+    const cause = axiosError(409, { detail: "Writing is not unlocked on this connection" })
+
+    expect(messageOf(cause, "fallback")).toBe("Writing is not unlocked on this connection")
+  })
+
   it("falls back when the response carries no usable detail", () => {
     expect(messageOf(axiosError(500, {}), "fallback")).toBe("fallback")
-    expect(messageOf(axiosError(500, { detail: "plain" }), "fallback")).toBe("fallback")
+    expect(messageOf(axiosError(500, { detail: "   " }), "fallback")).toBe("fallback")
   })
 
   it("falls back for anything that is not an axios error", () => {

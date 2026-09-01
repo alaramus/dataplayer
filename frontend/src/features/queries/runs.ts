@@ -9,6 +9,7 @@ import type {
   DeleteSelected,
   ExplainStart,
   GenerateQueryRequest,
+  TransactionStart,
   PrepareRequest,
   QueryMetadataRequest,
   RunStart,
@@ -175,6 +176,102 @@ export function useQueryMetadata(
  * A request of its own rather than a run: there is nothing to cancel and
  * nothing is captured, so there is no lifecycle to watch.
  */
+/**
+ * Whether writing is open on this connection, and until when (D66).
+ *
+ * Server state like everything else, and asked again after every unlock:
+ * whether a person may change anything is not something a screen decides.
+ */
+export function useUnlockState(connectorId: MaybeRefOrGetter<string | null>) {
+  const id = computed(() => toValue(connectorId))
+  return useQuery({
+    queryKey: computed(() => ["queries", "unlock", id.value ?? "none"] as const),
+    queryFn: async () =>
+      (await QueriesService.readUnlock({ path: { connector_id: id.value as string } }))
+        .data,
+    enabled: computed(() => id.value !== null),
+    retry: false,
+  })
+}
+
+export function useOpenWrites() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (request: { connectorId: string; connectorName: string }) =>
+      (
+        await QueriesService.openWrites({
+          path: { connector_id: request.connectorId },
+          body: { connector_name: request.connectorName },
+        })
+      ).data,
+    onSuccess: (state) =>
+      queryClient.setQueryData(["queries", "unlock", state.connector_id], state),
+  })
+}
+
+export function useCloseWrites() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (connectorId: string) =>
+      (
+        await QueriesService.closeWrites({ path: { connector_id: connectorId } })
+      ).data,
+    onSuccess: (state) =>
+      queryClient.setQueryData(["queries", "unlock", state.connector_id], state),
+  })
+}
+
+/**
+ * One open transaction, re-read while it is open.
+ *
+ * The interval is what makes the countdown honest: the lease is the server's,
+ * and a console that guessed at it would show a promise it cannot keep (D66).
+ */
+export function useTransaction(transactionId: MaybeRefOrGetter<string | null>) {
+  const id = computed(() => toValue(transactionId))
+  return useQuery({
+    queryKey: computed(() => ["queries", "transactions", id.value ?? "none"] as const),
+    queryFn: async () =>
+      (
+        await QueriesService.readTransaction({
+          path: { transaction_id: id.value as string },
+        })
+      ).data,
+    enabled: computed(() => id.value !== null),
+    refetchInterval: 5000,
+    retry: false,
+  })
+}
+
+export function useOpenTransaction() {
+  return useMutation({
+    mutationFn: async (body: TransactionStart) =>
+      (await QueriesService.openTransaction({ body })).data,
+  })
+}
+
+export function useEndTransaction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (request: { transactionId: string; commit: boolean }) =>
+      request.commit
+        ? (
+            await QueriesService.commitTransaction({
+              path: { transaction_id: request.transactionId },
+            })
+          ).data
+        : (
+            await QueriesService.rollbackTransaction({
+              path: { transaction_id: request.transactionId },
+            })
+          ).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["queries", "runs"] })
+      await queryClient.invalidateQueries({ queryKey: ["queries", "transactions"] })
+    },
+  })
+}
+
 export function useExplainQuery() {
   return useMutation({
     mutationFn: async (request: { connectorId: string; body: ExplainStart }) =>

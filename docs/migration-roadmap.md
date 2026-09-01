@@ -88,10 +88,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] **3B — DML transactions.** Add owner-controlled connector execution policy,
-  read-only/auto-commit/manual modes, a leased-session lifecycle, strengthened
-  confirmations, commit summaries, affected rows and `RETURNING`. Query results
-  remain read-only; relation editing keeps its source-issued row handles.
 - [ ] **3C — bounded DDL.** Admit the closed PostgreSQL schema/table/view/index
   allowlist, destructive preview by rollback rehearsal, high-risk confirmation
   and source-issued cache/catalog/workspace invalidation. Server-level commands,

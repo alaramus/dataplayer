@@ -252,7 +252,7 @@ const overlayStyle = computed((): CSSProperties => {
             v-if="workspace.lookOf(panelId).closable !== false"
             class="workspace-leaf__close"
             :data-testid="`workspace-close-${panelId}`"
-            @click.stop="workspace.close(panelId)"
+            @click.stop="workspace.requestClose(panelId)"
           >
             <q-icon
               name="close"

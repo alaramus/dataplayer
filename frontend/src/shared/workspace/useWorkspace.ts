@@ -51,6 +51,13 @@ export interface WorkspaceOptions<P extends { id: string }> {
   onIconClick?: (panel: P) => void
   /** How a panel is re-read, if the feature offers it. */
   onReload?: (panel: P) => Promise<void> | void
+  /**
+   * Whether a panel may be closed now.
+   *
+   * Asked the way reloading is asked: the engine knows a tab is going, and
+   * what that costs belongs to the feature. Nothing said means yes.
+   */
+  beforeClose?: (panelId: PanelId) => Promise<boolean> | boolean
 }
 
 /** How an opened panel treats the ones already there. */
@@ -180,14 +187,19 @@ export function useWorkspace<P extends { id: string }>(
     return panel === undefined ? { title: panelId, icon: "help" } : options.look(panel)
   }
 
-  function closeOthers(leafId: NodeId) {
+  async function closeOthers(leafId: NodeId) {
     const leaf = leavesOf(tree.value).find((one) => one.id === leafId)
     if (leaf === undefined) return
-    for (const panelId of leaf.panels) {
+    // A copy, because closing edits the list this walks.
+    for (const panelId of [...leaf.panels]) {
       if (panelId === leaf.activePanel) continue
       // A panel with no cross of its own is not closed by a command that means
       // "the crosses of all the others" - see T3.
       if (lookOf(panelId).closable === false) continue
+      // And a panel the cross would have asked about is asked about here too,
+      // one at a time so the questions do not arrive in a heap. One kept is
+      // kept; the rest still go.
+      if (!(await (options.beforeClose?.(panelId) ?? true))) continue
       close(panelId)
     }
   }
@@ -226,6 +238,10 @@ export function useWorkspace<P extends { id: string }>(
             if (panel !== undefined) await options.onReload?.(panel)
           },
     close,
+    requestClose: async (panelId) => {
+      const allowed = await (options.beforeClose?.(panelId) ?? true)
+      if (allowed) close(panelId)
+    },
     closeOthers,
     focus: (leafId) => {
       focusedLeaf.value = leafId

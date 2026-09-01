@@ -99,13 +99,21 @@ export interface WorkspaceContext {
   onReload?: (panelId: PanelId) => Promise<void> | void
   close: (panelId: PanelId) => void
   /**
+   * Close a panel unless it says it is not ready to go.
+   *
+   * What the cross on a tab does. `close` stays as it is, because a layout
+   * operation the application itself performs — replacing a renamed panel,
+   * clearing a strip — is not a person changing their mind (D66).
+   */
+  requestClose: (panelId: PanelId) => Promise<void>
+  /**
    * Close every panel of this section but the active one.
    *
    * A layout operation and so the engine's: what a panel is has no bearing on
    * it. A panel the feature says cannot be closed stays, exactly as it does
    * when its own cross is asked for and there is none.
    */
-  closeOthers: (leafId: NodeId) => void
+  closeOthers: (leafId: NodeId) => Promise<void>
   focus: (leafId: NodeId) => void
   toggleCollapse: (leafId: NodeId) => void
   resize: (

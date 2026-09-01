@@ -6,9 +6,11 @@ import type { ServerError } from "@/shared/SchemaForm/useSchemaForm"
  * What a failed request says, in the two shapes the backend answers with.
  *
  * An adapter failure arrives as `detail: {kind, message}`; a validation
- * failure arrives as `detail: [{loc, msg, type}]`. Every screen used to carry
- * its own copy of this, and they had drifted: only the grid understood the
- * second shape.
+ * failure arrives as `detail: [{loc, msg, type}]`; a refusal a route wrote out
+ * itself arrives as `detail: "a sentence"`. Every screen used to carry its own
+ * copy of this, and they had drifted: only the grid understood the second
+ * shape. The third was read as unusable until the console started refusing
+ * runs, where the whole point of the refusal is the reason it gives.
  *
  * The fallback is the caller's, because what could not be done differs by
  * screen: reading rows is not saving a connection.
@@ -27,6 +29,10 @@ export function messageOf(cause: unknown, fallback: string): string {
   if (detail && typeof detail === "object" && "message" in detail) {
     return String(detail.message)
   }
+
+  // A string detail is written for the person reading it: "Writing is not
+  // unlocked on this connection", not a code.
+  if (typeof detail === "string" && detail.trim() !== "") return detail
 
   return fallback
 }

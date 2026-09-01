@@ -137,6 +137,14 @@ Consequences:
   never learns what a catalog is. Instance refs held by the engine would have
   been the other way to reach a panel, and that is the coupling this decision
   exists to prevent.
+- **The cross asks the panel before it takes it away.** Closing is a request,
+  not a command: the engine calls the same kind of registered answer as
+  re-reading, and a panel that has nothing to say is closed at once. Only a
+  person's gesture asks — a layout operation the application performs itself,
+  replacing a renamed panel or clearing a strip, closes directly, because it is
+  not somebody changing their mind. The reason this exists is a query console
+  holding an open transaction, which would otherwise be rolled back by a lease
+  five minutes after the tab it belonged to disappeared (D66).
 - **The icon of a tab does what that tab has no other way to do.** From a
   catalog that is the connection itself; from a table it is the catalog the
   table came from, which is reachable nowhere else — while editing a connection

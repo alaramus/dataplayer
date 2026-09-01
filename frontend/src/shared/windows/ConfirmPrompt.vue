@@ -15,7 +15,7 @@ const emit = defineEmits<{ answer: [value: boolean] }>()
     <AppActions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="request.cancelLabel ?? 'Cancel'"
         data-testid="confirm-cancel"
         @click="emit('answer', false)"
       />

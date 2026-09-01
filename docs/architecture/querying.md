@@ -37,8 +37,19 @@ prints and the estimate for the whole statement, and the console shows those
 as three views of one selection. `EXPLAIN ANALYZE` is not offered, because it
 executes: it waits until its effects have the policy the statement itself has.
 
-With that, phase 3A is complete. What remains of phase 3 is 3B, writing, and
-3C, the bounded DDL vocabulary.
+With that, phase 3A is complete.
+
+Writing exists as well, and phase 3B with it. A connection carries an
+execution policy its owner sets; a console opens read-only every time and is
+taken out of it deliberately, by typing the name of the connection where the
+policy asks for it. Auto-commit makes the whole run one transaction, and a
+manual transaction is opened by the console, held by the server across
+requests, shown as a commit preview and ended by Commit or Roll back — by the
+person, by the idle lease, or by closing the panel, which asks first. A
+statement whose reach is not written down is confirmed every time. DML only:
+DDL is refused with a sentence saying so until 3C.
+
+What remains of phase 3 is 3C, the bounded DDL vocabulary.
 
 Known deviations:
 
@@ -52,6 +63,14 @@ Known deviations:
   browser as well. D62 allows a compatible browser parser for immediate
   feedback; one parser is used here, so Run waits for a short round trip after
   the text changes rather than answering from a local parse.
+- D66 offers three ways out of closing a panel with an open transaction. The
+  panel offers two: roll back and close, or keep it open. Committing is not
+  one of them on purpose — a commit is decided while looking at the preview of
+  what it would commit, and a tab closing is not that moment.
+- The writing mode is a property of the console and is never restored: a
+  reopened document is read-only again, though the unlock on the connection
+  outlives it and the mode can be chosen again without typing the name a
+  second time.
 
 Two things are process-local and stated as such: captured results and the runs
 being carried out. Both hold what cannot cross a process — memory and a
