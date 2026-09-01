@@ -22,19 +22,18 @@ connection's own window, without the link half.
 Opening a link signs the reader in if needed, then reveals the node in the
 catalog and opens the tab with the filters, sorting, column layout and page
 size the sender saw. A reader without a grant gets a card naming who shared
-what.
-
-**Not built yet:** the access request of D61 — the button on that card, the
-request itself and the two notifications. The decision is settled and stated
-below because it shaped the rest; the roadmap carries it as the second stage of
-this phase.
+what, and a button that asks the owner for access. The owner hears about the
+ask wherever they are working and answers it in the same dialog, beside the
+grants; the person waiting is told, and if the answer was yes the link they are
+holding opens in front of them.
 
 ```
 backend/app/shares/
-├── models.py     the share record, the open log, and what the API says
+├── models.py     the share record, the open log, the request, and the API
 ├── view.py       the body of a shared view, and what makes two views the same
-├── crud.py       lookup by token, deduplication, the open log
-└── routes.py     create, resolve, list, delete
+├── crud.py       lookup by token, deduplication, the open log, the request
+├── topic.py      the socket topic: a request arrived, a request was answered
+└── routes.py     create, resolve, list, delete; ask, approve, decline, cancel
 
 backend/app/connectors/
 └── access.py     the D33 funnel, used by connectors and by shares alike
@@ -43,14 +42,16 @@ frontend/src/features/shares/
 ├── api.ts               vue-query around the generated client
 ├── sharedView.ts        a grid's state as a link carries it, and back
 ├── intent.ts            a resolved link waiting for the workspace to open it
-├── ShareDialog.vue      the link, who has access, the other links
+├── requests.ts          the socket topic, and the wording of what it carries
+├── ShareDialog.vue      the link, who has access, who is waiting, other links
 └── ShareLandingPage.vue the /s/:token screen
 ```
 
-Three places outside that feature take part: the Share command in the grid's
+Four places outside that feature take part: the Share command in the grid's
 header, `openShared` in the workspace page — which reveals the node, opens the
-tab and leaves the view where the tab takes it — and the router, whose guard
-now remembers where somebody was going before it sent them to sign in.
+tab and leaves the view where the tab takes it — the workspace again, which
+hosts the dialog a notification opens, and the router, whose guard now
+remembers where somebody was going before it sent them to sign in.
 
 ## D58. A share link is an address, not a permission
 

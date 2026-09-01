@@ -44,69 +44,27 @@ Legend:
 | 1.3 — bulk data movement through the grid | 2026-08-30 | D41, D42, D43, D44, D45, D46 |
 | 1.4 — file-source depth | 2026-08-31 | D47, D48, D49, D51, D52, D53 |
 | 1.5 — PostgreSQL-specific operations | 2026-09-01 | D54, D55, D56, D57 |
+| 2 — share a view | 2026-09-01 | D58, D59, D60, D61 |
 
 Each of those has a spec in [the index](superpowers/specs/README.md), dated the
-day it closed, and a home in `docs/architecture/sources/`. With 1.5 validated,
-phase 1 is closed: PostgreSQL covers the common daily table workflow, files
-open in a representation appropriate to their content, and what remains of the
-old behaviour is classified as a deliberate later capability rather than an
-unknown gap.
+day it closed, and a home in `docs/architecture/`. With 1.5 validated, phase 1
+is closed: PostgreSQL covers the common daily table workflow, files open in a
+representation appropriate to their content, and what remains of the old
+behaviour is classified as a deliberate later capability rather than an unknown
+gap. Phase 2 closed the same day: a view has an address, following it is
+governed by the grant model D33 already had, and asking for access is a durable
+request rather than a message that is lost when nobody is listening.
 
 ## Priority order at a glance
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 2 | Share a view | Medium | High user value, and the grant model it rests on already exists |
 | 3 | Query editor | Large | Supplies an explicit query capability and a reusable result surface before AI is allowed to call it |
 | 4 | Managed Docker services in connector creation | Very large | Adds a safe service lifecycle before service-backed adapters multiply |
 | 5 | Optional Redis infrastructure | Medium | Needed only when multiple backend processes must share cache or coordination state |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation and saved layouts require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
-
-## Phase 2 — share a view
-
-A link is an address, not a permission: it names a connection, a node and the
-view over it, while who may read what stays D33. The design is settled — D58 to
-D61 in [sharing.md](architecture/sharing.md), argued in
-[the spec](superpowers/specs/2026-09-01-shared-view-links-design.md) — and the
-old sources named here before turned out to be a clipboard rather than a
-sharing feature, so nothing is ported.
-
-Stage 1, the link:
-
-- [ ] Module `app.shares` between `app.system` and `app.connectors`, and the
-  D33 funnel moved out of the private `_get_or_404` into
-  `connectors/access.py` so both modules ask the same question.
-- [ ] The share record and the open log: opaque token, typed `rows` body,
-  names captured at creation, deduplication by view, cascade with the
-  connection and the author, deletion by the author and by the owner.
-- [ ] Create, resolve, delete and log routes; resolution answers `open` or
-  `no_access`, and 404 only for a token that does not exist.
-- [ ] `/s/:token`, a login guard that returns to where it was going, and
-  applying a resolved link to the workspace: reveal, tab, pruned query,
-  focused existing tab, URL replaced.
-- [ ] The Share command in the grid tab header, and one dialog: the link and
-  its open log for anybody, grants and every link to the connection for its
-  owner.
-- [ ] Cover foreign access, a deleted connection, a missing node, a switched-off
-  connection, deduplication, the author's own log, and a colleague opening a
-  link end to end.
-
-Stage 2, asking for access:
-
-- [ ] The request row and its state machine: always `read`, one open request
-  per person and connection, none when a grant exists, cancellable, closed by
-  an answer.
-- [ ] A per-user topic in the module: a request arrived, a request was
-  answered.
-- [ ] The owner's side in the same dialog, approving with a chosen level or
-  declining, and the requester's notification with no reason attached.
-- [ ] Cover the whole path end to end: no grant, ask, approve, open.
-
-Exit condition: a colleague opens a link and sees the sender's table with the
-sender's filters, or asks for access and gets it, and no rights ever travel in
-a URL.
 
 ## Phase 3 — query editor
 
