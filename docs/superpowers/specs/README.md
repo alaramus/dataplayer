@@ -67,6 +67,7 @@ translations; those files are not.
 | 2026-08-31 | [What the old PostgreSQL adapter does beyond the table rounds](2026-08-31-postgres-system-operations-design.md) | D54: a relation the server owns is described but never changed. D55: a source publishes reports of its own, and a report is a statement it holds |
 | 2026-08-31 | [PostgreSQL schema actions](2026-08-31-postgres-schema-actions-design.md) | D56: level, shown places and selected nodes are distinct action targets; a result names every changed branch |
 | 2026-08-31 | [PostgreSQL relation DDL](2026-08-31-postgres-relation-ddl-design.md) | D57: source-issued SQL is bounded read-only content, not an editable text file |
+| 2026-09-01 | [Sharing a view](2026-09-01-shared-view-links-design.md) | D58, D59, D60, D61: a link is an address and not a permission, a stored record with a typed body, resolution answers a state rather than a status, and access is asked for as a durable request |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

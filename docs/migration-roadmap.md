@@ -56,7 +56,7 @@ unknown gap.
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 2 | Share a bounded fetched snapshot | Medium | High user value and already expressible without raw SQL or a new adapter |
+| 2 | Share a view | Medium | High user value, and the grant model it rests on already exists |
 | 3 | Query editor | Large | Supplies an explicit query capability and a reusable result surface before AI is allowed to call it |
 | 4 | Managed Docker services in connector creation | Very large | Adds a safe service lifecycle before service-backed adapters multiply |
 | 5 | Optional Redis infrastructure | Medium | Needed only when multiple backend processes must share cache or coordination state |
@@ -64,37 +64,49 @@ unknown gap.
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation and saved layouts require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
 
-## Phase 2 — share a bounded fetched snapshot
+## Phase 2 — share a view
 
-The first sharing slice is data sharing, not connector sharing; D33 already
-covers the latter. It shares an immutable snapshot, never credentials and never
-an instruction to rerun an unlimited source query.
+A link is an address, not a permission: it names a connection, a node and the
+view over it, while who may read what stays D33. The design is settled — D58 to
+D61 in [sharing.md](architecture/sharing.md), argued in
+[the spec](superpowers/specs/2026-09-01-shared-view-links-design.md) — and the
+old sources named here before turned out to be a clipboard rather than a
+sharing feature, so nothing is ported.
 
-Old sources to inspect:
+Stage 1, the link:
 
-- `myquasar/src/myapp/components/CopyPaste/`;
-- `myquasar/src/myapp/stores/contentCopyRegister.ts`;
-- `dbwebtool/webdb/webapi/view_services/fetch_data_handler.py`;
-- `dbwebtool/webdb/webapi/view_services/execute_data_handler.py`.
+- [ ] Module `app.shares` between `app.system` and `app.connectors`, and the
+  D33 funnel moved out of the private `_get_or_404` into
+  `connectors/access.py` so both modules ask the same question.
+- [ ] The share record and the open log: opaque token, typed `rows` body,
+  names captured at creation, deduplication by view, cascade with the
+  connection and the author, deletion by the author and by the owner.
+- [ ] Create, resolve, delete and log routes; resolution answers `open` or
+  `no_access`, and 404 only for a token that does not exist.
+- [ ] `/s/:token`, a login guard that returns to where it was going, and
+  applying a resolved link to the workspace: reveal, tab, pruned query,
+  focused existing tab, URL replaced.
+- [ ] The Share command in the grid tab header, and one dialog: the link and
+  its open log for anybody, grants and every link to the connection for its
+  owner.
+- [ ] Cover foreign access, a deleted connection, a missing node, a switched-off
+  connection, deduplication, the author's own log, and a colleague opening a
+  link end to end.
 
-Sequence:
+Stage 2, asking for access:
 
-- [ ] Specify snapshot scope: begin with one fetched column, then allow the
-  visible bounded page without changing the storage model.
-- [ ] Re-fetch the exact bounded request at creation time, preserve lossless
-  text and declared column types, and apply a hard byte ceiling.
-- [ ] Store the snapshot durably with owner, opaque token, expiry and revocation.
-  Personal storage or the application database is the first implementation;
-  Redis is not a prerequisite.
-- [ ] Decide separately whether a link requires sign-in or may be public. Public
-  sharing needs an explicit confirmation that states the expiry and data scope.
-- [ ] Add the Share command to the fetched column/grid and a minimal read-only
-  viewer for the recipient.
-- [ ] Cover foreign access, expiry, revocation, connector deletion, secrets,
-  audit metadata and end-to-end link opening.
+- [ ] The request row and its state machine: always `read`, one open request
+  per person and connection, none when a grant exists, cancellable, closed by
+  an answer.
+- [ ] A per-user topic in the module: a request arrived, a request was
+  answered.
+- [ ] The owner's side in the same dialog, approving with a chosen level or
+  declining, and the requester's notification with no reason attached.
+- [ ] Cover the whole path end to end: no grant, ask, approve, open.
 
-Exit condition: the button creates a bounded, revocable snapshot whose meaning
-does not change when the source changes.
+Exit condition: a colleague opens a link and sees the sender's table with the
+sender's filters, or asks for access and gets it, and no rights ever travel in
+a URL.
 
 ## Phase 3 — query editor
 
@@ -273,6 +285,13 @@ one of them: web terminal, MRP, trading screens, translation, karaoke/media
 generation, generic monitoring agents, Kubernetes/cloud control panels and
 one-off adapter demos. Their presence in the old repository is not evidence
 that they belong in the platform core.
+
+An immutable snapshot of fetched rows — what phase 2 used to be — is deferred
+with its reason rather than dropped. It answers "the recipient must not be
+given the connection", and every recipient today is a colleague who can hold a
+grant; a frozen copy would only go stale in their hands. The argument and the
+shape to return to are in
+[the sharing spec](superpowers/specs/2026-09-01-shared-view-links-design.md).
 
 Deferred inside PostgreSQL, with the reason in the spec that deferred it:
 backup and restore (needs Phase 4's owned jobs), monitoring statistics
