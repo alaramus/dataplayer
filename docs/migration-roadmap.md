@@ -88,11 +88,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] **3A.4 — complete read console.** Execute the selection, current statement
-  or an explicit script; bind named parameters; preserve ordered statement
-  outputs and messages; add encrypted retained history, result pin/promotion,
-  snapshot paging/filtering/sorting, captured-result download and the existing
-  page-bounded chart.
 - [ ] **3A.5 — SQL intelligence.** Add progressive source metadata, dialect
   completion, conservative diagnostics, formatting and source-generated SELECT.
   PostgreSQL publishes its query capability to users only when 3A.1-3A.5 are

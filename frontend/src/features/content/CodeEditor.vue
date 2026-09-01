@@ -2,8 +2,8 @@
 import { jsonParseLinter } from "@codemirror/lang-json"
 import { syntaxHighlighting } from "@codemirror/language"
 import { type Diagnostic, linter } from "@codemirror/lint"
-import { Compartment, EditorState, type Extension } from "@codemirror/state"
-import { EditorView } from "@codemirror/view"
+import { Compartment, EditorState, type Extension, Prec } from "@codemirror/state"
+import { EditorView, keymap } from "@codemirror/view"
 import { basicSetup } from "codemirror"
 import { onBeforeUnmount, onMounted, ref, watch } from "vue"
 
@@ -30,6 +30,22 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   "update:modelValue": [value: string]
+  /**
+   * Where the caret is, or what is selected.
+   *
+   * A caller that has to know which statement somebody is standing in cannot
+   * ask the DOM: the editor owns its own selection.
+   */
+  "update:selection": [selection: { from: number; to: number }]
+  /**
+   * The two commands a keyboard reaches inside the editor.
+   *
+   * Bound here rather than on a container: CodeMirror's own keymap answers
+   * Mod-Enter first, so a listener outside would never hear it. What they
+   * mean is the caller's business.
+   */
+  run: []
+  "run-script": []
 }>()
 
 const host = ref<HTMLElement | null>(null)
@@ -108,8 +124,32 @@ onMounted(() => {
           "aria-label": `${props.filename} source`,
           spellcheck: "false",
         }),
+        // Above basicSetup: Mod-Enter is `insertBlankLine` in the default
+        // keymap, and a command bound below it would never be reached.
+        Prec.highest(
+          keymap.of([
+            {
+              key: "Mod-Enter",
+              run: () => {
+                emit("run")
+                return true
+              },
+            },
+            {
+              key: "Mod-Shift-Enter",
+              run: () => {
+                emit("run-script")
+                return true
+              },
+            },
+          ])
+        ),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) emit("update:modelValue", update.state.doc.toString())
+          if (update.selectionSet || update.docChanged) {
+            const range = update.state.selection.main
+            emit("update:selection", { from: range.from, to: range.to })
+          }
         }),
         EditorView.theme({
           "&": {

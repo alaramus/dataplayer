@@ -17,12 +17,26 @@ Documents exist: `app/queries` owns `QueryDocument`, the library, revisioned
 autosave, Trash and its sweep, and the frontend has a Queries navigation panel
 and a console panel.
 
-The read kernel exists too. `SupportsQuery` is declared, PostgreSQL implements
-it, and there are routes to start, read and cancel a run and to page a captured
-result. What is deliberately missing is the way to reach any of it: the console
-has no Run, no parameters, no history and no result view, so the state machine
-is proved before a user is offered a primitive product. The capability is
-published to users only when 3A.1-3A.5 are complete.
+The read console exists. `SupportsQuery` is declared and PostgreSQL implements
+it; a run is started, read, cancelled and paged through routes; the console
+runs the selection, the statement under the caret or an explicit script, binds
+named parameters, shows ordered statement outputs and messages, keeps and
+searches history, and pages, filters, orders, downloads and charts a captured
+result.
+
+What is deliberately still missing is SQL intelligence — metadata, completion,
+diagnostics, formatting and a source-generated SELECT — and Explain. PostgreSQL
+publishes its query capability to users only when 3A.1-3A.5 are complete and
+verified together.
+
+Known deviations:
+
+- D65 describes a gutter Run beside each statement. The console has the two
+  keyboard commands and their two buttons; the gutter marker is not drawn.
+- Statement boundaries are asked of the source rather than parsed in the
+  browser as well. D62 allows a compatible browser parser for immediate
+  feedback; one parser is used here, so Run waits for a short round trip after
+  the text changes rather than answering from a local parse.
 
 Two things are process-local and stated as such: captured results and the runs
 being carried out. Both hold what cannot cross a process — memory and a

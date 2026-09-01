@@ -209,6 +209,11 @@ in plain modules. `GridHeader.vue` stays mounted at one height in loading, empty
 and error states; a controller alone decides which source commands exist and
 why a supported one is disabled.
 
+A captured query result is the second controller of that surface: it supplies
+typed columns and a page read from the snapshot store, offers paging, filtering
+and ordering over what was captured, and offers none of the row commands,
+because an arbitrary projection has no row identity to act on.
+
 TanStack Table v9 is the headless engine for cell selection, column sizing and
 resizing, ordering, visibility, left pinning and controlled sorting state.
 DataPlayer renders the semantic table and every control through its own kit.
@@ -372,6 +377,11 @@ may honestly offer something different. A failed conversion and SQL null are
 omitted rather than silently turned into zero. Bar and pie categories are
 aggregated in the browser over this page only, and pie omits negative
 observations.
+
+Choosing a chart is controlled in the same way the grid is: the picker, the
+suggestions and the remembered choice live in one component that is given
+columns, rows and where they start. A relation's page and a captured query
+result are two controllers of it, so neither grows its own chart language.
 
 Suggestions are deterministic and local. A datetime plus a number suggests a
 line, a categorical field plus a number suggests a bar, and the same pair may

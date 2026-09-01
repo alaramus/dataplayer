@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, toRef, watch } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, toRef, useTemplateRef, watch } from "vue"
 
+import type { PreparedScript, StatementPublic } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import {
   useCreateQueryDocument,
@@ -8,6 +9,16 @@ import {
   useSaveQueryDocument,
   useTrashQueryDocument,
 } from "@/features/queries/api"
+import {
+  bindingsOf,
+  elapsed,
+  parameterForm,
+  ready,
+  targetFor,
+  toRemember,
+  wholeDocument,
+} from "@/features/queries/console"
+import type { ParameterEntry, RunTarget } from "@/features/queries/console"
 import {
   changed,
   clearShadow,
@@ -20,6 +31,15 @@ import {
   writeShadow,
 } from "@/features/queries/draft"
 import type { DraftState, SaveState } from "@/features/queries/draft"
+import ParameterForm from "@/features/queries/ParameterForm.vue"
+import RunOutcome from "@/features/queries/RunOutcome.vue"
+import {
+  useCancelRun,
+  usePrepareQuery,
+  useQueryProfile,
+  useRun,
+  useStartRun,
+} from "@/features/queries/runs"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
@@ -33,12 +53,13 @@ import {
 } from "@/shared/ui"
 
 /**
- * One console (D65).
+ * One console: a document above, what it produced below (D65).
  *
- * There is no Run here yet: this slice is the document — its text, its name,
- * its context and the rules about saving it. What the editor cannot decide on
- * its own it asks the person: a revision conflict has three answers and no
- * silent fourth (D63).
+ * Run follows the convention without importing an IDE shell. Ctrl+Enter runs
+ * the selection or the statement under the caret and never falls back to the
+ * whole document; Ctrl+Shift+Enter is the deliberately different command that
+ * runs all of it. Where the statements are is the source's answer rather than
+ * this screen's — the browser does not split SQL (D62).
  */
 
 const props = defineProps<{ panelId: string; documentId: string }>()
@@ -49,18 +70,48 @@ const document = useQueryDocument(toRef(props, "documentId"))
 const save = useSaveQueryDocument()
 const create = useCreateQueryDocument()
 const trash = useTrashQueryDocument()
+const prepare = usePrepareQuery()
+const startRun = useStartRun()
+const cancelRun = useCancelRun()
 
 /** How long typing has to stop before a save is worth spending a revision on. */
 const AUTOSAVE_PAUSE = 800
+/** And before asking the source where the statements are. */
+const PREPARE_PAUSE = 400
+/** Below this the two halves would be two unusable slivers (D65). */
+const NARROW = 640
 
-const draft = ref<DraftState>({ body: "", title: null, wrap: false })
+const draft = ref<DraftState>({ body: "", title: null, wrap: false, split: 0.6 })
 const state = ref<SaveState>("saved")
 const shadowOffer = ref<{ body: string; title: string | null } | null>(null)
 const failure = ref("")
+const selection = ref({ from: 0, to: 0 })
+const script = ref<PreparedScript | null>(null)
+const parameters = ref<ParameterEntry[]>([])
+const runId = ref<string | null>(null)
+const keptRunId = ref<string | null>(null)
+const pinned = ref(false)
+const startedAt = ref(0)
+const now = ref(0)
+const narrow = ref(false)
+const showing = ref<"editor" | "results">("editor")
+const frame = useTemplateRef<HTMLElement>("frame")
+
 let pending: ReturnType<typeof setTimeout> | null = null
+let preparing: ReturnType<typeof setTimeout> | null = null
+// The text the statements below were found in. Run compares against it rather
+// than trusting whatever the last debounced answer happened to be: pressing
+// Run a moment after typing must not run yesterday's parse.
+let preparedFor: string | null = null
+let ticking: ReturnType<typeof setInterval> | null = null
+let observer: ResizeObserver | null = null
 let loadedId = ""
 
 const server = computed(() => document.data.value)
+const connectorId = computed(() => server.value?.connector_id ?? null)
+const profile = useQueryProfile(connectorId)
+const run = useRun(runId)
+const kept = useRun(keptRunId)
 const connectorLabel = computed(() => server.value?.connector_label ?? null)
 const searchPath = computed(() => server.value?.search_path ?? [])
 const error = computed(() =>
@@ -77,6 +128,31 @@ const STATE_LABELS: Record<SaveState, string> = {
   unsynchronised: "Not synchronised",
 }
 const stateLabel = computed(() => STATE_LABELS[state.value])
+
+const runnable = computed(
+  () => connectorId.value !== null && profile.data.value !== undefined
+)
+const going = computed(() =>
+  ["accepted", "running", "cancelling"].includes(run.data.value?.status ?? "")
+)
+const canRun = computed(() => runnable.value && !going.value && ready(parameters.value))
+/**
+ * What the result area shows.
+ *
+ * While a run is going the one before it stays readable and says it is the
+ * previous one; a pinned result stays whatever happens next (D65).
+ */
+const shown = computed(() => {
+  if (pinned.value && kept.data.value !== undefined) return kept.data.value
+  if (going.value && kept.data.value !== undefined) return kept.data.value
+  return run.data.value
+})
+const showingPrevious = computed(
+  () => shown.value !== undefined && shown.value.id !== run.data.value?.id
+)
+const running = computed(() =>
+  going.value ? elapsed(Math.max(0, now.value - startedAt.value)) : ""
+)
 
 useReloadable(props.panelId, async () => {
   await document.refetch()
@@ -101,6 +177,7 @@ watch(
       ? { body: shadow?.body ?? "", title: shadow?.title ?? null }
       : null
     if (shadow !== null && shadowOffer.value === null) clearShadow(loaded.id)
+    schedulePrepare()
   },
   { immediate: true }
 )
@@ -120,12 +197,62 @@ watch(
   { deep: true }
 )
 
+watch(
+  () => draft.value.body,
+  () => schedulePrepare()
+)
+
+// The form follows what the source found, keeping whatever is already filled
+// in and whatever the document remembers.
+watch([script, server] as const, ([found, loaded]) => {
+  parameters.value = parameterForm(
+    found?.parameters ?? [],
+    loaded?.parameters ?? {},
+    parameters.value
+  )
+})
+
 function schedule() {
   if (pending !== null) clearTimeout(pending)
   pending = setTimeout(() => {
     pending = null
     void autosave()
   }, AUTOSAVE_PAUSE)
+}
+
+function schedulePrepare() {
+  if (preparing !== null) clearTimeout(preparing)
+  preparing = setTimeout(() => {
+    preparing = null
+    void askWhereStatementsAre()
+  }, PREPARE_PAUSE)
+}
+
+async function askWhereStatementsAre() {
+  const connector = connectorId.value
+  const text = draft.value.body
+  if (connector === null || text.trim() === "") {
+    script.value = null
+    preparedFor = null
+    return
+  }
+  try {
+    script.value = await prepare.mutateAsync({ connector_id: connector, text })
+    preparedFor = text
+  } catch {
+    // Nothing is said: a source that cannot be asked right now is a Run that
+    // will say so when it is pressed, not a red mark while somebody types.
+    script.value = null
+    preparedFor = null
+  }
+}
+
+/** The statements in what is on screen now, asking again if that has moved. */
+async function currentScript(): Promise<PreparedScript | null> {
+  if (script.value === null || preparedFor !== draft.value.body) {
+    await askWhereStatementsAre()
+  }
+  return script.value
 }
 
 async function autosave() {
@@ -162,6 +289,86 @@ async function autosave() {
       title: draft.value.title,
     })
   }
+}
+
+/** Run what Ctrl+Enter means: the selection, or the statement under the caret. */
+async function runHere() {
+  const current = await currentScript()
+  if (current === null) return
+  await go(targetFor(current, draft.value.body, selection.value))
+}
+
+/** Run the document, said explicitly. */
+async function runEverything() {
+  const current = await currentScript()
+  if (current === null) return
+  await go(wholeDocument(current, draft.value.body))
+}
+
+async function go(target: RunTarget | null) {
+  const loaded = server.value
+  const connector = connectorId.value
+  if (target === null || loaded === undefined || connector === null) return
+  if (!ready(parameters.value)) {
+    toast.info("Fill in the parameters this query asks for")
+    return
+  }
+  // What is on screen now becomes what stays on screen while the next runs.
+  if (run.data.value !== undefined && !pinned.value) keptRunId.value = run.data.value.id
+  try {
+    const started = await startRun.mutateAsync({
+      run_id: crypto.randomUUID(),
+      connector_id: connector,
+      document_id: loaded.id,
+      document_revision: loaded.revision,
+      text: target.text,
+      range_start: target.start,
+      range_end: target.end,
+      scope: target.scope,
+      parameters: bindingsOf(parameters.value),
+    })
+    runId.value = started.id
+    startedAt.value = Date.now()
+    now.value = Date.now()
+    await rememberValues()
+  } catch (cause) {
+    toast.error(messageOf(cause, "This query was not run"))
+  }
+}
+
+/** Keep the values whose row says to keep them, and never a secret one. */
+async function rememberValues() {
+  const loaded = server.value
+  if (loaded === undefined) return
+  const wanted = toRemember(parameters.value)
+  if (JSON.stringify(wanted) === JSON.stringify(loaded.parameters ?? {})) return
+  try {
+    await save.mutateAsync({
+      documentId: loaded.id,
+      body: { revision: loaded.revision, parameters: wanted },
+    })
+  } catch {
+    // Remembering is a convenience; failing at it is not worth interrupting a
+    // run that has already started.
+  }
+}
+
+async function stop() {
+  const active = run.data.value
+  if (active === undefined) return
+  try {
+    await cancelRun.mutateAsync(active.id)
+  } catch (cause) {
+    toast.error(messageOf(cause, "Could not stop this query"))
+  }
+}
+
+function promote(statement: StatementPublic) {
+  if (statement.result_id === null || statement.result_id === undefined) return
+  workspace.openQueryResult({
+    resultId: statement.result_id,
+    title: draft.value.title ?? "Query result",
+  })
 }
 
 async function resolveKeepMine() {
@@ -237,8 +444,42 @@ async function moveToTrash() {
   }
 }
 
+/** Drag the line between the two halves; where it ends up is remembered. */
+function startResize(event: PointerEvent) {
+  const host = frame.value
+  if (host === null) return
+  const box = host.getBoundingClientRect()
+  const move = (moved: PointerEvent) => {
+    const ratio = (moved.clientY - box.top) / box.height
+    draft.value = { ...draft.value, split: Math.min(0.9, Math.max(0.1, ratio)) }
+  }
+  const stopResizing = () => {
+    window.removeEventListener("pointermove", move)
+    window.removeEventListener("pointerup", stopResizing)
+  }
+  window.addEventListener("pointermove", move)
+  window.addEventListener("pointerup", stopResizing)
+  event.preventDefault()
+}
+
+onMounted(() => {
+  ticking = setInterval(() => {
+    now.value = Date.now()
+  }, 200)
+  const host = frame.value
+  if (host !== null && typeof ResizeObserver !== "undefined") {
+    observer = new ResizeObserver(([entry]) => {
+      narrow.value = (entry?.contentRect.width ?? NARROW) < NARROW
+    })
+    observer.observe(host)
+  }
+})
+
 onBeforeUnmount(() => {
   if (pending !== null) clearTimeout(pending)
+  if (preparing !== null) clearTimeout(preparing)
+  if (ticking !== null) clearInterval(ticking)
+  observer?.disconnect()
 })
 </script>
 
@@ -265,6 +506,39 @@ onBeforeUnmount(() => {
         :data-state="state"
         data-testid="query-state"
       >{{ stateLabel }}</span>
+
+      <span
+        v-if="going"
+        class="query-panel__elapsed"
+        data-testid="query-elapsed"
+      >{{ running }}</span>
+      <AppButton
+        v-if="going"
+        variant="secondary"
+        size="sm"
+        label="Cancel"
+        data-testid="query-cancel"
+        @click="stop"
+      />
+      <template v-else>
+        <AppButton
+          variant="primary"
+          size="sm"
+          label="Run"
+          :disable="!canRun"
+          data-testid="query-run"
+          @click="runHere"
+        />
+        <AppButton
+          variant="secondary"
+          size="sm"
+          label="Run script"
+          :disable="!canRun"
+          data-testid="query-run-script"
+          @click="runEverything"
+        />
+      </template>
+
       <AppIconButton
         icon="wrap_text"
         tooltip="Wrap long lines"
@@ -359,16 +633,86 @@ onBeforeUnmount(() => {
       </div>
     </AppBanner>
 
-    <AppSpinner v-if="document.isPending.value" />
-    <CodeEditor
-      v-else-if="server !== undefined"
-      :model-value="draft.body"
-      filename="query.sql"
-      language-hint="sql"
-      :wrap="draft.wrap"
-      class="query-panel__editor"
-      @update:model-value="draft.body = $event"
+    <ParameterForm
+      v-if="parameters.length > 0"
+      :entries="parameters"
+      class="query-panel__parameters"
+      @update:entries="parameters = $event"
     />
+
+    <div
+      v-if="narrow"
+      class="query-panel__switch"
+      data-testid="query-switch"
+    >
+      <AppButton
+        :variant="showing === 'editor' ? 'primary' : 'quiet'"
+        size="sm"
+        label="Editor"
+        data-testid="query-show-editor"
+        @click="showing = 'editor'"
+      />
+      <AppButton
+        :variant="showing === 'results' ? 'primary' : 'quiet'"
+        size="sm"
+        label="Results"
+        data-testid="query-show-results"
+        @click="showing = 'results'"
+      />
+    </div>
+
+    <AppSpinner v-if="document.isPending.value" />
+    <div
+      v-else-if="server !== undefined"
+      ref="frame"
+      class="query-panel__frame"
+    >
+      <div
+        v-show="!narrow || showing === 'editor'"
+        class="query-panel__editor"
+        :style="narrow ? undefined : { flex: `${draft.split} 1 0` }"
+      >
+        <CodeEditor
+          :model-value="draft.body"
+          filename="query.sql"
+          language-hint="sql"
+          :wrap="draft.wrap"
+          class="query-panel__code"
+          @update:model-value="draft.body = $event"
+          @update:selection="selection = $event"
+          @run="runHere"
+          @run-script="runEverything"
+        />
+      </div>
+
+      <div
+        v-if="!narrow"
+        class="query-panel__separator"
+        data-testid="query-split"
+        @pointerdown="startResize"
+      />
+
+      <div
+        v-show="!narrow || showing === 'results'"
+        class="query-panel__results"
+        :style="narrow ? undefined : { flex: `${1 - draft.split} 1 0` }"
+      >
+        <RunOutcome
+          v-if="shown !== undefined"
+          :run="shown"
+          :stale="showingPrevious"
+          @promote="promote"
+          @toggle-pin="pinned = !pinned"
+        />
+        <div
+          v-else
+          class="query-panel__nothing"
+          data-testid="query-nothing-run"
+        >
+          Ctrl+Enter runs the statement under the caret.
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -388,11 +732,12 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 .query-panel__title {
-  flex: 0 1 240px;
+  flex: 0 1 200px;
   min-width: 0;
 }
 .query-panel__context,
-.query-panel__state {
+.query-panel__state,
+.query-panel__elapsed {
   overflow: hidden;
   color: var(--dp-text-muted);
   font-size: 11px;
@@ -402,15 +747,22 @@ onBeforeUnmount(() => {
 .query-panel__context {
   flex: 1;
 }
-.query-panel__state {
+.query-panel__state,
+.query-panel__elapsed {
   flex: none;
 }
 .query-panel__state[data-state="conflict"],
 .query-panel__state[data-state="unsynchronised"] {
   color: var(--dp-callout-caution);
 }
-.query-panel__banner {
+.query-panel__banner,
+.query-panel__parameters,
+.query-panel__switch {
   flex: none;
+}
+.query-panel__switch {
+  display: flex;
+  gap: 4px;
 }
 .query-panel__resolve {
   display: flex;
@@ -422,8 +774,40 @@ onBeforeUnmount(() => {
   display: flex;
   gap: 8px;
 }
-.query-panel__editor {
+.query-panel__frame {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.query-panel__editor,
+.query-panel__results {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.query-panel__results {
+  overflow: hidden;
+}
+.query-panel__code {
+  flex: 1;
+  min-height: 0;
+}
+/* A wide pointer target around a one-pixel line, as everywhere else. */
+.query-panel__separator {
+  flex: none;
+  height: 7px;
+  cursor: row-resize;
+  background: linear-gradient(var(--dp-separator), var(--dp-separator)) center / 100% 1px
+    no-repeat;
+}
+.query-panel__separator:hover {
+  background: linear-gradient(var(--dp-separator-active), var(--dp-separator-active))
+    center / 100% 1px no-repeat;
+}
+.query-panel__nothing {
+  padding: 16px;
+  color: var(--dp-text-muted);
+  font-size: 12px;
 }
 </style>

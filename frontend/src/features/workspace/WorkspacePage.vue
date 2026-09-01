@@ -28,6 +28,7 @@ import {
   panelSchema,
   QUERIES_PANEL_ID,
   queryPanelId,
+  resultPanelId,
   roleOf,
   rowsPanelId,
   structurePanelId,
@@ -542,6 +543,14 @@ provide(workspaceActionsKey, {
       documentId: request.documentId,
       title: request.title,
       connectorName: request.connectorName,
+    })
+  },
+  openQueryResult: (request: { resultId: string; title: string }) => {
+    workspace.open({
+      id: resultPanelId(request.resultId),
+      kind: "result",
+      resultId: request.resultId,
+      title: request.title,
     })
   },
   renameQueryDocument: (documentId: string, title: string | null) => {

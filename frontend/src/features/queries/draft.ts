@@ -12,11 +12,13 @@ import type { QueryDocumentPublic, QueryDocumentUpdate } from "@/client"
 /** What a document is at this moment, said in one word to the person editing. */
 export type SaveState = "saved" | "dirty" | "saving" | "conflict" | "unsynchronised"
 
-/** The parts of a document a person edits. */
+/** The parts of a document a person edits, including how it is laid out. */
 export interface DraftState {
   body: string
   title: string | null
   wrap: boolean
+  /** Where the line between the editor and the results sits (D65). */
+  split: number
 }
 
 /** Whether lines wrap, with the default the server would have applied. */
@@ -24,15 +26,25 @@ function wrapOf(document: QueryDocumentPublic): boolean {
   return document.layout.wrap === true
 }
 
+function splitOf(document: QueryDocumentPublic): number {
+  return document.layout.split_ratio ?? 0.6
+}
+
 export function draftOf(document: QueryDocumentPublic): DraftState {
-  return { body: document.body, title: document.title, wrap: wrapOf(document) }
+  return {
+    body: document.body,
+    title: document.title,
+    wrap: wrapOf(document),
+    split: splitOf(document),
+  }
 }
 
 export function changed(document: QueryDocumentPublic, draft: DraftState): boolean {
   return (
     draft.body !== document.body ||
     draft.title !== document.title ||
-    draft.wrap !== wrapOf(document)
+    draft.wrap !== wrapOf(document) ||
+    draft.split !== splitOf(document)
   )
 }
 
@@ -53,9 +65,9 @@ export function saveFor(
     revision: document.revision,
     ...(draft.body === document.body ? {} : { body: draft.body }),
     ...(draft.title === document.title ? {} : { title: draft.title }),
-    ...(draft.wrap === wrapOf(document)
+    ...(draft.wrap === wrapOf(document) && draft.split === splitOf(document)
       ? {}
-      : { layout: { ...document.layout, wrap: draft.wrap } }),
+      : { layout: { ...document.layout, wrap: draft.wrap, split_ratio: draft.split } }),
   }
 }
 
@@ -73,7 +85,7 @@ export function keepMine(remote: QueryDocumentPublic, draft: DraftState): QueryD
     revision: remote.revision,
     body: draft.body,
     title: draft.title,
-    layout: { ...remote.layout, wrap: draft.wrap },
+    layout: { ...remote.layout, wrap: draft.wrap, split_ratio: draft.split },
   }
 }
 

@@ -100,6 +100,13 @@ export interface WorkspaceActions {
   /** Open one console, or bring the tab already showing it forward. */
   openQueryDocument: (request: OpenQueryDocumentRequest) => void
   /**
+   * Give one captured result a panel of its own.
+   *
+   * Two runs are two panels even when their SQL is equal: comparing them is
+   * what the existing split and drag are for (D65).
+   */
+  openQueryResult: (request: { resultId: string; title: string }) => void
+  /**
    * Put a document's new name on its tab.
    *
    * The panel carries the title because a layout restored from storage has to

@@ -52,10 +52,17 @@ describe("what an autosave carries", () => {
     expect(save).toEqual({ revision: 3, layout: { split_ratio: 0.6, wrap: true } })
   })
 
+  it("sends where the line between the two halves was left", () => {
+    const save = saveFor(DOCUMENT, { ...draftOf(DOCUMENT), split: 0.35 })
+
+    expect(save).toEqual({ revision: 3, layout: { split_ratio: 0.35, wrap: false } })
+  })
+
   it("reads a layout the server left to its default", () => {
     const bare: QueryDocumentPublic = { ...DOCUMENT, layout: {} }
 
     expect(draftOf(bare).wrap).toBe(false)
+    expect(draftOf(bare).split).toBe(0.6)
     expect(changed(bare, draftOf(bare))).toBe(false)
   })
 })
@@ -64,11 +71,13 @@ describe("resolving a conflict", () => {
   it("keeps your own text on top of the revision that is there now", () => {
     const remote: QueryDocumentPublic = { ...DOCUMENT, revision: 9, body: "select 9" }
 
-    expect(keepMine(remote, { body: "mine", title: "Mine", wrap: true })).toEqual({
+    expect(
+      keepMine(remote, { body: "mine", title: "Mine", wrap: true, split: 0.4 })
+    ).toEqual({
       revision: 9,
       body: "mine",
       title: "Mine",
-      layout: { split_ratio: 0.6, wrap: true },
+      layout: { split_ratio: 0.4, wrap: true },
     })
   })
 

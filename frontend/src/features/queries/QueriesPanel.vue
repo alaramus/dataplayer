@@ -9,6 +9,11 @@ import {
   useRestoreQueryDocument,
   useTrashQueryDocument,
 } from "@/features/queries/api"
+import {
+  useDeleteRuns,
+  useRunHistory,
+  useRunText,
+} from "@/features/queries/runs"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
@@ -41,6 +46,14 @@ const connectors = useConnectors()
 const connectorId = ref<string | null>(null)
 const search = ref("")
 const trashed = ref(false)
+/**
+ * Which of the three lists this panel is showing.
+ *
+ * Documents are what somebody is writing, Trash is what they deleted, and
+ * history is what actually ran — the same person's three questions about their
+ * own queries, in the one place they look for them (D63).
+ */
+const showing = ref<"documents" | "history">("documents")
 
 const filters = computed(() => ({
   connectorId: connectorId.value,
@@ -48,6 +61,12 @@ const filters = computed(() => ({
   trashed: trashed.value,
 }))
 const documents = useQueryDocuments(filters)
+const history = useRunHistory(
+  () => null,
+  () => search.value.trim()
+)
+const runText = useRunText()
+const deleteRuns = useDeleteRuns()
 const create = useCreateQueryDocument()
 const trash = useTrashQueryDocument()
 const restore = useRestoreQueryDocument()
@@ -55,6 +74,7 @@ const purge = usePurgeQueryDocument()
 
 useReloadable(props.panelId, async () => {
   await documents.refetch()
+  await history.refetch()
 })
 
 const connectorOptions = computed(() => [
@@ -121,6 +141,69 @@ async function bringBack(documentId: string) {
   }
 }
 
+const runs = computed(() =>
+  (history.data.value?.data ?? []).filter(
+    (run) => connectorId.value === null || run.connector_id === connectorId.value
+  )
+)
+
+function when(moment: string | null | undefined): string {
+  return moment === null || moment === undefined
+    ? ""
+    : new Date(moment).toLocaleString()
+}
+
+/**
+ * Put what a run executed back into a document of its own.
+ *
+ * A copy rather than a restoration: the run is immutable and stays exactly as
+ * it was, and what comes back is a new console holding the same text (D63).
+ */
+async function openAsQuery(run: { id: string; connector_id: string | null }) {
+  if (run.connector_id === null) {
+    toast.info("The connection this ran against is no longer available")
+    return
+  }
+  try {
+    const text = await runText.mutateAsync(run.id)
+    const document = await create.mutateAsync({
+      connector_id: run.connector_id,
+      body: text.text,
+    })
+    workspace.openQueryDocument({
+      documentId: document.id,
+      title: document.title,
+      connectorName: document.connector_label,
+    })
+  } catch (cause) {
+    toast.error(messageOf(cause, "Could not open this run as a query"))
+  }
+}
+
+async function forget(runId: string) {
+  try {
+    await deleteRuns.mutateAsync({ kind: "selected", ids: [runId] })
+  } catch (cause) {
+    toast.error(messageOf(cause, "Could not delete this run"))
+  }
+}
+
+async function forgetEverything() {
+  const accepted = await confirm({
+    title: "Delete all of your query history?",
+    message: "What ran is not kept anywhere else afterwards.",
+    confirmLabel: "Delete",
+    danger: true,
+  })
+  if (!accepted) return
+  try {
+    await deleteRuns.mutateAsync({ kind: "all" })
+    toast.success("History deleted")
+  } catch (cause) {
+    toast.error(messageOf(cause, "Could not delete your history"))
+  }
+}
+
 async function deleteForGood(documentId: string) {
   const accepted = await confirm({
     title: "Delete this query for good?",
@@ -165,14 +248,22 @@ async function deleteForGood(documentId: string) {
         icon="delete"
         :tooltip="trashed ? 'Back to your queries' : 'Trash'"
         :aria-pressed="trashed"
+        :disable="showing === 'history'"
         data-testid="queries-trash"
         @click="trashed = !trashed"
+      />
+      <AppIconButton
+        icon="history"
+        :tooltip="showing === 'history' ? 'Back to your queries' : 'What you have run'"
+        :aria-pressed="showing === 'history'"
+        data-testid="queries-history"
+        @click="showing = showing === 'history' ? 'documents' : 'history'"
       />
     </div>
 
     <AppInput
       v-model="search"
-      placeholder="Search queries"
+      :placeholder="showing === 'history' ? 'Search what you ran' : 'Search queries'"
       compact
       clearable
       class="queries-panel__search"
@@ -180,7 +271,61 @@ async function deleteForGood(documentId: string) {
     />
     <q-separator class="queries-panel__rule" />
 
-    <div class="queries-panel__body">
+    <div
+      v-if="showing === 'history'"
+      class="queries-panel__body"
+      data-testid="queries-history-list"
+    >
+      <AppSpinner v-if="history.isPending.value" />
+      <AppEmptyState
+        v-else-if="runs.length === 0"
+        :text="search ? 'No run matches that' : 'Nothing has been run yet'"
+        data-testid="history-empty"
+      />
+      <template v-else>
+        <div class="queries-panel__history-bar">
+          <span class="queries-panel__heading">Runs</span>
+          <AppIconButton
+            icon="delete_sweep"
+            tooltip="Delete all of your history"
+            data-testid="history-delete-all"
+            @click="forgetEverything"
+          />
+        </div>
+        <div
+          v-for="run in runs"
+          :key="run.id"
+          class="queries-panel__row"
+          :data-testid="`history-row-${run.id}`"
+        >
+          <button
+            type="button"
+            class="queries-panel__open"
+            :data-testid="`history-restore-${run.id}`"
+            @click="openAsQuery(run)"
+          >
+            <span class="queries-panel__title">{{ run.preview || "(empty)" }}</span>
+            <span class="queries-panel__meta">
+              {{ run.status }} · {{ when(run.created_at) }}
+              <template v-if="run.duration_ms !== null">
+                · {{ run.duration_ms }} ms
+              </template>
+            </span>
+          </button>
+          <AppIconButton
+            icon="delete"
+            tooltip="Delete this run"
+            :data-testid="`history-delete-${run.id}`"
+            @click="forget(run.id)"
+          />
+        </div>
+      </template>
+    </div>
+
+    <div
+      v-else
+      class="queries-panel__body"
+    >
       <AppBanner
         v-if="error"
         tone="error"
@@ -290,6 +435,12 @@ async function deleteForGood(documentId: string) {
   min-height: 0;
   overflow: auto;
   padding: 0 4px 8px;
+}
+.queries-panel__history-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline-end: 4px;
 }
 .queries-panel__heading {
   margin: 8px 8px 2px;

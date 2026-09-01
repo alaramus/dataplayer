@@ -103,3 +103,143 @@ test("a query outlives the connection it was written against", async ({ page }) 
   await expect(page.locator(".cm-content")).toContainText("select 'kept'")
   await expect(page.getByTestId("query-context")).toContainText("Connection unavailable")
 })
+
+
+test("runs the statement under the caret, then the whole script", async ({ page }) => {
+  const name = `e2e-run-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+
+  // --- one statement, from the keyboard ------------------------------------
+  await typeQuery(page, "select 41 + 1 as answer")
+  await page.keyboard.press("ControlOrMeta+Enter")
+
+  const outcome = page.getByTestId("run-outcome")
+  await expect(outcome).toBeVisible()
+  await expect(page.getByTestId("run-statement-0")).toContainText("succeeded")
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("42")
+
+  // --- several, only when the command says so ------------------------------
+  await typeQuery(page, "select 1 as one;\nselect 2 as two")
+  await page.getByTestId("query-run-script").click()
+  await expect(page.getByTestId("run-statement-1")).toBeVisible()
+  await page.getByTestId("run-statement-1").click()
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("2")
+
+  // --- an error is an output, not a toast that disappears -------------------
+  await typeQuery(page, "select * from nothing_here")
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("run-error")).toContainText("nothing_here")
+
+  // --- and what the run said is in one chronological place -----------------
+  await page.getByTestId("run-messages-tab").click()
+  await expect(page.getByTestId("run-messages")).toContainText("MISSING_OBJECT")
+
+  await deleteConnector(page, name)
+})
+
+test("asks for the values a query needs, and keeps the ones it is told to", async ({
+  page,
+}) => {
+  const name = `e2e-parameters-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+
+  await typeQuery(page, "select count(*) from generate_series(1, 10) i where i > :from_here")
+  await expect(page.getByTestId("parameter-from_here")).toBeVisible()
+  // Nothing to run until the question is answered.
+  await expect(page.getByTestId("query-run")).toBeDisabled()
+
+  await page.getByTestId("parameter-value-from_here").fill("7")
+  await page.getByTestId("parameter-remember-from_here").click()
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("3")
+
+  // The value was remembered with the document, so a reload brings it back.
+  await page.reload()
+  await expect(page.getByTestId("parameter-value-from_here")).toHaveValue("7")
+
+  await deleteConnector(page, name)
+})
+
+test("a captured result is paged, ordered and opened in a panel of its own", async ({
+  page,
+}) => {
+  const name = `e2e-result-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+
+  await typeQuery(page, "select i from generate_series(1, 12) i")
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("1")
+
+  // Ordering acts on the captured rows and needs no second execution.
+  await page.getByTestId("grid-sort-direction-0").click()
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("1")
+  await page.getByTestId("grid-sort-direction-0").click()
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("12")
+
+  // And the result can leave the console for a tab of its own (D65).
+  await page.getByTestId("run-promote").click()
+  await expect(page.locator('[data-testid^="workspace-tab-result:"]')).toHaveCount(1)
+
+  await deleteConnector(page, name)
+})
+
+
+test("history keeps what ran, opens it again and can be deleted", async ({ page }) => {
+  const name = `e2e-history-${Date.now()}`
+  const marker = `select 'history-${Date.now()}' as kept`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+  await typeQuery(page, marker)
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("run-statement-0")).toContainText("succeeded")
+
+  // --- what ran is in history, by what was written in it -------------------
+  await page.getByTestId("queries-history").click()
+  await page.getByTestId("queries-search").fill(marker)
+  const row = page.locator('[data-testid^="history-row-"]')
+  await expect(row).toHaveCount(1)
+  await expect(row).toContainText("succeeded")
+
+  // --- and it opens again as a console of its own --------------------------
+  await row.locator('[data-testid^="history-restore-"]').click()
+  await expect(page.locator('[data-testid^="workspace-tab-query:"]')).toHaveCount(2)
+
+  // --- deleting a run leaves nothing behind --------------------------------
+  await row.locator('[data-testid^="history-delete-"]').click()
+  await expect(page.getByTestId("history-empty")).toBeVisible()
+
+  await deleteConnector(page, name)
+})
+
+test("a captured page can be charted where it is", async ({ page }) => {
+  const name = `e2e-chart-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+  await typeQuery(page, "select i, i * 2 as doubled from generate_series(1, 5) i")
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("1")
+
+  await page.getByTestId("result-chart").click()
+
+  // The same bounded chart the grid has, over the rows on screen (D35).
+  await expect(page.getByTestId("chart-type")).toBeVisible()
+  await expect(page.locator("canvas, svg").first()).toBeVisible()
+
+  await page.getByTestId("result-chart-close").click()
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("1")
+
+  await deleteConnector(page, name)
+})

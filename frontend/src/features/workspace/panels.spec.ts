@@ -16,6 +16,7 @@ import {
   PANEL_ROLES,
   QUERIES_PANEL_ID,
   queryPanelId,
+  resultPanelId,
   roleOf,
   rowsPanelId,
   structurePanelId,
@@ -31,6 +32,7 @@ const KINDS: PanelKind[] = [
   "chart",
   "queries",
   "query",
+  "result",
 ]
 
 const samples: Record<PanelKind, Panel> = {
@@ -84,6 +86,12 @@ const samples: Record<PanelKind, Panel> = {
     columns: ["created_at", "total"],
   },
   queries: { id: QUERIES_PANEL_ID, kind: "queries" },
+  result: {
+    id: resultPanelId("r1"),
+    kind: "result",
+    resultId: "r1",
+    title: "Daily counts",
+  },
   query: {
     id: queryPanelId("d1"),
     kind: "query",
@@ -126,6 +134,7 @@ describe("the panel registry", () => {
     "chart",
     "queries",
     "query",
+    "result",
   ] as PanelKind[])(
     "lets %s be closed",
     (kind) => {
@@ -227,6 +236,7 @@ describe("the panel registry", () => {
     "chart",
     "queries",
     "query",
+    "result",
   ] as PanelKind[])(
     "has nothing worth forty pixels for %s",
     (kind) => {

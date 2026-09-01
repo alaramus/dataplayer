@@ -10,6 +10,7 @@ import SqlPanelView from "@/features/content/SqlPanel.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import QueriesPanelView from "@/features/queries/QueriesPanel.vue"
 import QueryDocumentPanelView from "@/features/queries/QueryDocumentPanel.vue"
+import QueryResultPanelView from "@/features/queries/ResultPanel.vue"
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
 import ConnectorsPanelView from "@/features/workspace/panels/ConnectorsPanel.vue"
@@ -143,6 +144,14 @@ export const panelSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     id: z.string(),
+    kind: z.literal("result"),
+    // Into the process-local store of D64, which is why a restored layout may
+    // find it gone: the panel says so rather than pretending to reload it.
+    resultId: z.string(),
+    title: z.string(),
+  }),
+  z.object({
+    id: z.string(),
     kind: z.literal("chart"),
     viewKey: z.string(),
     connectorId: z.string(),
@@ -178,6 +187,7 @@ export const structurePanelId = (connectorId: string, nodeId: string) =>
 export const chartPanelId = (viewKey: string) => `chart:${viewKey}`
 export const QUERIES_PANEL_ID = "queries"
 export const queryPanelId = (documentId: string) => `query:${documentId}`
+export const resultPanelId = (resultId: string) => `result:${resultId}`
 
 const CONTENT_ICONS: Record<ContentRepresentation, string> = {
   text: "description",
@@ -249,6 +259,7 @@ export function roleOf(panel: Panel): PanelRole {
     case "structure":
     case "chart":
     case "query":
+    case "result":
       return "work"
   }
 }
@@ -357,6 +368,13 @@ export function lookOf(panel: Panel): PanelLook {
             ? "This connection is no longer available"
             : panel.connectorName,
         reloadTooltip: "Re-read this query",
+      }
+    case "result":
+      return {
+        title: panel.title,
+        icon: "table_view",
+        iconTooltip: "A captured result",
+        reloadTooltip: "Re-read this captured result",
       }
   }
 }
@@ -506,6 +524,14 @@ export function componentOf(panel: Panel): Component {
       )
     case "queries":
       return boundComponent(panel.id, () => h(QueriesPanelView, { panelId: panel.id }))
+    case "result":
+      return boundComponent(panel.id, () =>
+        h(QueryResultPanelView, {
+          panelId: panel.id,
+          resultId: panel.resultId,
+          title: panel.title,
+        })
+      )
     case "query":
       return boundComponent(panel.id, () =>
         h(QueryDocumentPanelView, {
