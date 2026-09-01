@@ -1,5 +1,4 @@
-import type { FetchColumn } from "@/client"
-
+import type { TabularColumn } from "./tabular"
 import type { Filter } from "./types"
 
 export type FilterOp = Filter["op"]
@@ -27,14 +26,28 @@ export const OPERATOR_LABELS: Record<FilterOp, string> = {
 
 const NULL_OPERATORS = new Set<FilterOp>(["is_null", "is_not_null"])
 
-export function operatorOptions(column: FetchColumn): FilterOp[] {
+interface FilterColumn {
+  id?: string
+  name?: string
+  type: TabularColumn["type"]
+  filter_operators?: TabularColumn["filter_operators"]
+}
+
+function columnId(column: FilterColumn): string {
+  const id = column.id ?? column.name
+  if (id === undefined) throw new Error("A filter column needs an id")
+  return id
+}
+
+export function operatorOptions(column: FilterColumn): FilterOp[] {
   return [...(column.filter_operators ?? [])]
 }
 
-export function draftFor(column: FetchColumn, op?: FilterOp): FilterDraft {
+export function draftFor(column: FilterColumn, op?: FilterOp): FilterDraft {
   const selected = op ?? operatorOptions(column)[0]
-  if (selected === undefined) throw new Error(`Column "${column.name}" has no filter operator`)
-  return { column: column.name, op: selected, value: "", values: [] }
+  const id = columnId(column)
+  if (selected === undefined) throw new Error(`Column "${id}" has no filter operator`)
+  return { column: id, op: selected, value: "", values: [] }
 }
 
 export function validateDraft(draft: FilterDraft): string | null {

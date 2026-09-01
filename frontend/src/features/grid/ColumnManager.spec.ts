@@ -2,7 +2,6 @@ import { mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import { describe, expect, it } from "vitest"
 
-import type { FetchColumn } from "@/client"
 import { AppCheckbox } from "@/shared/ui"
 import { at, first } from "@/shared/testing/collections"
 
@@ -10,10 +9,23 @@ import ColumnManager from "./ColumnManager.vue"
 import GridHeader from "./GridHeader.vue"
 import { defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
+import type { TabularColumn } from "./tabular"
 
-const COLUMNS: FetchColumn[] = [
-  { name: "id", type: { sql: "bigint", category: "number" }, sortable: true },
-  { name: "name", type: { sql: "text", category: "string" }, sortable: true },
+const COLUMNS: TabularColumn[] = [
+  {
+    id: "id",
+    label: "id",
+    type: { sql: "bigint", category: "number" },
+    sortable: true,
+    filter_operators: [],
+  },
+  {
+    id: "name",
+    label: "name",
+    type: { sql: "text", category: "string" },
+    sortable: true,
+    filter_operators: [],
+  },
 ]
 
 function mountManager() {

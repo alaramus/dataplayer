@@ -88,10 +88,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] **3A.1 — shared tabular surface.** Extract the controlled presentation of
-  typed columns, pages, layout, selection, clipboard and full values from the
-  relation grid. Prove the refactor without query code before adding a
-  `QueryResultController`.
 - [ ] **3A.2 — query documents.** Add encrypted server-owned drafts and named
   documents, connector and ordered schema context, revisioned autosave,
   conflict recovery, a thirty-day Trash and a Queries navigation panel. A

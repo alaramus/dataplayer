@@ -1,25 +1,5 @@
 <script setup lang="ts">
-import {
-  columnOrderingFeature,
-  columnPinningFeature,
-  columnResizingFeature,
-  columnSizingFeature,
-  columnVisibilityFeature,
-  cellSelectionFeature,
-  functionalUpdate,
-  tableFeatures,
-  useTable,
-} from "@tanstack/vue-table"
-import type {
-  Cell,
-  CellSelectionDirection,
-  Column,
-  ColumnDef,
-  ColumnPinningState,
-  Updater,
-} from "@tanstack/vue-table"
 import { computed, nextTick, ref, toRef, useTemplateRef, watch } from "vue"
-import type { CSSProperties } from "vue"
 
 import type {
   FetchColumn,
@@ -30,11 +10,9 @@ import type {
   Sort,
 } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
-import { copyText, readText } from "@/shared/clipboard"
+import { readText } from "@/shared/clipboard"
 import {
   AppBanner,
-  AppButton,
-  AppEmptyState,
   AppIconButton,
   useConfirm,
   useToast,
@@ -54,10 +32,9 @@ import {
   useUpdateCells,
 } from "./api"
 import CellEditorDialog from "./CellEditorDialog.vue"
-import CellValueDialog from "./CellValueDialog.vue"
 import CreateTableDialog from "./CreateTableDialog.vue"
-import { fromTsv, toTsv } from "./clipboard"
-import { autoFitWidth, defaultColumnLayout } from "./columnLayout"
+import { fromTsv } from "./clipboard"
+import { defaultColumnLayout } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
 import {
   filenameFromDisposition,
@@ -73,13 +50,11 @@ import {
   storedFromView,
   viewOfGrid,
 } from "@/features/shares/sharedView"
-import GridHeader from "./GridHeader.vue"
 import ImportDialog from "./ImportDialog.vue"
 import RowInsertRow from "./RowInsertRow.vue"
 import type { InsertGridColumn } from "./RowInsertRow.vue"
-import { cellPresentation, shouldOpenViewer, toGridRows } from "./model"
+import { toGridRows } from "./model"
 import { keyValues, referencesLedBy } from "./references"
-import type { CellPresentation } from "./model"
 import {
   loadGridState,
   loadPageSize,
@@ -95,11 +70,15 @@ import {
   withPageSize,
 } from "./queryState"
 import { withSort } from "./queryState"
-import { toggleMultiSort, toggleSingleSort } from "./sortModel"
 import { planPaste, planRowPaste } from "./paste"
 import type { PasteColumn } from "./paste"
-import { selectedWholeRowIndexes, selectionMatrix } from "./selection"
-import type { VisibleGridColumn } from "./selection"
+import TabularGrid from "./TabularGrid.vue"
+import { tabularColumns } from "./tabular"
+import type {
+  TabularEditRequest,
+  TabularPasteRequest,
+  TabularVisibleColumn,
+} from "./tabular"
 import type { Filter, GridQueryState, GridRow, PageSize, StoredGridState } from "./types"
 
 const props = defineProps<{
@@ -175,7 +154,9 @@ const rows = computed(() =>
     : toGridRows(result.value, request.value.offset ?? 0)
 )
 const layout = ref<ColumnLayoutState>({ ...EMPTY_LAYOUT })
-const viewer = ref<{ columnName: string; typeSql: string; value: string } | null>(null)
+const tableColumns = computed(() => tabularColumns(result.value?.columns ?? []))
+const visibleGridColumns = ref<TabularVisibleColumn[]>([])
+const downloadColumns = ref<TabularVisibleColumn[]>([])
 const editor = ref<{
   column: FetchColumn
   value: string | null
@@ -202,112 +183,18 @@ const importRows = useImportRows(toRef(props, "connectorId"))
 const createRelation = useCreateRelationFromSource()
 const followReference = useFollowReference(toRef(props, "connectorId"))
 const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
-const gridFocus = useTemplateRef<HTMLElement>("gridFocus")
+const tabularGrid = useTemplateRef<{
+  clearSelection: () => void
+  focus: (selector: string) => void
+}>("tabularGrid")
 const insertForm = useTemplateRef<{
   fill: (values: { column: string; value: string | null }[]) => void
 }>("insertForm")
-const features = tableFeatures({
-  columnSizingFeature,
-  columnResizingFeature,
-  columnOrderingFeature,
-  columnVisibilityFeature,
-  columnPinningFeature,
-  cellSelectionFeature,
-})
-type GridFeatures = typeof features
-const columns = computed<ColumnDef<GridFeatures, GridRow>[]>(() =>
-  (result.value?.columns ?? []).map((column, index) => ({
-    id: column.name,
-    header: column.name,
-    accessorFn: (row) => row.values[index],
-    minSize: 72,
-    maxSize: 480,
-    size: 160,
-  }))
-)
-const tableState = computed(() => ({
-  columnOrder: layout.value.columnOrder,
-  columnVisibility: layout.value.columnVisibility,
-  columnSizing: layout.value.columnSizing,
-  columnPinning: { start: layout.value.pinnedLeft, end: [] },
-}))
-
-const table = useTable<GridFeatures, GridRow>({
-  features,
-  columns,
-  data: rows,
-  getRowId: (row) => row.id,
-  state: tableState,
-  columnResizeMode: "onEnd",
-  onColumnOrderChange: (updater) =>
-    changeLayout({
-      ...layout.value,
-      columnOrder: functionalUpdate(updater, layout.value.columnOrder),
-    }),
-  onColumnVisibilityChange: (updater) =>
-    changeLayout({
-      ...layout.value,
-      columnVisibility: functionalUpdate(updater, layout.value.columnVisibility),
-    }),
-  onColumnSizingChange: (updater) =>
-    changeLayout({
-      ...layout.value,
-      columnSizing: functionalUpdate(updater, layout.value.columnSizing),
-    }),
-  onColumnPinningChange: (updater: Updater<ColumnPinningState>) => {
-    const next = functionalUpdate(updater, { start: layout.value.pinnedLeft, end: [] })
-    changeLayout({ ...layout.value, pinnedLeft: next.start })
-  },
-})
-
-const columnWidthVariables = computed<Record<string, string>>(() =>
-  Object.fromEntries(
-    table.getAllLeafColumns().map((column) => [columnVariable(column.id), `${column.getSize()}px`])
-  )
-)
-const canCopy = computed(() => table.getSelectedCellCount() > 0)
-const canPaste = computed(
-  () => canCopy.value && result.value?.update_supported === true
-)
-const visibleGridColumns = computed<VisibleGridColumn[]>(() => {
-  const ordered = [
-    ...table.getStartVisibleLeafColumns(),
-    ...table.getCenterVisibleLeafColumns(),
-  ]
-  return ordered.flatMap((column) => {
-    const valueIndex = result.value?.columns.findIndex((item) => item.name === column.id) ?? -1
-    return valueIndex < 0 ? [] : [{ id: column.id, valueIndex }]
-  })
-})
-const insertGridColumns = computed<InsertGridColumn[]>(() =>
-  [...table.getStartVisibleLeafColumns(), ...table.getCenterVisibleLeafColumns()].flatMap(
-    (column) => {
-      const source = serverColumn(column.id)
-      return source === undefined
-        ? []
-        : [{ column: source, pinned: column.getIsPinned() === "start", style: columnStyle(column) }]
-    }
-  )
-)
-const selectedRowIndexes = computed(() =>
-  selectedWholeRowIndexes(
-    table.getCellSelectionBounds(),
-    visibleGridColumns.value.length
-  )
-)
-const selectedRowHandles = computed(() => {
-  const handles = result.value?.row_handles ?? []
-  const selected = selectedRowIndexes.value.map((index) => handles[index])
-  return selected.every((handle): handle is string => typeof handle === "string")
-    ? selected
-    : []
-})
 const canInsert = computed(() => result.value?.insert_supported === true)
-const canDelete = computed(
-  () =>
-    result.value?.delete_supported === true &&
-    selectedRowIndexes.value.length > 0 &&
-    selectedRowHandles.value.length === selectedRowIndexes.value.length
+const editableRowIds = computed(() =>
+  rows.value.flatMap((row, index) =>
+    typeof result.value?.row_handles?.[index] === "string" ? [row.id] : []
+  )
 )
 const offset = computed(() => queryState.value.page * queryState.value.pageSize)
 const range = computed(() => {
@@ -337,7 +224,6 @@ function changeSort(sort: Sort[]) {
 }
 
 function changeLayout(next: ColumnLayoutState) {
-  table.resetCellSelection(true)
   layout.value = next
   saveGridState(props.connectorId, props.nodeId, {
     ...next,
@@ -351,7 +237,7 @@ function saveQueryState(state: GridQueryState) {
   const stored = loadGridState(props.connectorId, props.nodeId)
   const base: StoredGridState =
     stored === null
-      ? { ...defaultColumnLayout(serverColumns ?? []), filters: [], sort: [] }
+      ? { ...defaultColumnLayout(tabularColumns(serverColumns ?? [])), filters: [], sort: [] }
       : serverColumns === undefined
         ? stored
         : reconcileGridState(stored, serverColumns)
@@ -362,151 +248,6 @@ function saveQueryState(state: GridQueryState) {
   })
 }
 
-function sortColumn(columnName: string, event: MouseEvent) {
-  const column = result.value?.columns.find((candidate) => candidate.name === columnName)
-  if (column?.sortable !== true) return
-  changeSort(
-    event.shiftKey
-      ? toggleMultiSort(queryState.value.sort, columnName)
-      : toggleSingleSort(queryState.value.sort, columnName)
-  )
-}
-
-function sortIndex(columnName: string): number {
-  return queryState.value.sort.findIndex((item) => item.column === columnName)
-}
-
-function sortIcon(columnName: string): string {
-  const index = sortIndex(columnName)
-  if (index < 0) return "unfold_more"
-  return queryState.value.sort[index]?.descending === true
-    ? "arrow_downward"
-    : "arrow_upward"
-}
-
-function sortDirection(columnName: string): "none" | "asc" | "desc" {
-  const index = sortIndex(columnName)
-  if (index < 0) return "none"
-  return queryState.value.sort[index]?.descending === true ? "desc" : "asc"
-}
-
-function columnIsSortable(columnName: string): boolean {
-  return (
-    result.value?.columns.find((column) => column.name === columnName)?.sortable === true
-  )
-}
-
-function pinTooltip(column: Column<GridFeatures, GridRow, unknown>): string {
-  return `${column.getIsPinned() === "start" ? "Unpin" : "Pin"} ${column.id}`
-}
-
-function columnVariable(columnName: string): string {
-  const index = result.value?.columns.findIndex((column) => column.name === columnName) ?? -1
-  return `--grid-column-${Math.max(0, index)}`
-}
-
-function columnStyle(column: Column<GridFeatures, GridRow, unknown>): CSSProperties {
-  return {
-    width: `var(${columnVariable(column.id)})`,
-    insetInlineStart:
-      column.getIsPinned() === "start"
-        ? `calc(72px + ${column.getStart("start")}px)`
-        : undefined,
-  }
-}
-
-function togglePin(column: Column<GridFeatures, GridRow, unknown>) {
-  column.pin(column.getIsPinned() === "start" ? false : "start")
-}
-
-function hideColumn(column: Column<GridFeatures, GridRow, unknown>) {
-  column.toggleVisibility(false)
-}
-
-let textContext: CanvasRenderingContext2D | null | undefined
-function measureFullText(text: string): number {
-  if (textContext === undefined) {
-    textContext =
-      typeof CanvasRenderingContext2D === "undefined"
-        ? null
-        : document.createElement("canvas").getContext("2d")
-    if (textContext !== null) textContext.font = "14px sans-serif"
-  }
-  return (textContext?.measureText(text).width ?? text.length * 8) + 32
-}
-
-function autoFit(columnName: string) {
-  const resultValue = result.value
-  if (resultValue === undefined) return
-  const index = resultValue.columns.findIndex((column) => column.name === columnName)
-  if (index === -1) return
-  const values = resultValue.rows.map((row) => row[index] ?? null)
-  const width = autoFitWidth(columnName, values, measureFullText, { min: 72, max: 480 })
-  changeLayout({
-    ...layout.value,
-    columnSizing: { ...layout.value.columnSizing, [columnName]: width },
-  })
-}
-
-function startSelection(cell: Cell<GridFeatures, GridRow, unknown>, event: MouseEvent) {
-  gridFocus.value?.focus()
-  cell.getSelectionStartHandler()(event)
-}
-
-function selectRow(rowId: string) {
-  const columns = visibleGridColumns.value
-  const first = columns[0]
-  const last = columns.at(-1)
-  if (first === undefined || last === undefined) return
-  table.selectCellRange({
-    anchorRowId: rowId,
-    focusRowId: rowId,
-    anchorColumnId: first.id,
-    focusColumnId: last.id,
-  })
-}
-
-function selectColumn(columnId: string) {
-  const first = rows.value[0]
-  const last = rows.value.at(-1)
-  if (first === undefined || last === undefined) return
-  table.selectCellRange({
-    anchorRowId: first.id,
-    focusRowId: last.id,
-    anchorColumnId: columnId,
-    focusColumnId: columnId,
-  })
-}
-
-function selectPage() {
-  const firstRow = rows.value[0]
-  const lastRow = rows.value.at(-1)
-  const firstColumn = visibleGridColumns.value[0]
-  const lastColumn = visibleGridColumns.value.at(-1)
-  if (
-    firstRow === undefined ||
-    lastRow === undefined ||
-    firstColumn === undefined ||
-    lastColumn === undefined
-  ) {
-    return
-  }
-  table.selectCellRange({
-    anchorRowId: firstRow.id,
-    focusRowId: lastRow.id,
-    anchorColumnId: firstColumn.id,
-    focusColumnId: lastColumn.id,
-  })
-}
-
-const pasteColumns = computed<PasteColumn[]>(() =>
-  visibleGridColumns.value.map((column) => ({
-    name: column.id,
-    valueIndex: column.valueIndex,
-    editable: serverColumn(column.id)?.editable === true,
-  }))
-)
-
 /**
  * Put a copied block back, from the top-left of the selection.
  *
@@ -515,9 +256,14 @@ const pasteColumns = computed<PasteColumn[]>(() =>
  * cannot is the source's answer: whether the rows still hold their version,
  * and whether each value can be read as its column's type.
  */
-async function pasteSelection() {
-  const bounds = table.getCellSelectionBounds()[0]
-  if (bounds === undefined) return
+async function pasteSelection(request: TabularPasteRequest) {
+  const pasteColumns: PasteColumn[] = request.columns.map((column) => ({
+    name: column.id,
+    valueIndex: column.valueIndex,
+    editable:
+      result.value?.columns.find((candidate) => candidate.name === column.id)?.editable ===
+      true,
+  }))
   let text = ""
   try {
     text = await readText()
@@ -534,8 +280,11 @@ async function pasteSelection() {
     block,
     rows.value,
     result.value?.row_handles ?? [],
-    pasteColumns.value,
-    { rowIndex: bounds.minRowIndex, columnIndex: bounds.minColumnIndex }
+    pasteColumns,
+    {
+      rowIndex: request.bounds.minRowIndex,
+      columnIndex: request.bounds.minColumnIndex,
+    }
   )
   if (!plan.ok) {
     toast.info(plan.reason)
@@ -575,6 +324,14 @@ async function pasteSelection() {
  */
 const importColumns = computed(() =>
   (result.value?.columns ?? []).filter((column) => column.insertable === true)
+)
+const insertGridColumns = computed<InsertGridColumn[]>(() =>
+  visibleGridColumns.value.flatMap((entry) => {
+    const column = result.value?.columns.find((candidate) => candidate.name === entry.id)
+    return column === undefined
+      ? []
+      : [{ column, pinned: entry.pinned, style: entry.style }]
+  })
 )
 
 function openImport() {
@@ -666,85 +423,25 @@ async function pasteIntoInsert() {
   }
 }
 
-async function copySelection() {
-  const matrix = selectionMatrix(rows.value, visibleGridColumns.value, table.getCellSelectionBounds())
-  if (matrix.length === 0) return
-  try {
-    await copyText(toTsv(matrix))
-  } catch {
-    toast.error("Could not copy the selection")
-  }
-}
-
-function handleGridKey(event: KeyboardEvent) {
-  const directions: Partial<Record<string, CellSelectionDirection>> = {
-    ArrowUp: "up",
-    ArrowDown: "down",
-    ArrowLeft: "left",
-    ArrowRight: "right",
-  }
-  const direction = directions[event.key]
-  if (direction !== undefined) {
-    event.preventDefault()
-    if (event.shiftKey) table.extendCellSelection(direction)
-    else table.moveCellSelection(direction)
-    return
-  }
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c") {
-    event.preventDefault()
-    void copySelection()
-    return
-  }
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
-    event.preventDefault()
-    void pasteSelection()
-  }
-}
-
-function serverColumn(columnId: string): FetchColumn | undefined {
-  return result.value?.columns.find((column) => column.name === columnId)
-}
-
-function presentCell(cell: Cell<GridFeatures, GridRow, unknown>): CellPresentation {
-  const column = serverColumn(cell.column.id)
-  const value = cell.getValue() as string | null
-  return column === undefined
-    ? { text: value ?? "null", align: "left", tone: "default" }
-    : cellPresentation(value, column.type)
-}
-
-function openCell(cell: Cell<GridFeatures, GridRow, unknown>, event: MouseEvent) {
-  const column = serverColumn(cell.column.id)
-  const value = cell.getValue() as string | null
-  if (
-    event.shiftKey === false &&
-    column !== undefined &&
-    value !== null &&
-    shouldOpenViewer(value, column.type)
-  ) {
-    viewer.value = { columnName: column.name, typeSql: column.type.sql, value }
-    return
-  }
-  const rowIndex = Number(cell.row.id) - offset.value
-  const rowHandle = result.value?.row_handles?.[rowIndex]
-  if (column?.editable === true && typeof rowHandle === "string") {
-    editError.value = ""
-    editor.value = { column, value, rowHandle }
-    return
-  }
-  if (column === undefined || value === null || !shouldOpenViewer(value, column.type)) return
-  viewer.value = { columnName: column.name, typeSql: column.type.sql, value }
+function openEditor(request: TabularEditRequest) {
+  const column = result.value?.columns.find(
+    (candidate) => candidate.name === request.column.id
+  )
+  const rowHandle = result.value?.row_handles?.[request.rowIndex]
+  if (column?.editable !== true || typeof rowHandle !== "string") return
+  editError.value = ""
+  editor.value = { column, value: request.value, rowHandle }
 }
 
 async function runDownload(scope: DownloadScope) {
-  if (result.value === undefined || visibleGridColumns.value.length === 0) return
+  if (result.value === undefined || downloadColumns.value.length === 0) return
   const fallback = `${props.title ?? "table"}.csv`
   try {
     if (scope === "all") {
       const exported = await exportRows.mutateAsync({
         node_id: props.nodeId,
         title: props.title ?? "table",
-        columns: visibleGridColumns.value.map((column) => column.id),
+        columns: downloadColumns.value.map((column) => column.id),
         filters: [...queryState.value.filters],
         sort: [...queryState.value.sort],
       })
@@ -758,7 +455,7 @@ async function runDownload(scope: DownloadScope) {
     const downloaded = await downloadPage.mutateAsync({
       ...request.value,
       title: props.title ?? "table",
-      columns: visibleGridColumns.value.map((column) => column.id),
+      columns: downloadColumns.value.map((column) => column.id),
     })
     saveBrowserDownload(
       downloaded.blob,
@@ -771,12 +468,17 @@ async function runDownload(scope: DownloadScope) {
   }
 }
 
-function openChart(): void {
-  if (result.value === undefined || visibleGridColumns.value.length === 0) return
+function openDownload(columns: TabularVisibleColumn[]): void {
+  downloadColumns.value = [...columns]
+  downloadOpen.value = true
+}
+
+function openChart(columns: TabularVisibleColumn[]): void {
+  if (result.value === undefined || columns.length === 0) return
   emit(
     "chart",
     { ...request.value, filters: [...queryState.value.filters], sort: [...queryState.value.sort] },
-    visibleGridColumns.value.map((column) => column.id)
+    columns.map((column) => column.id)
   )
 }
 
@@ -803,9 +505,9 @@ const referencesByColumn = computed(() => {
  * incomplete key names a row is not decided here — the source answers that
  * when the arrow is actually pressed.
  */
-function cellReferences(cell: Cell<GridFeatures, GridRow, unknown>): FetchReference[] {
-  if ((cell.getValue() as string | null) === null) return NO_REFERENCES
-  return referencesByColumn.value.get(cell.column.id) ?? NO_REFERENCES
+function cellReferences(columnId: string, value: string | null): FetchReference[] {
+  if (value === null) return NO_REFERENCES
+  return referencesByColumn.value.get(columnId) ?? NO_REFERENCES
 }
 
 async function follow(row: GridRow, reference: FetchReference) {
@@ -832,15 +534,6 @@ async function follow(row: GridRow, reference: FetchReference) {
   } catch (error) {
     toast.error(messageOf(error, "Could not follow this reference"))
   }
-}
-
-function cellTitle(cell: Cell<GridFeatures, GridRow, unknown>): string | undefined {
-  const column = serverColumn(cell.column.id)
-  if (column?.editable !== true) return result.value?.update_reason ?? undefined
-  const value = cell.getValue() as string | null
-  return shouldOpenViewer(value, column.type)
-    ? "Double-click to view; Shift+double-click to edit"
-    : "Double-click to edit"
 }
 
 async function saveCell(value: string | null) {
@@ -872,9 +565,7 @@ async function openInsert() {
   }
   insertOpen.value = true
   await nextTick()
-  gridFocus.value
-    ?.querySelector<HTMLInputElement>('[data-testid^="grid-insert-value-"]')
-    ?.focus()
+  tabularGrid.value?.focus('[data-testid^="grid-insert-value-"]')
 }
 
 async function saveInsert(values: { column: string; value: string | null }[]) {
@@ -893,9 +584,24 @@ function cancelInsert() {
   insertError.value = ""
 }
 
-async function deleteSelection() {
-  const handles = selectedRowHandles.value
-  if (!canDelete.value || handles.length === 0) return
+function selectedRowHandles(indexes: number[]): string[] {
+  const selected = indexes.map((index) => result.value?.row_handles?.[index])
+  return selected.every((handle): handle is string => typeof handle === "string")
+    ? selected
+    : []
+}
+
+function canDeleteRows(indexes: number[]): boolean {
+  return (
+    result.value?.delete_supported === true &&
+    indexes.length > 0 &&
+    selectedRowHandles(indexes).length === indexes.length
+  )
+}
+
+async function deleteSelection(indexes: number[]) {
+  const handles = selectedRowHandles(indexes)
+  if (!canDeleteRows(indexes) || handles.length === 0) return
   const accepted = await confirm({
     title: `Delete ${handles.length} ${handles.length === 1 ? "row" : "rows"}?`,
     message: "This cannot be undone.",
@@ -905,7 +611,7 @@ async function deleteSelection() {
   if (!accepted) return
   try {
     await deleteRows.mutateAsync({ node_id: props.nodeId, row_handles: handles })
-    table.resetCellSelection(true)
+    tabularGrid.value?.clearSelection()
     toast.success(`${handles.length} ${handles.length === 1 ? "row" : "rows"} deleted`)
   } catch (error) {
     toast.error(messageOf(error, "Could not delete the selected rows"))
@@ -1072,7 +778,7 @@ watch(
 
     const stored = loadGridState(props.connectorId, props.nodeId)
     if (stored === null) {
-      layout.value = defaultColumnLayout(serverColumns)
+      layout.value = defaultColumnLayout(tabularColumns(serverColumns))
       persistedQueryState.value = { ...queryState.value }
       return
     }
@@ -1135,366 +841,225 @@ defineExpose({
 </script>
 
 <template>
-  <div
-    class="data-grid"
-    data-testid="row-grid"
-    :style="columnWidthVariables"
+  <TabularGrid
+    ref="tabularGrid"
+    :columns="tableColumns"
+    :rows="rows"
+    :page="queryState.page"
+    :page-size="queryState.pageSize"
+    :filters="queryState.filters"
+    :sort="queryState.sort"
+    :layout="layout"
+    :has-more="result?.has_more === true"
+    :loading="rowsQuery.isPending.value"
+    :refreshing="rowsQuery.isFetching.value && result !== undefined"
+    :error="rowsQuery.isError.value ? messageOf(rowsQuery.error.value, 'Could not read the rows') : ''"
+    :empty-text="insertOpen ? '' : 'No rows'"
+    :update-reason="result?.update_reason ?? ''"
+    :editable-row-ids="editableRowIds"
+    @update:page-size="changePageSize"
+    @update:filters="changeFilters"
+    @update:sort="changeSort"
+    @update:layout="changeLayout"
+    @turn-page="turnPage"
+    @retry="retry"
+    @reset="resetQuery"
+    @paste="pasteSelection"
+    @edit="openEditor"
+    @visible-columns="visibleGridColumns = $event"
   >
-    <GridHeader
-      :page-size="queryState.pageSize"
-      :columns="result?.columns ?? []"
-      :filters="queryState.filters"
-      :sort="queryState.sort"
-      :layout="layout"
-      :can-copy="canCopy"
-      :can-paste="canPaste"
-      :paste-supported="result?.update_supported === true"
-      :can-insert="canInsert"
-      :can-import="canInsert && importColumns.length > 0"
-      :insert-supported="result?.insert_supported === true"
-      :can-delete="canDelete"
-      :delete-supported="result?.delete_supported === true"
-      :delete-count="selectedRowHandles.length"
-      :can-download="result !== undefined && visibleGridColumns.length > 0"
-      :can-share="result !== undefined"
-      :downloading="downloadPage.isPending.value || exportRows.isPending.value"
-      :can-describe="canDescribe"
-      :content-title="contentTitle"
-      :can-chart="result !== undefined && visibleGridColumns.length > 0"
-      :can-create-table="result !== undefined && result.columns.length > 0"
-      @update:page-size="changePageSize"
-      @update:filters="changeFilters"
-      @update:sort="changeSort"
-      @update:layout="changeLayout"
-      @copy="copySelection"
-      @paste="pasteSelection"
-      @insert="openInsert"
-      @bring-in="openImport"
-      @delete="deleteSelection"
-      @download="downloadOpen = true"
-      @share="shareOpen = true"
-      @describe="emit('describe')"
-      @content="emit('content')"
-      @chart="openChart"
-      @create-table="openCreateTable"
-    />
-
-    <AppBanner
-      v-if="rowsQuery.isError.value"
-      tone="error"
-      class="data-grid__state"
-      data-testid="grid-error"
+    <template
+      #commands="{
+        canCopy,
+        selectedRowIndexes,
+        visibleColumns,
+        requestPaste,
+      }"
     >
-      <div class="data-grid__error">
-        <span>{{ messageOf(rowsQuery.error.value, "Could not read the rows") }}</span>
-        <div class="data-grid__error-actions">
-          <AppButton
-            variant="secondary"
-            label="Reset query"
-            size="sm"
-            data-testid="grid-reset-query"
-            @click="resetQuery"
-          />
-          <AppButton
-            variant="secondary"
-            label="Retry"
-            size="sm"
-            data-testid="grid-retry"
-            @click="retry"
-          />
-        </div>
-      </div>
-    </AppBanner>
-    <AppBanner
-      v-if="!rowsQuery.isError.value && insertError"
-      tone="error"
-      class="data-grid__insert-error"
-      data-testid="grid-insert-error"
-    >
-      {{ insertError }}
-    </AppBanner>
-
-    <div
-      v-if="!rowsQuery.isError.value"
-      ref="gridFocus"
-      class="data-grid__scroll"
-      role="grid"
-      tabindex="0"
-      data-testid="grid-focus"
-      @keydown="handleGridKey"
-    >
-      <div
-        v-if="rowsQuery.isPending.value"
-        class="data-grid__skeleton"
-        data-testid="grid-skeleton"
-        aria-label="Loading rows"
+      <AppIconButton
+        v-if="canInsert && importColumns.length > 0"
+        icon="input"
+        tooltip="Bring rows in"
+        data-testid="grid-import"
+        @click="openImport"
+      />
+      <AppIconButton
+        v-if="result?.update_supported === true"
+        icon="content_paste"
+        tooltip="Paste into the selection"
+        :disable="!canCopy"
+        data-testid="grid-paste"
+        @click="requestPaste"
+      />
+      <AppIconButton
+        v-if="result !== undefined && visibleColumns.length > 0"
+        icon="download"
+        tooltip="Download"
+        :disable="downloadPage.isPending.value || exportRows.isPending.value"
+        :loading="downloadPage.isPending.value || exportRows.isPending.value"
+        data-testid="grid-download"
+        @click="openDownload(visibleColumns)"
+      />
+      <AppIconButton
+        v-if="result !== undefined"
+        icon="share"
+        tooltip="Share this view"
+        data-testid="grid-share"
+        @click="shareOpen = true"
+      />
+      <AppIconButton
+        v-if="result !== undefined && visibleColumns.length > 0"
+        icon="insert_chart"
+        tooltip="Charts"
+        data-testid="grid-charts"
+        @click="openChart(visibleColumns)"
+      />
+      <AppIconButton
+        v-if="result !== undefined && result.columns.length > 0"
+        icon="post_add"
+        tooltip="Create table from these rows"
+        data-testid="grid-create-table"
+        @click="openCreateTable"
+      />
+      <AppIconButton
+        v-if="contentTitle"
+        icon="code"
+        :tooltip="contentTitle"
+        data-testid="grid-content"
+        @click="emit('content')"
+      />
+      <AppIconButton
+        v-if="canDescribe"
+        icon="account_tree"
+        tooltip="Structure"
+        data-testid="grid-structure"
+        @click="emit('describe')"
+      />
+      <span
+        v-if="result?.insert_supported === true"
+        data-testid="grid-insert-command"
       >
-        <div
-          v-for="index in 8"
-          :key="index"
-          class="data-grid__skeleton-row"
+        <AppIconButton
+          icon="add"
+          tooltip="Insert row"
+          :disable="!canInsert"
+          data-testid="grid-insert"
+          @click="openInsert"
         />
-      </div>
-      <table
-        v-else
-        class="data-grid__table"
+      </span>
+      <span
+        v-if="result?.delete_supported === true"
+        data-testid="grid-delete-command"
       >
-        <thead>
-          <tr
-            v-for="headerGroup in table.getHeaderGroups()"
-            :key="headerGroup.id"
-          >
-            <th
-              class="data-grid__selector"
-              scope="col"
-            >
-              <AppIconButton
-                icon="select_all"
-                tooltip="Select page"
-                data-testid="grid-select-page"
-                @click="selectPage"
-              />
-            </th>
-            <th
-              v-for="header in headerGroup.headers"
-              :key="header.id"
-              scope="col"
-              :data-testid="`grid-column-${header.column.id}`"
-              :class="{
-                'data-grid__sortable': columnIsSortable(header.column.id),
-                'data-grid__pinned': header.column.getIsPinned() === 'start',
-              }"
-              :style="columnStyle(header.column)"
-            >
-              <button
-                type="button"
-                class="data-grid__column-name"
-                :aria-label="`Select column ${header.column.id}`"
-                :data-testid="`grid-column-select-${header.column.id}`"
-                @click="selectColumn(header.column.id)"
-              >
-                {{ header.column.id }}
-              </button>
-              <span class="data-grid__column-actions">
-                <span
-                  v-if="sortIndex(header.column.id) >= 0"
-                  :data-testid="`grid-sort-priority-${header.column.id}`"
-                  class="data-grid__sort-priority"
-                >{{ sortIndex(header.column.id) + 1 }}</span>
-                <AppIconButton
-                  v-if="columnIsSortable(header.column.id)"
-                  :icon="sortIcon(header.column.id)"
-                  :tooltip="`Sort by ${header.column.id}`"
-                  :data-direction="sortDirection(header.column.id)"
-                  :data-testid="`grid-sort-direction-${header.column.id}`"
-                  @click.stop="sortColumn(header.column.id, $event)"
-                />
-                <AppIconButton
-                  icon="push_pin"
-                  :class="{
-                    'data-grid__pin--active': header.column.getIsPinned() === 'start',
-                  }"
-                  :aria-pressed="header.column.getIsPinned() === 'start'"
-                  :tooltip="pinTooltip(header.column)"
-                  :data-testid="`grid-pin-${header.column.id}`"
-                  @click.stop="togglePin(header.column)"
-                />
-                <AppIconButton
-                  icon="visibility_off"
-                  :tooltip="`Hide ${header.column.id}`"
-                  :data-testid="`grid-hide-${header.column.id}`"
-                  @click.stop="hideColumn(header.column)"
-                />
-              </span>
-              <span
-                class="data-grid__resize"
-                :data-testid="`grid-resize-${header.column.id}`"
-                @mousedown.stop="header.getResizeHandler()($event)"
-                @touchstart.stop="header.getResizeHandler()($event)"
-                @dblclick.stop="autoFit(header.column.id)"
-              />
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="row in table.getRowModel().rows"
-            :key="row.id"
-            :data-testid="`grid-row-${row.id}`"
-          >
-            <td class="data-grid__selector">
-              <button
-                type="button"
-                class="data-grid__row-selector"
-                :data-testid="`grid-select-row-${row.id}`"
-                :aria-label="`Select row ${Number(row.id) + 1}`"
-                @click="selectRow(row.id)"
-              >
-                {{ Number(row.id) + 1 }}
-              </button>
-            </td>
-            <td
-              v-for="cell in row.getVisibleCells()"
-              :key="cell.id"
-              :data-testid="`grid-cell-${row.id}-${cell.column.id}`"
-              :class="{
-                'data-grid__pinned': cell.column.getIsPinned() === 'start',
-                'data-grid__selected': cell.getIsSelected(),
-                'data-grid__editable': serverColumn(cell.column.id)?.editable === true,
-              }"
-              :title="cellTitle(cell)"
-              :style="columnStyle(cell.column)"
-              @mousedown="startSelection(cell, $event)"
-              @mouseenter="cell.getSelectionExtendHandler()($event)"
-              @dblclick="openCell(cell, $event)"
-            >
-              <span
-                :class="{
-                  'data-grid__null': presentCell(cell).tone === 'null',
-                  'data-grid__monospace': presentCell(cell).monospace === true,
-                }"
-              >{{ presentCell(cell).text }}</span>
-              <AppIconButton
-                v-for="reference in cellReferences(cell)"
-                :key="reference.name"
-                class="data-grid__follow"
-                icon="arrow_forward"
-                :tooltip="`Go to ${reference.target_title}`"
-                :disable="followReference.isPending.value"
-                :data-testid="`grid-follow-${row.id}-${reference.name}`"
-                @click.stop="follow(row.original, reference)"
-                @dblclick.stop
-              />
-            </td>
-          </tr>
-          <RowInsertRow
-            v-if="insertOpen"
-            ref="insertForm"
-            :columns="insertGridColumns"
-            :row-number="offset + rows.length + 1"
-            :saving="insertRow.isPending.value"
-            @save="saveInsert"
-            @cancel="cancelInsert"
-            @paste="pasteIntoInsert"
-          />
-        </tbody>
-      </table>
-      <AppEmptyState
-        v-if="result !== undefined && rows.length === 0 && !insertOpen"
-        class="data-grid__state"
-        text="No rows"
-        data-testid="grid-empty"
-      />
-      <div
-        v-if="rowsQuery.isFetching.value && result !== undefined"
-        class="data-grid__loading-overlay"
-        data-testid="grid-loading-overlay"
-        aria-label="Refreshing rows"
-      />
-    </div>
+        <AppIconButton
+          icon="remove"
+          :tooltip="
+            selectedRowIndexes.length > 0
+              ? `Delete ${selectedRowIndexes.length} selected rows`
+              : 'Delete selected rows'
+          "
+          :disable="!canDeleteRows(selectedRowIndexes)"
+          data-testid="grid-delete"
+          @click="deleteSelection(selectedRowIndexes)"
+        />
+      </span>
+    </template>
 
-    <div class="data-grid__pager">
-      <span data-testid="grid-page-range">{{ range }}</span>
+    <template #before-grid>
+      <AppBanner
+        v-if="!rowsQuery.isError.value && insertError"
+        tone="error"
+        class="data-grid__insert-error"
+        data-testid="grid-insert-error"
+      >
+        {{ insertError }}
+      </AppBanner>
+    </template>
+
+    <template #cell-overlay="{ row, column, value }">
       <AppIconButton
-        icon="chevron_left"
-        tooltip="Previous page"
-        :disable="queryState.page === 0"
-        data-testid="grid-prev"
-        @click="turnPage(-1)"
+        v-for="reference in cellReferences(column.id, value)"
+        :key="reference.name"
+        class="data-grid__follow"
+        icon="arrow_forward"
+        :tooltip="`Go to ${reference.target_title}`"
+        :disable="followReference.isPending.value"
+        :data-testid="`grid-follow-${row.id}-${reference.name}`"
+        @click.stop="follow(row, reference)"
+        @dblclick.stop
       />
-      <AppIconButton
-        icon="chevron_right"
-        tooltip="Next page"
-        :disable="result?.has_more !== true"
-        data-testid="grid-next"
-        @click="turnPage(1)"
+    </template>
+
+    <template #after-rows="{ nextRowNumber }">
+      <RowInsertRow
+        v-if="insertOpen"
+        ref="insertForm"
+        :columns="insertGridColumns"
+        :row-number="nextRowNumber"
+        :saving="insertRow.isPending.value"
+        @save="saveInsert"
+        @cancel="cancelInsert"
+        @paste="pasteIntoInsert"
       />
-    </div>
+    </template>
 
-    <CellValueDialog
-      v-if="viewer !== null"
-      :model-value="true"
-      :column-name="viewer.columnName"
-      :type-sql="viewer.typeSql"
-      :value="viewer.value"
-      @update:model-value="viewer = null"
-    />
-    <ShareDialog
-      v-if="shareOpen"
-      v-model="shareOpen"
-      :connector-id="connectorId"
-      :node-id="nodeId"
-      :node-label="title"
-      :view="sharedViewOfThisGrid"
-    />
-
-    <DownloadDialog
-      v-if="downloadOpen && result !== undefined"
-      :model-value="true"
-      :page-range="range"
-      :column-count="visibleGridColumns.length"
-      :filter-count="queryState.filters.length"
-      :all-supported="result.export_supported === true"
-      :all-reason="result.export_reason ?? undefined"
-      :running="downloadPage.isPending.value || exportRows.isPending.value"
-      @run="runDownload"
-      @update:model-value="downloadOpen = false"
-    />
-    <ImportDialog
-      v-if="importOpen"
-      :model-value="true"
-      :connector-id="connectorId"
-      :node-id="nodeId"
-      :target-columns="importColumns"
-      :running="importRows.isPending.value"
-      :error="importError"
-      @run="bringIn"
-      @update:model-value="importOpen = false"
-    />
-    <CreateTableDialog
-      v-if="createTableOpen && result !== undefined"
-      :model-value="true"
-      :source-title="title ?? nodeId"
-      :source-columns="result.columns"
-      :running="createRelation.isPending.value"
-      :error="createTableError"
-      @run="createTable"
-      @update:model-value="createTableOpen = false"
-    />
-    <CellEditorDialog
-      v-if="editor !== null"
-      :model-value="true"
-      :column="editor.column"
-      :value="editor.value"
-      :saving="updateCell.isPending.value"
-      :error="editError"
-      @save="saveCell"
-      @update:model-value="editor = null"
-    />
-  </div>
+    <template #after-grid>
+      <ShareDialog
+        v-if="shareOpen"
+        v-model="shareOpen"
+        :connector-id="connectorId"
+        :node-id="nodeId"
+        :node-label="title"
+        :view="sharedViewOfThisGrid"
+      />
+      <DownloadDialog
+        v-if="downloadOpen && result !== undefined"
+        :model-value="true"
+        :page-range="range"
+        :column-count="downloadColumns.length"
+        :filter-count="queryState.filters.length"
+        :all-supported="result.export_supported === true"
+        :all-reason="result.export_reason ?? undefined"
+        :running="downloadPage.isPending.value || exportRows.isPending.value"
+        @run="runDownload"
+        @update:model-value="downloadOpen = false"
+      />
+      <ImportDialog
+        v-if="importOpen"
+        :model-value="true"
+        :connector-id="connectorId"
+        :node-id="nodeId"
+        :target-columns="importColumns"
+        :running="importRows.isPending.value"
+        :error="importError"
+        @run="bringIn"
+        @update:model-value="importOpen = false"
+      />
+      <CreateTableDialog
+        v-if="createTableOpen && result !== undefined"
+        :model-value="true"
+        :source-title="title ?? nodeId"
+        :source-columns="result.columns"
+        :running="createRelation.isPending.value"
+        :error="createTableError"
+        @run="createTable"
+        @update:model-value="createTableOpen = false"
+      />
+      <CellEditorDialog
+        v-if="editor !== null"
+        :model-value="true"
+        :column="editor.column"
+        :value="editor.value"
+        :saving="updateCell.isPending.value"
+        :error="editError"
+        @save="saveCell"
+        @update:model-value="editor = null"
+      />
+    </template>
+  </TabularGrid>
 </template>
 
 <style scoped>
-.data-grid {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  color: inherit;
-}
-
-.data-grid__scroll {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  outline: none;
-}
-
-.data-grid__state {
-  margin: 12px;
-}
-
 /* A relationship is a cell control, not content. It occupies the corner
    without changing the row height or the width of the value. */
 .data-grid__follow {
@@ -1506,181 +1071,5 @@ defineExpose({
 
 .data-grid__insert-error {
   margin: 8px 12px;
-}
-
-.data-grid__error {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.data-grid__error-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.data-grid__skeleton {
-  display: grid;
-  gap: 1px;
-  padding: 1px;
-}
-
-.data-grid__skeleton-row {
-  height: 34px;
-  background: var(--dp-surface-raised);
-  opacity: 0.65;
-}
-
-.data-grid__loading-overlay {
-  position: absolute;
-  z-index: var(--dp-layer-sticky);
-  inset: 0;
-  background: var(--dp-surface-raised);
-  opacity: 0.3;
-  pointer-events: none;
-}
-
-.data-grid__table {
-  width: max-content;
-  min-width: 100%;
-  border-collapse: collapse;
-}
-
-.data-grid__table th,
-.data-grid__table td {
-  position: relative;
-  box-sizing: border-box;
-  min-width: 0;
-  max-width: none;
-  padding: 6px 10px;
-  border-right: 1px solid var(--dp-border-faint);
-  border-bottom: 1px solid var(--dp-border-faint);
-  text-align: left;
-  white-space: nowrap;
-}
-
-.data-grid__table th {
-  background: var(--dp-surface);
-  color: var(--dp-text-strong);
-}
-
-.data-grid__table th:not(.data-grid__selector) {
-  padding-inline-end: 80px;
-}
-
-.data-grid__sortable {
-  padding-inline-end: 112px !important;
-}
-
-.data-grid__pinned {
-  position: sticky !important;
-  z-index: var(--dp-layer-sticky);
-  background: var(--dp-surface);
-  box-shadow: 2px 0 3px var(--dp-shadow-soft);
-}
-
-.data-grid__resize {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-end: 0;
-  width: 6px;
-  cursor: col-resize;
-  touch-action: none;
-  user-select: none;
-}
-
-.data-grid__resize:hover {
-  background: var(--dp-separator-active);
-}
-
-.data-grid__selector {
-  width: 72px;
-  min-width: 72px !important;
-  max-width: 72px !important;
-  text-align: center !important;
-  background: var(--dp-surface);
-  position: sticky !important;
-  inset-inline-start: 0;
-  z-index: var(--dp-layer-sticky);
-  border-left: 1px solid var(--dp-border-faint);
-}
-
-.data-grid__table thead .data-grid__selector {
-  z-index: var(--dp-layer-overlay);
-}
-
-.data-grid__column-name {
-  max-width: 100%;
-  padding: 0;
-  border: 0;
-  overflow: hidden;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: inherit;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.data-grid__column-actions {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-end: 4px;
-  display: flex;
-  align-items: center;
-}
-
-.data-grid__pin--active {
-  color: var(--dp-link);
-}
-
-.data-grid__sort-priority {
-  min-width: 12px;
-  color: var(--dp-text-muted);
-  font-size: 10px;
-  text-align: center;
-}
-
-.data-grid__row-selector {
-  width: 100%;
-  padding: 4px;
-  border: 0;
-  background: transparent;
-  color: var(--dp-text-muted);
-  cursor: pointer;
-}
-
-.data-grid__selected {
-  box-shadow: inset 0 0 0 2px var(--dp-focus-border);
-}
-
-.data-grid__editable {
-  cursor: cell;
-}
-
-.data-grid__table td > span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.data-grid__null {
-  color: var(--dp-text-muted);
-  font-style: italic;
-}
-
-.data-grid__monospace {
-  font-family: monospace;
-}
-
-.data-grid__pager {
-  display: flex;
-  flex: none;
-  min-height: 40px;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  color: var(--dp-text-muted);
 }
 </style>

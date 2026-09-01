@@ -1,13 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import type { FetchColumn } from "@/client"
-
 import { autoFitWidth, defaultColumnLayout, moveColumn } from "./columnLayout"
 
-const COLUMNS: FetchColumn[] = [
-  { name: "id", type: { sql: "bigint", category: "number" } },
-  { name: "name", type: { sql: "text", category: "string" } },
-]
+const COLUMNS = [{ id: "id" }, { id: "name" }]
 
 describe("column layout", () => {
   it("auto fit measures the longest full value and clamps the result", () => {

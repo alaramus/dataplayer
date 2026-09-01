@@ -194,14 +194,20 @@ Known deviations:
 
 Spec: [The shared UI kit](../superpowers/specs/2026-08-22-shared-ui-kit-design.md)
 
-## D24. The grid is controlled state around a headless engine, and source operations stay server-side
+## D24. The tabular surface is controlled state around a headless engine, and source operations stay server-side
 
 `features/grid` owns the data explorer; the catalog only opens a node and the
-workspace only hosts its panel. `DataGrid.vue` binds the fetched page, editors
-and layout, while the query, persistence, filter, sort, selection, clipboard and
-presentation rules live in plain modules. `GridHeader.vue` stays mounted at one
-height in loading, empty and error states; unsupported commands remain in place,
-disabled with the source's explanation.
+workspace only hosts its panel. `TabularGrid.vue` binds a controlled typed page
+and layout to the headless engine and owns selection, clipboard, presentation,
+the full-value viewer and load/error states. Column identity is distinct from
+its display label so duplicate or unnamed query columns remain addressable.
+`DataGrid.vue` is the relation controller: it fetches and persists the page and
+supplies editing, insertion, deletion, references, import, download and other
+source operations through the tabular surface's slots. Query construction,
+persistence, filter, sort, selection, clipboard and presentation rules remain
+in plain modules. `GridHeader.vue` stays mounted at one height in loading, empty
+and error states; a controller alone decides which source commands exist and
+why a supported one is disabled.
 
 TanStack Table v9 is the headless engine for cell selection, column sizing and
 resizing, ordering, visibility, left pinning and controlled sorting state.

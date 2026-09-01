@@ -2,29 +2,32 @@ import { mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import { describe, expect, it } from "vitest"
 
-import type { FetchColumn, Sort } from "@/client"
+import type { Sort } from "@/client"
 import { first } from "@/shared/testing/collections"
 
 import GridHeader from "./GridHeader.vue"
 import SortEditor from "./SortEditor.vue"
 import { defaultColumnLayout } from "./columnLayout"
+import type { TabularColumn } from "./tabular"
 
-const COLUMNS: FetchColumn[] = [
+const COLUMNS: TabularColumn[] = [
   {
-    name: "name",
+    id: "name",
+    label: "name",
     type: { sql: "text", category: "string" },
     sortable: true,
     filter_operators: ["eq"],
   },
   {
-    name: "created_at",
+    id: "created_at",
+    label: "created_at",
     type: { sql: "timestamp", category: "datetime" },
     sortable: true,
     filter_operators: ["eq"],
   },
 ]
 
-function mountHeader(columns: FetchColumn[] = COLUMNS) {
+function mountHeader(columns: TabularColumn[] = COLUMNS) {
   return mount(GridHeader, {
     props: {
       pageSize: 100,

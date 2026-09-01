@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import type { FetchColumn } from "@/client"
 import { AppButton, AppCheckbox, AppIconButton } from "@/shared/ui"
 
 import { defaultColumnLayout, moveColumn } from "./columnLayout"
 import type { ColumnLayoutState } from "./columnLayout"
+import type { TabularColumn } from "./tabular"
 
-const props = defineProps<{ columns: FetchColumn[]; layout: ColumnLayoutState }>()
+const props = defineProps<{ columns: TabularColumn[]; layout: ColumnLayoutState }>()
 const emit = defineEmits<{ "update:layout": [layout: ColumnLayoutState]; close: [] }>()
 
-const byName = computed(() => new Map(props.columns.map((column) => [column.name, column])))
+const byName = computed(() => new Map(props.columns.map((column) => [column.id, column])))
 const orderedColumns = computed(() =>
   props.layout.columnOrder.flatMap((name) => {
     const column = byName.value.get(name)
@@ -41,36 +41,36 @@ function togglePin(columnName: string) {
   >
     <div
       v-for="(column, index) in orderedColumns"
-      :key="column.name"
+      :key="column.id"
       class="column-manager__item"
     >
       <AppCheckbox
-        :model-value="layout.columnVisibility[column.name] !== false"
-        :label="column.name"
+        :model-value="layout.columnVisibility[column.id] !== false"
+        :label="column.label"
         dense
-        :data-testid="`grid-column-visible-${column.name}`"
-        @update:model-value="setVisible(column.name, $event)"
+        :data-testid="`grid-column-visible-${column.id}`"
+        @update:model-value="setVisible(column.id, $event)"
       />
       <AppIconButton
         icon="arrow_upward"
-        :tooltip="`Move ${column.name} up`"
+        :tooltip="`Move ${column.label} up`"
         :disable="index === 0"
-        :data-testid="`grid-column-up-${column.name}`"
-        @click="emit('update:layout', moveColumn(layout, column.name, -1))"
+        :data-testid="`grid-column-up-${column.id}`"
+        @click="emit('update:layout', moveColumn(layout, column.id, -1))"
       />
       <AppIconButton
         icon="arrow_downward"
-        :tooltip="`Move ${column.name} down`"
+        :tooltip="`Move ${column.label} down`"
         :disable="index === orderedColumns.length - 1"
-        :data-testid="`grid-column-down-${column.name}`"
-        @click="emit('update:layout', moveColumn(layout, column.name, 1))"
+        :data-testid="`grid-column-down-${column.id}`"
+        @click="emit('update:layout', moveColumn(layout, column.id, 1))"
       />
       <AppButton
-        :label="layout.pinnedLeft.includes(column.name) ? 'Unpin' : 'Pin left'"
+        :label="layout.pinnedLeft.includes(column.id) ? 'Unpin' : 'Pin left'"
         variant="quiet"
         size="sm"
-        :data-testid="`grid-pin-${column.name}`"
-        @click="togglePin(column.name)"
+        :data-testid="`grid-pin-${column.id}`"
+        @click="togglePin(column.id)"
       />
     </div>
     <AppButton

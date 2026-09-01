@@ -2,7 +2,6 @@ import { mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import { beforeEach, describe, expect, it } from "vitest"
 
-import type { FetchColumn } from "@/client"
 import { AppInput } from "@/shared/ui"
 import { at, first } from "@/shared/testing/collections"
 
@@ -10,27 +9,31 @@ import FilterEditor from "./FilterEditor.vue"
 import GridHeader from "./GridHeader.vue"
 import { defaultColumnLayout } from "./columnLayout"
 import type { Filter } from "./types"
+import type { TabularColumn } from "./tabular"
 
-const STATUS_COLUMN: FetchColumn = {
-  name: "status",
+const STATUS_COLUMN: TabularColumn = {
+  id: "status",
+  label: "status",
   type: { sql: "project_status", category: "enum", enum_values: ["active", "paused"] },
   sortable: true,
   filter_operators: ["eq", "in", "is_null"],
 }
-const NAME_COLUMN: FetchColumn = {
-  name: "name",
+const NAME_COLUMN: TabularColumn = {
+  id: "name",
+  label: "name",
   type: { sql: "text", category: "string" },
   sortable: true,
   filter_operators: ["eq", "contains", "is_null"],
 }
-const FILE_COLUMN: FetchColumn = {
-  name: "line",
+const FILE_COLUMN: TabularColumn = {
+  id: "line",
+  label: "line",
   type: { sql: "text", category: "string" },
   sortable: false,
   filter_operators: [],
 }
 
-function mountHeader(columns: FetchColumn[], filters: Filter[] = []) {
+function mountHeader(columns: TabularColumn[], filters: Filter[] = []) {
   return mount(GridHeader, {
     props: {
       pageSize: 100,

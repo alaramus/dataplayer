@@ -1,28 +1,29 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
-import type { FetchColumn, Sort } from "@/client"
+import type { Sort } from "@/client"
 import { AppButton, AppIconButton, AppSelect } from "@/shared/ui"
 
 import { moveSort } from "./sortModel"
+import type { TabularColumn } from "./tabular"
 
-const props = defineProps<{ columns: FetchColumn[]; sort: Sort[] }>()
+const props = defineProps<{ columns: TabularColumn[]; sort: Sort[] }>()
 const emit = defineEmits<{ apply: [sort: Sort[]]; close: [] }>()
 
 const sortableColumns = computed(() => props.columns.filter((column) => column.sortable === true))
 const availableColumns = computed(() =>
   sortableColumns.value.filter(
-    (column) => !props.sort.some((item) => item.column === column.name)
+    (column) => !props.sort.some((item) => item.column === column.id)
   )
 )
 const selectedColumn = ref<string | null>(null)
 const addOptions = computed(() =>
-  availableColumns.value.map((column) => ({ label: column.name, value: column.name }))
+  availableColumns.value.map((column) => ({ label: column.label, value: column.id }))
 )
 
 function addColumn() {
   const column =
-    selectedColumn.value ?? (availableColumns.value.length === 1 ? availableColumns.value[0]?.name : null)
+    selectedColumn.value ?? (availableColumns.value.length === 1 ? availableColumns.value[0]?.id : null)
   if (column === null || column === undefined) return
   emit("apply", [...props.sort, { column, descending: false }])
   selectedColumn.value = null
@@ -57,7 +58,7 @@ function remove(index: number) {
       class="sort-editor__item"
     >
       <span class="sort-editor__priority">{{ index + 1 }}</span>
-      <span>{{ item.column }}</span>
+      <span>{{ columns.find((column) => column.id === item.column)?.label ?? item.column }}</span>
       <AppButton
         :label="item.descending === true ? 'Descending' : 'Ascending'"
         variant="quiet"

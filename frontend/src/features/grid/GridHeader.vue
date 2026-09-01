@@ -1,38 +1,24 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
-import type { FetchColumn, Sort } from "@/client"
+import type { Sort } from "@/client"
 import { AppCopyButton, AppIconButton, AppSelect } from "@/shared/ui"
 
 import FilterEditor from "./FilterEditor.vue"
 import ColumnManager from "./ColumnManager.vue"
 import SortEditor from "./SortEditor.vue"
 import type { ColumnLayoutState } from "./columnLayout"
+import type { TabularColumn } from "./tabular"
 import { PAGE_SIZES } from "./types"
 import type { Filter, PageSize } from "./types"
 
 const props = defineProps<{
   pageSize: PageSize
-  columns: FetchColumn[]
+  columns: TabularColumn[]
   filters: Filter[]
   sort: Sort[]
   layout: ColumnLayoutState
   canCopy?: boolean
-  canPaste?: boolean
-  pasteSupported?: boolean
-  canInsert?: boolean
-  canImport?: boolean
-  insertSupported?: boolean
-  canDelete?: boolean
-  deleteSupported?: boolean
-  deleteCount?: number
-  canDownload?: boolean
-  downloading?: boolean
-  canShare?: boolean
-  canDescribe?: boolean
-  contentTitle?: string
-  canChart?: boolean
-  canCreateTable?: boolean
 }>()
 const emit = defineEmits<{
   "update:pageSize": [value: PageSize]
@@ -40,16 +26,6 @@ const emit = defineEmits<{
   "update:sort": [value: Sort[]]
   "update:layout": [value: ColumnLayoutState]
   copy: []
-  paste: []
-  insert: []
-  bringIn: []
-  delete: []
-  download: []
-  share: []
-  describe: []
-  content: []
-  chart: []
-  createTable: []
 }>()
 const pageSizeOptions = PAGE_SIZES.map((size) => ({ label: String(size), value: size }))
 const filtersOpen = ref(false)
@@ -110,89 +86,7 @@ function selectPageSize(value: unknown) {
           data-testid="grid-copy"
           @click="emit('copy')"
         />
-        <AppIconButton
-          v-if="canImport"
-          icon="input"
-          tooltip="Bring rows in"
-          data-testid="grid-import"
-          @click="emit('bringIn')"
-        />
-        <AppIconButton
-          v-if="pasteSupported"
-          icon="content_paste"
-          tooltip="Paste into the selection"
-          :disable="!canPaste"
-          data-testid="grid-paste"
-          @click="emit('paste')"
-        />
-        <AppIconButton
-          v-if="canDownload"
-          icon="download"
-          tooltip="Download"
-          :disable="!canDownload || downloading"
-          :loading="downloading"
-          data-testid="grid-download"
-          @click="emit('download')"
-        />
-        <AppIconButton
-          v-if="canShare"
-          icon="share"
-          tooltip="Share this view"
-          data-testid="grid-share"
-          @click="emit('share')"
-        />
-        <AppIconButton
-          v-if="canChart"
-          icon="insert_chart"
-          tooltip="Charts"
-          data-testid="grid-charts"
-          @click="emit('chart')"
-        />
-        <AppIconButton
-          v-if="canCreateTable"
-          icon="post_add"
-          tooltip="Create table from these rows"
-          data-testid="grid-create-table"
-          @click="emit('createTable')"
-        />
-        <AppIconButton
-          v-if="contentTitle"
-          icon="code"
-          :tooltip="contentTitle"
-          data-testid="grid-content"
-          @click="emit('content')"
-        />
-        <AppIconButton
-          v-if="canDescribe"
-          icon="account_tree"
-          tooltip="Structure"
-          data-testid="grid-structure"
-          @click="emit('describe')"
-        />
-        <span
-          v-if="insertSupported"
-          data-testid="grid-insert-command"
-        >
-          <AppIconButton
-            icon="add"
-            tooltip="Insert row"
-            :disable="!canInsert"
-            data-testid="grid-insert"
-            @click="emit('insert')"
-          />
-        </span>
-        <span
-          v-if="deleteSupported"
-          data-testid="grid-delete-command"
-        >
-          <AppIconButton
-            icon="remove"
-            :tooltip="deleteCount ? `Delete ${deleteCount} selected rows` : 'Delete selected rows'"
-            :disable="!canDelete"
-            data-testid="grid-delete"
-            @click="emit('delete')"
-          />
-        </span>
+        <slot name="commands" />
       </div>
 
       <AppSelect

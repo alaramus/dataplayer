@@ -1,6 +1,7 @@
-import type { FetchColumn } from "@/client"
-
 import type { StoredGridState } from "./types"
+
+/** A layout orders, hides, sizes and pins columns by identity, never by label. */
+type ColumnIdentity = { id: string }
 
 export type ColumnLayoutState = Pick<
   StoredGridState,
@@ -22,9 +23,9 @@ export function autoFitWidth(
   return Math.min(limits.max, Math.max(limits.min, measured))
 }
 
-export function defaultColumnLayout(columns: readonly FetchColumn[]): ColumnLayoutState {
+export function defaultColumnLayout(columns: readonly ColumnIdentity[]): ColumnLayoutState {
   return {
-    columnOrder: columns.map((column) => column.name),
+    columnOrder: columns.map((column) => column.id),
     columnVisibility: {},
     columnSizing: {},
     pinnedLeft: [],

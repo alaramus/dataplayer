@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
-import type { FetchColumn } from "@/client"
 import { AppButton, AppIconButton, AppInput, AppSelect } from "@/shared/ui"
 
 import {
@@ -12,9 +11,10 @@ import {
   validateDraft,
 } from "./filterModel"
 import type { FilterDraft, FilterOp } from "./filterModel"
+import type { TabularColumn } from "./tabular"
 import type { Filter } from "./types"
 
-const props = defineProps<{ columns: FetchColumn[]; filters: Filter[] }>()
+const props = defineProps<{ columns: TabularColumn[]; filters: Filter[] }>()
 const emit = defineEmits<{ apply: [filters: Filter[]]; close: [] }>()
 
 const filterableColumns = computed(() =>
@@ -28,10 +28,10 @@ const error = ref("")
 const pendingItem = ref("")
 
 const selectedColumn = computed(() =>
-  filterableColumns.value.find((column) => column.name === draft.value.column) ?? firstColumn
+  filterableColumns.value.find((column) => column.id === draft.value.column) ?? firstColumn
 )
 const columnOptions = computed(() =>
-  filterableColumns.value.map((column) => ({ label: column.name, value: column.name }))
+  filterableColumns.value.map((column) => ({ label: column.label, value: column.id }))
 )
 const operatorSelectOptions = computed(() =>
   operatorOptions(selectedColumn.value).map((op) => ({ label: OPERATOR_LABELS[op], value: op }))
@@ -51,7 +51,7 @@ const isNullary = computed(
 
 function selectColumn(value: unknown) {
   if (typeof value !== "string") return
-  const column = filterableColumns.value.find((candidate) => candidate.name === value)
+  const column = filterableColumns.value.find((candidate) => candidate.id === value)
   if (column === undefined) return
   draft.value = draftFor(column)
   error.value = ""
