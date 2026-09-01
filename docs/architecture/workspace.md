@@ -30,11 +30,17 @@ divides a column by being dropped in its body. It can only be taken to a column
 that takes its kind.
 
 A connection is edited in a floating window, and several are open at once.
-The same application-level host now owns every transient form and question:
-catalog actions, row and column editing, full cell values and confirmations.
-Only the source-type catalog that begins **New connection** remains modal,
-because it is a choice before work starts rather than work that must stay
-beside the workspace.
+The same application-level host owns every transient form and question:
+catalog actions, row and column editing, full cell values, the download form,
+sharing, the accounts form, the source-type catalog that begins **New
+connection**, and confirmations. Nothing in the application is modal any more,
+and the modal dialog has been removed from the component kit rather than left
+in it — a rule nobody can reach for is one that holds itself up.
+
+The cost is stated rather than discovered: a window is closed by the cross in
+its bar, and no window in this application closes on Escape. One gesture for
+the connection window and for a form is worth more than matching what a modal
+used to do.
 
 ```
 frontend/src/shared/

@@ -7,7 +7,8 @@ import AdapterTile from "@/features/connectors/AdapterTile.vue"
 import { ALL_CATEGORIES, categoryCounts, searchAdapters } from "@/features/connectors/adapterSearch"
 import { categoryIcon } from "@/features/connectors/adapters"
 import { useAdapterTypes } from "@/features/connectors/api"
-import { AppButton, AppDialog, AppEmptyState, AppInput, AppSpinner } from "@/shared/ui"
+import { AppButton, AppEmptyState, AppInput, AppSpinner } from "@/shared/ui"
+import { WindowDialog } from "@/shared/windows"
 
 /**
  * The first of the two steps of adding a connection: which kind of source.
@@ -76,7 +77,7 @@ function pick(type: AdapterTypeInfo) {
 </script>
 
 <template>
-  <AppDialog
+  <WindowDialog
     :model-value="modelValue"
     size="lg"
     title="New connection"
@@ -163,7 +164,7 @@ function pick(type: AdapterTypeInfo) {
         @click="emit('update:modelValue', false)"
       />
     </template>
-  </AppDialog>
+  </WindowDialog>
 </template>
 
 <style scoped>

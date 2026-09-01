@@ -7,7 +7,6 @@ import {
   AppBanner,
   AppButton,
   AppCard,
-  AppDialog,
   AppEmptyState,
   AppFileInput,
   AppIconButton,
@@ -29,7 +28,7 @@ import {
   useConfirm,
   useToast,
 } from "@/shared/ui"
-import type { ButtonVariant, MenuItem, PanelSize, Tone } from "@/shared/ui"
+import type { ButtonVariant, MenuItem, Tone } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
 const BUTTON_VARIANTS: ButtonVariant[] = [
@@ -47,7 +46,10 @@ const MENU_ITEMS: MenuItem[] = [
 ]
 
 const TONES: Tone[] = ["error", "success", "warning", "info"]
-const SIZES: PanelSize[] = ["xs", "sm", "md", "lg"]
+// The window sizes a dialog opens at. A window is measured to its
+// content afterwards, so these are a starting width and height.
+const SIZES = ["sm", "md", "lg"] as const
+type DialogSize = (typeof SIZES)[number]
 
 const COLUMNS: TableColumns = [
   { name: "name", label: "Name", field: "name", align: "left", sortable: true },
@@ -61,7 +63,7 @@ const ROWS = [
 const confirm = useConfirm()
 const toast = useToast()
 
-const dialogSize = ref<PanelSize>("md")
+const dialogSize = ref<DialogSize>("md")
 const dialogOpen = ref(false)
 const text = ref("localhost")
 const secret = ref("")
@@ -80,7 +82,7 @@ const treeNodes = [
 const treeExpanded = ref<string[]>(["public"])
 const treeSelected = ref<string | null>(null)
 
-function openDialog(size: PanelSize) {
+function openDialog(size: DialogSize) {
   dialogSize.value = size
   dialogOpen.value = true
 }
@@ -385,7 +387,7 @@ function flash() {
       </AppSection>
     </AppCard>
 
-    <AppDialog
+    <WindowDialog
       v-model="dialogOpen"
       :size="dialogSize"
       title="A dialog"
@@ -418,6 +420,6 @@ function flash() {
           @click="dialogOpen = false"
         />
       </template>
-    </AppDialog>
+    </WindowDialog>
   </AppLayout>
 </template>

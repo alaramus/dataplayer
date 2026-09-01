@@ -48,3 +48,15 @@ export async function deleteConnector(page: Page, name: string) {
   await page.locator('[data-testid="delete-connector"][tabindex="0"]').click()
   await page.getByTestId("confirm-accept").click()
 }
+
+/**
+ * Close a form that opens as a floating window, the way a user does.
+ *
+ * Every transient form in the application is a window now, and a window is
+ * closed by the cross in its bar rather than by Escape — the same as the
+ * connection window beside it. The frame builds its id from the dialog's own
+ * test id, so the prefix is what a test can hold on to.
+ */
+export async function closeWindowDialog(page: Page, testId: string) {
+  await page.locator(`[data-testid^="window-close-dialog:${testId}"]`).click()
+}

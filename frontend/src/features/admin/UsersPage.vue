@@ -19,7 +19,6 @@ import {
   AppBadge,
   AppButton,
   AppCheckbox,
-  AppDialog,
   AppEmptyState,
   AppIconButton,
   AppInput,
@@ -29,6 +28,7 @@ import {
   useConfirm,
   useToast,
 } from "@/shared/ui"
+import { WindowDialog } from "@/shared/windows"
 import type { TableColumns } from "@/shared/ui"
 
 /**
@@ -201,7 +201,7 @@ async function remove(user: UserPublic) {
       </template>
     </AppTable>
 
-    <AppDialog
+    <WindowDialog
       v-model="dialogOpen"
       :title="isNew ? 'New user' : 'Edit user'"
       :subtitle="isNew ? undefined : editing?.email"
@@ -252,7 +252,7 @@ async function remove(user: UserPublic) {
           @click="save"
         />
       </template>
-    </AppDialog>
+    </WindowDialog>
   </AppLayout>
 </template>
 

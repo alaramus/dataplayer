@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from "vue"
 
-import { AppButton, AppDialog, AppSection, AppTooltip } from "@/shared/ui"
+import { AppButton, AppSection, AppTooltip } from "@/shared/ui"
+import { WindowDialog } from "@/shared/windows"
 
 import type { DownloadScope } from "./download"
 
@@ -30,7 +31,7 @@ watch(
 </script>
 
 <template>
-  <AppDialog
+  <WindowDialog
     :model-value="modelValue"
     title="Download CSV"
     subtitle="The visible columns stay in their current order"
@@ -82,7 +83,7 @@ watch(
         @click="emit('run', scope)"
       />
     </template>
-  </AppDialog>
+  </WindowDialog>
 </template>
 
 <style scoped>

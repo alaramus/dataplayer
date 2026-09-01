@@ -7,6 +7,7 @@ import { login } from "./utils/login"
 import { openNode, pickSchema, pinColumn } from "./utils/catalog"
 import {
   catalogTab,
+  closeWindowDialog,
   deleteConnector,
   editConnector,
   connectorRow,
@@ -208,7 +209,7 @@ test("the scene says what to do at each stage", async ({ page }) => {
   // A real button, here, rather than a line pointing at the plus on the left.
   await page.getByTestId("scene-add-connector").click()
   await expect(page.getByTestId("adapter-catalog")).toBeVisible()
-  await page.keyboard.press("Escape")
+  await closeWindowDialog(page, "adapter-catalog")
 
   await page.unrouteAll({ behavior: "ignoreErrors" })
   await page.reload()
@@ -575,7 +576,7 @@ test("a pushed-aside column of sources still opens one of them", async ({ page }
   // and the panel stand under v-if/v-else and never exist together.
   await page.getByTestId("add-connector").click()
   await expect(page.getByTestId("adapter-catalog")).toBeVisible()
-  await page.keyboard.press("Escape")
+  await closeWindowDialog(page, "adapter-catalog")
   await expect(page.getByTestId("adapter-catalog")).toHaveCount(0)
 
   await page.getByTestId("workspace-collapse-sources").click()

@@ -1,12 +1,14 @@
 import { flushPromises, mount } from "@vue/test-utils"
 import { Dialog, Quasar } from "quasar"
-import { afterEach, describe, expect, it } from "vitest"
+import { describe, expect, it } from "vitest"
+
+import { withWindowHost } from "@/shared/testing/windows"
 
 import DownloadDialog from "./DownloadDialog.vue"
 
 function mountDialog(allSupported: boolean) {
-  return mount(DownloadDialog, {
-    props: {
+  return mount(
+    withWindowHost(DownloadDialog, {
       modelValue: true,
       pageRange: "Rows 101–200",
       columnCount: 3,
@@ -14,14 +16,10 @@ function mountDialog(allSupported: boolean) {
       allSupported,
       allReason: "Only this page can be downloaded",
       running: false,
-    },
-    global: { plugins: [[Quasar, { plugins: { Dialog } }]] },
-  })
+    }),
+    { global: { plugins: [[Quasar, { plugins: { Dialog } }]] } }
+  )
 }
-
-afterEach(() => {
-  document.body.querySelectorAll(".q-dialog").forEach((dialog) => dialog.remove())
-})
 
 describe("download scopes", () => {
   it("chooses every matching row explicitly", async () => {
@@ -31,7 +29,7 @@ describe("download scopes", () => {
     document.body.querySelector<HTMLElement>('[data-testid="download-scope-all"]')?.click()
     document.body.querySelector<HTMLElement>('[data-testid="grid-download-run"]')?.click()
 
-    expect(wrapper.emitted("run")?.[0]).toEqual(["all"])
+    expect(wrapper.findComponent(DownloadDialog).emitted("run")?.[0]).toEqual(["all"])
     wrapper.unmount()
   })
 

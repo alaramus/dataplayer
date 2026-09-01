@@ -91,9 +91,10 @@ frontend/src/
     │                    and source-owned type choices drive column DDL
     ├── connectors/      the list of sources, the catalog of source types that
     │                    starts a new one, and the window that registers one;
-    │                    adapterSearch.ts is a pure mapper, access.ts is the
-    │                    scale of what a caller may do, and ShareDialog.vue is
-    │                    where a level is handed to a colleague
+    │                    adapterSearch.ts is a pure mapper and access.ts is the
+    │                    scale of what a caller may do
+    ├── shares/          a link to a view, who may follow it and who is waiting
+    │                    to — see sharing.md
     ├── workspace/       the panels and their roles — see workspace.md
     └── dev/             /ui-kit and /workspace-demo, dev builds only
 ```
