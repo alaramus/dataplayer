@@ -1438,6 +1438,113 @@ export type ExclusionConstraint = {
 }
 
 /**
+ * ExplainNode
+ *
+ * One operation of a plan, and what the source estimates about it.
+ *
+ * Estimates, and nothing measured: this is a plan, not a run. What a
+ * statement would actually do is Explain Analyze, which executes and is
+ * therefore a separate decision (D65).
+ */
+export type ExplainNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Kind
+   */
+  kind: string
+  /**
+   * Label
+   */
+  label: string
+  /**
+   * Relation
+   */
+  relation?: string | null
+  /**
+   * Startup Cost
+   */
+  startup_cost?: number | null
+  /**
+   * Total Cost
+   */
+  total_cost?: number | null
+  /**
+   * Rows
+   */
+  rows?: number | null
+  /**
+   * Width
+   */
+  width?: number | null
+  /**
+   * Details
+   */
+  details?: {
+    [key: string]: string
+  }
+  /**
+   * Children
+   */
+  children?: Array<ExplainNode>
+}
+
+/**
+ * ExplainResult
+ *
+ * A plan, in the two forms the source gives and a third the screen makes.
+ *
+ * The tree is the source's own structure and the raw text is what it prints;
+ * the table is the tree read as a list, which the screen flattens rather than
+ * the server inventing a second shape (D65).
+ */
+export type ExplainResult = {
+  plan: ExplainNode
+  /**
+   * Raw
+   */
+  raw: string
+  /**
+   * Total Cost
+   */
+  total_cost?: number | null
+  /**
+   * Rows
+   */
+  rows?: number | null
+  /**
+   * Truncated
+   */
+  truncated?: boolean
+}
+
+/**
+ * ExplainStart
+ *
+ * What a console sends to have one statement planned.
+ */
+export type ExplainStart = {
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Document Id
+   */
+  document_id?: string | null
+  /**
+   * Parameters
+   */
+  parameters?: Array<RunParameter>
+  /**
+   * Timeout Seconds
+   */
+  timeout_seconds?: number | null
+}
+
+/**
  * ExportDownloadRequest
  *
  * A whole-row export plus the human title of the open table.
@@ -8048,6 +8155,37 @@ export type queriesReadMetadataResponses = {
 
 export type queriesReadMetadataResponse =
   queriesReadMetadataResponses[keyof queriesReadMetadataResponses]
+
+export type queriesExplainQueryData = {
+  body: ExplainStart
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/connectors/{connector_id}/explain"
+}
+
+export type queriesExplainQueryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesExplainQueryError = queriesExplainQueryErrors[keyof queriesExplainQueryErrors]
+
+export type queriesExplainQueryResponses = {
+  /**
+   * Successful Response
+   */
+  200: ExplainResult
+}
+
+export type queriesExplainQueryResponse =
+  queriesExplainQueryResponses[keyof queriesExplainQueryResponses]
 
 export type queriesFormatQueryData = {
   body: FormatRequest

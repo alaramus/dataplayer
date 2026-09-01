@@ -35,6 +35,7 @@ from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.columns import PostgresColumns
 from app.adapters.postgres.constraints import PostgresConstraints
 from app.adapters.postgres.content import PostgresContent
+from app.adapters.postgres.explain import PostgresExplain
 from app.adapters.postgres.export import PostgresExport
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.indexes import PostgresIndexes
@@ -53,6 +54,8 @@ from app.adapters.postgres.statements import format_text
 from app.adapters.postgres.update import PostgresUpdate
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.query import (
+    ExplainRequest,
+    ExplainResult,
     GeneratedQuery,
     GenerateQueryRequest,
     PreparedScript,
@@ -129,6 +132,7 @@ class PostgresAdapter:
         self._content = PostgresContent(self._session)
         self._query = PostgresQuery(self._session)
         self._metadata = PostgresMetadata(self._session)
+        self._explain = PostgresExplain(self._session)
         self._generation = PostgresGeneration(self._session, self._metadata)
 
     def query_profile(self) -> QueryProfile:
@@ -140,6 +144,10 @@ class PostgresAdapter:
 
     def open_query(self, request: QueryRequest) -> PostgresExecution:
         return self._query.open(request)
+
+    async def explain_query(self, request: ExplainRequest) -> ExplainResult:
+        """Plan the statement, without running it (D65)."""
+        return await self._explain.explain(request)
 
     async def query_metadata(self, request: QueryMetadataRequest) -> QueryMetadata:
         """What an editor may complete to, progressively (D65)."""

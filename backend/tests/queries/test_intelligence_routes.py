@@ -213,8 +213,7 @@ async def test_the_profile_says_what_the_source_can_actually_do(
     assert answered["supports_metadata"] is True
     assert answered["supports_formatting"] is True
     assert answered["supports_generated_query"] is True
-    # Explain is a capability of its own and is not written yet.
-    assert answered["supports_explain"] is False
+    assert answered["supports_explain"] is True
 
 
 async def test_formatting_lays_a_statement_out_again(

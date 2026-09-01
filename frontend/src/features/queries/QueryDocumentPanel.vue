@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, toRef, useTemplateRef, watch } from "vue"
 
-import type { PreparedScript, StatementPublic } from "@/client"
+import type { ExplainResult, PreparedScript, StatementPublic } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import {
   useCreateQueryDocument,
@@ -31,6 +31,7 @@ import {
   writeShadow,
 } from "@/features/queries/draft"
 import type { DraftState, SaveState } from "@/features/queries/draft"
+import ExplainView from "@/features/queries/ExplainView.vue"
 import ParameterForm from "@/features/queries/ParameterForm.vue"
 import RunOutcome from "@/features/queries/RunOutcome.vue"
 import {
@@ -42,6 +43,7 @@ import {
 } from "@/features/queries/intelligence"
 import {
   useCancelRun,
+  useExplainQuery,
   useFormatQuery,
   usePrepareQuery,
   useQueryMetadata,
@@ -83,6 +85,7 @@ const prepare = usePrepareQuery()
 const startRun = useStartRun()
 const cancelRun = useCancelRun()
 const formatting = useFormatQuery()
+const explaining = useExplainQuery()
 
 /** How long typing has to stop before a save is worth spending a revision on. */
 const AUTOSAVE_PAUSE = 800
@@ -103,6 +106,7 @@ const keptRunId = ref<string | null>(null)
 const pinned = ref(false)
 const startedAt = ref(0)
 const now = ref(0)
+const plan = ref<ExplainResult | null>(null)
 const narrow = ref(false)
 const showing = ref<"editor" | "results">("editor")
 const frame = useTemplateRef<HTMLElement>("frame")
@@ -355,6 +359,7 @@ async function go(target: RunTarget | null) {
       scope: target.scope,
       parameters: bindingsOf(parameters.value),
     })
+    plan.value = null
     runId.value = started.id
     startedAt.value = Date.now()
     now.value = Date.now()
@@ -378,6 +383,35 @@ async function rememberValues() {
   } catch {
     // Remembering is a convenience; failing at it is not worth interrupting a
     // run that has already started.
+  }
+}
+
+/**
+ * Plan what would be run, without running it.
+ *
+ * The same statement Run would take — the selection, or the one under the
+ * caret — because a plan of something else would answer a question nobody
+ * asked (D65).
+ */
+async function explain() {
+  const current = await currentScript()
+  const loaded = server.value
+  const connector = connectorId.value
+  if (current === null || loaded === undefined || connector === null) return
+  const target = targetFor(current, draft.value.body, selection.value)
+  if (target === null) return
+  try {
+    plan.value = await explaining.mutateAsync({
+      connectorId: connector,
+      body: {
+        text: target.text,
+        document_id: loaded.id,
+        parameters: bindingsOf(parameters.value),
+      },
+    })
+    if (narrow.value) showing.value = "results"
+  } catch (cause) {
+    toast.error(messageOf(cause, "This statement could not be planned"))
   }
 }
 
@@ -598,6 +632,15 @@ onBeforeUnmount(() => {
           @click="runHere"
         />
         <AppButton
+          v-if="profile.data.value?.supports_explain === true"
+          variant="secondary"
+          size="sm"
+          label="Explain"
+          :disable="!canRun || explaining.isPending.value"
+          data-testid="query-explain"
+          @click="explain"
+        />
+        <AppButton
           variant="secondary"
           size="sm"
           label="Run script"
@@ -777,8 +820,13 @@ onBeforeUnmount(() => {
         class="query-panel__results"
         :style="narrow ? undefined : { flex: `${1 - draft.split} 1 0` }"
       >
+        <ExplainView
+          v-if="plan !== null"
+          :plan="plan"
+          @close="plan = null"
+        />
         <RunOutcome
-          v-if="shown !== undefined"
+          v-else-if="shown !== undefined"
           :run="shown"
           :stale="showingPrevious"
           @promote="promote"

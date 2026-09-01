@@ -19,6 +19,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters.cache import CacheKey, DataCacheDep, cached_read
 from app.adapters.query import (
+    ExplainRequest,
+    ExplainResult,
     GeneratedQuery,
     GenerateQueryRequest,
     MaterialisedResult,
@@ -28,6 +30,7 @@ from app.adapters.query import (
     QueryMetadataRequest,
     QueryProfile,
     QueryRequest,
+    SupportsExplain,
     SupportsGeneratedQuery,
     SupportsQuery,
     SupportsQueryFormatting,
@@ -68,6 +71,7 @@ from app.queries.results import QueryResults, ResultsDep
 from app.queries.runs import (
     TERMINAL,
     ExecutionRun,
+    ExplainStart,
     FormatRequest,
     FormattedQuery,
     PrepareRequest,
@@ -414,6 +418,7 @@ async def read_profile(
     source = await _source_or_501(session, connector_id, current_user, resources)
     return source.query_profile().model_copy(
         update={
+            "supports_explain": isinstance(source, SupportsExplain),
             "supports_metadata": isinstance(source, SupportsQueryMetadata),
             "supports_formatting": isinstance(source, SupportsQueryFormatting),
             "supports_generated_query": isinstance(source, SupportsGeneratedQuery),
@@ -814,6 +819,56 @@ async def read_metadata(
         response=response,
         load=lambda: source.query_metadata(body),
     )
+
+
+@router.post("/connectors/{connector_id}/explain", response_model=ExplainResult)
+async def explain_query(
+    session: SessionDep,
+    resources: ResourcesDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    body: ExplainStart,
+) -> ExplainResult:
+    """Plan one statement, without running it.
+
+    A capability of its own, and a request of its own rather than a run: there
+    is nothing to cancel, nothing is materialised and nothing happens to the
+    data. Explain Analyze would execute, so it is not here (D65).
+    """
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsExplain):
+        raise HTTPException(
+            status_code=501,
+            detail={"message": "This source does not plan queries", "capability": "explain"},
+        )
+    document = (
+        None
+        if body.document_id is None
+        else await _owned_or_404(session, body.document_id, current_user)
+    )
+    profile = adapter.query_profile() if isinstance(adapter, SupportsQuery) else None
+    timeout = min(
+        body.timeout_seconds or (profile.default_timeout_seconds if profile else 30),
+        profile.max_timeout_seconds if profile else 300,
+    )
+    try:
+        return await adapter.explain_query(
+            ExplainRequest(
+                text=body.text,
+                search_path=list(document.search_path) if document is not None else [],
+                parameters=[
+                    ParameterValue(name=parameter.name, value=parameter.value)
+                    for parameter in body.parameters
+                ],
+                timeout_seconds=timeout,
+            )
+        )
+    except ValueError as refusal:
+        # The source read the statement and will not plan it: not a failure of
+        # this application, and not a 500.
+        raise HTTPException(status_code=422, detail=str(refusal)) from None
 
 
 @router.post("/connectors/{connector_id}/format", response_model=FormattedQuery)

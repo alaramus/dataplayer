@@ -240,6 +240,17 @@ class RunPublic(BaseModel):
     statements: list[StatementPublic] = PydanticField(default_factory=list)
 
 
+class ExplainStart(BaseModel):
+    """What a console sends to have one statement planned."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = PydanticField(max_length=MAX_TEXT_BYTES)
+    document_id: uuid.UUID | None = None
+    parameters: list[RunParameter] = PydanticField(default_factory=list)
+    timeout_seconds: int | None = PydanticField(default=None, ge=1)
+
+
 class FormatRequest(BaseModel):
     """Text to lay out again, in the source's own dialect."""
 

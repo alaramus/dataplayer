@@ -138,6 +138,45 @@ _HINTS: dict[str, str] = {
 }
 
 
+async def set_read_context(
+connection: psycopg.AsyncConnection[Any],
+*,
+search_path: list[str],
+statement_timeout_seconds: int,
+) -> None:
+    """Set the timeout and the schema context this run is to see.
+
+    Every schema name is checked against the server before it reaches a
+    statement, and then composed as an identifier rather than pasted in: a
+    context is client-influenced text, and D2c does not stop applying
+    because the statement beside it was written by a user.
+    """
+    await connection.execute(
+        sql.SQL("SET LOCAL statement_timeout = {}").format(
+            sql.Literal(statement_timeout_seconds * 1000)
+        )
+    )
+    wanted = [name for name in search_path if name]
+    if not wanted:
+        return
+    async with connection.cursor() as cursor:
+        await cursor.execute(
+            "SELECT nspname FROM pg_namespace WHERE nspname = ANY(%s)", (wanted,)
+        )
+        known = {str(row[0]) for row in await cursor.fetchall()}
+    missing = [name for name in wanted if name not in known]
+    if missing:
+        raise AdapterError(
+            "config",
+            f"This connection has no schema called {missing[0]}",
+        )
+    await connection.execute(
+        sql.SQL("SET LOCAL search_path TO {}").format(
+            sql.SQL(", ").join(sql.Identifier(name) for name in wanted)
+        )
+    )
+
+
 class ResultTooLarge(Exception):
     """A statement succeeded and its result cannot be published (D64)."""
 
@@ -199,7 +238,13 @@ class PostgresExecution:
                 await connection.set_read_only(True)
                 try:
                     async with connection.transaction():
-                        await self._set_context(connection)
+                        await set_read_context(
+                            connection,
+                            search_path=self._request.search_path,
+                            statement_timeout_seconds=(
+                                limits.statement_timeout_seconds
+                            ),
+                        )
                         async for event in self._statements(
                             connection, script, started, limits
                         ):
@@ -403,40 +448,6 @@ class PostgresExecution:
             )
             rows = await cursor.fetchall()
         return {int(row["oid"]): build_column_type(row) for row in rows}
-
-    async def _set_context(self, connection: psycopg.AsyncConnection[Any]) -> None:
-        """Set the timeout and the schema context this run is to see.
-
-        Every schema name is checked against the server before it reaches a
-        statement, and then composed as an identifier rather than pasted in: a
-        context is client-influenced text, and D2c does not stop applying
-        because the statement beside it was written by a user.
-        """
-        limits = self._request.limits
-        await connection.execute(
-            sql.SQL("SET LOCAL statement_timeout = {}").format(
-                sql.Literal(limits.statement_timeout_seconds * 1000)
-            )
-        )
-        wanted = [name for name in self._request.search_path if name]
-        if not wanted:
-            return
-        async with connection.cursor() as cursor:
-            await cursor.execute(
-                "SELECT nspname FROM pg_namespace WHERE nspname = ANY(%s)", (wanted,)
-            )
-            known = {str(row[0]) for row in await cursor.fetchall()}
-        missing = [name for name in wanted if name not in known]
-        if missing:
-            raise AdapterError(
-                "config",
-                f"This connection has no schema called {missing[0]}",
-            )
-        await connection.execute(
-            sql.SQL("SET LOCAL search_path TO {}").format(
-                sql.SQL(", ").join(sql.Identifier(name) for name in wanted)
-            )
-        )
 
     def _note(self, diagnostic: psycopg.errors.Diagnostic) -> None:
         if len(self._notices) >= self._request.limits.max_messages:

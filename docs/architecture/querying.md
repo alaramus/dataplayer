@@ -31,8 +31,14 @@ really knows something, the source lays its own dialect out again, and a
 bounded SELECT about a node is written by the source rather than assembled in
 a browser. With that, PostgreSQL's query capability is offered to users.
 
-What is still missing from phase 3A is Explain, which is a capability of its
-own (D65) and a slice of its own.
+Explain is there too, as a capability of its own: a source that will plan a
+statement without running it answers with the tree it built, the plan it
+prints and the estimate for the whole statement, and the console shows those
+as three views of one selection. `EXPLAIN ANALYZE` is not offered, because it
+executes: it waits until its effects have the policy the statement itself has.
+
+With that, phase 3A is complete. What remains of phase 3 is 3B, writing, and
+3C, the bounded DDL vocabulary.
 
 Known deviations:
 

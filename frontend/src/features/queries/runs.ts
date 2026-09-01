@@ -7,6 +7,7 @@ import type {
   DeleteEverything,
   DeleteOlderThan,
   DeleteSelected,
+  ExplainStart,
   GenerateQueryRequest,
   PrepareRequest,
   QueryMetadataRequest,
@@ -165,6 +166,24 @@ export function useQueryMetadata(
     enabled: computed(() => id.value !== null),
     retry: false,
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+/**
+ * Plan one statement without running it (D65).
+ *
+ * A request of its own rather than a run: there is nothing to cancel and
+ * nothing is captured, so there is no lifecycle to watch.
+ */
+export function useExplainQuery() {
+  return useMutation({
+    mutationFn: async (request: { connectorId: string; body: ExplainStart }) =>
+      (
+        await QueriesService.explainQuery({
+          path: { connector_id: request.connectorId },
+          body: request.body,
+        })
+      ).data,
   })
 }
 

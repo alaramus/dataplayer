@@ -88,9 +88,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] **3A.6 — Explain.** Add a separately declared, non-executing Explain
-  capability with synchronised tree, table and raw-plan views. Explain Analyze
-  stays out until its execution effects have the same policy as the statement.
 - [ ] **3B — DML transactions.** Add owner-controlled connector execution policy,
   read-only/auto-commit/manual modes, a leased-session lifecycle, strengthened
   confirmations, commit summaries, affected rows and `RETURNING`. Query results

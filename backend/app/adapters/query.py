@@ -353,6 +353,68 @@ class GeneratedQuery(BaseModel):
     text: str
 
 
+class ExplainNode(BaseModel):
+    """One operation of a plan, and what the source estimates about it.
+
+    Estimates, and nothing measured: this is a plan, not a run. What a
+    statement would actually do is Explain Analyze, which executes and is
+    therefore a separate decision (D65).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Its place in the tree — "0", "0.1" — so a table row and a tree node are
+    # the same node in two views.
+    id: str
+    kind: str
+    label: str
+    relation: str | None = None
+    startup_cost: float | None = None
+    total_cost: float | None = None
+    rows: int | None = None
+    width: int | None = None
+    # Whatever else the source said about this operation, as text.
+    details: dict[str, str] = Field(default_factory=dict)
+    children: list[ExplainNode] = Field(default_factory=list)
+
+
+class ExplainRequest(BaseModel):
+    """One statement to be planned, and the context to plan it in."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str
+    search_path: list[str] = Field(default_factory=list)
+    parameters: list[ParameterValue] = Field(default_factory=list)
+    timeout_seconds: int = Field(default=30, ge=1)
+
+
+class ExplainResult(BaseModel):
+    """A plan, in the two forms the source gives and a third the screen makes.
+
+    The tree is the source's own structure and the raw text is what it prints;
+    the table is the tree read as a list, which the screen flattens rather than
+    the server inventing a second shape (D65).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    plan: ExplainNode
+    raw: str
+    # The source's own estimate for the whole statement, kept at the top so a
+    # screen does not have to know which field of which node means it.
+    total_cost: float | None = None
+    rows: int | None = None
+    truncated: bool = False
+
+
+@runtime_checkable
+class SupportsExplain(Protocol):
+    """A source that will plan a statement without running it (D65)."""
+
+    async def explain_query(self, request: ExplainRequest) -> ExplainResult: ...
+
+
 @runtime_checkable
 class SupportsQueryMetadata(Protocol):
     """A source that can say what an editor may complete to."""

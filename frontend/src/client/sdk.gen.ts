@@ -181,6 +181,9 @@ import type {
   queriesDownloadResultData,
   queriesDownloadResultErrors,
   queriesDownloadResultResponses,
+  queriesExplainQueryData,
+  queriesExplainQueryErrors,
+  queriesExplainQueryResponses,
   queriesFormatQueryData,
   queriesFormatQueryErrors,
   queriesFormatQueryResponses,
@@ -2606,6 +2609,34 @@ export class QueriesService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/queries/connectors/{connector_id}/metadata",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Explain Query
+   *
+   * Plan one statement, without running it.
+   *
+   * A capability of its own, and a request of its own rather than a run: there
+   * is nothing to cancel, nothing is materialised and nothing happens to the
+   * data. Explain Analyze would execute, so it is not here (D65).
+   */
+  public static explainQuery<ThrowOnError extends boolean = true>(
+    options: Options<queriesExplainQueryData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesExplainQueryResponses,
+      queriesExplainQueryErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/connectors/{connector_id}/explain",
       ...options,
       headers: {
         "Content-Type": "application/json",

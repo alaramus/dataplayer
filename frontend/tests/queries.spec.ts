@@ -292,3 +292,39 @@ test("the source writes the first query, completes the next and formats both", a
 
   await deleteConnector(page, name)
 })
+
+
+test("plans a statement without running it, in three views of one selection", async ({
+  page,
+}) => {
+  const name = `e2e-explain-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+  await typeQuery(page, "select * from demo_lab.projects order by name limit 5")
+
+  await page.getByTestId("query-explain").click()
+
+  const explain = page.getByTestId("explain-view")
+  await expect(explain).toBeVisible()
+  // A plan is estimates, and the screen says so rather than letting the
+  // numbers look like measurements.
+  await expect(explain).toContainText("nothing was run")
+  await expect(page.getByTestId("explain-node-0")).toContainText("Limit")
+  await expect(page.getByTestId("explain-node-0.0.0")).toContainText("Seq Scan")
+
+  // --- one selection, three views ------------------------------------------
+  await page.getByTestId("explain-node-0.0.0").click()
+  await expect(page.getByTestId("explain-details")).toContainText("Seq Scan")
+  await page.getByTestId("explain-table").click()
+  await expect(page.getByTestId("explain-details")).toContainText("Seq Scan")
+  await page.getByTestId("explain-raw").click()
+  await expect(page.getByTestId("explain-raw-plan")).toContainText("Seq Scan")
+
+  // --- and it never became a run -------------------------------------------
+  await page.getByTestId("explain-close").click()
+  await expect(page.getByTestId("query-nothing-run")).toBeVisible()
+
+  await deleteConnector(page, name)
+})
