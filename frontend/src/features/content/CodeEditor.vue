@@ -17,11 +17,14 @@ const props = withDefaults(
     languageHint?: string | null
     validation?: "json" | "jsonl" | null
     readonly?: boolean
+    /** Whether a line too long for the width continues on the next one. */
+    wrap?: boolean
   }>(),
   {
     languageHint: null,
     validation: null,
     readonly: false,
+    wrap: false,
   }
 )
 
@@ -34,6 +37,7 @@ const languageName = ref("Plain text")
 const languageSlot = new Compartment()
 const permissionSlot = new Compartment()
 const validationSlot = new Compartment()
+const wrapSlot = new Compartment()
 let view: EditorView | null = null
 let languageRequest = 0
 
@@ -62,6 +66,10 @@ function jsonLinesDiagnostics(editor: EditorView): Diagnostic[] {
     }
   }
   return diagnostics
+}
+
+function wrapExtension(): Extension {
+  return props.wrap ? EditorView.lineWrapping : []
 }
 
 function validationExtension(): Extension {
@@ -95,6 +103,7 @@ onMounted(() => {
         languageSlot.of([]),
         permissionSlot.of(permissionExtensions()),
         validationSlot.of(validationExtension()),
+        wrapSlot.of(wrapExtension()),
         EditorView.contentAttributes.of({
           "aria-label": `${props.filename} source`,
           spellcheck: "false",
@@ -149,6 +158,11 @@ watch(
 watch(
   () => props.validation,
   () => view?.dispatch({ effects: validationSlot.reconfigure(validationExtension()) })
+)
+
+watch(
+  () => props.wrap,
+  () => view?.dispatch({ effects: wrapSlot.reconfigure(wrapExtension()) })
 )
 
 watch([() => props.filename, () => props.languageHint], () => void loadLanguage())

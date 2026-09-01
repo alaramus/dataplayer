@@ -29,12 +29,12 @@ def split_options(
         # without a password has nothing to encrypt.
         if getattr(model, name, None) is not None
     }
-    return config, crypto.encrypt(json.dumps(secrets).encode())
+    return config, crypto.encrypt(json.dumps(secrets).encode(), purpose="connector")
 
 
 def merge_options(config: dict[str, Any], secrets_blob: bytes) -> dict[str, Any]:
     """Reassemble the full option set from configuration and secrets."""
-    secrets = json.loads(crypto.decrypt(secrets_blob))
+    secrets = json.loads(crypto.decrypt(secrets_blob, purpose="connector"))
     return {**config, **secrets}
 
 
@@ -46,7 +46,7 @@ def fill_missing_secrets(
     Needed both by PATCH and by the connection check while editing: the user
     changes the port without retyping the password.
     """
-    stored = json.loads(crypto.decrypt(secrets_blob))
+    stored = json.loads(crypto.decrypt(secrets_blob, purpose="connector"))
     filled = dict(options)
     for name in options_schema.secret_field_names(adapter_type.options_schema):
         if not filled.get(name) and name in stored:

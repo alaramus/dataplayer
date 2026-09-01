@@ -28,6 +28,7 @@ from app.core.config import settings # noqa
 from app.users.models import User  # noqa
 from app.connectors.models import Connector, ConnectorGrant  # noqa
 from app.shares.models import AccessRequest, Share, ShareOpen  # noqa
+from app.queries.models import QueryDocument  # noqa
 
 target_metadata = SQLModel.metadata
 

@@ -42,12 +42,18 @@ backend/app/
 │   ├── routes.py        /users
 │   ├── auth_routes.py   /login, /password-recovery, /reset-password
 │   └── private_routes.py
+├── queries/             query documents — see querying.md
+│   ├── models.py        QueryDocument, EditorLayout + API schemas
+│   ├── content.py       the one place the query content key is used
+│   ├── crud.py          database access only, including the Trash sweep
+│   ├── cleanup.py       the lifespan timer that empties Trash
+│   └── routes.py        the library, one document, Trash
 ├── system/              operational routes: /utils health check, test email
 ├── seed_database.py     dev tool: rebuilds the demo_lab PostgreSQL fixtures
 ├── seed_storage.py      dev tool: sample files into a personal directory
 ├── core/                depends on nothing else in the app
 │   ├── access.py        the ordered scale of what a user may do
-│   ├── crypto.py        AES-GCM for connector secrets
+│   ├── crypto.py        AES-GCM, under the key each purpose names
 │   ├── db.py            async engine, session, SessionDep, loop_factory
 │   ├── schemas.py       Message, get_datetime_utc
 │   ├── email.py         sending and templating

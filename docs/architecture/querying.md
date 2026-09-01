@@ -9,12 +9,18 @@ Decisions here: D62, D63, D64, D65, D66.
 
 ## Implementation state
 
-These decisions settle roadmap phase 3 before implementation. There is no
-`SupportsQuery`, query route, query table or query panel yet. The phase is split
-into 3A read and intelligence, 3B DML and 3C bounded DDL; PostgreSQL does not
-publish the capability until the complete 3A vertical slice is verified.
+The phase is split into 3A read and intelligence, 3B DML and 3C bounded DDL;
+PostgreSQL does not publish the capability until the complete 3A vertical slice
+is verified.
 
-The application module will sit above connectors and adapters:
+Documents exist: `app/queries` owns `QueryDocument`, the library, revisioned
+autosave, Trash and its sweep, and the frontend has a Queries navigation panel
+and a console panel. There is still no `SupportsQuery`, no execution route, no
+run or result table and no Run: this slice is deliberately a document without a
+way to run it, so the shapes and the state machine are proved before anything
+reaches a source.
+
+The application module sits above connectors and adapters:
 
 ```text
 api → queries → connectors → adapters → users → core
@@ -104,6 +110,12 @@ output record and terminal status. Editing the document while a run is active
 does not change its snapshot; a diagnostic highlights the live editor only when
 the text still matches and otherwise opens the executed snapshot for compare or
 restore.
+
+Searching the library obeys the same rule as searching history: titles are
+plaintext, bodies are not, so a search decrypts a bounded number of the user's
+newest documents in memory and builds no index. The search text is neither
+stored nor logged. A list of documents carries the first line of each, built
+per response for the same reason — most documents are drafts nobody has named.
 
 Documents, executed SQL and remembered non-secret parameter values are
 encrypted at rest with a required, independent 32-byte `QUERY_CONTENT_KEY`.

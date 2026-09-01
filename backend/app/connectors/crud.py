@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Collection
 from typing import Any
 
 from pydantic import TypeAdapter
@@ -148,6 +149,27 @@ async def visible_enabled_of(
         _visible_to(user_id), col(Connector.enabled).is_(True)
     )
     return list((await session.exec(statement)).all())
+
+
+async def visible_names(
+    session: AsyncSession, *, user: User, connector_ids: Collection[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """What these connections are called, for the ones this user may see.
+
+    One query for a page of query documents rather than a lookup per document,
+    and the omissions are the answer: a connection missing from the result is
+    one that was deleted or is no longer granted, which is exactly what a
+    document with an unavailable context has to say (D63).
+    """
+    if not connector_ids:
+        return {}
+    statement = select(Connector).where(
+        _visible_to(user.id), col(Connector.id).in_(list(connector_ids))
+    )
+    return {
+        connector.id: connector.name
+        for connector in (await session.exec(statement)).all()
+    }
 
 
 async def list_grants(

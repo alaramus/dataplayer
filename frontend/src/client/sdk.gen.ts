@@ -166,6 +166,27 @@ import type {
   privateCreateUserData,
   privateCreateUserErrors,
   privateCreateUserResponses,
+  queriesCreateDocumentData,
+  queriesCreateDocumentErrors,
+  queriesCreateDocumentResponses,
+  queriesListDocumentsData,
+  queriesListDocumentsErrors,
+  queriesListDocumentsResponses,
+  queriesPurgeDocumentData,
+  queriesPurgeDocumentErrors,
+  queriesPurgeDocumentResponses,
+  queriesReadDocumentData,
+  queriesReadDocumentErrors,
+  queriesReadDocumentResponses,
+  queriesRestoreDocumentData,
+  queriesRestoreDocumentErrors,
+  queriesRestoreDocumentResponses,
+  queriesTrashDocumentData,
+  queriesTrashDocumentErrors,
+  queriesTrashDocumentResponses,
+  queriesUpdateDocumentData,
+  queriesUpdateDocumentErrors,
+  queriesUpdateDocumentResponses,
   sharesApproveRequestData,
   sharesApproveRequestErrors,
   sharesApproveRequestResponses,
@@ -2034,6 +2055,167 @@ export class SharesService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/shares/{share_id}",
+      ...options,
+    })
+  }
+}
+
+export class QueriesService {
+  /**
+   * List Documents
+   *
+   * This user's documents, newest first, or what is waiting in Trash.
+   */
+  public static listDocuments<ThrowOnError extends boolean = true>(
+    options?: Options<queriesListDocumentsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      queriesListDocumentsResponses,
+      queriesListDocumentsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/documents",
+      ...options,
+    })
+  }
+
+  /**
+   * Create Document
+   *
+   * Open a new console, or keep a copy of one that could not be saved.
+   *
+   * `read` on the connection and no more: writing SQL into a document is not
+   * running it, and what running needs is decided where there is a Run.
+   */
+  public static createDocument<ThrowOnError extends boolean = true>(
+    options: Options<queriesCreateDocumentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesCreateDocumentResponses,
+      queriesCreateDocumentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/documents",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Trash Document
+   *
+   * Move a document to Trash, where it waits its retention out (D63).
+   */
+  public static trashDocument<ThrowOnError extends boolean = true>(
+    options: Options<queriesTrashDocumentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      queriesTrashDocumentResponses,
+      queriesTrashDocumentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/documents/{document_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Document
+   */
+  public static readDocument<ThrowOnError extends boolean = true>(
+    options: Options<queriesReadDocumentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      queriesReadDocumentResponses,
+      queriesReadDocumentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/documents/{document_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Update Document
+   *
+   * One autosave, or one deliberate change of name or context.
+   *
+   * The revision the caller started from must be the one in the database. When
+   * it is not, the answer is 409 and nothing is written: the client reads the
+   * document again and offers keeping its own text, taking the remote one, or
+   * saving its own as a copy. Choosing is a person's job, and picking the last
+   * writer in silence is what makes work disappear (D63).
+   *
+   * Only what was sent changes, and absent is not null: a title sent as null
+   * takes the name off the document and makes it a draft again.
+   */
+  public static updateDocument<ThrowOnError extends boolean = true>(
+    options: Options<queriesUpdateDocumentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      queriesUpdateDocumentResponses,
+      queriesUpdateDocumentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/documents/{document_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Restore Document
+   */
+  public static restoreDocument<ThrowOnError extends boolean = true>(
+    options: Options<queriesRestoreDocumentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesRestoreDocumentResponses,
+      queriesRestoreDocumentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/documents/{document_id}/restore",
+      ...options,
+    })
+  }
+
+  /**
+   * Purge Document
+   *
+   * Delete a document for good, before its retention runs out.
+   *
+   * Only from Trash: the deliberate second step is what makes the first one
+   * safe to press.
+   */
+  public static purgeDocument<ThrowOnError extends boolean = true>(
+    options: Options<queriesPurgeDocumentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      queriesPurgeDocumentResponses,
+      queriesPurgeDocumentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/documents/{document_id}/purge",
       ...options,
     })
   }

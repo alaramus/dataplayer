@@ -6,6 +6,7 @@ from typing import Literal, Self
 from pydantic import (
     EmailStr,
     PostgresDsn,
+    ValidationInfo,
     computed_field,
     field_validator,
     model_validator,
@@ -26,16 +27,22 @@ class Settings(BaseSettings):
     # rotating SECRET_KEY only logs everyone out, while rotating this key
     # requires migrating the stored secrets.
     CONNECTOR_SECRET_KEY: str
+    # Encrypts what somebody writes in a query document, and later the text an
+    # execution ran. Independent of the two keys above for the reason they are
+    # independent of each other: the three protect different things and are
+    # rotated by different procedures. See D63.
+    QUERY_CONTENT_KEY: str
 
-    @field_validator("CONNECTOR_SECRET_KEY")
+    @field_validator("CONNECTOR_SECRET_KEY", "QUERY_CONTENT_KEY")
     @classmethod
-    def _validate_connector_secret_key(cls, value: str) -> str:
+    def _validate_encryption_key(cls, value: str, info: ValidationInfo) -> str:
+        """Both keys are AES-GCM keys, so both are checked by the same rule."""
         try:
             raw = base64.urlsafe_b64decode(value)
         except Exception:
-            raise ValueError("CONNECTOR_SECRET_KEY must be urlsafe base64") from None
+            raise ValueError(f"{info.field_name} must be urlsafe base64") from None
         if len(raw) != 32:
-            raise ValueError("CONNECTOR_SECRET_KEY must decode to exactly 32 bytes")
+            raise ValueError(f"{info.field_name} must decode to exactly 32 bytes")
         return value
 
     # 60 minutes * 24 hours * 8 days = 8 days
@@ -78,6 +85,16 @@ class Settings(BaseSettings):
     # A reloaded page closes one socket and opens another; without this the
     # monitor would be rebuilt from knowing nothing every time.
     HEALTH_GRACE_SECONDS: float = 5.0
+
+    # A deleted query document waits this long before its body is gone for
+    # good, and the sweep that removes the expired ones runs this often. D63.
+    QUERY_TRASH_DAYS: int = 30
+    QUERY_TRASH_SWEEP_SECONDS: float = 3600.0
+    # One document, and the whole library one search may decrypt. The first is
+    # D64's ceiling; the second is why the search builds no index: it reads a
+    # bounded number of bodies in memory and nothing else.
+    QUERY_DOCUMENT_MAX_BYTES: int = 1024 * 1024
+    QUERY_SEARCH_MAX_DOCUMENTS: int = 500
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

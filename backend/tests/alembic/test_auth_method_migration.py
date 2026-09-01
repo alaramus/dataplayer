@@ -65,7 +65,7 @@ async def _legacy_connector(db: AsyncSession, owner: User) -> Connector:
         name=f"legacy {uuid.uuid4()}",
         adapter_type="postgres",
         config=dict(LEGACY_CONFIG),
-        secrets=crypto.encrypt(json.dumps({"password": "s3cret"}).encode()),
+        secrets=crypto.encrypt(json.dumps({"password": "s3cret"}).encode(), purpose="connector"),
         owner_id=owner.id,
     )
     db.add(connector)
@@ -116,7 +116,7 @@ async def test_the_migration_leaves_a_stated_method_alone(db: AsyncSession) -> N
         name=f"already {uuid.uuid4()}",
         adapter_type="postgres",
         config={**LEGACY_CONFIG, "auth_method": "no_auth"},
-        secrets=crypto.encrypt(b"{}"),
+        secrets=crypto.encrypt(b"{}", purpose="connector"),
         owner_id=owner.id,
     )
     db.add(connector)
@@ -135,7 +135,7 @@ async def test_the_migration_touches_no_other_source_type(db: AsyncSession) -> N
         name=f"files {uuid.uuid4()}",
         adapter_type="file",
         config={"path": ""},
-        secrets=crypto.encrypt(b"{}"),
+        secrets=crypto.encrypt(b"{}", purpose="connector"),
         owner_id=owner.id,
     )
     db.add(connector)

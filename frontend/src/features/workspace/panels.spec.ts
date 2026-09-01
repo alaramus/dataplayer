@@ -14,13 +14,24 @@ import {
   openConnectorIds,
   panelSchema,
   PANEL_ROLES,
+  QUERIES_PANEL_ID,
+  queryPanelId,
   roleOf,
   rowsPanelId,
   structurePanelId,
 } from "./panels"
 import type { Panel, PanelKind } from "./panels"
 
-const KINDS: PanelKind[] = ["connectors", "catalog", "rows", "content", "structure", "chart"]
+const KINDS: PanelKind[] = [
+  "connectors",
+  "catalog",
+  "rows",
+  "content",
+  "structure",
+  "chart",
+  "queries",
+  "query",
+]
 
 const samples: Record<PanelKind, Panel> = {
   connectors: { id: "connectors", kind: "connectors" },
@@ -72,6 +83,14 @@ const samples: Record<PanelKind, Panel> = {
     request: { node_id: "public.orders", limit: 100, offset: 0, filters: [], sort: [] },
     columns: ["created_at", "total"],
   },
+  queries: { id: QUERIES_PANEL_ID, kind: "queries" },
+  query: {
+    id: queryPanelId("d1"),
+    kind: "query",
+    documentId: "d1",
+    title: null,
+    connectorName: "local pg",
+  },
 }
 
 describe("the panel registry", () => {
@@ -99,7 +118,15 @@ describe("the panel registry", () => {
     expect(lookOf(samples.connectors).closable).toBe(false)
   })
 
-  it.each(["catalog", "rows", "content", "structure", "chart"] as PanelKind[])(
+  it.each([
+    "catalog",
+    "rows",
+    "content",
+    "structure",
+    "chart",
+    "queries",
+    "query",
+  ] as PanelKind[])(
     "lets %s be closed",
     (kind) => {
       expect(lookOf(samples[kind]).closable).not.toBe(false)
@@ -192,7 +219,15 @@ describe("the panel registry", () => {
     expect(collapsedOf(samples.connectors)).not.toBeNull()
   })
 
-  it.each(["catalog", "rows", "content", "structure", "chart"] as PanelKind[])(
+  it.each([
+    "catalog",
+    "rows",
+    "content",
+    "structure",
+    "chart",
+    "queries",
+    "query",
+  ] as PanelKind[])(
     "has nothing worth forty pixels for %s",
     (kind) => {
       expect(collapsedOf(samples[kind])).toBeNull()

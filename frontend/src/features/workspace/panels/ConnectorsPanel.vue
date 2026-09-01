@@ -35,6 +35,14 @@ const rows = computed(() => connectors.data.value?.data ?? [])
         data-testid="add-connector"
         @click="workspace.editConnector(null)"
       />
+      <!-- Queries are not nodes of any source, so the way to them is here,
+           beside the sources, rather than inside one catalog (D65). -->
+      <AppIconButton
+        icon="manage_search"
+        tooltip="Queries"
+        data-testid="open-queries"
+        @click="workspace.openQueries()"
+      />
     </div>
     <q-separator class="connectors-panel__rule" />
 

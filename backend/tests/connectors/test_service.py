@@ -90,7 +90,7 @@ def test_build_adapter_returns_driver_instance() -> None:
 def test_encrypted_blob_is_readable_only_through_crypto() -> None:
     _, secrets_blob = service.split_options(_postgres_type(), OPTIONS)
 
-    assert json.loads(crypto.decrypt(secrets_blob)) == {"password": "s3cret"}
+    assert json.loads(crypto.decrypt(secrets_blob, purpose="connector")) == {"password": "s3cret"}
 
 
 # The schema is a union now, and which fields exist depends on the variant. The
@@ -116,7 +116,7 @@ def test_the_chosen_variant_decides_what_is_stored() -> None:
 def test_a_variant_that_carries_no_secret_stores_none() -> None:
     _, secrets_blob = service.split_options(_postgres_type(), NO_AUTH_OPTIONS)
 
-    assert json.loads(crypto.decrypt(secrets_blob)) == {}
+    assert json.loads(crypto.decrypt(secrets_blob, purpose="connector")) == {}
 
 
 def test_a_password_sent_to_a_variant_without_one_is_not_kept() -> None:
@@ -125,7 +125,7 @@ def test_a_password_sent_to_a_variant_without_one_is_not_kept() -> None:
         _postgres_type(), {**NO_AUTH_OPTIONS, "password": "s3cret"}
     )
 
-    assert json.loads(crypto.decrypt(secrets_blob)) == {}
+    assert json.loads(crypto.decrypt(secrets_blob, purpose="connector")) == {}
     assert b"s3cret" not in secrets_blob
 
 

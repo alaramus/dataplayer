@@ -88,10 +88,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] **3A.2 — query documents.** Add encrypted server-owned drafts and named
-  documents, connector and ordered schema context, revisioned autosave,
-  conflict recovery, a thirty-day Trash and a Queries navigation panel. A
-  browser keeps only an unsynchronised session shadow.
 - [ ] **3A.3 — read execution kernel.** Add PostgreSQL prepare and classification,
   durable idempotent runs, access resolution, admission control, database-side
   read-only transactions and timeout, explicit cancellation, safe diagnostics,

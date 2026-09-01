@@ -8,6 +8,8 @@ import ImagePanelView from "@/features/content/ImagePanel.vue"
 import MediaPanelView from "@/features/content/MediaPanel.vue"
 import SqlPanelView from "@/features/content/SqlPanel.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
+import QueriesPanelView from "@/features/queries/QueriesPanel.vue"
+import QueryDocumentPanelView from "@/features/queries/QueryDocumentPanel.vue"
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
 import ConnectorsPanelView from "@/features/workspace/panels/ConnectorsPanel.vue"
@@ -126,6 +128,19 @@ export const panelSchema = z.discriminatedUnion("kind", [
     // button says the source's words rather than this screen's.
     sourceTitle: z.string().min(1).optional(),
   }),
+  // The library of query documents. No parameters: which connection it lists
+  // is a filter inside it, so there is one of these however many are open.
+  z.object({ id: z.string(), kind: z.literal("queries") }),
+  z.object({
+    id: z.string(),
+    kind: z.literal("query"),
+    documentId: z.string(),
+    // What the tab says. Null while the document has no name of its own; the
+    // panel carries it so a restored layout can label its tabs before
+    // anything has been read (D65).
+    title: z.string().nullable(),
+    connectorName: z.string().nullable(),
+  }),
   z.object({
     id: z.string(),
     kind: z.literal("chart"),
@@ -161,6 +176,8 @@ export const contentPanelId = (
 export const structurePanelId = (connectorId: string, nodeId: string) =>
   `structure:${connectorId}:${nodeId}`
 export const chartPanelId = (viewKey: string) => `chart:${viewKey}`
+export const QUERIES_PANEL_ID = "queries"
+export const queryPanelId = (documentId: string) => `query:${documentId}`
 
 const CONTENT_ICONS: Record<ContentRepresentation, string> = {
   text: "description",
@@ -225,11 +242,13 @@ export function roleOf(panel: Panel): PanelRole {
     case "connectors":
       return "sources"
     case "catalog":
+    case "queries":
       return "navigate"
     case "rows":
     case "content":
     case "structure":
     case "chart":
+    case "query":
       return "work"
   }
 }
@@ -320,6 +339,24 @@ export function lookOf(panel: Panel): PanelLook {
         icon: "insert_chart",
         iconTooltip: `${panel.connectorName} · Chart`,
         reloadTooltip: "Re-read this chart page",
+      }
+    case "queries":
+      return {
+        title: "Queries",
+        icon: "manage_search",
+        reloadTooltip: "Re-read your queries",
+      }
+    case "query":
+      // A document with no name says so on its tab rather than showing an
+      // empty one: a draft is the ordinary state of a console, not a fault.
+      return {
+        title: panel.title ?? "Untitled query",
+        icon: "terminal",
+        iconTooltip:
+          panel.connectorName === null
+            ? "This connection is no longer available"
+            : panel.connectorName,
+        reloadTooltip: "Re-read this query",
       }
   }
 }
@@ -465,6 +502,15 @@ export function componentOf(panel: Panel): Component {
           connectorId: panel.connectorId,
           request: panel.request,
           columns: panel.columns,
+        })
+      )
+    case "queries":
+      return boundComponent(panel.id, () => h(QueriesPanelView, { panelId: panel.id }))
+    case "query":
+      return boundComponent(panel.id, () =>
+        h(QueryDocumentPanelView, {
+          panelId: panel.id,
+          documentId: panel.documentId,
         })
       )
   }

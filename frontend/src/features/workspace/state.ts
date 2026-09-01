@@ -89,6 +89,26 @@ export interface WorkspaceActions {
   /** Take the shared view meant for this tab, if this is the tab it named. */
   takeShared: (connectorId: string, nodeId: string) => SharedTarget | null
   openStructure: (request: OpenStructureRequest) => void
+  /**
+   * Show the library of query documents.
+   *
+   * One panel however many connections are open: a query belongs to a person
+   * rather than to a source, and which connections it lists is a filter
+   * inside it rather than a panel each (D65).
+   */
+  openQueries: () => void
+  /** Open one console, or bring the tab already showing it forward. */
+  openQueryDocument: (request: OpenQueryDocumentRequest) => void
+  /**
+   * Put a document's new name on its tab.
+   *
+   * The panel carries the title because a layout restored from storage has to
+   * label its tabs before anything has been read, exactly as a rows tab
+   * carries the name of its node. Renaming therefore has to say so.
+   */
+  renameQueryDocument: (documentId: string, title: string | null) => void
+  /** Close the tab of a document that has just gone to Trash. */
+  closeQueryDocument: (documentId: string) => void
   openChart: (request: OpenChartRequest) => void
   replaceNode: (connectorId: string, replacement: NodeReplacement) => void
   /**
@@ -190,6 +210,19 @@ export interface SharedTarget {
   connectorId: string
   nodeId: string
   view: RowsView
+}
+
+/**
+ * One console, and what its tab says while nothing has been read.
+ *
+ * The title travels for the reason a rows tab carries the name of its node: a
+ * layout restored from storage draws its tabs before the first request
+ * finishes. A draft has no title, and the tab says so in its own words.
+ */
+export interface OpenQueryDocumentRequest {
+  documentId: string
+  title: string | null
+  connectorName: string | null
 }
 
 export interface OpenChartRequest {

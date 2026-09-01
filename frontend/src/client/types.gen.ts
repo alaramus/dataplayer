@@ -1292,6 +1292,25 @@ export type EditorContentRequest = {
 }
 
 /**
+ * EditorLayout
+ *
+ * Where the split sits and whether lines wrap, for one document (D65).
+ *
+ * Typed rather than an open dictionary, and stored as JSON: the column is
+ * storage and this model is the boundary, as in `Share.view`.
+ */
+export type EditorLayout = {
+  /**
+   * Split Ratio
+   */
+  split_ratio?: number
+  /**
+   * Wrap
+   */
+  wrap?: boolean
+}
+
+/**
  * EntryNode
  *
  * One member of an archive, which may itself hold others (D53).
@@ -2621,6 +2640,179 @@ export type PrivateUserCreate = {
    * Is Verified
    */
   is_verified?: boolean
+}
+
+/**
+ * QueryDocumentCreate
+ *
+ * A new console, or a copy of one whose owner chose to keep both.
+ *
+ * The connection is required: a document is developed against a source, and
+ * one that names none could not offer a schema context or a Run at all.
+ */
+export type QueryDocumentCreate = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Title
+   */
+  title?: string | null
+  /**
+   * Body
+   */
+  body?: string
+  /**
+   * Search Path
+   */
+  search_path?: Array<string>
+  layout?: EditorLayout
+}
+
+/**
+ * QueryDocumentPublic
+ *
+ * A document as its owner reads it, body and all.
+ */
+export type QueryDocumentPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Connector Id
+   */
+  connector_id: string | null
+  /**
+   * Connector Label
+   */
+  connector_label: string | null
+  /**
+   * Title
+   */
+  title: string | null
+  /**
+   * Body
+   */
+  body: string
+  /**
+   * Revision
+   */
+  revision: number
+  /**
+   * Search Path
+   */
+  search_path: Array<string>
+  layout: EditorLayout
+  /**
+   * Created At
+   */
+  created_at?: string | null
+  /**
+   * Updated At
+   */
+  updated_at?: string | null
+  /**
+   * Trashed At
+   */
+  trashed_at?: string | null
+}
+
+/**
+ * QueryDocumentSummary
+ *
+ * A document as a library lists it.
+ *
+ * The body is not here; a preview of its first line is, because most
+ * documents are drafts nobody has named and a list of "Untitled" is not
+ * navigation. The preview is built per response and never stored.
+ */
+export type QueryDocumentSummary = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Connector Id
+   */
+  connector_id: string | null
+  /**
+   * Connector Label
+   */
+  connector_label: string | null
+  /**
+   * Title
+   */
+  title: string | null
+  /**
+   * Preview
+   */
+  preview: string
+  /**
+   * Revision
+   */
+  revision: number
+  /**
+   * Created At
+   */
+  created_at?: string | null
+  /**
+   * Updated At
+   */
+  updated_at?: string | null
+  /**
+   * Trashed At
+   */
+  trashed_at?: string | null
+}
+
+/**
+ * QueryDocumentUpdate
+ *
+ * One autosave, or one deliberate change of title or context.
+ *
+ * `revision` is the revision this change was made on top of, and it is
+ * required: a save that does not say what it changed cannot be checked, and
+ * the last writer would win in silence.
+ *
+ * Every other field is optional and absent means unchanged, so the editor
+ * saves a body without restating the layout. Absent and null are different
+ * answers, told apart by the fields the caller actually set: a title sent as
+ * null takes the name off a document and makes it a draft again.
+ */
+export type QueryDocumentUpdate = {
+  /**
+   * Revision
+   */
+  revision: number
+  /**
+   * Title
+   */
+  title?: string | null
+  /**
+   * Body
+   */
+  body?: string | null
+  /**
+   * Search Path
+   */
+  search_path?: Array<string> | null
+  layout?: EditorLayout | null
+}
+
+/**
+ * QueryDocumentsPublic
+ */
+export type QueryDocumentsPublic = {
+  /**
+   * Data
+   */
+  data: Array<QueryDocumentSummary>
+  /**
+   * Count
+   */
+  count: number
 }
 
 /**
@@ -6285,6 +6477,237 @@ export type sharesDeleteShareResponses = {
 }
 
 export type sharesDeleteShareResponse = sharesDeleteShareResponses[keyof sharesDeleteShareResponses]
+
+export type queriesListDocumentsData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Connector Id
+     */
+    connector_id?: string | null
+    /**
+     * Search
+     */
+    search?: string
+    /**
+     * Trashed
+     */
+    trashed?: boolean
+    /**
+     * Skip
+     */
+    skip?: number
+    /**
+     * Limit
+     */
+    limit?: number
+  }
+  url: "/api/v1/queries/documents"
+}
+
+export type queriesListDocumentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesListDocumentsError = queriesListDocumentsErrors[keyof queriesListDocumentsErrors]
+
+export type queriesListDocumentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: QueryDocumentsPublic
+}
+
+export type queriesListDocumentsResponse =
+  queriesListDocumentsResponses[keyof queriesListDocumentsResponses]
+
+export type queriesCreateDocumentData = {
+  body: QueryDocumentCreate
+  path?: never
+  query?: never
+  url: "/api/v1/queries/documents"
+}
+
+export type queriesCreateDocumentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesCreateDocumentError =
+  queriesCreateDocumentErrors[keyof queriesCreateDocumentErrors]
+
+export type queriesCreateDocumentResponses = {
+  /**
+   * Successful Response
+   */
+  200: QueryDocumentPublic
+}
+
+export type queriesCreateDocumentResponse =
+  queriesCreateDocumentResponses[keyof queriesCreateDocumentResponses]
+
+export type queriesTrashDocumentData = {
+  body?: never
+  path: {
+    /**
+     * Document Id
+     */
+    document_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/documents/{document_id}"
+}
+
+export type queriesTrashDocumentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesTrashDocumentError = queriesTrashDocumentErrors[keyof queriesTrashDocumentErrors]
+
+export type queriesTrashDocumentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type queriesTrashDocumentResponse =
+  queriesTrashDocumentResponses[keyof queriesTrashDocumentResponses]
+
+export type queriesReadDocumentData = {
+  body?: never
+  path: {
+    /**
+     * Document Id
+     */
+    document_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/documents/{document_id}"
+}
+
+export type queriesReadDocumentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesReadDocumentError = queriesReadDocumentErrors[keyof queriesReadDocumentErrors]
+
+export type queriesReadDocumentResponses = {
+  /**
+   * Successful Response
+   */
+  200: QueryDocumentPublic
+}
+
+export type queriesReadDocumentResponse =
+  queriesReadDocumentResponses[keyof queriesReadDocumentResponses]
+
+export type queriesUpdateDocumentData = {
+  body: QueryDocumentUpdate
+  path: {
+    /**
+     * Document Id
+     */
+    document_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/documents/{document_id}"
+}
+
+export type queriesUpdateDocumentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesUpdateDocumentError =
+  queriesUpdateDocumentErrors[keyof queriesUpdateDocumentErrors]
+
+export type queriesUpdateDocumentResponses = {
+  /**
+   * Successful Response
+   */
+  200: QueryDocumentPublic
+}
+
+export type queriesUpdateDocumentResponse =
+  queriesUpdateDocumentResponses[keyof queriesUpdateDocumentResponses]
+
+export type queriesRestoreDocumentData = {
+  body?: never
+  path: {
+    /**
+     * Document Id
+     */
+    document_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/documents/{document_id}/restore"
+}
+
+export type queriesRestoreDocumentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesRestoreDocumentError =
+  queriesRestoreDocumentErrors[keyof queriesRestoreDocumentErrors]
+
+export type queriesRestoreDocumentResponses = {
+  /**
+   * Successful Response
+   */
+  200: QueryDocumentPublic
+}
+
+export type queriesRestoreDocumentResponse =
+  queriesRestoreDocumentResponses[keyof queriesRestoreDocumentResponses]
+
+export type queriesPurgeDocumentData = {
+  body?: never
+  path: {
+    /**
+     * Document Id
+     */
+    document_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/documents/{document_id}/purge"
+}
+
+export type queriesPurgeDocumentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesPurgeDocumentError = queriesPurgeDocumentErrors[keyof queriesPurgeDocumentErrors]
+
+export type queriesPurgeDocumentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type queriesPurgeDocumentResponse =
+  queriesPurgeDocumentResponses[keyof queriesPurgeDocumentResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

@@ -10,6 +10,7 @@ from app.adapters.cache import DataCache
 from app.adapters.resources import ResourceStore
 from app.api.main import api_router
 from app.core.config import settings
+from app.queries.cleanup import sweeping
 from app.realtime import topics
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
@@ -34,8 +35,12 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     )
     application.state.data_cache = DataCache(max_entries=settings.DATA_CACHE_MAX_ENTRIES)
     application.state.topics = topics.build_all()
+    # Emptying query Trash is the one thing here that is not a resource: it is
+    # a timer, and it belongs to the application for the same reason a pool
+    # does — nothing else outlives a request.
     try:
-        yield
+        async with sweeping():
+            yield
     finally:
         await application.state.topics.aclose()
         await application.state.data_cache.aclose()

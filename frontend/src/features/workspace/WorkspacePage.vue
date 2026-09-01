@@ -26,6 +26,8 @@ import {
   lookOf,
   openConnectorIds,
   panelSchema,
+  QUERIES_PANEL_ID,
+  queryPanelId,
   roleOf,
   rowsPanelId,
   structurePanelId,
@@ -38,6 +40,7 @@ import type {
   FollowReferenceCommand,
   FollowTarget,
   OpenChartRequest,
+  OpenQueryDocumentRequest,
   OpenRepresentationRequest,
   OpenRowsRequest,
   OpenSharedRequest,
@@ -528,6 +531,28 @@ provide(workspaceActionsKey, {
       kind: "structure",
       ...request,
     })
+  },
+  openQueries: () => {
+    workspace.open({ id: QUERIES_PANEL_ID, kind: "queries" })
+  },
+  openQueryDocument: (request: OpenQueryDocumentRequest) => {
+    workspace.open({
+      id: queryPanelId(request.documentId),
+      kind: "query",
+      documentId: request.documentId,
+      title: request.title,
+      connectorName: request.connectorName,
+    })
+  },
+  renameQueryDocument: (documentId: string, title: string | null) => {
+    const panel = workspace.panels.value.find(
+      (candidate) => candidate.id === queryPanelId(documentId)
+    )
+    if (panel === undefined || panel.kind !== "query" || panel.title === title) return
+    workspace.replace(panel.id, { ...panel, title })
+  },
+  closeQueryDocument: (documentId: string) => {
+    workspace.context.close(queryPanelId(documentId))
   },
   openChart: (request: OpenChartRequest) => {
     const viewKey = chartViewKey(request.connectorId, request.request, request.columns)
