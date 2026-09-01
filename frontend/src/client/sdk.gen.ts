@@ -169,12 +169,27 @@ import type {
   queriesCancelRunData,
   queriesCancelRunErrors,
   queriesCancelRunResponses,
+  queriesChooseRetentionData,
+  queriesChooseRetentionErrors,
+  queriesChooseRetentionResponses,
   queriesCreateDocumentData,
   queriesCreateDocumentErrors,
   queriesCreateDocumentResponses,
+  queriesDeleteRunsData,
+  queriesDeleteRunsErrors,
+  queriesDeleteRunsResponses,
+  queriesDownloadResultData,
+  queriesDownloadResultErrors,
+  queriesDownloadResultResponses,
   queriesListDocumentsData,
   queriesListDocumentsErrors,
   queriesListDocumentsResponses,
+  queriesListRunsData,
+  queriesListRunsErrors,
+  queriesListRunsResponses,
+  queriesPrepareTextData,
+  queriesPrepareTextErrors,
+  queriesPrepareTextResponses,
   queriesPurgeDocumentData,
   queriesPurgeDocumentErrors,
   queriesPurgeDocumentResponses,
@@ -186,10 +201,18 @@ import type {
   queriesReadProfileResponses,
   queriesReadResultData,
   queriesReadResultErrors,
+  queriesReadResultPageData,
+  queriesReadResultPageErrors,
+  queriesReadResultPageResponses,
   queriesReadResultResponses,
+  queriesReadRetentionData,
+  queriesReadRetentionResponses,
   queriesReadRunData,
   queriesReadRunErrors,
   queriesReadRunResponses,
+  queriesReadRunTextData,
+  queriesReadRunTextErrors,
+  queriesReadRunTextResponses,
   queriesRestoreDocumentData,
   queriesRestoreDocumentErrors,
   queriesRestoreDocumentResponses,
@@ -2256,6 +2279,59 @@ export class QueriesService {
   }
 
   /**
+   * Prepare Text
+   *
+   * Where the statements in this text are, and what they are.
+   *
+   * Asked of the source rather than worked out in a browser: statement
+   * boundaries belong to the dialect, and this is what lets Run take the
+   * statement under the caret without the client parsing SQL itself (D62).
+   *
+   * Nothing is executed and no connection is opened.
+   */
+  public static prepareText<ThrowOnError extends boolean = true>(
+    options: Options<queriesPrepareTextData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesPrepareTextResponses,
+      queriesPrepareTextErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/prepare",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * List Runs
+   *
+   * What this person has run, newest first.
+   *
+   * The search reads the newest bounded set in memory: the text is ciphertext,
+   * so there is no index to search and none is built (D63).
+   */
+  public static listRuns<ThrowOnError extends boolean = true>(
+    options?: Options<queriesListRunsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      queriesListRunsResponses,
+      queriesListRunsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/runs",
+      ...options,
+    })
+  }
+
+  /**
    * Start Run
    *
    * Accept a run, record it, and start carrying it out.
@@ -2330,7 +2406,7 @@ export class QueriesService {
   /**
    * Read Result
    *
-   * A page of a captured result.
+   * A page of a captured result, as it was captured.
    *
    * Of the snapshot, never of the source: these rows were read once, inside the
    * transaction that produced them. A result that has expired is gone, and the
@@ -2348,6 +2424,152 @@ export class QueriesService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/queries/results/{result_id}",
       ...options,
+    })
+  }
+
+  /**
+   * Read Result Page
+   *
+   * A page of a captured result, filtered and ordered.
+   *
+   * Both act on the captured set and the interface says so. The order is the
+   * platform's rather than the database's collation, so it does not change with
+   * the source a result came from (D64).
+   */
+  public static readResultPage<ThrowOnError extends boolean = true>(
+    options: Options<queriesReadResultPageData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesReadResultPageResponses,
+      queriesReadResultPageErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/results/{result_id}/page",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Download Result
+   *
+   * The current page or every captured row, without running the SQL again.
+   *
+   * A download of a snapshot is a download of what was already read: no
+   * statement is sent, so nothing can have changed and nothing can happen
+   * twice (D64). Saving every matching row of a source is the separate
+   * streaming operation that belongs to a relation.
+   */
+  public static downloadResult<ThrowOnError extends boolean = true>(
+    options: Options<queriesDownloadResultData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesDownloadResultResponses,
+      queriesDownloadResultErrors,
+      ThrowOnError
+    >({
+      responseType: "text",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/results/{result_id}/download",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Run Text
+   *
+   * Exactly what this run executed.
+   *
+   * Asked for on purpose rather than sent with every listing: it is the
+   * sensitive part, and a history list that carried it would decrypt everything
+   * to draw a table of dates.
+   */
+  public static readRunText<ThrowOnError extends boolean = true>(
+    options: Options<queriesReadRunTextData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      queriesReadRunTextResponses,
+      queriesReadRunTextErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/runs/{run_id}/text",
+      ...options,
+    })
+  }
+
+  /**
+   * Delete Runs
+   *
+   * Delete one, several, everything older than a day, or the lot.
+   */
+  public static deleteRuns<ThrowOnError extends boolean = true>(
+    options: Options<queriesDeleteRunsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesDeleteRunsResponses,
+      queriesDeleteRunsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/runs/delete",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Retention
+   */
+  public static readRetention<ThrowOnError extends boolean = true>(
+    options?: Options<queriesReadRetentionData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<queriesReadRetentionResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/retention",
+      ...options,
+    })
+  }
+
+  /**
+   * Choose Retention
+   *
+   * How long finished runs are kept, chosen from what the interface offers.
+   *
+   * Choosing "none" does not empty history at once; the sweep that runs beside
+   * Trash does, and it is the same idempotent pass either way.
+   */
+  public static chooseRetention<ThrowOnError extends boolean = true>(
+    options: Options<queriesChooseRetentionData, ThrowOnError>
+  ) {
+    return (options.client ?? client).put<
+      queriesChooseRetentionResponses,
+      queriesChooseRetentionErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/retention",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 }

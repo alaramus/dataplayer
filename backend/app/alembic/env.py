@@ -30,6 +30,7 @@ from app.connectors.models import Connector, ConnectorGrant  # noqa
 from app.shares.models import AccessRequest, Share, ShareOpen  # noqa
 from app.queries.models import QueryDocument  # noqa
 from app.queries.runs import ExecutionRun, StatementRun  # noqa
+from app.queries.history import QueryRetention  # noqa
 
 target_metadata = SQLModel.metadata
 

@@ -9,7 +9,7 @@ import logging
 
 import pytest
 
-from app.adapters.postgres.statements import prepare, split
+from app.adapters.postgres.statements import bind, prepare, split
 from app.adapters.query import StatementClass
 
 
@@ -154,3 +154,28 @@ def test_unparsable_sql_is_not_written_to_the_log(
 
     assert "salaries" not in caplog.text
     assert "a-recognisable-name" not in caplog.text
+
+
+@pytest.mark.parametrize("name", ["name", "text", "user", "date", "value", "n"])
+def test_a_parameter_may_be_called_what_the_dialect_calls_something_else(
+    name: str,
+) -> None:
+    """The tokenizer reads `name` as a keyword; a colon before it still binds."""
+    assert prepare(f"select :{name}::text").parameters == [name]
+
+
+def test_binding_rewrites_only_the_placeholders() -> None:
+    assert bind("select :since::date, x from t where a > :since") == (
+        "select %(since)s::date, x from t where a > %(since)s"
+    )
+
+
+def test_binding_doubles_a_literal_per_cent_sign() -> None:
+    """The driver reads one as a placeholder as soon as anything is bound."""
+    assert bind("select 'a%b' like '%' || :middle") == (
+        "select 'a%%b' like '%%' || %(middle)s"
+    )
+
+
+def test_binding_leaves_a_cast_alone() -> None:
+    assert bind("select a::text from t") == "select a::text from t"

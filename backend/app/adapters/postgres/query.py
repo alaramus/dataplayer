@@ -20,7 +20,7 @@ from psycopg_pool import PoolTimeout
 from app.adapters.cells import encode_cell
 from app.adapters.postgres.column_type import build_column_type
 from app.adapters.postgres.session import PostgresSession, classify
-from app.adapters.postgres.statements import prepare
+from app.adapters.postgres.statements import bind, prepare
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
     MaterialisedResult,
@@ -50,6 +50,9 @@ _CATEGORIES: dict[str, str] = {
     "42P02": "missing_object",
     "3F000": "missing_object",
     "42501": "permission",
+    # The server could not work out what a parameter is. The SQL author
+    # resolves that with a cast, which the hint below says.
+    "42P18": "data",
     "25006": "read_only",
     "0A000": "read_only",
     "57014": "cancelled",
@@ -124,7 +127,15 @@ def diagnostic_of(exc: psycopg.Error, *, cancelled: bool) -> QueryDiagnostic:
         category=category,  # type: ignore[arg-type]  # _category_of answers the union
         message=message,
         position=position,
+        hint=_HINTS.get(sqlstate or ""),
     )
+
+
+# Vetted, and only where the server's own message leaves a person stuck. Not
+# a place to guess: an unhelpful hint is worse than none.
+_HINTS: dict[str, str] = {
+    "42P18": "Add a cast to the parameter, for example :name::date",
+}
 
 
 class ResultTooLarge(Exception):
@@ -264,8 +275,15 @@ class PostgresExecution:
             async with connection.cursor() as cursor:
                 # The one place a statement from a client is executed as it
                 # was written. That is what this capability is, and it runs
-                # inside the read-only transaction opened above (D62).
-                await cursor.execute(statement.text)
+                # inside the read-only transaction opened above (D62). Its
+                # parameters are bound, never written into it — and with no
+                # parameters nothing is passed at all, because psycopg reads a
+                # literal per-cent sign as a placeholder as soon as anything is.
+                values = self._values_for(statement)
+                if values is None:
+                    await cursor.execute(statement.text)
+                else:
+                    await cursor.execute(bind(statement.text), values)
                 result: MaterialisedResult | None = None
                 if cursor.description is not None:
                     result = await self._materialise(connection, cursor, limits)
@@ -306,6 +324,13 @@ class PostgresExecution:
                 notices=self._notices[: limits.max_messages],
                 diagnostic=diagnostic,
             )
+
+    def _values_for(self, statement: PreparedStatement) -> dict[str, str | None] | None:
+        """The bindings this statement uses, or nothing when it uses none."""
+        if not statement.parameters:
+            return None
+        given = {parameter.name: parameter.value for parameter in self._request.parameters}
+        return {name: given.get(name) for name in statement.parameters}
 
     async def _materialise(
         self,

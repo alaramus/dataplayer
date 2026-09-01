@@ -12,15 +12,21 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.db import async_session_maker
-from app.queries import crud
+from app.queries import crud, history
 from app.queries.execution import recover_interrupted
 
 logger = logging.getLogger(__name__)
 
 
 async def sweep_once() -> int:
+    """Empty Trash and expire history, in one pass on one timer.
+
+    Both are the same kind of work — idempotent batch cleanup nobody has to
+    press — so neither justifies a job framework of its own (D63).
+    """
     async with async_session_maker() as session:
-        return await crud.sweep_trash(session)
+        removed = await crud.sweep_trash(session)
+        return removed + await history.sweep(session)
 
 
 async def recover_once() -> int:
@@ -46,7 +52,7 @@ async def _sweep_forever() -> None:
             logger.exception("Emptying query Trash failed")
         else:
             if removed:
-                logger.info("Removed %d expired query documents", removed)
+                logger.info("Removed %d expired query documents and runs", removed)
         await asyncio.sleep(settings.QUERY_TRASH_SWEEP_SECONDS)
 
 

@@ -13,6 +13,7 @@ version has never seen is refused rather than allowed by omission.
 """
 
 import logging
+import re
 
 from sqlglot import exp, parse_one
 from sqlglot.dialects.postgres import Postgres
@@ -30,6 +31,9 @@ logging.getLogger("sqlglot").setLevel(logging.CRITICAL)
 logging.getLogger("sqlglot").propagate = False
 
 _tokenizer = Postgres().tokenizer_class()
+
+# What may follow a colon and be a parameter name.
+_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 # The leading keyword of the state-changing families, which are refused with a
 # sentence naming what they are. This table only chooses the wording: nothing
@@ -130,14 +134,14 @@ def _classify(text: str) -> StatementClass:
     return "unknown"
 
 
-def _parameters(text: str) -> list[str]:
-    """The `:name` bindings in this statement, in order of first appearance.
+def _placeholders(text: str) -> list[tuple[int, int, str]]:
+    """Where every `:name` is, and what it is called.
 
     Read from tokens, so `::` is a cast and not a parameter, and a colon
     inside a string or a comment is neither.
     """
     tokens = _tokenizer.tokenize(text)
-    found: list[str] = []
+    found: list[tuple[int, int, str]] = []
     for index, token in enumerate(tokens[:-1]):
         if token.token_type is not TokenType.COLON:
             continue
@@ -145,10 +149,47 @@ def _parameters(text: str) -> list[str]:
         # Adjacent, or it is a colon that happens to precede an identifier.
         if following.start != token.end + 1:
             continue
-        if following.token_type not in (TokenType.VAR, TokenType.IDENTIFIER):
+        # By the text rather than by the token type: a parameter may be
+        # called `name`, `text` or `user`, and the tokenizer reads each of
+        # those as a keyword of its own. What makes it a parameter is the
+        # colon before it and the shape of the word after it.
+        if _IDENTIFIER.fullmatch(following.text) is None:
             continue
-        if following.text not in found:
-            found.append(following.text)
+        found.append((token.start, following.end + 1, following.text))
+    return found
+
+
+def bind(text: str) -> str:
+    """The same statement, with `:name` written the way the driver binds it.
+
+    A rewriting of placeholders, not of values: what goes to the server is
+    still `$1` with a value beside it, and nothing a user typed is put into
+    the statement (D62).
+
+    Every literal per-cent sign is doubled, because psycopg reads one as the
+    start of a placeholder as soon as any parameter is supplied — which is how
+    `LIKE 'a%b'` in a parameterised statement would otherwise fail.
+    """
+    pieces: list[str] = []
+    cursor = 0
+    for start, end, name in _placeholders(text):
+        pieces.append(text[cursor:start].replace("%", "%%"))
+        pieces.append(f"%({name})s")
+        cursor = end
+    pieces.append(text[cursor:].replace("%", "%%"))
+    return "".join(pieces)
+
+
+def _parameters(text: str) -> list[str]:
+    """The `:name` bindings in this statement, in order of first appearance.
+
+    Read from tokens, so `::` is a cast and not a parameter, and a colon
+    inside a string or a comment is neither.
+    """
+    found: list[str] = []
+    for _, _, name in _placeholders(text):
+        if name not in found:
+            found.append(name)
     return found
 
 

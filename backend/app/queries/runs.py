@@ -24,6 +24,12 @@ from app.adapters.query import (
     StatementStatus,
 )
 from app.core.schemas import get_datetime_utc
+from app.queries.snapshot import SnapshotView
+
+# What one press of Run was aimed at. Ordinary Run takes one statement — the
+# selection or the one under the caret — and never falls back to the whole
+# document; running a script is the deliberately different command (D65).
+ExecutionScope = Literal["statement", "script"]
 
 # The lifecycle, and no state outside it. `cancelling` is a state of its own
 # because PostgreSQL cancellation can lose the race to completion: a run asked
@@ -82,7 +88,14 @@ class ExecutionRun(SQLModel, table=True):
     search_path: list[str] = Field(
         default_factory=list, sa_column=Column(JSONB, nullable=False)
     )
+    # Names and shape, never values. A run is kept for as long as history is
+    # kept, and a value somebody typed into a form — secret or not — is not
+    # part of what happened, it is part of what was typed (D63).
+    parameters: list[Any] = Field(
+        default_factory=list, sa_column=Column(JSONB, nullable=False)
+    )
     mode: str = Field(default="read", max_length=16)
+    scope: str = Field(default="statement", max_length=16)
     timeout_seconds: int = Field(default=30)
     status: str = Field(default="accepted", max_length=16, index=True)
     # What this run was asked to do, hashed. Two commands with one id must be
@@ -132,6 +145,38 @@ class StatementRun(SQLModel, table=True):
     )
 
 
+class PrepareRequest(BaseModel):
+    """Text to be read by the source, and nothing to be done with it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    connector_id: uuid.UUID
+    text: str = PydanticField(max_length=MAX_TEXT_BYTES)
+
+
+class RunParameter(BaseModel):
+    """One binding a client supplies for this run.
+
+    `secret` says the value is not to be remembered anywhere. It is not stored
+    here in either case — a run keeps names and shape — and the flag travels so
+    the console can say why a value it once had is not offered again.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = PydanticField(min_length=1, max_length=63)
+    value: str | None = None
+    secret: bool = False
+
+
+class ParameterMetadata(BaseModel):
+    """What a run remembers about a binding: everything except the value."""
+
+    name: str
+    is_null: bool
+    secret: bool
+
+
 class RunStart(BaseModel):
     """What a client sends to run something.
 
@@ -150,6 +195,8 @@ class RunStart(BaseModel):
     range_start: int | None = PydanticField(default=None, ge=0)
     range_end: int | None = PydanticField(default=None, ge=0)
     mode: ExecutionMode = "read"
+    scope: ExecutionScope = "statement"
+    parameters: list[RunParameter] = PydanticField(default_factory=list)
     timeout_seconds: int | None = PydanticField(default=None, ge=1)
 
 
@@ -182,13 +229,44 @@ class RunPublic(BaseModel):
     document_revision: int | None
     status: RunStatus
     mode: ExecutionMode
+    scope: ExecutionScope
     timeout_seconds: int
     statement_count: int
+    parameters: list[ParameterMetadata] = PydanticField(default_factory=list)
     error: str | None = None
     created_at: datetime | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
     statements: list[StatementPublic] = PydanticField(default_factory=list)
+
+
+class RunText(BaseModel):
+    """What one run executed, asked for on its own."""
+
+    id: uuid.UUID
+    text: str
+
+
+class SnapshotPageRequest(BaseModel):
+    """A window on a captured result, with what to show and in what order."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    view: SnapshotView = PydanticField(default_factory=SnapshotView)
+    offset: int = PydanticField(default=0, ge=0)
+    limit: int = PydanticField(default=100, ge=1, le=500)
+
+
+class SnapshotDownloadRequest(BaseModel):
+    """What to save: the page on screen, or every captured row of this view."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scope: Literal["page", "all"] = "page"
+    title: str = PydanticField(default="result", min_length=1, max_length=255)
+    view: SnapshotView = PydanticField(default_factory=SnapshotView)
+    offset: int = PydanticField(default=0, ge=0)
+    limit: int = PydanticField(default=100, ge=1, le=500)
 
 
 class ResultPage(BaseModel):

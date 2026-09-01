@@ -111,6 +111,11 @@ class Settings(BaseSettings):
     # hundred.
     QUERY_PAGE_DEFAULT_ROWS: int = 100
     QUERY_PAGE_MAX_ROWS: int = 500
+    # How long finished runs are kept by default, the ceiling above whatever
+    # anybody chooses, and how many a search may decrypt in memory (D63).
+    QUERY_HISTORY_DEFAULT_DAYS: int = 90
+    QUERY_HISTORY_MAX_RUNS: int = 1000
+    QUERY_HISTORY_SEARCH_MAX: int = 500
     # Runs one person may have in flight at once. Excess is refused rather than
     # queued where nobody can see it.
     QUERY_MAX_ACTIVE_RUNS: int = 3

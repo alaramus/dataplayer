@@ -1082,6 +1082,30 @@ export type DatasetNode = {
 }
 
 /**
+ * DeleteEverything
+ */
+export type DeleteEverything = {
+  /**
+   * Kind
+   */
+  kind: "all"
+}
+
+/**
+ * DeleteOlderThan
+ */
+export type DeleteOlderThan = {
+  /**
+   * Kind
+   */
+  kind: "older"
+  /**
+   * Days
+   */
+  days: number
+}
+
+/**
  * DeleteRowsRequest
  */
 export type DeleteRowsRequest = {
@@ -1103,6 +1127,20 @@ export type DeleteRowsResult = {
    * Deleted
    */
   deleted: number
+}
+
+/**
+ * DeleteSelected
+ */
+export type DeleteSelected = {
+  /**
+   * Kind
+   */
+  kind: "selected"
+  /**
+   * Ids
+   */
+  ids: Array<string>
 }
 
 /**
@@ -2489,6 +2527,26 @@ export type NullabilityChanged = {
 }
 
 /**
+ * ParameterMetadata
+ *
+ * What a run remembers about a binding: everything except the value.
+ */
+export type ParameterMetadata = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Is Null
+   */
+  is_null: boolean
+  /**
+   * Secret
+   */
+  secret: boolean
+}
+
+/**
  * ParquetDataset
  *
  * A columnar file, described from its own footer.
@@ -2603,6 +2661,77 @@ export type PdfContent = {
 }
 
 /**
+ * PrepareRequest
+ *
+ * Text to be read by the source, and nothing to be done with it.
+ */
+export type PrepareRequest = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
+ * PreparedScript
+ */
+export type PreparedScript = {
+  /**
+   * Statements
+   */
+  statements: Array<PreparedStatement>
+  /**
+   * Parameters
+   */
+  parameters?: Array<string>
+}
+
+/**
+ * PreparedStatement
+ *
+ * One statement the source found in the text it was given.
+ *
+ * The range is into the submitted text, so an error can point at the place
+ * the person is looking at. Boundaries come from the dialect's own tokenizer:
+ * a semicolon inside a string, a comment or a dollar-quoted body is not a
+ * boundary, and no home-grown splitting decides that (D62).
+ */
+export type PreparedStatement = {
+  /**
+   * Ordinal
+   */
+  ordinal: number
+  /**
+   * Start
+   */
+  start: number
+  /**
+   * End
+   */
+  end: number
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Kind
+   */
+  kind: "read" | "explain" | "dml" | "ddl" | "transaction" | "session" | "copy" | "unknown"
+  /**
+   * Parameters
+   */
+  parameters?: Array<string>
+  /**
+   * Targets
+   */
+  targets?: Array<string>
+}
+
+/**
  * PrimaryKey
  */
 export type PrimaryKey = {
@@ -2709,6 +2838,12 @@ export type QueryDocumentCreate = {
    */
   search_path?: Array<string>
   layout?: EditorLayout
+  /**
+   * Parameters
+   */
+  parameters?: {
+    [key: string]: string | null
+  }
 }
 
 /**
@@ -2746,6 +2881,12 @@ export type QueryDocumentPublic = {
    */
   search_path: Array<string>
   layout: EditorLayout
+  /**
+   * Parameters
+   */
+  parameters?: {
+    [key: string]: string | null
+  }
   /**
    * Created At
    */
@@ -2840,6 +2981,12 @@ export type QueryDocumentUpdate = {
    */
   search_path?: Array<string> | null
   layout?: EditorLayout | null
+  /**
+   * Parameters
+   */
+  parameters?: {
+    [key: string]: string | null
+  } | null
 }
 
 /**
@@ -3327,6 +3474,32 @@ export type ResultPage = {
 }
 
 /**
+ * RetentionChoice
+ */
+export type RetentionChoice = {
+  /**
+   * Days
+   */
+  days: 0 | 7 | 30 | 90
+}
+
+/**
+ * RetentionSettings
+ *
+ * How long runs are kept, and the ceiling that applies whatever is chosen.
+ */
+export type RetentionSettings = {
+  /**
+   * Days
+   */
+  days: 0 | 7 | 30 | 90
+  /**
+   * Max Runs
+   */
+  max_runs: number
+}
+
+/**
  * RowEdit
  *
  * One row of a pasted block, named by the version it was read with.
@@ -3419,6 +3592,30 @@ export type RowsView = {
 }
 
 /**
+ * RunParameter
+ *
+ * One binding a client supplies for this run.
+ *
+ * `secret` says the value is not to be remembered anywhere. It is not stored
+ * here in either case — a run keeps names and shape — and the flag travels so
+ * the console can say why a value it once had is not offered again.
+ */
+export type RunParameter = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Value
+   */
+  value?: string | null
+  /**
+   * Secret
+   */
+  secret?: boolean
+}
+
+/**
  * RunPublic
  *
  * A run and everything durable about it.
@@ -3461,6 +3658,10 @@ export type RunPublic = {
    */
   mode: "read"
   /**
+   * Scope
+   */
+  scope: "statement" | "script"
+  /**
    * Timeout Seconds
    */
   timeout_seconds: number
@@ -3468,6 +3669,10 @@ export type RunPublic = {
    * Statement Count
    */
   statement_count: number
+  /**
+   * Parameters
+   */
+  parameters?: Array<ParameterMetadata>
   /**
    * Error
    */
@@ -3533,9 +3738,102 @@ export type RunStart = {
    */
   mode?: "read"
   /**
+   * Scope
+   */
+  scope?: "statement" | "script"
+  /**
+   * Parameters
+   */
+  parameters?: Array<RunParameter>
+  /**
    * Timeout Seconds
    */
   timeout_seconds?: number | null
+}
+
+/**
+ * RunSummary
+ *
+ * One run as history lists it.
+ *
+ * The first line of what ran, decrypted for this answer and not stored: a
+ * list of "a run" tells nobody which run it was.
+ */
+export type RunSummary = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Connector Id
+   */
+  connector_id: string | null
+  /**
+   * Document Id
+   */
+  document_id: string | null
+  /**
+   * Status
+   */
+  status: string
+  /**
+   * Scope
+   */
+  scope: string
+  /**
+   * Statement Count
+   */
+  statement_count: number
+  /**
+   * Preview
+   */
+  preview: string
+  /**
+   * Error
+   */
+  error?: string | null
+  /**
+   * Created At
+   */
+  created_at?: string | null
+  /**
+   * Finished At
+   */
+  finished_at?: string | null
+  /**
+   * Duration Ms
+   */
+  duration_ms?: number | null
+}
+
+/**
+ * RunText
+ *
+ * What one run executed, asked for on its own.
+ */
+export type RunText = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
+ * RunsPublic
+ */
+export type RunsPublic = {
+  /**
+   * Data
+   */
+  data: Array<RunSummary>
+  /**
+   * Count
+   */
+  count: number
 }
 
 /**
@@ -3781,6 +4079,140 @@ export type SharesPublic = {
    * Data
    */
   data: Array<SharePublic>
+}
+
+/**
+ * SnapshotDownloadRequest
+ *
+ * What to save: the page on screen, or every captured row of this view.
+ */
+export type SnapshotDownloadRequest = {
+  /**
+   * Scope
+   */
+  scope?: "page" | "all"
+  /**
+   * Title
+   */
+  title?: string
+  view?: SnapshotView
+  /**
+   * Offset
+   */
+  offset?: number
+  /**
+   * Limit
+   */
+  limit?: number
+}
+
+/**
+ * SnapshotInFilter
+ */
+export type SnapshotInFilter = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Op
+   */
+  op: "in"
+  /**
+   * Values
+   */
+  values: Array<string>
+}
+
+/**
+ * SnapshotNullFilter
+ */
+export type SnapshotNullFilter = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Op
+   */
+  op: "is_null" | "is_not_null"
+}
+
+/**
+ * SnapshotPageRequest
+ *
+ * A window on a captured result, with what to show and in what order.
+ */
+export type SnapshotPageRequest = {
+  view?: SnapshotView
+  /**
+   * Offset
+   */
+  offset?: number
+  /**
+   * Limit
+   */
+  limit?: number
+}
+
+/**
+ * SnapshotScalarFilter
+ *
+ * One predicate over a captured column, addressed by its position.
+ */
+export type SnapshotScalarFilter = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Op
+   */
+  op: "eq" | "ne" | "gt" | "gte" | "lt" | "lte" | "contains" | "starts_with"
+  /**
+   * Value
+   */
+  value: string
+}
+
+/**
+ * SnapshotSort
+ */
+export type SnapshotSort = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Descending
+   */
+  descending?: boolean
+}
+
+/**
+ * SnapshotView
+ *
+ * What a caller wants to see of a captured result.
+ */
+export type SnapshotView = {
+  /**
+   * Filters
+   */
+  filters?: Array<
+    | ({
+        op: "contains" | "eq" | "gt" | "gte" | "lt" | "lte" | "ne" | "starts_with"
+      } & SnapshotScalarFilter)
+    | ({
+        op: "in"
+      } & SnapshotInFilter)
+    | ({
+        op: "is_not_null" | "is_null"
+      } & SnapshotNullFilter)
+  >
+  /**
+   * Sort
+   */
+  sort?: Array<SnapshotSort>
 }
 
 /**
@@ -7062,6 +7494,78 @@ export type queriesReadProfileResponses = {
 export type queriesReadProfileResponse =
   queriesReadProfileResponses[keyof queriesReadProfileResponses]
 
+export type queriesPrepareTextData = {
+  body: PrepareRequest
+  path?: never
+  query?: never
+  url: "/api/v1/queries/prepare"
+}
+
+export type queriesPrepareTextErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesPrepareTextError = queriesPrepareTextErrors[keyof queriesPrepareTextErrors]
+
+export type queriesPrepareTextResponses = {
+  /**
+   * Successful Response
+   */
+  200: PreparedScript
+}
+
+export type queriesPrepareTextResponse =
+  queriesPrepareTextResponses[keyof queriesPrepareTextResponses]
+
+export type queriesListRunsData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Document Id
+     */
+    document_id?: string | null
+    /**
+     * Connector Id
+     */
+    connector_id?: string | null
+    /**
+     * Search
+     */
+    search?: string
+    /**
+     * Skip
+     */
+    skip?: number
+    /**
+     * Limit
+     */
+    limit?: number
+  }
+  url: "/api/v1/queries/runs"
+}
+
+export type queriesListRunsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesListRunsError = queriesListRunsErrors[keyof queriesListRunsErrors]
+
+export type queriesListRunsResponses = {
+  /**
+   * Successful Response
+   */
+  200: RunsPublic
+}
+
+export type queriesListRunsResponse = queriesListRunsResponses[keyof queriesListRunsResponses]
+
 export type queriesStartRunData = {
   body: RunStart
   path?: never
@@ -7185,6 +7689,182 @@ export type queriesReadResultResponses = {
 }
 
 export type queriesReadResultResponse = queriesReadResultResponses[keyof queriesReadResultResponses]
+
+export type queriesReadResultPageData = {
+  body: SnapshotPageRequest
+  path: {
+    /**
+     * Result Id
+     */
+    result_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/results/{result_id}/page"
+}
+
+export type queriesReadResultPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesReadResultPageError =
+  queriesReadResultPageErrors[keyof queriesReadResultPageErrors]
+
+export type queriesReadResultPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: ResultPage
+}
+
+export type queriesReadResultPageResponse =
+  queriesReadResultPageResponses[keyof queriesReadResultPageResponses]
+
+export type queriesDownloadResultData = {
+  body: SnapshotDownloadRequest
+  path: {
+    /**
+     * Result Id
+     */
+    result_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/results/{result_id}/download"
+}
+
+export type queriesDownloadResultErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesDownloadResultError =
+  queriesDownloadResultErrors[keyof queriesDownloadResultErrors]
+
+export type queriesDownloadResultResponses = {
+  /**
+   * The captured rows as CSV
+   */
+  200: Blob | File
+}
+
+export type queriesDownloadResultResponse =
+  queriesDownloadResultResponses[keyof queriesDownloadResultResponses]
+
+export type queriesReadRunTextData = {
+  body?: never
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/runs/{run_id}/text"
+}
+
+export type queriesReadRunTextErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesReadRunTextError = queriesReadRunTextErrors[keyof queriesReadRunTextErrors]
+
+export type queriesReadRunTextResponses = {
+  /**
+   * Successful Response
+   */
+  200: RunText
+}
+
+export type queriesReadRunTextResponse =
+  queriesReadRunTextResponses[keyof queriesReadRunTextResponses]
+
+export type queriesDeleteRunsData = {
+  /**
+   * Body
+   */
+  body:
+    | ({
+        kind: "selected"
+      } & DeleteSelected)
+    | ({
+        kind: "older"
+      } & DeleteOlderThan)
+    | ({
+        kind: "all"
+      } & DeleteEverything)
+  path?: never
+  query?: never
+  url: "/api/v1/queries/runs/delete"
+}
+
+export type queriesDeleteRunsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesDeleteRunsError = queriesDeleteRunsErrors[keyof queriesDeleteRunsErrors]
+
+export type queriesDeleteRunsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type queriesDeleteRunsResponse = queriesDeleteRunsResponses[keyof queriesDeleteRunsResponses]
+
+export type queriesReadRetentionData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/queries/retention"
+}
+
+export type queriesReadRetentionResponses = {
+  /**
+   * Successful Response
+   */
+  200: RetentionSettings
+}
+
+export type queriesReadRetentionResponse =
+  queriesReadRetentionResponses[keyof queriesReadRetentionResponses]
+
+export type queriesChooseRetentionData = {
+  body: RetentionChoice
+  path?: never
+  query?: never
+  url: "/api/v1/queries/retention"
+}
+
+export type queriesChooseRetentionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesChooseRetentionError =
+  queriesChooseRetentionErrors[keyof queriesChooseRetentionErrors]
+
+export type queriesChooseRetentionResponses = {
+  /**
+   * Successful Response
+   */
+  200: RetentionSettings
+}
+
+export type queriesChooseRetentionResponse =
+  queriesChooseRetentionResponses[keyof queriesChooseRetentionResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

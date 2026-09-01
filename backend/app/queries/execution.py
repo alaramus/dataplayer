@@ -32,7 +32,13 @@ from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
 from app.queries.content import encrypted
 from app.queries.results import QueryResults
-from app.queries.runs import TERMINAL, ExecutionRun, RunStart, StatementRun
+from app.queries.runs import (
+    TERMINAL,
+    ExecutionRun,
+    ParameterMetadata,
+    RunStart,
+    StatementRun,
+)
 from app.queries.topic import RunEvent, announce
 from app.realtime.topics import TopicSet
 
@@ -76,24 +82,40 @@ def fingerprint(body: RunStart) -> str:
         str(body.document_id),
         str(body.document_revision),
         body.mode,
+        body.scope,
         str(body.timeout_seconds),
         str(body.range_start),
         str(body.range_end),
         body.text,
+        *(f"{one.name}={one.value}" for one in body.parameters),
     ]
     return hashlib.sha256(SEPARATOR.join(parts).encode()).hexdigest()
 
 
-def admit(script: PreparedScript, bounds: QueryLimits) -> list[tuple[int, str]]:
+def admit(
+    script: PreparedScript,
+    bounds: QueryLimits,
+    *,
+    scope: str = "script",
+    given: Iterable[str] = (),
+) -> list[tuple[int, str]]:
     """Check what was asked for before a run exists, and say what is wrong.
 
-    Input bounds first, then the classes. A statement this slice cannot run is
-    named by its place in the text rather than reported as a failure after the
-    run has been recorded — nothing has happened yet, so this is a refusal and
-    not an outcome (D62).
+    Input bounds first, then the shape, then the classes, then the bindings. A
+    statement this slice cannot run is named by its place in the text rather
+    than reported as a failure after the run has been recorded — nothing has
+    happened yet, so this is a refusal and not an outcome (D62).
     """
     if not script.statements:
         raise RunRefused(422, "There is nothing to run")
+    if scope == "statement" and len(script.statements) > 1:
+        # Ordinary Run is one statement. Several of them is the other command,
+        # and falling back to it silently is how a selection nobody checked
+        # becomes a script nobody meant to run (D65).
+        raise RunRefused(
+            422,
+            "This is more than one statement; run it as a script to run them all",
+        )
     if len(script.statements) > bounds.max_statements:
         raise RunRefused(
             422, f"A script may hold at most {bounds.max_statements} statements"
@@ -111,6 +133,15 @@ def admit(script: PreparedScript, bounds: QueryLimits) -> list[tuple[int, str]]:
                 f"Statement {statement.ordinal + 1} is a {statement.kind} statement, "
                 "and this connection only runs reads",
             )
+    supplied = set(given)
+    missing = [name for name in script.parameters if name not in supplied]
+    if missing:
+        # Named rather than bound to null: a parameter nobody filled in is a
+        # question, and answering it with SQL null on the user's behalf is a
+        # different query from the one they meant.
+        raise RunRefused(
+            422, f"No value was given for {', '.join(missing)}"
+        )
     return [(statement.ordinal, statement.kind) for statement in script.statements]
 
 
@@ -377,6 +408,14 @@ async def record(
         range_end=body.range_end,
         search_path=search_path,
         mode=body.mode,
+        scope=body.scope,
+        # Names and shape. The values were used and are not kept (D63).
+        parameters=[
+            ParameterMetadata(
+                name=one.name, is_null=one.value is None, secret=one.secret
+            ).model_dump()
+            for one in body.parameters
+        ],
         timeout_seconds=timeout_seconds,
         status="accepted",
         fingerprint=fingerprint(body),

@@ -168,7 +168,11 @@ async def test_a_script_stops_at_the_first_failure_and_says_what_did_not_run(
     connector_id = await _postgres(client, headers)
 
     started = await _start(
-        client, headers, connector_id, "select 1; select * from nothing_here; select 3"
+        client,
+        headers,
+        connector_id,
+        "select 1; select * from nothing_here; select 3",
+        scope="script",
     )
     run = await _settled(client, headers, started["id"])
 
@@ -197,12 +201,34 @@ async def test_a_statement_this_slice_cannot_run_is_refused_before_a_run_exists(
             "run_id": str(uuid.uuid4()),
             "connector_id": connector_id,
             "text": "select 1; delete from pg_class",
+            "scope": "script",
         },
     )
 
     assert response.status_code == 422
     assert "Statement 2" in response.json()["detail"]
     assert "dml" in response.json()["detail"]
+
+
+async def test_ordinary_run_never_falls_back_to_running_the_lot(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    """D65: several statements is the other command, and it is asked for."""
+    headers = await _headers(client, db)
+    connector_id = await _postgres(client, headers)
+
+    response = await client.post(
+        f"{BASE}/runs",
+        headers=headers,
+        json={
+            "run_id": str(uuid.uuid4()),
+            "connector_id": connector_id,
+            "text": "select 1; select 2",
+        },
+    )
+
+    assert response.status_code == 422
+    assert "script" in response.json()["detail"]
 
 
 async def test_an_empty_text_is_refused(

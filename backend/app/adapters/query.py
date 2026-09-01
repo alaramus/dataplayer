@@ -231,6 +231,21 @@ class StatementFinished(BaseModel):
 QueryEvent = StatementStarted | StatementFinished
 
 
+class ParameterValue(BaseModel):
+    """One binding, as the source is given it.
+
+    A value or SQL null, and nothing else: there is no type language here.
+    PostgreSQL infers the type from the expression the parameter stands in,
+    and an ambiguous expression is resolved with a cast in the SQL rather than
+    with a second vocabulary in a form (D62).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=63)
+    value: str | None = None
+
+
 class QueryRequest(BaseModel):
     """One press of Run, as the source is asked to carry it out.
 
@@ -247,6 +262,8 @@ class QueryRequest(BaseModel):
     # The ordered schema context to set before anything runs. Every name is
     # checked against the source before a statement is composed (D62).
     search_path: list[str] = Field(default_factory=list)
+    # Bindings by name. A statement is given only the ones it uses.
+    parameters: list[ParameterValue] = Field(default_factory=list)
     limits: QueryLimits
 
 

@@ -13,7 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.core.schemas import get_datetime_utc
-from app.queries.content import body_of, encrypted
+from app.queries.content import body_of, encrypted, encrypted_values
 from app.queries.models import EditorLayout, QueryDocument
 from app.users.models import User
 
@@ -27,6 +27,7 @@ async def create(
     body: str,
     search_path: Sequence[str],
     layout: EditorLayout,
+    parameters: dict[str, str | None] | None = None,
 ) -> QueryDocument:
     document = QueryDocument(
         owner_id=owner.id,
@@ -35,6 +36,7 @@ async def create(
         body=encrypted(body),
         search_path=list(search_path),
         layout=layout.model_dump(),
+        parameters=encrypted_values(parameters or {}),
     )
     session.add(document)
     await session.commit()

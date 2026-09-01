@@ -82,6 +82,12 @@ class QueryDocument(SQLModel, table=True):
     layout: dict[str, Any] = Field(
         default_factory=dict, sa_column=Column(JSONB, nullable=False)
     )
+    # Values this document was told to remember, encrypted like its body. Only
+    # the ones a person chose to keep, and never one they marked secret: a
+    # secret value is used and forgotten (D63).
+    parameters: bytes | None = Field(
+        default=None, sa_column=Column(LargeBinary, nullable=True)
+    )
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
@@ -114,6 +120,10 @@ def _within_size(value: str) -> str:
 DocumentBody = Annotated[str, AfterValidator(_within_size)]
 
 
+# One remembered binding per name, or a null the author meant.
+RememberedParameters = dict[str, str | None]
+
+
 class QueryDocumentCreate(BaseModel):
     """A new console, or a copy of one whose owner chose to keep both.
 
@@ -126,6 +136,7 @@ class QueryDocumentCreate(BaseModel):
     body: DocumentBody = ""
     search_path: SearchPath = PydanticField(default_factory=list)
     layout: EditorLayout = PydanticField(default_factory=EditorLayout)
+    parameters: RememberedParameters = PydanticField(default_factory=dict)
 
 
 class QueryDocumentUpdate(BaseModel):
@@ -146,6 +157,7 @@ class QueryDocumentUpdate(BaseModel):
     body: DocumentBody | None = None
     search_path: SearchPath | None = None
     layout: EditorLayout | None = None
+    parameters: RememberedParameters | None = None
 
 
 class QueryDocumentPublic(BaseModel):
@@ -162,6 +174,9 @@ class QueryDocumentPublic(BaseModel):
     revision: int
     search_path: list[str]
     layout: EditorLayout
+    # What this document remembers being asked with. Empty is the ordinary
+    # state, and a value marked secret when it ran is never here.
+    parameters: RememberedParameters = PydanticField(default_factory=dict)
     created_at: datetime | None = None
     updated_at: datetime | None = None
     trashed_at: datetime | None = None
