@@ -68,7 +68,16 @@ _QUERY_NODES = (exp.Select, exp.Union, exp.Intersect, exp.Except, exp.Values)
 # word would let through.
 _WRITE_NODES = (exp.Insert, exp.Update, exp.Delete, exp.Merge, exp.Copy)
 
-_DDL_NODES = (exp.Create, exp.Drop, exp.Alter, exp.TruncateTable, exp.Comment)
+# A permission change is a change to the schema's rules, so it is DDL here
+# and high risk below; the allowlist of what may actually run is narrower.
+_DDL_NODES = (
+    exp.Create,
+    exp.Drop,
+    exp.Alter,
+    exp.TruncateTable,
+    exp.Comment,
+    exp.Grant,
+)
 
 
 def split(text: str) -> list[tuple[int, int]]:
@@ -180,6 +189,38 @@ def bind(text: str) -> str:
     return "".join(pieces)
 
 
+def _risky(text: str, kind: StatementClass) -> bool:
+    """Whether this statement is one to ask about every time (D66).
+
+    High risk is not "a write": it is a write whose reach is not written down.
+    An UPDATE or DELETE with no predicate at the top of it touches every row a
+    person can see; a MERGE decides per row what it does; dropping, truncating,
+    taking a column away or changing who may do what cannot be undone by
+    reading the statement again.
+
+    Anything this module cannot read is high risk as well, for the reason
+    `unknown` is refused: not knowing is not the same as knowing it is safe.
+    """
+    if kind not in ("dml", "ddl"):
+        return False
+    try:
+        node = parse_one(text, read="postgres")
+    except (ParseError, TokenError):
+        return True
+    if any(True for _ in node.find_all(exp.Merge)):
+        return True
+    for write in node.find_all(exp.Update, exp.Delete):
+        if write.args.get("where") is None:
+            return True
+    if isinstance(node, exp.Drop | exp.TruncateTable | exp.Grant):
+        return True
+    if isinstance(node, exp.Alter):
+        # An ALTER that takes something away rather than adding to it.
+        actions = node.args.get("actions") or []
+        return any(isinstance(action, exp.Drop) for action in actions)
+    return False
+
+
 def _parameters(text: str) -> list[str]:
     """The `:name` bindings in this statement, in order of first appearance.
 
@@ -254,6 +295,7 @@ def prepare(text: str) -> PreparedScript:
     parameters: list[str] = []
     for ordinal, (start, end) in enumerate(split(text)):
         piece = text[start:end]
+        kind = _classify(piece)
         found = _parameters(piece)
         for name in found:
             if name not in parameters:
@@ -264,7 +306,8 @@ def prepare(text: str) -> PreparedScript:
                 start=start,
                 end=end,
                 text=piece,
-                kind=_classify(piece),
+                kind=kind,
+                risk="high" if _risky(piece, kind) else "low",
                 parameters=found,
                 targets=_targets(piece),
             )

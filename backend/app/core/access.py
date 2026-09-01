@@ -21,6 +21,11 @@ Access = Literal["read", "write", "structure", "own"]
 # What may be given away.
 Grant = Literal["read", "write", "structure"]
 
+# What the owner of a connection allows SQL written by a person to do through
+# it. Above every grant: a level admits an operation only when the policy does
+# too, and the default is the one that asks (D66).
+ExecutionPolicy = Literal["read_only", "confirm_writes", "allow_writes"]
+
 _RANK: Final[dict[Access, int]] = {
     "read": 0,
     "write": 1,

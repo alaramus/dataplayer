@@ -18,6 +18,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters.cache import CacheKey, DataCacheDep, cached_read
+from app.adapters.protocol import AdapterError
 from app.adapters.query import (
     ExplainRequest,
     ExplainResult,
@@ -35,10 +36,12 @@ from app.adapters.query import (
     SupportsQuery,
     SupportsQueryFormatting,
     SupportsQueryMetadata,
+    SupportsTransactions,
+    TransactionContext,
 )
 from app.adapters.resources import ResourcesDep, ResourceStore
 from app.connectors import crud as connector_crud
-from app.connectors.access import adapter_for, get_or_404
+from app.connectors.access import adapter_for, get_or_404, resolve
 from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.schemas import Message
@@ -83,8 +86,20 @@ from app.queries.runs import (
     SnapshotPageRequest,
     StatementPublic,
     StatementRun,
+    TransactionStart,
 )
+from app.queries.sessions import SessionsDep, TransactionPublic
 from app.queries.snapshot import SnapshotView
+from app.queries.unlocks import (
+    UnlockRequest,
+    UnlockState,
+    WriteRefused,
+    admit_write,
+    relock,
+    state_of,
+    touch,
+    unlock,
+)
 from app.realtime.topics import TopicsDep
 from app.users.deps import CurrentUser
 from app.users.models import User
@@ -451,6 +466,7 @@ async def start_run(
     resources: ResourcesDep,
     topics: TopicsDep,
     runner: RunnerDep,
+    sessions: SessionsDep,
     current_user: CurrentUser,
     body: RunStart,
 ) -> RunPublic:
@@ -494,17 +510,68 @@ async def start_run(
                 status_code=409, detail="This document is already running something"
             )
 
+    script = source.prepare_query(body.text)
     try:
         statements = execution.admit(
-            source.prepare_query(body.text),
+            script,
             bounds,
             scope=body.scope,
             given=[parameter.name for parameter in body.parameters],
+            mode=body.mode,
         )
     except RunRefused as refusal:
         raise HTTPException(
             status_code=refusal.status_code, detail=refusal.message
         ) from None
+
+    # Everything the owner's policy, this person's level and the unlock have to
+    # say before a written statement reaches the database (D66).
+    connector, access = await resolve(
+        session, body.connector_id, current_user, requires="read"
+    )
+    try:
+        await admit_write(
+            session,
+            connector=connector,
+            user_id=current_user.id,
+            access=access,
+            mode=body.mode,
+            kinds=[statement.kind for statement in script.statements],
+            confirmed_high_risk=body.confirm_high_risk,
+            risky=any(statement.risk == "high" for statement in script.statements)
+            or (
+                len(script.statements) > 1
+                and any(
+                    statement.kind in ("dml", "ddl") for statement in script.statements
+                )
+            ),
+        )
+    except WriteRefused as refusal:
+        raise HTTPException(
+            status_code=refusal.status_code, detail=refusal.message
+        ) from None
+
+    # In manual mode the statements go into a transaction somebody opened and
+    # will end; in every other mode the source opens its own.
+    lease = None
+    if body.mode == "manual":
+        if body.transaction_id is None:
+            raise HTTPException(
+                status_code=422, detail="A manual run needs a transaction to run in"
+            )
+        lease = await sessions.get(body.transaction_id, owner_id=current_user.id)
+        if lease is None:
+            raise HTTPException(status_code=404, detail="No such open transaction")
+        if lease.connector_id != body.connector_id:
+            raise HTTPException(
+                status_code=409,
+                detail="That transaction belongs to another connection",
+            )
+        if lease.transaction.state().broken:
+            raise HTTPException(
+                status_code=409,
+                detail="This transaction failed and can only be rolled back",
+            )
 
     # Refused rather than queued where nobody can see it (D64).
     if await runner.active_count(current_user.id) >= settings.QUERY_MAX_ACTIVE_RUNS:
@@ -525,23 +592,34 @@ async def start_run(
         timeout_seconds=timeout,
         search_path=search_path,
     )
+    request = QueryRequest(
+        text=body.text,
+        mode=body.mode,
+        search_path=search_path,
+        parameters=[
+            ParameterValue(name=parameter.name, value=parameter.value)
+            for parameter in body.parameters
+        ],
+        limits=bounds,
+    )
+    if lease is not None:
+        await sessions.mark_busy(lease.id, True)
     await runner.launch(
         run_id=run.id,
         owner_id=current_user.id,
         document_id=body.document_id,
-        source=source,
-        request=QueryRequest(
-            text=body.text,
-            mode=body.mode,
-            search_path=search_path,
-            parameters=[
-                ParameterValue(name=parameter.name, value=parameter.value)
-                for parameter in body.parameters
-            ],
-            limits=bounds,
+        execution=(
+            lease.transaction.execute(request)
+            if lease is not None
+            else source.open_query(request)
         ),
+        lease=lease,
+        sessions=sessions,
         topics=topics,
+        mode=body.mode,
     )
+    if body.mode != "read":
+        await touch(session, connector_id=connector.id, user_id=current_user.id)
     return await _run_public(session, run)
 
 
@@ -928,3 +1006,219 @@ async def generate_query(
         return await adapter.generate_query(body)
     except ValueError as refusal:
         raise HTTPException(status_code=404, detail=str(refusal)) from None
+
+
+# --- writing ----------------------------------------------------------------
+#
+# D66: every document opens read-only, the owner's policy sits above every
+# grant, and leaving read-only is a deliberate movement that expires. What is
+# open is visible, and it ends because somebody said so.
+
+
+@router.get("/connectors/{connector_id}/unlock", response_model=UnlockState)
+async def read_unlock(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+) -> UnlockState:
+    """Whether writing is open on this connection, and why not when it is not."""
+    connector, access = await resolve(
+        session, connector_id, current_user, requires="read"
+    )
+    return await state_of(
+        session, connector=connector, user_id=current_user.id, access=access
+    )
+
+
+@router.post("/connectors/{connector_id}/unlock", response_model=UnlockState)
+async def open_writes(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    body: UnlockRequest,
+) -> UnlockState:
+    """Leave read-only on this connection, in the way its policy requires."""
+    connector, access = await resolve(
+        session, connector_id, current_user, requires="read"
+    )
+    try:
+        return await unlock(
+            session,
+            connector=connector,
+            user_id=current_user.id,
+            access=access,
+            typed_name=body.connector_name,
+        )
+    except WriteRefused as refusal:
+        raise HTTPException(
+            status_code=refusal.status_code, detail=refusal.message
+        ) from None
+
+
+@router.delete("/connectors/{connector_id}/unlock", response_model=UnlockState)
+async def close_writes(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+) -> UnlockState:
+    """Go back to reading, now rather than when the unlock expires."""
+    connector, access = await resolve(
+        session, connector_id, current_user, requires="read"
+    )
+    await relock(session, connector_id=connector_id, user_id=current_user.id)
+    return await state_of(
+        session, connector=connector, user_id=current_user.id, access=access
+    )
+
+
+@router.post("/transactions", response_model=TransactionPublic)
+async def open_transaction(
+    session: SessionDep,
+    resources: ResourcesDep,
+    sessions: SessionsDep,
+    current_user: CurrentUser,
+    body: TransactionStart,
+) -> TransactionPublic:
+    """Open a transaction and hold it for this person.
+
+    A physical connection is leased here, so opening one asks for everything a
+    write asks for: the owner's policy, the level, and an unlock. It ends by
+    Commit, by Rollback, or by the lease running out (D66).
+    """
+    connector, access = await resolve(
+        session, body.connector_id, current_user, requires="read"
+    )
+    state = await state_of(
+        session, connector=connector, user_id=current_user.id, access=access
+    )
+    if not state.unlocked:
+        raise HTTPException(
+            status_code=409,
+            detail=state.reason or "Writing is not unlocked on this connection",
+        )
+    document = (
+        None
+        if body.document_id is None
+        else await _owned_or_404(session, body.document_id, current_user)
+    )
+    if document is not None and await sessions.for_document(document.id) is not None:
+        raise HTTPException(
+            status_code=409, detail="This document already has a transaction open"
+        )
+    if await sessions.count_for(current_user.id) >= settings.QUERY_MAX_TRANSACTIONS:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"You already have {settings.QUERY_MAX_TRANSACTIONS} transactions "
+                "open; end one first"
+            ),
+        )
+    adapter = await adapter_for(
+        session, body.connector_id, current_user, resources, requires="write"
+    )
+    if not isinstance(adapter, SupportsTransactions):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not hold transactions open",
+                "capability": "transactions",
+            },
+        )
+    profile = adapter.query_profile() if isinstance(adapter, SupportsQuery) else None
+    timeout = min(
+        body.timeout_seconds or (profile.default_timeout_seconds if profile else 30),
+        profile.max_timeout_seconds if profile else 300,
+    )
+    try:
+        transaction = await adapter.begin_transaction(
+            TransactionContext(
+                search_path=list(document.search_path) if document is not None else [],
+                statement_timeout_seconds=timeout,
+            )
+        )
+    except AdapterError as failure:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": failure.message, "error_kind": failure.error_kind},
+        ) from None
+    lease = await sessions.open(
+        owner_id=current_user.id,
+        connector_id=connector.id,
+        connector_label=connector.name,
+        document_id=None if document is None else document.id,
+        transaction=transaction,
+    )
+    await touch(session, connector_id=connector.id, user_id=current_user.id)
+    return sessions.public(lease)
+
+
+@router.get("/transactions/{transaction_id}", response_model=TransactionPublic)
+async def read_transaction(
+    sessions: SessionsDep, current_user: CurrentUser, transaction_id: str
+) -> TransactionPublic:
+    """What this transaction has done, which is also the commit preview.
+
+    One shape rather than two: what is listed before committing is what the
+    console has been showing all along, so the two cannot disagree (D66).
+    """
+    lease = await sessions.get(transaction_id, owner_id=current_user.id)
+    if lease is None:
+        raise HTTPException(status_code=404, detail="No such open transaction")
+    return sessions.public(lease)
+
+
+@router.post("/transactions/{transaction_id}/commit", response_model=Message)
+async def commit_transaction(
+    session: SessionDep,
+    sessions: SessionsDep,
+    current_user: CurrentUser,
+    transaction_id: str,
+) -> Message:
+    """Make what this transaction did permanent."""
+    lease = await sessions.get(transaction_id, owner_id=current_user.id)
+    if lease is None:
+        raise HTTPException(status_code=404, detail="No such open transaction")
+    state = lease.transaction.state()
+    if state.broken:
+        raise HTTPException(
+            status_code=409,
+            detail="This transaction failed and can only be rolled back",
+        )
+    try:
+        await sessions.end(transaction_id, commit=True)
+    except AdapterError as failure:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": failure.message, "error_kind": failure.error_kind},
+        ) from None
+    await execution.settle(session, transaction_id=transaction_id, committed=True)
+    await touch(session, connector_id=lease.connector_id, user_id=current_user.id)
+    return Message(
+        message=(
+            f"Committed {state.mutating_statements} changing "
+            f"{'statement' if state.mutating_statements == 1 else 'statements'}, "
+            f"{state.affected_rows} rows"
+        )
+    )
+
+
+@router.post("/transactions/{transaction_id}/rollback", response_model=Message)
+async def rollback_transaction(
+    session: SessionDep,
+    sessions: SessionsDep,
+    current_user: CurrentUser,
+    transaction_id: str,
+) -> Message:
+    """Undo everything this transaction did, including what succeeded."""
+    lease = await sessions.get(transaction_id, owner_id=current_user.id)
+    if lease is None:
+        raise HTTPException(status_code=404, detail="No such open transaction")
+    state = lease.transaction.state()
+    await sessions.end(transaction_id, commit=False)
+    await execution.settle(session, transaction_id=transaction_id, committed=False)
+    return Message(
+        message=(
+            f"Rolled back {state.mutating_statements} changing "
+            f"{'statement' if state.mutating_statements == 1 else 'statements'}"
+        )
+    )

@@ -854,6 +854,10 @@ export type ConnectorPublic = {
    */
   access: "read" | "write" | "structure" | "own"
   /**
+   * Execution Policy
+   */
+  execution_policy: "read_only" | "confirm_writes" | "allow_writes"
+  /**
    * Owner Email
    */
   owner_email?: string | null
@@ -885,6 +889,10 @@ export type ConnectorUpdate = {
    * Enabled
    */
   enabled?: boolean | null
+  /**
+   * Execution Policy
+   */
+  execution_policy?: "read_only" | "confirm_writes" | "allow_writes" | null
 }
 
 /**
@@ -2894,6 +2902,10 @@ export type PreparedStatement = {
    */
   kind: "read" | "explain" | "dml" | "ddl" | "transaction" | "session" | "copy" | "unknown"
   /**
+   * Risk
+   */
+  risk?: "low" | "high"
+  /**
    * Parameters
    */
   parameters?: Array<string>
@@ -3262,7 +3274,7 @@ export type QueryProfile = {
   /**
    * Statement Modes
    */
-  statement_modes: Array<"read">
+  statement_modes: Array<"read" | "auto_commit" | "manual">
   /**
    * Supports Cancel
    */
@@ -3910,11 +3922,15 @@ export type RunPublic = {
   /**
    * Mode
    */
-  mode: "read"
+  mode: "read" | "auto_commit" | "manual"
   /**
    * Scope
    */
   scope: "statement" | "script"
+  /**
+   * Write State
+   */
+  write_state?: "none" | "pending" | "committed" | "rolled_back"
   /**
    * Timeout Seconds
    */
@@ -3990,7 +4006,15 @@ export type RunStart = {
   /**
    * Mode
    */
-  mode?: "read"
+  mode?: "read" | "auto_commit" | "manual"
+  /**
+   * Transaction Id
+   */
+  transaction_id?: string | null
+  /**
+   * Confirm High Risk
+   */
+  confirm_high_risk?: boolean
   /**
    * Scope
    */
@@ -4542,6 +4566,10 @@ export type StatementPublic = {
    */
   row_count?: number | null
   /**
+   * Affected Rows
+   */
+  affected_rows?: number | null
+  /**
    * Result Id
    */
   result_id?: string | null
@@ -4635,6 +4663,107 @@ export type Token = {
 }
 
 /**
+ * TransactionPublic
+ *
+ * An open transaction as the console reads it.
+ *
+ * This is also the commit preview: everything D66 asks to be listed before
+ * committing — the context, how long it has been open, what it has changed
+ * and where — is here, so there is no second shape that could disagree with
+ * the first.
+ */
+export type TransactionPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Connector Label
+   */
+  connector_label: string
+  /**
+   * Document Id
+   */
+  document_id: string | null
+  state: TransactionState
+  /**
+   * Opened At
+   */
+  opened_at: string
+  /**
+   * Used At
+   */
+  used_at: string
+  /**
+   * Expires At
+   */
+  expires_at: string
+  /**
+   * Age Seconds
+   */
+  age_seconds: number
+}
+
+/**
+ * TransactionStart
+ *
+ * Asking for a transaction to be held open (D66).
+ */
+export type TransactionStart = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Document Id
+   */
+  document_id?: string | null
+  /**
+   * Timeout Seconds
+   */
+  timeout_seconds?: number | null
+}
+
+/**
+ * TransactionState
+ *
+ * What is true of an open transaction now.
+ *
+ * Everything a person is shown about it comes from here, so the screen never
+ * infers a transaction's state from the last thing it happened to see (D66).
+ */
+export type TransactionState = {
+  /**
+   * Open
+   */
+  open: boolean
+  /**
+   * Broken
+   */
+  broken?: boolean
+  /**
+   * Statements
+   */
+  statements?: number
+  /**
+   * Mutating Statements
+   */
+  mutating_statements?: number
+  /**
+   * Affected Rows
+   */
+  affected_rows?: number
+  /**
+   * Targets
+   */
+  targets?: Array<string>
+}
+
+/**
  * UniqueConstraint
  */
 export type UniqueConstraint = {
@@ -4670,6 +4799,54 @@ export type UniqueConstraintSpec = {
    * Columns
    */
   columns: Array<string>
+}
+
+/**
+ * UnlockRequest
+ *
+ * Asking to leave read-only, in the words the policy requires.
+ *
+ * Under `confirm_writes` the name of the connection is typed out: a
+ * deliberate movement is one that cannot be made by pressing what happened to
+ * be under the pointer.
+ */
+export type UnlockRequest = {
+  /**
+   * Connector Name
+   */
+  connector_name?: string
+}
+
+/**
+ * UnlockState
+ *
+ * Whether writes are open on this connection, and until when.
+ */
+export type UnlockState = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Policy
+   */
+  policy: "read_only" | "confirm_writes" | "allow_writes"
+  /**
+   * Access
+   */
+  access: "read" | "write" | "structure" | "own"
+  /**
+   * Unlocked
+   */
+  unlocked: boolean
+  /**
+   * Expires At
+   */
+  expires_at?: string | null
+  /**
+   * Reason
+   */
+  reason?: string | null
 }
 
 /**
@@ -8248,6 +8425,220 @@ export type queriesGenerateQueryResponses = {
 
 export type queriesGenerateQueryResponse =
   queriesGenerateQueryResponses[keyof queriesGenerateQueryResponses]
+
+export type queriesCloseWritesData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/connectors/{connector_id}/unlock"
+}
+
+export type queriesCloseWritesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesCloseWritesError = queriesCloseWritesErrors[keyof queriesCloseWritesErrors]
+
+export type queriesCloseWritesResponses = {
+  /**
+   * Successful Response
+   */
+  200: UnlockState
+}
+
+export type queriesCloseWritesResponse =
+  queriesCloseWritesResponses[keyof queriesCloseWritesResponses]
+
+export type queriesReadUnlockData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/connectors/{connector_id}/unlock"
+}
+
+export type queriesReadUnlockErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesReadUnlockError = queriesReadUnlockErrors[keyof queriesReadUnlockErrors]
+
+export type queriesReadUnlockResponses = {
+  /**
+   * Successful Response
+   */
+  200: UnlockState
+}
+
+export type queriesReadUnlockResponse = queriesReadUnlockResponses[keyof queriesReadUnlockResponses]
+
+export type queriesOpenWritesData = {
+  body: UnlockRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/connectors/{connector_id}/unlock"
+}
+
+export type queriesOpenWritesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesOpenWritesError = queriesOpenWritesErrors[keyof queriesOpenWritesErrors]
+
+export type queriesOpenWritesResponses = {
+  /**
+   * Successful Response
+   */
+  200: UnlockState
+}
+
+export type queriesOpenWritesResponse = queriesOpenWritesResponses[keyof queriesOpenWritesResponses]
+
+export type queriesOpenTransactionData = {
+  body: TransactionStart
+  path?: never
+  query?: never
+  url: "/api/v1/queries/transactions"
+}
+
+export type queriesOpenTransactionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesOpenTransactionError =
+  queriesOpenTransactionErrors[keyof queriesOpenTransactionErrors]
+
+export type queriesOpenTransactionResponses = {
+  /**
+   * Successful Response
+   */
+  200: TransactionPublic
+}
+
+export type queriesOpenTransactionResponse =
+  queriesOpenTransactionResponses[keyof queriesOpenTransactionResponses]
+
+export type queriesReadTransactionData = {
+  body?: never
+  path: {
+    /**
+     * Transaction Id
+     */
+    transaction_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/transactions/{transaction_id}"
+}
+
+export type queriesReadTransactionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesReadTransactionError =
+  queriesReadTransactionErrors[keyof queriesReadTransactionErrors]
+
+export type queriesReadTransactionResponses = {
+  /**
+   * Successful Response
+   */
+  200: TransactionPublic
+}
+
+export type queriesReadTransactionResponse =
+  queriesReadTransactionResponses[keyof queriesReadTransactionResponses]
+
+export type queriesCommitTransactionData = {
+  body?: never
+  path: {
+    /**
+     * Transaction Id
+     */
+    transaction_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/transactions/{transaction_id}/commit"
+}
+
+export type queriesCommitTransactionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesCommitTransactionError =
+  queriesCommitTransactionErrors[keyof queriesCommitTransactionErrors]
+
+export type queriesCommitTransactionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type queriesCommitTransactionResponse =
+  queriesCommitTransactionResponses[keyof queriesCommitTransactionResponses]
+
+export type queriesRollbackTransactionData = {
+  body?: never
+  path: {
+    /**
+     * Transaction Id
+     */
+    transaction_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/transactions/{transaction_id}/rollback"
+}
+
+export type queriesRollbackTransactionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesRollbackTransactionError =
+  queriesRollbackTransactionErrors[keyof queriesRollbackTransactionErrors]
+
+export type queriesRollbackTransactionResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type queriesRollbackTransactionResponse =
+  queriesRollbackTransactionResponses[keyof queriesRollbackTransactionResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

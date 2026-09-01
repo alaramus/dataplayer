@@ -96,7 +96,7 @@ async def test_a_statement_that_creates_something_is_refused_by_its_class() -> N
     assert finished[0].status == "failed"
     assert finished[0].diagnostic is not None
     assert finished[0].diagnostic.category == "read_only"
-    assert finished[0].diagnostic.code == "dp_not_read"
+    assert finished[0].diagnostic.code == "dp_not_admitted"
 
 
 async def test_a_function_that_writes_is_refused_by_the_read_only_transaction() -> None:
@@ -130,7 +130,7 @@ async def test_state_changing_statements_are_refused(text: str) -> None:
 
     assert finished[0].status == "failed"
     assert finished[0].diagnostic is not None
-    assert finished[0].diagnostic.code == "dp_not_read"
+    assert finished[0].diagnostic.code == "dp_not_admitted"
 
 
 async def test_a_statement_that_runs_too_long_times_out_and_says_so() -> None:
@@ -255,7 +255,7 @@ async def test_the_source_declares_what_it_accepts() -> None:
     profile = _query().profile()
 
     assert profile.dialect == "postgres"
-    assert profile.statement_modes == ["read"]
+    assert profile.statement_modes == ["read", "auto_commit", "manual"]
     assert profile.supports_cancel is True
     assert profile.supports_explain is False
     assert profile.default_timeout_seconds == 30

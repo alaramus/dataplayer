@@ -51,6 +51,10 @@ TERMINAL: frozenset[str] = frozenset(
 
 MAX_TEXT_BYTES = 256 * 1024
 
+# What has become of what a run changed. `none` is a read: it changed
+# nothing, so there is nothing to say about it.
+WriteState = Literal["none", "pending", "committed", "rolled_back"]
+
 
 class ExecutionRun(SQLModel, table=True):
     """The snapshot of one execution.
@@ -96,6 +100,9 @@ class ExecutionRun(SQLModel, table=True):
     )
     mode: str = Field(default="read", max_length=16)
     scope: str = Field(default="statement", max_length=16)
+    write_state: str = Field(default="none", max_length=16)
+    # Ending a transaction settles every run that went through it.
+    transaction_id: str | None = Field(default=None, max_length=64, index=True)
     timeout_seconds: int = Field(default=30)
     status: str = Field(default="accepted", max_length=16, index=True)
     # What this run was asked to do, hashed. Two commands with one id must be
@@ -133,6 +140,8 @@ class StatementRun(SQLModel, table=True):
     duration_ms: int | None = Field(default=None)
     command_tag: str | None = Field(default=None, max_length=255)
     row_count: int | None = Field(default=None)
+    # What a change touched, as the source counted it (D66).
+    affected_rows: int | None = Field(default=None)
     # Into the process-local store, and only while it is still there. A result
     # does not survive a restart; the run that produced it does (D64).
     result_id: str | None = Field(default=None, max_length=64)
@@ -195,6 +204,11 @@ class RunStart(BaseModel):
     range_start: int | None = PydanticField(default=None, ge=0)
     range_end: int | None = PydanticField(default=None, ge=0)
     mode: ExecutionMode = "read"
+    # The transaction this run belongs to, in manual mode and only there.
+    transaction_id: str | None = PydanticField(default=None, max_length=64)
+    # That the person has been told what a statement of this run would do
+    # and said yes to it. Asked every time, never remembered (D66).
+    confirm_high_risk: bool = False
     scope: ExecutionScope = "statement"
     parameters: list[RunParameter] = PydanticField(default_factory=list)
     timeout_seconds: int | None = PydanticField(default=None, ge=1)
@@ -209,6 +223,7 @@ class StatementPublic(BaseModel):
     duration_ms: int | None = None
     command_tag: str | None = None
     row_count: int | None = None
+    affected_rows: int | None = None
     result_id: str | None = None
     truncated: bool = False
     diagnostic: QueryDiagnostic | None = None
@@ -230,6 +245,9 @@ class RunPublic(BaseModel):
     status: RunStatus
     mode: ExecutionMode
     scope: ExecutionScope
+    # Where the changes of this run stand: nothing to say for a read,
+    # pending while a manual transaction is open, settled once it ends.
+    write_state: WriteState = "none"
     timeout_seconds: int
     statement_count: int
     parameters: list[ParameterMetadata] = PydanticField(default_factory=list)
@@ -238,6 +256,16 @@ class RunPublic(BaseModel):
     started_at: datetime | None = None
     finished_at: datetime | None = None
     statements: list[StatementPublic] = PydanticField(default_factory=list)
+
+
+class TransactionStart(BaseModel):
+    """Asking for a transaction to be held open (D66)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    connector_id: uuid.UUID
+    document_id: uuid.UUID | None = None
+    timeout_seconds: int | None = PydanticField(default=None, ge=1)
 
 
 class ExplainStart(BaseModel):

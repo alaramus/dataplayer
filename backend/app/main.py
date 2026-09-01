@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.queries.cleanup import sweeping
 from app.queries.execution import QueryRunner
 from app.queries.results import QueryResults
+from app.queries.sessions import QuerySessions
 from app.realtime import topics
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
@@ -46,13 +47,19 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     application.state.query_runner = QueryRunner(
         results=application.state.query_results
     )
+    # Transactions held open for somebody: a connection each, so the lease is
+    # what makes a forgotten one end (D66).
+    application.state.query_sessions = QuerySessions(
+        idle_seconds=settings.QUERY_TRANSACTION_IDLE_SECONDS
+    )
     # Emptying query Trash is the one thing here that is not a resource: it is
     # a timer, and it belongs to the application for the same reason a pool
     # does — nothing else outlives a request.
     try:
-        async with sweeping():
+        async with sweeping(application.state.query_sessions):
             yield
     finally:
+        await application.state.query_sessions.aclose()
         await application.state.query_runner.aclose()
         await application.state.query_results.aclose()
         await application.state.topics.aclose()

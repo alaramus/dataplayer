@@ -504,6 +504,10 @@ async def update_connector(
     if connector_in.enabled is not None:
         connector.enabled = connector_in.enabled
 
+    if connector_in.execution_policy is not None:
+        # Only reachable by the owner: this route asks for `own` above.
+        connector.execution_policy = connector_in.execution_policy
+
     if connector_in.options is not None:
         adapter_type = adapter_type_or_422(connector.adapter_type)
         options = service.fill_missing_secrets(

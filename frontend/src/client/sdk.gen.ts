@@ -172,6 +172,12 @@ import type {
   queriesChooseRetentionData,
   queriesChooseRetentionErrors,
   queriesChooseRetentionResponses,
+  queriesCloseWritesData,
+  queriesCloseWritesErrors,
+  queriesCloseWritesResponses,
+  queriesCommitTransactionData,
+  queriesCommitTransactionErrors,
+  queriesCommitTransactionResponses,
   queriesCreateDocumentData,
   queriesCreateDocumentErrors,
   queriesCreateDocumentResponses,
@@ -196,6 +202,12 @@ import type {
   queriesListRunsData,
   queriesListRunsErrors,
   queriesListRunsResponses,
+  queriesOpenTransactionData,
+  queriesOpenTransactionErrors,
+  queriesOpenTransactionResponses,
+  queriesOpenWritesData,
+  queriesOpenWritesErrors,
+  queriesOpenWritesResponses,
   queriesPrepareTextData,
   queriesPrepareTextErrors,
   queriesPrepareTextResponses,
@@ -225,9 +237,18 @@ import type {
   queriesReadRunTextData,
   queriesReadRunTextErrors,
   queriesReadRunTextResponses,
+  queriesReadTransactionData,
+  queriesReadTransactionErrors,
+  queriesReadTransactionResponses,
+  queriesReadUnlockData,
+  queriesReadUnlockErrors,
+  queriesReadUnlockResponses,
   queriesRestoreDocumentData,
   queriesRestoreDocumentErrors,
   queriesRestoreDocumentResponses,
+  queriesRollbackTransactionData,
+  queriesRollbackTransactionErrors,
+  queriesRollbackTransactionResponses,
   queriesStartRunData,
   queriesStartRunErrors,
   queriesStartRunResponses,
@@ -2698,6 +2719,161 @@ export class QueriesService {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Close Writes
+   *
+   * Go back to reading, now rather than when the unlock expires.
+   */
+  public static closeWrites<ThrowOnError extends boolean = true>(
+    options: Options<queriesCloseWritesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      queriesCloseWritesResponses,
+      queriesCloseWritesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/connectors/{connector_id}/unlock",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Unlock
+   *
+   * Whether writing is open on this connection, and why not when it is not.
+   */
+  public static readUnlock<ThrowOnError extends boolean = true>(
+    options: Options<queriesReadUnlockData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      queriesReadUnlockResponses,
+      queriesReadUnlockErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/connectors/{connector_id}/unlock",
+      ...options,
+    })
+  }
+
+  /**
+   * Open Writes
+   *
+   * Leave read-only on this connection, in the way its policy requires.
+   */
+  public static openWrites<ThrowOnError extends boolean = true>(
+    options: Options<queriesOpenWritesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesOpenWritesResponses,
+      queriesOpenWritesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/connectors/{connector_id}/unlock",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Open Transaction
+   *
+   * Open a transaction and hold it for this person.
+   *
+   * A physical connection is leased here, so opening one asks for everything a
+   * write asks for: the owner's policy, the level, and an unlock. It ends by
+   * Commit, by Rollback, or by the lease running out (D66).
+   */
+  public static openTransaction<ThrowOnError extends boolean = true>(
+    options: Options<queriesOpenTransactionData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesOpenTransactionResponses,
+      queriesOpenTransactionErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/transactions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Transaction
+   *
+   * What this transaction has done, which is also the commit preview.
+   *
+   * One shape rather than two: what is listed before committing is what the
+   * console has been showing all along, so the two cannot disagree (D66).
+   */
+  public static readTransaction<ThrowOnError extends boolean = true>(
+    options: Options<queriesReadTransactionData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      queriesReadTransactionResponses,
+      queriesReadTransactionErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/transactions/{transaction_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Commit Transaction
+   *
+   * Make what this transaction did permanent.
+   */
+  public static commitTransaction<ThrowOnError extends boolean = true>(
+    options: Options<queriesCommitTransactionData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesCommitTransactionResponses,
+      queriesCommitTransactionErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/transactions/{transaction_id}/commit",
+      ...options,
+    })
+  }
+
+  /**
+   * Rollback Transaction
+   *
+   * Undo everything this transaction did, including what succeeded.
+   */
+  public static rollbackTransaction<ThrowOnError extends boolean = true>(
+    options: Options<queriesRollbackTransactionData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesRollbackTransactionResponses,
+      queriesRollbackTransactionErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/transactions/{transaction_id}/rollback",
+      ...options,
     })
   }
 }

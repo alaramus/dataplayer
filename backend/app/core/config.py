@@ -116,6 +116,12 @@ class Settings(BaseSettings):
     QUERY_HISTORY_DEFAULT_DAYS: int = 90
     QUERY_HISTORY_MAX_RUNS: int = 1000
     QUERY_HISTORY_SEARCH_MAX: int = 500
+    # How long an unlock survives without being used, and how long a manual
+    # transaction may sit idle before it is rolled back (D66).
+    QUERY_UNLOCK_IDLE_MINUTES: int = 15
+    QUERY_TRANSACTION_IDLE_SECONDS: float = 300.0
+    QUERY_TRANSACTION_SWEEP_SECONDS: float = 10.0
+    QUERY_MAX_TRANSACTIONS: int = 3
     # Runs one person may have in flight at once. Excess is refused rather than
     # queued where nobody can see it.
     QUERY_MAX_ACTIVE_RUNS: int = 3

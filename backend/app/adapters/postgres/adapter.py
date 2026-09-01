@@ -41,7 +41,11 @@ from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.indexes import PostgresIndexes
 from app.adapters.postgres.metadata import PostgresGeneration, PostgresMetadata
 from app.adapters.postgres.options import PostgresOptions
-from app.adapters.postgres.query import PostgresExecution, PostgresQuery
+from app.adapters.postgres.query import (
+    PostgresExecution,
+    PostgresQuery,
+    PostgresTransaction,
+)
 from app.adapters.postgres.references import PostgresReferences
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.relation_changes import PostgresRelationChanges
@@ -63,6 +67,7 @@ from app.adapters.query import (
     QueryMetadataRequest,
     QueryProfile,
     QueryRequest,
+    TransactionContext,
 )
 from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.registry import AdapterContext, register
@@ -144,6 +149,10 @@ class PostgresAdapter:
 
     def open_query(self, request: QueryRequest) -> PostgresExecution:
         return self._query.open(request)
+
+    async def begin_transaction(self, context: TransactionContext) -> PostgresTransaction:
+        """Hold a transaction open between requests (D66)."""
+        return await self._query.begin(context)
 
     async def explain_query(self, request: ExplainRequest) -> ExplainResult:
         """Plan the statement, without running it (D65)."""

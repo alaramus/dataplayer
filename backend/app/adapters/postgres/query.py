@@ -9,7 +9,8 @@ outside the database, and restricting that is the database role's job.
 """
 
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from contextlib import AsyncExitStack
 from typing import Any
 
 import psycopg
@@ -28,6 +29,7 @@ from app.adapters.query import (
     PreparedStatement,
     QueryDiagnostic,
     QueryEvent,
+    QueryExecution,
     QueryLimits,
     QueryNotice,
     QueryProfile,
@@ -36,6 +38,8 @@ from app.adapters.query import (
     StatementFinished,
     StatementStarted,
     StatementStatus,
+    TransactionContext,
+    TransactionState,
 )
 from app.adapters.relation import ColumnType
 
@@ -177,6 +181,16 @@ statement_timeout_seconds: int,
     )
 
 
+# What each mode admits. The database is still the rule — a read runs in a
+# read-only transaction — and this is what lets a refusal name the kind of
+# statement rather than leaving the server to answer for it (D66).
+_ADMITTED: dict[str, frozenset[str]] = {
+    "read": frozenset({"read"}),
+    "auto_commit": frozenset({"read", "dml"}),
+    "manual": frozenset({"read", "dml"}),
+}
+
+
 class ResultTooLarge(Exception):
     """A statement succeeded and its result cannot be published (D64)."""
 
@@ -185,12 +199,14 @@ class ResultTooLarge(Exception):
         self.message = message
 
 
-class PostgresExecution:
-    """One run, holding the connection it is running on.
+class _Statements:
+    """Running the statements of one request on a connection.
 
-    Cancellation reaches the connection rather than the task: dropping the task
-    would leave the query running on the server, which is the mistake the
-    lifecycle in D64 exists to prevent.
+    What opens the transaction and what ends it is not here: a read opens its
+    own and closes it, and a manual transaction was opened before this run and
+    outlives it (D66). Cancellation is here, because what has to be reached is
+    the connection the statements are on — dropping the task would leave the
+    query running on the server.
     """
 
     def __init__(self, session: PostgresSession, request: QueryRequest) -> None:
@@ -201,6 +217,12 @@ class PostgresExecution:
         self._notices: list[QueryNotice] = []
         self._run_bytes = 0
         self._run_results = 0
+        # What this runner has done, for a transaction to report and for a
+        # commit preview to list (D66).
+        self.mutating = 0
+        self.affected = 0
+        self.targets: list[str] = []
+        self.failed = False
 
     async def cancel(self) -> None:
         """Ask the server to stop, and wait for it to say what happened.
@@ -218,48 +240,6 @@ class PostgresExecution:
         except Exception:
             # The connection has already gone, which is the outcome anyway.
             return
-
-    def events(self) -> AsyncIterator[QueryEvent]:
-        return self._run()
-
-    async def _run(self) -> AsyncIterator[QueryEvent]:
-        limits = self._request.limits
-        script = prepare(self._request.text)
-        started = time.monotonic()
-        try:
-            async with self._session.acquire() as connection:
-                self._connection = connection
-                connection.add_notice_handler(self._note)
-                # jsonb arrives as the server wrote it: letting the driver
-                # parse it would round a number through a float, and D23 says
-                # a cell crosses as its canonical text.
-                for name in ("json", "jsonb"):
-                    connection.adapters.register_loader(name, TextLoader)
-                await connection.set_read_only(True)
-                try:
-                    async with connection.transaction():
-                        await set_read_context(
-                            connection,
-                            search_path=self._request.search_path,
-                            statement_timeout_seconds=(
-                                limits.statement_timeout_seconds
-                            ),
-                        )
-                        async for event in self._statements(
-                            connection, script, started, limits
-                        ):
-                            yield event
-                finally:
-                    self._connection = None
-                    connection.remove_notice_handler(self._note)
-                    await connection.set_read_only(None)
-        except PoolTimeout:
-            raise AdapterError("timeout", "No connection was free for this query") from None
-        except AdapterError:
-            raise
-        except Exception as exc:
-            error_kind, message = classify(exc, fallback_message="The query could not be run")
-            raise AdapterError(error_kind, message) from None
 
     async def _statements(
         self,
@@ -293,6 +273,7 @@ class PostgresExecution:
             # The first failure stops the script; what ran before it stays
             # visible and the rest is `not_run` rather than silently missing.
             stopped = finished.status != "succeeded"
+            self.failed = self.failed or stopped
 
     async def _one(
         self,
@@ -300,7 +281,7 @@ class PostgresExecution:
         statement: PreparedStatement,
         limits: QueryLimits,
     ) -> StatementFinished:
-        if statement.kind != "read":
+        if statement.kind not in _ADMITTED[self._request.mode]:
             # The transaction would refuse most of these anyway; saying which
             # kind it is beats letting the database answer for the ones it
             # cannot see the point of.
@@ -309,9 +290,13 @@ class PostgresExecution:
                 status="failed",
                 duration_ms=0,
                 diagnostic=QueryDiagnostic(
-                    code="dp_not_read",
+                    code="dp_not_admitted",
                     category="read_only",
-                    message=f"A {statement.kind} statement cannot run in a read",
+                    message=(
+                        f"A {statement.kind} statement cannot run in a read"
+                        if self._request.mode == "read"
+                        else f"A {statement.kind} statement is not run here"
+                    ),
                 ),
             )
         self._notices = []
@@ -332,12 +317,25 @@ class PostgresExecution:
                 result: MaterialisedResult | None = None
                 if cursor.description is not None:
                     result = await self._materialise(connection, cursor, limits)
+                # What a change touched, as the source counted it. A statement
+                # that returns rows says how many came back instead (D66).
+                affected = (
+                    cursor.rowcount
+                    if statement.kind in ("dml", "ddl") and cursor.rowcount >= 0
+                    else None
+                )
+                self.mutating += 1 if statement.kind in ("dml", "ddl") else 0
+                self.affected += affected or 0
+                for target in statement.targets:
+                    if target not in self.targets:
+                        self.targets.append(target)
                 return StatementFinished(
                     ordinal=statement.ordinal,
                     status="succeeded",
                     duration_ms=self._since(began),
                     command_tag=cursor.statusmessage,
                     row_count=None if result is None else len(result.rows),
+                    affected_rows=affected,
                     result=result,
                     notices=self._notices[: limits.max_messages],
                 )
@@ -464,6 +462,248 @@ class PostgresExecution:
         return int((time.monotonic() - began) * 1000)
 
 
+class PostgresExecution(_Statements):
+    """One run that opens its own transaction and ends it.
+
+    A read runs read-only and the transaction is closed either way.
+    Auto-commit makes the whole run one transaction and commits only when
+    every statement succeeded — the first failure rolls the lot back, which is
+    what "the complete run is one transaction" means (D66).
+    """
+
+    def events(self) -> AsyncIterator[QueryEvent]:
+        return self._run()
+
+    async def _run(self) -> AsyncIterator[QueryEvent]:
+        limits = self._request.limits
+        script = prepare(self._request.text)
+        started = time.monotonic()
+        reading = self._request.mode == "read"
+        try:
+            async with self._session.acquire() as connection:
+                self._connection = connection
+                _prepare_connection(connection, self._note)
+                await connection.set_read_only(reading)
+                try:
+                    async with connection.transaction():
+                        await set_read_context(
+                            connection,
+                            search_path=self._request.search_path,
+                            statement_timeout_seconds=(
+                                limits.statement_timeout_seconds
+                            ),
+                        )
+                        async for event in self._statements(
+                            connection, script, started, limits
+                        ):
+                            yield event
+                        if self.failed and not reading:
+                            # Leaving the block by an exception is how psycopg
+                            # is told to roll back; the caller never sees it.
+                            raise _RollBack
+                finally:
+                    self._connection = None
+                    connection.remove_notice_handler(self._note)
+                    await connection.set_read_only(None)
+        except _RollBack:
+            return
+        except PoolTimeout:
+            raise AdapterError("timeout", "No connection was free for this query") from None
+        except AdapterError:
+            raise
+        except Exception as exc:
+            error_kind, message = classify(exc, fallback_message="The query could not be run")
+            raise AdapterError(error_kind, message) from None
+
+
+class _BoundExecution(_Statements):
+    """One run inside a transaction somebody else opened, and will end."""
+
+    def __init__(
+        self,
+        session: PostgresSession,
+        request: QueryRequest,
+        connection: psycopg.AsyncConnection[Any],
+    ) -> None:
+        super().__init__(session, request)
+        self._connection = connection
+
+    def events(self) -> AsyncIterator[QueryEvent]:
+        return self._run()
+
+    async def _run(self) -> AsyncIterator[QueryEvent]:
+        connection = self._connection
+        if connection is None:
+            raise AdapterError("unknown", "This transaction is no longer open")
+        limits = self._request.limits
+        script = prepare(self._request.text)
+        started = time.monotonic()
+        connection.add_notice_handler(self._note)
+        try:
+            async for event in self._statements(connection, script, started, limits):
+                yield event
+        except PoolTimeout:
+            raise AdapterError("timeout", "No connection was free for this query") from None
+        except AdapterError:
+            raise
+        except Exception as exc:
+            error_kind, message = classify(exc, fallback_message="The query could not be run")
+            raise AdapterError(error_kind, message) from None
+        finally:
+            connection.remove_notice_handler(self._note)
+
+
+class PostgresTransaction:
+    """One transaction, open across requests, holding its connection.
+
+    PostgreSQL makes a transaction unusable after a statement error, so a
+    failure marks it broken here too and the only honest way out is to end it.
+    Nothing is committed by accident: it ends when somebody says so, or when
+    the lease does (D66).
+    """
+
+    def __init__(self, session: PostgresSession, context: TransactionContext) -> None:
+        self._session = session
+        self._context = context
+        self._stack = AsyncExitStack()
+        self._connection: psycopg.AsyncConnection[Any] | None = None
+        self._open = False
+        self._broken = False
+        self._statements = 0
+        self._mutating = 0
+        self._affected = 0
+        self._targets: list[str] = []
+
+    async def begin(self) -> None:
+        try:
+            connection = await self._stack.enter_async_context(self._session.acquire())
+            _prepare_connection(connection)
+            await connection.set_read_only(False)
+            await self._stack.enter_async_context(connection.transaction())
+            await set_read_context(
+                connection,
+                search_path=self._context.search_path,
+                statement_timeout_seconds=self._context.statement_timeout_seconds,
+            )
+        except PoolTimeout:
+            await self._stack.aclose()
+            raise AdapterError("timeout", "No connection was free for this query") from None
+        except AdapterError:
+            await self._stack.aclose()
+            raise
+        except Exception as exc:
+            await self._stack.aclose()
+            error_kind, message = classify(
+                exc, fallback_message="The transaction could not be opened"
+            )
+            raise AdapterError(error_kind, message) from None
+        self._connection = connection
+        self._open = True
+
+    def execute(self, request: QueryRequest) -> _BoundExecution:
+        connection = self._connection
+        if connection is None or not self._open:
+            raise AdapterError("unknown", "This transaction is no longer open")
+        if self._broken:
+            raise AdapterError(
+                "unknown",
+                "This transaction failed and can only be rolled back",
+            )
+        run = _BoundExecution(self._session, request, connection)
+        self._pending = run
+        return run
+
+    def absorb(self, run: QueryExecution) -> None:
+        """Take what a finished run did into the transaction's own state.
+
+        Typed by the protocol rather than by this module's own class: what
+        comes back is whatever was handed out, and only a runner ever calls
+        this.
+        """
+        if not isinstance(run, _Statements):
+            return
+        self._statements += 1
+        self._mutating += run.mutating
+        self._affected += run.affected
+        for target in run.targets:
+            if target not in self._targets:
+                self._targets.append(target)
+        if run.failed:
+            self._broken = True
+
+    def state(self) -> TransactionState:
+        return TransactionState(
+            open=self._open,
+            broken=self._broken,
+            statements=self._statements,
+            mutating_statements=self._mutating,
+            affected_rows=self._affected,
+            targets=list(self._targets),
+        )
+
+    async def commit(self) -> None:
+        if self._broken:
+            raise AdapterError(
+                "unknown", "This transaction failed and can only be rolled back"
+            )
+        await self._end(commit=True)
+
+    async def rollback(self) -> None:
+        await self._end(commit=False)
+
+    async def aclose(self) -> None:
+        await self._end(commit=False)
+
+    async def _end(self, *, commit: bool) -> None:
+        if not self._open:
+            return
+        self._open = False
+        connection = self._connection
+        self._connection = None
+        try:
+            if not commit and connection is not None:
+                # Leaving psycopg's transaction block by an exception is what
+                # rolls it back; the exception itself goes no further.
+                await self._stack.__aexit__(_RollBack, _RollBack(), None)
+                return
+            await self._stack.aclose()
+        except _RollBack:
+            return
+        except Exception as exc:
+            error_kind, message = classify(
+                exc, fallback_message="The transaction could not be ended"
+            )
+            raise AdapterError(error_kind, message) from None
+        finally:
+            if connection is not None:
+                try:
+                    await connection.set_read_only(None)
+                except Exception:
+                    # The connection is going back to the pool, which resets
+                    # it; failing to tidy is not worth an error here.
+                    pass
+
+
+class _RollBack(Exception):
+    """Leaving a transaction block the way psycopg reads as "roll this back"."""
+
+
+def _prepare_connection(
+    connection: psycopg.AsyncConnection[Any],
+    notice: Callable[[psycopg.errors.Diagnostic], None] | None = None,
+) -> None:
+    """What every connection running somebody's SQL is set up with.
+
+    jsonb arrives as the server wrote it: letting the driver parse it would
+    round a number through a float, and D23 says a cell crosses as its
+    canonical text.
+    """
+    if notice is not None:
+        connection.add_notice_handler(notice)
+    for name in ("json", "jsonb"):
+        connection.adapters.register_loader(name, TextLoader)
+
+
 class PostgresQuery:
     """PostgreSQL as a source that accepts complete SQL (D62)."""
 
@@ -474,7 +714,7 @@ class PostgresQuery:
         return QueryProfile(
             dialect="postgres",
             parameter_syntax="named_colon",
-            statement_modes=["read"],
+            statement_modes=["read", "auto_commit", "manual"],
             supports_cancel=True,
             # What else this source can do is derived from what it implements,
             # by whoever answers the profile. Restating it here would be the
@@ -488,4 +728,10 @@ class PostgresQuery:
 
     def open(self, request: QueryRequest) -> PostgresExecution:
         return PostgresExecution(self._session, request)
+
+    async def begin(self, context: TransactionContext) -> PostgresTransaction:
+        """Open a transaction that outlives this request (D66)."""
+        transaction = PostgresTransaction(self._session, context)
+        await transaction.begin()
+        return transaction
 

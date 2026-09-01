@@ -80,6 +80,12 @@ ignore = [
     "B904",  # Allow raising exceptions without from e, for HTTPException
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# The statement a query test sends is the subject of the test: a console
+# accepts SQL a person wrote (D62), and these files write it the way a person
+# would. The rule stays on everywhere the application builds a statement.
+"tests/queries/test_write_routes.py" = ["S608"]
+
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.
 keep-runtime-typing = true

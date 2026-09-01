@@ -14,6 +14,7 @@ from app.core.config import settings
 from app.core.db import async_session_maker
 from app.queries import crud, history
 from app.queries.execution import recover_interrupted
+from app.queries.sessions import QuerySessions
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +57,28 @@ async def _sweep_forever() -> None:
         await asyncio.sleep(settings.QUERY_TRASH_SWEEP_SECONDS)
 
 
+async def _end_idle_transactions(sessions: QuerySessions) -> None:
+    """Roll back what has been left open, on a timer of its own.
+
+    Far more often than Trash is emptied: an open transaction holds locks, and
+    five minutes is the promise the console shows a countdown against (D66).
+    """
+    while True:
+        try:
+            ended = await sessions.sweep()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Ending idle transactions failed")
+        else:
+            if ended:
+                logger.info("Rolled back %d idle transactions", ended)
+        await asyncio.sleep(settings.QUERY_TRANSACTION_SWEEP_SECONDS)
+
+
 @asynccontextmanager
-async def sweeping() -> AsyncIterator[None]:
-    """Run the sweep for as long as the application does."""
+async def sweeping(sessions: QuerySessions) -> AsyncIterator[None]:
+    """Run the sweeps for as long as the application does."""
     try:
         stranded = await recover_once()
     except Exception:
@@ -66,12 +86,17 @@ async def sweeping() -> AsyncIterator[None]:
     else:
         if stranded:
             logger.info("Marked %d query runs interrupted", stranded)
-    task = asyncio.create_task(_sweep_forever())
+    tasks = [
+        asyncio.create_task(_sweep_forever()),
+        asyncio.create_task(_end_idle_transactions(sessions)),
+    ]
     try:
         yield
     finally:
-        task.cancel()
-        try:
-            await task
-        except asyncio.CancelledError:
-            pass
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass

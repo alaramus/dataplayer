@@ -345,7 +345,7 @@ async def test_a_source_that_does_states_what_it_accepts(
     assert response.status_code == 200, response.text
     profile = response.json()
     assert profile["dialect"] == "postgres"
-    assert profile["statement_modes"] == ["read"]
+    assert profile["statement_modes"] == ["read", "auto_commit", "manual"]
     assert profile["parameter_syntax"] == "named_colon"
 
 

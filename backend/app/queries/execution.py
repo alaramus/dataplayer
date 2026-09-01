@@ -23,9 +23,7 @@ from app.adapters.query import (
     PreparedScript,
     QueryExecution,
     QueryLimits,
-    QueryRequest,
     StatementFinished,
-    SupportsQuery,
 )
 from app.core.config import settings
 from app.core.db import async_session_maker
@@ -39,6 +37,7 @@ from app.queries.runs import (
     RunStart,
     StatementRun,
 )
+from app.queries.sessions import Lease, QuerySessions
 from app.queries.topic import RunEvent, announce
 from app.realtime.topics import TopicSet
 
@@ -98,6 +97,7 @@ def admit(
     *,
     scope: str = "script",
     given: Iterable[str] = (),
+    mode: str = "read",
 ) -> list[tuple[int, str]]:
     """Check what was asked for before a run exists, and say what is wrong.
 
@@ -126,13 +126,27 @@ def admit(
                 422,
                 f"Statement {statement.ordinal + 1} is larger than one statement may be",
             )
+    admitted = _ADMITTED.get(mode, frozenset({"read"}))
     for statement in script.statements:
-        if statement.kind != "read":
+        if statement.kind in admitted:
+            continue
+        if statement.kind == "ddl":
+            # A closed vocabulary of schema changes is a slice of its own, with
+            # its own preview and its own invalidation (D66).
             raise RunRefused(
                 422,
-                f"Statement {statement.ordinal + 1} is a {statement.kind} statement, "
-                "and this connection only runs reads",
+                f"Statement {statement.ordinal + 1} changes the structure of the "
+                "source, which is not run here yet",
             )
+        raise RunRefused(
+            422,
+            f"Statement {statement.ordinal + 1} is a {statement.kind} statement, "
+            + (
+                "and this run is a read"
+                if mode == "read"
+                else "and statements of that kind are not run here"
+            ),
+        )
     supplied = set(given)
     missing = [name for name in script.parameters if name not in supplied]
     if missing:
@@ -143,6 +157,15 @@ def admit(
             422, f"No value was given for {', '.join(missing)}"
         )
     return [(statement.ordinal, statement.kind) for statement in script.statements]
+
+
+# What each mode will carry out. DDL waits for the slice that gives it a
+# preview and an invalidation; everything else is refused by class.
+_ADMITTED: dict[str, frozenset[str]] = {
+    "read": frozenset({"read"}),
+    "auto_commit": frozenset({"read", "dml"}),
+    "manual": frozenset({"read", "dml"}),
+}
 
 
 class RunRefused(Exception):
@@ -192,13 +215,29 @@ class QueryRunner:
         run_id: uuid.UUID,
         owner_id: uuid.UUID,
         document_id: uuid.UUID | None,
-        source: SupportsQuery,
-        request: QueryRequest,
+        execution: QueryExecution,
         topics: TopicSet,
+        lease: Lease | None = None,
+        sessions: QuerySessions | None = None,
+        mode: str = "read",
     ) -> None:
-        execution = source.open_query(request)
+        """Carry out one run, on its own or inside an open transaction.
+
+        The execution is made by whoever knows where the statements belong —
+        the source for a read or an auto-commit, the transaction for a manual
+        run — and this only watches it (D66).
+        """
         task = asyncio.create_task(
-            self._carry_out(run_id, owner_id, document_id, execution, topics)
+            self._carry_out(
+                run_id,
+                owner_id,
+                document_id,
+                execution,
+                topics,
+                lease,
+                sessions,
+                mode,
+            )
         )
         async with self._lock:
             self._active[run_id] = _Active(
@@ -237,6 +276,9 @@ class QueryRunner:
         document_id: uuid.UUID | None,
         execution: QueryExecution,
         topics: TopicSet,
+        lease: Lease | None = None,
+        sessions: QuerySessions | None = None,
+        mode: str = "read",
     ) -> None:
         """Read the source's events and write down what happened.
 
@@ -267,7 +309,16 @@ class QueryRunner:
                     # are not this.
                     status = "failed"
                     error = failure.message
-                await _mark(session, run_id, status=status, finished=True, error=error)
+                await _mark(
+                    session,
+                    run_id,
+                    status=status,
+                    finished=True,
+                    error=error,
+                    # A manual run's changes are pending until somebody ends
+                    # the transaction; an auto-commit run settled with it.
+                    write_state=_settled(mode, status),
+                )
                 await _publish(topics, owner_id, session, run_id, finished=finished)
         except asyncio.CancelledError:
             raise
@@ -285,6 +336,12 @@ class QueryRunner:
                     error="This run could not be completed",
                 )
         finally:
+            # What the run did belongs to the transaction it ran in, and the
+            # lease is free again either way.
+            if lease is not None:
+                lease.transaction.absorb(execution)
+                if sessions is not None:
+                    await sessions.mark_busy(lease.id, False)
             await self._results.release(run_id)
             async with self._lock:
                 self._active.pop(run_id, None)
@@ -303,6 +360,7 @@ class QueryRunner:
         statement.duration_ms = event.duration_ms
         statement.command_tag = event.command_tag
         statement.row_count = event.row_count
+        statement.affected_rows = event.affected_rows
         statement.notices = [notice.model_dump() for notice in event.notices]
         diagnostic = event.diagnostic
         if event.result is not None:
@@ -331,6 +389,20 @@ def _no_room() -> Any:
     )
 
 
+def _settled(mode: str, status: str) -> str:
+    """What became of what a run changed, by the mode it ran in (D66).
+
+    A read changed nothing. An auto-commit run is one transaction: it either
+    committed as a whole or was rolled back as a whole. A manual run waits for
+    the person to say.
+    """
+    if mode == "read":
+        return "none"
+    if mode == "manual":
+        return "pending"
+    return "committed" if status == "succeeded" else "rolled_back"
+
+
 async def _mark(
     session: AsyncSession,
     run_id: uuid.UUID,
@@ -339,6 +411,7 @@ async def _mark(
     started: bool = False,
     finished: bool = False,
     error: str | None = None,
+    write_state: str | None = None,
 ) -> None:
     run = await session.get(ExecutionRun, run_id)
     if run is None:
@@ -354,6 +427,8 @@ async def _mark(
         run.finished_at = get_datetime_utc()
     if error is not None:
         run.error = error[:500]
+    if write_state is not None:
+        run.write_state = write_state
     session.add(run)
     await session.commit()
 
@@ -409,6 +484,8 @@ async def record(
         search_path=search_path,
         mode=body.mode,
         scope=body.scope,
+        transaction_id=body.transaction_id,
+        write_state="pending" if body.mode == "manual" else "none",
         # Names and shape. The values were used and are not kept (D63).
         parameters=[
             ParameterMetadata(
@@ -428,6 +505,25 @@ async def record(
     await session.commit()
     await session.refresh(run)
     return run
+
+
+async def settle(
+    session: AsyncSession, *, transaction_id: str, committed: bool
+) -> None:
+    """Say what became of every run that went through this transaction.
+
+    A run's own row is where somebody looks afterwards, so "pending" must not
+    outlive the transaction it was pending on (D66).
+    """
+    await session.exec(
+        update(ExecutionRun)
+        .where(
+            col(ExecutionRun.transaction_id) == transaction_id,
+            col(ExecutionRun.write_state) == "pending",
+        )
+        .values(write_state="committed" if committed else "rolled_back")
+    )
+    await session.commit()
 
 
 async def recover_interrupted(session: AsyncSession) -> int:

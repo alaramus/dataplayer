@@ -31,9 +31,12 @@ StatementClass = Literal[
     "unknown",
 ]
 
-# What a run may be asked to do. Only reading exists in this slice; writing
-# arrives with its own transaction lifecycle and its own decision (D66).
-ExecutionMode = Literal["read"]
+# What a run may be asked to do, and who ends the transaction.
+#
+# `read` is a read-only transaction the source enforces. `auto_commit` makes
+# the whole run one transaction and commits only when every statement
+# succeeded. `manual` leaves the transaction open for the person to end (D66).
+ExecutionMode = Literal["read", "auto_commit", "manual"]
 
 StatementStatus = Literal[
     "pending",
@@ -111,6 +114,8 @@ class PreparedStatement(BaseModel):
     end: int = Field(ge=0)
     text: str
     kind: StatementClass
+    # Whether this statement is one to ask about every time it is run (D66).
+    risk: Literal["low", "high"] = "low"
     # Named parameters in this statement, in the order they first appear.
     parameters: list[str] = Field(default_factory=list)
     # What the statement names, for messages and for saying what a run touched.
@@ -229,6 +234,9 @@ class StatementFinished(BaseModel):
     duration_ms: int
     command_tag: str | None = None
     row_count: int | None = None
+    # How many rows a change touched, said by the source. Distinct from
+    # `row_count`, which is how many rows came back to be looked at (D66).
+    affected_rows: int | None = None
     result: MaterialisedResult | None = None
     notices: list[QueryNotice] = Field(default_factory=list)
     diagnostic: QueryDiagnostic | None = None
@@ -406,6 +414,62 @@ class ExplainResult(BaseModel):
     total_cost: float | None = None
     rows: int | None = None
     truncated: bool = False
+
+
+class TransactionContext(BaseModel):
+    """What an open transaction is set up with, once, when it begins."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    search_path: list[str] = Field(default_factory=list)
+    statement_timeout_seconds: int = Field(default=30, ge=1)
+
+
+class TransactionState(BaseModel):
+    """What is true of an open transaction now.
+
+    Everything a person is shown about it comes from here, so the screen never
+    infers a transaction's state from the last thing it happened to see (D66).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    open: bool
+    # Whether the source has made the transaction unusable — after an error,
+    # PostgreSQL refuses everything until it ends.
+    broken: bool = False
+    statements: int = 0
+    mutating_statements: int = 0
+    affected_rows: int = 0
+    targets: list[str] = Field(default_factory=list)
+
+
+@runtime_checkable
+class QueryTransaction(Protocol):
+    """One transaction, open across more than one request.
+
+    It holds a physical connection, which is why it is leased rather than
+    created per run and why something has to end it (D66).
+    """
+
+    def execute(self, request: QueryRequest) -> QueryExecution: ...
+
+    def absorb(self, run: QueryExecution) -> None: ...
+
+    def state(self) -> TransactionState: ...
+
+    async def commit(self) -> None: ...
+
+    async def rollback(self) -> None: ...
+
+    async def aclose(self) -> None: ...
+
+
+@runtime_checkable
+class SupportsTransactions(Protocol):
+    """A source that will hold a transaction open between requests."""
+
+    async def begin_transaction(self, context: TransactionContext) -> QueryTransaction: ...
 
 
 @runtime_checkable

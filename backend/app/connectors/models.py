@@ -6,7 +6,7 @@ from sqlalchemy import Column, DateTime, Index, LargeBinary, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
-from app.core.access import Access, Grant
+from app.core.access import Access, ExecutionPolicy, Grant
 from app.core.schemas import get_datetime_utc
 
 
@@ -27,6 +27,16 @@ class Connector(SQLModel, table=True):
     # right to become a live adapter. A server default as well as a Python one,
     # so rows written before the column existed answer the same.
     enabled: bool = Field(default=True, sa_column_kwargs={"server_default": "true"})
+    # Whether SQL written by a person may change anything through this
+    # connection, decided by its owner and above every grant: a shared user
+    # cannot weaken it, and confirmation is the default because the safe
+    # answer is the one nobody had to choose (D66).
+    execution_policy: ExecutionPolicy = Field(
+        default="confirm_writes",
+        sa_column=Column(
+            String(16), nullable=False, server_default="confirm_writes"
+        ),
+    )
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore
@@ -47,6 +57,9 @@ class ConnectorUpdate(SQLModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
     options: dict[str, Any] | None = None
     enabled: bool | None = None
+    # Only the owner may change this, which the route enforces rather than the
+    # schema: what a field means is not the same as who may set it (D66).
+    execution_policy: ExecutionPolicy | None = None
 
 
 class ConnectorGrant(SQLModel, table=True):
@@ -88,6 +101,9 @@ class ConnectorPublic(SQLModel):
     # the client: a screen that hides a button by knowing the rules is a second
     # place the rules live, and the first it would hear of a refusal is a 403.
     access: Access
+    # What its owner allows SQL to do through it, whoever is asking. Sent for
+    # the reason `access` is: a screen that guessed would find out from a 403.
+    execution_policy: ExecutionPolicy
     # Whose it is, when it is not the caller's own. None for your own
     # connections, where naming the owner would only be your own address.
     owner_email: str | None = None
