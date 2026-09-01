@@ -38,6 +38,7 @@ from app.adapters.postgres.content import PostgresContent
 from app.adapters.postgres.export import PostgresExport
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.indexes import PostgresIndexes
+from app.adapters.postgres.metadata import PostgresGeneration, PostgresMetadata
 from app.adapters.postgres.options import PostgresOptions
 from app.adapters.postgres.query import PostgresExecution, PostgresQuery
 from app.adapters.postgres.references import PostgresReferences
@@ -48,9 +49,18 @@ from app.adapters.postgres.session import (
     compose_url,
     options_from_url,
 )
+from app.adapters.postgres.statements import format_text
 from app.adapters.postgres.update import PostgresUpdate
 from app.adapters.protocol import ConnectionCheckResult
-from app.adapters.query import PreparedScript, QueryProfile, QueryRequest
+from app.adapters.query import (
+    GeneratedQuery,
+    GenerateQueryRequest,
+    PreparedScript,
+    QueryMetadata,
+    QueryMetadataRequest,
+    QueryProfile,
+    QueryRequest,
+)
 from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
@@ -118,6 +128,8 @@ class PostgresAdapter:
         self._relations = PostgresRelationChanges(self._session, self._catalog)
         self._content = PostgresContent(self._session)
         self._query = PostgresQuery(self._session)
+        self._metadata = PostgresMetadata(self._session)
+        self._generation = PostgresGeneration(self._session, self._metadata)
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62)."""
@@ -129,8 +141,25 @@ class PostgresAdapter:
     def open_query(self, request: QueryRequest) -> PostgresExecution:
         return self._query.open(request)
 
+    async def query_metadata(self, request: QueryMetadataRequest) -> QueryMetadata:
+        """What an editor may complete to, progressively (D65)."""
+        return await self._metadata.metadata(request)
+
+    def format_query(self, text: str) -> str:
+        return format_text(text)
+
+    async def generate_query(self, request: GenerateQueryRequest) -> GeneratedQuery:
+        return await self._generation.generate(request)
+
     def cache_ttl(self, area: CacheArea) -> float:
-        """A short stale window for reads whose source is under our control."""
+        """A short stale window for reads whose source is under our control.
+
+        What an editor completes against is worth keeping far longer than a
+        page of rows: five minutes, thrown away early by anything that changes
+        this connection (D65).
+        """
+        if area == "metadata":
+            return 300.0
         return 30.0 if area == "catalog" else 10.0
 
     @classmethod

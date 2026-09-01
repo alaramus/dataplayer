@@ -7,9 +7,13 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Annotated, Literal, Protocol, cast, runtime_checkable
 
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Response
 
-CacheArea = Literal["catalog", "fetch"]
+from app.adapters.protocol import DataAdapter
+
+# What a source may be asked to cache. "metadata" is what an editor
+# completes against, which changes far less often than rows do (D65).
+CacheArea = Literal["catalog", "fetch", "metadata"]
 CacheStatus = Literal["hit", "miss", "coalesced", "refreshed"]
 
 
@@ -180,6 +184,31 @@ class DataCache:
             oldest = min(self._entries, key=lambda key: self._entries[key].used_at)
             self._entries.pop(oldest)
 
+
+async def cached_read[T](
+    *,
+    data_cache: DataCache,
+    adapter: DataAdapter,
+    key: CacheKey,
+    refresh: bool,
+    response: Response,
+    load: Callable[[], Awaitable[T]],
+) -> T:
+    if not isinstance(adapter, SupportsReadCache):
+        response.headers["X-Data-Cache"] = "bypass"
+        return await load()
+    ttl_seconds = adapter.cache_ttl(key.area)
+    if ttl_seconds <= 0:
+        response.headers["X-Data-Cache"] = "bypass"
+        return await load()
+    cached = await data_cache.get_or_load(
+        key,
+        ttl_seconds=ttl_seconds,
+        load=load,
+        refresh=refresh,
+    )
+    response.headers["X-Data-Cache"] = cached.status
+    return cached.value
 
 def get_data_cache(request: Request) -> DataCache:
     cache = request.app.state.data_cache

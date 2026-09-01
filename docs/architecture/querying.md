@@ -24,15 +24,24 @@ named parameters, shows ordered statement outputs and messages, keeps and
 searches history, and pages, filters, orders, downloads and charts a captured
 result.
 
-What is deliberately still missing is SQL intelligence — metadata, completion,
-diagnostics, formatting and a source-generated SELECT — and Explain. PostgreSQL
-publishes its query capability to users only when 3A.1-3A.5 are complete and
-verified together.
+SQL intelligence exists as well: the source describes its schemas, relations
+and columns progressively, the editor completes against them beside the
+dialect's own words, a conservative mark appears only where this application
+really knows something, the source lays its own dialect out again, and a
+bounded SELECT about a node is written by the source rather than assembled in
+a browser. With that, PostgreSQL's query capability is offered to users.
+
+What is still missing from phase 3A is Explain, which is a capability of its
+own (D65) and a slice of its own.
 
 Known deviations:
 
 - D65 describes a gutter Run beside each statement. The console has the two
   keyboard commands and their two buttons; the gutter marker is not drawn.
+- Completion offers the source's schemas, relations, columns and the
+  document's parameters beside the dialect's keywords. Aliases and CTEs are
+  not offered as words of their own, and nothing is marked about them either:
+  both would need a parse the browser deliberately does not do.
 - Statement boundaries are asked of the source rather than parsed in the
   browser as well. D62 allows a compatible browser parser for immediate
   feedback; one parser is used here, so Run waits for a short round trip after

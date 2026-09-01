@@ -39,7 +39,7 @@ from app.adapters.cache import (
     CacheKey,
     DataCache,
     DataCacheDep,
-    SupportsReadCache,
+    cached_read,
 )
 from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
@@ -188,32 +188,6 @@ def _cache_key(
     request: str,
 ) -> CacheKey:
     return CacheKey(current_user.id, connector_id, area, request)
-
-
-async def _cached[T](
-    *,
-    data_cache: DataCache,
-    adapter: DataAdapter,
-    key: CacheKey,
-    refresh: bool,
-    response: Response,
-    load: Callable[[], Awaitable[T]],
-) -> T:
-    if not isinstance(adapter, SupportsReadCache):
-        response.headers["X-Data-Cache"] = "bypass"
-        return await load()
-    ttl_seconds = adapter.cache_ttl(key.area)
-    if ttl_seconds <= 0:
-        response.headers["X-Data-Cache"] = "bypass"
-        return await load()
-    cached = await data_cache.get_or_load(
-        key,
-        ttl_seconds=ttl_seconds,
-        load=load,
-        refresh=refresh,
-    )
-    response.headers["X-Data-Cache"] = cached.status
-    return cached.value
 
 
 async def _invalidate_after[T](
@@ -773,7 +747,7 @@ async def fetch_rows(
             },
         )
     try:
-        result = await _cached(
+        result = await cached_read(
             data_cache=data_cache,
             adapter=adapter,
             key=_cache_key(
@@ -1000,7 +974,7 @@ async def read_catalog(
             },
         )
     try:
-        return await _cached(
+        return await cached_read(
             data_cache=data_cache,
             adapter=adapter,
             key=_cache_key(

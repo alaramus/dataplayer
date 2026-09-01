@@ -240,6 +240,18 @@ class RunPublic(BaseModel):
     statements: list[StatementPublic] = PydanticField(default_factory=list)
 
 
+class FormatRequest(BaseModel):
+    """Text to lay out again, in the source's own dialect."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = PydanticField(max_length=MAX_TEXT_BYTES)
+
+
+class FormattedQuery(BaseModel):
+    text: str
+
+
 class RunText(BaseModel):
     """What one run executed, asked for on its own."""
 

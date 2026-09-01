@@ -7,7 +7,9 @@ import type {
   DeleteEverything,
   DeleteOlderThan,
   DeleteSelected,
+  GenerateQueryRequest,
   PrepareRequest,
+  QueryMetadataRequest,
   RunStart,
   SnapshotDownloadRequest,
   SnapshotPageRequest,
@@ -133,6 +135,63 @@ export function useDownloadResult() {
         disposition: response.headers["content-disposition"] as string | undefined,
       }
     },
+  })
+}
+
+/**
+ * What this connection holds, for completion and for conservative marks.
+ *
+ * Kept for as long as the source says its catalog is worth keeping, and asked
+ * again when the console names a relation it has not asked about yet — which
+ * is what "progressive" means here (D65).
+ */
+export function useQueryMetadata(
+  connectorId: MaybeRefOrGetter<string | null>,
+  request: MaybeRefOrGetter<QueryMetadataRequest>
+) {
+  const id = computed(() => toValue(connectorId))
+  const body = computed(() => toValue(request))
+  return useQuery({
+    queryKey: computed(
+      () => ["queries", "metadata", id.value ?? "none", JSON.stringify(body.value)] as const
+    ),
+    queryFn: async () =>
+      (
+        await QueriesService.readMetadata({
+          path: { connector_id: id.value as string },
+          body: body.value,
+        })
+      ).data,
+    enabled: computed(() => id.value !== null),
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useFormatQuery() {
+  return useMutation({
+    mutationFn: async (request: { connectorId: string; text: string }) =>
+      (
+        await QueriesService.formatQuery({
+          path: { connector_id: request.connectorId },
+          body: { text: request.text },
+        })
+      ).data,
+  })
+}
+
+export function useGenerateQuery() {
+  return useMutation({
+    mutationFn: async (request: {
+      connectorId: string
+      body: GenerateQueryRequest
+    }) =>
+      (
+        await QueriesService.generateQuery({
+          path: { connector_id: request.connectorId },
+          body: request.body,
+        })
+      ).data,
   })
 }
 

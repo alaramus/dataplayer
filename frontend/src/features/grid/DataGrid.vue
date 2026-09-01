@@ -86,6 +86,8 @@ const props = defineProps<{
   nodeId: string
   title?: string
   canDescribe?: boolean
+  /** Whether this source will write a statement about this node (D65). */
+  canQuery?: boolean
   /** The source's wording for one non-tabular view of these rows. */
   contentTitle?: string
   /**
@@ -108,6 +110,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   describe: []
   content: []
+  /** Open a console on this relation, with SQL the source wrote. */
+  query: []
   chart: [request: FetchRequest, columns: string[]]
   follow: [target: ReferencedRows]
 }>()
@@ -927,6 +931,13 @@ defineExpose({
         :tooltip="contentTitle"
         data-testid="grid-content"
         @click="emit('content')"
+      />
+      <AppIconButton
+        v-if="canQuery"
+        icon="terminal"
+        tooltip="Open as a query"
+        data-testid="grid-query"
+        @click="emit('query')"
       />
       <AppIconButton
         v-if="canDescribe"

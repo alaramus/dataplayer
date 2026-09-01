@@ -465,10 +465,9 @@ class PostgresQuery:
             parameter_syntax="named_colon",
             statement_modes=["read"],
             supports_cancel=True,
-            # Explain is a capability of its own, declared separately when it
-            # exists (D65). Saying yes here would announce a screen that is not
-            # written.
-            supports_explain=False,
+            # What else this source can do is derived from what it implements,
+            # by whoever answers the profile. Restating it here would be the
+            # second handwritten capability list D62 refuses.
             default_timeout_seconds=DEFAULT_TIMEOUT_SECONDS,
             max_timeout_seconds=MAX_TIMEOUT_SECONDS,
         )

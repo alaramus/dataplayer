@@ -579,6 +579,20 @@ export type ColumnPair = {
 }
 
 /**
+ * ColumnSummary
+ */
+export type ColumnSummary = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Type Sql
+   */
+  type_sql: string
+}
+
+/**
  * ColumnType
  *
  * A type's DDL spelling and its value semantics.
@@ -1795,6 +1809,57 @@ export type ForeignKeySpec = {
 }
 
 /**
+ * FormatRequest
+ *
+ * Text to lay out again, in the source's own dialect.
+ */
+export type FormatRequest = {
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
+ * FormattedQuery
+ */
+export type FormattedQuery = {
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
+ * GenerateQueryRequest
+ *
+ * Ask the source for a statement about one of its nodes.
+ *
+ * The browser never assembles an identifier; quoting a name is a property of
+ * the dialect, so the source writes the SQL (D65).
+ */
+export type GenerateQueryRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Kind
+   */
+  kind?: "select" | "name" | "columns"
+}
+
+/**
+ * GeneratedQuery
+ */
+export type GeneratedQuery = {
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
  * GrantPublic
  *
  * A grant as the owner of the connection sees it.
@@ -3004,6 +3069,56 @@ export type QueryDocumentsPublic = {
 }
 
 /**
+ * QueryMetadata
+ *
+ * What the source knows, and whether that is all of it.
+ *
+ * `complete` is the difference between "there is no such table" and "this
+ * editor has not been told about it": with limited metadata the console
+ * shows a status rather than red underlines under real relations (D65).
+ */
+export type QueryMetadata = {
+  /**
+   * Schemas
+   */
+  schemas?: Array<string>
+  /**
+   * Relations
+   */
+  relations?: Array<RelationSummary>
+  /**
+   * Columns
+   */
+  columns?: {
+    [key: string]: Array<ColumnSummary>
+  }
+  /**
+   * Complete
+   */
+  complete?: boolean
+}
+
+/**
+ * QueryMetadataRequest
+ *
+ * What the editor wants to know now, not everything there is.
+ *
+ * Progressive on purpose (D65): the schemas in the current context first,
+ * the columns of a relation when one appears or completion asks for it, and
+ * another schema only when something is qualified with it.
+ */
+export type QueryMetadataRequest = {
+  /**
+   * Search Path
+   */
+  search_path?: Array<string>
+  /**
+   * Relations
+   */
+  relations?: Array<string>
+}
+
+/**
  * QueryNotice
  *
  * One message the source raised while running, bounded and stripped.
@@ -3048,7 +3163,19 @@ export type QueryProfile = {
   /**
    * Supports Explain
    */
-  supports_explain: boolean
+  supports_explain?: boolean
+  /**
+   * Supports Metadata
+   */
+  supports_metadata?: boolean
+  /**
+   * Supports Formatting
+   */
+  supports_formatting?: boolean
+  /**
+   * Supports Generated Query
+   */
+  supports_generated_query?: boolean
   /**
    * Default Timeout Seconds
    */
@@ -3313,6 +3440,26 @@ export type RelationModel = {
         kind: "worksheet"
       } & WorksheetDataset)
     | null
+}
+
+/**
+ * RelationSummary
+ *
+ * One relation the editor may complete to.
+ */
+export type RelationSummary = {
+  /**
+   * Schema Name
+   */
+  schema_name: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Kind
+   */
+  kind: "table" | "view" | "materialized_view" | "foreign_table" | "other"
 }
 
 /**
@@ -7865,6 +8012,104 @@ export type queriesChooseRetentionResponses = {
 
 export type queriesChooseRetentionResponse =
   queriesChooseRetentionResponses[keyof queriesChooseRetentionResponses]
+
+export type queriesReadMetadataData = {
+  body: QueryMetadataRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: {
+    /**
+     * Refresh
+     */
+    refresh?: boolean
+  }
+  url: "/api/v1/queries/connectors/{connector_id}/metadata"
+}
+
+export type queriesReadMetadataErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesReadMetadataError = queriesReadMetadataErrors[keyof queriesReadMetadataErrors]
+
+export type queriesReadMetadataResponses = {
+  /**
+   * Successful Response
+   */
+  200: QueryMetadata
+}
+
+export type queriesReadMetadataResponse =
+  queriesReadMetadataResponses[keyof queriesReadMetadataResponses]
+
+export type queriesFormatQueryData = {
+  body: FormatRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/connectors/{connector_id}/format"
+}
+
+export type queriesFormatQueryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesFormatQueryError = queriesFormatQueryErrors[keyof queriesFormatQueryErrors]
+
+export type queriesFormatQueryResponses = {
+  /**
+   * Successful Response
+   */
+  200: FormattedQuery
+}
+
+export type queriesFormatQueryResponse =
+  queriesFormatQueryResponses[keyof queriesFormatQueryResponses]
+
+export type queriesGenerateQueryData = {
+  body: GenerateQueryRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/queries/connectors/{connector_id}/generate"
+}
+
+export type queriesGenerateQueryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesGenerateQueryError = queriesGenerateQueryErrors[keyof queriesGenerateQueryErrors]
+
+export type queriesGenerateQueryResponses = {
+  /**
+   * Successful Response
+   */
+  200: GeneratedQuery
+}
+
+export type queriesGenerateQueryResponse =
+  queriesGenerateQueryResponses[keyof queriesGenerateQueryResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

@@ -4,8 +4,12 @@ import { computed, ref, useTemplateRef, watch } from "vue"
 import type { FetchRequest, NodeRepresentation, ReferencedRows, RowsView } from "@/client"
 import DataGrid from "@/features/grid/DataGrid.vue"
 import type { Filter } from "@/features/grid/types"
+import { useCreateQueryDocument } from "@/features/queries/api"
+import { useGenerateQuery, useQueryProfile } from "@/features/queries/runs"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
+import { messageOf } from "@/shared/api/errors"
+import { useToast } from "@/shared/ui"
 
 /**
  * One relation, in its own tab.
@@ -31,6 +35,45 @@ const contentRepresentation = computed(() =>
 )
 
 const grid = useTemplateRef<{ reload: () => Promise<void> }>("grid")
+
+/**
+ * Whether this source writes SQL about its own nodes.
+ *
+ * Asked of the source rather than derived from its type: a screen never
+ * branches on which adapter it is talking to (D62).
+ */
+const profile = useQueryProfile(() => props.connectorId)
+const canQuery = computed(() => profile.data.value?.supports_generated_query === true)
+const generate = useGenerateQuery()
+const createDocument = useCreateQueryDocument()
+const toast = useToast()
+
+/**
+ * Open a console on this relation, with a bounded SELECT the source wrote.
+ *
+ * The statement comes from the server because quoting a name belongs to the
+ * dialect; this panel only says which node it is about (D65).
+ */
+async function openAsQuery() {
+  try {
+    const generated = await generate.mutateAsync({
+      connectorId: props.connectorId,
+      body: { node_id: props.nodeId, kind: "select" },
+    })
+    const document = await createDocument.mutateAsync({
+      connector_id: props.connectorId,
+      title: props.title,
+      body: generated.text,
+    })
+    workspace.openQueryDocument({
+      documentId: document.id,
+      title: document.title,
+      connectorName: document.connector_label,
+    })
+  } catch (cause) {
+    toast.error(messageOf(cause, "Could not open this table as a query"))
+  }
+}
 
 useReloadable(props.panelId, async () => {
   await grid.value?.reload()
@@ -129,9 +172,11 @@ function showReferenced(target: ReferencedRows) {
       :node-id="nodeId"
       :title="title"
       :can-describe="describable"
+      :can-query="canQuery"
       :content-title="contentRepresentation?.title"
       :reference-filters="referenceFilters"
       :shared-view="sharedView"
+      @query="openAsQuery"
       @describe="showStructure"
       @content="showContent"
       @chart="showChart"

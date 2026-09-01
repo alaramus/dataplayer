@@ -1,4 +1,6 @@
+import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query"
 import { mount } from "@vue/test-utils"
+import { Quasar } from "quasar"
 import { defineComponent, ref } from "vue"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -59,6 +61,19 @@ describe("a rows panel with another source representation", () => {
   it("opens the chosen content first and retains the table alternative", async () => {
     const wrapper = mount(Host, {
       global: {
+        // The panel asks the source what it can do, so it needs the client
+        // every panel has in the application.
+        plugins: [
+          Quasar,
+          [
+            VueQueryPlugin,
+            {
+              queryClient: new QueryClient({
+                defaultOptions: { queries: { retry: false, gcTime: 0 } },
+              }),
+            },
+          ],
+        ],
         provide: { [workspaceActionsKey as symbol]: workspace },
         stubs: { DataGrid: DataGridStub },
       },

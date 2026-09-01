@@ -88,10 +88,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] **3A.5 — SQL intelligence.** Add progressive source metadata, dialect
-  completion, conservative diagnostics, formatting and source-generated SELECT.
-  PostgreSQL publishes its query capability to users only when 3A.1-3A.5 are
-  complete and verified together.
 - [ ] **3A.6 — Explain.** Add a separately declared, non-executing Explain
   capability with synchronised tree, table and raw-plan views. Explain Analyze
   stays out until its execution effects have the same policy as the statement.

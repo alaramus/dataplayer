@@ -212,6 +212,42 @@ def _targets(text: str) -> list[str]:
     return names
 
 
+def format_text(text: str) -> str:
+    """Lay this text out again, statement by statement.
+
+    Conservative, because formatting rewrites somebody's work: a statement is
+    replaced only when it parses and when the formatted text parses back to
+    exactly the same tree. Anything else — a form this dialect module cannot
+    read, a round trip that does not match — is left character for character as
+    it was. What is between statements is left alone too, so a semicolon, a
+    blank line and a comment between them survive.
+    """
+    ranges = split(text)
+    if not ranges:
+        return text
+    pieces: list[str] = []
+    cursor = 0
+    for start, end in ranges:
+        pieces.append(text[cursor:start])
+        pieces.append(_formatted(text[start:end]))
+        cursor = end
+    pieces.append(text[cursor:])
+    return "".join(pieces)
+
+
+def _formatted(statement: str) -> str:
+    try:
+        parsed = parse_one(statement, read="postgres")
+        laid_out = parsed.sql(dialect="postgres", pretty=True)
+        # The proof that nothing was changed: read the new text and compare the
+        # trees, not the characters.
+        if parse_one(laid_out, read="postgres") != parsed:
+            return statement
+    except (ParseError, TokenError):
+        return statement
+    return laid_out
+
+
 def prepare(text: str) -> PreparedScript:
     """Everything the source can say about this text without running it."""
     statements: list[PreparedStatement] = []

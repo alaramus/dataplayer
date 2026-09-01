@@ -34,8 +34,17 @@ import type { DraftState, SaveState } from "@/features/queries/draft"
 import ParameterForm from "@/features/queries/ParameterForm.vue"
 import RunOutcome from "@/features/queries/RunOutcome.vue"
 import {
+  marks,
+  metadataStatus,
+  relationsInUse,
+  schemasInUse,
+  suggestions,
+} from "@/features/queries/intelligence"
+import {
   useCancelRun,
+  useFormatQuery,
   usePrepareQuery,
+  useQueryMetadata,
   useQueryProfile,
   useRun,
   useStartRun,
@@ -73,6 +82,7 @@ const trash = useTrashQueryDocument()
 const prepare = usePrepareQuery()
 const startRun = useStartRun()
 const cancelRun = useCancelRun()
+const formatting = useFormatQuery()
 
 /** How long typing has to stop before a save is worth spending a revision on. */
 const AUTOSAVE_PAUSE = 800
@@ -110,6 +120,24 @@ let loadedId = ""
 const server = computed(() => document.data.value)
 const connectorId = computed(() => server.value?.connector_id ?? null)
 const profile = useQueryProfile(connectorId)
+/**
+ * What this connection holds, asked for progressively (D65).
+ *
+ * The schemas of the context first; the columns of a relation once the text
+ * names one. Nothing here reads a database to fill a dropdown.
+ */
+const metadata = useQueryMetadata(connectorId, () => ({
+  search_path: [
+    ...(server.value?.search_path ?? []),
+    ...schemasInUse(script.value),
+  ].slice(0, 32),
+  relations: relationsInUse(script.value).slice(0, 50),
+}))
+const offered = computed(() => suggestions(metadata.data.value, script.value))
+const editorMarks = computed(() => marks(script.value, metadata.data.value))
+const knowledge = computed(() =>
+  connectorId.value === null ? "" : metadataStatus(metadata.data.value)
+)
 const run = useRun(runId)
 const kept = useRun(keptRunId)
 const connectorLabel = computed(() => server.value?.connector_label ?? null)
@@ -353,6 +381,41 @@ async function rememberValues() {
   }
 }
 
+/**
+ * Lay the document, or just what is selected, out again.
+ *
+ * The source formats it, because how a dialect looks is the dialect's. One
+ * replacement, so one undo takes it back, and autosave never does this on
+ * anybody's behalf (D65).
+ */
+async function format(scope: "document" | "selection") {
+  const connector = connectorId.value
+  if (connector === null) return
+  const selected =
+    scope === "selection" && selection.value.to > selection.value.from
+      ? { from: selection.value.from, to: selection.value.to }
+      : null
+  const text =
+    selected === null
+      ? draft.value.body
+      : draft.value.body.slice(selected.from, selected.to)
+  if (text.trim() === "") return
+  try {
+    const laid = await formatting.mutateAsync({ connectorId: connector, text })
+    draft.value = {
+      ...draft.value,
+      body:
+        selected === null
+          ? laid.text
+          : draft.value.body.slice(0, selected.from) +
+            laid.text +
+            draft.value.body.slice(selected.to),
+    }
+  } catch (cause) {
+    toast.error(messageOf(cause, "Could not format this query"))
+  }
+}
+
 async function stop() {
   const active = run.data.value
   if (active === undefined) return
@@ -502,6 +565,11 @@ onBeforeUnmount(() => {
         <template v-if="searchPath.length > 0"> · {{ searchPath.join(", ") }}</template>
       </span>
       <span
+        v-if="knowledge"
+        class="query-panel__knowledge"
+        data-testid="query-knowledge"
+      >{{ knowledge }}</span>
+      <span
         class="query-panel__state"
         :data-state="state"
         data-testid="query-state"
@@ -539,6 +607,16 @@ onBeforeUnmount(() => {
         />
       </template>
 
+      <AppIconButton
+        v-if="profile.data.value?.supports_formatting === true"
+        icon="format_align_left"
+        :tooltip="
+          selection.to > selection.from ? 'Format the selection' : 'Format the document'
+        "
+        :disable="formatting.isPending.value"
+        data-testid="query-format"
+        @click="format(selection.to > selection.from ? 'selection' : 'document')"
+      />
       <AppIconButton
         icon="wrap_text"
         tooltip="Wrap long lines"
@@ -677,6 +755,8 @@ onBeforeUnmount(() => {
           filename="query.sql"
           language-hint="sql"
           :wrap="draft.wrap"
+          :suggestions="offered"
+          :marks="editorMarks"
           class="query-panel__code"
           @update:model-value="draft.body = $event"
           @update:selection="selection = $event"
@@ -736,6 +816,7 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 .query-panel__context,
+.query-panel__knowledge,
 .query-panel__state,
 .query-panel__elapsed {
   overflow: hidden;
@@ -747,6 +828,7 @@ onBeforeUnmount(() => {
 .query-panel__context {
   flex: 1;
 }
+.query-panel__knowledge,
 .query-panel__state,
 .query-panel__elapsed {
   flex: none;

@@ -17,13 +17,21 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters.cache import CacheKey, DataCacheDep, cached_read
 from app.adapters.query import (
+    GeneratedQuery,
+    GenerateQueryRequest,
     MaterialisedResult,
     ParameterValue,
     PreparedScript,
+    QueryMetadata,
+    QueryMetadataRequest,
     QueryProfile,
     QueryRequest,
+    SupportsGeneratedQuery,
     SupportsQuery,
+    SupportsQueryFormatting,
+    SupportsQueryMetadata,
 )
 from app.adapters.resources import ResourcesDep, ResourceStore
 from app.connectors import crud as connector_crud
@@ -60,6 +68,8 @@ from app.queries.results import QueryResults, ResultsDep
 from app.queries.runs import (
     TERMINAL,
     ExecutionRun,
+    FormatRequest,
+    FormattedQuery,
     PrepareRequest,
     ResultPage,
     RunPublic,
@@ -395,9 +405,20 @@ async def read_profile(
     current_user: CurrentUser,
     connector_id: uuid.UUID,
 ) -> QueryProfile:
-    """What this source accepts as a complete statement, in its own words."""
+    """What this source accepts as a complete statement, in its own words.
+
+    The four capability flags are derived from what the adapter implements
+    rather than restated by it: a second handwritten list is the thing that
+    goes out of date (D62).
+    """
     source = await _source_or_501(session, connector_id, current_user, resources)
-    return source.query_profile()
+    return source.query_profile().model_copy(
+        update={
+            "supports_metadata": isinstance(source, SupportsQueryMetadata),
+            "supports_formatting": isinstance(source, SupportsQueryFormatting),
+            "supports_generated_query": isinstance(source, SupportsGeneratedQuery),
+        }
+    )
 
 
 @router.post("/prepare", response_model=PreparedScript)
@@ -744,3 +765,111 @@ async def choose_retention(
     Trash does, and it is the same idempotent pass either way.
     """
     return await history.choose_retention(session, current_user.id, body.days)
+
+
+# --- what the editor may write ----------------------------------------------
+#
+# D65: intelligence is progressive and conservative. The source says what it
+# has, the browser asks for a little of it at a time, and nothing here decides
+# what is wrong with somebody's SQL — a statement that cannot be read is a
+# statement this version has not learnt, not an error.
+
+
+@router.post("/connectors/{connector_id}/metadata", response_model=QueryMetadata)
+async def read_metadata(
+    session: SessionDep,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    response: Response,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    body: QueryMetadataRequest,
+    refresh: bool = False,
+) -> QueryMetadata:
+    """The schemas, relations and columns an editor may complete to.
+
+    Cached for as long as the source says a read of its catalog is worth
+    keeping, and thrown away when anything changes the connection — which is
+    how a table created in another tab appears here (D65).
+    """
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsQueryMetadata):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source cannot describe itself for an editor",
+                "capability": "query_metadata",
+            },
+        )
+    source = adapter
+    return await cached_read(
+        data_cache=data_cache,
+        adapter=adapter,
+        key=CacheKey(
+            current_user.id, connector_id, "metadata", body.model_dump_json()
+        ),
+        refresh=refresh,
+        response=response,
+        load=lambda: source.query_metadata(body),
+    )
+
+
+@router.post("/connectors/{connector_id}/format", response_model=FormattedQuery)
+async def format_query(
+    session: SessionDep,
+    resources: ResourcesDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    body: FormatRequest,
+) -> FormattedQuery:
+    """Lay this text out in the source's own dialect.
+
+    Conservative by construction: a statement the source cannot read comes back
+    exactly as it was, so pressing Format can never quietly rewrite something
+    into a different query.
+    """
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsQueryFormatting):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not format SQL",
+                "capability": "query_formatting",
+            },
+        )
+    return FormattedQuery(text=adapter.format_query(body.text))
+
+
+@router.post("/connectors/{connector_id}/generate", response_model=GeneratedQuery)
+async def generate_query(
+    session: SessionDep,
+    resources: ResourcesDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    body: GenerateQueryRequest,
+) -> GeneratedQuery:
+    """A statement about one of this source's nodes, written by the source.
+
+    The browser never assembles an identifier: what needs quoting is a property
+    of the dialect, and a name that arrived from a catalog is still a client
+    string by the time it would be pasted into text (D2c, D65).
+    """
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsGeneratedQuery):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not write queries about its nodes",
+                "capability": "generated_query",
+            },
+        )
+    try:
+        return await adapter.generate_query(body)
+    except ValueError as refusal:
+        raise HTTPException(status_code=404, detail=str(refusal)) from None

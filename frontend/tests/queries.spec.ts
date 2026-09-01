@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
+import { openNode, pickSchema } from "./utils/catalog"
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { deleteConnector } from "./utils/workspace"
+import { deleteConnector, openConnector } from "./utils/workspace"
 
 /**
  * A query document, end to end.
@@ -240,6 +241,54 @@ test("a captured page can be charted where it is", async ({ page }) => {
 
   await page.getByTestId("result-chart-close").click()
   await expect(page.getByTestId("grid-cell-0-0")).toHaveText("1")
+
+  await deleteConnector(page, name)
+})
+
+
+test("the source writes the first query, completes the next and formats both", async ({
+  page,
+}) => {
+  const name = `e2e-intelligence-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "projects")
+
+  // --- the source writes a bounded SELECT about its own table --------------
+  await page.getByTestId("grid-query").click()
+  const editor = page.locator(".cm-content")
+  await expect(editor).toContainText("SELECT")
+  await expect(editor).toContainText('"demo_lab"."projects"')
+  await expect(editor).toContainText("LIMIT 100")
+
+  // --- completion offers what the source said it has -----------------------
+  await editor.click()
+  await page.keyboard.press("ControlOrMeta+a")
+  await page.keyboard.type("select * from demo_lab.pr")
+  // The schema was named in the text, so the console asked the source about
+  // it; the next letter typed is answered from what came back (D65).
+  await page.waitForTimeout(2000)
+  await page.keyboard.type("o")
+  const options = page.locator(".cm-tooltip-autocomplete")
+  await expect(options).toContainText("demo_lab.projects")
+  await page.keyboard.press("Escape")
+
+  // --- and a relation that is not there is a warning, never a red line -----
+  await page.keyboard.press("ControlOrMeta+a")
+  await page.keyboard.type("select * from demo_lab.no_such_table")
+  await expect(page.locator(".cm-lintRange-warning").first()).toBeVisible({
+    timeout: 15000,
+  })
+
+  // --- formatting is the source's own layout, in one undo ------------------
+  await page.keyboard.press("ControlOrMeta+a")
+  await page.keyboard.type("select id,name from demo_lab.projects where id=1")
+  await page.getByTestId("query-format").click()
+  await expect(editor).toContainText("SELECT")
+  await page.keyboard.press("ControlOrMeta+z")
+  await expect(editor).toContainText("select id,name")
 
   await deleteConnector(page, name)
 })

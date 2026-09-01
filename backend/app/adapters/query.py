@@ -62,7 +62,13 @@ class QueryProfile(BaseModel):
     parameter_syntax: Literal["named_colon"]
     statement_modes: list[ExecutionMode]
     supports_cancel: bool
-    supports_explain: bool
+    # The four below are filled in from what the adapter actually implements,
+    # by the route that answers this. An adapter does not restate them, so a
+    # capability cannot be announced and then be missing (D62).
+    supports_explain: bool = False
+    supports_metadata: bool = False
+    supports_formatting: bool = False
+    supports_generated_query: bool = False
     default_timeout_seconds: int
     max_timeout_seconds: int
 
@@ -279,6 +285,93 @@ class QueryExecution(Protocol):
     def events(self) -> AsyncIterator[QueryEvent]: ...
 
     async def cancel(self) -> None: ...
+
+
+class RelationSummary(BaseModel):
+    """One relation the editor may complete to."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    schema_name: str
+    name: str
+    kind: Literal["table", "view", "materialized_view", "foreign_table", "other"]
+
+
+class ColumnSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    type_sql: str
+
+
+class QueryMetadataRequest(BaseModel):
+    """What the editor wants to know now, not everything there is.
+
+    Progressive on purpose (D65): the schemas in the current context first,
+    the columns of a relation when one appears or completion asks for it, and
+    another schema only when something is qualified with it.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    search_path: list[str] = Field(default_factory=list, max_length=32)
+    relations: list[str] = Field(default_factory=list, max_length=50)
+
+
+class QueryMetadata(BaseModel):
+    """What the source knows, and whether that is all of it.
+
+    `complete` is the difference between "there is no such table" and "this
+    editor has not been told about it": with limited metadata the console
+    shows a status rather than red underlines under real relations (D65).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    schemas: list[str] = Field(default_factory=list)
+    relations: list[RelationSummary] = Field(default_factory=list)
+    columns: dict[str, list[ColumnSummary]] = Field(default_factory=dict)
+    complete: bool = True
+
+
+class GenerateQueryRequest(BaseModel):
+    """Ask the source for a statement about one of its nodes.
+
+    The browser never assembles an identifier; quoting a name is a property of
+    the dialect, so the source writes the SQL (D65).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+    kind: Literal["select", "name", "columns"] = "select"
+
+
+class GeneratedQuery(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    text: str
+
+
+@runtime_checkable
+class SupportsQueryMetadata(Protocol):
+    """A source that can say what an editor may complete to."""
+
+    async def query_metadata(self, request: QueryMetadataRequest) -> QueryMetadata: ...
+
+
+@runtime_checkable
+class SupportsQueryFormatting(Protocol):
+    """A source that can lay its own dialect out again."""
+
+    def format_query(self, text: str) -> str: ...
+
+
+@runtime_checkable
+class SupportsGeneratedQuery(Protocol):
+    """A source that writes a statement about one of its own nodes."""
+
+    async def generate_query(self, request: GenerateQueryRequest) -> GeneratedQuery: ...
 
 
 @runtime_checkable

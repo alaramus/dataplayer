@@ -181,6 +181,12 @@ import type {
   queriesDownloadResultData,
   queriesDownloadResultErrors,
   queriesDownloadResultResponses,
+  queriesFormatQueryData,
+  queriesFormatQueryErrors,
+  queriesFormatQueryResponses,
+  queriesGenerateQueryData,
+  queriesGenerateQueryErrors,
+  queriesGenerateQueryResponses,
   queriesListDocumentsData,
   queriesListDocumentsErrors,
   queriesListDocumentsResponses,
@@ -196,6 +202,9 @@ import type {
   queriesReadDocumentData,
   queriesReadDocumentErrors,
   queriesReadDocumentResponses,
+  queriesReadMetadataData,
+  queriesReadMetadataErrors,
+  queriesReadMetadataResponses,
   queriesReadProfileData,
   queriesReadProfileErrors,
   queriesReadProfileResponses,
@@ -2262,6 +2271,10 @@ export class QueriesService {
    * Read Profile
    *
    * What this source accepts as a complete statement, in its own words.
+   *
+   * The four capability flags are derived from what the adapter implements
+   * rather than restated by it: a second handwritten list is the thing that
+   * goes out of date (D62).
    */
   public static readProfile<ThrowOnError extends boolean = true>(
     options: Options<queriesReadProfileData, ThrowOnError>
@@ -2565,6 +2578,90 @@ export class QueriesService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/queries/retention",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Metadata
+   *
+   * The schemas, relations and columns an editor may complete to.
+   *
+   * Cached for as long as the source says a read of its catalog is worth
+   * keeping, and thrown away when anything changes the connection — which is
+   * how a table created in another tab appears here (D65).
+   */
+  public static readMetadata<ThrowOnError extends boolean = true>(
+    options: Options<queriesReadMetadataData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesReadMetadataResponses,
+      queriesReadMetadataErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/connectors/{connector_id}/metadata",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Format Query
+   *
+   * Lay this text out in the source's own dialect.
+   *
+   * Conservative by construction: a statement the source cannot read comes back
+   * exactly as it was, so pressing Format can never quietly rewrite something
+   * into a different query.
+   */
+  public static formatQuery<ThrowOnError extends boolean = true>(
+    options: Options<queriesFormatQueryData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesFormatQueryResponses,
+      queriesFormatQueryErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/connectors/{connector_id}/format",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Generate Query
+   *
+   * A statement about one of this source's nodes, written by the source.
+   *
+   * The browser never assembles an identifier: what needs quoting is a property
+   * of the dialect, and a name that arrived from a catalog is still a client
+   * string by the time it would be pasted into text (D2c, D65).
+   */
+  public static generateQuery<ThrowOnError extends boolean = true>(
+    options: Options<queriesGenerateQueryData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesGenerateQueryResponses,
+      queriesGenerateQueryErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/connectors/{connector_id}/generate",
       ...options,
       headers: {
         "Content-Type": "application/json",
