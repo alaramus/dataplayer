@@ -11,10 +11,11 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel
 from pydantic import Field as PydanticField
-from sqlalchemy import Column, DateTime, UniqueConstraint
+from sqlalchemy import Column, DateTime, Index, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
+from app.core.access import Grant
 from app.core.schemas import get_datetime_utc
 from app.shares.view import SharedView
 
@@ -86,6 +87,89 @@ class ShareOpen(SQLModel, table=True):
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
     )
+
+
+# Open, and the three ways it stops being open. Kept as one column rather than
+# a pair of booleans: "declined" and "cancelled" are different answers, and a
+# row can only be in one of these states.
+RequestState = Literal["pending", "approved", "declined", "cancelled"]
+
+
+class AccessRequest(SQLModel, table=True):
+    """Somebody asking the owner of a connection for access to it.
+
+    D61: it hangs off the connection and not off the link, because rights live
+    on the connection — deleting a link must not silently withdraw an ask the
+    owner has already been told about. The link is kept beside it as context
+    and is cleared when it goes.
+
+    Durable on purpose: a notification fired at whoever happens to be connected
+    is lost when the owner is offline, and the person who asked has no way of
+    knowing that it was.
+    """
+
+    __table_args__ = (
+        # One open ask per person and connection. Partial, because the rule is
+        # about what is waiting: somebody refused today may ask again next
+        # month, and a closed row must not stand in the way of that.
+        Index(
+            "uq_accessrequest_pending",
+            "connector_id",
+            "requester_id",
+            unique=True,
+            postgresql_where=text("state = 'pending'"),
+        ),
+    )
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    connector_id: uuid.UUID = Field(
+        foreign_key="connector.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    requester_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    # The link it came through, so the owner can see where somebody arrived
+    # from. Nulled rather than cascaded: the ask outlives the address.
+    share_id: uuid.UUID | None = Field(
+        default=None, foreign_key="share.id", ondelete="SET NULL"
+    )
+    state: str = Field(default="pending", max_length=16)
+    created_at: datetime | None = Field(
+        default_factory=get_datetime_utc,
+        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+    )
+    answered_at: datetime | None = Field(
+        default=None,
+        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
+    )
+
+
+class AccessRequestPublic(BaseModel):
+    """One ask, as the owner of the connection sees it."""
+
+    id: uuid.UUID
+    connector_id: uuid.UUID
+    connector_label: str
+    requester_id: uuid.UUID
+    requester_email: str
+    requester_name: str | None = None
+    node_label: str | None = None
+    state: RequestState
+    created_at: datetime | None = None
+
+
+class AccessRequestsPublic(BaseModel):
+    data: list[AccessRequestPublic]
+
+
+class RequestApproval(BaseModel):
+    """The level the owner decides on when they say yes.
+
+    `read` by default: the ask itself is always for `read` (D61), and giving
+    more is a deliberate movement rather than a default.
+    """
+
+    access: Grant = "read"
 
 
 class ShareCreate(BaseModel):
@@ -167,8 +251,8 @@ class ShareBarred(BaseModel):
     connector_label: str
     node_label: str
     shared_by: str
-    # Stage 2 fills this in from the access request; until then a reader is
-    # told what they are looking at and who to ask.
+    # Whether this reader has already asked and is waiting, so the screen
+    # offers the button or the answer to it rather than both.
     requested: bool = False
 
 

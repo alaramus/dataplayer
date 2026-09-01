@@ -6,7 +6,7 @@ one asks for nothing, and answers what the follower's own standing allows.
 """
 
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import ValidationError
@@ -14,10 +14,17 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.connectors import crud as connector_crud
 from app.connectors.access import get_or_404, resolve
+from app.connectors.models import Connector
 from app.core.db import SessionDep
 from app.core.schemas import Message
-from app.shares import crud
+from app.realtime.topics import TopicsDep
+from app.shares import crud, topic
 from app.shares.models import (
+    AccessRequest,
+    AccessRequestPublic,
+    AccessRequestsPublic,
+    RequestApproval,
+    RequestState,
     Share,
     ShareBarred,
     ShareCreate,
@@ -170,6 +177,214 @@ async def list_shares(
     )
 
 
+def _asked_public(
+    asked: AccessRequest,
+    requester: User,
+    connector_label: str,
+    node_label: str | None,
+) -> AccessRequestPublic:
+    return AccessRequestPublic(
+        id=asked.id,
+        connector_id=asked.connector_id,
+        connector_label=connector_label,
+        requester_id=requester.id,
+        requester_email=requester.email,
+        requester_name=requester.full_name,
+        node_label=node_label,
+        state=cast(RequestState, asked.state),
+        created_at=asked.created_at,
+    )
+
+
+async def _node_labels(
+    session: AsyncSession, asks: list[AccessRequest]
+) -> dict[uuid.UUID, str]:
+    """What each request came looking for, where the link is still there.
+
+    Context and nothing more: the answer is about the connection either way,
+    and a deleted link leaves the ask standing (D61).
+    """
+    labels: dict[uuid.UUID, str] = {}
+    for asked in asks:
+        if asked.share_id is None:
+            continue
+        share = await crud.by_id(session, share_id=asked.share_id)
+        if share is not None:
+            labels[asked.id] = share.node_label
+    return labels
+
+
+async def _answerable(
+    session: AsyncSession, current_user: User, request_id: uuid.UUID
+) -> tuple[AccessRequest, User, Connector]:
+    """The ask this owner may answer, or the reason they may not.
+
+    An ask that has already been answered is gone as far as this route is
+    concerned, so two windows of one owner cannot hand out two grants for it.
+    """
+    asked = await crud.request_by_id(session, request_id=request_id)
+    if asked is None or asked.state != "pending":
+        raise HTTPException(status_code=404, detail="Request not found")
+    connector = await get_or_404(
+        session, asked.connector_id, current_user, requires="own"
+    )
+    requester = await session.get(User, asked.requester_id)
+    if requester is None:
+        raise HTTPException(status_code=404, detail="Request not found")
+    return asked, requester, connector
+
+
+@router.get("/requests", response_model=AccessRequestsPublic)
+async def list_requests(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID = Query(),
+) -> Any:
+    """Who is waiting on this connection.
+
+    The owner's business, like the grants beside which these are answered.
+    """
+    connector = await get_or_404(session, connector_id, current_user, requires="own")
+    waiting = await crud.pending_for_connector(session, connector_id=connector_id)
+    labels = await _node_labels(session, [asked for asked, _ in waiting])
+    return AccessRequestsPublic(
+        data=[
+            _asked_public(asked, requester, connector.name, labels.get(asked.id))
+            for asked, requester in waiting
+        ]
+    )
+
+
+@router.post("/requests/{request_id}/approve", response_model=AccessRequestPublic)
+async def approve_request(
+    session: SessionDep,
+    current_user: CurrentUser,
+    topics: TopicsDep,
+    request_id: uuid.UUID,
+    body: RequestApproval,
+) -> Any:
+    """Say yes, which is to write an ordinary grant.
+
+    D61: approving adds no second kind of access. The level is the owner's
+    choice at this moment; the ask itself only ever asked for `read`.
+    """
+    asked, requester, connector = await _answerable(session, current_user, request_id)
+    await connector_crud.set_grant(
+        session,
+        connector_id=asked.connector_id,
+        user_id=asked.requester_id,
+        access=body.access,
+    )
+    answered = await crud.close_request(session, asked=asked, state="approved")
+    await topic.announce(
+        topics,
+        asked.requester_id,
+        topic.RequestEvent(
+            kind="answered",
+            request_id=answered.id,
+            connector_id=connector.id,
+            connector_label=connector.name,
+            person=_display(current_user),
+            outcome="approved",
+            access=body.access,
+        ),
+    )
+    return _asked_public(answered, requester, connector.name, None)
+
+
+@router.post("/requests/{request_id}/decline", response_model=AccessRequestPublic)
+async def decline_request(
+    session: SessionDep,
+    current_user: CurrentUser,
+    topics: TopicsDep,
+    request_id: uuid.UUID,
+) -> Any:
+    """Say no, and say it without a reason.
+
+    The reason is a conversation between people, not a field in a form. What
+    the person is told is that they were answered at all, so they are not left
+    asking into silence.
+    """
+    asked, requester, connector = await _answerable(session, current_user, request_id)
+    answered = await crud.close_request(session, asked=asked, state="declined")
+    await topic.announce(
+        topics,
+        asked.requester_id,
+        topic.RequestEvent(
+            kind="answered",
+            request_id=answered.id,
+            connector_id=connector.id,
+            connector_label=connector.name,
+            person=_display(current_user),
+            outcome="declined",
+        ),
+    )
+    return _asked_public(answered, requester, connector.name, None)
+
+
+@router.delete("/requests/{request_id}")
+async def cancel_request(
+    session: SessionDep, current_user: CurrentUser, request_id: uuid.UUID
+) -> Message:
+    """Take back an ask. The person who made it, and nobody else."""
+    asked = await crud.request_by_id(session, request_id=request_id)
+    if asked is None or asked.state != "pending":
+        raise HTTPException(status_code=404, detail="Request not found")
+    if asked.requester_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Request not found")
+    await crud.close_request(session, asked=asked, state="cancelled")
+    return Message(message="Request withdrawn")
+
+
+@router.post("/{token}/request", response_model=AccessRequestPublic)
+async def request_access(
+    session: SessionDep,
+    current_user: CurrentUser,
+    topics: TopicsDep,
+    token: str,
+) -> Any:
+    """Ask the owner of this connection for access to it.
+
+    Only reachable through a link, which is the whole of the discovery: a
+    connection nobody has shared is invisible, so there is nothing to ask
+    about (D61).
+    """
+    share = await crud.by_token(session, token=token)
+    if share is None:
+        raise HTTPException(status_code=404, detail="Link not found")
+    connector = await session.get(Connector, share.connector_id)
+    if connector is None:
+        raise HTTPException(status_code=404, detail="Link not found")
+    held = await connector_crud.get_with_access(
+        session, connector_id=share.connector_id, user=current_user
+    )
+    if held is not None:
+        # There is nothing to ask for. The screen resolves the link again and
+        # walks in rather than explaining this.
+        raise HTTPException(
+            status_code=409, detail="You already have access to this connection"
+        )
+    asked, opened = await crud.open_request(
+        session,
+        connector_id=share.connector_id,
+        requester_id=current_user.id,
+        share_id=share.id,
+    )
+    if opened:
+        await topic.announce(
+            topics,
+            connector.owner_id,
+            topic.RequestEvent(
+                kind="asked",
+                request_id=asked.id,
+                connector_id=connector.id,
+                connector_label=connector.name,
+                person=_display(current_user),
+            ),
+        )
+    return _asked_public(asked, current_user, share.connector_label, share.node_label)
+
+
 @router.get("/{token}", response_model=ShareResolved)
 async def resolve_share(
     session: SessionDep, current_user: CurrentUser, token: str
@@ -189,10 +404,14 @@ async def resolve_share(
         session, connector_id=share.connector_id, user=current_user
     )
     if found is None:
+        waiting = await crud.pending_request(
+            session, connector_id=share.connector_id, requester_id=current_user.id
+        )
         return ShareBarred(
             connector_label=share.connector_label,
             node_label=share.node_label,
             shared_by=_display(author),
+            requested=waiting is not None,
         )
     body = _body_of(share)
     await crud.record_open(session, share=share, user_id=current_user.id)

@@ -12,7 +12,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.schemas import get_datetime_utc
-from app.shares.models import TOKEN_BYTES, Share, ShareOpen
+from app.shares.models import TOKEN_BYTES, AccessRequest, Share, ShareOpen
 from app.shares.view import SharedView, fingerprint_of
 from app.users.models import User
 
@@ -138,3 +138,90 @@ async def openers_of(
     for opened, user in (await session.exec(statement)).all():
         found.setdefault(opened.share_id, []).append((user, opened))
     return found
+
+
+async def pending_request(
+    session: AsyncSession, *, connector_id: uuid.UUID, requester_id: uuid.UUID
+) -> AccessRequest | None:
+    """The ask this person already has open on this connection, if any."""
+    statement = select(AccessRequest).where(
+        AccessRequest.connector_id == connector_id,
+        AccessRequest.requester_id == requester_id,
+        AccessRequest.state == "pending",
+    )
+    return (await session.exec(statement)).first()
+
+
+async def request_by_id(
+    session: AsyncSession, *, request_id: uuid.UUID
+) -> AccessRequest | None:
+    return await session.get(AccessRequest, request_id)
+
+
+async def open_request(
+    session: AsyncSession,
+    *,
+    connector_id: uuid.UUID,
+    requester_id: uuid.UUID,
+    share_id: uuid.UUID | None,
+) -> tuple[AccessRequest, bool]:
+    """Ask, or hand back the ask already waiting.
+
+    D61: a second request while one is open is not a second row, so pressing
+    the button again is not a way to prod anybody. The boolean says whether
+    this call is what opened it, which is what decides if anyone is told.
+    """
+    waiting = await pending_request(
+        session, connector_id=connector_id, requester_id=requester_id
+    )
+    if waiting is not None:
+        return waiting, False
+    asked = AccessRequest(
+        connector_id=connector_id, requester_id=requester_id, share_id=share_id
+    )
+    session.add(asked)
+    try:
+        await session.commit()
+    except IntegrityError:
+        # Two windows of one person pressed at the same moment; the loser reads
+        # the winner's row, which is the answer it wanted.
+        await session.rollback()
+        raced = await pending_request(
+            session, connector_id=connector_id, requester_id=requester_id
+        )
+        if raced is None:
+            raise
+        return raced, False
+    await session.refresh(asked)
+    return asked, True
+
+
+async def close_request(
+    session: AsyncSession,
+    *,
+    asked: AccessRequest,
+    state: str,
+) -> AccessRequest:
+    """Answer an ask, one way or another."""
+    asked.state = state
+    asked.answered_at = get_datetime_utc()
+    session.add(asked)
+    await session.commit()
+    await session.refresh(asked)
+    return asked
+
+
+async def pending_for_connector(
+    session: AsyncSession, *, connector_id: uuid.UUID
+) -> list[tuple[AccessRequest, User]]:
+    """Who is waiting on this connection, oldest first."""
+    statement = (
+        select(AccessRequest, User)
+        .join(User, onclause=col(AccessRequest.requester_id) == User.id)
+        .where(
+            AccessRequest.connector_id == connector_id,
+            AccessRequest.state == "pending",
+        )
+        .order_by(col(AccessRequest.created_at))
+    )
+    return list((await session.exec(statement)).all())

@@ -120,6 +120,58 @@ test("a link shows nothing to a stranger and the sender's view to a colleague", 
   await removeColleague(page, email)
 })
 
+/**
+ * Asking for access, and being given it, end to end.
+ *
+ * The half of the feature that has two people in it at once: the owner hears
+ * about the ask where they are working, answers it beside the grants, and the
+ * person waiting on the landing screen is taken to what they asked for. See
+ * D61.
+ */
+test("access is asked for through the link and given from the notification", async ({
+  page,
+  browser,
+}) => {
+  const email = colleagueEmail()
+  const name = `e2e-ask-${Date.now()}`
+
+  await login(page)
+  await createColleague(page, email)
+  await createPostgresConnector(page, name)
+  await openProjects(page, name)
+  await page.getByTestId("grid-share").click()
+  const link = await page.getByTestId("share-link").inputValue()
+  await page.getByTestId("share-close").click()
+
+  const theirs = await browser.newContext({ baseURL: new URL(link).origin })
+  const colleague = await theirs.newPage()
+
+  try {
+    await signInAs(colleague, email, COLLEAGUE_PASSWORD)
+    await colleague.goto(new URL(link).pathname)
+    await colleague.getByTestId("share-request").click()
+    await expect(colleague.getByTestId("share-requested")).toBeVisible()
+
+    // The owner is told where they are working, and the way to the answer is
+    // in the message rather than somewhere they have to go looking.
+    await expect(page.getByText(`${email} is asking for access to ${name}`)).toBeVisible()
+    await page.getByRole("button", { name: "Open", exact: true }).click()
+    await expect(page.getByTestId(`share-request-${email}`)).toBeVisible()
+    await page.getByTestId(`share-approve-${email}`).click()
+    await expect(page.getByTestId(`share-request-${email}`)).toHaveCount(0)
+
+    // Approving is an ordinary grant, so the link they are holding now opens.
+    await colleague.waitForURL("/")
+    await expect(rowsTabs(colleague)).toHaveCount(1)
+  } finally {
+    await theirs.close()
+  }
+
+  await page.getByTestId("share-close").click()
+  await deleteConnector(page, name)
+  await removeColleague(page, email)
+})
+
 test("a link that does not exist says so", async ({ page }) => {
   await login(page)
   // A token that was deleted answers the same way, so this screen cannot be

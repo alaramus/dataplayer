@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Column, DateTime, LargeBinary, String
+from sqlalchemy import Column, DateTime, Index, LargeBinary, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
@@ -58,6 +58,12 @@ class ConnectorGrant(SQLModel, table=True):
     on the way out of the database rather than being compared as an unranked
     string.
     """
+
+    # Every list a user opens asks which connections are granted to them, and
+    # the primary key leads with the connector. Declared here as well as in the
+    # migration that made it, so the model is the whole description of the
+    # table and `alembic check` has nothing to report.
+    __table_args__ = (Index("ix_connectorgrant_user_id", "user_id"),)
 
     connector_id: uuid.UUID = Field(
         foreign_key="connector.id", primary_key=True, ondelete="CASCADE"

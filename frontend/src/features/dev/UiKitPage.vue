@@ -117,6 +117,16 @@ function flash() {
           @click="toast.success('Saved')"
         />
         <AppButton
+          variant="secondary"
+          label="Toast with a way out"
+          @click="
+            toast.offer('Ivan asked for access to prod-db', {
+              label: 'Open',
+              onClick: () => toast.success('Opened'),
+            })
+          "
+        />
+        <AppButton
           variant="danger"
           label="Confirm"
           @click="ask"

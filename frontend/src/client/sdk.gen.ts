@@ -166,15 +166,30 @@ import type {
   privateCreateUserData,
   privateCreateUserErrors,
   privateCreateUserResponses,
+  sharesApproveRequestData,
+  sharesApproveRequestErrors,
+  sharesApproveRequestResponses,
+  sharesCancelRequestData,
+  sharesCancelRequestErrors,
+  sharesCancelRequestResponses,
   sharesCreateShareData,
   sharesCreateShareErrors,
   sharesCreateShareResponses,
+  sharesDeclineRequestData,
+  sharesDeclineRequestErrors,
+  sharesDeclineRequestResponses,
   sharesDeleteShareData,
   sharesDeleteShareErrors,
   sharesDeleteShareResponses,
+  sharesListRequestsData,
+  sharesListRequestsErrors,
+  sharesListRequestsResponses,
   sharesListSharesData,
   sharesListSharesErrors,
   sharesListSharesResponses,
+  sharesRequestAccessData,
+  sharesRequestAccessErrors,
+  sharesRequestAccessResponses,
   sharesResolveShareData,
   sharesResolveShareErrors,
   sharesResolveShareResponses,
@@ -1853,6 +1868,123 @@ export class SharesService {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * List Requests
+   *
+   * Who is waiting on this connection.
+   *
+   * The owner's business, like the grants beside which these are answered.
+   */
+  public static listRequests<ThrowOnError extends boolean = true>(
+    options: Options<sharesListRequestsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      sharesListRequestsResponses,
+      sharesListRequestsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/shares/requests",
+      ...options,
+    })
+  }
+
+  /**
+   * Approve Request
+   *
+   * Say yes, which is to write an ordinary grant.
+   *
+   * D61: approving adds no second kind of access. The level is the owner's
+   * choice at this moment; the ask itself only ever asked for `read`.
+   */
+  public static approveRequest<ThrowOnError extends boolean = true>(
+    options: Options<sharesApproveRequestData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      sharesApproveRequestResponses,
+      sharesApproveRequestErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/shares/requests/{request_id}/approve",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Decline Request
+   *
+   * Say no, and say it without a reason.
+   *
+   * The reason is a conversation between people, not a field in a form. What
+   * the person is told is that they were answered at all, so they are not left
+   * asking into silence.
+   */
+  public static declineRequest<ThrowOnError extends boolean = true>(
+    options: Options<sharesDeclineRequestData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      sharesDeclineRequestResponses,
+      sharesDeclineRequestErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/shares/requests/{request_id}/decline",
+      ...options,
+    })
+  }
+
+  /**
+   * Cancel Request
+   *
+   * Take back an ask. The person who made it, and nobody else.
+   */
+  public static cancelRequest<ThrowOnError extends boolean = true>(
+    options: Options<sharesCancelRequestData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      sharesCancelRequestResponses,
+      sharesCancelRequestErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/shares/requests/{request_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Request Access
+   *
+   * Ask the owner of this connection for access to it.
+   *
+   * Only reachable through a link, which is the whole of the discovery: a
+   * connection nobody has shared is invisible, so there is nothing to ask
+   * about (D61).
+   */
+  public static requestAccess<ThrowOnError extends boolean = true>(
+    options: Options<sharesRequestAccessData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      sharesRequestAccessResponses,
+      sharesRequestAccessErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/shares/{token}/request",
+      ...options,
     })
   }
 

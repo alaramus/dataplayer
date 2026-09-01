@@ -5,6 +5,60 @@ export type ClientOptions = {
 }
 
 /**
+ * AccessRequestPublic
+ *
+ * One ask, as the owner of the connection sees it.
+ */
+export type AccessRequestPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Connector Label
+   */
+  connector_label: string
+  /**
+   * Requester Id
+   */
+  requester_id: string
+  /**
+   * Requester Email
+   */
+  requester_email: string
+  /**
+   * Requester Name
+   */
+  requester_name?: string | null
+  /**
+   * Node Label
+   */
+  node_label?: string | null
+  /**
+   * State
+   */
+  state: "pending" | "approved" | "declined" | "cancelled"
+  /**
+   * Created At
+   */
+  created_at?: string | null
+}
+
+/**
+ * AccessRequestsPublic
+ */
+export type AccessRequestsPublic = {
+  /**
+   * Data
+   */
+  data: Array<AccessRequestPublic>
+}
+
+/**
  * ActionDownloadReady
  *
  * A short-lived native-browser route for one action invocation.
@@ -2906,6 +2960,21 @@ export type ReportNode = {
    * Description
    */
   description?: string | null
+}
+
+/**
+ * RequestApproval
+ *
+ * The level the owner decides on when they say yes.
+ *
+ * `read` by default: the ask itself is always for `read` (D61), and giving
+ * more is a deliberate movement rather than a default.
+ */
+export type RequestApproval = {
+  /**
+   * Access
+   */
+  access?: "read" | "write" | "structure"
 }
 
 /**
@@ -5992,6 +6061,161 @@ export type sharesCreateShareResponses = {
 }
 
 export type sharesCreateShareResponse = sharesCreateShareResponses[keyof sharesCreateShareResponses]
+
+export type sharesListRequestsData = {
+  body?: never
+  path?: never
+  query: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  url: "/api/v1/shares/requests"
+}
+
+export type sharesListRequestsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sharesListRequestsError = sharesListRequestsErrors[keyof sharesListRequestsErrors]
+
+export type sharesListRequestsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AccessRequestsPublic
+}
+
+export type sharesListRequestsResponse =
+  sharesListRequestsResponses[keyof sharesListRequestsResponses]
+
+export type sharesApproveRequestData = {
+  body: RequestApproval
+  path: {
+    /**
+     * Request Id
+     */
+    request_id: string
+  }
+  query?: never
+  url: "/api/v1/shares/requests/{request_id}/approve"
+}
+
+export type sharesApproveRequestErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sharesApproveRequestError = sharesApproveRequestErrors[keyof sharesApproveRequestErrors]
+
+export type sharesApproveRequestResponses = {
+  /**
+   * Successful Response
+   */
+  200: AccessRequestPublic
+}
+
+export type sharesApproveRequestResponse =
+  sharesApproveRequestResponses[keyof sharesApproveRequestResponses]
+
+export type sharesDeclineRequestData = {
+  body?: never
+  path: {
+    /**
+     * Request Id
+     */
+    request_id: string
+  }
+  query?: never
+  url: "/api/v1/shares/requests/{request_id}/decline"
+}
+
+export type sharesDeclineRequestErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sharesDeclineRequestError = sharesDeclineRequestErrors[keyof sharesDeclineRequestErrors]
+
+export type sharesDeclineRequestResponses = {
+  /**
+   * Successful Response
+   */
+  200: AccessRequestPublic
+}
+
+export type sharesDeclineRequestResponse =
+  sharesDeclineRequestResponses[keyof sharesDeclineRequestResponses]
+
+export type sharesCancelRequestData = {
+  body?: never
+  path: {
+    /**
+     * Request Id
+     */
+    request_id: string
+  }
+  query?: never
+  url: "/api/v1/shares/requests/{request_id}"
+}
+
+export type sharesCancelRequestErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sharesCancelRequestError = sharesCancelRequestErrors[keyof sharesCancelRequestErrors]
+
+export type sharesCancelRequestResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type sharesCancelRequestResponse =
+  sharesCancelRequestResponses[keyof sharesCancelRequestResponses]
+
+export type sharesRequestAccessData = {
+  body?: never
+  path: {
+    /**
+     * Token
+     */
+    token: string
+  }
+  query?: never
+  url: "/api/v1/shares/{token}/request"
+}
+
+export type sharesRequestAccessErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sharesRequestAccessError = sharesRequestAccessErrors[keyof sharesRequestAccessErrors]
+
+export type sharesRequestAccessResponses = {
+  /**
+   * Successful Response
+   */
+  200: AccessRequestPublic
+}
+
+export type sharesRequestAccessResponse =
+  sharesRequestAccessResponses[keyof sharesRequestAccessResponses]
 
 export type sharesResolveShareData = {
   body?: never

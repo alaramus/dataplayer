@@ -27,7 +27,7 @@ from app.core.config import settings # noqa
 # against that metadata. A model in a new module has to be added to this list.
 from app.users.models import User  # noqa
 from app.connectors.models import Connector, ConnectorGrant  # noqa
-from app.shares.models import Share, ShareOpen  # noqa
+from app.shares.models import AccessRequest, Share, ShareOpen  # noqa
 
 target_metadata = SQLModel.metadata
 

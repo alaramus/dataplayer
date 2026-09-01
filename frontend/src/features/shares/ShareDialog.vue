@@ -12,7 +12,13 @@ import {
   useRevokeGrant,
   useWriteGrant,
 } from "@/features/connectors/grants"
-import { useCreateShare, useDeleteShare, useShares } from "@/features/shares/api"
+import {
+  useAccessRequests,
+  useAnswerRequest,
+  useCreateShare,
+  useDeleteShare,
+  useShares,
+} from "@/features/shares/api"
 import { linkFor } from "@/features/shares/sharedView"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
@@ -69,6 +75,13 @@ const revokeGrant = useRevokeGrant(connectorId)
 const shares = useShares(connectorId)
 const createShare = useCreateShare(connectorId)
 const deleteShare = useDeleteShare(connectorId)
+const requests = useAccessRequests(
+  computed(() => (isOwner.value ? connectorId.value : null))
+)
+const answerRequest = useAnswerRequest(connectorId)
+
+/** The level each waiting person would be given, until the owner says otherwise. */
+const answerLevel = ref<Record<string, Grant>>({})
 
 const pickedUser = ref<string | null>(null)
 const pickedLevel = ref<Grant>("read")
@@ -118,6 +131,22 @@ const link = computed(() =>
 )
 
 const held = computed(() => grants.data.value?.data ?? [])
+
+const waiting = computed(() => requests.data.value?.data ?? [])
+
+/**
+ * Answer somebody: a level gives it, nothing declines it.
+ *
+ * Both are the same movement for the person waiting — they are told either way
+ * — so they are one function rather than two that must stay in step.
+ */
+async function answer(requestId: string, access: Grant | null) {
+  try {
+    await answerRequest.mutateAsync({ requestId, access })
+  } catch (error) {
+    toast.error(messageOf(error, "That request could not be answered"))
+  }
+}
 
 const candidates = computed(() =>
   offerable(directory.data.value?.data ?? [], held.value).map((user) => ({
@@ -314,6 +343,57 @@ async function forget(shareId: string) {
             </li>
           </ul>
         </template>
+
+        <section
+          v-if="isOwner && waiting.length > 0"
+          class="share__links"
+        >
+          <h3 class="share__heading">
+            Waiting for an answer
+          </h3>
+          <ul
+            class="share__list"
+            data-testid="share-requests"
+          >
+            <li
+              v-for="ask in waiting"
+              :key="ask.id"
+              class="share__row"
+              :data-testid="`share-request-${ask.requester_email}`"
+            >
+              <span class="share__who">
+                <span class="share__name">
+                  {{ ask.requester_name ?? ask.requester_email }}
+                </span>
+                <span class="share__email">
+                  asked for {{ ask.node_label ?? connectorName }}
+                </span>
+              </span>
+              <AppSelect
+                :model-value="answerLevel[ask.id] ?? 'read'"
+                class="share__level"
+                compact
+                :options="GRANT_OPTIONS"
+                :data-testid="`share-request-level-${ask.requester_email}`"
+                @update:model-value="answerLevel[ask.id] = $event as Grant"
+              />
+              <AppButton
+                label="Give access"
+                size="sm"
+                :loading="answerRequest.isPending.value"
+                :data-testid="`share-approve-${ask.requester_email}`"
+                @click="answer(ask.id, answerLevel[ask.id] ?? 'read')"
+              />
+              <AppIconButton
+                icon="close"
+                variant="danger-quiet"
+                tooltip="Say no. They are told, without a reason."
+                :data-testid="`share-decline-${ask.requester_email}`"
+                @click="answer(ask.id, null)"
+              />
+            </li>
+          </ul>
+        </section>
 
         <section
           v-if="otherLinks.length > 0"

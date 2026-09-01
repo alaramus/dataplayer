@@ -12,6 +12,8 @@ import { useConnectors } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
 import { moveChartSpec } from "@/features/charts/persist"
 import { takeShareIntent } from "@/features/shares/intent"
+import { useAccessRequestEvents, wordingOf } from "@/features/shares/requests"
+import ShareDialog from "@/features/shares/ShareDialog.vue"
 import { chartViewKey } from "@/features/charts/view"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import {
@@ -157,6 +159,33 @@ const toast = useToast()
 // here and nowhere else: the server probes only while somebody is watching,
 // and the workspace is what "watching" means.
 useConnectorHealth()
+
+/**
+ * The connection whose access is being answered, if any.
+ *
+ * A request is answered where grants are given, so the notification leads into
+ * that dialog rather than to an inbox screen of its own (D61). The dialog is
+ * hosted here for the reason the connection windows are: the column it would
+ * otherwise live in can be collapsed.
+ */
+const requestsFor = ref<string | null>(null)
+
+useAccessRequestEvents({
+  onAsked: (event) => {
+    toast.offer(wordingOf(event), {
+      label: "Open",
+      onClick: () => {
+        requestsFor.value = event.connector_id
+      },
+    })
+  },
+  onAnswered: (event) => {
+    // Nothing opens by itself: the person is working on something else, and a
+    // tab appearing under their hands is not a courtesy.
+    if (event.outcome === "approved") toast.success(wordingOf(event))
+    else toast.info(wordingOf(event))
+  },
+})
 
 const unsaved = ref(new Set<string>())
 
@@ -528,6 +557,13 @@ provide(workspaceActionsKey, {
     </template>
 
     <WorkspaceRoot :context="workspace.context" />
+
+    <ShareDialog
+      v-if="requestsFor !== null"
+      :model-value="true"
+      :connector-id="requestsFor"
+      @update:model-value="requestsFor = null"
+    />
 
     <AdapterCatalogDialog
       v-model="catalogOpen"
