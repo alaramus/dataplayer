@@ -166,6 +166,18 @@ import type {
   privateCreateUserData,
   privateCreateUserErrors,
   privateCreateUserResponses,
+  sharesCreateShareData,
+  sharesCreateShareErrors,
+  sharesCreateShareResponses,
+  sharesDeleteShareData,
+  sharesDeleteShareErrors,
+  sharesDeleteShareResponses,
+  sharesListSharesData,
+  sharesListSharesErrors,
+  sharesListSharesResponses,
+  sharesResolveShareData,
+  sharesResolveShareErrors,
+  sharesResolveShareResponses,
   usersCreateUserData,
   usersCreateUserErrors,
   usersCreateUserResponses,
@@ -1784,6 +1796,112 @@ export class AdaptersService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/adapter-types/",
+      ...options,
+    })
+  }
+}
+
+export class SharesService {
+  /**
+   * List Shares
+   *
+   * The links to one connection, with who has opened them.
+   *
+   * The owner sees every link made to their connection; anybody else sees the
+   * ones they made. `read` is required, so an author whose grant was revoked
+   * loses the log with the access — the link goes on working for the people it
+   * was sent to, but a window onto who reads that connection does not stay open
+   * (D59).
+   */
+  public static listShares<ThrowOnError extends boolean = true>(
+    options: Options<sharesListSharesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      sharesListSharesResponses,
+      sharesListSharesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/shares/",
+      ...options,
+    })
+  }
+
+  /**
+   * Create Share
+   *
+   * An address for what the caller is looking at.
+   *
+   * `read` and no more: making a link hands nothing over, so requiring the
+   * owner's level would forbid a harmless act and push people back to sending
+   * screenshots. Pressing the button twice gives the same address (D59).
+   */
+  public static createShare<ThrowOnError extends boolean = true>(
+    options: Options<sharesCreateShareData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      sharesCreateShareResponses,
+      sharesCreateShareErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/shares/",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Resolve Share
+   *
+   * What this link leads to, and whether the caller may follow it.
+   *
+   * D60: 200 either way. Having no standing is the expected other half of this
+   * feature, not a failure, and the client renders a screen for it rather than
+   * reading an error body. 404 is kept for a token that does not exist or was
+   * deleted, and both are answered the same so tokens cannot be probed.
+   */
+  public static resolveShare<ThrowOnError extends boolean = true>(
+    options: Options<sharesResolveShareData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      sharesResolveShareResponses,
+      sharesResolveShareErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/shares/{token}",
+      ...options,
+    })
+  }
+
+  /**
+   * Delete Share
+   *
+   * Take an address back.
+   *
+   * Tidying, not defence: what closes access is revoking the grant, and the
+   * dialog says so where somebody is about to press this. The author may remove
+   * their own link even after losing access to the connection; anybody else
+   * needs to own it.
+   */
+  public static deleteShare<ThrowOnError extends boolean = true>(
+    options: Options<sharesDeleteShareData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      sharesDeleteShareResponses,
+      sharesDeleteShareErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/shares/{share_id}",
       ...options,
     })
   }

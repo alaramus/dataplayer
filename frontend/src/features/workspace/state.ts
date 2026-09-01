@@ -7,6 +7,7 @@ import type {
   NodeRepresentation,
   NodeReplacement,
   ReferencedRows,
+  RowsView,
 } from "@/client"
 import type { Filter } from "@/features/grid/types"
 
@@ -75,6 +76,18 @@ export interface WorkspaceActions {
   followTarget: Readonly<Ref<FollowTarget | null>>
   /** Take the predicate meant for this tab, if this is the tab it named. */
   takeFollow: (connectorId: string, nodeId: string) => FollowTarget | null
+  /**
+   * Open what a link named, with the query the sender was looking at.
+   *
+   * The same two steps as `followReference`, for the same reason: the tab may
+   * already be open, so opening brings it forward and what it is to show is
+   * left where the tab picks it up. See D60.
+   */
+  openShared: (request: OpenSharedRequest) => void
+  /** The shared view a tab has just been asked to show, or nothing. */
+  sharedTarget: Readonly<Ref<SharedTarget | null>>
+  /** Take the shared view meant for this tab, if this is the tab it named. */
+  takeShared: (connectorId: string, nodeId: string) => SharedTarget | null
   openStructure: (request: OpenStructureRequest) => void
   openChart: (request: OpenChartRequest) => void
   replaceNode: (connectorId: string, replacement: NodeReplacement) => void
@@ -160,6 +173,23 @@ export interface FollowTarget {
   connectorId: string
   nodeId: string
   filters: Filter[]
+}
+
+/** A link that resolved to a node this caller may read. */
+export interface OpenSharedRequest {
+  connector: ConnectorPublic
+  nodeId: string
+  title: string
+  describable: boolean
+  representations: NodeRepresentation[]
+  view: RowsView
+}
+
+/** One tab, and the shared view it is to show when it comes up. */
+export interface SharedTarget {
+  connectorId: string
+  nodeId: string
+  view: RowsView
 }
 
 export interface OpenChartRequest {

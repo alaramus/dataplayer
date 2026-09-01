@@ -11,6 +11,8 @@ const openRepresentation = vi.fn()
 const workspace = {
   followTarget: ref(null),
   takeFollow: vi.fn(() => null),
+  sharedTarget: ref(null),
+  takeShared: vi.fn(() => null),
   openRepresentation,
   openStructure: vi.fn(),
   openChart: vi.fn(),

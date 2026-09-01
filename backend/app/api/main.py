@@ -5,6 +5,7 @@ from app.connectors import health as connector_health
 from app.connectors.routes import router as connectors_router
 from app.core.config import settings
 from app.realtime.routes import router as realtime_router
+from app.shares.routes import router as shares_router
 from app.system.routes import router as utils_router
 from app.users.auth_routes import router as auth_router
 from app.users.private_routes import router as private_router
@@ -18,6 +19,7 @@ api_router.include_router(utils_router)
 # themselves when the application starts.
 api_router.include_router(connectors_router)
 api_router.include_router(adapter_types_router)
+api_router.include_router(shares_router)
 api_router.include_router(realtime_router)
 
 # Imported for its registration: the health topic is about connectors, so it

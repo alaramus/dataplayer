@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, provide, ref } from "vue"
+import { computed, onMounted, provide, ref } from "vue"
 
 import { useRouter } from "vue-router"
 
@@ -11,6 +11,7 @@ import { connectorWindow, connectorWindowId, draftWindowId } from "@/features/co
 import { useConnectors } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
 import { moveChartSpec } from "@/features/charts/persist"
+import { takeShareIntent } from "@/features/shares/intent"
 import { chartViewKey } from "@/features/charts/view"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import {
@@ -37,8 +38,10 @@ import type {
   OpenChartRequest,
   OpenRepresentationRequest,
   OpenRowsRequest,
+  OpenSharedRequest,
   OpenStructureRequest,
   RevealTarget,
+  SharedTarget,
 } from "@/features/workspace/state"
 import { AppButton, AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
@@ -147,6 +150,7 @@ provideReloadRegistry(reloads)
 const revealTarget = ref<RevealTarget | null>(null)
 const followTarget = ref<FollowTarget | null>(null)
 const documentTarget = ref<DocumentTarget | null>(null)
+const sharedTarget = ref<SharedTarget | null>(null)
 const toast = useToast()
 
 // The state of every connection, pushed while this screen is open. Called
@@ -270,6 +274,56 @@ function revealInCatalog(connectorId: string, nodeId: string, label: string) {
   if (!connector.enabled) return
   revealTarget.value = { connectorId, nodeId, label }
 }
+
+/**
+ * Open what a link named: the catalog pointing at the node, and the tab.
+ *
+ * The tab is brought forward if it is already open, and the sent query is left
+ * for it to pick up rather than pushed into it — the panel may not be mounted
+ * yet, and a call does not survive that while a piece of state does. See D60.
+ */
+function openShared(request: OpenSharedRequest) {
+  openCatalog(request.connector)
+  if (request.connector.enabled) {
+    revealTarget.value = {
+      connectorId: request.connector.id,
+      nodeId: request.nodeId,
+      label: request.title,
+    }
+  }
+  workspace.open({
+    id: rowsPanelId(request.connector.id, request.nodeId),
+    kind: "rows",
+    connectorId: request.connector.id,
+    nodeId: request.nodeId,
+    title: request.title,
+    connectorName: request.connector.name,
+    adapterType: request.connector.adapter_type,
+    describable: request.describable,
+    representations: request.representations,
+  })
+  sharedTarget.value = {
+    connectorId: request.connector.id,
+    nodeId: request.nodeId,
+    view: request.view,
+  }
+}
+
+// A link the landing screen has already resolved. Taken once, on the way in:
+// the workspace is where tabs live, and the landing screen has none.
+onMounted(() => {
+  const intent = takeShareIntent()
+  if (intent === null) return
+  openShared({
+    connector: intent.connector,
+    nodeId: intent.nodeId,
+    title: intent.title,
+    describable: intent.describable,
+    representations: intent.representations,
+    view: intent.view,
+  })
+  toast.info(`Opened what ${intent.sharedBy} shared`)
+})
 
 function replaceNode(connectorId: string, replacement: NodeReplacement) {
   for (const panel of [...workspace.panels.value]) {
@@ -428,6 +482,15 @@ provide(workspaceActionsKey, {
     if (target === null) return null
     if (target.connectorId !== connectorId || target.nodeId !== nodeId) return null
     followTarget.value = null
+    return target
+  },
+  openShared,
+  sharedTarget,
+  takeShared: (connectorId: string, nodeId: string) => {
+    const target = sharedTarget.value
+    if (target === null) return null
+    if (target.connectorId !== connectorId || target.nodeId !== nodeId) return null
+    sharedTarget.value = null
     return target
   },
   openStructure: (request: OpenStructureRequest) => {

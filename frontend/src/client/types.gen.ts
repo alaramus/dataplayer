@@ -2943,6 +2943,64 @@ export type RowsMoved = {
 }
 
 /**
+ * RowsView
+ *
+ * A bounded page of a relation, as the sender had it arranged.
+ *
+ * The two maps are maps and not shapes: their keys are column names, which
+ * belong to the source and are not known here. They are still bounded, in
+ * length and in the size of a key.
+ */
+export type RowsView = {
+  /**
+   * Kind
+   */
+  kind?: "rows"
+  /**
+   * Filters
+   */
+  filters?: Array<
+    | ({
+        op: "contains" | "eq" | "gt" | "gte" | "lt" | "lte" | "ne" | "starts_with"
+      } & ScalarFilter)
+    | ({
+        op: "in"
+      } & InFilter)
+    | ({
+        op: "is_not_null" | "is_null"
+      } & NullFilter)
+  >
+  /**
+   * Sort
+   */
+  sort?: Array<Sort>
+  /**
+   * Page Size
+   */
+  page_size?: number
+  /**
+   * Column Order
+   */
+  column_order?: Array<string>
+  /**
+   * Pinned Left
+   */
+  pinned_left?: Array<string>
+  /**
+   * Column Visibility
+   */
+  column_visibility?: {
+    [key: string]: boolean
+  }
+  /**
+   * Column Sizing
+   */
+  column_sizing?: {
+    [key: string]: number
+  }
+}
+
+/**
  * ScalarFilter
  */
 export type ScalarFilter = {
@@ -2992,6 +3050,199 @@ export type SchemaNode = {
    * Is System
    */
   is_system?: boolean
+}
+
+/**
+ * ShareBarred
+ *
+ * A resolved link the caller has no standing for.
+ *
+ * D60: a normal outcome of this route, not an error. It names the connection
+ * on purpose — a deliberate deviation from D33's silence, argued in
+ * `docs/architecture/sharing.md` — because a request for access that cannot
+ * say what it is about is not answerable.
+ */
+export type ShareBarred = {
+  /**
+   * State
+   */
+  state?: "no_access"
+  /**
+   * Connector Label
+   */
+  connector_label: string
+  /**
+   * Node Label
+   */
+  node_label: string
+  /**
+   * Shared By
+   */
+  shared_by: string
+  /**
+   * Requested
+   */
+  requested?: boolean
+}
+
+/**
+ * ShareCreate
+ *
+ * Make an address for what the caller is looking at.
+ *
+ * The node's label comes from the client because it is what the catalog put
+ * on screen, and the server would have to walk the source to learn it. The
+ * connection's name is not accepted: the server has the row.
+ */
+export type ShareCreate = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Node Label
+   */
+  node_label: string
+  view: RowsView
+}
+
+/**
+ * ShareOpener
+ *
+ * One person who opened a link, and how often.
+ */
+export type ShareOpener = {
+  /**
+   * User Id
+   */
+  user_id: string
+  /**
+   * Email
+   */
+  email: string
+  /**
+   * Full Name
+   */
+  full_name?: string | null
+  /**
+   * Opens
+   */
+  opens: number
+  /**
+   * First At
+   */
+  first_at?: string | null
+  /**
+   * Last At
+   */
+  last_at?: string | null
+}
+
+/**
+ * SharePublic
+ *
+ * A link as the person who may see it does.
+ *
+ * `can_delete` is the answer to "may I remove this from here", decided by the
+ * server: the author removes their own, the owner of the connection removes
+ * any made to it.
+ *
+ * The body of the view is not here. A list of links is a list of addresses;
+ * the body matters only when one is followed, and leaving it out means a body
+ * written by a future version cannot spoil the list it appears in.
+ */
+export type SharePublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Token
+   */
+  token: string
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Connector Label
+   */
+  connector_label: string
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Node Label
+   */
+  node_label: string
+  /**
+   * Created At
+   */
+  created_at?: string | null
+  /**
+   * Shared By
+   */
+  shared_by: string
+  /**
+   * Can Delete
+   */
+  can_delete: boolean
+  /**
+   * Openers
+   */
+  openers?: Array<ShareOpener>
+}
+
+/**
+ * ShareTarget
+ *
+ * A resolved link the caller may follow.
+ */
+export type ShareTarget = {
+  /**
+   * State
+   */
+  state?: "open"
+  /**
+   * Share Id
+   */
+  share_id: string
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Connector Label
+   */
+  connector_label: string
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Node Label
+   */
+  node_label: string
+  view: RowsView
+  /**
+   * Shared By
+   */
+  shared_by: string
+}
+
+/**
+ * SharesPublic
+ */
+export type SharesPublic = {
+  /**
+   * Data
+   */
+  data: Array<SharePublic>
 }
 
 /**
@@ -5686,6 +5937,130 @@ export type adaptersReadAdapterTypesResponses = {
 
 export type adaptersReadAdapterTypesResponse =
   adaptersReadAdapterTypesResponses[keyof adaptersReadAdapterTypesResponses]
+
+export type sharesListSharesData = {
+  body?: never
+  path?: never
+  query: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  url: "/api/v1/shares/"
+}
+
+export type sharesListSharesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sharesListSharesError = sharesListSharesErrors[keyof sharesListSharesErrors]
+
+export type sharesListSharesResponses = {
+  /**
+   * Successful Response
+   */
+  200: SharesPublic
+}
+
+export type sharesListSharesResponse = sharesListSharesResponses[keyof sharesListSharesResponses]
+
+export type sharesCreateShareData = {
+  body: ShareCreate
+  path?: never
+  query?: never
+  url: "/api/v1/shares/"
+}
+
+export type sharesCreateShareErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sharesCreateShareError = sharesCreateShareErrors[keyof sharesCreateShareErrors]
+
+export type sharesCreateShareResponses = {
+  /**
+   * Successful Response
+   */
+  200: SharePublic
+}
+
+export type sharesCreateShareResponse = sharesCreateShareResponses[keyof sharesCreateShareResponses]
+
+export type sharesResolveShareData = {
+  body?: never
+  path: {
+    /**
+     * Token
+     */
+    token: string
+  }
+  query?: never
+  url: "/api/v1/shares/{token}"
+}
+
+export type sharesResolveShareErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sharesResolveShareError = sharesResolveShareErrors[keyof sharesResolveShareErrors]
+
+export type sharesResolveShareResponses = {
+  /**
+   * Response Shares-Resolve Share
+   *
+   * Successful Response
+   */
+  200:
+    | ({
+        state: "open"
+      } & ShareTarget)
+    | ({
+        state: "no_access"
+      } & ShareBarred)
+}
+
+export type sharesResolveShareResponse =
+  sharesResolveShareResponses[keyof sharesResolveShareResponses]
+
+export type sharesDeleteShareData = {
+  body?: never
+  path: {
+    /**
+     * Share Id
+     */
+    share_id: string
+  }
+  query?: never
+  url: "/api/v1/shares/{share_id}"
+}
+
+export type sharesDeleteShareErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type sharesDeleteShareError = sharesDeleteShareErrors[keyof sharesDeleteShareErrors]
+
+export type sharesDeleteShareResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type sharesDeleteShareResponse = sharesDeleteShareResponses[keyof sharesDeleteShareResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

@@ -28,6 +28,7 @@ const props = defineProps<{
   deleteCount?: number
   canDownload?: boolean
   downloading?: boolean
+  canShare?: boolean
   canDescribe?: boolean
   contentTitle?: string
   canChart?: boolean
@@ -44,6 +45,7 @@ const emit = defineEmits<{
   bringIn: []
   delete: []
   download: []
+  share: []
   describe: []
   content: []
   chart: []
@@ -131,6 +133,13 @@ function selectPageSize(value: unknown) {
           :loading="downloading"
           data-testid="grid-download"
           @click="emit('download')"
+        />
+        <AppIconButton
+          v-if="canShare"
+          icon="share"
+          tooltip="Share this view"
+          data-testid="grid-share"
+          @click="emit('share')"
         />
         <AppIconButton
           v-if="canChart"

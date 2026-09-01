@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef, watch } from "vue"
 
-import type { FetchRequest, NodeRepresentation, ReferencedRows } from "@/client"
+import type { FetchRequest, NodeRepresentation, ReferencedRows, RowsView } from "@/client"
 import DataGrid from "@/features/grid/DataGrid.vue"
 import type { Filter } from "@/features/grid/types"
 import { useReloadable } from "@/features/workspace/reloadable"
@@ -51,6 +51,24 @@ watch(
   () => {
     const taken = workspace.takeFollow(props.connectorId, props.nodeId)
     if (taken !== null) referenceFilters.value = [...taken.filters]
+  },
+  { immediate: true }
+)
+
+/**
+ * The view a link asked this tab to show, once.
+ *
+ * Taken the same way a followed predicate is, and for the same reason: this
+ * tab may have been open already, and a panel's props are bound when it is
+ * first drawn. See D60.
+ */
+const sharedView = ref<RowsView | null>(null)
+
+watch(
+  workspace.sharedTarget,
+  () => {
+    const taken = workspace.takeShared(props.connectorId, props.nodeId)
+    if (taken !== null) sharedView.value = taken.view
   },
   { immediate: true }
 )
@@ -113,6 +131,7 @@ function showReferenced(target: ReferencedRows) {
       :can-describe="describable"
       :content-title="contentRepresentation?.title"
       :reference-filters="referenceFilters"
+      :shared-view="sharedView"
       @describe="showStructure"
       @content="showContent"
       @chart="showChart"

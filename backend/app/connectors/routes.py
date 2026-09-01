@@ -152,6 +152,7 @@ from app.connectors import (
     ranges,
     service,
 )
+from app.connectors.access import get_or_404, resolve
 from app.connectors.models import (
     Connector,
     ConnectorCreate,
@@ -252,56 +253,6 @@ def _split_or_422(
         )
 
 
-async def _resolve(
-    session: AsyncSession,
-    connector_id: uuid.UUID,
-    current_user: User,
-    *,
-    requires: Access,
-) -> tuple[Connector, Access]:
-    """The connection and the caller's standing, or the reason they get neither.
-
-    The one place the question is asked. `requires` has no default on purpose:
-    a route added later cannot reach a source without saying what it needs,
-    because the call does not type-check without it.
-
-    Two statuses, and the difference is what the caller already knows. No
-    standing at all answers 404, the same as a connection that does not exist,
-    so the id space is not an oracle for what other people hold. A standing
-    below what the route needs answers 403: they can already see this
-    connection, and hiding it now would only confuse.
-    """
-    found = await crud.get_with_access(
-        session, connector_id=connector_id, user=current_user
-    )
-    if found is None:
-        raise HTTPException(status_code=404, detail="Connector not found")
-    connector, access = found
-    if not at_least(access, requires):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "message": f"This needs {requires} access to the connection",
-                "required": requires,
-                "held": access,
-            },
-        )
-    return connector, access
-
-
-async def _get_or_404(
-    session: AsyncSession,
-    connector_id: uuid.UUID,
-    current_user: User,
-    *,
-    requires: Access,
-) -> Connector:
-    connector, _ = await _resolve(
-        session, connector_id, current_user, requires=requires
-    )
-    return connector
-
-
 async def _public(
     session: AsyncSession, connector: Connector, access: Access
 ) -> ConnectorPublic:
@@ -341,10 +292,10 @@ async def _adapter_and_access(
     A disabled connector is refused here rather than in each route: this is the
     one door to a live source, so the rule is written once and cannot be
     forgotten by a route added later. Reading and editing the row go through
-    ``_get_or_404`` and stay open — switching a connection off is not deleting
+    ``get_or_404`` and stay open — switching a connection off is not deleting
     it.
     """
-    connector, access = await _resolve(
+    connector, access = await resolve(
         session, connector_id, current_user, requires=requires
     )
     if not connector.enabled:
@@ -629,7 +580,7 @@ async def read_connector(
     """
     Get connector by ID.
     """
-    connector, access = await _resolve(
+    connector, access = await resolve(
         session, connector_id, current_user, requires="read"
     )
     return await _public(session, connector, access)
@@ -646,7 +597,7 @@ async def update_connector(
     """
     Update a connector.
     """
-    connector = await _get_or_404(
+    connector = await get_or_404(
         session, connector_id, current_user, requires="own"
     )
 
@@ -679,7 +630,7 @@ async def delete_connector(
     """
     Delete a connector.
     """
-    connector = await _get_or_404(
+    connector = await get_or_404(
         session, connector_id, current_user, requires="own"
     )
     await crud.delete(session, connector=connector)
@@ -710,7 +661,7 @@ async def _draft_adapter(
     if body.connector_id is not None:
         # Reading a draft against a stored connection only substitutes the
         # secrets the caller did not retype, so seeing it is enough.
-        connector = await _get_or_404(
+        connector = await get_or_404(
             session, body.connector_id, current_user, requires="read"
         )
         options = service.fill_missing_secrets(adapter_type, options, connector.secrets)
@@ -2622,7 +2573,7 @@ async def read_grants(
     connection is shared with them and not who else has it: that is a list of
     people, and it is not theirs to read.
     """
-    await _get_or_404(session, connector_id, current_user, requires="own")
+    await get_or_404(session, connector_id, current_user, requires="own")
     return GrantsPublic(
         data=[
             GrantPublic(
@@ -2651,7 +2602,7 @@ async def write_grant(
     standing is now this. A client that had to know whether a grant already
     existed would race with another window of the same owner.
     """
-    await _get_or_404(session, connector_id, current_user, requires="own")
+    await get_or_404(session, connector_id, current_user, requires="own")
     if body.user_id == current_user.id:
         raise HTTPException(
             status_code=422,
@@ -2702,7 +2653,7 @@ async def revoke_grant(
     filled it, and the person who lost the grant can no longer reach a route
     that would read one.
     """
-    await _get_or_404(session, connector_id, current_user, requires="own")
+    await get_or_404(session, connector_id, current_user, requires="own")
     if not await crud.remove_grant(
         session, connector_id=connector_id, user_id=user_id
     ):

@@ -11,6 +11,7 @@ type = layers
 layers =
     app.api
     app.system
+    app.shares
     app.connectors
     app.adapters
     app.realtime
@@ -28,6 +29,7 @@ forbidden_modules =
     app.realtime
     app.adapters
     app.connectors
+    app.shares
     app.system
     app.api
 
@@ -42,6 +44,7 @@ source_modules =
     app.users
     app.realtime
     app.connectors
+    app.shares
     app.system
     app.api
     app.adapters.registry
@@ -67,6 +70,7 @@ source_modules =
     app.users
     app.realtime
     app.connectors
+    app.shares
     app.system
     app.api
     app.adapters.registry

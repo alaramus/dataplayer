@@ -4,7 +4,7 @@ import { computed, ref, watch } from "vue"
 import type { ConnectionCheckResult, ConnectorPublic } from "@/client"
 import { ACCESS_LABELS } from "@/features/connectors/access"
 import ConnectionCheck from "@/features/connectors/ConnectionCheck.vue"
-import ShareDialog from "@/features/connectors/ShareDialog.vue"
+import ShareDialog from "@/features/shares/ShareDialog.vue"
 import {
   useAdapterTypes,
   useCheckDraft,
@@ -647,7 +647,6 @@ async function parseTyped(text: string) {
         v-if="saved && isOwner"
         v-model="sharing"
         :connector-id="saved.id"
-        :connector-name="saved.name"
       />
     </template>
   </div>

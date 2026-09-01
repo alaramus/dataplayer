@@ -21,7 +21,14 @@ import type {
 import { computed, nextTick, ref, toRef, useTemplateRef, watch } from "vue"
 import type { CSSProperties } from "vue"
 
-import type { FetchColumn, FetchReference, FetchRequest, ReferencedRows, Sort } from "@/client"
+import type {
+  FetchColumn,
+  FetchReference,
+  FetchRequest,
+  ReferencedRows,
+  RowsView,
+  Sort,
+} from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
 import { copyText, readText } from "@/shared/clipboard"
 import {
@@ -59,6 +66,13 @@ import {
 } from "./download"
 import type { DownloadScope } from "./download"
 import DownloadDialog from "./DownloadDialog.vue"
+import ShareDialog from "@/features/shares/ShareDialog.vue"
+import {
+  droppedByReconciliation,
+  pageSizeOf,
+  storedFromView,
+  viewOfGrid,
+} from "@/features/shares/sharedView"
 import GridHeader from "./GridHeader.vue"
 import ImportDialog from "./ImportDialog.vue"
 import RowInsertRow from "./RowInsertRow.vue"
@@ -103,6 +117,14 @@ const props = defineProps<{
    * array each time, so following the same key twice applies twice.
    */
   referenceFilters?: Filter[] | null
+  /**
+   * The view a link asked this tab to show, once.
+   *
+   * A prop for the same reason `referenceFilters` is one: the panel may have
+   * been opened a moment ago, or have been open already, and neither survives
+   * a call. See D60.
+   */
+  sharedView?: RowsView | null
 }>()
 const emit = defineEmits<{
   describe: []
@@ -164,6 +186,9 @@ const insertOpen = ref(false)
 const importOpen = ref(false)
 const createTableOpen = ref(false)
 const downloadOpen = ref(false)
+const shareOpen = ref(false)
+/** What this tab is showing, in the shape a link carries. */
+const sharedViewOfThisGrid = computed(() => viewOfGrid(queryState.value, layout.value))
 const importError = ref("")
 const createTableError = ref("")
 const insertError = ref("")
@@ -982,7 +1007,61 @@ watch(
   { immediate: true }
 )
 
+/**
+ * The shared view this tab was opened by, applied once the source has named
+ * its columns.
+ *
+ * Both halves of a link land here — the query and the column layout — and both
+ * go through `reconcileGridState`, which is what a tab restored from storage
+ * uses. So a column the relation no longer has is dropped by one function,
+ * in one place, and what went is said rather than silently missing (D60).
+ *
+ * Waiting for the columns rather than applying at once: a filter naming a
+ * column that has gone would otherwise be sent to the source and refused.
+ */
+let appliedShare: RowsView | null = null
 let restoredKey = ""
+
+watch(
+  [() => props.sharedView, () => result.value?.columns] as const,
+  ([view, serverColumns]) => {
+    if (view === undefined || view === null || serverColumns === undefined) return
+    if (appliedShare === view) return
+    appliedShare = view
+    // The stored query must not land on top of what the link asked for; the
+    // restore below is keyed by the tab it has already run for.
+    restoredKey = `${props.connectorId}\u0000${props.nodeId}`
+    referenceApplied = true
+
+    const wanted = storedFromView(view)
+    const kept = reconcileGridState(wanted, serverColumns)
+    changeLayout({
+      columnOrder: kept.columnOrder,
+      columnVisibility: kept.columnVisibility,
+      columnSizing: kept.columnSizing,
+      pinnedLeft: kept.pinnedLeft,
+    })
+    const next: GridQueryState = {
+      page: 0,
+      pageSize: pageSizeOf(view, queryState.value.pageSize),
+      filters: kept.filters,
+      sort: kept.sort,
+    }
+    queryAwaitingPersistence.value = null
+    persistedQueryState.value = next
+    saveQueryState(next)
+    queryState.value = next
+
+    const dropped = droppedByReconciliation(wanted, kept)
+    if (dropped.length > 0) {
+      toast.info(
+        `${dropped.join(", ")} ${dropped.length === 1 ? "is" : "are"} no longer in this relation, so the shared query does not use ${dropped.length === 1 ? "it" : "them"}`
+      )
+    }
+  },
+  { immediate: true }
+)
+
 watch(
   () => result.value?.columns,
   (serverColumns) => {
@@ -1077,6 +1156,7 @@ defineExpose({
       :delete-supported="result?.delete_supported === true"
       :delete-count="selectedRowHandles.length"
       :can-download="result !== undefined && visibleGridColumns.length > 0"
+      :can-share="result !== undefined"
       :downloading="downloadPage.isPending.value || exportRows.isPending.value"
       :can-describe="canDescribe"
       :content-title="contentTitle"
@@ -1092,6 +1172,7 @@ defineExpose({
       @bring-in="openImport"
       @delete="deleteSelection"
       @download="downloadOpen = true"
+      @share="shareOpen = true"
       @describe="emit('describe')"
       @content="emit('content')"
       @chart="openChart"
@@ -1338,6 +1419,15 @@ defineExpose({
       :value="viewer.value"
       @update:model-value="viewer = null"
     />
+    <ShareDialog
+      v-if="shareOpen"
+      v-model="shareOpen"
+      :connector-id="connectorId"
+      :node-id="nodeId"
+      :node-label="title"
+      :view="sharedViewOfThisGrid"
+    />
+
     <DownloadDialog
       v-if="downloadOpen && result !== undefined"
       :model-value="true"

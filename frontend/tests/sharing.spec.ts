@@ -1,8 +1,15 @@
 import { expect, test } from "@playwright/test"
-import type { Page } from "@playwright/test"
 
 import { createPostgresConnector } from "./utils/connectors"
 import { firstSuperuser } from "./config"
+import {
+  COLLEAGUE_PASSWORD,
+  colleagueEmail,
+  createColleague,
+  removeColleague,
+  signInAs,
+  signOut,
+} from "./utils/people"
 import { expectFieldActionAligned } from "./utils/layout"
 import { login } from "./utils/login"
 import { connectorRow, editConnector } from "./utils/workspace"
@@ -15,45 +22,6 @@ import { connectorRow, editConnector } from "./utils/workspace"
  * settled by the backend tests; what is checked here is that the person the
  * connection was shared with sees it, and sees it as somebody else's.
  */
-const COLLEAGUE_PASSWORD = "shared-access-1"
-
-function colleagueEmail(): string {
-  return `colleague-${Date.now()}@example.com`
-}
-
-async function signInAs(page: Page, email: string, password: string) {
-  await page.goto("/login")
-  await page.getByTestId("login-email").fill(email)
-  await page.getByTestId("login-password").fill(password)
-  await page.getByTestId("login-submit").click()
-  await page.waitForURL("/")
-}
-
-async function signOut(page: Page) {
-  await page.getByTestId("logout").click()
-  await page.waitForURL("/login")
-}
-
-async function createColleague(page: Page, email: string) {
-  await page.getByTestId("open-users").click()
-  await page.waitForURL("/users")
-  await page.getByTestId("new-user").click()
-  await page.getByTestId("user-email").fill(email)
-  await page.getByTestId("user-password").fill(COLLEAGUE_PASSWORD)
-  await page.getByTestId("user-save").click()
-  await expect(page.getByTestId(`edit-user-${email}`)).toBeVisible()
-  await page.getByTestId("back-to-workspace").click()
-  await page.waitForURL("/")
-}
-
-async function removeColleague(page: Page, email: string) {
-  await page.getByTestId("open-users").click()
-  await page.waitForURL("/users")
-  await page.getByTestId(`delete-user-${email}`).click()
-  await page.getByTestId("confirm-accept").click()
-  await expect(page.getByTestId(`edit-user-${email}`)).toHaveCount(0)
-}
-
 test("a shared connection appears for the colleague and stays the owner's", async ({
   page,
 }) => {

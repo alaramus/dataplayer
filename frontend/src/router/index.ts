@@ -34,6 +34,14 @@ export const router = createRouter({
       component: () => import("@/features/auth/LoginPage.vue"),
     },
     {
+      // A shared link. It resolves here and then hands the workspace what to
+      // open, so the address stays out of the workspace's own URL (D60).
+      path: "/s/:token",
+      name: "shared",
+      component: () => import("@/features/shares/ShareLandingPage.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
       path: "/",
       name: "workspace",
       component: () => import("@/features/workspace/WorkspacePage.vue"),
@@ -55,7 +63,11 @@ export const router = createRouter({
 router.beforeEach((to) => {
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
-    return { name: "login" }
+    // Where they were going is kept: somebody who opened a shared link while
+    // signed out is meant to arrive at it, not at an empty workspace.
+    return to.name === "workspace"
+      ? { name: "login" }
+      : { name: "login", query: { next: to.fullPath } }
   }
   if (to.name === "login" && auth.isLoggedIn) {
     return { name: "workspace" }
