@@ -132,6 +132,9 @@ test("two files at once admit only what can be done to many", async ({ page }) =
 
   await catalogCheck(page, first).click()
   await catalogCheck(page, second).click()
+  // The head of the level counts twice: what is here, and how much of it the
+  // menu below would be applied to.
+  await expect(page.getByTestId("catalog-count")).toContainText("(2 selected)")
 
   // Renaming two folders to one name is not two renames, and the action says
   // so itself — the server marks it as not applying to the set.
@@ -223,10 +226,15 @@ test("creates and renames a schema, moves a relation, then drops the schema", as
 
   // Moving one relation changes two catalog branches. Both are named by the
   // action result; neither schema is parsed out of an opaque node id here.
+  // Where it goes is picked from the schemas this connection has — the server
+  // says the field names a grouping and the level says which there are — and
+  // the server's own schemas are not among them.
   await showOnlySchema(page, "demo_lab", renamed)
   await catalogCheck(page, "audit_events").click()
   await catalogAction(page, "move_relation")
-  await page.getByTestId("field-target_schema").fill(renamed)
+  await page.getByTestId("field-target_schema").click()
+  await expect(page.getByRole("option", { name: "pg_catalog", exact: true })).toHaveCount(0)
+  await page.getByRole("option", { name: renamed, exact: true }).click()
   await page.getByTestId("action-submit").click()
   await expect(catalogRow(page, "audit_events")).toHaveCount(0)
 
@@ -234,7 +242,8 @@ test("creates and renames a schema, moves a relation, then drops the schema", as
   await expect(catalogRow(page, "audit_events")).toBeVisible()
   await catalogCheck(page, "audit_events").click()
   await catalogAction(page, "move_relation")
-  await page.getByTestId("field-target_schema").fill("demo_lab")
+  await page.getByTestId("field-target_schema").click()
+  await page.getByRole("option", { name: "demo_lab", exact: true }).click()
   await page.getByTestId("action-submit").click()
   await expect(catalogRow(page, "audit_events")).toHaveCount(0)
 

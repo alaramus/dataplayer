@@ -53,6 +53,27 @@ const RENAME: ActionCommand = {
   ],
 }
 
+const MOVE: ActionCommand = {
+  name: "move_relation",
+  label: "Move to schema",
+  destructive: false,
+  takesFile: false,
+  takesManyFiles: false,
+  previews: false,
+  downloads: false,
+  actsOn: "node",
+  fields: [
+    {
+      name: "target_schema",
+      label: "Target schema",
+      kind: "text",
+      required: true,
+      purpose: "grouping",
+      group: "general",
+    },
+  ],
+}
+
 const UPLOAD: ActionCommand = {
   name: "upload",
   label: "Upload files",
@@ -78,7 +99,8 @@ const UPLOAD: ActionCommand = {
 function mountDialog(
   command: ActionCommand = DROP,
   nodeIds: (string | null)[] = ["demo.customers"],
-  targetNode?: { label: string; kind: string }
+  targetNode?: { label: string; kind: string },
+  groupings: { id: string; label: string; system: boolean }[] = []
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -90,6 +112,7 @@ function mountDialog(
       nodeIds,
       nodeLabel: "customers",
       targetNode,
+      groupings,
     }),
     {
       global: {
@@ -427,6 +450,66 @@ describe("uploading files", () => {
         params: JSON.stringify({ conflict: "rename" }),
       },
     })
+    wrapper.unmount()
+  })
+})
+
+/**
+ * Where a relation goes is picked from what is there.
+ *
+ * A typed schema name has to match one the server already has, exactly, or the
+ * move is refused — which makes typing it a guess with one right answer. The
+ * server says the field names a grouping and the level says which groupings
+ * there are.
+ */
+describe("moving a relation", () => {
+  const SCHEMAS = [
+    { id: "public", label: "public", system: false },
+    { id: "pg_catalog", label: "pg_catalog", system: true },
+    { id: "reports", label: "reports", system: false },
+  ]
+
+  it("offers the schemas of the connection, and not the server's own", async () => {
+    const wrapper = mountDialog(MOVE, ["public.customers"], undefined, SCHEMAS)
+    await flushPromises()
+
+    const select = wrapper.findComponent({ name: "AppSelect" })
+    expect(select.props("options")).toEqual([
+      { value: "public", label: "public" },
+      { value: "reports", label: "reports" },
+    ])
+    wrapper.unmount()
+  })
+
+  it("sends the schema that was chosen", async () => {
+    const run = vi.spyOn(ConnectorsService, "runAction").mockResolvedValue({
+      data: { message: "customers moved to reports", reload_node_ids: ["public", "reports"] },
+    } as never)
+    const wrapper = mountDialog(MOVE, ["public.customers"], undefined, SCHEMAS)
+    await flushPromises()
+
+    wrapper
+      .findComponent({ name: "AppSelect" })
+      .vm.$emit("update:modelValue", "reports")
+    await flushPromises()
+    click("action-submit")
+    await flushPromises()
+
+    expect(run).toHaveBeenCalledWith({
+      path: { connector_id: "c-1", action_name: "move_relation" },
+      body: { node_id: "public.customers", params: { target_schema: "reports" } },
+    })
+    wrapper.unmount()
+  })
+
+  it("still takes a typed name from a source that offers no groupings", async () => {
+    const wrapper = mountDialog(MOVE, ["public.customers"])
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: "AppSelect" }).exists()).toBe(false)
+    expect(
+      document.body.querySelector('[data-testid="field-target_schema"]')
+    ).not.toBeNull()
     wrapper.unmount()
   })
 })

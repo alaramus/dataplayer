@@ -252,7 +252,13 @@ class RenameRelation(JsonAction[RenameRelationParams]):
 
 
 class MoveRelationParams(BaseModel):
-    target_schema: str = Field(title="Target schema")
+    # The destinations are the source's own groupings, and only the source can
+    # list them. The hint says the value is one of their ids, so the form
+    # offers what this connection actually has instead of asking for a name
+    # that has to be spelled exactly right to be accepted.
+    target_schema: str = Field(
+        title="Target schema", json_schema_extra={"x-ui-purpose": "grouping"}
+    )
 
     _check = field_validator("target_schema")(_schema_name)
 

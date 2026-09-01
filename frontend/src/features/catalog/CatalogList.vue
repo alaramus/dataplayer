@@ -80,6 +80,19 @@ const allChecked = computed(
 
 const someChecked = computed(() => props.checked.length > 0 && !allChecked.value)
 
+/**
+ * What the level holds, and how much of it an action would be done to.
+ *
+ * The tally of ticks is of the whole level rather than of what the filter
+ * leaves showing: a filter hides rows, it does not untick them, and the number
+ * in brackets has to be the number the menu above would act on.
+ */
+const countLabel = computed(() => {
+  const total = `${String(props.items.length)} ${props.items.length === 1 ? "item" : "items"}`
+  if (props.checked.length === 0) return total
+  return `${total} (${String(props.checked.length)} selected)`
+})
+
 </script>
 
 <template>
@@ -95,9 +108,10 @@ const someChecked = computed(() => props.checked.length > 0 && !allChecked.value
         data-testid="catalog-check-all"
         @update:model-value="emit('toggle-all', $event)"
       />
-      <span class="catalog-list__count">
-        {{ items.length }} {{ items.length === 1 ? "item" : "items" }}
-      </span>
+      <span
+        class="catalog-list__count"
+        data-testid="catalog-count"
+      >{{ countLabel }}</span>
     </div>
 
     <AppSpinner v-if="loading" />

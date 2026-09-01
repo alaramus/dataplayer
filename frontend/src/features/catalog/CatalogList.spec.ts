@@ -21,12 +21,30 @@ function table(id: string, label: string): ListNode {
 
 const items: ListNode[] = [table("public.orders", "orders"), table("public.users", "users")]
 
-function mountList(revealed: string | null = null) {
+function mountList(revealed: string | null = null, checked: string[] = []) {
   return mount(CatalogList, {
-    props: { items, checked: [], loading: false, revealed },
+    props: { items, checked, loading: false, revealed },
     global: { plugins: [Quasar] },
   })
 }
+
+/**
+ * The head counts twice: what is here, and what an action would be done to.
+ *
+ * The second number is only there while something is ticked — brackets saying
+ * "(0 selected)" above an untouched list are noise on the one line the level
+ * has to describe itself.
+ */
+describe("the head of a level", () => {
+  it("says how much the level holds", () => {
+    expect(mountList().get('[data-testid="catalog-count"]').text()).toBe("2 items")
+  })
+
+  it("adds how much of it is ticked", () => {
+    const wrapper = mountList(null, ["public.orders"])
+    expect(wrapper.get('[data-testid="catalog-count"]').text()).toBe("2 items (1 selected)")
+  })
+})
 
 /**
  * Being pointed at a row is not the same as ticking it.

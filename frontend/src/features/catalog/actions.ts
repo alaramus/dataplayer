@@ -1,6 +1,6 @@
 import type { ActionInfo, ActionResult } from "@/client"
 import { schemaToFields } from "@/shared/SchemaForm/jsonSchema"
-import type { FieldSpec, JsonSchema } from "@/shared/SchemaForm/jsonSchema"
+import type { FieldSpec, JsonSchema, SchemaChoice } from "@/shared/SchemaForm/jsonSchema"
 
 /**
  * One action, ready to be offered as a menu item.
@@ -42,6 +42,50 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       workflow: schema["x-ui-workflow"],
     }
   })
+}
+
+/** One grouping a level offers, as much of it as a form needs. */
+export interface Grouping {
+  id: string
+  label: string
+  /** Whether the source considers it part of its own machinery. */
+  system: boolean
+}
+
+/**
+ * The groupings a form may send, in the order the level lists them.
+ *
+ * A source's own machinery is left out: `pg_catalog` is a real schema and is
+ * shown in the catalog for that reason, but offering it as a place to move a
+ * table into is offering something every source refuses. Ids and not names —
+ * the value travels back to the source that issued it, and nothing here reads
+ * what one is made of (D21).
+ */
+export function groupingChoices(groupings: Grouping[]): SchemaChoice[] {
+  return groupings
+    .filter((grouping) => !grouping.system)
+    .map((grouping) => ({ value: grouping.id, label: grouping.label }))
+}
+
+/**
+ * The fields of a form, with a field that names a grouping made a choice.
+ *
+ * The schema cannot carry the list: the groupings belong to one connection and
+ * the schema is declared by the adapter class. So the server says what the
+ * field means and the client fills in what this connection has.
+ *
+ * Nothing is changed when there is nothing to choose from — a level that
+ * offers no groupings, or one whose only groupings are the source's own. A
+ * select with no options is a dead end, and the name can still be typed.
+ */
+export function withGroupingChoices(
+  fields: FieldSpec[],
+  choices: SchemaChoice[]
+): FieldSpec[] {
+  if (choices.length === 0) return fields
+  return fields.map((field) =>
+    field.purpose === "grouping" ? { ...field, kind: "select", choices } : field
+  )
 }
 
 /** One line of the stable menu and what it will be done to. */

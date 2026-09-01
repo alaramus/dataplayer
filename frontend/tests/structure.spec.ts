@@ -13,10 +13,17 @@ test("shows the structure of a relation beside its rows", async ({ page }) => {
   await pickSchema(page, "demo_lab")
 
   await openNode(page, "app_users")
-  await page.getByTestId("grid-structure").click()
+  const structure = page.getByTestId("grid-structure")
+  await structure.hover()
+  await expect(page.locator(".app-tooltip")).toHaveText("Structure")
+  await structure.click()
 
   const view = page.getByTestId("structure-view")
   await expect(view).toBeVisible()
+  // The tooltip goes with the tab it was on. The pointer never left the
+  // button — the button left the screen — so no mouseleave is raised and
+  // nothing else takes it off; it used to hang over the tab that just opened.
+  await expect(page.locator(".app-tooltip")).toHaveCount(0)
   await expect(view).toContainText("user_id")
   await expect(view).toContainText("bigint")
   await expect(view.getByTestId("structure-badge-primary_key").first()).toBeVisible()

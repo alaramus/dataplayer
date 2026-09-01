@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest"
 
 import type { ActionInfo } from "@/client"
 import { at, first } from "@/shared/testing/collections"
-import { replacementsOf, reloadedBy, summarize, toCommands, toMenu } from "./actions"
+import {
+  groupingChoices,
+  replacementsOf,
+  reloadedBy,
+  summarize,
+  toCommands,
+  toMenu,
+  withGroupingChoices,
+} from "./actions"
 
 const only = (actions: ActionInfo[]) => first(toCommands(actions))
 
@@ -314,5 +322,55 @@ describe("what became of a set", () => {
     expect(summarize(outcome, "Upload files")).toBe(
       "Upload files: 1 of 2. second.csv — second.csv is already there"
     )
+  })
+})
+
+/**
+ * A field that names a schema is a choice, and the schema cannot say so.
+ *
+ * The list belongs to one connection and the action's parameters are declared
+ * by a class, so the server says what the field means and the level says what
+ * there is. Between them the reader picks a name instead of spelling one.
+ */
+describe("a field that names a grouping", () => {
+  const groupings = [
+    { id: "public", label: "public", system: false },
+    { id: "pg_catalog", label: "pg_catalog", system: true },
+    { id: "reports", label: "reports", system: false },
+  ]
+
+  const field = {
+    name: "target_schema",
+    label: "Target schema",
+    kind: "text" as const,
+    required: true,
+    purpose: "grouping" as const,
+    group: "general",
+  }
+
+  it("leaves out what the source calls its own", () => {
+    expect(groupingChoices(groupings)).toEqual([
+      { value: "public", label: "public" },
+      { value: "reports", label: "reports" },
+    ])
+  })
+
+  it("becomes a choice of what this connection holds", () => {
+    const [changed] = withGroupingChoices([field], groupingChoices(groupings))
+
+    expect(changed?.kind).toBe("select")
+    expect(changed?.choices?.map((choice) => choice.value)).toEqual(["public", "reports"])
+  })
+
+  it("stays a box to type in when there is nothing to choose from", () => {
+    // A file source offers no groupings, and a select with no options is a
+    // dead end where a typed name would still have been answered.
+    expect(withGroupingChoices([field], groupingChoices([]))).toEqual([field])
+  })
+
+  it("leaves every other field alone", () => {
+    const name = { ...field, name: "new_name", purpose: "node-name" as const }
+
+    expect(withGroupingChoices([name], groupingChoices(groupings))).toEqual([name])
   })
 })

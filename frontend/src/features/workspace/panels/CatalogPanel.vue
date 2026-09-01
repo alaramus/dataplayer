@@ -181,6 +181,21 @@ const placeLabel = computed(() => {
   return chosen.length === 0 ? levelLabel.value : chosen.map((group) => group.label).join(", ")
 })
 
+/**
+ * Every grouping this level offers, for a form that asks for one.
+ *
+ * All of them and not only what is ticked: moving a table means naming a
+ * schema other than the one it is in, and the ticked ones are the schemas
+ * being looked at.
+ */
+const groupings = computed(() =>
+  level.groups.value.map((group) => ({
+    id: group.id,
+    label: group.label,
+    system: group.system,
+  }))
+)
+
 const selectedGroupNodes = computed(() =>
   level.groups.value
     .filter((group) => level.selectedGroups.value.includes(group.id))
@@ -309,6 +324,7 @@ async function afterAction(outcome: ActionOutcome) {
           :level-label="levelLabel"
           :places="places"
           :selected-groups="selectedGroupNodes"
+          :groupings="groupings"
           :checked-ids="level.checked.value"
           :checked-nodes="level.checkedNodes.value.map((node) => ({ label: node.label, kind: node.kind }))"
           :place-label="placeLabel"

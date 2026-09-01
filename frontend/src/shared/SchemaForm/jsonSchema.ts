@@ -13,7 +13,13 @@ export interface JsonSchemaProperty {
   minimum?: number
   maximum?: number
   "x-ui-hidden"?: boolean
-  "x-ui-purpose"?: "file-conflict" | "filename-stem" | "node-name"
+  /**
+   * What the value means, beyond its type, when the form has to do more with
+   * it than show a box. `grouping` says the field takes the id of one of the
+   * source's own groupings — a schema, for a database — so the form offers
+   * the ones this connection has instead of asking for an exact name.
+   */
+  "x-ui-purpose"?: "file-conflict" | "filename-stem" | "grouping" | "node-name"
   // Where the field goes, put here by `layout()` on the server. A statement
   // about the fields, so it is made where the fields are declared — the form
   // would otherwise have to infer that a port is narrow from its being a

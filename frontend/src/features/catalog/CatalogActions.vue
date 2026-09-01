@@ -3,7 +3,7 @@ import { computed, ref } from "vue"
 
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import { toMenu } from "@/features/catalog/actions"
-import type { ActionOutcome, MenuCommand } from "@/features/catalog/actions"
+import type { ActionOutcome, Grouping, MenuCommand } from "@/features/catalog/actions"
 import { useDownloadAction, useNodeActions } from "@/features/catalog/api"
 import type { CatalogNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
@@ -35,6 +35,8 @@ const props = defineProps<{
   places: (string | null)[]
   /** Groupings explicitly selected in the level control. */
   selectedGroups: { id: string; label: string; kind: CatalogNode["kind"] }[]
+  /** Every grouping the level offers, for a form whose field names one. */
+  groupings: Grouping[]
   /** The nodes that are ticked. */
   checkedIds: string[]
   checkedNodes: { label: string; kind: CatalogNode["kind"] }[]
@@ -161,6 +163,7 @@ async function pick(name: string) {
       :node-ids="active?.targets ?? []"
       :node-label="targetLabel"
       :target-node="targetNode"
+      :groupings="groupings"
       @update:command="active = null"
       @done="emit('done', $event)"
     />

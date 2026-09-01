@@ -85,7 +85,13 @@ one of them.
 - Schema create, rename and move refuse a taken name before DDL and compose every
   identifier with `psycopg.sql.Identifier`. A move accepts only the exact name of
   an existing non-system schema returned by `pg_namespace` and returns
-  [D32](ddl.md)'s `NodeReplacement`. Schema drop is previewed by executing the
+  [D32](ddl.md)'s `NodeReplacement`.
+- Where a relation is moved to is picked rather than typed. The parameter is
+  marked `x-ui-purpose: grouping`, the level supplies the groupings this
+  connection has, and the form turns the field into a choice of them, leaving
+  out the ones the source calls its own. The list cannot travel in the schema:
+  it belongs to one connection and the schema is declared by a class. A source
+  that offers no groupings still gets a box to type in. Schema drop is previewed by executing the
   exact `DROP SCHEMA` with or without `CASCADE` and rolling it back, as D46
   requires.
 

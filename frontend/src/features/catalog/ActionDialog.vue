@@ -3,11 +3,12 @@ import { computed, onBeforeUnmount, ref, watch } from "vue"
 
 import type { ActionPreview } from "@/client"
 import { usePreviewAction, useRunAction } from "@/features/catalog/api"
-import { summarize } from "@/features/catalog/actions"
+import { groupingChoices, summarize, withGroupingChoices } from "@/features/catalog/actions"
 import type {
   ActionCommand,
   ActionFailure,
   ActionOutcome,
+  Grouping,
 } from "@/features/catalog/actions"
 import FileToRelationDialog from "@/features/catalog/FileToRelationDialog.vue"
 import { formatSize } from "@/features/catalog/nodes"
@@ -32,6 +33,12 @@ const props = defineProps<{
   nodeIds: (string | null)[]
   nodeLabel: string
   targetNode?: { label: string; kind: string } | null
+  /**
+   * The groupings the level offers, for a field that names one of them. The
+   * form is told what the field means by the server and what this connection
+   * holds by the level; neither of the two knows both.
+   */
+  groupings?: Grouping[]
 }>()
 
 const emit = defineEmits<{
@@ -57,6 +64,10 @@ const failure = ref("")
 const conflict = ref(false)
 const visibleFields = computed(
   () => props.command?.fields.filter((field) => field.kind !== "hidden") ?? []
+)
+/** The visible fields, with a field naming a grouping offering the ones there are. */
+const formFields = computed(() =>
+  withGroupingChoices(visibleFields.value, groupingChoices(props.groupings ?? []))
 )
 const conflictField = computed(() =>
   props.command?.fields.find((field) => field.purpose === "file-conflict") ?? null
@@ -419,9 +430,9 @@ async function runWorkflow(value: {
       </ul>
 
       <SchemaFields
-        v-if="visibleFields.length"
+        v-if="formFields.length"
         v-model="values"
-        :fields="visibleFields"
+        :fields="formFields"
         :errors="errors"
       />
 
