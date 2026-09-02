@@ -11,7 +11,12 @@ const emit = defineEmits<{ answer: [value: boolean] }>()
 
 <template>
   <div class="confirm-prompt">
-    <AppSection>{{ request.message }}</AppSection>
+    <AppSection
+      class="confirm-prompt__message"
+      data-testid="confirm-message"
+    >
+      {{ request.message }}
+    </AppSection>
     <AppActions>
       <AppButton
         variant="quiet"
@@ -34,5 +39,10 @@ const emit = defineEmits<{ answer: [value: boolean] }>()
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+/* A question may carry a list — what a drop would take with it — and a list
+   read as one paragraph is not a list. */
+.confirm-prompt__message {
+  white-space: pre-line;
 }
 </style>

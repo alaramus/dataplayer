@@ -30,12 +30,14 @@ from app.adapters.query import (
     QueryMetadata,
     QueryMetadataRequest,
     QueryProfile,
+    QueryRehearsal,
     QueryRequest,
     SupportsExplain,
     SupportsGeneratedQuery,
     SupportsQuery,
     SupportsQueryFormatting,
     SupportsQueryMetadata,
+    SupportsRehearsal,
     SupportsTransactions,
     TransactionContext,
 )
@@ -78,6 +80,7 @@ from app.queries.runs import (
     FormatRequest,
     FormattedQuery,
     PrepareRequest,
+    RehearsalStart,
     ResultPage,
     RunPublic,
     RunStart,
@@ -88,7 +91,7 @@ from app.queries.runs import (
     StatementRun,
     TransactionStart,
 )
-from app.queries.sessions import SessionsDep, TransactionPublic
+from app.queries.sessions import SessionsDep, TransactionEnded, TransactionPublic
 from app.queries.snapshot import SnapshotView
 from app.queries.unlocks import (
     UnlockRequest,
@@ -437,6 +440,7 @@ async def read_profile(
             "supports_metadata": isinstance(source, SupportsQueryMetadata),
             "supports_formatting": isinstance(source, SupportsQueryFormatting),
             "supports_generated_query": isinstance(source, SupportsGeneratedQuery),
+            "supports_rehearsal": isinstance(source, SupportsRehearsal),
         }
     )
 
@@ -458,6 +462,106 @@ async def prepare_text(
     """
     source = await _source_or_501(session, body.connector_id, current_user, resources)
     return source.prepare_query(body.text)
+
+
+@router.post("/rehearse", response_model=QueryRehearsal)
+async def rehearse_change(
+    session: SessionDep,
+    resources: ResourcesDep,
+    sessions: SessionsDep,
+    current_user: CurrentUser,
+    body: RehearsalStart,
+) -> QueryRehearsal:
+    """Carry a structure change out, describe it, and undo it (D66).
+
+    Everything that stands in front of running the change stands in front of
+    rehearsing it, because rehearsing *is* running it: the same policy, the
+    same level, the same unlock. What differs is only the ending — the
+    transaction is rolled back, so nothing that happened survives.
+
+    It is a preview and not a permission. What actually decides whether the
+    change may be made is the same set of checks the run itself goes through;
+    this is what a person reads before answering the question those ask.
+    """
+    connector, access = await resolve(
+        session, body.connector_id, current_user, requires="read"
+    )
+    source = await _source_or_501(session, body.connector_id, current_user, resources)
+    script = source.prepare_query(body.text)
+    try:
+        await admit_write(
+            session,
+            connector=connector,
+            user_id=current_user.id,
+            access=access,
+            # A rehearsal is a transaction that is thrown away, so the mode it
+            # is judged by is the one that ends by itself.
+            mode="auto_commit",
+            kinds=[statement.kind for statement in script.statements],
+            confirmed_high_risk=True,
+            risky=False,
+        )
+    except WriteRefused as refusal:
+        raise HTTPException(
+            status_code=refusal.status_code, detail=refusal.message
+        ) from None
+    for statement in script.statements:
+        if statement.refused is not None:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Statement {statement.ordinal + 1}: {statement.refused}",
+            )
+    document = (
+        None
+        if body.document_id is None
+        else await _owned_or_404(session, body.document_id, current_user)
+    )
+    profile = source.query_profile()
+    request = QueryRequest(
+        text=body.text,
+        mode="auto_commit",
+        search_path=list(document.search_path) if document is not None else [],
+        parameters=[
+            ParameterValue(name=parameter.name, value=parameter.value)
+            for parameter in body.parameters
+        ],
+        limits=execution.limits(
+            statement_timeout_seconds=min(
+                body.timeout_seconds or profile.default_timeout_seconds,
+                profile.max_timeout_seconds,
+            )
+        ),
+    )
+    try:
+        if body.transaction_id is not None:
+            # Inside the transaction somebody is holding, so their own locks
+            # are not read as somebody else blocking them (D66).
+            lease = await sessions.get(body.transaction_id, owner_id=current_user.id)
+            if lease is None:
+                raise HTTPException(status_code=404, detail="No such open transaction")
+            if lease.connector_id != body.connector_id:
+                raise HTTPException(
+                    status_code=409,
+                    detail="That transaction belongs to another connection",
+                )
+            rehearsal = await lease.transaction.rehearse(request)
+        else:
+            if not isinstance(source, SupportsRehearsal):
+                raise HTTPException(
+                    status_code=501,
+                    detail={
+                        "message": "This source does not rehearse changes",
+                        "capability": "rehearsal",
+                    },
+                )
+            rehearsal = await source.rehearse_query(request)
+    except AdapterError as failure:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": failure.message, "error_kind": failure.error_kind},
+        ) from None
+    await touch(session, connector_id=connector.id, user_id=current_user.id)
+    return rehearsal
 
 
 @router.post("/runs", response_model=RunPublic)
@@ -1167,14 +1271,20 @@ async def read_transaction(
     return sessions.public(lease)
 
 
-@router.post("/transactions/{transaction_id}/commit", response_model=Message)
+@router.post("/transactions/{transaction_id}/commit", response_model=TransactionEnded)
 async def commit_transaction(
     session: SessionDep,
     sessions: SessionsDep,
+    data_cache: DataCacheDep,
     current_user: CurrentUser,
     transaction_id: str,
-) -> Message:
-    """Make what this transaction did permanent."""
+) -> TransactionEnded:
+    """Make what this transaction did permanent.
+
+    This is the moment a structure change becomes true, so it is also the
+    moment its invalidation is issued: what the source said each statement
+    changed was a promise about a commit that had not happened yet (D66).
+    """
     lease = await sessions.get(transaction_id, owner_id=current_user.id)
     if lease is None:
         raise HTTPException(status_code=404, detail="No such open transaction")
@@ -1193,30 +1303,40 @@ async def commit_transaction(
         ) from None
     await execution.settle(session, transaction_id=transaction_id, committed=True)
     await touch(session, connector_id=lease.connector_id, user_id=current_user.id)
-    return Message(
+    changed = not state.effect.is_empty()
+    if changed:
+        # What was read from this connection describes a source that has just
+        # been altered, so none of it is worth keeping (D31).
+        await data_cache.invalidate_connector(lease.connector_id)
+    return TransactionEnded(
         message=(
             f"Committed {state.mutating_statements} changing "
             f"{'statement' if state.mutating_statements == 1 else 'statements'}, "
             f"{state.affected_rows} rows"
-        )
+        ),
+        effect=state.effect if changed else None,
     )
 
 
-@router.post("/transactions/{transaction_id}/rollback", response_model=Message)
+@router.post("/transactions/{transaction_id}/rollback", response_model=TransactionEnded)
 async def rollback_transaction(
     session: SessionDep,
     sessions: SessionsDep,
     current_user: CurrentUser,
     transaction_id: str,
-) -> Message:
-    """Undo everything this transaction did, including what succeeded."""
+) -> TransactionEnded:
+    """Undo everything this transaction did, including what succeeded.
+
+    Nothing is invalidated: the source is as it was, and telling a client to
+    re-read after a rollback would suggest something had happened (D66).
+    """
     lease = await sessions.get(transaction_id, owner_id=current_user.id)
     if lease is None:
         raise HTTPException(status_code=404, detail="No such open transaction")
     state = lease.transaction.state()
     await sessions.end(transaction_id, commit=False)
     await execution.settle(session, transaction_id=transaction_id, committed=False)
-    return Message(
+    return TransactionEnded(
         message=(
             f"Rolled back {state.mutating_statements} changing "
             f"{'statement' if state.mutating_statements == 1 else 'statements'}"

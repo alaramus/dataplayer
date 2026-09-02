@@ -2906,6 +2906,14 @@ export type PreparedStatement = {
    */
   risk?: "low" | "high"
   /**
+   * Destructive
+   */
+  destructive?: boolean
+  /**
+   * Refused
+   */
+  refused?: string | null
+  /**
    * Parameters
    */
   parameters?: Array<string>
@@ -3296,6 +3304,10 @@ export type QueryProfile = {
    */
   supports_generated_query?: boolean
   /**
+   * Supports Rehearsal
+   */
+  supports_rehearsal?: boolean
+  /**
    * Default Timeout Seconds
    */
   default_timeout_seconds: number
@@ -3303,6 +3315,32 @@ export type QueryProfile = {
    * Max Timeout Seconds
    */
   max_timeout_seconds: number
+}
+
+/**
+ * QueryRehearsal
+ *
+ * A destructive change carried out and undone, so it can be described.
+ *
+ * `blocked` is the one outcome that says nothing about the statement: a lock
+ * the rehearsal could not take within its short timeout means the rehearsal
+ * learnt nothing, and running the real thing would wait where this gave up.
+ * Execution is refused until it can be rehearsed (D66).
+ */
+export type QueryRehearsal = {
+  /**
+   * Statements
+   */
+  statements?: Array<RehearsedStatement>
+  /**
+   * Blocked
+   */
+  blocked?: boolean
+  /**
+   * Runnable
+   */
+  runnable?: boolean
+  effect?: SchemaEffect
 }
 
 /**
@@ -3378,6 +3416,77 @@ export type ReferencedRows = {
         op: "is_not_null" | "is_null"
       } & NullFilter)
   >
+}
+
+/**
+ * RehearsalStart
+ *
+ * What a console sends to have a change tried out and undone.
+ *
+ * The same text Run would take, so the rehearsal describes what would
+ * actually happen rather than a tidier statement nobody is about to run. In
+ * a transaction it is rehearsed inside that transaction, which is why the id
+ * travels with it (D66).
+ */
+export type RehearsalStart = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Text
+   */
+  text: string
+  /**
+   * Document Id
+   */
+  document_id?: string | null
+  /**
+   * Transaction Id
+   */
+  transaction_id?: string | null
+  /**
+   * Parameters
+   */
+  parameters?: Array<RunParameter>
+  /**
+   * Timeout Seconds
+   */
+  timeout_seconds?: number | null
+}
+
+/**
+ * RehearsedStatement
+ *
+ * What one statement did in a transaction that was then rolled back.
+ *
+ * A rehearsal answers with the source's own words about the change — which
+ * dependent objects would go with a drop, how many rows a truncation would
+ * take — because a list this application composed would be a second opinion
+ * about somebody else's database (D66).
+ */
+export type RehearsedStatement = {
+  /**
+   * Ordinal
+   */
+  ordinal: number
+  /**
+   * Outcome
+   */
+  outcome: "ok" | "blocked" | "failed" | "not_run"
+  /**
+   * Command Tag
+   */
+  command_tag?: string | null
+  /**
+   * Affected Rows
+   */
+  affected_rows?: number | null
+  /**
+   * Notices
+   */
+  notices?: Array<QueryNotice>
+  diagnostic?: QueryDiagnostic | null
 }
 
 /**
@@ -3947,6 +4056,7 @@ export type RunPublic = {
    * Error
    */
   error?: string | null
+  effect?: SchemaEffect | null
   /**
    * Created At
    */
@@ -4130,6 +4240,31 @@ export type ScalarFilter = {
    * Value
    */
   value: string
+}
+
+/**
+ * SchemaEffect
+ *
+ * What a committed structure change means for what is already on screen.
+ *
+ * Issued by the source, because only it knows which of its own nodes a
+ * statement was about. A client never works an id out of the SQL it sent,
+ * and where the source cannot be exact it names the schema — or the whole
+ * connection — rather than guessing at a node (D66).
+ */
+export type SchemaEffect = {
+  /**
+   * Scope
+   */
+  scope?: "nodes" | "connection"
+  /**
+   * Reload Node Ids
+   */
+  reload_node_ids?: Array<string | null>
+  /**
+   * Relation Node Ids
+   */
+  relation_node_ids?: Array<string>
 }
 
 /**
@@ -4663,6 +4798,24 @@ export type Token = {
 }
 
 /**
+ * TransactionEnded
+ *
+ * What committing or rolling one back settled.
+ *
+ * The effect is here and only here for a manual transaction: what its
+ * statements changed was pending until this moment, so this is when the
+ * source's invalidation becomes true. A rollback carries none, because
+ * nothing changed to be re-read (D66).
+ */
+export type TransactionEnded = {
+  /**
+   * Message
+   */
+  message: string
+  effect?: SchemaEffect | null
+}
+
+/**
  * TransactionPublic
  *
  * An open transaction as the console reads it.
@@ -4754,6 +4907,10 @@ export type TransactionState = {
    */
   mutating_statements?: number
   /**
+   * Ddl Statements
+   */
+  ddl_statements?: number
+  /**
    * Affected Rows
    */
   affected_rows?: number
@@ -4761,6 +4918,7 @@ export type TransactionState = {
    * Targets
    */
   targets?: Array<string>
+  effect?: SchemaEffect
 }
 
 /**
@@ -7951,6 +8109,33 @@ export type queriesPrepareTextResponses = {
 export type queriesPrepareTextResponse =
   queriesPrepareTextResponses[keyof queriesPrepareTextResponses]
 
+export type queriesRehearseChangeData = {
+  body: RehearsalStart
+  path?: never
+  query?: never
+  url: "/api/v1/queries/rehearse"
+}
+
+export type queriesRehearseChangeErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type queriesRehearseChangeError =
+  queriesRehearseChangeErrors[keyof queriesRehearseChangeErrors]
+
+export type queriesRehearseChangeResponses = {
+  /**
+   * Successful Response
+   */
+  200: QueryRehearsal
+}
+
+export type queriesRehearseChangeResponse =
+  queriesRehearseChangeResponses[keyof queriesRehearseChangeResponses]
+
 export type queriesListRunsData = {
   body?: never
   path?: never
@@ -8602,7 +8787,7 @@ export type queriesCommitTransactionResponses = {
   /**
    * Successful Response
    */
-  200: Message
+  200: TransactionEnded
 }
 
 export type queriesCommitTransactionResponse =
@@ -8634,7 +8819,7 @@ export type queriesRollbackTransactionResponses = {
   /**
    * Successful Response
    */
-  200: Message
+  200: TransactionEnded
 }
 
 export type queriesRollbackTransactionResponse =

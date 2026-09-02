@@ -12,10 +12,16 @@ import type {
   TransactionStart,
   PrepareRequest,
   QueryMetadataRequest,
+  RehearsalStart,
   RunStart,
+  SchemaEffect,
   SnapshotDownloadRequest,
   SnapshotPageRequest,
 } from "@/client"
+
+import { useSourceChangesStore } from "@/stores/sourceChanges"
+
+import { invalidationsFor } from "./structure"
 
 /** One, several, older than a day, or the lot — and nothing else. */
 export type RunDeletion =
@@ -89,6 +95,42 @@ export function useRun(runId: MaybeRefOrGetter<string | null>) {
     refetchInterval: (query) =>
       LIVE.has(query.state.data?.status ?? "") ? 1000 : false,
   })
+}
+
+/**
+ * Try a structure change out and undo it, before anybody runs it (D66).
+ *
+ * A mutation although the source is left exactly as it was: it opens a
+ * transaction, does the work and rolls back, so it is a command rather than
+ * a question with a cached answer.
+ */
+export function useRehearseChange() {
+  return useMutation({
+    mutationFn: async (body: RehearsalStart) =>
+      (await QueriesService.rehearseChange({ body })).data,
+  })
+}
+
+/**
+ * Forget what a committed structure change made untrue.
+ *
+ * The source said which nodes; this only turns them into the keys they are
+ * cached under. Nothing here reads the SQL, and nothing here takes a node id
+ * apart (D66).
+ */
+export function useSchemaInvalidation() {
+  const queryClient = useQueryClient()
+  const changes = useSourceChangesStore()
+  return async (connectorId: string, effect: SchemaEffect | null | undefined) => {
+    const keys = invalidationsFor(effect, connectorId)
+    if (keys.length === 0) return
+    await Promise.all(
+      keys.map((queryKey) => queryClient.invalidateQueries({ queryKey }))
+    )
+    // And a word for the panels that do not read through the cache: the
+    // catalog column holds its own list, and it is somewhere else on screen.
+    changes.announce(connectorId)
+  }
 }
 
 export function useCancelRun() {

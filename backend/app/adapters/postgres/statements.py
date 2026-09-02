@@ -77,6 +77,40 @@ _DDL_NODES = (
     exp.TruncateTable,
     exp.Comment,
     exp.Grant,
+    exp.Revoke,
+)
+
+# The closed vocabulary of structure changes this source will carry out (D66).
+# Schemas, tables, views and indexes, their comments, and emptying a table.
+#
+# It is an allowlist because the alternative cannot be written down: a database
+# accepts hundreds of statement forms, most of them administrative, and a list
+# of the ones to keep out would be missing whichever one was invented last.
+# What is not named here is refused with a sentence saying so.
+_ALLOWED_KINDS = frozenset({"TABLE", "VIEW", "SCHEMA", "INDEX"})
+
+# What a comment may be about. The same four, plus a column of one of them.
+_ALLOWED_COMMENT_KINDS = frozenset({"TABLE", "VIEW", "SCHEMA", "INDEX", "COLUMN"})
+
+# Why one family is outside the vocabulary, in words rather than a bare no.
+# Each of these needs a permission model, a job or a screen this application
+# has not designed, and a text box is not the place to invent one (D66).
+_OUTSIDE = {
+    "DATABASE": "Databases are not created or dropped from the query editor",
+    "ROLE": "Roles and permissions are not administered from the query editor",
+    "USER": "Roles and permissions are not administered from the query editor",
+    "TABLESPACE": "Tablespaces are not managed from the query editor",
+    "EXTENSION": "Extensions are not installed from the query editor",
+    "FUNCTION": "Functions and procedures are not changed from the query editor",
+    "PROCEDURE": "Functions and procedures are not changed from the query editor",
+    "TRIGGER": "Triggers are not changed from the query editor",
+    "TYPE": "Types are not changed from the query editor",
+    "SEQUENCE": "Sequences are not changed from the query editor",
+}
+
+_GENERAL_REFUSAL = (
+    "The query editor changes schemas, tables, views and indexes; "
+    "this is something else"
 )
 
 
@@ -130,10 +164,14 @@ def _classify(text: str) -> StatementClass:
     except (ParseError, TokenError):
         return "unknown"
 
-    if any(True for _ in node.find_all(*_WRITE_NODES)):
-        return "copy" if isinstance(node, exp.Copy) else "dml"
+    # Structure before writing, because a structure change may contain one:
+    # `CREATE TABLE t AS WITH x AS (INSERT ... RETURNING *) SELECT * FROM x`
+    # creates a relation, and reading the INSERT first would have called it a
+    # DML statement and let it run on `write` access alone.
     if isinstance(node, _DDL_NODES):
         return "ddl"
+    if any(True for _ in node.find_all(*_WRITE_NODES)):
+        return "copy" if isinstance(node, exp.Copy) else "dml"
     if isinstance(node, exp.Select) and node.args.get("into") is not None:
         # `SELECT ... INTO new_table` creates a relation, whatever it looks
         # like from the first word.
@@ -189,19 +227,85 @@ def bind(text: str) -> str:
     return "".join(pieces)
 
 
+def _refusal(text: str, kind: StatementClass) -> str | None:
+    """Why this source will not carry the statement out, if it will not.
+
+    Only structure changes are answered here; every other class is admitted or
+    refused by its class alone. The vocabulary is closed and lives beside the
+    parse because it is dialect knowledge: what `CREATE` may be followed by is
+    a fact about PostgreSQL, not about the module that runs statements (D66).
+    """
+    if kind != "ddl":
+        return None
+    try:
+        node = parse_one(text, read="postgres")
+    except (ParseError, TokenError):  # pragma: no cover - `unknown` by then
+        return _GENERAL_REFUSAL
+    if isinstance(node, exp.Grant | exp.Revoke):
+        return "Permissions are not administered from the query editor"
+    if isinstance(node, exp.TruncateTable):
+        return None
+    if isinstance(node, exp.Comment):
+        subject = str(node.args.get("kind") or "").upper()
+        if subject in _ALLOWED_COMMENT_KINDS:
+            return None
+        return _OUTSIDE.get(subject, _GENERAL_REFUSAL)
+    if isinstance(node, exp.Create | exp.Drop | exp.Alter):
+        subject = str(node.args.get("kind") or "").upper()
+        if subject in _ALLOWED_KINDS:
+            return None
+        return _OUTSIDE.get(subject, _GENERAL_REFUSAL)
+    # `SELECT ... INTO t` creates a table and is read as a query by the parser.
+    if isinstance(node, exp.Select):
+        return None
+    return _GENERAL_REFUSAL
+
+
+def _destructive(text: str, kind: StatementClass) -> bool:
+    """Whether what this does cannot be read back out of the statement.
+
+    Dropping something takes its dependants with it, truncating takes rows and
+    an alter that removes a column removes what was in it. None of that is
+    visible in the text, which is why these are the statements rehearsed in a
+    transaction and rolled back before anybody runs them for real (D66).
+    """
+    if kind != "ddl":
+        return False
+    try:
+        node = parse_one(text, read="postgres")
+    except (ParseError, TokenError):  # pragma: no cover - `unknown` by then
+        return True
+    if isinstance(node, exp.Drop | exp.TruncateTable):
+        return True
+    if isinstance(node, exp.Alter):
+        actions = node.args.get("actions") or []
+        return any(
+            isinstance(action, exp.Drop)
+            # A column changing type rewrites what is in it, and a value the
+            # new type cannot hold does not survive the rewrite.
+            or (isinstance(action, exp.AlterColumn) and action.args.get("dtype"))
+            for action in actions
+        )
+    return False
+
+
 def _risky(text: str, kind: StatementClass) -> bool:
     """Whether this statement is one to ask about every time (D66).
 
     High risk is not "a write": it is a write whose reach is not written down.
     An UPDATE or DELETE with no predicate at the top of it touches every row a
-    person can see; a MERGE decides per row what it does; dropping, truncating,
-    taking a column away or changing who may do what cannot be undone by
-    reading the statement again.
+    person can see; a MERGE decides per row what it does.
+
+    Every structure change is high risk without further reading. A schema is
+    what everything else in a source is described by, and there is no version
+    of "this ALTER is routine" that is worth being wrong about.
 
     Anything this module cannot read is high risk as well, for the reason
     `unknown` is refused: not knowing is not the same as knowing it is safe.
     """
-    if kind not in ("dml", "ddl"):
+    if kind == "ddl":
+        return True
+    if kind != "dml":
         return False
     try:
         node = parse_one(text, read="postgres")
@@ -209,16 +313,9 @@ def _risky(text: str, kind: StatementClass) -> bool:
         return True
     if any(True for _ in node.find_all(exp.Merge)):
         return True
-    for write in node.find_all(exp.Update, exp.Delete):
-        if write.args.get("where") is None:
-            return True
-    if isinstance(node, exp.Drop | exp.TruncateTable | exp.Grant):
-        return True
-    if isinstance(node, exp.Alter):
-        # An ALTER that takes something away rather than adding to it.
-        actions = node.args.get("actions") or []
-        return any(isinstance(action, exp.Drop) for action in actions)
-    return False
+    return any(
+        write.args.get("where") is None for write in node.find_all(exp.Update, exp.Delete)
+    )
 
 
 def _parameters(text: str) -> list[str]:
@@ -308,6 +405,8 @@ def prepare(text: str) -> PreparedScript:
                 text=piece,
                 kind=kind,
                 risk="high" if _risky(piece, kind) else "low",
+                destructive=_destructive(piece, kind),
+                refused=_refusal(piece, kind),
                 parameters=found,
                 targets=_targets(piece),
             )

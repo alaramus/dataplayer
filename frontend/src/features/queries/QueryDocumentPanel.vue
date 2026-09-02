@@ -51,6 +51,8 @@ import {
   useFormatQuery,
   useOpenTransaction,
   useOpenWrites,
+  useRehearseChange,
+  useSchemaInvalidation,
   useTransaction,
   useUnlockState,
   usePrepareQuery,
@@ -59,6 +61,11 @@ import {
   useRun,
   useStartRun,
 } from "@/features/queries/runs"
+import {
+  blockedReason,
+  needsRehearsal,
+  rehearsalReport,
+} from "@/features/queries/structure"
 import { useClosable } from "@/features/workspace/closable"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -101,6 +108,8 @@ const openWrites = useOpenWrites()
 const closeWrites = useCloseWrites()
 const openTransaction = useOpenTransaction()
 const endTransaction = useEndTransaction()
+const rehearse = useRehearseChange()
+const forgetStale = useSchemaInvalidation()
 
 /** How long typing has to stop before a save is worth spending a revision on. */
 const AUTOSAVE_PAUSE = 800
@@ -238,6 +247,22 @@ const running = computed(() =>
 watch(going, async (now, before) => {
   if (before && !now && transactionId.value !== null) await transaction.refetch()
 })
+
+/**
+ * What a finished run changed about the source stops being cached (D66).
+ *
+ * Only what the source itself issued, and only once: an auto-commit run's
+ * effect arrives with the run because it committed with it, while a manual
+ * run has nothing to issue until somebody commits the transaction.
+ */
+watch(
+  () => run.data.value?.effect,
+  async (effect) => {
+    const connector = connectorId.value
+    if (effect === null || effect === undefined || connector === null) return
+    await forgetStale(connector, effect)
+  }
+)
 
 useReloadable(props.panelId, async () => {
   await document.refetch()
@@ -424,12 +449,19 @@ async function go(target: RunTarget | null) {
   }
   // Asked every time, with what it would do in front of the person (D66).
   if (risky.value) {
+    const rehearsed = needsRehearsal(script.value) ? await tryItOut(target) : null
+    if (rehearsed === "blocked") return
+    const tried =
+      rehearsed === null || rehearsed === ""
+        ? ""
+        : "\n\nTried out on the source, then undone:\n" + rehearsed
     const accepted = await confirm({
       title: "Run something that cannot be undone?",
       message:
         `This changes ${loaded.connector_label ?? "the source"} and there is no ` +
         "undo. In a transaction you can still roll it back; with auto-commit " +
-        "you cannot.",
+        "you cannot." +
+        tried,
       confirmLabel: "Run it",
       danger: true,
     })
@@ -577,14 +609,53 @@ async function lockWrites() {
 /** End the transaction, and say what became of what it did. */
 async function endTheTransaction(commit: boolean) {
   const id = transactionId.value
+  const connector = connectorId.value
   if (id === null) return
   try {
     const answer = await endTransaction.mutateAsync({ transactionId: id, commit })
     transactionId.value = null
     toast.success(answer.message)
+    // A commit is when what its statements changed became true, so it is when
+    // what was read before them stops being an answer (D66).
+    if (connector !== null) await forgetStale(connector, answer.effect)
     if (run.data.value !== undefined) await run.refetch()
   } catch (cause) {
     toast.error(messageOf(cause, "Could not end this transaction"))
+  }
+}
+
+/**
+ * Carry the change out on the source and undo it, before asking (D66).
+ *
+ * The answer is the source's own — which dependants a cascade would take,
+ * whether the drop would be refused at all — rather than a sentence this
+ * screen composed about SQL it read. A rehearsal that could not take its
+ * locks stops the run: nothing was learnt, so there is nothing to agree to.
+ */
+async function tryItOut(target: RunTarget): Promise<string | "blocked" | null> {
+  const connector = connectorId.value
+  const loaded = server.value
+  if (connector === null || loaded === undefined) return null
+  try {
+    const rehearsal = await rehearse.mutateAsync({
+      connector_id: connector,
+      text: target.text,
+      document_id: loaded.id,
+      transaction_id: mode.value === "manual" ? transactionId.value : null,
+      parameters: bindingsOf(parameters.value),
+    })
+    const blocked = blockedReason(rehearsal)
+    if (blocked !== null) {
+      toast.error(blocked)
+      return "blocked"
+    }
+    return rehearsalReport(rehearsal)
+  } catch (cause) {
+    // The rehearsal is what the person reads before answering, not a gate:
+    // the checks that decide whether this may run are the server's, and they
+    // are about to be made again by the run itself.
+    toast.info(messageOf(cause, "This change could not be tried out first"))
+    return null
   }
 }
 

@@ -179,3 +179,129 @@ def test_binding_doubles_a_literal_per_cent_sign() -> None:
 
 def test_binding_leaves_a_cast_alone() -> None:
     assert bind("select a::text from t") == "select a::text from t"
+
+
+# --- the closed vocabulary of structure changes (D66) ------------------------
+
+
+def one(text: str):  # type: ignore[no-untyped-def]
+    prepared = prepare(text).statements
+    assert len(prepared) == 1
+    return prepared[0]
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "create schema s",
+        "drop schema s cascade",
+        "create table s.t (a int)",
+        "create table t as select 1 as a",
+        "create or replace view s.v as select 1",
+        "create materialized view s.v as select 1",
+        "drop view s.v",
+        "alter table s.t add column a int",
+        "alter table s.t rename to u",
+        "create index i on s.t (a)",
+        "drop index s.i",
+        "comment on table s.t is 'x'",
+        "comment on column s.t.a is 'x'",
+        "truncate s.t",
+        "select * into s.new from s.old",
+    ],
+)
+def test_the_vocabulary_admits_schemas_tables_views_and_indexes(sql: str) -> None:
+    assert one(sql).refused is None
+
+
+@pytest.mark.parametrize(
+    ("sql", "says"),
+    [
+        ("create database d", "Databases"),
+        ("drop database d", "Databases"),
+        ("create sequence q", "Sequences"),
+        ("drop function f()", "Functions"),
+        ("create type t as enum ('a')", "Types"),
+        ("grant select on t to bob", "Permissions"),
+        ("revoke select on t from bob", "Permissions"),
+        ("comment on database d is 'x'", "Databases"),
+    ],
+)
+def test_what_falls_outside_the_vocabulary_is_refused_in_words(
+    sql: str, says: str
+) -> None:
+    """A refusal names the family rather than saying no (D66)."""
+    refused = one(sql).refused
+    assert refused is not None
+    assert says in refused
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "create extension postgis",
+        "create role bob",
+        "alter role bob superuser",
+        "alter system set work_mem = '1GB'",
+        "alter table t owner to bob",
+        "alter table t enable row level security",
+        "create policy p on t using (true)",
+        "reindex table t",
+        "drop tablespace ts",
+        "cluster t using i",
+    ],
+)
+def test_administrative_sql_this_dialect_module_cannot_read_is_unknown(
+    sql: str,
+) -> None:
+    """Not an allowlist entry and not a blacklist entry: a form it never learnt.
+
+    Refusing what cannot be read is what keeps the vocabulary closed without a
+    list of everything a database can be asked to do (D62).
+    """
+    assert one(sql).kind == "unknown"
+
+
+def test_a_structure_change_that_writes_is_still_a_structure_change() -> None:
+    """The ordering that stops `write` access creating a table.
+
+    Reading the INSERT first would call this DML, and DML is admitted by a
+    level that does not admit structure changes.
+    """
+    assert kinds(
+        "create table t as with x as (insert into y values (1) returning *) "
+        "select * from x"
+    ) == ["ddl"]
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "create table t (a int)",
+        "alter table t add column a int",
+        "comment on table t is 'x'",
+        "create index i on t (a)",
+    ],
+)
+def test_every_structure_change_is_asked_about(sql: str) -> None:
+    """D66: not "this ALTER looks routine" — a schema is not guessed about."""
+    assert one(sql).risk == "high"
+
+
+@pytest.mark.parametrize(
+    ("sql", "destructive"),
+    [
+        ("drop table t", True),
+        ("drop view v", True),
+        ("truncate t", True),
+        ("alter table t drop column a", True),
+        ("alter table t alter column a type text", True),
+        ("create table t (a int)", False),
+        ("alter table t add column a int", False),
+        ("alter table t alter column a set not null", False),
+        ("comment on table t is 'x'", False),
+        ("create index i on t (a)", False),
+    ],
+)
+def test_what_has_to_be_rehearsed_first(sql: str, destructive: bool) -> None:
+    assert one(sql).destructive is destructive

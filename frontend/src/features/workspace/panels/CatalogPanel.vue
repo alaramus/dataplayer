@@ -15,6 +15,7 @@ import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
 import { AppBanner, AppIconButton, AppInput, AppSelect, useToast } from "@/shared/ui"
+import { useSourceChangesStore } from "@/stores/sourceChanges"
 
 const props = defineProps<{
   panelId: string
@@ -47,6 +48,23 @@ const answered = ref(false)
 useReloadable(props.panelId, async () => {
   await level.reload(level.path.value[level.path.value.length - 1]?.id ?? null)
 })
+
+/**
+ * Something else changed this connection, so this list is out of date (D66).
+ *
+ * A console dropping a table is in another panel, and this one holds its rows
+ * rather than reading them through the query cache. Which nodes changed does
+ * not have to be known here: the level re-reads where it is standing, which
+ * is the only thing on screen.
+ */
+const changes = useSourceChangesStore()
+watch(
+  () => changes.lastChange(props.connectorId),
+  async (at, before) => {
+    if (at === 0 || at === before) return
+    await level.reload(level.path.value[level.path.value.length - 1]?.id ?? null)
+  }
+)
 
 /** Long enough for the eye to catch the row, short enough not to read as a
     state the row is in. */

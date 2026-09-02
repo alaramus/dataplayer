@@ -45,7 +45,8 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         ttl_seconds=settings.QUERY_RESULT_TTL_SECONDS,
     )
     application.state.query_runner = QueryRunner(
-        results=application.state.query_results
+        results=application.state.query_results,
+        cache=application.state.data_cache,
     )
     # Transactions held open for somebody: a connection each, so the lease is
     # what makes a forgotten one end (D66).

@@ -22,7 +22,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 from pydantic import BaseModel
 
-from app.adapters.query import QueryTransaction, TransactionState
+from app.adapters.query import QueryTransaction, SchemaEffect, TransactionState
 from app.core.schemas import get_datetime_utc
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,19 @@ class TransactionPublic(BaseModel):
     # How long it has been open, in seconds, so a screen does not have to do
     # clock arithmetic to say "seven minutes".
     age_seconds: float
+
+
+class TransactionEnded(BaseModel):
+    """What committing or rolling one back settled.
+
+    The effect is here and only here for a manual transaction: what its
+    statements changed was pending until this moment, so this is when the
+    source's invalidation becomes true. A rollback carries none, because
+    nothing changed to be re-read (D66).
+    """
+
+    message: str
+    effect: SchemaEffect | None = None
 
 
 class QuerySessions:

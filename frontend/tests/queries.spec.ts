@@ -1,10 +1,15 @@
 import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
-import { openNode, pickSchema } from "./utils/catalog"
+import { catalogRow, openNode, pickSchema } from "./utils/catalog"
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
-import { deleteConnector, editConnector, openConnector } from "./utils/workspace"
+import {
+  catalogTab,
+  deleteConnector,
+  editConnector,
+  openConnector,
+} from "./utils/workspace"
 
 /**
  * A query document, end to end.
@@ -451,6 +456,82 @@ test("a transaction says what it has done, and closing the console rolls it back
   await cross.click()
   await page.getByTestId("confirm-accept").click()
   await expect(page.locator('[data-testid^="workspace-tab-query:"]')).toHaveCount(0)
+
+  await deleteConnector(page, name)
+})
+
+
+test("a structure change is tried out first, and the catalog follows it", async ({
+  page,
+}) => {
+  const name = `e2e-ddl-${Date.now()}`
+  const table = `e2e_t_${Date.now()}`
+  const view = `e2e_v_${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+
+  // --- the catalog is open beside the console, showing the schema ----------
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+  await chooseMode(page, "Auto-commit")
+  await page.getByTestId("query-unlock-name").fill(name)
+  await page.getByTestId("query-unlock-submit").click()
+  await expect(page.getByTestId("query-relock")).toBeVisible()
+
+  // --- every structure change is asked about, even a harmless one (D66) ----
+  await typeQuery(page, `create table demo_lab.${table} (id int primary key)`)
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("confirm-accept")).toBeVisible()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId("run-no-rows")).toContainText("CREATE TABLE")
+
+  // --- the catalog shares the middle column with the query list, and it was
+  //     kept alive behind it: coming back to it shows the new table without
+  //     anybody asking for a reload
+  await catalogTab(page).click()
+  await expect(catalogRow(page, table)).toBeVisible()
+
+  // --- and with the catalog in front, the next change lands in it live -----
+  await typeQuery(page, `create view demo_lab.${view} as select id from demo_lab.${table}`)
+  await page.getByTestId("query-run").click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(catalogRow(page, view)).toBeVisible()
+
+  // --- what a cascade would take is the database's own answer, read before
+  //     the question is answered (D66)
+  await typeQuery(page, `drop table demo_lab.${table} cascade`)
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("confirm-accept")).toBeVisible()
+  await expect(page.getByTestId("confirm-message")).toContainText(view)
+  await page.getByTestId("confirm-accept").click()
+
+  await expect(catalogRow(page, table)).toBeHidden()
+  await expect(catalogRow(page, view)).toBeHidden()
+
+  await deleteConnector(page, name)
+})
+
+test("what the editor will not change is refused before anything runs", async ({
+  page,
+}) => {
+  const name = `e2e-nodl-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+  await chooseMode(page, "Auto-commit")
+  await page.getByTestId("query-unlock-name").fill(name)
+  await page.getByTestId("query-unlock-submit").click()
+
+  await typeQuery(page, "grant select on demo_lab.tags to public")
+  await page.getByTestId("query-run").click()
+  await page.getByTestId("confirm-accept").click()
+
+  await expect(
+    page.locator(".q-notification", { hasText: "Permissions" })
+  ).toBeVisible()
 
   await deleteConnector(page, name)
 })

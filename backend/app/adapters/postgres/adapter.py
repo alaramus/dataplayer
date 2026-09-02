@@ -66,6 +66,7 @@ from app.adapters.query import (
     QueryMetadata,
     QueryMetadataRequest,
     QueryProfile,
+    QueryRehearsal,
     QueryRequest,
     TransactionContext,
 )
@@ -153,6 +154,10 @@ class PostgresAdapter:
     async def begin_transaction(self, context: TransactionContext) -> PostgresTransaction:
         """Hold a transaction open between requests (D66)."""
         return await self._query.begin(context)
+
+    async def rehearse_query(self, request: QueryRequest) -> QueryRehearsal:
+        """Carry the change out, describe it, and undo it (D66)."""
+        return await self._query.rehearse(request)
 
     async def explain_query(self, request: ExplainRequest) -> ExplainResult:
         """Plan the statement, without running it (D65)."""

@@ -18,11 +18,13 @@ from fastapi import Depends, Request
 from sqlmodel import col, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters.cache import DataCache
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
     PreparedScript,
     QueryExecution,
     QueryLimits,
+    SchemaEffect,
     StatementFinished,
 )
 from app.core.config import settings
@@ -126,18 +128,18 @@ def admit(
                 422,
                 f"Statement {statement.ordinal + 1} is larger than one statement may be",
             )
+    for statement in script.statements:
+        # The source's own refusal, in the source's own words. The vocabulary
+        # of structure changes is closed, and which statement falls outside it
+        # is dialect knowledge this module deliberately does not hold (D66).
+        if statement.refused is not None:
+            raise RunRefused(
+                422, f"Statement {statement.ordinal + 1}: {statement.refused}"
+            )
     admitted = _ADMITTED.get(mode, frozenset({"read"}))
     for statement in script.statements:
         if statement.kind in admitted:
             continue
-        if statement.kind == "ddl":
-            # A closed vocabulary of schema changes is a slice of its own, with
-            # its own preview and its own invalidation (D66).
-            raise RunRefused(
-                422,
-                f"Statement {statement.ordinal + 1} changes the structure of the "
-                "source, which is not run here yet",
-            )
         raise RunRefused(
             422,
             f"Statement {statement.ordinal + 1} is a {statement.kind} statement, "
@@ -159,12 +161,13 @@ def admit(
     return [(statement.ordinal, statement.kind) for statement in script.statements]
 
 
-# What each mode will carry out. DDL waits for the slice that gives it a
-# preview and an invalidation; everything else is refused by class.
+# What each mode will carry out, by class. Which structure changes are inside
+# the vocabulary is the source's answer, read above; this is only about what a
+# read, an auto-commit and a transaction are for.
 _ADMITTED: dict[str, frozenset[str]] = {
     "read": frozenset({"read"}),
-    "auto_commit": frozenset({"read", "dml"}),
-    "manual": frozenset({"read", "dml"}),
+    "auto_commit": frozenset({"read", "dml", "ddl"}),
+    "manual": frozenset({"read", "dml", "ddl"}),
 }
 
 
@@ -194,8 +197,12 @@ class QueryRunner:
     — and a restart marks whatever was left non-terminal as interrupted.
     """
 
-    def __init__(self, *, results: QueryResults) -> None:
+    def __init__(self, *, results: QueryResults, cache: DataCache) -> None:
         self._results = results
+        # What a structure change has to throw away. Held here because the
+        # request that started the run answered long ago, and the cache is
+        # the application's rather than the run's (D31, D66).
+        self._cache = cache
         self._active: dict[uuid.UUID, _Active] = {}
         self._lock = asyncio.Lock()
 
@@ -288,6 +295,7 @@ class QueryRunner:
         finished = 0
         status = "succeeded"
         error: str | None = None
+        effect = SchemaEffect()
         try:
             async with async_session_maker() as session:
                 await _mark(session, run_id, status="running", started=True)
@@ -297,6 +305,8 @@ class QueryRunner:
                         if not isinstance(event, StatementFinished):
                             continue
                         finished += 1
+                        if event.effect is not None:
+                            effect = effect.with_(event.effect)
                         await self._record(session, run_id, owner_id, event)
                         await _publish(
                             topics, owner_id, session, run_id, finished=finished
@@ -309,6 +319,7 @@ class QueryRunner:
                     # are not this.
                     status = "failed"
                     error = failure.message
+                settled = _settled(mode, status)
                 await _mark(
                     session,
                     run_id,
@@ -317,8 +328,14 @@ class QueryRunner:
                     error=error,
                     # A manual run's changes are pending until somebody ends
                     # the transaction; an auto-commit run settled with it.
-                    write_state=_settled(mode, status),
+                    write_state=settled,
+                    # Only what is permanent is issued. A manual run's effect
+                    # is held by the transaction and issued by the commit; a
+                    # rolled-back run changed nothing to re-read (D66).
+                    effect=None if settled != "committed" or effect.is_empty() else effect,
                 )
+                if settled == "committed" and not effect.is_empty():
+                    await self._forget_cached(session, run_id)
                 await _publish(topics, owner_id, session, run_id, finished=finished)
         except asyncio.CancelledError:
             raise
@@ -345,6 +362,18 @@ class QueryRunner:
             await self._results.release(run_id)
             async with self._lock:
                 self._active.pop(run_id, None)
+
+    async def _forget_cached(self, session: AsyncSession, run_id: uuid.UUID) -> None:
+        """Throw away what was read from this connection before the change.
+
+        The catalog a completion list was built from, the row estimate a grid
+        is showing: all of it was true of a source that has since been altered
+        by this run, and D31's cache has no way to know that on its own.
+        """
+        run = await session.get(ExecutionRun, run_id)
+        if run is None or run.connector_id is None:
+            return
+        await self._cache.invalidate_connector(run.connector_id)
 
     async def _record(
         self,
@@ -412,6 +441,7 @@ async def _mark(
     finished: bool = False,
     error: str | None = None,
     write_state: str | None = None,
+    effect: SchemaEffect | None = None,
 ) -> None:
     run = await session.get(ExecutionRun, run_id)
     if run is None:
@@ -429,6 +459,8 @@ async def _mark(
         run.error = error[:500]
     if write_state is not None:
         run.write_state = write_state
+    if effect is not None:
+        run.effect = effect.model_dump()
     session.add(run)
     await session.commit()
 

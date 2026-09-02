@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Last updated: 2026-09-01.
+Last updated: 2026-09-02.
 
 The order for moving useful behaviour from `dbwebtool` and `myquasar` into
 DataPlayer. It is a route, not a promise to reproduce every old screen. The old
@@ -45,6 +45,7 @@ Legend:
 | 1.4 — file-source depth | 2026-08-31 | D47, D48, D49, D51, D52, D53 |
 | 1.5 — PostgreSQL-specific operations | 2026-09-01 | D54, D55, D56, D57 |
 | 2 — share a view | 2026-09-01 | D58, D59, D60, D61 |
+| 3 — query editor | 2026-09-02 | D62, D63, D64, D65, D66 |
 
 Each of those has a spec in [the index](superpowers/specs/README.md), dated the
 day it closed, and a home in `docs/architecture/`. With 1.5 validated, phase 1
@@ -53,56 +54,21 @@ representation appropriate to their content, and what remains of the old
 behaviour is classified as a deliberate later capability rather than an unknown
 gap. Phase 2 closed the same day: a view has an address, following it is
 governed by the grant model D33 already had, and asking for access is a durable
-request rather than a message that is lost when nobody is listening.
+request rather than a message that is lost when nobody is listening. Phase 3
+closed on 2026-09-02: PostgreSQL SQL is written in a durable document, run and
+cancelled as a bounded asynchronous run, read back as a stable snapshot, and
+— once a person has deliberately left read-only — allowed to change data and,
+within a closed vocabulary, structure.
 
 ## Priority order at a glance
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 3 | Query editor | Very large | Supplies a durable SQL workspace, a bounded query capability and explicit transaction safety before AI is allowed to call it |
 | 4 | Managed Docker services in connector creation | Very large | Adds a safe service lifecycle before service-backed adapters multiply |
 | 5 | Optional Redis infrastructure | Medium | Needed only when multiple backend processes must share cache or coordination state |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation and saved layouts require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
-
-## Phase 3 — query editor
-
-The query editor is a durable workspace for developing SQL, not a generic text
-box and not a popup around `execute()`. A document, an execution, a statement
-output and a materialised result are separate objects. Complete SQL is accepted
-only through the explicit source capability of D62; D2c remains unchanged for
-every platform-built query.
-
-The full design is [D62-D66](superpowers/specs/2026-09-01-query-editor-design.md)
-and its concise contract is [querying.md](architecture/querying.md). Phase 3 is
-PostgreSQL only. DuckDB or SQLite proves the generic contract later in phase 6,
-after file paths have a query-safe exposure model.
-
-Old sources to inspect:
-
-- `myquasar/src/myapp/components/SqlEditor/`;
-- query/history code in `myquasar/src/myapp/serverAPI.ts`;
-- `dbwebtool/webdb/webapi/view_services/execute_data_handler.py`;
-- SQL execution methods in the old PostgreSQL adapter.
-
-Sequence:
-
-- [ ] **3C — bounded DDL.** Admit the closed PostgreSQL schema/table/view/index
-  allowlist, destructive preview by rollback rehearsal, high-risk confirmation
-  and source-issued cache/catalog/workspace invalidation. Server-level commands,
-  permission administration and maintenance jobs remain outside the editor.
-
-No query document, retained run or temporary result is shareable in this phase.
-Old history and favourites are not migrated: their ownership, context and
-retention cannot be established safely.
-
-Exit condition: the full 3A, 3B and 3C acceptance matrix is verified. A user can
-develop parameterised PostgreSQL SQL with metadata-aware assistance, run and
-cancel bounded read scripts, inspect and reuse stable result snapshots, recover
-documents and history, and execute explicitly unlocked DML and bounded DDL with
-honest transaction state. Code written without the approved validation remains
-`[~]`; phase 4 does not become the resume point until phase 3 is verified.
 
 ## Phase 4 — managed Docker services in connector creation
 

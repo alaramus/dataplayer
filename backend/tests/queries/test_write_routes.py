@@ -362,24 +362,6 @@ async def test_something_that_cannot_be_undone_is_asked_about_every_time(
     assert await _rows(client, headers, connector_id, table) == 0
 
 
-async def test_changing_the_structure_is_not_run_here_yet(
-    client: AsyncClient, db: AsyncSession
-) -> None:
-    headers = await _headers(client, db)
-    connector_id = await _postgres(client, headers)
-    await _unlock(client, headers, connector_id)
-
-    response = await _run(
-        client,
-        headers,
-        connector_id,
-        "create table demo_lab.dp_never (a int)",
-        mode="auto_commit",
-        confirm_high_risk=True,
-    )
-
-    assert response.status_code == 422
-    assert "structure" in response.json()["detail"]
 
 
 async def test_a_writer_without_the_level_is_refused_by_the_level(

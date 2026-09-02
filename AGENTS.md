@@ -209,6 +209,10 @@ a warmed dev server together.
 - Warm `bun run dev` before the full E2E suite and set
   `PLAYWRIGHT_BASE_URL=http://localhost:5173`. Use a console reporter while
   Vite is watching; writing the HTML report inside `frontend/` reloads pages.
+  The suite runs one worker: several browsers starve the one dev server they
+  share and raise each other's notifications, and the failures land anywhere.
+- Editing a source file while the E2E suite is running feeds the change to the
+  dev server and reloads the page under the test.
 - Shell scripts under `backend/scripts/` must keep LF endings.
 - Native backend checks started from `backend/` read `../.env`; CI has no such
   file. See [backend.md](docs/architecture/backend.md) for the clean rehearsal.

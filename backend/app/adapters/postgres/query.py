@@ -20,6 +20,7 @@ from psycopg_pool import PoolTimeout
 
 from app.adapters.cells import encode_cell
 from app.adapters.postgres.column_type import build_column_type
+from app.adapters.postgres.effects import effect_of
 from app.adapters.postgres.session import PostgresSession, classify
 from app.adapters.postgres.statements import bind, prepare
 from app.adapters.protocol import AdapterError
@@ -33,8 +34,11 @@ from app.adapters.query import (
     QueryLimits,
     QueryNotice,
     QueryProfile,
+    QueryRehearsal,
     QueryRequest,
+    RehearsedStatement,
     ResultColumn,
+    SchemaEffect,
     StatementFinished,
     StatementStarted,
     StatementStatus,
@@ -184,11 +188,44 @@ statement_timeout_seconds: int,
 # What each mode admits. The database is still the rule — a read runs in a
 # read-only transaction — and this is what lets a refusal name the kind of
 # statement rather than leaving the server to answer for it (D66).
+#
+# `ddl` is admitted by class here and narrowed by vocabulary in `statements`:
+# a structure change outside the closed set never reaches this, because it
+# arrives already carrying the sentence that refuses it.
 _ADMITTED: dict[str, frozenset[str]] = {
     "read": frozenset({"read"}),
-    "auto_commit": frozenset({"read", "dml"}),
-    "manual": frozenset({"read", "dml"}),
+    "auto_commit": frozenset({"read", "dml", "ddl"}),
+    "manual": frozenset({"read", "dml", "ddl"}),
 }
+
+# How long a rehearsal waits for a lock before giving up. Short on purpose: a
+# preview that queues behind somebody else's transaction is a preview that
+# holds the person looking at it, and the honest answer is that it is blocked
+# rather than a spinner (D66).
+REHEARSAL_LOCK_TIMEOUT_SECONDS = 3
+
+# A lock could not be taken, and a statement ran out of time. Both mean the
+# rehearsal learnt nothing about the change itself.
+_LOCK_NOT_AVAILABLE = "55P03"
+_QUERY_CANCELLED = "57014"
+
+
+async def resolve_path(
+    connection: psycopg.AsyncConnection[Any], wanted: list[str]
+) -> list[str]:
+    """The schemas the server would look through, for an unqualified name.
+
+    What the run asked for when it asked for anything; otherwise the server's
+    own answer, because where `CREATE TABLE t` lands is a fact about the
+    connection and not about the text (D66).
+    """
+    if wanted:
+        return list(wanted)
+    async with connection.cursor() as cursor:
+        await cursor.execute("SELECT current_schemas(false)")
+        row = await cursor.fetchone()
+    found = row[0] if row and row[0] else []
+    return [str(name) for name in found]
 
 
 class ResultTooLarge(Exception):
@@ -217,11 +254,16 @@ class _Statements:
         self._notices: list[QueryNotice] = []
         self._run_bytes = 0
         self._run_results = 0
+        # The schemas the server would look through, asked for once and only
+        # when a structure change needs an unqualified name resolved.
+        self._path: list[str] | None = None
         # What this runner has done, for a transaction to report and for a
         # commit preview to list (D66).
         self.mutating = 0
+        self.ddl = 0
         self.affected = 0
         self.targets: list[str] = []
+        self.effect = SchemaEffect()
         self.failed = False
 
     async def cancel(self) -> None:
@@ -329,6 +371,17 @@ class _Statements:
                 for target in statement.targets:
                     if target not in self.targets:
                         self.targets.append(target)
+                # What this changed about the structure, worked out here rather
+                # than by whoever reads the answer: only the source knows what
+                # one of its node ids is made of (D66).
+                effect: SchemaEffect | None = None
+                if statement.kind == "ddl":
+                    self.ddl += 1
+                    effect = effect_of(
+                        statement.text,
+                        search_path=await self._effective_path(connection),
+                    )
+                    self.effect = self.effect.with_(effect)
                 return StatementFinished(
                     ordinal=statement.ordinal,
                     status="succeeded",
@@ -338,6 +391,7 @@ class _Statements:
                     affected_rows=affected,
                     result=result,
                     notices=self._notices[: limits.max_messages],
+                    effect=effect,
                 )
         except ResultTooLarge as refusal:
             # The statement ran. Publishing what it produced is what failed,
@@ -368,12 +422,21 @@ class _Statements:
                 diagnostic=diagnostic,
             )
 
+    async def _effective_path(
+        self, connection: psycopg.AsyncConnection[Any]
+    ) -> list[str]:
+        """The schemas the server itself would look through, for this run.
+
+        Asked of the server when the run did not name a context, because that
+        is what decides where an unqualified `CREATE TABLE t` lands. Asked once
+        and only when a structure change needs it: a read never pays for it.
+        """
+        if self._path is None:
+            self._path = await resolve_path(connection, self._request.search_path)
+        return self._path
+
     def _values_for(self, statement: PreparedStatement) -> dict[str, str | None] | None:
-        """The bindings this statement uses, or nothing when it uses none."""
-        if not statement.parameters:
-            return None
-        given = {parameter.name: parameter.value for parameter in self._request.parameters}
-        return {name: given.get(name) for name in statement.parameters}
+        return _values_of(self._request, statement)
 
     async def _materialise(
         self,
@@ -553,6 +616,134 @@ class _BoundExecution(_Statements):
             connection.remove_notice_handler(self._note)
 
 
+class _Rehearsal:
+    """A change carried out on a real connection and then undone (D66).
+
+    The point is that nothing here is a guess. PostgreSQL is asked to do the
+    thing: it names the objects a cascade would take with it, refuses a drop
+    whose dependants are still there, and says how long it waited for a lock.
+    Then the transaction is rolled back and none of it happened.
+    """
+
+    def __init__(self, request: QueryRequest) -> None:
+        self._request = request
+        self._notices: list[QueryNotice] = []
+        self._path: list[str] | None = None
+        self.rehearsal = QueryRehearsal()
+
+    def note(self, diagnostic: psycopg.errors.Diagnostic) -> None:
+        if len(self._notices) >= self._request.limits.max_messages:
+            return
+        self._notices.append(
+            QueryNotice(
+                severity=_safe_text(diagnostic.severity, "NOTICE"),
+                message=_safe_text(diagnostic.message_primary, "A message was raised"),
+            )
+        )
+
+    async def carry_out(self, connection: psycopg.AsyncConnection[Any]) -> None:
+        """Run every statement, keep what the server said, change nothing.
+
+        The caller opens the transaction — its own, or a savepoint inside the
+        one somebody is already holding — and rolls it back afterwards. A
+        rehearsal that opened a second connection would queue behind the
+        person's own locks and call their own transaction a blocker.
+        """
+        script = prepare(self._request.text)
+        await connection.execute(
+            sql.SQL("SET LOCAL lock_timeout = {}").format(
+                sql.Literal(REHEARSAL_LOCK_TIMEOUT_SECONDS * 1000)
+            )
+        )
+        rehearsed: list[RehearsedStatement] = []
+        effect = SchemaEffect()
+        blocked = False
+        stopped = False
+        for statement in script.statements:
+            if stopped or statement.kind not in ("dml", "ddl"):
+                # A read is left out rather than carried out: it changes
+                # nothing, so it says nothing about the change, and running it
+                # here would spend a whole result set to learn that.
+                rehearsed.append(
+                    RehearsedStatement(ordinal=statement.ordinal, outcome="not_run")
+                )
+                continue
+            self._notices = []
+            try:
+                async with connection.cursor() as cursor:
+                    values = _values_of(self._request, statement)
+                    if values is None:
+                        await cursor.execute(statement.text)
+                    else:
+                        await cursor.execute(bind(statement.text), values)
+                    # Rows are not read: a rehearsal is about what a change
+                    # would do, and materialising a SELECT in the middle of one
+                    # would only spend the ceilings a real run is held to.
+                    rehearsed.append(
+                        RehearsedStatement(
+                            ordinal=statement.ordinal,
+                            outcome="ok",
+                            command_tag=cursor.statusmessage,
+                            affected_rows=(
+                                cursor.rowcount if cursor.rowcount >= 0 else None
+                            ),
+                            notices=list(self._notices),
+                        )
+                    )
+                if statement.kind == "ddl":
+                    if self._path is None:
+                        self._path = await resolve_path(
+                            connection, self._request.search_path
+                        )
+                    effect = effect.with_(
+                        effect_of(statement.text, search_path=self._path)
+                    )
+            except psycopg.Error as exc:
+                sqlstate = getattr(exc, "sqlstate", None)
+                waited = sqlstate in (_LOCK_NOT_AVAILABLE, _QUERY_CANCELLED)
+                blocked = blocked or waited
+                rehearsed.append(
+                    RehearsedStatement(
+                        ordinal=statement.ordinal,
+                        outcome="blocked" if waited else "failed",
+                        notices=list(self._notices),
+                        diagnostic=(
+                            _blocked_diagnostic(sqlstate)
+                            if waited
+                            else diagnostic_of(exc, cancelled=False)
+                        ),
+                    )
+                )
+                stopped = True
+        self.rehearsal = QueryRehearsal(
+            statements=rehearsed,
+            blocked=blocked,
+            runnable=not blocked and not stopped,
+            effect=effect,
+        )
+
+
+def _blocked_diagnostic(sqlstate: str | None) -> QueryDiagnostic:
+    """Why the rehearsal gave up, without pretending it read the statement."""
+    return QueryDiagnostic(
+        code=sqlstate or _LOCK_NOT_AVAILABLE,
+        category="resource",
+        message=(
+            "Something else is holding this open; the change was not rehearsed"
+        ),
+    )
+
+
+def _values_of(
+    request: QueryRequest, statement: PreparedStatement
+) -> dict[str, str | None] | None:
+    """The bindings one statement uses, or nothing when it uses none."""
+    if not statement.parameters:
+        return None
+    given = {parameter.name: parameter.value for parameter in request.parameters}
+    return {name: given.get(name) for name in statement.parameters}
+
+
 class PostgresTransaction:
     """One transaction, open across requests, holding its connection.
 
@@ -571,8 +762,10 @@ class PostgresTransaction:
         self._broken = False
         self._statements = 0
         self._mutating = 0
+        self._ddl = 0
         self._affected = 0
         self._targets: list[str] = []
+        self._effect = SchemaEffect()
 
     async def begin(self) -> None:
         try:
@@ -613,6 +806,44 @@ class PostgresTransaction:
         self._pending = run
         return run
 
+    async def rehearse(self, request: QueryRequest) -> QueryRehearsal:
+        """Try the change inside this transaction, and undo just that much.
+
+        Inside rather than beside: a rehearsal on a second connection would
+        wait for the locks this transaction is already holding and report the
+        person's own work as the thing blocking them. psycopg turns a nested
+        block into a savepoint, so what the rehearsal did is undone and
+        everything before it stays (D66).
+        """
+        connection = self._connection
+        if connection is None or not self._open:
+            raise AdapterError("unknown", "This transaction is no longer open")
+        if self._broken:
+            raise AdapterError(
+                "unknown", "This transaction failed and can only be rolled back"
+            )
+        rehearsal = _Rehearsal(request)
+        connection.add_notice_handler(rehearsal.note)
+        try:
+            try:
+                async with connection.transaction():
+                    await rehearsal.carry_out(connection)
+                    raise _RollBack
+            except _RollBack:
+                pass
+        except PoolTimeout:
+            raise AdapterError("timeout", "No connection was free for this query") from None
+        except AdapterError:
+            raise
+        except Exception as exc:
+            error_kind, message = classify(
+                exc, fallback_message="The change could not be rehearsed"
+            )
+            raise AdapterError(error_kind, message) from None
+        finally:
+            connection.remove_notice_handler(rehearsal.note)
+        return rehearsal.rehearsal
+
     def absorb(self, run: QueryExecution) -> None:
         """Take what a finished run did into the transaction's own state.
 
@@ -624,7 +855,9 @@ class PostgresTransaction:
             return
         self._statements += 1
         self._mutating += run.mutating
+        self._ddl += run.ddl
         self._affected += run.affected
+        self._effect = self._effect.with_(run.effect)
         for target in run.targets:
             if target not in self._targets:
                 self._targets.append(target)
@@ -637,8 +870,10 @@ class PostgresTransaction:
             broken=self._broken,
             statements=self._statements,
             mutating_statements=self._mutating,
+            ddl_statements=self._ddl,
             affected_rows=self._affected,
             targets=list(self._targets),
+            effect=self._effect,
         )
 
     async def commit(self) -> None:
@@ -728,6 +963,41 @@ class PostgresQuery:
 
     def open(self, request: QueryRequest) -> PostgresExecution:
         return PostgresExecution(self._session, request)
+
+    async def rehearse(self, request: QueryRequest) -> QueryRehearsal:
+        """Carry the change out on its own connection, and undo it (D66)."""
+        rehearsal = _Rehearsal(request)
+        try:
+            async with self._session.acquire() as connection:
+                _prepare_connection(connection, rehearsal.note)
+                await connection.set_read_only(False)
+                try:
+                    try:
+                        async with connection.transaction():
+                            await set_read_context(
+                                connection,
+                                search_path=request.search_path,
+                                statement_timeout_seconds=(
+                                    request.limits.statement_timeout_seconds
+                                ),
+                            )
+                            await rehearsal.carry_out(connection)
+                            raise _RollBack
+                    except _RollBack:
+                        pass
+                finally:
+                    connection.remove_notice_handler(rehearsal.note)
+                    await connection.set_read_only(None)
+        except PoolTimeout:
+            raise AdapterError("timeout", "No connection was free for this query") from None
+        except AdapterError:
+            raise
+        except Exception as exc:
+            error_kind, message = classify(
+                exc, fallback_message="The change could not be rehearsed"
+            )
+            raise AdapterError(error_kind, message) from None
+        return rehearsal.rehearsal
 
     async def begin(self, context: TransactionContext) -> PostgresTransaction:
         """Open a transaction that outlives this request (D66)."""

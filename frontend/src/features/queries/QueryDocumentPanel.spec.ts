@@ -1,6 +1,7 @@
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query"
 import { AxiosError } from "axios"
 import { flushPromises, mount } from "@vue/test-utils"
+import { createPinia } from "pinia"
 import { Dialog, Notify, Quasar } from "quasar"
 import { defineComponent } from "vue"
 import { beforeEach, describe, expect, it, vi } from "vitest"
@@ -72,6 +73,9 @@ function mountPanel() {
       plugins: [
         [Quasar, { plugins: { Dialog, Notify } }],
         [VueQueryPlugin, { queryClient }],
+        // The console tells the rest of the workspace when it has changed the
+        // structure of a source, and that word is kept in a store (D66).
+        createPinia(),
       ],
       provide: { [workspaceActionsKey as symbol]: workspace },
       stubs: { CodeEditor: CodeEditorStub },

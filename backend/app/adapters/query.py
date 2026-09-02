@@ -65,13 +65,14 @@ class QueryProfile(BaseModel):
     parameter_syntax: Literal["named_colon"]
     statement_modes: list[ExecutionMode]
     supports_cancel: bool
-    # The four below are filled in from what the adapter actually implements,
+    # The five below are filled in from what the adapter actually implements,
     # by the route that answers this. An adapter does not restate them, so a
     # capability cannot be announced and then be missing (D62).
     supports_explain: bool = False
     supports_metadata: bool = False
     supports_formatting: bool = False
     supports_generated_query: bool = False
+    supports_rehearsal: bool = False
     default_timeout_seconds: int
     max_timeout_seconds: int
 
@@ -116,6 +117,15 @@ class PreparedStatement(BaseModel):
     kind: StatementClass
     # Whether this statement is one to ask about every time it is run (D66).
     risk: Literal["low", "high"] = "low"
+    # Whether what it does cannot be read back out of the statement: a drop, a
+    # truncation, an alter that takes something away. These are rehearsed in a
+    # transaction that is rolled back before they are run (D66).
+    destructive: bool = False
+    # Why this source will not carry the statement out, when it will not. The
+    # vocabulary of structure changes is closed and is dialect knowledge, so
+    # the source names what falls outside it rather than the module that runs
+    # statements keeping a second list of its own (D66).
+    refused: str | None = None
     # Named parameters in this statement, in the order they first appear.
     parameters: list[str] = Field(default_factory=list)
     # What the statement names, for messages and for saying what a run touched.
@@ -127,6 +137,59 @@ class PreparedScript(BaseModel):
 
     statements: list[PreparedStatement]
     parameters: list[str] = Field(default_factory=list)
+
+
+class SchemaEffect(BaseModel):
+    """What a committed structure change means for what is already on screen.
+
+    Issued by the source, because only it knows which of its own nodes a
+    statement was about. A client never works an id out of the SQL it sent,
+    and where the source cannot be exact it names the schema — or the whole
+    connection — rather than guessing at a node (D66).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    # `nodes` names exactly what changed. `connection` is the honest answer
+    # when the statement does not say: `DROP INDEX s.i` names the index, and
+    # which relation it was on is not in the text. Everything about the
+    # connection is re-read rather than a node being guessed at.
+    scope: Literal["nodes", "connection"] = "nodes"
+    # Nodes whose children changed. None is the root of the connection, which
+    # is what a new or dropped schema changes.
+    reload_node_ids: list[str | None] = Field(default_factory=list)
+    # Relations whose own structure changed: columns, indexes, constraints, a
+    # comment. Their place in the tree is the same; what is inside them is not.
+    relation_node_ids: list[str] = Field(default_factory=list)
+
+    def with_(self, other: SchemaEffect) -> SchemaEffect:
+        """Both effects as one, each node named once.
+
+        Several statements in one transaction commit together, so what they
+        changed is one answer rather than a list of answers in order. One
+        statement nobody could be exact about makes the whole answer inexact:
+        a wider scope is a superset, and a superset is always safe.
+        """
+        nodes = list(self.reload_node_ids)
+        nodes += [node for node in other.reload_node_ids if node not in nodes]
+        relations = list(self.relation_node_ids)
+        relations += [node for node in other.relation_node_ids if node not in relations]
+        return SchemaEffect(
+            scope=(
+                "connection"
+                if "connection" in (self.scope, other.scope)
+                else "nodes"
+            ),
+            reload_node_ids=nodes,
+            relation_node_ids=relations,
+        )
+
+    def is_empty(self) -> bool:
+        return (
+            self.scope == "nodes"
+            and not self.reload_node_ids
+            and not self.relation_node_ids
+        )
 
 
 class QueryRefused(Exception):
@@ -211,6 +274,44 @@ class QueryNotice(BaseModel):
     message: str
 
 
+class RehearsedStatement(BaseModel):
+    """What one statement did in a transaction that was then rolled back.
+
+    A rehearsal answers with the source's own words about the change — which
+    dependent objects would go with a drop, how many rows a truncation would
+    take — because a list this application composed would be a second opinion
+    about somebody else's database (D66).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    ordinal: int = Field(ge=0)
+    outcome: Literal["ok", "blocked", "failed", "not_run"]
+    command_tag: str | None = None
+    affected_rows: int | None = None
+    notices: list[QueryNotice] = Field(default_factory=list)
+    diagnostic: QueryDiagnostic | None = None
+
+
+class QueryRehearsal(BaseModel):
+    """A destructive change carried out and undone, so it can be described.
+
+    `blocked` is the one outcome that says nothing about the statement: a lock
+    the rehearsal could not take within its short timeout means the rehearsal
+    learnt nothing, and running the real thing would wait where this gave up.
+    Execution is refused until it can be rehearsed (D66).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    statements: list[RehearsedStatement] = Field(default_factory=list)
+    blocked: bool = False
+    # Whether the rehearsal reached the end without being blocked or failing.
+    runnable: bool = False
+    # What committing it for real would mean for the catalog.
+    effect: SchemaEffect = Field(default_factory=SchemaEffect)
+
+
 class StatementStarted(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -240,6 +341,10 @@ class StatementFinished(BaseModel):
     result: MaterialisedResult | None = None
     notices: list[QueryNotice] = Field(default_factory=list)
     diagnostic: QueryDiagnostic | None = None
+    # What this statement changed about the structure, named by the source.
+    # It is a promise about what would be true once the transaction it ran in
+    # commits, so a caller applies it then and never after a rollback (D66).
+    effect: SchemaEffect | None = None
 
 
 QueryEvent = StatementStarted | StatementFinished
@@ -440,8 +545,14 @@ class TransactionState(BaseModel):
     broken: bool = False
     statements: int = 0
     mutating_statements: int = 0
+    # How many of those changed the structure rather than the data, so the
+    # commit preview can say it separately (D66).
+    ddl_statements: int = 0
     affected_rows: int = 0
     targets: list[str] = Field(default_factory=list)
+    # What committing this would mean for what is on screen. Empty until a
+    # statement has changed the structure; rolling back issues nothing.
+    effect: SchemaEffect = Field(default_factory=SchemaEffect)
 
 
 @runtime_checkable
@@ -453,6 +564,8 @@ class QueryTransaction(Protocol):
     """
 
     def execute(self, request: QueryRequest) -> QueryExecution: ...
+
+    async def rehearse(self, request: QueryRequest) -> QueryRehearsal: ...
 
     def absorb(self, run: QueryExecution) -> None: ...
 
@@ -477,6 +590,18 @@ class SupportsExplain(Protocol):
     """A source that will plan a statement without running it (D65)."""
 
     async def explain_query(self, request: ExplainRequest) -> ExplainResult: ...
+
+
+@runtime_checkable
+class SupportsRehearsal(Protocol):
+    """A source that will carry a change out and undo it, to describe it.
+
+    Separate from execution because it is a different promise: the statements
+    run and are then rolled back, so what comes back is the source's own
+    account of what would happen rather than a guess read off the SQL (D66).
+    """
+
+    async def rehearse_query(self, request: QueryRequest) -> QueryRehearsal: ...
 
 
 @runtime_checkable

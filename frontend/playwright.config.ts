@@ -19,10 +19,17 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  /* One dev server serves every worker, and the default of half the cores
-     starves it: with twelve browsers at once the suite times out on steps that
-     have nothing to do with what is being tested. */
-  workers: process.env.CI ? 1 : 4,
+  /* One worker, here as well as on CI.
+
+     Four browsers at once still starve the single dev server every worker
+     shares: three full runs at four workers failed eight scenarios each, a
+     different eight every time, always timing out on a step unrelated to what
+     was being tested. They also share one superuser and one database, so a
+     notification raised by one scenario lands on another's page and covers
+     the control it is about to click. The same suite at one worker passes
+     whole. Eleven minutes instead of four is what that costs, and a suite
+     whose failures mean something is worth it. */
+  workers: 1,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI ? 'blob' : 'html',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

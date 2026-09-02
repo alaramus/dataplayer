@@ -27,6 +27,9 @@ let ticking: ReturnType<typeof setInterval> | null = null
 // anything; empty is the honest reading of that.
 const state = computed(() => props.transaction.state)
 const targets = computed(() => state.value.targets ?? [])
+// Counted separately in the preview, because committing a structure change is
+// a different sort of decision from committing rows (D66).
+const structural = computed(() => state.value.ddl_statements ?? 0)
 const remaining = computed(() =>
   Math.max(0, new Date(props.transaction.expires_at).getTime() - now.value)
 )
@@ -68,6 +71,9 @@ onBeforeUnmount(() => {
           {{ state.mutating_statements }} changing
           {{ state.mutating_statements === 1 ? "statement" : "statements" }} ·
           {{ state.affected_rows }} rows
+          <template v-if="structural > 0">
+            · {{ structural }} changing the structure
+          </template>
           <template v-if="targets.length > 0">
             · {{ targets.join(", ") }}
           </template>

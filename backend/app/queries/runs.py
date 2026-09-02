@@ -20,6 +20,7 @@ from app.adapters.query import (
     QueryDiagnostic,
     QueryNotice,
     ResultColumn,
+    SchemaEffect,
     StatementClass,
     StatementStatus,
 )
@@ -110,6 +111,12 @@ class ExecutionRun(SQLModel, table=True):
     # in the clear to compare it.
     fingerprint: str = Field(max_length=64)
     statement_count: int = Field(default=0)
+    # What the source said its structure changes mean for what is on screen,
+    # kept only once they are permanent. A manual run's effect belongs to the
+    # transaction until somebody commits it, and a rollback issues none (D66).
+    effect: dict[str, Any] | None = Field(
+        default=None, sa_column=Column(JSONB, nullable=True)
+    )
     # A safe sentence when the run itself could not be carried out — the source
     # was unreachable, the context was refused. Statement failures live on the
     # statement.
@@ -252,6 +259,9 @@ class RunPublic(BaseModel):
     statement_count: int
     parameters: list[ParameterMetadata] = PydanticField(default_factory=list)
     error: str | None = None
+    # What the source says has to be re-read, once this run's structure changes
+    # are permanent. Absent while they are pending and after a rollback (D66).
+    effect: SchemaEffect | None = None
     created_at: datetime | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
@@ -265,6 +275,25 @@ class TransactionStart(BaseModel):
 
     connector_id: uuid.UUID
     document_id: uuid.UUID | None = None
+    timeout_seconds: int | None = PydanticField(default=None, ge=1)
+
+
+class RehearsalStart(BaseModel):
+    """What a console sends to have a change tried out and undone.
+
+    The same text Run would take, so the rehearsal describes what would
+    actually happen rather than a tidier statement nobody is about to run. In
+    a transaction it is rehearsed inside that transaction, which is why the id
+    travels with it (D66).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    connector_id: uuid.UUID
+    text: str = PydanticField(max_length=MAX_TEXT_BYTES)
+    document_id: uuid.UUID | None = None
+    transaction_id: str | None = PydanticField(default=None, max_length=64)
+    parameters: list[RunParameter] = PydanticField(default_factory=list)
     timeout_seconds: int | None = PydanticField(default=None, ge=1)
 
 

@@ -243,6 +243,9 @@ import type {
   queriesReadUnlockData,
   queriesReadUnlockErrors,
   queriesReadUnlockResponses,
+  queriesRehearseChangeData,
+  queriesRehearseChangeErrors,
+  queriesRehearseChangeResponses,
   queriesRestoreDocumentData,
   queriesRestoreDocumentErrors,
   queriesRestoreDocumentResponses,
@@ -2346,6 +2349,39 @@ export class QueriesService {
   }
 
   /**
+   * Rehearse Change
+   *
+   * Carry a structure change out, describe it, and undo it (D66).
+   *
+   * Everything that stands in front of running the change stands in front of
+   * rehearsing it, because rehearsing *is* running it: the same policy, the
+   * same level, the same unlock. What differs is only the ending — the
+   * transaction is rolled back, so nothing that happened survives.
+   *
+   * It is a preview and not a permission. What actually decides whether the
+   * change may be made is the same set of checks the run itself goes through;
+   * this is what a person reads before answering the question those ask.
+   */
+  public static rehearseChange<ThrowOnError extends boolean = true>(
+    options: Options<queriesRehearseChangeData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      queriesRehearseChangeResponses,
+      queriesRehearseChangeErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/queries/rehearse",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
    * List Runs
    *
    * What this person has run, newest first.
@@ -2841,6 +2877,10 @@ export class QueriesService {
    * Commit Transaction
    *
    * Make what this transaction did permanent.
+   *
+   * This is the moment a structure change becomes true, so it is also the
+   * moment its invalidation is issued: what the source said each statement
+   * changed was a promise about a commit that had not happened yet (D66).
    */
   public static commitTransaction<ThrowOnError extends boolean = true>(
     options: Options<queriesCommitTransactionData, ThrowOnError>
@@ -2861,6 +2901,9 @@ export class QueriesService {
    * Rollback Transaction
    *
    * Undo everything this transaction did, including what succeeded.
+   *
+   * Nothing is invalidated: the source is as it was, and telling a client to
+   * re-read after a rollback would suggest something had happened (D66).
    */
   public static rollbackTransaction<ThrowOnError extends boolean = true>(
     options: Options<queriesRollbackTransactionData, ThrowOnError>

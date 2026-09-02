@@ -9,9 +9,9 @@ Decisions here: D62, D63, D64, D65, D66.
 
 ## Implementation state
 
-The phase is split into 3A read and intelligence, 3B DML and 3C bounded DDL;
-PostgreSQL does not publish the capability until the complete 3A vertical slice
-is verified.
+Phase 3 is complete and verified. It was built in three slices — 3A read and
+intelligence, 3B DML, 3C bounded DDL — and what each of them settled is below,
+because the code still divides along those lines.
 
 Documents exist: `app/queries` owns `QueryDocument`, the library, revisioned
 autosave, Trash and its sweep, and the frontend has a Queries navigation panel
@@ -49,9 +49,40 @@ person, by the idle lease, or by closing the panel, which asks first. A
 statement whose reach is not written down is confirmed every time. DML only:
 DDL is refused with a sentence saying so until 3C.
 
-What remains of phase 3 is 3C, the bounded DDL vocabulary.
+Structure changes exist as well, and with them phase 3C. The source holds a
+closed vocabulary — schemas, tables, views and indexes created, altered and
+dropped, their comments, and emptying a table — and refuses anything else in
+its own words, before a run is recorded. Every structure change is asked about
+each time, whatever it looks like. A destructive one is first carried out on
+the source inside a transaction with a short lock timeout and then rolled
+back, so what the console shows before the question is the database's own
+account: which dependants a cascade would take, or that the drop would be
+refused outright. A rehearsal that could not take its locks stops the run,
+because nothing was learnt. Once a change is permanent — when an auto-commit
+run succeeds, or when somebody commits the transaction holding it — the source
+issues the nodes to re-read, the read cache for that connection is emptied,
+and the console drops exactly those cached answers. A rollback issues nothing.
 
 Known deviations:
+
+- The vocabulary is bounded by what the dialect module can read as well as by
+  what is listed. `ALTER TABLE t DROP COLUMN a, ADD COLUMN b int` and
+  `ALTER SCHEMA s RENAME TO r` are inside the vocabulary in words and are
+  refused all the same, because the parser reads them as an opaque command and
+  a statement whose shape is not established is not run (D62). One action per
+  ALTER is the working form.
+- The rehearsal is what a person reads before answering, not a precondition
+  the server enforces. What decides whether a change may be made is the same
+  four checks a write goes through — policy, level, unlock, confirmation — and
+  the console will not run a change whose rehearsal came back blocked, but a
+  caller that never asked for one is not refused for that reason.
+- `DROP INDEX s.i` names the index, and which relation it was on is not in the
+  statement, so the invalidation widens to the whole connection rather than
+  naming a node the source did not say. The same is true of any statement the
+  dialect module cannot take apart.
+- A rename issues the schemas to re-read rather than a node replacement, so a
+  panel holding the old relation reports it as gone instead of following it.
+  D66 allows the wider answer; D32's replacement is not issued here.
 
 - D65 describes a gutter Run beside each statement. The console has the two
   keyboard commands and their two buttons; the gutter marker is not drawn.
@@ -370,13 +401,19 @@ Query results remain read-only because an arbitrary projection has no safe row
 identity; relation editing continues to use D25's handles.
 
 DDL follows with a PostgreSQL allowlist for create/alter/drop of schemas, tables,
-views and indexes, plus comments. Permission administration, database/role/
+views and indexes, plus comments and truncation — a truncation is a table
+operation with a stronger lock, and refusing it while admitting `DELETE FROM t`
+would be an arbitrary line. Permission administration, database/role/
 tablespace/extension commands and maintenance operations remain actions or later
-jobs. Destructive DDL is rehearsed in a rollback transaction with a short lock
-timeout, and a blocked preview disables execution. After commit the adapter
-returns exact node invalidations, replacements or an explicit schema/database
-scope; the client never reconstructs affected ids from SQL. Rollback invalidates
-nothing.
+jobs. The list is an allowlist because the alternative cannot be written down:
+what falls outside it is refused with a sentence naming the family, and a form
+the dialect module cannot read is refused as unknown rather than admitted by
+omission. Destructive DDL is rehearsed in a rollback transaction with a short
+lock timeout, inside the open transaction when there is one so that a person's
+own locks are not read as somebody else blocking them; a blocked preview
+disables execution. After commit the adapter returns exact node invalidations,
+replacements or an explicit schema/database scope; the client never
+reconstructs affected ids from SQL. Rollback invalidates nothing.
 
 Spec: [The query editor](../superpowers/specs/2026-09-01-query-editor-design.md)
 
