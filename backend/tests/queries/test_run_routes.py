@@ -15,6 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.queries.execution import recover_interrupted
 from app.queries.runs import ExecutionRun, StatementRun
+from tests.queries.conftest import silent_connector
 from tests.utils.database import working_postgres_options
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
@@ -308,12 +309,13 @@ async def test_a_run_belonging_to_somebody_else_does_not_exist(
     assert cancelled.status_code == 404
 
 
+@pytest.mark.usefixtures("silent_source")
 async def test_a_source_that_does_not_run_queries_says_so(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     """A capability is asked for, never assumed from the type of a source."""
     headers = await _headers(client, db)
-    connector_id = await _file(client, headers)
+    connector_id = await silent_connector(client, headers)
 
     response = await client.post(
         f"{BASE}/runs",

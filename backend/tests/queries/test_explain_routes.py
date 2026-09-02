@@ -7,10 +7,12 @@ point of this capability is that it is the server's (D65).
 import uuid
 from typing import Any
 
+import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
+from tests.queries.conftest import silent_connector
 from tests.utils.database import working_postgres_options
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
@@ -184,11 +186,12 @@ async def test_a_statement_the_source_refuses_answers_with_its_own_words(
     assert "nothing_here" in response.json()["detail"]
 
 
+@pytest.mark.usefixtures("silent_source")
 async def test_a_source_that_does_not_plan_says_so(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     headers = await _headers(client, db)
-    connector_id = await _file(client, headers)
+    connector_id = await silent_connector(client, headers)
 
     response = await _explain(client, headers, connector_id, text="select 1")
 

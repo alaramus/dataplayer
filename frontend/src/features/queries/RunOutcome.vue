@@ -11,6 +11,11 @@ import { AppBanner, AppEmptyState, AppIconButton } from "@/shared/ui"
  * Statements on one side with their status and duration, the selected one's
  * output on the other, and a Messages view that is always there. An error is
  * an output — not a toast that disappears and not a pretend row in a table.
+ *
+ * A run may also fail as a whole, before any statement ran: the source refused
+ * the context it was given, or could not be reached. That answer belongs to
+ * the run rather than to a statement, so it is shown above them all — a file
+ * source refuses a name that is not one of its files this way (D77).
  */
 
 const props = withDefaults(
@@ -44,8 +49,11 @@ const selected = computed<StatementPublic | undefined>(
  * Notices and errors together: a person reading "what happened" wants one
  * chronological list, not two places to look.
  */
-const messages = computed(() =>
-  statements.value.flatMap((statement) => [
+const messages = computed(() => [
+  ...(props.run.error === null || props.run.error === undefined
+    ? []
+    : [{ ordinal: -1, severity: "RUN", message: props.run.error }]),
+  ...statements.value.flatMap((statement) => [
     ...(statement.notices ?? []).map((notice) => ({
       ordinal: statement.ordinal,
       severity: notice.severity,
@@ -62,8 +70,8 @@ const messages = computed(() =>
               : statement.diagnostic.message,
           },
         ]),
-  ])
-)
+  ]),
+])
 
 // The first statement that has something to show: an error, or rows.
 watch(
@@ -93,6 +101,15 @@ function duration(statement: StatementPublic): string {
     class="run-outcome"
     data-testid="run-outcome"
   >
+    <AppBanner
+      v-if="run.error"
+      tone="error"
+      class="run-outcome__error"
+      data-testid="run-refusal"
+    >
+      {{ run.error }}
+    </AppBanner>
+
     <div class="run-outcome__statements">
       <button
         v-for="statement in statements"

@@ -79,6 +79,7 @@ translations; those files are not.
 | 2026-09-02 | [Copying and moving files](2026-09-02-file-clipboard-design.md) | D74: Copy and Cut are the client's and change nothing; Paste is the source's, and the form fills itself by purpose |
 | 2026-09-02 | [A node describes itself](2026-09-02-node-summary-design.md) | D75: what a node is, is a fourth question with a capability of its own — neither a viewer nor an action |
 | 2026-09-02 | [Searching the catalog by name](2026-09-02-catalog-search-design.md) | D76: a search answers with catalog nodes, and the filter's own words are what it looks for |
+| 2026-09-02 | [SQL over tabular files](2026-09-02-file-sql-design.md) | D77, D78: a file source's SQL names its own nodes, and its engine is a disposable sandbox |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

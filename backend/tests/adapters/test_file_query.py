@@ -1,0 +1,586 @@
+"""The file source running SQL: what it reads, what it refuses, what it says.
+
+The refusals of D77 are tested through the capability, and the sandbox of D78
+is tested behind them — by opening an engine directly and asking it for things
+the parse would never have let through, because a defence that is only ever
+reached through a check that already refused proves nothing.
+"""
+
+import os
+import time
+from pathlib import Path
+
+import anyio
+import duckdb
+import pytest
+
+from app.adapters.file.query import (
+    _FALLBACKS,
+    FileExecution,
+    FileQuery,
+    _Engine,
+    _safe_text,
+    diagnostic_of,
+    quoted,
+)
+from app.adapters.file.session import FileSession
+from app.adapters.protocol import AdapterError
+from app.adapters.query import (
+    ExplainRequest,
+    GenerateQueryRequest,
+    MaterialisedResult,
+    ParameterValue,
+    QueryEvent,
+    QueryLimits,
+    QueryMetadataRequest,
+    QueryRequest,
+    StatementFinished,
+)
+
+LIMITS = QueryLimits(
+    statement_timeout_seconds=10,
+    script_timeout_seconds=30,
+    max_statements=100,
+    max_statement_bytes=262_144,
+    max_result_rows=1_000,
+    max_result_bytes=33_554_432,
+    max_cell_bytes=4_194_304,
+    max_run_results=20,
+    max_run_bytes=67_108_864,
+    max_messages=1_000,
+)
+
+
+@pytest.fixture
+def root(tmp_path: Path) -> Path:
+    (tmp_path / "sales.csv").write_text(
+        "id,amount,region\n1,10.5,north\n2,20.25,south\n3,5,north\n", encoding="utf-8"
+    )
+    (tmp_path / "tabs.tsv").write_text("x\ty\n1\t2\n", encoding="utf-8")
+    (tmp_path / "people.json").write_text(
+        '[{"name":"ada","age":36}]', encoding="utf-8"
+    )
+    (tmp_path / "events.jsonl").write_text('{"a":1}\n{"a":2}\n', encoding="utf-8")
+    (tmp_path / "notes.txt").write_text("nothing tabular\n", encoding="utf-8")
+    (tmp_path / "reports").mkdir()
+    (tmp_path / "reports" / "q1.csv").write_text(
+        "region,target\nnorth,10\nsouth,30\n", encoding="utf-8"
+    )
+    return tmp_path
+
+
+@pytest.fixture
+def outside(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """A file the connector's root has no business reaching."""
+    folder = tmp_path_factory.mktemp("elsewhere")
+    secret = folder / "secret.csv"
+    secret.write_text("a\n1\n", encoding="utf-8")
+    return secret
+
+
+@pytest.fixture
+def query(root: Path) -> FileQuery:
+    return FileQuery(FileSession(root))
+
+
+def _request(text: str, **kwargs: object) -> QueryRequest:
+    return QueryRequest(text=text, mode="read", limits=LIMITS, **kwargs)  # type: ignore[arg-type]
+
+
+async def _events(query: FileQuery, text: str, **kwargs: object) -> list[QueryEvent]:
+    return [event async for event in query.open(_request(text, **kwargs)).events()]
+
+
+async def _finished(query: FileQuery, text: str, **kwargs: object) -> StatementFinished:
+    events = await _events(query, text, **kwargs)
+    finished = [event for event in events if isinstance(event, StatementFinished)]
+    assert len(finished) == 1
+    return finished[0]
+
+
+def _result(finished: StatementFinished) -> MaterialisedResult:
+    assert finished.status == "succeeded", finished.diagnostic
+    assert finished.result is not None
+    return finished.result
+
+
+# --- what the source says it is ---------------------------------------------
+
+
+def test_the_profile_offers_reading_and_nothing_else(query: FileQuery) -> None:
+    profile = query.profile()
+
+    assert profile.dialect == "duckdb"
+    assert profile.statement_modes == ["read"]
+    assert profile.parameter_syntax == "named_dollar"
+    assert profile.supports_cancel is True
+
+
+# --- reading -----------------------------------------------------------------
+
+
+async def test_a_delimited_file_is_read_as_a_relation(query: FileQuery) -> None:
+    result = _result(await _finished(query, 'SELECT * FROM "sales.csv" ORDER BY id'))
+
+    assert [column.name for column in result.columns] == ["id", "amount", "region"]
+    assert result.rows[0] == ["1", "10.5", "north"]
+    assert result.truncated is False
+
+
+async def test_the_engine_types_the_columns_of_a_delimited_file(
+    query: FileQuery,
+) -> None:
+    """The grid says every column is text (D51); SQL has to add them up."""
+    result = _result(await _finished(query, 'SELECT * FROM "sales.csv"'))
+
+    categories = {column.name: column.type.category for column in result.columns}
+    assert categories == {"id": "number", "amount": "number", "region": "string"}
+
+
+async def test_two_files_are_joined_across_a_folder(query: FileQuery) -> None:
+    result = _result(
+        await _finished(
+            query,
+            'SELECT s.region, sum(s.amount) AS total, max(q.target) AS target'
+            ' FROM "sales.csv" s JOIN "reports/q1.csv" q USING (region)'
+            " GROUP BY s.region ORDER BY s.region",
+        )
+    )
+
+    assert result.rows == [["north", "15.5", "10"], ["south", "20.25", "30"]]
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("tabs.tsv", ["1", "2"]),
+        ("people.json", ["ada", "36"]),
+        ("events.jsonl", ["1"]),
+    ],
+)
+async def test_every_readable_format_is_read(
+    query: FileQuery, name: str, expected: list[str]
+) -> None:
+    result = _result(await _finished(query, f"SELECT * FROM {quoted(name)}"))
+
+    assert result.rows[0] == expected
+
+
+async def test_a_parameter_is_bound(query: FileQuery) -> None:
+    result = _result(
+        await _finished(
+            query,
+            'SELECT id FROM "sales.csv" WHERE amount > $cutoff ORDER BY id',
+            parameters=[ParameterValue(name="cutoff", value="6")],
+        )
+    )
+
+    assert result.rows == [["1"], ["2"]]
+
+
+async def test_a_parameter_is_a_binding_and_not_text(query: FileQuery) -> None:
+    """The classic: the value cannot end the string it stands in."""
+    result = _result(
+        await _finished(
+            query,
+            'SELECT count(*) AS n FROM "sales.csv" WHERE region = $region',
+            parameters=[
+                ParameterValue(name="region", value="north' OR '1'='1")
+            ],
+        )
+    )
+
+    assert result.rows == [["0"]]
+
+
+async def test_a_script_runs_in_order_and_stops_at_the_first_failure(
+    query: FileQuery,
+) -> None:
+    events = await _events(query, 'SELECT 1; SELECT nosuch FROM "sales.csv"; SELECT 3')
+
+    finished = [event for event in events if isinstance(event, StatementFinished)]
+    assert [event.status for event in finished] == ["succeeded", "failed", "not_run"]
+
+
+# --- the one containment rule ------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["../secret.csv", "/etc/passwd", "C:/Windows/win.ini", "reports/../../secret.csv"],
+)
+async def test_a_name_that_leaves_the_root_is_refused(
+    query: FileQuery, name: str
+) -> None:
+    with pytest.raises(AdapterError) as refusal:
+        await _events(query, f"SELECT * FROM {quoted(name)}")
+
+    assert "no file called" in refusal.value.message
+
+
+async def test_a_name_that_is_not_there_is_refused_before_anything_opens(
+    query: FileQuery,
+) -> None:
+    with pytest.raises(AdapterError) as refusal:
+        await _events(query, 'SELECT * FROM "sales.csv" JOIN "nope.csv" ON true')
+
+    assert refusal.value.message == (
+        "There is no file called nope.csv in this connection"
+    )
+
+
+async def test_a_file_with_no_tabular_reader_is_refused(query: FileQuery) -> None:
+    with pytest.raises(AdapterError) as refusal:
+        await _events(query, 'SELECT * FROM "notes.txt"')
+
+    assert "CSV, TSV, Parquet, JSON and JSON lines" in refusal.value.message
+
+
+async def test_a_workbook_is_refused_with_its_own_reason(
+    root: Path, query: FileQuery
+) -> None:
+    (root / "book.xlsx").write_bytes(b"PK\x03\x04not really")
+
+    with pytest.raises(AdapterError) as refusal:
+        await _events(query, 'SELECT * FROM "book.xlsx"')
+
+    assert "worksheet is not offered to SQL" in refusal.value.message
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Windows needs a privilege to link")
+async def test_a_symbolic_link_out_of_the_root_is_refused(
+    root: Path, outside: Path, query: FileQuery
+) -> None:
+    (root / "linked.csv").symlink_to(outside)
+
+    with pytest.raises(AdapterError) as refusal:
+        await _events(query, 'SELECT * FROM "linked.csv"')
+
+    assert "no file called" in refusal.value.message
+
+
+async def test_a_write_mode_is_refused(query: FileQuery) -> None:
+    request = QueryRequest(text="SELECT 1", mode="auto_commit", limits=LIMITS)
+
+    with pytest.raises(AdapterError) as refusal:
+        [event async for event in query.open(request).events()]
+
+    assert "runs nothing that writes" in refusal.value.message
+
+
+async def test_a_schema_context_is_refused(query: FileQuery) -> None:
+    with pytest.raises(AdapterError) as refusal:
+        await _events(query, "SELECT 1", search_path=["public"])
+
+    assert "no schemas" in refusal.value.message
+
+
+async def test_the_adapter_says_its_refusal_again_when_asked_directly(
+    query: FileQuery,
+) -> None:
+    """The route refuses these at admission; the source does not rely on it."""
+    finished = await _finished(query, 'DELETE FROM "sales.csv"')
+
+    assert finished.status == "failed"
+    assert finished.diagnostic is not None
+    assert finished.diagnostic.category == "read_only"
+    assert "does not change them through SQL" in finished.diagnostic.message
+
+
+# --- the sandbox behind the refusals -----------------------------------------
+
+
+def _opened(root: Path, relations: dict[str, Path]) -> _Engine:
+    engine = _Engine(FileSession(root).resolved_root)
+    engine.open(relations)
+    return engine
+
+
+def test_the_engine_reads_the_files_it_was_given(root: Path) -> None:
+    engine = _opened(root, {"sales.csv": root / "sales.csv"})
+    try:
+        assert engine.connection.execute(
+            'SELECT count(*) FROM "sales.csv"'
+        ).fetchall() == [(3,)]
+    finally:
+        engine.close()
+
+
+def test_the_engine_cannot_read_a_file_outside_the_root(
+    root: Path, outside: Path
+) -> None:
+    """Defence in depth: the parse already refuses a table function (D77)."""
+    engine = _opened(root, {})
+    try:
+        with pytest.raises(duckdb.Error):
+            engine.connection.execute(
+                "SELECT * FROM read_csv(?)", [str(outside)]
+            ).fetchall()
+    finally:
+        engine.close()
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "SET enable_external_access=true",
+        "SET allowed_directories=['/']",
+        "RESET allowed_directories",
+        "SET lock_configuration=false",
+        "LOAD httpfs",
+        "INSTALL httpfs",
+    ],
+)
+def test_the_engine_will_not_let_its_own_door_be_reopened(
+    root: Path, statement: str
+) -> None:
+    engine = _opened(root, {})
+    try:
+        with pytest.raises(duckdb.Error):
+            engine.connection.execute(statement)
+    finally:
+        engine.close()
+
+
+def test_the_engine_is_thrown_away_with_everything_in_it(root: Path) -> None:
+    first = _opened(root, {"sales.csv": root / "sales.csv"})
+    first.connection.execute("CREATE TABLE kept AS SELECT 1 AS a")
+    first.close()
+
+    second = _opened(root, {})
+    try:
+        with pytest.raises(duckdb.Error):
+            second.connection.execute("SELECT * FROM kept").fetchall()
+    finally:
+        second.close()
+
+
+# --- what a failure says -----------------------------------------------------
+
+
+async def test_an_unknown_column_points_at_the_place_it_is_written(
+    query: FileQuery,
+) -> None:
+    finished = await _finished(query, 'SELECT nosuch FROM "sales.csv"')
+
+    assert finished.status == "failed"
+    assert finished.diagnostic is not None
+    assert finished.diagnostic.category == "missing_object"
+    assert finished.diagnostic.position == len("SELECT ")
+    assert "nosuch" in finished.diagnostic.message
+
+
+async def test_a_message_never_names_where_the_server_keeps_its_files(
+    root: Path, outside: Path
+) -> None:
+    """The regression test for D78: an error is about the query, not the disk.
+
+    The sandbox's own refusal quotes the path back, and that is exactly the
+    sentence that must not cross. What crosses instead is the standard one for
+    the category.
+    """
+    engine = _opened(root, {})
+    try:
+        with pytest.raises(duckdb.Error) as failure:
+            engine.connection.execute(
+                "SELECT * FROM read_csv(?)", [str(outside)]
+            ).fetchall()
+    finally:
+        engine.close()
+
+    # The engine's own words name the path, which is the point of the test.
+    assert outside.name in str(failure.value)
+    diagnostic = diagnostic_of(
+        failure.value, root=root, cancelled=False, timed_out=False
+    )
+    assert diagnostic.message == _FALLBACKS["permission"]
+    assert str(outside) not in diagnostic.message
+    assert outside.parent.name not in diagnostic.message
+
+
+def test_the_root_is_taken_out_of_a_message_that_carries_it(root: Path) -> None:
+    """Both spellings of it: Windows writes one and the engine writes the other."""
+    for form in (str(root), root.as_posix()):
+        assert _safe_text(f'no file matched "{form}/sales.csv"', root, "fallback") == (
+            'no file matched "…/sales.csv"'
+        )
+
+
+# --- ceilings ----------------------------------------------------------------
+
+
+async def test_a_result_is_truncated_at_the_ceiling_by_one_extra_row(
+    query: FileQuery,
+) -> None:
+    limits = LIMITS.model_copy(update={"max_result_rows": 2})
+    request = QueryRequest(
+        text='SELECT * FROM "sales.csv" ORDER BY id', mode="read", limits=limits
+    )
+
+    events = [event async for event in query.open(request).events()]
+    finished = [event for event in events if isinstance(event, StatementFinished)][0]
+
+    result = _result(finished)
+    assert len(result.rows) == 2
+    assert result.truncated is True
+
+
+async def test_a_cell_larger_than_one_cell_may_be_is_a_publication_failure(
+    query: FileQuery,
+) -> None:
+    limits = LIMITS.model_copy(update={"max_cell_bytes": 4})
+    request = QueryRequest(
+        text="SELECT repeat('x', 100) AS wide", mode="read", limits=limits
+    )
+
+    events = [event async for event in query.open(request).events()]
+    finished = [event for event in events if isinstance(event, StatementFinished)][0]
+
+    # The statement ran; publishing what it produced is what failed (D64).
+    assert finished.status == "succeeded"
+    assert finished.result is None
+    assert finished.diagnostic is not None
+    assert finished.diagnostic.code == "result_too_large"
+
+
+# --- stopping ----------------------------------------------------------------
+
+
+# A statement with no end in sight, written without a table function so the
+# parse admits it: counting twenty million rows of a recursive CTE takes well
+# over half a minute, and every test below stops it long before that.
+ENDLESS = (
+    "WITH RECURSIVE r(n) AS ("
+    "  SELECT 1 UNION ALL SELECT n + 1 FROM r WHERE n < 20000000"
+    ") SELECT count(*) FROM r"
+)
+
+
+async def test_a_statement_that_runs_too_long_is_timed_out(query: FileQuery) -> None:
+    limits = LIMITS.model_copy(update={"statement_timeout_seconds": 1})
+    request = QueryRequest(text=ENDLESS, mode="read", limits=limits)
+    began = time.monotonic()
+
+    events = [event async for event in query.open(request).events()]
+
+    finished = [event for event in events if isinstance(event, StatementFinished)][0]
+    assert finished.status == "timed_out"
+    assert finished.diagnostic is not None
+    assert finished.diagnostic.category == "timeout"
+    assert time.monotonic() - began < 20
+
+
+async def test_cancelling_stops_a_statement_that_is_running(
+    query: FileQuery,
+) -> None:
+    """The interrupt reaches the thread; a cancelled task never would."""
+    execution: FileExecution = query.open(_request(ENDLESS))
+    finished: list[StatementFinished] = []
+
+    async def read() -> None:
+        async for event in execution.events():
+            if isinstance(event, StatementFinished):
+                finished.append(event)
+
+    began = time.monotonic()
+    async with anyio.create_task_group() as group:
+        group.start_soon(read)
+        await anyio.sleep(0.5)
+        await execution.cancel()
+
+    assert [event.status for event in finished] == ["cancelled"]
+    assert time.monotonic() - began < 20
+
+
+async def test_cancelling_a_run_that_has_not_opened_yet_is_harmless(
+    query: FileQuery,
+) -> None:
+    execution: FileExecution = query.open(_request("SELECT 1"))
+
+    await execution.cancel()
+
+    events = [event async for event in execution.events()]
+    finished = [event for event in events if isinstance(event, StatementFinished)][0]
+    assert finished.status == "cancelled"
+
+
+# --- what the editor is told -------------------------------------------------
+
+
+async def test_the_relations_offered_are_the_files_sql_can_read(
+    query: FileQuery,
+) -> None:
+    metadata = await query.metadata(QueryMetadataRequest())
+
+    names = {relation.name for relation in metadata.relations}
+    assert names == {
+        "sales.csv",
+        "tabs.tsv",
+        "people.json",
+        "events.jsonl",
+        "reports/q1.csv",
+    }
+    assert metadata.schemas == []
+    assert metadata.complete is True
+
+
+async def test_the_columns_of_a_named_relation_are_the_engine_s(
+    query: FileQuery,
+) -> None:
+    metadata = await query.metadata(
+        QueryMetadataRequest(relations=["sales.csv", "notes.txt"])
+    )
+
+    assert [(column.name, column.type_sql) for column in metadata.columns["sales.csv"]] == [
+        ("id", "BIGINT"),
+        ("amount", "DOUBLE"),
+        ("region", "VARCHAR"),
+    ]
+    assert "notes.txt" not in metadata.columns
+
+
+async def test_the_source_writes_the_statement_for_one_of_its_nodes(
+    query: FileQuery,
+) -> None:
+    generated = await query.generate(GenerateQueryRequest(node_id="reports/q1.csv"))
+
+    assert generated.text == 'SELECT *\nFROM "reports/q1.csv"\nLIMIT 100'
+
+
+async def test_a_name_with_a_quote_in_it_is_quoted(query: FileQuery) -> None:
+    generated = await query.generate(
+        GenerateQueryRequest(node_id='we"ird.csv', kind="name")
+    )
+
+    assert generated.text == '"we""ird.csv"'
+
+
+async def test_the_columns_of_a_node_are_written_as_a_list(query: FileQuery) -> None:
+    generated = await query.generate(
+        GenerateQueryRequest(node_id="sales.csv", kind="columns")
+    )
+
+    assert generated.text == '"id", "amount", "region"'
+
+
+# --- explain -----------------------------------------------------------------
+
+
+async def test_a_statement_is_planned_without_being_run(query: FileQuery) -> None:
+    plan = await query.explain(
+        ExplainRequest(text='SELECT region, count(*) FROM "sales.csv" GROUP BY region')
+    )
+
+    assert plan.plan.kind != ""
+    assert plan.raw != ""
+    assert _walked(plan.plan) > 1
+
+
+def _walked(node: object) -> int:
+    children = getattr(node, "children", [])
+    return 1 + sum(_walked(child) for child in children)
+
+
+async def test_explain_refuses_what_run_refuses(query: FileQuery) -> None:
+    with pytest.raises(ValueError, match="table function"):
+        await query.explain(ExplainRequest(text="SELECT * FROM read_csv('x.csv')"))

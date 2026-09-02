@@ -25,12 +25,24 @@ from app.adapters.file.catalog import FileCatalog
 from app.adapters.file.content import FileContent
 from app.adapters.file.fetch import FileFetch
 from app.adapters.file.options import FileOptions
+from app.adapters.file.query import FileExecution, FileQuery
 from app.adapters.file.relation import FileRelations
 from app.adapters.file.search import FileSearch
 from app.adapters.file.session import FileSession
 from app.adapters.file.summary import FileSummaries
 from app.adapters.file.update import FileTableChanges
 from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.query import (
+    ExplainRequest,
+    ExplainResult,
+    GeneratedQuery,
+    GenerateQueryRequest,
+    PreparedScript,
+    QueryMetadata,
+    QueryMetadataRequest,
+    QueryProfile,
+    QueryRequest,
+)
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
 from app.adapters.search import NodeSearchRequest, NodeSearchResult
@@ -67,6 +79,7 @@ class FileAdapter:
         self._table_changes = FileTableChanges(self._session)
         self._summaries = FileSummaries(self._session)
         self._search = FileSearch(self._session)
+        self._query = FileQuery(self._session)
 
     @property
     def root(self) -> Path:
@@ -110,6 +123,24 @@ class FileAdapter:
 
     async def rename_column(self, request: RenameColumnRequest) -> ColumnChangeResult:
         return await self._table_changes.rename_column(request)
+
+    def query_profile(self) -> QueryProfile:
+        return self._query.profile()
+
+    def prepare_query(self, text: str) -> PreparedScript:
+        return self._query.prepare(text)
+
+    def open_query(self, request: QueryRequest) -> FileExecution:
+        return self._query.open(request)
+
+    async def query_metadata(self, request: QueryMetadataRequest) -> QueryMetadata:
+        return await self._query.metadata(request)
+
+    async def generate_query(self, request: GenerateQueryRequest) -> GeneratedQuery:
+        return await self._query.generate(request)
+
+    async def explain_query(self, request: ExplainRequest) -> ExplainResult:
+        return await self._query.explain(request)
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relations.relation_model(node_id)

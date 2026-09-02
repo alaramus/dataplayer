@@ -1,4 +1,4 @@
-import type { PreparedScript, QueryMetadata } from "@/client"
+import type { PreparedScript, QueryMetadata, QueryProfile } from "@/client"
 
 /**
  * What the editor offers, and what it dares say is wrong.
@@ -18,9 +18,22 @@ export interface Suggestion {
   kind: "schema" | "relation" | "column" | "parameter"
 }
 
-/** The relation a bare name would mean, for the schemas in context. */
+/**
+ * The relation a bare name would mean, for the schemas in context.
+ *
+ * A source with no schemas answers with an empty one — the file source names
+ * its relations by node id and has no schemas at all (D77) — and a name with
+ * nothing in front of it is the name itself, not a leading dot.
+ */
 function qualified(schema: string, name: string): string {
-  return `${schema}.${name}`
+  return schema === "" ? name : `${schema}.${name}`
+}
+
+/** How this source spells a named parameter, taken from what it said. */
+export function parameterPrefix(
+  syntax: QueryProfile["parameter_syntax"] | undefined
+): string {
+  return syntax === "named_dollar" ? "$" : ":"
 }
 
 /**
@@ -33,7 +46,8 @@ function qualified(schema: string, name: string): string {
  */
 export function suggestions(
   metadata: QueryMetadata | undefined,
-  script: PreparedScript | null
+  script: PreparedScript | null,
+  prefix = ":"
 ): Suggestion[] {
   const found: Suggestion[] = []
   const seenBare = new Map<string, number>()
@@ -49,7 +63,7 @@ export function suggestions(
       detail: relation.kind.replace("_", " "),
       kind: "relation",
     })
-    if (seenBare.get(relation.name) === 1) {
+    if (seenBare.get(relation.name) === 1 && relation.schema_name !== "") {
       found.push({
         label: relation.name,
         detail: `${relation.kind.replace("_", " ")} in ${relation.schema_name}`,
@@ -69,7 +83,11 @@ export function suggestions(
     found.push({ label: name, detail, kind: "column" })
   }
   for (const parameter of script?.parameters ?? []) {
-    found.push({ label: `:${parameter}`, detail: "parameter", kind: "parameter" })
+    found.push({
+      label: `${prefix}${parameter}`,
+      detail: "parameter",
+      kind: "parameter",
+    })
   }
   return found
 }

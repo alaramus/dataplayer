@@ -7,20 +7,18 @@ the groups before the offset are never touched and one enormous group is not
 held whole.
 """
 
-import json
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 import pyarrow.parquet as pq
-import pyarrow.types as types
 
-from app.adapters.cells import encode_cell
 from app.adapters.dataset import ParquetDataset
 from app.adapters.fetch import FetchColumn
+from app.adapters.file.arrow import column_type, encoder
 from app.adapters.file.readers import Page
-from app.adapters.relation import Column, ColumnType, TypeCategory
+from app.adapters.relation import Column
 
 # The same ceiling the workbook reader has, for the same reason: a page of a
 # thousand rows across an unbounded number of columns is bounded by nothing.
@@ -62,7 +60,7 @@ def _described(
         Column(
             position=position,
             name=field.name,
-            type=_column_type(field.type),
+            type=column_type(field.type),
             nullable=bool(field.nullable),
         )
         for position, field in enumerate(schema, start=1)
@@ -106,7 +104,7 @@ def _read_rows(
     if start >= group_count or limit == 0:
         return []
 
-    encoders = [_encoder(field.type) for field in schema]
+    encoders = [encoder(field.type) for field in schema]
     if not encoders:
         return []
 
@@ -152,7 +150,7 @@ def _rows_of(batch: Any, encoders: list[Callable[[Any], str | None]]) -> list[li
 def _fetch_columns(schema: Any) -> list[FetchColumn]:
     _guard_width(schema)
     return [
-        FetchColumn(name=field.name, type=_column_type(field.type), nullable=bool(field.nullable))
+        FetchColumn(name=field.name, type=column_type(field.type), nullable=bool(field.nullable))
         for field in schema
     ]
 
@@ -163,75 +161,6 @@ def _guard_width(schema: Any) -> None:
             f"This file has more than {MAX_COLUMNS} columns, "
             "which is more than one page may carry"
         )
-
-
-def _column_type(arrow_type: Any) -> ColumnType:
-    """The file's own spelling of a type, and what its values mean."""
-    return ColumnType(sql=str(arrow_type), category=_category(arrow_type))
-
-
-def _category(arrow_type: Any) -> TypeCategory:
-    if types.is_boolean(arrow_type):
-        return "boolean"
-    if (
-        types.is_integer(arrow_type)
-        or types.is_floating(arrow_type)
-        or types.is_decimal(arrow_type)
-    ):
-        return "number"
-    if types.is_temporal(arrow_type):
-        return "datetime"
-    if types.is_string(arrow_type) or types.is_large_string(arrow_type):
-        return "string"
-    if (
-        types.is_binary(arrow_type)
-        or types.is_large_binary(arrow_type)
-        or types.is_fixed_size_binary(arrow_type)
-    ):
-        return "binary"
-    if _is_nested(arrow_type):
-        return "json"
-    if types.is_dictionary(arrow_type):
-        # A dictionary encodes how the column is stored, not what it holds.
-        return _category(arrow_type.value_type)
-    return "other"
-
-
-def _is_nested(arrow_type: Any) -> bool:
-    return bool(
-        types.is_list(arrow_type)
-        or types.is_large_list(arrow_type)
-        or types.is_fixed_size_list(arrow_type)
-        or types.is_struct(arrow_type)
-        or types.is_map(arrow_type)
-    )
-
-
-def _encoder(arrow_type: Any) -> Callable[[Any], str | None]:
-    """How one column's values become text, decided once for the column."""
-    column_type = _column_type(arrow_type)
-    if column_type.category == "json":
-        # A nested value arrives as Python containers. It is serialised here
-        # and compacted by the shared renderer, so JSON has one spelling
-        # wherever it crosses the boundary (D23).
-        def encode_nested(value: Any) -> str | None:
-            if value is None:
-                return None
-            return encode_cell(json.dumps(value, separators=(",", ":"), default=_plain), column_type)
-
-        return encode_nested
-
-    def encode(value: Any) -> str | None:
-        return encode_cell(value, column_type)
-
-    return encode
-
-
-def _plain(value: Any) -> str:
-    """A value inside a nested one that JSON has no spelling for."""
-    if isinstance(value, bytes | bytearray):
-        return f"0x{bytes(value).hex().upper()}"
-    return str(value)
 
 
 def _compression(metadata: Any) -> list[str]:

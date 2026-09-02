@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest"
 
 import type { PreparedScript, QueryMetadata } from "@/client"
 
-import { marks, metadataStatus, relationsInUse, suggestions } from "./intelligence"
+import {
+  marks,
+  metadataStatus,
+  parameterPrefix,
+  relationsInUse,
+  suggestions,
+} from "./intelligence"
 
 const METADATA: QueryMetadata = {
   schemas: ["public", "sales"],
@@ -153,5 +159,60 @@ describe("what the console says about how much it knows", () => {
 
   it("says nothing when it knows everything it needs to", () => {
     expect(metadataStatus(METADATA)).toBe("")
+  })
+})
+
+describe("a source with no schemas", () => {
+  // The file source names its relations by node id and has no schemas at all
+  // (D77). A name with nothing in front of it must not grow a leading dot.
+  const FILES: QueryMetadata = {
+    schemas: [],
+    relations: [
+      { schema_name: "", name: "sales.csv", kind: "table" },
+      { schema_name: "", name: "reports/q1.csv", kind: "table" },
+    ],
+    columns: {},
+    complete: true,
+  }
+
+  it("offers each relation by the name the source gave it", () => {
+    const offered = suggestions(FILES, null)
+
+    expect(offered.map((item) => item.label)).toEqual([
+      "sales.csv",
+      "reports/q1.csv",
+    ])
+  })
+
+  it("marks nothing, because it knows of no schema to be sure about", () => {
+    expect(marks(script({ kind: "read", targets: ["sales.csv"] }), FILES)).toEqual([])
+  })
+})
+
+describe("the spelling of a parameter", () => {
+  it("is the colon PostgreSQL takes", () => {
+    expect(parameterPrefix("named_colon")).toBe(":")
+  })
+
+  it("is the dollar DuckDB takes", () => {
+    expect(parameterPrefix("named_dollar")).toBe("$")
+  })
+
+  it("is a colon while the source has not answered", () => {
+    expect(parameterPrefix(undefined)).toBe(":")
+  })
+
+  it("is what the completion offers", () => {
+    const offered = suggestions(
+      METADATA,
+      script({ kind: "read", parameters: ["since"] }),
+      "$"
+    )
+
+    expect(offered).toContainEqual({
+      label: "$since",
+      detail: "parameter",
+      kind: "parameter",
+    })
   })
 })

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
 import { catalogRow, openNode, pickSchema } from "./utils/catalog"
-import { createPostgresConnector } from "./utils/connectors"
+import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import {
   catalogTab,
@@ -537,6 +537,53 @@ test("what the editor will not change is refused before anything runs", async ({
   await expect(
     page.locator(".q-notification", { hasText: "Permissions" })
   ).toBeVisible()
+
+  await deleteConnector(page, name)
+})
+
+
+test("runs SQL over the files of a personal directory", async ({ page }) => {
+  // The samples come from `docker compose exec backend python -m app.seed_storage`.
+  // A second source running SQL is the whole point of D77: the console, the
+  // documents and the results were built once and know no adapter name.
+  const name = `e2e-file-sql-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+
+  // --- a file is a relation, named the way the catalog names it ------------
+  await typeQuery(page, 'select count(*) as rows from "sample.csv"')
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("run-statement-0")).toContainText("succeeded")
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("250")
+
+  // --- two of them, one inside a folder, in one statement ------------------
+  await typeQuery(
+    page,
+    'select q.quarter, (select count(*) from "sample.csv") as cities' +
+      ' from "reports/q3.csv" q'
+  )
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("grid-cell-0-0")).toHaveText("Q3")
+  await expect(page.getByTestId("grid-cell-0-1")).toHaveText("250")
+
+  // --- the source writes the statement, and there is no writing mode -------
+  await expect(page.getByTestId("query-mode")).toHaveCount(0)
+
+  // --- what it will not do, it says before anything runs -------------------
+  await typeQuery(page, 'delete from "sample.csv"')
+  await page.getByTestId("query-run").click()
+  await expect(
+    page.locator(".q-notification", { hasText: "does not change them through SQL" })
+  ).toBeVisible()
+
+  // --- and a name that leaves the directory is refused by the one rule -----
+  // The whole run is refused rather than one statement, so the answer belongs
+  // to the run and is shown above the statements.
+  await typeQuery(page, 'select * from "../../../etc/passwd"')
+  await page.getByTestId("query-run").click()
+  await expect(page.getByTestId("run-refusal")).toContainText("no file called")
 
   await deleteConnector(page, name)
 })

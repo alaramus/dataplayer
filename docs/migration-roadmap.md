@@ -64,11 +64,11 @@ within a closed vocabulary, structure.
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 3.5 | The rest of the old application's daily operations | Medium | Named one by one from use, and each is small enough to land on its own |
-| 4 | Managed Docker services in connector creation | Very large | Adds a safe service lifecycle before service-backed adapters multiply |
+| 3.5 | The rest of the old application's daily operations | Small | Named one by one from use, and each is small enough to land on its own |
+| 4 | Server-owned jobs: Docker services, backup and restore | Very large | The job model half a dozen specs have deferred to, and a safe service lifecycle before service-backed adapters multiply |
 | 5 | Optional Redis infrastructure | Medium | Needed only when multiple backend processes must share cache or coordination state |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
-| 7 | Charts and dashboards, second slice | Large | Whole-source aggregation and saved layouts require contracts absent from the bounded chart |
+| 7 | Charts and dashboards, second slice | Large | Whole-source aggregation, saved layouts and a history to draw over require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
 
 ## Phase 3.5 — the rest of the old application's daily operations
@@ -77,34 +77,32 @@ Not a phase in the sense the others are: a list of separate operations, named
 from use rather than derived from a contract, each landing on its own. What has
 already landed is in [the spec index](superpowers/specs/README.md) and in git.
 
+Two operations that were on this list have moved rather than landed: backup
+and restore is now in phase 4, and a history of metrics in phase 7. Both are
+daily operations of the old application, which is why they were written down
+here, and neither is small enough to land on its own — which is the one thing
+everything left in this list has in common. The specs that deferred them had
+already named those phases, so the move only puts the roadmap back in
+agreement with them.
+
 Sequence, in no particular order — each is independent:
 
-- [ ] **SQL over tabular files.** The file source already reads CSV, Parquet
-  and worksheets as relations; running a statement over them is a query engine
-  it does not have. DuckDB is the obvious candidate and is a dependency,
-  a sandbox and a second dialect all at once — decide that before writing any
-  of it, and see [querying.md](architecture/querying.md) for what a source
-  that runs queries has to answer.
 - [ ] **A database user.** `CREATE ROLE` behind a form, at `own` level: making
   a role is not what "may change structure" was granted for. The password
   cannot be a bound parameter — DDL takes none — so it is a `sql.Literal`, and
   the refusal path must never pass on driver text that carries it.
-- [ ] **Backup and restore.** `pg_dump` and `pg_restore` are programs, not
-  statements: the container has neither today, the versions must match the
-  server, and a restore is destructive in a way nothing else here is. Model it
-  as an owned asynchronous job with durable state, the way phase 4 models a
-  service, rather than as an action that waits.
-- [ ] **A history of metrics, and charts over it.** The old application's
-  `include_story` recorded readings so they could be drawn later. This is the
-  largest of the six and the only one that needs a decision before design: what
-  is recorded, where it is kept, who prunes it, and whether it is a source of
-  its own or a table of the application's. It belongs beside phase 7 rather
-  than here if the answer is "a source of its own".
 
-## Phase 4 — managed Docker services in connector creation
+## Phase 4 — server-owned jobs: Docker services, backup and restore
 
-This is not "run a compose string from the form". It is a server-owned service
-lifecycle whose successful output may become connector credentials.
+What this phase actually builds is the owned asynchronous job — durable state,
+realtime progress, cancellation — which half a dozen earlier specs have already
+deferred work to. Managed Docker services are its first user and the harder
+one, because a job that produces connector credentials has to be safe as well
+as long; backup and restore is the second, and adds nothing to the model.
+
+The service half is not "run a compose string from the form". It is a
+server-owned service lifecycle whose successful output may become connector
+credentials.
 
 Old sources to inspect:
 
@@ -130,10 +128,18 @@ Sequence:
 - [ ] Threat-model socket access, project/container naming, resource limits,
   network exposure and concurrent users before enabling this outside local
   development.
+- [ ] **Backup and restore**, once the job model above holds. `pg_dump` and
+  `pg_restore` are programs, not statements: the container has neither today,
+  the versions must match the server, and a restore is destructive in a way
+  nothing else in this application is. It is a job rather than an action that
+  waits, and it is here rather than in a PostgreSQL round because building a
+  second job model inside an adapter is how the old application ended up with
+  several.
 
 Exit condition: a user can request an approved service from the connector
 window, watch it become ready and receive a normal encrypted connector without
-the browser constructing Docker commands.
+the browser constructing Docker commands; and a backup runs, reports and can be
+cancelled without anything waiting on an HTTP request.
 
 ## Phase 5 — optional Redis infrastructure
 
@@ -165,8 +171,11 @@ of a new contract family, settle the capability, then add siblings cheaply.
 
 Recommended order after Phase 5:
 
-1. DuckDB or SQLite for a second local/relational implementation and file-query
-   synergy.
+1. DuckDB or SQLite as a source of its own — somebody's `.duckdb` or `.sqlite`
+   file, with a catalog, a grid and structure. The engine itself arrived with
+   D77 as the file source's, and a database file is a different thing: it has
+   tables that persist, and this one runs read-only over files and is thrown
+   away.
 2. MySQL for a second networked SQL pool and dialect.
 3. Redis/Valkey as a user data source, distinct from infrastructure Redis.
 4. S3/MinIO for an object-store catalog and streaming file transfer.
@@ -204,6 +213,14 @@ Sequence:
   share a screen.
 - [ ] Add realtime metric widgets only for sources with a real subscription
   capability. Polling and streaming remain different contracts.
+- [ ] **A history of metrics, and charts over it.** The old application's
+  `include_story` recorded readings so they could be drawn later. It is here
+  because it is a chart over time before it is anything else, and it is the
+  one item in this phase needing a decision before design: what is recorded,
+  where it is kept, who prunes it, and whether it is a source of its own or a
+  table of the application's. If the answer is "a source of its own", it is a
+  phase 6 adapter with a chart on top rather than a chart with storage behind
+  it.
 - [ ] AI suggestions may return only the closed chart specification and belong
   after the disclosure and tool rules in Phase 8.
 

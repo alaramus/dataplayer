@@ -11,10 +11,19 @@ import { AppButton, AppInput, AppSelect } from "@/shared/ui"
  * confirmation the name of the connection is typed — here as well as on the
  * server, which is where it is actually checked. Nothing about the choice is
  * remembered: a reload opens read-only again.
+ *
+ * Which modes there are to choose between is the source's answer, not this
+ * component's: a source that only reads — the file source runs SQL over files
+ * and changes none of them (D77) — offers one mode, and one option is not a
+ * choice, so nothing is drawn at all.
  */
 
+type Mode = "read" | "auto_commit" | "manual"
+
 const props = defineProps<{
-  mode: "read" | "auto_commit" | "manual"
+  mode: Mode
+  /** What the source said it accepts, in the profile it published. */
+  modes: Mode[]
   unlock: UnlockState | undefined
   connectorLabel: string | null
   busy: boolean
@@ -34,11 +43,16 @@ const forbidden = computed(() => policy.value === "read_only" || !writable.value
 const writable = computed(
   () => props.unlock !== undefined && props.unlock.access !== "read"
 )
-const options = computed(() => [
-  { label: "Read only", value: "read" },
-  { label: "Auto-commit", value: "auto_commit" },
-  { label: "Transaction", value: "manual" },
-])
+const LABELS: Record<Mode, string> = {
+  read: "Read only",
+  auto_commit: "Auto-commit",
+  manual: "Transaction",
+}
+const options = computed(() =>
+  props.modes.map((value) => ({ label: LABELS[value], value }))
+)
+/** Whether there is anything here to decide. */
+const choosable = computed(() => props.modes.length > 1)
 
 // Choosing a writing mode while writes are locked is what raises the question.
 watch(
@@ -56,7 +70,10 @@ function choose(value: unknown) {
 </script>
 
 <template>
-  <div class="write-mode">
+  <div
+    v-if="choosable"
+    class="write-mode"
+  >
     <AppSelect
       :model-value="mode"
       :options="options"

@@ -39,6 +39,7 @@ import RunOutcome from "@/features/queries/RunOutcome.vue"
 import {
   marks,
   metadataStatus,
+  parameterPrefix,
   relationsInUse,
   schemasInUse,
   suggestions,
@@ -171,7 +172,13 @@ const metadata = useQueryMetadata(connectorId, () => ({
   ].slice(0, 32),
   relations: relationsInUse(script.value).slice(0, 50),
 }))
-const offered = computed(() => suggestions(metadata.data.value, script.value))
+const offered = computed(() =>
+  suggestions(
+    metadata.data.value,
+    script.value,
+    parameterPrefix(profile.data.value?.parameter_syntax)
+  )
+)
 const editorMarks = computed(() => marks(script.value, metadata.data.value))
 const knowledge = computed(() =>
   connectorId.value === null ? "" : metadataStatus(metadata.data.value)
@@ -966,6 +973,7 @@ onBeforeUnmount(() => {
     <WriteMode
       v-if="profile.data.value !== undefined"
       :mode="mode"
+      :modes="profile.data.value.statement_modes"
       :unlock="unlockState.data.value"
       :connector-label="connectorLabel"
       :busy="openWrites.isPending.value"

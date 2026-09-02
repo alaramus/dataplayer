@@ -8,10 +8,12 @@ own names (D65).
 import uuid
 from typing import Any
 
+import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
+from tests.queries.conftest import silent_connector
 from tests.utils.database import working_postgres_options
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
@@ -172,11 +174,12 @@ async def test_metadata_is_kept_for_a_while_and_thrown_away_by_a_change(
     assert after.headers["x-data-cache"] == "miss"
 
 
+@pytest.mark.usefixtures("silent_source")
 async def test_a_source_that_cannot_describe_itself_says_so(
     client: AsyncClient, db: AsyncSession
 ) -> None:
     headers = await _headers(client, db)
-    connector_id = await _file(client, headers)
+    connector_id = await silent_connector(client, headers)
 
     metadata = await client.post(
         f"{BASE}/connectors/{connector_id}/metadata", headers=headers, json={}

@@ -60,9 +60,12 @@ class QueryProfile(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     dialect: str
-    # `:name`, and no second spelling. A parameter is a binding on the extended
-    # query path, never text put into the statement.
-    parameter_syntax: Literal["named_colon"]
+    # How this dialect spells a named parameter, and there is one spelling per
+    # dialect: PostgreSQL takes `:name` and DuckDB takes `$name` and rejects a
+    # colon outright. A parameter is a binding either way, never text put into
+    # the statement, and the browser reads the spelling from here rather than
+    # assuming one (D77).
+    parameter_syntax: Literal["named_colon", "named_dollar"]
     statement_modes: list[ExecutionMode]
     supports_cancel: bool
     # The five below are filled in from what the adapter actually implements,

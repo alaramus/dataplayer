@@ -3709,7 +3709,7 @@ export type QueryProfile = {
   /**
    * Parameter Syntax
    */
-  parameter_syntax: "named_colon"
+  parameter_syntax: "named_colon" | "named_dollar"
   /**
    * Statement Modes
    */

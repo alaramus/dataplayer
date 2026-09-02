@@ -66,11 +66,13 @@ forbidden_modules =
     psycopg_pool
     sqlglot
 
-# The same rule as the psycopg one, for the two libraries that read a columnar
-# file and a workbook: a format's library belongs to the module that owns the
-# format, so an upgrade has one place to change.
+# The same rule as the psycopg one, for the three libraries the file source
+# reads with: a format's library belongs to the module that owns the format, so
+# an upgrade has one place to change. duckdb is here for a second reason as
+# well — it is a SQL engine, and a query module tempted to parse or run SQL
+# itself fails this check instead.
 [importlinter:contract:file-format-sdks-are-contained]
-name = pyarrow and openpyxl are imported only by the file adapter
+name = pyarrow, openpyxl and duckdb are imported only by the file adapter
 type = forbidden
 source_modules =
     app.core
@@ -95,3 +97,4 @@ source_modules =
 forbidden_modules =
     pyarrow
     openpyxl
+    duckdb
