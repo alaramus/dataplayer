@@ -305,6 +305,50 @@ Known deviations:
 
 Spec: [The data exploration grid](../superpowers/specs/2026-08-27-data-grid-design.md)
 
+## D67. A grid re-reads itself on a timer it wears, and a pause is a rule
+
+The tab's reload button belongs to the panel engine, which knows nothing about
+the application (D12). An interval, a persisted choice per relation and a list
+of reasons not to fetch are knowledge about relations, so they live in
+`features/grid`: `autoRefresh.ts` holds the offered intervals, the storage and
+the pause rule, `AutoRefreshButton.vue` is the control, and `DataGrid.vue`
+owns the timer because it owns the fetch.
+
+The interval — 1 s, 5 s, 10 s, 30 s, 1 min, 5 min, or off — is written on the
+button rather than hidden in its tooltip. A grid that refetches by itself and
+looks exactly like one that does not is a grid whose rows move for no visible
+reason.
+
+Consequences:
+
+- **A tick is "fetch unless something says not to".** One list says not to: a
+  cell is open in the editor, a row is being written, the tab is not on screen,
+  or a read is already running. Both the timer and the tooltip read it, so what
+  the grid does and what it says it is doing cannot drift.
+- **A held tick is skipped, not queued.** The next one is at most an interval
+  away, while a queue of them would all land together when the editor closes.
+- **Not on screen covers both ways of being away.** A panel kept alive behind
+  another tab and a hidden browser window are the same thing to the source, and
+  a kept-alive grid would otherwise poll for ever with nobody looking. Coming
+  back reads once at that moment.
+- **The interval is remembered per connection and node**, beside the columns
+  and the query already stored that way. Off removes the entry rather than
+  storing a null.
+- **It re-reads through the grid's explicit refresh**, so the read cache is
+  bypassed exactly as the reload button bypasses it (D31).
+
+Known deviations:
+
+- **Nothing says how long ago the page was read.** The button says the interval,
+  not the age of what is on screen.
+- **A refusal stops nothing.** A relation that has been dropped goes on being
+  asked for every interval until the tab is closed or the interval turned off.
+- **The shortest interval is one second, and no source is asked whether it can
+  bear that.** A relation that takes four seconds to read simply never finishes
+  before the next tick is skipped.
+
+Spec: [A grid that re-reads itself](../superpowers/specs/2026-09-02-auto-refresh-design.md)
+
 ## D28. A download is a fresh copy of the bounded visible page, kept in personal storage
 
 Download repeats the grid's current `FetchRequest`, including its bounded

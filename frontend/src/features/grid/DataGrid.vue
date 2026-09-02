@@ -834,8 +834,96 @@ watch(
     queryAwaitingPersistence.value = null
     persistedQueryState.value = reset
     queryState.value = reset
+    // The interval belongs to the relation, so a tab pointed at another one
+    // takes that relation's answer rather than carrying this one over.
+    refreshSeconds.value = loadRefreshSeconds(props.connectorId, props.nodeId)
+    startTicking()
   }
 )
+
+/**
+ * How often this grid re-reads itself, and what stops it.
+ *
+ * The timer is here rather than in the button because this is what owns the
+ * fetch, and it runs whenever an interval is chosen — a tick that must not
+ * fetch is skipped rather than queued. Two things make it skip: the tab is
+ * not on screen, and the user is in the middle of something. Both matter.
+ * A tab kept alive behind another one would otherwise poll the source
+ * forever with nobody looking, and a poll landing while a cell is being
+ * edited would throw away what was typed.
+ */
+const refreshSeconds = ref<RefreshSeconds | null>(
+  loadRefreshSeconds(props.connectorId, props.nodeId)
+)
+/** Whether this panel is the one its section is showing. */
+const panelShown = ref(true)
+/** Whether the browser window is showing this document at all. */
+const windowShown = ref(true)
+const onScreen = computed(() => panelShown.value && windowShown.value)
+
+const refreshHeld = computed(() =>
+  refreshHeldBy({
+    fetching: rowsQuery.isFetching.value,
+    editing: editor.value !== null,
+    inserting: insertOpen.value,
+    away: !onScreen.value,
+  })
+)
+
+let ticking: ReturnType<typeof setInterval> | undefined
+
+function stopTicking() {
+  if (ticking === undefined) return
+  clearInterval(ticking)
+  ticking = undefined
+}
+
+function startTicking() {
+  stopTicking()
+  const seconds = refreshSeconds.value
+  if (seconds === null) return
+  ticking = setInterval(() => {
+    if (refreshHeld.value !== null) return
+    void refreshRows()
+  }, seconds * 1000)
+}
+
+function chooseRefresh(seconds: RefreshSeconds | null) {
+  refreshSeconds.value = seconds
+  saveRefreshSeconds(props.connectorId, props.nodeId, seconds)
+  startTicking()
+  // Turning it on reads at once: waiting five seconds for the first answer
+  // reads as a button that did nothing.
+  if (seconds !== null && refreshHeld.value === null) void refreshRows()
+}
+
+function noteWindow() {
+  windowShown.value = document.visibilityState === "visible"
+}
+
+// Coming back to a tab that has been refreshing shows what is there now,
+// rather than what was there when it was left. Covers both ways of being
+// away, which is why it watches the two together.
+watch(onScreen, (shown) => {
+  if (!shown || refreshSeconds.value === null || refreshHeld.value !== null) return
+  void refreshRows()
+})
+
+onMounted(() => {
+  noteWindow()
+  document.addEventListener("visibilitychange", noteWindow)
+  startTicking()
+})
+onActivated(() => {
+  panelShown.value = true
+})
+onDeactivated(() => {
+  panelShown.value = false
+})
+onBeforeUnmount(() => {
+  document.removeEventListener("visibilitychange", noteWindow)
+  stopTicking()
+})
 
 defineExpose({
   reload: async () => {
@@ -880,6 +968,12 @@ defineExpose({
         requestPaste,
       }"
     >
+      <AutoRefreshButton
+        v-if="result !== undefined"
+        :seconds="refreshSeconds"
+        :held="refreshHeld"
+        @update:seconds="chooseRefresh"
+      />
       <AppIconButton
         v-if="canInsert && importColumns.length > 0"
         icon="input"

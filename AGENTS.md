@@ -125,6 +125,7 @@ files. IDs are stable because specs and commits refer to them.
 | D64 | [querying](docs/architecture/querying.md) |
 | D65 | [querying](docs/architecture/querying.md) |
 | D66 | [querying](docs/architecture/querying.md) |
+| D67 | [frontend](docs/architecture/frontend.md) |
 
 ## Working rules
 

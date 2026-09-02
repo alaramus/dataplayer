@@ -555,3 +555,44 @@ test("brings rows in from a table through another database connection", async ({
   await deleteConnector(page, target)
   await deleteConnector(page, source)
 })
+
+test("re-reads a relation on a timer, and stops when told to", async ({ page }) => {
+  const name = `e2e-grid-refresh-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "projects")
+  await expect(page.getByTestId("grid-page-range")).toContainText("Rows 1")
+
+  // Counted at the network, because that is the whole claim: the grid asks
+  // the source again without anybody pressing anything.
+  let reads = 0
+  page.on("request", (request) => {
+    if (request.url().includes("/fetch") && request.method() === "POST") reads += 1
+  })
+
+  const button = page.getByTestId("grid-auto-refresh")
+  await button.click()
+  await page.getByTestId("menu-item-s1").click()
+  await expect(button).toHaveAttribute("data-refresh", "1")
+  await expect(button).toContainText("1 s")
+  await expect.poll(() => reads, { timeout: 10_000 }).toBeGreaterThanOrEqual(3)
+
+  // The interval belongs to the relation, so it survives a reload.
+  await page.reload()
+  await expect(page.getByTestId("grid-auto-refresh")).toHaveAttribute("data-refresh", "1")
+
+  await page.getByTestId("grid-auto-refresh").click()
+  await page.getByTestId("menu-item-off").click()
+  await expect(page.getByTestId("grid-auto-refresh")).toHaveAttribute(
+    "data-refresh",
+    "off"
+  )
+  const stopped = reads
+  await page.waitForTimeout(2500)
+  expect(reads).toBe(stopped)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
