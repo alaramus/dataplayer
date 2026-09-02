@@ -18,6 +18,17 @@ export interface ActionCommand {
   takesManyFiles: boolean
   /** Whether the source can say what this would do before it is done. */
   previews: boolean
+  /**
+   * Whether a selection is done in one request rather than one per node.
+   *
+   * The difference is visible: repeated requests report a refusal per node and
+   * leave what did land landed, while one request either happens or does not.
+   * Which of the two an action is belongs to the action, so it is read off the
+   * answer rather than decided here.
+   */
+  takesSet: boolean
+  /** Whether that one request can be asked what it would do. */
+  previewsSet: boolean
   /** Whether the action returns one native browser download for all targets. */
   downloads: boolean
   /** Whether it changes selected nodes, their shown place, or the level itself. */
@@ -36,6 +47,8 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       takesFile: action.takes_file,
       takesManyFiles: action.takes_many_files,
       previews: action.previews,
+      takesSet: action.takes_set,
+      previewsSet: action.previews_set,
       downloads: action.downloads,
       actsOn: action.acts_on,
       fields: schema["x-ui-workflow"] === undefined ? schemaToFields(schema) : [],
@@ -147,6 +160,20 @@ export function toMenu(
       enabled,
     }
   })
+}
+
+/**
+ * The selection as a set, or nothing when it is not one.
+ *
+ * The root of a connector travels as null and has no id to put in a list, so
+ * a selection holding one is not a set. One function because two callers must
+ * agree: what is previewed as a set and what is sent as a set are the same
+ * selection, and a disagreement would show a person the consequences of a
+ * request that is never made.
+ */
+export function nodeSetOf(nodeIds: (string | null)[]): string[] | null {
+  const named = nodeIds.filter((id): id is string => id !== null)
+  return named.length === nodeIds.length && named.length > 0 ? named : null
 }
 
 /** One request the action could not be done by, and what the server said. */

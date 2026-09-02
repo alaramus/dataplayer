@@ -142,9 +142,11 @@ class Action[P: BaseModel](ABC):
     # defaulting to `write` so that an action which says nothing about itself
     # is not thereby free to anyone who can read.
     requires: ClassVar[Access] = "write"
-    # Whether one filled form may be applied to a set of nodes. Renaming five
-    # files to one name is not five renames, and nothing in the shape of an
-    # action says so — only the action itself knows.
+    # Whether one filled form may be applied to a set of nodes at all.
+    # Renaming five files to one name is not five renames, and nothing in the
+    # shape of an action says so — only the action itself knows. How a set is
+    # then carried out is a separate question, answered by `TakesNodeSet`:
+    # this only says a set is allowed.
     bulk: ClassVar[bool] = False
     # Whether one filled form may be carried by several files at once.
     # Declared beside bulk because it is the same sort of statement about a
@@ -213,6 +215,27 @@ class TakesFile(Protocol):
 
 
 @runtime_checkable
+class TakesNodeSet(Protocol):
+    """An action performed on a whole selection at once, in one request.
+
+    The other half of `bulk`, which only says a set is allowed. Repeating one
+    filled form per node is right while the nodes are independent: five files
+    deleted from a folder are five deletions, and a refusal of one says
+    nothing about the other four.
+
+    It is wrong when the set is the question. Three relations that depend on
+    each other are dropped by one statement and refused by three, in an order
+    the client happened to send them in — so an action whose answer is about
+    the whole selection receives the whole selection, and what it does with it
+    is one thing that either happens or does not.
+    """
+
+    async def perform_on_set(
+        self, node_ids: Sequence[str], raw: Mapping[str, Any]
+    ) -> ActionResult: ...
+
+
+@runtime_checkable
 class ProducesDownload(Protocol):
     """An action whose result is a download over its whole target set.
 
@@ -266,6 +289,21 @@ class Previews(Protocol):
 
     async def preview(
         self, node_id: str | None, raw: Mapping[str, Any]
+    ) -> ActionPreview: ...
+
+
+@runtime_checkable
+class PreviewsSet(Protocol):
+    """A set action that can be asked what it would do to the whole selection.
+
+    Separate from `Previews` because it answers a different question: not
+    "what would this do to that node" repeated, but one account of one thing.
+    An action may take a set and have nothing worth previewing about it, so
+    the two are declared apart, as `Previews` and `TakesParams` are.
+    """
+
+    async def preview_on_set(
+        self, node_ids: Sequence[str], raw: Mapping[str, Any]
     ) -> ActionPreview: ...
 
 

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import type { Page } from "@playwright/test"
 
 import {
   addFilter,
@@ -12,6 +13,19 @@ import {
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
+
+/** A small table in the schema being looked at, made through the source's own action. */
+async function loadCsv(page: Page, table: string) {
+  await catalogAction(page, "load_csv")
+  await page.getByTestId("load-file").setInputFiles({
+    name: `${table}.csv`,
+    mimeType: "text/csv",
+    buffer: Buffer.from("code,label\nEU,Europe\n"),
+  })
+  await page.getByTestId("field-name").fill(table)
+  await page.getByTestId("load-create").click()
+  await expect(page.getByTestId("catalog-list")).toContainText(table)
+}
 
 test("creates, fills, renames and removes a folder in personal storage", async ({
   page,
@@ -386,6 +400,39 @@ test("installs an extension from the report that lists them, and removes it", as
   await page.getByTestId("action-dialog").getByRole("textbox").first().fill("pg_trgm")
   await expect(page.getByTestId("action-preview")).toContainText("pg_trgm")
   await page.getByTestId("action-submit").click()
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+
+test("drops several relations in one request", async ({ page }) => {
+  const name = `e2e-drop-many-${Date.now()}`
+  // Named per run for the reason the CSV scenario names its table: the fixture
+  // schema is rebuilt on `docker compose up` and not between runs.
+  const first = `dropped_a_${Date.now()}`
+  const second = `dropped_b_${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await showOnlySchema(page, "demo_lab", "public")
+
+  await loadCsv(page, first)
+  await loadCsv(page, second)
+
+  // Both ticked: what a set admits is what all of it admits, and the source
+  // says Drop is one of those.
+  await catalogCheck(page, first).click()
+  await catalogCheck(page, second).click()
+  await catalogAction(page, "drop_relation")
+
+  // One account of the whole selection, because the source is asked about the
+  // set rather than about each of them in turn (D68).
+  await expect(page.getByTestId("action-preview")).toContainText("2 relations")
+  await page.getByTestId("action-submit").click()
+
+  await expect(catalogRow(page, first)).toHaveCount(0)
+  await expect(catalogRow(page, second)).toHaveCount(0)
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

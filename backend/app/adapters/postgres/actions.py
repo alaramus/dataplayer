@@ -1,6 +1,6 @@
 """Catalog actions owned by PostgreSQL."""
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from functools import partial
 from pathlib import PurePosixPath
 from typing import Any, ClassVar, Protocol
@@ -548,14 +548,21 @@ class LoadCsv(FileAction[LoadCsvParams]):
 # What a refused drop means, by SQLSTATE. The code is safe to look at and the
 # message beside it is not, so the wording is ours; the DETAIL of the first of
 # them is the list of what stands in the way, and that is passed on.
-DROP_REFUSALS = {
-    # dependent_objects_still_exist.
-    "2BP01": "Something else is built on this relation",
-    # lock_not_available: somebody is reading or writing it right now.
-    "55P03": "Something is using this relation; try again in a moment",
-    # insufficient_privilege.
-    "42501": "This connection may not drop that relation",
-}
+def drop_refusals(subject: str) -> dict[str, str]:
+    """The same three refusals, about whatever is being dropped.
+
+    Written per call rather than as one constant because the subject is a
+    relation when one is selected and a count when several are: "something
+    else is built on this relation" is the wrong sentence about five of them.
+    """
+    return {
+        # dependent_objects_still_exist.
+        "2BP01": f"Something else is built on {subject}",
+        # lock_not_available: somebody is reading or writing it right now.
+        "55P03": f"Something is using {subject}; try again in a moment",
+        # insufficient_privilege.
+        "42501": f"This connection may not drop {subject}",
+    }
 
 
 class DropRelationParams(BaseModel):
@@ -566,13 +573,28 @@ class DropRelationParams(BaseModel):
     )
 
 
+# What a relation is dropped by, and the order the commands are issued in.
+# A view is dropped before the table it reads, so that selecting both succeeds
+# without a cascade; the other order would refuse a set the user meant.
+DROP_COMMANDS: tuple[tuple[str, sql.SQL], ...] = (
+    ("view", sql.SQL("DROP VIEW")),
+    ("materialized view", sql.SQL("DROP MATERIALIZED VIEW")),
+    ("table", sql.SQL("DROP TABLE")),
+)
+
+
 class DropRelation(JsonAction[DropRelationParams]):
-    """Drop one relation, with or without what stands on it.
+    """Drop relations, with or without what stands on them.
 
     Previewable, and that is the point of it: what a cascade takes with it is
     written in `pg_depend`, and the only answer worth showing somebody about to
     destroy something is PostgreSQL's own. So the preview is the drop itself,
     rolled back, and what it lists cannot disagree with what happens.
+
+    A selection is dropped together rather than one relation at a time. Three
+    relations that depend on each other are dropped by one transaction and
+    refused by three separate requests, in whatever order the client happened
+    to send them in — and somebody who ticked all three meant the set.
     """
 
     name: ClassVar[str] = "drop_relation"
@@ -581,10 +603,7 @@ class DropRelation(JsonAction[DropRelationParams]):
     acts_on: ClassVar[ActsOn] = "node"
     destructive: ClassVar[bool] = True
     requires: ClassVar[Access] = "structure"
-    # One at a time, unlike deleting files: what a drop takes with it is the
-    # whole question here, and one list of consequences cannot be told apart
-    # into five relations' worth by whoever reads it.
-    bulk: ClassVar[bool] = False
+    bulk: ClassVar[bool] = True
     params_model = DropRelationParams
 
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
@@ -594,28 +613,57 @@ class DropRelation(JsonAction[DropRelationParams]):
     async def run(
         self, node_id: str | None, params: DropRelationParams
     ) -> ActionResult:
-        schema, node = await self._target(node_id)
-        await self._session.schema_change(
-            self._statement(schema, node, cascade=params.cascade),
-            refusals=DROP_REFUSALS,
-        )
-        return ActionResult(message=f"{node.name} dropped", reload_node_ids=[schema])
+        return await self._drop([node_id], params)
+
+    async def perform_on_set(
+        self, node_ids: Sequence[str], raw: Mapping[str, Any]
+    ) -> ActionResult:
+        return await self._drop(list(node_ids), self._validated(raw))
 
     async def preview(
         self, node_id: str | None, raw: Mapping[str, Any]
     ) -> ActionPreview:
+        return await self._rehearse([node_id], self._validated(raw))
+
+    async def preview_on_set(
+        self, node_ids: Sequence[str], raw: Mapping[str, Any]
+    ) -> ActionPreview:
+        return await self._rehearse(list(node_ids), self._validated(raw))
+
+    async def _drop(
+        self, node_ids: Sequence[str | None], params: DropRelationParams
+    ) -> ActionResult:
+        targets = await self._targets(node_ids)
+        statements = self._statements(targets, cascade=params.cascade)
+        subject = _subject(targets)
+        # One transaction, so a selection that cannot be dropped whole leaves
+        # every relation in it standing. Half a drop is not a partial success,
+        # it is a schema nobody asked for.
+        async with self._session.transaction(
+            refusals=drop_refusals(subject)
+        ) as change:
+            for statement in statements:
+                await change.schema_change(statement)
+        return ActionResult(
+            message=f"{subject} dropped",
+            reload_node_ids=[*sorted({schema for schema, _ in targets})],
+        )
+
+    async def _rehearse(
+        self, node_ids: Sequence[str | None], params: DropRelationParams
+    ) -> ActionPreview:
         """What this drop would take with it, as the server itself reports it.
 
-        The same statement the form describes, so ticking the box changes the
+        The same statements the form describes, so ticking the box changes the
         answer: without a cascade a relation something is built on refuses, and
         the refusal names what is in the way; with one, the server lists what
         it would drop as it goes.
         """
-        params = self._validated(raw)
-        schema, node = await self._target(node_id)
+        targets = await self._targets(node_ids)
+        subject = _subject(targets)
         rehearsal = await self._session.rehearse(
-            self._statement(schema, node, cascade=params.cascade),
-            refusals=DROP_REFUSALS,
+            *self._statements(targets, cascade=params.cascade),
+            refusals=drop_refusals(subject),
         )
         if rehearsal.refused is not None:
             # An answer rather than a failure: the question was "what would
@@ -624,12 +672,21 @@ class DropRelation(JsonAction[DropRelationParams]):
                 summary=rehearsal.refused, items=rehearsal.said, blocked=True
             )
         if not rehearsal.said:
-            return ActionPreview(summary=f"Nothing else depends on {node.name}")
+            return ActionPreview(summary=f"Nothing else depends on {subject}")
         # The lines are the server's own sentences, so the summary leaves room
         # for them to say what they say rather than repeating half of it.
         return ActionPreview(
-            summary=f"What dropping {node.name} would do:", items=rehearsal.said
+            summary=f"What dropping {subject} would do:", items=rehearsal.said
         )
+
+    async def _targets(
+        self, node_ids: Sequence[str | None]
+    ) -> list[tuple[str, TableNode | ViewNode]]:
+        if len(set(node_ids)) != len(node_ids):
+            raise ActionRefused(
+                "not_applicable", "A relation may be dropped only once"
+            )
+        return [await self._target(node_id) for node_id in node_ids]
 
     async def _target(self, node_id: str | None) -> tuple[str, TableNode | ViewNode]:
         if node_id is None:
@@ -641,27 +698,51 @@ class DropRelation(JsonAction[DropRelationParams]):
         return path[0].name, node
 
     @staticmethod
-    def _statement(
-        schema: str, node: TableNode | ViewNode, *, cascade: bool
-    ) -> str:
-        """The DROP this node needs, with its own kind of relation named.
+    def _statements(
+        targets: Sequence[tuple[str, TableNode | ViewNode]], *, cascade: bool
+    ) -> list[str]:
+        """One statement per kind of relation, naming every target of that kind.
 
         Composed from the catalog's description rather than from a guess: a
         materialized view is not dropped by DROP VIEW, and PostgreSQL says so
-        with an error that names neither.
+        with an error that names neither. Grouping rather than one statement
+        each is what lets a table and the view over it go together: everything
+        named in one DROP is already gone when the server checks what depends
+        on the rest of it.
         """
-        if isinstance(node, TableNode):
-            command = sql.SQL("DROP TABLE")
-        elif node.is_materialized:
-            command = sql.SQL("DROP MATERIALIZED VIEW")
-        else:
-            command = sql.SQL("DROP VIEW")
-        statement = sql.SQL("{} {}").format(
-            command, sql.Identifier(schema, node.name)
-        )
-        if cascade:
-            statement += sql.SQL(" CASCADE")
-        return statement.as_string()
+        by_kind: dict[str, list[sql.Composable]] = {}
+        for schema, node in targets:
+            by_kind.setdefault(_kind_of(node), []).append(
+                sql.Identifier(schema, node.name)
+            )
+        statements: list[str] = []
+        for kind, command in DROP_COMMANDS:
+            named = by_kind.get(kind)
+            if not named:
+                continue
+            statement = sql.SQL("{} {}").format(command, sql.SQL(", ").join(named))
+            if cascade:
+                statement += sql.SQL(" CASCADE")
+            statements.append(statement.as_string())
+        return statements
+
+
+def _kind_of(node: TableNode | ViewNode) -> str:
+    if isinstance(node, TableNode):
+        return "table"
+    return "materialized view" if node.is_materialized else "view"
+
+
+def _subject(targets: Sequence[tuple[str, TableNode | ViewNode]]) -> str:
+    """What a message about this drop is about, named once.
+
+    One relation is called by its name, because that is what the person is
+    looking at. Several are counted: five names in a toast is a list nobody
+    reads, and the catalog is about to show which ones went.
+    """
+    if len(targets) == 1:
+        return targets[0][1].name
+    return f"{len(targets)} relations"
 
 
 DROP_SCHEMA_REFUSALS = {

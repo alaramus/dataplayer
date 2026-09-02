@@ -101,6 +101,14 @@ export type ActionInfo = {
    */
   previews: boolean
   /**
+   * Takes Set
+   */
+  takes_set: boolean
+  /**
+   * Previews Set
+   */
+  previews_set: boolean
+  /**
    * Downloads
    */
   downloads: boolean
@@ -184,6 +192,29 @@ export type ActionResult = {
    */
   reload_node_ids: Array<string | null>
   replacement?: NodeReplacement | null
+}
+
+/**
+ * ActionSetRequest
+ *
+ * One filled form and the whole selection it is about.
+ *
+ * A separate model rather than a second optional field on `ActionRequest`:
+ * the two are different requests — one names a node and the other a set —
+ * and a body where exactly one of two fields must be filled is a shape that
+ * has to be argued about at every call site.
+ */
+export type ActionSetRequest = {
+  /**
+   * Node Ids
+   */
+  node_ids: Array<string>
+  /**
+   * Params
+   */
+  params?: {
+    [key: string]: unknown
+  }
 }
 
 /**
@@ -1787,6 +1818,18 @@ export type FetchResult = {
    * Export Reason
    */
   export_reason?: string | null
+  /**
+   * Refresh Seconds
+   */
+  refresh_seconds?: number | null
+  /**
+   * Page Commands
+   */
+  page_commands?: Array<"download" | "chart" | "share" | "create_relation" | "query">
+  /**
+   * Row Commands
+   */
+  row_commands?: Array<RowCommand>
 }
 
 /**
@@ -3872,6 +3915,86 @@ export type RetentionSettings = {
    * Max Runs
    */
   max_runs: number
+}
+
+/**
+ * RowCommand
+ *
+ * One thing a source offers to do to selected rows of one relation.
+ */
+export type RowCommand = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Description
+   */
+  description: string
+  /**
+   * Destructive
+   */
+  destructive?: boolean
+  /**
+   * Requires
+   */
+  requires?: "read" | "write" | "structure" | "own"
+  /**
+   * Identified By
+   */
+  identified_by: string
+}
+
+/**
+ * RowCommandRequest
+ *
+ * One command, the relation it belongs to, and the rows it is about.
+ *
+ * The keys are the values of the column the command declared as its own
+ * `identified_by`. They are the source's to read: nothing here knows what a
+ * process id is, and a key that means nothing to the source is refused by it
+ * rather than validated by a rule restated in this module.
+ */
+export type RowCommandRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Keys
+   */
+  keys: Array<string>
+}
+
+/**
+ * RowCommandResult
+ *
+ * What the source did, and what it would not do.
+ *
+ * A count rather than a list of what worked: the interesting half is what
+ * did not, and the grid is about to be read again anyway.
+ */
+export type RowCommandResult = {
+  /**
+   * Message
+   */
+  message: string
+  /**
+   * Done
+   */
+  done: number
+  /**
+   * Refused
+   */
+  refused?: Array<string>
 }
 
 /**
@@ -6691,6 +6814,38 @@ export type connectorsImportRowsResponses = {
 export type connectorsImportRowsResponse =
   connectorsImportRowsResponses[keyof connectorsImportRowsResponses]
 
+export type connectorsRunRowCommandData = {
+  body: RowCommandRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/rows/command"
+}
+
+export type connectorsRunRowCommandErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsRunRowCommandError =
+  connectorsRunRowCommandErrors[keyof connectorsRunRowCommandErrors]
+
+export type connectorsRunRowCommandResponses = {
+  /**
+   * Successful Response
+   */
+  200: RowCommandResult
+}
+
+export type connectorsRunRowCommandResponse =
+  connectorsRunRowCommandResponses[keyof connectorsRunRowCommandResponses]
+
 export type connectorsNewRelationOptionsData = {
   body: NewRelationTarget
   path: {
@@ -7352,6 +7507,78 @@ export type connectorsPreviewActionResponses = {
 
 export type connectorsPreviewActionResponse =
   connectorsPreviewActionResponses[keyof connectorsPreviewActionResponses]
+
+export type connectorsRunActionOnSetData = {
+  body: ActionSetRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+    /**
+     * Action Name
+     */
+    action_name: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/actions/{action_name}/set"
+}
+
+export type connectorsRunActionOnSetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsRunActionOnSetError =
+  connectorsRunActionOnSetErrors[keyof connectorsRunActionOnSetErrors]
+
+export type connectorsRunActionOnSetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActionResult
+}
+
+export type connectorsRunActionOnSetResponse =
+  connectorsRunActionOnSetResponses[keyof connectorsRunActionOnSetResponses]
+
+export type connectorsPreviewActionOnSetData = {
+  body: ActionSetRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+    /**
+     * Action Name
+     */
+    action_name: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/actions/{action_name}/set/preview"
+}
+
+export type connectorsPreviewActionOnSetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsPreviewActionOnSetError =
+  connectorsPreviewActionOnSetErrors[keyof connectorsPreviewActionOnSetErrors]
+
+export type connectorsPreviewActionOnSetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ActionPreview
+}
+
+export type connectorsPreviewActionOnSetResponse =
+  connectorsPreviewActionOnSetResponses[keyof connectorsPreviewActionOnSetResponses]
 
 export type connectorsPrepareActionDownloadData = {
   body: DownloadActionTargets

@@ -144,18 +144,76 @@ goes with it.
 
 Known deviations:
 
-- **One relation at a time.** `bulk` is false, unlike deleting files: one list of
-  consequences cannot be told apart into five relations' worth by whoever reads
-  it.
 - **The preview is a moment, not a promise.** Something can come to depend on the
   relation between the question and the answer; the drop is what decides.
-- **A preview is asked for one node.** A form applied to several would come back
-  as several answers, and nothing on the client knows what to call each of them.
+- **A preview of several nodes is only offered where the source takes them
+  together** ([D68](#d68-a-set-of-nodes-is-a-subject-an-action-may-have)).
+  Several answers stitched together on the client would be a claim the client
+  has no right to make.
 - **An open tab outlives what it shows.** A dropped relation leaves its data tab
   in place, to fail on its next read; the workspace can follow a renamed node
   ([D32](ddl.md)) and has no word yet for one that is not there at all.
 
 Spec: [Dropping a relation, and seeing what goes with it](../../superpowers/specs/2026-08-30-relation-drop-design.md)
+
+## D68. A set of nodes is a subject an action may have
+
+`bulk` said a filled form may be applied to a set, and the transport behind it
+was the same request repeated per node. That is right while the nodes are
+independent — five files deleted from a folder are five facts, and a refusal of
+one says nothing about the other four. It is wrong when the set is the
+question: ticking a table and the view over it and sending two requests refuses
+the table, because the view is still there when the first request runs.
+
+So `bulk` keeps its meaning — a set is allowed — and how the set is carried out
+is a separate statement:
+
+- `TakesNodeSet` is a `runtime_checkable` Protocol with `perform_on_set`, and
+  `PreviewsSet` is its counterpart with `preview_on_set`. Two rather than one,
+  for the reason `Previews` is separate from `TakesParams`: an action may take
+  a set and have nothing worth previewing about it, and a capability nobody
+  implements must not become a stub.
+- `ActionInfo` derives `takes_set` and `previews_set` with `isinstance`, as it
+  already derives `takes_file`, `previews` and `downloads`. A flag and an
+  implementation can disagree; an isinstance check cannot.
+- `POST …/actions/{name}/set` and `POST …/actions/{name}/set/preview` carry
+  `{node_ids, params}`. A separate body rather than a second optional field on
+  `ActionRequest`: two shapes in one body have to be argued about at every call
+  site. An action without the capability answers 415 rather than quietly acting
+  on the first node of the list.
+- Applicability is unchanged. The set routes resolve the action through the
+  same check the download route uses, so every node is judged exactly as it is
+  for a single request, and a node named twice is refused.
+- The client obeys rather than decides: `nodeSetOf` in
+  `features/catalog/actions.ts` is the one rule about what a set is, and both
+  the preview and the run read it, so what a person is shown and what is then
+  sent cannot disagree.
+
+PostgreSQL's drop is the first action to take one. It issues one statement per
+kind of relation, each naming every target of that kind, in one transaction and
+in the order views, materialized views, tables. Grouping is what makes it work:
+everything named in one `DROP` is already gone when the server checks what
+depends on the rest. One transaction is what makes it honest: a selection that
+cannot go whole leaves every relation in it standing, because half a drop is a
+schema nobody asked for. `rehearse` takes the same several statements, so the
+preview is still the drop rolled back.
+
+Known deviations:
+
+- **The order across kinds is a heuristic, not a topological sort.** Views
+  before materialized views before tables covers a view over a table, which is
+  the case people meet. A materialized view read by a view, all three ticked,
+  can still need a cascade — and the preview says so before anything happens.
+- **One refusal refuses the whole set.** That is the point where relations are
+  concerned, and it is the wrong answer for an action whose members really are
+  independent. Such an action keeps the repeated transport.
+- **Nothing names which relations went.** The message counts them, and the
+  catalog is re-read; a person who ticked five boxes and looked away has the
+  count and the list, not a receipt.
+- **Only the drop takes a set today.** Moving several relations into one schema
+  would be the next one, and keeps the repeated transport until somebody asks.
+
+Spec: [Dropping several relations at once](../../superpowers/specs/2026-09-02-action-node-set-design.md)
 
 ## D49. Download is a source-declared action
 

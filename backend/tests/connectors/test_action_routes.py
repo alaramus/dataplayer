@@ -121,6 +121,21 @@ async def _run(
     )
 
 
+async def _run_on_set(
+    client: AsyncClient,
+    headers: dict[str, str],
+    connector_id: str,
+    action: str,
+    node_ids: list[str],
+    **params: object,
+) -> Response:
+    return await client.post(
+        f"{BASE}/{connector_id}/actions/{action}/set",
+        headers=headers,
+        json={"node_ids": node_ids, "params": params},
+    )
+
+
 async def _offered(
     client: AsyncClient,
     headers: dict[str, str],
@@ -753,6 +768,82 @@ async def test_an_error_never_names_the_server_layout(
 
 
 # --- what a set of nodes admits ----------------------------------------------
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_selection_of_relations_is_dropped_in_one_request(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    """One request for the set, because the set is the question (D68)."""
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    nodes = [f"{relation_schema}.rich_customers", f"{relation_schema}.customers"]
+
+    offered = await _offered(client, normal_user_token_headers, connector_id, nodes)
+    drop = next(
+        action for action in offered.json() if action["name"] == "drop_relation"
+    )
+    assert drop["applicable"] is True
+    assert drop["takes_set"] is True
+    assert drop["previews_set"] is True
+
+    preview = await client.post(
+        f"{BASE}/{connector_id}/actions/drop_relation/set/preview",
+        headers=normal_user_token_headers,
+        json={"node_ids": nodes, "params": {}},
+    )
+    assert preview.status_code == 200
+    assert preview.json()["blocked"] is False
+
+    response = await _run_on_set(
+        client, normal_user_token_headers, connector_id, "drop_relation", nodes
+    )
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "2 relations dropped"
+    catalog = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": relation_schema},
+    )
+    left = {node["name"] for node in catalog.json()}
+    assert "customers" not in left
+    assert "rich_customers" not in left
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_node_named_twice_in_a_set_is_refused(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    node = f"{relation_schema}.rich_customers"
+
+    response = await _run_on_set(
+        client, normal_user_token_headers, connector_id, "drop_relation", [node, node]
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.usefixtures("home")
+async def test_an_action_done_one_node_at_a_time_refuses_a_set_request(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Delete is bulk, but each file is its own request: the set route is not it."""
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _run_on_set(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "delete",
+        ["notes.txt", "reports"],
+    )
+
+    assert response.status_code == 415
 
 
 @pytest.mark.usefixtures("home")

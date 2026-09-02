@@ -70,6 +70,7 @@ translations; those files are not.
 | 2026-09-01 | [Sharing a view](2026-09-01-shared-view-links-design.md) | D58, D59, D60, D61: a link is an address and not a permission, a stored record with a typed body, resolution answers a state rather than a status, and access is asked for as a durable request |
 | 2026-09-01 | [The query editor](2026-09-01-query-editor-design.md) | D62, D63, D64, D65, D66: intentional source queries, encrypted documents and immutable runs, bounded asynchronous results, an editor integrated with the workspace, and explicit write transactions |
 | 2026-09-02 | [A grid that re-reads itself](2026-09-02-auto-refresh-design.md) | D67: an interval the grid wears, and a pause rule both the timer and the tooltip read |
+| 2026-09-02 | [Dropping several relations at once](2026-09-02-action-node-set-design.md) | D68: a set is a subject an action may have, carried in one request and one transaction |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

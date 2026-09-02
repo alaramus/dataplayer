@@ -18,6 +18,8 @@ const DROP: ActionCommand = {
   takesFile: false,
   takesManyFiles: false,
   previews: true,
+  takesSet: false,
+  previewsSet: false,
   downloads: false,
   actsOn: "node",
   fields: [
@@ -39,6 +41,8 @@ const RENAME: ActionCommand = {
   takesFile: false,
   takesManyFiles: false,
   previews: false,
+  takesSet: false,
+  previewsSet: false,
   downloads: false,
   actsOn: "node",
   fields: [
@@ -60,6 +64,8 @@ const MOVE: ActionCommand = {
   takesFile: false,
   takesManyFiles: false,
   previews: false,
+  takesSet: false,
+  previewsSet: false,
   downloads: false,
   actsOn: "node",
   fields: [
@@ -81,6 +87,8 @@ const UPLOAD: ActionCommand = {
   takesFile: true,
   takesManyFiles: true,
   previews: false,
+  takesSet: false,
+  previewsSet: false,
   downloads: false,
   actsOn: "children",
   fields: [

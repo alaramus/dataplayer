@@ -2,8 +2,17 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue"
 
 import type { ActionPreview } from "@/client"
-import { usePreviewAction, useRunAction } from "@/features/catalog/api"
-import { groupingChoices, summarize, withGroupingChoices } from "@/features/catalog/actions"
+import {
+  usePreviewAction,
+  usePreviewActionOnSet,
+  useRunAction,
+} from "@/features/catalog/api"
+import {
+  groupingChoices,
+  nodeSetOf,
+  summarize,
+  withGroupingChoices,
+} from "@/features/catalog/actions"
 import type {
   ActionCommand,
   ActionFailure,
@@ -83,35 +92,52 @@ const conflictField = computed(() =>
 const PREVIEW_DELAY_MS = 250
 
 const previewAction = usePreviewAction()
+const previewSet = usePreviewActionOnSet()
 const preview = ref<ActionPreview | null>(null)
 const previewFailed = ref("")
 /** The number of the last question asked, so a late answer is ignored. */
 let asked = 0
 let timer: ReturnType<typeof setTimeout> | undefined
 
+/** The whole selection, when every part of it is a named node. */
+const nodeSet = computed(() => nodeSetOf(props.nodeIds))
+
 /**
  * Whether there is a preview to show at all.
  *
- * One node, because a preview is about one: a form applied to several would
- * come back as several answers, and nothing here knows what to call each of
- * them. No action offered for a set previews today.
+ * One node is previewed by the action's own answer about it. Several are
+ * previewed only when the source takes them in one request: an account of a
+ * set is one thing the source can describe, while several answers stitched
+ * together here would be a claim this component has no right to make.
  */
-const previewable = computed(
-  () => props.command?.previews === true && props.nodeIds.length === 1
-)
+const previewable = computed(() => {
+  const command = props.command
+  if (command === null) return false
+  if (props.nodeIds.length === 1) return command.previews
+  return command.previewsSet && nodeSet.value !== null
+})
 
 async function askPreview() {
   const command = props.command
   const nodeId = props.nodeIds[0]
   if (command === null || !previewable.value || nodeId === undefined) return
   const mine = (asked += 1)
+  const together = props.nodeIds.length > 1 ? nodeSet.value : null
   try {
-    const answer = await previewAction.mutateAsync({
-      connectorId: props.connectorId,
-      name: command.name,
-      nodeId,
-      params: { ...values.value },
-    })
+    const answer =
+      together === null
+        ? await previewAction.mutateAsync({
+            connectorId: props.connectorId,
+            name: command.name,
+            nodeId,
+            params: { ...values.value },
+          })
+        : await previewSet.mutateAsync({
+            connectorId: props.connectorId,
+            name: command.name,
+            nodeIds: together,
+            params: { ...values.value },
+          })
     if (mine !== asked) return
     preview.value = answer
     previewFailed.value = ""
@@ -206,6 +232,7 @@ async function submit() {
       nodeIds: props.nodeIds,
       params,
       files: files.value,
+      asSet: command.takesSet,
     })
     // A file that was refused keeps the dialog open, because the answer to
     // it is here: take that file off the list, or say what to do about the

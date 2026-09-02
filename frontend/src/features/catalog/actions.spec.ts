@@ -4,6 +4,7 @@ import type { ActionInfo } from "@/client"
 import { at, first } from "@/shared/testing/collections"
 import {
   groupingChoices,
+  nodeSetOf,
   replacementsOf,
   reloadedBy,
   summarize,
@@ -21,6 +22,8 @@ const createFolder: ActionInfo = {
   takes_file: false,
   takes_many_files: false,
   previews: false,
+  takes_set: false,
+  previews_set: false,
   downloads: false,
   acts_on: "children",
   applicable: true,
@@ -37,6 +40,8 @@ const remove: ActionInfo = {
   takes_file: false,
   takes_many_files: false,
   previews: false,
+  takes_set: false,
+  previews_set: false,
   downloads: false,
   acts_on: "node",
   applicable: true,
@@ -53,6 +58,8 @@ const upload: ActionInfo = {
   takes_file: true,
   takes_many_files: true,
   previews: false,
+  takes_set: false,
+  previews_set: false,
   downloads: false,
   acts_on: "children",
   applicable: true,
@@ -121,6 +128,8 @@ describe("toCommands", () => {
       takes_file: false,
       takes_many_files: false,
       previews: true,
+      takes_set: false,
+      previews_set: false,
       downloads: true,
       acts_on: "node",
       applicable: true,
@@ -372,5 +381,24 @@ describe("a field that names a grouping", () => {
     const name = { ...field, name: "new_name", purpose: "node-name" as const }
 
     expect(withGroupingChoices([name], groupingChoices(groupings))).toEqual([name])
+  })
+})
+
+describe("what counts as a set", () => {
+  it("is every ticked node when they are all named", () => {
+    expect(nodeSetOf(["public.orders", "public.items"])).toEqual([
+      "public.orders",
+      "public.items",
+    ])
+  })
+
+  it("is not a set when the root of the connector is in it", () => {
+    // The root travels as null and has no id to put in a list.
+    expect(nodeSetOf([null, "public.orders"])).toBeNull()
+    expect(nodeSetOf([null])).toBeNull()
+  })
+
+  it("is not a set when nothing is ticked", () => {
+    expect(nodeSetOf([])).toBeNull()
   })
 })

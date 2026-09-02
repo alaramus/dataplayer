@@ -91,6 +91,9 @@ import type {
   connectorsPrepareActionDownloadResponses,
   connectorsPreviewActionData,
   connectorsPreviewActionErrors,
+  connectorsPreviewActionOnSetData,
+  connectorsPreviewActionOnSetErrors,
+  connectorsPreviewActionOnSetResponses,
   connectorsPreviewActionResponses,
   connectorsPreviewImportData,
   connectorsPreviewImportErrors,
@@ -130,10 +133,16 @@ import type {
   connectorsRevokeGrantResponses,
   connectorsRunActionData,
   connectorsRunActionErrors,
+  connectorsRunActionOnSetData,
+  connectorsRunActionOnSetErrors,
+  connectorsRunActionOnSetResponses,
   connectorsRunActionResponses,
   connectorsRunActionWithFileData,
   connectorsRunActionWithFileErrors,
   connectorsRunActionWithFileResponses,
+  connectorsRunRowCommandData,
+  connectorsRunRowCommandErrors,
+  connectorsRunRowCommandResponses,
   connectorsUpdateCellData,
   connectorsUpdateCellErrors,
   connectorsUpdateCellResponses,
@@ -1288,6 +1297,35 @@ export class ConnectorsService {
   }
 
   /**
+   * Run Row Command
+   *
+   * Do one source-declared thing to the rows somebody selected.
+   *
+   * The command is resolved through what the node offers, so what a client is
+   * shown and what the server allows cannot drift apart — and the level it
+   * needs is the command's own statement, checked after the name has resolved
+   * for the reason an action's is (D70).
+   */
+  public static runRowCommand<ThrowOnError extends boolean = true>(
+    options: Options<connectorsRunRowCommandData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsRunRowCommandResponses,
+      connectorsRunRowCommandErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/rows/command",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
    * New Relation Options
    *
    * What one source-owned container accepts for a new relation.
@@ -1749,6 +1787,60 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/actions/{action_name}/preview",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Run Action On Set
+   *
+   * Perform one action on a whole selection, in one request.
+   *
+   * For an action whose answer is about the set rather than about each node in
+   * it: dropping three relations that depend on each other succeeds together
+   * and is refused apart. Every node is checked exactly as it is for a single
+   * request, and an action that does not take a set says so with 415 rather
+   * than quietly acting on the first of them.
+   */
+  public static runActionOnSet<ThrowOnError extends boolean = true>(
+    options: Options<connectorsRunActionOnSetData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsRunActionOnSetResponses,
+      connectorsRunActionOnSetErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/actions/{action_name}/set",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Preview Action On Set
+   *
+   * Ask what one action would do to a whole selection, without doing it.
+   */
+  public static previewActionOnSet<ThrowOnError extends boolean = true>(
+    options: Options<connectorsPreviewActionOnSetData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsPreviewActionOnSetResponses,
+      connectorsPreviewActionOnSetErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/actions/{action_name}/set/preview",
       ...options,
       headers: {
         "Content-Type": "application/json",

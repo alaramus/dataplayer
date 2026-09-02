@@ -5,7 +5,7 @@ import type { Ref } from "vue"
 import { ConnectorsService } from "@/client"
 import type { ActionPreview, ActionResult } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
-import { reloadedBy } from "./actions"
+import { nodeSetOf, reloadedBy } from "./actions"
 import type { ActionFailure, ActionOutcome } from "./actions"
 import type { CatalogNode } from "./nodes"
 
@@ -125,6 +125,14 @@ export interface ActionInput {
    * rather than the whole set's, and what did arrive stays arrived.
    */
   files?: File[]
+  /**
+   * Whether the source takes the whole selection in one request.
+   *
+   * The action said so, and the client only obeys: an action whose answer is
+   * about the set — dropping relations that depend on each other — is refused
+   * three times over when it is sent three times.
+   */
+  asSet?: boolean
 }
 
 async function performOne(
@@ -170,6 +178,18 @@ export function useRunAction() {
 
   return useMutation({
     mutationFn: async (input: ActionInput): Promise<ActionOutcome> => {
+      const together = togetherIn(input)
+      if (together !== null) {
+        // One request, so one answer: a refusal arrives as an exception and
+        // is read where a single action's refusal is read.
+        const result = (
+          await ConnectorsService.runActionOnSet({
+            path: { connector_id: input.connectorId, action_name: input.name },
+            body: { node_ids: together, params: input.params },
+          })
+        ).data
+        return { done: [result], failures: [], total: 1 }
+      }
       const done: ActionResult[] = []
       const failures: ActionFailure[] = []
       // An action carrying nothing is one request per node all the same; the
@@ -209,6 +229,19 @@ export function useRunAction() {
   })
 }
 
+/**
+ * The selection to send in one request, or nothing when it is sent per node.
+ *
+ * A file the action carries makes it one request per file whatever else the
+ * action says, so that falls back to the repeated transport rather than being
+ * a special case inside the other one.
+ */
+function togetherIn(input: ActionInput): string[] | null {
+  if (input.asSet !== true) return null
+  if (input.files !== undefined && input.files.length > 0) return null
+  return nodeSetOf(input.nodeIds)
+}
+
 /** Ask one source-declared action to download its whole selected target set. */
 export function useDownloadAction() {
   return useMutation({
@@ -246,6 +279,30 @@ export function usePreviewAction() {
         await ConnectorsService.previewAction({
           path: { connector_id: input.connectorId, action_name: input.name },
           body: { node_id: input.nodeId, params: input.params },
+        })
+      ).data,
+  })
+}
+
+/**
+ * Ask what one action would do to a whole selection.
+ *
+ * A separate mutation rather than a flag on the one above: the two are
+ * different requests, and an answer about a set is one account rather than
+ * several stitched together here.
+ */
+export function usePreviewActionOnSet() {
+  return useMutation({
+    mutationFn: async (input: {
+      connectorId: string
+      name: string
+      nodeIds: string[]
+      params: Record<string, unknown>
+    }): Promise<ActionPreview> =>
+      (
+        await ConnectorsService.previewActionOnSet({
+          path: { connector_id: input.connectorId, action_name: input.name },
+          body: { node_ids: input.nodeIds, params: input.params },
         })
       ).data,
   })

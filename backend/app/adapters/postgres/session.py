@@ -523,9 +523,9 @@ class PostgresSession:
             raise AdapterError(error_kind, message) from None
 
     async def rehearse(
-        self, statement: str, *, refusals: Mapping[str, str] | None = None
+        self, *statements: str, refusals: Mapping[str, str] | None = None
     ) -> Rehearsal:
-        """Run a statement, keep what the server said about it, and roll it back.
+        """Run statements, keep what the server said about them, and roll back.
 
         The only honest way to ask PostgreSQL what a cascade would take with
         it. The rules live in `pg_depend`, and restating them here would be a
@@ -546,6 +546,12 @@ class PostgresSession:
         A rehearsal takes the same locks the real statement would, so it is
         held to `REHEARSAL_LOCK_TIMEOUT` rather than left to wait behind
         whoever is reading the table.
+
+        Several statements are run in the order they were given, in the one
+        transaction, because that is the only way to rehearse something that is
+        performed that way: dropping a view and the table under it succeeds
+        together and is refused apart, and a preview that ran them apart would
+        be an answer to a different question.
         """
         said: list[str] = []
         refused: str | None = None
@@ -563,7 +569,8 @@ class PostgresSession:
                             .format(sql.Literal(REHEARSAL_LOCK_TIMEOUT))
                             .as_string()
                         )
-                        await connection.execute(statement)
+                        for statement in statements:
+                            await connection.execute(statement)
                 except psycopg.Error as exc:
                     named = named_refusal(exc, refusals)
                     if named is None:

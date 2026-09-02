@@ -2081,6 +2081,12 @@ class ActionInfo(BaseModel):
     # Whether it can be asked what it would do before it is done. Derived the
     # same way, and for the same reason.
     previews: bool
+    # Whether a selection is carried out in one request rather than repeated
+    # per node, and whether that one request can be previewed. Derived from
+    # the capabilities, so what the API says cannot drift from what the action
+    # does — and a client needs both to know which route to call.
+    takes_set: bool
+    previews_set: bool
     # Whether selecting this action produces bytes through the native browser
     # download transport. Derived from the callable action capability.
     downloads: bool
@@ -2115,6 +2121,19 @@ class ActionRequest(BaseModel):
     params: dict[str, Any] = {}
 
 
+class ActionSetRequest(BaseModel):
+    """One filled form and the whole selection it is about.
+
+    A separate model rather than a second optional field on `ActionRequest`:
+    the two are different requests — one names a node and the other a set —
+    and a body where exactly one of two fields must be filled is a shape that
+    has to be argued about at every call site.
+    """
+
+    node_ids: Annotated[list[str], Field(min_length=1, max_length=1000)]
+    params: dict[str, Any] = {}
+
+
 # One status per reason for refusing, in one place. A conflict is not a failure
 # of the source, so none of these is a 502.
 REFUSAL_STATUS: dict[RefusalReason, int] = {
@@ -2132,6 +2151,8 @@ def _describe(action: Action[Any], *, applicable: bool) -> ActionInfo:
         takes_file=isinstance(action, TakesFile),
         takes_many_files=action.many_files,
         previews=isinstance(action, Previews),
+        takes_set=isinstance(action, TakesNodeSet),
+        previews_set=isinstance(action, PreviewsSet),
         downloads=isinstance(action, ProducesDownload),
         acts_on=action.acts_on,
         applicable=applicable,
@@ -2375,6 +2396,73 @@ async def preview_action(
             },
         )
     return await _perform(lambda: action.preview(target, body.params))
+
+
+@router.post("/{connector_id}/actions/{action_name}/set", response_model=ActionResult)
+async def run_action_on_set(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    action_name: str,
+    body: ActionSetRequest,
+) -> Any:
+    """
+    Perform one action on a whole selection, in one request.
+
+    For an action whose answer is about the set rather than about each node in
+    it: dropping three relations that depend on each other succeeds together
+    and is refused apart. Every node is checked exactly as it is for a single
+    request, and an action that does not take a set says so with 415 rather
+    than quietly acting on the first of them.
+    """
+    adapter, access = await resolve_adapter(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    action = await _action_for_nodes(
+        _acting_or_501(adapter), action_name, body.node_ids
+    )
+    _allowed_or_403(action, access)
+    if not isinstance(action, TakesNodeSet):
+        raise HTTPException(
+            status_code=415,
+            detail={"message": f"{action.title} is done to one node at a time"},
+        )
+    return await _invalidate_after(
+        lambda: _perform(lambda: action.perform_on_set(body.node_ids, body.params)),
+        data_cache,
+        connector_id,
+    )
+
+
+@router.post(
+    "/{connector_id}/actions/{action_name}/set/preview", response_model=ActionPreview
+)
+async def preview_action_on_set(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    action_name: str,
+    body: ActionSetRequest,
+) -> Any:
+    """
+    Ask what one action would do to a whole selection, without doing it.
+    """
+    adapter, access = await resolve_adapter(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    action = await _action_for_nodes(
+        _acting_or_501(adapter), action_name, body.node_ids
+    )
+    _allowed_or_403(action, access)
+    if not isinstance(action, PreviewsSet):
+        raise HTTPException(
+            status_code=415,
+            detail={"message": f"{action.title} cannot say what it would do"},
+        )
+    return await _perform(lambda: action.preview_on_set(body.node_ids, body.params))
 
 
 @router.post(

@@ -8,7 +8,9 @@ from app.adapters.actions import (
     ActionRefused,
     ActionResult,
     Previews,
+    PreviewsSet,
     TakesFile,
+    TakesNodeSet,
     TakesParams,
 )
 from app.adapters.fetch import FetchRequest
@@ -465,6 +467,22 @@ async def _drop(source: PostgresAdapter, node_id: str, **params: object) -> Acti
     return await action.perform(node_id, params)
 
 
+async def _drop_set(
+    source: PostgresAdapter, *node_ids: str, **params: object
+) -> ActionResult:
+    action = source.action("drop_relation")
+    assert isinstance(action, TakesNodeSet)
+    return await action.perform_on_set(list(node_ids), params)
+
+
+async def _preview_set(
+    source: PostgresAdapter, *node_ids: str, **params: object
+) -> ActionPreview:
+    action = source.action("drop_relation")
+    assert isinstance(action, PreviewsSet)
+    return await action.preview_on_set(list(node_ids), params)
+
+
 async def _names(source: PostgresAdapter, schema: str) -> set[str]:
     return {node.name for node in await source.list_children(schema)}
 
@@ -577,3 +595,80 @@ async def test_a_schema_is_not_a_relation_to_drop(schema: str) -> None:
 
     with pytest.raises(ActionRefused):
         await _drop(source, schema)
+
+
+async def test_a_view_and_the_table_under_it_go_together(schema: str) -> None:
+    """The set is the question: apart, the table is refused; together it is not."""
+    source = adapter()
+
+    result = await _drop_set(
+        source, f"{schema}.rich_customers", f"{schema}.customers"
+    )
+
+    assert result.message == "2 relations dropped"
+    assert result.reload_node_ids == [schema]
+    left = await _names(source, schema)
+    assert "customers" not in left
+    assert "rich_customers" not in left
+
+
+async def test_a_set_previews_as_one_account_of_the_whole_selection(
+    schema: str,
+) -> None:
+    answer = await _preview_set(
+        adapter(), f"{schema}.rich_customers", f"{schema}.customers"
+    )
+
+    assert answer.blocked is False
+    assert "2 relations" in answer.summary
+
+
+async def test_a_set_that_cannot_go_whole_leaves_all_of_it_standing(
+    schema: str,
+) -> None:
+    """One transaction: half a drop is a schema nobody asked for."""
+    source = adapter()
+
+    with pytest.raises(ValueError) as refused:
+        # The view goes first and would succeed; the table is referenced by
+        # customers and is refused, which must take the view back with it.
+        await _drop_set(source, f"{schema}.rich_customers", f"{schema}.regions")
+
+    assert "built on" in str(refused.value)
+    assert {"rich_customers", "regions"} <= await _names(source, schema)
+
+
+async def test_a_set_preview_that_would_be_refused_says_so_and_blocks(
+    schema: str,
+) -> None:
+    answer = await _preview_set(
+        adapter(), f"{schema}.rich_customers", f"{schema}.regions"
+    )
+
+    assert answer.blocked is True
+    assert any("customers" in item for item in answer.items)
+    # A refusal is about what was selected, and two relations are not "this
+    # relation".
+    assert answer.summary == "Something else is built on 2 relations"
+
+
+async def test_a_relation_may_be_selected_only_once(schema: str) -> None:
+    source = adapter()
+
+    with pytest.raises(ActionRefused) as refused:
+        await _drop_set(source, f"{schema}.regions", f"{schema}.regions")
+
+    assert refused.value.reason == "not_applicable"
+    assert "regions" in await _names(source, schema)
+
+
+async def test_a_system_relation_in_a_set_refuses_the_whole_set(
+    schema: str,
+) -> None:
+    source = adapter()
+
+    with pytest.raises(ActionRefused):
+        await _drop_set(source, f"{schema}.rich_customers", "pg_catalog.pg_class")
+
+    assert "rich_customers" in await _names(source, schema)
+
