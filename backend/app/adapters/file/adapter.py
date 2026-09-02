@@ -27,10 +27,12 @@ from app.adapters.file.fetch import FileFetch
 from app.adapters.file.options import FileOptions
 from app.adapters.file.relation import FileRelations
 from app.adapters.file.session import FileSession
+from app.adapters.file.summary import FileSummaries
 from app.adapters.file.update import FileTableChanges
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
+from app.adapters.summary import NodeSummary
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -61,6 +63,7 @@ class FileAdapter:
         self._relations = FileRelations(self._session)
         self._actions = FileActions(self._session)
         self._table_changes = FileTableChanges(self._session)
+        self._summaries = FileSummaries(self._session)
 
     @property
     def root(self) -> Path:
@@ -104,6 +107,9 @@ class FileAdapter:
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relations.relation_model(node_id)
+
+    async def node_summary(self, node_id: str) -> NodeSummary:
+        return await self._summaries.node_summary(node_id)
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)

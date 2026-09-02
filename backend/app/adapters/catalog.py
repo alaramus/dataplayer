@@ -33,6 +33,11 @@ class BaseNode(BaseModel):
     # is not describable while its tables are, and among files only the ones
     # that declare their own columns are (D51).
     describable: bool = False
+    # Whether this node also answers `node-summary`: how big, since when, what
+    # it may be opened as, and what its format states about itself. Said by the
+    # source for the reason `describable` is said by it — a client that worked
+    # it out from the kind would be deciding what a source can answer (D75).
+    summarizable: bool = False
 
 
 class SchemaNode(BaseNode):

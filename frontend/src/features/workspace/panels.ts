@@ -16,6 +16,7 @@ import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
 import ConnectorsPanelView from "@/features/workspace/panels/ConnectorsPanel.vue"
 import RowsPanelView from "@/features/workspace/panels/RowsPanel.vue"
 import StructurePanelView from "@/features/workspace/panels/StructurePanel.vue"
+import SummaryPanelView from "@/features/workspace/panels/SummaryPanel.vue"
 import WorkspaceSceneView from "@/features/workspace/panels/WorkspaceScene.vue"
 import type { PanelLook } from "@/shared/workspace"
 
@@ -117,6 +118,15 @@ export const panelSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     id: z.string(),
+    kind: z.literal("summary"),
+    connectorId: z.string(),
+    nodeId: z.string(),
+    title: z.string(),
+    connectorName: z.string(),
+    adapterType: z.string(),
+  }),
+  z.object({
+    id: z.string(),
     kind: z.literal("content"),
     connectorId: z.string(),
     nodeId: z.string(),
@@ -184,6 +194,8 @@ export const contentPanelId = (
 ) => `content:${connectorId}:${nodeId}:${representation}`
 export const structurePanelId = (connectorId: string, nodeId: string) =>
   `structure:${connectorId}:${nodeId}`
+export const summaryPanelId = (connectorId: string, nodeId: string) =>
+  `summary:${connectorId}:${nodeId}`
 export const chartPanelId = (viewKey: string) => `chart:${viewKey}`
 export const QUERIES_PANEL_ID = "queries"
 export const queryPanelId = (documentId: string) => `query:${documentId}`
@@ -257,6 +269,7 @@ export function roleOf(panel: Panel): PanelRole {
     case "rows":
     case "content":
     case "structure":
+    case "summary":
     case "chart":
     case "query":
     case "result":
@@ -343,6 +356,13 @@ export function lookOf(panel: Panel): PanelLook {
         icon: "account_tree",
         iconTooltip: `${panel.connectorName} · Structure`,
         reloadTooltip: "Re-read the structure",
+      }
+    case "summary":
+      return {
+        title: panel.title,
+        icon: "info",
+        iconTooltip: `${panel.connectorName} · Details`,
+        reloadTooltip: "Re-read these details",
       }
     case "chart":
       return {
@@ -507,6 +527,14 @@ export function componentOf(panel: Panel): Component {
     case "structure":
       return boundComponent(panel.id, () =>
         h(StructurePanelView, {
+          panelId: panel.id,
+          connectorId: panel.connectorId,
+          nodeId: panel.nodeId,
+        })
+      )
+    case "summary":
+      return boundComponent(panel.id, () =>
+        h(SummaryPanelView, {
           panelId: panel.id,
           connectorId: panel.connectorId,
           nodeId: panel.nodeId,

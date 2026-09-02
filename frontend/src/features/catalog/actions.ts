@@ -1,6 +1,7 @@
 import type { ActionInfo, ActionResult } from "@/client"
 import { choicesOf, defaultsOf, schemaToFields } from "@/shared/SchemaForm/jsonSchema"
 import type { FieldSpec, JsonSchema, SchemaChoice } from "@/shared/SchemaForm/jsonSchema"
+import type { MenuItem } from "@/shared/ui"
 
 /**
  * One action, ready to be offered as a menu item.
@@ -194,6 +195,75 @@ export function needsClipboard(command: ActionCommand): boolean {
 export function nodeSetOf(nodeIds: (string | null)[]): string[] | null {
   const named = nodeIds.filter((id): id is string => id !== null)
   return named.length === nodeIds.length && named.length > 0 ? named : null
+}
+
+/**
+ * The verbs the client owns, in the same menu as the source's own.
+ *
+ * Three of them, and none reaches the server as a command: Copy and Cut
+ * remember a selection here (D74), and Details opens what the source says
+ * one node is (D75). They belong in the one menu rather than beside it —
+ * somebody looking for what can be done with a ticked row looks in one place,
+ * and a row of icons that grows with every client verb is the alternative.
+ *
+ * The names are prefixed because one menu now carries two vocabularies. A
+ * source names its actions with identifiers, so a colon cannot collide with
+ * one, and `pick` can tell whose command it was handed without a lookup.
+ */
+export const CLIENT_COMMANDS = ["details", "copy", "cut"] as const
+export type ClientCommand = (typeof CLIENT_COMMANDS)[number]
+
+export function clientCommandName(command: ClientCommand): string {
+  return `client:${command}`
+}
+
+export function clientCommandOf(name: string): ClientCommand | null {
+  return CLIENT_COMMANDS.find((command) => clientCommandName(command) === name) ?? null
+}
+
+export interface ClientMenuState {
+  /** Whether the source describes the nodes of this level at all (D75). */
+  describes: boolean
+  /** Whether exactly one ticked node is one it describes. */
+  describable: boolean
+  /** Whether this source has anywhere to put what is held (D74). */
+  holds: boolean
+  /** How many nodes are ticked. */
+  ticked: number
+}
+
+/**
+ * The client's lines of the menu, before the source's.
+ *
+ * Each is drawn only where it means anything — a database describes no nodes
+ * and has nowhere to paste — and disabled rather than hidden while the
+ * selection is not the one it needs, so the menu keeps the stable shape the
+ * source's own lines have.
+ */
+export function clientMenu(state: ClientMenuState): MenuItem[] {
+  const items: MenuItem[] = []
+  if (state.describes) {
+    items.push({
+      name: clientCommandName("details"),
+      label: "Details",
+      disable: !state.describable,
+    })
+  }
+  if (state.holds) {
+    items.push(
+      {
+        name: clientCommandName("copy"),
+        label: "Copy",
+        disable: state.ticked === 0,
+      },
+      {
+        name: clientCommandName("cut"),
+        label: "Cut",
+        disable: state.ticked === 0,
+      }
+    )
+  }
+  return items
 }
 
 /** One request the action could not be done by, and what the server said. */

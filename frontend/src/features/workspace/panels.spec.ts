@@ -20,6 +20,7 @@ import {
   roleOf,
   rowsPanelId,
   structurePanelId,
+  summaryPanelId,
 } from "./panels"
 import type { Panel, PanelKind } from "./panels"
 
@@ -29,6 +30,7 @@ const KINDS: PanelKind[] = [
   "rows",
   "content",
   "structure",
+  "summary",
   "chart",
   "queries",
   "query",
@@ -73,6 +75,15 @@ const samples: Record<PanelKind, Panel> = {
     title: "orders",
     connectorName: "local pg",
     adapterType: "postgres",
+  },
+  summary: {
+    id: summaryPanelId("c1", "notes.txt"),
+    kind: "summary",
+    connectorId: "c1",
+    nodeId: "notes.txt",
+    title: "notes.txt",
+    connectorName: "my files",
+    adapterType: "file",
   },
   chart: {
     id: chartPanelId("view-1"),

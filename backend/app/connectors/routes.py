@@ -115,6 +115,7 @@ from app.adapters.protocol import (
     SupportsIndexes,
     SupportsInsert,
     SupportsNodePath,
+    SupportsNodeSummary,
     SupportsReferences,
     SupportsRelationModel,
     SupportsRenameColumn,
@@ -134,6 +135,7 @@ from app.adapters.row_commands import (
     SupportsRowCommands,
     UnknownRowCommand,
 )
+from app.adapters.summary import NodeSummary
 from app.adapters.update import (
     CellsUpdated,
     DeleteRowsRequest,
@@ -1720,6 +1722,53 @@ async def read_relation_model(
                 model, "You may not change the structure of this connection"
             )
         return model
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["query", "node_id"],
+                    "msg": str(exc),
+                    "type": "value_error",
+                }
+            ],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.get("/{connector_id}/node-summary", response_model=NodeSummary)
+async def read_node_summary(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    node_id: str,
+) -> Any:
+    """Describe one node itself: its facts, and what its format states.
+
+    Reading is enough, and nothing here depends on the grant beyond it: a
+    summary says what a node is, and everything in it is already visible to
+    somebody who may list the level it sits in (D75).
+    """
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsNodeSummary):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not describe its nodes",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.node_summary(node_id)
     except NodeNotFound as exc:
         raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
     except ValueError as exc:

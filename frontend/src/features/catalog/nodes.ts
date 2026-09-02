@@ -44,6 +44,8 @@ export interface ListNode {
   /** Every representation, preferred one first, exactly as the source sent it. */
   representations: NodeRepresentation[]
   describable: boolean
+  /** Whether the source will say what this node is: its facts and its format (D75). */
+  summarizable: boolean
   rowEstimate?: number | null
   /**
    * Whether the source considers this part of its own machinery. Only used to
@@ -222,6 +224,7 @@ export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
     representations: node.representations,
     system: isSystem(node),
     describable: node.describable === true,
+    summarizable: node.summarizable === true,
     // Only a table knows roughly how many rows it holds. A file would have
     // to be read from end to end to answer, so the grid pages without a
     // total.

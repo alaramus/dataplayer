@@ -79,10 +79,6 @@ already landed is in [the spec index](superpowers/specs/README.md) and in git.
 
 Sequence, in no particular order — each is independent:
 
-- [ ] **A file describes itself.** A summary of one node — size, kind, times,
-  what it can be opened as, and for a text or tabular file what is in it. The
-  question to answer first is what shape it takes: an action returns a message
-  and a representation is a viewer, and this is neither.
 - [ ] **Search a file source.** Two searches, and they are different requests:
   names across the tree, and text inside one file or a folder of them. Both
   need a ceiling, a bounded result and a way to stand where a hit is. Old

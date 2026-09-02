@@ -292,6 +292,46 @@ export type AddColumnRequest = {
 }
 
 /**
+ * ArchiveContents
+ *
+ * An archive as its central directory declares it, inflating nothing.
+ */
+export type ArchiveContents = {
+  /**
+   * Kind
+   */
+  kind?: "archive"
+  /**
+   * Entries
+   */
+  entries: number
+  /**
+   * Files
+   */
+  files: number
+  /**
+   * Directories
+   */
+  directories: number
+  /**
+   * Size Bytes
+   */
+  size_bytes: number
+  /**
+   * Compressed Bytes
+   */
+  compressed_bytes: number
+  /**
+   * Encrypted
+   */
+  encrypted: number
+  /**
+   * Links
+   */
+  links: number
+}
+
+/**
  * AudioContent
  *
  * Verified facts about one sound file, and where its bytes are read.
@@ -333,6 +373,34 @@ export type AudioContent = {
    * Stream Url
    */
   stream_url?: string | null
+}
+
+/**
+ * AudioContents
+ *
+ * What a sound file's header states, and nothing a decoder would know.
+ */
+export type AudioContents = {
+  /**
+   * Kind
+   */
+  kind?: "audio"
+  /**
+   * Media Type
+   */
+  media_type: "audio/mpeg" | "audio/wav" | "audio/ogg" | "audio/mp4" | "audio/flac"
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null
+  /**
+   * Channels
+   */
+  channels?: number | null
+  /**
+   * Sample Rate
+   */
+  sample_rate?: number | null
 }
 
 /**
@@ -1117,6 +1185,10 @@ export type DatasetNode = {
    */
   describable?: boolean
   /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
    * Kind
    */
   kind?: "dataset"
@@ -1197,6 +1269,70 @@ export type DeleteSelected = {
 }
 
 /**
+ * DelimitedContents
+ *
+ * A delimited file, counted with the parser that reads it as rows.
+ *
+ * Its rows are counted by `csv` rather than by newlines: a value in quotes
+ * may hold a line ending, and a count that ignored that would disagree with
+ * the grid beside it.
+ */
+export type DelimitedContents = {
+  /**
+   * Kind
+   */
+  kind?: "delimited"
+  /**
+   * Delimiter
+   */
+  delimiter?: "comma" | "semicolon" | "tab" | "pipe" | null
+  /**
+   * Columns
+   */
+  columns?: number | null
+  /**
+   * Rows
+   */
+  rows?: number | null
+  /**
+   * Encoding
+   */
+  encoding: "utf-8" | "utf-8-bom" | "not-utf-8"
+  /**
+   * Not Counted
+   */
+  not_counted?: string | null
+}
+
+/**
+ * DirectoryContents
+ *
+ * What one level of a folder holds, at the cost of one listing.
+ */
+export type DirectoryContents = {
+  /**
+   * Kind
+   */
+  kind?: "directory"
+  /**
+   * Entries
+   */
+  entries?: number | null
+  /**
+   * Files
+   */
+  files?: number | null
+  /**
+   * Directories
+   */
+  directories?: number | null
+  /**
+   * Not Counted
+   */
+  not_counted?: string | null
+}
+
+/**
  * DirectoryNode
  */
 export type DirectoryNode = {
@@ -1220,6 +1356,10 @@ export type DirectoryNode = {
    * Describable
    */
   describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
   /**
    * Kind
    */
@@ -1408,6 +1548,30 @@ export type EditorLayout = {
 }
 
 /**
+ * EntryContents
+ *
+ * One member of an archive, which has no bytes of its own on disk.
+ */
+export type EntryContents = {
+  /**
+   * Kind
+   */
+  kind?: "entry"
+  /**
+   * Compressed Bytes
+   */
+  compressed_bytes?: number | null
+  /**
+   * Encrypted
+   */
+  encrypted?: boolean
+  /**
+   * Link
+   */
+  link?: boolean
+}
+
+/**
  * EntryNode
  *
  * One member of an archive, which may itself hold others (D53).
@@ -1438,6 +1602,10 @@ export type EntryNode = {
    * Describable
    */
   describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
   /**
    * Kind
    */
@@ -1863,6 +2031,10 @@ export type FileNode = {
    */
   describable?: boolean
   /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
    * Kind
    */
   kind?: "file"
@@ -2117,6 +2289,28 @@ export type ImageContent = {
    * Preview Url
    */
   preview_url?: string | null
+}
+
+/**
+ * ImageContents
+ */
+export type ImageContents = {
+  /**
+   * Kind
+   */
+  kind?: "image"
+  /**
+   * Media Type
+   */
+  media_type: "image/png" | "image/jpeg"
+  /**
+   * Width
+   */
+  width: number
+  /**
+   * Height
+   */
+  height: number
 }
 
 /**
@@ -2692,6 +2886,102 @@ export type NodeRepresentation = {
 }
 
 /**
+ * NodeSummary
+ *
+ * One node described by the source that holds it.
+ *
+ * The relational vocabulary a file has no notion of is absent rather than
+ * filled in, exactly as it is in `RelationModel`; so is a time the platform
+ * does not state. `contents` is empty for a node whose format says nothing,
+ * and `notice` says why when the format was expected to say something and
+ * could not — a `.zip` whose bytes are not one, which is the catalog's known
+ * deviation about a misleading suffix (D47) reaching the reader.
+ */
+export type NodeSummary = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Kind
+   */
+  kind: "schema" | "table" | "view" | "directory" | "file" | "dataset" | "entry" | "report"
+  /**
+   * Representations
+   */
+  representations?: Array<NodeRepresentation>
+  /**
+   * Size Bytes
+   */
+  size_bytes?: number | null
+  /**
+   * Modified At
+   */
+  modified_at?: string | null
+  /**
+   * Accessed At
+   */
+  accessed_at?: string | null
+  /**
+   * Created At
+   */
+  created_at?: string | null
+  /**
+   * Permissions
+   */
+  permissions?: string | null
+  /**
+   * Contents
+   */
+  contents?:
+    | ({
+        kind: "text"
+      } & TextContents)
+    | ({
+        kind: "delimited"
+      } & DelimitedContents)
+    | ({
+        kind: "parquet"
+      } & ParquetDataset)
+    | ({
+        kind: "worksheet"
+      } & WorksheetDataset)
+    | ({
+        kind: "workbook"
+      } & WorkbookContents)
+    | ({
+        kind: "archive"
+      } & ArchiveContents)
+    | ({
+        kind: "entry"
+      } & EntryContents)
+    | ({
+        kind: "image"
+      } & ImageContents)
+    | ({
+        kind: "audio"
+      } & AudioContents)
+    | ({
+        kind: "video"
+      } & VideoContents)
+    | ({
+        kind: "pdf"
+      } & PdfContents)
+    | ({
+        kind: "directory"
+      } & DirectoryContents)
+    | null
+  /**
+   * Notice
+   */
+  notice?: string | null
+}
+
+/**
  * NullFilter
  */
 export type NullFilter = {
@@ -2887,6 +3177,20 @@ export type PdfContent = {
    * Stream Url
    */
   stream_url?: string | null
+}
+
+/**
+ * PdfContents
+ */
+export type PdfContents = {
+  /**
+   * Kind
+   */
+  kind?: "pdf"
+  /**
+   * Version
+   */
+  version: string
 }
 
 /**
@@ -3813,6 +4117,10 @@ export type ReportNode = {
    */
   describable?: boolean
   /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
    * Kind
    */
   kind?: "report"
@@ -4421,6 +4729,10 @@ export type SchemaNode = {
    */
   describable?: boolean
   /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
    * Kind
    */
   kind?: "schema"
@@ -4873,6 +5185,10 @@ export type TableNode = {
    */
   describable?: boolean
   /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
    * Kind
    */
   kind?: "table"
@@ -4910,6 +5226,38 @@ export type TextContent = {
    * Notice
    */
   notice?: string | null
+}
+
+/**
+ * TextContents
+ *
+ * A file read as lines, whatever its name promises it holds.
+ */
+export type TextContents = {
+  /**
+   * Kind
+   */
+  kind?: "text"
+  /**
+   * Encoding
+   */
+  encoding: "utf-8" | "utf-8-bom" | "not-utf-8"
+  /**
+   * Lines
+   */
+  lines?: number | null
+  /**
+   * Longest Line Bytes
+   */
+  longest_line_bytes?: number | null
+  /**
+   * Line Endings
+   */
+  line_endings?: "lf" | "crlf" | "cr" | "mixed" | "none" | null
+  /**
+   * Not Counted
+   */
+  not_counted?: string | null
 }
 
 /**
@@ -5500,6 +5848,32 @@ export type VideoContent = {
 }
 
 /**
+ * VideoContents
+ */
+export type VideoContents = {
+  /**
+   * Kind
+   */
+  kind?: "video"
+  /**
+   * Media Type
+   */
+  media_type: "video/mp4" | "video/webm" | "video/ogg" | "video/quicktime"
+  /**
+   * Duration Seconds
+   */
+  duration_seconds?: number | null
+  /**
+   * Width
+   */
+  width?: number | null
+  /**
+   * Height
+   */
+  height?: number | null
+}
+
+/**
  * ViewNode
  */
 export type ViewNode = {
@@ -5524,6 +5898,10 @@ export type ViewNode = {
    */
   describable?: boolean
   /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
    * Kind
    */
   kind?: "view"
@@ -5535,6 +5913,26 @@ export type ViewNode = {
    * Is System
    */
   is_system?: boolean
+}
+
+/**
+ * WorkbookContents
+ *
+ * A workbook, which holds sheets rather than one table (D51).
+ */
+export type WorkbookContents = {
+  /**
+   * Kind
+   */
+  kind?: "workbook"
+  /**
+   * Sheets
+   */
+  sheets: number
+  /**
+   * Hidden Sheets
+   */
+  hidden_sheets: number
 }
 
 /**
@@ -6992,6 +7390,43 @@ export type connectorsReadRelationModelResponses = {
 
 export type connectorsReadRelationModelResponse =
   connectorsReadRelationModelResponses[keyof connectorsReadRelationModelResponses]
+
+export type connectorsReadNodeSummaryData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query: {
+    /**
+     * Node Id
+     */
+    node_id: string
+  }
+  url: "/api/v1/connectors/{connector_id}/node-summary"
+}
+
+export type connectorsReadNodeSummaryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsReadNodeSummaryError =
+  connectorsReadNodeSummaryErrors[keyof connectorsReadNodeSummaryErrors]
+
+export type connectorsReadNodeSummaryResponses = {
+  /**
+   * Successful Response
+   */
+  200: NodeSummary
+}
+
+export type connectorsReadNodeSummaryResponse =
+  connectorsReadNodeSummaryResponses[keyof connectorsReadNodeSummaryResponses]
 
 export type connectorsDropColumnData = {
   body: DropColumnRequest

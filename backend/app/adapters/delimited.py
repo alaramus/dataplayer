@@ -12,6 +12,7 @@ import io
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import PurePosixPath
+from typing import Literal
 
 # What a first line is sniffed for. A `.tsv` promises tabs by its name; a
 # `.csv` promises commas only by convention, which is why the line is read.
@@ -26,6 +27,27 @@ def delimiter_of(filename: str, first_line: str) -> str:
         return csv.Sniffer().sniff(first_line, delimiters=DELIMITERS).delimiter
     except csv.Error:
         return ","
+
+
+DelimiterName = Literal["comma", "semicolon", "tab", "pipe"]
+
+_DELIMITER_NAMES: dict[str, DelimiterName] = {
+    ",": "comma",
+    ";": "semicolon",
+    "\t": "tab",
+    "|": "pipe",
+}
+
+
+def delimiter_name(delimiter: str) -> DelimiterName | None:
+    """What one of the sniffed delimiters is called, for a reader.
+
+    Named here rather than in the browser: which characters this project reads
+    as delimiters is decided by `DELIMITERS`, and a screen turning "\\t" into a
+    word would be a second copy of that set. Anything outside it answers None,
+    because a character nobody named is better absent than plausible.
+    """
+    return _DELIMITER_NAMES.get(delimiter)
 
 
 def usable_names(header: list[str]) -> list[str]:

@@ -122,6 +122,9 @@ import type {
   connectorsReadNodePathData,
   connectorsReadNodePathErrors,
   connectorsReadNodePathResponses,
+  connectorsReadNodeSummaryData,
+  connectorsReadNodeSummaryErrors,
+  connectorsReadNodeSummaryResponses,
   connectorsReadRelationModelData,
   connectorsReadRelationModelErrors,
   connectorsReadRelationModelResponses,
@@ -1417,6 +1420,30 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/relation-model",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Node Summary
+   *
+   * Describe one node itself: its facts, and what its format states.
+   *
+   * Reading is enough, and nothing here depends on the grant beyond it: a
+   * summary says what a node is, and everything in it is already visible to
+   * somebody who may list the level it sits in (D75).
+   */
+  public static readNodeSummary<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadNodeSummaryData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      connectorsReadNodeSummaryResponses,
+      connectorsReadNodeSummaryErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/node-summary",
       ...options,
     })
   }

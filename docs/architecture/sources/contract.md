@@ -230,3 +230,66 @@ editable, but the application will not connect to it.
   than a `/{id}/disable` route.
 
 Spec: [The socket, health and a switched-off connector](../../superpowers/specs/2026-08-24-realtime-and-connector-health-design.md)
+
+## D75. A node describes itself, and that is neither a viewer nor an action
+
+Three questions about a node already have answers, and the plainest one has
+none. A representation says what is inside a document ([D47](content.md)); a
+relation model says what shape something tabular has; an action does something
+and reports a message ([D9](actions.md)). None of them answers "what is this" —
+how big, since when, what it may be opened as, what its format states — and a
+folder, a recording and an opaque binary have no answer at all without a fourth.
+
+- `SupportsNodeSummary` answers `NodeSummary` for one node id at
+  `GET /connectors/{id}/node-summary`. Reading is enough: everything in it is
+  already visible to somebody who may list the level the node sits in.
+- It is deliberately not `SupportsRelationModel` with more fields. That model is
+  the shape of something tabular, and half of it — schema, owner, persistence,
+  constraints — is vocabulary a folder does not have. A capability answers one
+  question about one kind of thing.
+- `CatalogNode.summarizable` says which nodes have one, the way `describable`
+  says which answer a relation model ([D51](content.md)). A client that worked
+  it out from the kind would be deciding what a source can answer.
+- The facts every node has are flat and shared: size, the times the platform
+  states, the POSIX mode, and `representations` — the same ordered list the
+  catalog gives, so "what can this be opened as" is computed once.
+- What a format states is a discriminated union, `NodeContents`, for the reason
+  `DatasetInfo` is one: a screen rendering "name: value" pairs written by the
+  source shows text nobody can check. Two of its members are `DatasetInfo`'s
+  own, because a Parquet file states here exactly what it states there.
+- **A time the platform does not keep is absent.** A creation time is reported
+  only where `st_birthtime` exists; Linux's `st_ctime` is when the inode last
+  changed, and filling the field with it would be a plausible lie.
+- **Every count has a ceiling and says when it hit one.** A file over 32 MB is
+  not read through, and a folder is counted no further than the 2000 entries its
+  own listing refuses to go past — the same number in both messages. `lines`
+  absent with `not_counted` set is the shape, never a zero.
+- **A misleading suffix reaches the reader rather than the log.** Bytes that are
+  not the format their name promises leave `contents` empty and put the reader's
+  own refusal in `notice`, which is D47's known deviation finally being said out
+  loud. An `OSError` is not passed on: its text carries the path.
+- Nothing new is read to answer this. The archive's central directory, the
+  workbook's sheet list, the Parquet footer, the media header and the image
+  header are the readers this source already had; the one pass written for the
+  summary counts the lines, the longest line and the line endings of a text
+  file, which nothing else needed.
+
+Known deviations:
+
+- **Only the file source answers it.** PostgreSQL describes relations and
+  answers 501 here, so a table's own summary — its size on disk, its owner, when
+  it was last analysed — is a later slice rather than a gap in the contract.
+- **An entry inside an archive states only what the archive states.** Counting
+  its lines would cost expanding it to a temporary file of up to 32 MB
+  ([D53](content.md)), and this question is not worth one.
+- **A folder is counted one level deep.** A recursive size is a walk of the
+  whole tree, which is a job rather than a request.
+- **A summary is not cached and not invalidated.** It is a stat and a bounded
+  read, and a file source has not opted into [D31](connecting.md).
+- **It is opened from the catalog and nowhere else.** A rows tab offers
+  Structure and no Details, because the node it shows is in the catalog,
+  which is where the question is asked and where the nodes that have no
+  rows are. It is a line of the catalog's one menu, beside Copy and Cut
+  ([D74](actions.md)).
+
+Spec: [A node describes itself](../../superpowers/specs/2026-09-02-node-summary-design.md)

@@ -33,6 +33,7 @@ import {
   roleOf,
   rowsPanelId,
   structurePanelId,
+  summaryPanelId,
 } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
 import { createCloseRegistry, provideCloseRegistry } from "@/features/workspace/closable"
@@ -48,6 +49,7 @@ import type {
   OpenRowsRequest,
   OpenSharedRequest,
   OpenStructureRequest,
+  OpenSummaryRequest,
   RevealTarget,
   SharedTarget,
 } from "@/features/workspace/state"
@@ -540,6 +542,13 @@ provide(workspaceActionsKey, {
     workspace.open({
       id: structurePanelId(request.connectorId, request.nodeId),
       kind: "structure",
+      ...request,
+    })
+  },
+  openSummary: (request: OpenSummaryRequest) => {
+    workspace.open({
+      id: summaryPanelId(request.connectorId, request.nodeId),
+      kind: "summary",
       ...request,
     })
   },

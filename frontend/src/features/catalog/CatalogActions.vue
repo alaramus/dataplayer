@@ -2,9 +2,19 @@
 import { computed, ref } from "vue"
 
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
-import { needsClipboard, toMenu } from "@/features/catalog/actions"
+import {
+  clientCommandOf,
+  clientMenu,
+  needsClipboard,
+  toMenu,
+} from "@/features/catalog/actions"
 import { clipboardWording, heldFor, holdNodes } from "@/features/catalog/clipboard"
-import type { ActionOutcome, Grouping, MenuCommand } from "@/features/catalog/actions"
+import type {
+  ActionOutcome,
+  ClientCommand,
+  Grouping,
+  MenuCommand,
+} from "@/features/catalog/actions"
 import { useDownloadAction, useNodeActions } from "@/features/catalog/api"
 import type { CatalogNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
@@ -20,8 +30,12 @@ import type { MenuItem } from "@/shared/ui"
  * grouping; what changes children belongs to the shown place; and what changes
  * the level itself ignores the grouping filter. Standing in a folder is not
  * choosing it, so nothing is renamed or removed because of where the user
- * happens to be. A source that has no actions at all shows no menu rather than
- * an empty one. See D56.
+ * happens to be. See D56.
+ *
+ * The client's own verbs are lines of the same menu rather than icons beside
+ * it, so a menu appears when the source has actions, when it describes its
+ * nodes, or both; a source with neither shows nothing rather than an empty
+ * menu.
  */
 const props = defineProps<{
   connectorId: string
@@ -43,9 +57,13 @@ const props = defineProps<{
   checkedNodes: { label: string; kind: CatalogNode["kind"] }[]
   placeLabel: string
   checkedLabel: string
+  /** Whether the source describes the nodes of this level (D75). */
+  describesNodes: boolean
+  /** The one ticked node it will describe, or nothing. */
+  describedNode: { id: string; label: string } | null
 }>()
 
-const emit = defineEmits<{ done: [outcome: ActionOutcome] }>()
+const emit = defineEmits<{ done: [outcome: ActionOutcome]; details: [] }>()
 const toast = useToast()
 const downloadAction = useDownloadAction()
 
@@ -103,8 +121,21 @@ const canHold = computed(() =>
   commands.value.some((command) => needsClipboard(command))
 )
 
-const items = computed<MenuItem[]>(() =>
-  commands.value.map((command) => ({
+/**
+ * One menu, two vocabularies: what the client can do, then what the source can.
+ *
+ * The client's three come first because they are the same three wherever one
+ * stands, while the source's own lines vary with the level — and because Copy
+ * and Cut read as the pair Paste completes when they sit above it.
+ */
+const items = computed<MenuItem[]>(() => [
+  ...clientMenu({
+    describes: props.describesNodes,
+    describable: props.describedNode !== null,
+    holds: canHold.value,
+    ticked: props.checkedIds.length,
+  }),
+  ...commands.value.map((command) => ({
     name: command.name,
     label: needsClipboard(command) && held.value !== null
       ? `${command.label} — ${clipboardWording(held.value)}`
@@ -112,11 +143,17 @@ const items = computed<MenuItem[]>(() =>
     danger: command.destructive,
     disable:
       !command.enabled || (needsClipboard(command) && held.value === null),
-  }))
-)
+  })),
+])
 
-function hold(mode: "copy" | "move") {
-  holdNodes(props.connectorId, [...props.checkedIds], mode)
+/** A verb of the client's: nothing is sent, and nothing waits for an answer. */
+function run(command: ClientCommand) {
+  if (command === "details") {
+    if (props.describedNode !== null) emit("details")
+    return
+  }
+  if (props.checkedIds.length === 0) return
+  holdNodes(props.connectorId, [...props.checkedIds], command === "copy" ? "copy" : "move")
 }
 
 const active = ref<MenuCommand | null>(null)
@@ -134,6 +171,11 @@ const targetNode = computed(() =>
 )
 
 async function pick(name: string) {
+  const client = clientCommandOf(name)
+  if (client !== null) {
+    run(client)
+    return
+  }
   const command = commands.value.find((one) => one.name === name) ?? null
   // A disabled item raises no click in Quasar; this is the second guard, so
   // that nothing opens a form for what the server would refuse anyway.
@@ -174,28 +216,10 @@ async function pick(name: string) {
 </script>
 
 <template>
-  <span v-if="commands.length">
-    <!-- Two verbs that change nothing: they remember what is ticked, and the
-         source's own Paste is what acts. Drawn only where a source has
-         somewhere to put things, so a database does not offer to copy a
-         table into a folder. -->
-    <template v-if="canHold">
-      <AppIconButton
-        icon="content_copy"
-        tooltip="Copy"
-        :disable="checkedIds.length === 0"
-        data-testid="catalog-copy"
-        @click="hold('copy')"
-      />
-      <AppIconButton
-        icon="content_cut"
-        tooltip="Cut"
-        :disable="checkedIds.length === 0"
-        data-testid="catalog-cut"
-        @click="hold('move')"
-      />
-    </template>
-
+  <!-- Drawn while there is anything to offer, which is now either the source's
+       actions or the client's own verbs: a source with no actions at all still
+       describes its nodes. -->
+  <span v-if="items.length">
     <AppIconButton
       icon="more_vert"
       tooltip="Actions"

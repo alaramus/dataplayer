@@ -241,6 +241,11 @@ Consequences:
 - **Copy and Cut are drawn only where a source has somewhere to put things**,
   which is where its vocabulary holds a command with a `clipboard-nodes` field.
   A database offers neither.
+- **They are lines of the same menu the source's actions are in**, together
+  with Details ([D75](contract.md)), rather than icons beside it: what can be
+  done with a ticked row is asked in one place, and a row of icons grows with
+  every verb the client gains. A client line carries a `client:` prefix, which
+  a source's identifier-named action cannot collide with.
 - **A command needing the clipboard is disabled while it is empty** and says
   what it would paste while it is not.
 - **Every id is judged on arrival**, by the containment rule of D8, exactly as

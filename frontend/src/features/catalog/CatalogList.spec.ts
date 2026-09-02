@@ -15,6 +15,7 @@ function table(id: string, label: string): ListNode {
     readable: true,
     representations: [{ kind: "table", title: "View as table" }],
     describable: true,
+    summarizable: false,
     system: false,
   }
 }

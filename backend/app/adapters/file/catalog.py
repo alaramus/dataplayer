@@ -170,6 +170,7 @@ class FileCatalog:
                 name=facts.title,
                 representations=[TABLE],
                 describable=True,
+                summarizable=True,
                 row_count=facts.rows,
                 column_count=facts.columns,
                 hidden=facts.hidden,
@@ -219,6 +220,7 @@ class FileCatalog:
                 has_children=_has_entries(str(path)),
                 modified_at=modified_at,
                 representations=[],
+                summarizable=True,
             )
         return FileNode(
             id=node_id,
@@ -232,6 +234,9 @@ class FileCatalog:
             # A delimited header is editable structure even though it carries
             # no source types beyond text.
             describable=format_of(name) in {"parquet", "delimited"},
+            # Every node of this source answers what it is, whatever it can be
+            # opened as — which is the point of D75.
+            summarizable=True,
         )
 
 
@@ -249,6 +254,7 @@ def _entry_node(container_id: str, entry: archive.Entry) -> CatalogNode:
         modified_at=entry.modified_at,
         is_link=entry.is_link,
         is_encrypted=entry.is_encrypted,
+        summarizable=True,
     )
 
 

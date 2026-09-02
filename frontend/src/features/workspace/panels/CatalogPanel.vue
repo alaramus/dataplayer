@@ -227,6 +227,35 @@ const checkedLabel = computed(() => {
   return `${String(ticked.length)} items`
 })
 
+/**
+ * The one ticked node the source will describe, or nothing.
+ *
+ * One, because a summary is about a node rather than about a selection. Which
+ * nodes have one is the source's own answer, carried on the node (D75), so a
+ * source that describes none never draws the line and a database's tables do
+ * not offer a details tab that would answer 501.
+ */
+const describedNode = computed(() => {
+  const ticked = level.checkedNodes.value
+  if (ticked.length !== 1) return null
+  const node = ticked[0]
+  return node !== undefined && node.summarizable ? node : null
+})
+
+const describesNodes = computed(() => level.items.value.some((node) => node.summarizable))
+
+function showDetails() {
+  const node = describedNode.value
+  if (node === null) return
+  workspace.openSummary({
+    connectorId: props.connectorId,
+    nodeId: node.id,
+    title: node.label,
+    connectorName: props.title,
+    adapterType: props.adapterType,
+  })
+}
+
 /** A click opens what can be read and walks into what cannot. */
 function onOpen(node: ListNode) {
   if (node.role === "container") {
@@ -347,7 +376,10 @@ async function afterAction(outcome: ActionOutcome) {
           :checked-nodes="level.checkedNodes.value.map((node) => ({ label: node.label, kind: node.kind }))"
           :place-label="placeLabel"
           :checked-label="checkedLabel"
+          :describes-nodes="describesNodes"
+          :described-node="describedNode"
           @done="afterAction"
+          @details="showDetails"
         />
       </div>
 

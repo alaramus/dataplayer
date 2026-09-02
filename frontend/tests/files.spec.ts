@@ -510,9 +510,10 @@ test("copies a file into another folder, then moves one out again", async ({ pag
   await page.getByTestId("action-submit").click()
   await expect(catalogRow(page, folder)).toBeVisible()
 
-  // Copy changes nothing on its own: it remembers what is ticked (D74).
+  // Copy changes nothing on its own: it remembers what is ticked (D74). It is
+  // a line of the one menu, beside the source's own actions.
   await catalogCheck(page, "notes.txt").click()
-  await page.getByTestId("catalog-copy").click()
+  await catalogAction(page, "client:copy")
   await catalogCheck(page, "notes.txt").click()
 
   // Paste acts on the place being looked at, so the folder is walked into.
@@ -529,7 +530,7 @@ test("copies a file into another folder, then moves one out again", async ({ pag
   // Cut takes it away from where it was.
   await openNode(page, folder)
   await catalogCheck(page, "notes.txt").click()
-  await page.getByTestId("catalog-cut").click()
+  await catalogAction(page, "client:cut")
   await page.getByTestId("catalog-home").click()
   await catalogAction(page, "paste")
   await page.getByTestId("action-submit").click()
@@ -543,6 +544,48 @@ test("copies a file into another folder, then moves one out again", async ({ pag
   await catalogAction(page, "delete")
   await page.getByTestId("action-submit").click()
   await expect(catalogRow(page, folder)).toHaveCount(0)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("says what a node is, whatever it can be opened as", async ({ page }) => {
+  const name = `e2e-details-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  // A text file: the facts every node has, and what its format states (D75).
+  await catalogCheck(page, "notes.txt").click()
+  await catalogAction(page, "client:details")
+  const details = page.getByTestId("summary-view")
+  await expect(details).toContainText("notes.txt")
+  await expect(details).toContainText("File")
+  await expect(details).toContainText("Lines")
+  await expect(details).toContainText("UTF-8")
+  // The source's own wording for the view, not this screen's.
+  await expect(details).toContainText("View as text")
+  await catalogCheck(page, "notes.txt").click()
+
+  // A folder is described too, and is not asked what it opens as.
+  await catalogCheck(page, "reports").click()
+  await catalogAction(page, "client:details")
+  await expect(details).toContainText("Folder")
+  await expect(details).toContainText("Files")
+  await expect(details).not.toContainText("Opens as")
+  await catalogCheck(page, "reports").click()
+
+  // One node at a time: two ticks leave the line there and inert, because a
+  // summary is about a node rather than about a selection.
+  await catalogCheck(page, "notes.txt").click()
+  await catalogCheck(page, "sample.csv").click()
+  await page.getByTestId("catalog-actions").click()
+  await expect(page.getByTestId("menu-item-client:details")).toHaveAttribute(
+    "aria-disabled",
+    "true"
+  )
+  await page.keyboard.press("Escape")
+  await expect(page.getByTestId("menu-item-client:details")).toHaveCount(0)
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

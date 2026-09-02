@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest"
 import type { ActionInfo } from "@/client"
 import { at, first } from "@/shared/testing/collections"
 import {
+  clientCommandOf,
+  clientMenu,
   groupingChoices,
   nodeSetOf,
   replacementsOf,
@@ -400,5 +402,36 @@ describe("what counts as a set", () => {
 
   it("is not a set when nothing is ticked", () => {
     expect(nodeSetOf([])).toBeNull()
+  })
+})
+
+describe("the client's own lines of the menu", () => {
+  const everything = { describes: true, describable: true, holds: true, ticked: 1 }
+
+  it("puts the three the client owns before the source's own", () => {
+    const items = clientMenu(everything)
+
+    expect(items.map((item) => item.label)).toEqual(["Details", "Copy", "Cut"])
+    expect(items.every((item) => item.disable === false)).toBe(true)
+  })
+
+  it("leaves out what a source has no use for", () => {
+    // A database describes no nodes and has nowhere to paste.
+    const items = clientMenu({ ...everything, describes: false, holds: false })
+
+    expect(items).toEqual([])
+  })
+
+  it("keeps a line and disables it while the selection is not the one it needs", () => {
+    const items = clientMenu({ ...everything, describable: false, ticked: 0 })
+
+    expect(items.map((item) => item.disable)).toEqual([true, true, true])
+  })
+
+  it("tells its own command from a source's by the one thing a name cannot be", () => {
+    // A source names its actions with identifiers, so a colon cannot collide.
+    expect(clientCommandOf("client:copy")).toBe("copy")
+    expect(clientCommandOf("copy")).toBeNull()
+    expect(clientCommandOf("paste")).toBeNull()
   })
 })

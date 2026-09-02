@@ -90,6 +90,13 @@ export interface WorkspaceActions {
   takeShared: (connectorId: string, nodeId: string) => SharedTarget | null
   openStructure: (request: OpenStructureRequest) => void
   /**
+   * Show what one node is: its facts, and what its format states (D75).
+   *
+   * A panel rather than a window, because it is a read of a source that can
+   * fail, be re-read and be kept open beside the thing it describes.
+   */
+  openSummary: (request: OpenSummaryRequest) => void
+  /**
    * Show the library of query documents, filtered to one connection.
    *
    * One panel however many connections are open: a query belongs to a person
@@ -192,6 +199,12 @@ export interface OpenStructureRequest {
   connectorName: string
   adapterType: string
 }
+
+/**
+ * What a details tab needs, which is what a structure tab needs: one node, and
+ * the connection that labels the tab before anything has been read (P8).
+ */
+export type OpenSummaryRequest = OpenStructureRequest
 
 /** What a grid asks for when somebody presses the arrow in a keyed cell. */
 export interface FollowReferenceCommand {

@@ -46,6 +46,7 @@ from app.adapters.relation_changes import (
     CreateRelationResult,
     NewRelationOptions,
 )
+from app.adapters.summary import NodeSummary
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -304,6 +305,22 @@ class SupportsDelete(Protocol):
 class SupportsRelationModel(Protocol):
     async def relation_model(self, node_id: str) -> RelationModel:
         """Describe one relation in full: columns, constraints, indexes.
+
+        Raises NodeNotFound for an id that names nothing, AdapterError for
+        source failures, and ValueError for an id this source may not reach.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsNodeSummary(Protocol):
+    async def node_summary(self, node_id: str) -> NodeSummary:
+        """Describe one node itself: its facts, and what its format states.
+
+        Separate from `SupportsRelationModel` because the two answer different
+        questions about different nodes: a relation model is the shape of
+        something tabular, and this is what a node is — which a folder, a
+        recording and an opaque binary all have.
 
         Raises NodeNotFound for an id that names nothing, AdapterError for
         source failures, and ValueError for an id this source may not reach.

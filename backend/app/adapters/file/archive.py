@@ -93,6 +93,39 @@ def children(path: Path, inside: str | None) -> list[Entry]:
     )
 
 
+@dataclass(frozen=True)
+class Totals:
+    """The whole archive counted from its central directory. Nothing inflated."""
+
+    entries: int
+    files: int
+    directories: int
+    size_bytes: int
+    compressed_bytes: int
+    encrypted: int
+    links: int
+
+
+def totals(path: Path) -> Totals:
+    """What the archive holds, as it declares it. Blocking.
+
+    Only the entries the archive names, so a folder implied by the path of an
+    entry is not counted: this is what is in the file, and `children` is what a
+    reader walks.
+    """
+    entries = _entries(path)
+    files = [entry for entry in entries if not entry.is_directory]
+    return Totals(
+        entries=len(entries),
+        files=len(files),
+        directories=len(entries) - len(files),
+        size_bytes=sum(entry.size_bytes for entry in files),
+        compressed_bytes=sum(entry.compressed_bytes for entry in files),
+        encrypted=sum(1 for entry in entries if entry.is_encrypted),
+        links=sum(1 for entry in entries if entry.is_link),
+    )
+
+
 def entry_at(path: Path, inside: str) -> Entry:
     """One entry named by its path inside the archive. Blocking."""
     wanted = inside.strip("/")

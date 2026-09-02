@@ -10,7 +10,7 @@ import { formatSize } from "@/features/catalog/nodes"
  * not state is left out rather than shown as zero (D52).
  */
 export function mediaDetails(media: AudioContent | VideoContent): string {
-  const parts: string[] = [formatName(media.media_type)]
+  const parts: string[] = [mediaTypeName(media.media_type)]
   if (media.kind === "video" && media.width && media.height) {
     parts.push(`${String(media.width)} × ${String(media.height)}`)
   }
@@ -25,8 +25,13 @@ export function mediaDetails(media: AudioContent | VideoContent): string {
   return parts.join(" · ")
 }
 
-/** The container, named as a person would say it rather than as a MIME type. */
-function formatName(mediaType: string): string {
+/**
+ * The container, named as a person would say it rather than as a MIME type.
+ *
+ * Exported because the same question is asked in two places: the head of a
+ * player, and the description of a node that is never played (D75).
+ */
+export function mediaTypeName(mediaType: string): string {
   const NAMES: Record<string, string> = {
     "audio/mpeg": "MP3",
     "audio/wav": "WAV",
@@ -37,6 +42,8 @@ function formatName(mediaType: string): string {
     "video/webm": "WebM",
     "video/ogg": "Ogg video",
     "video/quicktime": "QuickTime",
+    "image/png": "PNG",
+    "image/jpeg": "JPEG",
   }
   return NAMES[mediaType] ?? mediaType
 }
