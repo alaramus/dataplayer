@@ -1,6 +1,6 @@
 """Catalog actions owned by PostgreSQL."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from functools import partial
 from pathlib import PurePosixPath
 from typing import Any, ClassVar, Protocol
@@ -12,6 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from app.adapters.actions import (
     CHUNK_BYTES,
     Action,
+    ActionDownload,
+    ActionDownloadMetadata,
     ActionPreview,
     ActionRefused,
     ActionResult,
@@ -31,10 +33,17 @@ from app.adapters.catalog import (
     ViewNode,
 )
 from app.adapters.delimited import DelimitedTable, read_table
+from app.adapters.model_code import (
+    DIALECT_SUFFIX,
+    CodeDialect,
+    render,
+)
 from app.adapters.postgres.catalog import PostgresCatalog, is_system_schema
+from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.relation_changes import PostgresRelationChanges
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import EXTENSIONS_REPORT_ID
+from app.adapters.relation import RelationModel
 from app.adapters.relation_changes import (
     CreateRelationRequest,
     NewColumn,
@@ -1006,6 +1015,100 @@ class DropExtension(ExtensionAction[ExtensionParams]):
         return sql.SQL("DROP EXTENSION {}").format(sql.Identifier(named)).as_string()
 
 
+class DescribeModelParams(BaseModel):
+    dialect: CodeDialect = Field(
+        default="dbml",
+        title="Written as",
+        description="What the file is for: an ORM, or a diagram",
+    )
+
+
+class DescribeModel(Action[DescribeModelParams]):
+    """Write the model of what was selected as code, and hand it over.
+
+    A download rather than a view, because what comes out is meant to be
+    taken somewhere else: pasted into dbdiagram.io, or dropped into a
+    project. The bytes are produced from the model the source already
+    publishes (D22), so nothing here reads the catalog a second time.
+
+    Offered on a schema as well as on a relation, and that is the useful
+    case: a diagram of one table is a rectangle, while a diagram of a schema
+    is the thing people draw.
+    """
+
+    name: ClassVar[str] = "describe_model"
+    title: ClassVar[str] = "Model as code"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset(
+        {"schema", "table", "view"}
+    )
+    acts_on: ClassVar[ActsOn] = "node"
+    requires: ClassVar[Access] = "read"
+    bulk: ClassVar[bool] = True
+    params_model = DescribeModelParams
+
+    def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
+        self._relation = PostgresRelation(session)
+        self._catalog = catalog
+
+    async def download(
+        self, node_ids: Sequence[str], raw: Mapping[str, Any]
+    ) -> ActionDownload:
+        params = self._validated(raw)
+        models = await self._models(node_ids)
+        if not models:
+            raise ActionRefused(
+                "not_applicable", "There is nothing here to describe"
+            )
+        try:
+            text = render(models, params.dialect)
+        except ValueError as exc:
+            raise ActionRefused("too_large", str(exc)) from None
+        body = text.encode("utf-8")
+        return ActionDownload(
+            metadata=ActionDownloadMetadata(
+                filename=_model_filename(node_ids, params.dialect),
+                media_type="text/plain; charset=utf-8",
+                size_bytes=len(body),
+            ),
+            body=_one_chunk(body),
+        )
+
+    async def _models(self, node_ids: Sequence[str]) -> list[RelationModel]:
+        """Every relation the selection names, each described once.
+
+        A schema stands for its contents, which is what makes selecting one
+        the way to draw a whole database; a relation stands for itself.
+        """
+        gathered: dict[str, RelationModel] = {}
+        for node_id in node_ids:
+            path = await self._catalog.path_to(node_id)
+            node = path[-1]
+            if isinstance(node, SchemaNode):
+                for model in await self._relation.relation_models(node.name):
+                    gathered.setdefault(model.node_id, model)
+                continue
+            if not isinstance(node, TableNode | ViewNode):
+                raise ActionRefused(
+                    "not_applicable", f"{node.name} has no model to write out"
+                )
+            model = await self._relation.relation_model(node_id)
+            gathered.setdefault(model.node_id, model)
+        return list(gathered.values())
+
+
+def _model_filename(node_ids: Sequence[str], dialect: CodeDialect) -> str:
+    """What the file is called: after the one thing selected, or "model"."""
+    suffix = DIALECT_SUFFIX[dialect]
+    if len(node_ids) == 1:
+        stem = node_ids[0].replace(".", "_")
+        return f"{stem}{suffix}"
+    return f"model{suffix}"
+
+
+async def _one_chunk(body: bytes) -> AsyncIterator[bytes]:
+    yield body
+
+
 class PostgresActionType(ActionType, Protocol):
     def __call__(
         self, session: PostgresSession, catalog: PostgresCatalog
@@ -1022,6 +1125,7 @@ POSTGRES_ACTION_TYPES: tuple[PostgresActionType, ...] = (
     DropSchema,
     CreateExtension,
     DropExtension,
+    DescribeModel,
 )
 
 

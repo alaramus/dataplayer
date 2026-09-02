@@ -120,6 +120,7 @@ async def test_schema_actions_are_offered_at_the_level_and_on_a_user_schema(
         "rename_schema",
         "load_csv",
         "drop_schema",
+        "describe_model",
     }
     assert system_schema == []
 
@@ -281,6 +282,7 @@ async def test_load_from_csv_is_offered_on_a_schema_and_not_on_a_relation(
         "rename_schema",
         "load_csv",
         "drop_schema",
+        "describe_model",
     }
     assert "load_csv" not in [action.name for action in table]
     # A schema the server owns is a real schema, and it admits nothing.

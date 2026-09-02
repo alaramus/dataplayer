@@ -264,6 +264,60 @@ Known deviations:
 
 Spec: [Download actions and bounded image content](../../superpowers/specs/2026-08-31-original-file-and-image-content-design.md)
 
+## D73. A download may ask something first, and the model is written as code
+
+`ProducesDownload` took the selection and nothing else, which is right while a
+download is only a copy of what was picked. It is not enough when a download is
+also a choice: the same relations written as a SQLAlchemy model, a Django model
+or a DBML document are three different files.
+
+So the capability takes the filled form too — `download(node_ids, raw)` — and
+validates it with the action's own model, exactly as `perform` does. The signed
+ticket a browser redeems carries the parameters, because the ticket is the
+authority for one invocation and what was chosen is part of what was
+authorised; a parameter in the URL is one a person can edit on the way.
+
+Its first user is `describe_model`, offered on a schema and on a relation. The
+renderers are pure functions over `RelationModel` in `adapters/model_code.py`:
+a source that can describe a relation already publishes its columns, types,
+keys and comments (D22), so this is a transformation of an answer that already
+exists rather than a second description of a relation. The old application had
+two of these inside each driver, reading a driver-shaped dictionary.
+
+Consequences:
+
+- **A schema stands for its contents**, which is what makes a diagram of a
+  database one selection rather than forty.
+- **A key is written by the published name of what it points at**, looked up
+  among the relations in the document; a node id is opaque and reading one
+  apart is what D21 forbids. A key pointing outside the document is left out of
+  DBML entirely, because dbdiagram refuses a file that names a table it was not
+  given.
+- **Nothing generated claims to be a migration**, and every file says so in its
+  first line. No singularisation — a singular is a guess about English, and a
+  guess in generated code is a bug somebody has to find. Django models are
+  `managed = False`, because the tables exist and Django did not make them.
+- **A composite key is named as what it is.** Django has none, so the columns
+  stay ordinary fields and `unique_together` says the rest, under the names the
+  file actually gave them.
+- **A download with a form goes through the dialog** like any other action and
+  ends in the native browser download; one with nothing to ask still runs
+  straight from the menu.
+
+Known deviations:
+
+- **The dialects are three, and the obvious fourth is missing.** Alembic,
+  Liquibase, Prisma and plain DDL are not written.
+- **The output is a file, not a view.** There is nothing to read in the
+  application before it is downloaded.
+- **A type is mapped by name, and a name this has never seen becomes text.**
+  Every mapping is a best effort at a portable type, and a dialect-specific one
+  would tie the file to one database.
+- **There is a ceiling of two hundred relations** in one document, and a schema
+  above it is refused rather than partly written.
+
+Spec: [The model a source published, written as code](../../superpowers/specs/2026-09-02-model-as-code-design.md)
+
 ## D55. A source may publish reports of its own
 
 Three of the old application's "System's objects" screens have no relation to

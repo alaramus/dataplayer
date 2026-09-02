@@ -437,3 +437,31 @@ test("drops several relations in one request", async ({ page }) => {
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
+
+
+test("writes the model of a schema out as code", async ({ page }) => {
+  const name = `e2e-model-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  // The schema is the useful subject: a diagram of one table is a rectangle,
+  // and a diagram of a schema is the thing people draw (D73). A schema is a
+  // grouping rather than a row, so choosing it in the level control is how it
+  // becomes what the action acts on.
+  await showOnlySchema(page, "demo_lab", "public")
+  await catalogAction(page, "describe_model")
+
+  // A download that has something to ask goes through the form like anything
+  // else, and the dialect is a choice the source published.
+  await page.getByTestId("field-dialect").click()
+  await page.getByRole("option", { name: "dbml", exact: true }).click()
+  const started = page.waitForEvent("download")
+  await page.getByTestId("action-submit").click()
+  const file = await started
+
+  expect(file.suggestedFilename()).toBe("demo_lab.dbml")
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})

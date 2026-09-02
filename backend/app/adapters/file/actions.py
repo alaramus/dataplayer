@@ -9,7 +9,7 @@ through the session, so the containment rule of decision D8 stays in one place.
 import os
 import shutil
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from functools import partial
 from pathlib import Path
 from typing import Any, ClassVar, Literal, Protocol
@@ -215,7 +215,10 @@ class Download(_ActsOnNode, Action[DownloadParams]):
     bulk: ClassVar[bool] = True
     params_model = DownloadParams
 
-    async def download(self, node_ids: Sequence[str]) -> ActionDownload:
+    async def download(
+        self, node_ids: Sequence[str], raw: Mapping[str, Any]
+    ) -> ActionDownload:
+        """The selection is the whole input; this download asks nothing else."""
         entries = [
             resolved
             for node_id in node_ids

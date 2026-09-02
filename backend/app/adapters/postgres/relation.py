@@ -205,6 +205,15 @@ class PostgresRelation:
             raise NodeNotFound(node_id)
         return models[0]
 
+    async def relation_models(self, schema: str) -> list[RelationModel]:
+        """Every relation of one schema, described in full.
+
+        The same set-oriented queries one relation uses, with the name filter
+        left off: describing forty tables is four queries rather than a
+        hundred and sixty.
+        """
+        return await self._models(schema, None)
+
     async def _models(
         self, schema: str, relation: str | None
     ) -> list[RelationModel]:

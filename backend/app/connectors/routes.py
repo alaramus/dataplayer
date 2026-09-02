@@ -400,7 +400,9 @@ async def download_action_result(
             status_code=415,
             detail={"message": f"{action.title} does not produce a download"},
         )
-    prepared = await _perform(lambda: action.download(claims.node_ids))
+    prepared = await _perform(
+        lambda: action.download(claims.node_ids, claims.params)
+    )
     return StreamingResponse(
         prepared.body,
         media_type=prepared.metadata.media_type,
@@ -2210,9 +2212,10 @@ class ActionTargets(BaseModel):
 
 
 class DownloadActionTargets(BaseModel):
-    """The non-empty selection one download action receives as a whole."""
+    """The non-empty selection one download action receives, and its form."""
 
     node_ids: Annotated[list[str], Field(min_length=1, max_length=1000)]
+    params: dict[str, Any] = {}
 
 
 class ActionRequest(BaseModel):
@@ -2594,6 +2597,7 @@ async def prepare_action_download(
         connector_id=connector_id,
         action_name=action_name,
         node_ids=body.node_ids,
+        params=body.params,
     )
     return ActionDownloadReady(
         download_url=action_downloads.action_download_url(ticket)

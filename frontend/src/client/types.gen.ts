@@ -1233,13 +1233,19 @@ export type DirectoryNode = {
 /**
  * DownloadActionTargets
  *
- * The non-empty selection one download action receives as a whole.
+ * The non-empty selection one download action receives, and its form.
  */
 export type DownloadActionTargets = {
   /**
    * Node Ids
    */
   node_ids: Array<string>
+  /**
+   * Params
+   */
+  params?: {
+    [key: string]: unknown
+  }
 }
 
 /**

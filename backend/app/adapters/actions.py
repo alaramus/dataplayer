@@ -243,9 +243,15 @@ class ProducesDownload(Protocol):
     property of a catalog node. The source owns both the selection semantics
     and the bytes: one adapter may return an original object while another
     may build an archive or export through the same client command.
+
+    The filled form comes with it, because a download may be a choice as well
+    as a selection — which format to write the answer in — and validating it
+    is the action's own job, exactly as it is for `perform`.
     """
 
-    async def download(self, node_ids: Sequence[str]) -> ActionDownload: ...
+    async def download(
+        self, node_ids: Sequence[str], raw: Mapping[str, Any]
+    ) -> ActionDownload: ...
 
 
 class ActionPreview(BaseModel):

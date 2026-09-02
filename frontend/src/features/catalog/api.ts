@@ -242,18 +242,25 @@ function togetherIn(input: ActionInput): string[] | null {
   return nodeSetOf(input.nodeIds)
 }
 
-/** Ask one source-declared action to download its whole selected target set. */
+/**
+ * Ask one source-declared action to download its whole selected target set.
+ *
+ * With the filled form, because a download may be a choice as well as a
+ * selection — which dialect to write a model in — and the source validates it
+ * exactly as it validates the parameters of anything else (D73).
+ */
 export function useDownloadAction() {
   return useMutation({
     mutationFn: async (input: {
       connectorId: string
       name: string
       nodeIds: string[]
+      params?: Record<string, unknown>
     }) =>
       (
         await ConnectorsService.prepareActionDownload({
           path: { connector_id: input.connectorId, action_name: input.name },
-          body: { node_ids: input.nodeIds },
+          body: { node_ids: input.nodeIds, params: input.params ?? {} },
         })
       ).data,
   })

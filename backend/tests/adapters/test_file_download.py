@@ -12,7 +12,7 @@ from app.adapters.file.session import FileSession
 async def _download(root: Path, node_ids: list[str]) -> ActionDownload:
     action = FileActions(FileSession(root)).action("download")
     assert isinstance(action, ProducesDownload)
-    return await action.download(node_ids)
+    return await action.download(node_ids, {})
 
 
 async def test_one_file_downloads_as_its_unchanged_original(tmp_path: Path) -> None:

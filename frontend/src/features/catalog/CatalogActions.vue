@@ -122,7 +122,9 @@ async function pick(name: string) {
     active.value = null
     return
   }
-  if (!command.downloads) {
+  // A download with something to ask goes through the form like anything
+  // else; the dialog knows to end in a download rather than in a message.
+  if (!command.downloads || command.fields.length > 0) {
     active.value = command
     return
   }

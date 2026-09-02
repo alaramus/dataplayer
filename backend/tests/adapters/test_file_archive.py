@@ -352,7 +352,7 @@ async def test_one_entry_is_downloaded_on_its_own(root: Path) -> None:
     actions = FileActions(FileSession(root))
     download = actions.action("download")
 
-    result = await download.download(["bundle.zip/docs/notes.txt"])  # type: ignore[attr-defined]
+    result = await download.download(["bundle.zip/docs/notes.txt"], {})  # type: ignore[attr-defined]
 
     assert result.metadata.filename == "notes.txt"
     body = b"".join([chunk async for chunk in result.body])
@@ -366,7 +366,7 @@ async def test_a_folder_inside_an_archive_is_not_downloaded(root: Path) -> None:
     download = actions.action("download")
 
     with pytest.raises((ActionRefused, ValueError)):
-        await download.download(["bundle.zip/docs"])  # type: ignore[attr-defined]
+        await download.download(["bundle.zip/docs"], {})  # type: ignore[attr-defined]
 
 
 def _shrink_declared_size(path: Path, declared: int) -> None:

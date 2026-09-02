@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from "vue"
 
 import type { ActionPreview } from "@/client"
 import {
+  useDownloadAction,
   usePreviewAction,
   usePreviewActionOnSet,
   useRunAction,
@@ -33,6 +34,7 @@ import {
   useConfirm,
   useToast,
 } from "@/shared/ui"
+import { saveNativeDownload } from "@/shared/download"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -58,6 +60,7 @@ const emit = defineEmits<{
 const toast = useToast()
 const confirm = useConfirm()
 const runAction = useRunAction()
+const downloadAction = useDownloadAction()
 const { values, errors, reset, applyServerErrors } = useSchemaForm()
 
 /**
@@ -225,6 +228,10 @@ async function submit() {
   failure.value = ""
   const params = await normalizedParams()
   if (params === null) return
+  if (command.downloads) {
+    await download(command, params)
+    return
+  }
   try {
     const outcome = await runAction.mutateAsync({
       connectorId: props.connectorId,
@@ -266,6 +273,32 @@ async function submit() {
         conflict: statusOf(cause) === 409,
       },
     ])
+  }
+}
+
+/**
+ * A download that had something to ask, sent once the form is filled.
+ *
+ * It ends here rather than in an outcome: the answer is bytes the browser
+ * fetches for itself, and there is nothing for the catalog to re-read.
+ */
+async function download(command: ActionCommand, params: Record<string, unknown>) {
+  const targets = nodeSet.value
+  if (targets === null) {
+    failure.value = "Choose what to write out"
+    return
+  }
+  try {
+    const ready = await downloadAction.mutateAsync({
+      connectorId: props.connectorId,
+      name: command.name,
+      nodeIds: targets,
+      params,
+    })
+    saveNativeDownload(ready.download_url)
+    close()
+  } catch (cause) {
+    failure.value = messageOf(cause, "The download could not be prepared")
   }
 }
 
@@ -520,7 +553,7 @@ async function runWorkflow(value: {
         v-else
         :variant="command.destructive ? 'danger' : 'primary'"
         :label="command.label"
-        :loading="runAction.isPending.value"
+        :loading="runAction.isPending.value || downloadAction.isPending.value"
         :disable="preview?.blocked === true"
         data-testid="action-submit"
         @click="submit"
