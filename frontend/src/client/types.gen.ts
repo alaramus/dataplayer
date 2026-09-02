@@ -4821,6 +4821,51 @@ export type SchemaNode = {
 }
 
 /**
+ * ServiceTemplateInfo
+ *
+ * One service this server may be asked to start.
+ *
+ * What a client is allowed to know: which key names it, what will run, and
+ * what it becomes. Not the container it would create — that is decided by
+ * the server and is nothing a request may steer, so publishing it would only
+ * invite the belief that it can.
+ */
+export type ServiceTemplateInfo = {
+  /**
+   * Key
+   */
+  key: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Description
+   */
+  description: string
+  /**
+   * Image
+   */
+  image: string
+  /**
+   * Container Port
+   */
+  container_port: number
+  /**
+   * Adapter Type
+   */
+  adapter_type: string
+  /**
+   * Adapter Title
+   */
+  adapter_title: string
+  /**
+   * Generated
+   */
+  generated: Array<"user" | "password" | "database">
+}
+
+/**
  * ShareBarred
  *
  * A resolved link the caller has no standing for.
@@ -8332,6 +8377,25 @@ export type adaptersReadAdapterTypesResponses = {
 
 export type adaptersReadAdapterTypesResponse =
   adaptersReadAdapterTypesResponses[keyof adaptersReadAdapterTypesResponses]
+
+export type servicesReadServiceTemplatesData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/services/templates"
+}
+
+export type servicesReadServiceTemplatesResponses = {
+  /**
+   * Response Services-Read Service Templates
+   *
+   * Successful Response
+   */
+  200: Array<ServiceTemplateInfo>
+}
+
+export type servicesReadServiceTemplatesResponse =
+  servicesReadServiceTemplatesResponses[keyof servicesReadServiceTemplatesResponses]
 
 export type sharesListSharesData = {
   body?: never

@@ -13,6 +13,7 @@ layers =
     app.system
     app.shares
     app.queries
+    app.services
     app.connectors
     app.adapters
     app.realtime
@@ -31,6 +32,7 @@ forbidden_modules =
     app.adapters
     app.connectors
     app.queries
+    app.services
     app.shares
     app.system
     app.api
@@ -50,6 +52,7 @@ source_modules =
     app.realtime
     app.connectors
     app.queries
+    app.services
     app.shares
     app.system
     app.api
@@ -80,6 +83,7 @@ source_modules =
     app.realtime
     app.connectors
     app.queries
+    app.services
     app.shares
     app.system
     app.api

@@ -97,9 +97,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] Define a code registry of approved service templates and generated
-  credential fields. No arbitrary image, command, environment key, volume or
-  host path comes from the client.
 - [ ] Model create/start/stop/restart/delete as owned asynchronous jobs with
   durable state and realtime progress. A request must not wait for image pulls.
 - [ ] Detect Docker availability and state the refusal in the adapter catalog.

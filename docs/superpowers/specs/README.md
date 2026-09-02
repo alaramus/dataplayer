@@ -81,6 +81,7 @@ translations; those files are not.
 | 2026-09-02 | [Searching the catalog by name](2026-09-02-catalog-search-design.md) | D76: a search answers with catalog nodes, and the filter's own words are what it looks for |
 | 2026-09-02 | [SQL over tabular files](2026-09-02-file-sql-design.md) | D77, D78: a file source's SQL names its own nodes, and its engine is a disposable sandbox |
 | 2026-09-02 | [A database user](2026-09-02-database-user-design.md) | D79: making a role is the owner's alone, and a password DDL cannot bind travels as the driver's own literal |
+| 2026-09-02 | [Approved service templates](2026-09-02-service-templates-design.md) | D80: what may be started is written in code, and a client names one of them |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

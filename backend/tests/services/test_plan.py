@@ -1,0 +1,169 @@
+"""What would be created for one service, and where every part of it came from."""
+
+from uuid import uuid4
+
+from app.adapters import options as adapter_options
+from app.adapters import registry
+from app.services.plan import (
+    OWNER_LABEL,
+    PASSWORD_ALPHABET,
+    PASSWORD_LENGTH,
+    SERVICE_LABEL,
+    TEMPLATE_LABEL,
+    Endpoint,
+    Placement,
+    build_plan,
+    connector_options,
+    settle_credentials,
+)
+from app.services.templates import SERVICE_TEMPLATES, template_for
+
+
+def _plan(placement: Placement | None = None):
+    return build_plan(
+        template_for("postgres"),
+        service_id=uuid4(),
+        owner_id=uuid4(),
+        placement=placement if placement is not None else Placement(),
+    )
+
+
+def test_the_container_is_the_template_and_nothing_else() -> None:
+    template = template_for("postgres")
+
+    plan = _plan()
+
+    assert plan.container.image == template.image
+    assert plan.container.command == template.command
+    assert plan.container.container_port == template.container_port
+    assert plan.container.data_path == template.data_path
+    assert set(plan.container.environment) == set(template.environment)
+
+
+def test_a_placement_decides_the_port_and_the_network_and_a_request_never_does() -> (
+    None
+):
+    plan = _plan(Placement(network="dataplayer_default", published_port=15432))
+
+    assert plan.container.network == "dataplayer_default"
+    assert plan.container.published_port == 15432
+
+
+def test_a_service_that_is_not_published_says_so_rather_than_guessing() -> None:
+    plan = _plan()
+
+    assert plan.container.published_port is None
+    assert plan.container.network is None
+
+
+def test_the_volume_is_named_and_no_path_on_the_host_is_ever_mentioned() -> None:
+    """A bind mount is the thing that would put the file system in reach."""
+    plan = _plan()
+
+    assert plan.container.volume.startswith("dataplayer-svc-postgres-")
+    assert plan.container.data_path.startswith("/")
+    written = f"{plan.container!r} {plan.container.volume} {plan.container.name}"
+    assert ":/" not in written
+
+
+def test_the_container_and_its_volume_are_named_after_the_service() -> None:
+    plan = _plan()
+    short = plan.service_id.hex[:12]
+
+    assert plan.container.name == f"dataplayer-svc-postgres-{short}"
+    assert plan.container.volume == f"{plan.container.name}-data"
+
+
+def test_two_services_of_one_kind_do_not_collide() -> None:
+    first, second = _plan(), _plan()
+
+    assert first.container.name != second.container.name
+    assert first.container.volume != second.container.volume
+
+
+def test_the_labels_say_whose_it_is_and_what_made_it() -> None:
+    """What a later sweep for orphans matches on: a name is for people."""
+    service_id, owner_id = uuid4(), uuid4()
+
+    plan = build_plan(
+        template_for("postgres"),
+        service_id=service_id,
+        owner_id=owner_id,
+        placement=Placement(),
+    )
+
+    assert plan.container.labels == {
+        SERVICE_LABEL: str(service_id),
+        TEMPLATE_LABEL: "postgres",
+        OWNER_LABEL: str(owner_id),
+    }
+
+
+def test_the_password_is_made_here_and_is_different_every_time() -> None:
+    first = settle_credentials(template_for("postgres"))
+    second = settle_credentials(template_for("postgres"))
+
+    assert first["password"] != second["password"]
+    assert len(first["password"]) == PASSWORD_LENGTH
+    assert set(first["password"]) <= set(PASSWORD_ALPHABET)
+
+
+def test_what_is_not_generated_is_the_same_for_every_service() -> None:
+    first = settle_credentials(template_for("postgres"))
+    second = settle_credentials(template_for("postgres"))
+
+    assert first["user"] == second["user"] == "dataplayer"
+    assert first["database"] == second["database"] == "dataplayer"
+
+
+def test_the_container_is_started_with_the_password_the_plan_holds() -> None:
+    """The old application read the two out of different places and could
+    start a container with one password and save a connector with another."""
+    plan = _plan()
+
+    assert plan.container.environment["POSTGRES_PASSWORD"] == plan.credentials[
+        "password"
+    ]
+    assert plan.container.environment["POSTGRES_USER"] == plan.credentials["user"]
+    assert plan.container.environment["POSTGRES_DB"] == plan.credentials["database"]
+
+
+def test_neither_the_plan_nor_the_container_prints_the_password() -> None:
+    """One traceback with a spec in a local variable would put it in a log."""
+    plan = _plan()
+
+    assert plan.credentials["password"] not in repr(plan)
+    assert plan.credentials["password"] not in repr(plan.container)
+    assert plan.credentials["password"] not in str(plan.container)
+
+
+def test_the_connector_it_becomes_validates_as_that_adapter_would() -> None:
+    """A service becomes a connector through the adapter's own options model,
+    exactly as one somebody typed."""
+    plan = _plan(Placement(network="dataplayer_default", published_port=15432))
+
+    filled = connector_options(plan, Endpoint(host=plan.container.name, port=5432))
+    validated = adapter_options.validate(
+        registry.get(plan.template.adapter_type).options_schema, filled
+    )
+
+    assert filled["host"] == plan.container.name
+    assert filled["port"] == 5432
+    assert filled["user"] == "dataplayer"
+    assert validated.password.get_secret_value() == plan.credentials[
+        "password"
+    ]
+
+
+def test_the_secret_of_that_connector_is_a_secret_of_the_model() -> None:
+    """So D4's split puts it in the encrypted blob without being told."""
+    for template in SERVICE_TEMPLATES:
+        schema = registry.get(template.adapter_type).options_schema
+        secret_fields = adapter_options.secret_field_names(schema)
+
+        generated = {
+            field
+            for field, value in template.connector_options.items()
+            if value == "password"
+        }
+        assert generated <= secret_fields, template.key

@@ -276,6 +276,8 @@ import type {
   queriesUpdateDocumentData,
   queriesUpdateDocumentErrors,
   queriesUpdateDocumentResponses,
+  servicesReadServiceTemplatesData,
+  servicesReadServiceTemplatesResponses,
   sharesApproveRequestData,
   sharesApproveRequestErrors,
   sharesApproveRequestResponses,
@@ -2053,6 +2055,31 @@ export class AdaptersService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/adapter-types/",
+      ...options,
+    })
+  }
+}
+
+export class ServicesService {
+  /**
+   * Read Service Templates
+   *
+   * List the services this server can start, and what each one becomes.
+   *
+   * A closed set written in code. A client picks a key from it; nothing about
+   * the container is a request's to choose (D80).
+   */
+  public static readServiceTemplates<ThrowOnError extends boolean = true>(
+    options?: Options<servicesReadServiceTemplatesData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      servicesReadServiceTemplatesResponses,
+      unknown,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/templates",
       ...options,
     })
   }
