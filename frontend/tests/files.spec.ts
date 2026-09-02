@@ -428,3 +428,63 @@ test("walks into an archive and reads what is inside it", async ({ page }) => {
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
+
+
+test("packs a selection into an archive and takes it apart again", async ({ page }) => {
+  const name = `e2e-packing-${Date.now()}`
+  const folder = `packed-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  // A folder of this run's own, so the samples every other scenario reads are
+  // left where they are.
+  await catalogAction(page, "create_folder")
+  await page.getByTestId("field-name").fill(folder)
+  await page.getByTestId("action-submit").click()
+  await openNode(page, folder)
+
+  await catalogAction(page, "upload")
+  await page.getByTestId("action-file").setInputFiles([
+    { name: "one.txt", mimeType: "text/plain", buffer: Buffer.from("first\n") },
+    { name: "two.txt", mimeType: "text/plain", buffer: Buffer.from("second\n") },
+  ])
+  await page.getByTestId("action-submit").click()
+  const list = page.getByTestId("catalog-list")
+  await expect(list).toContainText("one.txt")
+  await expect(list).toContainText("two.txt")
+
+  // Both ticked: one archive out of a selection, in one request (D68).
+  await catalogCheck(page, "one.txt").click()
+  await catalogCheck(page, "two.txt").click()
+  await catalogAction(page, "create_archive")
+  await page.getByTestId("field-name").fill("bundle")
+  // The format is a choice the source published; the form knows nothing else.
+  await page.getByTestId("field-format").click()
+  await page.getByRole("option", { name: "tar.gz", exact: true }).click()
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, "bundle.tar.gz")).toBeVisible()
+
+  // Extract is offered for the archive and for neither of the files in it.
+  await catalogCheck(page, "one.txt").click()
+  await page.getByTestId("catalog-actions").click()
+  await expect(page.getByTestId("menu-item-extract_archive")).toHaveAttribute(
+    "aria-disabled",
+    "true"
+  )
+  await page.keyboard.press("Escape")
+  await catalogCheck(page, "one.txt").click()
+
+  await catalogCheck(page, "bundle.tar.gz").click()
+  await catalogAction(page, "extract_archive")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, "bundle")).toBeVisible()
+
+  // What came out is what went in.
+  await openNode(page, "bundle")
+  await expect(list).toContainText("one.txt")
+  await expect(list).toContainText("two.txt")
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})

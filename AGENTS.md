@@ -129,6 +129,7 @@ files. IDs are stable because specs and commits refer to them.
 | D68 | [sources/actions](docs/architecture/sources/actions.md) |
 | D69 | [workspace](docs/architecture/workspace.md) |
 | D70 | [sources/relations](docs/architecture/sources/relations.md) |
+| D71 | [sources/content](docs/architecture/sources/content.md) |
 | D72 | [sources/relations](docs/architecture/sources/relations.md) |
 
 ## Working rules

@@ -73,6 +73,7 @@ translations; those files are not.
 | 2026-09-02 | [Dropping several relations at once](2026-09-02-action-node-set-design.md) | D68: a set is a subject an action may have, carried in one request and one transaction |
 | 2026-09-02 | [The bar at the foot of the screen](2026-09-02-connection-command-bar-design.md) | D69: the commands of a connection, offered while it is read and while it can do the thing |
 | 2026-09-02 | [Commands over the rows of a relation](2026-09-02-row-commands-design.md) | D70: a relation declares what can be done to selected rows, and may ask to be re-read |
+| 2026-09-02 | [Making an archive, and taking one apart](2026-09-02-archive-packing-design.md) | D71: the tar family joins ZIP for packing, and a name inside an archive goes through the one containment rule |
 | 2026-09-02 | [What a page is for, said by the source](2026-09-02-page-commands-design.md) | D72: the grid's own commands are a vocabulary the source may withdraw from |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the

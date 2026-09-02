@@ -265,6 +265,51 @@ Known deviations:
 
 Spec: [Walking into an archive](../../superpowers/specs/2026-08-31-archive-browsing-design.md)
 
+## D71. An archive is made and taken apart by the same containment rule
+
+Browsing an archive is ZIP only, and stays that way for the reason
+[D53](#d53-an-archive-is-a-container-of-entries) gives. Packing and unpacking
+are one pass over the whole file and have no such requirement, so the tar
+family joins ZIP there: `zip`, `tar`, `tar.gz`, `tar.bz2`, `tar.xz` to make one,
+and those plus the short spellings and the single-stream compressions — `.gz`,
+`.bz2`, `.xz`, which are one file rather than a container — to expand one. All
+of it is the standard library; nothing is added to the dependency list to open
+what somebody received by email.
+
+Consequences:
+
+- **A name inside an archive is judged by the one rule.** Every member goes
+  through `stays_inside_root`, and an archive holding one that escapes is
+  refused whole — every member is judged before a byte is written, because
+  somebody told "that was refused" must not wonder what landed first.
+- **A link is not expanded and not packed.** A tar holding one is refused, as
+  is anything that is not a plain file or a directory; `tarfile`'s own `data`
+  filter runs beside this source's walk rather than instead of it.
+- **The ceilings are the download's ceilings**: ten thousand entries and two
+  gigabytes, applied to what an archive declares before it is expanded.
+- **Packing takes a set and expanding does not.** Five files chosen for one
+  archive are one archive ([D68](actions.md)); three archives to expand are
+  three expansions, and one refused says nothing about the other two.
+- **A refused expansion takes its folder with it.** Nothing half-extracted is
+  left wearing the name somebody will look for, which is the same statement
+  every other write in this source makes by staging beside its destination.
+- **The client needed no code at all.** The menu, the form with its format
+  select, the confirmation and the set transport all followed from what the
+  source declares — which is what D9 and D56 are for.
+
+Known deviations:
+
+- **Encrypted archives, RAR and 7z are not opened.** None of the three is in
+  the standard library.
+- **An expansion goes here or into a folder of its own, and nowhere else.**
+  There is no way to say which folder.
+- **A `.gz` that is not a tar is classified as opaque in the catalog** but is
+  still expandable: `formats.py` calls it a binary file, and `packing.py` knows
+  it holds one stream. Two answers about one name, which agree today because
+  they answer different questions.
+
+Spec: [Making an archive, and taking one apart](../../superpowers/specs/2026-09-02-archive-packing-design.md)
+
 ## D57. Source-issued SQL is read-only content
 
 A relation has no text file to save back, so pretending its DDL is a text

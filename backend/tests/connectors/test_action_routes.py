@@ -178,6 +178,7 @@ async def test_a_directory_offers_the_actions_that_change_it(
         "create_folder",
         "upload",
         "download",
+        "create_archive",
         "rename",
         "delete",
     }
@@ -214,6 +215,8 @@ async def test_an_action_says_whether_it_changes_the_node_or_its_contents(
         "create_folder": "children",
         "upload": "children",
         "download": "node",
+        "create_archive": "node",
+        "extract_archive": "node",
         "rename": "node",
         "delete": "node",
     }
@@ -259,7 +262,15 @@ async def test_what_does_not_apply_here_is_listed_and_marked(
     response = await _offered(client, normal_user_token_headers, connector_id)
 
     listed = {action["name"] for action in response.json()}
-    assert listed == {"create_folder", "upload", "download", "rename", "delete"}
+    assert listed == {
+        "create_folder",
+        "upload",
+        "download",
+        "create_archive",
+        "extract_archive",
+        "rename",
+        "delete",
+    }
 
 
 @pytest.mark.usefixtures("isolated_registry")
@@ -847,6 +858,75 @@ async def test_an_action_done_one_node_at_a_time_refuses_a_set_request(
 
 
 @pytest.mark.usefixtures("home")
+async def test_a_selection_of_files_becomes_one_archive_and_comes_back(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Packing is a set action, and unpacking is one file at a time (D68)."""
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    made = await _run_on_set(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "create_archive",
+        ["notes.txt", "reports"],
+        name="bundle",
+        format="tar.gz",
+    )
+
+    assert made.status_code == 200
+    assert made.json()["message"] == "bundle.tar.gz created"
+    catalog = await client.get(
+        f"{BASE}/{connector_id}/catalog", headers=normal_user_token_headers
+    )
+    assert "bundle.tar.gz" in {node["name"] for node in catalog.json()}
+
+    # Extract is offered for the archive and for nothing else beside it.
+    offered = await _offered(
+        client, normal_user_token_headers, connector_id, ["bundle.tar.gz"]
+    )
+    assert "extract_archive" in _applicable(offered)
+    plain = await _offered(
+        client, normal_user_token_headers, connector_id, ["notes.txt"]
+    )
+    assert "extract_archive" not in _applicable(plain)
+
+    back = await _run(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "extract_archive",
+        "bundle.tar.gz",
+    )
+
+    assert back.status_code == 200
+    assert back.json()["message"].endswith("extracted into bundle")
+    inside = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=normal_user_token_headers,
+        params={"node_id": "bundle"},
+    )
+    assert {"notes.txt", "reports"} <= {node["name"] for node in inside.json()}
+
+
+@pytest.mark.usefixtures("home")
+async def test_a_file_that_is_not_an_archive_cannot_be_extracted(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _run(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "extract_archive",
+        "notes.txt",
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.usefixtures("home")
 async def test_two_files_admit_only_what_can_be_done_to_many(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
@@ -858,7 +938,7 @@ async def test_two_files_admit_only_what_can_be_done_to_many(
     )
 
     assert response.status_code == 200
-    assert _applicable(response) == {"download", "delete"}
+    assert _applicable(response) == {"download", "create_archive", "delete"}
 
 
 @pytest.mark.usefixtures("home")
@@ -871,7 +951,12 @@ async def test_one_node_in_a_set_admits_everything_it_would_alone(
         client, normal_user_token_headers, connector_id, ["notes.txt"]
     )
 
-    assert _applicable(response) == {"download", "rename", "delete"}
+    assert _applicable(response) == {
+        "download",
+        "create_archive",
+        "rename",
+        "delete",
+    }
 
 
 @pytest.mark.usefixtures("home")

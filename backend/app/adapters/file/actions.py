@@ -34,6 +34,15 @@ from app.adapters.catalog import NodeKind
 from app.adapters.file.download import FileDownload
 from app.adapters.file.formats import format_of
 from app.adapters.file.members import resolve_node
+from app.adapters.file.packing import (
+    PACK_SUFFIX,
+    NotUnpackable,
+    PackFormat,
+    is_unpackable,
+    pack,
+    unpack,
+    unpacked_name,
+)
 from app.adapters.file.session import FileSession, is_plain_name
 from app.core.access import Access
 from app.core.config import settings
@@ -76,6 +85,26 @@ class DownloadParams(BaseModel):
     """Download has no form; its complete input is the selected nodes."""
 
     pass
+
+
+class ArchiveParams(BaseModel):
+    name: str = Field(default="archive", title="Name")
+    # The suffix follows from this rather than from what is typed: a person
+    # choosing tar.gz and writing "backup.zip" meant tar.gz.
+    format: PackFormat = Field(default="zip", title="Format")
+
+    _check = field_validator("name")(_plain_name)
+
+
+class ExtractParams(BaseModel):
+    into_folder: bool = Field(
+        default=True,
+        title="Into a folder of its own",
+        description=(
+            "Off puts the contents beside the archive, which is what an "
+            "archive of one file usually wants"
+        ),
+    )
 
 
 class _Bound:
@@ -204,6 +233,116 @@ class Download(_ActsOnNode, Action[DownloadParams]):
         for node_id in node_ids:
             self._target(node_id)
         return await FileDownload(self._session).prepare(node_ids)
+
+
+class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
+    """Pack the whole selection into one new archive beside it.
+
+    A set action rather than a repeated one (D68): five files chosen for one
+    archive are one archive, and sending them one at a time would make five.
+    """
+
+    name: ClassVar[str] = "create_archive"
+    title: ClassVar[str] = "Archive"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory", "file"})
+    requires: ClassVar[Access] = "write"
+    bulk: ClassVar[bool] = True
+    params_model = ArchiveParams
+
+    async def run(self, node_id: str | None, params: ArchiveParams) -> ActionResult:
+        return await self._archive([node_id], params)
+
+    async def perform_on_set(
+        self, node_ids: Sequence[str], raw: dict[str, Any]
+    ) -> ActionResult:
+        return await self._archive(list(node_ids), self._validated(raw))
+
+    async def _archive(
+        self, node_ids: Sequence[str | None], params: ArchiveParams
+    ) -> ActionResult:
+        targets = [self._target(node_id) for node_id in node_ids]
+        parents = {target.parent for target in targets}
+        if len(parents) != 1:
+            raise ActionRefused(
+                "not_applicable", "One archive is made of one folder's contents"
+            )
+        parent = parents.pop()
+        into = await to_thread.run_sync(
+            partial(_available_path, parent, _archive_filename(params))
+        )
+        try:
+            await to_thread.run_sync(partial(pack, targets, into, params.format))
+        except OSError:
+            raise ValueError("The archive could not be written") from None
+        return ActionResult(
+            message=f"{into.name} created",
+            reload_node_ids=[self._parent_id(targets[0])],
+        )
+
+
+class ExtractArchive(_ActsOnNode, JsonAction[ExtractParams]):
+    """Expand one archive where it lies.
+
+    Repeated rather than taken as a set: three archives are three expansions,
+    and one of them being refused says nothing about the other two.
+    """
+
+    name: ClassVar[str] = "extract_archive"
+    title: ClassVar[str] = "Extract"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"file"})
+    requires: ClassVar[Access] = "write"
+    bulk: ClassVar[bool] = True
+    params_model = ExtractParams
+
+    async def run(self, node_id: str | None, params: ExtractParams) -> ActionResult:
+        path = self._target(node_id)
+        if not is_unpackable(path.name):
+            raise ActionRefused(
+                "not_applicable", f"{path.name} is not an archive this source opens"
+            )
+        made: Path | None = None
+        if params.into_folder:
+            made = await to_thread.run_sync(
+                partial(_available_path, path.parent, unpacked_name(path.name))
+            )
+            await to_thread.run_sync(partial(_make_directory, made))
+        destination = made or path.parent
+        try:
+            unpacked = await to_thread.run_sync(partial(unpack, path, destination))
+        except NotUnpackable as exc:
+            await self._undo(made)
+            raise ActionRefused("not_applicable", str(exc)) from None
+        except BaseException:
+            # A refused archive leaves nothing behind: the folder this made a
+            # moment ago is part of the refusal, not a result of it.
+            await self._undo(made)
+            raise
+        return ActionResult(
+            message=_extracted(unpacked.entries, made),
+            reload_node_ids=[self._parent_id(path)],
+        )
+
+    async def _undo(self, made: Path | None) -> None:
+        if made is None:
+            return
+        await to_thread.run_sync(partial(shutil.rmtree, made, ignore_errors=True))
+
+
+def _archive_filename(params: ArchiveParams) -> str:
+    """The name of the archive, with the suffix its format asks for.
+
+    Appended rather than assumed: somebody who types the suffix gets it once,
+    and somebody who does not gets a file their computer will open.
+    """
+    suffix = PACK_SUFFIX[params.format]
+    if params.name.lower().endswith(suffix):
+        return params.name
+    return f"{params.name}{suffix}"
+
+
+def _extracted(entries: int, made: Path | None) -> str:
+    what = "1 file" if entries == 1 else f"{entries} files"
+    return f"{what} extracted" + ("" if made is None else f" into {made.name}")
 
 
 class Upload(_Bound, FileAction[UploadParams]):
@@ -346,6 +485,8 @@ FILE_ACTION_TYPES: tuple[FileActionType, ...] = (
     CreateFolder,
     Upload,
     Download,
+    CreateArchive,
+    ExtractArchive,
     Rename,
     Delete,
 )
@@ -373,6 +514,14 @@ class FileActions:
             # The root is an ordinary directory, and its state — not its kind —
             # is what rules the two actions out.
             return [action for action in offered if not isinstance(action, _ActsOnNode)]
+        if kind == "file" and not is_unpackable(path.name):
+            # Said here rather than in `applies_to`, which speaks about kinds:
+            # every file is a file, and only some of them are archives.
+            return [
+                action
+                for action in offered
+                if not isinstance(action, ExtractArchive)
+            ]
         return offered
 
     def _look_at(self, node_id: str | None) -> tuple[Path, NodeKind]:

@@ -58,13 +58,21 @@ async def test_a_directory_admits_creating_uploading_renaming_and_deleting(
 ) -> None:
     names = {action.name for action in await actions.available("reports")}
 
-    assert names == {"create_folder", "upload", "download", "rename", "delete"}
+    assert names == {
+        "create_folder",
+        "upload",
+        "download",
+        "create_archive",
+        "rename",
+        "delete",
+    }
 
 
 async def test_a_file_admits_only_renaming_and_deleting(actions: FileActions) -> None:
+    """Not extracting: a file that is not an archive is not one to expand."""
     names = {action.name for action in await actions.available("notes.txt")}
 
-    assert names == {"download", "rename", "delete"}
+    assert names == {"download", "create_archive", "rename", "delete"}
 
 
 async def test_the_root_of_the_connector_cannot_be_renamed_or_deleted(
@@ -86,7 +94,15 @@ async def test_the_whole_vocabulary_is_offered_whatever_the_node(
     """
     names = {action.name for action in actions.all_actions()}
 
-    assert names == {"create_folder", "upload", "download", "rename", "delete"}
+    assert names == {
+        "create_folder",
+        "upload",
+        "download",
+        "create_archive",
+        "extract_archive",
+        "rename",
+        "delete",
+    }
 
 
 async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
@@ -98,6 +114,10 @@ async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
         "create_folder": "children",
         "upload": "children",
         "download": "node",
+        # Both archive commands are about the nodes that were picked out: one
+        # packs them, the other expands one of them.
+        "create_archive": "node",
+        "extract_archive": "node",
         "rename": "node",
         "delete": "node",
     }
