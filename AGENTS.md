@@ -206,6 +206,13 @@ a warmed dev server together.
   and pytest use `app/core/db.py::loop_factory`.
 - A connection pool belongs to the event loop that created it. Pytest shares
   one session loop; never pass a store into another loop.
+- A test marked `skipif(os.name != "posix")` never runs on the development
+  machine — Windows refuses to create a symbolic link without privileges — so
+  CI is the first thing to execute it. Treat such a test as unproven until the
+  pipeline is green.
+- The pipeline starts from an empty database and applies the fixtures itself.
+  A test that reads or writes inside `demo_lab` passes locally on what prestart
+  seeded; if it needs anything the seed does not create, it fails only in CI.
 - `docker compose up -d` does not include backend source changes. Rebuild with
   `docker compose up -d --build backend`.
 - Backend tests wipe users in the development database. Running

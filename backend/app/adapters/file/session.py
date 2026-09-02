@@ -79,6 +79,20 @@ class FileSession:
             raise ValueError(f"Path outside the connector root: {node_id}")
         return candidate
 
+    def names_a_symlink(self, node_id: str) -> bool:
+        """Whether any named segment of a node id is a symbolic link.
+
+        Asked separately from resolving because the two operations that refuse
+        a link refuse it in their own words: one is not downloaded, the other
+        is not archived.
+        """
+        candidate = self._root
+        for part in PurePosixPath(node_id).parts:
+            candidate /= part
+            if candidate.is_symlink():
+                return True
+        return False
+
     def resolve_without_symlinks(self, node_id: str) -> Path:
         """Resolve one entry while refusing a link in any named segment.
 
@@ -88,11 +102,8 @@ class FileSession:
         """
         if not stays_inside_root(node_id):
             raise ValueError(f"Path outside the connector root: {node_id}")
-        candidate = self._root
-        for part in PurePosixPath(node_id).parts:
-            candidate /= part
-            if candidate.is_symlink():
-                raise ValueError("Symbolic links are not downloaded")
+        if self.names_a_symlink(node_id):
+            raise ValueError("Symbolic links are not downloaded")
         return self.resolve(node_id)
 
     def relative_id(self, path: Path) -> str:

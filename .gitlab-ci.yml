@@ -65,6 +65,13 @@ backend:
     # which the test fixtures create themselves.
     - uv run python app/tests_pre_start.py
     - uv run alembic upgrade head
+    # And this is what scripts/prestart-dev.sh adds on top, minus the personal
+    # storage, which the tests build for themselves in a temporary directory.
+    # Everything the query capability is tested against — writing, DDL and a
+    # plan — runs on a real PostgreSQL and reads or writes inside `demo_lab`;
+    # a developer inherits that schema from the prestart container and CI has
+    # nothing to inherit it from.
+    - uv run python -m app.seed_database ../sql
     # A failure prints one line per test rather than a full traceback: 419
     # errors at once overran GitLab's 4 MB log limit and hid the cause.
     - uv run pytest tests/ -q --tb=short

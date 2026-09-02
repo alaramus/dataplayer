@@ -413,10 +413,23 @@ class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
     ) -> ActionResult:
         return await self._archive(list(node_ids), self._validated(raw))
 
+    def _packable(self, node_id: str | None) -> Path:
+        """One target of the walk, refusing a link named in the selection.
+
+        The walk refuses every symbolic link it meets among the children, and
+        a link named directly has to go the same way: resolving one first would
+        pack the tree it points at, so the same link would be archived or
+        refused depending only on how it was reached.
+        """
+        target = self._target(node_id)
+        if node_id is not None and self._session.names_a_symlink(node_id):
+            raise ActionRefused("not_applicable", "Symbolic links are not archived")
+        return target
+
     async def _archive(
         self, node_ids: Sequence[str | None], params: ArchiveParams
     ) -> ActionResult:
-        targets = [self._target(node_id) for node_id in node_ids]
+        targets = [self._packable(node_id) for node_id in node_ids]
         parents = {target.parent for target in targets}
         if len(parents) != 1:
             raise ActionRefused(

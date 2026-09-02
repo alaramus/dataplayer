@@ -150,15 +150,36 @@ async def test_a_name_with_a_separator_in_it_is_refused(
 
 
 @pytest.mark.skipif(os.name != "posix", reason="symlinks need privileges on Windows")
+async def test_a_link_named_in_the_selection_is_not_archived(
+    actions: FileActions, root: Path
+) -> None:
+    """Named directly or met in the walk, a link goes the same way.
+
+    Resolving one first would pack the tree it points at, so the same link
+    would be archived or refused depending only on how it was reached.
+    """
+    (root / "gone").symlink_to(root / "reports", target_is_directory=True)
+
+    with pytest.raises(ActionRefused, match="Symbolic links"):
+        await _run_on_set(
+            actions, "create_archive", ["gone", "notes.txt"], name="everything"
+        )
+
+    assert not (root / "everything.zip").exists()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="symlinks need privileges on Windows")
 async def test_archiving_leaves_nothing_behind_when_it_fails(
     actions: FileActions, root: Path
 ) -> None:
     """A refused archive is not a file with the name somebody will look for."""
-    (root / "gone").symlink_to(root / "reports", target_is_directory=True)
+    # The link is met while walking the folder, so the refusal comes once the
+    # archive being built already holds what was added before it.
+    (root / "reports" / "gone").symlink_to(root / "notes.txt")
 
     with pytest.raises(ActionRefused):
         await _run_on_set(
-            actions, "create_archive", ["gone", "notes.txt"], name="everything"
+            actions, "create_archive", ["reports", "notes.txt"], name="everything"
         )
 
     assert not (root / "everything.zip").exists()
