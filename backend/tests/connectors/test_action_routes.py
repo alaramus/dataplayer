@@ -177,6 +177,7 @@ async def test_a_directory_offers_the_actions_that_change_it(
     assert _applicable(response) == {
         "create_folder",
         "upload",
+        "paste",
         "download",
         "create_archive",
         "rename",
@@ -214,6 +215,7 @@ async def test_an_action_says_whether_it_changes_the_node_or_its_contents(
     assert scopes == {
         "create_folder": "children",
         "upload": "children",
+        "paste": "children",
         "download": "node",
         "create_archive": "node",
         "extract_archive": "node",
@@ -230,7 +232,7 @@ async def test_the_root_offers_no_way_to_remove_itself(
 
     response = await _offered(client, normal_user_token_headers, connector_id)
 
-    assert _applicable(response) == {"create_folder", "upload"}
+    assert _applicable(response) == {"create_folder", "upload", "paste"}
 
 
 async def test_postgres_declares_schema_creation_as_an_action_on_the_level(
@@ -265,6 +267,7 @@ async def test_what_does_not_apply_here_is_listed_and_marked(
     assert listed == {
         "create_folder",
         "upload",
+        "paste",
         "download",
         "create_archive",
         "extract_archive",

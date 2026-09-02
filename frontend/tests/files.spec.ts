@@ -488,3 +488,48 @@ test("packs a selection into an archive and takes it apart again", async ({ page
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
+
+
+test("copies a file into another folder, then moves one out again", async ({ page }) => {
+  const name = `e2e-paste-${Date.now()}`
+  const folder = `pasted-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  await catalogAction(page, "create_folder")
+  await page.getByTestId("field-name").fill(folder)
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, folder)).toBeVisible()
+
+  // Copy changes nothing on its own: it remembers what is ticked (D74).
+  await catalogCheck(page, "notes.txt").click()
+  await page.getByTestId("catalog-copy").click()
+  await catalogCheck(page, "notes.txt").click()
+
+  // Paste acts on the place being looked at, so the folder is walked into.
+  await openNode(page, folder)
+  await catalogAction(page, "paste")
+  await page.getByTestId("action-submit").click()
+  const list = page.getByTestId("catalog-list")
+  await expect(list).toContainText("notes.txt")
+
+  // And what was copied stays where it was.
+  await page.getByTestId("catalog-home").click()
+  await expect(catalogRow(page, "notes.txt")).toBeVisible()
+
+  // Cut takes it away from where it was.
+  await openNode(page, folder)
+  await catalogCheck(page, "notes.txt").click()
+  await page.getByTestId("catalog-cut").click()
+  await page.getByTestId("catalog-home").click()
+  await catalogAction(page, "paste")
+  await page.getByTestId("action-submit").click()
+  // Refused, and said where the answer belongs: the name is taken at the top,
+  // because the copy from a moment ago is still there.
+  await expect(page.getByTestId("action-error")).toContainText("already there")
+  await page.getByRole("button", { name: "Cancel" }).click()
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})

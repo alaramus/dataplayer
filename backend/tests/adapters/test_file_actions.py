@@ -61,6 +61,7 @@ async def test_a_directory_admits_creating_uploading_renaming_and_deleting(
     assert names == {
         "create_folder",
         "upload",
+        "paste",
         "download",
         "create_archive",
         "rename",
@@ -81,7 +82,7 @@ async def test_the_root_of_the_connector_cannot_be_renamed_or_deleted(
     """A question of state, not of kind: the root is an ordinary directory."""
     names = {action.name for action in await actions.available(None)}
 
-    assert names == {"create_folder", "upload"}
+    assert names == {"create_folder", "upload", "paste"}
 
 
 async def test_the_whole_vocabulary_is_offered_whatever_the_node(
@@ -97,6 +98,7 @@ async def test_the_whole_vocabulary_is_offered_whatever_the_node(
     assert names == {
         "create_folder",
         "upload",
+        "paste",
         "download",
         "create_archive",
         "extract_archive",
@@ -113,6 +115,8 @@ async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
     assert by_name == {
         "create_folder": "children",
         "upload": "children",
+        # Pasting puts something into a place, so the place is the subject.
+        "paste": "children",
         "download": "node",
         # Both archive commands are about the nodes that were picked out: one
         # packs them, the other expands one of them.

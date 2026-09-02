@@ -2,7 +2,8 @@
 import { computed, ref } from "vue"
 
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
-import { toMenu } from "@/features/catalog/actions"
+import { needsClipboard, toMenu } from "@/features/catalog/actions"
+import { clipboardWording, heldFor, holdNodes } from "@/features/catalog/clipboard"
 import type { ActionOutcome, Grouping, MenuCommand } from "@/features/catalog/actions"
 import { useDownloadAction, useNodeActions } from "@/features/catalog/api"
 import type { CatalogNode } from "@/features/catalog/nodes"
@@ -91,14 +92,32 @@ const commands = computed(() =>
   )
 )
 
+/**
+ * What the catalog is holding for this connection, if anything.
+ *
+ * Copy and Cut change nothing on the server: they remember a selection here,
+ * and the source's own command is what puts it somewhere (D74).
+ */
+const held = computed(() => heldFor(props.connectorId))
+const canHold = computed(() =>
+  commands.value.some((command) => needsClipboard(command))
+)
+
 const items = computed<MenuItem[]>(() =>
   commands.value.map((command) => ({
     name: command.name,
-    label: command.label,
+    label: needsClipboard(command) && held.value !== null
+      ? `${command.label} — ${clipboardWording(held.value)}`
+      : command.label,
     danger: command.destructive,
-    disable: !command.enabled,
+    disable:
+      !command.enabled || (needsClipboard(command) && held.value === null),
   }))
 )
+
+function hold(mode: "copy" | "move") {
+  holdNodes(props.connectorId, [...props.checkedIds], mode)
+}
 
 const active = ref<MenuCommand | null>(null)
 
@@ -119,6 +138,10 @@ async function pick(name: string) {
   // A disabled item raises no click in Quasar; this is the second guard, so
   // that nothing opens a form for what the server would refuse anyway.
   if (command === null || !command.enabled) {
+    active.value = null
+    return
+  }
+  if (needsClipboard(command) && held.value === null) {
     active.value = null
     return
   }
@@ -147,6 +170,27 @@ async function pick(name: string) {
 
 <template>
   <span v-if="commands.length">
+    <!-- Two verbs that change nothing: they remember what is ticked, and the
+         source's own Paste is what acts. Drawn only where a source has
+         somewhere to put things, so a database does not offer to copy a
+         table into a folder. -->
+    <template v-if="canHold">
+      <AppIconButton
+        icon="content_copy"
+        tooltip="Copy"
+        :disable="checkedIds.length === 0"
+        data-testid="catalog-copy"
+        @click="hold('copy')"
+      />
+      <AppIconButton
+        icon="content_cut"
+        tooltip="Cut"
+        :disable="checkedIds.length === 0"
+        data-testid="catalog-cut"
+        @click="hold('move')"
+      />
+    </template>
+
     <AppIconButton
       icon="more_vert"
       tooltip="Actions"

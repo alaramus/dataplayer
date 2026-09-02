@@ -19,7 +19,13 @@ export interface JsonSchemaProperty {
    * source's own groupings — a schema, for a database — so the form offers
    * the ones this connection has instead of asking for an exact name.
    */
-  "x-ui-purpose"?: "file-conflict" | "filename-stem" | "grouping" | "node-name"
+  "x-ui-purpose"?:
+    | "clipboard-mode"
+    | "clipboard-nodes"
+    | "file-conflict"
+    | "filename-stem"
+    | "grouping"
+    | "node-name"
   // Where the field goes, put here by `layout()` on the server. A statement
   // about the fields, so it is made where the fields are declared — the form
   // would otherwise have to infer that a port is narrow from its being a

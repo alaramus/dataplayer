@@ -10,10 +10,12 @@ import {
 } from "@/features/catalog/api"
 import {
   groupingChoices,
+  needsClipboard,
   nodeSetOf,
   summarize,
   withGroupingChoices,
 } from "@/features/catalog/actions"
+import { forgetClipboard, heldFor } from "@/features/catalog/clipboard"
 import type {
   ActionCommand,
   ActionFailure,
@@ -254,6 +256,9 @@ async function submit() {
     const said = summarize(outcome, command.label)
     if (outcome.failures.length > 0) toast.error(said)
     else toast.success(said)
+    // What was held has landed. Keeping it would offer to paste a file that
+    // has just been moved away from where it was picked up.
+    if (needsClipboard(command) && outcome.failures.length === 0) forgetClipboard()
     emit("done", outcome)
     close()
   } catch (cause) {
@@ -336,10 +341,31 @@ function takenNames(taken: File[]): string {
 }
 
 function initialValues(command: ActionCommand | null): Record<string, unknown> {
-  const node = props.targetNode
-  if (command === null || node === null || node === undefined) {
-    return {}
+  if (command === null) return {}
+  return { ...nameValues(command), ...clipboardValues(command) }
+}
+
+/**
+ * What the catalog is holding, put into the fields that asked for it.
+ *
+ * By purpose and never by name: the source says a field carries what was
+ * copied, and this fills it. Nothing here knows that the action is called
+ * paste, or what pasting means (D74).
+ */
+function clipboardValues(command: ActionCommand): Record<string, unknown> {
+  const current = heldFor(props.connectorId)
+  if (current === null) return {}
+  const filled: Record<string, unknown> = {}
+  for (const field of command.fields) {
+    if (field.purpose === "clipboard-nodes") filled[field.name] = current.nodeIds
+    if (field.purpose === "clipboard-mode") filled[field.name] = current.mode
   }
+  return filled
+}
+
+function nameValues(command: ActionCommand): Record<string, unknown> {
+  const node = props.targetNode
+  if (node === null || node === undefined) return {}
   return Object.fromEntries(
     command.fields
       .filter((field) => field.purpose === "node-name")

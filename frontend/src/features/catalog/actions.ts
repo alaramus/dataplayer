@@ -163,6 +163,18 @@ export function toMenu(
 }
 
 /**
+ * Whether this command is one the catalog's clipboard fills.
+ *
+ * Asked of the fields rather than of the name: the source says a field is for
+ * what was copied, and the client fills it. A command like this is offered
+ * only while something is held, because an empty one is a form nobody can
+ * complete (D74).
+ */
+export function needsClipboard(command: ActionCommand): boolean {
+  return command.fields.some((field) => field.purpose === "clipboard-nodes")
+}
+
+/**
  * The selection as a set, or nothing when it is not one.
  *
  * The root of a connector travels as null and has no id to put in a list, so

@@ -76,6 +76,7 @@ translations; those files are not.
 | 2026-09-02 | [Making an archive, and taking one apart](2026-09-02-archive-packing-design.md) | D71: the tar family joins ZIP for packing, and a name inside an archive goes through the one containment rule |
 | 2026-09-02 | [What a page is for, said by the source](2026-09-02-page-commands-design.md) | D72: the grid's own commands are a vocabulary the source may withdraw from |
 | 2026-09-02 | [The model a source published, written as code](2026-09-02-model-as-code-design.md) | D73: a download may carry a form, and the published model is written as SQLAlchemy, Django or DBML |
+| 2026-09-02 | [Copying and moving files](2026-09-02-file-clipboard-design.md) | D74: Copy and Cut are the client's and change nothing; Paste is the source's, and the form fills itself by purpose |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

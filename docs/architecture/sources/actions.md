@@ -215,6 +215,53 @@ Known deviations:
 
 Spec: [Dropping several relations at once](../../superpowers/specs/2026-09-02-action-node-set-design.md)
 
+## D74. Copy and Cut are the client's, and Paste is the source's
+
+Every way of naming a destination in a form is bad: typing a path somebody is
+looking at, a select the source would walk its whole tree to fill, or a tree
+picker that is a second catalog inside the first. The shape people already know
+avoids all three — pick things up here, walk to where they go, put them down —
+and its destination is the place being looked at, which an action already knows
+how to be told (`acts_on: "children"`).
+
+So Copy and Cut change nothing and belong to the client: they remember a
+selection and a verb in `features/catalog/clipboard.ts`, nothing is sent, and
+somebody who changes their mind has changed nothing. `paste` is an ordinary
+declared action of the source, and what was picked up travels in the request —
+a selection held for ten minutes in a browser is not state the source should be
+keeping.
+
+Consequences:
+
+- **The form fills itself by purpose, never by name.** The action declares two
+  hidden fields, `clipboard-nodes` and `clipboard-mode`, and the dialog fills
+  them from what is held. The client learns that a field wants the selection,
+  not that the action is called paste — the arrangement `node-name`,
+  `grouping` and `file-conflict` already use.
+- **Copy and Cut are drawn only where a source has somewhere to put things**,
+  which is where its vocabulary holds a command with a `clipboard-nodes` field.
+  A database offers neither.
+- **A command needing the clipboard is disabled while it is empty** and says
+  what it would paste while it is not.
+- **Every id is judged on arrival**, by the containment rule of D8, exactly as
+  a path typed into a form is.
+- **A move names both ends** in `reload_node_ids`, and the clipboard is
+  forgotten once its contents land: offering to paste a file that has just been
+  moved away is offering a refusal.
+- **The ceilings are the archive's** — ten thousand entries and two gigabytes,
+  counted before anything is written ([D71](content.md)).
+
+Known deviations:
+
+- **Nothing crosses connections.** A held selection belongs to the connection
+  it came from, because an opaque node id means nothing to another source.
+- **A large copy has no progress and no cancel.** It is one request, bounded by
+  the ceilings and by nothing else.
+- **There is no undo.** A move is a move.
+- **The clipboard does not survive a reload**, and says so by being empty.
+
+Spec: [Copying and moving files](../../superpowers/specs/2026-09-02-file-clipboard-design.md)
+
 ## D49. Download is a source-declared action
 
 Download is not a property of a file node or its viewer, so every adapter uses

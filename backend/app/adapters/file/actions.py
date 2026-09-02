@@ -35,6 +35,8 @@ from app.adapters.file.download import FileDownload
 from app.adapters.file.formats import format_of
 from app.adapters.file.members import resolve_node
 from app.adapters.file.packing import (
+    MAX_BYTES,
+    MAX_ENTRIES,
     PACK_SUFFIX,
     NotUnpackable,
     PackFormat,
@@ -94,6 +96,31 @@ class ArchiveParams(BaseModel):
     format: PackFormat = Field(default="zip", title="Format")
 
     _check = field_validator("name")(_plain_name)
+
+
+class PasteParams(BaseModel):
+    """Where something is going, and what it was picked up as.
+
+    The two hidden fields are filled by the client from what the catalog is
+    holding. They are declared by purpose rather than by name, so the form
+    knows to fill them without knowing what this action is called.
+    """
+
+    sources: list[str] = Field(
+        default_factory=list,
+        title="What to put here",
+        json_schema_extra={"x-ui-purpose": "clipboard-nodes", "x-ui-hidden": True},
+    )
+    mode: Literal["copy", "move"] = Field(
+        default="copy",
+        title="Copy or move",
+        json_schema_extra={"x-ui-purpose": "clipboard-mode", "x-ui-hidden": True},
+    )
+    conflict: Literal["refuse", "replace", "rename"] = Field(
+        default="refuse",
+        title="Name conflict",
+        json_schema_extra={"x-ui-purpose": "file-conflict", "x-ui-hidden": True},
+    )
 
 
 class ExtractParams(BaseModel):
@@ -236,6 +263,132 @@ class Download(_ActsOnNode, Action[DownloadParams]):
         for node_id in node_ids:
             self._target(node_id)
         return await FileDownload(self._session).prepare(node_ids)
+
+
+class PasteHere(_Bound, JsonAction[PasteParams]):
+    """Put what was copied or cut into the folder being looked at.
+
+    The destination is where the user is standing, which is why this acts on
+    a place's children rather than on a node: a file manager pastes *here*,
+    and the alternative — naming a destination in a form — is asking somebody
+    to type a path they are looking at.
+
+    What was picked up travels in the request rather than being remembered by
+    the server. A selection held for ten minutes in a browser is not a thing
+    this source should be keeping, and every id in it is judged on arrival by
+    the same containment rule as any other.
+    """
+
+    name: ClassVar[str] = "paste"
+    title: ClassVar[str] = "Paste"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
+    acts_on: ClassVar[ActsOn] = "children"
+    requires: ClassVar[Access] = "write"
+    params_model = PasteParams
+
+    async def run(self, node_id: str | None, params: PasteParams) -> ActionResult:
+        if not params.sources:
+            raise ActionRefused("not_applicable", "Copy or cut something first")
+        destination = self._directory(node_id)
+        sources = [self._source(one) for one in params.sources]
+        for source in sources:
+            self._may_go_into(source, destination)
+        moved = await to_thread.run_sync(
+            partial(_paste, sources, destination, params.mode, params.conflict)
+        )
+        # Both ends change: the folder that gained the nodes, and — for a move
+        # — every folder that lost one. Named by the server, because deriving
+        # them from the action's name is the rule this exists to avoid.
+        changed: list[str | None] = [node_id or None]
+        if params.mode == "move":
+            for source in sources:
+                parent = self._parent_id(source)
+                if parent not in changed:
+                    changed.append(parent)
+        verb = "copied" if params.mode == "copy" else "moved"
+        return ActionResult(
+            message=f"{_counted(moved)} {verb}", reload_node_ids=changed
+        )
+
+    def _source(self, node_id: str) -> Path:
+        path = self._session.resolve(node_id)
+        if path == self._session.resolved_root:
+            raise ActionRefused(
+                "not_applicable", "The root folder of a connector cannot be moved"
+            )
+        if not path.exists():
+            raise ValueError(f"No such node: {node_id}")
+        return path
+
+    @staticmethod
+    def _may_go_into(source: Path, destination: Path) -> None:
+        """A folder cannot be put inside itself, however deep.
+
+        The check is on the resolved paths rather than on the ids, because two
+        ids can name one place and only one of them looks like a prefix of the
+        other.
+        """
+        if source == destination or destination.is_relative_to(source):
+            raise ActionRefused(
+                "not_applicable", f"{source.name} cannot be put inside itself"
+            )
+
+
+def _counted(number: int) -> str:
+    return "1 item" if number == 1 else f"{number} items"
+
+
+def _paste(
+    sources: Sequence[Path],
+    destination: Path,
+    mode: Literal["copy", "move"],
+    conflict: Literal["refuse", "replace", "rename"],
+) -> int:
+    """Copy or move every source into one folder. Blocking, so it runs apart.
+
+    Bounded by the same two ceilings an archive is: a copy of a hundred
+    thousand files is a request nobody should be waiting on, and the count is
+    taken before anything is written.
+    """
+    _within_bounds(sources)
+    for source in sources:
+        target = destination / source.name
+        if target.exists():
+            if conflict == "refuse":
+                raise ActionRefused("conflict", f"{source.name} is already there")
+            if conflict == "rename":
+                target = _available_path(destination, source.name)
+            else:
+                _remove(target)
+        if mode == "move":
+            shutil.move(str(source), str(target))
+        elif source.is_dir():
+            shutil.copytree(source, target, symlinks=True)
+        else:
+            shutil.copy2(source, target)
+    return len(sources)
+
+
+def _within_bounds(sources: Sequence[Path]) -> None:
+    entries = 0
+    total = 0
+    for source in sources:
+        if source.is_file():
+            entries += 1
+            total += source.stat().st_size
+            continue
+        for path in source.rglob("*"):
+            entries += 1
+            if entries > MAX_ENTRIES:
+                raise ActionRefused("too_large", "That is too many files to move")
+            if path.is_file():
+                total += path.stat().st_size
+        if total > MAX_BYTES:
+            raise ActionRefused("too_large", "That is too much data to move")
+    if entries > MAX_ENTRIES:
+        raise ActionRefused("too_large", "That is too many files to move")
+    if total > MAX_BYTES:
+        raise ActionRefused("too_large", "That is too much data to move")
 
 
 class CreateArchive(_ActsOnNode, JsonAction[ArchiveParams]):
@@ -487,6 +640,7 @@ class FileActionType(ActionType, Protocol):
 FILE_ACTION_TYPES: tuple[FileActionType, ...] = (
     CreateFolder,
     Upload,
+    PasteHere,
     Download,
     CreateArchive,
     ExtractArchive,
