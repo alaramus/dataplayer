@@ -24,6 +24,10 @@ capability list cannot drift from what the driver implements.
 - `capabilities_of` derives capabilities by `issubclass` against the capability
   protocols and from the titles of the action classes the driver declares.
   Nothing lists them by hand.
+- A capability carries a title to read and, where a screen has had to ask about
+  it, a `code` from a closed set to switch on. Codes are added when a question
+  is asked rather than in advance; today there is one, `search`
+  ([D76](#d76-a-search-is-a-read-of-the-catalog-and-the-words-are-the-filters)).
 - `DeclaresActions` is a classmethod, not a `ClassVar`: a protocol holding data
   cannot be used with `issubclass`, and reaching for the attribute with
   `getattr` would be the `hasattr` dispatch [D9](actions.md) removed.
@@ -293,3 +297,67 @@ Known deviations:
   ([D74](actions.md)).
 
 Spec: [A node describes itself](../../superpowers/specs/2026-09-02-node-summary-design.md)
+
+## D76. A search is a read of the catalog, and the words are the filter's
+
+Finding a file two folders down was the one thing the catalog could not do: its
+filter narrows what is already on screen, which is the wrong tool for a name
+somebody remembers and a place they do not.
+
+- `SupportsNodeSearch.search_nodes` answers `NodeSearchResult` at
+  `GET /connectors/{id}/catalog/search`, and what comes back is
+  `CatalogNode`s — the same nodes a listing gives, built by the same builder.
+  A found row therefore has the icon, the caption, the viewers and the actions
+  its level would have given it, and nothing on the screen needs a second kind
+  of row.
+- **The words are the ones already typed.** The filter narrows this level; the
+  button beside it asks the source for what is not on it — one input, two
+  questions, and no second field to fill in. While results are shown the list
+  is not a level: it says so, offers the way back, and every row on it behaves
+  as it would at home.
+- **The text is matched, never compiled.** A case-insensitive substring of a
+  name, and no pattern language at all — [D2c](#d2c-a-query-is-never-built-from-client-strings)'s
+  rule stated for the one input this capability takes. A `*` is a character in
+  a name.
+- **A match says where it was found, twice over**: `parent_id`, the source's own
+  opaque id, which is what a client sends back to stand there; and `location`,
+  the same place as the source words it, because a client that composed one
+  from an id would be reading it apart ([D21](#d21-the-source-answers-where-a-node-lives)).
+  The root is the empty string — it has no name of its own.
+- **Breadth first, and bounded three ways.** What is near is found first, so a
+  ceiling cuts the far end rather than a random branch. At most the matches
+  asked for (100 by default, 500 at most), 100,000 entries looked at and 24
+  levels deep; a walk that hit one says `complete: false` and why. "Nothing
+  else matched" and "I stopped looking" are different answers, and only the
+  second means type more words.
+- **A link is listed and never walked into.** An alias can duplicate a whole
+  tree into the results or point at its own parent, and a search is exactly
+  where a loop would be met. It is the archive walk's refusal, for its reason.
+- **Only a match is described.** The name decides first, and a node is built
+  only for one that matched: describing every entry of a hundred thousand would
+  cost a stat and a listing each to answer what a string comparison answers.
+- **A folder that cannot be read is skipped, not fatal.** The rest of the tree
+  is still an answer, exactly as a listing leaves out what it cannot stat.
+- **Which sources can be searched is read off a code.** `Capability` gained
+  `code`, a closed set, beside the title it already had: a title is written to
+  be read and may be reworded, and a screen that switched on one would be
+  branching on prose. It is still derived by `issubclass` in `capabilities_of`,
+  so nothing is listed by hand ([D13](#d13-a-source-type-describes-itself)).
+
+Known deviations:
+
+- **Only the file source searches.** PostgreSQL answers 501; relation names
+  across schemas are one `ILIKE` away and are a later slice.
+- **Nothing inside a container is found.** A workbook's sheets and an archive's
+  entries are nodes ([D51](content.md), [D53](content.md)), and the walk does
+  not open files.
+- **The text inside a file is not searched.** Deliberately dropped from the
+  roadmap rather than deferred silently: it is a different request with a
+  different result — lines rather than nodes — and nobody has asked for it yet.
+- **A search is not paged.** Past the ceiling the answer is the first N and a
+  notice; there is no cursor.
+- **Anything that changes the level ends the search**, an action included: the
+  results came from a walk that is now stale, and re-running it silently would
+  be inventing a second reload nobody asked for.
+
+Spec: [Searching the catalog by name](../../superpowers/specs/2026-09-02-catalog-search-design.md)

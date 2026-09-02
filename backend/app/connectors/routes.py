@@ -10,6 +10,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Query,
     Request,
     Response,
     UploadFile,
@@ -115,6 +116,7 @@ from app.adapters.protocol import (
     SupportsIndexes,
     SupportsInsert,
     SupportsNodePath,
+    SupportsNodeSearch,
     SupportsNodeSummary,
     SupportsReferences,
     SupportsRelationModel,
@@ -134,6 +136,13 @@ from app.adapters.row_commands import (
     RowCommandResult,
     SupportsRowCommands,
     UnknownRowCommand,
+)
+from app.adapters.search import (
+    DEFAULT_MATCHES,
+    MAX_MATCHES,
+    MAX_QUERY_LENGTH,
+    NodeSearchRequest,
+    NodeSearchResult,
 )
 from app.adapters.summary import NodeSummary
 from app.adapters.update import (
@@ -1730,6 +1739,61 @@ async def read_relation_model(
             detail=[
                 {
                     "loc": ["query", "node_id"],
+                    "msg": str(exc),
+                    "type": "value_error",
+                }
+            ],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.get("/{connector_id}/catalog/search", response_model=NodeSearchResult)
+async def search_catalog(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    # Bounded by the route as well as by the model, from the same numbers: a
+    # query string is validated before a handler runs, and that is where a
+    # caller's mistake should be answered.
+    query: str = Query(min_length=1, max_length=MAX_QUERY_LENGTH),
+    node_id: str | None = None,
+    limit: int = Query(default=DEFAULT_MATCHES, ge=1, le=MAX_MATCHES),
+) -> Any:
+    """Find nodes by name below one level of the catalog.
+
+    A read of the catalog and nothing more: what comes back are the same nodes
+    the listing gives, each with the place it was found in (D76). The query is
+    matched as a substring and never compiled, and every bound the walk has
+    belongs to the source.
+    """
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsNodeSearch):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source cannot be searched",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.search_nodes(
+            NodeSearchRequest(node_id=node_id, query=query, limit=limit)
+        )
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["query", "query"],
                     "msg": str(exc),
                     "type": "value_error",
                 }

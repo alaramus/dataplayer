@@ -146,6 +146,9 @@ import type {
   connectorsRunRowCommandData,
   connectorsRunRowCommandErrors,
   connectorsRunRowCommandResponses,
+  connectorsSearchCatalogData,
+  connectorsSearchCatalogErrors,
+  connectorsSearchCatalogResponses,
   connectorsUpdateCellData,
   connectorsUpdateCellErrors,
   connectorsUpdateCellResponses,
@@ -1420,6 +1423,31 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/relation-model",
+      ...options,
+    })
+  }
+
+  /**
+   * Search Catalog
+   *
+   * Find nodes by name below one level of the catalog.
+   *
+   * A read of the catalog and nothing more: what comes back are the same nodes
+   * the listing gives, each with the place it was found in (D76). The query is
+   * matched as a substring and never compiled, and every bound the walk has
+   * belongs to the source.
+   */
+  public static searchCatalog<ThrowOnError extends boolean = true>(
+    options: Options<connectorsSearchCatalogData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      connectorsSearchCatalogResponses,
+      connectorsSearchCatalogErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/catalog/search",
       ...options,
     })
   }

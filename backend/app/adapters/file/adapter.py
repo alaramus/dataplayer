@@ -26,12 +26,14 @@ from app.adapters.file.content import FileContent
 from app.adapters.file.fetch import FileFetch
 from app.adapters.file.options import FileOptions
 from app.adapters.file.relation import FileRelations
+from app.adapters.file.search import FileSearch
 from app.adapters.file.session import FileSession
 from app.adapters.file.summary import FileSummaries
 from app.adapters.file.update import FileTableChanges
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
+from app.adapters.search import NodeSearchRequest, NodeSearchResult
 from app.adapters.summary import NodeSummary
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -64,6 +66,7 @@ class FileAdapter:
         self._actions = FileActions(self._session)
         self._table_changes = FileTableChanges(self._session)
         self._summaries = FileSummaries(self._session)
+        self._search = FileSearch(self._session)
 
     @property
     def root(self) -> Path:
@@ -77,6 +80,9 @@ class FileAdapter:
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         return await self._catalog.path_to(node_id)
+
+    async def search_nodes(self, request: NodeSearchRequest) -> NodeSearchResult:
+        return await self._search.search_nodes(request)
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)

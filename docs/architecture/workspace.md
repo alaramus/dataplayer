@@ -9,7 +9,9 @@ Decisions here: D12, D14, D69.
 ## What exists today
 
 One screen of three columns: the connections, the catalog of every connection
-that was opened, and the work opened from a node in tabs beside each other. Work
+that was opened — where the same words filter a level and, on a button, search
+everything below it — and the work opened from a node in tabs beside each
+other. Work
 may be rows, editable source, bounded media, read-only SQL, relation structure,
 what a node is, or a chart. Columns are
 resizable and bounded by the window so each scrolls inside itself, and the

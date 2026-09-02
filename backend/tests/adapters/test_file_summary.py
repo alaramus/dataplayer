@@ -144,7 +144,7 @@ async def test_bytes_that_are_not_utf_8_say_so(summaries: FileSummaries) -> None
 
 
 async def test_a_file_past_the_ceiling_is_not_counted(
-    summaries: FileSummaries, root: Path, monkeypatch: pytest.MonkeyPatch
+    summaries: FileSummaries, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A stated ceiling, rather than a wait nobody asked for."""
     monkeypatch.setattr(summary_module, "MAX_COUNTED_BYTES", 8)

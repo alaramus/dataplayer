@@ -488,6 +488,10 @@ export type Capability = {
    * Title
    */
   title: string
+  /**
+   * Code
+   */
+  code?: "search" | null
 }
 
 /**
@@ -2838,6 +2842,56 @@ export type NoReferencedRows = {
 }
 
 /**
+ * NodeMatch
+ *
+ * One node that matched, and where it was found.
+ *
+ * `parent_id` is the source's own opaque id and is what the client sends back
+ * to stand there; `location` is the source's own wording for the same place,
+ * because a client that composed one would be reading an id apart (D21). The
+ * root of a connector has no name of its own, so it is the empty string —
+ * what the catalog draws there is the name of the connection.
+ */
+export type NodeMatch = {
+  /**
+   * Node
+   */
+  node:
+    | ({
+        kind: "schema"
+      } & SchemaNode)
+    | ({
+        kind: "table"
+      } & TableNode)
+    | ({
+        kind: "view"
+      } & ViewNode)
+    | ({
+        kind: "directory"
+      } & DirectoryNode)
+    | ({
+        kind: "file"
+      } & FileNode)
+    | ({
+        kind: "dataset"
+      } & DatasetNode)
+    | ({
+        kind: "entry"
+      } & EntryNode)
+    | ({
+        kind: "report"
+      } & ReportNode)
+  /**
+   * Parent Id
+   */
+  parent_id?: string | null
+  /**
+   * Location
+   */
+  location?: string
+}
+
+/**
  * NodeReplacement
  */
 export type NodeReplacement = {
@@ -2883,6 +2937,30 @@ export type NodeRepresentation = {
    * Title
    */
   title: string
+}
+
+/**
+ * NodeSearchResult
+ *
+ * What was found, and whether that is all there was.
+ *
+ * A search that stopped at a ceiling says so rather than looking complete:
+ * "nothing else matched" and "I stopped looking" are different answers, and
+ * the difference is the only thing that tells somebody to narrow the words.
+ */
+export type NodeSearchResult = {
+  /**
+   * Matches
+   */
+  matches?: Array<NodeMatch>
+  /**
+   * Complete
+   */
+  complete?: boolean
+  /**
+   * Notice
+   */
+  notice?: string | null
 }
 
 /**
@@ -7390,6 +7468,51 @@ export type connectorsReadRelationModelResponses = {
 
 export type connectorsReadRelationModelResponse =
   connectorsReadRelationModelResponses[keyof connectorsReadRelationModelResponses]
+
+export type connectorsSearchCatalogData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query: {
+    /**
+     * Query
+     */
+    query: string
+    /**
+     * Node Id
+     */
+    node_id?: string | null
+    /**
+     * Limit
+     */
+    limit?: number
+  }
+  url: "/api/v1/connectors/{connector_id}/catalog/search"
+}
+
+export type connectorsSearchCatalogErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsSearchCatalogError =
+  connectorsSearchCatalogErrors[keyof connectorsSearchCatalogErrors]
+
+export type connectorsSearchCatalogResponses = {
+  /**
+   * Successful Response
+   */
+  200: NodeSearchResult
+}
+
+export type connectorsSearchCatalogResponse =
+  connectorsSearchCatalogResponses[keyof connectorsSearchCatalogResponses]
 
 export type connectorsReadNodeSummaryData = {
   body?: never

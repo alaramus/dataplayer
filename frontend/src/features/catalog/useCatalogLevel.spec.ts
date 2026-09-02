@@ -353,3 +353,147 @@ describe("standing where a node lives", () => {
     })
   })
 })
+
+describe("searching from a level", () => {
+  const found = (name: string, location: string) => ({
+    node: {
+      id: location === "" ? name : `${location}/${name}`,
+      name,
+      kind: "file" as const,
+      has_children: false,
+      size_bytes: 4,
+      representations: [{ kind: "text" as const, title: "View as text" }],
+    },
+    parent_id: location === "" ? null : location,
+    location,
+  })
+
+  function searched(...matches: ReturnType<typeof found>[]) {
+    return vi
+      .spyOn(ConnectorsService, "searchCatalog")
+      .mockResolvedValue({ data: { matches, complete: true, notice: null } } as never)
+  }
+
+  it("shows what was found instead of the level, and takes the words with it", async () => {
+    answers([directory("reports", "reports")])
+    const spy = searched(found("notes.txt", ""), found("q3-notes.md", "reports"))
+
+    await withLevel(async (level) => {
+      await level.load()
+      level.filter.value = "notes"
+      await level.search()
+
+      expect(level.items.value.map((node) => node.label)).toEqual([
+        "notes.txt",
+        "q3-notes.md",
+      ])
+      expect(at(level.items.value, 1).location).toBe("reports")
+      expect(spy).toHaveBeenCalledOnce()
+    })
+  })
+
+  it("asks from the level being looked at, not from the top", async () => {
+    answers([directory("reports", "reports")], [table("reports/q3.csv", "q3.csv")])
+    const spy = searched()
+
+    await withLevel(async (level) => {
+      await level.load()
+      await level.enter(first(level.items.value))
+      level.filter.value = "notes"
+      await level.search()
+
+      expect(spy.mock.calls[0]?.[0]).toMatchObject({
+        query: { node_id: "reports", query: "notes" },
+      })
+    })
+  })
+
+  it("does nothing without words to look for", async () => {
+    answers([directory("reports", "reports")])
+    const spy = searched()
+
+    await withLevel(async (level) => {
+      await level.load()
+      level.filter.value = "   "
+      await level.search()
+
+      expect(spy).not.toHaveBeenCalled()
+      expect(level.found.value).toBeNull()
+    })
+  })
+
+  it("goes back to the level when the search is closed, keeping the words", async () => {
+    answers([directory("reports", "reports")])
+    searched(found("notes.txt", ""))
+
+    await withLevel(async (level) => {
+      await level.load()
+      level.filter.value = "reports"
+      await level.search()
+      level.clearSearch()
+
+      expect(level.found.value).toBeNull()
+      // The words are a filter again, which is what they were before.
+      expect(level.filter.value).toBe("reports")
+      expect(level.items.value.map((node) => node.label)).toEqual(["reports"])
+    })
+  })
+
+  it("ends a search by walking anywhere", async () => {
+    answers(
+      [directory("reports", "reports")],
+      [table("reports/q3.csv", "q3.csv")]
+    )
+    // A folder that was found is walked into like any other row, and walking
+    // is what ends a search.
+    vi.spyOn(ConnectorsService, "searchCatalog").mockResolvedValue({
+      data: {
+        matches: [
+          { node: directory("reports", "reports"), parent_id: null, location: "" },
+        ],
+        complete: true,
+        notice: null,
+      },
+    } as never)
+
+    await withLevel(async (level) => {
+      await level.load()
+      level.filter.value = "reports"
+      await level.search()
+      await level.enter(first(level.items.value))
+
+      expect(level.found.value).toBeNull()
+      expect(level.currentId.value).toBe("reports")
+    })
+  })
+
+  it("keeps the reason a search could not be run", async () => {
+    answers([directory("reports", "reports")])
+    vi.spyOn(ConnectorsService, "searchCatalog").mockRejectedValue(new Error("gone"))
+
+    await withLevel(async (level) => {
+      await level.load()
+      level.filter.value = "notes"
+      await level.search()
+
+      expect(level.found.value).toBeNull()
+      expect(level.error.value).not.toBe("")
+    })
+  })
+
+  it("ticks what a search found, so the menu acts on it", async () => {
+    answers([directory("reports", "reports")])
+    searched(found("notes.txt", "reports"))
+
+    await withLevel(async (level) => {
+      await level.load()
+      level.filter.value = "notes"
+      await level.search()
+      level.checked.value = ["reports/notes.txt"]
+
+      expect(level.checkedNodes.value.map((node) => node.id)).toEqual([
+        "reports/notes.txt",
+      ])
+    })
+  })
+})

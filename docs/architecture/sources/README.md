@@ -29,7 +29,9 @@ table by an explicit request. Delimited files expose atomic row and header
 changes while keeping every column text. A Parquet file and each sheet of a
 workbook are datasets: they state their own columns, so they are read as rows
 and described like a relation, and a workbook is walked into rather than opened.
-A zip is walked into the same way. Five actions: create a folder, upload,
+A zip is walked into the same way. Every node describes itself — its size, its
+times, what it can be opened as and what its format states — and the tree is
+searched by name from any folder. Five actions: create a folder, upload,
 download, rename and delete. Download returns one file unchanged or archives a
 directory or selection. No sorting and no filtering, because a file has no
 index. No connection string.
@@ -57,6 +59,8 @@ backend/app/adapters/
 ├── indexes.py          index create and drop
 ├── constraints.py      unique and foreign key
 ├── content.py          ordered node representations and bounded content results
+├── summary.py          what a node is: its facts, and what its format states
+├── search.py           finding a node by name: the request, a match, the answer
 ├── jsontext.py         the JSON and JSONL content shapes
 ├── dataset.py          what only a file format knows about the dataset in it
 ├── delimited.py        the delimiter rule, shared by the file source and D45
@@ -77,5 +81,6 @@ backend/app/adapters/
                         readers.py, records.py, fetch.py, update.py,
                         content.py, binary.py, media.py, parquet.py,
                         workbook.py, archive.py, download.py, relation.py,
-                        actions.py, options.py, adapter.py (facade)
+                        summary.py, search.py, actions.py, options.py,
+                        adapter.py (facade)
 ```

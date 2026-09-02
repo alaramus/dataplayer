@@ -185,59 +185,74 @@ class FileCatalog:
         asking the path again would cost one more stat per entry, and a
         listing may hold two thousand.
         """
-        try:
-            return self._describe(
-                Path(entry.path), entry.name, entry.stat(), entry.is_dir()
-            )
-        except OSError:
-            return None
+        return node_from_entry(self._session, entry)
 
     def _node_at(self, path: Path) -> CatalogNode | None:
         """One node named by its path, for a walk that has no listing to read."""
         try:
-            return self._describe(path, path.name, path.stat(), path.is_dir())
+            return node_of(self._session, path, path.name, path.stat(), path.is_dir())
         except OSError:
             return None
 
-    def _describe(
-        self, path: Path, name: str, stat: os.stat_result, is_directory: bool
-    ) -> CatalogNode | None:
-        """A node from facts already gathered, or None for what is not ours.
 
-        A symlink pointing out of the root is not part of the source, and a
-        broken one cannot be described at all. Both answer None; everything
-        else that goes wrong is the caller's to raise.
-        """
-        if not path.resolve().is_relative_to(self._session.resolved_root):
-            return None
+def node_from_entry(
+    session: FileSession, entry: os.DirEntry[str]
+) -> CatalogNode | None:
+    """One node from a directory entry, which already carries its facts."""
+    try:
+        return node_of(session, Path(entry.path), entry.name, entry.stat(), entry.is_dir())
+    except OSError:
+        return None
 
-        node_id = self._session.relative_id(path)
-        modified_at = datetime.fromtimestamp(stat.st_mtime, tz=UTC)
-        if is_directory:
-            return DirectoryNode(
-                id=node_id,
-                name=name,
-                has_children=_has_entries(str(path)),
-                modified_at=modified_at,
-                representations=[],
-                summarizable=True,
-            )
-        return FileNode(
+
+def node_of(
+    session: FileSession,
+    path: Path,
+    name: str,
+    stat: os.stat_result,
+    is_directory: bool,
+) -> CatalogNode | None:
+    """A node from facts already gathered, or None for what is not ours.
+
+    Module level rather than a method because three readers need the identical
+    answer: the listing of a level, the walk back up to one, and the search
+    (D76). A node that differed between them would be a row that behaved
+    differently depending on how it was found.
+
+    A symlink pointing out of the root is not part of the source, and a broken
+    one cannot be described at all. Both answer None; everything else that goes
+    wrong is the caller's to raise.
+    """
+    if not path.resolve().is_relative_to(session.resolved_root):
+        return None
+
+    node_id = session.relative_id(path)
+    modified_at = datetime.fromtimestamp(stat.st_mtime, tz=UTC)
+    if is_directory:
+        return DirectoryNode(
             id=node_id,
             name=name,
-            # A workbook holds sheets, and they are read only when this node
-            # is walked into.
-            has_children=is_container(name),
-            size_bytes=stat.st_size,
+            has_children=_has_entries(str(path)),
             modified_at=modified_at,
-            representations=representations_of(name),
-            # A delimited header is editable structure even though it carries
-            # no source types beyond text.
-            describable=format_of(name) in {"parquet", "delimited"},
-            # Every node of this source answers what it is, whatever it can be
-            # opened as — which is the point of D75.
+            representations=[],
             summarizable=True,
         )
+    return FileNode(
+        id=node_id,
+        name=name,
+        # A workbook holds sheets, and they are read only when this node is
+        # walked into.
+        has_children=is_container(name),
+        size_bytes=stat.st_size,
+        modified_at=modified_at,
+        representations=representations_of(name),
+        # A delimited header is editable structure even though it carries no
+        # source types beyond text.
+        describable=format_of(name) in {"parquet", "delimited"},
+        # Every node of this source answers what it is, whatever it can be
+        # opened as — which is the point of D75.
+        summarizable=True,
+    )
 
 
 def _entry_node(container_id: str, entry: archive.Entry) -> CatalogNode:

@@ -1,0 +1,198 @@
+from pathlib import Path
+
+import pytest
+
+from app.adapters.file import search as search_module
+from app.adapters.file.search import FileSearch
+from app.adapters.file.session import FileSession
+from app.adapters.protocol import AdapterError, NodeNotFound
+from app.adapters.search import (
+    DEFAULT_MATCHES,
+    NodeSearchRequest,
+    NodeSearchResult,
+)
+
+
+@pytest.fixture
+def root(tmp_path: Path) -> Path:
+    (tmp_path / "notes.txt").write_text("top\n", encoding="utf-8")
+    (tmp_path / "reports").mkdir()
+    (tmp_path / "reports" / "q3-notes.md").write_text("# q3\n", encoding="utf-8")
+    (tmp_path / "reports" / "q4.csv").write_text("id\n1\n", encoding="utf-8")
+    (tmp_path / "reports" / "drafts").mkdir()
+    (tmp_path / "reports" / "drafts" / "NOTES.rst").write_text("x\n", encoding="utf-8")
+    (tmp_path / "archive").mkdir()
+    (tmp_path / "archive" / "old.txt").write_text("old\n", encoding="utf-8")
+    return tmp_path
+
+
+@pytest.fixture
+def search(root: Path) -> FileSearch:
+    return FileSearch(FileSession(root))
+
+
+async def _find(
+    search: FileSearch,
+    query: str,
+    *,
+    node_id: str | None = None,
+    limit: int = DEFAULT_MATCHES,
+) -> NodeSearchResult:
+    return await search.search_nodes(
+        NodeSearchRequest(query=query, node_id=node_id, limit=limit)
+    )
+
+
+async def test_a_name_is_matched_anywhere_below_the_level(
+    search: FileSearch,
+) -> None:
+    found = await _find(search, "notes")
+
+    assert [match.node.name for match in found.matches] == [
+        "notes.txt",
+        "q3-notes.md",
+        "NOTES.rst",
+    ]
+    assert found.complete is True
+    assert found.notice is None
+
+
+async def test_the_match_is_case_insensitive_and_is_never_a_pattern(
+    search: FileSearch,
+) -> None:
+    """A person types words, not a language the source compiles."""
+    upper = await _find(search, "NOTES")
+    pattern = await _find(search, "note*")
+
+    assert len(upper.matches) == 3
+    # A star is a character in a name, and no name here holds one.
+    assert pattern.matches == []
+
+
+async def test_what_is_near_is_found_first(search: FileSearch) -> None:
+    """Breadth first, so a ceiling cuts the far end rather than a branch."""
+    found = await _find(search, "notes", limit=1)
+
+    assert [match.node.name for match in found.matches] == ["notes.txt"]
+    assert found.complete is False
+    assert found.notice is not None
+
+
+async def test_a_match_says_where_it_was_found(search: FileSearch) -> None:
+    found = await _find(search, "NOTES.rst")
+
+    match = found.matches[0]
+    assert match.parent_id == "reports/drafts"
+    assert match.location == "reports/drafts"
+
+
+async def test_a_match_at_the_top_has_no_place_to_name(search: FileSearch) -> None:
+    """The root is the connector, and it has no name of its own."""
+    found = await _find(search, "notes.txt")
+
+    assert found.matches[0].parent_id is None
+    assert found.matches[0].location == ""
+
+
+async def test_a_search_starts_where_it_was_asked_to(search: FileSearch) -> None:
+    found = await _find(search, "notes", node_id="reports")
+
+    assert [match.node.name for match in found.matches] == ["q3-notes.md", "NOTES.rst"]
+
+
+async def test_a_found_node_is_the_node_the_listing_would_have_shown(
+    search: FileSearch,
+) -> None:
+    """One builder, so a row does not behave differently for being found."""
+    found = await _find(search, "q4.csv")
+
+    node = found.matches[0].node
+    assert node.kind == "file"
+    assert node.id == "reports/q4.csv"
+    assert [item.kind for item in node.representations] == ["table"]
+    assert node.describable is True
+    assert node.summarizable is True
+
+
+async def test_folders_are_found_as_well_as_files(search: FileSearch) -> None:
+    found = await _find(search, "drafts")
+
+    assert [match.node.kind for match in found.matches] == ["directory"]
+
+
+async def test_a_walk_that_hit_a_ceiling_says_so_rather_than_looking_complete(
+    search: FileSearch, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(search_module, "MAX_SCANNED", 1)
+
+    found = await _find(search, "notes")
+
+    assert found.complete is False
+    assert found.notice is not None
+
+
+async def test_a_tree_deeper_than_the_ceiling_is_not_walked(
+    search: FileSearch, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(search_module, "MAX_DEPTH", 1)
+
+    found = await _find(search, "notes")
+
+    # The two levels within reach are answered; the third is not, and the
+    # answer says it stopped rather than claiming there was nothing there.
+    assert [match.node.name for match in found.matches] == ["notes.txt", "q3-notes.md"]
+    assert found.complete is False
+    assert found.notice is not None
+
+
+async def test_a_search_needs_something_to_look_for(search: FileSearch) -> None:
+    with pytest.raises(ValueError):
+        await _find(search, "   ")
+
+
+async def test_a_search_starts_in_a_folder(search: FileSearch) -> None:
+    with pytest.raises(ValueError):
+        await _find(search, "notes", node_id="notes.txt")
+
+
+async def test_a_level_that_is_gone_is_not_found(search: FileSearch) -> None:
+    with pytest.raises(NodeNotFound):
+        await _find(search, "notes", node_id="nowhere")
+
+
+async def test_a_connector_whose_directory_is_missing_says_that(
+    tmp_path: Path,
+) -> None:
+    search = FileSearch(FileSession(tmp_path / "gone"))
+
+    with pytest.raises(AdapterError):
+        await _find(search, "notes")
+
+
+@pytest.mark.parametrize(
+    "node_id", ["../secrets", "/etc", "C:/Windows", "reports/../.."]
+)
+async def test_a_level_outside_the_root_is_refused(
+    search: FileSearch, node_id: str
+) -> None:
+    """The one containment rule, before a single entry is listed (D8)."""
+    with pytest.raises(ValueError):
+        await _find(search, "notes", node_id=node_id)
+
+
+async def test_a_link_is_listed_where_it_matches_and_never_walked_into(
+    search: FileSearch, root: Path
+) -> None:
+    """An alias can point at its own parent, and a search is where a loop shows."""
+    try:
+        (root / "loop-notes").symlink_to(root, target_is_directory=True)
+    except OSError:  # pragma: no cover - Windows without the privilege
+        pytest.skip("This platform will not create a symbolic link here")
+
+    found = await _find(search, "notes")
+
+    names = [match.node.name for match in found.matches]
+    assert "loop-notes" in names
+    # Walked into, the same three names would arrive again through the alias.
+    assert names.count("notes.txt") == 1
+    assert found.complete is True

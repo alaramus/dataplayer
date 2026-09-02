@@ -3,7 +3,7 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
-import type { ActionPreview, ActionResult } from "@/client"
+import type { ActionPreview, ActionResult, NodeSearchResult } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
 import { nodeSetOf, reloadedBy } from "./actions"
 import type { ActionFailure, ActionOutcome } from "./actions"
@@ -68,6 +68,39 @@ export function useNodePathLoader() {
           await ConnectorsService.readNodePath({
             path: { connector_id: connectorId },
             query: { node_id: nodeId },
+          })
+        ).data,
+      staleTime: 60_000,
+    })
+  }
+}
+
+export const nodeSearchKey = (connectorId: string, nodeId: string | null, query: string) =>
+  ["nodeSearch", connectorId, nodeId, query] as const
+
+/**
+ * Search below one level, on demand.
+ *
+ * A loader rather than a query with a reactive key: a search happens when
+ * somebody asks for it, not when the text they are typing changes. The answer
+ * is still cached, so asking twice for the same words in the same folder costs
+ * one walk of the tree (D76).
+ */
+export function useNodeSearcher() {
+  const queryClient = useQueryClient()
+
+  return async function searchNodes(
+    connectorId: string,
+    nodeId: string | null,
+    query: string
+  ): Promise<NodeSearchResult> {
+    return queryClient.fetchQuery({
+      queryKey: nodeSearchKey(connectorId, nodeId, query),
+      queryFn: async () =>
+        (
+          await ConnectorsService.searchCatalog({
+            path: { connector_id: connectorId },
+            query: nodeId === null ? { query } : { node_id: nodeId, query },
           })
         ).data,
       staleTime: 60_000,

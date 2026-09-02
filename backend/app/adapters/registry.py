@@ -19,6 +19,7 @@ from app.adapters.protocol import (
     SupportsFetch,
     SupportsInsert,
     SupportsNodePath,
+    SupportsNodeSearch,
     SupportsReferences,
     SupportsRelationModel,
     SupportsUpdate,
@@ -73,6 +74,13 @@ def category_title(category: Category) -> str:
 CapabilityGroup = Literal["explore", "manage"]
 
 
+# What a screen may switch on. A title is written to be read and may be
+# reworded tomorrow; a code is a promise. Only what a screen has actually had
+# to ask about carries one, so this grows when a question is asked rather than
+# in advance — and everything else stays what it is, something to read.
+CapabilityCode = Literal["search"]
+
+
 class Capability(BaseModel):
     """One thing a source type can do, in words a user reads.
 
@@ -81,6 +89,7 @@ class Capability(BaseModel):
 
     group: CapabilityGroup
     title: str
+    code: CapabilityCode | None = None
 
 
 @dataclass(frozen=True)
@@ -156,6 +165,10 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(Capability(group="explore", title="Browse the catalog"))
     if issubclass(driver, SupportsNodePath):
         found.append(Capability(group="explore", title="Locate a node"))
+    if issubclass(driver, SupportsNodeSearch):
+        found.append(
+            Capability(group="explore", title="Search by name", code="search")
+        )
     if issubclass(driver, SupportsContent):
         found.append(Capability(group="explore", title="View content"))
     if issubclass(driver, SupportsContentEdit):

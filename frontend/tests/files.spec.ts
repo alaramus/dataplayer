@@ -590,3 +590,47 @@ test("says what a node is, whatever it can be opened as", async ({ page }) => {
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
+
+test("finds a file by name anywhere below a folder", async ({ page }) => {
+  const name = `e2e-search-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  const list = page.getByTestId("catalog-list")
+  // Quasar forwards data-testid on a field to the <input> itself.
+  const filter = page.getByTestId("catalog-filter")
+
+  // The same words filter this level, as they always did.
+  await filter.fill("q3")
+  await expect(list).not.toContainText("notes.txt")
+  await expect(list).toContainText("Nothing here")
+
+  // And the button beside them looks everywhere below (D76): q3.csv lives in
+  // reports, one level down, so only a search can find it from here.
+  await page.getByTestId("catalog-search").click()
+  await expect(page.getByTestId("catalog-search-summary")).toContainText("q3")
+  await expect(list).toContainText("q3.csv")
+  // A result says where it was found, because a name alone does not.
+  await expect(list).toContainText("reports")
+
+  // A found file opens like any other row, and the results stay.
+  await page.getByTestId("catalog-node-q3.csv").click()
+  await expect(page.getByTestId("row-grid")).toContainText("quarter")
+  await expect(page.getByTestId("catalog-search-summary")).toBeVisible()
+
+  // Closing the search puts the level back, with the words still filtering it.
+  await page.getByTestId("catalog-search-close").click()
+  await expect(page.getByTestId("catalog-search-summary")).toHaveCount(0)
+  await expect(filter).toHaveValue("q3")
+
+  // A folder that was found is walked into, and walking ends the search.
+  await filter.fill("reports")
+  await page.getByTestId("catalog-search").click()
+  await page.getByTestId("catalog-node-reports").click()
+  await expect(page.getByTestId("catalog-path")).toContainText("reports")
+  await expect(page.getByTestId("catalog-search-summary")).toHaveCount(0)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})

@@ -46,6 +46,13 @@ export interface ListNode {
   describable: boolean
   /** Whether the source will say what this node is: its facts and its format (D75). */
   summarizable: boolean
+  /**
+   * Where this row was found, in the source's own words.
+   *
+   * Only a search result has one: a level says where everything on it is by
+   * being that level (D76).
+   */
+  location?: string
   rowEstimate?: number | null
   /**
    * Whether the source considers this part of its own machinery. Only used to

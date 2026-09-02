@@ -3,10 +3,12 @@ import { computed, ref, watch } from "vue"
 import type { ComputedRef, Ref } from "vue"
 
 import type { NodeReplacement } from "@/client"
-import { catalogKey, useCatalogLoader } from "@/features/catalog/api"
+import { catalogKey, useCatalogLoader, useNodeSearcher } from "@/features/catalog/api"
 import type { Crumb, Location } from "@/features/catalog/location"
 import { groupsOf, toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
+import { foundNodes } from "@/features/catalog/search"
+import type { FoundNodes } from "@/features/catalog/search"
 import { messageOf } from "@/shared/api/errors"
 
 export type { Crumb } from "@/features/catalog/location"
@@ -20,6 +22,19 @@ export interface CatalogLevel {
   setGroups: (ids: string[]) => Promise<void>
   filter: Ref<string>
   items: ComputedRef<ListNode[]>
+  /**
+   * The search that is being shown instead of the level, or nothing (D76).
+   *
+   * A state of the level rather than a screen of its own: the same list, the
+   * same ticks and the same menu act on what a search found, and anything that
+   * changes the level — walking, reloading, an action — ends it.
+   */
+  found: Ref<FoundNodes | null>
+  searching: Ref<boolean>
+  /** Look for the filter text below this level. Does nothing while it is empty. */
+  search: () => Promise<void>
+  /** Back to the folder, keeping the words that were searched for. */
+  clearSearch: () => void
   checked: Ref<string[]>
   checkedNodes: ComputedRef<ListNode[]>
   allChecked: ComputedRef<boolean>
@@ -47,6 +62,7 @@ export interface CatalogLevel {
  */
 export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>): CatalogLevel {
   const loadChildren = useCatalogLoader()
+  const searchNodes = useNodeSearcher()
   const queryClient = useQueryClient()
 
   const path = ref<Crumb[]>([{ id: null, label: rootLabel.value }])
@@ -61,17 +77,27 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
   const filter = ref("")
   const loading = ref(false)
   const error = ref("")
+  const found = ref<FoundNodes | null>(null)
+  const searching = ref(false)
 
   const currentId = computed(() => path.value[path.value.length - 1]?.id ?? null)
 
+  /**
+   * The rows the list is drawing from: a level, or what a search found.
+   *
+   * One place, so the filter, the ticks and "select all" mean the same thing
+   * in both states rather than each having to know which one it is in.
+   */
+  const shown = computed(() => found.value?.rows ?? rows.value)
+
   const items = computed(() => {
     const needle = filter.value.trim().toLowerCase()
-    if (needle === "") return rows.value
-    return rows.value.filter((node) => node.label.toLowerCase().includes(needle))
+    if (needle === "") return shown.value
+    return shown.value.filter((node) => node.label.toLowerCase().includes(needle))
   })
 
   const checkedNodes = computed(() =>
-    rows.value.filter((node) => checked.value.includes(node.id))
+    shown.value.filter((node) => checked.value.includes(node.id))
   )
 
   const allChecked = computed(
@@ -132,6 +158,9 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
   async function show(nodeId: string | null, groupIds?: string[], refresh = false) {
     checked.value = []
     filter.value = ""
+    // Any change of level ends a search: what is on screen is a level again,
+    // and results from the folder that was left would say nothing about it.
+    found.value = null
     error.value = ""
     loading.value = true
     try {
@@ -261,6 +290,34 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     checked.value = on ? items.value.map((node) => node.id) : []
   }
 
+  /**
+   * Look for the filter text everywhere below this level.
+   *
+   * The words are the ones already typed: the filter narrows what is here, and
+   * this asks the source for what is not. The ticks go, because they were
+   * ticks on a different list.
+   */
+  async function search() {
+    const query = filter.value.trim()
+    if (query === "") return
+    searching.value = true
+    try {
+      found.value = foundNodes(query, await searchNodes(connectorId.value, currentId.value, query))
+      checked.value = []
+      error.value = ""
+    } catch (cause) {
+      error.value = messageOf(cause, "Could not search this connection")
+    } finally {
+      searching.value = false
+    }
+  }
+
+  /** Back to the level, with the words kept: they are a filter again. */
+  function clearSearch() {
+    found.value = null
+    checked.value = []
+  }
+
   return {
     path,
     currentId,
@@ -269,6 +326,10 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     setGroups,
     filter,
     items,
+    found,
+    searching,
+    search,
+    clearSearch,
     checked,
     checkedNodes,
     allChecked,

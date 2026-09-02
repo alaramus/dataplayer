@@ -79,10 +79,6 @@ already landed is in [the spec index](superpowers/specs/README.md) and in git.
 
 Sequence, in no particular order — each is independent:
 
-- [ ] **Search a file source.** Two searches, and they are different requests:
-  names across the tree, and text inside one file or a folder of them. Both
-  need a ceiling, a bounded result and a way to stand where a hit is. Old
-  source: `dbwebtool/webdb/data_adapter/file_system/`.
 - [ ] **SQL over tabular files.** The file source already reads CSV, Parquet
   and worksheets as relations; running a statement over them is a query engine
   it does not have. DuckDB is the obvious candidate and is a dependency,
@@ -249,6 +245,12 @@ one of them: web terminal, MRP, trading screens, translation, karaoke/media
 generation, generic monitoring agents, Kubernetes/cloud control panels and
 one-off adapter demos. Their presence in the old repository is not evidence
 that they belong in the platform core.
+
+Searching the text inside files was dropped from phase 3.5 rather than
+deferred: names across the tree landed as [D76](architecture/sources/contract.md),
+and the other half is a different request — its answer is lines rather than
+nodes, so it needs its own result shape, its own ceilings and a way to stand at
+a line. It returns when somebody wants it.
 
 An immutable snapshot of fetched rows — what phase 2 used to be — is deferred
 with its reason rather than dropped. It answers "the recipient must not be

@@ -46,6 +46,7 @@ from app.adapters.relation_changes import (
     CreateRelationResult,
     NewRelationOptions,
 )
+from app.adapters.search import NodeSearchRequest, NodeSearchResult
 from app.adapters.summary import NodeSummary
 from app.adapters.update import (
     DeleteRowsRequest,
@@ -308,6 +309,22 @@ class SupportsRelationModel(Protocol):
 
         Raises NodeNotFound for an id that names nothing, AdapterError for
         source failures, and ValueError for an id this source may not reach.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsNodeSearch(Protocol):
+    async def search_nodes(self, request: NodeSearchRequest) -> NodeSearchResult:
+        """Find nodes by name below one level, bounded, breadth first.
+
+        Separate from `SupportsCatalog` because walking a whole subtree is a
+        different promise from listing one level: a source whose ids are
+        handles from someone else's API can list and cannot search.
+
+        Raises NodeNotFound for a level that is gone, ValueError for a node
+        this source may not reach, for one that is not a level and for a query
+        it cannot use, and AdapterError for source failures.
         """
         ...
 

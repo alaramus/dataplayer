@@ -8,6 +8,8 @@ import type { ActionOutcome } from "@/features/catalog/actions"
 import { useNodePathLoader } from "@/features/catalog/api"
 import { useFadingMark } from "@/features/catalog/fadingMark"
 import { locationOf } from "@/features/catalog/location"
+import { searchSummary } from "@/features/catalog/search"
+import { useAdapterTypes } from "@/features/connectors/api"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
@@ -256,6 +258,55 @@ function showDetails() {
   })
 }
 
+/**
+ * Whether this source can be searched at all.
+ *
+ * Read off the code the type catalog publishes, not off its name and not off
+ * the wording of a capability: a title is written to be read, a code is a
+ * promise (D76). The answer never changes while the app runs, so the query
+ * behind it is fetched once.
+ */
+const adapterTypes = useAdapterTypes()
+const canSearch = computed(() =>
+  (adapterTypes.data.value ?? [])
+    .find((type) => type.name === props.adapterType)
+    ?.capabilities.some((capability) => capability.code === "search") === true
+)
+
+/** Offered once there is something to look for, exactly as a filter is. */
+const canRunSearch = computed(() => canSearch.value && level.filter.value.trim() !== "")
+
+const foundText = computed(() => {
+  const found = level.found.value
+  return found === null ? "" : searchSummary(found)
+})
+
+async function runSearch() {
+  if (!canRunSearch.value) return
+  await level.search()
+}
+
+/**
+ * Open what a search found.
+ *
+ * A folder is walked into, which means standing where it lives first: the
+ * trail has to say where we are, and only the source knows the way down to it
+ * (D21). A file opens its tab and the results stay, because finding six of
+ * them and being thrown back to a folder after the first is not a search.
+ */
+async function openFound(node: ListNode) {
+  if (node.role !== "container") {
+    onOpen(node)
+    return
+  }
+  try {
+    await level.showLocation(locationOf(await loadPath(props.connectorId, node.id)))
+    await level.enter(node)
+  } catch (cause) {
+    toast.error(messageOf(cause, `Could not open ${node.label}`))
+  }
+}
+
 /** A click opens what can be read and walks into what cannot. */
 function onOpen(node: ListNode) {
   if (node.role === "container") {
@@ -384,13 +435,30 @@ async function afterAction(outcome: ActionOutcome) {
       </div>
 
       <!-- On a line of its own: a filter is something a user types into, and
-           typing needs the width. -->
+           typing needs the width. The same words are what a search looks for,
+           so the button appears beside them rather than somewhere else with a
+           field of its own (D76). -->
       <AppInput
         v-model="level.filter.value"
-        placeholder="Filter"
+        :placeholder="canSearch ? 'Filter, or search below' : 'Filter'"
         compact
+        clearable
         data-testid="catalog-filter"
-      />
+        @keyup.enter="runSearch"
+      >
+        <template
+          v-if="canRunSearch"
+          #after
+        >
+          <AppIconButton
+            icon="search"
+            tooltip="Search everything below this folder"
+            :loading="level.searching.value"
+            data-testid="catalog-search"
+            @click="runSearch"
+          />
+        </template>
+      </AppInput>
     </div>
 
     <AppBanner
@@ -401,6 +469,34 @@ async function afterAction(outcome: ActionOutcome) {
       {{ level.error.value }}
     </AppBanner>
 
+    <!-- While this is here the list is not a level, so it says what it is
+         showing and offers the way back to the folder. -->
+    <div
+      v-if="level.found.value"
+      class="catalog-panel__found"
+      data-testid="catalog-search-summary"
+    >
+      <q-icon
+        name="search"
+        size="14px"
+      />
+      <span class="catalog-panel__found-text">{{ foundText }}</span>
+      <AppIconButton
+        icon="close"
+        tooltip="Back to the folder"
+        data-testid="catalog-search-close"
+        @click="level.clearSearch"
+      />
+    </div>
+
+    <AppBanner
+      v-if="level.found.value?.notice"
+      tone="info"
+      data-testid="catalog-search-notice"
+    >
+      {{ level.found.value.notice }}
+    </AppBanner>
+
     <CatalogList
       class="catalog-panel__body"
       :items="level.items.value"
@@ -409,7 +505,7 @@ async function afterAction(outcome: ActionOutcome) {
       :show-group="level.selectedGroups.value.length > 1"
       :has-parent="level.path.value.length > 1"
       :revealed="revealedNode"
-      @open="onOpen"
+      @open="level.found.value ? openFound($event) : onOpen($event)"
       @up="level.up"
       @toggle="onToggle"
       @toggle-all="level.toggleAll"
@@ -418,6 +514,24 @@ async function afterAction(outcome: ActionOutcome) {
 </template>
 
 <style scoped>
+.catalog-panel__found {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 8px;
+  font-size: 11px;
+  color: var(--dp-text-muted);
+  border-bottom: 1px solid var(--dp-border-faint);
+  flex: none;
+}
+.catalog-panel__found-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* The panel is a box of the height the section gave it: the head stays and
    only the list moves. See the spec, S10. */
 .catalog-panel {

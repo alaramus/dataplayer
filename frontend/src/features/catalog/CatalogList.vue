@@ -198,6 +198,15 @@ const countLabel = computed(() => {
         >
           {{ node.group }}
         </span>
+        <!-- Where a search found it, which only a search result carries. The
+             name keeps the room it needs and this takes what is left (D76). -->
+        <span
+          v-if="node.location"
+          class="catalog-list__location"
+          :title="node.location"
+        >
+          {{ node.location }}
+        </span>
         <span
           v-if="node.caption"
           class="catalog-list__caption"
@@ -225,6 +234,15 @@ const countLabel = computed(() => {
   flex: none;
 }
 .catalog-list__count {
+  font-size: 11px;
+  color: var(--dp-text-muted);
+}
+.catalog-list__location {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11px;
   color: var(--dp-text-muted);
 }
