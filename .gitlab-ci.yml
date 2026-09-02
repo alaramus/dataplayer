@@ -28,8 +28,11 @@ backend:
     DATABASE_URL: postgresql://postgres:postgres@db:5432/app
     SECRET_KEY: ci-secret-key
     # urlsafe base64 of exactly 32 bytes, which is what the validator demands.
-    # Throwaway: it encrypts nothing that outlives the job.
+    # Throwaway: they encrypt nothing that outlives the job. Two different
+    # values on purpose — the keys are independent by decision (D63), and one
+    # value standing in for both here would hide the day that stops being true.
     CONNECTOR_SECRET_KEY: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
+    QUERY_CONTENT_KEY: ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=
     FIRST_SUPERUSER: admin@example.com
     FIRST_SUPERUSER_PASSWORD: ci-superuser-password
     USER_STORAGE_ROOT: /tmp/users

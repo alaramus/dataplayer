@@ -110,10 +110,18 @@ After changing a route or a schema, regenerate the typed client:
 
 Settings name `../.env`, so a run started from `backend/` reads whatever the
 developer keeps there — `FASTAPI_ENV`, `SMTP_HOST`, `EMAILS_FROM_EMAIL` — and
-silently fills the gaps that CI, which has no such file, will not fill. Two
-pipelines went red on variables that a local run appeared to prove present. A
-rehearsal that means anything therefore uses a checkout without `.env`, on
-Linux:
+silently fills the gaps that CI, which has no such file, will not fill. Three
+pipelines went red on variables that a local run appeared to prove present.
+
+The commonest of those is now a test rather than a procedure: a setting with no
+default is one somebody has to supply, and `tests/core/test_settings.py` fails
+locally when the backend job of `.gitlab-ci.yml` or `.env.example` does not
+name it. It was written after the third red pipeline and checked by taking the
+variable out again.
+
+That leaves what a list of names cannot cover — a value CI sets to something
+different, a service alias, a step order. A rehearsal of those uses a checkout
+without `.env`, on Linux:
 
 ```bash
 git archive HEAD | tar -x -C /tmp/rehearsal
