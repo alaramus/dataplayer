@@ -64,11 +64,50 @@ within a closed vocabulary, structure.
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
+| 3.5 | The rest of the old application's daily operations | Medium | Named one by one from use, and each is small enough to land on its own |
 | 4 | Managed Docker services in connector creation | Very large | Adds a safe service lifecycle before service-backed adapters multiply |
 | 5 | Optional Redis infrastructure | Medium | Needed only when multiple backend processes must share cache or coordination state |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation and saved layouts require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
+
+## Phase 3.5 — the rest of the old application's daily operations
+
+Not a phase in the sense the others are: a list of separate operations, named
+from use rather than derived from a contract, each landing on its own. What has
+already landed is in [the spec index](superpowers/specs/README.md) and in git.
+
+Sequence, in no particular order — each is independent:
+
+- [ ] **A file describes itself.** A summary of one node — size, kind, times,
+  what it can be opened as, and for a text or tabular file what is in it. The
+  question to answer first is what shape it takes: an action returns a message
+  and a representation is a viewer, and this is neither.
+- [ ] **Search a file source.** Two searches, and they are different requests:
+  names across the tree, and text inside one file or a folder of them. Both
+  need a ceiling, a bounded result and a way to stand where a hit is. Old
+  source: `dbwebtool/webdb/data_adapter/file_system/`.
+- [ ] **SQL over tabular files.** The file source already reads CSV, Parquet
+  and worksheets as relations; running a statement over them is a query engine
+  it does not have. DuckDB is the obvious candidate and is a dependency,
+  a sandbox and a second dialect all at once — decide that before writing any
+  of it, and see [querying.md](architecture/querying.md) for what a source
+  that runs queries has to answer.
+- [ ] **A database user.** `CREATE ROLE` behind a form, at `own` level: making
+  a role is not what "may change structure" was granted for. The password
+  cannot be a bound parameter — DDL takes none — so it is a `sql.Literal`, and
+  the refusal path must never pass on driver text that carries it.
+- [ ] **Backup and restore.** `pg_dump` and `pg_restore` are programs, not
+  statements: the container has neither today, the versions must match the
+  server, and a restore is destructive in a way nothing else here is. Model it
+  as an owned asynchronous job with durable state, the way phase 4 models a
+  service, rather than as an action that waits.
+- [ ] **A history of metrics, and charts over it.** The old application's
+  `include_story` recorded readings so they could be drawn later. This is the
+  largest of the six and the only one that needs a decision before design: what
+  is recorded, where it is kept, who prunes it, and whether it is a source of
+  its own or a table of the application's. It belongs beside phase 7 rather
+  than here if the answer is "a source of its own".
 
 ## Phase 4 — managed Docker services in connector creation
 
