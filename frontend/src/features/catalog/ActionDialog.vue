@@ -23,6 +23,7 @@ import type {
   Grouping,
 } from "@/features/catalog/actions"
 import FileToRelationDialog from "@/features/catalog/FileToRelationDialog.vue"
+import ModelCodeDialog from "@/features/catalog/ModelCodeDialog.vue"
 import { formatSize } from "@/features/catalog/nodes"
 import { fieldErrorsFrom, messageOf, statusOf } from "@/shared/api/errors"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
@@ -79,6 +80,15 @@ const conflict = ref(false)
 const visibleFields = computed(
   () => props.command?.fields.filter((field) => field.kind !== "hidden") ?? []
 )
+/**
+ * What the model screen chooses between, read off the schema.
+ *
+ * A workflow screen knows the action it is for and may name its field, the
+ * way the file-to-relation screen names the ones it fills. The values and the
+ * words for them are still the source's.
+ */
+const dialectChoices = computed(() => props.command?.choices.dialect ?? [])
+
 /** The visible fields, with a field naming a grouping offering the ones there are. */
 const formFields = computed(() =>
   withGroupingChoices(visibleFields.value, groupingChoices(props.groupings ?? []))
@@ -442,8 +452,20 @@ async function runWorkflow(value: {
 </script>
 
 <template>
+  <!-- A workflow is a screen of its own: the source said the generic form has
+       nowhere to put what this answer is. -->
+  <ModelCodeDialog
+    v-if="command?.workflow === 'model-as-code'"
+    :model-value="open"
+    :connector-id="connectorId"
+    :node-ids="nodeIds.filter((id): id is string => id !== null)"
+    :label="nodeLabel"
+    :choices="dialectChoices"
+    :chosen="String(command?.defaults.dialect ?? '')"
+    @update:model-value="close"
+  />
   <FileToRelationDialog
-    v-if="command?.workflow === 'file-to-relation'"
+    v-else-if="command?.workflow === 'file-to-relation'"
     :model-value="open"
     :connector-id="connectorId"
     :initial-schema="String(nodeIds[0] ?? '')"

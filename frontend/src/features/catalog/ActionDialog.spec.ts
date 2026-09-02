@@ -20,6 +20,8 @@ const DROP: ActionCommand = {
   previews: true,
   takesSet: false,
   previewsSet: false,
+  choices: {},
+  defaults: {},
   downloads: false,
   actsOn: "node",
   fields: [
@@ -43,6 +45,8 @@ const RENAME: ActionCommand = {
   previews: false,
   takesSet: false,
   previewsSet: false,
+  choices: {},
+  defaults: {},
   downloads: false,
   actsOn: "node",
   fields: [
@@ -66,6 +70,8 @@ const MOVE: ActionCommand = {
   previews: false,
   takesSet: false,
   previewsSet: false,
+  choices: {},
+  defaults: {},
   downloads: false,
   actsOn: "node",
   fields: [
@@ -89,6 +95,8 @@ const UPLOAD: ActionCommand = {
   previews: false,
   takesSet: false,
   previewsSet: false,
+  choices: {},
+  defaults: {},
   downloads: false,
   actsOn: "children",
   fields: [

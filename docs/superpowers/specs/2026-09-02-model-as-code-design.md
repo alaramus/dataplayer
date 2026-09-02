@@ -40,9 +40,21 @@ the authority for one invocation, and what was chosen is part of what was
 authorised; putting it in the URL instead would make it something a person
 could edit on the way.
 
-On the client, a download with a form goes through the same dialog as anything
-else and ends in the native browser download rather than in a message. A
-download with nothing to ask still runs straight from the menu.
+On the client it does not end in a file. The action declares
+`x-ui-workflow: model-as-code`, and a screen of its own opens instead of the
+generic form:
+
+- the three dialects as three names on one line, because the whole choice fits
+  there and a menu to pick one of three is a click that buys nothing;
+- the document itself, read-only, in the editor everything else in this
+  application reads code in;
+- Copy, Save, and — for the one dialect a website draws — a door to that
+  website. Save is the bytes already on the screen, so nothing is asked twice.
+
+The words for the three, and which one the screen opens on, are read off the
+schema: `x-ui-choices` carries the source's own label per value, and the
+field's default is the dialect shown first. A download with nothing to ask and
+nothing to show still runs straight from the menu.
 
 ## What the generated code says about itself
 

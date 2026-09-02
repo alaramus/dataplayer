@@ -145,9 +145,14 @@ async function pick(name: string) {
     active.value = null
     return
   }
-  // A download with something to ask goes through the form like anything
-  // else; the dialog knows to end in a download rather than in a message.
-  if (!command.downloads || command.fields.length > 0) {
+  // A download runs straight from the menu only when it has nothing to ask
+  // and nothing to show. One with a form goes through the form, and one with
+  // a screen of its own goes through that (D73).
+  if (
+    !command.downloads ||
+    command.fields.length > 0 ||
+    command.workflow !== undefined
+  ) {
     active.value = command
     return
   }

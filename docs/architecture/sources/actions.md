@@ -347,16 +347,30 @@ Consequences:
 - **A composite key is named as what it is.** Django has none, so the columns
   stay ordinary fields and `unique_together` says the rest, under the names the
   file actually gave them.
-- **A download with a form goes through the dialog** like any other action and
-  ends in the native browser download; one with nothing to ask still runs
-  straight from the menu.
+- **A written model is read before it is taken anywhere.** The action declares
+  `x-ui-workflow: model-as-code`, and the client opens a screen of its own
+  instead of the generic form: the three dialects as three names on one line,
+  the document itself in the editor everything else reads code in, and Copy,
+  Save and — for the one dialect a website draws — a door to that website.
+  Saving is the bytes already on the screen, so nothing is asked twice.
+- **A download runs straight from the menu only when it has nothing to ask and
+  nothing to show.** One with a form goes through the form; one with a screen
+  of its own goes through that. Downloading a file somebody has not seen is
+  asking them to open it in something else to find out what it says.
+- **What a workflow screen chooses between is read off the schema**, never
+  written out again: `x-ui-choices` carries the source's own words for each
+  value — `dbml` is a value, "DBML (dbdiagram.io)" is what a person
+  recognises — and the schema's default is what the screen opens on. A screen
+  may name the field it is about, the way the file-to-relation screen names
+  the ones it fills; it may not invent the values or the words.
 
 Known deviations:
 
 - **The dialects are three, and the obvious fourth is missing.** Alembic,
   Liquibase, Prisma and plain DDL are not written.
-- **The output is a file, not a view.** There is nothing to read in the
-  application before it is downloaded.
+- **The document is fetched again for every dialect.** Pressing one of the
+  three names is a round trip, and a dialect looked at twice is asked for
+  twice.
 - **A type is mapped by name, and a name this has never seen becomes text.**
   Every mapping is a best effort at a portable type, and a dialect-specific one
   would tie the file to one database.

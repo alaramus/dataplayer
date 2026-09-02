@@ -9,6 +9,12 @@ export interface JsonSchemaProperty {
   writeOnly?: boolean
   default?: unknown
   enum?: string[]
+  /**
+   * What each value is called, when the source has better words than the
+   * value itself. `dbml` is a value; "DBML (dbdiagram.io)" is what somebody
+   * recognises, and only the source knows the difference.
+   */
+  "x-ui-choices"?: { value: string; label: string }[]
   minLength?: number
   minimum?: number
   maximum?: number
@@ -52,7 +58,7 @@ export interface JsonSchema {
     /** The code of a variant to the definition that describes it. */
     mapping: Record<string, string>
   }
-  "x-ui-workflow"?: "file-to-relation"
+  "x-ui-workflow"?: "file-to-relation" | "model-as-code"
 }
 
 export type FieldKind = "text" | "password" | "number" | "boolean" | "select" | "hidden"
@@ -93,6 +99,38 @@ function kindOf(property: JsonSchemaProperty, name: string): FieldKind {
   }
 }
 
+/**
+ * What each field the source gave names for offers, by field name.
+ *
+ * Read without building a form, because a workflow's schema may hold a
+ * property no form can render — a list of column mappings — and asking for
+ * its fields is meant to fail loudly. A screen of its own still needs the
+ * words the source chose for a choice it publishes.
+ */
+export function choicesOf(schema: JsonSchema): Record<string, SchemaChoice[]> {
+  return Object.fromEntries(
+    Object.entries(schema.properties ?? {}).flatMap(([name, property]) => {
+      const offered = property["x-ui-choices"]
+      return offered === undefined ? [] : [[name, offered] as const]
+    })
+  )
+}
+
+/**
+ * What each field starts as, read the same way and for the same reason.
+ *
+ * A screen of its own must open on what the source calls the default, not on
+ * whichever value happens to be listed first — two statements that agree only
+ * by convention are two statements to keep in step.
+ */
+export function defaultsOf(schema: JsonSchema): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(schema.properties ?? {}).flatMap(([name, property]) =>
+      property.default === undefined ? [] : [[name, property.default] as const]
+    )
+  )
+}
+
 export function schemaToFields(schema: JsonSchema): FieldSpec[] {
   const required = new Set(schema.required ?? [])
 
@@ -102,7 +140,9 @@ export function schemaToFields(schema: JsonSchema): FieldSpec[] {
     kind: kindOf(property, name),
     required: required.has(name),
     defaultValue: property.default,
-    choices: property.enum?.map((value) => ({ value, label: value })),
+    choices:
+      property["x-ui-choices"] ??
+      property.enum?.map((value) => ({ value, label: value })),
     minLength: property.minLength,
     minimum: property.minimum,
     maximum: property.maximum,

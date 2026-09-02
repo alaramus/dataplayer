@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest"
 import { at, first, keyed } from "@/shared/testing/collections"
 
 import {
+  choicesOf,
   defaultValues,
+  defaultsOf,
   fieldGroups,
   fieldRows,
   fieldsToZod,
@@ -94,6 +96,53 @@ describe("schemaToFields", () => {
         properties: { weird: { type: "array" } },
       })
     ).toThrow(/unsupported/i)
+  })
+})
+
+describe("what a source publishes about a choice", () => {
+  const schema = {
+    type: "object",
+    properties: {
+      dialect: {
+        type: "string",
+        title: "Written as",
+        default: "dbml",
+        enum: ["sqlalchemy", "dbml"],
+        "x-ui-choices": [
+          { value: "sqlalchemy", label: "SQLAlchemy" },
+          { value: "dbml", label: "DBML (dbdiagram.io)" },
+        ],
+      },
+      plain: { type: "string", enum: ["a", "b"] },
+      nothing: { type: "string" },
+    },
+  } as const
+
+  it("prefers the source's words for a value over the value", () => {
+    // `dbml` is a value; "DBML (dbdiagram.io)" is what somebody recognises,
+    // and only the source knows the difference.
+    const fields = schemaToFields(schema as unknown as JsonSchema)
+
+    expect(at(fields, 0).choices).toEqual([
+      { value: "sqlalchemy", label: "SQLAlchemy" },
+      { value: "dbml", label: "DBML (dbdiagram.io)" },
+    ])
+    expect(at(fields, 1).choices).toEqual([
+      { value: "a", label: "a" },
+      { value: "b", label: "b" },
+    ])
+  })
+
+  it("is readable without building a form at all", () => {
+    // A workflow's schema may hold a property no form can render, and asking
+    // for its fields is meant to fail loudly.
+    expect(choicesOf(schema as unknown as JsonSchema)).toEqual({
+      dialect: [
+        { value: "sqlalchemy", label: "SQLAlchemy" },
+        { value: "dbml", label: "DBML (dbdiagram.io)" },
+      ],
+    })
+    expect(defaultsOf(schema as unknown as JsonSchema)).toEqual({ dialect: "dbml" })
   })
 })
 

@@ -35,6 +35,7 @@ from app.adapters.catalog import (
 from app.adapters.delimited import DelimitedTable, read_table
 from app.adapters.model_code import (
     DIALECT_SUFFIX,
+    DIALECT_TITLE,
     CodeDialect,
     render,
 )
@@ -1016,10 +1017,25 @@ class DropExtension(ExtensionAction[ExtensionParams]):
 
 
 class DescribeModelParams(BaseModel):
+    # A screen of its own rather than a form: the answer is a document, and
+    # what somebody does with it — read it, copy it, take it to a website —
+    # is not a thing a generic form has anywhere to put (D73).
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra={"x-ui-workflow": "model-as-code"}
+    )
+
     dialect: CodeDialect = Field(
         default="dbml",
         title="Written as",
         description="What the file is for: an ORM, or a diagram",
+        # The names are the source's, so the three buttons say what a person
+        # recognises rather than the value behind them.
+        json_schema_extra={
+            "x-ui-choices": [
+                {"value": dialect, "label": title}
+                for dialect, title in DIALECT_TITLE.items()
+            ]
+        },
     )
 
 

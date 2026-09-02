@@ -452,15 +452,33 @@ test("writes the model of a schema out as code", async ({ page }) => {
   await showOnlySchema(page, "demo_lab", "public")
   await catalogAction(page, "describe_model")
 
-  // A download that has something to ask goes through the form like anything
-  // else, and the dialect is a choice the source published.
-  await page.getByTestId("field-dialect").click()
-  await page.getByRole("option", { name: "dbml", exact: true }).click()
+  // A window of its own, showing the model before anything is saved. The three
+  // dialects are three names on one line, and the words are the source's.
+  const dialog = page.getByTestId("model-code-dialog")
+  await expect(dialog).toBeVisible()
+  await expect(page.getByTestId("model-code-dialect-dbml")).toContainText(
+    "dbdiagram.io"
+  )
+  await expect(dialog).toContainText("Table demo_lab.")
+
+  // The site that draws this dialect is offered beside Copy and Save.
+  await expect(page.getByTestId("model-code-site")).toBeVisible()
+
+  // Another dialect is one press, and the document changes under it.
+  await page.getByTestId("model-code-dialect-django").click()
+  await expect(dialog).toContainText("models.Model")
+  await expect(page.getByTestId("model-code-site")).toHaveCount(0)
+
+  await page.getByTestId("model-code-dialect-sqlalchemy").click()
+  await expect(dialog).toContainText("declarative_base")
+
+  // And it is saved from what is already on the screen.
   const started = page.waitForEvent("download")
-  await page.getByTestId("action-submit").click()
+  await page.getByTestId("model-code-save").click()
   const file = await started
 
-  expect(file.suggestedFilename()).toBe("demo_lab.dbml")
+  expect(file.suggestedFilename()).toBe("demo_lab.py")
+  await page.getByTestId("model-code-close").click()
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

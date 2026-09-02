@@ -1,5 +1,5 @@
 import type { ActionInfo, ActionResult } from "@/client"
-import { schemaToFields } from "@/shared/SchemaForm/jsonSchema"
+import { choicesOf, defaultsOf, schemaToFields } from "@/shared/SchemaForm/jsonSchema"
 import type { FieldSpec, JsonSchema, SchemaChoice } from "@/shared/SchemaForm/jsonSchema"
 
 /**
@@ -34,6 +34,10 @@ export interface ActionCommand {
   /** Whether it changes selected nodes, their shown place, or the level itself. */
   actsOn: ActionInfo["acts_on"]
   fields: FieldSpec[]
+  /** What each field with a published set of values offers, by field name. */
+  choices: Record<string, SchemaChoice[]>
+  /** What each field starts as, by field name. */
+  defaults: Record<string, unknown>
   workflow?: JsonSchema["x-ui-workflow"]
 }
 
@@ -52,6 +56,10 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       downloads: action.downloads,
       actsOn: action.acts_on,
       fields: schema["x-ui-workflow"] === undefined ? schemaToFields(schema) : [],
+      // Read whether or not a form is built: a workflow screen still asks the
+      // schema what the source offers, in the source's own words.
+      choices: choicesOf(schema),
+      defaults: defaultsOf(schema),
       workflow: schema["x-ui-workflow"],
     }
   })
