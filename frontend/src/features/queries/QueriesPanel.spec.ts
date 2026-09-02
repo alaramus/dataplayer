@@ -5,12 +5,25 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ConnectorsService, QueriesService } from "@/client"
 import type { QueryDocumentSummary } from "@/client"
+import { ref } from "vue"
+
 import { workspaceActionsKey } from "@/features/workspace/state"
 import { withWindowHost } from "@/shared/testing/windows"
 
 import QueriesPanel from "./QueriesPanel.vue"
 
-const workspace = { openQueryDocument: vi.fn() }
+// The panel takes the connection it was opened from the way every panel takes
+// a target: a ref it watches, and one call that spends it.
+const queriesTarget = ref<string | null>(null)
+const workspace = {
+  openQueryDocument: vi.fn(),
+  queriesTarget,
+  takeQueriesTarget: () => {
+    const taken = queriesTarget.value
+    queriesTarget.value = null
+    return taken
+  },
+}
 
 function summary(overrides: Partial<QueryDocumentSummary> = {}): QueryDocumentSummary {
   return {
@@ -60,6 +73,7 @@ function mountPanel() {
 beforeEach(() => {
   vi.restoreAllMocks()
   workspace.openQueryDocument.mockReset()
+  queriesTarget.value = null
 })
 
 describe("the library of queries", () => {
@@ -133,6 +147,23 @@ describe("the library of queries", () => {
       query: { search: "", trashed: true },
     })
     expect(wrapper.get('[data-testid="queries-empty"]').text()).toContain("Nothing in Trash")
+  })
+
+  it("filters itself to the connection it was opened from", async () => {
+    // Opened by the command in the bar at the foot of the screen, which
+    // belongs to the connection being read (D69). The panel is a singleton,
+    // so the connection arrives as a piece of state rather than as a prop.
+    mockConnectors()
+    const list = vi.spyOn(QueriesService, "listDocuments").mockResolvedValue({
+      data: { data: [], count: 0 },
+    } as never)
+    queriesTarget.value = "c1"
+    mountPanel()
+    await flushPromises()
+
+    expect(list).toHaveBeenCalledWith(
+      expect.objectContaining({ query: expect.objectContaining({ connector_id: "c1" }) })
+    )
   })
 
   it("cannot open a new query until a connection is chosen", async () => {

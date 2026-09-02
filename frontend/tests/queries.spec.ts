@@ -21,7 +21,12 @@ import {
  */
 
 async function openQueries(page: Page, connector: string) {
-  await page.getByTestId("open-queries").click()
+  // The command lives in the bar at the foot of the screen and belongs to the
+  // connection being read, so the connection is opened first (D69). It arrives
+  // in the library as its filter; the pick below is what a person would do to
+  // change it, and here it only asserts the same thing twice cheaply.
+  await openConnector(page, connector)
+  await page.getByTestId("command-queries").click()
   await page.getByTestId("queries-connector").click()
   await page.getByRole("option", { name: connector, exact: true }).click()
 }

@@ -90,13 +90,19 @@ export interface WorkspaceActions {
   takeShared: (connectorId: string, nodeId: string) => SharedTarget | null
   openStructure: (request: OpenStructureRequest) => void
   /**
-   * Show the library of query documents.
+   * Show the library of query documents, filtered to one connection.
    *
    * One panel however many connections are open: a query belongs to a person
    * rather than to a source, and which connections it lists is a filter
-   * inside it rather than a panel each (D65).
+   * inside it rather than a panel each (D65). The command that opens it
+   * belongs to the connection being read (D69), so the connection it was
+   * opened from arrives as that filter; null leaves the library whole.
    */
-  openQueries: () => void
+  openQueries: (connectorId: string | null) => void
+  /** The connection the library has just been asked to filter to, or nothing. */
+  queriesTarget: Readonly<Ref<string | null>>
+  /** Take that filter, once, the way every other panel target is taken. */
+  takeQueriesTarget: () => string | null
   /** Open one console, or bring the tab already showing it forward. */
   openQueryDocument: (request: OpenQueryDocumentRequest) => void
   /**

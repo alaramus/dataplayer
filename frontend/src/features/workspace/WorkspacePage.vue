@@ -16,6 +16,7 @@ import { useAccessRequestEvents, wordingOf } from "@/features/shares/requests"
 import ShareDialog from "@/features/shares/ShareDialog.vue"
 import { chartViewKey } from "@/features/charts/view"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
+import CommandBar from "@/features/workspace/CommandBar.vue"
 import {
   catalogPanelId,
   chartPanelId,
@@ -165,6 +166,7 @@ const revealTarget = ref<RevealTarget | null>(null)
 const followTarget = ref<FollowTarget | null>(null)
 const documentTarget = ref<DocumentTarget | null>(null)
 const sharedTarget = ref<SharedTarget | null>(null)
+const queriesTarget = ref<string | null>(null)
 const toast = useToast()
 
 // The state of every connection, pushed while this screen is open. Called
@@ -541,8 +543,19 @@ provide(workspaceActionsKey, {
       ...request,
     })
   },
-  openQueries: () => {
+  openQueries: (connectorId: string | null) => {
+    // Set before opening, so a panel mounted by this very call can take it,
+    // while one that was already open observes the same piece of state. The
+    // reason is the one `revealTarget` has: a call does not survive a panel
+    // that is not mounted yet.
+    queriesTarget.value = connectorId
     workspace.open({ id: QUERIES_PANEL_ID, kind: "queries" })
+  },
+  queriesTarget,
+  takeQueriesTarget: () => {
+    const target = queriesTarget.value
+    queriesTarget.value = null
+    return target
   },
   openQueryDocument: (request: OpenQueryDocumentRequest) => {
     workspace.open({
@@ -596,6 +609,10 @@ provide(workspaceActionsKey, {
         data-testid="open-users"
         @click="router.push({ name: 'users' })"
       />
+    </template>
+
+    <template #status>
+      <CommandBar />
     </template>
 
     <WorkspaceRoot :context="workspace.context" />

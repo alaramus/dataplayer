@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed, ref, watch } from "vue"
 
 import { useConnectors } from "@/features/connectors/api"
 import {
@@ -76,6 +76,23 @@ useReloadable(props.panelId, async () => {
   await documents.refetch()
   await history.refetch()
 })
+
+/**
+ * The connection this panel was opened from, taken once.
+ *
+ * Watched rather than received as a prop: there is one library panel however
+ * often it is opened, and the workspace binds a panel's props when the panel
+ * is first drawn — so a panel already open would never see a second arrival.
+ * The same arrangement every other panel target uses (D69).
+ */
+watch(
+  workspace.queriesTarget,
+  () => {
+    const taken = workspace.takeQueriesTarget()
+    if (taken !== null) connectorId.value = taken
+  },
+  { immediate: true }
+)
 
 const connectorOptions = computed(() => [
   { label: "All connections", value: "" },

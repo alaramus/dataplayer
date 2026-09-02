@@ -4,7 +4,7 @@ The panel engine, the three columns built on it, the drag gesture that moves a
 tab, and the floating windows that edit a connection. The component kit and the
 screens themselves are in [frontend.md](frontend.md).
 
-Decisions here: D12, D14.
+Decisions here: D12, D14, D69.
 
 ## What exists today
 
@@ -193,8 +193,6 @@ Known deviations:
 - **The scene knows three stages and no more.** A source that cannot be browsed
   never reaches it: the middle column simply does not appear, and there is nothing
   that says so in words.
-- **The bar at the bottom of the screen is empty.** It closes the layout and holds
-  the room for a status line.
 - **Tabs cannot be reordered inside a strip.** A tab dropped on a strip is added
   at the end, and no caret is drawn between tabs; dropped on its own strip it does
   nothing. A position in a strip would put an index into every tree operation.
@@ -223,6 +221,60 @@ Known deviations:
   one session opens.
 
 Spec: [The workspace and the panel engine](../superpowers/specs/2026-08-22-workspace-design.md)
+
+## D69. The bar at the foot of the screen holds the commands of a connection
+
+Almost every button hangs off the thing it acts on: a table's commands are in
+its grid, a node's are in the catalog's menu, a connection's form opens from
+its row or from the icon of its tab. A few have no such thing. A query console
+is written against a connection and belongs to a person, so there is no node
+whose toolbar it could live in, and it stood beside the plus in the connections
+column — where new connections are made, and where nothing else of its kind
+would have fitted.
+
+The room at the foot of the screen was reserved when the workspace was built
+and stayed empty. This is what it is for.
+
+Consequences:
+
+- **One rule, in one place.** A command is enabled while a connection is being
+  read and that connection can do the thing; otherwise it stays in the bar,
+  greyed out, and its tooltip says which of the two is missing.
+  `features/workspace/commands.ts` is that rule as plain functions, tested
+  without mounting anything; `CommandBar.vue` only renders it.
+- **Shape before content.** Hiding what does not apply would make the bar
+  change as somebody walks about, which is a bar they have to read every time.
+  The same reason the catalog's action menu greys out rather than shortens.
+- **The bar says which connection it is about.** A row of buttons whose subject
+  is somewhere else on the screen is a row nobody trusts. Which connection is
+  read is `activeConnectorId`, already derived from the layout tree rather than
+  kept beside it; nothing new is stored.
+- **Whether a command applies is the source's own answer**, never a branch on
+  the adapter type (D62). For Queries it is the query profile: a source that
+  does not run queries has no profile and answers 501.
+- **"Not asked yet" is not "no".** Three states rather than two, because half a
+  second of "this source does not run queries" about a PostgreSQL connection is
+  a worse answer than saying nothing.
+- **The library opens filtered to the connection it was opened from.** The
+  filter travels as a piece of state the panel takes, the way `revealTarget`
+  and `followTarget` do: there is one library panel however often it is opened,
+  and a panel's props are bound when it is first drawn.
+
+Known deviations:
+
+- **The query library is unreachable while no connection is open.** It is a
+  person's own library and outlives the connections in it (D65), but the way
+  in is now a command of a connection. Opening any source that runs queries
+  gets there, and the filter inside the panel still lists everything.
+- **The bar holds one command.** It is a place, and the rest of what belongs in
+  it arrives with the slices that implement them.
+- **The right half is empty.** What a status line is usually for — what is
+  running, what the last request cost — is still not said anywhere.
+- **A disabled command explains itself only on hover.** The tooltip hangs off
+  the slot around the button, because a disabled Quasar button takes no pointer
+  events; on a touch screen there is no hover and therefore no reason.
+
+Spec: [The bar at the foot of the screen](../superpowers/specs/2026-09-02-connection-command-bar-design.md)
 
 ## D14. Work opens in floating windows, and there may be several
 

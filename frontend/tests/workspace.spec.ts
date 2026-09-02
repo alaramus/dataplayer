@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import type { Locator, Page } from "@playwright/test"
 
-import { createPostgresConnector } from "./utils/connectors"
+import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { openNode, pickSchema, pinColumn } from "./utils/catalog"
 import {
@@ -648,4 +648,43 @@ test("every column collapses and comes back, and none of them scrolls the page",
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+
+test("the bar at the foot offers what the open connection can do", async ({ page }) => {
+  const sql = `e2e-bar-pg-${Date.now()}`
+  const files = `e2e-bar-file-${Date.now()}`
+  await login(page)
+  await freshLayout(page)
+  await createPostgresConnector(page, sql)
+  await createFileConnector(page, files)
+
+  const bar = page.getByTestId("command-bar")
+  const queries = page.getByTestId("command-queries")
+
+  // Nothing is being read, so there is nothing for a command to be about.
+  await expect(bar).toContainText("No connection open")
+  await expect(queries).toBeDisabled()
+
+  // A source that runs queries offers the command, and the bar says which
+  // connection it is about (D69).
+  await openConnector(page, sql)
+  await expect(bar).toContainText(sql)
+  await expect(queries).toBeEnabled()
+
+  // A source that does not run them keeps the button and turns it off: the
+  // bar keeps its shape as somebody walks about.
+  await openConnector(page, files)
+  await expect(bar).toContainText(files)
+  await expect(queries).toBeDisabled()
+
+  // Pressed from the connection, the library opens filtered to it.
+  await openConnector(page, sql)
+  await queries.click()
+  await expect(page.getByTestId("queries-connector")).toContainText(sql)
+
+  for (const name of [sql, files]) {
+    await deleteConnector(page, name)
+    await expect(connectorRow(page, name)).toHaveCount(0)
+  }
 })

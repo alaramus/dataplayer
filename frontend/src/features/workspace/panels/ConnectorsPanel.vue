@@ -22,7 +22,11 @@ const rows = computed(() => connectors.data.value?.data ?? [])
 <template>
   <div class="connectors-panel">
     <div class="connectors-panel__bar">
-      <!-- No title: the tab above the panel already carries one, and saying
+      <!-- Queries used to stand here for want of anywhere better; they are
+           a command of a connection and live in the bar at the foot of the
+           screen now (D69).
+
+           No title: the tab above the panel already carries one, and saying
            it twice costs a line of a column that is a fifth of the screen.
            An icon and not a labelled button, for the same reason.
 
@@ -34,14 +38,6 @@ const rows = computed(() => connectors.data.value?.data ?? [])
         tooltip="New connection"
         data-testid="add-connector"
         @click="workspace.editConnector(null)"
-      />
-      <!-- Queries are not nodes of any source, so the way to them is here,
-           beside the sources, rather than inside one catalog (D65). -->
-      <AppIconButton
-        icon="manage_search"
-        tooltip="Queries"
-        data-testid="open-queries"
-        @click="workspace.openQueries()"
       />
     </div>
     <q-separator class="connectors-panel__rule" />

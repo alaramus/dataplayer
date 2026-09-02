@@ -71,6 +71,7 @@ translations; those files are not.
 | 2026-09-01 | [The query editor](2026-09-01-query-editor-design.md) | D62, D63, D64, D65, D66: intentional source queries, encrypted documents and immutable runs, bounded asynchronous results, an editor integrated with the workspace, and explicit write transactions |
 | 2026-09-02 | [A grid that re-reads itself](2026-09-02-auto-refresh-design.md) | D67: an interval the grid wears, and a pause rule both the timer and the tooltip read |
 | 2026-09-02 | [Dropping several relations at once](2026-09-02-action-node-set-design.md) | D68: a set is a subject an action may have, carried in one request and one transaction |
+| 2026-09-02 | [The bar at the foot of the screen](2026-09-02-connection-command-bar-design.md) | D69: the commands of a connection, offered while it is read and while it can do the thing |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the
