@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters.postgres.system_reports import ROLES_REPORT_ID
 from app.connectors.models import ConnectorGrant
 from app.core.config import settings
 from app.users import crud
@@ -615,6 +616,39 @@ async def test_dropping_a_relation_needs_structure(
     assert dropped.status_code == 403
     assert dropped.json()["detail"]["required"] == "structure"
     assert asked.status_code == 403
+
+
+async def test_making_a_role_is_not_offered_to_anybody_who_was_granted_anything(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+) -> None:
+    """`structure` is the most that can be handed out, and it is not enough.
+
+    A role belongs to the server rather than to this connection, so the only
+    person who may make one is the one whose connection it is (D79).
+    """
+    user, headers = colleague
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    await _grant(client, normal_user_token_headers, connector_id, user, "structure")
+
+    offered = await client.post(
+        f"{BASE}/{connector_id}/actions",
+        headers=headers,
+        json={"node_ids": [ROLES_REPORT_ID]},
+    )
+    response = await client.post(
+        f"{BASE}/{connector_id}/actions/create_role",
+        headers=headers,
+        json={
+            "node_id": ROLES_REPORT_ID,
+            "params": {"name": "dp_role_uninvited", "password": "a-long-password"},
+        },
+    )
+
+    assert "create_role" not in {action["name"] for action in offered.json()}
+    assert response.status_code == 403
+    assert response.json()["detail"]["required"] == "own"
 
 
 # --- managing the grants themselves ---------------------------------------

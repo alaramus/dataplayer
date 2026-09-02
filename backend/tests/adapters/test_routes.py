@@ -122,6 +122,7 @@ async def test_reports_what_a_type_can_do(
         "Drop schema",
         "Install extension",
         "Remove extension",
+        "New role",
     }
     assert "Upload files" in files
     assert "Delete" in files

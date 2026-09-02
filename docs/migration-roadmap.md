@@ -46,6 +46,7 @@ Legend:
 | 1.5 — PostgreSQL-specific operations | 2026-09-01 | D54, D55, D56, D57 |
 | 2 — share a view | 2026-09-01 | D58, D59, D60, D61 |
 | 3 — query editor | 2026-09-02 | D62, D63, D64, D65, D66 |
+| 3.5 — the rest of the old application's daily operations | 2026-09-02 | D67 through D79 |
 
 Each of those has a spec in [the index](superpowers/specs/README.md), dated the
 day it closed, and a home in `docs/architecture/`. With 1.5 validated, phase 1
@@ -59,38 +60,21 @@ closed on 2026-09-02: PostgreSQL SQL is written in a durable document, run and
 cancelled as a bounded asynchronous run, read back as a stable snapshot, and
 — once a person has deliberately left read-only — allowed to change data and,
 within a closed vocabulary, structure.
+Phase 3.5 closed the same day. It was a list rather than a contract — the
+operations of the old application that were still missing, each small enough
+to land on its own — and it ends with the one that was written down and
+deliberately left out when the PostgreSQL inventory was made: making a
+database user.
 
 ## Priority order at a glance
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 3.5 | The rest of the old application's daily operations | Small | Named one by one from use, and each is small enough to land on its own |
 | 4 | Server-owned jobs: Docker services, backup and restore | Very large | The job model half a dozen specs have deferred to, and a safe service lifecycle before service-backed adapters multiply |
 | 5 | Optional Redis infrastructure | Medium | Needed only when multiple backend processes must share cache or coordination state |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation, saved layouts and a history to draw over require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
-
-## Phase 3.5 — the rest of the old application's daily operations
-
-Not a phase in the sense the others are: a list of separate operations, named
-from use rather than derived from a contract, each landing on its own. What has
-already landed is in [the spec index](superpowers/specs/README.md) and in git.
-
-Two operations that were on this list have moved rather than landed: backup
-and restore is now in phase 4, and a history of metrics in phase 7. Both are
-daily operations of the old application, which is why they were written down
-here, and neither is small enough to land on its own — which is the one thing
-everything left in this list has in common. The specs that deferred them had
-already named those phases, so the move only puts the roadmap back in
-agreement with them.
-
-Sequence, in no particular order — each is independent:
-
-- [ ] **A database user.** `CREATE ROLE` behind a form, at `own` level: making
-  a role is not what "may change structure" was granted for. The password
-  cannot be a bound parameter — DDL takes none — so it is a `sql.Literal`, and
-  the refusal path must never pass on driver text that carries it.
 
 ## Phase 4 — server-owned jobs: Docker services, backup and restore
 
@@ -124,7 +108,6 @@ Sequence:
   schema.
 - [ ] Add retry, idempotency, cancellation, log tail, orphan discovery and
   deletion semantics. Deleting a connector must not silently delete a volume.
-- [ ] Add a Redis pilot only after the lifecycle is correct for PostgreSQL.
 - [ ] Threat-model socket access, project/container naming, resource limits,
   network exposure and concurrent users before enabling this outside local
   development.

@@ -406,6 +406,46 @@ test("installs an extension from the report that lists them, and removes it", as
 })
 
 
+test("makes a database user from the report that lists the roles", async ({
+  page,
+}) => {
+  const name = `e2e-role-${Date.now()}`
+  // Named per run, and left behind on purpose: a role is the server's, and
+  // nothing in this application removes one. The same choice the scenarios
+  // that load a table per run make about the fixture schema.
+  const role = `e2e_role_${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  await catalogRow(page, "System").click()
+  await expect(page.getByTestId("catalog-list")).toContainText("Roles")
+  await catalogCheck(page, "Roles").click()
+
+  // Offered here and on no other report, and offered at all only because
+  // this connection belongs to the person looking at it (D79).
+  await catalogAction(page, "create_role")
+  const dialog = page.getByTestId("action-dialog")
+  await dialog.getByTestId("field-name").fill(role)
+  // Masked by the generic form, because the source said `SecretStr` and
+  // nothing on this side knows what the field is for.
+  const password = dialog.getByTestId("field-password")
+  await expect(password).toHaveAttribute("type", "password")
+  await password.fill("a-long-enough-password")
+  await page.getByTestId("action-submit").click()
+
+  // Filtered rather than read off row 0: the report lists every role the
+  // server has, so a row exists whatever happened.
+  await catalogRow(page, "Roles").click()
+  await addFilter(page, "name", "equals", role)
+  await expect(page.getByTestId("grid-cell-0-name")).toHaveText(role)
+  await expect(page.getByTestId("grid-cell-0-can_login")).toHaveText("true")
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+
 test("drops several relations in one request", async ({ page }) => {
   const name = `e2e-drop-many-${Date.now()}`
   // Named per run for the reason the CSV scenario names its table: the fixture

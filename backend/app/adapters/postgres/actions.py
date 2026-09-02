@@ -40,10 +40,12 @@ from app.adapters.model_code import (
     render,
 )
 from app.adapters.postgres.catalog import PostgresCatalog, is_system_schema
+from app.adapters.postgres.names import name_check
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.relation_changes import PostgresRelationChanges
+from app.adapters.postgres.roles import CreateRole
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.system_reports import EXTENSIONS_REPORT_ID
+from app.adapters.postgres.system_reports import EXTENSIONS_REPORT_ID, ROLES_REPORT_ID
 from app.adapters.relation import RelationModel
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -52,21 +54,8 @@ from app.adapters.relation_changes import (
 )
 from app.core.access import Access
 
-
-def _relation_name(value: str) -> str:
-    if value == "" or value != value.strip():
-        raise ValueError("A relation name cannot be empty or start or end with spaces")
-    if len(value.encode("utf-8")) > 63:
-        raise ValueError("A PostgreSQL relation name cannot exceed 63 bytes")
-    return value
-
-
-def _schema_name(value: str) -> str:
-    if value == "" or value != value.strip():
-        raise ValueError("A schema name cannot be empty or start or end with spaces")
-    if len(value.encode("utf-8")) > 63:
-        raise ValueError("A PostgreSQL schema name cannot exceed 63 bytes")
-    return value
+_relation_name = name_check("relation")
+_schema_name = name_check("schema")
 
 
 SCHEMA_CHANGE_REFUSALS = {
@@ -1141,8 +1130,18 @@ POSTGRES_ACTION_TYPES: tuple[PostgresActionType, ...] = (
     DropSchema,
     CreateExtension,
     DropExtension,
+    CreateRole,
     DescribeModel,
 )
+
+# Which report admits which commands. `applies_to` speaks about kinds, and
+# every report is a report: one of them is about extensions and another about
+# roles, and neither offers the other's commands. A table rather than a chain
+# of comparisons, so that a report gaining a command is an entry here.
+REPORT_COMMANDS: dict[str, tuple[str, ...]] = {
+    EXTENSIONS_REPORT_ID: (CreateExtension.name, DropExtension.name),
+    ROLES_REPORT_ID: (CreateRole.name,),
+}
 
 
 class PostgresActions:
@@ -1171,9 +1170,9 @@ class PostgresActions:
             return self._actions.for_kind(node.kind) if options.supported else []
         if isinstance(node, (TableNode, ViewNode)) and not node.is_system:
             return self._actions.for_kind(node.kind)
-        # A report admits a command when the command is about what it reports.
-        # Said here rather than in `applies_to`, which speaks about kinds:
-        # every report is a report, and only one of them is about extensions.
-        if isinstance(node, ReportNode) and node_id == EXTENSIONS_REPORT_ID:
-            return self._actions.for_kind(node.kind)
+        # A report admits a command when the command is about what it reports,
+        # which is a question of state and so is answered here rather than by
+        # `applies_to`.
+        if isinstance(node, ReportNode):
+            return [self._actions.get(name) for name in REPORT_COMMANDS.get(node_id, ())]
         return []

@@ -106,6 +106,7 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
         "drop_schema",
         "create_extension",
         "drop_extension",
+        "create_role",
         "describe_model",
     ]
 

@@ -108,6 +108,66 @@ Known deviations:
 
 Spec: [PostgreSQL schema actions](../../superpowers/specs/2026-08-31-postgres-schema-actions-design.md)
 
+## D79. Making a user of the server is the owner's, and its password is a literal
+
+A role is the server's rather than the database's: one made through this
+connection can sign in through every other connection to that server. Nothing
+this application hands out is a reason to be able to do that — `structure` is
+the most that can be granted, and it was granted for the shape of somebody's
+tables.
+
+- `create_role` is the first action to require `own`. The route already asked
+  every action for the level it needs, so the level is the whole statement:
+  somebody holding a grant is not offered the command and is refused it.
+- It is offered on the Roles report and nowhere else, the way the extension
+  commands are offered on theirs. `applies_to` speaks about kinds and every
+  report is a report, so which report admits which command is a table —
+  `REPORT_COMMANDS` — now that two of them do.
+- **The password cannot be bound: PostgreSQL takes no parameters in DDL.** It
+  travels as `psycopg.sql.Literal`, the driver's own quoting of a value — the
+  same code that quotes a bound parameter, run before the statement is sent
+  instead of by the server. Quoting written here by hand would be D2c's exact
+  prohibition.
+- It is sent as the person typed it rather than as a verifier computed here,
+  so the server stores it the way its own `password_encryption` says and the
+  new role authenticates however every other role on that server does.
+- **Nothing rehearses it.** A preview is the statement run and rolled back, and
+  it is worth having because the server's own words come back with it
+  ([D46](#d46-an-action-answers-what-it-would-do)); those words are not worth
+  having about a statement that carries a secret. Every refusal is this
+  module's own sentence chosen by SQLSTATE, which is what `schema_change` and
+  `transaction` already guarantee for anything they run.
+- A reserved `pg_` prefix and a name that is taken are answered before any
+  statement, so the two refusals a person actually meets happen with nothing
+  sent.
+- The role may sign in and, at most, connect to the database this connection is
+  on — asked of the server as `current_database()`, never named by a client.
+  CREATEDB, CREATEROLE, SUPERUSER, membership and object privileges are not
+  offered: each is a way of handing out more than the person filling in the
+  form holds.
+- The result names no branch to re-read, because a role is not a catalog node.
+  Naming one to make a grid refresh would be a claim that something in the
+  catalog changed.
+
+Known deviations:
+
+- **Nothing removes a role.** A role that owns objects cannot be dropped
+  without deciding what becomes of them, and that decision is its own slice.
+  One made here is taken away with SQL.
+- **The password reaches the server's log where the server logs DDL.**
+  `log_statement = 'ddl'` writes the statement out, password included. Closing
+  that means sending a SCRAM verifier computed here, which also decides on the
+  server's behalf which authentication method the new role can ever use.
+- **What the new role may read is not answered here.** It can connect and see
+  nothing; grants are written as SQL by somebody who has left read-only on
+  purpose ([D66](../querying.md)).
+- **The report does not re-read itself when a role is made**, exactly as the
+  list of extensions does not when one is installed.
+- **A name can race another creator.** The check is fresh, and the server
+  refuses a duplicate safely; nothing is overwritten.
+
+Spec: [A database user](../../superpowers/specs/2026-09-02-database-user-design.md)
+
 ## D46. An action answers what it would do
 
 What makes a destructive action safe is not a confirmation box but knowing what

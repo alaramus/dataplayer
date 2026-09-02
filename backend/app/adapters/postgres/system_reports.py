@@ -189,6 +189,8 @@ _BY_KEY = {report.key: report for report in REPORTS}
 EXTENSIONS_REPORT_ID = _BY_KEY["extensions"].node_id
 # The same, for the report whose rows can be acted on one at a time (D70).
 PROCESSES_REPORT_ID = _BY_KEY["processes"].node_id
+# And for the one a role is made from (D79).
+ROLES_REPORT_ID = _BY_KEY["roles"].node_id
 
 
 def report_for(node_id: str) -> SystemReport | None:
