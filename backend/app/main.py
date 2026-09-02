@@ -10,11 +10,15 @@ from app.adapters.cache import DataCache
 from app.adapters.resources import ResourceStore
 from app.api.main import api_router
 from app.core.config import settings
+from app.jobs.recovery import settle_stranded
+from app.jobs.runner import JobRunner
 from app.queries.cleanup import sweeping
 from app.queries.execution import QueryRunner
 from app.queries.results import QueryResults
 from app.queries.sessions import QuerySessions
 from app.realtime import topics
+from app.services.engine import NoEngine
+from app.services.jobs import handlers as service_handlers
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -48,6 +52,12 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         results=application.state.query_results,
         cache=application.state.data_cache,
     )
+    # The work the server owns. Which engine it is handed is the one decision
+    # about services that is made here: without a container runtime every
+    # service job fails at its first step, and says so (D81).
+    application.state.job_runner = JobRunner(service_handlers(NoEngine()))
+    # What the last stop left mid-flight is ended before anything new starts.
+    await settle_stranded()
     # Transactions held open for somebody: a connection each, so the lease is
     # what makes a forgotten one end (D66).
     application.state.query_sessions = QuerySessions(
@@ -61,6 +71,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             yield
     finally:
         await application.state.query_sessions.aclose()
+        await application.state.job_runner.aclose()
         await application.state.query_runner.aclose()
         await application.state.query_results.aclose()
         await application.state.topics.aclose()

@@ -40,6 +40,7 @@ legacy notes and stay unchanged.
 | Actions, action previews, downloads, reports | [sources/actions.md](docs/architecture/sources/actions.md) |
 | A share link, what it opens, an access request | [sharing.md](docs/architecture/sharing.md) |
 | A managed service, a service template, what a container is started with | [services.md](docs/architecture/services.md) |
+| Long work the server owns, its progress, its recovery | [jobs.md](docs/architecture/jobs.md) |
 | Backend modules, routes, migrations, secrets, database | [backend.md](docs/architecture/backend.md) |
 | Screens, components, colours, layers | [frontend.md](docs/architecture/frontend.md) |
 | Layout, tabs, dragging, floating windows | [workspace.md](docs/architecture/workspace.md) |
@@ -140,6 +141,7 @@ files. IDs are stable because specs and commits refer to them.
 | D78 | [querying](docs/architecture/querying.md) |
 | D79 | [sources/actions](docs/architecture/sources/actions.md) |
 | D80 | [services](docs/architecture/services.md) |
+| D81 | [jobs](docs/architecture/jobs.md) |
 
 ## Working rules
 

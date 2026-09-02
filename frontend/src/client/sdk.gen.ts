@@ -164,6 +164,9 @@ import type {
   connectorsWriteGrantData,
   connectorsWriteGrantErrors,
   connectorsWriteGrantResponses,
+  jobsReadJobData,
+  jobsReadJobErrors,
+  jobsReadJobResponses,
   loginLoginAccessTokenData,
   loginLoginAccessTokenErrors,
   loginLoginAccessTokenResponses,
@@ -276,8 +279,28 @@ import type {
   queriesUpdateDocumentData,
   queriesUpdateDocumentErrors,
   queriesUpdateDocumentResponses,
+  servicesDeleteServiceData,
+  servicesDeleteServiceErrors,
+  servicesDeleteServiceResponses,
+  servicesReadServiceData,
+  servicesReadServiceErrors,
+  servicesReadServiceResponses,
+  servicesReadServicesData,
+  servicesReadServicesResponses,
   servicesReadServiceTemplatesData,
   servicesReadServiceTemplatesResponses,
+  servicesRequestServiceData,
+  servicesRequestServiceErrors,
+  servicesRequestServiceResponses,
+  servicesRestartServiceData,
+  servicesRestartServiceErrors,
+  servicesRestartServiceResponses,
+  servicesStartServiceData,
+  servicesStartServiceErrors,
+  servicesStartServiceResponses,
+  servicesStopServiceData,
+  servicesStopServiceErrors,
+  servicesStopServiceResponses,
   sharesApproveRequestData,
   sharesApproveRequestErrors,
   sharesApproveRequestResponses,
@@ -2080,6 +2103,178 @@ export class ServicesService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/services/templates",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Services
+   *
+   * The services this user has asked this server to run.
+   */
+  public static readServices<ThrowOnError extends boolean = true>(
+    options?: Options<servicesReadServicesData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<servicesReadServicesResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/",
+      ...options,
+    })
+  }
+
+  /**
+   * Request Service
+   *
+   * Ask for one of the approved services.
+   *
+   * The request writes the service down, accepts a job and answers. It does
+   * not wait: pulling an image is minutes of somebody else's network, and an
+   * HTTP request that waited for it would be a request that times out while
+   * the work carries on regardless (D81).
+   */
+  public static requestService<ThrowOnError extends boolean = true>(
+    options: Options<servicesRequestServiceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      servicesRequestServiceResponses,
+      servicesRequestServiceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete Service
+   *
+   * Remove a service and the data it kept.
+   *
+   * Destructive, and meant to be: the volume was made for this service and
+   * belongs to nothing else. The service is not gone when this answers — the
+   * job is what removes it, and the row stays until the container is gone so
+   * that a failure leaves something a person can see.
+   */
+  public static deleteService<ThrowOnError extends boolean = true>(
+    options: Options<servicesDeleteServiceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      servicesDeleteServiceResponses,
+      servicesDeleteServiceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/{service_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Service
+   *
+   * One service, with the last thing that happened to it.
+   */
+  public static readService<ThrowOnError extends boolean = true>(
+    options: Options<servicesReadServiceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      servicesReadServiceResponses,
+      servicesReadServiceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/{service_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Start Service
+   *
+   * Start a service that is not running.
+   */
+  public static startService<ThrowOnError extends boolean = true>(
+    options: Options<servicesStartServiceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      servicesStartServiceResponses,
+      servicesStartServiceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/{service_id}/start",
+      ...options,
+    })
+  }
+
+  /**
+   * Stop Service
+   *
+   * Stop a running service, keeping its data.
+   */
+  public static stopService<ThrowOnError extends boolean = true>(
+    options: Options<servicesStopServiceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      servicesStopServiceResponses,
+      servicesStopServiceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/{service_id}/stop",
+      ...options,
+    })
+  }
+
+  /**
+   * Restart Service
+   *
+   * Restart a service.
+   */
+  public static restartService<ThrowOnError extends boolean = true>(
+    options: Options<servicesRestartServiceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      servicesRestartServiceResponses,
+      servicesRestartServiceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/{service_id}/restart",
+      ...options,
+    })
+  }
+}
+
+export class JobsService {
+  /**
+   * Read Job
+   *
+   * What one owned job is doing, or what became of it.
+   *
+   * The authority on a job's state and the fallback for a client whose socket
+   * missed something: the same arrangement a query run has, and the reason the
+   * realtime message can be lost without costing anything (D81).
+   */
+  public static readJob<ThrowOnError extends boolean = true>(
+    options: Options<jobsReadJobData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<jobsReadJobResponses, jobsReadJobErrors, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/jobs/{job_id}",
       ...options,
     })
   }

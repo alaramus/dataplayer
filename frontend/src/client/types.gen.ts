@@ -2544,6 +2544,61 @@ export type InsertValue = {
 }
 
 /**
+ * JobPublic
+ *
+ * A job as its owner reads it.
+ *
+ * The authority on what happened, and the fallback for a client that missed
+ * a socket message — the same arrangement a query run has (D64).
+ */
+export type JobPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Kind
+   */
+  kind: "service.create" | "service.start" | "service.stop" | "service.restart" | "service.delete"
+  /**
+   * Subject Id
+   */
+  subject_id: string | null
+  /**
+   * State
+   */
+  state: "queued" | "running" | "succeeded" | "failed" | "interrupted"
+  /**
+   * Step
+   */
+  step: string | null
+  /**
+   * Step Index
+   */
+  step_index: number
+  /**
+   * Step Count
+   */
+  step_count: number
+  /**
+   * Message
+   */
+  message: string | null
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Started At
+   */
+  started_at: string | null
+  /**
+   * Finished At
+   */
+  finished_at: string | null
+}
+
+/**
  * JsonArray
  */
 export type JsonArray = {
@@ -4818,6 +4873,75 @@ export type SchemaNode = {
    * Is System
    */
   is_system?: boolean
+}
+
+/**
+ * ServiceAccepted
+ *
+ * What comes back from asking for something to happen.
+ *
+ * Both halves: the service as it now stands, and the job that is doing the
+ * work. A request never waits for a pull, so the answer is what was accepted
+ * rather than what happened (D81).
+ */
+export type ServiceAccepted = {
+  service: ServicePublic
+  job: JobPublic
+}
+
+/**
+ * ServicePublic
+ *
+ * A service as its owner reads it.
+ *
+ * Carries its most recent job, so a screen that comes back after a reload
+ * knows what to watch without asking a second question.
+ */
+export type ServicePublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Template Key
+   */
+  template_key: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * State
+   */
+  state: "creating" | "running" | "stopped" | "failed" | "removing"
+  /**
+   * Container Name
+   */
+  container_name: string
+  /**
+   * Published Port
+   */
+  published_port: number | null
+  /**
+   * Created At
+   */
+  created_at: string
+  job?: JobPublic | null
+}
+
+/**
+ * ServiceRequest
+ *
+ * Everything a client may say about a service it wants.
+ *
+ * One field. What runs is the template's (D80), and where it runs is the
+ * server's.
+ */
+export type ServiceRequest = {
+  /**
+   * Template Key
+   */
+  template_key: string
 }
 
 /**
@@ -8396,6 +8520,239 @@ export type servicesReadServiceTemplatesResponses = {
 
 export type servicesReadServiceTemplatesResponse =
   servicesReadServiceTemplatesResponses[keyof servicesReadServiceTemplatesResponses]
+
+export type servicesReadServicesData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/services/"
+}
+
+export type servicesReadServicesResponses = {
+  /**
+   * Response Services-Read Services
+   *
+   * Successful Response
+   */
+  200: Array<ServicePublic>
+}
+
+export type servicesReadServicesResponse =
+  servicesReadServicesResponses[keyof servicesReadServicesResponses]
+
+export type servicesRequestServiceData = {
+  body: ServiceRequest
+  path?: never
+  query?: never
+  url: "/api/v1/services/"
+}
+
+export type servicesRequestServiceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type servicesRequestServiceError =
+  servicesRequestServiceErrors[keyof servicesRequestServiceErrors]
+
+export type servicesRequestServiceResponses = {
+  /**
+   * Successful Response
+   */
+  200: ServiceAccepted
+}
+
+export type servicesRequestServiceResponse =
+  servicesRequestServiceResponses[keyof servicesRequestServiceResponses]
+
+export type servicesDeleteServiceData = {
+  body?: never
+  path: {
+    /**
+     * Service Id
+     */
+    service_id: string
+  }
+  query?: never
+  url: "/api/v1/services/{service_id}"
+}
+
+export type servicesDeleteServiceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type servicesDeleteServiceError =
+  servicesDeleteServiceErrors[keyof servicesDeleteServiceErrors]
+
+export type servicesDeleteServiceResponses = {
+  /**
+   * Successful Response
+   */
+  200: ServiceAccepted
+}
+
+export type servicesDeleteServiceResponse =
+  servicesDeleteServiceResponses[keyof servicesDeleteServiceResponses]
+
+export type servicesReadServiceData = {
+  body?: never
+  path: {
+    /**
+     * Service Id
+     */
+    service_id: string
+  }
+  query?: never
+  url: "/api/v1/services/{service_id}"
+}
+
+export type servicesReadServiceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type servicesReadServiceError = servicesReadServiceErrors[keyof servicesReadServiceErrors]
+
+export type servicesReadServiceResponses = {
+  /**
+   * Successful Response
+   */
+  200: ServicePublic
+}
+
+export type servicesReadServiceResponse =
+  servicesReadServiceResponses[keyof servicesReadServiceResponses]
+
+export type servicesStartServiceData = {
+  body?: never
+  path: {
+    /**
+     * Service Id
+     */
+    service_id: string
+  }
+  query?: never
+  url: "/api/v1/services/{service_id}/start"
+}
+
+export type servicesStartServiceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type servicesStartServiceError = servicesStartServiceErrors[keyof servicesStartServiceErrors]
+
+export type servicesStartServiceResponses = {
+  /**
+   * Successful Response
+   */
+  200: ServiceAccepted
+}
+
+export type servicesStartServiceResponse =
+  servicesStartServiceResponses[keyof servicesStartServiceResponses]
+
+export type servicesStopServiceData = {
+  body?: never
+  path: {
+    /**
+     * Service Id
+     */
+    service_id: string
+  }
+  query?: never
+  url: "/api/v1/services/{service_id}/stop"
+}
+
+export type servicesStopServiceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type servicesStopServiceError = servicesStopServiceErrors[keyof servicesStopServiceErrors]
+
+export type servicesStopServiceResponses = {
+  /**
+   * Successful Response
+   */
+  200: ServiceAccepted
+}
+
+export type servicesStopServiceResponse =
+  servicesStopServiceResponses[keyof servicesStopServiceResponses]
+
+export type servicesRestartServiceData = {
+  body?: never
+  path: {
+    /**
+     * Service Id
+     */
+    service_id: string
+  }
+  query?: never
+  url: "/api/v1/services/{service_id}/restart"
+}
+
+export type servicesRestartServiceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type servicesRestartServiceError =
+  servicesRestartServiceErrors[keyof servicesRestartServiceErrors]
+
+export type servicesRestartServiceResponses = {
+  /**
+   * Successful Response
+   */
+  200: ServiceAccepted
+}
+
+export type servicesRestartServiceResponse =
+  servicesRestartServiceResponses[keyof servicesRestartServiceResponses]
+
+export type jobsReadJobData = {
+  body?: never
+  path: {
+    /**
+     * Job Id
+     */
+    job_id: string
+  }
+  query?: never
+  url: "/api/v1/jobs/{job_id}"
+}
+
+export type jobsReadJobErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type jobsReadJobError = jobsReadJobErrors[keyof jobsReadJobErrors]
+
+export type jobsReadJobResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobPublic
+}
+
+export type jobsReadJobResponse = jobsReadJobResponses[keyof jobsReadJobResponses]
 
 export type sharesListSharesData = {
   body?: never

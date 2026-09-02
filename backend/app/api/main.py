@@ -4,6 +4,7 @@ from app.adapters.routes import router as adapter_types_router
 from app.connectors import health as connector_health
 from app.connectors.routes import router as connectors_router
 from app.core.config import settings
+from app.jobs.routes import router as jobs_router
 from app.queries.routes import router as queries_router
 from app.realtime.routes import router as realtime_router
 from app.services.routes import router as services_router
@@ -22,6 +23,7 @@ api_router.include_router(utils_router)
 api_router.include_router(connectors_router)
 api_router.include_router(adapter_types_router)
 api_router.include_router(services_router)
+api_router.include_router(jobs_router)
 api_router.include_router(shares_router)
 api_router.include_router(queries_router)
 api_router.include_router(realtime_router)

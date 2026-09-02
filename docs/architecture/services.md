@@ -8,20 +8,32 @@ Decisions here: D80.
 
 ## What exists today
 
-A closed registry of approved templates, the plan one of them turns into, and
-a route that lists what may be asked for. Nothing starts yet: what a plan is
-executed by is the job model, which arrives next in
-[the roadmap](../migration-roadmap.md).
+A closed registry of approved templates, the plan one of them turns into, the
+five things that can happen to a service — each an [owned job](jobs.md) — and
+the routes that ask for them. What actually talks to a container runtime is a
+protocol with one implementation: `NoEngine`, which refuses. Detecting a real
+one is the next item of the phase.
 
 ```
 backend/app/services/
 ├── templates.py   the closed set: what may run, and what it becomes
 ├── plan.py        one service fully decided — names, credentials, container
-└── routes.py      GET /services/templates
+├── models.py      ManagedService, and what a client reads
+├── crud.py        database access only
+├── engine.py      what a container runtime must do, and a server without one
+├── jobs.py        create, start, stop, restart, delete as job handlers
+└── routes.py      the templates, and the lifecycle
 ```
 
 ```
-GET /api/v1/services/templates
+GET    /api/v1/services/templates
+POST   /api/v1/services/
+GET    /api/v1/services/
+GET    /api/v1/services/{service_id}
+POST   /api/v1/services/{service_id}/start
+POST   /api/v1/services/{service_id}/stop
+POST   /api/v1/services/{service_id}/restart
+DELETE /api/v1/services/{service_id}
 ```
 
 ## D80. An approved service is written in code, and a client names one
@@ -83,8 +95,8 @@ Known deviations:
   `compose.yml` uses.
 - **There is one template.** PostgreSQL is the pilot the roadmap names, and
   Redis arrives with its own item once the lifecycle is right.
-- **Nothing runs yet.** The plan is pure, and what executes it — with durable
-  state, progress and cancellation — is the next item of the phase.
+- **Nothing runs yet.** The plan is pure, and the engine that would carry it
+  out is `NoEngine` until a runtime is detected ([D81](jobs.md)).
 - **A person cannot choose the database or the user.** Both are constants of
   the template. Letting them be typed would be a value from a client in an
   environment variable, which is a smaller thing than an image but still not

@@ -97,8 +97,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] Model create/start/stop/restart/delete as owned asynchronous jobs with
-  durable state and realtime progress. A request must not wait for image pulls.
 - [ ] Detect Docker availability and state the refusal in the adapter catalog.
 - [ ] Pilot one PostgreSQL service: generate credentials server-side, wait for
   readiness, then fill and save the connector through the normal connector

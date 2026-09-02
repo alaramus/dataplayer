@@ -82,6 +82,7 @@ translations; those files are not.
 | 2026-09-02 | [SQL over tabular files](2026-09-02-file-sql-design.md) | D77, D78: a file source's SQL names its own nodes, and its engine is a disposable sandbox |
 | 2026-09-02 | [A database user](2026-09-02-database-user-design.md) | D79: making a role is the owner's alone, and a password DDL cannot bind travels as the driver's own literal |
 | 2026-09-02 | [Approved service templates](2026-09-02-service-templates-design.md) | D80: what may be started is written in code, and a client names one of them |
+| 2026-09-02 | [Owned asynchronous jobs](2026-09-02-owned-jobs-design.md) | D81: long work is a row with named steps, not a request that waits or a boolean in a process |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the
