@@ -17,7 +17,8 @@ from app.queries.execution import QueryRunner
 from app.queries.results import QueryResults
 from app.queries.sessions import QuerySessions
 from app.realtime import topics
-from app.services.engine import NoEngine
+from app.services.docker import DockerEngine
+from app.services.engine import SWITCHED_OFF_MESSAGE, NoEngine, ServiceEngine
 from app.services.jobs import handlers as service_handlers
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
@@ -52,10 +53,17 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         results=application.state.query_results,
         cache=application.state.data_cache,
     )
-    # The work the server owns. Which engine it is handed is the one decision
-    # about services that is made here: without a container runtime every
-    # service job fails at its first step, and says so (D81).
-    application.state.job_runner = JobRunner(service_handlers(NoEngine()))
+    # The work the server owns, and the runtime it may ask to do it. Whether
+    # this installation runs services at all is decided here and nowhere else;
+    # whether the runtime is actually reachable is asked of the engine when
+    # somebody asks, because a daemon can go away while the server runs (D82).
+    engine: ServiceEngine = (
+        DockerEngine(settings.DOCKER_SOCKET)
+        if settings.SERVICES_ENABLED
+        else NoEngine(SWITCHED_OFF_MESSAGE)
+    )
+    application.state.service_engine = engine
+    application.state.job_runner = JobRunner(service_handlers(engine))
     # What the last stop left mid-flight is ended before anything new starts.
     await settle_stranded()
     # Transactions held open for somebody: a connection each, so the lease is

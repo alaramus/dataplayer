@@ -97,7 +97,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] Detect Docker availability and state the refusal in the adapter catalog.
 - [ ] Pilot one PostgreSQL service: generate credentials server-side, wait for
   readiness, then fill and save the connector through the normal connector
   schema.

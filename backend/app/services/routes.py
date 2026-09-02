@@ -13,6 +13,7 @@ from app.jobs.models import public as job_public
 from app.jobs.runner import JobRunner, JobRunnerDep
 from app.realtime.topics import TopicsDep, TopicSet
 from app.services import crud, templates
+from app.services.engine import Availability, ServiceEngineDep
 from app.services.models import (
     BUSY_STATES,
     ManagedService,
@@ -61,18 +62,27 @@ class ServiceTemplateInfo(BaseModel):
     # Which credentials this server makes up. A statement about what a person
     # will not be asked for, which is the whole difference from the old form.
     generated: list[templates.CredentialSlot]
+    # Whether this server could actually start one now, and why not when it
+    # could not. Said where the offer is made rather than only when the button
+    # is pressed: a screen that offers what will be refused is a screen that
+    # lies (D82).
+    available: bool
+    unavailable_reason: str | None = None
 
 
 # Declared before "/{service_id}": a path that is a fixed word must be matched
 # before one that is a parameter, whatever the parameter's type would do.
 @router.get("/templates", response_model=list[ServiceTemplateInfo])
-async def read_service_templates() -> Any:
+async def read_service_templates(engine: ServiceEngineDep) -> Any:
     """
     List the services this server can start, and what each one becomes.
 
     A closed set written in code. A client picks a key from it; nothing about
-    the container is a request's to choose (D80).
+    the container is a request's to choose (D80). Every entry also says
+    whether it could be started now, because the runtime is a property of the
+    server rather than of the template and can be gone while the server runs.
     """
+    runtime = await engine.availability()
     return [
         ServiceTemplateInfo(
             key=template.key,
@@ -83,6 +93,8 @@ async def read_service_templates() -> Any:
             adapter_type=template.adapter_type,
             adapter_title=registry.get(template.adapter_type).title,
             generated=list(templates.generated_slots(template)),
+            available=runtime.available,
+            unavailable_reason=runtime.reason,
         )
         for template in templates.all_templates()
     ]
@@ -94,6 +106,7 @@ async def request_service(
     current_user: CurrentUser,
     runner: JobRunnerDep,
     topics: TopicsDep,
+    engine: ServiceEngineDep,
     body: ServiceRequest,
 ) -> Any:
     """
@@ -111,6 +124,7 @@ async def request_service(
             status_code=422,
             detail={"message": "This server does not offer that service"},
         ) from None
+    _refuse_without_a_runtime(await engine.availability())
     service = await crud.create(session, owner_id=current_user.id, template=template)
     job = await _accept(session, runner, topics, service, "service.create")
     return ServiceAccepted(service=_public(service, job), job=job_public(job))
@@ -260,6 +274,21 @@ async def _own_or_404(
     if service is None:
         raise HTTPException(status_code=404, detail={"message": "No such service"})
     return service
+
+
+def _refuse_without_a_runtime(runtime: Availability) -> None:
+    """Refuse before a service exists rather than after a job fails.
+
+    A job would fail with the same sentence — the engine refuses every verb —
+    but a row and a failed job are a mess left behind by a question that could
+    have been answered. The job is still the authority if the runtime goes
+    away between this and the pull.
+    """
+    if not runtime.available:
+        raise HTTPException(
+            status_code=503,
+            detail={"message": runtime.reason or "This server cannot run services"},
+        )
 
 
 def _refuse_if_busy(service: ManagedService) -> None:

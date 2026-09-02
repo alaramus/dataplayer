@@ -1,7 +1,7 @@
 """Asking for a service, and everything that can happen to one (D81)."""
 
 import uuid
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Iterator
 from typing import Any
 
 import pytest
@@ -13,54 +13,12 @@ from app.core.db import async_session_maker
 from app.jobs.models import Job
 from app.jobs.runner import JobRunner
 from app.main import app
-from app.services.engine import NO_ENGINE_MESSAGE, EngineError, NoEngine
-from app.services.jobs import handlers
+from app.services.engine import SWITCHED_OFF_MESSAGE
 from app.services.models import ManagedService
-from app.services.plan import ContainerSpec
+from tests.utils.service_engine import FakeEngine, engine_of
 
 BASE = f"{settings.API_V1_STR}/services"
 JOBS = f"{settings.API_V1_STR}/jobs"
-
-
-class _Engine:
-    """An engine that does as it is told, and remembers what that was."""
-
-    def __init__(self) -> None:
-        self.pulled: list[str] = []
-        self.created: list[ContainerSpec] = []
-        self.started: list[str] = []
-        self.stopped: list[str] = []
-        self.restarted: list[str] = []
-        self.removed: list[tuple[str, str | None]] = []
-        self.refuse_on: str | None = None
-
-    def _maybe_refuse(self, what: str) -> None:
-        if self.refuse_on == what:
-            raise EngineError(f"The engine would not {what}")
-
-    async def pull(self, image: str) -> None:
-        self._maybe_refuse("pull")
-        self.pulled.append(image)
-
-    async def create(self, spec: ContainerSpec) -> None:
-        self._maybe_refuse("create")
-        self.created.append(spec)
-
-    async def start(self, container: str) -> None:
-        self._maybe_refuse("start")
-        self.started.append(container)
-
-    async def stop(self, container: str) -> None:
-        self._maybe_refuse("stop")
-        self.stopped.append(container)
-
-    async def restart(self, container: str) -> None:
-        self._maybe_refuse("restart")
-        self.restarted.append(container)
-
-    async def remove(self, container: str, *, volume: str | None) -> None:
-        self._maybe_refuse("remove")
-        self.removed.append((container, volume))
 
 
 @pytest.fixture(autouse=True)
@@ -77,20 +35,16 @@ async def without_services() -> AsyncGenerator[None]:
 
 
 @pytest.fixture
-def engine() -> AsyncGenerator[_Engine]:
-    """Swap the application's engine for one that does not need a daemon.
+def engine() -> Iterator[FakeEngine]:
+    """Run the application with an engine that needs no daemon.
 
-    The runner is built by the lifespan with the engine this deployment has;
-    a test that wants to watch a service through its whole life supplies its
-    own, which is the point of the engine being a protocol.
+    The one this deployment has is built by the lifespan; a test that wants to
+    watch a service through its whole life supplies its own, which is the
+    point of the engine being a protocol.
     """
-    saved = app.state.job_runner
-    fake = _Engine()
-    app.state.job_runner = JobRunner(handlers(fake))
-    try:
+    fake = FakeEngine()
+    with engine_of(app, fake):
         yield fake
-    finally:
-        app.state.job_runner = saved
 
 
 async def _wait(job_id: str) -> None:
@@ -125,7 +79,7 @@ async def test_asking_for_a_service_answers_before_anything_is_pulled(
 
 
 async def test_the_job_pulls_creates_and_starts_and_the_service_says_running(
-    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: _Engine
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
 ) -> None:
     accepted = await _ask_for_one(client, normal_user_token_headers)
 
@@ -148,7 +102,7 @@ async def test_the_job_pulls_creates_and_starts_and_the_service_says_running(
 
 
 async def test_the_container_a_job_creates_is_the_one_the_service_named(
-    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: _Engine
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
 ) -> None:
     """The names are settled when the service is written down, so a later
     command names the same container the create job made."""
@@ -159,7 +113,7 @@ async def test_the_container_a_job_creates_is_the_one_the_service_named(
 
 
 async def test_a_service_can_be_stopped_started_and_restarted(
-    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: _Engine
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
 ) -> None:
     accepted = await _ask_for_one(client, normal_user_token_headers)
     await _wait(accepted["job"]["id"])
@@ -187,7 +141,7 @@ async def test_a_service_can_be_stopped_started_and_restarted(
 
 
 async def test_deleting_takes_the_container_and_its_volume(
-    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: _Engine
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
 ) -> None:
     """Destructive on purpose: the volume was made for this service and
     belongs to nothing else."""
@@ -202,14 +156,13 @@ async def test_deleting_takes_the_container_and_its_volume(
 
     gone = await client.get(f"{BASE}/{service_id}", headers=normal_user_token_headers)
     assert removal.json()["service"]["state"] == "removing"
-    assert engine.removed == [
-        (accepted["service"]["container_name"], _volume_of(accepted))
-    ]
+    container = accepted["service"]["container_name"]
+    assert engine.removed == [(container, f"{container}-data")]
     assert gone.status_code == 404
 
 
 async def test_a_failure_leaves_the_service_visible_and_says_why(
-    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: _Engine
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
 ) -> None:
     engine.refuse_on = "create"
 
@@ -333,24 +286,39 @@ async def test_a_template_this_server_does_not_offer_is_refused(
     assert response.status_code == 422
 
 
-async def test_without_a_container_runtime_the_job_says_so(
+async def test_without_a_container_runtime_nothing_is_accepted(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
-    """No fixture here on purpose: this is the engine the application actually
-    runs with until one is detected, and asking for a service on such a server
-    must fail with a sentence rather than a traceback."""
-    assert isinstance(app.state.job_runner, JobRunner)
-    accepted = await _ask_for_one(client, normal_user_token_headers)
+    """No fixture on purpose: this is the engine the application actually runs
+    with in a test environment, and the refusal is what a person meets.
 
-    await _wait(accepted["job"]["id"])
-
-    job = await client.get(
-        f"{JOBS}/{accepted['job']['id']}", headers=normal_user_token_headers
+    Refused rather than accepted and failed: a row and a failed job would be a
+    mess left behind by a question that could have been answered (D82).
+    """
+    response = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={"template_key": "postgres"},
     )
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["message"] == SWITCHED_OFF_MESSAGE
+
+
+async def test_a_runtime_that_goes_away_after_the_answer_fails_the_job(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The check is a moment, the job is the authority: an engine that said
+    yes and then refuses is a failed job with the engine's own sentence."""
+    engine = FakeEngine()
+    engine.refuse_on = "pull"
+
+    with engine_of(app, engine):
+        accepted = await _ask_for_one(client, normal_user_token_headers)
+        await _wait(accepted["job"]["id"])
+        job = await client.get(
+            f"{JOBS}/{accepted['job']['id']}", headers=normal_user_token_headers
+        )
+
     assert job.json()["state"] == "failed"
-    assert job.json()["message"] == NO_ENGINE_MESSAGE
-    assert isinstance(NoEngine(), object)
-
-
-def _volume_of(accepted: dict[str, Any]) -> str:
-    return f"{accepted['service']['container_name']}-data"
+    assert job.json()["message"] == "The engine would not pull"

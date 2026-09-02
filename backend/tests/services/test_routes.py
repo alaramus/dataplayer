@@ -3,6 +3,9 @@
 from httpx import AsyncClient
 
 from app.core.config import settings
+from app.main import app
+from app.services.engine import SWITCHED_OFF_MESSAGE
+from tests.utils.service_engine import FakeEngine, engine_of
 
 BASE = f"{settings.API_V1_STR}/services"
 
@@ -41,6 +44,9 @@ async def test_nothing_about_the_container_is_published(
         "adapter_type",
         "adapter_title",
         "generated",
+        # Not about the container: about whether this server could start one.
+        "available",
+        "unavailable_reason",
     }
 
 
@@ -50,3 +56,31 @@ async def test_a_stranger_is_not_told_what_this_server_can_start(
     response = await client.get(f"{BASE}/templates")
 
     assert response.status_code == 401
+
+
+async def test_the_listing_says_whether_one_could_be_started_now(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """A screen that offers what will be refused is a screen that lies (D82).
+
+    In a test environment services are switched off, which is one of the two
+    reasons a server may have; the other is that no runtime answers.
+    """
+    response = await client.get(f"{BASE}/templates", headers=normal_user_token_headers)
+
+    postgres = next(item for item in response.json() if item["key"] == "postgres")
+    assert postgres["available"] is False
+    assert postgres["unavailable_reason"] == SWITCHED_OFF_MESSAGE
+
+
+async def test_with_a_runtime_the_same_listing_offers_it(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    with engine_of(app, FakeEngine()):
+        response = await client.get(
+            f"{BASE}/templates", headers=normal_user_token_headers
+        )
+
+    postgres = next(item for item in response.json() if item["key"] == "postgres")
+    assert postgres["available"] is True
+    assert postgres["unavailable_reason"] is None

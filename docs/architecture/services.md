@@ -4,15 +4,15 @@ A service this server starts on the machine it runs on, and the connector such
 a service becomes. Read this before adding a template, changing what a service
 is started with, or letting anything about a container come from a request.
 
-Decisions here: D80.
+Decisions here: D80, D82.
 
 ## What exists today
 
 A closed registry of approved templates, the plan one of them turns into, the
-five things that can happen to a service — each an [owned job](jobs.md) — and
-the routes that ask for them. What actually talks to a container runtime is a
-protocol with one implementation: `NoEngine`, which refuses. Detecting a real
-one is the next item of the phase.
+five things that can happen to a service — each an [owned job](jobs.md) — the
+routes that ask for them, and a client for the Docker Engine API. Whether this
+installation runs services at all is a setting; whether a runtime answers is
+asked of it.
 
 ```
 backend/app/services/
@@ -21,6 +21,7 @@ backend/app/services/
 ├── models.py      ManagedService, and what a client reads
 ├── crud.py        database access only
 ├── engine.py      what a container runtime must do, and a server without one
+├── docker.py      the Docker Engine API, over the socket this server has
 ├── jobs.py        create, start, stop, restart, delete as job handlers
 └── routes.py      the templates, and the lifecycle
 ```
@@ -95,11 +96,72 @@ Known deviations:
   `compose.yml` uses.
 - **There is one template.** PostgreSQL is the pilot the roadmap names, and
   Redis arrives with its own item once the lifecycle is right.
-- **Nothing runs yet.** The plan is pure, and the engine that would carry it
-  out is `NoEngine` until a runtime is detected ([D81](jobs.md)).
+- **A service is not yet a connector.** The create job stops at started;
+  waiting for the service to answer and saving the connector its credentials
+  belong in is the pilot, the next item of the phase.
 - **A person cannot choose the database or the user.** Both are constants of
   the template. Letting them be typed would be a value from a client in an
   environment variable, which is a smaller thing than an image but still not
   this slice's to allow.
 
 Spec: [Approved service templates](../superpowers/specs/2026-09-02-service-templates-design.md)
+
+## D82. A runtime is asked, never assumed, and the offer says so
+
+Whether a server can start containers is not a property of the code: it is a
+property of the machine, of what the deployment allows, and of a daemon that
+can go away while the server runs. So it is asked, and the answer is part of
+the offer rather than a surprise at the moment somebody presses the button.
+
+- **Services are off unless a deployment says otherwise.** `SERVICES_ENABLED`
+  defaults to false, because a process that can reach a container runtime can
+  do to the host whatever that runtime can. The socket is mounted in
+  `compose.override.yml` — development only — and threat-modelling it for
+  anywhere else is the last item of the phase.
+- **The two reasons are different sentences.** "Managed services are switched
+  off on this server" is something an administrator can change; "This server
+  cannot reach a container runtime" is something that may be a daemon that is
+  down. Telling them apart is the whole value of the answer.
+- **Availability is asked when somebody asks**, not decided at startup. A
+  probe held to two seconds, and one that never raises: not reaching a daemon
+  is an answer, not a failure.
+- **Every template says whether it could be started now**, and why not when it
+  could not. A screen that offers what will be refused is a screen that lies.
+- **Asking for a service without a runtime is refused before a row exists.** A
+  job would fail with the same sentence, but a service row and a failed job
+  are a mess left behind by a question that could have been answered. The job
+  is still the authority if the runtime goes away in between — the check is a
+  moment, and only the work is a fact.
+- **The client is one module over httpx.** The Engine API is HTTP and httpx
+  speaks it over a Unix socket, so a container runtime needs no SDK: `docker.py`
+  holds the requests this application actually makes and nothing else. The old
+  application shelled out to `docker compose` with an f-string command line.
+- **The daemon's words never cross.** Its status codes become this
+  repository's own sentences and its message goes to the log, because it names
+  image digests, socket paths and directories of the host — the rule the
+  adapters follow for driver text, applied to the other kind of driver.
+- **A pull reports failure inside a successful answer.** The daemon returns
+  200 and streams what it is doing, so the stream is read to the end: that is
+  both how the pull completes and how a failure is noticed.
+- **What is created is bounded by the specification.** One named volume and no
+  bind mount; a published port bound to `127.0.0.1` rather than to every
+  interface, because a database somebody asked this server to start is not one
+  they asked it to publish; and `unless-stopped`, so a service comes back with
+  the machine but stays stopped when somebody stopped it.
+- **Removal accepts "it was not there".** It is the one command whose goal is
+  a state rather than an event, and a person retrying a half-finished removal
+  must not be told off for the half that worked.
+
+Known deviations:
+
+- **The probe is not cached.** Every listing asks the daemon, and a wedged one
+  costs two seconds per request.
+- **The API version is not pinned.** The client uses the unversioned paths and
+  gets whatever the daemon serves. A daemon far newer than this code could
+  change a field it reads.
+- **Only Docker is tested.** Podman's socket serves the same API and would
+  probably work; nothing here has tried it.
+- **Nothing bounds how many services one person may start**, or how much of
+  the machine they may take. Both belong with the threat model.
+
+Spec: [Detecting a container runtime](../superpowers/specs/2026-09-02-runtime-detection-design.md)

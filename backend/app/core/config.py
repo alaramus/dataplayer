@@ -72,6 +72,13 @@ class Settings(BaseSettings):
     # A source opts in and chooses its own TTL; this only bounds memory.
     DATA_CACHE_MAX_ENTRIES: int = 512
 
+    # Whether this installation may start containers of its own, and where the
+    # runtime that would do it listens. Off unless a deployment says otherwise:
+    # reaching a container runtime is reaching the machine, and the threat
+    # model for that is the last item of the phase that introduced this.
+    SERVICES_ENABLED: bool = False
+    DOCKER_SOCKET: str = "/var/run/docker.sock"
+
     # How long a socket may stay open without saying who it is. A socket that
     # says nothing still holds a connection.
     WS_AUTH_TIMEOUT_SECONDS: float = 5.0

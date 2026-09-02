@@ -4987,6 +4987,14 @@ export type ServiceTemplateInfo = {
    * Generated
    */
   generated: Array<"user" | "password" | "database">
+  /**
+   * Available
+   */
+  available: boolean
+  /**
+   * Unavailable Reason
+   */
+  unavailable_reason?: string | null
 }
 
 /**

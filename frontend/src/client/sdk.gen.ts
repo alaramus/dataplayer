@@ -2090,7 +2090,9 @@ export class ServicesService {
    * List the services this server can start, and what each one becomes.
    *
    * A closed set written in code. A client picks a key from it; nothing about
-   * the container is a request's to choose (D80).
+   * the container is a request's to choose (D80). Every entry also says
+   * whether it could be started now, because the runtime is a property of the
+   * server rather than of the template and can be gone while the server runs.
    */
   public static readServiceTemplates<ThrowOnError extends boolean = true>(
     options?: Options<servicesReadServiceTemplatesData, ThrowOnError>

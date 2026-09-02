@@ -48,11 +48,17 @@ services:
     # TODO: remove once coverage is done locally
     volumes:
       - ./backend/htmlcov:/app/backend/htmlcov
+      # Development only, and deliberately not in compose.yml: a process that
+      # can reach this socket can do to the host whatever the runtime can, and
+      # the threat model for allowing it anywhere else is the last item of the
+      # phase that introduced managed services.
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       FASTAPI_ENV: "development"
       SMTP_HOST: "mailcatcher"
       SMTP_PORT: "1025"
       SMTP_TLS: "false"
+      SERVICES_ENABLED: "true"
 
   mailcatcher:
     image: schickling/mailcatcher
