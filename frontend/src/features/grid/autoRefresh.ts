@@ -56,6 +56,14 @@ export interface RefreshHold {
   editing: boolean
   /** A row is being written in the grid and has not been sent. */
   inserting: boolean
+  /**
+   * Rows are ticked.
+   *
+   * A selection is somebody about to do something to those rows, and a page
+   * that arrives underneath it takes it away — which on a list of processes
+   * means the row you meant to terminate is no longer the row you ticked.
+   */
+  selecting: boolean
   /** The tab is not on screen: another tab of this section, or another window. */
   away: boolean
 }
@@ -71,6 +79,7 @@ export interface RefreshHold {
 export function refreshHeldBy(hold: RefreshHold): string | null {
   if (hold.editing) return "while a cell is being edited"
   if (hold.inserting) return "while a row is being written"
+  if (hold.selecting) return "while rows are selected"
   if (hold.away) return "while this tab is not on screen"
   if (hold.fetching) return "while the last read is still running"
   return null
@@ -92,27 +101,35 @@ function refreshKey(connectorId: string, nodeId: string): string {
 }
 
 /**
- * What this relation was last left refreshing at.
+ * What this relation was last left refreshing at, if anybody ever said.
  *
  * Remembered per relation, like the columns and the query beside it: a table
- * watched every five seconds yesterday is one somebody is watching. A stored
- * value that is not an offered interval is discarded rather than trusted,
- * because the offered set is allowed to change.
+ * watched every five seconds yesterday is one somebody is watching.
+ *
+ * Three answers, not two. `undefined` is nobody has ever chosen for this
+ * relation, and `null` is somebody chose Off — which have to be told apart
+ * now that a source may suggest an interval of its own (D70). Collapsing
+ * them would turn off into "no opinion" and put the suggestion back the next
+ * time the tab was opened, which is a grid refusing to stay stopped.
+ *
+ * A stored value that is not an offered interval is discarded rather than
+ * trusted, because the offered set is allowed to change.
  */
 export function loadRefreshSeconds(
   connectorId: string,
   nodeId: string
-): RefreshSeconds | null {
+): RefreshSeconds | null | undefined {
   const raw = localStorage.getItem(refreshKey(connectorId, nodeId))
-  if (raw === null) return null
+  if (raw === null) return undefined
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
   } catch {
-    return null
+    return undefined
   }
+  if (parsed === null) return null
   const result = refreshSecondsSchema.safeParse(parsed)
-  return result.success ? result.data : null
+  return result.success ? result.data : undefined
 }
 
 export function saveRefreshSeconds(
@@ -120,9 +137,34 @@ export function saveRefreshSeconds(
   nodeId: string,
   seconds: RefreshSeconds | null
 ): void {
-  const key = refreshKey(connectorId, nodeId)
-  // Off is the absence of an entry rather than a stored null: a relation
-  // nobody ever watched and one somebody stopped watching are the same state.
-  if (seconds === null) localStorage.removeItem(key)
-  else localStorage.setItem(key, JSON.stringify(seconds))
+  localStorage.setItem(refreshKey(connectorId, nodeId), JSON.stringify(seconds))
+}
+
+/**
+ * What a grid starts refreshing at when it opens a relation.
+ *
+ * A person's own choice wins, always. Only where there is none does the
+ * source's suggestion apply: a list of server processes is about what is
+ * happening this second and says so, while a table of invoices says nothing
+ * and is left alone.
+ */
+export function startingRefresh(
+  stored: RefreshSeconds | null | undefined,
+  suggested: number | null | undefined
+): RefreshSeconds | null {
+  if (stored !== undefined) return stored
+  return offeredNearest(suggested)
+}
+
+/**
+ * The offered interval a suggestion becomes.
+ *
+ * The shortest one that is not shorter than what was asked for, because
+ * polling a source faster than it asked to be polled is the one direction
+ * that costs it something. A suggestion longer than anything offered takes
+ * the longest.
+ */
+function offeredNearest(suggested: number | null | undefined): RefreshSeconds | null {
+  if (suggested === null || suggested === undefined || suggested <= 0) return null
+  return REFRESH_SECONDS.find((seconds) => seconds >= suggested) ?? 300
 }

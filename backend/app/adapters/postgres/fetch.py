@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 from typing import Any, Literal, assert_never
@@ -8,6 +8,7 @@ from psycopg import sql
 
 from app.adapters.cells import encode_cell
 from app.adapters.fetch import (
+    PAGE_COMMANDS,
     FetchColumn,
     FetchReference,
     FetchRequest,
@@ -16,6 +17,7 @@ from app.adapters.fetch import (
     FilterOp,
     InFilter,
     NullFilter,
+    PageCommand,
     ScalarFilter,
 )
 from app.adapters.postgres.catalog import is_system_schema
@@ -104,6 +106,13 @@ class RelationFetchInfo:
     insert_reason: str | None
     delete_supported: bool
     delete_reason: str | None
+    # What the source says about reading this again, when it has an opinion.
+    refresh_seconds: int | None = None
+    # What the toolbar over this page offers beyond reading it. Everything for
+    # a relation; a report withdraws what would take a copy of it away.
+    page_commands: list[PageCommand] = field(
+        default_factory=lambda: list(PAGE_COMMANDS)
+    )
 
 
 @dataclass(frozen=True)
@@ -248,6 +257,8 @@ class PostgresFetch:
             insert_reason=info.insert_reason,
             delete_supported=info.delete_supported,
             delete_reason=info.delete_reason,
+            refresh_seconds=info.refresh_seconds,
+            page_commands=info.page_commands,
         )
 
     async def prepare(self, request: FetchRequest) -> PreparedRead:
@@ -325,6 +336,13 @@ class PostgresFetch:
             insert_reason=refused,
             delete_supported=False,
             delete_reason=refused,
+            refresh_seconds=report.refresh_seconds,
+            # A report is the server describing what it is doing, not data
+            # somebody is keeping. Charting it, sharing a link to it or making
+            # a table out of it are all answers to a question nobody asked of
+            # it, and the room they take is room the commands that matter
+            # here do not have (D72).
+            page_commands=[],
         )
 
     async def _types_by_oid(self, oids: list[int]) -> dict[int, dict[str, Any]]:

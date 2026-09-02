@@ -372,6 +372,104 @@ Known deviations:
 
 Spec: [Exporting every matching row](../../superpowers/specs/2026-08-30-streaming-export-design.md)
 
+## D70. A relation may declare commands over its own rows
+
+An action is about a catalog node (D9), and a process is not a node. The
+Processes report (D55) lists what is connected and what each backend is doing,
+and until now there was nothing to do about it: the grid's delete button
+belongs to a relation that can be written to, and a report is a subquery with
+no row to write back to (D42), while an action with a `pid` field asks somebody
+to type in a number that is already on their screen.
+
+So a relation may declare commands of its own, and the grid offers them over
+the rows that are ticked.
+
+Consequences:
+
+- **A command names the column that names a row.** `identified_by` is one
+  column — `pid` here — and the keys the client sends are the values of that
+  column in the selected rows. One column, because that is what every command
+  that exists needs; a compound key is a different contract and is not invented
+  before somebody has one.
+- **Two questions, one driver.** `SupportsRowCommands` answers what a node
+  offers and runs one of them, so there is no third place a name could resolve
+  differently, and what a client may do is decided by what the node offers
+  rather than by the vocabulary existing. The same shape `SupportsActions` has.
+- **They travel on the fetch result**, filled in by the route from the composed
+  adapter, exactly as `export_supported` is: a capability belongs to the source
+  rather than to the module that read the page. They are filtered by the level
+  the caller holds, so a command nobody may run is never drawn.
+- **The level is the command's own statement**, checked after the name has
+  resolved. PostgreSQL's two need `structure`, the strongest level that can be
+  given away: stopping somebody else's work is not what "may write rows" was
+  granted for.
+- **The keys are the source's to read.** Nothing in the route knows what a
+  process id is; a key that means nothing to the source is refused by the
+  source. A key that is not an integer is refused beside the others rather than
+  stopping them.
+- **A refusal is an answer.** `pg_cancel_backend` returning false about a pid
+  that has gone is reported as a refusal with a count, not raised as a failure
+  of the server. The connection carrying the request is skipped, so a request
+  cannot kill the connection running it.
+- **The client is told what to draw, never what it means.** The buttons carry
+  the source's title and its description; an icon per command would be a table
+  of names on this side, which is what declaring them on the source avoids.
+- **A relation may ask to be re-read.** `refresh_seconds` on the fetch result
+  is what the source thinks the relation is worth — five seconds for the
+  Processes report, nothing for anything else — and the grid takes it as its
+  starting interval only where nobody has chosen for that relation (D67).
+
+Known deviations:
+
+- **Only the Processes report has any.** The vocabulary is one report's, and
+  the second source to want one will be the test of whether the shape is right.
+- **A command acts on a page.** Ticking is per row of what is on screen, so
+  "every backend of this database" means paging through and ticking.
+- **Nothing says what a command did to each row.** The count and the refusals
+  come back; which of the ticked rows the count refers to does not.
+- **A command acts on what is on screen, and nothing says so.** The buttons
+  read the same whether the page holds every process or the first hundred.
+
+Spec: [Commands over the rows of a relation](../../superpowers/specs/2026-09-02-row-commands-design.md)
+
+## D72. What a page is for is the source's statement, not the grid's guess
+
+The Processes report arrived with the whole grid toolbar over it: download
+this page, chart it, share a link to it, make a table out of it, open it as a
+query. All of them work. None of them is anything anybody wants to do to a
+picture of what a database is doing this second.
+
+`FetchResult.page_commands` names which of `download`, `chart`, `share`,
+`create_relation` and `query` a relation offers. A source that says nothing
+offers all five: a page is ordinarily somebody's own data, and only the source
+knows when it is not.
+
+Consequences:
+
+- **One list rather than five flags.** `update_supported` and its family
+  answer five different questions about writing; this answers one — what is
+  this page for — and a source withdrawing one of these usually withdraws
+  several. PostgreSQL's reports withdraw all five in a line.
+- **The client learns no names of its own.** The vocabulary is the server's,
+  the type is derived from the generated client rather than written out again,
+  and the grid asks whether a command is offered without learning what a
+  report is.
+- **What is left over a report is what looking at it needs**: filtering,
+  sorting, columns, copying, paging and auto-refresh. Writing was already
+  withdrawn by [D54](#d54-a-server-owned-relation-is-read-never-changed), so
+  the toolbar of a monitor is the controls for finding a row and the commands
+  for acting on it ([D70](#d70-a-relation-may-declare-commands-over-its-own-rows)).
+
+Known deviations:
+
+- **A withdrawal has no reason attached.** `update_reason` explains a disabled
+  button; an absent one asks no question, so nothing is said.
+- **It is per class of relation, not per relation.** Every report withdraws the
+  same five; there is no way to say that one particular table should not be
+  charted.
+
+Spec: [What a page is for, said by the source](../../superpowers/specs/2026-09-02-page-commands-design.md)
+
 ## D54. A server-owned relation is read, never changed
 
 Every catalog stored as a real table has `relkind = 'r'`, so the only question

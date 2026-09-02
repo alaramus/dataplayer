@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.relation import ColumnType
+from app.adapters.row_commands import RowCommand
 
 ScalarFilterOp = Literal[
     "eq",
@@ -17,6 +18,27 @@ ScalarFilterOp = Literal[
 FilterOp = ScalarFilterOp | Literal["in", "is_null", "is_not_null"]
 
 MAX_LIMIT = 1000
+
+# What the toolbar over a page offers beyond reading it: take a copy away,
+# draw it, address it, make a relation of it, or write SQL about the node it
+# came from. A closed vocabulary rather than a flag each, because they are one
+# statement — what this page is for — and a source that withdraws one usually
+# withdraws several.
+PageCommand = Literal[
+    "download",
+    "chart",
+    "share",
+    "create_relation",
+    "query",
+]
+
+PAGE_COMMANDS: tuple[PageCommand, ...] = (
+    "download",
+    "chart",
+    "share",
+    "create_relation",
+    "query",
+)
 
 
 class ScalarFilter(BaseModel):
@@ -137,6 +159,19 @@ class FetchResult(BaseModel):
     # that produced this page.
     export_supported: bool = False
     export_reason: str | None = None
+    # How often the source thinks this relation is worth reading again, when
+    # it has an opinion. A list of server processes is about what is happening
+    # this second; a table of invoices is not, and says nothing (D67).
+    refresh_seconds: int | None = None
+    # What may be done with this page beyond reading it. Everything, unless
+    # the source says otherwise: a page is ordinarily somebody's own data, and
+    # only a source knows when it is not (D72).
+    page_commands: list[PageCommand] = Field(
+        default_factory=lambda: list(PAGE_COMMANDS)
+    )
+    # What this relation offers to do to rows somebody selects. Filled by the
+    # route from the composed adapter's capability, like export above (D70).
+    row_commands: list[RowCommand] = Field(default_factory=list)
 
 
 def as_read_only(result: FetchResult, reason: str) -> FetchResult:

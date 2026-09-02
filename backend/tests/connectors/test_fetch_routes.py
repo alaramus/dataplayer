@@ -312,3 +312,155 @@ async def test_adapter_without_fetch_support_returns_501(
     )
 
     assert response.status_code == 501
+
+
+# --- what a relation offers to do to its rows (D70) --------------------------
+
+
+async def _run_row_command(
+    client: AsyncClient,
+    headers: dict[str, str],
+    connector_id: str,
+    node_id: str,
+    name: str,
+    keys: list[str],
+) -> Any:
+    return await client.post(
+        f"{BASE}/{connector_id}/rows/command",
+        headers=headers,
+        json={"node_id": node_id, "name": name, "keys": keys},
+    )
+
+
+async def test_a_report_says_how_often_it_is_worth_reading_again(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    processes = await _fetch(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        node_id="pg_dataplayer.processes",
+        limit=5,
+    )
+    table = await _fetch(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        node_id="pg_catalog.pg_class",
+        limit=5,
+    )
+
+    assert processes.json()["refresh_seconds"] == 5
+    assert table.json()["refresh_seconds"] is None
+
+
+async def test_a_report_carries_the_commands_over_its_rows(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    processes = await _fetch(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        node_id="pg_dataplayer.processes",
+        limit=5,
+    )
+    table = await _fetch(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        node_id="pg_catalog.pg_class",
+        limit=5,
+    )
+
+    offered = processes.json()["row_commands"]
+    assert [command["name"] for command in offered] == [
+        "cancel_query",
+        "terminate_backend",
+    ]
+    assert all(command["identified_by"] == "pid" for command in offered)
+    assert table.json()["row_commands"] == []
+
+
+async def test_a_row_command_the_node_does_not_offer_is_not_found(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Resolved through what the node offers, never through the vocabulary."""
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await _run_row_command(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "pg_catalog.pg_class",
+        "terminate_backend",
+        ["1"],
+    )
+
+    assert response.status_code == 404
+
+
+async def test_a_row_command_reports_what_it_would_not_do(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await _run_row_command(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "pg_dataplayer.processes",
+        "cancel_query",
+        ["2147483647"],
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["done"] == 0
+    assert body["refused"] == ["2147483647 is no longer running"]
+
+
+async def test_more_keys_than_the_route_takes_are_refused(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _create_connector(client, normal_user_token_headers)
+
+    response = await _run_row_command(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        "pg_dataplayer.processes",
+        "cancel_query",
+        [str(pid) for pid in range(501)],
+    )
+
+    assert response.status_code == 422
+
+
+async def test_a_source_without_row_commands_answers_501(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    created = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={
+            "name": f"files {uuid.uuid4()}",
+            "adapter_type": "file",
+            "options": {},
+        },
+    )
+    assert created.status_code == 200
+
+    response = await _run_row_command(
+        client,
+        normal_user_token_headers,
+        str(created.json()["id"]),
+        "",
+        "cancel_query",
+        ["1"],
+    )
+
+    assert response.status_code == 501

@@ -1,11 +1,23 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, toRef, useTemplateRef, watch } from "vue"
+import {
+  computed,
+  nextTick,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  ref,
+  toRef,
+  useTemplateRef,
+  watch,
+} from "vue"
 
 import type {
   FetchColumn,
   FetchReference,
   FetchRequest,
   ReferencedRows,
+  RowCommand,
   RowsView,
   Sort,
 } from "@/client"
@@ -13,7 +25,9 @@ import { messageOf, statusOf } from "@/shared/api/errors"
 import { readText } from "@/shared/clipboard"
 import {
   AppBanner,
+  AppButton,
   AppIconButton,
+  AppTooltip,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -21,6 +35,7 @@ import {
 import {
   useCreateRelationFromSource,
   useDeleteRows,
+  useRunRowCommand,
   useDownloadPage,
   useExportRows,
   useImportRows,
@@ -31,6 +46,15 @@ import {
   useUpdateCell,
   useUpdateCells,
 } from "./api"
+import AutoRefreshButton from "./AutoRefreshButton.vue"
+import {
+  loadRefreshSeconds,
+  refreshHeldBy,
+  saveRefreshSeconds,
+  startingRefresh,
+} from "./autoRefresh"
+import type { RefreshSeconds } from "./autoRefresh"
+import { commandOutcome, commandQuestion, keysOf } from "./rowCommands"
 import CellEditorDialog from "./CellEditorDialog.vue"
 import CreateTableDialog from "./CreateTableDialog.vue"
 import { fromTsv } from "./clipboard"
@@ -79,7 +103,14 @@ import type {
   TabularPasteRequest,
   TabularVisibleColumn,
 } from "./tabular"
-import type { Filter, GridQueryState, GridRow, PageSize, StoredGridState } from "./types"
+import type {
+  Filter,
+  GridQueryState,
+  GridRow,
+  PageCommand,
+  PageSize,
+  StoredGridState,
+} from "./types"
 
 const props = defineProps<{
   connectorId: string
@@ -835,8 +866,13 @@ watch(
     persistedQueryState.value = reset
     queryState.value = reset
     // The interval belongs to the relation, so a tab pointed at another one
-    // takes that relation's answer rather than carrying this one over.
-    refreshSeconds.value = loadRefreshSeconds(props.connectorId, props.nodeId)
+    // takes that relation's answer rather than carrying this one over. What
+    // the new relation suggests arrives with its first page, below.
+    suggestedFor = ""
+    refreshSeconds.value = startingRefresh(
+      loadRefreshSeconds(props.connectorId, props.nodeId),
+      null
+    )
     startTicking()
   }
 )
@@ -853,7 +889,7 @@ watch(
  * edited would throw away what was typed.
  */
 const refreshSeconds = ref<RefreshSeconds | null>(
-  loadRefreshSeconds(props.connectorId, props.nodeId)
+  startingRefresh(loadRefreshSeconds(props.connectorId, props.nodeId), null)
 )
 /** Whether this panel is the one its section is showing. */
 const panelShown = ref(true)
@@ -866,6 +902,7 @@ const refreshHeld = computed(() =>
     fetching: rowsQuery.isFetching.value,
     editing: editor.value !== null,
     inserting: insertOpen.value,
+    selecting: selectedRows.value.length > 0,
     away: !onScreen.value,
   })
 )
@@ -899,6 +936,85 @@ function chooseRefresh(seconds: RefreshSeconds | null) {
 
 function noteWindow() {
   windowShown.value = document.visibilityState === "visible"
+}
+
+/**
+ * The interval this relation suggests, taken once, and only if nobody has
+ * said otherwise about this relation before.
+ *
+ * Not saved: it is a default rather than a decision, and writing it down
+ * would make the source's opinion look like the person's own the next time
+ * the source changed its mind (D70).
+ */
+let suggestedFor = ""
+
+watch(
+  () => [props.connectorId, props.nodeId, result.value?.refresh_seconds] as const,
+  ([connectorId, nodeId, suggested]) => {
+    const key = `${connectorId}\u0000${nodeId}`
+    if (suggestedFor === key || suggested === undefined) return
+    suggestedFor = key
+    if (loadRefreshSeconds(connectorId, nodeId) !== undefined) return
+    const start = startingRefresh(undefined, suggested)
+    if (start === null) return
+    refreshSeconds.value = start
+    startTicking()
+  },
+  { immediate: true }
+)
+
+/**
+ * Whether the source offers one of the page's own commands here.
+ *
+ * The vocabulary is the source's to withdraw from (D72): a report is the
+ * server describing what it is doing, not data somebody is keeping, so
+ * charting it or making a table of it are answers to a question nobody asked
+ * of it. A page that says nothing offers everything.
+ */
+function offers(command: PageCommand): boolean {
+  return result.value?.page_commands?.includes(command) ?? false
+}
+
+/**
+ * What one source-declared command over rows would be given (D70).
+ *
+ * Nothing here knows what a command means: which column names a row came
+ * from the answer that offered it, and the keys are the values in that
+ * column of the rows somebody ticked.
+ */
+const selectedRows = ref<number[]>([])
+const runRowCommand = useRunRowCommand(toRef(props, "connectorId"))
+
+function keysFor(command: RowCommand): string[] {
+  return keysOf(command, result.value?.columns ?? [], rows.value, selectedRows.value)
+}
+
+async function runCommand(command: RowCommand) {
+  const keys = keysFor(command)
+  if (keys.length === 0) return
+  if (command.destructive) {
+    const accepted = await confirm({
+      title: commandQuestion(command, keys),
+      message: command.description,
+      confirmLabel: command.title,
+      danger: true,
+    })
+    if (!accepted) return
+  }
+  try {
+    const outcome = commandOutcome(
+      await runRowCommand.mutateAsync({
+        node_id: props.nodeId,
+        name: command.name,
+        keys,
+      })
+    )
+    tabularGrid.value?.clearSelection()
+    if (outcome.failed) toast.error(outcome.text)
+    else toast.success(outcome.text)
+  } catch (cause) {
+    toast.error(messageOf(cause, `${command.title} could not be done`))
+  }
 }
 
 // Coming back to a tab that has been refreshing shows what is there now,
@@ -959,6 +1075,7 @@ defineExpose({
     @paste="pasteSelection"
     @edit="openEditor"
     @visible-columns="visibleGridColumns = $event"
+    @selection="selectedRows = $event"
   >
     <template
       #commands="{
@@ -990,7 +1107,7 @@ defineExpose({
         @click="requestPaste"
       />
       <AppIconButton
-        v-if="result !== undefined && visibleColumns.length > 0"
+        v-if="offers('download') && visibleColumns.length > 0"
         icon="download"
         tooltip="Download"
         :disable="downloadPage.isPending.value || exportRows.isPending.value"
@@ -999,21 +1116,21 @@ defineExpose({
         @click="openDownload(visibleColumns)"
       />
       <AppIconButton
-        v-if="result !== undefined"
+        v-if="offers('share')"
         icon="share"
         tooltip="Share this view"
         data-testid="grid-share"
         @click="shareOpen = true"
       />
       <AppIconButton
-        v-if="result !== undefined && visibleColumns.length > 0"
+        v-if="offers('chart') && visibleColumns.length > 0"
         icon="insert_chart"
         tooltip="Charts"
         data-testid="grid-charts"
         @click="openChart(visibleColumns)"
       />
       <AppIconButton
-        v-if="result !== undefined && result.columns.length > 0"
+        v-if="offers('create_relation') && result !== undefined && result.columns.length > 0"
         icon="post_add"
         tooltip="Create table from these rows"
         data-testid="grid-create-table"
@@ -1027,7 +1144,7 @@ defineExpose({
         @click="emit('content')"
       />
       <AppIconButton
-        v-if="canQuery"
+        v-if="canQuery && offers('query')"
         icon="terminal"
         tooltip="Open as a query"
         data-testid="grid-query"
@@ -1052,6 +1169,27 @@ defineExpose({
           @click="openInsert"
         />
       </span>
+      <!-- What the source itself offers to do to the rows that are ticked.
+           Labelled rather than iconed: an icon per command would be a table
+           of names on this side, which is exactly what the source declaring
+           them exists to avoid (D70). -->
+      <span
+        v-for="command in result?.row_commands ?? []"
+        :key="command.name"
+        :data-testid="`grid-row-command-${command.name}`"
+      >
+        <AppButton
+          :variant="command.destructive ? 'danger-quiet' : 'quiet'"
+          size="sm"
+          :label="command.title"
+          :disable="keysFor(command).length === 0 || runRowCommand.isPending.value"
+          :data-testid="`grid-row-command-run-${command.name}`"
+          @click="runCommand(command)"
+        >
+          <AppTooltip>{{ command.description }}</AppTooltip>
+        </AppButton>
+      </span>
+
       <span
         v-if="result?.delete_supported === true"
         data-testid="grid-delete-command"

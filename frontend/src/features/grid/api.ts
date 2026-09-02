@@ -13,6 +13,7 @@ import type {
   FollowReferenceRequest,
   InsertRowRequest,
   ImportRowsRequest,
+  RowCommandRequest,
   UpdateCellRequest,
   UpdateCellsRequest,
 } from "@/client"
@@ -101,9 +102,9 @@ export function useUpdateCell(connectorId: Ref<string>) {
   })
 }
 
-function useRowsMutation<TBody>(
+function useRowsMutation<TBody, TResult>(
   connectorId: Ref<string>,
-  run: (connectorId: string, body: TBody) => Promise<unknown>
+  run: (connectorId: string, body: TBody) => Promise<TResult>
 ) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -118,6 +119,25 @@ export function useInsertRow(connectorId: Ref<string>) {
   return useRowsMutation(connectorId, async (id, body: InsertRowRequest) =>
     (
       await ConnectorsService.insertRow({
+        path: { connector_id: id },
+        body,
+      })
+    ).data
+  )
+}
+
+/**
+ * Do one source-declared thing to the rows somebody selected (D70).
+ *
+ * A mutation over the rows for the reason deleting them is: what it did is
+ * not in the page that was read a moment ago, so the page is read again.
+ * Nothing here knows what any command means — the name and the keys came from
+ * the answer that offered them.
+ */
+export function useRunRowCommand(connectorId: Ref<string>) {
+  return useRowsMutation(connectorId, async (id, body: RowCommandRequest) =>
+    (
+      await ConnectorsService.runRowCommand({
         path: { connector_id: id },
         body,
       })

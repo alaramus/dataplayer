@@ -31,6 +31,9 @@ class SystemReport:
     title: str
     description: str
     statement: sql.SQL
+    # How often this answer is worth reading again, when the report has an
+    # opinion. Most do not: a list of tablespaces is the same list tomorrow.
+    refresh_seconds: int | None = None
 
     @property
     def node_id(self) -> str:
@@ -42,6 +45,10 @@ REPORTS: tuple[SystemReport, ...] = (
         key="processes",
         title="Processes",
         description="Backends connected now, and what each is waiting for",
+        # The one report whose whole subject is what is happening this second.
+        # Five, because a page of it read every second is a page nobody can
+        # read, and a minute is long enough for the statement to have finished.
+        refresh_seconds=5,
         statement=sql.SQL("""
             SELECT pid,
                    datname AS database,
@@ -180,6 +187,8 @@ _BY_KEY = {report.key: report for report in REPORTS}
 # Named because a command is offered on this report and on no other. In one
 # place so the action and the registry cannot disagree about which one it is.
 EXTENSIONS_REPORT_ID = _BY_KEY["extensions"].node_id
+# The same, for the report whose rows can be acted on one at a time (D70).
+PROCESSES_REPORT_ID = _BY_KEY["processes"].node_id
 
 
 def report_for(node_id: str) -> SystemReport | None:

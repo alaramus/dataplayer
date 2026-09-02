@@ -322,9 +322,12 @@ reason.
 Consequences:
 
 - **A tick is "fetch unless something says not to".** One list says not to: a
-  cell is open in the editor, a row is being written, the tab is not on screen,
-  or a read is already running. Both the timer and the tooltip read it, so what
-  the grid does and what it says it is doing cannot drift.
+  cell is open in the editor, a row is being written, rows are ticked, the tab
+  is not on screen, or a read is already running. Both the timer and the
+  tooltip read it, so what the grid does and what it says it is doing cannot
+  drift. A selection holds it because a page arriving underneath a ticked row
+  takes it away, and on a list of processes that means the row somebody meant
+  to terminate is no longer the row they ticked.
 - **A held tick is skipped, not queued.** The next one is at most an interval
   away, while a queue of them would all land together when the editor closes.
 - **Not on screen covers both ways of being away.** A panel kept alive behind
@@ -332,8 +335,14 @@ Consequences:
   a kept-alive grid would otherwise poll for ever with nobody looking. Coming
   back reads once at that moment.
 - **The interval is remembered per connection and node**, beside the columns
-  and the query already stored that way. Off removes the entry rather than
-  storing a null.
+  and the query already stored that way, in three states rather than two:
+  nobody has ever chosen, somebody chose an interval, somebody chose Off.
+- **A source may suggest one**, and the suggestion applies only where nobody
+  has chosen for that relation. It is never written down — a default is not a
+  decision — and Off therefore survives a source that suggests five seconds
+  ([D70](sources/relations.md)). A suggestion that is not an offered interval
+  is rounded up rather than down: polling faster than a source asked to be
+  polled is the one direction that costs it something.
 - **It re-reads through the grid's explicit refresh**, so the read cache is
   bypassed exactly as the reload button bypasses it (D31).
 

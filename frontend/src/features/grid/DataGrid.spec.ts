@@ -37,6 +37,9 @@ function result(offset: number, limit: number): FetchResult {
     ]),
     has_more: true,
     export_supported: true,
+    // What the server sends for an ordinary relation: everything the toolbar
+    // has. A report is what withdraws them (D72).
+    page_commands: ["download", "chart", "share", "create_relation", "query"],
   }
 }
 
@@ -51,6 +54,7 @@ function mountGrid(
   props: {
     title?: string
     canDescribe?: boolean
+    canQuery?: boolean
     contentTitle?: string
     referenceFilters?: Filter[] | null
   } = {}
@@ -126,6 +130,46 @@ describe("the basic data grid", () => {
         ],
       },
     })
+  })
+
+  it("draws only the commands the source offers over this page", async () => {
+    // A report is the server describing what it is doing, not data somebody
+    // is keeping, so it withdraws everything that would take a copy of the
+    // page away (D72). The grid is told, not asked to work it out.
+    vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({
+      data: { ...result(0, 2), page_commands: [] },
+    } as never)
+    const wrapper = mountGrid({ canQuery: true })
+    await flushPromises()
+
+    for (const command of [
+      "grid-download",
+      "grid-share",
+      "grid-charts",
+      "grid-create-table",
+      "grid-query",
+    ]) {
+      expect(wrapper.find(`[data-testid="${command}"]`).exists()).toBe(false)
+    }
+    // What is left is what reading the page needs.
+    expect(wrapper.find('[data-testid="grid-filter"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="grid-auto-refresh"]').exists()).toBe(true)
+  })
+
+  it("draws them when the source offers them", async () => {
+    mockPages()
+    const wrapper = mountGrid({ canQuery: true })
+    await flushPromises()
+
+    for (const command of [
+      "grid-download",
+      "grid-share",
+      "grid-charts",
+      "grid-create-table",
+      "grid-query",
+    ]) {
+      expect(wrapper.find(`[data-testid="${command}"]`).exists()).toBe(true)
+    }
   })
 
   it("opens a chart with the exact page and visible columns", async () => {

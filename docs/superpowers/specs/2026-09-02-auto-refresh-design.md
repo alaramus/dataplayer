@@ -65,8 +65,14 @@ discarded rather than trusted, because the offered set may change.
   bypasses the read cache (D31), and auto-refresh is that same refresh on a
   timer.
 
-## Deferred
+## What was deferred and then arrived
 
-A source saying what a sensible interval for a node is — a process list wants
-five seconds without being asked. That is a contract on the fetch result and
-belongs with the slice that makes the process report a task manager.
+A source saying what a sensible interval for a node is. It landed the same day,
+with the slice that made the Processes report a task manager: `refresh_seconds`
+on the fetch result, applied only where nobody has chosen for that relation.
+See [Commands over the rows of a relation](2026-09-02-row-commands-design.md).
+
+Two things above were corrected by it. Off is now stored rather than being the
+absence of an entry, because "nobody has said" and "somebody said no" have to
+be told apart once a source has an opinion. And the pause list gained a fifth
+entry: rows being selected.

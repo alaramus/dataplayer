@@ -8,10 +8,17 @@ import {
   refreshSecondsOf,
   refreshTooltip,
   saveRefreshSeconds,
+  startingRefresh,
   REFRESH_SECONDS,
 } from "./autoRefresh"
 
-const CLEAR = { fetching: false, editing: false, inserting: false, away: false }
+const CLEAR = {
+  fetching: false,
+  editing: false,
+  inserting: false,
+  selecting: false,
+  away: false,
+}
 
 beforeEach(() => {
   localStorage.clear()
@@ -55,6 +62,14 @@ describe("what stops a tick", () => {
     )
   })
 
+  it("holds while rows are selected", () => {
+    // A selection is somebody about to act on those rows; a page arriving
+    // underneath it takes them away.
+    expect(refreshHeldBy({ ...CLEAR, selecting: true })).toBe(
+      "while rows are selected"
+    )
+  })
+
   it("holds while the tab is not on screen", () => {
     expect(refreshHeldBy({ ...CLEAR, away: true })).toBe(
       "while this tab is not on screen"
@@ -92,23 +107,51 @@ describe("what the button says", () => {
   })
 })
 
+describe("what a grid starts refreshing at", () => {
+  it("takes what somebody chose for this relation", () => {
+    expect(startingRefresh(30, 5)).toBe(30)
+  })
+
+  it("keeps off off, whatever the source suggests", () => {
+    // Off is a decision, and a suggestion must not undo it the next time the
+    // tab is opened.
+    expect(startingRefresh(null, 5)).toBeNull()
+  })
+
+  it("takes the source's suggestion when nobody has chosen", () => {
+    expect(startingRefresh(undefined, 5)).toBe(5)
+  })
+
+  it("stays off when the source suggests nothing", () => {
+    expect(startingRefresh(undefined, null)).toBeNull()
+    expect(startingRefresh(undefined, undefined)).toBeNull()
+  })
+
+  it("rounds a suggestion up to an offered interval, never down", () => {
+    // Polling faster than a source asked to be polled is the one direction
+    // that costs it something.
+    expect(startingRefresh(undefined, 7)).toBe(10)
+    expect(startingRefresh(undefined, 3600)).toBe(300)
+  })
+})
+
 describe("what a relation is remembered as refreshing at", () => {
   it("comes back for the relation it was stored against", () => {
     saveRefreshSeconds("c1", "public.orders", 5)
 
     expect(loadRefreshSeconds("c1", "public.orders")).toBe(5)
-    expect(loadRefreshSeconds("c1", "public.items")).toBeNull()
-    expect(loadRefreshSeconds("c2", "public.orders")).toBeNull()
+    expect(loadRefreshSeconds("c1", "public.items")).toBeUndefined()
+    expect(loadRefreshSeconds("c2", "public.orders")).toBeUndefined()
   })
 
-  it("forgets the relation when it is turned off", () => {
-    saveRefreshSeconds("c1", "public.orders", 5)
+  it("tells off apart from never having been asked", () => {
+    // Two states, because a source may suggest an interval and off has to
+    // survive that.
+    expect(loadRefreshSeconds("c1", "public.orders")).toBeUndefined()
+
     saveRefreshSeconds("c1", "public.orders", null)
 
     expect(loadRefreshSeconds("c1", "public.orders")).toBeNull()
-    expect(
-      localStorage.getItem(`dataplayer:grid:refresh:${JSON.stringify(["c1", "public.orders"])}`)
-    ).toBeNull()
   })
 
   it("discards a stored value that is not an offered interval", () => {
@@ -117,7 +160,7 @@ describe("what a relation is remembered as refreshing at", () => {
       "7"
     )
 
-    expect(loadRefreshSeconds("c1", "public.orders")).toBeNull()
+    expect(loadRefreshSeconds("c1", "public.orders")).toBeUndefined()
   })
 
   it("discards a stored value that is not JSON at all", () => {
@@ -126,6 +169,6 @@ describe("what a relation is remembered as refreshing at", () => {
       "every 5 seconds"
     )
 
-    expect(loadRefreshSeconds("c1", "public.orders")).toBeNull()
+    expect(loadRefreshSeconds("c1", "public.orders")).toBeUndefined()
   })
 })

@@ -90,6 +90,14 @@ const emit = defineEmits<{
   paste: [request: TabularPasteRequest]
   edit: [request: TabularEditRequest]
   "visible-columns": [columns: TabularVisibleColumn[]]
+  /**
+   * Which whole rows are ticked, whenever that changes.
+   *
+   * The slot already hands this to the commands, but a controller needs it
+   * in its own script too: a grid that re-reads itself must not do so while
+   * somebody is holding a selection (D67).
+   */
+  selection: [indexes: number[]]
 }>()
 defineSlots<{
   commands(props: {
@@ -458,6 +466,9 @@ watch(
   (columns) => emit("visible-columns", columns.map((column) => ({ ...column }))),
   { immediate: true }
 )
+watch(selectedRowIndexes, (indexes) => emit("selection", [...indexes]), {
+  immediate: true,
+})
 watch(
   () => [props.rows, props.columns] as const,
   () => table.resetCellSelection(true)

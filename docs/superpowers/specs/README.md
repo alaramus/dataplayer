@@ -72,6 +72,8 @@ translations; those files are not.
 | 2026-09-02 | [A grid that re-reads itself](2026-09-02-auto-refresh-design.md) | D67: an interval the grid wears, and a pause rule both the timer and the tooltip read |
 | 2026-09-02 | [Dropping several relations at once](2026-09-02-action-node-set-design.md) | D68: a set is a subject an action may have, carried in one request and one transaction |
 | 2026-09-02 | [The bar at the foot of the screen](2026-09-02-connection-command-bar-design.md) | D69: the commands of a connection, offered while it is read and while it can do the thing |
+| 2026-09-02 | [Commands over the rows of a relation](2026-09-02-row-commands-design.md) | D70: a relation declares what can be done to selected rows, and may ask to be re-read |
+| 2026-09-02 | [What a page is for, said by the source](2026-09-02-page-commands-design.md) | D72: the grid's own commands are a vocabulary the source may withdraw from |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

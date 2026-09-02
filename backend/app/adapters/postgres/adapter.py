@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
 from app.adapters.actions import Action, ActionType
@@ -49,6 +49,7 @@ from app.adapters.postgres.query import (
 from app.adapters.postgres.references import PostgresReferences
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.relation_changes import PostgresRelationChanges
+from app.adapters.postgres.row_commands import PostgresRowCommands
 from app.adapters.postgres.session import (
     PostgresSession,
     compose_url,
@@ -79,6 +80,7 @@ from app.adapters.relation_changes import (
     NewRelationOptions,
 )
 from app.adapters.resources import Pooling
+from app.adapters.row_commands import RowCommand, RowCommandResult
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -140,6 +142,7 @@ class PostgresAdapter:
         self._metadata = PostgresMetadata(self._session)
         self._explain = PostgresExplain(self._session)
         self._generation = PostgresGeneration(self._session, self._metadata)
+        self._row_commands = PostgresRowCommands(self._session)
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62)."""
@@ -240,6 +243,14 @@ class PostgresAdapter:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    def row_commands(self, node_id: str) -> list[RowCommand]:
+        return self._row_commands.for_node(node_id)
+
+    async def run_row_command(
+        self, node_id: str, name: str, keys: Sequence[str]
+    ) -> RowCommandResult:
+        return await self._row_commands.run(node_id, name, keys)
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         return await self._content.read_content(request)

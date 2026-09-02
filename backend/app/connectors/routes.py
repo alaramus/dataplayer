@@ -26,10 +26,12 @@ from app.adapters.actions import (
     ActionResult,
     ActsOn,
     Previews,
+    PreviewsSet,
     ProducesDownload,
     RefusalReason,
     SupportsActions,
     TakesFile,
+    TakesNodeSet,
     TakesParams,
     UnknownAction,
     common_actions,
@@ -127,6 +129,11 @@ from app.adapters.relation_changes import (
     RelationCreated,
 )
 from app.adapters.resources import ResourcesDep
+from app.adapters.row_commands import (
+    RowCommandResult,
+    SupportsRowCommands,
+    UnknownRowCommand,
+)
 from app.adapters.update import (
     CellsUpdated,
     DeleteRowsRequest,
@@ -769,6 +776,20 @@ async def fetch_rows(
                     if isinstance(adapter, SupportsExport)
                     else "This source cannot export all matching rows"
                 ),
+                # What this relation offers to do to selected rows. Asked of
+                # the composed adapter for the reason export is: a capability
+                # belongs to the whole source, not to the module that read the
+                # page (D70). Filtered by what the caller holds, so a command
+                # nobody may run is not drawn at all.
+                "row_commands": [
+                    command
+                    for command in (
+                        adapter.row_commands(request.node_id)
+                        if isinstance(adapter, SupportsRowCommands)
+                        else []
+                    )
+                    if at_least(access, command.requires)
+                ],
             }
         )
         # After the cache and not before it: the page a source produced is the
@@ -1441,6 +1462,84 @@ async def import_rows(
         )
     await data_cache.invalidate_connector(connector_id)
     return imports.RowsMoved(inserted=result.inserted, truncated=read.truncated)
+
+
+class RowCommandRequest(BaseModel):
+    """One command, the relation it belongs to, and the rows it is about.
+
+    The keys are the values of the column the command declared as its own
+    `identified_by`. They are the source's to read: nothing here knows what a
+    process id is, and a key that means nothing to the source is refused by it
+    rather than validated by a rule restated in this module.
+    """
+
+    node_id: str
+    name: str
+    keys: Annotated[list[str], Field(min_length=1, max_length=500)]
+
+
+@router.post("/{connector_id}/rows/command", response_model=RowCommandResult)
+async def run_row_command(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    data_cache: DataCacheDep,
+    connector_id: uuid.UUID,
+    body: RowCommandRequest,
+) -> Any:
+    """
+    Do one source-declared thing to the rows somebody selected.
+
+    The command is resolved through what the node offers, so what a client is
+    shown and what the server allows cannot drift apart — and the level it
+    needs is the command's own statement, checked after the name has resolved
+    for the reason an action's is (D70).
+    """
+    adapter, access = await resolve_adapter(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsRowCommands):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source has no commands over rows",
+                "error_kind": "config",
+            },
+        )
+    offered = {
+        command.name: command for command in adapter.row_commands(body.node_id)
+    }
+    command = offered.get(body.name)
+    if command is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"message": f"Unknown row command: {body.name}"},
+        )
+    if not at_least(access, command.requires):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "message": f"{command.title} needs {command.requires} access",
+                "required": command.requires,
+                "held": access,
+            },
+        )
+    try:
+        result = await adapter.run_row_command(body.node_id, body.name, body.keys)
+    except UnknownRowCommand as exc:
+        raise HTTPException(
+            status_code=404, detail={"message": str(exc)}
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"message": str(exc)}) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+    # What the command did is not in the page that was read a moment ago.
+    await data_cache.invalidate_connector(connector_id)
+    return result
 
 
 @router.post("/{connector_id}/relations/options", response_model=NewRelationOptions)

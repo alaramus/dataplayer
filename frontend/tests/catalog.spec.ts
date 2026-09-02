@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import type { Page } from "@playwright/test"
 
-import { catalogRow, pickSchema } from "./utils/catalog"
+import { addFilter, catalogRow, pickSchema } from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import {
@@ -157,6 +157,69 @@ test("opens a relation's source-issued DDL without making it editable", async ({
 
   await page.getByTestId("sql-view-table").click()
   await expect(page.getByTestId("grid-header")).toBeVisible()
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+
+test("the processes report is a task manager, not just a table", async ({ page }) => {
+  const name = `e2e-processes-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  await catalogRow(page, "System").click()
+  await catalogRow(page, "Processes").click()
+
+  // Nobody chose this: the source said the report is about what is happening
+  // this second, and the grid started there (D70).
+  const refresh = page.getByTestId("grid-auto-refresh")
+  await expect(refresh).toHaveAttribute("data-refresh", "5")
+
+  // Nothing but the controls for looking and the commands for acting: a
+  // report is a picture of the server, not data to take away (D72).
+  for (const gone of [
+    "grid-download",
+    "grid-share",
+    "grid-charts",
+    "grid-create-table",
+    "grid-query",
+  ]) {
+    await expect(page.getByTestId(gone)).toHaveCount(0)
+  }
+  await expect(page.getByTestId("grid-filter")).toBeVisible()
+
+  // The commands are the source's own, offered on this report and on no
+  // other, and dead until there is something to act on.
+  const cancel = page.getByTestId("grid-row-command-run-cancel_query")
+  const terminate = page.getByTestId("grid-row-command-run-terminate_backend")
+  await expect(cancel).toBeDisabled()
+  await expect(terminate).toBeDisabled()
+
+  // An idle client backend: cancelling one has nothing to cancel, which is
+  // what makes this safe to run against the database the suite is using.
+  await addFilter(page, "state", "equals", "idle")
+  await page.getByTestId("grid-select-row-0").click()
+  await expect(cancel).toBeEnabled()
+
+  await cancel.click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(
+    page.locator(".q-notification", { hasText: "asked to stop" })
+  ).toBeVisible()
+
+  // Another report in the same section offers none of it: the commands
+  // belong to one node, not to the source.
+  await catalogRow(page, "Settings").click()
+  await expect(page.getByTestId("grid-cell-0-name")).toBeVisible()
+  await expect(page.getByTestId("grid-row-command-run-cancel_query")).toHaveCount(0)
+  await expect(page.getByTestId("grid-auto-refresh")).toHaveAttribute(
+    "data-refresh",
+    "off"
+  )
+  // Settings is a report too, so it withdraws the same five.
+  await expect(page.getByTestId("grid-charts")).toHaveCount(0)
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
