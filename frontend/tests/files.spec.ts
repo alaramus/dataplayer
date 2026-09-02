@@ -485,6 +485,14 @@ test("packs a selection into an archive and takes it apart again", async ({ page
   await expect(list).toContainText("one.txt")
   await expect(list).toContainText("two.txt")
 
+  // The storage is one person's and outlives the connector, so the scenario
+  // takes its own folder away rather than leaving one per run behind.
+  await page.getByTestId("catalog-home").click()
+  await catalogCheck(page, folder).click()
+  await catalogAction(page, "delete")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, folder)).toHaveCount(0)
+
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
@@ -529,6 +537,12 @@ test("copies a file into another folder, then moves one out again", async ({ pag
   // because the copy from a moment ago is still there.
   await expect(page.getByTestId("action-error")).toContainText("already there")
   await page.getByRole("button", { name: "Cancel" }).click()
+
+  // Leave the storage as it was found.
+  await catalogCheck(page, folder).click()
+  await catalogAction(page, "delete")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, folder)).toHaveCount(0)
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
