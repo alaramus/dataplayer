@@ -789,7 +789,8 @@ defineExpose({
 
 .data-grid__loading-overlay {
   position: absolute;
-  z-index: var(--dp-layer-sticky);
+  /* Over the heading as well: it is the whole grid that is being re-read. */
+  z-index: var(--dp-layer-overlay);
   inset: 0;
   background: var(--dp-surface-raised);
   opacity: 0.3;
@@ -813,6 +814,17 @@ defineExpose({
   border-bottom: 1px solid var(--dp-border-faint);
   text-align: left;
   white-space: nowrap;
+}
+
+/* The names stay while their own rows slide under them, the way the first
+   column stays while the rest of a row slides past it. Sticky against
+   `.data-grid__scroll`, which is the box that scrolls, and above a pinned
+   column: both are stuck, and a row that went over the names would take the
+   only thing saying what its values are. */
+.data-grid__table thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--dp-layer-sticky-heading);
 }
 
 .data-grid__table th {
@@ -861,8 +873,11 @@ defineExpose({
   border-left: 1px solid var(--dp-border-faint);
 }
 
-.data-grid__table thead .data-grid__selector {
-  z-index: var(--dp-layer-overlay);
+/* The two corners: the selector and any pinned column's name are stuck in
+   both directions at once, and belong over everything that is stuck in one. */
+.data-grid__table thead .data-grid__selector,
+.data-grid__table thead .data-grid__pinned {
+  z-index: var(--dp-layer-sticky-corner);
 }
 
 .data-grid__column-name {

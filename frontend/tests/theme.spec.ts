@@ -103,6 +103,37 @@ test("a column of the workspace is one colour, grid included", async ({ page }) 
   await deleteConnector(page, name)
 })
 
+test("selected text is readable in the dark theme", async ({ page }) => {
+  // CodeMirror paints its own selection, five selectors deep, and the pale
+  // lilac it uses by default swallows syntax colours on a near-black ground.
+  // What it is painted with is a question about the cascade, so it is asked
+  // where the cascade is real.
+  const name = `e2e-selection-${Date.now()}`
+  await login(page)
+  await page.emulateMedia({ colorScheme: "dark" })
+  await forget(page)
+  await page.reload()
+  await expect(dark(page)).toHaveCount(1)
+
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "projects")
+  await page.getByTestId("grid-content").click()
+  const editor = page.locator(".cm-content")
+  await expect(editor).toContainText("CREATE TABLE")
+
+  await editor.click()
+  await page.keyboard.press("ControlOrMeta+a")
+  const painted = page.locator(".cm-selectionBackground").first()
+  await expect(painted).toBeVisible()
+  expect(await painted.evaluate((node) => getComputedStyle(node).backgroundColor)).toBe(
+    "rgba(100, 181, 246, 0.4)"
+  )
+
+  await deleteConnector(page, name)
+})
+
 test("a tab is legible in the dark theme", async ({ page }) => {
   await login(page)
 

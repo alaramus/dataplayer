@@ -21,8 +21,13 @@ def _auth_method_field(value: str) -> Any:
 class _RedisBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    # A default rather than an empty box, for the reason PostgreSQL has one: a
+    # server on the same machine is the commonest case there is.
     host: str = Field(
-        min_length=1, title="Host", json_schema_extra=layout(row="address")
+        default="localhost",
+        min_length=1,
+        title="Host",
+        json_schema_extra=layout(row="address"),
     )
     port: int = Field(
         default=6379, ge=1, le=65535, title="Port", json_schema_extra=layout(row="address")

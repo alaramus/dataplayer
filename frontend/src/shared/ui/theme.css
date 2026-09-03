@@ -76,6 +76,12 @@
   --dp-link: rgba(25, 118, 210, 0.9);
   --dp-focus-border: rgba(25, 118, 210, 0.5);
 
+  /* Text a person has selected with the pointer. Its own token rather than
+     the row highlight above: a selection has to be read *through*, so it is
+     stronger than the wash that says which row is open and weaker than
+     anything that would swallow the letters under it. */
+  --dp-text-selection: rgba(25, 118, 210, 0.25);
+
   /* A literal match in a document, and content that could not be resolved. */
   --dp-find: #f59e0b;
   --dp-content-error: #c62828;
@@ -140,6 +146,10 @@ body.body--dark {
   --dp-selected-quiet: rgba(100, 181, 246, 0.08);
   --dp-link: rgba(144, 202, 249, 0.95);
   --dp-focus-border: rgba(100, 181, 246, 0.6);
+  /* Stronger than its light counterpart: on #121212 a wash of a quarter is
+     the difference between selected text and unselected text being invisible,
+     which is what the editor showed until this existed. */
+  --dp-text-selection: rgba(100, 181, 246, 0.4);
   --dp-find: #fbbf24;
   --dp-content-error: #ef9a9a;
 

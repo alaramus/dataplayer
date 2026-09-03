@@ -14,8 +14,16 @@ const props = withDefaults(
     disable?: boolean
     /** A round trip is under way: the icon gives way to a spinner. */
     loading?: boolean
+    /**
+     * A button inside a cell rather than in a toolbar.
+     *
+     * A row of a grid is 72 pixels wide where its controls live, and three
+     * ordinary buttons are wider than that — which is how the buttons of an
+     * inserted row came to be drawn over the column beside it.
+     */
+    compact?: boolean
   }>(),
-  { variant: "quiet", disable: false, loading: false }
+  { variant: "quiet", disable: false, loading: false, compact: false }
 )
 
 const look = computed(() => buttonLook(props.variant))
@@ -25,6 +33,7 @@ const look = computed(() => buttonLook(props.variant))
   <q-btn
     dense
     flat
+    :size="compact ? 'xs' : undefined"
     :color="look.color"
     :icon="icon"
     :disable="disable"

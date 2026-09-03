@@ -272,6 +272,29 @@ onMounted(() => {
           ".cm-activeLine, .cm-activeLineGutter": {
             backgroundColor: "var(--dp-hover)",
           },
+          // Written out in full, and with `.cm-editor` in it, because
+          // CodeMirror's own rule for this is five selectors deep and a
+          // shorter one loses to it however late it is added. Focused and
+          // unfocused both: the editor draws the selection itself while it
+          // has focus and hands it to the browser when it does not, and a
+          // dark theme was falling back to a pale lilac wash that took the
+          // letters with it.
+          "&.cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground":
+            {
+              background: "var(--dp-text-selection)",
+            },
+          "&.cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground":
+            {
+              background: "var(--dp-text-selection)",
+            },
+          "&.cm-editor .cm-content ::selection": {
+            background: "var(--dp-text-selection)",
+          },
+          // The match a search is standing on, which is drawn over the
+          // selection and has to stay legible against it.
+          ".cm-selectionMatch, .cm-searchMatch": {
+            backgroundColor: "var(--dp-selected)",
+          },
         }),
       ],
     }),

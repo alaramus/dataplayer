@@ -18,15 +18,24 @@
  */
 
 :root {
-  /* A heading that stays while its own rows slide under it. */
+  /* A pinned column: the rest of its own row slides under it sideways. */
   --dp-layer-sticky: 1;
 
-  /* Drawn over a whole panel: where a dragged tab would land. Above a sticky
-     heading, because it covers the panel and a heading is part of it. */
-  --dp-layer-overlay: 2;
+  /* The row of column names: every row slides under it upward, the pinned
+     ones included, so it has to be above them rather than beside them. */
+  --dp-layer-sticky-heading: 2;
+
+  /* Where the two cross. The corner cell belongs to both and must be over
+     both, or the name of the pinned column is painted over by its own rows. */
+  --dp-layer-sticky-corner: 3;
+
+  /* Drawn over a whole panel: where a dragged tab would land, and the film
+     over a grid that is being re-read. Above a sticky heading, because it
+     covers the panel and a heading is part of it. */
+  --dp-layer-overlay: 4;
 
   /* A panel anchored to a control it belongs to, over the form around it. */
-  --dp-layer-popover: 3;
+  --dp-layer-popover: 5;
 
   /* A floating window: over the application's own chrome and over any grid
      inside it, under the menus and dialogs that open from the window itself.

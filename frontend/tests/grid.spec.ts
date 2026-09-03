@@ -13,6 +13,62 @@ import { createFileConnector, createPostgresConnector } from "./utils/connectors
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
 
+test("keeps the column names in sight while their rows scroll away", async ({ page }) => {
+  // Geometry, which is the one thing a unit test cannot see: the names used to
+  // scroll off the top with the first rows, leaving a page of values with
+  // nothing saying what they were.
+  const name = `e2e-sticky-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+  await expect(page.getByTestId("row-grid")).toContainText("relname")
+
+  const box = page.locator(".data-grid__scroll").first()
+  const heading = page.getByTestId("grid-column-relname")
+  const before = await heading.boundingBox()
+  await box.evaluate((node) => {
+    node.scrollTop = 400
+  })
+  await expect.poll(async () => box.evaluate((node) => node.scrollTop)).toBeGreaterThan(0)
+
+  const after = await heading.boundingBox()
+  const top = await box.evaluate((node) => node.getBoundingClientRect().top)
+  // Where it was, and where the box begins: it neither moved nor let itself be
+  // scrolled under.
+  expect(Math.round(after?.y ?? -1)).toBe(Math.round(before?.y ?? -2))
+  expect(Math.round(after?.y ?? -1)).toBe(Math.round(top))
+
+  await deleteConnector(page, name)
+})
+
+test("keeps the controls of a new row inside their own cell", async ({ page }) => {
+  // Three buttons in a column seventy-two pixels wide: the check and the cross
+  // were drawn over the column beside them, and only a browser could say so.
+  const name = `e2e-insert-fit-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "projects")
+  await page.getByTestId("grid-insert").click()
+
+  const cell = await page.locator(".row-insert__selector").boundingBox()
+  for (const control of ["save", "paste", "cancel"]) {
+    const button = await page.getByTestId(`grid-insert-${control}`).boundingBox()
+    expect(button, control).not.toBeNull()
+    expect(Math.round(button?.x ?? 0), control).toBeGreaterThanOrEqual(Math.round(cell?.x ?? 0))
+    expect(
+      Math.round((button?.x ?? 0) + (button?.width ?? 0)),
+      control
+    ).toBeLessThanOrEqual(Math.round((cell?.x ?? 0) + (cell?.width ?? 0)))
+  }
+
+  await page.getByTestId("grid-insert-cancel").click()
+  await deleteConnector(page, name)
+})
+
 test("explores a relation and restores its view", async ({ page, context }) => {
   const name = `e2e-grid-${Date.now()}`
   await context.grantPermissions(["clipboard-read", "clipboard-write"])

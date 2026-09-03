@@ -98,6 +98,19 @@ def test_options_that_name_no_way_of_connecting_are_refused() -> None:
         )
 
 
+def test_a_form_opens_on_the_commonest_answer() -> None:
+    """The same default PostgreSQL has, for the same reason: a server on this
+    machine is the commonest case, and a value usually right is worth more than
+    a box that always has to be filled in."""
+    options = adapter_options.validate(
+        registry.get("redis").options_schema, {"auth_method": "no_auth"}
+    )
+
+    assert options.host == "localhost"
+    assert options.port == 6379
+    assert options.database == 0
+
+
 def test_a_database_outside_the_sixteen_is_refused() -> None:
     with pytest.raises(ValidationError):
         adapter_options.validate(

@@ -149,6 +149,7 @@ function handleKey(event: KeyboardEvent) {
         <AppIconButton
           icon="check"
           tooltip="Insert row"
+          compact
           :loading="saving"
           data-testid="grid-insert-save"
           @click="save"
@@ -156,6 +157,7 @@ function handleKey(event: KeyboardEvent) {
         <AppIconButton
           icon="content_paste"
           tooltip="Fill these fields from a copied row"
+          compact
           :disable="saving"
           data-testid="grid-insert-paste"
           @click="emit('paste')"
@@ -163,6 +165,7 @@ function handleKey(event: KeyboardEvent) {
         <AppIconButton
           icon="close"
           tooltip="Cancel insertion"
+          compact
           :disable="saving"
           data-testid="grid-insert-cancel"
           @click="emit('cancel')"
@@ -265,8 +268,12 @@ function handleKey(event: KeyboardEvent) {
   align-items: center;
 }
 
+/* Three buttons in a column 72 pixels wide. They are compact for that reason,
+   and the row is told they may not spill: without it the check and the cross
+   were drawn over the column beside them. */
 .row-insert__actions {
   justify-content: center;
+  overflow: hidden;
 }
 
 .row-insert__editor > :first-child {
