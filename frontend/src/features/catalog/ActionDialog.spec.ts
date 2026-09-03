@@ -15,6 +15,7 @@ const DROP: ActionCommand = {
   name: "drop_relation",
   label: "Drop",
   destructive: true,
+  question: null,
   takesFile: false,
   takesManyFiles: false,
   previews: true,
@@ -40,6 +41,7 @@ const RENAME: ActionCommand = {
   name: "rename",
   label: "Rename",
   destructive: false,
+  question: null,
   takesFile: false,
   takesManyFiles: false,
   previews: false,
@@ -65,6 +67,7 @@ const MOVE: ActionCommand = {
   name: "move_relation",
   label: "Move to schema",
   destructive: false,
+  question: null,
   takesFile: false,
   takesManyFiles: false,
   previews: false,
@@ -90,6 +93,7 @@ const UPLOAD: ActionCommand = {
   name: "upload",
   label: "Upload files",
   destructive: false,
+  question: null,
   takesFile: true,
   takesManyFiles: true,
   previews: false,
@@ -203,6 +207,28 @@ describe("what an action would do", () => {
       "Are you sure you want to delete customers?"
     )
     expect(document.body.querySelector('[data-testid="action-warning"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it("asks the question the action wrote, when it wrote one", async () => {
+    // Every destructive action there was removed what it named, so the dialog
+    // wrote "are you sure you want to delete this" itself. Setting an expiry
+    // is destructive and is not a deletion, and only the action knows that.
+    const wrapper = mountDialog(
+      {
+        ...DROP,
+        name: "set_expiry",
+        label: "Set expiry",
+        question: "This key will be removed when the time is up. Set the expiry?",
+        previews: false,
+        fields: [],
+      },
+      ["k:session"]
+    )
+    await flushPromises()
+
+    expect(text("action-confirmation")).toContain("when the time is up")
+    expect(text("action-confirmation")).not.toContain("want to delete")
     wrapper.unmount()
   })
 

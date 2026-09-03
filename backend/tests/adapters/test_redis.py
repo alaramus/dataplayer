@@ -26,20 +26,29 @@ def test_the_type_is_registered_with_the_options_it_takes() -> None:
     assert kind.category == "keyvalue"
 
 
-def test_it_can_be_reached_and_nothing_else() -> None:
-    """The catalog says as much on the screen: a type that only connects."""
-    adapter = _unreachable()
-
-    assert isinstance(adapter, DataAdapter)
-    assert not isinstance(adapter, SupportsCatalog)
-    assert not isinstance(adapter, SupportsFetch)
-
-
 def test_what_it_can_do_is_read_off_the_driver() -> None:
-    """Which is why an unimplemented capability cannot be claimed by mistake."""
-    capabilities = registry.capabilities_of(registry.get("redis"))
+    """Which is why an unimplemented capability cannot be claimed by mistake.
 
-    assert [item.title for item in capabilities] == []
+    It began as a connection check and nothing else. Browsing, reading and the
+    four things one does to a key arrived later, and the catalog said so in
+    the same commit — because the list is derived from the driver rather than
+    kept beside it.
+    """
+    adapter = _unreachable()
+    assert isinstance(adapter, DataAdapter)
+    assert isinstance(adapter, SupportsCatalog)
+    assert isinstance(adapter, SupportsFetch)
+
+    titles = [
+        item.title for item in registry.capabilities_of(registry.get("redis"))
+    ]
+
+    assert "Browse the catalog" in titles
+    assert "Read rows" in titles
+    assert {"New key", "Delete", "Set expiry", "Remove expiry"} <= set(titles)
+    # Still not a source with statements, relations or a query console.
+    assert "Describe a relation" not in titles
+    assert "Follow references" not in titles
 
 
 async def test_a_server_that_is_not_there_is_a_network_answer() -> None:

@@ -1,7 +1,7 @@
 # Data sources
 
-What the two existing source types do, where their code sits, and which file
-holds which decision.
+What the three existing source types do, where their code sits, and which
+file holds which decision.
 
 | File | Open it to |
 | --- | --- |
@@ -12,7 +12,7 @@ holds which decision.
 | [content.md](content.md) | open a node as something other than a page of rows |
 | [actions.md](actions.md) | add an action, change what a form applies to, or add a report |
 
-## Two source types
+## Three source types
 
 **PostgreSQL** — schemas and relations, safe schema create/rename/drop and
 relation moves, bounded relation DDL, server-side paging and sorting, streaming
@@ -35,6 +35,16 @@ searched by name from any folder. Five actions: create a folder, upload,
 download, rename and delete. Download returns one file unchanged or archives a
 directory or selection. No sorting and no filtering, because a file has no
 index. No connection string.
+
+**Redis** — a key space, walked by the colons its names already carry: the
+root lists the first segment of every key as a folder and walking into one
+lists the next. A key says its type, its size and how long it has left, and
+opens as what it holds — a hash as fields and values, a list as positions and
+values, a sorted set as members and scores, a string as one value. Four
+actions: write a key with an optional expiry, delete one, set an expiry, take
+one off. No sorting and no filtering, because Redis has no index over values,
+and no query console, because Redis has commands rather than statements.
+Everything scans; nothing runs `KEYS`.
 
 ## Where the code is
 
@@ -74,8 +84,14 @@ backend/app/adapters/
 │                       (describing), relation_changes.py, column_type(s).py,
 │                       index_methods.py, counting.py (the bounded count),
 │                       row_handle.py, content.py, system_reports.py,
-│                       actions.py, options.py (a union by auth_method),
+│                       actions.py, roles.py, backup.py, samples.py +
+│                       sample_data/ (the demonstration schema),
+│                       options.py (a union by auth_method),
 │                       adapter.py (facade)
+├── redis/              session.py (reaching the server, and reducing its
+│                       errors), keyspace.py (the tree and what a key is),
+│                       fetch.py (a key read as rows), actions.py (the four),
+│                       options.py (a union by auth_method), adapter.py (facade),
 └── file/               session.py (root and containment), catalog.py,
                         formats.py, members.py (a node inside a file),
                         readers.py, records.py, fetch.py, update.py,

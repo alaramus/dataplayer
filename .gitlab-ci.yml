@@ -19,6 +19,10 @@ backend:
   services:
     - name: postgres:18
       alias: db
+    # The Redis the source-type tests read and write. A real server rather
+    # than a fake: what those tests are about is what the driver does to one.
+    - name: redis:8
+      alias: redis
   variables:
     POSTGRES_DB: app
     POSTGRES_PASSWORD: postgres
@@ -36,6 +40,9 @@ backend:
     FIRST_SUPERUSER: admin@example.com
     FIRST_SUPERUSER_PASSWORD: ci-superuser-password
     USER_STORAGE_ROOT: /tmp/users
+    # Where the Redis tests find their server. Database 15 so they never meet
+    # anything else that might be in it, and they empty that one as they go.
+    TEST_REDIS_URL: redis://redis:6379/15
     # backend/scripts/test.sh runs the suite this way, and the private routes
     # exist only in development: without it their tests get a 404.
     FASTAPI_ENV: development

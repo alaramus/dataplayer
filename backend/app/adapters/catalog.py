@@ -124,6 +124,34 @@ class ReportNode(BaseNode):
     description: str | None = None
 
 
+class KeyNode(BaseNode):
+    """One key of a key-value store.
+
+    Not a table, though it is read as rows: a table has columns of its own and
+    a relation to describe, and a key has a Redis data type and an expiry
+    clock. Reusing `table` here would give one kind two meanings — exactly
+    what `BaseNode` says the old application did with `schema` — and every
+    action that names a table would then be offered on a key.
+
+    The prefix a key hangs under is a `directory`: a container of nodes with
+    nothing else to say about itself, which is what a namespace is.
+    """
+
+    kind: Literal["key"] = "key"
+    has_children: bool = False
+    # What the server says is in it. A closed set, because it is: Redis has
+    # these and no more.
+    data_type: Literal["string", "list", "set", "zset", "hash", "stream"]
+    # Seconds until it disappears, or nothing when it will not. Read at the
+    # moment of listing, and therefore already out of date — which is why it
+    # is a caption rather than anything a decision is made from.
+    ttl_seconds: int | None = None
+    # How many of whatever it holds: characters of a string, fields of a hash,
+    # members of a set. One number, because "how big is it" is one question
+    # however the answer is counted.
+    length: int | None = None
+
+
 # Adding a kind means adding a class here. The friction is intended: a key can
 # be added to a dict silently, a class cannot.
 CatalogNode = Annotated[
@@ -134,7 +162,8 @@ CatalogNode = Annotated[
     | FileNode
     | DatasetNode
     | EntryNode
-    | ReportNode,
+    | ReportNode
+    | KeyNode,
     Field(discriminator="kind"),
 ]
 
@@ -144,5 +173,13 @@ CatalogNode = Annotated[
 # for instance — and a bare string there would let a typo through silently.
 # The test that this matches the union keeps the two from drifting apart.
 NodeKind = Literal[
-    "schema", "table", "view", "directory", "file", "dataset", "entry", "report"
+    "schema",
+    "table",
+    "view",
+    "directory",
+    "file",
+    "dataset",
+    "entry",
+    "report",
+    "key",
 ]

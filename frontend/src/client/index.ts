@@ -419,6 +419,7 @@ export type {
   JsonObject,
   JsonObjectEntry,
   JsonScalar,
+  KeyNode,
   loginLoginAccessTokenData,
   loginLoginAccessTokenError,
   loginLoginAccessTokenErrors,

@@ -316,11 +316,13 @@ data directory to build, and this application cannot read what is in it.
 - **A template may generate one credential and use no others.** Redis has no
   user and no database name; `credentials` holds a password and nothing else,
   and the slots a template never mentions are simply absent.
-- **Redis is a source type of this application**, registered like any other,
-  with the connection check as its only capability. The catalog derives what a
-  type can do from the driver, so the screen says "This type only checks that
-  it can reach the source" — which is true, rather than a promise of browsing
-  that would fail when pressed.
+- **Redis is a source type of this application**, registered like any other.
+  It arrived with the connection check as its only capability, and the catalog
+  said exactly that — "This type only checks that it can reach the source" —
+  because what a type can do is derived from its driver rather than listed
+  beside it. When the key space arrived
+  ([D91](sources/contract.md#d91-a-key-space-is-a-catalog-grouped-by-the-separator-its-names-already-use)),
+  the same list grew in the same commit.
 - **Its options are a discriminated union**, password or none, for the reason
   PostgreSQL's are (D16): one model with an optional password is a form that
   asks half its users for something to leave empty, and a `SecretStr | None`
@@ -335,13 +337,9 @@ Known deviations:
   container**, because it is on the command line. The same person can read the
   volume the data is in, so the exposure is bounded by access to the runtime —
   which is the threat model's own subject.
-- **Nothing can be read out of a Redis connection.** Opening one shows the
-  catalog's "This source does not support browsing" banner, which is the
-  generic answer for a missing capability and is drawn as an error rather than
-  as a statement.
-- **A key space is not a catalog yet.** What Redis holds — keys, types, sizes,
-  a scan — is a source contract of its own and belongs to the phase that adds
-  adapter families deliberately.
+- **A Redis service is not backed up.** `SupportsBackup` names a program that
+  dumps a source, and this one names none: what Redis writes is a snapshot in
+  a volume that goes with the service.
 
 Spec: [A second service, and the first source that only connects](../superpowers/specs/2026-09-03-redis-pilot-design.md)
 

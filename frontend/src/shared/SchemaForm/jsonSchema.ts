@@ -38,6 +38,13 @@ export interface JsonSchemaProperty {
   // number, which is a rule about addresses in a component that knows none.
   group?: string
   row?: string
+  /**
+   * How Pydantic writes a field that may be left out: the type it takes, and
+   * null. Everything about the value — its bounds, its format — is inside the
+   * branch rather than beside it, so a reader that ignored this would find a
+   * field with no type at all.
+   */
+  anyOf?: JsonSchemaProperty[]
 }
 
 /** One member of a union, always a reference into `$defs`. */
@@ -78,6 +85,29 @@ export interface FieldSpec {
   group: string
   /** Fields sharing a row are laid out on one line. */
   row?: string
+}
+
+/**
+ * One property, with an optional field's two branches folded back into it.
+ *
+ * `int | None` reaches the client as `anyOf: [{type: "integer", …}, {type:
+ * "null"}]`, and the bounds go with the branch rather than staying beside it.
+ * Folding the branch that is not null back into the outer property is what
+ * makes an optional field an ordinary field with `required: false`, which is
+ * what it is — and what the rest of this module already knows how to draw.
+ *
+ * Anything else with an `anyOf` is left alone and fails loudly below: a
+ * genuine union of two value types is a form nobody has designed.
+ */
+function flattened(property: JsonSchemaProperty): JsonSchemaProperty {
+  const branches = property.anyOf
+  if (branches === undefined || branches.length !== 2) return property
+  const value = branches.find((branch) => branch.type !== "null")
+  const nothing = branches.find((branch) => branch.type === "null")
+  if (value === undefined || nothing === undefined) return property
+  // The outer property wins: the title, the default and the layout are stated
+  // where the field is, not inside one of its branches.
+  return { ...value, ...property, anyOf: undefined }
 }
 
 function kindOf(property: JsonSchemaProperty, name: string): FieldKind {
@@ -134,7 +164,9 @@ export function defaultsOf(schema: JsonSchema): Record<string, unknown> {
 export function schemaToFields(schema: JsonSchema): FieldSpec[] {
   const required = new Set(schema.required ?? [])
 
-  return Object.entries(schema.properties ?? {}).map(([name, property]) => ({
+  return Object.entries(schema.properties ?? {}).map(([name, raw]) => {
+    const property = flattened(raw)
+    return {
     name,
     label: property.title ?? name,
     kind: kindOf(property, name),
@@ -149,7 +181,8 @@ export function schemaToFields(schema: JsonSchema): FieldSpec[] {
     purpose: property["x-ui-purpose"],
     group: property.group ?? DEFAULT_GROUP,
     row: property.row,
-  }))
+    }
+  })
 }
 
 /**

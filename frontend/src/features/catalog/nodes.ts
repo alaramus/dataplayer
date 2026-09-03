@@ -26,6 +26,9 @@ const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   // A report is opened; the section holding them has children, so the rule
   // below turns that one into a place to walk into (D55).
   report: "leaf",
+  // A key is opened and read as whatever it holds. The namespace above it is
+  // a directory, because that is what a namespace is.
+  key: "leaf",
 }
 
 export interface ListNode {
@@ -84,6 +87,7 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
   // overflows its 18px box and covers the row's tick box — the icon is drawn
   // over the control beside it, and the row cannot be ticked.
   report: "assessment",
+  key: "vpn_key",
 }
 
 /** The section of reports, which is a report with children rather than a folder. */
@@ -161,6 +165,8 @@ function captionOf(node: CatalogNode): string | undefined {
       return datasetCaption(node)
     case "entry":
       return entryCaption(node)
+    case "key":
+      return keyCaption(node)
     default:
       return undefined
   }
@@ -179,6 +185,48 @@ function datasetCaption(node: Extract<CatalogNode, { kind: "dataset" }>): string
   // rather than permission, and saying so is what keeps that honest.
   if (node.hidden === true) parts.push("hidden")
   return parts.length === 0 ? undefined : parts.join(" · ")
+}
+
+/**
+ * What one of a key holds is called, which is not the same word for each.
+ *
+ * "11 items" about a string of eleven characters is a number with the wrong
+ * noun on it, and the noun is the part that says what was counted.
+ */
+const KEY_UNITS: Partial<Record<string, string>> = {
+  string: "character",
+  hash: "field",
+  list: "item",
+  set: "member",
+  zset: "member",
+  stream: "entry",
+}
+
+/**
+ * What a key says about itself before it is opened.
+ *
+ * Its type, how much is in it, and how long it has left. The expiry was read
+ * when the level was listed and is already out of date by the time it is
+ * drawn, which is why it is a caption and never something a decision is made
+ * from.
+ */
+function keyCaption(node: Extract<CatalogNode, { kind: "key" }>): string | undefined {
+  const parts: string[] = [node.data_type]
+  if (node.length !== null && node.length !== undefined) {
+    parts.push(counted(node.length, KEY_UNITS[node.data_type] ?? "item"))
+  }
+  if (node.ttl_seconds !== null && node.ttl_seconds !== undefined) {
+    parts.push(`expires in ${formatDuration(node.ttl_seconds)}`)
+  }
+  return parts.join(" · ")
+}
+
+/** A number of seconds in the largest unit that still says something. */
+export function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${String(seconds)}s`
+  if (seconds < 3600) return `${String(Math.round(seconds / 60))}m`
+  if (seconds < 86400) return `${String(Math.round(seconds / 3600))}h`
+  return `${String(Math.round(seconds / 86400))}d`
 }
 
 /** What an entry of an archive says about itself before it is opened. */

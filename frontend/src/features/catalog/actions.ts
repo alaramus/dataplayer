@@ -14,6 +14,14 @@ export interface ActionCommand {
   name: string
   label: string
   destructive: boolean
+  /**
+   * What the confirmation asks, when the action has words of its own.
+   *
+   * Null for everything that removes what it names: the client's own sentence
+   * names the node, which is better. An action that is destructive without
+   * being a deletion says so itself, because only it knows the difference.
+   */
+  question: string | null
   takesFile: boolean
   /** Whether one filled form may carry several files, a request each. */
   takesManyFiles: boolean
@@ -49,6 +57,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       name: action.name,
       label: action.title,
       destructive: action.destructive,
+      question: action.question ?? null,
       takesFile: action.takes_file,
       takesManyFiles: action.takes_many_files,
       previews: action.previews,

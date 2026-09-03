@@ -181,7 +181,9 @@ function forgetPreview() {
 
 const open = computed(() => props.command !== null)
 const destructiveQuestion = computed(
-  () => `Are you sure you want to delete ${props.nodeLabel}?`
+  () =>
+    props.command?.question ??
+    `Are you sure you want to delete ${props.nodeLabel}?`
 )
 
 watch(

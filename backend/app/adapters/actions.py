@@ -137,6 +137,13 @@ class Action[P: BaseModel](ABC):
     # from a selected grouping whose children happen to be shown in it.
     acts_on: ClassVar[ActsOn]
     destructive: ClassVar[bool] = False
+    # What the confirmation asks, when "are you sure you want to delete this"
+    # is not what is about to happen. Every destructive action there was until
+    # now removed something outright, so the client wrote that sentence
+    # itself; setting an expiry is destructive and is not a deletion, and only
+    # the action knows the difference. `None` keeps the client's own wording,
+    # which names the node.
+    question: ClassVar[str | None] = None
     # What a caller must hold on the connection to run this. Declared on the
     # class beside `destructive` because it is the same sort of statement, and
     # defaulting to `write` so that an action which says nothing about itself

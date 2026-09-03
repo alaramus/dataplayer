@@ -552,3 +552,54 @@ describe("a choice offered by an enum", () => {
     ])
   })
 })
+
+describe("a field that may be left out", () => {
+  /**
+   * Pydantic writes `int | None` as two branches, and puts the bounds inside
+   * the branch that is not null. Before this, such a field reached `kindOf`
+   * with no type at all and threw — which is what a Redis key's optional
+   * expiry did the first time it was drawn.
+   */
+  const optional: JsonSchema = {
+    type: "object",
+    properties: {
+      ttl_seconds: {
+        anyOf: [
+          { type: "integer", minimum: 1, maximum: 600 },
+          { type: "null" },
+        ],
+        title: "Expires in (seconds)",
+        default: null,
+      },
+    },
+    required: [],
+  }
+
+  it("is an ordinary field that is not required", () => {
+    const [field] = schemaToFields(optional)
+
+    expect(field?.kind).toBe("number")
+    expect(field?.required).toBe(false)
+    expect(field?.label).toBe("Expires in (seconds)")
+  })
+
+  it("keeps the bounds that live inside the branch", () => {
+    const [field] = schemaToFields(optional)
+
+    expect(field?.minimum).toBe(1)
+    expect(field?.maximum).toBe(600)
+  })
+
+  it("still fails loudly on a union of two real types", () => {
+    // A form for "either a number or a list of column mappings" is a form
+    // nobody has designed, and silence would leave the field unrendered.
+    expect(() =>
+      schemaToFields({
+        type: "object",
+        properties: {
+          whatever: { anyOf: [{ type: "integer" }, { type: "array" }] },
+        },
+      })
+    ).toThrow(/Unsupported property type/)
+  })
+})

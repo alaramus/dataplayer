@@ -2284,6 +2284,10 @@ class ActionInfo(BaseModel):
     name: str
     title: str
     destructive: bool
+    # The sentence the confirmation asks, when the action has one of its own.
+    # Empty for everything that removes what it names, where the client's
+    # wording names the node and is better for it.
+    question: str | None = None
     # Derived from the action itself rather than declared beside it: a flag and
     # an implementation can disagree, an isinstance check cannot.
     takes_file: bool
@@ -2371,6 +2375,7 @@ def _describe(action: Action[Any], *, applicable: bool) -> ActionInfo:
         downloads=isinstance(action, ProducesDownload),
         acts_on=action.acts_on,
         applicable=applicable,
+        question=action.question,
         params_schema=action.params_schema(),
     )
 

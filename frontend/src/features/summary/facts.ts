@@ -29,6 +29,7 @@ const KINDS: Record<NodeSummary["kind"], string> = {
   dataset: "Dataset",
   entry: "Archive entry",
   report: "Report",
+  key: "Key",
 }
 
 const ENCODINGS: Record<"utf-8" | "utf-8-bom" | "not-utf-8", string> = {

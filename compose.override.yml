@@ -64,6 +64,15 @@ services:
       # written where its owner will find it.
       SERVICE_STORAGE_VOLUME: "dataplayer_user-storage"
 
+  # A Redis for the backend suite to read and write, and for a person to point
+  # a connection at while working on that source type. Development only: the
+  # application itself keeps nothing in Redis, and a deployment that wants one
+  # starts it as a service (D80).
+  redis:
+    image: redis:8
+    ports:
+      - "6379:6379"
+
   mailcatcher:
     image: schickling/mailcatcher
     ports:

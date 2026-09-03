@@ -89,6 +89,10 @@ export type ActionInfo = {
    */
   destructive: boolean
   /**
+   * Question
+   */
+  question?: string | null
+  /**
    * Takes File
    */
   takes_file: boolean
@@ -2896,6 +2900,63 @@ export type JsonScalar = {
 }
 
 /**
+ * KeyNode
+ *
+ * One key of a key-value store.
+ *
+ * Not a table, though it is read as rows: a table has columns of its own and
+ * a relation to describe, and a key has a Redis data type and an expiry
+ * clock. Reusing `table` here would give one kind two meanings — exactly
+ * what `BaseNode` says the old application did with `schema` — and every
+ * action that names a table would then be offered on a key.
+ *
+ * The prefix a key hangs under is a `directory`: a container of nodes with
+ * nothing else to say about itself, which is what a namespace is.
+ */
+export type KeyNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "key"
+  /**
+   * Data Type
+   */
+  data_type: "string" | "list" | "set" | "zset" | "hash" | "stream"
+  /**
+   * Ttl Seconds
+   */
+  ttl_seconds?: number | null
+  /**
+   * Length
+   */
+  length?: number | null
+}
+
+/**
  * MarkdownContent
  *
  * The bounded source of a document that the browser renders itself.
@@ -3060,6 +3121,9 @@ export type NodeMatch = {
     | ({
         kind: "report"
       } & ReportNode)
+    | ({
+        kind: "key"
+      } & KeyNode)
   /**
    * Parent Id
    */
@@ -3166,7 +3230,7 @@ export type NodeSummary = {
   /**
    * Kind
    */
-  kind: "schema" | "table" | "view" | "directory" | "file" | "dataset" | "entry" | "report"
+  kind: "schema" | "table" | "view" | "directory" | "file" | "dataset" | "entry" | "report" | "key"
   /**
    * Representations
    */
@@ -4012,6 +4076,9 @@ export type ReferencedRows = {
     | ({
         kind: "report"
       } & ReportNode)
+    | ({
+        kind: "key"
+      } & KeyNode)
   /**
    * Filters
    */
@@ -4151,6 +4218,9 @@ export type RelationCreated = {
     | ({
         kind: "report"
       } & ReportNode)
+    | ({
+        kind: "key"
+      } & KeyNode)
   /**
    * Inserted
    */
@@ -7468,6 +7538,9 @@ export type connectorsReadCatalogResponses = {
     | ({
         kind: "report"
       } & ReportNode)
+    | ({
+        kind: "key"
+      } & KeyNode)
   >
 }
 
@@ -8399,6 +8472,9 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "report"
       } & ReportNode)
+    | ({
+        kind: "key"
+      } & KeyNode)
   >
 }
 

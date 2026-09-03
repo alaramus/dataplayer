@@ -90,6 +90,7 @@ translations; those files are not.
 | 2026-09-03 | [What running services on the machine costs](2026-09-03-service-threat-model-design.md) | D86: the socket is the machine's power, so the call list is fixed, the limits are set and it stays off by default |
 | 2026-09-03 | [Copying a database out, and putting it back](2026-09-03-backup-and-restore-design.md) | D87: pg_dump runs in the image of the server's own version, and a backup is a file in personal storage |
 | 2026-09-03 | [Two ways to start a service, and what comes back](2026-09-03-service-start-modes-design.md) | D88, D89, D90: automatic or chosen, the password shown once, and an empty database filled |
+| 2026-09-03 | [A key space, walked and written](2026-09-03-redis-keyspace-design.md) | D91: the tree is the colons in the names, and four actions are what people do to a key by hand |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

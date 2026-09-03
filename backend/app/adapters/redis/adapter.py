@@ -1,94 +1,81 @@
-"""A Redis server, so far only as something to reach.
+"""A Redis server as a source: reaching one, walking it, reading it, writing it.
 
-The one capability is the connection check, and that is the whole of it (D85).
-`DataAdapter` asks for nothing else; everything a source can additionally do —
-browsing, reading rows, acting — is a protocol it may implement, and this one
-implements none, so the catalog says in the user's own screen that this type
-"only checks that it can reach the source".
+It began as a connection check and nothing else, which was honest while the
+phase it arrived in was about starting containers rather than reading key
+spaces. This is the rest: the key space as a catalog grouped by the separator
+every convention uses, a key read as whatever it holds, and the four things
+people do to keys by hand — write one, take one away, give one a deadline,
+take the deadline off.
 
-That is not a stub: it is what a source type is worth while the phase that
-introduced it is about running services rather than about reading key spaces.
-What Redis holds becomes readable when a phase says so, and the shape of that
-is a catalog and a fetch, not an edit here.
+What is deliberately not here is a query language. Redis has commands, not
+statements, and a console that accepted them would be a shell on somebody's
+server rather than a way of reading data (D65).
 
 `redis` is imported by this package and by nothing else, the rule `psycopg`
 already follows: a driver upgrade has one place to change.
 """
 
-import time
 from typing import Any
 
-import redis.asyncio as redis
-from redis.exceptions import (
-    AuthenticationError,
-    RedisError,
-)
-from redis.exceptions import (
-    ConnectionError as RedisConnectionError,
-)
-from redis.exceptions import (
-    TimeoutError as RedisTimeoutError,
-)
-
-from app.adapters.protocol import ConnectionCheckResult, ErrorKind
-from app.adapters.redis.options import RedisOptions, RedisPassword
+from app.adapters.actions import Action, ActionSet, ActionType
+from app.adapters.catalog import CatalogNode
+from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.redis.actions import REDIS_ACTION_TYPES
+from app.adapters.redis.fetch import RedisFetch
+from app.adapters.redis.keyspace import RedisKeyspace, is_key
+from app.adapters.redis.options import RedisOptions
+from app.adapters.redis.session import RedisSession
 from app.adapters.registry import AdapterContext, register
-
-# What a check may cost. A server that has not answered in this long is one
-# somebody is waiting on a page for.
-CHECK_TIMEOUT_SECONDS = 5.0
 
 
 class RedisAdapter:
-    """Everything this application can currently do with a Redis server."""
+    """Everything this application can do with a Redis server.
+
+    Deliberately thin, the way the PostgreSQL facade is: a capability is a
+    module composed here rather than another hundred lines in this class.
+    """
 
     def __init__(self, options: Any) -> None:
-        self._options = options
-
-    def _client(self) -> redis.Redis:
-        password = (
-            self._options.password.get_secret_value()
-            if isinstance(self._options, RedisPassword)
-            else None
-        )
-        return redis.Redis(
-            host=self._options.host,
-            port=self._options.port,
-            db=self._options.database,
-            password=password,
-            socket_connect_timeout=CHECK_TIMEOUT_SECONDS,
-            socket_timeout=CHECK_TIMEOUT_SECONDS,
+        self._session = RedisSession(options)
+        self._keyspace = RedisKeyspace(self._session)
+        self._fetch = RedisFetch(self._session, self._keyspace)
+        self._actions = ActionSet(
+            [action_type(self._session, self._keyspace) for action_type in REDIS_ACTION_TYPES]
         )
 
     async def check_connection(self) -> ConnectionCheckResult:
-        """Say hello, and say what happened in words that name no address.
+        return await self._session.check()
 
-        A driver's own message carries the host, the port and sometimes the
-        password of the connection it failed on — the same reason PostgreSQL's
-        errors are reduced rather than passed on.
+    async def list_children(self, node_id: str | None) -> list[CatalogNode]:
+        return await self._keyspace.list_children(node_id)
+
+    async def fetch(self, request: FetchRequest) -> FetchResult:
+        return await self._fetch.fetch(request)
+
+    # --- what may be done to a key -----------------------------------------
+
+    @classmethod
+    def action_types(cls) -> tuple[ActionType, ...]:
+        return REDIS_ACTION_TYPES
+
+    def action(self, name: str) -> Action[Any]:
+        return self._actions.get(name)
+
+    def all_actions(self) -> list[Action[Any]]:
+        return list(self._actions)
+
+    async def available(self, node_id: str | None) -> list[Action[Any]]:
+        """What this node admits, which is decided by what it is.
+
+        A key takes the three that act on a key; a folder and the root take
+        the one that makes one. Asked of the id rather than of the server: the
+        two kinds of id are told apart without a round trip, and an id naming
+        a key that has since expired is refused by the action itself.
         """
-        client = self._client()
-        started = time.perf_counter()
-        try:
-            await client.ping()
-        except AuthenticationError:
-            return _refused("auth", "Authentication failed")
-        except RedisTimeoutError:
-            return _refused("timeout", "Connection timed out")
-        except RedisConnectionError:
-            return _refused("network", "Could not reach the Redis server")
-        except RedisError:
-            return _refused("unknown", "The Redis server refused the connection")
-        finally:
-            await client.aclose()
-        elapsed = int((time.perf_counter() - started) * 1000)
-        return ConnectionCheckResult(
-            ok=True, message="Connection successful", latency_ms=elapsed
-        )
-
-
-def _refused(kind: ErrorKind, message: str) -> ConnectionCheckResult:
-    return ConnectionCheckResult(ok=False, message=message, error_kind=kind)
+        if is_key(node_id):
+            return self._actions.for_kind("key")
+        return self._actions.for_kind("directory")
 
 
 @register(
@@ -99,13 +86,14 @@ def _refused(kind: ErrorKind, message: str) -> ConnectionCheckResult:
     # Databases" for one commit because that was the only group there was.
     category="keyvalue",
     description=(
-        "An in-memory key-value server. This application can reach one and "
-        "start one of its own; reading what is in it comes later."
+        "An in-memory key-value server. Walk its key space by the colons in "
+        "the names, read what a key holds, write one, and set or clear an "
+        "expiry."
     ),
     options_schema=RedisOptions,
     adapter_class=RedisAdapter,
 )
 def _build(options: Any, _context: AdapterContext) -> RedisAdapter:
-    # No home directory and no pooling: this source opens a connection to
-    # say hello and closes it again.
+    # No home directory and no pooling: everything this source does is a
+    # handful of round trips against a server that answers in microseconds.
     return RedisAdapter(options)

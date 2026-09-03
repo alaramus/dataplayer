@@ -47,8 +47,8 @@ Known deviations:
 - **The catalog search knows no morphology.** Substring matching over name,
   category, description and capability titles, so "migrations" does not find
   "migration" and a Russian word finds nothing.
-- **Three categories make for a thin sidebar.** One type each, built for the
-  registry D1 anticipates.
+- **Three categories, and three types.** Built for the registry D1
+  anticipates.
 
 Spec: [The catalog of source types, and creating a connection](../../superpowers/specs/2026-08-23-adapter-catalog-design.md)
 
@@ -361,3 +361,66 @@ Known deviations:
   be inventing a second reload nobody asked for.
 
 Spec: [Searching the catalog by name](../../superpowers/specs/2026-09-02-catalog-search-design.md)
+
+## D91. A key space is a catalog, grouped by the separator its names already use
+
+Redis has no schemas and no tables — a flat set of names, which by universal
+convention are written with colons: `session:42:token`, `cache:user:7`. Every
+tool that shows a key space shows that convention as a tree, because it is the
+structure the names were given when they were chosen.
+
+- **The catalog groups by `:`.** The root lists the first segment of every key
+  as a folder, and walking into one lists the next. Not configurable: a source
+  type whose tree shape is an option is a type with two behaviours to explain,
+  and every Redis convention there is uses this one.
+- **A key is a kind of its own.** `KeyNode` carries a Redis data type, an
+  expiry and a length; reusing `table` would give one kind two meanings — what
+  D2a says the old application did — and would offer every action that names a
+  table on a key. The namespace above it is a `directory`, because a container
+  of nodes with nothing else to say about itself is what a namespace is.
+- **`k:` and `f:` mark the two kinds of id apart.** A key may itself be called
+  `user:`, and without a mark a listing of that key and a listing of the folder
+  above it would be the same request. Nothing but `keyspace.py` takes an id
+  apart (D21).
+- **Nothing ever runs `KEYS`.** It blocks the server for the length of its own
+  scan. Everything is `SCAN`, which exists so that a client cannot do that, and
+  a listing stops at a ceiling: a key space of ten million names has no useful
+  tree, and a page that tried to draw one would fail slowly rather than
+  quickly.
+- **What a key holds is read as rows, and the shape follows the type.** A hash
+  is fields and values, a list is positions and values, a sorted set is members
+  and scores. One table per type rather than a chain of branches, so a type
+  that gains a reader is a line.
+- **Nothing sorts and nothing filters.** Redis has no index over values, so a
+  column that offered either would be offering something this source would
+  have to fake by reading everything.
+- **Four actions, which is what people do to a key by hand**: write one, take
+  one away, give one a deadline, take the deadline off. Writing covers changing
+  a value: a name already in use is refused unless the form says to replace it,
+  which makes "write this" one action rather than a create and an update that
+  differ only in their refusals.
+- **A destructive action may word its own question.** Everything destructive
+  until now removed what it named, so the client wrote "are you sure you want
+  to delete this" itself. Setting an expiry is destructive and is not a
+  deletion, and only the action knows the difference.
+
+Known deviations:
+
+- **A large key space is listed as far as the ceiling and no further**, and the
+  listing does not say that it stopped. What is beyond it is reached by naming
+  a narrower prefix, which the catalog offers no way to type.
+- **Only strings are written.** A hash, a list or a sorted set built from a
+  form would be a form with a repeating group in it; the rest arrive from
+  whatever writes them.
+- **A hash and a set are paged in this process.** Both are read whole and then
+  sliced, so a hash of a million fields is a million fields in memory. A list
+  and a sorted set page in the server, because those two carry an order.
+- **A value is decoded with replacement.** Redis holds bytes and says nothing
+  about what they mean, so a key holding a JPEG shows as replacement
+  characters rather than being refused.
+- **There is no query console.** Redis has commands, not statements, and a
+  console that accepted them would be a shell on somebody's server (D65).
+- **Nothing watches.** A key that expires while its page is open stays on the
+  page until it is read again.
+
+Spec: [A key space, walked and written](../../superpowers/specs/2026-09-03-redis-keyspace-design.md)
