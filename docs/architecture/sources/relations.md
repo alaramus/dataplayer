@@ -418,11 +418,33 @@ Consequences:
   is what the source thinks the relation is worth — five seconds for the
   Processes report, nothing for anything else — and the grid takes it as its
   starting interval only where nobody has chosen for that relation (D67).
+- **A command may say it changes more than its page.** Installing an extension
+  brings schemas, types and functions with it; cancelling a query brings
+  nothing. `changes_structure` is the command's own answer, and the client
+  reads it to decide whether the catalog column has to re-read as well (D66) —
+  the same nudge a console gives after running DDL.
+- **Extensions are installed and removed on the rows that list them.** They
+  were a pair of actions whose form asked for a name, standing next to a table
+  that already held every name there is: the same value typed a second time,
+  and no way to install two at once. Each row is one DDL statement, so each is
+  refused for its own reason and the refusals come back per key. The name in a
+  ticked row selects a row of `pg_available_extensions` or `pg_extension`, and
+  the identifier that reaches the statement is the one that came back.
 
 Known deviations:
 
-- **Only the Processes report has any.** The vocabulary is one report's, and
-  the second source to want one will be the test of whether the shape is right.
+- **Only two reports of one source have any.** The vocabulary has now been
+  used twice, which is the first evidence that its shape is right; the second
+  source to want one is still the real test.
+- **An extension is installed with a cascade and removed without one.**
+  `CREATE EXTENSION … CASCADE` adds what the chosen extension is built on,
+  which is what a person asking for it wants; a cascading drop would reach
+  whatever anyone ever built on its types, so the server refuses instead and
+  says what is in the way.
+- **The rehearsal is gone with the form.** The action could ask the server
+  what installing or removing would do and show the answer before doing it; a
+  row command has no form to show it in, and nothing has been designed to
+  replace it.
 - **A command acts on a page.** Ticking is per row of what is on screen, so
   "every backend of this database" means paging through and ticking.
 - **Nothing says what a command did to each row.** The count and the refusals
@@ -436,8 +458,15 @@ Spec: [Commands over the rows of a relation](../../superpowers/specs/2026-09-02-
 
 The Processes report arrived with the whole grid toolbar over it: download
 this page, chart it, share a link to it, make a table out of it, open it as a
-query. All of them work. None of them is anything anybody wants to do to a
-picture of what a database is doing this second.
+query. All of them work, and for a while all five were withdrawn on the
+grounds that a picture of what a database is doing this second is not
+somebody's data.
+
+That was one step too far. A page of a report is still a page: a list of
+settings is downloaded to be compared with another server's, a link to what is
+running is exactly what one sends a colleague, and a table of sizes is worth a
+chart. What is genuinely not there is a copy — a table made out of a report is
+a moment nobody can refresh — so that is the one command a report withdraws.
 
 `FetchResult.page_commands` names which of `download`, `chart`, `share`,
 `create_relation` and `query` a relation offers. A source that says nothing
@@ -449,23 +478,25 @@ Consequences:
 - **One list rather than five flags.** `update_supported` and its family
   answer five different questions about writing; this answers one — what is
   this page for — and a source withdrawing one of these usually withdraws
-  several. PostgreSQL's reports withdraw all five in a line.
+  several. PostgreSQL's reports withdraw one of the five in a line.
 - **The client learns no names of its own.** The vocabulary is the server's,
   the type is derived from the generated client rather than written out again,
   and the grid asks whether a command is offered without learning what a
   report is.
-- **What is left over a report is what looking at it needs**: filtering,
-  sorting, columns, copying, paging and auto-refresh. Writing was already
-  withdrawn by [D54](#d54-a-server-owned-relation-is-read-never-changed), so
-  the toolbar of a monitor is the controls for finding a row and the commands
-  for acting on it ([D70](#d70-a-relation-may-declare-commands-over-its-own-rows)).
+- **What is left over a report is what looking at it needs**, plus what taking
+  it away with you needs: filtering, sorting, columns, copying, paging,
+  auto-refresh, download, share, chart and opening it as a query. Writing was
+  already withdrawn by
+  [D54](#d54-a-server-owned-relation-is-read-never-changed), so the rest of the
+  toolbar is the controls for finding a row and the commands for acting on it
+  ([D70](#d70-a-relation-may-declare-commands-over-its-own-rows)).
 
 Known deviations:
 
 - **A withdrawal has no reason attached.** `update_reason` explains a disabled
   button; an absent one asks no question, so nothing is said.
 - **It is per class of relation, not per relation.** Every report withdraws the
-  same five; there is no way to say that one particular table should not be
+  same one; there is no way to say that one particular table should not be
   charted.
 
 Spec: [What a page is for, said by the source](../../superpowers/specs/2026-09-02-page-commands-design.md)

@@ -24,6 +24,10 @@ from app.adapters.protocol import AdapterError, NodeNotFound
 _SYSTEM_SCHEMAS = ("information_schema",)
 TABLE_REPRESENTATION = NodeRepresentation(kind="table", title="View as table")
 DDL_REPRESENTATION = NodeRepresentation(kind="sql", title="View DDL")
+# A report has no DDL — there is nothing on the server to recreate — but it
+# does have the statement it is made of, and that is the same question a
+# person asks of a table when they open its DDL: what is this, really.
+REPORT_SQL_REPRESENTATION = NodeRepresentation(kind="sql", title="View the statement")
 
 
 def is_system_schema(name: str) -> bool:
@@ -188,7 +192,7 @@ def _report_node(report: SystemReport) -> ReportNode:
         name=report.title,
         description=report.description,
         has_children=False,
-        representations=[TABLE_REPRESENTATION],
+        representations=[TABLE_REPRESENTATION, REPORT_SQL_REPRESENTATION],
     )
 
 

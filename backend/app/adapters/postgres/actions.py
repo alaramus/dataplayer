@@ -45,7 +45,7 @@ from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.relation_changes import PostgresRelationChanges
 from app.adapters.postgres.roles import CreateRole
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.system_reports import EXTENSIONS_REPORT_ID, ROLES_REPORT_ID
+from app.adapters.postgres.system_reports import ROLES_REPORT_ID
 from app.adapters.relation import RelationModel
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -821,190 +821,6 @@ class DropSchema(JsonAction[DropSchemaParams]):
         return statement.as_string()
 
 
-EXTENSION_REFUSALS = {
-    # duplicate_object: a backstop. Installing one already installed is
-    # refused by name before the statement runs, but two callers can still
-    # race, and the second must read like a refusal rather than a fault.
-    "42710": "That extension is already installed",
-    # dependent_objects_still_exist.
-    "2BP01": "Something in this database is built on that extension",
-    # insufficient_privilege: installing one usually needs a superuser.
-    "42501": "This connection may not change the extensions of this server",
-    # undefined_file: the extension is listed but its files are not installed.
-    "58P01": "The server lists that extension but cannot find its files",
-}
-
-
-class ExtensionParams(BaseModel):
-    name: str = Field(title="Extension")
-
-
-class CreateExtensionParams(ExtensionParams):
-    include_requirements: bool = Field(
-        default=False,
-        title="Also install what it requires",
-        description="Some extensions are built on others, which are installed too",
-    )
-
-
-class ExtensionAction[P: ExtensionParams](JsonAction[P]):
-    """What the two extension commands share: where they live and what they name.
-
-    Offered on the Extensions report and nowhere else. `applies_to` says the
-    command makes sense for a report; which report admits it is a question of
-    state, and `PostgresActions.available` answers it — the split the action
-    contract already draws.
-    """
-
-    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"report"})
-    acts_on: ClassVar[ActsOn] = "node"
-    requires: ClassVar[Access] = "structure"
-    bulk: ClassVar[bool] = False
-
-    def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
-        self._session = session
-        self._catalog = catalog
-
-    async def _named(self, typed: str, *, installed: bool) -> str:
-        """The server's own spelling of an extension it knows, or a refusal.
-
-        The client's text selects a row; the identifier that reaches the
-        statement is the `extname` that came back, never the string that was
-        typed. So the only extension that can be named is one this server
-        already lists.
-        """
-        if installed:
-            rows = await self._session.query(
-                "SELECT extname AS name FROM pg_extension WHERE extname = %s",
-                (typed,),
-            )
-            if not rows:
-                raise ActionRefused(
-                    "not_applicable", f'"{typed}" is not installed on this server'
-                )
-            return str(rows[0]["name"])
-
-        rows = await self._session.query(
-            """
-            SELECT name, installed_version IS NOT NULL AS already
-            FROM pg_available_extensions WHERE name = %s
-            """,
-            (typed,),
-        )
-        if not rows:
-            raise ActionRefused(
-                "not_applicable",
-                f'This server does not offer an extension called "{typed}"',
-            )
-        # A name that is taken is a conflict, not a fault: the same shape the
-        # file source answers with when a folder of that name already exists.
-        if rows[0]["already"]:
-            raise ActionRefused("conflict", f'"{typed}" is already installed')
-        return str(rows[0]["name"])
-
-    def _refuse_unless_extensions_report(self, node_id: str | None) -> None:
-        if node_id != EXTENSIONS_REPORT_ID:
-            raise ActionRefused(
-                "not_applicable", "Extensions are changed from the Extensions report"
-            )
-
-
-class CreateExtension(ExtensionAction[CreateExtensionParams]):
-    name: ClassVar[str] = "create_extension"
-    title: ClassVar[str] = "Install extension"
-    params_model = CreateExtensionParams
-
-    async def run(
-        self, node_id: str | None, params: CreateExtensionParams
-    ) -> ActionResult:
-        self._refuse_unless_extensions_report(node_id)
-        named = await self._named(params.name, installed=False)
-        await self._session.schema_change(
-            self._statement(named, requirements=params.include_requirements),
-            refusals=EXTENSION_REFUSALS,
-        )
-        # The root, not the report: an extension may bring a schema of its own,
-        # and what changed is more than the list it was installed from.
-        return ActionResult(message=f"{named} installed", reload_node_ids=[None])
-
-    async def preview(
-        self, node_id: str | None, raw: Mapping[str, Any]
-    ) -> ActionPreview:
-        """What installing it would do, in the server's own words.
-
-        Worth previewing for the same reason a drop is: with requirements
-        included the server installs more than was asked for, and it says so
-        as it goes. Ticking the box changes the answer.
-        """
-        params = self._validated(raw)
-        self._refuse_unless_extensions_report(node_id)
-        named = await self._named(params.name, installed=False)
-        rehearsal = await self._session.rehearse(
-            self._statement(named, requirements=params.include_requirements),
-            refusals=EXTENSION_REFUSALS,
-        )
-        if rehearsal.refused is not None:
-            return ActionPreview(
-                summary=rehearsal.refused, items=rehearsal.said, blocked=True
-            )
-        if not rehearsal.said:
-            return ActionPreview(summary=f"{named} installs on its own")
-        return ActionPreview(
-            summary=f"What installing {named} would do:", items=rehearsal.said
-        )
-
-    @staticmethod
-    def _statement(named: str, *, requirements: bool) -> str:
-        statement = sql.SQL("CREATE EXTENSION {}").format(sql.Identifier(named))
-        # CASCADE here means "install what this one is built on", which is a
-        # different promise from a cascading drop and is asked for by name.
-        if requirements:
-            statement += sql.SQL(" CASCADE")
-        return statement.as_string()
-
-
-class DropExtension(ExtensionAction[ExtensionParams]):
-    """Remove an extension, and never what was built on it.
-
-    No cascade, deliberately. A relation dropped with one is a thing the
-    reader chose and can see; an extension's cascade reaches whatever anyone
-    ever built on its types and functions, and the preview naming that is a
-    better answer than a box that would destroy it.
-    """
-
-    name: ClassVar[str] = "drop_extension"
-    title: ClassVar[str] = "Remove extension"
-    destructive: ClassVar[bool] = True
-    params_model = ExtensionParams
-
-    async def run(self, node_id: str | None, params: ExtensionParams) -> ActionResult:
-        self._refuse_unless_extensions_report(node_id)
-        named = await self._named(params.name, installed=True)
-        await self._session.schema_change(
-            self._statement(named), refusals=EXTENSION_REFUSALS
-        )
-        return ActionResult(message=f"{named} removed", reload_node_ids=[None])
-
-    async def preview(
-        self, node_id: str | None, raw: Mapping[str, Any]
-    ) -> ActionPreview:
-        params = self._validated(raw)
-        self._refuse_unless_extensions_report(node_id)
-        named = await self._named(params.name, installed=True)
-        rehearsal = await self._session.rehearse(
-            self._statement(named), refusals=EXTENSION_REFUSALS
-        )
-        if rehearsal.refused is not None:
-            return ActionPreview(
-                summary=rehearsal.refused, items=rehearsal.said, blocked=True
-            )
-        return ActionPreview(summary=f"Nothing in this database uses {named}")
-
-    @staticmethod
-    def _statement(named: str) -> str:
-        return sql.SQL("DROP EXTENSION {}").format(sql.Identifier(named)).as_string()
-
-
 class DescribeModelParams(BaseModel):
     # A screen of its own rather than a form: the answer is a document, and
     # what somebody does with it — read it, copy it, take it to a website —
@@ -1128,8 +944,6 @@ POSTGRES_ACTION_TYPES: tuple[PostgresActionType, ...] = (
     LoadCsv,
     DropRelation,
     DropSchema,
-    CreateExtension,
-    DropExtension,
     CreateRole,
     DescribeModel,
 )
@@ -1139,7 +953,6 @@ POSTGRES_ACTION_TYPES: tuple[PostgresActionType, ...] = (
 # roles, and neither offers the other's commands. A table rather than a chain
 # of comparisons, so that a report gaining a command is an entry here.
 REPORT_COMMANDS: dict[str, tuple[str, ...]] = {
-    EXTENSIONS_REPORT_ID: (CreateExtension.name, DropExtension.name),
     ROLES_REPORT_ID: (CreateRole.name,),
 }
 

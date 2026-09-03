@@ -1,5 +1,13 @@
-"""Bounded, read-only PostgreSQL relation DDL."""
+"""Bounded, read-only SQL about one node: a relation's DDL, or a report's own
+statement.
 
+Two things and not one, because a report has no DDL — there is nothing on the
+server to recreate — and the question a person asks by opening it is the same
+one they ask of a table's DDL: what is this, really. The statement is written
+in this repository (D55), so answering costs no round trip.
+"""
+
+import textwrap
 from collections.abc import Mapping, Sequence
 from typing import Any
 
@@ -7,6 +15,7 @@ from psycopg import sql
 
 from app.adapters.content import ContentRequest, ContentResult, SqlContent
 from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.system_reports import SystemReport, report_for
 from app.adapters.protocol import NodeNotFound
 
 MAX_DDL_BYTES = 256 * 1024
@@ -102,6 +111,10 @@ class PostgresContent:
                 f'This PostgreSQL source does not offer the "{request.representation}" '
                 "content representation"
             )
+        report = report_for(request.node_id)
+        if report is not None:
+            return _report_statement(report)
+
         schema, separator, relation = request.node_id.partition(".")
         if not separator or not schema or not relation:
             raise ValueError(
@@ -155,6 +168,15 @@ class PostgresContent:
                 else None
             ),
         )
+
+
+def _report_statement(report: SystemReport) -> ContentResult:
+    """What the report runs, as it is written here.
+
+    Dedented rather than passed on as it sits in the source, where every line
+    carries the indentation of the Python file it lives in.
+    """
+    return SqlContent(text=textwrap.dedent(report.statement.as_string()).strip())
 
 
 def _relation_ddl(

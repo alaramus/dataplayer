@@ -478,9 +478,18 @@ be asked to write the join.
 - The six reports PostgreSQL publishes are processes, settings, tablespaces,
   roles, routines and extensions. Extensions is one report where the old
   application had two, because `pg_available_extensions` already states the
-  installed version.
+  installed version — and it is where extensions are installed and removed,
+  on its own rows ([D70](relations.md)).
 - A report is not a relation and answers no relation model: `describable` is
   false, and a subquery has no constraints, indexes or owner.
+- **A report offers its own statement as a second representation.** It has no
+  DDL — there is nothing on the server to recreate — but the question a person
+  asks by opening a table's DDL is the same one they ask here: what is this,
+  really. So a report is read as rows and as `sql`, and the statement is
+  written in this repository, which is why answering costs no round trip. The
+  same text is what "open as a query" puts in a console, because there is
+  nothing to select *from*: a report is a statement, and wrapping it in another
+  one would hide what it is.
 - Another adapter gets this for nothing: a queue's consumer lag and a container
   runtime's process list are the same shape, and the kind is not named after
   PostgreSQL.

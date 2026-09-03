@@ -4690,6 +4690,10 @@ export type RowCommand = {
    * Identified By
    */
   identified_by: string
+  /**
+   * Changes Structure
+   */
+  changes_structure?: boolean
 }
 
 /**

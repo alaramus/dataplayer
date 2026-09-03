@@ -40,6 +40,12 @@ class RowCommand(BaseModel):
     # that is what every command that exists needs; a compound key is a
     # different contract and is not invented before somebody has one.
     identified_by: str = Field(min_length=1)
+    # Whether running it can leave the catalog of this connection different
+    # from what is on screen. Installing an extension brings schemas, types and
+    # functions with it; cancelling a query brings nothing. Said by the command
+    # because only the command knows, and read by the client to decide whether
+    # anything but the grid has to be read again (D66).
+    changes_structure: bool = False
 
 
 class RowCommandResult(BaseModel):

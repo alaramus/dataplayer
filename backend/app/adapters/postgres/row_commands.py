@@ -1,13 +1,17 @@
-"""Acting on the backends PostgreSQL reports about itself.
+"""Acting on the rows of the reports PostgreSQL writes about itself.
 
-The Processes report (D55) lists what is connected and what each of them is
-doing. Reading it and being unable to do anything about a statement that has
-been running for an hour is half a tool, and the old application had the other
-half: `cancel` and `terminate` on a pid.
+Two reports have something to act on. The Processes report (D55) lists what is
+connected and what each backend is doing; reading it and being unable to stop a
+statement that has been running for an hour is half a tool, and the old
+application had the other half. The Extensions report lists what this server
+offers and what is installed, and the thing a person does there is install one
+and remove another — from the list, on the rows they are already looking at,
+rather than by typing a name into a form that names nothing else.
 
-Both statements are written here and never composed from anything a request
-carries. A request chooses a command by name from the two below; the pids it
-sends are bound as an array parameter, and the server does the rest.
+No statement here is composed from anything a request carries. A request
+chooses a command by name from the ones below; the pids it sends are bound as
+an array parameter, and an extension name selects a row of the server's own
+catalog whose spelling is what reaches the statement.
 """
 
 from collections.abc import Sequence
@@ -16,15 +20,20 @@ from dataclasses import dataclass
 from psycopg import sql
 
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.system_reports import PROCESSES_REPORT_ID
+from app.adapters.postgres.system_reports import (
+    EXTENSIONS_REPORT_ID,
+    PROCESSES_REPORT_ID,
+)
 from app.adapters.row_commands import (
     RowCommand,
     RowCommandResult,
     UnknownRowCommand,
 )
 
-# The column of the Processes report that names a backend.
+# The column of the Processes report that names a backend, and the column of
+# the Extensions report that names an extension.
 PID_COLUMN = "pid"
+NAME_COLUMN = "name"
 
 # How many backends one request may act on. A person picks rows out of a page,
 # and a page has a ceiling of its own; this is the same statement made where
@@ -80,6 +89,62 @@ TERMINATE = _Runnable(
 _RUNNABLE = {runnable.command.name: runnable for runnable in (CANCEL, TERMINATE)}
 
 
+# What the server says when a change to its extensions cannot be made. Named
+# codes rather than the driver's text, which carries the connection string.
+EXTENSION_REFUSALS = {
+    # duplicate_object: a backstop. Installing one already installed is
+    # refused by name before the statement runs, but two callers can still
+    # race, and the second must read like a refusal rather than a fault.
+    "42710": "it is already installed",
+    # dependent_objects_still_exist.
+    "2BP01": "something in this database is built on it",
+    # insufficient_privilege: installing one usually needs a superuser.
+    "42501": "this connection may not change the extensions of this server",
+    # undefined_file: the extension is listed but its files are not installed.
+    "58P01": "the server lists it but cannot find its files",
+    # undefined_object: it is built on an extension that is not there, which
+    # CASCADE normally settles — so this is a server that refuses that too.
+    "42704": "it needs another extension that is not installed",
+}
+
+INSTALL_EXTENSION = RowCommand(
+    name="install_extension",
+    title="Install",
+    description=(
+        "Install these on this server. Anything one of them is built on is "
+        "installed with it."
+    ),
+    requires="structure",
+    identified_by=NAME_COLUMN,
+    # An extension arrives with schemas, types and functions of its own.
+    changes_structure=True,
+)
+
+DROP_EXTENSION = RowCommand(
+    name="drop_extension",
+    title="Remove",
+    description=(
+        "Remove these from this server. Whatever was built on one is kept and "
+        "the server refuses instead, rather than the removal taking it too."
+    ),
+    destructive=True,
+    requires="structure",
+    identified_by=NAME_COLUMN,
+    changes_structure=True,
+)
+
+# How many extensions one request may change. A person picks rows out of a
+# page, and each one here is a DDL statement of its own.
+MAX_EXTENSIONS = 50
+
+# Which report offers which commands. A table rather than a chain of
+# comparisons, so a report that gains a command is an entry here.
+_OFFERED: dict[str, tuple[RowCommand, ...]] = {
+    PROCESSES_REPORT_ID: (CANCEL.command, TERMINATE.command),
+    EXTENSIONS_REPORT_ID: (INSTALL_EXTENSION, DROP_EXTENSION),
+}
+
+
 class PostgresRowCommands:
     """The commands PostgreSQL offers over the rows of its own reports."""
 
@@ -87,15 +152,13 @@ class PostgresRowCommands:
         self._session = session
 
     def for_node(self, node_id: str) -> list[RowCommand]:
-        """What this node offers. Nothing, for everything but one report.
+        """What this node offers. Nothing, for every node but two reports.
 
-        Said here rather than in the report's own declaration because it is
+        Said here rather than in each report's own declaration because it is
         this module that can carry them out: a report that named a command
         nobody implements would be a promise with nothing behind it.
         """
-        if node_id != PROCESSES_REPORT_ID:
-            return []
-        return [runnable.command for runnable in (CANCEL, TERMINATE)]
+        return list(_OFFERED.get(node_id, ()))
 
     async def run(
         self, node_id: str, name: str, keys: Sequence[str]
@@ -103,6 +166,8 @@ class PostgresRowCommands:
         offered = {command.name for command in self.for_node(node_id)}
         if name not in offered:
             raise UnknownRowCommand(name)
+        if node_id == EXTENSIONS_REPORT_ID:
+            return await self._extensions(name, keys)
         runnable = _RUNNABLE[name]
         if len(keys) > MAX_KEYS:
             raise ValueError(f"At most {MAX_KEYS} processes at a time")
@@ -136,6 +201,85 @@ class PostgresRowCommands:
             done=len(acted),
             refused=refused,
         )
+
+
+    async def _extensions(self, name: str, keys: Sequence[str]) -> RowCommandResult:
+        """Install or remove the extensions these rows name, one at a time.
+
+        One statement each rather than one for all of them: DDL cannot be
+        parameterised, each is refused for its own reason, and a person who
+        ticked four rows wants to be told which of the four the server would
+        not do.
+        """
+        if len(keys) > MAX_EXTENSIONS:
+            raise ValueError(f"At most {MAX_EXTENSIONS} extensions at a time")
+        installing = name == INSTALL_EXTENSION.name
+        done: list[str] = []
+        refused: list[str] = []
+        for typed in keys:
+            named = await self._extension_named(typed, installing=installing)
+            if named is None:
+                refused.append(
+                    f'"{typed}" is not offered by this server'
+                    if installing
+                    else f'"{typed}" is not installed'
+                )
+                continue
+            statement = (
+                # CASCADE here means "install what this one is built on", which
+                # is a different promise from a cascading drop: it adds, and
+                # what it adds is what the chosen extension needs to exist.
+                sql.SQL("CREATE EXTENSION {} CASCADE")
+                if installing
+                else sql.SQL("DROP EXTENSION {}")
+            ).format(sql.Identifier(named))
+            try:
+                await self._session.schema_change(
+                    statement.as_string(), refusals=EXTENSION_REFUSALS
+                )
+            except ValueError as refusal:
+                refused.append(f"{named}: {refusal}")
+                continue
+            done.append(named)
+        return RowCommandResult(
+            message=_extension_said(
+                done=len(done),
+                asked=len(keys),
+                verb="installed" if installing else "removed",
+            ),
+            done=len(done),
+            refused=refused,
+        )
+
+    async def _extension_named(self, typed: str, *, installing: bool) -> str | None:
+        """The server's own spelling of an extension, or nothing.
+
+        The client's text selects a row; the identifier that reaches the
+        statement is the name that came back, never the string that was sent.
+        So the only extension that can be named is one this server already
+        lists, and in the state the command needs it to be in.
+        """
+        if installing:
+            rows = await self._session.query(
+                """
+                SELECT name FROM pg_available_extensions
+                WHERE name = %s AND installed_version IS NULL
+                """,
+                (typed,),
+            )
+        else:
+            rows = await self._session.query(
+                "SELECT extname AS name FROM pg_extension WHERE extname = %s",
+                (typed,),
+            )
+        return str(rows[0]["name"]) if rows else None
+
+
+def _extension_said(*, done: int, asked: int, verb: str) -> str:
+    subject = "extension" if asked == 1 else "extensions"
+    if done == asked:
+        return f"{done} {subject} {verb}"
+    return f"{done} of {asked} {subject} {verb}"
 
 
 def _pids(keys: Sequence[str]) -> tuple[list[int], list[str]]:

@@ -337,12 +337,12 @@ class PostgresFetch:
             delete_supported=False,
             delete_reason=refused,
             refresh_seconds=report.refresh_seconds,
-            # A report is the server describing what it is doing, not data
-            # somebody is keeping. Charting it, sharing a link to it or making
-            # a table out of it are all answers to a question nobody asked of
-            # it, and the room they take is room the commands that matter
-            # here do not have (D72).
-            page_commands=[],
+            # A page of a report is still a page: it is downloaded, shared,
+            # charted and opened as a query like any other. Only one command
+            # is withdrawn — a report is the server describing itself, and a
+            # table made out of that would be a copy of a moment nobody can
+            # refresh (D72).
+            page_commands=["download", "chart", "share", "query"],
         )
 
     async def _types_by_oid(self, oids: list[int]) -> dict[int, dict[str, Any]]:

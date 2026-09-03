@@ -8,9 +8,12 @@ Everything is bounded, and the answer says whether it was cut short: a console
 that has not been told about a relation must not underline it in red.
 """
 
+import textwrap
+
 from psycopg import sql
 
 from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.system_reports import report_for
 from app.adapters.query import (
     ColumnSummary,
     GeneratedQuery,
@@ -179,6 +182,18 @@ class PostgresGeneration:
         self._metadata = metadata
 
     async def generate(self, request: GenerateQueryRequest) -> GeneratedQuery:
+        report = report_for(request.node_id)
+        if report is not None:
+            # A report is a statement rather than a relation, so what a console
+            # opens on is that statement itself: there is nothing to select
+            # from, and wrapping it in one would hide what it is.
+            if request.kind != "select":
+                raise ValueError(
+                    f'"{request.node_id}" is a report and has no name to write'
+                )
+            return GeneratedQuery(
+                text=textwrap.dedent(report.statement.as_string()).strip()
+            )
         parts = _split(request.node_id)
         if parts is None:
             raise ValueError(f'"{request.node_id}" is not a relation of this source')

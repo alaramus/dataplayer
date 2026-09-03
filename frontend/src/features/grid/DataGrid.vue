@@ -54,6 +54,8 @@ import {
   startingRefresh,
 } from "./autoRefresh"
 import type { RefreshSeconds } from "./autoRefresh"
+import { useSourceChangesStore } from "@/stores/sourceChanges"
+
 import { commandOutcome, commandQuestion, keysOf } from "./rowCommands"
 import CellEditorDialog from "./CellEditorDialog.vue"
 import CreateTableDialog from "./CreateTableDialog.vue"
@@ -984,6 +986,7 @@ function offers(command: PageCommand): boolean {
  */
 const selectedRows = ref<number[]>([])
 const runRowCommand = useRunRowCommand(toRef(props, "connectorId"))
+const changes = useSourceChangesStore()
 
 function keysFor(command: RowCommand): string[] {
   return keysOf(command, result.value?.columns ?? [], rows.value, selectedRows.value)
@@ -1010,6 +1013,10 @@ async function runCommand(command: RowCommand) {
       })
     )
     tabularGrid.value?.clearSelection()
+    // An extension installed here brings schemas and types with it, and the
+    // catalog column holds its rows itself. Which commands leave the source
+    // different is the source's own answer, carried on the command (D66).
+    if (command.changes_structure) changes.announce(props.connectorId)
     if (outcome.failed) toast.error(outcome.text)
     else toast.success(outcome.text)
   } catch (cause) {
