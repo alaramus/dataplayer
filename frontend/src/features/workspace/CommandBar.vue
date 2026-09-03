@@ -2,7 +2,7 @@
 import { computed, ref } from "vue"
 
 import { adapterIcon } from "@/features/connectors/adapters"
-import { useConnectors } from "@/features/connectors/api"
+import { useAdapterTypes, useConnectors } from "@/features/connectors/api"
 import { useQueryProfile } from "@/features/queries/runs"
 import BackupsDialog from "@/features/services/BackupsDialog.vue"
 import { useBackupOffer } from "@/features/services/api"
@@ -46,25 +46,49 @@ const supportsQueries = computed<Support>(() => {
 })
 
 /**
- * Whether this server could copy a database out, which is about the machine.
+ * Whether this connection could be copied out, which is two questions.
  *
- * The server answers with a reason when it cannot — no container runtime, or
- * nowhere to write what a dump produces — and the reason is what the button
- * says (D87).
+ * The machine is one: the server answers with a reason when it cannot — no
+ * container runtime, or nowhere to write what a dump produces (D87). The
+ * source is the other, and it is read where every other capability is read,
+ * off the type: a driver that can name a program to dump it declares
+ * `backup`, and a file source and a Redis server do not (D2).
+ *
+ * A button offered on a connection that would be refused is the thing this
+ * exists to stop, so the refusal names whichever of the two said no.
  */
 const offer = useBackupOffer()
+const adapterTypes = useAdapterTypes()
+
+const sourceCanBackUp = computed<Support>(() => {
+  const adapterType = connector.value?.adapter_type
+  if (adapterType === undefined) return "no"
+  if (adapterTypes.data.value === undefined) return "asking"
+  return (adapterTypes.data.value.find((type) => type.name === adapterType)
+    ?.capabilities.some((capability) => capability.code === "backup") ?? false)
+    ? "yes"
+    : "no"
+})
+
 const supportsBackups = computed<Support>(() => {
   if (workspace.activeConnectorId.value === null) return "no"
+  if (sourceCanBackUp.value !== "yes") return sourceCanBackUp.value
   if (offer.isLoading.value) return "asking"
   return offer.data.value?.available ? "yes" : "no"
 })
+
+const backupsRefusal = computed(() =>
+  sourceCanBackUp.value === "no"
+    ? "This kind of connection cannot be copied out"
+    : (offer.data.value?.reason ?? undefined)
+)
 
 const commands = computed(() =>
   connectionCommands({
     name: connector.value?.name ?? null,
     supportsQueries: supportsQueries.value,
     supportsBackups: supportsBackups.value,
-    backupsRefusal: offer.data.value?.reason ?? undefined,
+    backupsRefusal: backupsRefusal.value,
   })
 )
 

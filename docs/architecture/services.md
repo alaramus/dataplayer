@@ -47,6 +47,7 @@ GET    /api/v1/backups/
 GET    /api/v1/backups/offer
 POST   /api/v1/backups/
 POST   /api/v1/backups/restore
+DELETE /api/v1/backups/{filename}
 ```
 
 ## D80. An approved service is written in code, and a client names one
@@ -424,7 +425,13 @@ version it is, and the program runs in the image of that version.
   not encrypted.
 - **A backup is named, not pathed.** The name is matched against the files in
   one folder, so nothing resolves a path a client wrote — D8's containment
-  rule, kept by having nothing to contain.
+  rule, kept by having nothing to contain. Deleting one is that same match and
+  then an `unlink`: no job, because removing a file is not minutes of work.
+- **Which sources this is offered for is read off the driver.** `SupportsBackup`
+  puts a `backup` capability on the type, the button is greyed out where the
+  type does not declare it, and pressing it anyway answers 501. Two questions,
+  not one: whether the machine can run the program at all is the offer, and
+  whether this source can name one is the capability.
 - **Backing up is the owner's.** Copying a database out whole is every row,
   every schema and every function in one file the caller keeps, which is more
   than a read.
@@ -432,7 +439,8 @@ version it is, and the program runs in the image of that version.
 Known deviations:
 
 - **Only PostgreSQL.** Redis has no equivalent here, and the file source's
-  answer to "back this up" is that it is already files.
+  answer to "back this up" is that it is already files. Both say so by not
+  declaring the capability, which is what greys the button out.
 - **No schedule and no retention.** A backup happens when somebody presses the
   button, and stays until they delete it.
 - **A dump is not verified.** Nothing reads it back to check it can be

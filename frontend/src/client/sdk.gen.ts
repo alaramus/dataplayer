@@ -14,6 +14,9 @@ import type {
   backupsBackUpData,
   backupsBackUpErrors,
   backupsBackUpResponses,
+  backupsDeleteBackupData,
+  backupsDeleteBackupErrors,
+  backupsDeleteBackupResponses,
   backupsReadBackupOfferData,
   backupsReadBackupOfferResponses,
   backupsReadBackupsData,
@@ -2449,6 +2452,36 @@ export class BackupsService {
     return (options?.client ?? client).get<backupsReadBackupOfferResponses, unknown, ThrowOnError>({
       responseType: "json",
       url: "/api/v1/backups/offer",
+      ...options,
+    })
+  }
+
+  /**
+   * Delete Backup
+   *
+   * Take one of your own backups away.
+   *
+   * Straight through rather than as a job: removing a file is not minutes, and
+   * a job for it would be a row nobody watches. The name is matched against
+   * the files in one folder, exactly as a restore matches it, so nothing here
+   * resolves a path a client wrote — and a name carrying a separator does not
+   * reach this route at all, because the path would not match.
+   *
+   * The same file can also be deleted through the file source, which is what
+   * personal storage is. Both are offered because both are where a person
+   * looks: one while browsing their files, one while looking at their backups.
+   */
+  public static deleteBackup<ThrowOnError extends boolean = true>(
+    options: Options<backupsDeleteBackupData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      backupsDeleteBackupResponses,
+      backupsDeleteBackupErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/backups/{filename}",
       ...options,
     })
   }

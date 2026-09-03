@@ -82,6 +82,19 @@ describe("what the bar says about copying a database out", () => {
     expect(command.tooltip).toBe("This server has nowhere to write a backup")
   })
 
+  it("says so when the source is not one that can be copied out", () => {
+    // The other half of the question, read off the type's capabilities: a
+    // file source and a Redis server name no program that would dump them,
+    // and the route answers 501 to anyone who presses it anyway.
+    const command = backups({
+      supportsBackups: "no",
+      backupsRefusal: "This kind of connection cannot be copied out",
+    })
+
+    expect(command.enabled).toBe(false)
+    expect(command.tooltip).toBe("This kind of connection cannot be copied out")
+  })
+
   it("says nothing about it before the server has answered", () => {
     expect(backups({ supportsBackups: "asking" }).enabled).toBe(false)
   })

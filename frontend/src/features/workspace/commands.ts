@@ -23,11 +23,14 @@ export interface ConnectionState {
   name: string | null
   supportsQueries: Support
   /**
-   * Whether this server could copy a database out at all.
+   * Whether this connection could be copied out, which is two questions.
    *
-   * Not about the source: about the machine — a container runtime to run
-   * `pg_dump` in and somewhere to write what it produces (D87). The server
-   * answers it, and the reason it gives is what the button says.
+   * One is about the machine — a container runtime to run `pg_dump` in and
+   * somewhere to write what it produces (D87) — and the server answers it for
+   * the installation. The other is about the source: only a type whose driver
+   * can name a program that dumps it declares the `backup` capability, and
+   * neither a file source nor a Redis server does. Both must say yes, and the
+   * refusal is whichever one said no.
    */
   supportsBackups: Support
   backupsRefusal?: string

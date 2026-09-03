@@ -115,6 +115,25 @@ dump of the application's own database taken with one press.
 statement, its consequences and the known deviations are in
 [managed services](../../architecture/services.md).
 
+## What the screen offers it for
+
+The offer was about the machine only, at first — a container runtime and a
+volume to write into — so the button was live on every connection, and a file
+source or a Redis server would have started a job that failed on the sentence
+"this kind of connection cannot be backed up". The job was right and the
+button was a lie.
+
+Whether a source can be copied out is a capability, and capabilities in this
+application are read off the driver rather than listed: `SupportsBackup` now
+puts "Copy the whole database out" on the type's own card, the bar greys the
+button out where the type does not declare it, and the two routes answer 501
+before a job exists. One list decides the refusal, the tooltip and what the
+catalog says a type can do.
+
+Deleting a backup went in at the same time, because a folder that only fills
+up is a folder people stop using. It is a file, so it is an `unlink` and not a
+job, and the name goes through the same match a restore uses.
+
 ## What is not here
 
 A schedule, a retention rule, a backup of anything but PostgreSQL, and a

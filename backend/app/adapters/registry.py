@@ -10,6 +10,7 @@ from app.adapters.options import OptionsSchema
 from app.adapters.protocol import (
     DataAdapter,
     SupportsAddColumn,
+    SupportsBackup,
     SupportsCatalog,
     SupportsContent,
     SupportsContentEdit,
@@ -79,7 +80,7 @@ CapabilityGroup = Literal["explore", "manage"]
 # reworded tomorrow; a code is a promise. Only what a screen has actually had
 # to ask about carries one, so this grows when a question is asked rather than
 # in advance — and everything else stays what it is, something to read.
-CapabilityCode = Literal["search"]
+CapabilityCode = Literal["search", "backup"]
 
 
 class Capability(BaseModel):
@@ -192,6 +193,14 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(Capability(group="manage", title="Insert rows"))
     if issubclass(driver, SupportsDelete):
         found.append(Capability(group="manage", title="Delete rows"))
+    if issubclass(driver, SupportsBackup):
+        found.append(
+            Capability(
+                group="manage",
+                title="Copy the whole database out",
+                code="backup",
+            )
+        )
     if issubclass(driver, DeclaresActions):
         found.extend(
             Capability(

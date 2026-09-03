@@ -543,7 +543,7 @@ export type Capability = {
   /**
    * Code
    */
-  code?: "search" | null
+  code?: "search" | "backup" | null
 }
 
 /**
@@ -9055,6 +9055,37 @@ export type backupsReadBackupOfferResponses = {
 
 export type backupsReadBackupOfferResponse =
   backupsReadBackupOfferResponses[keyof backupsReadBackupOfferResponses]
+
+export type backupsDeleteBackupData = {
+  body?: never
+  path: {
+    /**
+     * Filename
+     */
+    filename: string
+  }
+  query?: never
+  url: "/api/v1/backups/{filename}"
+}
+
+export type backupsDeleteBackupErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type backupsDeleteBackupError = backupsDeleteBackupErrors[keyof backupsDeleteBackupErrors]
+
+export type backupsDeleteBackupResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type backupsDeleteBackupResponse =
+  backupsDeleteBackupResponses[keyof backupsDeleteBackupResponses]
 
 export type backupsRestoreData = {
   body: RestoreRequest

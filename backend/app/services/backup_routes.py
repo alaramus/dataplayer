@@ -6,7 +6,11 @@ from anyio import to_thread
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from app.adapters import registry
+from app.adapters.protocol import SupportsBackup
+from app.connectors.models import Connector
 from app.core.db import SessionDep
+from app.core.schemas import Message
 from app.jobs import crud as job_crud
 from app.jobs.models import JobPublic
 from app.jobs.models import public as job_public
@@ -92,6 +96,27 @@ async def read_backup_offer(engine: ServiceEngineDep) -> Any:
     return BackupOffer(available=True)
 
 
+@router.delete("/{filename}", response_model=Message)
+async def delete_backup(current_user: CurrentUser, filename: str) -> Any:
+    """
+    Take one of your own backups away.
+
+    Straight through rather than as a job: removing a file is not minutes, and
+    a job for it would be a row nobody watches. The name is matched against
+    the files in one folder, exactly as a restore matches it, so nothing here
+    resolves a path a client wrote — and a name carrying a separator does not
+    reach this route at all, because the path would not match.
+
+    The same file can also be deleted through the file source, which is what
+    personal storage is. Both are offered because both are where a person
+    looks: one while browsing their files, one while looking at their backups.
+    """
+    name = await to_thread.run_sync(_one_of_their_own, current_user.id, filename)
+    folder = storage.home_dir(current_user.id) / BACKUP_FOLDER
+    await to_thread.run_sync((folder / name).unlink)
+    return Message(message=f"{name} was deleted")
+
+
 @router.post("/", response_model=JobPublic)
 async def back_up(
     session: SessionDep,
@@ -107,7 +132,8 @@ async def back_up(
     A job, because a dump of anything real is minutes: the request records it
     and answers, and what happens is watched like any other work (D81).
     """
-    await _own_connector_or_404(session, body.connector_id, current_user.id)
+    connector = await _own_connector_or_404(session, body.connector_id, current_user.id)
+    _refuse_unless_the_source_can(connector)
     await _refuse_unless_possible(engine)
     job = await job_crud.create(
         session,
@@ -137,7 +163,8 @@ async def restore(
     one of the caller's own backups, and a name is checked against that folder
     rather than resolved as a path.
     """
-    await _own_connector_or_404(session, body.connector_id, current_user.id)
+    connector = await _own_connector_or_404(session, body.connector_id, current_user.id)
+    _refuse_unless_the_source_can(connector)
     await _refuse_unless_possible(engine)
     if not body.understood:
         raise HTTPException(
@@ -209,7 +236,7 @@ async def _refuse_unless_possible(engine: ServiceEngineDep) -> None:
 
 async def _own_connector_or_404(
     session: SessionDep, connector_id: uuid.UUID, owner_id: uuid.UUID
-) -> None:
+) -> Connector:
     """A backup is the owner's, not a grant's.
 
     Copying a database out whole is more than reading it: it is every row,
@@ -217,12 +244,30 @@ async def _own_connector_or_404(
     what that needs, and somebody else's connection is not found rather than
     refused (D33).
     """
-    from app.connectors.models import Connector
-
     connector = await session.get(Connector, connector_id)
     if connector is None or connector.owner_id != owner_id:
         raise HTTPException(
             status_code=404, detail={"message": "No such connection"}
+        )
+    return connector
+
+
+def _refuse_unless_the_source_can(connector: Connector) -> None:
+    """Not every kind of connection can be copied out, and 501 says so.
+
+    Asked of the type rather than of an instance: whether a source can name a
+    program that dumps it is a property of its driver, which is what the
+    catalog reads to put "Copy the whole database out" on the type's own card.
+    The job checks again when it builds the adapter — this is here so that a
+    button which would be refused can be greyed out instead of pressed, and so
+    that pressing it anyway does not leave a failed job behind (D2d).
+    """
+    if not issubclass(
+        registry.get(connector.adapter_type).adapter_class, SupportsBackup
+    ):
+        raise HTTPException(
+            status_code=501,
+            detail={"message": "This kind of connection cannot be copied out"},
         )
 
 

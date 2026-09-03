@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
-import { useBackUp, useBackupOffer, useBackups, useRestore } from "@/features/services/api"
+import {
+  useBackUp,
+  useBackupOffer,
+  useBackups,
+  useDeleteBackup,
+  useRestore,
+} from "@/features/services/api"
 import { messageOf } from "@/shared/api/errors"
 import {
   AppBanner,
   AppButton,
   AppEmptyState,
+  AppIconButton,
   AppSpinner,
   useConfirm,
   useToast,
@@ -31,6 +38,7 @@ const offer = useBackupOffer()
 const backups = useBackups()
 const backUp = useBackUp()
 const restore = useRestore()
+const forget = useDeleteBackup()
 const toast = useToast()
 const confirm = useConfirm()
 const working = ref(false)
@@ -69,6 +77,33 @@ async function take() {
  * from the target first — and the request says so again to the server, which
  * refuses one that does not (D87).
  */
+/**
+ * Taking one away, which is a file and nothing more.
+ *
+ * Not a job: removing a file is not minutes of work, so it happens while the
+ * window is open and the list is what says it happened. The same file can also
+ * be deleted through the file source — this is the second place a person
+ * looks, not a second way of storing them.
+ */
+async function remove(filename: string) {
+  const sure = await confirm({
+    title: "Delete this backup?",
+    message: `${filename} will be removed from your storage. This cannot be undone.`,
+    confirmLabel: "Delete",
+    danger: true,
+  })
+  if (!sure) return
+  working.value = true
+  try {
+    await forget.mutateAsync(filename)
+    toast.success(`${filename} was deleted`)
+  } catch (cause) {
+    toast.error(messageOf(cause, "It could not be deleted"))
+  } finally {
+    working.value = false
+  }
+}
+
 async function putBack(filename: string) {
   const connector = props.connector
   if (!connector) return
@@ -147,6 +182,15 @@ async function putBack(filename: string) {
           :disable="working || !(offer.data.value?.available ?? false)"
           :data-testid="`restore-${file.filename}`"
           @click="putBack(file.filename)"
+        />
+        <!-- Deleting a file needs no runtime and no volume to write into, so
+             it stays offered where restoring is not. -->
+        <AppIconButton
+          icon="delete_outline"
+          tooltip="Delete this backup"
+          :disable="working"
+          :data-testid="`delete-backup-${file.filename}`"
+          @click="remove(file.filename)"
         />
       </div>
     </div>

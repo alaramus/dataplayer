@@ -123,6 +123,9 @@ async def test_reports_what_a_type_can_do(
         "Install extension",
         "Remove extension",
         "New role",
+        # Not an action: a capability read off `SupportsBackup`, which is what
+        # greys the Backups button out on a source that has no such program.
+        "Copy the whole database out",
     }
     assert "Upload files" in files
     assert "Delete" in files

@@ -133,6 +133,17 @@ export function useBackUp() {
   })
 }
 
+export function useDeleteBackup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (filename: string) =>
+      (await BackupsService.deleteBackup({ path: { filename } })).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: backupsKey })
+    },
+  })
+}
+
 export function useRestore() {
   const queryClient = useQueryClient()
   return useMutation({

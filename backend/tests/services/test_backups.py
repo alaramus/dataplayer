@@ -9,6 +9,7 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel import delete
 
+from app.adapters import registry
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.jobs.models import Job
@@ -171,6 +172,63 @@ async def test_somebody_else_s_connection_cannot_be_copied_out(
 
 
 @pytest.mark.usefixtures("engine")
+async def test_a_source_that_cannot_be_copied_out_answers_501(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The rule every capability follows, said before a job exists.
+
+    A file source names no program that would dump it, so it does not
+    implement `SupportsBackup` — and the button that offers it is greyed out
+    by reading the same capability off the type.
+    """
+    made = await client.post(
+        f"{CONNECTORS}/",
+        headers=normal_user_token_headers,
+        json={
+            "name": f"files {uuid.uuid4()}",
+            "adapter_type": "file",
+            "options": {"path": "/"},
+        },
+    )
+    assert made.status_code == 200, made.text
+    connector_id = str(made.json()["id"])
+
+    copied = await client.post(
+        f"{BASE}/", headers=normal_user_token_headers, json={"connector_id": connector_id}
+    )
+    put_back = await client.post(
+        f"{BASE}/restore",
+        headers=normal_user_token_headers,
+        json={
+            "connector_id": connector_id,
+            "filename": "anything.dump",
+            "understood": True,
+        },
+    )
+
+    assert copied.status_code == 501
+    assert put_back.status_code == 501
+    assert copied.json()["detail"]["message"] == (
+        "This kind of connection cannot be copied out"
+    )
+
+
+def test_the_backup_capability_is_read_off_the_driver() -> None:
+    """So one list decides both the refusal and what the button offers."""
+    codes = {
+        capability.code
+        for capability in registry.capabilities_of(registry.get("postgres"))
+    }
+    others = {
+        capability.code
+        for capability in registry.capabilities_of(registry.get("file"))
+    }
+
+    assert "backup" in codes
+    assert "backup" not in others
+
+
+@pytest.mark.usefixtures("engine")
 async def test_without_a_place_to_write_it_the_offer_says_so(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
@@ -270,6 +328,44 @@ async def test_a_backup_that_is_not_theirs_is_not_found(
             },
         )
         assert refused.status_code == 404, name
+
+
+@pytest.mark.usefixtures("engine")
+async def test_a_backup_can_be_deleted_and_only_by_its_owner(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    superuser_token_headers: dict[str, str],
+) -> None:
+    """The same rule the restore uses: a name matched in one folder."""
+    owner = await _owner_of(await _connector(client, normal_user_token_headers))
+    written = _write_backup(owner, "old.dump")
+
+    refused = await client.delete(
+        f"{BASE}/old.dump", headers=superuser_token_headers
+    )
+    assert refused.status_code == 404
+    assert written.exists()
+
+    deleted = await client.delete(f"{BASE}/old.dump", headers=normal_user_token_headers)
+
+    assert deleted.status_code == 200
+    assert not written.exists()
+    listed = await client.get(f"{BASE}/", headers=normal_user_token_headers)
+    assert "old.dump" not in [row["filename"] for row in listed.json()]
+
+
+@pytest.mark.usefixtures("engine")
+async def test_a_name_that_is_not_a_plain_name_reaches_no_folder(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Nothing resolves a path a client wrote: the route does not match one."""
+    escaped = await client.delete(
+        f"{BASE}/../../etc/passwd", headers=normal_user_token_headers
+    )
+    unknown = await client.delete(f"{BASE}/never.dump", headers=normal_user_token_headers)
+
+    assert escaped.status_code in {404, 405}
+    assert unknown.status_code == 404
 
 
 @pytest.mark.usefixtures("engine")
