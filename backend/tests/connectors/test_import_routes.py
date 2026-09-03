@@ -153,6 +153,97 @@ async def test_creates_a_relation_from_another_source_with_chosen_columns(
     assert sorted(rows.json()["rows"]) == [["AP", "8"], ["US", "7"]]
 
 
+async def test_a_folder_accepts_a_new_relation_and_keeps_it_as_a_file(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+) -> None:
+    """The same command, the same dialog, a source that has no CREATE TABLE."""
+    files = await _files(client, normal_user_token_headers)
+    node = _csv(home, "id,code\n7,US\n8,AP\n")
+    folder = f"made-{uuid.uuid4()}"
+    (home / folder).mkdir()
+
+    options = await client.post(
+        f"{BASE}/{files}/relations/options",
+        headers=normal_user_token_headers,
+        json={"parent_node_id": folder},
+    )
+    created = await client.post(
+        f"{BASE}/{files}/relations/from-source",
+        headers=normal_user_token_headers,
+        json=_create(
+            folder,
+            files,
+            node,
+            "regions",
+            [("code", "region_code", "text"), ("id", "source_id", "text")],
+        ),
+    )
+
+    assert options.status_code == 200, options.text
+    assert options.json()["supported"] is True
+    assert [
+        option["code"] for option in options.json()["column_type_options"]
+    ] == ["text"]
+    assert created.status_code == 200, created.text
+    assert created.json()["inserted"] == 2
+    # The node the catalog would have listed, so the row opens like any other.
+    assert created.json()["node"]["name"] == "regions.csv"
+
+    rows = await client.post(
+        f"{BASE}/{files}/fetch",
+        headers=normal_user_token_headers,
+        json={"node_id": f"{folder}/regions.csv", "limit": 10},
+    )
+    assert [column["name"] for column in rows.json()["columns"]] == [
+        "region_code",
+        "source_id",
+    ]
+    assert rows.json()["rows"] == [["US", "7"], ["AP", "8"]]
+
+
+async def test_a_file_is_not_a_container_for_a_new_relation(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+) -> None:
+    """Answered rather than raised: the screen says why and offers nothing."""
+    files = await _files(client, normal_user_token_headers)
+    node = _csv(home, "id,code\n7,US\n")
+
+    response = await client.post(
+        f"{BASE}/{files}/relations/options",
+        headers=normal_user_token_headers,
+        json={"parent_node_id": node},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["supported"] is False
+    assert response.json()["reason"]
+
+
+async def test_a_name_already_taken_in_the_folder_is_refused(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+) -> None:
+    files = await _files(client, normal_user_token_headers)
+    node = _csv(home, "id,code\n7,US\n")
+    folder = f"made-{uuid.uuid4()}"
+    (home / folder).mkdir()
+    (home / folder / "regions.csv").write_text("kept\n", encoding="utf-8")
+
+    response = await client.post(
+        f"{BASE}/{files}/relations/from-source",
+        headers=normal_user_token_headers,
+        json=_create(folder, files, node, "regions", [("code", "code", "text")]),
+    )
+
+    assert response.status_code == 422, response.text
+    assert (home / folder / "regions.csv").read_text(encoding="utf-8") == "kept\n"
+
+
 async def test_moves_rows_from_a_file_into_a_relation(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

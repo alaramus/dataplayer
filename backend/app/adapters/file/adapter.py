@@ -24,6 +24,7 @@ from app.adapters.file.actions import FILE_ACTION_TYPES, FileActions
 from app.adapters.file.catalog import FileCatalog
 from app.adapters.file.content import FileContent
 from app.adapters.file.fetch import FileFetch
+from app.adapters.file.new_relation import FileNewRelations
 from app.adapters.file.options import FileOptions
 from app.adapters.file.query import FileExecution, FileQuery
 from app.adapters.file.relation import FileRelations
@@ -45,6 +46,11 @@ from app.adapters.query import (
 )
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
+from app.adapters.relation_changes import (
+    CreateRelationRequest,
+    CreateRelationResult,
+    NewRelationOptions,
+)
 from app.adapters.search import NodeSearchRequest, NodeSearchResult
 from app.adapters.summary import NodeSummary
 from app.adapters.update import (
@@ -75,6 +81,7 @@ class FileAdapter:
         self._content = FileContent(self._session)
         self._fetch = FileFetch(self._session)
         self._relations = FileRelations(self._session)
+        self._new_relations = FileNewRelations(self._session)
         self._actions = FileActions(self._session)
         self._table_changes = FileTableChanges(self._session)
         self._summaries = FileSummaries(self._session)
@@ -147,6 +154,14 @@ class FileAdapter:
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relations.relation_model(node_id)
+
+    async def new_relation_options(self, parent_node_id: str) -> NewRelationOptions:
+        return await self._new_relations.new_relation_options(parent_node_id)
+
+    async def create_relation(
+        self, request: CreateRelationRequest
+    ) -> CreateRelationResult:
+        return await self._new_relations.create_relation(request)
 
     async def node_summary(self, node_id: str) -> NodeSummary:
         return await self._summaries.node_summary(node_id)

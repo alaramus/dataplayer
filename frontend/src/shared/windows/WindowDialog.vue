@@ -69,6 +69,16 @@ watch(
   { immediate: true }
 )
 
+// The heading follows the form. It is opened with the title of the moment,
+// and a dialog whose subject changes while it is open — a destination that
+// decides whether this is a table or a file — must not keep the first word.
+watch(
+  () => props.title,
+  (title) => {
+    if (windows.isOpen(id)) windows.retitle(id, { title })
+  }
+)
+
 onBeforeUnmount(() => {
   if (windows.isOpen(id)) windows.close(id)
 })

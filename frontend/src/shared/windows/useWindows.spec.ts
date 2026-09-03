@@ -56,6 +56,31 @@ describe("opening windows", () => {
   })
 })
 
+describe("a window whose subject changes while it is open", () => {
+  it("says the new heading without being reopened", () => {
+    const windows = useWindows()
+    windows.open(windowOf("dialog:create"))
+    const before = first(windows.context.windows.value).key
+
+    windows.retitle("dialog:create", { title: "Save this data as a file" })
+
+    expect(first(windows.context.windows.value).look.title).toBe(
+      "Save this data as a file"
+    )
+    // The same window, so a form in it keeps everything typed into it.
+    expect(first(windows.context.windows.value).key).toBe(before)
+  })
+
+  it("ignores a window that is not open", () => {
+    const windows = useWindows()
+    windows.open(windowOf("a"))
+
+    windows.retitle("gone", { title: "nothing" })
+
+    expect(first(windows.context.windows.value).look.title).toBe("a")
+  })
+})
+
 describe("a window whose id changes", () => {
   it("answers to the new id and no longer to the old", () => {
     const windows = useWindows()

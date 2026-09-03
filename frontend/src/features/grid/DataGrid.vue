@@ -428,9 +428,13 @@ async function createTable(value: {
       },
     })
     createTableOpen.value = false
+    // The destination may be the very connection the catalog beside this is
+    // showing — a folder of the source these rows came from — and a list that
+    // built itself does not re-read on a cache being emptied (D66).
+    changes.announce(value.connectorId)
     toast.success(`Created ${answer.node.name} with ${answer.inserted} rows`)
   } catch (error) {
-    createTableError.value = messageOf(error, "Could not create that table")
+    createTableError.value = messageOf(error, "The new table or file could not be created")
   }
 }
 
@@ -1167,7 +1171,7 @@ defineExpose({
       <AppIconButton
         v-if="offers('create_relation') && result !== undefined && result.columns.length > 0"
         icon="post_add"
-        tooltip="Create table from these rows"
+        tooltip="Keep these rows as a new table or file"
         data-testid="grid-create-table"
         @click="openCreateTable"
       />

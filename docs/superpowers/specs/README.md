@@ -55,7 +55,7 @@ translations; those files are not.
 | 2026-08-30 | [What identifies a row, and what order rows arrive in](2026-08-30-row-identity-and-order-design.md) | D42: a keyless row is versioned by its place, and every page is ordered |
 | 2026-08-30 | [Bringing rows from one source into another](2026-08-30-row-import-design.md) | D43: two connectors, two permissions, one bounded all-or-nothing move |
 | 2026-08-30 | [Exporting every matching row](2026-08-30-streaming-export-design.md) | D44: a source-owned row stream staged as an atomic personal download |
-| 2026-08-30 | [Loading a CSV as a new table](2026-08-30-relation-create-design.md) | D45: a catalog action, and the table and its rows in one transaction |
+| 2026-08-30 | [Loading a CSV as a new table](2026-08-30-relation-create-design.md) | D45: a catalog action, and the table and its rows in one transaction; a source that keeps files takes one as a delimited file |
 | 2026-08-30 | [Dropping a relation, and seeing what goes with it](2026-08-30-relation-drop-design.md) | D46: an action can be asked what it would do, and the answer is the drop rolled back |
 | 2026-08-30 | [Native file representations](2026-08-30-file-representations-design.md) | D47: a node declares ordered views; native content and table fetch stay separate |
 | 2026-08-30 | [Editing a file in place](2026-08-30-content-editing-design.md) | D48: the source issues an opaque version, and a save must still match it |

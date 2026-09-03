@@ -3,7 +3,9 @@ import { computed, ref, watch } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type { FetchColumn, NewRelationColumn, NewRelationOptions } from "@/client"
-import { useConnectors } from "@/features/connectors/api"
+import { useAdapterTypes, useConnectors } from "@/features/connectors/api"
+import { placesIn } from "@/features/grid/relationPlaces"
+import type { Destination } from "@/features/grid/relationPlaces"
 import { messageOf } from "@/shared/api/errors"
 import {
   AppBanner,
@@ -40,8 +42,9 @@ const emit = defineEmits<{
 }>()
 
 const connectors = useConnectors()
+const adapterTypes = useAdapterTypes()
 const connectorId = ref("")
-const schemas = ref<{ label: string; value: string }[]>([])
+const schemas = ref<{ label: string; value: string; kind: Destination }[]>([])
 const schemaId = ref("")
 const tableName = ref("")
 const options = ref<NewRelationOptions | null>(null)
@@ -52,15 +55,41 @@ const trouble = ref("")
 let catalogAsked = 0
 let optionsAsked = 0
 
+/** The source types that will take a new relation at all, by their code. */
+const creating = computed(
+  () =>
+    new Set(
+      (adapterTypes.data.value ?? [])
+        .filter((type) =>
+          type.capabilities.some((one) => one.code === "create_relation")
+        )
+        .map((type) => type.name)
+    )
+)
+
+// Only connections that can take one. A source that cannot answers 501 to the
+// very first question this dialog asks, and offering it would be offering a
+// dead end (D45).
 const targets = computed(() =>
   (connectors.data.value?.data ?? [])
     .filter(
       (connector) =>
-        connector.enabled && (connector.access === "structure" || connector.access === "own")
+        connector.enabled &&
+        (connector.access === "structure" || connector.access === "own") &&
+        creating.value.has(connector.adapter_type)
     )
     .map((connector) => ({ label: connector.name, value: connector.id }))
 )
 const selected = computed(() => mappings.value.filter((mapping) => mapping.include))
+
+/** What is being made, which is what the whole form is worded around. */
+const destination = computed<Destination>(
+  () => schemas.value.find((place) => place.value === schemaId.value)?.kind ?? "schema"
+)
+const madeThing = computed(() => (destination.value === "folder" ? "file" : "table"))
+const placeLabel = computed(() =>
+  destination.value === "folder" ? "Folder" : "Schema"
+)
 const loading = computed(() => catalogLoading.value || optionsLoading.value)
 const typeChoices = computed(() =>
   (options.value?.column_type_options ?? []).map((choice) => ({
@@ -126,11 +155,17 @@ async function loadSchemas(id: string) {
       query: {},
     })
     if (mine !== catalogAsked) return
-    schemas.value = answer.data
-      .filter((node) => node.kind === "schema" && node.is_system !== true)
-      .map((node) => ({ label: node.name, value: node.id }))
-    schemaId.value = schemas.value[0]?.value ?? ""
-    if (schemaId.value === "") trouble.value = "This connection has no writable schema"
+    schemas.value = placesIn(
+      answer.data,
+      targets.value.find((target) => target.value === id)?.label ?? "Top level"
+    )
+    const first = schemas.value[0]
+    schemaId.value = first?.value ?? ""
+    if (first === undefined) {
+      trouble.value = "This connection has nowhere to put a new table"
+      return
+    }
+    await loadOptions(schemaId.value)
   } catch (cause) {
     if (mine !== catalogAsked) return
     trouble.value = messageOf(cause, "Could not read the destination schemas")
@@ -144,12 +179,29 @@ async function loadSchemas(id: string) {
 // Without the immediate run, schemas appear only after changing the selection.
 watch(connectorId, loadSchemas, { immediate: true })
 
-watch(schemaId, async (id) => {
+/**
+ * What the chosen place accepts, asked of the place itself.
+ *
+ * Called rather than watched: the first destination of a source that keeps
+ * files is its top level, whose id is the empty string — the same value the
+ * form was just reset to — and a watcher has nothing to observe when the
+ * answer does not change.
+ */
+async function pickPlace(chosen: unknown) {
+  const id = String(chosen ?? "")
+  schemaId.value = id
+  await loadOptions(id)
+}
+
+async function loadOptions(id: string) {
   const mine = (optionsAsked += 1)
   optionsLoading.value = false
   options.value = null
   mappings.value = []
-  if (id === "" || connectorId.value === "") return
+  // The empty id is the top level of a source that keeps files, so it is a
+  // destination like any other; only a connection with none is nothing to ask
+  // about.
+  if (connectorId.value === "" || schemas.value.length === 0) return
   optionsLoading.value = true
   trouble.value = ""
   try {
@@ -160,7 +212,8 @@ watch(schemaId, async (id) => {
     if (mine !== optionsAsked) return
     options.value = answer.data
     if (!answer.data.supported) {
-      trouble.value = answer.data.reason ?? "This schema cannot accept a new table"
+      trouble.value =
+        answer.data.reason ?? `This place cannot accept a new ${madeThing.value}`
       return
     }
     const choices = answer.data.column_type_options ?? []
@@ -180,7 +233,7 @@ watch(schemaId, async (id) => {
   } finally {
     if (mine === optionsAsked) optionsLoading.value = false
   }
-})
+}
 
 function run() {
   if (!ready.value) return
@@ -200,8 +253,8 @@ function run() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    title="Create table from this data"
-    subtitle="Choose where the new table goes and which columns it receives"
+    :title="destination === 'folder' ? 'Save this data as a file' : 'Create table from this data'"
+    :subtitle="`Choose where the new ${madeThing} goes and which columns it receives`"
     size="lg"
     data-testid="grid-create-table-dialog"
     @update:model-value="emit('update:modelValue', $event)"
@@ -229,16 +282,22 @@ function run() {
           data-testid="grid-create-table-connector"
         />
         <AppSelect
-          v-model="schemaId"
+          :model-value="schemaId"
           :options="schemas"
-          label="Schema"
+          :label="placeLabel"
           :loading="loading"
           :disable="connectorId === ''"
           data-testid="grid-create-table-schema"
+          @update:model-value="pickPlace"
         />
         <AppInput
           v-model="tableName"
-          label="Table name"
+          :label="destination === 'folder' ? 'File name' : 'Table name'"
+          :hint="
+            destination === 'folder'
+              ? 'Written as CSV unless the name says otherwise'
+              : undefined
+          "
           data-testid="grid-create-table-name"
         />
       </div>
@@ -251,6 +310,7 @@ function run() {
           v-for="mapping in mappings"
           :key="mapping.source"
           class="create-table__column"
+          :class="{ 'create-table__column--typeless': typeChoices.length < 2 }"
         >
           <AppToggle
             v-model="mapping.include"
@@ -262,7 +322,11 @@ function run() {
             :disable="!mapping.include"
             compact
           />
+          <!-- Hidden where there is nothing to choose: every column of a
+               delimited file is text, and a list of one is a control that
+               does nothing but take up the line (D45). -->
           <AppSelect
+            v-if="typeChoices.length > 1"
             v-model="mapping.typeCode"
             label="Type"
             :options="typeChoices"
@@ -279,7 +343,7 @@ function run() {
         @click="emit('update:modelValue', false)"
       />
       <AppButton
-        label="Create table"
+        :label="destination === 'folder' ? 'Create file' : 'Create table'"
         :disable="!ready"
         :loading="running"
         data-testid="grid-create-table-run"
@@ -309,5 +373,8 @@ function run() {
     minmax(120px, 0.8fr);
   align-items: center;
   gap: 8px;
+}
+.create-table__column--typeless {
+  grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr);
 }
 </style>

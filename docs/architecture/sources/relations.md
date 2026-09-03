@@ -326,6 +326,24 @@ own, so nothing on the screen learned anything about PostgreSQL.
   the workflow can request a new one, and PostgreSQL may refuse for privilege.
   The table name starts as the filename without its extension, and columns may
   be omitted or renamed before the file is sent.
+- **A source that keeps files takes one too, and it is a delimited file.** A
+  folder has no CREATE TABLE and needs none: rows under named columns are a
+  CSV. The same capability, the same route and the same form — only the
+  container is a folder, the type vocabulary has the single entry a delimited
+  file can honestly offer, and the extension is added when the name carries
+  none, because `orders` alone opens as a document.
+- **Atomic by the means the source has.** The file is built beside its
+  destination and linked into place, so a failure leaves nothing half-written
+  and a name already taken is refused by the link rather than by a check that
+  something could slip past. It is what the transaction is for the database
+  half, stated in the only terms a filesystem has.
+- **The form is worded by the destination, never by the type of the source.**
+  A schema takes a table and a folder takes a file, and the catalog already
+  says which of the two a node is; the heading, the labels and the button read
+  off that. Which connections are offered at all is read off the capability's
+  code, so a source that would answer 501 is not in the list. Where a source
+  publishes one column type, the column's type control is not drawn: a list of
+  one is a control that does nothing.
 
 Known deviations:
 
@@ -333,6 +351,11 @@ Known deviations:
   key or index; each has a command of its own against an existing relation.
 - **A taken name is refused, never replaced.** Removing a relation is
   [D46](actions.md).
+- **Only the top level of a destination is offered.** Its groupings, or its
+  folders and itself — a folder two levels down cannot be chosen yet, and
+  walking a destination catalog inside this form is a later slice.
+- **A file destination is written at 0600**, as everything this source creates
+  through a temporary file is.
 - **The file is held whole in memory** while it is parsed, which is what the
   16 MB ceiling is for.
 

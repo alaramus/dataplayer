@@ -104,6 +104,14 @@ export interface WindowsApi {
   /** Replace a window's id, keeping its place: a saved draft becomes the
    *  window of the connection it created, so a second save updates it. */
   rename: (from: string, to: string, look: WindowLook) => void
+  /**
+   * Change what an open window calls itself, and nothing else.
+   *
+   * A heading is part of the answer: a form that asks where rows should go
+   * says "table" or "file" once the destination is picked, and a frame still
+   * saying the other one has already misled the reader.
+   */
+  retitle: (id: string, look: WindowLook) => void
 }
 
 export function useWindows(
@@ -219,6 +227,12 @@ export function useWindows(
     order.value = order.value.map((other) => (other === from ? to : other))
   }
 
+  function retitle(id: string, look: WindowLook) {
+    windows.value = windows.value.map((entry) =>
+      entry.id === id ? { ...entry, look } : entry
+    )
+  }
+
   // A window that was reachable can stop being so when the browser window is
   // made smaller under it, so the rule is applied again rather than only at
   // the moment of a drag.
@@ -251,5 +265,6 @@ export function useWindows(
     close,
     isOpen,
     rename,
+    retitle,
   }
 }

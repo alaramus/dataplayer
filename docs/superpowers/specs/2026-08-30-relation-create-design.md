@@ -109,6 +109,38 @@ regress the file source, which has no groupings, and for a database it turns
 With two schemas ticked the line greys out, exactly as renaming two folders to
 one name does: one file is one table, and `bulk` is what says so.
 
+## Follow-up: the destination may be a folder
+
+The grid gained the other half of this — rows already on screen kept as a new
+relation — and it went first to a database, because that is where a relation
+is made. Asked for later: those rows kept as a file, which is what the reader
+wants when they were reading files to begin with.
+
+It changed no contract. `SupportsCreateRelation` is implemented by the file
+source, whose container is a folder and whose relation is a delimited file, so
+the route, the request, the ceilings and the result are the ones above. What
+had to be thought about was smaller and all on the screen:
+
+- **One type, so no type control.** A delimited file states no types and every
+  value read out of one is text, which the capability already says in
+  `column_type_options`. The form draws the column's type only when there is
+  more than one, because a list of one is a control that does nothing.
+- **The words follow the destination, not the source.** A schema takes a table
+  and a folder takes a file. The catalog says which of the two a node is, so
+  the heading, the labels and the button read off the picked node — and the
+  window's heading changes while the window is open, which is a thing the
+  floating windows could not do before.
+- **The list holds only what could take one.** `create_relation` became a
+  capability code, so a connection that would answer 501 to the first question
+  the form asks is not offered as a destination at all.
+- **What is a folder is not "what has children".** A workbook and an archive
+  are walked into like a folder (D51, D53 in the source contract) and
+  neither can be written a file into, so the form offers directories.
+- **Atomicity by the means at hand.** The database half is one transaction; the
+  file half writes beside the destination and links into place, which refuses a
+  taken name at the same moment it publishes and leaves nothing behind when it
+  fails.
+
 ## Deliberate boundary
 
 - **Nothing but a name.** No types in the form, no NOT NULL, no default, no key

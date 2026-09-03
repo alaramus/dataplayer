@@ -568,7 +568,7 @@ export type Capability = {
   /**
    * Code
    */
-  code?: "search" | "content_search" | "backup" | null
+  code?: "search" | "content_search" | "create_relation" | "backup" | null
 }
 
 /**

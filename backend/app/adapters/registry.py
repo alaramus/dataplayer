@@ -15,6 +15,7 @@ from app.adapters.protocol import (
     SupportsCatalog,
     SupportsContent,
     SupportsContentEdit,
+    SupportsCreateRelation,
     SupportsDelete,
     SupportsDropColumn,
     SupportsExport,
@@ -93,7 +94,7 @@ CapabilityGroup = Literal["explore", "manage"]
 # reworded tomorrow; a code is a promise. Only what a screen has actually had
 # to ask about carries one, so this grows when a question is asked rather than
 # in advance — and everything else stays what it is, something to read.
-CapabilityCode = Literal["search", "content_search", "backup"]
+CapabilityCode = Literal["search", "content_search", "create_relation", "backup"]
 
 
 class Capability(BaseModel):
@@ -217,6 +218,14 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(Capability(group="manage", title="Insert rows"))
     if issubclass(driver, SupportsDelete):
         found.append(Capability(group="manage", title="Delete rows"))
+    if issubclass(driver, SupportsCreateRelation):
+        found.append(
+            Capability(
+                group="manage",
+                title="Create a relation from rows",
+                code="create_relation",
+            )
+        )
     if issubclass(driver, SupportsBackup):
         found.append(
             Capability(
