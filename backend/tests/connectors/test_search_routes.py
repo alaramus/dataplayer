@@ -21,6 +21,9 @@ async def home(db: AsyncSession) -> Path:
     (home / "searched" / "findme.txt").write_text("top\n", encoding="utf-8")
     (home / "searched" / "deeper").mkdir(exist_ok=True)
     (home / "searched" / "deeper" / "findme-too.txt").write_text("x\n", encoding="utf-8")
+    (home / "searched" / "quiet.txt").write_text(
+        "the word is inside, not in the name\n", encoding="utf-8"
+    )
     return home
 
 
@@ -113,6 +116,59 @@ async def test_what_a_search_refuses(
     assert response.status_code == status
 
 
+@pytest.mark.usefixtures("home")
+async def test_a_search_inside_files_finds_what_a_name_search_cannot(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    inside = await client.get(
+        f"{BASE}/{connector_id}/catalog/search-contents",
+        params={"node_id": "searched", "query": "inside"},
+        headers=normal_user_token_headers,
+    )
+    by_name = await client.get(
+        f"{BASE}/{connector_id}/catalog/search",
+        params={"node_id": "searched", "query": "inside"},
+        headers=normal_user_token_headers,
+    )
+
+    assert inside.status_code == 200
+    body = inside.json()
+    assert [match["node"]["name"] for match in body["matches"]] == ["quiet.txt"]
+    # The line it was found on, which is what the row then shows instead of a
+    # file size.
+    assert body["matches"][0]["excerpt"] == "the word is inside, not in the name"
+    assert by_name.json()["matches"] == []
+
+
+@pytest.mark.usefixtures("home")
+@pytest.mark.parametrize(
+    ("params", "status"),
+    [
+        ({"query": ""}, 422),
+        ({"query": "inside", "node_id": "../../etc"}, 422),
+        ({"query": "inside", "node_id": "nowhere"}, 404),
+    ],
+)
+async def test_reading_inside_refuses_what_the_name_search_refuses(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    params: dict[str, object],
+    status: int,
+) -> None:
+    """One set of bounds, whichever of the two searches is asked for."""
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await client.get(
+        f"{BASE}/{connector_id}/catalog/search-contents",
+        params=params,
+        headers=normal_user_token_headers,
+    )
+
+    assert response.status_code == status
+
+
 async def test_a_source_that_cannot_be_searched_says_so(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
@@ -127,13 +183,14 @@ async def test_a_source_that_cannot_be_searched_says_so(
     )
     assert created.status_code == 200
 
-    response = await client.get(
-        f"{BASE}/{created.json()['id']}/catalog/search",
-        params={"query": "users"},
-        headers=normal_user_token_headers,
-    )
+    for route in ("catalog/search", "catalog/search-contents"):
+        response = await client.get(
+            f"{BASE}/{created.json()['id']}/{route}",
+            params={"query": "users"},
+            headers=normal_user_token_headers,
+        )
 
-    assert response.status_code == 501
+        assert response.status_code == 501
 
 
 async def test_the_type_catalog_says_which_sources_can_be_searched(
@@ -153,3 +210,7 @@ async def test_the_type_catalog_says_which_sources_can_be_searched(
     }
     assert "search" in codes["file"]
     assert "search" not in codes["postgres"]
+    # Two promises, so two codes: a source may match names without being able
+    # to read what is in them.
+    assert "content_search" in codes["file"]
+    assert "content_search" not in codes["postgres"]

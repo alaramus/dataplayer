@@ -97,6 +97,9 @@ class FileAdapter:
     async def search_nodes(self, request: NodeSearchRequest) -> NodeSearchResult:
         return await self._search.search_nodes(request)
 
+    async def search_contents(self, request: NodeSearchRequest) -> NodeSearchResult:
+        return await self._search.search_contents(request)
+
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
 

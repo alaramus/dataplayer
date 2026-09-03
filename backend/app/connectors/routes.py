@@ -98,6 +98,7 @@ from app.adapters.protocol import (
     DescribesDraft,
     NodeNotFound,
     ParsesConnectionString,
+    SearchesContents,
     SupportsAddColumn,
     SupportsCatalog,
     SupportsColumnDefault,
@@ -1926,6 +1927,59 @@ async def search_catalog(
         )
     try:
         return await adapter.search_nodes(
+            NodeSearchRequest(node_id=node_id, query=query, limit=limit)
+        )
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[
+                {
+                    "loc": ["query", "query"],
+                    "msg": str(exc),
+                    "type": "value_error",
+                }
+            ],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.get(
+    "/{connector_id}/catalog/search-contents", response_model=NodeSearchResult
+)
+async def search_catalog_contents(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    query: str = Query(min_length=1, max_length=MAX_QUERY_LENGTH),
+    node_id: str | None = None,
+    limit: int = Query(default=DEFAULT_MATCHES, ge=1, le=MAX_MATCHES),
+) -> Any:
+    """Find nodes whose contents hold the words, below one level.
+
+    A separate route from the one above because it is a separate promise: this
+    one opens files, and a source that lists names without being able to read
+    them answers 501 here and is never offered the gesture (D76).
+    """
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SearchesContents):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source cannot be searched inside its files",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.search_contents(
             NodeSearchRequest(node_id=node_id, query=query, limit=limit)
         )
     except NodeNotFound as exc:

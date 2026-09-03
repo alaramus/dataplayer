@@ -343,17 +343,41 @@ somebody remembers and a place they do not.
   be read and may be reworded, and a screen that switched on one would be
   branching on prose. It is still derived by `issubclass` in `capabilities_of`,
   so nothing is listed by hand ([D13](#d13-a-source-type-describes-itself)).
+- **Looking inside the files is the same search held down.** `SearchesContents`
+  is its own capability with its own code and its own route,
+  `GET /connectors/{id}/catalog/search-contents`, because it is a different
+  promise at a different price: matching a name is milliseconds and reading
+  every file below a folder is minutes. A source that lists names and cannot
+  read them answers 501, and the client never offers the gesture. It is the
+  same walk, the same bounds and the same nodes — only what decides a match
+  changes.
+- **The gesture is Shift, and it explains itself once.** The same words in the
+  same field and the same button, held: a second field would be a second thing
+  to fill in for one question. The first time, a confirmation says what it will
+  cost and offers to stop asking; the answer is remembered in this browser,
+  because it is about a habit rather than about the data. Ticking the box and
+  then cancelling remembers nothing — that is not an agreement.
+- **A match carries the line it was found on.** `NodeMatch.excerpt`, cut to 200
+  characters, becomes what the row says about itself in place of a file size: a
+  search inside files that showed neither the line nor the words would be a
+  list of names. A name search leaves it empty, because there the name is
+  already the row.
+- **Reading is bounded on top of the walk's bounds.** A file over 8 MB is
+  skipped, one that looks binary is skipped, and the whole search stops after
+  256 MB read however many files that took. Skipped files are counted and said:
+  "no matches" must not stand for "a picture and a dump were never opened".
 
 Known deviations:
 
-- **Only the file source searches.** PostgreSQL answers 501; relation names
-  across schemas are one `ILIKE` away and are a later slice.
+- **Only the file source searches.** PostgreSQL answers 501 to both routes;
+  relation names across schemas are one `ILIKE` away and are a later slice.
 - **Nothing inside a container is found.** A workbook's sheets and an archive's
   entries are nodes ([D51](content.md), [D53](content.md)), and the walk does
   not open files.
-- **The text inside a file is not searched.** Deliberately dropped from the
-  roadmap rather than deferred silently: it is a different request with a
-  different result — lines rather than nodes — and nobody has asked for it yet.
+- **A search inside files answers with files, not with lines.** One line per
+  file, the first that matched, so the answer stays a list of catalog nodes and
+  a found row still opens the way any row does. Every hit in a file, the way a
+  code editor lists them, is a different result and a later slice.
 - **A search is not paged.** Past the ceiling the answer is the first N and a
   notice; there is no cursor.
 - **Anything that changes the level ends the search**, an action included: the

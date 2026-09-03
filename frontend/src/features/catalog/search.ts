@@ -27,8 +27,14 @@ export interface FoundNodes {
 export function foundNodes(query: string, result: NodeSearchResult): FoundNodes {
   const matches = result.matches ?? []
   const rows = toListNodes(matches.map((match) => match.node)).map((row, index) => {
-    const location = matches[index]?.location ?? ""
-    return location === "" ? row : { ...row, location }
+    const match = matches[index]
+    const location = match?.location ?? ""
+    // The line the words were found on replaces what the row would otherwise
+    // say about itself: the size of a file matters less than the hit in it,
+    // and a search inside files that showed neither would be a list of names.
+    const excerpt = match?.excerpt ?? null
+    const found = excerpt === null ? row : { ...row, caption: excerpt }
+    return location === "" ? found : { ...found, location }
   })
   return {
     query,

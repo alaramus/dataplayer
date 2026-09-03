@@ -365,6 +365,25 @@ class SupportsRelationModel(Protocol):
 
 
 @runtime_checkable
+class SearchesContents(Protocol):
+    """A source that can look inside its own files, not only at their names.
+
+    Separate from `SupportsNodeSearch` because it is a different promise and a
+    different cost: reading every file below a folder is minutes where matching
+    a name is milliseconds, and a client has to be able to say so before it
+    starts one. A source that lists names and cannot read them answers 501,
+    and the client never offers the gesture.
+    """
+
+    async def search_contents(self, request: NodeSearchRequest) -> NodeSearchResult:
+        """Find nodes whose contents hold the words, bounded the same ways.
+
+        Raises what `search_nodes` raises, for the same reasons.
+        """
+        ...
+
+
+@runtime_checkable
 class SupportsNodeSearch(Protocol):
     async def search_nodes(self, request: NodeSearchRequest) -> NodeSearchResult:
         """Find nodes by name below one level, bounded, breadth first.

@@ -73,6 +73,24 @@ describe("what a search leaves on the screen", () => {
     expect(stopped.notice).toBe("The first 100 matches; there may be more")
   })
 
+  it("shows the line a match was found on instead of the file's size", () => {
+    const inside = foundNodes(
+      "timeout",
+      result({
+        matches: [
+          {
+            ...match("server.log", "server.log", ""),
+            excerpt: "2026-08-31 10:02:11 ERROR upstream timeout after 30s",
+          },
+        ],
+      })
+    )
+
+    expect(first(inside.rows).caption).toBe(
+      "2026-08-31 10:02:11 ERROR upstream timeout after 30s"
+    )
+  })
+
   it("counts one match as one", () => {
     const one = foundNodes("notes", result({ matches: [match("x.txt", "x.txt", "")] }))
 

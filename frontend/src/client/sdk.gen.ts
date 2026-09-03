@@ -165,6 +165,9 @@ import type {
   connectorsRunRowCommandData,
   connectorsRunRowCommandErrors,
   connectorsRunRowCommandResponses,
+  connectorsSearchCatalogContentsData,
+  connectorsSearchCatalogContentsErrors,
+  connectorsSearchCatalogContentsResponses,
   connectorsSearchCatalogData,
   connectorsSearchCatalogErrors,
   connectorsSearchCatalogResponses,
@@ -1572,6 +1575,30 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/catalog/search",
+      ...options,
+    })
+  }
+
+  /**
+   * Search Catalog Contents
+   *
+   * Find nodes whose contents hold the words, below one level.
+   *
+   * A separate route from the one above because it is a separate promise: this
+   * one opens files, and a source that lists names without being able to read
+   * them answers 501 here and is never offered the gesture (D76).
+   */
+  public static searchCatalogContents<ThrowOnError extends boolean = true>(
+    options: Options<connectorsSearchCatalogContentsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      connectorsSearchCatalogContentsResponses,
+      connectorsSearchCatalogContentsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/catalog/search-contents",
       ...options,
     })
   }

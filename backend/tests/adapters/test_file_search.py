@@ -8,6 +8,7 @@ from app.adapters.file.session import FileSession
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.search import (
     DEFAULT_MATCHES,
+    MAX_EXCERPT_CHARACTERS,
     NodeSearchRequest,
     NodeSearchResult,
 )
@@ -178,6 +179,129 @@ async def test_a_level_outside_the_root_is_refused(
     """The one containment rule, before a single entry is listed (D8)."""
     with pytest.raises(ValueError):
         await _find(search, "notes", node_id=node_id)
+
+
+async def _look_inside(
+    search: FileSearch,
+    query: str,
+    *,
+    node_id: str | None = None,
+    limit: int = DEFAULT_MATCHES,
+) -> NodeSearchResult:
+    return await search.search_contents(
+        NodeSearchRequest(query=query, node_id=node_id, limit=limit)
+    )
+
+
+@pytest.fixture
+def written(root: Path) -> Path:
+    """The same tree, with something worth grepping for inside it."""
+    (root / "reports" / "q4.csv").write_text(
+        "id,note\n1,upstream timeout after 30s\n2,fine\n", encoding="utf-8"
+    )
+    (root / "archive" / "old.txt").write_text(
+        "nothing of interest here\n", encoding="utf-8"
+    )
+    (root / "picture.png").write_bytes(b"\x89PNG\r\n\x1a\n\x00timeout\x00")
+    return root
+
+
+async def test_the_words_are_found_inside_a_file_that_is_not_named_for_them(
+    written: Path,
+) -> None:
+    search = FileSearch(FileSession(written))
+
+    found = await _look_inside(search, "timeout")
+
+    assert [match.node.name for match in found.matches] == ["q4.csv"]
+    # The name search finds nothing at all, which is the whole point of the
+    # second gesture.
+    assert await _find(search, "timeout") == NodeSearchResult(
+        matches=[], complete=True, notice=None
+    )
+
+
+async def test_a_match_carries_the_line_it_was_found_on(written: Path) -> None:
+    search = FileSearch(FileSession(written))
+
+    found = await _look_inside(search, "TIMEOUT")
+
+    # Case-insensitive, as the name search is: the same words typed the same
+    # way must not mean two different things.
+    assert found.matches[0].excerpt == "1,upstream timeout after 30s"
+
+
+async def test_a_line_longer_than_the_ceiling_is_cut_rather_than_carried(
+    written: Path,
+) -> None:
+    """A log line or a minified document is one line and can be enormous."""
+    (written / "wide.txt").write_text("x" * 5000 + "timeout\n", encoding="utf-8")
+    search = FileSearch(FileSession(written))
+
+    found = await _look_inside(search, "timeout")
+
+    excerpt = next(
+        match.excerpt for match in found.matches if match.node.name == "wide.txt"
+    )
+    assert excerpt is not None
+    assert len(excerpt) == MAX_EXCERPT_CHARACTERS
+
+
+async def test_a_binary_file_is_not_searched_and_the_answer_says_so(
+    written: Path,
+) -> None:
+    search = FileSearch(FileSession(written))
+
+    found = await _look_inside(search, "timeout")
+
+    assert [match.node.name for match in found.matches] == ["q4.csv"]
+    # The picture holds the word and was never read; "no matches" would have
+    # meant "not in this folder", which is not what happened.
+    assert found.complete is True
+    assert found.notice is not None
+    assert "not read" in found.notice
+
+
+async def test_a_file_larger_than_the_ceiling_is_skipped(
+    written: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(search_module, "MAX_FILE_BYTES", 8)
+    search = FileSearch(FileSession(written))
+
+    found = await _look_inside(search, "timeout")
+
+    assert found.matches == []
+    assert found.notice is not None
+
+
+async def test_a_search_that_read_too_much_stops_rather_than_running_on(
+    written: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(search_module, "MAX_READ_BYTES", 1)
+    search = FileSearch(FileSession(written))
+
+    found = await _look_inside(search, "timeout")
+
+    assert found.complete is False
+    assert found.notice is not None
+
+
+async def test_reading_inside_starts_where_it_was_asked_to(written: Path) -> None:
+    search = FileSearch(FileSession(written))
+
+    found = await _look_inside(search, "timeout", node_id="archive")
+
+    assert found.matches == []
+
+
+async def test_a_level_outside_the_root_is_refused_when_reading_inside_too(
+    written: Path,
+) -> None:
+    """One containment rule, and the second search goes through it as well."""
+    search = FileSearch(FileSession(written))
+
+    with pytest.raises(ValueError):
+        await _look_inside(search, "timeout", node_id="../secrets")
 
 
 async def test_a_link_is_listed_where_it_matches_and_never_walked_into(

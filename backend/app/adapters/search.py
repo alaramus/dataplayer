@@ -24,6 +24,11 @@ MAX_MATCHES = 500
 # name.
 MAX_QUERY_LENGTH = 200
 
+# How much of the line a match was found on is shown. A log line or a minified
+# document is one line and can be enormous; what a reader needs is enough of it
+# to recognise the hit.
+MAX_EXCERPT_CHARACTERS = 200
+
 
 class NodeSearchRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -49,6 +54,10 @@ class NodeMatch(BaseModel):
     node: CatalogNode
     parent_id: str | None = None
     location: str = ""
+    # The line the words were found on, for a search that looked inside. A name
+    # search leaves it empty: what matched is the name, and it is already the
+    # row. Bounded by the source, because a log line can be a megabyte long.
+    excerpt: str | None = None
 
 
 class NodeSearchResult(BaseModel):

@@ -4,7 +4,8 @@
 
 Phase 3.5's search item, narrowed to the half that was asked for: find a node
 by its name anywhere below the folder being looked at. Searching the *text
-inside* files is dropped from the roadmap rather than deferred — see the end.
+inside* files was dropped from this slice and asked for a day later; it is the
+follow-up at the end, and it did not change anything decided here.
 
 ## Where it goes on the screen
 
@@ -84,14 +85,57 @@ notes list under "must not be ported". The code is still derived by `issubclass`
 in `capabilities_of`, so nothing is listed by hand and a driver that stops
 implementing the protocol stops claiming the capability in the same commit.
 
-Codes are added when a screen has had to ask, not in advance. There is one.
+Codes are added when a screen has had to ask, not in advance. There were one;
+the follow-up below made it two.
+
+## Follow-up: the same search, held down, reads the files
+
+Asked for the next day, so the thing that was "a different request" got its
+answer: it is a different request and therefore a second capability
+(`SearchesContents`), a second code (`content_search`) and a second route
+(`catalog/search-contents`) — not a flag on the first. A source that lists
+names without being able to read them answers 501 to it, and a client that
+reads codes rather than prose never offers the gesture there.
+
+What it is *not* is a second result shape. The answer stays `CatalogNode`s,
+one per file, carrying the first line that matched in `NodeMatch.excerpt` — so
+the whole argument above still holds: the list, the menu, the tick boxes and
+Details needed nothing new, and a found row opens the way a listed one does.
+"Every hit in a file, the way an editor lists them" would have been the other
+result shape, and it is still a later slice.
+
+The line replaces the caption a row would otherwise show. A file's size is
+what the catalog says about it when nothing better is known; when the reason
+the row is on screen is a line of text, that line is what is known.
+
+Two gestures on one button rather than two buttons: the words are the same
+words in the same field, so Shift-clicking the search (or Shift+Enter in the
+field) is the same question asked of a second place. A separate button would
+be a second control for a second answer to fill in nothing new.
+
+**Its cost is stated before it is paid.** Minutes rather than milliseconds is
+enough of a difference that a keypress should not spend it silently, so the
+first one asks, says what it will skip, and offers to stop asking. The answer
+lives in this browser's `localStorage`: it is a habit rather than a fact about
+the data, nothing on the server needs it, and a browser that will not store it
+simply asks again — the safe half of the choice. Ticking the box and then
+cancelling remembers nothing; that is not an agreement to anything.
+
+Reading has ceilings of its own on top of the walk's three:
+
+| Bound | Value | Why |
+| --- | --- | --- |
+| per file | 8 MB | past that it is somebody's data set, not something being grepped |
+| per search | 256 MB read | a folder of large files stops rather than running for minutes |
+| excerpt | 200 characters | a log line or a minified document is one line and can be enormous |
+
+A file that looks binary is skipped by the same test the content viewers use.
+Skipped files are counted and the count is said, because "nothing matched" and
+"a picture and a database dump were never opened" are different answers — the
+same distinction `complete: false` draws for the walk.
 
 ## Deliberately not in this slice
 
-- **Text inside a file.** Removed from the roadmap at the user's decision. It
-  is a different request with a different answer — lines, not nodes — needing
-  its own result shape, its own ceilings and a way to stand at a line rather
-  than at a node.
 - **Searching inside containers.** A workbook's sheets and an archive's entries
   are nodes, but finding them means opening files while walking.
 - **Paging.** Past the ceiling the answer is the first N and a notice.

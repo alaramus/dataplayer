@@ -75,8 +75,15 @@ export function useNodePathLoader() {
   }
 }
 
-export const nodeSearchKey = (connectorId: string, nodeId: string | null, query: string) =>
-  ["nodeSearch", connectorId, nodeId, query] as const
+/** Where a search looked: at names, or inside the files themselves (D76). */
+export type SearchScope = "names" | "contents"
+
+export const nodeSearchKey = (
+  connectorId: string,
+  nodeId: string | null,
+  query: string,
+  scope: SearchScope = "names"
+) => ["nodeSearch", connectorId, nodeId, query, scope] as const
 
 /**
  * Search below one level, on demand.
@@ -92,17 +99,23 @@ export function useNodeSearcher() {
   return async function searchNodes(
     connectorId: string,
     nodeId: string | null,
-    query: string
+    query: string,
+    scope: SearchScope = "names"
   ): Promise<NodeSearchResult> {
     return queryClient.fetchQuery({
-      queryKey: nodeSearchKey(connectorId, nodeId, query),
-      queryFn: async () =>
-        (
-          await ConnectorsService.searchCatalog({
-            path: { connector_id: connectorId },
-            query: nodeId === null ? { query } : { node_id: nodeId, query },
-          })
-        ).data,
+      queryKey: nodeSearchKey(connectorId, nodeId, query, scope),
+      queryFn: async () => {
+        const request = {
+          path: { connector_id: connectorId },
+          query: nodeId === null ? { query } : { node_id: nodeId, query },
+        }
+        // Two routes, because they are two promises: one matches a name and
+        // the other opens every file it is allowed to, and a source that can
+        // do the first without the second answers 501 to it (D76).
+        return scope === "contents"
+          ? (await ConnectorsService.searchCatalogContents(request)).data
+          : (await ConnectorsService.searchCatalog(request)).data
+      },
       staleTime: 60_000,
     })
   }

@@ -7,6 +7,8 @@ import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
 import { reloadedBy, replacementsOf } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
 import { useNodePathLoader } from "@/features/catalog/api"
+import type { SearchScope } from "@/features/catalog/api"
+import { rememberAnswer, shouldAsk } from "@/features/catalog/contentSearch"
 import { useFadingMark } from "@/features/catalog/fadingMark"
 import { locationOf } from "@/features/catalog/location"
 import { searchSummary } from "@/features/catalog/search"
@@ -17,7 +19,14 @@ import type { ListNode } from "@/features/catalog/nodes"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
-import { AppBanner, AppIconButton, AppInput, AppSelect, useToast } from "@/shared/ui"
+import {
+  AppBanner,
+  AppIconButton,
+  AppInput,
+  AppSelect,
+  useConfirm,
+  useToast,
+} from "@/shared/ui"
 import { useSourceChangesStore } from "@/stores/sourceChanges"
 
 const props = defineProps<{
@@ -28,6 +37,7 @@ const props = defineProps<{
 }>()
 
 const toast = useToast()
+const confirm = useConfirm()
 const workspace = useWorkspaceActions()
 const connectorId = computed(() => props.connectorId)
 const rootLabel = computed(() => props.title)
@@ -286,6 +296,17 @@ const canSearch = computed(
 )
 
 /**
+ * Whether this source can be searched inside its files as well.
+ *
+ * Its own code, because it is its own promise: a database lists names and
+ * cannot be grepped, and offering the gesture there would be offering a 501
+ * (D76).
+ */
+const canSearchContents = computed(
+  () => sourceType.value?.capabilities.some((one) => one.code === "content_search") === true
+)
+
+/**
  * Whether this catalog is expanded where it stands rather than walked.
  *
  * The source says which (D91), and this reads the answer: a screen that asked
@@ -354,14 +375,53 @@ const tree = ref<{ reload: () => Promise<void> } | null>(null)
 /** Offered once there is something to look for, exactly as a filter is. */
 const canRunSearch = computed(() => canSearch.value && level.filter.value.trim() !== "")
 
+/** The button says what the second gesture does; nothing else would. */
+const searchTooltip = computed(() =>
+  canSearchContents.value
+    ? "Search names below this folder — hold Shift to search inside the files"
+    : "Search everything below this folder"
+)
+
 const foundText = computed(() => {
   const found = level.found.value
   return found === null ? "" : searchSummary(found)
 })
 
-async function runSearch() {
+/**
+ * Search, by name or — held down — inside the files themselves.
+ *
+ * Shift on the same button rather than a second one: it is the same words in
+ * the same field looked for in a second place, and a source that cannot read
+ * its files simply never sees the difference.
+ */
+async function runSearch(event?: MouseEvent | KeyboardEvent) {
   if (!canRunSearch.value) return
-  await level.search()
+  const scope: SearchScope =
+    event?.shiftKey === true && canSearchContents.value ? "contents" : "names"
+  if (scope === "contents" && !(await agreedToRead())) return
+  await level.search(scope)
+}
+
+/**
+ * Ask once before reading everything below the folder.
+ *
+ * Minutes rather than milliseconds, and a keypress is a small gesture for it,
+ * so the first one explains itself and offers to stop explaining. The answer
+ * is this browser's — see `contentSearch.ts`.
+ */
+async function agreedToRead(): Promise<boolean> {
+  if (!shouldAsk(localStorage)) return true
+  return await confirm({
+    title: "Search inside files",
+    message:
+      "Every file below this folder will be opened and read, which can take " +
+      "minutes. Binary files and files over 8 MB are skipped.",
+    confirmLabel: "Search inside",
+    rememberLabel: "Do not ask again",
+    onRemember: () => {
+      rememberAnswer(localStorage, false)
+    },
+  })
 }
 
 /**
@@ -569,7 +629,7 @@ async function afterAction(outcome: ActionOutcome) {
         >
           <AppIconButton
             icon="search"
-            tooltip="Search everything below this folder"
+            :tooltip="searchTooltip"
             :loading="level.searching.value"
             data-testid="catalog-search"
             @click="runSearch"

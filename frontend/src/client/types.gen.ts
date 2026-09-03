@@ -568,7 +568,7 @@ export type Capability = {
   /**
    * Code
    */
-  code?: "search" | "backup" | null
+  code?: "search" | "content_search" | "backup" | null
 }
 
 /**
@@ -3213,6 +3213,10 @@ export type NodeMatch = {
    * Location
    */
   location?: string
+  /**
+   * Excerpt
+   */
+  excerpt?: string | null
 }
 
 /**
@@ -8195,6 +8199,51 @@ export type connectorsSearchCatalogResponses = {
 
 export type connectorsSearchCatalogResponse =
   connectorsSearchCatalogResponses[keyof connectorsSearchCatalogResponses]
+
+export type connectorsSearchCatalogContentsData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query: {
+    /**
+     * Query
+     */
+    query: string
+    /**
+     * Node Id
+     */
+    node_id?: string | null
+    /**
+     * Limit
+     */
+    limit?: number
+  }
+  url: "/api/v1/connectors/{connector_id}/catalog/search-contents"
+}
+
+export type connectorsSearchCatalogContentsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsSearchCatalogContentsError =
+  connectorsSearchCatalogContentsErrors[keyof connectorsSearchCatalogContentsErrors]
+
+export type connectorsSearchCatalogContentsResponses = {
+  /**
+   * Successful Response
+   */
+  200: NodeSearchResult
+}
+
+export type connectorsSearchCatalogContentsResponse =
+  connectorsSearchCatalogContentsResponses[keyof connectorsSearchCatalogContentsResponses]
 
 export type connectorsReadNodeSummaryData = {
   body?: never

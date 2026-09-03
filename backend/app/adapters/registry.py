@@ -9,6 +9,7 @@ from app.adapters.actions import DeclaresActions
 from app.adapters.options import OptionsSchema
 from app.adapters.protocol import (
     DataAdapter,
+    SearchesContents,
     SupportsAddColumn,
     SupportsBackup,
     SupportsCatalog,
@@ -92,7 +93,7 @@ CapabilityGroup = Literal["explore", "manage"]
 # reworded tomorrow; a code is a promise. Only what a screen has actually had
 # to ask about carries one, so this grows when a question is asked rather than
 # in advance — and everything else stays what it is, something to read.
-CapabilityCode = Literal["search", "backup"]
+CapabilityCode = Literal["search", "content_search", "backup"]
 
 
 class Capability(BaseModel):
@@ -185,6 +186,14 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
     if issubclass(driver, SupportsNodeSearch):
         found.append(
             Capability(group="explore", title="Search by name", code="search")
+        )
+    if issubclass(driver, SearchesContents):
+        found.append(
+            Capability(
+                group="explore",
+                title="Search inside files",
+                code="content_search",
+            )
         )
     if issubclass(driver, SupportsContent):
         found.append(Capability(group="explore", title="View content"))

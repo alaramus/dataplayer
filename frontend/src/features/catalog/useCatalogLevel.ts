@@ -4,6 +4,7 @@ import type { ComputedRef, Ref } from "vue"
 
 import type { NodeReplacement } from "@/client"
 import { catalogKey, useCatalogLoader, useNodeSearcher } from "@/features/catalog/api"
+import type { SearchScope } from "@/features/catalog/api"
 import type { Crumb, Location } from "@/features/catalog/location"
 import { groupsOf, toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
@@ -31,8 +32,13 @@ export interface CatalogLevel {
    */
   found: Ref<FoundNodes | null>
   searching: Ref<boolean>
-  /** Look for the filter text below this level. Does nothing while it is empty. */
-  search: () => Promise<void>
+  /**
+   * Look for the filter text below this level. Does nothing while it is empty.
+   *
+   * The scope is the same choice the gesture makes: matching names is the
+   * ordinary search, and looking inside files is the deliberate one (D76).
+   */
+  search: (scope?: SearchScope) => Promise<void>
   /** Back to the folder, keeping the words that were searched for. */
   clearSearch: () => void
   checked: Ref<string[]>
@@ -100,6 +106,11 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
   const shown = computed(() => found.value?.rows ?? rows.value)
 
   const items = computed(() => {
+    // Results are already the answer to these words, so they are not narrowed
+    // by them a second time. A file whose contents matched has them nowhere
+    // in its name, and filtering again would leave the summary saying one
+    // match above an empty list (D76).
+    if (found.value !== null) return shown.value
     const needle = filter.value.trim().toLowerCase()
     if (needle === "") return shown.value
     return shown.value.filter((node) => node.label.toLowerCase().includes(needle))
@@ -328,12 +339,15 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
    * this asks the source for what is not. The ticks go, because they were
    * ticks on a different list.
    */
-  async function search() {
+  async function search(scope: SearchScope = "names") {
     const query = filter.value.trim()
     if (query === "") return
     searching.value = true
     try {
-      found.value = foundNodes(query, await searchNodes(connectorId.value, currentId.value, query))
+      found.value = foundNodes(
+        query,
+        await searchNodes(connectorId.value, currentId.value, query, scope)
+      )
       checked.value = []
       error.value = ""
     } catch (cause) {

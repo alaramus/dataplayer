@@ -442,6 +442,27 @@ describe("searching from a level", () => {
     })
   })
 
+  it("shows a file found by its contents, whose name holds none of the words", async () => {
+    answers([directory("reports", "reports")])
+    vi.spyOn(ConnectorsService, "searchCatalogContents").mockResolvedValue({
+      data: {
+        matches: [{ ...found("server.log", ""), excerpt: "checkpoint starting" }],
+        complete: true,
+        notice: null,
+      },
+    } as never)
+
+    await withLevel(async (level) => {
+      await level.load()
+      level.filter.value = "checkpoint"
+      await level.search("contents")
+
+      // The words narrow a level; they do not narrow what was found with them.
+      expect(level.items.value.map((node) => node.label)).toEqual(["server.log"])
+      expect(level.items.value[0]?.caption).toBe("checkpoint starting")
+    })
+  })
+
   it("asks from the level being looked at, not from the top", async () => {
     answers([directory("reports", "reports")], [table("reports/q3.csv", "q3.csv")])
     const spy = searched()

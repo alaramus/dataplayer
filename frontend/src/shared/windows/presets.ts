@@ -16,6 +16,15 @@ export interface ConfirmRequest {
    */
   cancelLabel?: string
   danger?: boolean
+  /**
+   * A tick box offering to stop asking, for a question worth asking once.
+   *
+   * `onRemember` runs only when the answer is yes: somebody who ticks the box
+   * and then cancels has agreed to nothing, and remembering that would turn
+   * the next press into the very thing they had just refused.
+   */
+  rememberLabel?: string
+  onRemember?: () => void
 }
 
 /** Reusable geometry and behaviour for short questions. */
@@ -27,8 +36,8 @@ export function questionWindowPreset(
   return {
     id,
     look: { title, icon: "help_outline" },
-    size: { width: 420, height: 180 },
-    minSize: { width: 320, height: 140 },
+    size: { width: 420, height: 200 },
+    minSize: { width: 320, height: 160 },
     component,
   }
 }

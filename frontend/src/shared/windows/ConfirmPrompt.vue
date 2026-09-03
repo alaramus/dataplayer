@@ -1,12 +1,23 @@
 <script setup lang="ts">
+import { ref } from "vue"
+
 import AppActions from "@/shared/ui/AppActions.vue"
 import AppButton from "@/shared/ui/AppButton.vue"
+import AppCheckbox from "@/shared/ui/AppCheckbox.vue"
 import AppSection from "@/shared/ui/AppSection.vue"
 
 import type { ConfirmRequest } from "./presets"
 
-defineProps<{ request: ConfirmRequest }>()
+const props = defineProps<{ request: ConfirmRequest }>()
 const emit = defineEmits<{ answer: [value: boolean] }>()
+
+/** Ticked here and read on the way out; nothing else watches it. */
+const remember = ref(false)
+
+function accept() {
+  if (remember.value) props.request.onRemember?.()
+  emit("answer", true)
+}
 </script>
 
 <template>
@@ -17,6 +28,14 @@ const emit = defineEmits<{ answer: [value: boolean] }>()
     >
       {{ request.message }}
     </AppSection>
+    <AppCheckbox
+      v-if="request.rememberLabel"
+      v-model="remember"
+      :label="request.rememberLabel"
+      dense
+      class="confirm-prompt__remember"
+      data-testid="confirm-remember"
+    />
     <AppActions>
       <AppButton
         variant="quiet"
@@ -28,7 +47,7 @@ const emit = defineEmits<{ answer: [value: boolean] }>()
         :variant="request.danger === true ? 'danger' : 'primary'"
         :label="request.confirmLabel ?? 'Confirm'"
         data-testid="confirm-accept"
-        @click="emit('answer', true)"
+        @click="accept"
       />
     </AppActions>
   </div>
@@ -44,5 +63,12 @@ const emit = defineEmits<{ answer: [value: boolean] }>()
    read as one paragraph is not a list. */
 .confirm-prompt__message {
   white-space: pre-line;
+}
+/* Under the question and above the buttons, where it reads as part of the
+   answer rather than as another thing being asked. */
+.confirm-prompt__remember {
+  flex: none;
+  padding: 0 12px;
+  font-size: 12px;
 }
 </style>
