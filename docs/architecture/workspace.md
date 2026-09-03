@@ -261,6 +261,12 @@ Consequences:
   filter travels as a piece of state the panel takes, the way `revealTarget`
   and `followTarget` do: there is one library panel however often it is opened,
   and a panel's props are bound when it is first drawn.
+- **What is about the machine stands at the other end of the bar.** The
+  services this server runs belong to the person rather than to whatever is
+  open, so the button that opens them sits apart from the commands of the
+  connection. It is greyed out while there is nothing to open, and while a job
+  is working it says the step: once the window that asked for a service has
+  closed, this is the only place a start is visible.
 
 Known deviations:
 
@@ -268,10 +274,8 @@ Known deviations:
   person's own library and outlives the connections in it (D65), but the way
   in is now a command of a connection. Opening any source that runs queries
   gets there, and the filter inside the panel still lists everything.
-- **The bar holds one command.** It is a place, and the rest of what belongs in
-  it arrives with the slices that implement them.
-- **The right half is empty.** What a status line is usually for — what is
-  running, what the last request cost — is still not said anywhere.
+- **The right half holds only the services.** What a status line is usually
+  also for — what the last request cost — is still not said anywhere.
 - **A disabled command explains itself only on hover.** The tooltip hangs off
   the slot around the button, because a disabled Quasar button takes no pointer
   events; on a touch screen there is no hover and therefore no reason.

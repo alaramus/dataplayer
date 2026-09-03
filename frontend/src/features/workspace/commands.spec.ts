@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { connectionCommands } from "./commands"
+import { connectionCommands, servicesCommand } from "./commands"
 import type { ConnectionState } from "./commands"
 
 function bar(state: Partial<ConnectionState> = {}) {
@@ -97,5 +97,36 @@ describe("what the bar says about copying a database out", () => {
 
   it("says nothing about it before the server has answered", () => {
     expect(backups({ supportsBackups: "asking" }).enabled).toBe(false)
+  })
+})
+
+describe("what the bar says about the services this server runs", () => {
+  it("is not pressable while there is nothing to open", () => {
+    const command = servicesCommand({ count: 0, working: null })
+
+    expect(command.enabled).toBe(false)
+    expect(command.tooltip).toBe("This server is not running anything for you")
+  })
+
+  it("says how many there are once there are any", () => {
+    expect(servicesCommand({ count: 1, working: null }).tooltip).toBe(
+      "One service is running here"
+    )
+    expect(servicesCommand({ count: 3, working: null }).enabled).toBe(true)
+    expect(servicesCommand({ count: 3, working: null }).tooltip).toBe(
+      "3 services are running here"
+    )
+  })
+
+  it("says the step while something is happening, even before the first one exists", () => {
+    // The window that asked for it has closed by then, so this is the only
+    // place a start is visible.
+    const command = servicesCommand({
+      count: 1,
+      working: "demo: pulling the image (2 of 6)",
+    })
+
+    expect(command.enabled).toBe(true)
+    expect(command.tooltip).toBe("demo: pulling the image (2 of 6)")
   })
 })

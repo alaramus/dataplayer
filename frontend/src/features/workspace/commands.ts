@@ -93,3 +93,57 @@ function offered(
   if (support === "no") return { enabled: false, tooltip: refusal }
   return { enabled: true, tooltip: wording(state.name) }
 }
+
+/**
+ * The one command in the bar that is not about a connection.
+ *
+ * What this server is running belongs to the person rather than to whatever
+ * is open, so it sits apart from the others. It used to be a list above the
+ * connections, in a column a fifth of the screen wide that is also where a
+ * hundred and fifty connections go; a service is looked at when something is
+ * being done to it and not otherwise, so it is a window now.
+ *
+ * The button stays in place whether or not there is anything to open, for the
+ * reason the rest of the bar does: a bar that changes shape as the user walks
+ * about is a bar they have to read every time.
+ */
+export interface ServicesState {
+  /** How many services this person has here. */
+  count: number
+  /** What is happening to one of them, if anything is, in the server's words. */
+  working: string | null
+}
+
+export function servicesCommand(state: ServicesState): ConnectionCommand {
+  if (state.working !== null) {
+    return {
+      name: "services",
+      label: "Services",
+      icon: "dns",
+      enabled: true,
+      // While something is happening, the button is where it is said: this is
+      // the only place a start is visible once the dialog that asked for it
+      // has closed.
+      tooltip: state.working,
+    }
+  }
+  if (state.count === 0) {
+    return {
+      name: "services",
+      label: "Services",
+      icon: "dns",
+      enabled: false,
+      tooltip: "This server is not running anything for you",
+    }
+  }
+  return {
+    name: "services",
+    label: "Services",
+    icon: "dns",
+    enabled: true,
+    tooltip:
+      state.count === 1
+        ? "One service is running here"
+        : `${state.count} services are running here`,
+  }
+}

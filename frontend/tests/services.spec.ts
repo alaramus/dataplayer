@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
-import { connectorRow, deleteConnector } from "./utils/workspace"
+import { closeWindowDialog, connectorRow, deleteConnector } from "./utils/workspace"
 
 /**
  * A database somebody asked this server to start.
@@ -43,22 +43,28 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   await page.getByTestId("service-name").fill(SERVICE_NAME)
   await page.getByTestId("start-service-confirm").click()
 
-  // The catalog closes and the work is watched beside the connections: a step
-  // the server named, never a percentage this side invented (D81).
+  // The catalog closes and the work is watched from the bar at the foot of the
+  // screen: a step the server named, never a percentage this side invented
+  // (D81). The window is where the services are, and the button is where they
+  // are said to exist (D69).
+  const openServices = page.getByTestId("command-services")
+  await expect(openServices).toBeEnabled({ timeout: 30_000 })
+  await openServices.click()
   const services = page.getByTestId("managed-services")
   await expect(services).toBeVisible()
-  await expect(services).toContainText(/of 6/)
 
   // And then it is an ordinary connection, made by nobody's browser (D83).
   await expect(connectorRow(page, SERVICE_NAME)).toBeVisible({ timeout: 90_000 })
   await expect(services).toContainText("running")
 
   // Opening it reads the catalog of the database that was just made.
+  await closeWindowDialog(page, "services-dialog")
   await connectorRow(page, SERVICE_NAME).click()
   await expect(page.getByTestId("catalog-list")).toContainText("System")
 
   // Removing the service takes the container and its data; the connection it
   // made is a separate thing and is removed separately.
+  await openServices.click()
   const row = services
     .locator('[data-testid^="managed-service-"]')
     .filter({ hasText: SERVICE_NAME })

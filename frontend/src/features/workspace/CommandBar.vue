@@ -5,8 +5,10 @@ import { adapterIcon } from "@/features/connectors/adapters"
 import { useAdapterTypes, useConnectors } from "@/features/connectors/api"
 import { useQueryProfile } from "@/features/queries/runs"
 import BackupsDialog from "@/features/services/BackupsDialog.vue"
-import { useBackupOffer } from "@/features/services/api"
-import { connectionCommands } from "@/features/workspace/commands"
+import ServicesDialog from "@/features/services/ServicesDialog.vue"
+import { useBackupOffer, useServices } from "@/features/services/api"
+import { isWorking, progressOf } from "@/features/services/jobs"
+import { connectionCommands, servicesCommand } from "@/features/workspace/commands"
 import type { Support } from "@/features/workspace/commands"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppButton, AppTooltip } from "@/shared/ui"
@@ -92,6 +94,25 @@ const commands = computed(() =>
   })
 )
 
+/**
+ * What this server is running for this person, which is not about a
+ * connection at all.
+ *
+ * So it stands apart from the rest of the bar rather than among them. While a
+ * job is working the button says the step it has reached: once the dialog
+ * that asked for a service has closed, this is the only place a start is
+ * visible (D81).
+ */
+const services = useServices()
+const working = computed(() => {
+  const busy = (services.data.value ?? []).find((row) => isWorking(row.job))
+  return busy === undefined ? null : `${busy.connector_name}: ${progressOf(busy.job)}`
+})
+const serviceCommand = computed(() =>
+  servicesCommand({ count: (services.data.value ?? []).length, working: working.value })
+)
+const servicesOpen = ref(false)
+
 /** The connection whose backups are being looked at, if any. */
 const backingUp = ref<{ id: string; name: string } | null>(null)
 
@@ -100,6 +121,7 @@ function run(name: string) {
   if (name === "backups" && connector.value) {
     backingUp.value = { id: connector.value.id, name: connector.value.name }
   }
+  if (name === "services") servicesOpen.value = true
 }
 </script>
 
@@ -149,7 +171,24 @@ function run(name: string) {
       <AppTooltip>{{ command.tooltip }}</AppTooltip>
     </span>
 
+    <!-- On the right, away from the commands of the open connection: this one
+         is about the machine, and a button whose subject is different from
+         its neighbours' should not sit in the same row of them. -->
+    <span class="command-bar__slot command-bar__aside">
+      <AppButton
+        variant="quiet"
+        size="sm"
+        :icon="serviceCommand.icon"
+        :label="serviceCommand.label"
+        :disable="!serviceCommand.enabled"
+        data-testid="command-services"
+        @click="run('services')"
+      />
+      <AppTooltip>{{ serviceCommand.tooltip }}</AppTooltip>
+    </span>
+
     <BackupsDialog v-model:connector="backingUp" />
+    <ServicesDialog v-model="servicesOpen" />
   </div>
 </template>
 
@@ -159,6 +198,13 @@ function run(name: string) {
   align-items: center;
   gap: var(--dp-space-2);
   min-width: 0;
+  /* The bar is the whole width of the footer, so that what is about the
+     machine can sit at the far end of it. */
+  flex: 1;
+}
+
+.command-bar__aside {
+  margin-left: auto;
 }
 
 .command-bar__connection {

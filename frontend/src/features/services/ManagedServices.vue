@@ -11,16 +11,28 @@ import {
 } from "@/features/services/api"
 import { isWorking, progressOf } from "@/features/services/jobs"
 import { messageOf } from "@/shared/api/errors"
-import { AppIconButton, AppSpinner, useConfirm, useToast } from "@/shared/ui"
+import {
+  AppBadge,
+  AppEmptyState,
+  AppIconButton,
+  AppSpinner,
+  useConfirm,
+  useToast,
+} from "@/shared/ui"
+import type { Tone } from "@/shared/ui"
 
 /**
- * What this server is running, above the connections it is used through.
+ * What this server is running, and everything known about each one.
  *
- * Both, and not one: the connection is how a database is used, and the
- * service is the container it lives in — one is opened and read, the other is
- * started, stopped and taken away with its data. A ready service appears in
- * both places because both statements are true of it, and the row here is the
- * only place its life can be ended.
+ * A service is the container a database lives in; the connection beside it in
+ * the column is how that database is used. Both are true of a ready service,
+ * and this is the only place where its life can be ended — taking the volume,
+ * and therefore the data, with it.
+ *
+ * This used to sit above the connections, in a column a fifth of the screen
+ * wide that is also where every connection goes. A service is looked at while
+ * something is being done to it and not otherwise, so it lives in a window
+ * now and the bar at the foot of the screen says when there is one (D69).
  */
 const services = useServices()
 const removeService = useDeleteService()
@@ -45,6 +57,18 @@ function saying(service: ServicePublic): string {
   return service.container_state === service.state
     ? service.state
     : `${service.state} · ${service.container_state}`
+}
+
+function tone(service: ServicePublic): Tone {
+  if (isWorking(service.job)) return "info"
+  if (service.state === "failed") return "error"
+  if (service.state === "running") return "success"
+  return "warning"
+}
+
+/** What a person would say about when it was made. */
+function madeOn(service: ServicePublic): string {
+  return new Date(service.created_at).toLocaleString()
 }
 
 /** A creation that did not finish can be made again, from the beginning. */
@@ -99,13 +123,14 @@ async function forget(serviceId: string, name: string) {
 
 <template>
   <div
-    v-if="rows.length > 0"
     class="starting"
     data-testid="managed-services"
   >
-    <div class="starting__heading">
-      Started here
-    </div>
+    <AppEmptyState
+      v-if="rows.length === 0"
+      icon="dns"
+      text="This server is not running anything for you."
+    />
     <div
       v-for="service in rows"
       :key="service.id"
@@ -124,10 +149,20 @@ async function forget(serviceId: string, name: string) {
       />
       <div class="starting__what">
         <span class="starting__name">{{ service.connector_name }}</span>
+        <!-- Everything the server knows about it, which is the reason this is
+             a window rather than a strip in a column: what it is, what runs
+             it, and when it was made. -->
+        <span class="starting__facts">
+          {{ service.title }} · {{ service.container_name }} · {{ madeOn(service) }}
+        </span>
         <!-- The server's own words for where it has got to: a step out of a
              list it declared, never a percentage this side invented. -->
         <span class="starting__step">{{ saying(service) }}</span>
       </div>
+      <AppBadge
+        :label="service.connector_id === null ? 'no connection yet' : 'connected'"
+        :tone="tone(service)"
+      />
       <AppIconButton
         v-if="isWorking(service.job)"
         icon="stop_circle"
@@ -162,25 +197,17 @@ async function forget(serviceId: string, name: string) {
 </template>
 
 <style scoped>
-.starting__heading {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--dp-text-faint);
-  padding: 2px 6px;
-}
 .starting {
-  flex: none;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 2px 4px 6px;
+  gap: 4px;
+  min-height: 120px;
 }
 .starting__row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 6px;
+  padding: 6px 8px;
   border-radius: var(--dp-radius-control);
   background: var(--dp-surface-raised);
 }
@@ -196,6 +223,7 @@ async function forget(serviceId: string, name: string) {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.starting__facts,
 .starting__step {
   font-size: 11px;
   color: var(--dp-text-muted);
