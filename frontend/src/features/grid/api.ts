@@ -203,6 +203,37 @@ export function useExportRows(connectorId: Ref<string>) {
   })
 }
 
+/**
+ * The same two requests, sent to where a copy is kept instead.
+ *
+ * Two mutations rather than a flag on the two above: what comes back is a
+ * different thing — a file for the browser there, a sentence about a file that
+ * stayed here — and one call site would have had to know which it was holding.
+ */
+export function useKeepPage(connectorId: Ref<string>) {
+  return useMutation({
+    mutationFn: async (body: DownloadPageRequest) =>
+      (
+        await ConnectorsService.keepPage({
+          path: { connector_id: connectorId.value },
+          body,
+        })
+      ).data,
+  })
+}
+
+export function useKeepRows(connectorId: Ref<string>) {
+  return useMutation({
+    mutationFn: async (body: ExportDownloadRequest) =>
+      (
+        await ConnectorsService.keepAllRows({
+          path: { connector_id: connectorId.value },
+          body,
+        })
+      ).data,
+  })
+}
+
 export function useImportRows(connectorId: Ref<string>) {
   const queryClient = useQueryClient()
   return useMutation({

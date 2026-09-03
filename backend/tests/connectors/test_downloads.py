@@ -175,7 +175,7 @@ async def test_an_invalid_export_ticket_is_not_a_connector_id(
     assert response.json()["detail"] == "Export not found"
 
 
-async def test_download_returns_and_keeps_only_the_requested_page(
+async def test_a_download_hands_the_page_over_and_keeps_nothing(
     client: AsyncClient, normal_user_token_headers: dict[str, str], db
 ) -> None:
     created = await client.post(
@@ -208,11 +208,55 @@ async def test_download_returns_and_keeps_only_the_requested_page(
     assert rows[0] == ["relname", "oid"]
     assert len(rows) == 3
 
+    # Nothing was filed away. The two used to happen at once, and a person who
+    # only wanted the file found a copy of everything they had ever downloaded
+    # in their own storage.
     user = await crud.get_user_by_email(session=db, email=settings.EMAIL_TEST_USER)
     assert user is not None
-    saved = list((storage.home_dir(user.id) / "downloads" / connector_id).glob("*.csv"))
-    assert len(saved) == 1
-    assert saved[0].read_bytes() == response.content
+    kept = storage.home_dir(user.id) / "downloads" / connector_id
+    assert not kept.exists() or list(kept.glob("*.csv")) == []
+
+
+async def test_a_kept_page_is_filed_and_not_sent_back(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], db
+) -> None:
+    """The other half of the same choice: a copy, and no download."""
+    created = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={
+            "name": "kept page source",
+            "adapter_type": "postgres",
+            "options": working_postgres_options(),
+        },
+    )
+    connector_id = created.json()["id"]
+
+    response = await client.post(
+        f"{BASE}/{connector_id}/downloads/page/keep",
+        headers=normal_user_token_headers,
+        json={
+            "node_id": "pg_catalog.pg_class",
+            "limit": 2,
+            "title": "PostgreSQL classes",
+            "columns": ["relname", "oid"],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    answer = response.json()
+    assert answer["row_count"] == 2
+    assert answer["filename"].endswith(".csv")
+    # An address is deliberately absent: it would be an invitation to do both
+    # things again.
+    assert "download_url" not in answer
+
+    user = await crud.get_user_by_email(session=db, email=settings.EMAIL_TEST_USER)
+    assert user is not None
+    saved = storage.home_dir(user.id) / "downloads" / connector_id / answer["filename"]
+    rows = list(csv.reader(io.StringIO(saved.read_text(encoding="utf-8-sig"))))
+    assert rows[0] == ["relname", "oid"]
+    assert len(rows) == 3
 
 
 async def test_download_refuses_a_column_outside_the_fetched_table(
@@ -242,7 +286,7 @@ async def test_download_refuses_a_column_outside_the_fetched_table(
     assert response.status_code == 422
 
 
-async def test_whole_export_is_staged_then_downloaded_by_ticket(
+async def test_whole_export_is_staged_outside_personal_storage_and_then_goes(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
     db,
@@ -282,11 +326,11 @@ async def test_whole_export_is_staged_then_downloaded_by_ticket(
     assert response.status_code == 200, response.text
     answer = response.json()
     assert answer["row_count"] == 1200
+    # Staged, but not in the caller's own files: a download keeps nothing.
     user = await crud.get_user_by_email(session=db, email=settings.EMAIL_TEST_USER)
     assert user is not None
-    saved = storage.home_dir(user.id) / "downloads" / connector_id / answer["filename"]
-    assert saved.is_file()
-    assert not saved.with_suffix(".csv.part").exists()
+    kept = storage.home_dir(user.id) / "downloads" / connector_id
+    assert not kept.exists() or list(kept.glob("*.csv")) == []
 
     downloaded = await client.get(answer["download_url"])
     assert downloaded.status_code == 200
@@ -294,6 +338,60 @@ async def test_whole_export_is_staged_then_downloaded_by_ticket(
     assert rows[0] == ["label", "id"]
     assert rows[1] == ["row-1201", "1201"]
     assert rows[-1] == ["row-2", "2"]
+
+    # And the staged file goes with the ticket that was redeemed for it.
+    again = await client.get(answer["download_url"])
+    assert again.status_code == 404
+
+
+async def test_a_kept_export_stays_in_personal_storage(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    db,
+    schema: str,
+) -> None:
+    await run(
+        f"CREATE TABLE {schema}.kept_export ("  # noqa: S608 -- schema is fixture-owned.
+        "id integer PRIMARY KEY, label text NOT NULL)"
+    )
+    await run(
+        f"INSERT INTO {schema}.kept_export "  # noqa: S608 -- schema is fixture-owned.
+        "SELECT value, 'row-' || value FROM generate_series(1, 5) AS value"
+    )
+    created = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={
+            "name": "kept export",
+            "adapter_type": "postgres",
+            "options": working_postgres_options(),
+        },
+    )
+    connector_id = created.json()["id"]
+
+    response = await client.post(
+        f"{BASE}/{connector_id}/downloads/export/keep",
+        headers=normal_user_token_headers,
+        json={
+            "node_id": f"{schema}.kept_export",
+            "title": "kept export",
+            "columns": ["label", "id"],
+            "filters": [],
+            "sort": [{"column": "id", "descending": False}],
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    answer = response.json()
+    assert answer["row_count"] == 5
+    user = await crud.get_user_by_email(session=db, email=settings.EMAIL_TEST_USER)
+    assert user is not None
+    saved = storage.home_dir(user.id) / "downloads" / connector_id / answer["filename"]
+    assert saved.is_file()
+    assert not saved.with_suffix(".csv.part").exists()
+    rows = list(csv.reader(io.StringIO(saved.read_text(encoding="utf-8-sig"))))
+    assert rows[0] == ["label", "id"]
+    assert rows[-1] == ["row-5", "5"]
 
 
 async def test_file_source_refuses_a_whole_row_export(

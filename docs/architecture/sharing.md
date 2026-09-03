@@ -7,7 +7,7 @@ or the access request.
 Grants on a connection are D33 in [backend.md](backend.md); this file never
 redefines them. The tab whose address is shared is in
 [workspace.md](workspace.md), and the grid state that travels in the link is
-D24 in [frontend.md](frontend.md).
+D24 in [grid.md](grid.md).
 
 Decisions here: D58, D59, D60, D61.
 

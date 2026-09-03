@@ -93,6 +93,12 @@ import type {
   connectorsInsertRowData,
   connectorsInsertRowErrors,
   connectorsInsertRowResponses,
+  connectorsKeepAllRowsData,
+  connectorsKeepAllRowsErrors,
+  connectorsKeepAllRowsResponses,
+  connectorsKeepPageData,
+  connectorsKeepPageErrors,
+  connectorsKeepPageResponses,
   connectorsNewRelationOptionsData,
   connectorsNewRelationOptionsErrors,
   connectorsNewRelationOptionsResponses,
@@ -793,7 +799,12 @@ export class ConnectorsService {
   /**
    * Download Finished Export
    *
-   * Redeem a short-lived ticket for one already-stored export.
+   * Redeem a short-lived ticket for one finished export.
+   *
+   * Two places a signed claim may name, and the difference is whose the file
+   * is: one written to be kept is in the user's own directory and stays; one
+   * written only to be handed over is outside it and is taken away as soon as
+   * it has been sent.
    */
   public static downloadFinishedExport<ThrowOnError extends boolean = true>(
     options: Options<connectorsDownloadFinishedExportData, ThrowOnError>
@@ -1154,7 +1165,11 @@ export class ConnectorsService {
   /**
    * Download Page
    *
-   * Re-read, save and return the same bounded page the grid describes.
+   * Re-read the bounded page the grid describes and hand it over.
+   *
+   * Nothing is left behind. Keeping a copy is the route below, asked for
+   * separately, because a download that also filed itself away was leaving
+   * litter in the personal storage of everyone who only wanted the file (D28).
    */
   public static downloadPage<ThrowOnError extends boolean = true>(
     options: Options<connectorsDownloadPageData, ThrowOnError>
@@ -1176,9 +1191,39 @@ export class ConnectorsService {
   }
 
   /**
+   * Keep Page
+   *
+   * Write the same page into the caller's own files, and send nothing back.
+   */
+  public static keepPage<ThrowOnError extends boolean = true>(
+    options: Options<connectorsKeepPageData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsKeepPageResponses,
+      connectorsKeepPageErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/downloads/page/keep",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
    * Export All Rows
    *
-   * Stage every matching row without assembling the relation in memory.
+   * Stage every matching row, outside personal storage, to be handed over.
+   *
+   * Staged rather than streamed into the answer because a native browser
+   * download is what keeps a whole relation out of the browser's memory, and
+   * a native download needs an address to point at (D28). The file lives in a
+   * directory of its own and goes when the ticket is redeemed, so nothing is
+   * kept by a download nobody asked to keep.
    */
   public static exportAllRows<ThrowOnError extends boolean = true>(
     options: Options<connectorsExportAllRowsData, ThrowOnError>
@@ -1191,6 +1236,30 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/downloads/export",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Keep All Rows
+   *
+   * Write every matching row into the caller's own files, and send nothing back.
+   */
+  public static keepAllRows<ThrowOnError extends boolean = true>(
+    options: Options<connectorsKeepAllRowsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsKeepAllRowsResponses,
+      connectorsKeepAllRowsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/downloads/export/keep",
       ...options,
       headers: {
         "Content-Type": "application/json",

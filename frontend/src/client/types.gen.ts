@@ -2958,6 +2958,26 @@ export type JsonScalar = {
 }
 
 /**
+ * KeptDownload
+ *
+ * A copy that stayed: what it is called and how much of it there is.
+ *
+ * No URL, deliberately. Keeping a file and handing it to the browser are the
+ * two things this module was asked to stop doing at once, and an address in
+ * the answer would be an invitation to do both again.
+ */
+export type KeptDownload = {
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Row Count
+   */
+  row_count: number
+}
+
+/**
  * KeyNode
  *
  * One key of a key-value store.
@@ -7667,6 +7687,37 @@ export type connectorsDownloadPageResponses = {
 export type connectorsDownloadPageResponse =
   connectorsDownloadPageResponses[keyof connectorsDownloadPageResponses]
 
+export type connectorsKeepPageData = {
+  body: DownloadPageRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/downloads/page/keep"
+}
+
+export type connectorsKeepPageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsKeepPageError = connectorsKeepPageErrors[keyof connectorsKeepPageErrors]
+
+export type connectorsKeepPageResponses = {
+  /**
+   * Successful Response
+   */
+  200: KeptDownload
+}
+
+export type connectorsKeepPageResponse =
+  connectorsKeepPageResponses[keyof connectorsKeepPageResponses]
+
 export type connectorsExportAllRowsData = {
   body: ExportDownloadRequest
   path: {
@@ -7698,6 +7749,38 @@ export type connectorsExportAllRowsResponses = {
 
 export type connectorsExportAllRowsResponse =
   connectorsExportAllRowsResponses[keyof connectorsExportAllRowsResponses]
+
+export type connectorsKeepAllRowsData = {
+  body: ExportDownloadRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/downloads/export/keep"
+}
+
+export type connectorsKeepAllRowsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsKeepAllRowsError =
+  connectorsKeepAllRowsErrors[keyof connectorsKeepAllRowsErrors]
+
+export type connectorsKeepAllRowsResponses = {
+  /**
+   * Successful Response
+   */
+  200: KeptDownload
+}
+
+export type connectorsKeepAllRowsResponse =
+  connectorsKeepAllRowsResponses[keyof connectorsKeepAllRowsResponses]
 
 export type connectorsUpdateCellData = {
   body: UpdateCellRequest

@@ -17,6 +17,7 @@ from fastapi import (
 )
 from pydantic import BaseModel, Field, ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
+from starlette.background import BackgroundTask
 from starlette.responses import FileResponse, StreamingResponse
 
 from app.adapters.actions import (
@@ -430,11 +431,20 @@ async def download_action_result(
 
 @router.get("/export-downloads/{ticket}", response_class=FileResponse)
 async def download_finished_export(ticket: str) -> FileResponse:
-    """Redeem a short-lived ticket for one already-stored export."""
+    """Redeem a short-lived ticket for one finished export.
+
+    Two places a signed claim may name, and the difference is whose the file
+    is: one written to be kept is in the user's own directory and stays; one
+    written only to be handed over is outside it and is taken away as soon as
+    it has been sent.
+    """
     claims = downloads.read_export_ticket(ticket)
     if claims is None:
         raise HTTPException(status_code=404, detail="Export not found")
-    path = await to_thread.run_sync(
+    scratch = await to_thread.run_sync(
+        lambda: downloads.scratch_export_path(claims)
+    )
+    path = scratch or await to_thread.run_sync(
         lambda: downloads.stored_export_path(
             storage.home_dir(claims.user_id), claims
         )
@@ -446,6 +456,11 @@ async def download_finished_export(ticket: str) -> FileResponse:
         media_type="text/csv",
         filename=path.name,
         headers={"Cache-Control": "private, no-store"},
+        background=(
+            BackgroundTask(downloads.forget_scratch, path)
+            if scratch is not None
+            else None
+        ),
     )
 
 
@@ -1053,8 +1068,87 @@ async def download_page(
     resources: ResourcesDep,
     connector_id: uuid.UUID,
     request: DownloadPageRequest,
-) -> FileResponse:
-    """Re-read, save and return the same bounded page the grid describes."""
+) -> Response:
+    """Re-read the bounded page the grid describes and hand it over.
+
+    Nothing is left behind. Keeping a copy is the route below, asked for
+    separately, because a download that also filed itself away was leaving
+    litter in the personal storage of everyone who only wanted the file (D28).
+    """
+    result = await _page_for_download(
+        session, current_user, resources, connector_id, request
+    )
+    try:
+        body = downloads.page_csv(columns=request.columns, result=result)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from None
+    filename = downloads.page_filename(request.title)
+    return Response(
+        content=body,
+        media_type="text/csv",
+        headers={
+            "Cache-Control": "private, no-store",
+            "Content-Disposition": content_tickets.content_disposition(
+                filename, inline=False
+            ),
+        },
+    )
+
+
+@router.post(
+    "/{connector_id}/downloads/page/keep",
+    response_model=downloads.KeptDownload,
+)
+async def keep_page(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: DownloadPageRequest,
+) -> downloads.KeptDownload:
+    """Write the same page into the caller's own files, and send nothing back."""
+    result = await _page_for_download(
+        session, current_user, resources, connector_id, request
+    )
+    try:
+        path = await to_thread.run_sync(
+            lambda: downloads.save_csv_page(
+                home=storage.home_dir(current_user.id),
+                connector_id=connector_id,
+                title=request.title,
+                columns=request.columns,
+                result=result,
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from None
+    except OSError:
+        raise HTTPException(
+            status_code=507,
+            detail={"message": "The page could not be stored", "error_kind": "config"},
+        ) from None
+    return downloads.KeptDownload(filename=path.name, row_count=len(result.rows))
+
+
+async def _page_for_download(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: DownloadPageRequest,
+) -> FetchResult:
+    """The fresh page both destinations are written from.
+
+    Read again rather than taken from the client: the columns a stale layout
+    names are checked against this answer, so nothing can shift a value under
+    the wrong heading.
+    """
     adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="read"
     )
@@ -1070,16 +1164,7 @@ async def download_page(
         request.model_dump(exclude={"title", "columns"})
     )
     try:
-        result = await adapter.fetch(fetch_request)
-        path = await to_thread.run_sync(
-            lambda: downloads.save_csv_page(
-                home=storage.home_dir(current_user.id),
-                connector_id=connector_id,
-                title=request.title,
-                columns=request.columns,
-                result=result,
-            )
-        )
+        return await adapter.fetch(fetch_request)
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
@@ -1090,7 +1175,6 @@ async def download_page(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         ) from None
-    return FileResponse(path, media_type="text/csv", filename=path.name)
 
 
 @router.post(
@@ -1104,18 +1188,74 @@ async def export_all_rows(
     connector_id: uuid.UUID,
     request: downloads.ExportDownloadRequest,
 ) -> downloads.ExportReady:
-    """Stage every matching row without assembling the relation in memory."""
-    adapter = await adapter_for(
-        session, connector_id, current_user, resources, requires="read"
-    )
-    if not isinstance(adapter, SupportsExport):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support exporting all rows",
-                "error_kind": "config",
-            },
+    """Stage every matching row, outside personal storage, to be handed over.
+
+    Staged rather than streamed into the answer because a native browser
+    download is what keeps a whole relation out of the browser's memory, and
+    a native download needs an address to point at (D28). The file lives in a
+    directory of its own and goes when the ticket is redeemed, so nothing is
+    kept by a download nobody asked to keep.
+    """
+    adapter = _exporting_adapter(
+        await adapter_for(
+            session, connector_id, current_user, resources, requires="read"
         )
+    )
+    export_request = ExportRequest.model_validate(
+        request.model_dump(exclude={"title"})
+    )
+    try:
+        path, row_count = await downloads.stream_csv_export(
+            title=request.title,
+            columns=request.columns,
+            batches=adapter.export_rows(export_request),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from None
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from None
+    except OSError:
+        raise HTTPException(
+            status_code=507,
+            detail={"message": "The export could not be stored", "error_kind": "config"},
+        ) from None
+
+    ticket = downloads.issue_export_ticket(
+        user_id=current_user.id,
+        connector_id=connector_id,
+        filename=path.name,
+        scratch=path.parent.name,
+    )
+    return downloads.ExportReady(
+        filename=path.name,
+        row_count=row_count,
+        download_url=f"{settings.API_V1_STR}/connectors/export-downloads/{ticket}",
+    )
+
+
+@router.post(
+    "/{connector_id}/downloads/export/keep",
+    response_model=downloads.KeptDownload,
+)
+async def keep_all_rows(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: downloads.ExportDownloadRequest,
+) -> downloads.KeptDownload:
+    """Write every matching row into the caller's own files, and send nothing back."""
+    adapter = _exporting_adapter(
+        await adapter_for(
+            session, connector_id, current_user, resources, requires="read"
+        )
+    )
     export_request = ExportRequest.model_validate(
         request.model_dump(exclude={"title"})
     )
@@ -1142,17 +1282,19 @@ async def export_all_rows(
             status_code=507,
             detail={"message": "The export could not be stored", "error_kind": "config"},
         ) from None
+    return downloads.KeptDownload(filename=path.name, row_count=row_count)
 
-    ticket = downloads.issue_export_ticket(
-        user_id=current_user.id,
-        connector_id=connector_id,
-        filename=path.name,
-    )
-    return downloads.ExportReady(
-        filename=path.name,
-        row_count=row_count,
-        download_url=f"{settings.API_V1_STR}/connectors/export-downloads/{ticket}",
-    )
+
+def _exporting_adapter(adapter: object) -> SupportsExport:
+    if not isinstance(adapter, SupportsExport):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not support exporting all rows",
+                "error_kind": "config",
+            },
+        )
+    return adapter
 
 
 @router.patch("/{connector_id}/rows/cell", response_model=UpdateCellResult)

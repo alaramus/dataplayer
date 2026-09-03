@@ -43,6 +43,7 @@ legacy notes and stay unchanged.
 | Long work the server owns, its progress, its recovery | [jobs.md](docs/architecture/jobs.md) |
 | Backend modules, routes, migrations, secrets, database | [backend.md](docs/architecture/backend.md) |
 | Screens, components, colours, layers | [frontend.md](docs/architecture/frontend.md) |
+| A page of rows: the grid, downloads, charts | [grid.md](docs/architecture/grid.md) |
 | Layout, tabs, dragging, floating windows | [workspace.md](docs/architecture/workspace.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | Any code | [ENGINEERING.md](ENGINEERING.md) |
@@ -84,18 +85,18 @@ files. IDs are stable because specs and commits refer to them.
 | D21 | [sources/contract](docs/architecture/sources/contract.md) |
 | D22 | [sources/relations](docs/architecture/sources/relations.md) |
 | D23 | [sources/relations](docs/architecture/sources/relations.md) |
-| D24 | [frontend](docs/architecture/frontend.md) |
+| D24 | [grid](docs/architecture/grid.md) |
 | D25 | [sources/relations](docs/architecture/sources/relations.md) |
 | D26 | [sources/relations](docs/architecture/sources/relations.md) |
 | D27 | [sources/ddl](docs/architecture/sources/ddl.md) |
-| D28 | [frontend](docs/architecture/frontend.md) |
+| D28 | [grid](docs/architecture/grid.md) |
 | D29 | [sources/ddl](docs/architecture/sources/ddl.md) |
 | D30 | [sources/ddl](docs/architecture/sources/ddl.md) |
 | D31 | [sources/connecting](docs/architecture/sources/connecting.md) |
 | D32 | [sources/ddl](docs/architecture/sources/ddl.md) |
 | D33 | [backend](docs/architecture/backend.md) |
 | D34 | [backend](docs/architecture/backend.md) |
-| D35 | [frontend](docs/architecture/frontend.md) |
+| D35 | [grid](docs/architecture/grid.md) |
 | D36 | [sources/relations](docs/architecture/sources/relations.md) |
 | D37 | [sources/ddl](docs/architecture/sources/ddl.md) |
 | D38 | [sources/ddl](docs/architecture/sources/ddl.md) |
@@ -127,7 +128,7 @@ files. IDs are stable because specs and commits refer to them.
 | D64 | [querying](docs/architecture/querying.md) |
 | D65 | [querying](docs/architecture/querying.md) |
 | D66 | [querying](docs/architecture/querying.md) |
-| D67 | [frontend](docs/architecture/frontend.md) |
+| D67 | [grid](docs/architecture/grid.md) |
 | D68 | [sources/actions](docs/architecture/sources/actions.md) |
 | D69 | [workspace](docs/architecture/workspace.md) |
 | D70 | [sources/relations](docs/architecture/sources/relations.md) |

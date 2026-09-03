@@ -4,7 +4,7 @@ import { ref, watch } from "vue"
 import { AppButton, AppSection, AppTooltip } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
-import type { DownloadScope } from "./download"
+import type { DownloadDestination, DownloadScope } from "./download"
 
 const props = defineProps<{
   modelValue: boolean
@@ -17,7 +17,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   "update:modelValue": [value: boolean]
-  run: [scope: DownloadScope]
+  run: [scope: DownloadScope, destination: DownloadDestination]
 }>()
 
 const scope = ref<DownloadScope>("page")
@@ -64,7 +64,7 @@ watch(
         </span>
         <span v-if="allSupported">
           {{ filterCount === 0 ? "The whole relation" : `${filterCount} active filters` }}
-          · streamed into personal storage
+          · streamed rather than held in memory
         </span>
         <span v-else>{{ allReason ?? "This source cannot export all matching rows" }}</span>
       </div>
@@ -76,11 +76,20 @@ watch(
         :disable="running"
         @click="emit('update:modelValue', false)"
       />
+      <!-- Two buttons rather than one, because they are two different things
+           to want: the file, or a copy of it among your own files. -->
+      <AppButton
+        label="Save to my files"
+        variant="secondary"
+        :loading="running"
+        data-testid="grid-download-keep"
+        @click="emit('run', scope, 'files')"
+      />
       <AppButton
         label="Download"
         :loading="running"
         data-testid="grid-download-run"
-        @click="emit('run', scope)"
+        @click="emit('run', scope, 'browser')"
       />
     </template>
   </WindowDialog>

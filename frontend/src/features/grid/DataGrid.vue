@@ -39,6 +39,8 @@ import {
   useDownloadPage,
   useExportRows,
   useImportRows,
+  useKeepPage,
+  useKeepRows,
   useFollowReference,
   useForgetRowsPage,
   useInsertRow,
@@ -67,7 +69,7 @@ import {
   saveBrowserDownload,
   saveNativeDownload,
 } from "./download"
-import type { DownloadScope } from "./download"
+import type { DownloadDestination, DownloadScope } from "./download"
 import DownloadDialog from "./DownloadDialog.vue"
 import ShareDialog from "@/features/shares/ShareDialog.vue"
 import {
@@ -216,6 +218,8 @@ const insertRow = useInsertRow(toRef(props, "connectorId"))
 const deleteRows = useDeleteRows(toRef(props, "connectorId"))
 const downloadPage = useDownloadPage(toRef(props, "connectorId"))
 const exportRows = useExportRows(toRef(props, "connectorId"))
+const keepPage = useKeepPage(toRef(props, "connectorId"))
+const keepRows = useKeepRows(toRef(props, "connectorId"))
 const importRows = useImportRows(toRef(props, "connectorId"))
 const createRelation = useCreateRelationFromSource()
 const followReference = useFollowReference(toRef(props, "connectorId"))
@@ -470,40 +474,64 @@ function openEditor(request: TabularEditRequest) {
   editor.value = { column, value: request.value, rowHandle }
 }
 
-async function runDownload(scope: DownloadScope) {
+/**
+ * Write the table out, to one of two places.
+ *
+ * Four combinations of scope and destination, and each of them is one request:
+ * the server writes the same CSV either way and the destination decides
+ * whether the answer is the file or a sentence about where it went (D28).
+ */
+async function runDownload(scope: DownloadScope, destination: DownloadDestination) {
   if (result.value === undefined || downloadColumns.value.length === 0) return
-  const fallback = `${props.title ?? "table"}.csv`
+  const title = props.title ?? "table"
+  const columns = downloadColumns.value.map((column) => column.id)
+  const whole = {
+    node_id: props.nodeId,
+    title,
+    columns,
+    filters: [...queryState.value.filters],
+    sort: [...queryState.value.sort],
+  }
+  const page = { ...request.value, title, columns }
   try {
-    if (scope === "all") {
-      const exported = await exportRows.mutateAsync({
-        node_id: props.nodeId,
-        title: props.title ?? "table",
-        columns: downloadColumns.value.map((column) => column.id),
-        filters: [...queryState.value.filters],
-        sort: [...queryState.value.sort],
-      })
-      saveNativeDownload(exported.download_url)
+    if (destination === "files") {
+      const kept =
+        scope === "all"
+          ? await keepRows.mutateAsync(whole)
+          : await keepPage.mutateAsync(page)
       downloadOpen.value = false
-      toast.success(
-        `${exported.row_count} rows exported and saved to your Downloads folder`
-      )
+      toast.success(`${kept.row_count} rows saved to your files as ${kept.filename}`)
       return
     }
-    const downloaded = await downloadPage.mutateAsync({
-      ...request.value,
-      title: props.title ?? "table",
-      columns: downloadColumns.value.map((column) => column.id),
-    })
+    if (scope === "all") {
+      // Followed as a plain browser download rather than read here: a whole
+      // relation must not be assembled in this tab's memory.
+      const exported = await exportRows.mutateAsync(whole)
+      saveNativeDownload(exported.download_url)
+      downloadOpen.value = false
+      toast.success(`${exported.row_count} rows downloaded`)
+      return
+    }
+    const downloaded = await downloadPage.mutateAsync(page)
     saveBrowserDownload(
       downloaded.blob,
-      filenameFromDisposition(downloaded.disposition, fallback)
+      filenameFromDisposition(downloaded.disposition, `${title}.csv`)
     )
     downloadOpen.value = false
-    toast.success("Page downloaded and saved to your Downloads folder")
+    toast.success("Page downloaded")
   } catch (error) {
-    toast.error(messageOf(error, "Could not create this download"))
+    toast.error(messageOf(error, "Could not write this table out"))
   }
 }
+
+/** Any of the four requests is under way, and the toolbar says so once. */
+const writingOut = computed(
+  () =>
+    downloadPage.isPending.value ||
+    exportRows.isPending.value ||
+    keepPage.isPending.value ||
+    keepRows.isPending.value
+)
 
 function openDownload(columns: TabularVisibleColumn[]): void {
   downloadColumns.value = [...columns]
@@ -1117,8 +1145,8 @@ defineExpose({
         v-if="offers('download') && visibleColumns.length > 0"
         icon="download"
         tooltip="Download"
-        :disable="downloadPage.isPending.value || exportRows.isPending.value"
-        :loading="downloadPage.isPending.value || exportRows.isPending.value"
+        :disable="writingOut"
+        :loading="writingOut"
         data-testid="grid-download"
         @click="openDownload(visibleColumns)"
       />
@@ -1270,7 +1298,7 @@ defineExpose({
         :filter-count="queryState.filters.length"
         :all-supported="result.export_supported === true"
         :all-reason="result.export_reason ?? undefined"
-        :running="downloadPage.isPending.value || exportRows.isPending.value"
+        :running="writingOut"
         @run="runDownload"
         @update:model-value="downloadOpen = false"
       />

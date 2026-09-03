@@ -29,7 +29,25 @@ describe("download scopes", () => {
     document.body.querySelector<HTMLElement>('[data-testid="download-scope-all"]')?.click()
     document.body.querySelector<HTMLElement>('[data-testid="grid-download-run"]')?.click()
 
-    expect(wrapper.findComponent(DownloadDialog).emitted("run")?.[0]).toEqual(["all"])
+    expect(wrapper.findComponent(DownloadDialog).emitted("run")?.[0]).toEqual([
+      "all",
+      "browser",
+    ])
+    wrapper.unmount()
+  })
+
+  it("says where it is going as well as how much of it", async () => {
+    // The two used to happen together, so a person who wanted the file got a
+    // copy in their own files as litter, and the other way round.
+    const wrapper = mountDialog(true)
+    await flushPromises()
+
+    document.body.querySelector<HTMLElement>('[data-testid="grid-download-keep"]')?.click()
+
+    expect(wrapper.findComponent(DownloadDialog).emitted("run")?.[0]).toEqual([
+      "page",
+      "files",
+    ])
     wrapper.unmount()
   })
 
