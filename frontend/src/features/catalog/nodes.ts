@@ -17,6 +17,10 @@ export type NodeRole = "group" | "container" | "leaf"
 
 const ROLES: Record<CatalogNode["kind"], NodeRole> = {
   schema: "group",
+  // A key-value database is a grouping for the same reason a schema is: the
+  // one named by the connection says where to start, and the others are
+  // beside it in the same control rather than one folder down (D91).
+  database: "group",
   directory: "container",
   table: "leaf",
   view: "leaf",
@@ -63,6 +67,14 @@ export interface ListNode {
    * is a real schema, and hiding it would be deciding for the user.
    */
   system: boolean
+  /**
+   * Whether the source says this is the grouping to open on.
+   *
+   * Only a grouping has one, and only where the source knows: a Redis
+   * connection names the database it was written with, and opening on
+   * whichever happens to be listed first would ignore what the user chose.
+   */
+  preferred: boolean
   /** Which grouping this node came from, when several were listed at once. */
   group?: string
 }
@@ -87,11 +99,30 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
   // overflows its 18px box and covers the row's tick box — the icon is drawn
   // over the control beside it, and the row cannot be ticked.
   report: "assessment",
+  database: "storage",
   key: "vpn_key",
 }
 
 /** The section of reports, which is a report with children rather than a folder. */
 export const REPORT_SECTION_ICON = "dns"
+
+/**
+ * What a source's groupings are called, above the control that picks them.
+ *
+ * A table rather than a question about the type of the source: "Schemas" over
+ * a list of Redis databases would be the old application's habit of giving one
+ * word two meanings, and the kind of the node already says which word it is.
+ */
+const GROUP_TITLES: Partial<Record<CatalogNode["kind"], string>> = {
+  schema: "Schemas",
+  database: "Databases",
+}
+
+/** The word for the groupings on a level, or none when it offers no kind. */
+export function groupTitle(groups: ListNode[]): string {
+  const kind = groups[0]?.kind
+  return (kind === undefined ? undefined : GROUP_TITLES[kind]) ?? "Groups"
+}
 
 const FILE_ICONS: Partial<Record<NodeRepresentation["kind"], string>> = {
   table: "grid_on",
@@ -167,6 +198,14 @@ function captionOf(node: CatalogNode): string | undefined {
       return entryCaption(node)
     case "key":
       return keyCaption(node)
+    case "database":
+      // Said even when it is nothing: a database with no keys in it is a fact
+      // about the server, and an empty caption reads as one nobody counted.
+      return node.keys === null || node.keys === undefined
+        ? undefined
+        : node.keys === 0
+          ? "empty"
+          : counted(node.keys, "key")
     default:
       return undefined
   }
@@ -243,6 +282,10 @@ function counted(count: number, noun: string): string {
   return `${String(count)} ${noun}${count === 1 ? "" : "s"}`
 }
 
+function isPreferred(node: CatalogNode): boolean {
+  return node.kind === "database" && node.preferred === true
+}
+
 function isSystem(node: CatalogNode): boolean {
   switch (node.kind) {
     case "schema":
@@ -278,6 +321,7 @@ export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
     readable: node.representations.length > 0,
     representations: node.representations,
     system: isSystem(node),
+    preferred: isPreferred(node),
     describable: node.describable === true,
     summarizable: node.summarizable === true,
     // Only a table knows roughly how many rows it holds. A file would have

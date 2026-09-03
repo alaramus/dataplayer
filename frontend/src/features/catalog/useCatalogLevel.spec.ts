@@ -47,6 +47,16 @@ const schema = (name: string, isSystem = false) => ({
   representations: [],
 })
 
+const database = (index: number, preferred = false) => ({
+  id: `d${String(index)}`,
+  name: `db${String(index)}`,
+  kind: "database" as const,
+  has_children: true,
+  preferred,
+  keys: 0,
+  representations: [],
+})
+
 const directory = (id: string, name: string) => ({
   id,
   name,
@@ -157,6 +167,20 @@ describe("groupings", () => {
       await level.load()
 
       expect(level.selectedGroups.value).toEqual(["pg_catalog"])
+    })
+  })
+
+  it("opens on the grouping the source named, however many there are", async () => {
+    // Sixteen Redis databases, and the connection was written with one of
+    // them in it. Nothing but the source knows which; opening on whichever is
+    // listed first would throw away what the user chose.
+    const all = Array.from({ length: 16 }, (_, index) => database(index, index === 3))
+    answers(all, [])
+
+    await withLevel(async (level) => {
+      await level.load()
+
+      expect(level.selectedGroups.value).toEqual(["d3"])
     })
   })
 

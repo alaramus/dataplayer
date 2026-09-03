@@ -56,7 +56,15 @@ class RedisSession:
     def database(self) -> int:
         return self._options.database
 
-    def _client(self) -> redis.Redis:
+    def _client(self, database: int | None = None) -> redis.Redis:
+        """A client on one of the server's key spaces.
+
+        Which one is asked for per call rather than fixed at construction: the
+        number in the connection says where the catalog opens, and the catalog
+        is free to be told to look at another (D91). A number out of the
+        server's range is refused by the server on connect, which is the only
+        party that knows how many it was started with.
+        """
         password = (
             self._options.password.get_secret_value()
             if isinstance(self._options, RedisPassword)
@@ -65,7 +73,7 @@ class RedisSession:
         return redis.Redis(
             host=self._options.host,
             port=self._options.port,
-            db=self._options.database,
+            db=self._options.database if database is None else database,
             password=password,
             socket_connect_timeout=TIMEOUT_SECONDS,
             socket_timeout=TIMEOUT_SECONDS,
@@ -76,7 +84,9 @@ class RedisSession:
         )
 
     @asynccontextmanager
-    async def connection(self) -> AsyncIterator[redis.Redis]:
+    async def connection(
+        self, database: int | None = None
+    ) -> AsyncIterator[redis.Redis]:
         """One connection, closed however the caller leaves.
 
         No pooling. Everything this source does is a handful of round trips
@@ -84,7 +94,7 @@ class RedisSession:
         lifetime to manage for no gain, and `check_connection` deliberately
         opens its own anyway.
         """
-        client = self._client()
+        client = self._client(database)
         try:
             yield client
         except RedisError as failure:

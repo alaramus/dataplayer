@@ -18,13 +18,26 @@ from pydantic.config import JsonDict
 DEFAULT_GROUP = "general"
 
 
-def layout(*, group: str = DEFAULT_GROUP, row: str | None = None) -> JsonDict:
+def layout(
+    *,
+    group: str = DEFAULT_GROUP,
+    row: str | None = None,
+    multiline: bool = False,
+) -> JsonDict:
     """Fields sharing a `row` are laid out on one line, in declaration order.
 
     The row is named rather than numbered so that inserting a field between
     two others does not renumber everything after it.
+
+    `multiline` says the value is written on several lines — the members of a
+    Redis set, one per line — so the form gives it a box instead of a line.
+    A statement about the field, made where the field is: the type is `str`
+    either way, and a screen inferring "long" from "string" would give every
+    host name six lines.
     """
     extra: JsonDict = {"group": group}
     if row is not None:
         extra["row"] = row
+    if multiline:
+        extra["x-ui-multiline"] = True
     return extra

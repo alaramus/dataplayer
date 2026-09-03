@@ -82,6 +82,41 @@ describe("schemaToFields", () => {
     ])
   })
 
+  it("gives a value written on several lines a box, and only that value", () => {
+    // Said by the model that declares the field: the type is `string` either
+    // way, and a form inferring "long" from "string" would give every host
+    // name six lines.
+    const fields = schemaToFields({
+      type: "object",
+      properties: {
+        name: { type: "string", title: "Key" },
+        value: { type: "string", title: "Fields", "x-ui-multiline": true },
+      },
+    })
+
+    expect(at(fields, 0).kind).toBe("text")
+    expect(at(fields, 1).kind).toBe("multiline")
+  })
+
+  it("carries what the source says about a field, for the line under it", () => {
+    // It was travelling in the schema and being dropped on the floor: "one per
+    // line, as field=value" is a fact about a Redis hash that no form can work
+    // out for itself.
+    const fields = schemaToFields({
+      type: "object",
+      properties: {
+        value: {
+          type: "string",
+          title: "Fields",
+          description: "One per line, written as field=value",
+        },
+      },
+    })
+
+    expect(first(fields).description).toBe("One per line, written as field=value")
+    expect(schemaToFields(POSTGRES_SCHEMA)[0]?.description).toBeUndefined()
+  })
+
   it("marks required fields", () => {
     const fields = schemaToFields(POSTGRES_SCHEMA)
 

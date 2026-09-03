@@ -17,6 +17,7 @@ function table(id: string, label: string): ListNode {
     describable: true,
     summarizable: false,
     system: false,
+    preferred: false,
   }
 }
 

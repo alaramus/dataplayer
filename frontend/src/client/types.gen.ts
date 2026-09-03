@@ -1276,6 +1276,60 @@ export type CreateRelationFromSourceRequest = {
 }
 
 /**
+ * DatabaseNode
+ *
+ * One numbered key space of a key-value server.
+ *
+ * Not a schema. A schema is a namespace inside one database and several of
+ * them can be looked at together, because they share a connection and a
+ * transaction; these are separate key spaces on the same server that share
+ * nothing but the port, and a key in one is invisible from another. Reusing
+ * `schema` would be giving one kind two meanings, which is the thing
+ * `BaseNode` says the old application did.
+ *
+ * It is still a grouping rather than a folder: the number chosen when the
+ * connection was written says where to start, not where to stay (D91).
+ */
+export type DatabaseNode = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Has Children
+   */
+  has_children?: boolean
+  /**
+   * Representations
+   */
+  representations: Array<NodeRepresentation>
+  /**
+   * Describable
+   */
+  describable?: boolean
+  /**
+   * Summarizable
+   */
+  summarizable?: boolean
+  /**
+   * Kind
+   */
+  kind?: "database"
+  /**
+   * Preferred
+   */
+  preferred?: boolean
+  /**
+   * Keys
+   */
+  keys?: number | null
+}
+
+/**
  * DatasetNode
  *
  * A tabular member of a container file, such as one sheet of a workbook.
@@ -3126,6 +3180,9 @@ export type NodeMatch = {
         kind: "report"
       } & ReportNode)
     | ({
+        kind: "database"
+      } & DatabaseNode)
+    | ({
         kind: "key"
       } & KeyNode)
   /**
@@ -3234,7 +3291,17 @@ export type NodeSummary = {
   /**
    * Kind
    */
-  kind: "schema" | "table" | "view" | "directory" | "file" | "dataset" | "entry" | "report" | "key"
+  kind:
+    | "schema"
+    | "table"
+    | "view"
+    | "directory"
+    | "file"
+    | "dataset"
+    | "entry"
+    | "report"
+    | "database"
+    | "key"
   /**
    * Representations
    */
@@ -4081,6 +4148,9 @@ export type ReferencedRows = {
         kind: "report"
       } & ReportNode)
     | ({
+        kind: "database"
+      } & DatabaseNode)
+    | ({
         kind: "key"
       } & KeyNode)
   /**
@@ -4222,6 +4292,9 @@ export type RelationCreated = {
     | ({
         kind: "report"
       } & ReportNode)
+    | ({
+        kind: "database"
+      } & DatabaseNode)
     | ({
         kind: "key"
       } & KeyNode)
@@ -7547,6 +7620,9 @@ export type connectorsReadCatalogResponses = {
         kind: "report"
       } & ReportNode)
     | ({
+        kind: "database"
+      } & DatabaseNode)
+    | ({
         kind: "key"
       } & KeyNode)
   >
@@ -8480,6 +8556,9 @@ export type connectorsReadNodePathResponses = {
     | ({
         kind: "report"
       } & ReportNode)
+    | ({
+        kind: "database"
+      } & DatabaseNode)
     | ({
         kind: "key"
       } & KeyNode)

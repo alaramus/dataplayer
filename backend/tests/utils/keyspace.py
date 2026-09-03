@@ -48,6 +48,15 @@ def redis_options() -> RedisOptions:
     )
 
 
+def chosen_database() -> int:
+    """The database the tests connect to, which their ids have to carry.
+
+    Every id this source issues names its database (D91), so a test writing one
+    out by hand would be writing a 15 that only happens to be 15 here.
+    """
+    return redis_options().database
+
+
 async def empty_keyspace() -> AsyncGenerator[None]:
     """An empty database before the test and after it.
 

@@ -36,16 +36,19 @@ download, rename and delete. Download returns one file unchanged or archives a
 directory or selection. No sorting and no filtering, because a file has no
 index. No connection string.
 
-**Redis** — a key space, shown as a tree of the colons its names already
-carry: the top lists the first segment of every key, opening one shows the
-next, and opening a key shows what it holds where it stands. A key says its
-type, its size and how long it has left, and opens in a tab as rows — a hash
-as fields and values, a list as positions and values, a sorted set as members
-and scores, a string as one value. Four actions: write a key with an optional
-expiry, delete one, set an expiry, take one off. An address is composed and
-parsed the way PostgreSQL's is. No sorting and no filtering, because Redis has
-no index over values, and no query console, because Redis has commands rather
-than statements. Everything scans; nothing runs `KEYS`.
+**Redis** — every database on the server as a grouping, and inside the one
+that is open, a key space shown as a tree of the colons its names already
+carry: the top lists the first segment of every key, and opening one shows the
+next. The database in the connection says where the catalog opens, not where
+it stays. A key says its type, its size and how long it has left, and a click
+opens it in a tab as rows — a hash as fields and values, a list as positions
+and values, a sorted set as members and scores, a string as one value. Nine
+actions: a key of each of the six types Redis has, written where the catalog
+is standing and with an optional expiry, then delete, set an expiry and take
+one off. An address is composed and parsed the way PostgreSQL's is. No sorting
+and no filtering, because Redis has no index over values, and no query
+console, because Redis has commands rather than statements. Everything scans;
+nothing runs `KEYS`.
 
 ## Where the code is
 
@@ -90,8 +93,9 @@ backend/app/adapters/
 │                       options.py (a union by auth_method),
 │                       adapter.py (facade)
 ├── redis/              session.py (reaching the server, and reducing its
-│                       errors), keyspace.py (the tree and what a key is),
-│                       fetch.py (a key read as rows), actions.py (the four),
+│                       errors), keyspace.py (the databases, the tree, and
+│                       what a key is), fetch.py (a key read as rows),
+│                       actions.py (six ways to write one, three after),
 │                       url.py (the address, both ways), samples.py (the
 │                       demonstration key space), options.py (a union by
 │                       auth_method), adapter.py (facade),

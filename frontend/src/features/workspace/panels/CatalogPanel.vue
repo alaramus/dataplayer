@@ -12,7 +12,7 @@ import { locationOf } from "@/features/catalog/location"
 import { searchSummary } from "@/features/catalog/search"
 import { useAdapterTypes } from "@/features/connectors/api"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
-import { showsPath } from "@/features/catalog/nodes"
+import { groupTitle, showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -172,8 +172,18 @@ watch(
   }
 )
 
+/**
+ * What the level offers to look at, and what each one says about itself.
+ *
+ * The caption goes into the label because this control has nowhere else to
+ * put one: "db3" and "db3 · 110 keys" are the difference between guessing
+ * which database holds the data and being told.
+ */
 const groupOptions = computed(() =>
-  level.groups.value.map((group) => ({ label: group.label, value: group.id }))
+  level.groups.value.map((group) => ({
+    label: group.caption === undefined ? group.label : `${group.label} · ${group.caption}`,
+    value: group.id,
+  }))
 )
 
 const showPath = computed(
@@ -292,14 +302,49 @@ const pickedIsPlace = computed(
 )
 
 /**
+ * Where the tree is rooted: the one grouping that is on, or the top.
+ *
+ * The same choice a list makes with its schemas, made in the same control —
+ * which is the point of D91's grouping being a grouping and not a folder.
+ */
+const treeRoot = computed<string | null>(
+  () => level.selectedGroups.value[0] ?? null
+)
+
+/** Schemas, databases — the source's own word, read off the kind (D91). */
+const groupsLabel = computed(() => groupTitle(level.groups.value))
+
+/**
+ * Whether the level's groupings are looked at one at a time.
+ *
+ * A tree has one root. Several schemas listed together are one list with a
+ * column saying where each row came from; several key spaces expanded together
+ * would be one tree with no such column, and nothing joins them anyway.
+ */
+const oneGroupOnly = computed(() => asTree.value)
+
+/** The one grouping a tree stands in, named as the source names it. */
+const groupLabel = computed(
+  () =>
+    level.groups.value.find((group) => group.id === treeRoot.value)?.label ??
+    props.title
+)
+
+/** One control, whichever shape it is in: a list of ids either way. */
+function pickGroups(chosen: unknown) {
+  const ids = Array.isArray(chosen) ? (chosen as string[]) : [chosen as string]
+  void level.setGroups(ids.filter((id) => id !== null && id !== undefined))
+}
+
+/**
  * Where something new would be made in a tree.
  *
- * The selected branch, or the top when a leaf is selected or nothing is: a
- * client cannot derive the branch a leaf hangs under, because an id is the
- * source's own string and is never taken apart here (D21).
+ * The selected branch, or the root of the tree when a leaf is selected or
+ * nothing is: a client cannot derive the branch a leaf hangs under, because an
+ * id is the source's own string and is never taken apart here (D21).
  */
 const treeLevelId = computed(() =>
-  pickedIsPlace.value ? (picked.value?.id ?? null) : null
+  pickedIsPlace.value ? (picked.value?.id ?? null) : treeRoot.value
 )
 const treeChecked = computed(() =>
   picked.value !== null && !pickedIsPlace.value ? [picked.value] : []
@@ -379,7 +424,16 @@ async function afterAction(outcome: ActionOutcome) {
     // A tree has one reading rather than a level: which branches changed is
     // still the server's answer, and re-reading the whole of a bounded
     // catalog is cheaper than keeping a map of what is open in step with it.
-    if (branches.length > 0) await tree.value?.reload()
+    //
+    // The level goes first even though nothing of it is drawn as a list. It
+    // is what forgets the branches — a loader answering from a fresh cache
+    // would hand back exactly what was asked to be replaced — and it is also
+    // what re-reads the groupings, so a database that has just gained its
+    // first key stops saying it is empty.
+    if (branches.length > 0) {
+      await level.reloadMany(branches)
+      await tree.value?.reload()
+    }
     return
   }
   if (branches.length > 0) await level.reloadMany(branches)
@@ -443,16 +497,16 @@ async function afterAction(outcome: ActionOutcome) {
              and a second line in a bar that has one — Quasar floats a label
              out of the field exactly when the field is filled. -->
         <AppSelect
-          v-if="groupOptions.length && !asTree"
+          v-if="groupOptions.length"
           class="catalog-panel__groups"
-          :model-value="level.selectedGroups.value"
+          :model-value="oneGroupOnly ? treeRoot : level.selectedGroups.value"
           :options="groupOptions"
-          :label="level.selectedGroups.value.length ? undefined : 'Schemas'"
-          aria-label="Schemas"
-          multiple
+          :label="level.selectedGroups.value.length ? undefined : groupsLabel"
+          :aria-label="groupsLabel"
+          :multiple="!oneGroupOnly"
           compact
           data-testid="catalog-groups"
-          @update:model-value="level.setGroups($event as string[])"
+          @update:model-value="pickGroups"
         />
 
         <!-- One menu, fed from wherever the selection lives: a level's ticks
@@ -463,13 +517,13 @@ async function afterAction(outcome: ActionOutcome) {
           class="catalog-panel__menu"
           :connector-id="connectorId"
           :level-id="treeLevelId"
-          :level-label="picked?.label ?? title"
+          :level-label="picked?.label ?? groupLabel"
           :places="[treeLevelId]"
           :selected-groups="[]"
           :groupings="[]"
           :checked-ids="treeChecked.map((node) => node.id)"
           :checked-nodes="treeChecked.map((node) => ({ label: node.label, kind: node.kind }))"
-          :place-label="picked && pickedIsPlace ? picked.label : title"
+          :place-label="picked && pickedIsPlace ? picked.label : groupLabel"
           :checked-label="treeChecked[0]?.label ?? ''"
           :describes-nodes="false"
           :described-node="null"
@@ -565,6 +619,7 @@ async function afterAction(outcome: ActionOutcome) {
       ref="tree"
       class="catalog-panel__body"
       :connector-id="connectorId"
+      :root-id="treeRoot"
       @select="picked = $event"
       @open="onOpen"
     />

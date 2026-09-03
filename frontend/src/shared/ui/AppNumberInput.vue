@@ -4,9 +4,15 @@ withDefaults(
     modelValue: number | null
     label?: string
     error?: string
+    /**
+     * The line under the field, in the source's own words: what to write, or
+     * what leaving it empty means. Not an error and not a placeholder — it is
+     * there whether or not the field is filled.
+     */
+    hint?: string
     disable?: boolean
   }>(),
-  { label: undefined, error: "", disable: false }
+  { label: undefined, error: "", hint: undefined, disable: false }
 )
 
 const emit = defineEmits<{ "update:modelValue": [value: number | null] }>()
@@ -29,6 +35,7 @@ function report(value: string | number | null) {
     type="number"
     :model-value="modelValue"
     :label="label"
+    :hint="hint"
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"

@@ -124,6 +124,31 @@ class ReportNode(BaseNode):
     description: str | None = None
 
 
+class DatabaseNode(BaseNode):
+    """One numbered key space of a key-value server.
+
+    Not a schema. A schema is a namespace inside one database and several of
+    them can be looked at together, because they share a connection and a
+    transaction; these are separate key spaces on the same server that share
+    nothing but the port, and a key in one is invisible from another. Reusing
+    `schema` would be giving one kind two meanings, which is the thing
+    `BaseNode` says the old application did.
+
+    It is still a grouping rather than a folder: the number chosen when the
+    connection was written says where to start, not where to stay (D91).
+    """
+
+    kind: Literal["database"] = "database"
+    has_children: bool = True
+    # Which one the connection itself names, and therefore the one the catalog
+    # opens on. Said by the source, because only the source knows what its
+    # connection was written with.
+    preferred: bool = False
+    # How many keys the server reports in it, or nothing when it reports none.
+    # Read from one INFO rather than a DBSIZE per database.
+    keys: int | None = None
+
+
 class KeyNode(BaseNode):
     """One key of a key-value store.
 
@@ -163,6 +188,7 @@ CatalogNode = Annotated[
     | DatasetNode
     | EntryNode
     | ReportNode
+    | DatabaseNode
     | KeyNode,
     Field(discriminator="kind"),
 ]
@@ -181,5 +207,6 @@ NodeKind = Literal[
     "dataset",
     "entry",
     "report",
+    "database",
     "key",
 ]

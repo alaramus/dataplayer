@@ -2,11 +2,10 @@
 import { computed, ref, watch } from "vue"
 
 import { useCatalogLoader } from "@/features/catalog/api"
-import { toTreeRows, toValueRows, rowAt, withChildren } from "@/features/catalog/keyspaceRows"
+import { toTreeRows, rowAt, withChildren } from "@/features/catalog/keyspaceRows"
 import type { TreeRow } from "@/features/catalog/keyspaceRows"
 import { toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
-import { fetchRowsPage } from "@/features/grid/api"
 import { messageOf } from "@/shared/api/errors"
 import { AppBanner, AppEmptyState, AppSpinner, AppTree } from "@/shared/ui"
 import type { TreeLazyLoad } from "@/shared/ui"
@@ -15,18 +14,19 @@ import type { TreeLazyLoad } from "@/shared/ui"
  * A catalog opened where it stands, rather than walked one level at a time.
  *
  * For the sources that say their catalog is a tree (D91): a key space is
- * bounded, its shape is already in the names, and what a key holds is a few
- * fields worth seeing beside the key. Expanding a branch asks the server for
- * that branch; expanding a leaf asks for a page of what it holds, which is
- * what gives this the feel of a JSON viewer rather than of a file manager.
+ * bounded and its shape is already in the names, so the whole of it is one
+ * thing to open and close. Expanding a branch asks the server for that branch,
+ * and nothing else about it is different — a leaf is opened in a tab, exactly
+ * as it is in the list.
  *
- * Opening a leaf properly — with paging, the full value and everything the
- * grid offers — is still a tab, and a double click is how one is asked for.
+ * Where the tree is rooted is decided outside it: the source's groupings are
+ * chosen in the head of the panel, the same control a list uses for schemas,
+ * and this is told which one to stand in.
  */
 const props = defineProps<{
   connectorId: string
-  /** How many of a node's own rows are shown inside the tree. */
-  peek?: number
+  /** The grouping the tree is rooted in; null is the top of the connection. */
+  rootId: string | null
 }>()
 
 const emit = defineEmits<{
@@ -35,9 +35,6 @@ const emit = defineEmits<{
   /** Open this node the way the list opens one: in a tab of its own. */
   open: [node: ListNode]
 }>()
-
-/** How much of a node is shown inside the tree before it says "open it". */
-const PEEK = 50
 
 const loadChildren = useCatalogLoader()
 
@@ -52,7 +49,7 @@ async function load(refresh = false) {
   error.value = ""
   try {
     rows.value = toTreeRows(
-      toListNodes(await loadChildren(props.connectorId, null, refresh))
+      toListNodes(await loadChildren(props.connectorId, props.rootId, refresh))
     )
     // What was open was open about the last reading; a branch that is gone
     // would keep an arrow pointing at nothing.
@@ -66,53 +63,40 @@ async function load(refresh = false) {
   }
 }
 
-watch(() => props.connectorId, () => void load(), { immediate: true })
+watch(
+  [() => props.connectorId, () => props.rootId],
+  () => void load(),
+  { immediate: true }
+)
 
-/**
- * What one branch holds, asked for when it is opened.
- *
- * Two answers from one handler, because the tree makes one request: a node
- * with children answers with them, and a node without answers with a page of
- * what it holds. Which of the two it is was already decided by the source,
- * and is read off the node rather than off the type of the connection.
- */
+/** What one branch holds, asked for when it is opened. */
 async function expand({ node, done, fail }: TreeLazyLoad) {
   const row = node as TreeRow
-  const listed = row.node
-  if (listed === undefined) {
-    done([])
-    return
-  }
   try {
-    const children =
-      listed.role === "leaf" ? await peekInto(listed) : await branchOf(listed)
+    const children = toTreeRows(
+      toListNodes(await loadChildren(props.connectorId, row.node.id))
+    )
     rows.value = withChildren(rows.value, row.id, children)
     done(children)
   } catch (cause) {
-    error.value = messageOf(cause, `Could not open ${listed.label}`)
+    error.value = messageOf(cause, `Could not open ${row.node.label}`)
     fail()
   }
-}
-
-async function branchOf(node: ListNode): Promise<TreeRow[]> {
-  return toTreeRows(toListNodes(await loadChildren(props.connectorId, node.id)))
-}
-
-async function peekInto(node: ListNode): Promise<TreeRow[]> {
-  const page = await fetchRowsPage(
-    props.connectorId,
-    { node_id: node.id, limit: props.peek ?? PEEK },
-    new AbortController().signal
-  )
-  return toValueRows(node.id, page)
 }
 
 watch(selected, (id) => {
   emit("select", rowAt(rows.value, id)?.node ?? null)
 })
 
-function onActivate(row: TreeRow) {
-  if (row.node !== undefined && row.node.readable) emit("open", row.node)
+/**
+ * A click on a leaf opens it, the way a click in the list does.
+ *
+ * Only a leaf: a branch is a place, and clicking one selects it so that what
+ * is made next is made there. Quasar toggles the branch on the same click,
+ * which is what a person expects from a tree.
+ */
+function onClick(row: TreeRow) {
+  if (row.node.role === "leaf") emit("open", row.node)
 }
 
 const empty = computed(() => !loading.value && rows.value.length === 0)
@@ -148,11 +132,11 @@ defineExpose({ reload: () => load(true) })
     >
       <template #default-header="{ node }">
         <!-- One row: what it is, what it is called, and what the source said
-             about it. A double click opens it the way the list does. -->
+             about it. -->
         <div
           class="keyspace__row"
           :data-testid="`keyspace-row-${(node as TreeRow).id}`"
-          @dblclick="onActivate(node as TreeRow)"
+          @click="onClick(node as TreeRow)"
         >
           <q-icon
             :name="(node as TreeRow).icon"

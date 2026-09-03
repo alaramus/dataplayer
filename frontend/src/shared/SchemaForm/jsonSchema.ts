@@ -3,6 +3,8 @@ import { z } from "zod"
 export interface JsonSchemaProperty {
   type?: string
   title?: string
+  /** The sentence under the field: what to write, or what empty means. */
+  description?: string
   /** The single value a discriminator property may take, as Pydantic emits it. */
   const?: string
   format?: string
@@ -19,6 +21,13 @@ export interface JsonSchemaProperty {
   minimum?: number
   maximum?: number
   "x-ui-hidden"?: boolean
+  /**
+   * Whether the value is written on several lines — the members of a set, one
+   * per line. Said by the model that declares the field, because the type is
+   * `str` either way and a form inferring "long" from "string" would give
+   * every host name six lines.
+   */
+  "x-ui-multiline"?: boolean
   /**
    * What the value means, beyond its type, when the form has to do more with
    * it than show a box. `grouping` says the field takes the id of one of the
@@ -68,11 +77,27 @@ export interface JsonSchema {
   "x-ui-workflow"?: "file-to-relation" | "model-as-code"
 }
 
-export type FieldKind = "text" | "password" | "number" | "boolean" | "select" | "hidden"
+export type FieldKind =
+  | "text"
+  | "multiline"
+  | "password"
+  | "number"
+  | "boolean"
+  | "select"
+  | "hidden"
 
 export interface FieldSpec {
   name: string
   label: string
+  /**
+   * What the source says about the value, shown under the field.
+   *
+   * Written where the field is declared and never here: "one per line, as
+   * field=value" is a fact about a Redis hash, and a form has no way to know
+   * it. It was travelling in the schema and being dropped on the floor until
+   * a form needed to say how to write a value.
+   */
+  description?: string
   kind: FieldKind
   required: boolean
   defaultValue?: unknown
@@ -116,7 +141,8 @@ function kindOf(property: JsonSchemaProperty, name: string): FieldKind {
   switch (property.type) {
     case "string":
       // Pydantic renders SecretStr as a string with format: password.
-      return property.format === "password" ? "password" : "text"
+      if (property.format === "password") return "password"
+      return property["x-ui-multiline"] === true ? "multiline" : "text"
     case "integer":
     case "number":
       return "number"
@@ -169,6 +195,7 @@ export function schemaToFields(schema: JsonSchema): FieldSpec[] {
     return {
     name,
     label: property.title ?? name,
+    description: property.description,
     kind: kindOf(property, name),
     required: required.has(name),
     defaultValue: property.default,

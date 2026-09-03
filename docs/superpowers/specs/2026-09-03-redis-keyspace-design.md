@@ -11,6 +11,30 @@ This is the rest of it — browsing keys, reading what they hold, writing one,
 deleting one, and working with expiry — which is the whole of what people do
 to a key space by hand.
 
+## Sixteen key spaces, and one to start in
+
+A Redis server holds sixteen databases by default. They share a port and
+nothing else: a key in one is invisible from another, there is no join and no
+transaction across them, and they have no names, only numbers.
+
+The connection form has always asked for one. What it should not do is settle
+the question: a person browsing a server wants to see which database the data
+is actually in, and answering that by editing the connection is answering it
+in the wrong place. So the number says where the catalog opens, and every
+database on the server is in the same control that picks a schema.
+
+That makes a database a grouping in the sense D2 already had, and it makes
+`DatabaseNode` a kind of its own rather than a schema wearing a number. It is
+also what forced every id to carry its database: an id is the only thing a
+client hands back, so `greeting` in database 0 and `greeting` in database 3
+have to be two different strings. `k3:greeting`, `f3:cache:`, `d3`.
+
+One thing the client could not decide on its own: which of sixteen to open.
+The rule until now was "every non-system grouping while there are few", which
+for sixteen databases means the first one, and the first one is not what the
+connection says. So a grouping may now be marked `preferred`, and the source
+marks it, because the source is the only party that has read the connection.
+
 ## The tree is already in the names
 
 Redis has no schemas and no tables. What it has is a flat set of names, and by
@@ -75,7 +99,7 @@ Nothing sorts and nothing filters, and the columns say so. Redis has no index
 over values, so a grid that offered either would be offering something this
 source would have to fake by reading everything.
 
-## Four actions
+## Writing, once per type
 
 Write one, take one away, give one a deadline, take the deadline off. That is
 what a person does to a key space by hand; the rest arrives from whatever
@@ -83,11 +107,26 @@ writes it.
 
 Writing covers changing a value too: a name already in use is refused unless
 the form says to replace it, which makes "write this" one action instead of a
-create and an update that would differ only in their refusals. Strings only —
-a hash or a list built from a form would be a form with a repeating group in
-it.
+create and an update that would differ only in their refusals. Replacing
+deletes first, so a string may become a hash.
 
-Two things came out of this that are not about Redis at all.
+It began as strings only, on the grounds that a hash built from a form would
+be a form with a repeating group in it. That was a fair objection to one
+design and a bad answer to the question: a source that reads six kinds of key
+and writes one is a source that cannot even make its own sample data.
+
+The shape that works is one action per type. Not one action with a type to
+pick — that is a single text box meaning six different things depending on a
+select above it, with a description that can describe at most one of them.
+Six named actions each say in the menu what they make, and each carries its
+own instruction: "One per line, written as field=value", "One per line, in the
+order they go in". They share a base class holding everything that is not the
+one command they run, so a seventh type would be a class with one method.
+
+A collection is typed as lines rather than built from a repeating group. It is
+what the form vocabulary has, and it is enough for a key made by hand.
+
+Three things came out of this that are not about Redis at all.
 
 **A form field may be optional.** An expiry is `int | None`, which Pydantic
 writes as two branches with the bounds inside the one that is not null. The
@@ -99,6 +138,15 @@ until now removed what it named, so the dialog wrote "are you sure you want to
 delete this" itself. Setting an expiry is destructive — it schedules the key
 ceasing to exist — and it is not a deletion. Only the action knows the
 difference, so the action says it.
+
+**A field may be a box, and may say something under itself.** A form drawn
+from a schema had one shape of text field and dropped every `description` on
+the floor — a dozen sentences written to be read, in the postgres actions and
+in the file options, that nobody had ever seen. Both are now statements the
+model makes where the field is declared: `layout(multiline=True)` for a value
+written on several lines, and the `description` for the line beneath. Neither
+could be inferred by the form: the type is `str` either way, and only the
+model knows that a hash is written one field per line.
 
 ## Shown as a tree, not as a folder
 
@@ -112,20 +160,20 @@ So a source now says which of the two shapes its catalog wants, and a key
 space says `tree`. Declared on the type rather than branched on by name: a
 screen asking "is this Redis" is the thing D62 exists to stop.
 
-Expanding a branch asks the catalog for its children; expanding a leaf asks
-for a page of what it holds, and the rows of that page become rows of the same
-tree — one column is a list of values, two are a name and a value, more are
-written out. Nothing in that mapping knows what Redis is, which is what lets
-the next source that wants a tree have one.
+The second version went one step further and let a leaf be expanded as well,
+showing the first rows of what a key holds inside the tree. It read well in a
+screenshot and badly in use: the same branch meant two different things
+depending on how far it was opened, the same value could be read in two
+places, and a key with a hundred fields still had to be opened in a tab to be
+seen. The tree now stops at the nodes, and a click on a key opens it — the
+same thing a click in the list does, with the same tab, the same grid and the
+same paging.
 
-It is the same tab, not a second kind of panel. Everything the head offers — a
-path, a grouping filter, a search — belongs to a level and is not drawn; the
-actions menu is fed from the one selected node instead of from a set of ticks,
-and is otherwise the same menu answering the same question of the server.
-
-Opening a key properly is still a tab: the tree shows the first fifty of what
-a key holds and says so when there are more, and the grid is where paging and
-the full value live.
+It is the same tab, not a second kind of panel. The path and the search are
+not drawn, because both are properties of a level; the control that picks a
+grouping stays, because that is where the tree is rooted. The actions menu is
+fed from the one selected node instead of from a set of ticks, and is
+otherwise the same menu answering the same question of the server.
 
 ## An address, written and read back
 
@@ -142,17 +190,20 @@ read as plaintext would be worse than a sentence.
 
 ## How it was verified
 
-Twenty-one tests against a real Redis rather than a fake: what they are about
-is what the driver does to one, and a fake would be this repository's own idea
-of Redis checked against itself. Development gets one from compose and CI gets
-one as a service, on database 15, emptied around every test.
+Tests against a real Redis rather than a fake: what they are about is what the
+driver does to one, and a fake would be this repository's own idea of Redis
+checked against itself. Development gets one from compose and CI gets one as a
+service, on database 15, emptied around every test. They are split the way the
+source is: walking and reading in one file, writing in another.
 
-Then in the browser: a key space of a hundred and ten sample keys walked as a
-tree, a hash expanded in place to show its three fields, a string and a hash
-opened as rows in a tab, a key written with an expiry and found again in the
-catalog, its expiry moved and then removed, and the key deleted. And the
-address: composed into the connection form, and a pasted one taken apart back
-into the host, the port, the database and the password.
+Then in the browser: sixteen databases in the control that used to hold
+schemas, each saying how many keys it holds; a switch to database 3 and the
+catalog following it; a hash written from the form and appearing under the
+branch it named; a list written inside a selected folder and landing under it;
+a key opened in a tab by one click, showing its fields as rows; and the key
+deleted, with the count on the grouping falling as it went. And the address:
+composed into the connection form, and a pasted one taken apart back into the
+host, the port, the database and the password.
 
 ## Decision
 
@@ -163,6 +214,6 @@ use.** The statement, its consequences and the known deviations are in
 ## What is not here
 
 A query console — Redis has commands, not statements, and one that accepted
-them would be a shell on somebody's server. Editing a hash field in place.
-Writing anything but a string. Watching a key space change. And a way to reach
-past the scan ceiling by typing a pattern.
+them would be a shell on somebody's server. Editing one field of a hash in
+place. Adding a member to a collection that already exists. Watching a key
+space change. And a way to reach past the scan ceiling by typing a pattern.

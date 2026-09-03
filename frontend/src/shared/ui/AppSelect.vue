@@ -12,6 +12,12 @@ const props = withDefaults(
     options: readonly (string | SelectOption)[]
     label?: string
     error?: string
+    /**
+     * The line under the field, in the source's own words: what to write, or
+     * what leaving it empty means. Not an error and not a placeholder — it is
+     * there whether or not the field is filled.
+     */
+    hint?: string
     loading?: boolean
     disable?: boolean
     /** Several at once, reported as an array. */
@@ -29,6 +35,7 @@ const props = withDefaults(
   {
     label: undefined,
     error: "",
+    hint: undefined,
     loading: false,
     disable: false,
     multiple: false,
@@ -49,6 +56,7 @@ const labelled = computed(() => props.options.some((option) => typeof option ===
     :model-value="modelValue"
     :options="options"
     :label="label"
+    :hint="hint"
     :option-value="labelled ? 'value' : undefined"
     :option-label="labelled ? 'label' : undefined"
     :emit-value="labelled"

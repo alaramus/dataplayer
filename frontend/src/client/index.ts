@@ -347,6 +347,7 @@ export type {
   CreateConstraintRequest,
   CreateIndexRequest,
   CreateRelationFromSourceRequest,
+  DatabaseNode,
   DatasetNode,
   DeleteEverything,
   DeleteOlderThan,

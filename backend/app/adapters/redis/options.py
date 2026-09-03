@@ -29,8 +29,15 @@ class _RedisBase(BaseModel):
     )
     # Redis calls them databases and numbers them; there are sixteen by
     # default and they have no names, so this is a number rather than a name.
+    # Where the catalog opens rather than what it is confined to: the others
+    # are one control away, and the description says so (D91).
     database: int = Field(
-        default=0, ge=0, le=15, title="Database", json_schema_extra=layout()
+        default=0,
+        ge=0,
+        le=15,
+        title="Database",
+        description="Where the catalog opens; every database is in the catalog",
+        json_schema_extra=layout(),
     )
 
 

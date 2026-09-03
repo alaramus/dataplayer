@@ -21,10 +21,12 @@ from app.adapters.protocol import NodeNotFound
 from app.adapters.redis.keyspace import (
     SCAN_CEILING,
     KeyFacts,
+    KeyRef,
     RedisKeyspace,
-    folder_prefix,
     is_key,
-    key_name,
+    key_of,
+    key_ref,
+    place_of,
 )
 from app.adapters.redis.session import RedisSession, resolved, text
 from app.adapters.relation import ColumnType, TypeCategory
@@ -65,13 +67,15 @@ class RedisFetch:
 
     async def _keys_under(self, request: FetchRequest) -> FetchResult:
         # Refuses an id this source did not issue, before anything is read.
-        folder_prefix(request.node_id)
+        # The root of the connection is not one: what is there is the list of
+        # databases, and a list of databases is not a page of rows.
+        place = place_of(request.node_id)
         children = await self._keyspace.list_children(request.node_id)
         names = sorted(
-            key_name(node.id) for node in children if node.kind == "key"
+            key_ref(node.id).name for node in children if node.kind == "key"
         )
         page = names[request.offset : request.offset + request.limit]
-        facts = await self._keyspace.describe(page)
+        facts = await self._keyspace.describe(place.database, page)
         return FetchResult(
             columns=[
                 _column("key", "key", "string"),
@@ -100,12 +104,12 @@ class RedisFetch:
     # --- one key, read as what it holds ------------------------------------
 
     async def _one_key(self, request: FetchRequest) -> FetchResult:
-        name = key_name(request.node_id)
-        facts = await self._keyspace.facts_of(name)
+        ref = key_of(request.node_id)
+        facts = await self._keyspace.facts_of(ref.database, ref.name)
         if facts is None:
             raise NodeNotFound(request.node_id)
         reader = _READERS[facts.data_type]
-        columns, rows, has_more = await reader(self, name, request)
+        columns, rows, has_more = await reader(self, ref, request)
         return FetchResult(
             columns=columns,
             rows=rows,
@@ -114,7 +118,7 @@ class RedisFetch:
         )
 
     async def _string(
-        self, name: str, request: FetchRequest
+        self, ref: KeyRef, request: FetchRequest
     ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
         """One row, because a string key is one value.
 
@@ -122,9 +126,9 @@ class RedisFetch:
         would put ten megabytes in this process to show the first screenful.
         """
         del request
-        async with self._session.connection() as client:
-            raw = await client.getrange(name, 0, MAX_STRING_BYTES)
-            size = int(await client.strlen(name))
+        async with self._session.connection(ref.database) as client:
+            raw = await client.getrange(ref.name, 0, MAX_STRING_BYTES)
+            size = int(await client.strlen(ref.name))
         value = text(raw)
         truncated = size > MAX_STRING_BYTES
         return (
@@ -134,10 +138,10 @@ class RedisFetch:
         )
 
     async def _hash(
-        self, name: str, request: FetchRequest
+        self, ref: KeyRef, request: FetchRequest
     ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
-        async with self._session.connection() as client:
-            found = await resolved(client.hgetall(name))
+        async with self._session.connection(ref.database) as client:
+            found = await resolved(client.hgetall(ref.name))
         pairs = sorted((text(k), text(v)) for k, v in found.items())
         page = _page(pairs, request)
         return (
@@ -147,13 +151,13 @@ class RedisFetch:
         )
 
     async def _list(
-        self, name: str, request: FetchRequest
+        self, ref: KeyRef, request: FetchRequest
     ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
         """A page of a list, read by index: the one type that pages honestly."""
         start = request.offset
         stop = request.offset + request.limit
-        async with self._session.connection() as client:
-            found = await resolved(client.lrange(name, start, stop))
+        async with self._session.connection(ref.database) as client:
+            found = await resolved(client.lrange(ref.name, start, stop))
         values = [text(one) for one in found]
         has_more = len(values) > request.limit
         return (
@@ -166,10 +170,10 @@ class RedisFetch:
         )
 
     async def _set(
-        self, name: str, request: FetchRequest
+        self, ref: KeyRef, request: FetchRequest
     ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
-        async with self._session.connection() as client:
-            found = await resolved(client.smembers(name))
+        async with self._session.connection(ref.database) as client:
+            found = await resolved(client.smembers(ref.name))
         members = sorted(text(one) for one in found)
         return (
             [_column("member", "member", "string")],
@@ -178,13 +182,13 @@ class RedisFetch:
         )
 
     async def _zset(
-        self, name: str, request: FetchRequest
+        self, ref: KeyRef, request: FetchRequest
     ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
         """A page of a sorted set, in the order the set itself carries."""
         start = request.offset
         stop = request.offset + request.limit
-        async with self._session.connection() as client:
-            found = await client.zrange(name, start, stop, withscores=True)
+        async with self._session.connection(ref.database) as client:
+            found = await client.zrange(ref.name, start, stop, withscores=True)
         scored = [(text(member), str(score)) for member, score in found]
         return (
             [_column("member", "member", "string"), _column("score", "score", "number")],
@@ -193,7 +197,7 @@ class RedisFetch:
         )
 
     async def _stream(
-        self, name: str, request: FetchRequest
+        self, ref: KeyRef, request: FetchRequest
     ) -> tuple[list[FetchColumn], list[list[str | None]], bool]:
         """Entries of a stream, each as its id and its fields written out.
 
@@ -201,8 +205,8 @@ class RedisFetch:
         entries need not agree on what they hold, so a grid built from the
         first one would hide what is in the rest.
         """
-        async with self._session.connection() as client:
-            found = await client.xrange(name, count=request.offset + request.limit + 1)
+        async with self._session.connection(ref.database) as client:
+            found = await client.xrange(ref.name, count=request.offset + request.limit + 1)
         entries = [
             (
                 text(entry_id),

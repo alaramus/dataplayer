@@ -3,9 +3,16 @@ withDefaults(
   defineProps<{
     modelValue: string
     label?: string
-    type?: "text" | "password" | "email"
+    /** `textarea` is a box of several lines rather than a longer line. */
+    type?: "text" | "password" | "email" | "textarea"
     /** The message, not a boolean: an empty string means no error. */
     error?: string
+    /**
+     * The line under the field, in the source's own words: what to write, or
+     * what leaving it empty means. Not an error and not a placeholder — it is
+     * there whether or not the field is filled.
+     */
+    hint?: string
     placeholder?: string
     disable?: boolean
     /**
@@ -26,6 +33,7 @@ withDefaults(
     label: undefined,
     type: "text",
     error: "",
+    hint: undefined,
     placeholder: undefined,
     disable: false,
     compact: false,
@@ -55,6 +63,7 @@ function report(value: string | number | null) {
     :model-value="modelValue"
     :label="label"
     :type="type"
+    :hint="hint"
     :placeholder="placeholder"
     :dense="compact"
     :borderless="compact"

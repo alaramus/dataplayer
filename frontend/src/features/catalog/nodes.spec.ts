@@ -6,6 +6,7 @@ import bundledIcons from "@quasar/extras/material-icons/icons.json"
 import {
   ICONS,
   REPORT_SECTION_ICON,
+  groupTitle,
   groupsOf,
   roleOf,
   showsPath,
@@ -94,6 +95,49 @@ describe("what the catalog does with a node", () => {
     )
 
     expect(mapped.group).toBeUndefined()
+  })
+})
+
+describe("a key-value database", () => {
+  const db = (index: number, keys: number | null, preferred = false) =>
+    ({
+      kind: "database" as const,
+      id: `d${String(index)}`,
+      name: `db${String(index)}`,
+      has_children: true,
+      preferred,
+      keys,
+      representations: [],
+    })
+
+  it("is a grouping, like a schema and unlike a folder", () => {
+    // Which is the whole of D91's "the number in the connection says where to
+    // start, not where to stay": a grouping is switched in the head of the
+    // panel, a folder is walked into.
+    expect(roleOf(db(0, 0))).toBe("group")
+  })
+
+  it("says how full it is, and says so when it is empty", () => {
+    expect(first(toListNodes([db(0, 110)])).caption).toBe("110 keys")
+    expect(first(toListNodes([db(1, 1)])).caption).toBe("1 key")
+    expect(first(toListNodes([db(2, 0)])).caption).toBe("empty")
+    expect(first(toListNodes([db(3, null)])).caption).toBeUndefined()
+  })
+
+  it("carries the source's word for which one to open on", () => {
+    const [plain, named] = toListNodes([db(0, 0), db(3, 2, true)])
+
+    expect(plain?.preferred).toBe(false)
+    expect(named?.preferred).toBe(true)
+  })
+
+  it("is called a database above the control that picks one", () => {
+    // The word comes off the kind, never off the type of the source:
+    // "Schemas" over a list of Redis databases would be one word with two
+    // meanings.
+    expect(groupTitle(toListNodes([db(0, 0)]))).toBe("Databases")
+    expect(groupTitle([group("public")])).toBe("Schemas")
+    expect(groupTitle([])).toBe("Groups")
   })
 })
 

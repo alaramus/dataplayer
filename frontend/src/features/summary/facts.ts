@@ -29,6 +29,7 @@ const KINDS: Record<NodeSummary["kind"], string> = {
   dataset: "Dataset",
   entry: "Archive entry",
   report: "Report",
+  database: "Database",
   key: "Key",
 }
 

@@ -6,9 +6,14 @@ import pytest
 
 from app.adapters.protocol import SupportsSampleData
 from app.adapters.redis.adapter import RedisAdapter
-from app.adapters.redis.keyspace import folder_id
+from app.adapters.redis.keyspace import database_id, folder_id
 from app.adapters.redis.samples import key_names
-from tests.utils.keyspace import empty_keyspace, redis_options
+from tests.utils.keyspace import chosen_database, empty_keyspace, redis_options
+
+# Everything a sample writes lands in the database the connection names, and
+# every id naming one carries that number (D91).
+DB = chosen_database()
+HERE = database_id(DB)
 
 
 @pytest.fixture(autouse=True)
@@ -43,7 +48,7 @@ async def test_it_writes_every_type_redis_has(adapter: RedisAdapter) -> None:
     assert "keys" in said
     types: set[str] = set()
     for folder in ("session:", "cache:", "queue:", "metrics:", "events:"):
-        for node in await adapter.list_children(folder_id(folder)):
+        for node in await adapter.list_children(folder_id(DB, folder)):
             if node.kind == "key":
                 types.add(node.data_type)
             elif node.kind == "directory":
@@ -62,12 +67,12 @@ async def test_it_leaves_some_keys_with_an_expiry_and_some_without(
 
     keys = [
         node
-        for node in await adapter.list_children(folder_id("rate:north:"))
+        for node in await adapter.list_children(folder_id(DB, "rate:north:"))
         if node.kind == "key"
     ]
     forever = [
         node
-        for node in await adapter.list_children(folder_id("feature:"))
+        for node in await adapter.list_children(folder_id(DB, "feature:"))
         if node.kind == "key"
     ]
 
@@ -81,8 +86,8 @@ async def test_running_it_twice_leaves_the_same_key_space(
     """Written out rather than generated, so a demonstration made twice is the
     same demonstration."""
     await adapter.install_sample_data()
-    first = {node.id for node in await adapter.list_children(None)}
+    first = {node.id for node in await adapter.list_children(HERE)}
     await adapter.install_sample_data()
-    second = {node.id for node in await adapter.list_children(None)}
+    second = {node.id for node in await adapter.list_children(HERE)}
 
     assert first == second

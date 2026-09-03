@@ -608,13 +608,28 @@ removes them, and it decides nothing about data (D34). The form rules —
 a password required when there is no account and optional when there is — are
 plain functions in `features/admin/users.ts`.
 
-The catalog opens on every grouping the source calls its own while there are
+The catalog opens on the grouping the source named, if it named one: a Redis
+connection is written with a database number in it, and only the source has
+read it. Otherwise on every grouping the source calls its own while there are
 few of them, and on the first while there are many. A database with two or
 three schemas is one where a person wants to see what is in it — a server this
 application started has `public` and the demonstration schema, and opening
 only the empty one of the two shows nothing — while a database with forty is
 one where opening them all is a page nobody asked for. The ceiling is
 `DEFAULT_GROUP_CEILING` in `useCatalogLevel.ts`.
+
+What the groupings are called above that control — Schemas, Databases — is a
+table keyed by the kind of the node, in `nodes.ts` beside the roles and the
+icons. A screen that asked which type of source it was looking at is the thing
+that table exists to prevent.
+
+A form field is drawn from what the schema says about it and nothing else: a
+value written on several lines asks for a box rather than a line
+(`x-ui-multiline`, set by `layout()` where the field is declared), and the
+sentence under a field is the source's own `description`. Both are statements
+only the model can make — the type is `string` either way, and "one per line,
+as field=value" is a fact about a Redis hash. A toggle is the one control with
+no line under it, because its label is already the whole statement.
 
 Known deviations:
 

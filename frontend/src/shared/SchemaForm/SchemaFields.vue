@@ -50,6 +50,18 @@ function numberValue(name: string): number | null {
 }
 
 /**
+ * What the control is, once a stand-in for a secret is taken into account.
+ *
+ * The kind says what the value is; only this screen knows whether it is
+ * currently showing the value or the words standing in for one, and a
+ * stand-in is plain text however the field is normally drawn.
+ */
+function inputType(field: FieldSpec): "text" | "password" | "textarea" {
+  if (field.kind === "password") return isHidden(field) ? "text" : "password"
+  return field.kind === "multiline" ? "textarea" : "text"
+}
+
+/**
  * A stored secret, shown as a stand-in until the user means to replace it.
  *
  * The alternative — a placeholder — reads as an empty field, and an empty
@@ -110,6 +122,9 @@ watch(
         :key="field.name"
       >
         <template v-if="field.kind === 'hidden'" />
+        <!-- The one control with no line under it: a toggle's label is
+             already the whole statement — "Replace it if it already exists" —
+             and a model that wants to say more says it there. -->
         <AppToggle
           v-else-if="field.kind === 'boolean'"
           :data-testid="`field-${field.name}`"
@@ -127,6 +142,7 @@ watch(
           :model-value="modelValue[field.name]"
           :options="field.choices ?? []"
           :label="field.label"
+          :hint="field.description"
           :error="errors[field.name]"
           :disable="disable"
           @update:model-value="update(field.name, $event)"
@@ -139,6 +155,7 @@ watch(
           :data-testid="`field-${field.name}`"
           :model-value="numberValue(field.name)"
           :label="field.label"
+          :hint="field.description"
           :error="errors[field.name]"
           :disable="disable"
           @update:model-value="update(field.name, $event)"
@@ -154,7 +171,8 @@ watch(
           :data-testid="`field-${field.name}`"
           :model-value="isHidden(field) ? HIDDEN : textValue(field.name)"
           :label="field.label"
-          :type="field.kind === 'password' && !isHidden(field) ? 'password' : 'text'"
+          :hint="field.description"
+          :type="inputType(field)"
           :error="errors[field.name]"
           :disable="disable"
           @focus="field.kind === 'password' ? reveal(field.name) : undefined"

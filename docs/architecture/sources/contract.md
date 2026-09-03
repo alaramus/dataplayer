@@ -369,19 +369,36 @@ convention are written with colons: `session:42:token`, `cache:user:7`. Every
 tool that shows a key space shows that convention as a tree, because it is the
 structure the names were given when they were chosen.
 
-- **The catalog groups by `:`.** The root lists the first segment of every key
-  as a branch, and opening one lists the next. Not configurable: a source
-  type whose tree shape is an option is a type with two behaviours to explain,
-  and every Redis convention there is uses this one.
+- **The root is the server's databases, and inside one the catalog groups by
+  `:`.** A database lists the first segment of every key as a branch, and
+  opening one lists the next. Not configurable: a source type whose tree shape
+  is an option is a type with two behaviours to explain, and every Redis
+  convention there is uses this one.
+- **A database is a grouping, not a wall.** The number written into the
+  connection says which one the catalog opens on; the rest are beside it in
+  the same control a database's schemas are chosen in. `DatabaseNode` is a
+  kind of its own — a schema is a namespace inside one database and several
+  can be read together, while these share nothing but the port — and it says
+  how many keys it holds, from one `INFO` rather than a `DBSIZE` apiece.
+- **Which grouping a catalog opens on is the source's answer.** `preferred`
+  marks it, because only the source has read the connection. Everything else
+  keeps the client's rule: every non-system grouping while there are few, the
+  first while there are many.
+- **How many databases there are is asked of the server**, since it is a
+  setting; a server that refuses to say — as managed ones do — gets the
+  sixteen every client assumes.
 - **A key is a kind of its own.** `KeyNode` carries a Redis data type, an
   expiry and a length; reusing `table` would give one kind two meanings — what
   D2a says the old application did — and would offer every action that names a
   table on a key. The namespace above it is a `directory`, because a container
   of nodes with nothing else to say about itself is what a namespace is.
-- **`k:` and `f:` mark the two kinds of id apart.** A key may itself be called
-  `user:`, and without a mark a listing of that key and a listing of the folder
-  above it would be the same request. Nothing but `keyspace.py` takes an id
-  apart (D21).
+- **Every id carries its database, and a letter says which kind it is**:
+  `d3`, `f3:cache:`, `k3:cache:user`. The database, because a key of the same
+  name in two of them would otherwise be the same string; the letter, because
+  a key may itself be called `user:`, and without it a listing of that key and
+  a listing of the folder above it would be the same request. Ids are read
+  strictly — a string that is nearly one of ours is refused rather than nearly
+  understood — and nothing but `keyspace.py` takes one apart (D21).
 - **Nothing ever runs `KEYS`.** It blocks the server for the length of its own
   scan. Everything is `SCAN`, which exists so that a client cannot do that, and
   a listing stops at a ceiling: a key space of ten million names has no useful
@@ -394,37 +411,58 @@ structure the names were given when they were chosen.
 - **Nothing sorts and nothing filters.** Redis has no index over values, so a
   column that offered either would be offering something this source would
   have to fake by reading everything.
-- **Four actions, which is what people do to a key by hand**: write one, take
-  one away, give one a deadline, take the deadline off. Writing covers changing
-  a value: a name already in use is refused unless the form says to replace it,
-  which makes "write this" one action rather than a create and an update that
-  differ only in their refusals.
+- **What people do to a key by hand**: write one, take it away, give it a
+  deadline, take the deadline off. Writing covers changing a value: a name
+  already in use is refused unless the form says to replace it, which makes
+  "write this" one action rather than a create and an update that differ only
+  in their refusals. Replacing removes what is there first, so a string may
+  become a hash.
+- **Writing is one action per type of key.** Redis has six, each written with
+  a different command and each asking for a different thing — a string is a
+  value, a hash is fields and values, a sorted set is members and scores. One
+  action with a type to pick would be one form whose only box means six things
+  depending on a select above it, and whose description could describe at most
+  one of them. The six share everything else through one base class, so a
+  seventh type would be a class with one method in it.
+- **A key is made where the catalog is standing.** The name typed into the
+  form is added to the prefix of the place, so `one` written in `cache:` is
+  `cache:one`. Worked out by the source, which is the only party that may take
+  an id apart (D21).
 - **A destructive action may word its own question.** Everything destructive
   until now removed what it named, so the client wrote "are you sure you want
   to delete this" itself. Setting an expiry is destructive and is not a
   deletion, and only the action knows the difference.
 - **The catalog is expanded where it stands, not walked.** A source declares
   which of the two it wants — `catalog_shape` is a `Literal`, read off the
-  type rather than branched on by name — and a key space says `tree`. It is
-  bounded, its shape is already in the names, and what a key holds is a
-  handful of fields worth opening beside the key rather than in another tab,
-  which is the JSON viewer this asks to be. A tree shows no path, no grouping
-  filter and no search, because all three are properties of a level; the
+  type rather than branched on by name — and a key space says `tree`, because
+  it is bounded and its shape is already in the names. A tree shows no path
+  and no search, because both are properties of a level; it keeps the control
+  that picks a grouping, because a grouping is where the tree is rooted. The
   actions menu is fed from the one selected node instead of from a set of
   ticks.
-- **A branch and a leaf are one request apart.** Expanding a branch asks the
-  catalog for its children; expanding a leaf asks for a page of what it holds.
-  Which of the two a node is was decided by the source, and is read off the
-  node rather than off the type of the connection.
+- **A tree stops at the nodes.** Expanding a branch asks the catalog for its
+  children; a leaf is opened in a tab, exactly as it is in a list. Showing the
+  first rows of a key inside the tree made one branch mean two different
+  things depending on how far it was opened, and gave the same value two
+  places to be read in.
+- **One grouping at a time in a tree.** Several schemas listed together are
+  one list with a column saying where each row came from; several key spaces
+  expanded together would be one tree with no such column, and nothing joins
+  them.
 
 Known deviations:
 
 - **A large key space is listed as far as the ceiling and no further**, and the
   listing does not say that it stopped. What is beyond it is reached by naming
   a narrower prefix, which the catalog offers no way to type.
-- **Only strings are written.** A hash, a list or a sorted set built from a
-  form would be a form with a repeating group in it; the rest arrive from
-  whatever writes them.
+- **A collection is written from lines of text**, one member or one
+  `name=value` per line, rather than from a repeating group of fields. It is
+  what the form vocabulary has, and it is enough for a key made by hand; a
+  hash of forty fields arrives from whatever writes it.
+- **A name in use is checked and then written to, in two commands.** Only
+  `SET` has a "if it is not there" of its own, so the five other types would
+  each need a transaction to say the same thing. The gap between the two is a
+  race nobody writing keys by hand loses.
 - **A hash and a set are paged in this process.** Both are read whole and then
   sliced, so a hash of a million fields is a million fields in memory. A list
   and a sorted set page in the server, because those two carry an order.
@@ -440,6 +478,10 @@ Known deviations:
   whole of a bounded key space.
 - **A tree re-reads whole after an action.** Which branches changed is still
   the server's answer, but keeping a map of what is open in step with it costs
-  more than reading a bounded catalog again.
+  more than reading a bounded catalog again — so what was open closes.
+- **A database that is not on the server is refused by the server.** The id
+  grammar accepts three digits and the connection to a database out of range
+  fails on connect, rather than being checked against a count this application
+  holds.
 
 Spec: [A key space, walked and written](../../superpowers/specs/2026-09-03-redis-keyspace-design.md)

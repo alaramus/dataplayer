@@ -24,7 +24,7 @@ from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.redis.actions import REDIS_ACTION_TYPES
 from app.adapters.redis.fetch import RedisFetch
-from app.adapters.redis.keyspace import RedisKeyspace, is_key
+from app.adapters.redis.keyspace import RedisKeyspace, is_database, is_key
 from app.adapters.redis.options import RedisOptions
 from app.adapters.redis.samples import RedisSamples
 from app.adapters.redis.session import RedisSession
@@ -127,13 +127,19 @@ class RedisAdapter:
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         """What this node admits, which is decided by what it is.
 
-        A key takes the three that act on a key; a folder and the root take
-        the one that makes one. Asked of the id rather than of the server: the
-        two kinds of id are told apart without a round trip, and an id naming
-        a key that has since expired is refused by the action itself.
+        A key takes the three that act on a key; a database and a folder take
+        the six that write one. The root takes none: what is there is the list
+        of databases, and a key is written in a database rather than on a
+        server. Asked of the id rather than of the server, so the kinds are
+        told apart without a round trip; an id naming a key that has since
+        expired is refused by the action itself.
         """
         if is_key(node_id):
             return self._actions.for_kind("key")
+        if is_database(node_id):
+            return self._actions.for_kind("database")
+        if node_id is None:
+            return []
         return self._actions.for_kind("directory")
 
 
@@ -149,9 +155,9 @@ class RedisAdapter:
     # which is what makes it a tree rather than a series of levels (D91).
     catalog_shape="tree",
     description=(
-        "An in-memory key-value server. Walk its key space by the colons in "
-        "the names, read what a key holds, write one, and set or clear an "
-        "expiry."
+        "An in-memory key-value server. Switch between its databases, walk a "
+        "key space by the colons in the names, read what a key holds, write "
+        "one of any type, and set or clear an expiry."
     ),
     options_schema=RedisOptions,
     adapter_class=RedisAdapter,
