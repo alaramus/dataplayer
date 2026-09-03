@@ -3,9 +3,11 @@ import { AxiosError } from "axios"
 
 import { client } from "@/client/client.gen"
 import { router } from "@/router"
+import { shouldRetry } from "@/shared/api/retry"
 import { useAuthStore } from "@/stores/auth"
 
-// Retries for everything else stay at the vue-query default.
+// How many times a failure that might pass is asked about again. The vue-query
+// default; what changed is which failures are asked about at all.
 const RETRIES = 3
 
 export function configureApiClient() {
@@ -44,8 +46,11 @@ export function createQueryClient() {
       queries: {
         // A rejected token will be rejected again. Retrying it only leaves a
         // half-working page on screen for several seconds before the user is
-        // sent to the login page.
-        retry: (failureCount, error) => !isAuthFailure(error) && failureCount < RETRIES,
+        // sent to the login page — and the same is true of every other
+        // refusal the server made on the merits, which is what `shouldRetry`
+        // is about.
+        retry: (failureCount, error) =>
+          !isAuthFailure(error) && shouldRetry(failureCount, error, RETRIES),
       },
     },
   })

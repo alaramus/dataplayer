@@ -107,6 +107,14 @@ and its own invalidation, and that is where its desynchronisation bugs come from
 Enforced by ESLint: `src/stores/**` may not import the generated client or any
 feature.
 
+A failed query is asked again only when asking again could answer differently.
+vue-query retries everything three times with a growing gap, which is right for
+a request that never arrived and wrong for one the server read and refused:
+4xx, minus the two codes that are about the moment, is the server saying
+something about the request, and it will say it again. Opening a `.dump` in a
+file source waited about five seconds to say it is binary, and every second of
+it was this.
+
 Spec: [The connector registry and the adapter contract](../superpowers/specs/2026-08-15-connector-registry-design.md)
 
 ## D7. The frontend is Vue 3 with Quasar

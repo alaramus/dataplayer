@@ -34,12 +34,19 @@ BINARY_EXTENSIONS: frozenset[str] = frozenset(
     {
         ".7z",
         ".avi",
+        ".backup",
         ".bin",
         ".bz2",
         ".class",
         ".dll",
         ".doc",
         ".docx",
+        # What `pg_dump --format=custom` writes, which is what this
+        # application's own backups are. Named here rather than left to the
+        # byte sniff: the sniff runs when a file is opened, so without this
+        # the catalog offers a text viewer, the click opens a panel and the
+        # refusal arrives after the request that had to be made to find out.
+        ".dump",
         ".exe",
         ".gif",
         ".gz",
@@ -49,6 +56,7 @@ BINARY_EXTENSIONS: frozenset[str] = frozenset(
         ".jpeg",
         ".jpg",
         ".odt",
+        ".pgdump",
         ".png",
         ".ppt",
         ".pptx",
