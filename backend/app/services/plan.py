@@ -206,7 +206,9 @@ def build_container(
             key: _credential_value(value, credentials)
             for key, value in template.environment.items()
         },
-        command=template.command,
+        command=tuple(
+            _credential_value(part, credentials) for part in template.command
+        ),
         volume=volume_name(service_id, template),
         data_path=template.data_path,
         container_port=template.container_port,

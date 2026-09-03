@@ -2,6 +2,8 @@
 
 from uuid import uuid4
 
+import pytest
+
 from app.adapters import options as adapter_options
 from app.adapters import registry
 from app.services.plan import (
@@ -167,3 +169,38 @@ def test_the_secret_of_that_connector_is_a_secret_of_the_model() -> None:
             if value == "password"
         }
         assert generated <= secret_fields, template.key
+
+
+@pytest.mark.parametrize("key", [template.key for template in SERVICE_TEMPLATES])
+def test_no_template_prints_its_password_anywhere(key: str) -> None:
+    """One image takes its password on the command line, so the check is made
+    for every template rather than for the first one."""
+    plan = build_plan(
+        template_for(key),
+        service_id=uuid4(),
+        owner_id=uuid4(),
+        placement=Placement(),
+    )
+
+    password = plan.credentials.get("password")
+    assert password is not None
+    assert password not in repr(plan)
+    assert password not in repr(plan.container)
+
+
+def test_a_command_carries_what_the_template_said_it_would() -> None:
+    """Redis has no environment variable for a password: the image is told on
+    the command line, which is why a command is written as values."""
+    plan = build_plan(
+        template_for("redis"),
+        service_id=uuid4(),
+        owner_id=uuid4(),
+        placement=Placement(),
+    )
+
+    assert plan.container.command == (
+        "redis-server",
+        "--requirepass",
+        plan.credentials["password"],
+    )
+    assert plan.container.environment == {}

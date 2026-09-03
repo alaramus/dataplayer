@@ -105,8 +105,11 @@ class ServiceTemplate:
     # from. A key that is not here is not passed.
     environment: Mapping[str, CredentialValue]
     # What the container is started with, when the image needs more than its
-    # own entrypoint.
-    command: tuple[str, ...]
+    # own entrypoint. Written as values rather than plain strings because one
+    # image takes its password on the command line: `redis-server
+    # --requirepass …` is how that image is told, and a template that could
+    # only write constants there could not describe it.
+    command: tuple[CredentialValue, ...]
     # The source type a ready service becomes, and how its options are filled.
     # The names are the fields of that adapter's own options model, so a
     # connector made from a service goes through the same schema as one
@@ -164,7 +167,35 @@ POSTGRES = ServiceTemplate(
 # implements a driver, and there is nothing to implement here. A template is
 # data, and data that can be added to at runtime is data a test cannot pin
 # down.
-SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (POSTGRES,)
+REDIS = ServiceTemplate(
+    key="redis",
+    title="Redis",
+    description=(
+        "An in-memory key-value server of its own, started on this machine "
+        "with a password nobody has to choose."
+    ),
+    image="redis:8",
+    container_port=6379,
+    # Where the image writes its snapshots, which is the only state it keeps.
+    data_path="/data",
+    credentials={PASSWORD: Generated()},
+    # Nothing. The official image has no variable for a password: it is told
+    # on the command line, which is the whole reason `command` takes values.
+    environment={},
+    command=(Fixed("redis-server"), Fixed("--requirepass"), PASSWORD),
+    adapter_type="redis",
+    connector_options={
+        "auth_method": Fixed("password"),
+        "host": HOST,
+        "port": PORT,
+        "password": PASSWORD,
+    },
+    # It answers as soon as it is up; there is no data directory to build.
+    startup_timeout_seconds=60,
+)
+
+
+SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (POSTGRES, REDIS)
 
 _BY_KEY = {template.key: template for template in SERVICE_TEMPLATES}
 

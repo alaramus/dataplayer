@@ -86,6 +86,7 @@ translations; those files are not.
 | 2026-09-02 | [Detecting a container runtime](2026-09-02-runtime-detection-design.md) | D82: whether a server may and can start containers is asked, and the offer states the refusal |
 | 2026-09-03 | [Starting a PostgreSQL and receiving a connection](2026-09-03-service-pilot-design.md) | D83: a ready service is an ordinary connector, filled from the plan its container was started with |
 | 2026-09-03 | [When starting one goes wrong](2026-09-03-service-recovery-design.md) | D84: retry starts over because the password is gone, and neither deletion reaches into the other |
+| 2026-09-03 | [A second service, and the first source that only connects](2026-09-03-redis-pilot-design.md) | D85: a command may carry a credential, and a type that only connects says so |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

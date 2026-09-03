@@ -106,3 +106,32 @@ forbidden_modules =
     pyarrow
     openpyxl
     duckdb
+
+# The Redis client, by the same rule as psycopg and the file formats: the
+# library of a source lives in the package that owns that source, so an
+# upgrade has one place to change.
+[importlinter:contract:redis-sdk-is-contained]
+name = the redis client is imported only by the redis adapter
+type = forbidden
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.connectors
+    app.queries
+    app.services
+    app.jobs
+    app.shares
+    app.system
+    app.api
+    app.adapters.registry
+    app.adapters.protocol
+    app.adapters.catalog
+    app.adapters.fetch
+    app.adapters.routes
+    app.adapters.actions
+    app.adapters.resources
+    app.adapters.file
+    app.adapters.postgres
+forbidden_modules =
+    redis

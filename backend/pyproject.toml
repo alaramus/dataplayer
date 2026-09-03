@@ -25,6 +25,7 @@ dependencies = [
     "openpyxl>=3.1.5,<4.0.0",
     "sqlglot>=30.17.0",
     "duckdb>=1.5.5",
+    "redis>=5.0,<7.0",
 ]
 
 [dependency-groups]
