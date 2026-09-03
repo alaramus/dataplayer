@@ -60,11 +60,15 @@ class NotRecords:
     reason: str
 
 
-def read(path: Path) -> Table | NotRecords:
+def read(path: Path, *, one_per_line: bool | None = None) -> Table | NotRecords:
     """The whole file as one table, or the reason it is not one.
 
     Blocking work — the file is read and parsed entirely — so it is called
     from a worker thread.
+
+    Whether the file holds one document or one per line is decided by its name,
+    unless a caller already knows better: a log whose lines are JSON objects is
+    a `.log`, and reading it as one document fails on its second line.
     """
     size_bytes = path.stat().st_size
     if size_bytes > MAX_RECORD_BYTES:
@@ -80,11 +84,12 @@ def read(path: Path) -> Table | NotRecords:
             "This file is not valid UTF-8 text, so it cannot be projected as a table."
         )
 
-    parsed = (
-        _lines(text)
-        if PurePosixPath(path.name).suffix.lower() in LINE_SUFFIXES
-        else _document(text)
+    by_line = (
+        one_per_line
+        if one_per_line is not None
+        else PurePosixPath(path.name).suffix.lower() in LINE_SUFFIXES
     )
+    parsed = _lines(text) if by_line else _document(text)
     if isinstance(parsed, NotRecords):
         return parsed
     try:

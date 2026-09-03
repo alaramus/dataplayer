@@ -52,6 +52,17 @@ SAMPLE_PDF_PAGES = [
     ],
 ]
 
+# A PostgreSQL log, which is the shape a server this application starts writes.
+SAMPLE_LOG_LINES = [
+    (1, "LOG", "database system is ready to accept connections", ""),
+    (2, "LOG", "checkpoint starting: time", ""),
+    (3, "ERROR", 'relation "orders" does not exist at character 15', "  STATEMENT:  SELECT * FROM orders\n"),
+    (4, "WARNING", "there is already a transaction in progress", ""),
+    (5, "LOG", "duration: 1201.884 ms  execute <unnamed>", "  DETAIL:  parameters: $1 = '42'\n"),
+    (6, "FATAL", 'password authentication failed for user "someone"', ""),
+    (7, "LOG", "received smart shutdown request", ""),
+]
+
 # One real 1×1 PNG: the viewer verifies bytes, so a signature followed by
 # sample text would advertise an image that correctly refuses to open.
 SAMPLE_PNG = base64.b64decode(
@@ -217,6 +228,17 @@ def write_samples(home: Path) -> None:
     )
     # Named .json and not JSON: its JSON viewer shows the source and says why.
     (home / "broken.json").write_text('{"a": 1,\n "b" 2}\n', encoding="utf-8")
+    # A log, which reads as text and opens as a table of the columns its own
+    # lines are written in. Two continuation lines, because a real log has
+    # them and they are what a naive parser drops.
+    (home / "server.log").write_text(
+        "".join(
+            f"2026-08-{day:02d} 09:1{day}:00.100 UTC [{100 + day}] "
+            f"{level}:  {message}\n" + detail
+            for day, level, message, detail in SAMPLE_LOG_LINES
+        ),
+        encoding="utf-8",
+    )
     (home / "logo.png").write_bytes(SAMPLE_PNG)
     (home / "guide.md").write_text(SAMPLE_MARKDOWN, encoding="utf-8")
 

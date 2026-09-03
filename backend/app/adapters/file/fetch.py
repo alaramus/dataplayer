@@ -18,6 +18,7 @@ from app.adapters.file.members import ResolvedNode, resolve_node
 from app.adapters.file.readers import (
     CsvReader,
     JsonTableReader,
+    LogReader,
     Page,
     Reader,
     TextReader,
@@ -29,8 +30,9 @@ from app.core.config import settings
 CSV_READER = CsvReader()
 TEXT_READER = TextReader()
 JSON_TABLE_READER = JsonTableReader()
+LOG_READER = LogReader()
 
-TextualFormat = Literal["delimited", "json", "jsonl", "text"]
+TextualFormat = Literal["delimited", "json", "jsonl", "log", "text"]
 
 
 class FileFetch:
@@ -118,7 +120,7 @@ class FileFetch:
                 raise ValueError(
                     f"A workbook is read one sheet at a time: {request.node_id}"
                 )
-            case "delimited" | "json" | "jsonl" | "text" as textual:
+            case "delimited" | "json" | "jsonl" | "log" | "text" as textual:
                 if looks_binary(path):
                     # Classification goes by name; the bytes get the last word.
                     raise ValueError(f"This file is binary: {request.node_id}")
@@ -150,6 +152,8 @@ def _reader_for(file_format: TextualFormat) -> Reader:
             return CSV_READER
         case "json" | "jsonl":
             return JSON_TABLE_READER
+        case "log":
+            return LOG_READER
         case "text":
             return TEXT_READER
         case unreachable:

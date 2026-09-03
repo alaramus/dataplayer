@@ -7,7 +7,7 @@ from typing import Protocol, TextIO
 
 from app.adapters.delimited import delimiter_of, fit, usable_names
 from app.adapters.fetch import FetchColumn
-from app.adapters.file import records
+from app.adapters.file import logs, records
 from app.adapters.relation import ColumnType
 
 
@@ -61,8 +61,14 @@ class CsvReader:
 class JsonTableReader:
     """The explicit table projection of JSON/JSONL records."""
 
+    def __init__(self, *, one_per_line: bool | None = None) -> None:
+        # Said by the caller only where the name cannot say it: a log whose
+        # lines are JSON objects is a `.log`, and reading it as one document
+        # fails on its second line.
+        self._one_per_line = one_per_line
+
     def read(self, path: Path, limit: int, offset: int) -> Page:
-        table = records.read(path)
+        table = records.read(path, one_per_line=self._one_per_line)
         if isinstance(table, records.NotRecords):
             # The caller explicitly asked for a table. Returning numbered
             # text rows would silently change representation under that
@@ -74,6 +80,46 @@ class JsonTableReader:
             rows=page,
             has_more=offset + len(page) < len(table.rows),
         )
+
+
+class LogReader:
+    """A log file: the columns its own lines are written in.
+
+    Three answers, and which one a file gets is decided by the file. Lines that
+    are JSON objects are records, and the record reader already turns those
+    into columns. Lines that fit one of the known shapes become that shape's
+    columns. A file that fits neither is read as text is read — numbered lines
+    — because a log nobody has taught this module yet is still a log somebody
+    wants to look at.
+    """
+
+    def read(self, path: Path, limit: int, offset: int) -> Page:
+        shape_name = logs.shape_of(path)
+        if shape_name is None:
+            return TextReader().read(path, limit, offset)
+        if shape_name == logs.JSON_LINES:
+            return JsonTableReader(one_per_line=True).read(path, limit, offset)
+        shape = logs.shape_named(shape_name)
+        if shape is None:
+            return TextReader().read(path, limit, offset)
+
+        rows: list[list[str | None]] = []
+        has_more = False
+        with path.open("r", encoding="utf-8", errors="replace") as handle:
+            for _ in range(offset):
+                if handle.readline() == "":
+                    break
+            for line in handle:
+                if len(rows) == limit:
+                    has_more = True
+                    break
+                rows.append(logs.parse(shape, line.rstrip("\n").rstrip("\r")))
+
+        columns = [
+            FetchColumn(name=name, type=ColumnType(sql="text", category="string"))
+            for name in shape.columns
+        ]
+        return Page(columns=columns, rows=rows, has_more=has_more)
 
 
 class TextReader:

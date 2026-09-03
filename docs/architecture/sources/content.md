@@ -37,6 +37,15 @@ leaf has rows.
   at 4 MB. Offered by JSON and JSONL, and by CSV and TSV as their natural
   representation; a text file does not offer it, because numbering the lines of a
   source file produced a table with one column and no meaning.
+- **A `.log` is text that also opens as a table**, because a log line is not
+  shapeless: it carries a time, a level and a message, and every tool that
+  shows logs shows those as columns. Which shape a file's lines are in is read
+  off the file — there is no header to trust — by trying the first forty
+  non-blank lines against each known shape and taking the one most of them fit.
+  A shape is one regular expression whose named groups *are* its columns, so a
+  new one is an entry in `file/logs.py` and nothing else. Lines of JSON objects
+  are records and go to the projection above; a file that fits no shape is read
+  as the numbered lines it is. Only `.log`: a `.txt` is as likely to be a note.
 
 Known deviations:
 
@@ -52,6 +61,12 @@ Known deviations:
   do.
 - **The table projection equates an absent key with JSON null.** Both become the
   grid's `None`; the native JSON viewer preserves the distinction.
+- **A log line that fits no shape keeps only its text.** A stack trace under an
+  exception goes into the message column with the others empty, which is
+  better than dropping it and worse than attaching it to the entry above.
+- **The shape is decided from the first lines and applied to the whole file.**
+  A file whose format changes half way through — a service restarted with
+  different logging — is read in the shape its beginning was in.
 
 Spec: [Native file representations](../../superpowers/specs/2026-08-30-file-representations-design.md)
 

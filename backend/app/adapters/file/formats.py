@@ -10,6 +10,9 @@ JSON_EXTENSIONS: frozenset[str] = frozenset({".json"})
 JSON_LINES_EXTENSIONS: frozenset[str] = frozenset({".jsonl", ".ndjson"})
 IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpeg", ".jpg", ".png"})
 MARKDOWN_EXTENSIONS: frozenset[str] = frozenset({".markdown", ".md"})
+# Only `.log`. A `.txt` is as likely to be a note as a log, and offering every
+# text file a table of one column called "line" is offering nothing.
+LOG_EXTENSIONS: frozenset[str] = frozenset({".log"})
 PARQUET_EXTENSIONS: frozenset[str] = frozenset({".parquet"})
 # What a browser can play, and nothing beyond it: `.avi` stays opaque because
 # no browser plays it, and a viewer would be a promise this source cannot keep.
@@ -77,6 +80,7 @@ FileFormat = Literal[
     "delimited",
     "json",
     "jsonl",
+    "log",
     "text",
     "markdown",
     "image",
@@ -112,6 +116,8 @@ def format_of(name: str) -> FileFormat:
         return "image"
     if suffix in MARKDOWN_EXTENSIONS:
         return "markdown"
+    if suffix in LOG_EXTENSIONS:
+        return "log"
     if suffix in PARQUET_EXTENSIONS:
         return "parquet"
     if suffix in WORKBOOK_EXTENSIONS:
@@ -138,6 +144,13 @@ def representations_of(name: str) -> list[NodeRepresentation]:
             return [JSON, TABLE]
         case "jsonl":
             return [JSON_LINES, TABLE]
+        case "log":
+            # Text first, because that is what a log is and reading it is what
+            # people do to one. A table second, because a log line is not
+            # shapeless: it carries a time, a level and a message, and every
+            # tool that shows logs shows those as columns. What shape this
+            # file's lines are in is read off the file itself — see `logs.py`.
+            return [TEXT, TABLE]
         case "text":
             # A text file has no columns of its own, so numbering its lines
             # was a table in name only. It is offered as source, and nothing

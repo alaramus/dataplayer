@@ -243,7 +243,10 @@ def _read_contents(path: Path) -> NodeContents | None:
     match format_of(path.name):
         case "delimited":
             return _delimited_contents(path)
-        case "text" | "markdown" | "json" | "jsonl":
+        case "text" | "markdown" | "json" | "jsonl" | "log":
+            # A log is text as far as this is concerned: how many lines, what
+            # encoding, how long the longest one is. What shape those lines are
+            # in is a question the table asks, not the summary.
             return _text_contents(path)
         case "parquet":
             return parquet.describe(path)[1]
