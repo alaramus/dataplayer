@@ -7,19 +7,17 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient
-from sqlmodel import delete
 
 from app.connectors.models import Connector
 from app.connectors.service import merge_options
 from app.core.config import settings
 from app.core.db import async_session_maker
-from app.jobs.models import Job
 from app.jobs.runner import JobRunner
 from app.main import app
 from app.services.engine import SWITCHED_OFF_MESSAGE
 from app.services.models import ManagedService
 from app.services.routes import NO_NETWORK_MESSAGE
-from tests.utils.service_engine import FakeEngine, engine_of
+from tests.utils.service_engine import FakeEngine, engine_of, forget_services
 
 BASE = f"{settings.API_V1_STR}/services"
 JOBS = f"{settings.API_V1_STR}/jobs"
@@ -28,15 +26,9 @@ CONNECTORS = f"{settings.API_V1_STR}/connectors"
 
 @pytest.fixture(autouse=True)
 async def without_services() -> AsyncGenerator[None]:
-    async with async_session_maker() as session:
-        await session.exec(delete(Job))
-        await session.exec(delete(ManagedService))
-        await session.commit()
+    await forget_services()
     yield
-    async with async_session_maker() as session:
-        await session.exec(delete(Job))
-        await session.exec(delete(ManagedService))
-        await session.commit()
+    await forget_services()
 
 
 @pytest.fixture
@@ -80,7 +72,7 @@ async def test_asking_for_a_service_answers_before_anything_is_pulled(
     assert accepted["service"]["title"] == "PostgreSQL"
     assert accepted["job"]["kind"] == "service.create"
     assert accepted["job"]["state"] in {"queued", "running"}
-    assert accepted["job"]["step_count"] == 6
+    assert accepted["job"]["step_count"] == 7
 
 
 async def test_the_job_pulls_creates_and_starts_and_the_service_says_running(
@@ -341,7 +333,10 @@ async def test_a_ready_service_becomes_a_connector_of_its_own(
     accepted = await client.post(
         f"{BASE}/",
         headers=normal_user_token_headers,
-        json={"template_key": "postgres", "name": "Sales database"},
+        json={
+            "template_key": "postgres",
+            "start": {"mode": "chosen", "name": "Sales database"},
+        },
     )
     await _wait(accepted.json()["job"]["id"])
 

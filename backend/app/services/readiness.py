@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from app.adapters import registry
+from app.adapters.protocol import SupportsSampleData
 from app.adapters.registry import AdapterContext
 from app.connectors.service import build_adapter
 
@@ -76,3 +77,43 @@ async def wait_until_ready(
             logger.info("Service did not answer within %ds", timeout_seconds)
             return False
         await asyncio.sleep(INTERVAL_SECONDS)
+
+
+@runtime_checkable
+class SampleDataFiller(Protocol):
+    """Whether the source at these options was given something to look at.
+
+    A protocol beside the readiness probe, and for the same reason: a job that
+    only talks to fakes is a job a test can exercise without a database. The
+    one implementation is below.
+    """
+
+    async def __call__(
+        self,
+        adapter_type: str,
+        options: Mapping[str, Any],
+        *,
+        home_dir: Path,
+    ) -> str | None: ...
+
+
+async def install_sample_data(
+    adapter_type: str,
+    options: Mapping[str, Any],
+    *,
+    home_dir: Path,
+) -> str | None:
+    """Put this project's demonstration schema into a server that is ready.
+
+    `None` when the source has no such capability, which is not a failure: the
+    person asked for a database, and this is the part of the answer that
+    source cannot give. A type that can answers with one line saying what is
+    now in it (D2).
+    """
+    kind = registry.get(adapter_type)
+    adapter = build_adapter(kind, dict(options), AdapterContext(home_dir=home_dir))
+    if not isinstance(adapter, SupportsSampleData):
+        return None
+    written = await adapter.install_sample_data()
+    logger.info("Sample data installed: %s", written)
+    return written

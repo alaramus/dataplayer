@@ -69,13 +69,16 @@ async def test_the_owner_watches_their_service_job_without_asking_again(
     # The steps are named, so what a person watches is a place in a list the
     # server declared rather than a number nobody can check.
     # No "clearing an earlier attempt": there was none, and a step that did
-    # not happen is not announced.
+    # not happen is not announced. "Putting sample data in it" is there
+    # because an automatic start asks for it, and it is reached rather than
+    # announced for the same reason.
     assert [event["step"] for event in seen] == [
         None,
         "pulling the image",
         "creating the container",
         "starting the container",
         "waiting for it to answer",
+        "putting sample data in it",
         "saving the connection",
         "saving the connection",
     ]

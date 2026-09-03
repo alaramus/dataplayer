@@ -68,9 +68,12 @@ class Placement:
     # application reaches a service by container name on a shared network;
     # without one, only a published port is left.
     network: str | None = None
-    # The port on the host, when the service is published there at all. None
-    # means the container is reachable only from the network above.
-    published_port: int | None = None
+    # Whether the service is also reachable from the machine this server runs
+    # on. A boolean rather than a port: which port is the runtime's to choose
+    # and this application's to read back, so no part of a request and no part
+    # of a plan names one. Bound to the loopback wherever it is honoured
+    # (D86).
+    publish: bool = False
 
 
 @dataclass(frozen=True)
@@ -100,7 +103,9 @@ class ContainerSpec:
     volume: str
     data_path: str
     container_port: int
-    published_port: int | None
+    # Whether to ask the runtime for a port on the host. Which port it picks
+    # is read off the container afterwards.
+    publish: bool
     network: str | None
     labels: Mapping[str, str]
 
@@ -147,14 +152,25 @@ def generate_password() -> str:
     )
 
 
-def settle_credentials(template: ServiceTemplate) -> Credentials:
+def settle_credentials(
+    template: ServiceTemplate, chosen: Mapping[CredentialSlot, str] | None = None
+) -> Credentials:
     """What this service's credentials are: the constants, and a new secret.
 
     Called once per service. Calling it twice gives two different passwords,
     which is why the plan carries the answer rather than a way of asking again.
+
+    A requester may name the slots the template calls choosable, and nothing
+    else: a value offered for a slot the template did not open is ignored
+    here and refused before it ever gets here. `password` is never on that
+    list, so a secret still comes into existence in exactly one place.
     """
+    named = chosen or {}
     settled: dict[CredentialSlot, str] = {}
     for slot, source in template.credentials.items():
+        if slot in template.choosable and slot in named:
+            settled[slot] = named[slot]
+            continue
         settled[slot] = (
             source.value if isinstance(source, Fixed) else generate_password()
         )
@@ -175,13 +191,14 @@ def build_plan(
     service_id: UUID,
     owner_id: UUID,
     placement: Placement,
+    chosen: Mapping[CredentialSlot, str] | None = None,
 ) -> ServicePlan:
     """What would be created for one service of this kind.
 
     The credentials are settled here rather than passed in, so there is one
     moment at which a service's password comes into existence.
     """
-    credentials = settle_credentials(template)
+    credentials = settle_credentials(template, chosen)
     return ServicePlan(
         service_id=service_id,
         template=template,
@@ -217,7 +234,7 @@ def build_container(
         volume=volume_name(service_id, template),
         data_path=template.data_path,
         container_port=template.container_port,
-        published_port=placement.published_port,
+        publish=placement.publish,
         network=placement.network,
         labels={
             SERVICE_LABEL: str(service_id),

@@ -146,8 +146,9 @@ async function putBack(filename: string) {
       <AppBanner
         v-if="offer.data.value && !offer.data.value.available"
         tone="warning"
-        :text="offer.data.value.reason ?? 'This server cannot copy a database out'"
-      />
+      >
+        {{ offer.data.value.reason ?? "This server cannot copy a database out" }}
+      </AppBanner>
 
       <AppButton
         label="Copy this database out"

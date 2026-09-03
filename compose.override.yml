@@ -9,13 +9,12 @@ services:
       - "8080:8080"
 
   # Development brings up fixtures for both built-in sources. The SQL files
-  # are mounted only into this one-shot service and never enter the production
-  # image.
+  # are no longer mounted: they ship inside the postgres adapter, because the
+  # same two files are what a service started automatically is filled with.
   prestart:
     command: ["bash", "scripts/prestart-dev.sh"]
     volumes:
       - user-storage:/data/users
-      - ./sql:/app/sql:ro
 
   backend:
     ports:

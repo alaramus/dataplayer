@@ -30,8 +30,15 @@ from app.services.plan import (
     build_plan,
     connector_options,
 )
-from app.services.readiness import ReadinessProbe, wait_until_ready
+from app.services.readiness import (
+    ReadinessProbe,
+    SampleDataFiller,
+    install_sample_data,
+    wait_until_ready,
+)
 from app.services.templates import (
+    CREDENTIAL_SLOTS,
+    CredentialSlot,
     ServiceTemplate,
     UnknownServiceTemplate,
     template_for,
@@ -43,10 +50,14 @@ class _ServiceJob:
     """What every one of them needs: the engine, and the service in question."""
 
     def __init__(
-        self, engine: ServiceEngine, probe: ReadinessProbe = wait_until_ready
+        self,
+        engine: ServiceEngine,
+        probe: ReadinessProbe = wait_until_ready,
+        filler: SampleDataFiller = install_sample_data,
     ) -> None:
         self._engine = engine
         self._probe = probe
+        self._filler = filler
 
     async def _service(self, session: AsyncSession, job: Job) -> ManagedService:
         if job.subject_id is None:
@@ -90,6 +101,7 @@ class CreateService(_ServiceJob):
         "creating the container",
         "starting the container",
         "waiting for it to answer",
+        "putting sample data in it",
         "saving the connection",
     )
 
@@ -101,9 +113,8 @@ class CreateService(_ServiceJob):
             template,
             service_id=service.id,
             owner_id=service.owner_id,
-            placement=Placement(
-                network=service.network, published_port=service.published_port
-            ),
+            placement=Placement(network=service.network, publish=service.publish),
+            chosen=_chosen_of(service),
         )
         try:
             await self._clear_earlier_attempt(service, progress)
@@ -113,6 +124,7 @@ class CreateService(_ServiceJob):
             await self._engine.create(plan.container)
             await progress.reached("starting the container")
             await self._engine.start(plan.container.name)
+            await self._record_published_port(session, service)
             await progress.reached("waiting for it to answer")
             options = connector_options(plan, _endpoint_of(plan))
             if not await self._probe(
@@ -124,6 +136,7 @@ class CreateService(_ServiceJob):
                 raise JobFailed(
                     f"{template.title} started but did not answer in time"
                 )
+            await self._fill_it(service, template, options, progress)
             await progress.reached("saving the connection")
             connector_id = await self._save_connector(session, service, plan, options)
         except JobFailed:
@@ -132,6 +145,58 @@ class CreateService(_ServiceJob):
         service.connector_id = connector_id
         await self._settle(session, service, "running")
         return f"{template.title} is ready"
+
+    async def _record_published_port(
+        self, session: AsyncSession, service: ManagedService
+    ) -> None:
+        """Ask what port the runtime gave it, and write that down.
+
+        Asked rather than chosen: this application would have to bind a socket
+        to find a free port and then race whoever took it in between, so the
+        runtime picks and this reads back. A container that was not published
+        answers with nothing, which is the same as not asking.
+        """
+        if not service.publish:
+            return
+        status = await self._engine.status(service.container_name)
+        if status.published_port is None:
+            return
+        service.published_port = status.published_port
+        session.add(service)
+        await session.commit()
+
+    async def _fill_it(
+        self,
+        service: ManagedService,
+        template: ServiceTemplate,
+        options: dict[str, str | int],
+        progress: Progress,
+    ) -> None:
+        """Put something worth looking at into a server that has nothing.
+
+        Only when it was asked for, and only where the source can: a type
+        that does not implement the capability is skipped rather than refused,
+        because the person asked for a database and this is the part of the
+        answer that source cannot give (D2).
+
+        The step is reached rather than announced, like the clearing one: a
+        service started without it never shows a step nothing happened in.
+        """
+        if not service.sample_data:
+            return
+        await progress.reached("putting sample data in it")
+        try:
+            await self._filler(
+                template.adapter_type,
+                options,
+                home_dir=storage.home_dir(service.owner_id),
+            )
+        except Exception as failure:
+            # The database is up and usable; only the demonstration content
+            # is missing. Said as a failure of the creation all the same,
+            # because a person who asked for something to look at and got an
+            # empty server would otherwise have to work out why themselves.
+            raise JobFailed("The sample data could not be loaded") from failure
 
     async def _clear_earlier_attempt(
         self, service: ManagedService, progress: Progress
@@ -180,6 +245,21 @@ class CreateService(_ServiceJob):
             owner_id=service.owner_id,
         )
         return connector.id
+
+
+def _chosen_of(service: ManagedService) -> dict[CredentialSlot, str]:
+    """What the requester named, read back off the row.
+
+    The route checked these against the template before writing them down, so
+    a value here is one the template opened; `settle_credentials` checks again
+    rather than trusting that, because a row outlives the code that wrote it.
+    """
+    by_slot: dict[CredentialSlot, str] = {}
+    for slot in CREDENTIAL_SLOTS:
+        value = service.chosen_credentials.get(slot)
+        if value is not None:
+            by_slot[slot] = value
+    return by_slot
 
 
 def _endpoint_of(plan: ServicePlan) -> Endpoint:
@@ -300,7 +380,9 @@ def _template_of(service: ManagedService) -> ServiceTemplate:
 
 
 def handlers(
-    engine: ServiceEngine, probe: ReadinessProbe = wait_until_ready
+    engine: ServiceEngine,
+    probe: ReadinessProbe = wait_until_ready,
+    filler: SampleDataFiller = install_sample_data,
 ) -> dict[str, JobHandler]:
     """One handler per kind, built with what this application has.
 
@@ -310,10 +392,10 @@ def handlers(
     handlers with a runtime and a source that are not there.
     """
     made: tuple[JobHandler, ...] = (
-        CreateService(engine, probe),
-        StartService(engine, probe),
-        StopService(engine, probe),
-        RestartService(engine, probe),
-        DeleteService(engine, probe),
+        CreateService(engine, probe, filler),
+        StartService(engine, probe, filler),
+        StopService(engine, probe, filler),
+        RestartService(engine, probe, filler),
+        DeleteService(engine, probe, filler),
     )
     return {handler.kind: handler for handler in made}

@@ -9,11 +9,11 @@ to the container it left behind is the job's business rather than a secret's.
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic import Field as PydanticField
-from sqlalchemy import Column, DateTime
+from sqlalchemy import JSON, Column, DateTime
 from sqlmodel import Field, SQLModel
 
 from app.core.schemas import get_datetime_utc
@@ -64,9 +64,32 @@ class ManagedService(SQLModel, table=True):
     # every later command names the container rather than looking it up.
     container_name: str = Field(max_length=128)
     volume_name: str = Field(max_length=128)
-    # Where it ended up. Both are absent until something places it there.
+    # Where it ended up. The port is absent until the container is running and
+    # has been asked what the runtime gave it.
     published_port: int | None = Field(default=None)
     network: str | None = Field(default=None, max_length=128)
+    # Whether it was asked for with a port on the host at all. Kept because
+    # every later attempt is planned from this row: a service made reachable
+    # from the machine stays reachable when it is started again.
+    publish: bool = Field(default=False)
+    # Whether it was asked to be filled with something to look at. A property
+    # of the request rather than of the template, kept for the same reason.
+    sample_data: bool = Field(default=False)
+    # The credential slots the requester named themselves, as the template's
+    # own field names. A JSON column and never a secret: `password` is not a
+    # slot anybody may name, exactly so that nothing here has to be encrypted
+    # (D4).
+    chosen_credentials: dict[str, str] = Field(
+        default_factory=dict, sa_column=Column(JSON, nullable=False)
+    )
+    # When the password this server made up was shown to its owner, if it
+    # ever was. A stamp rather than a flag, because "when" is the useful
+    # answer and a flag is derivable from it. Shown once, deliberately: it is
+    # in the connector as an encrypted secret from then on, which is the only
+    # place a password lives (D4).
+    credentials_shown_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     state: str = Field(default="creating", max_length=16, index=True)
     created_at: datetime = Field(
         default_factory=get_datetime_utc,
@@ -96,30 +119,120 @@ class ServicePublic(BaseModel):
     # server that could not ask (D84).
     container_state: ContainerReport
     container_name: str
+    # The port on the machine this server runs on, when it was published
+    # there. Shown so a person can tell a service they can reach themselves
+    # from one only this application can.
     published_port: int | None
     # The connection this service became. What a screen opens once the job has
     # succeeded, and empty until then.
     connector_id: uuid.UUID | None
     connector_name: str
+    # Whether the password this server made up has already been shown. What
+    # greys out the button that would show it: it is shown once, and a button
+    # that would refuse is worse than no button (D82).
+    credentials_shown: bool
     created_at: datetime
     job: JobPublic | None = None
+
+
+# What a name in somebody's own database server may look like. Letters,
+# digits and underscores, starting with a letter — the intersection of what
+# PostgreSQL accepts unquoted and what survives being an environment variable
+# in a container's specification, which is where these two values go.
+NAME_PATTERN = r"^[A-Za-z][A-Za-z0-9_]{0,62}$"
+
+
+class AutomaticStart(BaseModel):
+    """Start it with everything decided here, and ask nothing.
+
+    Carries no fields at all, deliberately: this is the demonstration path,
+    where a person presses one button and receives a database with something
+    in it. Even the name is made up, because a person who has not been asked
+    for one has not got one in mind.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    mode: Literal["automatic"] = "automatic"
+
+
+class ChosenStart(BaseModel):
+    """Start it the way the person asking said.
+
+    Every field here is either a label in this application's own database or a
+    name inside the server being started. Nothing about the container is on
+    this list — not the image, not the command, not a path, not a port number
+    — because none of that is a request's to choose (D80).
+
+    The password is not here either. A chosen one would have to be written
+    down between this request and the job that uses it, and the only encrypted
+    home for a service's password is the connector it becomes (D4, D84); it is
+    made up by the server and shown once instead.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    mode: Literal["chosen"] = "chosen"
+    name: str = PydanticField(min_length=1, max_length=255)
+    # The credential slots this template calls choosable. Which they are is
+    # checked against the template, so a value for a slot it did not open is
+    # refused rather than ignored.
+    user: str | None = PydanticField(default=None, pattern=NAME_PATTERN)
+    database: str | None = PydanticField(default=None, pattern=NAME_PATTERN)
+    # Whether the machine this server runs on may reach it too, on a port the
+    # runtime picks and the loopback address only (D86).
+    publish: bool = True
+    # Whether to put something in it worth looking at.
+    sample_data: bool = False
+
+
+StartRequest = Annotated[AutomaticStart | ChosenStart, PydanticField(discriminator="mode")]
+"""The two ways to ask for a service, as shapes rather than as optional fields.
+
+A bag of nullable fields would make "automatic" a thing a client assembles by
+leaving everything out, and would make every reader of it wonder what a half
+filled one means. These are two shapes, and a request is one of them.
+"""
 
 
 class ServiceRequest(BaseModel):
     """Everything a client may say about a service it wants.
 
-    Two fields, and neither of them reaches a container: what runs is the
-    template's (D80), where it runs is the server's, and a name is a label on
-    a row in this application's own database — the same string a connector
-    form has always taken.
+    The template names what will run (D80); the rest is how the person asking
+    wants it set up, and the shape of that says which of the two ways they
+    asked.
     """
 
     template_key: str
-    name: str | None = PydanticField(default=None, min_length=1, max_length=255)
     # The client's own id for this request, so that pressing twice starts one
     # service. Chosen by the client for the same reason a run's id is (D64):
     # only the caller knows that two requests are the same intention.
     request_id: uuid.UUID | None = None
+    start: StartRequest = PydanticField(default_factory=AutomaticStart)
+
+
+class ServiceCredentials(BaseModel):
+    """How to reach a service from outside this application, once.
+
+    A service is used through the connection it became, and this application
+    never needs these: they are here because a person who started a database
+    may want to open it in their own tools, and the password was made up by
+    the server rather than chosen by them.
+
+    Shown once and then not again. It stays where every credential in this
+    application stays — encrypted in the connector — and there is no second
+    way to read it out.
+    """
+
+    host: str | None
+    port: int | None
+    user: str | None
+    database: str | None
+    password: str
+    # Why there is no address, when there is none: a service that was started
+    # without a port on the host is reachable by this server and by nothing
+    # else.
+    unreachable_reason: str | None = None
 
 
 class ServiceAccepted(BaseModel):

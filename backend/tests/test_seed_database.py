@@ -1,8 +1,9 @@
 import re
 from pathlib import Path
 
+from app.adapters.postgres.samples import SCRIPT_DIRECTORY, script_paths
 from app.core.db import engine
-from app.seed_database import fixture_paths, main
+from app.seed_database import main
 
 
 def test_schema_is_applied_before_its_data(tmp_path: Path) -> None:
@@ -11,7 +12,7 @@ def test_schema_is_applied_before_its_data(tmp_path: Path) -> None:
     schema.write_text("CREATE SCHEMA demo_lab;", encoding="utf-8")
     data.write_text("INSERT INTO demo_lab.sample VALUES (1);", encoding="utf-8")
 
-    assert fixture_paths(tmp_path) == (schema, data)
+    assert script_paths(tmp_path) == (schema, data)
 
 
 def test_development_start_runs_both_fixture_seeders() -> None:
@@ -20,26 +21,32 @@ def test_development_start_runs_both_fixture_seeders() -> None:
         encoding="utf-8"
     )
 
-    database_seed = "python -m app.seed_database /app/sql"
+    database_seed = "python -m app.seed_database"
     storage_seed = "python -m app.seed_storage"
     assert database_seed in script
     assert storage_seed in script
     assert script.index(database_seed) < script.index(storage_seed)
 
 
-def test_development_prestart_mounts_sql_fixtures_read_only() -> None:
+def test_the_scripts_ship_with_the_driver_that_runs_them() -> None:
+    """One copy of them, because a service started here is filled with it.
+
+    They used to be mounted into the one-shot prestart container from the
+    repository. A service somebody asks this server to start is filled with
+    the same two files, so they are part of the application now — and a second
+    copy of a three-hundred-line schema is a second copy that drifts.
+    """
+    for path in script_paths():
+        assert path.is_file(), path
+    assert SCRIPT_DIRECTORY.parent.name == "postgres"
+
     repository = Path(__file__).parents[2]
     override = (repository / "compose.override.yml").read_text(encoding="utf-8")
-
-    assert "./sql:/app/sql:ro" in override
+    assert "/app/sql" not in override
 
 
 def test_demo_project_codes_fit_the_schema_column() -> None:
-    repository = Path(__file__).parents[2]
-    schema = (repository / "sql/postgres_complex_schema.sql").read_text(
-        encoding="utf-8"
-    )
-    data = (repository / "sql/postgres_complex_data.sql").read_text(encoding="utf-8")
+    schema, data = (path.read_text(encoding="utf-8") for path in script_paths())
 
     code_width_match = re.search(r"code char\((\d+)\)", schema)
     assert code_width_match is not None
@@ -51,9 +58,7 @@ def test_demo_project_codes_fit_the_schema_column() -> None:
 
 
 async def test_demo_fixtures_can_be_loaded_into_postgres() -> None:
-    repository = Path(__file__).parents[2]
-
-    await main(repository / "sql")
+    await main(SCRIPT_DIRECTORY)
 
     async with engine.connect() as connection:
         counts = {}

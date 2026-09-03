@@ -4,7 +4,7 @@ A service this server starts on the machine it runs on, and the connector such
 a service becomes. Read this before adding a template, changing what a service
 is started with, or letting anything about a container come from a request.
 
-Decisions here: D80, D82, D83, D84, D85, D86, D87.
+Decisions here: D80, D82, D83, D84, D85, D86, D87, D88, D89, D90.
 
 ## What exists today
 
@@ -23,6 +23,7 @@ backend/app/services/
 ├── engine.py      what a container runtime must do, and a server without one
 ├── readiness.py   waiting until the source itself answers
 ├── docker.py      the Docker Engine API, over the socket this server has
+├── readiness.py   waiting until it answers, and filling it once it does
 ├── jobs.py        create, start, stop, restart, delete as job handlers
 ├── tools.py       a container run once for its exit code
 ├── backups.py     copying a database out and putting it back, as jobs
@@ -42,6 +43,7 @@ POST   /api/v1/services/{service_id}/stop
 POST   /api/v1/services/{service_id}/restart
 POST   /api/v1/services/{service_id}/retry
 GET    /api/v1/services/{service_id}/logs
+GET    /api/v1/services/{service_id}/credentials
 DELETE /api/v1/services/{service_id}
 GET    /api/v1/backups/
 GET    /api/v1/backups/offer
@@ -109,10 +111,10 @@ Known deviations:
   `compose.yml` uses.
 - **There are two templates.** PostgreSQL and Redis, which is what proves
   the registry is not one image with steps around it ([D85](#d85-the-second-service-is-what-proves-the-first-one-was-not-a-shape)).
-- **A person cannot choose the database or the user.** Both are constants of
-  the template. Letting them be typed would be a value from a client in an
-  environment variable, which is a smaller thing than an image but still not
-  this slice's to allow.
+- **What a person may name is a short list.** The role and the database, and
+  only where the template opens them
+  ([D88](#d88-two-ways-to-ask-for-a-service-and-neither-of-them-names-a-container));
+  everything about the container stays the template's.
 
 Spec: [Approved service templates](../superpowers/specs/2026-09-02-service-templates-design.md)
 
@@ -198,15 +200,16 @@ becoming a second kind of connection with rules of its own.
   template's timeout; PostgreSQL initialises its data directory on first start
   and the port answers before the server does. The probe is a protocol, like
   the engine, so a job can be exercised without a database to wait for.
-- **Where a service is reached from is its container name on a shared
-  network.** That is what a name resolves on, so a server with no network
-  configured offers nothing: a service that could be started and not used is
-  not an offer. Nothing is published on the host — opening a port on the
-  machine is a separate decision, and it belongs with the threat model.
-- **The one thing a person is asked is what to call it.** The image, the port,
-  the user, the database and the password are the server's (D80); a name is
-  the only part of it they know better, and a second database called
-  "PostgreSQL" is a row nobody can tell from the first.
+- **Where this application reaches a service is its container name on a
+  shared network.** That is what a name resolves on, so a server with no
+  network configured offers nothing: a service that could be started and not
+  used is not an offer. A port on the host is a second thing with a different
+  audience — the person who started it, in their own tools — and it is bound
+  to the loopback address and numbered by the runtime
+  ([D89](#d89-a-generated-password-is-shown-once-where-it-becomes-useful)).
+- **How much a person is asked depends on which of the two ways they asked**
+  (D88). The image, the command, the volume and the port number are the
+  server's in both.
 - **A service and its connection are both shown, because both are true.** The
   connection is how a database is used; the service is the container it lives
   in, and its row is the only place its life can be ended.
@@ -369,9 +372,10 @@ safe — it is what this application will and will not ask for, and who may ask.
   rather than in a template, because a template that could choose its own
   limits could choose none.
 - **Nothing is published to the network.** A service joins the configured
-  network and is reached by container name; where a port is published at all
-  it is bound to `127.0.0.1`. A server with no network configured offers
-  nothing rather than starting something unreachable.
+  network and is reached by container name; a port published on the host is
+  bound to `127.0.0.1`, so it is reachable from the machine this server runs
+  on and from nowhere else. A server with no network configured offers nothing
+  rather than starting something unreachable.
 - **One person may hold only so many services.** A ceiling from settings,
   counting everything including failed ones, refused with the number and what
   to do about it. Not a quota system: a number that turns a loop somebody left
@@ -453,3 +457,128 @@ Known deviations:
   and it may still name a host or a database.
 
 Spec: [Copying a database out, and putting it back](../superpowers/specs/2026-09-03-backup-and-restore-design.md)
+\n
+## D88. Two ways to ask for a service, and neither of them names a container
+
+One button that starts a database is a demonstration; a form with eight fields
+is a configuration screen. Both are wanted, and they are not the same request,
+so they are two shapes rather than one shape with everything optional.
+
+- **An automatic start carries nothing at all.** Not the name either: somebody
+  who has not been asked for one has not got one in mind, so the server calls
+  it what it is and which one of them it is — "PostgreSQL 1", "PostgreSQL 2".
+  It publishes a port and fills the database, because a demonstration nobody
+  can connect to and which holds nothing demonstrates nothing.
+- **A chosen start names what is a person's to decide**: what the connection
+  is called, the role and the database to create inside it, whether it is
+  reachable from the machine, and whether to put a sample schema in it. That
+  is the whole list.
+- **Which credentials may be named is the template's to say.** `choosable` is
+  a closed set per template, and a value for a slot it did not open is refused
+  rather than dropped — a Redis server has no role, and somebody who typed one
+  should be told so. PostgreSQL opens the role and the database; Redis opens
+  nothing.
+- **The password is never on that list.** A chosen one would have to be
+  written down between the request and the job that uses it, and the only
+  encrypted home for a service's password is the connector it becomes
+  ([D4](backend.md)). It is made up by the server in both modes.
+- **A request is a discriminated union**, so "automatic" is a thing a client
+  says rather than a thing it fails to say, and both shapes forbid unknown
+  keys: a request that names an image, a command, a volume or a port number
+  does not validate. That is D80 stated a second time, where a client can
+  reach.
+- **The names a person may write are letters, digits and underscores.** They
+  become an environment variable in a container specification and a role in
+  somebody's server, and neither takes a quote.
+
+Known deviations:
+
+- **The automatic name is not unique across a rename.** It avoids the names a
+  person's services already have at the moment it is chosen; renaming a
+  connection afterwards can make two of them agree.
+- **A chosen start cannot ask for a password.** The reason is above, and the
+  consequence is that somebody automating this cannot decide credentials in
+  advance.
+- **Sample data is all or nothing.** One schema, the project's own, and no
+  choice of what goes in.
+
+Spec: [Two ways to start a service, and what comes back](../superpowers/specs/2026-09-03-service-start-modes-design.md)
+
+## D89. A generated password is shown once, where it becomes useful
+
+A service is used through the connection it became, so this application never
+needs to say its password out loud. A person who started a database usually
+wants to open it in their own tools as well, and the password is one they were
+never asked for — so it is shown, once, at the moment the service is ready.
+
+- **Once, and the row remembers.** `credentials_shown_at` is stamped when the
+  answer is given, and asking again is refused rather than answered. The
+  window says so before it shows anything, because a warning under something
+  the reader has already closed is not a warning.
+- **It is read out of the connector**, where the job encrypted it (D4). There
+  is no second home for it, and nothing is written down to make this route
+  possible.
+- **The address is the one somebody else could use**: `127.0.0.1` and the port
+  the runtime picked, not the container name the connector holds — that
+  resolves only on the network this server is on. A service started without a
+  port says why there is no address instead of showing one that would fail.
+- **The port is the runtime's answer.** The request says only whether to
+  publish; Docker picks a free port and the create job reads it back off the
+  container. This application never binds a socket to find out what is free
+  and then races whoever took it in between.
+- **Automatic starts open the window by themselves**, and only they: somebody
+  who filled in a form knows what they asked for, and somebody who pressed one
+  button has been told nothing yet. Until it has been shown, the services
+  window offers it.
+
+Known deviations:
+
+- **A closed window loses the password.** There is no second reveal; the
+  service can be started again, which makes a new one.
+- **The reveal is not audited.** That it happened is a stamp on the row and
+  nothing more.
+- **A published port is on the loopback only**, so "from outside" means from
+  the machine this server runs on. Reaching it from another machine is that
+  machine's tunnel to arrange.
+
+Spec: [Two ways to start a service, and what comes back](../superpowers/specs/2026-09-03-service-start-modes-design.md)
+
+## D90. An empty database demonstrates nothing, so an automatic start fills one
+
+A server this application starts is empty: one schema, no rows, and every
+screen the application is made of saying "nothing here". The project already
+has a schema worth exploring — the one it develops against, with enums,
+domains, composite types, generated columns, arrays, ranges, partitions and a
+few hundred rows — so that is what goes in.
+
+- **The same two files, not a copy of them.** They moved out of the repository
+  root and into `adapters/postgres/sample_data/`, beside the driver that runs
+  them: the development fixture and the sample data of a started service are
+  now one thing, and a second copy of a three-hundred-line schema is a second
+  copy that drifts.
+- **It is a capability, read off the driver.** `SupportsSampleData` is what
+  makes the offer appear on a template; a source that cannot be filled is
+  skipped rather than refused, because the person asked for a database and
+  this is the part of the answer that source cannot give.
+- **Nothing a client sends reaches a statement.** The script is this
+  repository's own text, run against a server this application has just
+  started. Running somebody's script against somebody's server is what the
+  query console is for, with the unlock and the confirmation it carries.
+- **The step is reached, not announced.** A service started without sample
+  data never shows a step in which nothing happened.
+- **A failure to fill fails the creation.** The database is up and usable, but
+  a person who asked for something to look at and received an empty server
+  would otherwise have to work out why themselves.
+
+Known deviations:
+
+- **Only PostgreSQL has any.** Redis implements nothing, so an automatic Redis
+  is an empty Redis.
+- **The schema is the development fixture.** It was written to exercise this
+  application's own type handling rather than to tell a story, so it is a
+  demonstration of breadth rather than of a business.
+- **It ships in the image.** Sample data used to be mounted only into the
+  development prestart container; it is part of the application now, because
+  starting a filled database is something the application does.
+
+Spec: [Two ways to start a service, and what comes back](../superpowers/specs/2026-09-03-service-start-modes-design.md)

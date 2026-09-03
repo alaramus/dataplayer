@@ -298,6 +298,9 @@ import type {
   servicesDeleteServiceData,
   servicesDeleteServiceErrors,
   servicesDeleteServiceResponses,
+  servicesReadServiceCredentialsData,
+  servicesReadServiceCredentialsErrors,
+  servicesReadServiceCredentialsResponses,
   servicesReadServiceData,
   servicesReadServiceErrors,
   servicesReadServiceLogsData,
@@ -2272,6 +2275,36 @@ export class ServicesService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/services/{service_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Service Credentials
+   *
+   * The password this server made up for a service, shown once.
+   *
+   * A service is used through the connection it became, and this application
+   * never needs to say these out loud. A person who started a database may
+   * want to open it in their own tools, though, and the password is one they
+   * were never asked for — so it is shown exactly once, at the moment it
+   * becomes useful, and the row remembers that it was.
+   *
+   * Not a second home for a secret: it is read out of the connector, where it
+   * has been encrypted since the job saved it (D4), and asking again is
+   * refused rather than answered.
+   */
+  public static readServiceCredentials<ThrowOnError extends boolean = true>(
+    options: Options<servicesReadServiceCredentialsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      servicesReadServiceCredentialsResponses,
+      servicesReadServiceCredentialsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/{service_id}/credentials",
       ...options,
     })
   }

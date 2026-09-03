@@ -2,6 +2,7 @@
 import { computed, ref } from "vue"
 
 import type { ServicePublic } from "@/client"
+import ServiceCredentialsDialog from "@/features/services/ServiceCredentialsDialog.vue"
 import ServiceLogsDialog from "@/features/services/ServiceLogsDialog.vue"
 import {
   useCancelJob,
@@ -40,6 +41,8 @@ const retryService = useRetryService()
 const cancelJob = useCancelJob()
 const toast = useToast()
 const reading = ref<ServicePublic | null>(null)
+/** The service whose connection details are being shown, if any. */
+const revealing = ref<{ id: string; name: string } | null>(null)
 
 const rows = computed(() => services.data.value ?? [])
 
@@ -177,6 +180,15 @@ async function forget(serviceId: string, name: string) {
         :data-testid="`retry-service-${service.id}`"
         @click="retry(service)"
       />
+      <!-- Offered until it has been taken: the password is shown once, and a
+           button that would be refused is worse than no button (D82). -->
+      <AppIconButton
+        v-if="service.connector_id !== null && !service.credentials_shown"
+        icon="vpn_key"
+        tooltip="How to reach it from your own tools — shown once"
+        :data-testid="`credentials-service-${service.id}`"
+        @click="revealing = { id: service.id, name: service.connector_name }"
+      />
       <AppIconButton
         icon="notes"
         tooltip="What it printed"
@@ -193,6 +205,7 @@ async function forget(serviceId: string, name: string) {
     </div>
 
     <ServiceLogsDialog v-model:service="reading" />
+    <ServiceCredentialsDialog v-model:service="revealing" />
   </div>
 </template>
 

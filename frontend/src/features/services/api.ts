@@ -102,6 +102,35 @@ export function useCancelJob() {
   })
 }
 
+/**
+ * How to reach one service from outside, asked for exactly once.
+ *
+ * `staleTime: Infinity` and no retry, because this is not a read: the server
+ * stamps the row as shown and refuses the second ask. A refetch would turn
+ * the one answer into a refusal on the screen of the person who asked for it.
+ */
+export function useServiceCredentials(serviceId: Ref<string | null>) {
+  const queryClient = useQueryClient()
+  return useQuery({
+    queryKey: computed(() => ["service-credentials", serviceId.value] as const),
+    queryFn: async () => {
+      const answer = (
+        await ServicesService.readServiceCredentials({
+          path: { service_id: serviceId.value ?? "" },
+        })
+      ).data
+      // The row now says it has been shown, and the button that offered it
+      // has to go grey.
+      await queryClient.invalidateQueries({ queryKey: servicesKey })
+      return answer
+    },
+    enabled: computed(() => serviceId.value !== null),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: false,
+  })
+}
+
 export const backupsKey = ["backups"] as const
 export const backupOfferKey = ["backup-offer"] as const
 

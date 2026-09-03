@@ -51,6 +51,7 @@ from app.adapters.postgres.references import PostgresReferences
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.relation_changes import PostgresRelationChanges
 from app.adapters.postgres.row_commands import PostgresRowCommands
+from app.adapters.postgres.samples import PostgresSamples
 from app.adapters.postgres.session import (
     PostgresSession,
     compose_url,
@@ -145,6 +146,7 @@ class PostgresAdapter:
         self._generation = PostgresGeneration(self._session, self._metadata)
         self._row_commands = PostgresRowCommands(self._session)
         self._backup = PostgresBackup(self._session, options)
+        self._samples = PostgresSamples(self._session)
 
     async def backup_program(self, *, into: str) -> BackupProgram:
         """What copies this server out, in the version that can (D87)."""
@@ -152,6 +154,10 @@ class PostgresAdapter:
 
     async def restore_program(self, *, from_file: str) -> BackupProgram:
         return await self._backup.restore_program(from_file=from_file)
+
+    async def install_sample_data(self) -> str:
+        """Put this project's own demonstration schema into an empty server."""
+        return await self._samples.install_sample_data()
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62)."""

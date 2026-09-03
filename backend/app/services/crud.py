@@ -1,6 +1,7 @@
 """Database access for managed services, and nothing else."""
 
 import uuid
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from sqlmodel import col, select
@@ -19,6 +20,8 @@ async def create(
     connector_name: str,
     placement: Placement,
     request_id: uuid.UUID | None = None,
+    chosen_credentials: Mapping[str, str] | None = None,
+    sample_data: bool = False,
 ) -> ManagedService:
     """Write down a service before anything is started.
 
@@ -36,7 +39,9 @@ async def create(
         container_name=container_name(service_id, template),
         volume_name=volume_name(service_id, template),
         network=placement.network,
-        published_port=placement.published_port,
+        publish=placement.publish,
+        sample_data=sample_data,
+        chosen_credentials=dict(chosen_credentials or {}),
         state="creating",
     )
     session.add(service)
@@ -102,6 +107,19 @@ async def all_container_names(session: AsyncSession) -> set[str]:
     filtered by caller would call another person's service an orphan.
     """
     statement = select(ManagedService.container_name)
+    return set((await session.exec(statement)).all())
+
+
+async def names_taken(session: AsyncSession, owner_id: uuid.UUID) -> set[str]:
+    """What this person's services are already called.
+
+    Read so that a name nobody was asked for does not collide with one they
+    chose earlier: two connections called "PostgreSQL 1" are two rows nobody
+    can tell apart.
+    """
+    statement = select(ManagedService.connector_name).where(
+        ManagedService.owner_id == owner_id
+    )
     return set((await session.exec(statement)).all())
 
 

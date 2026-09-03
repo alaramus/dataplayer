@@ -1,12 +1,17 @@
 import uuid
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters import options as adapter_options
 from app.adapters import registry
+from app.adapters.protocol import SupportsSampleData
+from app.connectors.models import Connector
+from app.connectors.service import merge_options
 from app.core.config import settings
 from app.core.db import SessionDep, async_session_maker
 from app.core.schemas import Message
@@ -25,12 +30,15 @@ from app.services.engine import (
 )
 from app.services.models import (
     BUSY_STATES,
+    ChosenStart,
     ContainerReport,
     ManagedService,
     ServiceAccepted,
+    ServiceCredentials,
     ServicePublic,
     ServiceRequest,
     ServiceState,
+    StartRequest,
 )
 from app.services.plan import Placement
 from app.services.templates import UnknownServiceTemplate
@@ -77,6 +85,14 @@ class ServiceTemplateInfo(BaseModel):
     # Which credentials this server makes up. A statement about what a person
     # will not be asked for, which is the whole difference from the old form.
     generated: list[templates.CredentialSlot]
+    # And which of them a person may name themselves when they want to. The
+    # form that asks is built from this, so a template that opens a slot gains
+    # a field without the client being changed.
+    choosable: list[templates.CredentialSlot]
+    # Whether this server has anything to put in one of these worth looking
+    # at. Read off the driver, so a type that cannot be filled does not offer
+    # to be.
+    offers_sample_data: bool
     # Whether this server could actually start one now, and why not when it
     # could not. Said where the offer is made rather than only when the button
     # is pressed: a screen that offers what will be refused is a screen that
@@ -122,6 +138,10 @@ async def read_service_templates(engine: ServiceEngineDep) -> Any:
             adapter_type=template.adapter_type,
             adapter_title=registry.get(template.adapter_type).title,
             generated=list(templates.generated_slots(template)),
+            choosable=list(templates.choosable_slots(template)),
+            offers_sample_data=issubclass(
+                registry.get(template.adapter_type).adapter_class, SupportsSampleData
+            ),
             available=runtime.available,
             unavailable_reason=runtime.reason,
         )
@@ -163,13 +183,16 @@ async def request_service(
             return await _already(session, already)
     _refuse_without_a_runtime(await _offer(engine))
     await _refuse_if_at_the_ceiling(session, current_user.id)
+    chosen = _chosen_credentials(template, body.start)
     service = await crud.create(
         session,
         owner_id=current_user.id,
         template=template,
-        connector_name=body.name or template.title,
-        placement=_placement(),
+        connector_name=await _name_for(session, current_user.id, template, body.start),
+        placement=_placement(body.start),
         request_id=body.request_id,
+        chosen_credentials=chosen,
+        sample_data=_wants_sample_data(body.start),
     )
     job = await _accept(session, runner, topics, service, "service.create")
     return ServiceAccepted(
@@ -270,6 +293,52 @@ async def read_service(
             _by_name(found), service.container_name, asked=found is not None
         ),
     )
+
+
+@router.get("/{service_id}/credentials", response_model=ServiceCredentials)
+async def read_service_credentials(
+    session: SessionDep, current_user: CurrentUser, service_id: uuid.UUID
+) -> Any:
+    """
+    The password this server made up for a service, shown once.
+
+    A service is used through the connection it became, and this application
+    never needs to say these out loud. A person who started a database may
+    want to open it in their own tools, though, and the password is one they
+    were never asked for — so it is shown exactly once, at the moment it
+    becomes useful, and the row remembers that it was.
+
+    Not a second home for a secret: it is read out of the connector, where it
+    has been encrypted since the job saved it (D4), and asking again is
+    refused rather than answered.
+    """
+    service = await _own_or_404(session, service_id, current_user.id)
+    if service.connector_id is None:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": "This service has no connection yet"},
+        )
+    if service.credentials_shown_at is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": (
+                    "These were shown once already. Start another service if "
+                    "you need a password you can see."
+                )
+            },
+        )
+    connector = await session.get(Connector, service.connector_id)
+    if connector is None:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": "The connection this service made is gone"},
+        )
+    answer = _credentials_of(service, connector)
+    service.credentials_shown_at = datetime.now(UTC)
+    session.add(service)
+    await session.commit()
+    return answer
 
 
 @router.get("/{service_id}/logs", response_model=ServiceLogs)
@@ -463,15 +532,73 @@ async def _own_or_404(
 NO_NETWORK_MESSAGE = "This server has no network to put a service on"
 
 
-def _placement() -> Placement:
-    """Where a service goes: the configured network, and no published port.
+def _placement(start: StartRequest) -> Placement:
+    """Where a service goes: the configured network, and a port when asked.
 
-    Not published on the host, deliberately. What has to reach a service is
-    this server, which does it by name on the shared network; opening a port
-    on the machine is a separate decision and belongs with the threat model
-    the phase ends on.
+    The network is how this server reaches it — by container name, which
+    resolves only on a network they share. A port on the host is a second
+    thing and a different audience: it is what lets the person who started it
+    open it in their own tools, and it is bound to the loopback address and
+    numbered by the runtime, never by a request (D86).
+
+    An automatic start publishes, because a demonstration nobody can connect
+    to from their own machine is half a demonstration.
     """
-    return Placement(network=settings.SERVICE_NETWORK or None, published_port=None)
+    return Placement(
+        network=settings.SERVICE_NETWORK or None,
+        publish=start.publish if isinstance(start, ChosenStart) else True,
+    )
+
+
+def _chosen_credentials(
+    template: templates.ServiceTemplate, start: StartRequest
+) -> dict[str, str]:
+    """What the requester named, checked against what the template opened.
+
+    A value for a slot this template does not call choosable is refused rather
+    than dropped: silently ignoring it would let somebody believe they had
+    named the role of a Redis server.
+    """
+    if not isinstance(start, ChosenStart):
+        return {}
+    named = {"user": start.user, "database": start.database}
+    chosen: dict[str, str] = {}
+    for slot, value in named.items():
+        if value is None:
+            continue
+        if slot not in template.choosable:
+            raise HTTPException(
+                status_code=422,
+                detail={"message": f"This service has no {slot} to name"},
+            )
+        chosen[slot] = value
+    return chosen
+
+
+def _wants_sample_data(start: StartRequest) -> bool:
+    """An automatic start is a demonstration, so it fills what it starts."""
+    return start.sample_data if isinstance(start, ChosenStart) else True
+
+
+async def _name_for(
+    session: AsyncSession,
+    owner_id: uuid.UUID,
+    template: templates.ServiceTemplate,
+    start: StartRequest,
+) -> str:
+    """What the connection will be called.
+
+    A chosen start says. An automatic one is not asked — somebody who has not
+    been asked for a name has not got one in mind — so the server makes one
+    the same way a person would: what it is, and which one of them it is.
+    """
+    if isinstance(start, ChosenStart):
+        return start.name
+    taken = await crud.names_taken(session, owner_id)
+    number = 1
+    while f"{template.title} {number}" in taken:
+        number += 1
+    return f"{template.title} {number}"
 
 
 async def _offer(engine: ServiceEngine) -> Availability:
@@ -624,9 +751,62 @@ def _public(
         published_port=service.published_port,
         connector_id=service.connector_id,
         connector_name=service.connector_name,
+        credentials_shown=service.credentials_shown_at is not None,
         created_at=service.created_at,
         job=job_public(job) if job is not None else None,
     )
+
+
+# Where a service published on this machine answers. The container is bound to
+# the loopback address, so this is the only address that reaches it — and it is
+# the address as seen from the machine the server runs on, which is what a
+# person pasting it into their own tool needs.
+PUBLISHED_HOST = "127.0.0.1"
+
+# Why there is nothing to paste, when there is nothing.
+NOT_PUBLISHED = (
+    "This service has no port on the host, so only this application can reach it"
+)
+
+
+def _credentials_of(
+    service: ManagedService, connector: Connector
+) -> ServiceCredentials:
+    """What the connector holds, as an address somebody else could use.
+
+    The values come out of the connector rather than out of the plan: the plan
+    is gone by now, and the connector is what the container was actually
+    started with (D83). The host and port are replaced, because the connector
+    reaches the service by container name on a network only this server is on.
+    """
+    # Through the adapter's own options model rather than off the raw
+    # dictionary: a secret is a `SecretStr` there, which is what says which
+    # field it is (D4), and the model is the only thing that knows the shape
+    # of this source's options.
+    options = adapter_options.validate(
+        registry.get(connector.adapter_type).options_schema,
+        merge_options(connector.config, connector.secrets),
+    )
+    password = getattr(options, "password", None)
+    published = service.published_port
+    return ServiceCredentials(
+        host=PUBLISHED_HOST if published is not None else None,
+        port=published,
+        user=getattr(options, "user", None),
+        database=_database_of(options),
+        password=password.get_secret_value() if password is not None else "",
+        unreachable_reason=None if published is not None else NOT_PUBLISHED,
+    )
+
+
+def _database_of(options: Any) -> str | None:
+    """What the source calls the thing inside it, when it calls it anything.
+
+    PostgreSQL has a named database; Redis has sixteen numbered ones, and a
+    number is what a client is told to write.
+    """
+    database = getattr(options, "database", None)
+    return None if database is None else str(database)
 
 
 def _title_of(template_key: str) -> str:

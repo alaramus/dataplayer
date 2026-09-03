@@ -45,16 +45,18 @@ def test_the_container_is_the_template_and_nothing_else() -> None:
 def test_a_placement_decides_the_port_and_the_network_and_a_request_never_does() -> (
     None
 ):
-    plan = _plan(Placement(network="dataplayer_default", published_port=15432))
+    plan = _plan(Placement(network="dataplayer_default", publish=True))
 
     assert plan.container.network == "dataplayer_default"
-    assert plan.container.published_port == 15432
+    # A boolean and never a number: which port is free is the runtime's to
+    # answer, and the plan is written before anything is asked.
+    assert plan.container.publish is True
 
 
 def test_a_service_that_is_not_published_says_so_rather_than_guessing() -> None:
     plan = _plan()
 
-    assert plan.container.published_port is None
+    assert plan.container.publish is False
     assert plan.container.network is None
 
 
@@ -142,7 +144,7 @@ def test_neither_the_plan_nor_the_container_prints_the_password() -> None:
 def test_the_connector_it_becomes_validates_as_that_adapter_would() -> None:
     """A service becomes a connector through the adapter's own options model,
     exactly as one somebody typed."""
-    plan = _plan(Placement(network="dataplayer_default", published_port=15432))
+    plan = _plan(Placement(network="dataplayer_default", publish=True))
 
     filled = connector_options(plan, Endpoint(host=plan.container.name, port=5432))
     validated = adapter_options.validate(

@@ -20,12 +20,12 @@ from app.services.plan import Placement, build_plan
 from app.services.templates import template_for
 
 
-def _spec(published_port: int | None = None, network: str | None = None) -> Any:
+def _spec(publish: bool = False, network: str | None = None) -> Any:
     return build_plan(
         template_for("postgres"),
         service_id=uuid4(),
         owner_id=uuid4(),
-        placement=Placement(network=network, published_port=published_port),
+        placement=Placement(network=network, publish=publish),
     ).container
 
 
@@ -108,7 +108,7 @@ async def test_the_container_is_created_from_the_specification_and_nothing_else(
         seen.append(request)
         return httpx.Response(201, json={"Id": "abc"})
 
-    spec = _spec(published_port=15432, network="dataplayer_default")
+    spec = _spec(publish=True, network="dataplayer_default")
     await _engine(handler).create(spec)
 
     body = json.loads(seen[1].content)
@@ -144,17 +144,22 @@ async def test_the_only_mount_is_the_service_s_own_named_volume() -> None:
 
 async def test_a_published_port_is_bound_to_this_machine_only() -> None:
     """A database somebody asked this server to start is not one they asked it
-    to publish to the network."""
+    to publish to the network.
+
+    And the number is the runtime's: an empty host port means "pick a free
+    one", which is what avoids this application binding a socket to find out
+    what is free and then racing whoever took it in between.
+    """
     seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
         return httpx.Response(201, json={"Id": "abc"})
 
-    await _engine(handler).create(_spec(published_port=15432))
+    await _engine(handler).create(_spec(publish=True))
 
     bindings = json.loads(seen[1].content)["HostConfig"]["PortBindings"]
-    assert bindings == {"5432/tcp": [{"HostIp": "127.0.0.1", "HostPort": "15432"}]}
+    assert bindings == {"5432/tcp": [{"HostIp": "127.0.0.1", "HostPort": ""}]}
 
 
 async def test_a_service_that_is_not_published_binds_no_port() -> None:

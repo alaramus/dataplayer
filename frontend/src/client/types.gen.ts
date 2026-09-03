@@ -404,6 +404,23 @@ export type AudioContents = {
 }
 
 /**
+ * AutomaticStart
+ *
+ * Start it with everything decided here, and ask nothing.
+ *
+ * Carries no fields at all, deliberately: this is the demonstration path,
+ * where a person presses one button and receives a database with something
+ * in it. Even the name is made up, because a person who has not been asked
+ * for one has not got one in mind.
+ */
+export type AutomaticStart = {
+  /**
+   * Mode
+   */
+  mode?: "automatic"
+}
+
+/**
  * BackupFile
  *
  * One backup in the caller's own storage.
@@ -618,6 +635,48 @@ export type CheckConstraint = {
    * Validated
    */
   validated?: boolean
+}
+
+/**
+ * ChosenStart
+ *
+ * Start it the way the person asking said.
+ *
+ * Every field here is either a label in this application's own database or a
+ * name inside the server being started. Nothing about the container is on
+ * this list — not the image, not the command, not a path, not a port number
+ * — because none of that is a request's to choose (D80).
+ *
+ * The password is not here either. A chosen one would have to be written
+ * down between this request and the job that uses it, and the only encrypted
+ * home for a service's password is the connector it becomes (D4, D84); it is
+ * made up by the server and shown once instead.
+ */
+export type ChosenStart = {
+  /**
+   * Mode
+   */
+  mode?: "chosen"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * User
+   */
+  user?: string | null
+  /**
+   * Database
+   */
+  database?: string | null
+  /**
+   * Publish
+   */
+  publish?: boolean
+  /**
+   * Sample Data
+   */
+  sample_data?: boolean
 }
 
 /**
@@ -4980,6 +5039,47 @@ export type ServiceAccepted = {
 }
 
 /**
+ * ServiceCredentials
+ *
+ * How to reach a service from outside this application, once.
+ *
+ * A service is used through the connection it became, and this application
+ * never needs these: they are here because a person who started a database
+ * may want to open it in their own tools, and the password was made up by
+ * the server rather than chosen by them.
+ *
+ * Shown once and then not again. It stays where every credential in this
+ * application stays — encrypted in the connector — and there is no second
+ * way to read it out.
+ */
+export type ServiceCredentials = {
+  /**
+   * Host
+   */
+  host: string | null
+  /**
+   * Port
+   */
+  port: number | null
+  /**
+   * User
+   */
+  user: string | null
+  /**
+   * Database
+   */
+  database: string | null
+  /**
+   * Password
+   */
+  password: string
+  /**
+   * Unreachable Reason
+   */
+  unreachable_reason?: string | null
+}
+
+/**
  * ServiceLogs
  *
  * The tail of one service's own output.
@@ -5037,6 +5137,10 @@ export type ServicePublic = {
    */
   connector_name: string
   /**
+   * Credentials Shown
+   */
+  credentials_shown: boolean
+  /**
    * Created At
    */
   created_at: string
@@ -5048,10 +5152,9 @@ export type ServicePublic = {
  *
  * Everything a client may say about a service it wants.
  *
- * Two fields, and neither of them reaches a container: what runs is the
- * template's (D80), where it runs is the server's, and a name is a label on
- * a row in this application's own database — the same string a connector
- * form has always taken.
+ * The template names what will run (D80); the rest is how the person asking
+ * wants it set up, and the shape of that says which of the two ways they
+ * asked.
  */
 export type ServiceRequest = {
   /**
@@ -5059,13 +5162,19 @@ export type ServiceRequest = {
    */
   template_key: string
   /**
-   * Name
-   */
-  name?: string | null
-  /**
    * Request Id
    */
   request_id?: string | null
+  /**
+   * Start
+   */
+  start?:
+    | ({
+        mode: "automatic"
+      } & AutomaticStart)
+    | ({
+        mode: "chosen"
+      } & ChosenStart)
 }
 
 /**
@@ -5111,6 +5220,14 @@ export type ServiceTemplateInfo = {
    * Generated
    */
   generated: Array<"user" | "password" | "database">
+  /**
+   * Choosable
+   */
+  choosable: Array<"user" | "password" | "database">
+  /**
+   * Offers Sample Data
+   */
+  offers_sample_data: boolean
   /**
    * Available
    */
@@ -8832,6 +8949,38 @@ export type servicesReadServiceResponses = {
 
 export type servicesReadServiceResponse =
   servicesReadServiceResponses[keyof servicesReadServiceResponses]
+
+export type servicesReadServiceCredentialsData = {
+  body?: never
+  path: {
+    /**
+     * Service Id
+     */
+    service_id: string
+  }
+  query?: never
+  url: "/api/v1/services/{service_id}/credentials"
+}
+
+export type servicesReadServiceCredentialsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type servicesReadServiceCredentialsError =
+  servicesReadServiceCredentialsErrors[keyof servicesReadServiceCredentialsErrors]
+
+export type servicesReadServiceCredentialsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ServiceCredentials
+}
+
+export type servicesReadServiceCredentialsResponse =
+  servicesReadServiceCredentialsResponses[keyof servicesReadServiceCredentialsResponses]
 
 export type servicesReadServiceLogsData = {
   body?: never

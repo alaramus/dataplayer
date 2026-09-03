@@ -157,6 +157,22 @@ class SupportsBackup(Protocol):
 
 
 @runtime_checkable
+class SupportsSampleData(Protocol):
+    """A source this application can fill with something worth looking at.
+
+    Only for a source this server started itself: a database somebody asked
+    for is empty, and an empty database demonstrates nothing. What goes in is
+    the driver's own — this repository's script, shipped beside it — so
+    nothing a client sends reaches a statement here.
+
+    The answer is one line saying what is now there, which is what the job
+    reports as its result.
+    """
+
+    async def install_sample_data(self) -> str: ...
+
+
+@runtime_checkable
 class SupportsCatalog(Protocol):
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         """Children of a catalog node; the root when node_id is None.

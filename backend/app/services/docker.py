@@ -250,6 +250,7 @@ class DockerEngine:
             name=container,
             state=_state_of(body.get("State") or {}),
             service_id=labels.get(SERVICE_LABEL),
+            published_port=_published_port(body),
         )
 
     async def managed(self) -> list[ContainerStatus]:
@@ -398,12 +399,17 @@ def _creation_body(spec: ContainerSpec) -> dict[str, Any]:
         "NanoCpus": int(settings.SERVICE_CPUS * 1_000_000_000),
         "PidsLimit": settings.SERVICE_PIDS_LIMIT,
     }
-    if spec.published_port is not None:
+    if spec.publish:
         # Bound to the loopback address rather than to every interface: a
         # database somebody asked this server to start is not a database they
         # asked it to publish to the network.
+        #
+        # An empty host port means "pick a free one", which is the runtime's
+        # job: this application would have to bind a socket to find out what
+        # is free and then race whoever took it in between. What it picked is
+        # read back off the container.
         host_config["PortBindings"] = {
-            port: [{"HostIp": "127.0.0.1", "HostPort": str(spec.published_port)}]
+            port: [{"HostIp": "127.0.0.1", "HostPort": ""}]
         }
     body: dict[str, Any] = {
         "Image": spec.image,
@@ -417,6 +423,22 @@ def _creation_body(spec: ContainerSpec) -> dict[str, Any]:
     if spec.network is not None:
         body["NetworkingConfig"] = {"EndpointsConfig": {spec.network: {}}}
     return body
+
+
+def _published_port(body: Mapping[str, Any]) -> int | None:
+    """Which port on the host a container answers on, if any.
+
+    The daemon writes it under the container port it belongs to, as a list of
+    bindings that is null when there are none. One container port is published
+    here at most, so the first binding that carries a number is the answer.
+    """
+    ports = ((body.get("NetworkSettings") or {}).get("Ports") or {}).values()
+    for bindings in ports:
+        for binding in bindings or []:
+            written = (binding or {}).get("HostPort")
+            if written:
+                return int(written)
+    return None
 
 
 def _refuse_if_the_stream_says_so(line: str) -> None:

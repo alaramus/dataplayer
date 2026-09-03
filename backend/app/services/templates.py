@@ -101,6 +101,13 @@ class ServiceTemplate:
     # service. Every slot a template uses must appear, which is what keeps one
     # constant from being written twice and drifting.
     credentials: Mapping[CredentialSlot, Fixed | Generated]
+    # Which of those a requester may name instead, when they want to. A
+    # closed set per template, so a request naming anything else is refused
+    # rather than quietly ignored — and never `password`: a chosen password
+    # would have to be written down somewhere between the request and the job
+    # that uses it, and the only encrypted home for a service's password is
+    # the connector it becomes (D4, D84).
+    choosable: frozenset[CredentialSlot]
     # Every environment key the container gets, and where each value comes
     # from. A key that is not here is not passed.
     environment: Mapping[str, CredentialValue]
@@ -143,6 +150,10 @@ POSTGRES = ServiceTemplate(
         DATABASE: Fixed("dataplayer"),
         PASSWORD: Generated(),
     },
+    # The role and the database are names in somebody's own server, so they
+    # are theirs to choose when they want to. The password is not on this
+    # list, for the reason `choosable` gives.
+    choosable=frozenset({USER, DATABASE}),
     environment={
         "POSTGRES_USER": USER,
         "POSTGRES_PASSWORD": PASSWORD,
@@ -179,6 +190,9 @@ REDIS = ServiceTemplate(
     # Where the image writes its snapshots, which is the only state it keeps.
     data_path="/data",
     credentials={PASSWORD: Generated()},
+    # A Redis server has no user and no named database — the sixteen it has
+    # are numbered — so there is nothing here anybody could name.
+    choosable=frozenset(),
     # Nothing. The official image has no variable for a password: it is told
     # on the command line, which is the whole reason `command` takes values.
     environment={},
@@ -215,6 +229,15 @@ def template_for(key: str) -> ServiceTemplate:
 
 def all_templates() -> tuple[ServiceTemplate, ...]:
     return SERVICE_TEMPLATES
+
+
+def choosable_slots(template: ServiceTemplate) -> tuple[CredentialSlot, ...]:
+    """Which of a template's credentials a requester may name themselves.
+
+    In the order the slots are declared in, so a form built from this asks for
+    them in the same order every time.
+    """
+    return tuple(slot for slot in CREDENTIAL_SLOTS if slot in template.choosable)
 
 
 def generated_slots(template: ServiceTemplate) -> tuple[CredentialSlot, ...]:

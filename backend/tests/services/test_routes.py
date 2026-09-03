@@ -23,8 +23,13 @@ async def test_the_templates_are_listed_with_what_each_one_becomes(
     # The words for a source type are the server's, so a screen showing what a
     # service becomes does not keep a second name for it.
     assert postgres["adapter_title"] == "PostgreSQL"
-    # What a person will not be asked for.
+    # What a person will not be asked for, and what they may name when they
+    # want to. The password is on the first list and never on the second: a
+    # chosen one would have to be written down between the request and the job
+    # that uses it (D4).
     assert postgres["generated"] == ["password"]
+    assert postgres["choosable"] == ["user", "database"]
+    assert postgres["offers_sample_data"] is True
 
 
 async def test_nothing_about_the_container_is_published(
@@ -44,6 +49,10 @@ async def test_nothing_about_the_container_is_published(
         "adapter_type",
         "adapter_title",
         "generated",
+        # What a person may name themselves, which is names inside the server
+        # rather than anything about the container that runs it.
+        "choosable",
+        "offers_sample_data",
         # Not about the container: about whether this server could start one.
         "available",
         "unavailable_reason",

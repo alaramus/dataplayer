@@ -38,9 +38,17 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   await expect(start).toBeEnabled()
   await start.click()
 
-  // One question, and it is the only one only the person asking can answer.
+  // Two ways to ask, and this scenario takes the one with questions in it: a
+  // run has to name its own connection, and the automatic path names it after
+  // the template (D88).
   await expect(page.getByTestId("start-service-dialog")).toBeVisible()
+  await page.getByTestId("service-mode").click()
+  await page.getByRole("option", { name: "Let me choose" }).click()
   await page.getByTestId("service-name").fill(SERVICE_NAME)
+  // Nothing to look at and nothing to open from outside: this scenario is
+  // about the lifecycle, and both of those are minutes it does not need.
+  await page.getByTestId("service-publish").click()
+  await page.getByTestId("service-sample-data").click()
   await page.getByTestId("start-service-confirm").click()
 
   // The catalog closes and the work is watched from the bar at the foot of the

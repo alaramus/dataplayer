@@ -13,8 +13,12 @@ from typing import Any
 
 from anyio import to_thread
 from fastapi import FastAPI
+from sqlmodel import delete, select
 
+from app.connectors.models import Connector
 from app.core.config import settings
+from app.core.db import async_session_maker
+from app.jobs.models import Job
 from app.jobs.runner import JobRunner
 from app.services.backups import handlers as backup_handlers
 from app.services.engine import (
@@ -25,6 +29,7 @@ from app.services.engine import (
     ServiceEngine,
 )
 from app.services.jobs import handlers
+from app.services.models import ManagedService
 from app.services.plan import ContainerSpec
 from app.services.tools import ToolResult, ToolRun
 
@@ -49,6 +54,10 @@ class FakeEngine:
         # cancelling is about cancelling rather than about who was faster.
         self.hold_on: str | None = None
         self.holding = asyncio.Event()
+        # What port it will say the runtime gave a published container, if
+        # any. The number is the runtime's answer everywhere, so a test that
+        # wants one says it here rather than in a request.
+        self.gives_port: int | None = None
         # What a program run in a container did, and where it wrote.
         self.ran: list[ToolRun] = []
         self.exit_code = 0
@@ -103,7 +112,11 @@ class FakeEngine:
         state = self.holds.get(container)
         if state is None:
             return ContainerStatus(name=container, state="missing")
-        return ContainerStatus(name=container, state="running" if state == "running" else "stopped")
+        return ContainerStatus(
+            name=container,
+            state="running" if state == "running" else "stopped",
+            published_port=self.gives_port,
+        )
 
     async def managed(self) -> list[ContainerStatus]:
         self._maybe_refuse("managed")
@@ -148,6 +161,31 @@ def probe_answering(ready: bool) -> Any:
     return probe
 
 
+class FakeFiller:
+    """Sample data that is put in without a database to put it in.
+
+    Records what it was asked to fill, so a test can say that an automatic
+    start filled its server and a chosen one that said no did not.
+    """
+
+    def __init__(self, *, refuses: bool = False) -> None:
+        self.filled: list[str] = []
+        self.refuses = refuses
+
+    async def __call__(
+        self,
+        adapter_type: str,
+        _options: Mapping[str, Any],
+        *,
+        home_dir: Path,
+    ) -> str | None:
+        del home_dir
+        if self.refuses:
+            raise RuntimeError("no")
+        self.filled.append(adapter_type)
+        return "demo_lab: 12 tables"
+
+
 @contextmanager
 def engine_of(
     application: FastAPI,
@@ -156,6 +194,7 @@ def engine_of(
     ready: bool = True,
     network: str = "test-network",
     storage_volume: str = "test-storage",
+    filler: FakeFiller | None = None,
 ) -> Iterator[None]:
     """Run the application as one that can start services, and put it back.
 
@@ -170,7 +209,7 @@ def engine_of(
     application.state.service_engine = engine
     application.state.job_runner = JobRunner(
         {
-            **handlers(engine, probe_answering(ready)),
+            **handlers(engine, probe_answering(ready), filler or FakeFiller()),
             **backup_handlers(engine),
         }
     )
@@ -197,3 +236,26 @@ async def running_with(
 def _write_a_file(target: Path) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(b"a dump")
+
+async def forget_services() -> None:
+    """Take away every service a test made, and the connections they became.
+
+    The connections matter as much as the rows: a service that reaches the end
+    of its job leaves a real connector behind, and half a dozen of them called
+    "PostgreSQL 1" make every other test that reads the connector table read a
+    table full of ties.
+    """
+    async with async_session_maker() as session:
+        services = list((await session.exec(select(ManagedService))).all())
+        connector_ids = [
+            service.connector_id
+            for service in services
+            if service.connector_id is not None
+        ]
+        await session.exec(delete(Job))
+        await session.exec(delete(ManagedService))
+        for connector_id in connector_ids:
+            connector = await session.get(Connector, connector_id)
+            if connector is not None:
+                await session.delete(connector)
+        await session.commit()

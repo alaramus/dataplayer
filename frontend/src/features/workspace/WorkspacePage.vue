@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, provide, ref } from "vue"
+import { computed, onMounted, provide, ref, watch } from "vue"
 
 import { useRouter } from "vue-router"
 
@@ -10,8 +10,10 @@ import { adapterIcon } from "@/features/connectors/adapters"
 import { connectorWindow, connectorWindowId, draftWindowId } from "@/features/connectors/windows"
 import { useConnectors } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
+import ServiceCredentialsDialog from "@/features/services/ServiceCredentialsDialog.vue"
 import StartServiceDialog from "@/features/services/StartServiceDialog.vue"
-import { useRequestService } from "@/features/services/api"
+import { useRequestService, useServices } from "@/features/services/api"
+import type { StartRequest } from "@/features/services/starts"
 import { useServiceJobs } from "@/features/services/jobs"
 import { moveChartSpec } from "@/features/charts/persist"
 import { takeShareIntent } from "@/features/shares/intent"
@@ -298,13 +300,51 @@ function askToStart(template: ServiceTemplateInfo) {
   startingTemplate.value = template
 }
 
-async function startService(payload: { templateKey: string; name: string }) {
+/**
+ * The service whose connection details are waiting to be shown, if any.
+ *
+ * An automatic start makes up a password nobody was asked for, so the moment
+ * it becomes usable is the moment to show it — once (D4). Which service that
+ * is comes from the request; when it is ready comes from the services query,
+ * because a job event says something moved and the query says what it moved
+ * to (D81).
+ */
+const startedAutomatically = ref<string | null>(null)
+const revealing = ref<{ id: string; name: string } | null>(null)
+const services = useServices()
+
+watch(
+  () => services.data.value,
+  (rows) => {
+    const waiting = startedAutomatically.value
+    if (waiting === null) return
+    const ready = (rows ?? []).find(
+      (row) => row.id === waiting && row.connector_id !== null
+    )
+    if (ready === undefined || ready.credentials_shown) return
+    startedAutomatically.value = null
+    revealing.value = { id: ready.id, name: ready.connector_name }
+  }
+)
+
+async function startService(payload: {
+  templateKey: string
+  start: StartRequest
+  label: string
+}) {
   try {
-    await requestService.mutateAsync({
+    const accepted = await requestService.mutateAsync({
       template_key: payload.templateKey,
-      name: payload.name,
+      start: payload.start,
     })
-    toast.info(`Starting ${payload.name}`)
+    // Only the automatic path opens a window by itself. Somebody who filled
+    // in a form knows what they asked for and can ask for the details from
+    // the services window; somebody who pressed one button has not been told
+    // anything yet.
+    if (payload.start.mode === "automatic") {
+      startedAutomatically.value = accepted.service.id
+    }
+    toast.info(`Starting ${payload.label}`)
   } catch (cause) {
     toast.error(messageOf(cause, "It could not be started"))
   }
@@ -679,5 +719,7 @@ provide(workspaceActionsKey, {
       v-model:template="startingTemplate"
       @start="startService"
     />
+
+    <ServiceCredentialsDialog v-model:service="revealing" />
   </AppLayout>
 </template>

@@ -68,6 +68,10 @@ class ContainerStatus:
     # This is how a container found on the machine is matched to a row, and
     # why the label rather than the name is what code matches on (D80).
     service_id: str | None = None
+    # The port on the host it answers on, when it was published there at all.
+    # Read off the container rather than asked for: the runtime picks a free
+    # one, and this is where the answer comes back from.
+    published_port: int | None = None
 
 
 @dataclass(frozen=True)
