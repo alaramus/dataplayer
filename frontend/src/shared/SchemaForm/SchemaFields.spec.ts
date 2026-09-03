@@ -44,6 +44,36 @@ describe("SchemaFields", () => {
     expect(input.attributes("type")).toBe("password")
   })
 
+  it("draws a value written on several lines as a box, with its example in it", () => {
+    // What the user sees of a source's own instruction: the shape of a filled
+    // field, inside the empty one, gone as soon as anything is typed.
+    const wrapper = mount(SchemaFields, {
+      global: { plugins: [Quasar] },
+      props: {
+        fields: schemaToFields({
+          type: "object",
+          properties: {
+            value: {
+              type: "string",
+              title: "Fields",
+              description: "One per line, written as field=value",
+              examples: ["name=Ada\nborn=1815"],
+              "x-ui-multiline": true,
+            },
+          },
+        }),
+        modelValue: { value: "" },
+        errors: {},
+      },
+    })
+
+    // Quasar forwards data-testid onto the native element itself, so the box
+    // is the textarea rather than something inside it.
+    const box = wrapper.get("textarea[data-testid='field-value']")
+    expect(box.attributes("placeholder")).toBe("name=Ada\nborn=1815")
+    expect(wrapper.text()).toContain("One per line, written as field=value")
+  })
+
   it("renders a boolean field as a toggle", () => {
     const wrapper = mountFields()
 

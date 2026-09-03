@@ -59,12 +59,16 @@ function report(value: string | number | null) {
 </script>
 
 <template>
+  <!-- A field with an example keeps its label above the box: Quasar hides a
+         placeholder until the label floats, and a floating label is exactly
+         what sits where the example would be. -->
   <q-input
     :model-value="modelValue"
     :label="label"
     :type="type"
     :hint="hint"
     :placeholder="placeholder"
+    :stack-label="Boolean(placeholder)"
     :dense="compact"
     :borderless="compact"
     :hide-bottom-space="compact"

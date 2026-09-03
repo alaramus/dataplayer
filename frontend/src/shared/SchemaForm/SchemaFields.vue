@@ -135,7 +135,8 @@ watch(
         />
 
         <!-- choices is optional on FieldSpec, and the untyped q-select used to
-           accept undefined without a word. -->
+           accept undefined without a word. A select shows no example: what a
+           filled one looks like is the list it offers. -->
         <AppSelect
           v-else-if="field.kind === 'select'"
           :data-testid="`field-${field.name}`"
@@ -156,6 +157,7 @@ watch(
           :model-value="numberValue(field.name)"
           :label="field.label"
           :hint="field.description"
+          :placeholder="field.example"
           :error="errors[field.name]"
           :disable="disable"
           @update:model-value="update(field.name, $event)"
@@ -172,6 +174,7 @@ watch(
           :model-value="isHidden(field) ? HIDDEN : textValue(field.name)"
           :label="field.label"
           :hint="field.description"
+          :placeholder="field.example"
           :type="inputType(field)"
           :error="errors[field.name]"
           :disable="disable"

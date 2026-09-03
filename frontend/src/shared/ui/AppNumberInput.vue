@@ -10,9 +10,17 @@ withDefaults(
      * there whether or not the field is filled.
      */
     hint?: string
+    /** What a filled field looks like, shown while it is empty. */
+    placeholder?: string
     disable?: boolean
   }>(),
-  { label: undefined, error: "", hint: undefined, disable: false }
+  {
+    label: undefined,
+    error: "",
+    hint: undefined,
+    placeholder: undefined,
+    disable: false,
+  }
 )
 
 const emit = defineEmits<{ "update:modelValue": [value: number | null] }>()
@@ -36,6 +44,8 @@ function report(value: string | number | null) {
     :model-value="modelValue"
     :label="label"
     :hint="hint"
+    :placeholder="placeholder"
+    :stack-label="Boolean(placeholder)"
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"

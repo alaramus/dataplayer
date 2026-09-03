@@ -117,6 +117,28 @@ describe("schemaToFields", () => {
     expect(schemaToFields(POSTGRES_SCHEMA)[0]?.description).toBeUndefined()
   })
 
+  it("draws a field with the example the source gave it", () => {
+    // The instruction says how to write a hash; the example shows it, and a
+    // placeholder is the one place a form can put something that goes as soon
+    // as anything is typed.
+    const fields = schemaToFields({
+      type: "object",
+      properties: {
+        value: { type: "string", title: "Fields", examples: ["name=Ada\nborn=1815"] },
+        port: { type: "integer", title: "Port", examples: [6379] },
+        host: { type: "string", title: "Host" },
+        odd: { type: "string", title: "Odd", examples: [{ not: "text" }] },
+      },
+    })
+
+    expect(at(fields, 0).example).toBe("name=Ada\nborn=1815")
+    // A number is written out; anything that is not text at all is left off,
+    // because "[object Object]" in a placeholder is worse than no example.
+    expect(at(fields, 1).example).toBe("6379")
+    expect(at(fields, 2).example).toBeUndefined()
+    expect(at(fields, 3).example).toBeUndefined()
+  })
+
   it("marks required fields", () => {
     const fields = schemaToFields(POSTGRES_SCHEMA)
 

@@ -139,14 +139,20 @@ delete this" itself. Setting an expiry is destructive — it schedules the key
 ceasing to exist — and it is not a deletion. Only the action knows the
 difference, so the action says it.
 
-**A field may be a box, and may say something under itself.** A form drawn
-from a schema had one shape of text field and dropped every `description` on
-the floor — a dozen sentences written to be read, in the postgres actions and
-in the file options, that nobody had ever seen. Both are now statements the
-model makes where the field is declared: `layout(multiline=True)` for a value
-written on several lines, and the `description` for the line beneath. Neither
-could be inferred by the form: the type is `str` either way, and only the
-model knows that a hash is written one field per line.
+**A field may be a box, may say something under itself, and may show what a
+filled one looks like.** A form drawn from a schema had one shape of text
+field and dropped every `description` on the floor — a dozen sentences written
+to be read, in the postgres actions and in the file options, that nobody had
+ever seen. All three are now statements the model makes where the field is
+declared: `layout(multiline=True)` for a value written on several lines, the
+`description` for the line beneath, and `examples` for the example inside the
+empty box. None could be inferred by the form: the type is `str` either way,
+and only the model knows that a hash is written one field per line.
+
+The example is the part that does the teaching. "One per line, written as
+field=value" is an instruction to read; three grey lines saying `name=Ada
+Lovelace`, `born=1815`, `role=analyst` are a shape to recognise, and they go
+as soon as anything is typed.
 
 ## Shown as a tree, not as a folder
 

@@ -625,11 +625,16 @@ that table exists to prevent.
 
 A form field is drawn from what the schema says about it and nothing else: a
 value written on several lines asks for a box rather than a line
-(`x-ui-multiline`, set by `layout()` where the field is declared), and the
-sentence under a field is the source's own `description`. Both are statements
-only the model can make — the type is `string` either way, and "one per line,
-as field=value" is a fact about a Redis hash. A toggle is the one control with
-no line under it, because its label is already the whole statement.
+(`x-ui-multiline`, set by `layout()` where the field is declared), the
+sentence under a field is the source's own `description`, and the shape of a
+filled field is its `examples` — JSON Schema's own keyword — shown inside the
+empty control and gone the moment anything is typed. All three are statements
+only the model can make: the type is `string` either way, and "one per line,
+as field=value" is a fact about a Redis hash. A field carrying an example
+keeps its label above the box, because Quasar hides a placeholder until the
+label floats and a floating label sits exactly where the example would be. A
+toggle has no line under it, its label being the whole statement, and a select
+shows no example, its list being one.
 
 Known deviations:
 

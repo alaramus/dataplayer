@@ -5,6 +5,12 @@ export interface JsonSchemaProperty {
   title?: string
   /** The sentence under the field: what to write, or what empty means. */
   description?: string
+  /**
+   * What a filled field looks like. JSON Schema's own keyword, a list because
+   * the standard says so; the form shows the first and nothing else, inside
+   * the empty control.
+   */
+  examples?: unknown[]
   /** The single value a discriminator property may take, as Pydantic emits it. */
   const?: string
   format?: string
@@ -98,6 +104,15 @@ export interface FieldSpec {
    * a form needed to say how to write a value.
    */
   description?: string
+  /**
+   * What a filled field looks like, shown inside the empty one and gone the
+   * moment anything is typed.
+   *
+   * A sentence says how to write a hash; this shows it, which is the
+   * difference between reading an instruction and recognising a shape. Only
+   * the model that declares the field knows one.
+   */
+  example?: string
   kind: FieldKind
   required: boolean
   defaultValue?: unknown
@@ -187,6 +202,19 @@ export function defaultsOf(schema: JsonSchema): Record<string, unknown> {
   )
 }
 
+/**
+ * The one example a field is drawn with, as text.
+ *
+ * The first of the list and only when it is already a string: an example of a
+ * number is a number, and `String(…)` over an object would put `[object
+ * Object]` in a placeholder.
+ */
+function exampleOf(property: JsonSchemaProperty): string | undefined {
+  const first = property.examples?.[0]
+  if (typeof first === "string") return first
+  return typeof first === "number" ? String(first) : undefined
+}
+
 export function schemaToFields(schema: JsonSchema): FieldSpec[] {
   const required = new Set(schema.required ?? [])
 
@@ -196,6 +224,7 @@ export function schemaToFields(schema: JsonSchema): FieldSpec[] {
     name,
     label: property.title ?? name,
     description: property.description,
+    example: exampleOf(property),
     kind: kindOf(property, name),
     required: required.has(name),
     defaultValue: property.default,

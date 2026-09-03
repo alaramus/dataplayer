@@ -127,15 +127,23 @@ def _name_field() -> Any:
             "Made where the catalog is standing. A name with colons in it "
             "makes the folders it needs."
         ),
+        examples=["cache:profile:ada"],
         json_schema_extra=layout(),
     )
 
 
-def _value_field(title: str, description: str) -> Any:
+def _value_field(title: str, description: str, example: str) -> Any:
+    """One value box, and what a filled one looks like.
+
+    The example is shown inside the empty box and goes the moment anything is
+    typed. A sentence says how to write a hash; the example shows it, which is
+    the difference between reading an instruction and recognising a shape.
+    """
     return Field(
         default="",
         title=title,
         description=description,
+        examples=[example],
         max_length=MAX_VALUE_LENGTH,
         json_schema_extra=layout(multiline=True),
     )
@@ -172,7 +180,7 @@ class KeyForm(BaseModel):
     """
 
     name: str = _name_field()
-    value: str = _value_field("Value", "What to store")
+    value: str = _value_field("Value", "What to store", "Ada Lovelace")
     # Optional, and empty means "no deadline" rather than "zero seconds".
     ttl_seconds: int | None = _ttl_field()
     overwrite: bool = _overwrite_field()
@@ -181,11 +189,19 @@ class KeyForm(BaseModel):
 
 
 class NewStringParams(KeyForm):
-    value: str = _value_field("Value", "The text to store, however long")
+    value: str = _value_field(
+        "Value",
+        "The text to store, however long",
+        '{"handle": "ada", "role": "analyst"}',
+    )
 
 
 class NewHashParams(KeyForm):
-    value: str = _value_field("Fields", "One per line, written as field=value")
+    value: str = _value_field(
+        "Fields",
+        "One per line, written as field=value",
+        "name=Ada Lovelace\nborn=1815\nrole=analyst",
+    )
 
     @field_validator("value")
     @classmethod
@@ -195,7 +211,11 @@ class NewHashParams(KeyForm):
 
 
 class NewListParams(KeyForm):
-    value: str = _value_field("Items", "One per line, in the order they go in")
+    value: str = _value_field(
+        "Items",
+        "One per line, in the order they go in",
+        "first\nsecond\nthird",
+    )
 
     @field_validator("value")
     @classmethod
@@ -205,7 +225,11 @@ class NewListParams(KeyForm):
 
 
 class NewSetParams(KeyForm):
-    value: str = _value_field("Members", "One per line; repeats count once")
+    value: str = _value_field(
+        "Members",
+        "One per line; repeats count once",
+        "ada\nalan\ngrace",
+    )
 
     @field_validator("value")
     @classmethod
@@ -215,7 +239,11 @@ class NewSetParams(KeyForm):
 
 
 class NewSortedSetParams(KeyForm):
-    value: str = _value_field("Members", "One per line, written as member=score")
+    value: str = _value_field(
+        "Members",
+        "One per line, written as member=score",
+        "ada=3\nalan=1\ngrace=2",
+    )
 
     @field_validator("value")
     @classmethod
@@ -226,7 +254,9 @@ class NewSortedSetParams(KeyForm):
 
 class NewStreamParams(KeyForm):
     value: str = _value_field(
-        "First entry", "The fields of one entry, written as field=value"
+        "First entry",
+        "The fields of one entry, written as field=value",
+        "who=ada\nwhat=signed in",
     )
 
     @field_validator("value")
