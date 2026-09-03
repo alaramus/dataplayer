@@ -119,7 +119,11 @@ describe("walking a catalog", () => {
 })
 
 describe("groupings", () => {
-  it("turns schemas into a filter and shows the first real one", async () => {
+  it("turns schemas into a filter and shows every real one while there are few", async () => {
+    // A database with two or three schemas is one where a person wants to see
+    // what is in it. A server this application started has `public` and the
+    // demonstration schema, and showing only the empty one of the two is
+    // showing nothing.
     answers(
       [schema("pg_catalog", true), schema("public"), schema("sales")],
       [table("public.orders", "orders")]
@@ -129,8 +133,30 @@ describe("groupings", () => {
       await level.load()
 
       expect(level.groups.value.map((group) => group.id)).toEqual(["pg_catalog", "public", "sales"])
-      expect(level.selectedGroups.value).toEqual(["public"])
+      expect(level.selectedGroups.value).toEqual(["public", "sales"])
       expect(level.items.value.map((node) => node.label)).toEqual(["orders"])
+    })
+  })
+
+  it("shows only the first when there are more than a handful", async () => {
+    // Opening forty schemas at once is a page nobody asked for.
+    const many = Array.from({ length: 8 }, (_, index) => schema(`s${String(index)}`))
+    answers([schema("pg_catalog", true), ...many], [table("s0.orders", "orders")])
+
+    await withLevel(async (level) => {
+      await level.load()
+
+      expect(level.selectedGroups.value).toEqual(["s0"])
+    })
+  })
+
+  it("falls back to a system grouping when there is nothing else", async () => {
+    answers([schema("pg_catalog", true)], [])
+
+    await withLevel(async (level) => {
+      await level.load()
+
+      expect(level.selectedGroups.value).toEqual(["pg_catalog"])
     })
   })
 

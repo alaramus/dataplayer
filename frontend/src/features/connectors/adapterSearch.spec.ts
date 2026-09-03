@@ -9,6 +9,7 @@ function adapterType(overrides: Partial<AdapterTypeInfo> = {}): AdapterTypeInfo 
     name: "postgres",
     title: "PostgreSQL",
     category: "sql",
+  catalog_shape: "levels",
     category_title: "SQL Databases",
     description: "Relational database.",
     capabilities: [{ group: "explore", title: "Browse the catalog" }],

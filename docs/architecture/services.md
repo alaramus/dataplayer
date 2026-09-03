@@ -520,6 +520,11 @@ never asked for — so it is shown, once, at the moment the service is ready.
   the runtime picked, not the container name the connector holds — that
   resolves only on the network this server is on. A service started without a
   port says why there is no address instead of showing one that would fail.
+- **The parts, and then the whole thing as one line.** A form asks for a host
+  and a port; a terminal takes a URL. The line is written by the source type
+  that owns the grammar (D15), never joined together by the screen, and it is
+  the only place in this application where a password is put into a string
+  anybody sees.
 - **The port is the runtime's answer.** The request says only whether to
   publish; Docker picks a free port and the create job reads it back off the
   container. This application never binds a socket to find out what is free
@@ -570,8 +575,11 @@ few hundred rows — so that is what goes in.
 
 Known deviations:
 
-- **Only PostgreSQL has any.** Redis implements nothing, so an automatic Redis
-  is an empty Redis.
+- **What goes in differs by source, and so does how much.** PostgreSQL gets
+  the schema this project develops against; Redis gets a hundred and ten keys
+  across eight namespaces, covering every type it has, some with an expiry and
+  some without. Both are written out rather than generated, so a demonstration
+  made twice is the same demonstration.
 - **The schema is the development fixture.** It was written to exercise this
   application's own type handling rather than to tell a story, so it is a
   demonstration of breadth rather than of a business.

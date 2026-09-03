@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from "vue"
 
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
+import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
 import { reloadedBy, replacementsOf } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
 import { useNodePathLoader } from "@/features/catalog/api"
@@ -267,11 +268,43 @@ function showDetails() {
  * behind it is fetched once.
  */
 const adapterTypes = useAdapterTypes()
-const canSearch = computed(() =>
-  (adapterTypes.data.value ?? [])
-    .find((type) => type.name === props.adapterType)
-    ?.capabilities.some((capability) => capability.code === "search") === true
+const sourceType = computed(() =>
+  (adapterTypes.data.value ?? []).find((type) => type.name === props.adapterType)
 )
+const canSearch = computed(
+  () => sourceType.value?.capabilities.some((one) => one.code === "search") === true
+)
+
+/**
+ * Whether this catalog is expanded where it stands rather than walked.
+ *
+ * The source says which (D91), and this reads the answer: a screen that asked
+ * "is this Redis" would be the old application. Everything the head offers —
+ * a path, a set of groupings, a search — belongs to a level, so a tree shows
+ * none of it and the menu is fed from the selection instead.
+ */
+const asTree = computed(() => sourceType.value?.catalog_shape === "tree")
+
+/** What the tree has selected, which is one node or none. */
+const picked = ref<ListNode | null>(null)
+const pickedIsPlace = computed(
+  () => picked.value !== null && picked.value.role !== "leaf"
+)
+
+/**
+ * Where something new would be made in a tree.
+ *
+ * The selected branch, or the top when a leaf is selected or nothing is: a
+ * client cannot derive the branch a leaf hangs under, because an id is the
+ * source's own string and is never taken apart here (D21).
+ */
+const treeLevelId = computed(() =>
+  pickedIsPlace.value ? (picked.value?.id ?? null) : null
+)
+const treeChecked = computed(() =>
+  picked.value !== null && !pickedIsPlace.value ? [picked.value] : []
+)
+const tree = ref<{ reload: () => Promise<void> } | null>(null)
 
 /** Offered once there is something to look for, exactly as a filter is. */
 const canRunSearch = computed(() => canSearch.value && level.filter.value.trim() !== "")
@@ -342,6 +375,13 @@ async function afterAction(outcome: ActionOutcome) {
     workspace.replaceNode(props.connectorId, replacement)
   }
   const branches = reloadedBy(outcome)
+  if (asTree.value) {
+    // A tree has one reading rather than a level: which branches changed is
+    // still the server's answer, and re-reading the whole of a bounded
+    // catalog is cheaper than keeping a map of what is open in step with it.
+    if (branches.length > 0) await tree.value?.reload()
+    return
+  }
   if (branches.length > 0) await level.reloadMany(branches)
 }
 </script>
@@ -357,7 +397,7 @@ async function afterAction(outcome: ActionOutcome) {
              follows from what the level holds and never from the type of the
              source: see `showsPath` in `nodes.ts`. -->
         <div
-          v-if="showPath"
+          v-if="showPath && !asTree"
           class="catalog-panel__crumbs"
           data-testid="catalog-path"
         >
@@ -403,7 +443,7 @@ async function afterAction(outcome: ActionOutcome) {
              and a second line in a bar that has one — Quasar floats a label
              out of the field exactly when the field is filled. -->
         <AppSelect
-          v-if="groupOptions.length"
+          v-if="groupOptions.length && !asTree"
           class="catalog-panel__groups"
           :model-value="level.selectedGroups.value"
           :options="groupOptions"
@@ -415,7 +455,29 @@ async function afterAction(outcome: ActionOutcome) {
           @update:model-value="level.setGroups($event as string[])"
         />
 
+        <!-- One menu, fed from wherever the selection lives: a level's ticks
+             or a tree's one selected node. What an action may do to them is
+             still the server's answer about those nodes. -->
         <CatalogActions
+          v-if="asTree"
+          class="catalog-panel__menu"
+          :connector-id="connectorId"
+          :level-id="treeLevelId"
+          :level-label="picked?.label ?? title"
+          :places="[treeLevelId]"
+          :selected-groups="[]"
+          :groupings="[]"
+          :checked-ids="treeChecked.map((node) => node.id)"
+          :checked-nodes="treeChecked.map((node) => ({ label: node.label, kind: node.kind }))"
+          :place-label="picked && pickedIsPlace ? picked.label : title"
+          :checked-label="treeChecked[0]?.label ?? ''"
+          :describes-nodes="false"
+          :described-node="null"
+          @done="afterAction"
+          @details="showDetails"
+        />
+        <CatalogActions
+          v-else
           class="catalog-panel__menu"
           :connector-id="connectorId"
           :level-id="level.currentId.value"
@@ -439,6 +501,7 @@ async function afterAction(outcome: ActionOutcome) {
            so the button appears beside them rather than somewhere else with a
            field of its own (D76). -->
       <AppInput
+        v-if="!asTree"
         v-model="level.filter.value"
         :placeholder="canSearch ? 'Filter, or search below' : 'Filter'"
         compact
@@ -497,7 +560,17 @@ async function afterAction(outcome: ActionOutcome) {
       {{ level.found.value.notice }}
     </AppBanner>
 
+    <KeyspaceTree
+      v-if="asTree"
+      ref="tree"
+      class="catalog-panel__body"
+      :connector-id="connectorId"
+      @select="picked = $event"
+      @open="onOpen"
+    />
+
     <CatalogList
+      v-else
       class="catalog-panel__body"
       :items="level.items.value"
       :checked="level.checked.value"

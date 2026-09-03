@@ -9,7 +9,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import options as adapter_options
 from app.adapters import registry
-from app.adapters.protocol import SupportsSampleData
+from app.adapters.protocol import ComposesSecretUrl, SupportsSampleData
+from app.adapters.registry import AdapterType
 from app.connectors.models import Connector
 from app.connectors.service import merge_options
 from app.core.config import settings
@@ -783,20 +784,43 @@ def _credentials_of(
     # dictionary: a secret is a `SecretStr` there, which is what says which
     # field it is (D4), and the model is the only thing that knows the shape
     # of this source's options.
+    kind = registry.get(connector.adapter_type)
     options = adapter_options.validate(
-        registry.get(connector.adapter_type).options_schema,
-        merge_options(connector.config, connector.secrets),
+        kind.options_schema, merge_options(connector.config, connector.secrets)
     )
     password = getattr(options, "password", None)
     published = service.published_port
+    plain = password.get_secret_value() if password is not None else ""
+    parts = {
+        "host": PUBLISHED_HOST,
+        "port": published,
+        "user": getattr(options, "user", None),
+        "database": _database_of(options),
+        "password": plain,
+    }
     return ServiceCredentials(
         host=PUBLISHED_HOST if published is not None else None,
         port=published,
         user=getattr(options, "user", None),
         database=_database_of(options),
-        password=password.get_secret_value() if password is not None else "",
+        password=plain,
+        url=_url_of(kind, parts) if published is not None else None,
         unreachable_reason=None if published is not None else NOT_PUBLISHED,
     )
+
+
+def _url_of(kind: AdapterType, parts: Mapping[str, Any]) -> str | None:
+    """The one-line address, written by the source type that owns the grammar.
+
+    The only caller of `connection_url_with_password` there is, and the only
+    place a password is ever put into a string this application shows (D89). A
+    type that cannot write one — a personal directory has no address — answers
+    with nothing, and the window shows the parts alone.
+    """
+    driver = kind.adapter_class
+    if not issubclass(driver, ComposesSecretUrl):
+        return None
+    return driver.connection_url_with_password(parts)
 
 
 def _database_of(options: Any) -> str | None:

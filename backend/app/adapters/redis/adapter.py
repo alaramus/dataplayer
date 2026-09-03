@@ -15,6 +15,7 @@ server rather than a way of reading data (D65).
 already follows: a driver upgrade has one place to change.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 from app.adapters.actions import Action, ActionSet, ActionType
@@ -25,7 +26,13 @@ from app.adapters.redis.actions import REDIS_ACTION_TYPES
 from app.adapters.redis.fetch import RedisFetch
 from app.adapters.redis.keyspace import RedisKeyspace, is_key
 from app.adapters.redis.options import RedisOptions
+from app.adapters.redis.samples import RedisSamples
 from app.adapters.redis.session import RedisSession
+from app.adapters.redis.url import (
+    compose_url,
+    compose_url_with_password,
+    options_from_url,
+)
 from app.adapters.registry import AdapterContext, register
 
 
@@ -37,15 +44,67 @@ class RedisAdapter:
     """
 
     def __init__(self, options: Any) -> None:
+        self._options = options
         self._session = RedisSession(options)
         self._keyspace = RedisKeyspace(self._session)
         self._fetch = RedisFetch(self._session, self._keyspace)
+        self._samples = RedisSamples(self._session)
         self._actions = ActionSet(
             [action_type(self._session, self._keyspace) for action_type in REDIS_ACTION_TYPES]
         )
 
+    # --- how to reach it, in one line ---------------------------------------
+
+    def connection_string(self) -> str:
+        """Where this connects, for a person to copy. Never the password."""
+        return compose_url(
+            host=self._options.host,
+            port=self._options.port,
+            database=self._options.database,
+        )
+
+    @classmethod
+    def options_from_url(cls, url: str) -> dict[str, Any]:
+        """Asked of the class: parsing is what produces the options."""
+        return options_from_url(url)
+
+    @classmethod
+    def draft_connection_string(cls, options: Mapping[str, Any]) -> str | None:
+        """The address of a form that does not validate yet.
+
+        The values arrive as the form holds them, so each is checked rather
+        than assumed: a port half-typed as "63" is a string, and a field
+        nobody has touched is absent.
+        """
+        host = options.get("host")
+        if not isinstance(host, str) or host == "":
+            return None
+        return compose_url(
+            host=host,
+            port=_as_number(options.get("port")),
+            database=_as_number(options.get("database")),
+        )
+
+    @classmethod
+    def connection_url_with_password(cls, options: Mapping[str, Any]) -> str | None:
+        """The address a person pastes into redis-cli, password included (D89)."""
+        host = options.get("host")
+        if not isinstance(host, str) or host == "":
+            return None
+        password = options.get("password")
+        return compose_url_with_password(
+            host=host,
+            port=_as_number(options.get("port")),
+            database=_as_number(options.get("database")),
+            password=password if isinstance(password, str) else "",
+        )
+
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
+
+    async def install_sample_data(self) -> str:
+        """Fill an empty key space with one worth walking through."""
+        return await self._samples.install_sample_data()
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         return await self._keyspace.list_children(node_id)
@@ -85,6 +144,10 @@ class RedisAdapter:
     # no schema — a key space with an expiry clock. It sat under "SQL
     # Databases" for one commit because that was the only group there was.
     category="keyvalue",
+    # Expanded in place rather than walked. A key space is bounded — the scan
+    # has a ceiling — and its leaves hold structure worth opening where it is,
+    # which is what makes it a tree rather than a series of levels (D91).
+    catalog_shape="tree",
     description=(
         "An in-memory key-value server. Walk its key space by the colons in "
         "the names, read what a key holds, write one, and set or clear an "
@@ -97,3 +160,19 @@ def _build(options: Any, _context: AdapterContext) -> RedisAdapter:
     # No home directory and no pooling: everything this source does is a
     # handful of round trips against a server that answers in microseconds.
     return RedisAdapter(options)
+
+
+def _as_number(value: Any) -> int | None:
+    """A number the form may hold as text, or nothing at all.
+
+    A field never touched is absent, and one half-typed is a string; both are
+    left out of the address rather than stopping it, because the point of a
+    draft address is to show as much of it as there is.
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return None

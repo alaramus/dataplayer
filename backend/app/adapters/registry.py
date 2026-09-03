@@ -70,6 +70,18 @@ def category_title(category: Category) -> str:
     return _CATEGORY_TITLES[category]
 
 
+# How a source's catalog is best shown. Not a decoration: a catalog walked one
+# level at a time and a catalog expanded in place are different screens, and
+# which one a source wants is a property of the source rather than of the
+# screen. PostgreSQL has thousands of relations under a schema and is walked;
+# a Redis key space is bounded and its leaves hold structure, so it is a tree
+# that opens where you are.
+#
+# A closed set, so a screen switching on it cannot meet a value it has no
+# panel for, and read off the type rather than branched on by name — a screen
+# that said `if adapterType === "redis"` would be the old application (D62).
+CatalogShape = Literal["levels", "tree"]
+
 # What sort of statement a capability makes: what can be looked at, and what
 # can be changed. Two rather than the old application's ten, because two is
 # what the derivation below can honestly tell apart.
@@ -100,6 +112,7 @@ class AdapterType:
     title: str
     category: Category
     description: str
+    catalog_shape: CatalogShape
     # A model, or a discriminated union of them when the fields depend on
     # the way the source is connected to. Everything that reads it goes
     # through `app.adapters.options`, which answers for both.
@@ -122,6 +135,7 @@ def register(
     description: str,
     options_schema: OptionsSchema,
     adapter_class: type[DataAdapter],
+    catalog_shape: CatalogShape = "levels",
 ) -> Callable[[Factory], Factory]:
     """Register a source type. Applied to the driver factory.
 
@@ -138,6 +152,7 @@ def register(
             title=title,
             category=category,
             description=description,
+            catalog_shape=catalog_shape,
             options_schema=options_schema,
             adapter_class=adapter_class,
             factory=factory,

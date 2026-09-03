@@ -63,6 +63,16 @@ The rule for building a DSN belongs to the driver. A client that composed
 - `compose_url` writes the grammar once, so the finished address and the draft
   cannot drift apart in the quoting. `None` means "not enough yet" and reaches
   the client as an empty string; a source with no address at all is the 501.
+- **Every source type that has an address writes its own.** PostgreSQL leans on
+  libpq; Redis has no library call to lean on — redis-py parses a URL and will
+  not write one — so `adapters/redis/url.py` states the grammar once and its
+  tests exercise both directions against each other.
+- **One composer keeps the password, and it is named for it.**
+  `ComposesSecretUrl.connection_url_with_password` exists for the window that
+  shows a started service's credentials once
+  ([D89](../services.md)), and has exactly that one caller. Two methods rather
+  than a flag, so "does this string carry a secret" is answered by which one
+  was called.
 
 Known deviations:
 
@@ -71,6 +81,9 @@ Known deviations:
   edits that do not yet compose a full address.
 - **The box is no longer empty when a new form opens.** An address pasted into
   it replaces a selection rather than filling an empty field.
+- **A `rediss://` address is refused rather than connected to.** This source
+  has no TLS options, and a scheme quietly read as plaintext would be worse
+  than a sentence saying it is not supported yet.
 
 Spec: [Ways of connecting](../../superpowers/specs/2026-08-23-connection-variants-design.md)
 

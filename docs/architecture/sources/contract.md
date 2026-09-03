@@ -370,7 +370,7 @@ tool that shows a key space shows that convention as a tree, because it is the
 structure the names were given when they were chosen.
 
 - **The catalog groups by `:`.** The root lists the first segment of every key
-  as a folder, and walking into one lists the next. Not configurable: a source
+  as a branch, and opening one lists the next. Not configurable: a source
   type whose tree shape is an option is a type with two behaviours to explain,
   and every Redis convention there is uses this one.
 - **A key is a kind of its own.** `KeyNode` carries a Redis data type, an
@@ -403,6 +403,19 @@ structure the names were given when they were chosen.
   until now removed what it named, so the client wrote "are you sure you want
   to delete this" itself. Setting an expiry is destructive and is not a
   deletion, and only the action knows the difference.
+- **The catalog is expanded where it stands, not walked.** A source declares
+  which of the two it wants — `catalog_shape` is a `Literal`, read off the
+  type rather than branched on by name — and a key space says `tree`. It is
+  bounded, its shape is already in the names, and what a key holds is a
+  handful of fields worth opening beside the key rather than in another tab,
+  which is the JSON viewer this asks to be. A tree shows no path, no grouping
+  filter and no search, because all three are properties of a level; the
+  actions menu is fed from the one selected node instead of from a set of
+  ticks.
+- **A branch and a leaf are one request apart.** Expanding a branch asks the
+  catalog for its children; expanding a leaf asks for a page of what it holds.
+  Which of the two a node is was decided by the source, and is read off the
+  node rather than off the type of the connection.
 
 Known deviations:
 
@@ -422,5 +435,11 @@ Known deviations:
   console that accepted them would be a shell on somebody's server (D65).
 - **Nothing watches.** A key that expires while its page is open stays on the
   page until it is read again.
+- **A tree is not filtered and not searched.** Both belong to a level, and
+  neither has been given a meaning for a tree yet; what is on screen is the
+  whole of a bounded key space.
+- **A tree re-reads whole after an action.** Which branches changed is still
+  the server's answer, but keeping a map of what is open in step with it costs
+  more than reading a bounded catalog again.
 
 Spec: [A key space, walked and written](../../superpowers/specs/2026-09-03-redis-keyspace-design.md)

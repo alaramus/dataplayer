@@ -30,6 +30,7 @@ export { default as AppThemeToggle } from "./AppThemeToggle.vue"
 export { default as AppToggle } from "./AppToggle.vue"
 export { default as AppTooltip } from "./AppTooltip.vue"
 export { default as AppTree } from "./AppTree.vue"
+export type { TreeLazyLoad, TreeNodes } from "./AppTree.vue"
 
 export { useConfirm } from "./useConfirm"
 export type { ConfirmRequest } from "./useConfirm"

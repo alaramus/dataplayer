@@ -115,7 +115,7 @@ const modes = [
         connection for you, and gives it a password nobody has to choose. You
         will be shown how to reach it from your own tools once — and only once.
         <template v-if="offersSampleData">
-          It comes with a sample schema, so there is something to look at.
+          It comes filled with sample data, so there is something to look at.
         </template>
       </p>
 
@@ -146,7 +146,7 @@ const modes = [
         <AppCheckbox
           v-if="offersSampleData"
           v-model="sampleData"
-          label="Put a sample schema in it"
+          label="Fill it with sample data"
           data-testid="service-sample-data"
         />
         <p class="start-service__what">

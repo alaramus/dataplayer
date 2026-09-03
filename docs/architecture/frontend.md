@@ -608,8 +608,19 @@ removes them, and it decides nothing about data (D34). The form rules —
 a password required when there is no account and optional when there is — are
 plain functions in `features/admin/users.ts`.
 
+The catalog opens on every grouping the source calls its own while there are
+few of them, and on the first while there are many. A database with two or
+three schemas is one where a person wants to see what is in it — a server this
+application started has `public` and the demonstration schema, and opening
+only the empty one of the two shows nothing — while a database with forty is
+one where opening them all is a page nobody asked for. The ceiling is
+`DEFAULT_GROUP_CEILING` in `useCatalogLevel.ts`.
+
 Known deviations:
 
+- **The ceiling on opened groupings is a number, not a measurement.** Five was
+  chosen for the shape of the two cases; nobody has looked at what a database
+  with six schemas feels like.
 - **Where one was in a catalog is not remembered.** The layout survives a reload;
   the path inside a catalog does not, so a reloaded page is back at the root.
 - **The name of a row loses to its captions in a narrow column.** With several

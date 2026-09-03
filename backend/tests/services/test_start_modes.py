@@ -275,6 +275,11 @@ async def test_the_credentials_are_shown_once_and_then_refused(
     assert body["user"] == "dataplayer"
     assert body["database"] == "dataplayer"
     assert len(body["password"]) == 32
+    # And the same thing as one line, which is what most tools take. Written
+    # by the source type that owns the grammar, never joined together here.
+    assert body["url"] == (
+        f"postgresql://dataplayer:{body['password']}@127.0.0.1:49214/dataplayer"
+    )
     assert again.status_code == 409
 
 
@@ -313,6 +318,8 @@ async def test_a_service_with_no_port_says_why_there_is_no_address(
 
     assert shown.json()["host"] is None
     assert shown.json()["port"] is None
+    # No address means no address, rather than one pointing at nothing.
+    assert shown.json()["url"] is None
     assert "only this application can reach it" in shown.json()["unreachable_reason"]
 
 

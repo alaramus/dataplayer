@@ -19,16 +19,16 @@ universal convention those names are written with colons: `session:42:token`,
 a tree, because the structure is not invented by the tool — it is what the
 names were given when somebody chose them.
 
-So the catalog groups by the separator. The root lists the first segment of
-every key as a folder; walking into one lists the next. It is not
-configurable: a source type whose tree shape is an option is a type with two
-behaviours to explain, and there is no second convention to support.
+So the catalog groups by the separator. The top lists the first segment of
+every key as a branch, and opening one lists the next. It is not configurable:
+a source type whose tree shape is an option is a type with two behaviours to
+explain, and there is no second convention to support.
 
 A key whose name has no colon in it is a key at that level, beside the
-folders. And a key called `user` and a folder called `user:` are different
+branches. And a key called `user` and a branch called `user:` are different
 things that exist at once, which is why the two kinds of id are marked apart —
 `k:` and `f:`. Without the mark, a listing of the key and a listing of the
-folder above it would be the same request.
+branch above it would be the same request.
 
 ## A key is a kind of its own
 
@@ -100,6 +100,46 @@ delete this" itself. Setting an expiry is destructive — it schedules the key
 ceasing to exist — and it is not a deletion. Only the action knows the
 difference, so the action says it.
 
+## Shown as a tree, not as a folder
+
+The first version presented the key space the way a file source is presented:
+a level at a time, with a path across the top and a folder to walk into. It
+worked and it was wrong. A namespace is not a directory — nothing lives *in*
+it, the name is simply longer — and walking down four levels to read one field
+of one hash is four round trips and four screens to get back from.
+
+So a source now says which of the two shapes its catalog wants, and a key
+space says `tree`. Declared on the type rather than branched on by name: a
+screen asking "is this Redis" is the thing D62 exists to stop.
+
+Expanding a branch asks the catalog for its children; expanding a leaf asks
+for a page of what it holds, and the rows of that page become rows of the same
+tree — one column is a list of values, two are a name and a value, more are
+written out. Nothing in that mapping knows what Redis is, which is what lets
+the next source that wants a tree have one.
+
+It is the same tab, not a second kind of panel. Everything the head offers — a
+path, a grouping filter, a search — belongs to a level and is not drawn; the
+actions menu is fed from the one selected node instead of from a set of ticks,
+and is otherwise the same menu answering the same question of the server.
+
+Opening a key properly is still a tab: the tree shows the first fifty of what
+a key holds and says so when there are more, and the grid is where paging and
+the full value live.
+
+## An address, written and read back
+
+The form gained the connection string PostgreSQL has had since D15, for the
+same reason: a person who has a `redis://` line wants to paste it rather than
+take it apart into four fields, and a person looking at a connection wants the
+line back.
+
+There is no library call to lean on. redis-py parses a URL and will not write
+one, so the grammar is stated once in `adapters/redis/url.py` and the tests
+exercise both directions against each other. A `rediss://` address is
+recognised and refused: this source has no TLS options, and a scheme quietly
+read as plaintext would be worse than a sentence.
+
 ## How it was verified
 
 Twenty-one tests against a real Redis rather than a fake: what they are about
@@ -107,9 +147,12 @@ is what the driver does to one, and a fake would be this repository's own idea
 of Redis checked against itself. Development gets one from compose and CI gets
 one as a service, on database 15, emptied around every test.
 
-Then in the browser: a seeded key space browsed by its colons, a string and a
-hash opened as rows, a key written with an expiry and found again in the
-catalog, its expiry moved and then removed, and the key deleted.
+Then in the browser: a key space of a hundred and ten sample keys walked as a
+tree, a hash expanded in place to show its three fields, a string and a hash
+opened as rows in a tab, a key written with an expiry and found again in the
+catalog, its expiry moved and then removed, and the key deleted. And the
+address: composed into the connection form, and a pasted one taken apart back
+into the host, the port, the database and the password.
 
 ## Decision
 

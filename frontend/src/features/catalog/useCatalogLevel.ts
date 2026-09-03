@@ -53,6 +53,15 @@ export interface CatalogLevel {
 }
 
 /**
+ * How many groupings may be opened at once before the rule changes.
+ *
+ * Chosen for the shape of the two cases rather than measured: a handful of
+ * schemas is a database somebody wants to see, and more than a handful is one
+ * where opening them all is a page nobody asked for.
+ */
+export const DEFAULT_GROUP_CEILING = 5
+
+/**
  * Walking a catalog one level at a time, as a list rather than a tree.
  *
  * Lives apart from any component: it was never logic of a screen, and what it
@@ -139,10 +148,25 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     rows.value = [...plain.value, ...grouped]
   }
 
-  /** Which groupings are on before the user has chosen: the first real one. */
+/**
+ * Which groupings are on before the user has chosen.
+ *
+ * All of the real ones while there are few, and the first while there are
+ * many. A database with two or three schemas is one where a person wants to
+ * see what is in it — a server this application started has `public` and the
+ * demonstration schema, and showing only the empty one of the two is showing
+ * nothing — while a database with forty is one where opening every schema at
+ * once is a page nobody asked for.
+ *
+ * System groupings stay off either way: `pg_catalog` is a real schema, and
+ * hiding it is not the same as deciding for the user, because they can tick
+ * it.
+ */
   function defaultGroups(offered: ListNode[]): string[] {
-    const first = offered.find((group) => !group.system) ?? offered[0]
-    return first === undefined ? [] : [first.id]
+    const real = offered.filter((group) => !group.system)
+    if (real.length === 0) return offered[0] === undefined ? [] : [offered[0].id]
+    if (real.length <= DEFAULT_GROUP_CEILING) return real.map((group) => group.id)
+    return [real[0]!.id]
   }
 
   /** Keep an explicit grouping choice only while those groupings still exist. */

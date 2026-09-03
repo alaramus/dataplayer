@@ -36,15 +36,16 @@ download, rename and delete. Download returns one file unchanged or archives a
 directory or selection. No sorting and no filtering, because a file has no
 index. No connection string.
 
-**Redis** — a key space, walked by the colons its names already carry: the
-root lists the first segment of every key as a folder and walking into one
-lists the next. A key says its type, its size and how long it has left, and
-opens as what it holds — a hash as fields and values, a list as positions and
-values, a sorted set as members and scores, a string as one value. Four
-actions: write a key with an optional expiry, delete one, set an expiry, take
-one off. No sorting and no filtering, because Redis has no index over values,
-and no query console, because Redis has commands rather than statements.
-Everything scans; nothing runs `KEYS`.
+**Redis** — a key space, shown as a tree of the colons its names already
+carry: the top lists the first segment of every key, opening one shows the
+next, and opening a key shows what it holds where it stands. A key says its
+type, its size and how long it has left, and opens in a tab as rows — a hash
+as fields and values, a list as positions and values, a sorted set as members
+and scores, a string as one value. Four actions: write a key with an optional
+expiry, delete one, set an expiry, take one off. An address is composed and
+parsed the way PostgreSQL's is. No sorting and no filtering, because Redis has
+no index over values, and no query console, because Redis has commands rather
+than statements. Everything scans; nothing runs `KEYS`.
 
 ## Where the code is
 
@@ -91,7 +92,9 @@ backend/app/adapters/
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the tree and what a key is),
 │                       fetch.py (a key read as rows), actions.py (the four),
-│                       options.py (a union by auth_method), adapter.py (facade),
+│                       url.py (the address, both ways), samples.py (the
+│                       demonstration key space), options.py (a union by
+│                       auth_method), adapter.py (facade),
 └── file/               session.py (root and containment), catalog.py,
                         formats.py, members.py (a node inside a file),
                         readers.py, records.py, fetch.py, update.py,

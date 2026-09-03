@@ -229,6 +229,11 @@ class ServiceCredentials(BaseModel):
     user: str | None
     database: str | None
     password: str
+    # The same thing again as one line, which is what most tools take. Written
+    # by the source type rather than assembled on the client: the grammar of
+    # an address has one home, and a screen that joined the parts itself would
+    # be a second implementation of it that differed in the quoting first.
+    url: str | None = None
     # Why there is no address, when there is none: a service that was started
     # without a port on the host is reachable by this server and by nothing
     # else.

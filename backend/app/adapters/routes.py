@@ -27,6 +27,10 @@ class AdapterTypeInfo(BaseModel):
     # Sent rather than looked up on the client: one name for a category, and
     # it is the server's.
     category_title: str
+    # How this source's catalog is best shown: walked one level at a time, or
+    # expanded in place. A property of the source, so the screen reads it
+    # instead of branching on the type's name (D62).
+    catalog_shape: registry.CatalogShape
     description: str
     # Derived from the driver, never listed — see registry.capabilities_of.
     capabilities: list[registry.Capability]
@@ -45,6 +49,7 @@ async def read_adapter_types() -> Any:
             title=adapter_type.title,
             category=adapter_type.category,
             category_title=registry.category_title(adapter_type.category),
+            catalog_shape=adapter_type.catalog_shape,
             description=adapter_type.description,
             capabilities=registry.capabilities_of(adapter_type),
             options_schema=options.json_schema(adapter_type.options_schema),

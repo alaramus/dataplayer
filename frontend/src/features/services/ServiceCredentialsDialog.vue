@@ -41,10 +41,15 @@ const rows = computed(() => {
   ].filter((row): row is { label: string; value: string } => Boolean(row.value))
 })
 
-/** Everything at once, in the shape a terminal or a form wants it pasted. */
-const asText = computed(() =>
-  rows.value.map((row) => `${row.label}: ${row.value}`).join("\n")
-)
+/**
+ * The same thing as one line, which is what most tools actually take.
+ *
+ * Written by the server, because the grammar of an address belongs to the
+ * source type that owns it: a screen that joined the parts itself would be a
+ * second implementation of it, differing in the quoting first. A type with no
+ * address of its own answers with nothing, and then there is nothing to show.
+ */
+const url = computed(() => credentials.data.value?.url ?? null)
 
 const toast = useToast()
 
@@ -99,16 +104,26 @@ async function copy(what: string, said: string) {
             @click="copy(row.value, `${row.label} copied`)"
           />
         </div>
+
+        <!-- Last, and the one most people will actually use: the parts above
+             are what a form asks for, and this is what a terminal takes. -->
+        <div
+          v-if="url"
+          class="credentials__row"
+          data-testid="credential-url"
+        >
+          <span class="credentials__label">URL</span>
+          <code class="credentials__value">{{ url }}</code>
+          <AppCopyButton
+            tooltip="Copy the connection string"
+            data-testid="copy-url"
+            @click="copy(url, 'Connection string copied')"
+          />
+        </div>
       </template>
     </div>
 
     <template #actions>
-      <AppCopyButton
-        v-if="rows.length > 0"
-        tooltip="Copy all of it"
-        data-testid="copy-all-credentials"
-        @click="copy(asText, 'Connection details copied')"
-      />
       <AppButton
         label="Done"
         data-testid="credentials-done"

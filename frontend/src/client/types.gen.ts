@@ -258,6 +258,10 @@ export type AdapterTypeInfo = {
    */
   category_title: string
   /**
+   * Catalog Shape
+   */
+  catalog_shape: "levels" | "tree"
+  /**
    * Description
    */
   description: string
@@ -5143,6 +5147,10 @@ export type ServiceCredentials = {
    * Password
    */
   password: string
+  /**
+   * Url
+   */
+  url?: string | null
   /**
    * Unreachable Reason
    */
