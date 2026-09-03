@@ -5,6 +5,7 @@ without a daemon: this records what it was told, and can be made to refuse one
 verb so that a failure is a thing a test arranges rather than waits for.
 """
 
+import asyncio
 from collections.abc import AsyncIterator, Iterator, Mapping
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
@@ -14,7 +15,13 @@ from fastapi import FastAPI
 
 from app.core.config import settings
 from app.jobs.runner import JobRunner
-from app.services.engine import Availability, EngineError, ServiceEngine
+from app.services.engine import (
+    Availability,
+    ContainerStatus,
+    EngineError,
+    LogLines,
+    ServiceEngine,
+)
 from app.services.jobs import handlers
 from app.services.plan import ContainerSpec
 
@@ -31,6 +38,14 @@ class FakeEngine:
         self.restarted: list[str] = []
         self.removed: list[tuple[str, str | None]] = []
         self.refuse_on: str | None = None
+        # What it will say is on the machine, by container name. Empty means a
+        # runtime holding nothing, which is what a first creation meets.
+        self.holds: dict[str, str] = {}
+        self.printed: list[str] = []
+        # A verb to stop on until something lets it go, so that a test about
+        # cancelling is about cancelling rather than about who was faster.
+        self.hold_on: str | None = None
+        self.holding = asyncio.Event()
 
     async def availability(self) -> Availability:
         if self.available:
@@ -41,21 +56,31 @@ class FakeEngine:
         if self.refuse_on == what:
             raise EngineError(f"The engine would not {what}")
 
+    async def _maybe_hold(self, what: str) -> None:
+        if self.hold_on == what:
+            self.holding.set()
+            await asyncio.Event().wait()
+
     async def pull(self, image: str) -> None:
         self._maybe_refuse("pull")
+        await self._maybe_hold("pull")
         self.pulled.append(image)
 
     async def create(self, spec: ContainerSpec) -> None:
         self._maybe_refuse("create")
         self.created.append(spec)
+        self.holds[spec.name] = "created"
+
 
     async def start(self, container: str) -> None:
         self._maybe_refuse("start")
         self.started.append(container)
+        self.holds[container] = "running"
 
     async def stop(self, container: str) -> None:
         self._maybe_refuse("stop")
         self.stopped.append(container)
+        self.holds[container] = "stopped"
 
     async def restart(self, container: str) -> None:
         self._maybe_refuse("restart")
@@ -64,6 +89,29 @@ class FakeEngine:
     async def remove(self, container: str, *, volume: str | None) -> None:
         self._maybe_refuse("remove")
         self.removed.append((container, volume))
+        self.holds.pop(container, None)
+
+    async def status(self, container: str) -> ContainerStatus:
+        self._maybe_refuse("status")
+        state = self.holds.get(container)
+        if state is None:
+            return ContainerStatus(name=container, state="missing")
+        return ContainerStatus(name=container, state="running" if state == "running" else "stopped")
+
+    async def managed(self) -> list[ContainerStatus]:
+        self._maybe_refuse("managed")
+        return [
+            ContainerStatus(
+                name=name,
+                state="running" if state == "running" else "stopped",
+                service_id=None,
+            )
+            for name, state in self.holds.items()
+        ]
+
+    async def logs(self, container: str, *, tail: int) -> LogLines:
+        self._maybe_refuse("logs")
+        return LogLines(lines=self.printed[-tail:])
 
 
 def probe_answering(ready: bool) -> Any:

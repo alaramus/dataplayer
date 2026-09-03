@@ -18,6 +18,7 @@ async def create(
     template: ServiceTemplate,
     connector_name: str,
     placement: Placement,
+    request_id: uuid.UUID | None = None,
 ) -> ManagedService:
     """Write down a service before anything is started.
 
@@ -30,6 +31,7 @@ async def create(
         id=service_id,
         owner_id=owner_id,
         template_key=template.key,
+        request_id=request_id,
         connector_name=connector_name,
         container_name=container_name(service_id, template),
         volume_name=volume_name(service_id, template),
@@ -73,3 +75,31 @@ async def set_state(
     await session.commit()
     await session.refresh(service)
     return service
+
+
+async def by_request(
+    session: AsyncSession, *, owner_id: uuid.UUID, request_id: uuid.UUID
+) -> ManagedService | None:
+    """The service an earlier request of this id already made, if it did.
+
+    Scoped to the owner: an id somebody else chose says nothing about what
+    this person asked for, and answering with their row would be a leak.
+    """
+    statement = (
+        select(ManagedService)
+        .where(ManagedService.owner_id == owner_id)
+        .where(ManagedService.request_id == request_id)
+        .limit(1)
+    )
+    return (await session.exec(statement)).first()
+
+
+async def all_container_names(session: AsyncSession) -> set[str]:
+    """Every container name a service row still claims, whoever owns it.
+
+    Deliberately not scoped to an owner: the question it answers is about the
+    machine — what is running here that nothing knows about — and a set
+    filtered by caller would call another person's service an orphan.
+    """
+    statement = select(ManagedService.container_name)
+    return set((await session.exec(statement)).all())

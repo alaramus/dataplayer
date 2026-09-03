@@ -85,6 +85,7 @@ class CreateService(_ServiceJob):
 
     kind: ClassVar[JobKind] = "service.create"
     steps: ClassVar[tuple[str, ...]] = (
+        "clearing an earlier attempt",
         "pulling the image",
         "creating the container",
         "starting the container",
@@ -105,6 +106,7 @@ class CreateService(_ServiceJob):
             ),
         )
         try:
+            await self._clear_earlier_attempt(service, progress)
             await progress.reached("pulling the image")
             await self._engine.pull(plan.container.image)
             await progress.reached("creating the container")
@@ -130,6 +132,27 @@ class CreateService(_ServiceJob):
         service.connector_id = connector_id
         await self._settle(session, service, "running")
         return f"{template.title} is ready"
+
+    async def _clear_earlier_attempt(
+        self, service: ManagedService, progress: Progress
+    ) -> None:
+        """Take away whatever a previous attempt left, before making it again.
+
+        This is what makes creation something that can be tried again. A
+        password is settled once per attempt and lives only in the connector
+        the attempt would have saved, so a container left by a failed one has
+        a password nobody knows — starting it again would produce a service
+        nobody can open. The data in its volume is a database initialised with
+        that unknown password, so it goes too.
+
+        A first attempt finds nothing and skips the step, which is why the
+        step is reached rather than announced up front.
+        """
+        status = await self._engine.status(service.container_name)
+        if status.state == "missing":
+            return
+        await progress.reached("clearing an earlier attempt")
+        await self._engine.remove(service.container_name, volume=service.volume_name)
 
     async def _save_connector(
         self,

@@ -1,9 +1,16 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref } from "vue"
 
-import type { JobPublic } from "@/client"
-import { useDeleteService, useServices } from "@/features/services/api"
+import type { ServicePublic } from "@/client"
+import ServiceLogsDialog from "@/features/services/ServiceLogsDialog.vue"
+import {
+  useCancelJob,
+  useDeleteService,
+  useRetryService,
+  useServices,
+} from "@/features/services/api"
 import { isWorking, progressOf } from "@/features/services/jobs"
+import { messageOf } from "@/shared/api/errors"
 import { AppIconButton, AppSpinner, useConfirm, useToast } from "@/shared/ui"
 
 /**
@@ -17,13 +24,51 @@ import { AppIconButton, AppSpinner, useConfirm, useToast } from "@/shared/ui"
  */
 const services = useServices()
 const removeService = useDeleteService()
+const retryService = useRetryService()
+const cancelJob = useCancelJob()
 const toast = useToast()
+const reading = ref<ServicePublic | null>(null)
 
 const rows = computed(() => services.data.value ?? [])
 
-/** What a service is doing, in the server's words: a step, or a state. */
-function saying(service: { state: string; job?: JobPublic | null }): string {
-  return isWorking(service.job) ? progressOf(service.job) : service.state
+/**
+ * What a service is doing, in the server's words.
+ *
+ * While something is happening, the step it has reached. Otherwise what this
+ * application believes — and, when the runtime disagrees, both: a container
+ * somebody removed by hand is the case the two exist to show (D84).
+ */
+function saying(service: ServicePublic): string {
+  if (isWorking(service.job)) return progressOf(service.job)
+  if (service.container_state === "missing") return `${service.state} · no container`
+  if (service.container_state === "unknown") return service.state
+  return service.container_state === service.state
+    ? service.state
+    : `${service.state} · ${service.container_state}`
+}
+
+/** A creation that did not finish can be made again, from the beginning. */
+function canRetry(service: ServicePublic): boolean {
+  return !isWorking(service.job) && service.connector_id === null
+}
+
+async function retry(service: ServicePublic) {
+  try {
+    await retryService.mutateAsync(service.id)
+    toast.info(`Starting ${service.connector_name} again`)
+  } catch (cause) {
+    toast.error(messageOf(cause, "It could not be started again"))
+  }
+}
+
+async function stop(service: ServicePublic) {
+  if (!service.job) return
+  try {
+    await cancelJob.mutateAsync(service.job.id)
+    toast.info("Stopping")
+  } catch (cause) {
+    toast.error(messageOf(cause, "It could not be stopped"))
+  }
 }
 
 const confirm = useConfirm()
@@ -84,6 +129,26 @@ async function forget(serviceId: string, name: string) {
         <span class="starting__step">{{ saying(service) }}</span>
       </div>
       <AppIconButton
+        v-if="isWorking(service.job)"
+        icon="stop_circle"
+        tooltip="Stop what is happening"
+        :data-testid="`stop-service-${service.id}`"
+        @click="stop(service)"
+      />
+      <AppIconButton
+        v-if="canRetry(service)"
+        icon="restart_alt"
+        tooltip="Start over: the earlier attempt and its data are removed"
+        :data-testid="`retry-service-${service.id}`"
+        @click="retry(service)"
+      />
+      <AppIconButton
+        icon="notes"
+        tooltip="What it printed"
+        :data-testid="`logs-service-${service.id}`"
+        @click="reading = service"
+      />
+      <AppIconButton
         icon="delete_outline"
         tooltip="Remove this service"
         :disable="isWorking(service.job)"
@@ -91,6 +156,8 @@ async function forget(serviceId: string, name: string) {
         @click="forget(service.id, service.connector_name)"
       />
     </div>
+
+    <ServiceLogsDialog v-model:service="reading" />
   </div>
 </template>
 

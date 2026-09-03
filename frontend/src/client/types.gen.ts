@@ -2567,7 +2567,7 @@ export type JobPublic = {
   /**
    * State
    */
-  state: "queued" | "running" | "succeeded" | "failed" | "interrupted"
+  state: "queued" | "running" | "succeeded" | "failed" | "cancelled" | "interrupted"
   /**
    * Step
    */
@@ -4890,6 +4890,18 @@ export type ServiceAccepted = {
 }
 
 /**
+ * ServiceLogs
+ *
+ * The tail of one service's own output.
+ */
+export type ServiceLogs = {
+  /**
+   * Lines
+   */
+  lines: Array<string>
+}
+
+/**
  * ServicePublic
  *
  * A service as its owner reads it.
@@ -4914,6 +4926,10 @@ export type ServicePublic = {
    * State
    */
   state: "creating" | "running" | "stopped" | "failed" | "removing"
+  /**
+   * Container State
+   */
+  container_state: "running" | "stopped" | "missing" | "unknown"
   /**
    * Container Name
    */
@@ -4956,6 +4972,10 @@ export type ServiceRequest = {
    * Name
    */
   name?: string | null
+  /**
+   * Request Id
+   */
+  request_id?: string | null
 }
 
 /**
@@ -5665,6 +5685,26 @@ export type TransactionState = {
    */
   targets?: Array<string>
   effect?: SchemaEffect
+}
+
+/**
+ * UnclaimedContainer
+ *
+ * A container this installation made that no row claims any more.
+ */
+export type UnclaimedContainer = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * State
+   */
+  state: string
+  /**
+   * Service Id
+   */
+  service_id: string | null
 }
 
 /**
@@ -8589,6 +8629,57 @@ export type servicesRequestServiceResponses = {
 export type servicesRequestServiceResponse =
   servicesRequestServiceResponses[keyof servicesRequestServiceResponses]
 
+export type servicesReadUnclaimedData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/services/unclaimed"
+}
+
+export type servicesReadUnclaimedResponses = {
+  /**
+   * Response Services-Read Unclaimed
+   *
+   * Successful Response
+   */
+  200: Array<UnclaimedContainer>
+}
+
+export type servicesReadUnclaimedResponse =
+  servicesReadUnclaimedResponses[keyof servicesReadUnclaimedResponses]
+
+export type servicesRemoveUnclaimedData = {
+  body?: never
+  path: {
+    /**
+     * Container Name
+     */
+    container_name: string
+  }
+  query?: never
+  url: "/api/v1/services/unclaimed/{container_name}"
+}
+
+export type servicesRemoveUnclaimedErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type servicesRemoveUnclaimedError =
+  servicesRemoveUnclaimedErrors[keyof servicesRemoveUnclaimedErrors]
+
+export type servicesRemoveUnclaimedResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type servicesRemoveUnclaimedResponse =
+  servicesRemoveUnclaimedResponses[keyof servicesRemoveUnclaimedResponses]
+
 export type servicesDeleteServiceData = {
   body?: never
   path: {
@@ -8651,6 +8742,74 @@ export type servicesReadServiceResponses = {
 
 export type servicesReadServiceResponse =
   servicesReadServiceResponses[keyof servicesReadServiceResponses]
+
+export type servicesReadServiceLogsData = {
+  body?: never
+  path: {
+    /**
+     * Service Id
+     */
+    service_id: string
+  }
+  query?: {
+    /**
+     * Tail
+     */
+    tail?: number
+  }
+  url: "/api/v1/services/{service_id}/logs"
+}
+
+export type servicesReadServiceLogsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type servicesReadServiceLogsError =
+  servicesReadServiceLogsErrors[keyof servicesReadServiceLogsErrors]
+
+export type servicesReadServiceLogsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ServiceLogs
+}
+
+export type servicesReadServiceLogsResponse =
+  servicesReadServiceLogsResponses[keyof servicesReadServiceLogsResponses]
+
+export type servicesRetryServiceData = {
+  body?: never
+  path: {
+    /**
+     * Service Id
+     */
+    service_id: string
+  }
+  query?: never
+  url: "/api/v1/services/{service_id}/retry"
+}
+
+export type servicesRetryServiceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type servicesRetryServiceError = servicesRetryServiceErrors[keyof servicesRetryServiceErrors]
+
+export type servicesRetryServiceResponses = {
+  /**
+   * Successful Response
+   */
+  200: ServiceAccepted
+}
+
+export type servicesRetryServiceResponse =
+  servicesRetryServiceResponses[keyof servicesRetryServiceResponses]
 
 export type servicesStartServiceData = {
   body?: never
@@ -8775,6 +8934,36 @@ export type jobsReadJobResponses = {
 }
 
 export type jobsReadJobResponse = jobsReadJobResponses[keyof jobsReadJobResponses]
+
+export type jobsCancelJobData = {
+  body?: never
+  path: {
+    /**
+     * Job Id
+     */
+    job_id: string
+  }
+  query?: never
+  url: "/api/v1/jobs/{job_id}/cancel"
+}
+
+export type jobsCancelJobErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type jobsCancelJobError = jobsCancelJobErrors[keyof jobsCancelJobErrors]
+
+export type jobsCancelJobResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobPublic
+}
+
+export type jobsCancelJobResponse = jobsCancelJobResponses[keyof jobsCancelJobResponses]
 
 export type sharesListSharesData = {
   body?: never

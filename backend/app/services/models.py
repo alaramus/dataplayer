@@ -19,6 +19,12 @@ from sqlmodel import Field, SQLModel
 from app.core.schemas import get_datetime_utc
 from app.jobs.models import JobPublic
 
+# What the runtime says about a service's container, plus the answer for a
+# server that could not ask at all. Separate from `state`, which is what this
+# application believes: the two disagreeing is exactly what a person needs to
+# see.
+ContainerReport = Literal["running", "stopped", "missing", "unknown"]
+
 # Where a service is in its life. `creating` and `removing` are states of the
 # thing rather than of the job that is doing it: a job ends, and the service
 # it was making is still there or is not.
@@ -39,6 +45,11 @@ class ManagedService(SQLModel, table=True):
     # The key of the template it was made from. Not a foreign key: templates
     # are code, and the row records which one rather than pointing at a table.
     template_key: str = Field(max_length=32)
+    # What the request that made it called itself, when it called itself
+    # anything. A second request with the same id is the same request — a
+    # double press, a retried POST — and answers with this row rather than
+    # starting a second container (D84).
+    request_id: uuid.UUID | None = Field(default=None, index=True)
     # What the connection to it is called. Settled when the service is asked
     # for, so that the name a person typed is theirs from the beginning and
     # the job has nothing to invent.
@@ -80,6 +91,10 @@ class ServicePublic(BaseModel):
     # service.
     title: str
     state: ServiceState
+    # What the runtime says is actually there, when it was asked. `missing` is
+    # a service whose container somebody removed by hand, and `unknown` is a
+    # server that could not ask (D84).
+    container_state: ContainerReport
     container_name: str
     published_port: int | None
     # The connection this service became. What a screen opens once the job has
@@ -101,6 +116,10 @@ class ServiceRequest(BaseModel):
 
     template_key: str
     name: str | None = PydanticField(default=None, min_length=1, max_length=255)
+    # The client's own id for this request, so that pressing twice starts one
+    # service. Chosen by the client for the same reason a run's id is (D64):
+    # only the caller knows that two requests are the same intention.
+    request_id: uuid.UUID | None = None
 
 
 class ServiceAccepted(BaseModel):

@@ -164,6 +164,9 @@ import type {
   connectorsWriteGrantData,
   connectorsWriteGrantErrors,
   connectorsWriteGrantResponses,
+  jobsCancelJobData,
+  jobsCancelJobErrors,
+  jobsCancelJobResponses,
   jobsReadJobData,
   jobsReadJobErrors,
   jobsReadJobResponses,
@@ -284,17 +287,28 @@ import type {
   servicesDeleteServiceResponses,
   servicesReadServiceData,
   servicesReadServiceErrors,
+  servicesReadServiceLogsData,
+  servicesReadServiceLogsErrors,
+  servicesReadServiceLogsResponses,
   servicesReadServiceResponses,
   servicesReadServicesData,
   servicesReadServicesResponses,
   servicesReadServiceTemplatesData,
   servicesReadServiceTemplatesResponses,
+  servicesReadUnclaimedData,
+  servicesReadUnclaimedResponses,
+  servicesRemoveUnclaimedData,
+  servicesRemoveUnclaimedErrors,
+  servicesRemoveUnclaimedResponses,
   servicesRequestServiceData,
   servicesRequestServiceErrors,
   servicesRequestServiceResponses,
   servicesRestartServiceData,
   servicesRestartServiceErrors,
   servicesRestartServiceResponses,
+  servicesRetryServiceData,
+  servicesRetryServiceErrors,
+  servicesRetryServiceResponses,
   servicesStartServiceData,
   servicesStartServiceErrors,
   servicesStartServiceResponses,
@@ -2113,6 +2127,11 @@ export class ServicesService {
    * Read Services
    *
    * The services this user has asked this server to run.
+   *
+   * Each says what the runtime reports about it as well as what this
+   * application believes, because the two can differ: a container somebody
+   * removed by hand is `missing`, and a server that could not ask says
+   * `unknown` rather than guessing (D84).
    */
   public static readServices<ThrowOnError extends boolean = true>(
     options?: Options<servicesReadServicesData, ThrowOnError>
@@ -2151,6 +2170,51 @@ export class ServicesService {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Read Unclaimed
+   *
+   * Containers this installation made that no service row claims any more.
+   *
+   * A machine-wide question, so an administrator's: what runs on the server is
+   * not one user's business, and what is found here may be anybody's. Matched
+   * by label rather than by name, because a name is for people to read (D80).
+   */
+  public static readUnclaimed<ThrowOnError extends boolean = true>(
+    options?: Options<servicesReadUnclaimedData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<servicesReadUnclaimedResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/unclaimed",
+      ...options,
+    })
+  }
+
+  /**
+   * Remove Unclaimed
+   *
+   * Take away a container this installation made and nothing claims.
+   *
+   * Straight to the runtime rather than through a job: there is no row to give
+   * the work to, and nothing to report progress about. The volume goes with
+   * it, because a volume made for a container nothing claims is claimed by
+   * nothing either.
+   */
+  public static removeUnclaimed<ThrowOnError extends boolean = true>(
+    options: Options<servicesRemoveUnclaimedData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      servicesRemoveUnclaimedResponses,
+      servicesRemoveUnclaimedErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/unclaimed/{container_name}",
+      ...options,
     })
   }
 
@@ -2195,6 +2259,59 @@ export class ServicesService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/services/{service_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Service Logs
+   *
+   * The last lines this service printed.
+   *
+   * What a person reads when something did not start. Its own output and
+   * nothing else: this application's log is not a user's to read, and the
+   * runtime's words about the machine are not either (D84).
+   */
+  public static readServiceLogs<ThrowOnError extends boolean = true>(
+    options: Options<servicesReadServiceLogsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      servicesReadServiceLogsResponses,
+      servicesReadServiceLogsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/{service_id}/logs",
+      ...options,
+    })
+  }
+
+  /**
+   * Retry Service
+   *
+   * Make it again, from the beginning.
+   *
+   * Not "carry on where it stopped": a password is settled once per attempt
+   * and lives only in the connector that attempt would have saved, so whatever
+   * a failed one left behind has a password nobody knows. Starting over is the
+   * only honest meaning of retry here, and it takes the earlier container and
+   * its data with it (D84).
+   *
+   * A service that already has a connection is refused: that one is finished,
+   * and remaking it would destroy a database somebody is using.
+   */
+  public static retryService<ThrowOnError extends boolean = true>(
+    options: Options<servicesRetryServiceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      servicesRetryServiceResponses,
+      servicesRetryServiceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/{service_id}/retry",
       ...options,
     })
   }
@@ -2277,6 +2394,33 @@ export class JobsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/jobs/{job_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Cancel Job
+   *
+   * Ask a job to stop.
+   *
+   * What it had already done is left as it stands: a half-made service is a
+   * thing to retry or to remove, and undoing it here would be this application
+   * guessing at what somebody wanted kept (D84).
+   *
+   * A job that has already ended is answered rather than refused — the caller
+   * asked for it to be over, and it is.
+   */
+  public static cancelJob<ThrowOnError extends boolean = true>(
+    options: Options<jobsCancelJobData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      jobsCancelJobResponses,
+      jobsCancelJobErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/jobs/{job_id}/cancel",
       ...options,
     })
   }

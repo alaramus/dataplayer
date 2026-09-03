@@ -135,6 +135,11 @@ class JobRunner:
     def __init__(self, handlers: Mapping[str, JobHandler]) -> None:
         self._handlers = dict(handlers)
         self._active: dict[uuid.UUID, _Active] = {}
+        # Which of them were asked to stop. Without this, a task that ends in
+        # CancelledError cannot tell "somebody pressed stop" from "the process
+        # is going away", and the two settle differently: one is a decision,
+        # the other is something to pick up at the next start.
+        self._cancelling: set[uuid.UUID] = set()
         self._lock = asyncio.Lock()
 
     def handler_for(self, kind: JobKind) -> JobHandler:
@@ -157,16 +162,36 @@ class JobRunner:
         async with self._lock:
             self._active[job.id] = _Active(task=task, owner_id=job.owner_id)
 
+    async def cancel(self, job_id: uuid.UUID) -> bool:
+        """Ask a job this process is carrying out to stop. False if it is not.
+
+        What the work had already done is left as it stands: a half-made
+        service is a thing to retry or remove, and undoing it here would be
+        this application guessing at what somebody wanted kept (D84).
+        """
+        async with self._lock:
+            active = self._active.get(job_id)
+            if active is None:
+                return False
+            self._cancelling.add(job_id)
+        active.task.cancel()
+        return True
+
     async def active_count(self, owner_id: uuid.UUID) -> int:
         async with self._lock:
             return sum(1 for job in self._active.values() if job.owner_id == owner_id)
 
     async def wait_for(self, job_id: uuid.UUID) -> None:
-        """Wait for one job this process started. For tests and for shutdown."""
+        """Wait for one job this process started. For tests and for shutdown.
+
+        `wait` rather than awaiting the task: a job that was cancelled ends in
+        CancelledError, and awaiting it would cancel whoever was waiting for
+        it — which is the opposite of what watching something means.
+        """
         async with self._lock:
             active = self._active.get(job_id)
         if active is not None:
-            await asyncio.shield(active.task)
+            await asyncio.wait([active.task])
 
     async def aclose(self) -> None:
         async with self._lock:
@@ -206,9 +231,18 @@ class JobRunner:
             except JobFailed as refusal:
                 await self._settle(session, job, "failed", str(refusal), topics)
             except asyncio.CancelledError:
-                # The process is going away; the row stays non-terminal and the
-                # next startup calls it interrupted.
-                raise
+                async with self._lock:
+                    asked = job_id in self._cancelling
+                    self._cancelling.discard(job_id)
+                if not asked:
+                    # The process is going away; the row stays non-terminal and
+                    # the next startup calls it interrupted.
+                    raise
+                # Somebody stopped it. Written down here because a task that
+                # is gone cannot write anything down about itself.
+                await self._settle(
+                    session, job, "cancelled", "Stopped before it finished", topics
+                )
             except Exception:
                 # Whatever this was, its text belongs in the log and not in an
                 # answer: an engine names sockets and paths of this machine.

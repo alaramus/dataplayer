@@ -19,8 +19,15 @@ from typing import Any
 
 import httpx
 
-from app.services.engine import Availability, EngineError, EngineUnavailable
-from app.services.plan import ContainerSpec
+from app.services.engine import (
+    Availability,
+    ContainerState,
+    ContainerStatus,
+    EngineError,
+    EngineUnavailable,
+    LogLines,
+)
+from app.services.plan import SERVICE_LABEL, ContainerSpec
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +56,18 @@ _REFUSALS: Mapping[int, str] = {
     409: "It is busy, or something with that name already exists",
     500: "The container runtime failed while doing it",
 }
+
+
+# How many lines of a container's output are ever fetched at once. A tail is
+# for finding out why something did not start, not for reading a log file: a
+# person who needs the whole thing has the machine it is on.
+MAX_LOG_LINES = 500
+
+# The eight-byte header the daemon puts in front of every chunk of a
+# container's output when the container has no TTY. Nothing about it is
+# optional and nothing about it is documented anywhere near the endpoint, so
+# it is named here: one byte of stream, three of padding, four of length.
+_LOG_HEADER = 8
 
 
 @dataclass(frozen=True)
@@ -195,6 +214,75 @@ class DockerEngine:
                 "DELETE", f"/volumes/{volume}", expected=(204, 404)
             )
 
+    async def status(self, container: str) -> ContainerStatus:
+        """What one container is doing, or that it is not there.
+
+        Absence is an answer rather than an error: a service whose container
+        somebody removed by hand is a state this application has to be able to
+        show, and it is the whole point of asking.
+        """
+        answer = await self._request(
+            "GET", f"/containers/{container}/json", expected=(200, 404)
+        )
+        if answer.status == 404:
+            return ContainerStatus(name=container, state="missing")
+        body = answer.json() or {}
+        labels = (body.get("Config") or {}).get("Labels") or {}
+        return ContainerStatus(
+            name=container,
+            state=_state_of(body.get("State") or {}),
+            service_id=labels.get(SERVICE_LABEL),
+        )
+
+    async def managed(self) -> list[ContainerStatus]:
+        """Every container on this machine that this application made.
+
+        Matched by label rather than by name: a name is for a person to read
+        and could be changed, and the point of this list is to find what no
+        row claims any more (D84).
+        """
+        answer = await self._request(
+            "GET",
+            "/containers/json",
+            params={
+                "all": "true",
+                "filters": json.dumps({"label": [SERVICE_LABEL]}),
+            },
+            expected=(200,),
+        )
+        found: list[ContainerStatus] = []
+        for entry in answer.json() or []:
+            names = entry.get("Names") or []
+            labels = entry.get("Labels") or {}
+            found.append(
+                ContainerStatus(
+                    # The daemon writes names with a leading slash.
+                    name=str(names[0]).lstrip("/") if names else str(entry.get("Id")),
+                    state="running" if entry.get("State") == "running" else "stopped",
+                    service_id=labels.get(SERVICE_LABEL),
+                )
+            )
+        return found
+
+    async def logs(self, container: str, *, tail: int) -> LogLines:
+        """The last lines a container printed, on both of its streams.
+
+        The daemon multiplexes the two into one body with a header per chunk,
+        so the header is stripped rather than shown: a person reading why
+        PostgreSQL would not start should not have to read framing bytes.
+        """
+        answer = await self._request(
+            "GET",
+            f"/containers/{container}/logs",
+            params={
+                "stdout": "true",
+                "stderr": "true",
+                "tail": str(min(tail, MAX_LOG_LINES)),
+            },
+            expected=(200,),
+        )
+        return LogLines(lines=_demultiplexed(answer.body))
+
     async def _request(
         self,
         method: str,
@@ -285,3 +373,45 @@ def _refusal(status: int) -> EngineError:
 def _unreachable(failure: httpx.HTTPError) -> EngineUnavailable:
     logger.warning("Docker is unreachable: %s", failure)
     return EngineUnavailable("This server cannot reach a container runtime")
+
+
+def _state_of(state: Mapping[str, Any]) -> ContainerState:
+    """The daemon's twelve words for what a container is doing, reduced to two.
+
+    Everything that is not running is stopped as far as anything here is
+    concerned: what a person does about `exited`, `dead` and `created` is the
+    same thing.
+    """
+    return "running" if state.get("Running") else "stopped"
+
+
+def _demultiplexed(body: bytes) -> list[str]:
+    """The text out of the daemon's framed output.
+
+    A container started without a TTY has its two streams interleaved with an
+    eight-byte header in front of each chunk. A container with one has none,
+    and its output is plain — so a body that does not parse as frames is
+    returned as it stands rather than mangled.
+    """
+    if not body:
+        return []
+    text: list[bytes] = []
+    at = 0
+    while at + _LOG_HEADER <= len(body):
+        stream = body[at]
+        if stream not in (0, 1, 2):
+            return _lines(body)
+        size = int.from_bytes(body[at + 4 : at + _LOG_HEADER], "big")
+        chunk = body[at + _LOG_HEADER : at + _LOG_HEADER + size]
+        if len(chunk) != size:
+            return _lines(body)
+        text.append(chunk)
+        at += _LOG_HEADER + size
+    if at != len(body):
+        return _lines(body)
+    return _lines(b"".join(text))
+
+
+def _lines(body: bytes) -> list[str]:
+    decoded = body.decode("utf-8", errors="replace")
+    return [line for line in decoded.splitlines() if line.strip()]

@@ -13,7 +13,7 @@ driver text.
 """
 
 from dataclasses import dataclass
-from typing import Annotated, Protocol, runtime_checkable
+from typing import Annotated, Literal, Protocol, runtime_checkable
 
 from fastapi import Depends, Request
 
@@ -51,13 +51,43 @@ class Availability:
     version: str | None = None
 
 
+# What a container is doing, in the words this application uses rather than
+# the daemon's twelve. Three, because three is what any decision here turns
+# on: it is up, it is there and not up, or it is not there.
+ContainerState = Literal["running", "stopped", "missing"]
+
+
+@dataclass(frozen=True)
+class ContainerStatus:
+    """What the runtime says about one container it was asked about."""
+
+    name: str
+    state: ContainerState
+    # The service id the container was labelled with, when it carries one.
+    # This is how a container found on the machine is matched to a row, and
+    # why the label rather than the name is what code matches on (D80).
+    service_id: str | None = None
+
+
+@dataclass(frozen=True)
+class LogLines:
+    """The tail of what a container has printed, and nothing else.
+
+    A list rather than a stream: this is what a person reads after something
+    went wrong, and a follow-along stream is a socket, a bound and a decision
+    about back-pressure that nobody has asked for yet.
+    """
+
+    lines: list[str]
+
+
 @runtime_checkable
 class ServiceEngine(Protocol):
-    """What a container runtime must do: say whether it is there, and five verbs.
+    """What a container runtime must do, from this application's side.
 
-    Each verb takes names the server decided (D80) and returns nothing: what a
-    container is doing is asked of the engine when somebody asks, rather than
-    kept here.
+    Each verb takes names the server decided (D80). What a container is doing
+    is asked of the engine when somebody asks rather than kept here, because
+    a container can stop without this application being told.
     """
 
     async def availability(self) -> Availability: ...
@@ -73,6 +103,12 @@ class ServiceEngine(Protocol):
     async def restart(self, container: str) -> None: ...
 
     async def remove(self, container: str, *, volume: str | None) -> None: ...
+
+    async def status(self, container: str) -> ContainerStatus: ...
+
+    async def managed(self) -> list[ContainerStatus]: ...
+
+    async def logs(self, container: str, *, tail: int) -> LogLines: ...
 
 
 NO_ENGINE_MESSAGE = "This server has no container runtime, so it cannot run services"
@@ -113,6 +149,15 @@ class NoEngine:
         raise EngineUnavailable(self._reason)
 
     async def remove(self, container: str, *, volume: str | None) -> None:
+        raise EngineUnavailable(self._reason)
+
+    async def status(self, container: str) -> ContainerStatus:
+        raise EngineUnavailable(self._reason)
+
+    async def managed(self) -> list[ContainerStatus]:
+        raise EngineUnavailable(self._reason)
+
+    async def logs(self, container: str, *, tail: int) -> LogLines:
         raise EngineUnavailable(self._reason)
 
 

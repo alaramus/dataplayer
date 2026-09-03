@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
+import { computed } from "vue"
+import type { Ref } from "vue"
 
-import { ServicesService } from "@/client"
+import { JobsService, ServicesService } from "@/client"
 import type { ServiceRequest } from "@/client"
 import { connectorsKey } from "@/features/connectors/api"
 
@@ -54,6 +56,48 @@ export function useDeleteService() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: servicesKey })
       await queryClient.invalidateQueries({ queryKey: connectorsKey })
+    },
+  })
+}
+
+export function useServiceLogs(serviceId: Ref<string | null>) {
+  return useQuery({
+    queryKey: computed(() => ["service-logs", serviceId.value] as const),
+    queryFn: async () =>
+      (
+        await ServicesService.readServiceLogs({
+          path: { service_id: serviceId.value ?? "" },
+        })
+      ).data,
+    enabled: computed(() => serviceId.value !== null),
+    // What a container printed a second ago is what it printed: this is read
+    // when something went wrong, not watched.
+    staleTime: 0,
+  })
+}
+
+export function useRetryService() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (serviceId: string) =>
+      (
+        await ServicesService.retryService({
+          path: { service_id: serviceId },
+        })
+      ).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: servicesKey })
+    },
+  })
+}
+
+export function useCancelJob() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (jobId: string) =>
+      (await JobsService.cancelJob({ path: { job_id: jobId } })).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: servicesKey })
     },
   })
 }

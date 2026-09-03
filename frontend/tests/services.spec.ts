@@ -47,7 +47,7 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   // the server named, never a percentage this side invented (D81).
   const services = page.getByTestId("managed-services")
   await expect(services).toBeVisible()
-  await expect(services).toContainText(/of 5/)
+  await expect(services).toContainText(/of 6/)
 
   // And then it is an ordinary connection, made by nobody's browser (D83).
   await expect(connectorRow(page, SERVICE_NAME)).toBeVisible({ timeout: 90_000 })
@@ -62,7 +62,7 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   const row = services
     .locator('[data-testid^="managed-service-"]')
     .filter({ hasText: SERVICE_NAME })
-  await row.getByRole("button").click()
+  await row.locator('[data-testid^="remove-service-"]').click()
   await page.getByTestId("confirm-accept").click()
   await expect(row).toHaveCount(0, { timeout: 60_000 })
 

@@ -80,7 +80,7 @@ async def test_asking_for_a_service_answers_before_anything_is_pulled(
     assert accepted["service"]["title"] == "PostgreSQL"
     assert accepted["job"]["kind"] == "service.create"
     assert accepted["job"]["state"] in {"queued", "running"}
-    assert accepted["job"]["step_count"] == 5
+    assert accepted["job"]["step_count"] == 6
 
 
 async def test_the_job_pulls_creates_and_starts_and_the_service_says_running(

@@ -68,6 +68,8 @@ async def test_the_owner_watches_their_service_job_without_asking_again(
     assert seen[-1]["state"] == "succeeded"
     # The steps are named, so what a person watches is a place in a list the
     # server declared rather than a number nobody can check.
+    # No "clearing an earlier attempt": there was none, and a step that did
+    # not happen is not announced.
     assert [event["step"] for event in seen] == [
         None,
         "pulling the image",

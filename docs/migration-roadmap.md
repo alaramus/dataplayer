@@ -97,8 +97,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] Add retry, idempotency, cancellation, log tail, orphan discovery and
-  deletion semantics. Deleting a connector must not silently delete a volume.
 - [ ] Threat-model socket access, project/container naming, resource limits,
   network exposure and concurrent users before enabling this outside local
   development.

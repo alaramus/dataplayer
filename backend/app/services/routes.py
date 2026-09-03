@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Mapping
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,16 +8,24 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import registry
 from app.core.config import settings
-from app.core.db import SessionDep
+from app.core.db import SessionDep, async_session_maker
+from app.core.schemas import Message
 from app.jobs import crud as job_crud
 from app.jobs.models import Job, JobKind
 from app.jobs.models import public as job_public
 from app.jobs.runner import JobRunner, JobRunnerDep
 from app.realtime.topics import TopicsDep, TopicSet
 from app.services import crud, templates
-from app.services.engine import Availability, ServiceEngine, ServiceEngineDep
+from app.services.engine import (
+    Availability,
+    ContainerStatus,
+    EngineError,
+    ServiceEngine,
+    ServiceEngineDep,
+)
 from app.services.models import (
     BUSY_STATES,
+    ContainerReport,
     ManagedService,
     ServiceAccepted,
     ServicePublic,
@@ -25,7 +34,11 @@ from app.services.models import (
 )
 from app.services.plan import Placement
 from app.services.templates import UnknownServiceTemplate
-from app.users.deps import CurrentUser, get_current_user
+from app.users.deps import (
+    CurrentUser,
+    get_current_active_superuser,
+    get_current_user,
+)
 
 # Authentication on the router, as `adapter-types` declares it: the template
 # listing does not use the user, and an unused argument is a lint error.
@@ -70,6 +83,20 @@ class ServiceTemplateInfo(BaseModel):
     # lies (D82).
     available: bool
     unavailable_reason: str | None = None
+
+
+class UnclaimedContainer(BaseModel):
+    """A container this installation made that no row claims any more."""
+
+    name: str
+    state: str
+    service_id: str | None
+
+
+class ServiceLogs(BaseModel):
+    """The tail of one service's own output."""
+
+    lines: list[str]
 
 
 # Declared before "/{service_id}": a path that is a fixed word must be matched
@@ -126,6 +153,14 @@ async def request_service(
             status_code=422,
             detail={"message": "This server does not offer that service"},
         ) from None
+    if body.request_id is not None:
+        already = await crud.by_request(
+            session, owner_id=current_user.id, request_id=body.request_id
+        )
+        if already is not None:
+            # The same request, asked again: a double press, or a POST the
+            # network retried. One service, and the job that is making it.
+            return await _already(session, already)
     _refuse_without_a_runtime(await _offer(engine))
     service = await crud.create(
         session,
@@ -133,31 +168,164 @@ async def request_service(
         template=template,
         connector_name=body.name or template.title,
         placement=_placement(),
+        request_id=body.request_id,
     )
     job = await _accept(session, runner, topics, service, "service.create")
-    return ServiceAccepted(service=_public(service, job), job=job_public(job))
+    return ServiceAccepted(
+        service=_public(service, job, "unknown"), job=job_public(job)
+    )
 
 
 @router.get("/", response_model=list[ServicePublic])
-async def read_services(session: SessionDep, current_user: CurrentUser) -> Any:
+async def read_services(
+    session: SessionDep, current_user: CurrentUser, engine: ServiceEngineDep
+) -> Any:
     """
     The services this user has asked this server to run.
+
+    Each says what the runtime reports about it as well as what this
+    application believes, because the two can differ: a container somebody
+    removed by hand is `missing`, and a server that could not ask says
+    `unknown` rather than guessing (D84).
     """
     services = await crud.list_for_owner(session, current_user.id)
+    found = await _managed(engine)
+    reported = _by_name(found)
     return [
-        _public(service, await _latest_job(session, service)) for service in services
+        _public(
+            service,
+            await _latest_job(session, service),
+            _reported_state(reported, service.container_name, asked=found is not None),
+        )
+        for service in services
     ]
+
+
+@router.get(
+    "/unclaimed",
+    response_model=list[UnclaimedContainer],
+    dependencies=[Depends(get_current_active_superuser)],
+)
+async def read_unclaimed(engine: ServiceEngineDep) -> Any:
+    """
+    Containers this installation made that no service row claims any more.
+
+    A machine-wide question, so an administrator's: what runs on the server is
+    not one user's business, and what is found here may be anybody's. Matched
+    by label rather than by name, because a name is for people to read (D80).
+    """
+    known = await _known_container_names()
+    return [
+        UnclaimedContainer(
+            name=one.name, state=one.state, service_id=one.service_id
+        )
+        for one in (await _managed(engine) or [])
+        if one.name not in known
+    ]
+
+
+@router.delete(
+    "/unclaimed/{container_name}",
+    response_model=Message,
+    dependencies=[Depends(get_current_active_superuser)],
+)
+async def remove_unclaimed(engine: ServiceEngineDep, container_name: str) -> Any:
+    """
+    Take away a container this installation made and nothing claims.
+
+    Straight to the runtime rather than through a job: there is no row to give
+    the work to, and nothing to report progress about. The volume goes with
+    it, because a volume made for a container nothing claims is claimed by
+    nothing either.
+    """
+    known = await _known_container_names()
+    if container_name in known:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": "A service still claims that container"},
+        )
+    if container_name not in {one.name for one in (await _managed(engine) or [])}:
+        raise HTTPException(status_code=404, detail={"message": "No such container"})
+    await engine.remove(container_name, volume=f"{container_name}-data")
+    return Message(message=f"{container_name} was removed")
 
 
 @router.get("/{service_id}", response_model=ServicePublic)
 async def read_service(
-    session: SessionDep, current_user: CurrentUser, service_id: uuid.UUID
+    session: SessionDep,
+    current_user: CurrentUser,
+    engine: ServiceEngineDep,
+    service_id: uuid.UUID,
 ) -> Any:
     """
     One service, with the last thing that happened to it.
     """
     service = await _own_or_404(session, service_id, current_user.id)
-    return _public(service, await _latest_job(session, service))
+    found = await _managed(engine)
+    return _public(
+        service,
+        await _latest_job(session, service),
+        _reported_state(
+            _by_name(found), service.container_name, asked=found is not None
+        ),
+    )
+
+
+@router.get("/{service_id}/logs", response_model=ServiceLogs)
+async def read_service_logs(
+    session: SessionDep,
+    current_user: CurrentUser,
+    engine: ServiceEngineDep,
+    service_id: uuid.UUID,
+    tail: int = 200,
+) -> Any:
+    """
+    The last lines this service printed.
+
+    What a person reads when something did not start. Its own output and
+    nothing else: this application's log is not a user's to read, and the
+    runtime's words about the machine are not either (D84).
+    """
+    service = await _own_or_404(session, service_id, current_user.id)
+    try:
+        found = await engine.logs(service.container_name, tail=max(1, min(tail, 500)))
+    except EngineError as refusal:
+        raise HTTPException(status_code=409, detail={"message": str(refusal)}) from None
+    return ServiceLogs(lines=found.lines)
+
+
+@router.post("/{service_id}/retry", response_model=ServiceAccepted)
+async def retry_service(
+    session: SessionDep,
+    current_user: CurrentUser,
+    runner: JobRunnerDep,
+    topics: TopicsDep,
+    engine: ServiceEngineDep,
+    service_id: uuid.UUID,
+) -> Any:
+    """
+    Make it again, from the beginning.
+
+    Not "carry on where it stopped": a password is settled once per attempt
+    and lives only in the connector that attempt would have saved, so whatever
+    a failed one left behind has a password nobody knows. Starting over is the
+    only honest meaning of retry here, and it takes the earlier container and
+    its data with it (D84).
+
+    A service that already has a connection is refused: that one is finished,
+    and remaking it would destroy a database somebody is using.
+    """
+    service = await _own_or_404(session, service_id, current_user.id)
+    if service.connector_id is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": "This service is already made; remove it instead"},
+        )
+    await _refuse_if_working(session, service)
+    _refuse_without_a_runtime(await _offer(engine))
+    await crud.set_state(session, service, "creating")
+    job = await _accept(session, runner, topics, service, "service.create")
+    return ServiceAccepted(service=_public(service, job, "unknown"), job=job_public(job))
 
 
 @router.post("/{service_id}/start", response_model=ServiceAccepted)
@@ -226,7 +394,9 @@ async def delete_service(
     await _refuse_if_working(session, service)
     await crud.set_state(session, service, "removing")
     job = await _accept(session, runner, topics, service, "service.delete")
-    return ServiceAccepted(service=_public(service, job), job=job_public(job))
+    return ServiceAccepted(
+        service=_public(service, job, "unknown"), job=job_public(job)
+    )
 
 
 async def _command(
@@ -249,7 +419,9 @@ async def _command(
     await _refuse_if_working(session, service)
     _refuse_if_busy(service)
     job = await _accept(session, runner, topics, service, kind)
-    return ServiceAccepted(service=_public(service, job), job=job_public(job))
+    return ServiceAccepted(
+        service=_public(service, job, "unknown"), job=job_public(job)
+    )
 
 
 async def _accept(
@@ -356,12 +528,67 @@ async def _refuse_if_working(session: AsyncSession, service: ManagedService) -> 
         )
 
 
+async def _already(session: AsyncSession, service: ManagedService) -> ServiceAccepted:
+    """The answer to a request that was already answered once."""
+    job = await _latest_job(session, service)
+    if job is None:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": "That request made a service with no job"},
+        )
+    return ServiceAccepted(service=_public(service, job, "unknown"), job=job_public(job))
+
+
+async def _managed(engine: ServiceEngine) -> list[ContainerStatus] | None:
+    """Every container this installation made, or nothing when it cannot ask.
+
+    `None` rather than an empty list, because the two mean opposite things: a
+    runtime holding nothing says every service is missing, and a runtime that
+    could not be reached says nothing about any of them.
+    """
+    try:
+        return await engine.managed()
+    except EngineError:
+        return None
+
+
+def _by_name(found: list[ContainerStatus] | None) -> dict[str, ContainerReport]:
+    """What the runtime said, by container name.
+
+    One question for the whole list rather than one per service: a listing
+    that asked per row would cost a request per service, and the daemon can
+    answer them all at once.
+    """
+    return {one.name: one.state for one in found or []}
+
+
+def _reported_state(
+    reported: Mapping[str, ContainerReport], name: str, *, asked: bool
+) -> ContainerReport:
+    if not asked:
+        return "unknown"
+    return reported.get(name, "missing")
+
+
+async def _known_container_names() -> set[str]:
+    """The containers some service row still claims.
+
+    Its own session, because the question is about every owner's services
+    rather than the caller's: a set filtered by caller would call another
+    person's service an orphan.
+    """
+    async with async_session_maker() as session:
+        return await crud.all_container_names(session)
+
+
 async def _latest_job(session: AsyncSession, service: ManagedService) -> Job | None:
     jobs = await job_crud.for_subject(session, service.id, limit=1)
     return jobs[0] if jobs else None
 
 
-def _public(service: ManagedService, job: Job | None) -> ServicePublic:
+def _public(
+    service: ManagedService, job: Job | None, container_state: ContainerReport
+) -> ServicePublic:
     return ServicePublic(
         id=service.id,
         template_key=service.template_key,
@@ -369,6 +596,7 @@ def _public(service: ManagedService, job: Job | None) -> ServicePublic:
         # A column is a string, and these are the only values written to
         # it: every write goes through this package.
         state=cast(ServiceState, service.state),
+        container_state=container_state,
         container_name=service.container_name,
         published_port=service.published_port,
         connector_id=service.connector_id,

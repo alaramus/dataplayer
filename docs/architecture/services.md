@@ -4,7 +4,7 @@ A service this server starts on the machine it runs on, and the connector such
 a service becomes. Read this before adding a template, changing what a service
 is started with, or letting anything about a container come from a request.
 
-Decisions here: D80, D82, D83.
+Decisions here: D80, D82, D83, D84.
 
 ## What exists today
 
@@ -29,12 +29,16 @@ backend/app/services/
 
 ```
 GET    /api/v1/services/templates
+GET    /api/v1/services/unclaimed
+DELETE /api/v1/services/unclaimed/{container_name}
 POST   /api/v1/services/
 GET    /api/v1/services/
 GET    /api/v1/services/{service_id}
 POST   /api/v1/services/{service_id}/start
 POST   /api/v1/services/{service_id}/stop
 POST   /api/v1/services/{service_id}/restart
+POST   /api/v1/services/{service_id}/retry
+GET    /api/v1/services/{service_id}/logs
 DELETE /api/v1/services/{service_id}
 ```
 
@@ -203,13 +207,9 @@ becoming a second kind of connection with rules of its own.
 
 Known deviations:
 
-- **Removing a service leaves its connection behind.** It stops working, and
-  nothing says so beyond the health check going red. Deleting a connector,
-  meanwhile, leaves the container running. Both are the deletion semantics the
-  next item of the phase owes, together with the rule that deleting a
-  connector must not silently delete a volume.
 - **A service cannot be stopped or started from the screen.** The routes are
-  there and the jobs work; only removal is drawn.
+  there and the jobs work; removal, retry, stopping a job and reading its
+  output are drawn, and the two lifecycle commands are not.
 - **Nothing bounds how many services a person may start**, how much of the
   machine they may take, or how long a create may hold a job.
 - **The readiness probe opens a connection per attempt** and keeps nothing, so
@@ -218,3 +218,74 @@ Known deviations:
   `psql` at it from their own machine.
 
 Spec: [Starting a PostgreSQL and receiving a connection](../superpowers/specs/2026-09-03-service-pilot-design.md)
+
+## D84. What goes wrong is a state somebody can act on
+
+A lifecycle is only as good as what it does when a step fails, a person
+presses twice, or somebody removes a container by hand. Each of those is
+answered here, and the answers share one rule: nothing is guessed on the
+person's behalf, and nothing is quietly undone.
+
+- **Asking twice is asking once, when the caller says so.** A request may
+  carry a `request_id`; a second request of this owner with that id answers
+  with the service the first one made. Chosen by the client for the reason a
+  run's id is (D64): only the caller knows that two requests are one
+  intention. Without one, two requests are two services — because they may
+  well be.
+- **Retry means starting over, not carrying on.** A password is settled once
+  per attempt and lives only in the connector that attempt would have saved,
+  so a container left by a failed one has a password nobody knows. Creation
+  therefore begins by taking away whatever an earlier attempt left, including
+  the volume: the data in it is a database initialised with that unknown
+  password. A first attempt finds nothing and skips the step.
+- **A service that already has a connection is not retried.** That one is
+  finished, and remaking it would destroy a database somebody is using; the
+  answer names removal instead.
+- **A job can be stopped, and what it had already done is left standing.**
+  There is no `cancelling` state: a task stops at its next await. Undoing its
+  work here would be this application guessing at what somebody wanted kept,
+  so a cancelled create leaves a service to retry or remove — which is why
+  removal is the way out of every state.
+- **Stopping something that has already ended is not an error.** The caller
+  asked for it to be over, and it is.
+- **What this application believes and what the runtime reports are both
+  shown.** A row says `running` while the container is `missing` when somebody
+  removed it by hand; a server that could not ask says `unknown` rather than
+  guessing. The whole point of the pair is that they can disagree, and one
+  question to the daemon answers for every row rather than one per service.
+- **A service's own output can be read**, bounded to the last few hundred
+  lines. The daemon multiplexes two streams into one body with a header per
+  chunk, and the header is stripped rather than shown. This application's own
+  log is not a user's to read, and neither are the runtime's words about the
+  machine.
+- **A container this installation made that no row claims is findable**, by
+  label rather than by name, and removable. It is an administrator's question
+  and an administrator's route: what runs on the machine is not one user's
+  business, and what turns up may be anybody's.
+- **Deleting a connection never touches a container or a volume.** It deletes
+  a row of this application, and the service it was made by keeps running with
+  its data — which the confirmation says in so many words. That is the rule
+  the roadmap asked for: a volume is not deleted by anything but an explicit
+  removal of the service that owns it.
+- **Removing a service leaves the connection behind.** It may be shared, it
+  may be named in somebody's query history, and it is not that command's to
+  destroy. It stops working, and its owner removes it when they choose.
+
+Known deviations:
+
+- **Cancellation reaches only the process that accepted the job.** Another
+  process's job is refused with 409 rather than stopped, which is the same
+  boundary D81 already records.
+- **Retry is the only repair.** A container that exists and works but whose
+  connector was never saved cannot be adopted — its password is gone — so it
+  is taken away and made again.
+- **Orphan discovery is a question, not a sweep.** Nothing runs on a timer;
+  an administrator asks and decides.
+- **A log tail is a request, not a stream.** There is no following along, and
+  a service that prints faster than it is read loses the middle.
+- **Nothing warns before a retry destroys the earlier attempt's data.** The
+  button says so, and there is no second confirmation.
+- **A removed service's connection is not marked broken.** It fails its next
+  health check like any other connection that stopped answering.
+
+Spec: [When starting one goes wrong](../superpowers/specs/2026-09-03-service-recovery-design.md)

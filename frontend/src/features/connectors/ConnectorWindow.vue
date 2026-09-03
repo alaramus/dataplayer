@@ -31,6 +31,7 @@ import {
   useConfirm,
   useToast,
 } from "@/shared/ui"
+import { useServices } from "@/features/services/api"
 import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
 /**
@@ -147,6 +148,21 @@ const dirty = computed(() => snapshot() !== baseline.value)
 const saved = ref<ConnectorPublic | null>(null)
 
 const isEdit = computed(() => saved.value !== null)
+
+/**
+ * The service this server started for this connection, if it started one.
+ *
+ * Read from the services rather than marked on the connector: both lists are
+ * already here, and a connection that came from a service is a connection like
+ * any other everywhere else (D83).
+ */
+const services = useServices()
+const ownService = computed(
+  () =>
+    (services.data.value ?? []).find(
+      (service) => service.connector_id === saved.value?.id
+    ) ?? null
+)
 
 /**
  * What this window may do to the connection it is on.
@@ -423,9 +439,17 @@ async function remove() {
   const connector = saved.value
   if (!connector) return
 
+  // A connection this server started a container for is only half the thing:
+  // deleting it never touches the container or its data, and saying so is the
+  // difference between a promise kept and a surprise (D84).
+  const started = ownService.value
   const answer = await confirm({
     title: "Delete connection",
-    message: `The connection "${connector.name}" will be deleted permanently.`,
+    message: started
+      ? `The connection "${connector.name}" will be deleted permanently. ` +
+        "The service this server started for it keeps running, with its data; " +
+        "remove the service itself to take that away."
+      : `The connection "${connector.name}" will be deleted permanently.`,
     confirmLabel: "Delete",
     danger: true,
   })

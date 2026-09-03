@@ -39,13 +39,20 @@ JobKind = Literal[
 #
 #   queued → running → succeeded
 #                    ↘ failed
+#                    ↘ cancelled     (somebody asked it to stop)
 #                    ↘ interrupted   (the process went away mid-flight)
 #
-# Cancellation is not here yet: stopping a pull halfway is a thing with its own
-# semantics, and it arrives with retry and idempotency later in this phase.
-JobState = Literal["queued", "running", "succeeded", "failed", "interrupted"]
+# There is no `cancelling`: a task stops at its next await, and what it had
+# already done to the world is a question for whoever looks at the thing it
+# was doing — which is why a cancelled create is retried or removed rather
+# than resumed (D84).
+JobState = Literal[
+    "queued", "running", "succeeded", "failed", "cancelled", "interrupted"
+]
 
-TERMINAL: frozenset[str] = frozenset({"succeeded", "failed", "interrupted"})
+TERMINAL: frozenset[str] = frozenset(
+    {"succeeded", "failed", "cancelled", "interrupted"}
+)
 
 
 class Job(SQLModel, table=True):
