@@ -335,11 +335,19 @@ read. The one comparison the client makes is `atLeast` in
 `features/connectors/access.ts`, and its scale is read off the generated client
 rather than written out again. See D33 in [backend.md](backend.md).
 
-Accounts are a page of their own at `/users`, opened from a header button that
-appears only for an administrator. It creates people, switches them off and
-removes them, and it decides nothing about data (D34). The form rules —
-a password required when there is no account and optional when there is — are
-plain functions in `features/admin/users.ts`.
+Administering the installation is a page of its own at `/admin/<section>`,
+opened from a header button that appears only for an administrator. It is a
+list of sections beside what one of them shows, and there is one section
+today: accounts. The shape says so honestly — what comes next arrives as an
+entry in `features/admin/sections.ts` and a line in the page's table, rather
+than as a rearrangement of a screen built around exactly one thing. The
+section is in the address, so a link into one is a link; an address naming
+none opens the first, and `/users` still redirects to where accounts moved.
+
+The accounts section creates people, switches them off and removes them, and
+it decides nothing about data (D34). The form rules — a password required when
+there is no account and optional when there is — are plain functions in
+`features/admin/users.ts`.
 
 The catalog opens on the grouping the source named, if it named one: a Redis
 connection is written with a database number in it, and only the source has

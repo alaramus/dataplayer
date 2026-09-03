@@ -99,8 +99,12 @@ test("the accounts screen is an administrator's", async ({ page }) => {
 
   // Not offered, because the routes behind it would refuse.
   await expect(page.getByTestId("open-users")).toHaveCount(0)
+  // The old address still works, and lands where accounts live now.
   await page.goto("/users")
-  await expect(page.getByText("Only an administrator manages accounts")).toBeVisible()
+  await page.waitForURL("/admin/users")
+  await expect(
+    page.getByText("Only an administrator manages this installation")
+  ).toBeVisible()
 
   await signOut(page)
   await login(page)
@@ -112,7 +116,8 @@ test("an administrator is not offered a way to delete their own account", async 
 }) => {
   await login(page)
   await page.getByTestId("open-users").click()
-  await page.waitForURL("/users")
+  await page.waitForURL("/admin")
+  await expect(page.getByTestId("admin-section-users")).toBeVisible()
 
   // The server refuses it; the button says so before it is pressed.
   await expect(page.getByTestId(`delete-user-${firstSuperuser}`)).toBeDisabled()

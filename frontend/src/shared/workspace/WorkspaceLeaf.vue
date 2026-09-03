@@ -6,7 +6,7 @@ import AppTooltip from "@/shared/ui/AppTooltip.vue"
 
 import { workspaceKey } from "./context"
 import type { WorkspaceContext } from "./context"
-import { dropShape, dropZoneFor } from "./dropZone"
+import { dropShape, dropZoneFor, insertionAt } from "./dropZone"
 import type { SectionRects } from "./dropZone"
 import type { DropZone, LeafNode } from "./model"
 
@@ -43,6 +43,16 @@ async function onReload(panelId: string) {
 const element = ref<HTMLElement | null>(null)
 const stripElement = ref<HTMLElement | null>(null)
 const zone = ref<DropZone | null>(null)
+/**
+ * Where in this strip the tab would land, while it is being held over it.
+ *
+ * Null while nothing is over the strip. An index otherwise, including one past
+ * the last tab, and the mark is drawn there: a tab dropped anywhere in the
+ * strip used to go to the end however carefully it was aimed, which made half
+ * the gesture pointless.
+ */
+const insertion = ref<number | null>(null)
+const tabElements = ref<HTMLElement[]>([])
 /** Measured while the pointer is over the section, and only used to draw. */
 const stripHeight = ref(0)
 
@@ -105,6 +115,7 @@ function rects(): SectionRects | null {
 function onPointerMove(event: PointerEvent) {
   if (workspace.dragging.value === null) {
     zone.value = null
+    insertion.value = null
     return
   }
   const measured = rects()
@@ -118,13 +129,23 @@ function onPointerMove(event: PointerEvent) {
     event.clientY,
     workspace.admissionOf(props.leaf.id)
   )
+  // Measured now rather than kept: the tabs move as one of them is taken out
+  // of the strip, and a remembered rectangle would mark where a tab used to be.
+  insertion.value =
+    zone.value === "center"
+      ? insertionAt(
+          tabElements.value.map((tab) => tab.getBoundingClientRect()),
+          event.clientX
+        )
+      : null
 }
 
 function onPointerUp() {
   // Unconditional: a press that never became a drag is forgotten here too,
   // or the next movement of the pointer would begin one with no button held.
-  workspace.endDrag(props.leaf.id, zone.value)
+  workspace.endDrag(props.leaf.id, zone.value, insertion.value ?? undefined)
   zone.value = null
+  insertion.value = null
 }
 
 /**
@@ -193,73 +214,91 @@ const overlayStyle = computed((): CSSProperties => {
         v-if="!leaf.collapsed"
         class="workspace-leaf__tabs"
       >
-        <button
-          v-for="panelId in shownTabs"
+        <template
+          v-for="(panelId, index) in shownTabs"
           :key="panelId"
-          type="button"
-          class="workspace-leaf__tab"
-          :class="{ 'workspace-leaf__tab--active': panelId === active }"
-          :data-testid="`workspace-tab-${panelId}`"
-          @pointerdown="onTabPointerDown($event, panelId)"
-          @click="workspace.activate(panelId)"
         >
+          <!-- Where the tab in the hand would land. Drawn before the tab it
+               would come before, and after the last one when it goes at the
+               end, so the strip says what the release will do. -->
           <span
-            v-if="workspace.lookOf(panelId).iconTooltip && workspace.onIconClick"
-            class="workspace-leaf__icon workspace-leaf__icon--action"
-            :data-testid="`workspace-tab-icon-${panelId}`"
-            role="button"
-            tabindex="0"
-            @click.stop="workspace.onIconClick?.(panelId)"
-            @keydown.enter.stop="workspace.onIconClick?.(panelId)"
-            @keydown.space.stop.prevent="workspace.onIconClick?.(panelId)"
-            @pointerdown.stop
+            v-if="insertion === index"
+            class="workspace-leaf__insertion"
+            data-testid="workspace-tab-insertion"
+          />
+          <button
+            ref="tabElements"
+            type="button"
+            class="workspace-leaf__tab"
+            :class="{ 'workspace-leaf__tab--active': panelId === active }"
+            :data-testid="`workspace-tab-${panelId}`"
+            @pointerdown="onTabPointerDown($event, panelId)"
+            @click="workspace.activate(panelId)"
           >
+            <span
+              v-if="workspace.lookOf(panelId).iconTooltip && workspace.onIconClick"
+              class="workspace-leaf__icon workspace-leaf__icon--action"
+              :data-testid="`workspace-tab-icon-${panelId}`"
+              role="button"
+              tabindex="0"
+              @click.stop="workspace.onIconClick?.(panelId)"
+              @keydown.enter.stop="workspace.onIconClick?.(panelId)"
+              @keydown.space.stop.prevent="workspace.onIconClick?.(panelId)"
+              @pointerdown.stop
+            >
+              <q-icon
+                :name="workspace.lookOf(panelId).icon"
+                size="16px"
+              />
+              <AppTooltip>{{ workspace.lookOf(panelId).iconTooltip }}</AppTooltip>
+            </span>
             <q-icon
+              v-else
               :name="workspace.lookOf(panelId).icon"
               size="16px"
             />
-            <AppTooltip>{{ workspace.lookOf(panelId).iconTooltip }}</AppTooltip>
-          </span>
-          <q-icon
-            v-else
-            :name="workspace.lookOf(panelId).icon"
-            size="16px"
-          />
-          <span class="workspace-leaf__title">{{ workspace.lookOf(panelId).title }}</span>
-          <span
-            v-if="workspace.lookOf(panelId).subtitle"
-            class="workspace-leaf__subtitle"
-          >{{ workspace.lookOf(panelId).subtitle }}</span>
-          <span
-            v-if="workspace.lookOf(panelId).reloadTooltip && workspace.onReload"
-            class="workspace-leaf__reload"
-            :class="{ 'workspace-leaf__reload--busy': reloading.has(panelId) }"
-            :data-testid="`workspace-reload-${panelId}`"
-            role="button"
-            tabindex="0"
-            @click.stop="onReload(panelId)"
-            @keydown.enter.stop="onReload(panelId)"
-            @keydown.space.stop.prevent="onReload(panelId)"
-            @pointerdown.stop
-          >
-            <q-icon
-              name="refresh"
-              size="14px"
-            />
-            <AppTooltip>{{ workspace.lookOf(panelId).reloadTooltip }}</AppTooltip>
-          </span>
-          <span
-            v-if="workspace.lookOf(panelId).closable !== false"
-            class="workspace-leaf__close"
-            :data-testid="`workspace-close-${panelId}`"
-            @click.stop="workspace.requestClose(panelId)"
-          >
-            <q-icon
-              name="close"
-              size="14px"
-            />
-          </span>
-        </button>
+            <span class="workspace-leaf__title">{{ workspace.lookOf(panelId).title }}</span>
+            <span
+              v-if="workspace.lookOf(panelId).subtitle"
+              class="workspace-leaf__subtitle"
+            >{{ workspace.lookOf(panelId).subtitle }}</span>
+            <span
+              v-if="workspace.lookOf(panelId).reloadTooltip && workspace.onReload"
+              class="workspace-leaf__reload"
+              :class="{ 'workspace-leaf__reload--busy': reloading.has(panelId) }"
+              :data-testid="`workspace-reload-${panelId}`"
+              role="button"
+              tabindex="0"
+              @click.stop="onReload(panelId)"
+              @keydown.enter.stop="onReload(panelId)"
+              @keydown.space.stop.prevent="onReload(panelId)"
+              @pointerdown.stop
+            >
+              <q-icon
+                name="refresh"
+                size="14px"
+              />
+              <AppTooltip>{{ workspace.lookOf(panelId).reloadTooltip }}</AppTooltip>
+            </span>
+            <span
+              v-if="workspace.lookOf(panelId).closable !== false"
+              class="workspace-leaf__close"
+              :data-testid="`workspace-close-${panelId}`"
+              @click.stop="workspace.requestClose(panelId)"
+            >
+              <q-icon
+                name="close"
+                size="14px"
+              />
+            </span>
+          </button>
+        </template>
+        <!-- And the last place of all, which no tab comes before. -->
+        <span
+          v-if="insertion === shownTabs.length && shownTabs.length > 0"
+          class="workspace-leaf__insertion"
+          data-testid="workspace-tab-insertion"
+        />
       </div>
 
       <button
@@ -373,6 +412,17 @@ const overlayStyle = computed((): CSSProperties => {
   min-width: 0;
   flex-wrap: wrap;
 }
+/* Where the tab would land: a line between two tabs, the same colour the drop
+   zone of a whole section is outlined with. */
+.workspace-leaf__insertion {
+  flex: none;
+  align-self: stretch;
+  width: 2px;
+  margin: 2px 0;
+  border-radius: 1px;
+  background: var(--dp-dropzone-border);
+}
+
 .workspace-leaf__tab {
   display: flex;
   align-items: center;

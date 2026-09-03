@@ -28,7 +28,7 @@ export async function signOut(page: Page) {
 
 export async function createColleague(page: Page, email: string) {
   await page.getByTestId("open-users").click()
-  await page.waitForURL("/users")
+  await page.waitForURL("/admin")
   await page.getByTestId("new-user").click()
   await page.getByTestId("user-email").fill(email)
   await page.getByTestId("user-password").fill(COLLEAGUE_PASSWORD)
@@ -40,7 +40,7 @@ export async function createColleague(page: Page, email: string) {
 
 export async function removeColleague(page: Page, email: string) {
   await page.getByTestId("open-users").click()
-  await page.waitForURL("/users")
+  await page.waitForURL("/admin")
   await page.getByTestId(`delete-user-${email}`).click()
   await page.getByTestId("confirm-accept").click()
   await expect(page.getByTestId(`edit-user-${email}`)).toHaveCount(0)

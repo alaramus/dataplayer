@@ -52,10 +52,18 @@ export const router = createRouter({
       // is server state, and a guard that waited for it would hold every
       // navigation. The page says so instead, and the routes behind it answer
       // 403 regardless — see D34.
-      path: "/users",
-      name: "users",
-      component: () => import("@/features/admin/UsersPage.vue"),
+      //
+      // The section is part of the address so that a link into one of them is
+      // a link; an address that names none opens the first.
+      path: "/admin/:section?",
+      name: "admin",
+      component: () => import("@/features/admin/AdminPage.vue"),
       meta: { requiresAuth: true },
+    },
+    {
+      // Where accounts used to live, kept so that a bookmark still works.
+      path: "/users",
+      redirect: { name: "admin", params: { section: "users" } },
     },
   ],
 })

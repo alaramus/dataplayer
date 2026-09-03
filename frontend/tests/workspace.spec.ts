@@ -91,6 +91,36 @@ test("drags a tab to an edge and gets a new section", async ({ page }) => {
   await expect(main.getByTestId("workspace-tab-beta")).toBeVisible()
 })
 
+test("drops a tab where it is aimed in a strip, not at the end of it", async ({
+  page,
+}) => {
+  await page.goto("/workspace-demo")
+  await page.getByTestId("reset-workspace").click()
+
+  // Beta and gamma share a section, in that order. Dragging gamma onto the
+  // left half of beta means "before beta", and that used to land at the end
+  // however carefully it was aimed. Only a browser can say: the place is read
+  // from measured tab rectangles under a captured pointer.
+  const main = page.getByTestId("workspace-leaf-main")
+  const order = () =>
+    main.locator('[data-testid^="workspace-tab-"]').evaluateAll((tabs) =>
+      tabs.map((tab) => (tab as HTMLElement).dataset.testid ?? "")
+    )
+  expect(await order()).toEqual(["workspace-tab-beta", "workspace-tab-gamma"])
+
+  const gamma = await page.getByTestId("workspace-tab-gamma").boundingBox()
+  const beta = await page.getByTestId("workspace-tab-beta").boundingBox()
+  if (gamma === null || beta === null) throw new Error("a tab has no box")
+
+  await page.mouse.move(gamma.x + gamma.width / 2, gamma.y + gamma.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(beta.x + beta.width * 0.2, beta.y + beta.height / 2, { steps: 12 })
+  await expect(page.getByTestId("workspace-tab-insertion")).toBeVisible()
+  await page.mouse.up()
+
+  expect(await order()).toEqual(["workspace-tab-gamma", "workspace-tab-beta"])
+})
+
 /** A layout a previous run left behind is not the subject of these tests. */
 async function freshLayout(page: Page) {
   await page.evaluate(() => {

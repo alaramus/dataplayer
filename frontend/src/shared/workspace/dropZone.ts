@@ -99,6 +99,25 @@ export function dropZoneFor(
   return admittedZone(dropZoneAt(rects, x, y), admission)
 }
 
+/**
+ * Which place in a strip of tabs the pointer is between.
+ *
+ * The index the dragged panel takes if it is released now: 0 before the first
+ * tab, `tabs.length` after the last. A tab is claimed by whichever half of it
+ * the pointer is in, which is what makes the mark move at the moment the
+ * pointer passes the middle of a tab rather than its edge.
+ *
+ * The rectangles are the tabs that are drawn, and the one in the hand is not
+ * among them — so the index is already an index into the strip as it will be
+ * once the panel has been taken out of wherever it was.
+ */
+export function insertionAt(tabs: readonly Rect[], x: number): number {
+  for (const [index, tab] of tabs.entries()) {
+    if (x < tab.left + tab.width / 2) return index
+  }
+  return tabs.length
+}
+
 /** What is lit up while a panel is held over a section. */
 export type DropShape = "none" | "strip" | "half" | "whole"
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { dropShape, dropZoneAt, dropZoneFor } from "./dropZone"
+import { dropShape, dropZoneAt, dropZoneFor, insertionAt } from "./dropZone"
 
 /** A wide section: a strip across the top, the body under it. */
 const wide = {
@@ -13,6 +13,37 @@ const tall = {
   strip: { left: 0, top: 0, width: 200, height: 30 },
   body: { left: 0, top: 30, width: 200, height: 400 },
 }
+
+describe("where in a strip a tab would land", () => {
+  const strip = (widths: number[]) => {
+    let left = 0
+    return widths.map((width) => {
+      const tab = { left, top: 0, width, height: 28 }
+      left += width
+      return tab
+    })
+  }
+
+  it("claims a tab by whichever half of it the pointer is in", () => {
+    // The mark moves as the pointer passes the middle of a tab rather than
+    // its edge, which is what makes it possible to aim between two of them.
+    const tabs = strip([100, 100, 100])
+
+    expect(insertionAt(tabs, 10)).toBe(0)
+    expect(insertionAt(tabs, 49)).toBe(0)
+    expect(insertionAt(tabs, 51)).toBe(1)
+    expect(insertionAt(tabs, 149)).toBe(1)
+    expect(insertionAt(tabs, 151)).toBe(2)
+  })
+
+  it("puts a tab past the last one at the end", () => {
+    expect(insertionAt(strip([100, 100]), 400)).toBe(2)
+  })
+
+  it("puts the first tab of an empty strip first", () => {
+    expect(insertionAt([], 0)).toBe(0)
+  })
+})
 
 describe("the zone a pointer is over", () => {
   it("is the centre anywhere in the strip of tabs", () => {

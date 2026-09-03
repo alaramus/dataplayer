@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
-import { useRouter } from "vue-router"
 
 import type { UserPublic } from "@/client"
 import { useCreateUser, useDeleteUser, useUpdateUser, useUsers } from "@/features/admin/api"
@@ -22,8 +21,6 @@ import {
   AppEmptyState,
   AppIconButton,
   AppInput,
-  AppLayout,
-  AppPageHeader,
   AppTable,
   useConfirm,
   useToast,
@@ -38,10 +35,11 @@ import type { TableColumns } from "@/shared/ui"
  * off and removes them. What any of them may reach is decided on the
  * connection itself, by whoever owns it — see D33 and D34.
  *
- * A page rather than a floating window: it is not work done beside a table,
- * and it is opened from the header rather than from anything on the workspace.
+ * One section of the administration page rather than a page of its own: it is
+ * the first thing an installation needs administering and not the last, and a
+ * screen built around exactly one of them would have to be taken apart to gain
+ * a second.
  */
-const router = useRouter()
 const toast = useToast()
 const confirm = useConfirm()
 
@@ -125,23 +123,15 @@ async function remove(user: UserPublic) {
 </script>
 
 <template>
-  <AppLayout>
-    <AppPageHeader title="Users">
-      <template #actions>
-        <AppButton
-          variant="quiet"
-          label="Back to workspace"
-          data-testid="back-to-workspace"
-          @click="router.push({ name: 'workspace' })"
-        />
-        <AppButton
-          v-if="isAdmin"
-          label="New user"
-          data-testid="new-user"
-          @click="openNew"
-        />
-      </template>
-    </AppPageHeader>
+  <div class="users-section">
+    <div class="users-section__head">
+      <AppButton
+        v-if="isAdmin"
+        label="New user"
+        data-testid="new-user"
+        @click="openNew"
+      />
+    </div>
 
     <!-- The server answers 403 to everybody else; this says so before the
          screen shows an empty table and leaves the reason to be guessed. -->
@@ -253,10 +243,23 @@ async function remove(user: UserPublic) {
         />
       </template>
     </WindowDialog>
-  </AppLayout>
+  </div>
 </template>
 
 <style scoped>
+.users-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* The one action this section has, kept off the table it acts on. */
+.users-section__head {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .user-form {
   display: flex;
   flex-direction: column;

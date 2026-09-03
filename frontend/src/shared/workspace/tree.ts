@@ -179,12 +179,26 @@ function withLeaf(
   return replaced === null ? root : settle(replaced, root)
 }
 
-export function addPanel(root: LayoutNode, leafId: NodeId, panelId: PanelId): LayoutNode {
-  return withLeaf(root, leafId, (leaf) =>
-    leaf.panels.includes(panelId)
-      ? { ...leaf, activePanel: panelId }
-      : { ...leaf, panels: [...leaf.panels, panelId], activePanel: panelId }
-  )
+/**
+ * Put a panel into a section, at a place in its strip or at the end of it.
+ *
+ * `at` is where a dragged tab was released — the whole point of dragging one
+ * within its own strip, which used to land at the end however carefully it was
+ * aimed. Absent for a panel that is merely opened: nobody aimed at anything,
+ * and the end is where a new tab belongs.
+ */
+export function addPanel(
+  root: LayoutNode,
+  leafId: NodeId,
+  panelId: PanelId,
+  at?: number
+): LayoutNode {
+  return withLeaf(root, leafId, (leaf) => {
+    if (leaf.panels.includes(panelId)) return { ...leaf, activePanel: panelId }
+    const panels = [...leaf.panels]
+    panels.splice(at ?? panels.length, 0, panelId)
+    return { ...leaf, panels, activePanel: panelId }
+  })
 }
 
 export function removePanel(root: LayoutNode, panelId: PanelId): LayoutNode | null {
@@ -281,9 +295,10 @@ export function splitLeaf(
   leafId: NodeId,
   panelId: PanelId,
   zone: DropZone,
-  newLeafId: NodeId
+  newLeafId: NodeId,
+  at?: number
 ): LayoutNode {
-  if (zone === "center") return addPanel(root, leafId, panelId)
+  if (zone === "center") return addPanel(root, leafId, panelId, at)
 
   return withLeaf(root, leafId, (leaf) => {
     // The role is inherited and the pin is not. A section with no role takes
@@ -308,10 +323,13 @@ export function movePanel(
   panelId: PanelId,
   targetLeafId: NodeId,
   zone: DropZone,
-  newLeafId: NodeId
+  newLeafId: NodeId,
+  at?: number
 ): LayoutNode {
   const without = removePanel(root, panelId)
   if (without === null) return root
   if (pathOfNode(without, targetLeafId) === null) return root
-  return splitLeaf(without, targetLeafId, panelId, zone, newLeafId)
+  // The place is an index into the strip the panel has already left, which is
+  // what the pointer was over: the tab in the hand is not drawn among them.
+  return splitLeaf(without, targetLeafId, panelId, zone, newLeafId, at)
 }

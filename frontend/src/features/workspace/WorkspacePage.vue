@@ -690,9 +690,9 @@ provide(workspaceActionsKey, {
         v-if="me.data.value?.is_superuser"
         variant="quiet"
         size="sm"
-        label="Users"
+        label="Admin"
         data-testid="open-users"
-        @click="router.push({ name: 'users' })"
+        @click="router.push({ name: 'admin' })"
       />
     </template>
 

@@ -264,7 +264,7 @@ export function useWorkspace<P extends { id: string }>(
       dragging.value = pressed.panelId
       pressed = null
     },
-    endDrag: (targetLeafId, zone) => {
+    endDrag: (targetLeafId, zone, at) => {
       const panelId = dragging.value
       dragging.value = null
       // A press that never became a drag ends here too, or the next movement
@@ -275,7 +275,14 @@ export function useWorkspace<P extends { id: string }>(
       // answer: what is shown and what happens cannot be allowed to differ.
       const allowed = admittedZone(zone, admissionFor(targetLeafId, panelId))
       if (allowed === null) return
-      tree.value = movePanel(tree.value, panelId, targetLeafId, allowed, nextId("leaf"))
+      tree.value = movePanel(
+        tree.value,
+        panelId,
+        targetLeafId,
+        allowed,
+        nextId("leaf"),
+        allowed === "center" ? at : undefined
+      )
     },
   }
 

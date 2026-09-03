@@ -135,7 +135,11 @@ export interface WorkspaceContext {
    * pointer leaves that section in the first moment of the gesture. See G1.
    */
   pointerMoved: (x: number, y: number) => void
-  endDrag: (targetLeafId: NodeId | null, zone: DropZone | null) => void
+  /**
+   * Let go. `at` is the place in the target strip a tab was aimed at, and is
+   * meaningful only for the zone that means "beside the others".
+   */
+  endDrag: (targetLeafId: NodeId | null, zone: DropZone | null, at?: number) => void
 }
 
 export const workspaceKey: InjectionKey<WorkspaceContext> = Symbol("workspace")
