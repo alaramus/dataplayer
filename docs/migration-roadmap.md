@@ -220,9 +220,10 @@ shape to return to are in
 [the sharing spec](superpowers/specs/2026-09-01-shared-view-links-design.md).
 
 Deferred inside PostgreSQL, with the reason in the spec that deferred it:
-backup and restore (needs Phase 4's owned jobs), monitoring statistics
-(Phase 7), Grafana (Phase 6), database roles, ORM code generation, diagram and
-similarity features, and every TimescaleDB operation. An action over ticked
+monitoring statistics (Phase 7), Grafana (Phase 6), diagram and similarity
+features, and every TimescaleDB operation. Backup and restore, database roles
+and ORM code generation were on this list and have since landed — as an owned
+job, as an action asked of the owner, and as a download that carries a form. An action over ticked
 rows — cancelling a query is the first one to want it — is a contract gap the
 project does not have and will not invent for a single command.
 
