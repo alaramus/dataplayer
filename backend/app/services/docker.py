@@ -19,6 +19,7 @@ from typing import Any
 
 import httpx
 
+from app.core.config import settings
 from app.services.engine import (
     Availability,
     ContainerState,
@@ -202,7 +203,16 @@ class DockerEngine:
         Both accept "it was not there" as success: removal is the one command
         whose goal is a state rather than an event, and a person retrying a
         half-finished removal must not be told off for the half that worked.
+
+        What is removed is checked to be ours first. Names are predictable —
+        template plus a service id — so a container of that name that this
+        application did not make is a container it must not take away (D86).
         """
+        found = await self.status(container)
+        if found.state != "missing" and found.service_id is None:
+            raise EngineError(
+                "That container was not made by this application"
+            )
         await self._request(
             "DELETE",
             f"/containers/{container}",
@@ -331,6 +341,13 @@ def _creation_body(spec: ContainerSpec) -> dict[str, Any]:
             }
         ],
         "RestartPolicy": {"Name": RESTART_POLICY},
+        # What it may take of the machine. Written here rather than in a
+        # template because it is a rule about every service this server keeps,
+        # and because a template that could choose its own limits could choose
+        # none (D86).
+        "Memory": settings.SERVICE_MEMORY_MB * 1024 * 1024,
+        "NanoCpus": int(settings.SERVICE_CPUS * 1_000_000_000),
+        "PidsLimit": settings.SERVICE_PIDS_LIMIT,
     }
     if spec.published_port is not None:
         # Bound to the loopback address rather than to every interface: a

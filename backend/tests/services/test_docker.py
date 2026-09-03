@@ -13,6 +13,7 @@ from uuid import uuid4
 import httpx
 import pytest
 
+from app.core.config import settings
 from app.services.docker import RESTART_POLICY, DockerEngine
 from app.services.engine import EngineError, EngineUnavailable
 from app.services.plan import Placement, build_plan
@@ -189,16 +190,36 @@ async def test_starting_something_already_started_is_what_was_asked_for() -> Non
     assert len(seen) == 1
 
 
+def _ours(state: str = "running") -> Any:
+    """A daemon holding one container this application made."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path.endswith("/json"):
+            return httpx.Response(
+                200,
+                json={
+                    "State": {"Running": state == "running"},
+                    "Config": {"Labels": {"dataplayer.service": "abc"}},
+                },
+            )
+        return httpx.Response(204)
+
+    return seen, handler
+
+
 async def test_removal_takes_the_container_and_then_its_volume() -> None:
-    seen, handler = _recorder(204)
+    seen, handler = _ours()
 
     await _engine(handler).remove("container", volume="volume")
 
     assert [(r.method, r.url.path) for r in seen] == [
+        ("GET", "/containers/container/json"),
         ("DELETE", "/containers/container"),
         ("DELETE", "/volumes/volume"),
     ]
-    assert seen[0].url.params["force"] == "true"
+    assert seen[1].url.params["force"] == "true"
 
 
 async def test_removing_what_is_already_gone_is_success() -> None:
@@ -210,11 +231,50 @@ async def test_removing_what_is_already_gone_is_success() -> None:
 
 
 async def test_the_volume_is_kept_when_removal_is_not_asked_to_take_it() -> None:
-    seen, handler = _recorder(204)
+    seen, handler = _ours()
 
     await _engine(handler).remove("container", volume=None)
 
-    assert [request.url.path for request in seen] == ["/containers/container"]
+    assert [request.url.path for request in seen] == [
+        "/containers/container/json",
+        "/containers/container",
+    ]
+
+
+async def test_a_container_this_application_did_not_make_is_not_removed() -> None:
+    """Names are predictable — template plus a service id — so one of that
+    name that carries no label of ours is somebody else's (D86)."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path.endswith("/json"):
+            return httpx.Response(
+                200, json={"State": {"Running": True}, "Config": {"Labels": {}}}
+            )
+        return httpx.Response(204)
+
+    with pytest.raises(EngineError, match="not made by this application"):
+        await _engine(handler).remove("dataplayer-svc-postgres-abc", volume="v")
+
+    assert [request.method for request in seen] == ["GET"]
+
+
+async def test_a_container_is_created_with_what_it_may_take_of_the_machine() -> None:
+    """A container with no limits can take all of it, and a person starting a
+    database is not asking for that (D86)."""
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(201, json={"Id": "abc"})
+
+    await _engine(handler).create(_spec())
+
+    host_config = json.loads(seen[1].content)["HostConfig"]
+    assert host_config["Memory"] == settings.SERVICE_MEMORY_MB * 1024 * 1024
+    assert host_config["NanoCpus"] == int(settings.SERVICE_CPUS * 1_000_000_000)
+    assert host_config["PidsLimit"] == settings.SERVICE_PIDS_LIMIT
 
 
 async def test_a_refusal_says_what_happened_and_not_where() -> None:

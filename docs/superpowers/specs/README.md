@@ -87,6 +87,7 @@ translations; those files are not.
 | 2026-09-03 | [Starting a PostgreSQL and receiving a connection](2026-09-03-service-pilot-design.md) | D83: a ready service is an ordinary connector, filled from the plan its container was started with |
 | 2026-09-03 | [When starting one goes wrong](2026-09-03-service-recovery-design.md) | D84: retry starts over because the password is gone, and neither deletion reaches into the other |
 | 2026-09-03 | [A second service, and the first source that only connects](2026-09-03-redis-pilot-design.md) | D85: a command may carry a credential, and a type that only connects says so |
+| 2026-09-03 | [What running services on the machine costs](2026-09-03-service-threat-model-design.md) | D86: the socket is the machine's power, so the call list is fixed, the limits are set and it stays off by default |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

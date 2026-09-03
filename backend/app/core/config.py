@@ -83,6 +83,16 @@ class Settings(BaseSettings):
     # resolvable only on a network they share. Without one a service could be
     # started and not used, so the offer says so instead.
     SERVICE_NETWORK: str = ""
+    # What one service may take of the machine. A container with no limits can
+    # take all of it, and a person starting a database is not asking for that
+    # (D86). Memory in mebibytes, processors as a fraction, and a ceiling on
+    # processes because a fork bomb needs neither of the other two.
+    SERVICE_MEMORY_MB: int = 1024
+    SERVICE_CPUS: float = 1.0
+    SERVICE_PIDS_LIMIT: int = 512
+    # How many one person may have at once. Not a quota system: a number that
+    # turns "somebody left a loop running" from an outage into a refusal.
+    SERVICE_MAX_PER_USER: int = 5
 
     # How long a socket may stay open without saying who it is. A socket that
     # says nothing still holds a connection.

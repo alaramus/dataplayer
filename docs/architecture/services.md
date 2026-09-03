@@ -4,7 +4,7 @@ A service this server starts on the machine it runs on, and the connector such
 a service becomes. Read this before adding a template, changing what a service
 is started with, or letting anything about a container come from a request.
 
-Decisions here: D80, D82, D83, D84, D85.
+Decisions here: D80, D82, D83, D84, D85, D86.
 
 ## What exists today
 
@@ -163,8 +163,6 @@ Known deviations:
   change a field it reads.
 - **Only Docker is tested.** Podman's socket serves the same API and would
   probably work; nothing here has tried it.
-- **Nothing bounds how many services one person may start**, or how much of
-  the machine they may take. Both belong with the threat model.
 
 Spec: [Detecting a container runtime](../superpowers/specs/2026-09-02-runtime-detection-design.md)
 
@@ -210,8 +208,9 @@ Known deviations:
 - **A service cannot be stopped or started from the screen.** The routes are
   there and the jobs work; removal, retry, stopping a job and reading its
   output are drawn, and the two lifecycle commands are not.
-- **Nothing bounds how many services a person may start**, how much of the
-  machine they may take, or how long a create may hold a job.
+- **Nothing bounds how long a create may hold a job.** How many services a
+  person may hold and what each may take of the machine are answered by
+  [D86](#d86-running-containers-is-the-machines-power-bounded-by-what-this-application-will-ask-for).
 - **The readiness probe opens a connection per attempt** and keeps nothing, so
   a database that takes two minutes is asked a hundred and twenty times.
 - **A service is reachable from this server only.** A person cannot point
@@ -334,3 +333,53 @@ Known deviations:
   adapter families deliberately.
 
 Spec: [A second service, and the first source that only connects](../superpowers/specs/2026-09-03-redis-pilot-design.md)
+
+## D86. Running containers is the machine's power, bounded by what this application will ask for
+
+A process that can reach the Docker socket owns the host: it can start a
+container with the host's filesystem mounted, or a privileged one, and read or
+change anything. No configuration of this application makes that untrue,
+because the power belongs to the socket. So the question is not how to make it
+safe — it is what this application will and will not ask for, and who may ask.
+
+- **The set of calls is fixed and small.** Version, image pull, volume create,
+  container create, start, stop, restart, inspect, list, logs, remove. Nothing
+  here needs `exec`, `commit`, `build`, `Privileged` or `Binds`, which is what
+  lets a deployment put a filtering proxy in front of the socket and know
+  exactly what to allow. The list is in the spec, and it is the useful half of
+  the threat model.
+- **It stays off by default.** `SERVICES_ENABLED` is false and the socket is
+  mounted only in the development override. Enabling it anywhere else is a
+  deliberate decision to give one process that power, and this decision does
+  not make it for anybody.
+- **A container is removed only if this application made it.** Names are
+  predictable, so a name is not proof; removal inspects first and refuses
+  anything without this application's own label. Creation was already safe by
+  the daemon's rule that a name in use is a conflict.
+- **Every container is created with limits**: memory, processors and a process
+  ceiling, from settings, with modest defaults. Beside the restart policy
+  rather than in a template, because a template that could choose its own
+  limits could choose none.
+- **Nothing is published to the network.** A service joins the configured
+  network and is reached by container name; where a port is published at all
+  it is bound to `127.0.0.1`. A server with no network configured offers
+  nothing rather than starting something unreachable.
+- **One person may hold only so many services.** A ceiling from settings,
+  counting everything including failed ones, refused with the number and what
+  to do about it. Not a quota system: a number that turns a loop somebody left
+  running into a refusal rather than an outage.
+
+Known deviations:
+
+- **A shared installation is not made safe by this.** The ceiling bounds one
+  person; nothing bounds everybody together, and nothing prices a service.
+- **No image is verified.** Tags are pinned, digests are not, and no signature
+  is checked.
+- **Services of different people share a network**, so one person's container
+  can reach another's. Per-user networks are the obvious next step.
+- **The socket is not proxied for you.** The endpoint list says what a proxy
+  must allow; setting one up is a deployment's work.
+- **Nothing is audited.** Who started what, and when, is not recorded beyond
+  the job rows.
+
+Spec: [What running services on the machine costs](../superpowers/specs/2026-09-03-service-threat-model-design.md)

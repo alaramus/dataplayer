@@ -439,3 +439,44 @@ async def test_removing_a_connection_leaves_the_service_running(
     assert after.json()["container_state"] == "running"
     # The row lost the connection it made, and says so rather than pretending.
     assert after.json()["connector_id"] is None
+
+
+# --- what one person may hold ---------------------------------------------
+
+
+@pytest.mark.usefixtures("engine")
+async def test_one_person_may_hold_only_so_many_services(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Not a quota system: a number that turns "somebody left a loop running"
+    into a refusal they can read rather than an outage everybody meets."""
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(settings, "SERVICE_MAX_PER_USER", 2)
+        first = await _ask(client, normal_user_token_headers)
+        second = await _ask(client, normal_user_token_headers)
+        third = await client.post(
+            f"{BASE}/",
+            headers=normal_user_token_headers,
+            json={"template_key": "postgres"},
+        )
+        await _wait(first["job"]["id"])
+        await _wait(second["job"]["id"])
+
+    assert third.status_code == 409
+    assert "remove one before starting another" in third.json()["detail"]["message"]
+
+
+@pytest.mark.usefixtures("engine")
+async def test_what_somebody_else_holds_is_not_counted_against_you(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    superuser_token_headers: dict[str, str],
+) -> None:
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(settings, "SERVICE_MAX_PER_USER", 1)
+        mine = await _ask(client, normal_user_token_headers)
+        theirs = await _ask(client, superuser_token_headers)
+        await _wait(mine["job"]["id"])
+        await _wait(theirs["job"]["id"])
+
+    assert mine["service"]["id"] != theirs["service"]["id"]

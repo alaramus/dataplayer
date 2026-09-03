@@ -162,6 +162,7 @@ async def request_service(
             # network retried. One service, and the job that is making it.
             return await _already(session, already)
     _refuse_without_a_runtime(await _offer(engine))
+    await _refuse_if_at_the_ceiling(session, current_user.id)
     service = await crud.create(
         session,
         owner_id=current_user.id,
@@ -500,6 +501,28 @@ def _refuse_without_a_runtime(runtime: Availability) -> None:
         raise HTTPException(
             status_code=503,
             detail={"message": runtime.reason or "This server cannot run services"},
+        )
+
+
+async def _refuse_if_at_the_ceiling(
+    session: AsyncSession, owner_id: uuid.UUID
+) -> None:
+    """One person may hold only so much of the machine at once (D86).
+
+    Not a quota system: a number that turns "somebody left a loop running"
+    into a refusal they can read instead of an outage everybody meets. What
+    they already have is theirs to remove.
+    """
+    held = await crud.count_for_owner(session, owner_id)
+    if held >= settings.SERVICE_MAX_PER_USER:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": (
+                    f"You already have {held} services on this server; "
+                    "remove one before starting another"
+                )
+            },
         )
 
 

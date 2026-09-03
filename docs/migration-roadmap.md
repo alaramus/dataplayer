@@ -97,9 +97,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] Threat-model socket access, project/container naming, resource limits,
-  network exposure and concurrent users before enabling this outside local
-  development.
 - [ ] **Backup and restore**, once the job model above holds. `pg_dump` and
   `pg_restore` are programs, not statements: the container has neither today,
   the versions must match the server, and a restore is destructive in a way

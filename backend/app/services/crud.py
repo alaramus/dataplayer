@@ -103,3 +103,13 @@ async def all_container_names(session: AsyncSession) -> set[str]:
     """
     statement = select(ManagedService.container_name)
     return set((await session.exec(statement)).all())
+
+
+async def count_for_owner(session: AsyncSession, owner_id: uuid.UUID) -> int:
+    """How many services this person has, whatever state they are in.
+
+    Everything counts, including one that failed: a failed service still holds
+    a name, and may still hold a container somebody has not looked at yet.
+    """
+    statement = select(ManagedService.id).where(ManagedService.owner_id == owner_id)
+    return len(list((await session.exec(statement)).all()))
