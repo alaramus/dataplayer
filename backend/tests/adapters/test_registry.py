@@ -165,6 +165,7 @@ def test_all_types_sorted_by_title() -> None:
 def test_category_title_comes_from_the_server() -> None:
     """A second table of names on the client is a table that drifts."""
     assert registry.category_title("sql") == "SQL Databases"
+    assert registry.category_title("keyvalue") == "Key-Value Stores"
     assert registry.category_title("files") == "Files & Storage"
 
 

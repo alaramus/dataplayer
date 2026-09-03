@@ -248,7 +248,7 @@ export type AdapterTypeInfo = {
   /**
    * Category
    */
-  category: "sql" | "files"
+  category: "sql" | "keyvalue" | "files"
   /**
    * Category Title
    */

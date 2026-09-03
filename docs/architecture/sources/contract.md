@@ -47,7 +47,7 @@ Known deviations:
 - **The catalog search knows no morphology.** Substring matching over name,
   category, description and capability titles, so "migrations" does not find
   "migration" and a Russian word finds nothing.
-- **Two categories make for a thin sidebar.** One type each, built for the
+- **Three categories make for a thin sidebar.** One type each, built for the
   registry D1 anticipates.
 
 Spec: [The catalog of source types, and creating a connection](../../superpowers/specs/2026-08-23-adapter-catalog-design.md)

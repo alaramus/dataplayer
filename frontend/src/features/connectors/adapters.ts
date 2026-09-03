@@ -13,6 +13,7 @@
  */
 const ICONS: Record<string, string> = {
   postgres: "img:/icons/services/postgresql.svg",
+  redis: "img:/icons/services/redis.svg",
   file: "img:/icons/services/folder.svg",
 }
 
@@ -32,6 +33,7 @@ export function adapterIcon(adapterType: string): string {
  */
 const CATEGORY_ICONS: Record<string, string> = {
   sql: "table_chart",
+  keyvalue: "key",
   files: "folder",
 }
 

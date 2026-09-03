@@ -94,7 +94,10 @@ def _refused(kind: ErrorKind, message: str) -> ConnectionCheckResult:
 @register(
     name="redis",
     title="Redis",
-    category="sql",
+    # Not a SQL database and not a file store: no statements, no relations and
+    # no schema — a key space with an expiry clock. It sat under "SQL
+    # Databases" for one commit because that was the only group there was.
+    category="keyvalue",
     description=(
         "An in-memory key-value server. This application can reach one and "
         "start one of its own; reading what is in it comes later."

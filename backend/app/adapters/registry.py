@@ -54,12 +54,13 @@ Factory = Callable[[Any, AdapterContext], DataAdapter]
 # What kind of thing a source is, for the one screen that groups them. A
 # closed set rather than a free string: a category is a set of values, so a
 # typo has to fail to compile instead of quietly creating a group of one.
-Category = Literal["sql", "files"]
+Category = Literal["sql", "keyvalue", "files"]
 
 # The wording lives beside the set it names, on the server, so the client is
 # never a second place where a category is called something.
 _CATEGORY_TITLES: dict[Category, str] = {
     "sql": "SQL Databases",
+    "keyvalue": "Key-Value Stores",
     "files": "Files & Storage",
 }
 

@@ -21,6 +21,9 @@ def test_the_type_is_registered_with_the_options_it_takes() -> None:
 
     assert kind.title == "Redis"
     assert kind.adapter_class is RedisAdapter
+    # Grouped by what it is rather than by what there was a group for: it has
+    # no statements, no relations and no schema.
+    assert kind.category == "keyvalue"
 
 
 def test_it_can_be_reached_and_nothing_else() -> None:
