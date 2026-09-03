@@ -12,10 +12,11 @@ single boolean about it, which a reload lost and a second worker never saw.
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
 from sqlalchemy import Column, DateTime, Index
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
 from app.core.schemas import get_datetime_utc
@@ -33,6 +34,8 @@ JobKind = Literal[
     "service.stop",
     "service.restart",
     "service.delete",
+    "backup.create",
+    "backup.restore",
 ]
 
 # The lifecycle, and no state outside it.
@@ -73,6 +76,13 @@ class Job(SQLModel, table=True):
     # something that happened, and the thing it happened to may be gone — a
     # delete job outlives the service it removed.
     subject_id: uuid.UUID | None = Field(default=None, index=True)
+    # What the job was asked for, when a kind of work needs more than a
+    # subject to know what to do — which backup to write back, say. Never a
+    # secret: a job row is not encrypted, and the things a job needs to keep
+    # secret it reads from the connector it is about.
+    parameters: dict[str, Any] | None = Field(
+        default=None, sa_column=Column(JSONB, nullable=True)
+    )
     state: str = Field(default="queued", max_length=16, index=True)
     # Where it is now, in the words the handler declared. A name rather than a
     # percentage: nothing here knows how long a pull takes, and inventing a
@@ -105,6 +115,7 @@ class JobPublic(BaseModel):
     id: uuid.UUID
     kind: JobKind
     subject_id: uuid.UUID | None
+    parameters: dict[str, Any] | None
     state: JobState
     step: str | None
     step_index: int

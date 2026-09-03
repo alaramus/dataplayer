@@ -37,6 +37,11 @@ PASSWORD_LENGTH = 32
 SERVICE_LABEL = "dataplayer.service"
 TEMPLATE_LABEL = "dataplayer.template"
 OWNER_LABEL = "dataplayer.owner"
+# What a container that is a program rather than a service is marked
+# with. It lives and dies inside one job, so it never appears in a sweep
+# for orphans — but a person reading `docker ps` mid-backup should still
+# be able to tell what it is.
+TOOL_LABEL = "dataplayer.tool"
 
 # Both names begin with this, so everything one installation made can be seen
 # at a glance in `docker ps` — the labels are what code matches on.

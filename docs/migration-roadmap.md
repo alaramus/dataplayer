@@ -47,6 +47,7 @@ Legend:
 | 2 — share a view | 2026-09-01 | D58, D59, D60, D61 |
 | 3 — query editor | 2026-09-02 | D62, D63, D64, D65, D66 |
 | 3.5 — the rest of the old application's daily operations | 2026-09-02 | D67 through D79 |
+| 4 — server-owned jobs: Docker services, backup and restore | 2026-09-03 | D80 through D87 |
 
 Each of those has a spec in [the index](superpowers/specs/README.md), dated the
 day it closed, and a home in `docs/architecture/`. With 1.5 validated, phase 1
@@ -65,50 +66,23 @@ operations of the old application that were still missing, each small enough
 to land on its own — and it ends with the one that was written down and
 deliberately left out when the PostgreSQL inventory was made: making a
 database user.
+Phase 4 closed on 2026-09-03. What it actually built is the owned
+asynchronous job — a row with named steps that outlives the request, the
+socket and the process — and two users of it. A person asks for one of the
+services this server is allowed to run, watches it become ready and receives
+an ordinary encrypted connector; and a database is copied out into a file of
+their own storage, or written back from one, by the real programs running in
+a container of the server's own version. Whether any of it is offered at all
+is a question about the machine, asked of it, and answered off by default.
 
 ## Priority order at a glance
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 4 | Server-owned jobs: Docker services, backup and restore | Very large | The job model half a dozen specs have deferred to, and a safe service lifecycle before service-backed adapters multiply |
 | 5 | Optional Redis infrastructure | Medium | Needed only when multiple backend processes must share cache or coordination state |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation, saved layouts and a history to draw over require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
-
-## Phase 4 — server-owned jobs: Docker services, backup and restore
-
-What this phase actually builds is the owned asynchronous job — durable state,
-realtime progress, cancellation — which half a dozen earlier specs have already
-deferred work to. Managed Docker services are its first user and the harder
-one, because a job that produces connector credentials has to be safe as well
-as long; backup and restore is the second, and adds nothing to the model.
-
-The service half is not "run a compose string from the form". It is a
-server-owned service lifecycle whose successful output may become connector
-credentials.
-
-Old sources to inspect:
-
-- `dbwebtool/webdb/webapi/view_services/connector_actions.py`;
-- `dbwebtool/webdb/sysutils/utils/compose_file_creater.py`;
-- `dbwebtool/docker_templates/`;
-- `myquasar/src/myapp/components/EditConnectorAI/`.
-
-Sequence:
-
-- [ ] **Backup and restore**, once the job model above holds. `pg_dump` and
-  `pg_restore` are programs, not statements: the container has neither today,
-  the versions must match the server, and a restore is destructive in a way
-  nothing else in this application is. It is a job rather than an action that
-  waits, and it is here rather than in a PostgreSQL round because building a
-  second job model inside an adapter is how the old application ended up with
-  several.
-
-Exit condition: a user can request an approved service from the connector
-window, watch it become ready and receive a normal encrypted connector without
-the browser constructing Docker commands; and a backup runs, reports and can be
-cancelled without anything waiting on an HTTP request.
 
 ## Phase 5 — optional Redis infrastructure
 

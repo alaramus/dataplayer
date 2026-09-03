@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Mapping
+from dataclasses import dataclass
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel
@@ -119,6 +120,40 @@ class DataAdapter(Protocol):
     """
 
     async def check_connection(self) -> ConnectionCheckResult: ...
+
+
+@dataclass(frozen=True)
+class BackupProgram:
+    """How to back this source up, or put a backup back into it.
+
+    The image and the arguments, and nothing about where either runs: a source
+    knows that PostgreSQL is dumped by `pg_dump` of its own major version, and
+    knows nothing about containers. What runs it is the job (D87).
+
+    The password is in the environment rather than in the arguments, because
+    arguments are visible to everything on the machine that can list
+    processes, and because that is the way the program itself documents.
+    """
+
+    image: str
+    argv: tuple[str, ...]
+    environment: Mapping[str, str]
+
+
+@runtime_checkable
+class SupportsBackup(Protocol):
+    """A source that can be copied out whole and put back.
+
+    Two methods rather than one, because the two are not symmetric: a dump is
+    a read and a restore destroys what is there first. Both answer with a
+    program to run, so a source that cannot say what program would do it does
+    not implement this and the routes answer 501 — the rule every other
+    capability follows.
+    """
+
+    async def backup_program(self, *, into: str) -> BackupProgram: ...
+
+    async def restore_program(self, *, from_file: str) -> BackupProgram: ...
 
 
 @runtime_checkable

@@ -404,6 +404,58 @@ export type AudioContents = {
 }
 
 /**
+ * BackupFile
+ *
+ * One backup in the caller's own storage.
+ */
+export type BackupFile = {
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Size Bytes
+   */
+  size_bytes: number
+  /**
+   * Modified At
+   */
+  modified_at: number
+}
+
+/**
+ * BackupOffer
+ *
+ * Whether this server can copy a database out at all, and why not.
+ */
+export type BackupOffer = {
+  /**
+   * Available
+   */
+  available: boolean
+  /**
+   * Reason
+   */
+  reason?: string | null
+  /**
+   * Folder
+   */
+  folder?: string
+}
+
+/**
+ * BackupRequest
+ *
+ * Which connection to copy out. Nothing else is a client's to say.
+ */
+export type BackupRequest = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+}
+
+/**
  * Body_connectors-run_action_with_file
  */
 export type Body_connectors_run_action_with_file = {
@@ -2559,11 +2611,24 @@ export type JobPublic = {
   /**
    * Kind
    */
-  kind: "service.create" | "service.start" | "service.stop" | "service.restart" | "service.delete"
+  kind:
+    | "service.create"
+    | "service.start"
+    | "service.stop"
+    | "service.restart"
+    | "service.delete"
+    | "backup.create"
+    | "backup.restore"
   /**
    * Subject Id
    */
   subject_id: string | null
+  /**
+   * Parameters
+   */
+  parameters: {
+    [key: string]: unknown
+  } | null
   /**
    * State
    */
@@ -4276,6 +4341,31 @@ export type RequestApproval = {
    * Access
    */
   access?: "read" | "write" | "structure"
+}
+
+/**
+ * RestoreRequest
+ *
+ * Which backup to write back into which connection, and that it is meant.
+ *
+ * `understood` is not a formality: a restore drops every object in the dump
+ * from the target first, which nothing else in this application does. A
+ * client that has not said so gets a refusal rather than a database with
+ * yesterday's contents (D87).
+ */
+export type RestoreRequest = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Understood
+   */
+  understood?: boolean
 }
 
 /**
@@ -8904,6 +8994,92 @@ export type servicesRestartServiceResponses = {
 
 export type servicesRestartServiceResponse =
   servicesRestartServiceResponses[keyof servicesRestartServiceResponses]
+
+export type backupsReadBackupsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/backups/"
+}
+
+export type backupsReadBackupsResponses = {
+  /**
+   * Response Backups-Read Backups
+   *
+   * Successful Response
+   */
+  200: Array<BackupFile>
+}
+
+export type backupsReadBackupsResponse =
+  backupsReadBackupsResponses[keyof backupsReadBackupsResponses]
+
+export type backupsBackUpData = {
+  body: BackupRequest
+  path?: never
+  query?: never
+  url: "/api/v1/backups/"
+}
+
+export type backupsBackUpErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type backupsBackUpError = backupsBackUpErrors[keyof backupsBackUpErrors]
+
+export type backupsBackUpResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobPublic
+}
+
+export type backupsBackUpResponse = backupsBackUpResponses[keyof backupsBackUpResponses]
+
+export type backupsReadBackupOfferData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/backups/offer"
+}
+
+export type backupsReadBackupOfferResponses = {
+  /**
+   * Successful Response
+   */
+  200: BackupOffer
+}
+
+export type backupsReadBackupOfferResponse =
+  backupsReadBackupOfferResponses[keyof backupsReadBackupOfferResponses]
+
+export type backupsRestoreData = {
+  body: RestoreRequest
+  path?: never
+  query?: never
+  url: "/api/v1/backups/restore"
+}
+
+export type backupsRestoreErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type backupsRestoreError = backupsRestoreErrors[keyof backupsRestoreErrors]
+
+export type backupsRestoreResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobPublic
+}
+
+export type backupsRestoreResponse = backupsRestoreResponses[keyof backupsRestoreResponses]
 
 export type jobsReadJobData = {
   body?: never

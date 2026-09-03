@@ -282,6 +282,23 @@ class PostgresSession:
             parts["password"] = options.password.get_secret_value()
         return psycopg.conninfo.make_conninfo(**parts)
 
+    def conninfo_without_password(self) -> str:
+        """Where this connects, for a program that is given the password apart.
+
+        `pg_dump` takes a connection string as an argument and its password
+        from the environment, and an argument is visible to anything that can
+        list processes — so the two are separated here rather than at the call
+        site, where somebody would eventually put them back together.
+        """
+        options = self._options
+        return psycopg.conninfo.make_conninfo(
+            host=options.host,
+            port=options.port,
+            dbname=options.database,
+            user=options.user,
+            application_name=APPLICATION_NAME,
+        )
+
     def connection_string(self) -> str:
         """The same address as `conninfo`, as a URL and without the password.
 

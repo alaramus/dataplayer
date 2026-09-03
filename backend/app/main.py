@@ -17,6 +17,7 @@ from app.queries.execution import QueryRunner
 from app.queries.results import QueryResults
 from app.queries.sessions import QuerySessions
 from app.realtime import topics
+from app.services.backups import handlers as backup_handlers
 from app.services.docker import DockerEngine
 from app.services.engine import SWITCHED_OFF_MESSAGE, NoEngine, ServiceEngine
 from app.services.jobs import handlers as service_handlers
@@ -63,7 +64,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         else NoEngine(SWITCHED_OFF_MESSAGE)
     )
     application.state.service_engine = engine
-    application.state.job_runner = JobRunner(service_handlers(engine))
+    application.state.job_runner = JobRunner(
+        {**service_handlers(engine), **backup_handlers(engine)}
+    )
     # What the last stop left mid-flight is ended before anything new starts.
     await settle_stranded()
     # Transactions held open for somebody: a connection each, so the lease is

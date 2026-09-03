@@ -29,6 +29,7 @@ from app.services.engine import (
     LogLines,
 )
 from app.services.plan import SERVICE_LABEL, ContainerSpec
+from app.services.tools import ToolResult, ToolRun
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,13 @@ PULL_TIMEOUT_SECONDS = 900.0
 # What "is anything there" is allowed to cost: this is asked while a person is
 # waiting for a page, so it fails fast rather than truthfully.
 PROBE_TIMEOUT_SECONDS = 2.0
+# How long a program run in a container may take. A dump of a large database
+# is minutes rather than seconds, and the job that owns it is what a person
+# watches meanwhile.
+TOOL_TIMEOUT_SECONDS = 3600.0
+# How much of a program's output is kept for the answer. A failed `pg_dump`
+# says why in one line; a successful one says nothing at all.
+TOOL_OUTPUT_LINES = 40
 
 # A container that stops on its own comes back, and one this application asked
 # to stop stays stopped. `unless-stopped` is exactly that promise, and it is
@@ -293,6 +301,47 @@ class DockerEngine:
         )
         return LogLines(lines=_demultiplexed(answer.body))
 
+    async def run_once(self, run: ToolRun) -> ToolResult:
+        """Run one program in one container, and take the container away.
+
+        Create, start, wait, read, remove — in that order, and the removal
+        happens whatever the program did, because a container kept for its
+        exit code is a container nobody will ever look at again.
+        """
+        await self._request(
+            "POST",
+            "/containers/create",
+            params={"name": run.name},
+            json=_tool_body(run),
+            expected=(201,),
+        )
+        try:
+            await self._request(
+                "POST", f"/containers/{run.name}/start", expected=(204, 304)
+            )
+            waited = await self._wait(run.name)
+            output = await self.logs(run.name, tail=TOOL_OUTPUT_LINES)
+        finally:
+            await self._request(
+                "DELETE",
+                f"/containers/{run.name}",
+                params={"force": "true"},
+                expected=(204, 404),
+            )
+        return ToolResult(exit_code=waited, output=output.lines)
+
+    async def _wait(self, container: str) -> int:
+        """Block until the container exits, and answer with its code."""
+        try:
+            async with self._client(TOOL_TIMEOUT_SECONDS) as client:
+                response = await client.post(f"/containers/{container}/wait")
+        except httpx.HTTPError as failure:
+            raise _unreachable(failure) from None
+        if response.status_code != 200:
+            raise _refusal(response.status_code)
+        code = response.json().get("StatusCode")
+        return int(code) if code is not None else 1
+
     async def _request(
         self,
         method: str,
@@ -432,3 +481,35 @@ def _demultiplexed(body: bytes) -> list[str]:
 def _lines(body: bytes) -> list[str]:
     decoded = body.decode("utf-8", errors="replace")
     return [line for line in decoded.splitlines() if line.strip()]
+
+
+def _tool_body(run: ToolRun) -> dict[str, Any]:
+    """One program, as the Engine API wants it written.
+
+    No restart policy and no published port: this container exists to exit.
+    The limits are the same ones a service is held to — a dump is not a reason
+    to let something take the machine (D86).
+    """
+    body: dict[str, Any] = {
+        "Image": run.image,
+        "Cmd": list(run.argv),
+        "Env": [f"{key}={value}" for key, value in sorted(run.environment.items())],
+        "Labels": dict(run.labels),
+        "HostConfig": {
+            "Mounts": [
+                {
+                    "Type": "volume",
+                    "Source": mount.volume,
+                    "Target": mount.path,
+                    "ReadOnly": mount.read_only,
+                }
+                for mount in run.mounts
+            ],
+            "Memory": settings.SERVICE_MEMORY_MB * 1024 * 1024,
+            "NanoCpus": int(settings.SERVICE_CPUS * 1_000_000_000),
+            "PidsLimit": settings.SERVICE_PIDS_LIMIT,
+        },
+    }
+    if run.network is not None:
+        body["NetworkingConfig"] = {"EndpointsConfig": {run.network: {}}}
+    return body

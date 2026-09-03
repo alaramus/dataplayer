@@ -4,7 +4,12 @@ import { connectionCommands } from "./commands"
 import type { ConnectionState } from "./commands"
 
 function bar(state: Partial<ConnectionState> = {}) {
-  return connectionCommands({ name: "local pg", supportsQueries: "yes", ...state })
+  return connectionCommands({
+    name: "local pg",
+    supportsQueries: "yes",
+    supportsBackups: "yes",
+    ...state,
+  })
 }
 
 function queries(state: Partial<ConnectionState> = {}) {
@@ -50,5 +55,34 @@ describe("what the bar at the foot of the screen offers", () => {
 
     expect(command.enabled).toBe(false)
     expect(command.tooltip).toBe("Asking this connection what it can do")
+  })
+})
+
+describe("what the bar says about copying a database out", () => {
+  function backups(state: Partial<ConnectionState> = {}) {
+    const found = bar(state).find((command) => command.name === "backups")
+    if (found === undefined) throw new Error("the bar offers no backups command")
+    return found
+  }
+
+  it("offers it when this server can", () => {
+    expect(backups().enabled).toBe(true)
+    expect(backups().tooltip).toBe("Copy local pg out, or put a backup back")
+  })
+
+  it("says the server's own reason when it cannot", () => {
+    // About the machine rather than about the source: no runtime to run
+    // pg_dump in, or nowhere to write what it produces (D87).
+    const command = backups({
+      supportsBackups: "no",
+      backupsRefusal: "This server has nowhere to write a backup",
+    })
+
+    expect(command.enabled).toBe(false)
+    expect(command.tooltip).toBe("This server has nowhere to write a backup")
+  })
+
+  it("says nothing about it before the server has answered", () => {
+    expect(backups({ supportsBackups: "asking" }).enabled).toBe(false)
   })
 })

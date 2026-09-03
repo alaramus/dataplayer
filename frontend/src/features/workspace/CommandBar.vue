@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref } from "vue"
 
 import { adapterIcon } from "@/features/connectors/adapters"
 import { useConnectors } from "@/features/connectors/api"
 import { useQueryProfile } from "@/features/queries/runs"
+import BackupsDialog from "@/features/services/BackupsDialog.vue"
+import { useBackupOffer } from "@/features/services/api"
 import { connectionCommands } from "@/features/workspace/commands"
 import type { Support } from "@/features/workspace/commands"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -43,15 +45,37 @@ const supportsQueries = computed<Support>(() => {
   return profile.isError.value ? "no" : "asking"
 })
 
+/**
+ * Whether this server could copy a database out, which is about the machine.
+ *
+ * The server answers with a reason when it cannot — no container runtime, or
+ * nowhere to write what a dump produces — and the reason is what the button
+ * says (D87).
+ */
+const offer = useBackupOffer()
+const supportsBackups = computed<Support>(() => {
+  if (workspace.activeConnectorId.value === null) return "no"
+  if (offer.isLoading.value) return "asking"
+  return offer.data.value?.available ? "yes" : "no"
+})
+
 const commands = computed(() =>
   connectionCommands({
     name: connector.value?.name ?? null,
     supportsQueries: supportsQueries.value,
+    supportsBackups: supportsBackups.value,
+    backupsRefusal: offer.data.value?.reason ?? undefined,
   })
 )
 
+/** The connection whose backups are being looked at, if any. */
+const backingUp = ref<{ id: string; name: string } | null>(null)
+
 function run(name: string) {
   if (name === "queries") workspace.openQueries(workspace.activeConnectorId.value)
+  if (name === "backups" && connector.value) {
+    backingUp.value = { id: connector.value.id, name: connector.value.name }
+  }
 }
 </script>
 
@@ -100,6 +124,8 @@ function run(name: string) {
       />
       <AppTooltip>{{ command.tooltip }}</AppTooltip>
     </span>
+
+    <BackupsDialog v-model:connector="backingUp" />
   </div>
 </template>
 

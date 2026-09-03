@@ -93,6 +93,11 @@ class Settings(BaseSettings):
     # How many one person may have at once. Not a quota system: a number that
     # turns "somebody left a loop running" from an outage into a refusal.
     SERVICE_MAX_PER_USER: int = 5
+    # The named volume personal storage lives in, so that a program run in
+    # a container of its own can write a backup where its owner will find
+    # it. Without one, backups are not offered: a dump written inside a
+    # container that is then thrown away is worse than a refusal (D87).
+    SERVICE_STORAGE_VOLUME: str = ""
 
     # How long a socket may stay open without saying who it is. A socket that
     # says nothing still holds a connection.

@@ -61,6 +61,9 @@ services:
       SERVICES_ENABLED: "true"
       # The network this project makes, which the backend is already on.
       SERVICE_NETWORK: "dataplayer_default"
+      # The volume this project keeps personal storage in, so a backup is
+      # written where its owner will find it.
+      SERVICE_STORAGE_VOLUME: "dataplayer_user-storage"
 
   mailcatcher:
     image: schickling/mailcatcher

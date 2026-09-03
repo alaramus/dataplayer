@@ -11,6 +11,16 @@ import { client } from "./client.gen"
 import type {
   adaptersReadAdapterTypesData,
   adaptersReadAdapterTypesResponses,
+  backupsBackUpData,
+  backupsBackUpErrors,
+  backupsBackUpResponses,
+  backupsReadBackupOfferData,
+  backupsReadBackupOfferResponses,
+  backupsReadBackupsData,
+  backupsReadBackupsResponses,
+  backupsRestoreData,
+  backupsRestoreErrors,
+  backupsRestoreResponses,
   connectorsAddColumnData,
   connectorsAddColumnErrors,
   connectorsAddColumnResponses,
@@ -2373,6 +2383,102 @@ export class ServicesService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/services/{service_id}/restart",
       ...options,
+    })
+  }
+}
+
+export class BackupsService {
+  /**
+   * Read Backups
+   *
+   * The backups in this person's own storage, newest first.
+   *
+   * Files rather than rows: a backup is a file in personal storage, which is
+   * already listed, downloaded, renamed and deleted through the file source.
+   * This is the same folder, read by name, so the two never disagree (D87).
+   */
+  public static readBackups<ThrowOnError extends boolean = true>(
+    options?: Options<backupsReadBackupsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<backupsReadBackupsResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/backups/",
+      ...options,
+    })
+  }
+
+  /**
+   * Back Up
+   *
+   * Copy a connection's database out into a file of your own storage.
+   *
+   * A job, because a dump of anything real is minutes: the request records it
+   * and answers, and what happens is watched like any other work (D81).
+   */
+  public static backUp<ThrowOnError extends boolean = true>(
+    options: Options<backupsBackUpData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      backupsBackUpResponses,
+      backupsBackUpErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/backups/",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Backup Offer
+   *
+   * Whether a backup could be taken now, and why not when it could not.
+   *
+   * Two reasons, and they are different: no container runtime to run the
+   * program in, and nowhere to write what it produces.
+   */
+  public static readBackupOffer<ThrowOnError extends boolean = true>(
+    options?: Options<backupsReadBackupOfferData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<backupsReadBackupOfferResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      url: "/api/v1/backups/offer",
+      ...options,
+    })
+  }
+
+  /**
+   * Restore
+   *
+   * Write a backup back into a connection, over what is there now.
+   *
+   * Destructive in a way nothing else in this application is, so the request
+   * must say that it is meant. The file is named rather than uploaded: it is
+   * one of the caller's own backups, and a name is checked against that folder
+   * rather than resolved as a path.
+   */
+  public static restore<ThrowOnError extends boolean = true>(
+    options: Options<backupsRestoreData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      backupsRestoreResponses,
+      backupsRestoreErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/backups/restore",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 }

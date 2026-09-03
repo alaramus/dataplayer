@@ -11,10 +11,12 @@ from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
 from typing import Any
 
+from anyio import to_thread
 from fastapi import FastAPI
 
 from app.core.config import settings
 from app.jobs.runner import JobRunner
+from app.services.backups import handlers as backup_handlers
 from app.services.engine import (
     Availability,
     ContainerStatus,
@@ -24,6 +26,7 @@ from app.services.engine import (
 )
 from app.services.jobs import handlers
 from app.services.plan import ContainerSpec
+from app.services.tools import ToolResult, ToolRun
 
 
 class FakeEngine:
@@ -46,6 +49,10 @@ class FakeEngine:
         # cancelling is about cancelling rather than about who was faster.
         self.hold_on: str | None = None
         self.holding = asyncio.Event()
+        # What a program run in a container did, and where it wrote.
+        self.ran: list[ToolRun] = []
+        self.exit_code = 0
+        self.writes: str | None = None
 
     async def availability(self) -> Availability:
         if self.available:
@@ -113,6 +120,15 @@ class FakeEngine:
         self._maybe_refuse("logs")
         return LogLines(lines=self.printed[-tail:])
 
+    async def run_once(self, run: ToolRun) -> ToolResult:
+        self._maybe_refuse("run_once")
+        self.ran.append(run)
+        if self.writes is not None:
+            # A dump is a file: a fake that only recorded the request would
+            # let a job pass that wrote nothing.
+            await to_thread.run_sync(_write_a_file, Path(self.writes))
+        return ToolResult(exit_code=self.exit_code, output=self.printed)
+
 
 def probe_answering(ready: bool) -> Any:
     """A source that answers, or one that never does, without either existing."""
@@ -139,25 +155,34 @@ def engine_of(
     *,
     ready: bool = True,
     network: str = "test-network",
+    storage_volume: str = "test-storage",
 ) -> Iterator[None]:
     """Run the application as one that can start services, and put it back.
 
-    Three things are swapped, because a service needs all three: an engine to
-    do the work, a network to be reachable on, and something that says whether
-    what was started answers.
+    Four things are swapped, because the work needs all four: an engine to do
+    it, a network to be reachable on, something that says whether what was
+    started answers, and somewhere a program may write.
     """
     saved_engine = application.state.service_engine
     saved_runner = application.state.job_runner
     saved_network = settings.SERVICE_NETWORK
+    saved_storage = settings.SERVICE_STORAGE_VOLUME
     application.state.service_engine = engine
-    application.state.job_runner = JobRunner(handlers(engine, probe_answering(ready)))
+    application.state.job_runner = JobRunner(
+        {
+            **handlers(engine, probe_answering(ready)),
+            **backup_handlers(engine),
+        }
+    )
     settings.SERVICE_NETWORK = network
+    settings.SERVICE_STORAGE_VOLUME = storage_volume
     try:
         yield
     finally:
         application.state.service_engine = saved_engine
         application.state.job_runner = saved_runner
         settings.SERVICE_NETWORK = saved_network
+        settings.SERVICE_STORAGE_VOLUME = saved_storage
 
 
 @asynccontextmanager
@@ -167,3 +192,8 @@ async def running_with(
     """The same, for a test that awaits inside it."""
     with engine_of(application, engine):
         yield
+
+
+def _write_a_file(target: Path) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"a dump")

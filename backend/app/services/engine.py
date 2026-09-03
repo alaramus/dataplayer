@@ -19,6 +19,7 @@ from fastapi import Depends, Request
 
 from app.jobs.runner import JobFailed
 from app.services.plan import ContainerSpec
+from app.services.tools import ToolResult, ToolRun
 
 
 class EngineError(JobFailed):
@@ -110,6 +111,8 @@ class ServiceEngine(Protocol):
 
     async def logs(self, container: str, *, tail: int) -> LogLines: ...
 
+    async def run_once(self, run: ToolRun) -> ToolResult: ...
+
 
 NO_ENGINE_MESSAGE = "This server has no container runtime, so it cannot run services"
 SWITCHED_OFF_MESSAGE = "Managed services are switched off on this server"
@@ -158,6 +161,9 @@ class NoEngine:
         raise EngineUnavailable(self._reason)
 
     async def logs(self, container: str, *, tail: int) -> LogLines:
+        raise EngineUnavailable(self._reason)
+
+    async def run_once(self, run: ToolRun) -> ToolResult:
         raise EngineUnavailable(self._reason)
 
 

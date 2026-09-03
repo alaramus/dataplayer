@@ -1,7 +1,7 @@
 import { useQueryClient } from "@tanstack/vue-query"
 
 import { connectorsKey } from "@/features/connectors/api"
-import { servicesKey } from "@/features/services/api"
+import { backupsKey, servicesKey } from "@/features/services/api"
 import { realtime } from "@/shared/realtime/client"
 
 /**
@@ -49,6 +49,11 @@ export function touchesConnectors(event: JobEvent): boolean {
   return event.state === "succeeded" && event.kind.startsWith("service.")
 }
 
+/** Whether this event is about a database being copied out or written back. */
+export function isBackupEvent(event: JobEvent): boolean {
+  return event.kind.startsWith("backup.")
+}
+
 /**
  * Follow every job of this user for as long as the caller lives.
  *
@@ -59,7 +64,12 @@ export function useServiceJobs() {
   const queryClient = useQueryClient()
   const stop = realtime().subscribe(JOBS_TOPIC, (payload) => {
     if (!isJobEvent(payload)) return
-    void queryClient.invalidateQueries({ queryKey: servicesKey })
+    if (payload.kind.startsWith("service.")) {
+      void queryClient.invalidateQueries({ queryKey: servicesKey })
+    }
+    if (payload.kind.startsWith("backup.")) {
+      void queryClient.invalidateQueries({ queryKey: backupsKey })
+    }
     if (touchesConnectors(payload)) {
       void queryClient.invalidateQueries({ queryKey: connectorsKey })
     }

@@ -7,6 +7,7 @@ from app.core.config import settings
 from app.jobs.routes import router as jobs_router
 from app.queries.routes import router as queries_router
 from app.realtime.routes import router as realtime_router
+from app.services.backup_routes import router as backups_router
 from app.services.routes import router as services_router
 from app.shares.routes import router as shares_router
 from app.system.routes import router as utils_router
@@ -23,6 +24,7 @@ api_router.include_router(utils_router)
 api_router.include_router(connectors_router)
 api_router.include_router(adapter_types_router)
 api_router.include_router(services_router)
+api_router.include_router(backups_router)
 api_router.include_router(jobs_router)
 api_router.include_router(shares_router)
 api_router.include_router(queries_router)

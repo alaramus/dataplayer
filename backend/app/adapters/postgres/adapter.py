@@ -31,6 +31,7 @@ from app.adapters.indexes import (
     IndexDropped,
 )
 from app.adapters.postgres.actions import POSTGRES_ACTION_TYPES, PostgresActions
+from app.adapters.postgres.backup import PostgresBackup
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.columns import PostgresColumns
 from app.adapters.postgres.constraints import PostgresConstraints
@@ -57,7 +58,7 @@ from app.adapters.postgres.session import (
 )
 from app.adapters.postgres.statements import format_text
 from app.adapters.postgres.update import PostgresUpdate
-from app.adapters.protocol import ConnectionCheckResult
+from app.adapters.protocol import BackupProgram, ConnectionCheckResult
 from app.adapters.query import (
     ExplainRequest,
     ExplainResult,
@@ -143,6 +144,14 @@ class PostgresAdapter:
         self._explain = PostgresExplain(self._session)
         self._generation = PostgresGeneration(self._session, self._metadata)
         self._row_commands = PostgresRowCommands(self._session)
+        self._backup = PostgresBackup(self._session, options)
+
+    async def backup_program(self, *, into: str) -> BackupProgram:
+        """What copies this server out, in the version that can (D87)."""
+        return await self._backup.backup_program(into=into)
+
+    async def restore_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_program(from_file=from_file)
 
     def query_profile(self) -> QueryProfile:
         """What this source accepts as a complete statement (D62)."""

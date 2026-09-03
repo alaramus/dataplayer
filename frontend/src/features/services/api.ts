@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
 import { computed } from "vue"
 import type { Ref } from "vue"
 
-import { JobsService, ServicesService } from "@/client"
-import type { ServiceRequest } from "@/client"
+import { BackupsService, JobsService, ServicesService } from "@/client"
+import type { RestoreRequest, ServiceRequest } from "@/client"
 import { connectorsKey } from "@/features/connectors/api"
 
 /**
@@ -98,6 +98,48 @@ export function useCancelJob() {
       (await JobsService.cancelJob({ path: { job_id: jobId } })).data,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: servicesKey })
+    },
+  })
+}
+
+export const backupsKey = ["backups"] as const
+export const backupOfferKey = ["backup-offer"] as const
+
+export function useBackupOffer() {
+  return useQuery({
+    queryKey: backupOfferKey,
+    queryFn: async () => (await BackupsService.readBackupOffer()).data,
+    // About the machine rather than about a source, and a daemon can go away
+    // while this page is open.
+    staleTime: 30_000,
+  })
+}
+
+export function useBackups() {
+  return useQuery({
+    queryKey: backupsKey,
+    queryFn: async () => (await BackupsService.readBackups()).data,
+  })
+}
+
+export function useBackUp() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (connectorId: string) =>
+      (await BackupsService.backUp({ body: { connector_id: connectorId } })).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: backupsKey })
+    },
+  })
+}
+
+export function useRestore() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: RestoreRequest) =>
+      (await BackupsService.restore({ body })).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: backupsKey })
     },
   })
 }

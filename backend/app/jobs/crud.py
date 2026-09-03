@@ -1,6 +1,7 @@
 """Database access for jobs, and nothing else."""
 
 import uuid
+from typing import Any
 
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -15,10 +16,15 @@ async def create(
     kind: JobKind,
     subject_id: uuid.UUID | None,
     step_count: int,
+    parameters: dict[str, Any] | None = None,
 ) -> Job:
     """Record a job as accepted. It is not running yet, and says so."""
     job = Job(
-        owner_id=owner_id, kind=kind, subject_id=subject_id, step_count=step_count
+        owner_id=owner_id,
+        kind=kind,
+        subject_id=subject_id,
+        step_count=step_count,
+        parameters=parameters,
     )
     session.add(job)
     await session.commit()

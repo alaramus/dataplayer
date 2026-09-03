@@ -22,6 +22,15 @@ export interface ConnectionState {
   /** The connection being read, or null when none is. */
   name: string | null
   supportsQueries: Support
+  /**
+   * Whether this server could copy a database out at all.
+   *
+   * Not about the source: about the machine — a container runtime to run
+   * `pg_dump` in and somewhere to write what it produces (D87). The server
+   * answers it, and the reason it gives is what the button says.
+   */
+  supportsBackups: Support
+  backupsRefusal?: string
 }
 
 export interface ConnectionCommand {
@@ -47,6 +56,17 @@ export function connectionCommands(state: ConnectionState): ConnectionCommand[] 
         state.supportsQueries,
         "This source does not run queries",
         (name) => `Queries written against ${name}`
+      ),
+    },
+    {
+      name: "backups",
+      label: "Backups",
+      icon: "inventory_2",
+      ...offered(
+        state,
+        state.supportsBackups,
+        state.backupsRefusal ?? "This server cannot copy a database out",
+        (name) => `Copy ${name} out, or put a backup back`
       ),
     },
   ]

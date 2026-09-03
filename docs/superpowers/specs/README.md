@@ -88,6 +88,7 @@ translations; those files are not.
 | 2026-09-03 | [When starting one goes wrong](2026-09-03-service-recovery-design.md) | D84: retry starts over because the password is gone, and neither deletion reaches into the other |
 | 2026-09-03 | [A second service, and the first source that only connects](2026-09-03-redis-pilot-design.md) | D85: a command may carry a credential, and a type that only connects says so |
 | 2026-09-03 | [What running services on the machine costs](2026-09-03-service-threat-model-design.md) | D86: the socket is the machine's power, so the call list is fixed, the limits are set and it stays off by default |
+| 2026-09-03 | [Copying a database out, and putting it back](2026-09-03-backup-and-restore-design.md) | D87: pg_dump runs in the image of the server's own version, and a backup is a file in personal storage |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the
