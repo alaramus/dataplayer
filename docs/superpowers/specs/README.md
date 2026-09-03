@@ -84,6 +84,7 @@ translations; those files are not.
 | 2026-09-02 | [Approved service templates](2026-09-02-service-templates-design.md) | D80: what may be started is written in code, and a client names one of them |
 | 2026-09-02 | [Owned asynchronous jobs](2026-09-02-owned-jobs-design.md) | D81: long work is a row with named steps, not a request that waits or a boolean in a process |
 | 2026-09-02 | [Detecting a container runtime](2026-09-02-runtime-detection-design.md) | D82: whether a server may and can start containers is asked, and the offer states the refusal |
+| 2026-09-03 | [Starting a PostgreSQL and receiving a connection](2026-09-03-service-pilot-design.md) | D83: a ready service is an ordinary connector, filled from the plan its container was started with |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

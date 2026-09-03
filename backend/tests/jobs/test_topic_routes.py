@@ -73,6 +73,8 @@ async def test_the_owner_watches_their_service_job_without_asking_again(
         "pulling the image",
         "creating the container",
         "starting the container",
-        "starting the container",
+        "waiting for it to answer",
+        "saving the connection",
+        "saving the connection",
     ]
-    assert seen[-1]["message"] == "PostgreSQL is running"
+    assert seen[-1]["message"] == "PostgreSQL is ready"

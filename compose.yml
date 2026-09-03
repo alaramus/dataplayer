@@ -19,6 +19,7 @@ x-backend-environment: &backend-environment
   USER_STORAGE_ROOT: /data/users
   SERVICES_ENABLED: ${SERVICES_ENABLED:-false}
   DOCKER_SOCKET: ${DOCKER_SOCKET:-/var/run/docker.sock}
+  SERVICE_NETWORK: ${SERVICE_NETWORK:-}
 
 services:
 

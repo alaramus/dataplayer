@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
+from pydantic import Field as PydanticField
 from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
@@ -38,6 +39,16 @@ class ManagedService(SQLModel, table=True):
     # The key of the template it was made from. Not a foreign key: templates
     # are code, and the row records which one rather than pointing at a table.
     template_key: str = Field(max_length=32)
+    # What the connection to it is called. Settled when the service is asked
+    # for, so that the name a person typed is theirs from the beginning and
+    # the job has nothing to invent.
+    connector_name: str = Field(max_length=255)
+    # The connection this service became, once it is ready. Nulled rather than
+    # cascaded: deleting the connector is not deleting the service, and a
+    # service whose connector is gone is a thing somebody has to see.
+    connector_id: uuid.UUID | None = Field(
+        default=None, foreign_key="connector.id", ondelete="SET NULL", index=True
+    )
     # Decided by the server when the service was planned, and kept because
     # every later command names the container rather than looking it up.
     container_name: str = Field(max_length=128)
@@ -71,6 +82,10 @@ class ServicePublic(BaseModel):
     state: ServiceState
     container_name: str
     published_port: int | None
+    # The connection this service became. What a screen opens once the job has
+    # succeeded, and empty until then.
+    connector_id: uuid.UUID | None
+    connector_name: str
     created_at: datetime
     job: JobPublic | None = None
 
@@ -78,11 +93,14 @@ class ServicePublic(BaseModel):
 class ServiceRequest(BaseModel):
     """Everything a client may say about a service it wants.
 
-    One field. What runs is the template's (D80), and where it runs is the
-    server's.
+    Two fields, and neither of them reaches a container: what runs is the
+    template's (D80), where it runs is the server's, and a name is a label on
+    a row in this application's own database — the same string a connector
+    form has always taken.
     """
 
     template_key: str
+    name: str | None = PydanticField(default=None, min_length=1, max_length=255)
 
 
 class ServiceAccepted(BaseModel):

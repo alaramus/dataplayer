@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import type { AdapterTypeInfo, Capability } from "@/client"
+import type { AdapterTypeInfo, Capability, ServiceTemplateInfo } from "@/client"
 import { adapterIcon } from "@/features/connectors/adapters"
-import { AppBadge, AppButton, AppEmptyState } from "@/shared/ui"
+import { AppBadge, AppButton, AppEmptyState, AppTooltip } from "@/shared/ui"
 
 /**
  * What one source type is, beside the grid rather than over it.
@@ -12,9 +12,20 @@ import { AppBadge, AppButton, AppEmptyState } from "@/shared/ui"
  * in a row before one is chosen. This is the reason the catalog exists — a
  * tile that led straight to the form would be the old dropdown, enlarged.
  */
-const props = defineProps<{ type: AdapterTypeInfo | null }>()
+const props = defineProps<{
+  type: AdapterTypeInfo | null
+  /**
+   * The service of this kind this server could start, when there is one.
+   *
+   * A source type does not know whether a container of it can be started
+   * here: that is a question about this machine, and the answer arrives with
+   * the templates (D82). The panel is told rather than asking, so nothing
+   * here decides what may be offered.
+   */
+  template?: ServiceTemplateInfo | null
+}>()
 
-const emit = defineEmits<{ create: [] }>()
+const emit = defineEmits<{ create: []; start: [] }>()
 
 /**
  * The two things a capability can be a statement about.
@@ -94,6 +105,39 @@ const groups = computed(() =>
     <q-separator />
 
     <div class="adapter-panel__foot">
+      <!-- Offered only where this server has a template for the type, and
+           disabled with the server's own reason where it has one and cannot
+           use it: a button that would be refused is worse than no button. -->
+      <div
+        v-if="template"
+        class="adapter-panel__start"
+      >
+        <AppButton
+          variant="secondary"
+          label="Start one here"
+          :disable="!template.available"
+          data-testid="start-service"
+          @click="emit('start')"
+        />
+        <AppTooltip
+          v-if="template.unavailable_reason"
+          :text="template.unavailable_reason"
+        />
+        <span
+          v-if="template.available"
+          class="adapter-panel__hint"
+        >
+          Runs {{ template.image }} on this server and saves the connection
+          for you.
+        </span>
+        <span
+          v-else
+          class="adapter-panel__hint"
+          data-testid="start-service-reason"
+        >
+          {{ template.unavailable_reason }}
+        </span>
+      </div>
       <AppButton
         label="Create connection"
         data-testid="create-from-catalog"
@@ -121,6 +165,15 @@ const groups = computed(() =>
   width: clamp(240px, 32%, 320px);
   flex: none;
   border-left: 1px solid var(--dp-border);
+}
+.adapter-panel__start {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.adapter-panel__hint {
+  font-size: 11px;
+  color: var(--dp-text-muted);
 }
 .adapter-panel--empty {
   justify-content: center;
@@ -192,7 +245,9 @@ const groups = computed(() =>
 .adapter-panel__foot {
   flex: none;
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   padding: 8px 12px;
 }
 </style>

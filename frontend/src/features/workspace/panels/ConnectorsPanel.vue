@@ -3,6 +3,7 @@ import { computed } from "vue"
 
 import ConnectorList from "@/features/connectors/ConnectorList.vue"
 import { useConnectors } from "@/features/connectors/api"
+import ManagedServices from "@/features/services/ManagedServices.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppIconButton } from "@/shared/ui"
@@ -43,6 +44,11 @@ const rows = computed(() => connectors.data.value?.data ?? [])
     <q-separator class="connectors-panel__rule" />
 
     <div class="connectors-panel__body">
+      <!-- Above the connections: a service is the container a database lives
+           in, and the connection below is how it is used. A ready one is in
+           both places because both are true of it, and this is where its life
+           can be ended. -->
+      <ManagedServices />
       <ConnectorList
         :rows="rows"
         :loading="connectors.isLoading.value"

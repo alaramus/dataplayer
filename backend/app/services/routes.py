@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import registry
+from app.core.config import settings
 from app.core.db import SessionDep
 from app.jobs import crud as job_crud
 from app.jobs.models import Job, JobKind
@@ -13,7 +14,7 @@ from app.jobs.models import public as job_public
 from app.jobs.runner import JobRunner, JobRunnerDep
 from app.realtime.topics import TopicsDep, TopicSet
 from app.services import crud, templates
-from app.services.engine import Availability, ServiceEngineDep
+from app.services.engine import Availability, ServiceEngine, ServiceEngineDep
 from app.services.models import (
     BUSY_STATES,
     ManagedService,
@@ -22,6 +23,7 @@ from app.services.models import (
     ServiceRequest,
     ServiceState,
 )
+from app.services.plan import Placement
 from app.services.templates import UnknownServiceTemplate
 from app.users.deps import CurrentUser, get_current_user
 
@@ -82,7 +84,7 @@ async def read_service_templates(engine: ServiceEngineDep) -> Any:
     whether it could be started now, because the runtime is a property of the
     server rather than of the template and can be gone while the server runs.
     """
-    runtime = await engine.availability()
+    runtime = await _offer(engine)
     return [
         ServiceTemplateInfo(
             key=template.key,
@@ -124,8 +126,14 @@ async def request_service(
             status_code=422,
             detail={"message": "This server does not offer that service"},
         ) from None
-    _refuse_without_a_runtime(await engine.availability())
-    service = await crud.create(session, owner_id=current_user.id, template=template)
+    _refuse_without_a_runtime(await _offer(engine))
+    service = await crud.create(
+        session,
+        owner_id=current_user.id,
+        template=template,
+        connector_name=body.name or template.title,
+        placement=_placement(),
+    )
     job = await _accept(session, runner, topics, service, "service.create")
     return ServiceAccepted(service=_public(service, job), job=job_public(job))
 
@@ -276,6 +284,38 @@ async def _own_or_404(
     return service
 
 
+# What a server without a network can say. Reaching a service is reaching a
+# container by name, and a name resolves only on a network they share, so a
+# service that could be started and not reached is not offered at all.
+NO_NETWORK_MESSAGE = "This server has no network to put a service on"
+
+
+def _placement() -> Placement:
+    """Where a service goes: the configured network, and no published port.
+
+    Not published on the host, deliberately. What has to reach a service is
+    this server, which does it by name on the shared network; opening a port
+    on the machine is a separate decision and belongs with the threat model
+    the phase ends on.
+    """
+    return Placement(network=settings.SERVICE_NETWORK or None, published_port=None)
+
+
+async def _offer(engine: ServiceEngine) -> Availability:
+    """Whether a service could be started here and then used.
+
+    The runtime first, because it is the more fundamental answer, and the
+    network second: a server that cannot reach what it starts is offering
+    something nobody could open.
+    """
+    runtime = await engine.availability()
+    if not runtime.available:
+        return runtime
+    if not settings.SERVICE_NETWORK:
+        return Availability(available=False, reason=NO_NETWORK_MESSAGE)
+    return runtime
+
+
 def _refuse_without_a_runtime(runtime: Availability) -> None:
     """Refuse before a service exists rather than after a job fails.
 
@@ -331,6 +371,8 @@ def _public(service: ManagedService, job: Job | None) -> ServicePublic:
         state=cast(ServiceState, service.state),
         container_name=service.container_name,
         published_port=service.published_port,
+        connector_id=service.connector_id,
+        connector_name=service.connector_name,
         created_at=service.created_at,
         job=job_public(job) if job is not None else None,
     )

@@ -1,5 +1,6 @@
 """Asking for a service, and everything that can happen to one (D81)."""
 
+import json
 import uuid
 from collections.abc import AsyncGenerator, Iterator
 from typing import Any
@@ -8,6 +9,8 @@ import pytest
 from httpx import AsyncClient
 from sqlmodel import delete
 
+from app.connectors.models import Connector
+from app.connectors.service import merge_options
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.jobs.models import Job
@@ -15,10 +18,12 @@ from app.jobs.runner import JobRunner
 from app.main import app
 from app.services.engine import SWITCHED_OFF_MESSAGE
 from app.services.models import ManagedService
+from app.services.routes import NO_NETWORK_MESSAGE
 from tests.utils.service_engine import FakeEngine, engine_of
 
 BASE = f"{settings.API_V1_STR}/services"
 JOBS = f"{settings.API_V1_STR}/jobs"
+CONNECTORS = f"{settings.API_V1_STR}/connectors"
 
 
 @pytest.fixture(autouse=True)
@@ -75,7 +80,7 @@ async def test_asking_for_a_service_answers_before_anything_is_pulled(
     assert accepted["service"]["title"] == "PostgreSQL"
     assert accepted["job"]["kind"] == "service.create"
     assert accepted["job"]["state"] in {"queued", "running"}
-    assert accepted["job"]["step_count"] == 3
+    assert accepted["job"]["step_count"] == 5
 
 
 async def test_the_job_pulls_creates_and_starts_and_the_service_says_running(
@@ -94,8 +99,11 @@ async def test_the_job_pulls_creates_and_starts_and_the_service_says_running(
     assert engine.pulled == ["postgres:18"]
     assert [spec.name for spec in engine.created] == engine.started
     assert job.json()["state"] == "succeeded"
-    assert job.json()["message"] == "PostgreSQL is running"
+    assert job.json()["message"] == "PostgreSQL is ready"
     assert service.json()["state"] == "running"
+    # The connection it became, made from the same plan the container was
+    # started with (D83).
+    assert service.json()["connector_id"] is not None
     # The service carries the last thing that happened to it, so a screen that
     # comes back after a reload knows what to show without a second question.
     assert service.json()["job"]["id"] == accepted["job"]["id"]
@@ -322,3 +330,120 @@ async def test_a_runtime_that_goes_away_after_the_answer_fails_the_job(
 
     assert job.json()["state"] == "failed"
     assert job.json()["message"] == "The engine would not pull"
+
+
+@pytest.mark.usefixtures("engine")
+async def test_a_ready_service_becomes_a_connector_of_its_own(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The point of the whole phase: a person receives a normal connection
+    without the browser constructing anything (D83)."""
+    accepted = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={"template_key": "postgres", "name": "Sales database"},
+    )
+    await _wait(accepted.json()["job"]["id"])
+
+    service = await client.get(
+        f"{BASE}/{accepted.json()['service']['id']}", headers=normal_user_token_headers
+    )
+    connector_id = service.json()["connector_id"]
+    connector = await client.get(
+        f"{CONNECTORS}/{connector_id}", headers=normal_user_token_headers
+    )
+
+    assert connector.status_code == 200
+    assert connector.json()["name"] == "Sales database"
+    assert connector.json()["adapter_type"] == "postgres"
+    # An ordinary connector: it is the owner's, at the level ownership gives.
+    assert connector.json()["access"] == "own"
+
+
+async def test_the_connector_holds_what_the_container_was_started_with(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+) -> None:
+    """The old application read the two out of different places and could save
+    a connector that did not match its own container."""
+    accepted = await _ask_for_one(client, normal_user_token_headers)
+    await _wait(accepted["job"]["id"])
+
+    started = engine.created[0]
+    async with async_session_maker() as session:
+        service = await session.get(
+            ManagedService, uuid.UUID(accepted["service"]["id"])
+        )
+        assert service is not None and service.connector_id is not None
+        connector = await session.get(Connector, service.connector_id)
+        assert connector is not None
+        options = merge_options(connector.config, connector.secrets)
+
+    assert options["host"] == started.name
+    assert options["port"] == 5432
+    assert options["user"] == started.environment["POSTGRES_USER"]
+    assert options["database"] == started.environment["POSTGRES_DB"]
+    assert options["password"] == started.environment["POSTGRES_PASSWORD"]
+
+
+async def test_the_password_is_not_stored_in_the_clear_anywhere(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+) -> None:
+    """A service row holds no credentials: the connector is their one home,
+    and there it is encrypted by the schema split (D4)."""
+    accepted = await _ask_for_one(client, normal_user_token_headers)
+    await _wait(accepted["job"]["id"])
+    password = engine.created[0].environment["POSTGRES_PASSWORD"]
+
+    async with async_session_maker() as session:
+        service = await session.get(
+            ManagedService, uuid.UUID(accepted["service"]["id"])
+        )
+        assert service is not None and service.connector_id is not None
+        connector = await session.get(Connector, service.connector_id)
+        assert connector is not None
+
+    assert password not in json.dumps(connector.config)
+    assert password.encode() not in connector.secrets
+    assert password not in json.dumps(
+        {"service": accepted["service"], "job": accepted["job"]}
+    )
+
+
+async def test_a_service_that_never_answers_is_a_failure_with_no_connector(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """A container that starts and never answers is not a connection: nothing
+    is saved, and the service says what happened."""
+    with engine_of(app, FakeEngine(), ready=False):
+        accepted = await _ask_for_one(client, normal_user_token_headers)
+        await _wait(accepted["job"]["id"])
+        job = await client.get(
+            f"{JOBS}/{accepted['job']['id']}", headers=normal_user_token_headers
+        )
+        service = await client.get(
+            f"{BASE}/{accepted['service']['id']}", headers=normal_user_token_headers
+        )
+
+    assert job.json()["state"] == "failed"
+    assert "did not answer" in job.json()["message"]
+    assert service.json()["state"] == "failed"
+    assert service.json()["connector_id"] is None
+
+
+async def test_without_a_network_a_service_is_not_offered(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """A service this server could start and never reach is not an offer."""
+    with engine_of(app, FakeEngine(), network=""):
+        listed = await client.get(
+            f"{BASE}/templates", headers=normal_user_token_headers
+        )
+        asked = await client.post(
+            f"{BASE}/",
+            headers=normal_user_token_headers,
+            json={"template_key": "postgres"},
+        )
+
+    assert listed.json()[0]["available"] is False
+    assert listed.json()[0]["unavailable_reason"] == NO_NETWORK_MESSAGE
+    assert asked.status_code == 503

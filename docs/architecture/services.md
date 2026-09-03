@@ -4,7 +4,7 @@ A service this server starts on the machine it runs on, and the connector such
 a service becomes. Read this before adding a template, changing what a service
 is started with, or letting anything about a container come from a request.
 
-Decisions here: D80, D82.
+Decisions here: D80, D82, D83.
 
 ## What exists today
 
@@ -21,6 +21,7 @@ backend/app/services/
 ├── models.py      ManagedService, and what a client reads
 ├── crud.py        database access only
 ├── engine.py      what a container runtime must do, and a server without one
+├── readiness.py   waiting until the source itself answers
 ├── docker.py      the Docker Engine API, over the socket this server has
 ├── jobs.py        create, start, stop, restart, delete as job handlers
 └── routes.py      the templates, and the lifecycle
@@ -96,9 +97,6 @@ Known deviations:
   `compose.yml` uses.
 - **There is one template.** PostgreSQL is the pilot the roadmap names, and
   Redis arrives with its own item once the lifecycle is right.
-- **A service is not yet a connector.** The create job stops at started;
-  waiting for the service to answer and saving the connector its credentials
-  belong in is the pilot, the next item of the phase.
 - **A person cannot choose the database or the user.** Both are constants of
   the template. Letting them be typed would be a value from a client in an
   environment variable, which is a smaller thing than an image but still not
@@ -165,3 +163,58 @@ Known deviations:
   the machine they may take. Both belong with the threat model.
 
 Spec: [Detecting a container runtime](../superpowers/specs/2026-09-02-runtime-detection-design.md)
+
+## D83. A ready service is an ordinary connection, and its credentials live there
+
+The point of the whole phase, and the shape that makes it safe: a person asks
+for a database, and what they receive is a connector like any other — the same
+table, the same validation, the same encryption, the same screens. Nothing
+downstream can tell where it came from, which is what stops a started service
+becoming a second kind of connection with rules of its own.
+
+- **The connector is filled from the same plan the container was started
+  with.** One `settle_credentials` per service, one plan, and both the
+  environment and the options read from it. The old application read them from
+  two places and could save a connector that did not match its own container.
+- **It goes through the ordinary path**: the adapter's own options model
+  validates it and [D4](backend.md)'s schema split encrypts what is declared
+  `SecretStr`. Nothing was told that a password is a secret.
+- **A service row holds no credentials.** The connector is their one home. A
+  creation that fails before that step leaves a container nobody can use, so
+  the service is marked failed and can be removed — which is why removal is
+  the way out of every state.
+- **Ready means the source answered**, not that a container is running. The
+  create job asks the adapter's own connection check, once a second, until the
+  template's timeout; PostgreSQL initialises its data directory on first start
+  and the port answers before the server does. The probe is a protocol, like
+  the engine, so a job can be exercised without a database to wait for.
+- **Where a service is reached from is its container name on a shared
+  network.** That is what a name resolves on, so a server with no network
+  configured offers nothing: a service that could be started and not used is
+  not an offer. Nothing is published on the host — opening a port on the
+  machine is a separate decision, and it belongs with the threat model.
+- **The one thing a person is asked is what to call it.** The image, the port,
+  the user, the database and the password are the server's (D80); a name is
+  the only part of it they know better, and a second database called
+  "PostgreSQL" is a row nobody can tell from the first.
+- **A service and its connection are both shown, because both are true.** The
+  connection is how a database is used; the service is the container it lives
+  in, and its row is the only place its life can be ended.
+
+Known deviations:
+
+- **Removing a service leaves its connection behind.** It stops working, and
+  nothing says so beyond the health check going red. Deleting a connector,
+  meanwhile, leaves the container running. Both are the deletion semantics the
+  next item of the phase owes, together with the rule that deleting a
+  connector must not silently delete a volume.
+- **A service cannot be stopped or started from the screen.** The routes are
+  there and the jobs work; only removal is drawn.
+- **Nothing bounds how many services a person may start**, how much of the
+  machine they may take, or how long a create may hold a job.
+- **The readiness probe opens a connection per attempt** and keeps nothing, so
+  a database that takes two minutes is asked a hundred and twenty times.
+- **A service is reachable from this server only.** A person cannot point
+  `psql` at it from their own machine.
+
+Spec: [Starting a PostgreSQL and receiving a connection](../superpowers/specs/2026-09-03-service-pilot-design.md)

@@ -4923,6 +4923,14 @@ export type ServicePublic = {
    */
   published_port: number | null
   /**
+   * Connector Id
+   */
+  connector_id: string | null
+  /**
+   * Connector Name
+   */
+  connector_name: string
+  /**
    * Created At
    */
   created_at: string
@@ -4934,14 +4942,20 @@ export type ServicePublic = {
  *
  * Everything a client may say about a service it wants.
  *
- * One field. What runs is the template's (D80), and where it runs is the
- * server's.
+ * Two fields, and neither of them reaches a container: what runs is the
+ * template's (D80), where it runs is the server's, and a name is a label on
+ * a row in this application's own database — the same string a connector
+ * form has always taken.
  */
 export type ServiceRequest = {
   /**
    * Template Key
    */
   template_key: string
+  /**
+   * Name
+   */
+  name?: string | null
 }
 
 /**

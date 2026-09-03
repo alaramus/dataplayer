@@ -3,13 +3,16 @@ import { computed, onMounted, provide, ref } from "vue"
 
 import { useRouter } from "vue-router"
 
-import type { ConnectorPublic, NodeReplacement } from "@/client"
+import type { ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
 import { useCurrentUser } from "@/features/auth/api"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import { connectorWindow, connectorWindowId, draftWindowId } from "@/features/connectors/windows"
 import { useConnectors } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
+import StartServiceDialog from "@/features/services/StartServiceDialog.vue"
+import { useRequestService } from "@/features/services/api"
+import { useServiceJobs } from "@/features/services/jobs"
 import { moveChartSpec } from "@/features/charts/persist"
 import { takeShareIntent } from "@/features/shares/intent"
 import { useAccessRequestEvents, wordingOf } from "@/features/shares/requests"
@@ -53,6 +56,7 @@ import type {
   RevealTarget,
   SharedTarget,
 } from "@/features/workspace/state"
+import { messageOf } from "@/shared/api/errors"
 import { AppButton, AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
 import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
@@ -175,6 +179,10 @@ const toast = useToast()
 // here and nowhere else: the server probes only while somebody is watching,
 // and the workspace is what "watching" means.
 useConnectorHealth()
+// The work the server owns, watched for as long as this page lives: an
+// event says something moved, and the queries say what it is now (D81).
+useServiceJobs()
+const requestService = useRequestService()
 
 /**
  * The connection whose access is being answered, if any.
@@ -272,6 +280,34 @@ const catalogOpen = ref(false)
 function pickAdapterType(adapterType: string) {
   catalogOpen.value = false
   openConnectorWindow(null, adapterType)
+}
+
+/**
+ * Ask this server to start one, instead of filling a form about somebody
+ * else's.
+ *
+ * The catalog closes and one question is asked — what to call it — because a
+ * person who starts two databases needs to tell them apart. Nothing is waited
+ * for after that: the answer is a job, and where it has got to is shown
+ * beside the connections until it becomes one (D83).
+ */
+const startingTemplate = ref<ServiceTemplateInfo | null>(null)
+
+function askToStart(template: ServiceTemplateInfo) {
+  catalogOpen.value = false
+  startingTemplate.value = template
+}
+
+async function startService(payload: { templateKey: string; name: string }) {
+  try {
+    await requestService.mutateAsync({
+      template_key: payload.templateKey,
+      name: payload.name,
+    })
+    toast.info(`Starting ${payload.name}`)
+  } catch (cause) {
+    toast.error(messageOf(cause, "It could not be started"))
+  }
 }
 
 function editConnector(connectorId: string | null) {
@@ -636,6 +672,12 @@ provide(workspaceActionsKey, {
     <AdapterCatalogDialog
       v-model="catalogOpen"
       @pick="pickAdapterType"
+      @start="askToStart"
+    />
+
+    <StartServiceDialog
+      v-model:template="startingTemplate"
+      @start="startService"
     />
   </AppLayout>
 </template>

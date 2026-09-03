@@ -7,12 +7,17 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.services.models import ManagedService
-from app.services.plan import container_name, volume_name
+from app.services.plan import Placement, container_name, volume_name
 from app.services.templates import ServiceTemplate
 
 
 async def create(
-    session: AsyncSession, *, owner_id: uuid.UUID, template: ServiceTemplate
+    session: AsyncSession,
+    *,
+    owner_id: uuid.UUID,
+    template: ServiceTemplate,
+    connector_name: str,
+    placement: Placement,
 ) -> ManagedService:
     """Write down a service before anything is started.
 
@@ -25,8 +30,11 @@ async def create(
         id=service_id,
         owner_id=owner_id,
         template_key=template.key,
+        connector_name=connector_name,
         container_name=container_name(service_id, template),
         volume_name=volume_name(service_id, template),
+        network=placement.network,
+        published_port=placement.published_port,
         state="creating",
     )
     session.add(service)

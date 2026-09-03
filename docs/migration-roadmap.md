@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Last updated: 2026-09-02.
+Last updated: 2026-09-03.
 
 The order for moving useful behaviour from `dbwebtool` and `myquasar` into
 DataPlayer. It is a route, not a promise to reproduce every old screen. The old
@@ -97,9 +97,6 @@ Old sources to inspect:
 
 Sequence:
 
-- [ ] Pilot one PostgreSQL service: generate credentials server-side, wait for
-  readiness, then fill and save the connector through the normal connector
-  schema.
 - [ ] Add retry, idempotency, cancellation, log tail, orphan discovery and
   deletion semantics. Deleting a connector must not silently delete a volume.
 - [ ] Threat-model socket access, project/container naming, resource limits,

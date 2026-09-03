@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
-import type { AdapterTypeInfo } from "@/client"
+import type { AdapterTypeInfo, ServiceTemplateInfo } from "@/client"
 import AdapterDetailPanel from "@/features/connectors/AdapterDetailPanel.vue"
 import AdapterTile from "@/features/connectors/AdapterTile.vue"
 import { ALL_CATEGORIES, categoryCounts, searchAdapters } from "@/features/connectors/adapterSearch"
 import { categoryIcon } from "@/features/connectors/adapters"
 import { useAdapterTypes } from "@/features/connectors/api"
+import { useServiceTemplates } from "@/features/services/api"
 import { AppButton, AppEmptyState, AppInput, AppSpinner } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
@@ -24,9 +25,11 @@ const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{
   "update:modelValue": [value: boolean]
   pick: [adapterType: string]
+  start: [template: ServiceTemplateInfo]
 }>()
 
 const adapterTypes = useAdapterTypes()
+const serviceTemplates = useServiceTemplates()
 
 const query = ref("")
 const category = ref<string>(ALL_CATEGORIES)
@@ -54,6 +57,14 @@ const selected = computed(
   () => visible.value.find((type) => type.name === selectedName.value) ?? null
 )
 
+/** The service of the selected kind this server offers, if it offers one. */
+const template = computed(
+  () =>
+    (serviceTemplates.data.value ?? []).find(
+      (offered) => offered.adapter_type === selected.value?.name
+    ) ?? null
+)
+
 // Reopened, the catalog starts where it started last time: a query left over
 // from the previous visit would hide most of what there is to choose from.
 watch(
@@ -73,6 +84,10 @@ function selectCategory(id: string) {
 
 function pick(type: AdapterTypeInfo) {
   emit("pick", type.name)
+}
+
+function start() {
+  if (template.value) emit("start", template.value)
 }
 </script>
 
@@ -153,7 +168,9 @@ function pick(type: AdapterTypeInfo) {
 
       <AdapterDetailPanel
         :type="selected"
+        :template="template"
         @create="selected && pick(selected)"
+        @start="start"
       />
     </div>
 

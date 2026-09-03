@@ -5,11 +5,14 @@ without a daemon: this records what it was told, and can be made to refuse one
 verb so that a failure is a thing a test arranges rather than waits for.
 """
 
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Mapping
 from contextlib import asynccontextmanager, contextmanager
+from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI
 
+from app.core.config import settings
 from app.jobs.runner import JobRunner
 from app.services.engine import Availability, EngineError, ServiceEngine
 from app.services.jobs import handlers
@@ -63,23 +66,50 @@ class FakeEngine:
         self.removed.append((container, volume))
 
 
-@contextmanager
-def engine_of(application: FastAPI, engine: ServiceEngine) -> Iterator[None]:
-    """Run the application with another engine, and put its own back.
+def probe_answering(ready: bool) -> Any:
+    """A source that answers, or one that never does, without either existing."""
 
-    Both the runner and the routes are swapped, because both ask: a route asks
-    whether anything can be started at all, and the handlers ask it to do the
-    work.
+    async def probe(
+        _adapter_type: str,
+        _options: Mapping[str, Any],
+        *,
+        home_dir: Path,
+        timeout_seconds: int,
+    ) -> bool:
+        # The signature is the protocol's; what it is asked makes no
+        # difference to an answer a test has already decided.
+        del home_dir, timeout_seconds
+        return ready
+
+    return probe
+
+
+@contextmanager
+def engine_of(
+    application: FastAPI,
+    engine: ServiceEngine,
+    *,
+    ready: bool = True,
+    network: str = "test-network",
+) -> Iterator[None]:
+    """Run the application as one that can start services, and put it back.
+
+    Three things are swapped, because a service needs all three: an engine to
+    do the work, a network to be reachable on, and something that says whether
+    what was started answers.
     """
     saved_engine = application.state.service_engine
     saved_runner = application.state.job_runner
+    saved_network = settings.SERVICE_NETWORK
     application.state.service_engine = engine
-    application.state.job_runner = JobRunner(handlers(engine))
+    application.state.job_runner = JobRunner(handlers(engine, probe_answering(ready)))
+    settings.SERVICE_NETWORK = network
     try:
         yield
     finally:
         application.state.service_engine = saved_engine
         application.state.job_runner = saved_runner
+        settings.SERVICE_NETWORK = saved_network
 
 
 @asynccontextmanager

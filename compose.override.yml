@@ -59,6 +59,8 @@ services:
       SMTP_PORT: "1025"
       SMTP_TLS: "false"
       SERVICES_ENABLED: "true"
+      # The network this project makes, which the backend is already on.
+      SERVICE_NETWORK: "dataplayer_default"
 
   mailcatcher:
     image: schickling/mailcatcher

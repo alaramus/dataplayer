@@ -55,7 +55,7 @@ async def test_availability_answers_with_the_version_it_found() -> None:
 async def test_a_runtime_that_cannot_be_reached_is_an_answer_not_a_failure() -> None:
     """Asked while a person waits for a page: it says no rather than raising."""
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(_: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("No such file or directory: /var/run/docker.sock")
 
     found = await _engine(handler).availability()
@@ -217,9 +217,7 @@ async def test_the_volume_is_kept_when_removal_is_not_asked_to_take_it() -> None
     assert [request.url.path for request in seen] == ["/containers/container"]
 
 
-async def test_a_refusal_says_what_happened_and_not_where(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
+async def test_a_refusal_says_what_happened_and_not_where() -> None:
     """The daemon's message names images and directories of the host; it goes
     to the log, and this repository's own sentence goes to the caller."""
     _, handler = _recorder(
@@ -234,7 +232,7 @@ async def test_a_refusal_says_what_happened_and_not_where(
 
 
 async def test_a_daemon_that_goes_away_mid_command_is_unavailable() -> None:
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(_: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("timed out")
 
     with pytest.raises(EngineUnavailable):
@@ -258,7 +256,7 @@ async def test_a_pull_asks_for_the_exact_image_and_tag() -> None:
 async def test_a_pull_that_fails_inside_a_successful_answer_is_a_failure() -> None:
     """The daemon answers 200 and then streams what went wrong."""
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(_: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
             text=(

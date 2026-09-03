@@ -78,6 +78,11 @@ class Settings(BaseSettings):
     # model for that is the last item of the phase that introduced this.
     SERVICES_ENABLED: bool = False
     DOCKER_SOCKET: str = "/var/run/docker.sock"
+    # The container network a service joins, which is how this server reaches
+    # it: a connector made from a service names the container, and a name is
+    # resolvable only on a network they share. Without one a service could be
+    # started and not used, so the offer says so instead.
+    SERVICE_NETWORK: str = ""
 
     # How long a socket may stay open without saying who it is. A socket that
     # says nothing still holds a connection.
