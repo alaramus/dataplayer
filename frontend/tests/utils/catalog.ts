@@ -25,10 +25,25 @@ export async function catalogAction(page: Page, action: string) {
   await page.getByTestId(`menu-item-${action}`).click()
 }
 
+/**
+ * Put one grouping into the state the caller wants, whatever state it is in.
+ *
+ * The menu toggles, and a caller here is saying "show this schema", not
+ * "press this option once". A database with a handful of schemas opens with
+ * all of them already ticked, so a blind click on the wanted one turned it
+ * off — and every row the scenario was about disappeared with it.
+ */
+async function setSchema(page: Page, schema: string, showing: boolean) {
+  const option = page.getByRole("option", { name: schema, exact: true })
+  await option.waitFor({ state: "visible" })
+  if ((await option.getAttribute("aria-selected")) === String(showing)) return
+  await option.click()
+}
+
 /** Which groupings the list is showing, for a source that has any. */
 export async function pickSchema(page: Page, schema: string) {
   await page.getByTestId("catalog-groups").click()
-  await page.getByRole("option", { name: schema, exact: true }).click()
+  await setSchema(page, schema, true)
   // The menu stays open for a multiple select: it is closed the way a user
   // closes it, by pressing Escape.
   await page.keyboard.press("Escape")
@@ -42,8 +57,8 @@ export async function pickSchema(page: Page, schema: string) {
  */
 export async function showOnlySchema(page: Page, on: string, off: string) {
   await page.getByTestId("catalog-groups").click()
-  await page.getByRole("option", { name: on, exact: true }).click()
-  await page.getByRole("option", { name: off, exact: true }).click()
+  await setSchema(page, on, true)
+  await setSchema(page, off, false)
   await page.keyboard.press("Escape")
 }
 
