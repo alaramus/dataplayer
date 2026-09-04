@@ -1,10 +1,12 @@
 import uuid
 
 import pytest
+from cryptography.exceptions import InvalidTag
 
 from app.adapters.cache import CacheKey
 from app.adapters.cache_serialization import (
     WIRE_HEADER,
+    CacheCipher,
     CacheFormat,
     CacheNamespace,
     CacheSerializationError,
@@ -38,6 +40,18 @@ def test_unknown_wire_version_is_a_miss_instead_of_guessed() -> None:
 
     with pytest.raises(CacheSerializationError, match="unsupported version"):
         cache_format.decode(bytes(encoded))
+
+
+def test_cache_cipher_hides_values_and_binds_the_exact_key() -> None:
+    cipher = CacheCipher(b"x" * 32)
+    plaintext = b'sensitive customer name: Ada'
+
+    payload = cipher.encrypt(plaintext, associated_data=b"exact key one")
+
+    assert plaintext not in payload
+    assert cipher.decrypt(payload, associated_data=b"exact key one") == plaintext
+    with pytest.raises(InvalidTag):
+        cipher.decrypt(payload, associated_data=b"exact key two")
 
 
 def test_namespace_separates_deployments_users_and_exact_requests() -> None:

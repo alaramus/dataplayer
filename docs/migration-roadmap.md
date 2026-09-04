@@ -93,8 +93,6 @@ because the old project had a Redis object.
 
 Sequence:
 
-- [ ] Implement optional Redis cache storage plus a cross-worker invalidation
-  channel. Failure must degrade to direct reads, not take data access down.
 - [ ] Add configuration, health reporting, TLS/auth examples and an optional
   Compose service; keep the in-memory backend as the default.
 - [ ] Only after measurement, reuse Redis for distributed locks, job fan-out or

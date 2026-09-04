@@ -235,3 +235,25 @@ both be sensitive, and no reliable field-level classifier exists; TLS and Redis
 authentication control access but do not replace encryption at rest.
 
 Spec: [The shared-cache wire format](../../superpowers/specs/2026-09-04-shared-cache-wire-design.md)
+
+## D102. Redis accelerates reads but never carries their correctness
+
+The optional `RedisDataCache` keeps completed encrypted entries in Redis and
+in-flight tasks in each worker. A connector generation is read before an entry
+or flight is chosen and incremented after every successful mutation. Value keys
+include that generation. An older load rechecks it before storing, so a late
+answer can neither be joined by a post-mutation read nor become visible again.
+
+Invalidation also publishes the connector UUID on a deployment-scoped channel.
+Every worker forgets matching local flights. Pub/Sub is prompt notification;
+the Redis generation is authoritative because messages can be missed during a
+restart. Old-generation values are left to their already bounded source TTL,
+which avoids an unbounded key scan on every mutation.
+
+Every Redis command is behind a driver boundary that exposes no driver text.
+Connection, authentication, timeout, corrupt-value and listener failures are
+cache misses: reads call the source directly, mutations keep their successful
+answer, and the cache reports itself unavailable. Redis therefore changes
+latency and upstream load, not whether source data can be accessed.
+
+Spec: [An optional shared Redis cache](../../superpowers/specs/2026-09-04-redis-cache-design.md)

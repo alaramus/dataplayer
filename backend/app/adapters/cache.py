@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 # What a source may be asked to cache. "metadata" is what an editor
 # completes against, which changes far less often than rows do (D65).
 CacheArea = Literal["catalog", "fetch", "metadata"]
-CacheStatus = Literal["hit", "miss", "coalesced", "refreshed"]
+CacheStatus = Literal["hit", "miss", "coalesced", "refreshed", "bypass"]
 
 
 @runtime_checkable
