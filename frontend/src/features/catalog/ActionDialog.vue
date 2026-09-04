@@ -250,6 +250,7 @@ async function submit() {
     const outcome = await runAction.mutateAsync({
       connectorId: props.connectorId,
       name: command.name,
+      label: command.label,
       nodeIds: props.nodeIds,
       params,
       files: files.value,
@@ -258,19 +259,21 @@ async function submit() {
     // A file that was refused keeps the dialog open, because the answer to
     // it is here: take that file off the list, or say what to do about the
     // name. What did land is reported all the same.
-    if (outcome.failures.length > 0 && command.takesFile) {
+    const unfinished = [...outcome.failures, ...(outcome.skipped ?? [])]
+    if (unfinished.length > 0 && command.takesFile) {
       emit("done", outcome)
-      report(outcome.failures)
+      report(unfinished)
       return
     }
     // One line whatever the size of the set: what was done, and what was
     // refused by whom. A refusal in the middle does not stop the rest.
     const said = summarize(outcome, command.label)
     if (outcome.failures.length > 0) toast.error(said)
+    else if (outcome.skipped?.length) toast.info(said)
     else toast.success(said)
     // What was held has landed. Keeping it would offer to paste a file that
     // has just been moved away from where it was picked up.
-    if (needsClipboard(command) && outcome.failures.length === 0) forgetClipboard()
+    if (needsClipboard(command) && unfinished.length === 0) forgetClipboard()
     emit("done", outcome)
     close()
   } catch (cause) {
@@ -442,6 +445,7 @@ async function runWorkflow(value: {
       name: command.name,
       nodeIds: [value.nodeId],
       params: value.params,
+      label: command.label,
       files: [value.file],
     })
     toast.success(summarize(outcome, command.label))
@@ -509,6 +513,7 @@ async function runWorkflow(value: {
         :model-value="files"
         :multiple="command.takesManyFiles"
         :append="command.takesManyFiles"
+        :disable="runAction.isPending.value"
         :label="command.takesManyFiles ? 'Files' : 'File'"
         data-testid="action-file"
         @update:model-value="choose"
@@ -580,7 +585,7 @@ async function runWorkflow(value: {
     <template #actions>
       <AppButton
         variant="quiet"
-        label="Cancel"
+        :label="runAction.isPending.value ? 'Hide' : 'Cancel'"
         @click="close"
       />
       <AppButton

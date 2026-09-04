@@ -5,7 +5,9 @@ import type { ComputedRef, Ref } from "vue"
 import { ConnectorsService } from "@/client"
 import type { ActionPreview, ActionResult, NodeSearchResult } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
-import { nodeSetOf, reloadedBy } from "./actions"
+import { useOperations } from "@/shared/operations"
+import type { OperationHandle } from "@/shared/operations"
+import { nodeSetOf, reloadedBy, summarize } from "./actions"
 import type { ActionFailure, ActionOutcome } from "./actions"
 import type { CatalogNode } from "./nodes"
 
@@ -198,6 +200,7 @@ export function useNodeActions(
 export interface ActionInput {
   connectorId: string
   name: string
+  label?: string
   /** The nodes to act on. One filled form, applied to each in turn. */
   nodeIds: (string | null)[]
   params: Record<string, unknown>
@@ -222,13 +225,15 @@ export interface ActionInput {
 async function performOne(
   input: ActionInput,
   nodeId: string | null,
-  file: File | null
+  file: File | null,
+  operation: OperationHandle
 ): Promise<ActionResult> {
   const path = { connector_id: input.connectorId, action_name: input.name }
   if (file) {
     return (
       await ConnectorsService.runActionWithFile({
         path,
+        onUploadProgress: (event) => operation.transfer(event.loaded, event.total),
         body: {
           file,
           node_id: nodeId ?? "",
@@ -259,32 +264,53 @@ async function performOne(
  */
 export function useRunAction() {
   const queryClient = useQueryClient()
+  const operations = useOperations()
 
   return useMutation({
     mutationFn: async (input: ActionInput): Promise<ActionOutcome> => {
       const together = togetherIn(input)
-      if (together !== null) {
-        // One request, so one answer: a refusal arrives as an exception and
-        // is read where a single action's refusal is read.
-        const result = (
-          await ConnectorsService.runActionOnSet({
-            path: { connector_id: input.connectorId, action_name: input.name },
-            body: { node_ids: together, params: input.params },
-          })
-        ).data
-        return { done: [result], failures: [], total: 1 }
-      }
-      const done: ActionResult[] = []
-      const failures: ActionFailure[] = []
-      // An action carrying nothing is one request per node all the same; the
-      // loop below is over pairs either way.
-      const carried: (File | null)[] =
-        input.files !== undefined && input.files.length > 0 ? input.files : [null]
-      const total = input.nodeIds.length * carried.length
-      for (const nodeId of input.nodeIds) {
-        for (const file of carried) {
+      const carried: (File | null)[] = input.files?.length ? input.files : [null]
+      const requests = input.nodeIds.flatMap((nodeId) => carried.map((file) => ({ nodeId, file })))
+      const total = together === null ? requests.length : 1
+      const label = input.label ?? input.name
+      const operation = operations.start(label, total)
+      try {
+        if (together !== null) {
+          // One request, so one answer: a refusal arrives as an exception and
+          // is read where a single action's refusal is read.
+          await operation.next("Waiting for the server")
+          const result = (
+            await ConnectorsService.runActionOnSet({
+              path: { connector_id: input.connectorId, action_name: input.name },
+              body: { node_ids: together, params: input.params },
+            })
+          ).data
+          operation.complete()
+          operation.finish(result.message)
+          return { done: [result], failures: [], total: 1 }
+        }
+        const done: ActionResult[] = []
+        const failures: ActionFailure[] = []
+        const skipped: ActionFailure[] = []
+        for (const [index, { nodeId, file }] of requests.entries()) {
+          if (!(await operation.next(file?.name ?? nodeId ?? "Waiting for the server"))) {
+            skipped.push(...requests.slice(index).map((request) => ({
+              nodeId: request.nodeId,
+              message: "Not started: the queue was stopped",
+              ...(request.file === null ? {} : { file: request.file }),
+            })))
+            break
+          }
           try {
-            done.push(await performOne(input, nodeId, file))
+            const result = await performOne(input, nodeId, file, operation)
+            done.push(result)
+            // A paused queue may stay open indefinitely. Completed changes
+            // must already be visible before the batch's final callback.
+            if (total > 1) {
+              for (const changed of result.reload_node_ids) {
+                void queryClient.invalidateQueries({ queryKey: catalogKey(input.connectorId, changed) })
+              }
+            }
           } catch (cause) {
             // The first refusal is re-raised when it is the only request: a
             // single action must still show a field error in its own form.
@@ -295,10 +321,17 @@ export function useRunAction() {
               ...(file === null ? {} : { file }),
               conflict: statusOf(cause) === 409,
             })
+          } finally {
+            operation.complete()
           }
         }
+        const outcome: ActionOutcome = { done, failures, total, ...(skipped.length ? { skipped } : {}) }
+        operation.finish(summarize(outcome, label), failures.length > 0)
+        return outcome
+      } catch (cause) {
+        operation.fail(messageOf(cause, "The action could not be performed"))
+        throw cause
       }
-      return { done, failures, total }
     },
     onSuccess: async (outcome, input) => {
       // The server says which branch changed; the client does not derive it

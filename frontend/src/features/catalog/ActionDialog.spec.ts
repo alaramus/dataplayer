@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ConnectorsService } from "@/client"
 import type { ActionCommand } from "@/features/catalog/actions"
 import { AppToggle } from "@/shared/ui"
+import { createOperations, operationsKey } from "@/shared/operations"
+import type { Operations } from "@/shared/operations"
 import { withWindowHost } from "@/shared/testing/windows"
 
 import ActionDialog from "./ActionDialog.vue"
@@ -120,7 +122,8 @@ function mountDialog(
   command: ActionCommand = DROP,
   nodeIds: (string | null)[] = ["demo.customers"],
   targetNode?: { label: string; kind: string },
-  groupings: { id: string; label: string; system: boolean }[] = []
+  groupings: { id: string; label: string; system: boolean }[] = [],
+  operations: Operations = createOperations()
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
@@ -136,6 +139,7 @@ function mountDialog(
     }),
     {
       global: {
+        provide: { [operationsKey as symbol]: operations },
         plugins: [
           [Quasar, { plugins: { Dialog, Notify } }],
           [VueQueryPlugin, { queryClient }],
@@ -377,6 +381,68 @@ describe("renaming a database relation", () => {
 })
 
 describe("uploading files", () => {
+  it("keeps unsent files for retry when the queue is paused and stopped", async () => {
+    const operations = createOperations()
+    let release = () => { throw new Error("The first upload has not started") }
+    const held = new Promise<never>((resolve) => {
+      release = () => resolve({ data: { message: "first.csv uploaded", reload_node_ids: [null] } } as never)
+    })
+    const upload = vi.spyOn(ConnectorsService, "runActionWithFile")
+      .mockImplementationOnce((request) => {
+        request.onUploadProgress?.({ loaded: 50, total: 100 } as never)
+        return held
+      })
+      .mockResolvedValue({ data: { message: "Uploaded", reload_node_ids: [null] } } as never)
+    const wrapper = mountDialog(UPLOAD, [null], undefined, [], operations)
+    await flushPromises()
+    choose(wrapper, [csv("first.csv"), csv("second.csv"), csv("third.csv")])
+    await flushPromises()
+    click("action-submit")
+    await flushPromises()
+    const operation = operations.items.value[0]!
+    expect(operation.transfer).toEqual({ loaded: 50, total: 100 })
+    operations.pause(operation.id)
+    release()
+    await flushPromises()
+    expect(operations.items.value[0]?.state).toBe("paused")
+    expect(upload).toHaveBeenCalledTimes(1)
+    operations.stop(operation.id)
+    await flushPromises()
+    expect(operations.items.value[0]).toMatchObject({ state: "cancelled", completed: 1 })
+    expect(text("action-files")).not.toContain("first.csv")
+    expect(text("action-files")).toContain("second.csv")
+    expect(text("action-files")).toContain("third.csv")
+    expect(text("action-error")).toContain("Not started")
+    click("action-submit")
+    await flushPromises()
+    expect(upload.mock.calls.map(([request]) => {
+      const file = request.body.file
+      return file instanceof File ? file.name : null
+    })).toEqual([
+      "first.csv", "second.csv", "third.csv",
+    ])
+    wrapper.unmount()
+  })
+
+  it("continues to report an upload after its form closes", async () => {
+    const operations = createOperations()
+    let release = () => { throw new Error("The upload has not started") }
+    vi.spyOn(ConnectorsService, "runActionWithFile").mockReturnValue(new Promise<never>((resolve) => {
+      release = () => resolve({ data: { message: "Uploaded", reload_node_ids: [null] } } as never)
+    }))
+    const wrapper = mountDialog(UPLOAD, [null], undefined, [], operations)
+    await flushPromises()
+    choose(wrapper, [csv("first.csv")])
+    await flushPromises()
+    click("action-submit")
+    await flushPromises()
+    wrapper.unmount()
+    expect(operations.items.value[0]?.state).toBe("running")
+    release()
+    await flushPromises()
+    expect(operations.items.value[0]?.state).toBe("succeeded")
+  })
+
   it("stages what was chosen and sends nothing until it is asked to", async () => {
     // The whole reason the list exists: a picker that uploaded on its own
     // would leave nothing to correct.
@@ -410,6 +476,7 @@ describe("uploading files", () => {
 
     expect(upload).toHaveBeenCalledTimes(1)
     expect(upload).toHaveBeenCalledWith({
+      onUploadProgress: expect.any(Function),
       path: { connector_id: "c-1", action_name: "upload" },
       body: {
         file: kept,
@@ -451,6 +518,7 @@ describe("uploading files", () => {
 
     expect(upload).toHaveBeenCalledTimes(3)
     expect(upload).toHaveBeenLastCalledWith({
+      onUploadProgress: expect.any(Function),
       path: { connector_id: "c-1", action_name: "upload" },
       body: {
         file: taken,
@@ -485,6 +553,7 @@ describe("uploading files", () => {
     await flushPromises()
 
     expect(upload).toHaveBeenLastCalledWith({
+      onUploadProgress: expect.any(Function),
       path: { connector_id: "c-1", action_name: "upload" },
       body: {
         file,

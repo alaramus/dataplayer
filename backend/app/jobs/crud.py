@@ -3,10 +3,33 @@
 import uuid
 from typing import Any
 
+from sqlalchemy import func
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.jobs.models import TERMINAL, Job, JobKind
+from app.jobs.models import TERMINAL, Job, JobKind, JobsPublic, public
+
+
+async def for_owner(
+    session: AsyncSession, owner_id: uuid.UUID, *, skip: int, limit: int
+) -> JobsPublic:
+    """Bounded history, with active work ahead of finished work (D95)."""
+    owned = Job.owner_id == owner_id
+    active = col(Job.state).not_in(TERMINAL)
+    count = (await session.exec(select(func.count()).select_from(Job).where(owned))).one()
+    active_count = (
+        await session.exec(select(func.count()).select_from(Job).where(owned, active))
+    ).one()
+    rows = await session.exec(
+        select(Job)
+        .where(owned)
+        .order_by(active.desc(), col(Job.created_at).desc(), col(Job.id).desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    return JobsPublic(
+        data=[public(job) for job in rows.all()], count=count, active_count=active_count
+    )
 
 
 async def create(

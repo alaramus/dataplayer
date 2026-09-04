@@ -5,6 +5,7 @@ import type { Ref } from "vue"
 import { BackupsService, JobsService, ServicesService } from "@/client"
 import type { RestoreRequest, ServiceRequestWritable } from "@/client"
 import { connectorsKey } from "@/features/connectors/api"
+import { jobsKey } from "@/features/operations/api"
 
 /**
  * Services this server runs, and what may be asked of it.
@@ -39,6 +40,7 @@ export function useRequestService() {
     mutationFn: async (body: ServiceRequestWritable) =>
       (await ServicesService.requestService({ body })).data,
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: jobsKey })
       await queryClient.invalidateQueries({ queryKey: servicesKey })
     },
   })
@@ -62,6 +64,7 @@ export function useDeleteService() {
         })
       ).data,
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: jobsKey })
       await queryClient.invalidateQueries({ queryKey: servicesKey })
       await queryClient.invalidateQueries({ queryKey: connectorsKey })
     },
@@ -94,6 +97,7 @@ export function useRetryService() {
         })
       ).data,
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: jobsKey })
       await queryClient.invalidateQueries({ queryKey: servicesKey })
     },
   })
@@ -105,6 +109,8 @@ export function useCancelJob() {
     mutationFn: async (jobId: string) =>
       (await JobsService.cancelJob({ path: { job_id: jobId } })).data,
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: jobsKey })
+      await queryClient.invalidateQueries({ queryKey: backupsKey })
       await queryClient.invalidateQueries({ queryKey: servicesKey })
     },
   })
@@ -195,6 +201,7 @@ export function useBackUp() {
     mutationFn: async (connectorId: string) =>
       (await BackupsService.backUp({ body: { connector_id: connectorId } })).data,
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: jobsKey })
       await queryClient.invalidateQueries({ queryKey: backupsKey })
     },
   })
@@ -217,6 +224,7 @@ export function useRestore() {
     mutationFn: async (body: RestoreRequest) =>
       (await BackupsService.restore({ body })).data,
     onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: jobsKey })
       await queryClient.invalidateQueries({ queryKey: backupsKey })
     },
   })

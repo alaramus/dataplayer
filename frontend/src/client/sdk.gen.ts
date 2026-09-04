@@ -192,6 +192,9 @@ import type {
   jobsReadJobData,
   jobsReadJobErrors,
   jobsReadJobResponses,
+  jobsReadJobsData,
+  jobsReadJobsErrors,
+  jobsReadJobsResponses,
   loginLoginAccessTokenData,
   loginLoginAccessTokenErrors,
   loginLoginAccessTokenResponses,
@@ -2696,6 +2699,24 @@ export class BackupsService {
 }
 
 export class JobsService {
+  /**
+   * Read Jobs
+   *
+   * This owner's work, active first, with counts independent of the page.
+   */
+  public static readJobs<ThrowOnError extends boolean = true>(
+    options?: Options<jobsReadJobsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<jobsReadJobsResponses, jobsReadJobsErrors, ThrowOnError>(
+      {
+        responseType: "json",
+        security: [{ scheme: "bearer", type: "http" }],
+        url: "/api/v1/jobs/",
+        ...options,
+      }
+    )
+  }
+
   /**
    * Read Job
    *

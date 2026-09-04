@@ -96,6 +96,12 @@ async function logout() {
       >
         <div class="app-layout__status">
           <slot name="status" />
+          <div
+            v-if="$slots['status-end']"
+            class="app-layout__status-end"
+          >
+            <slot name="status-end" />
+          </div>
         </div>
         <WindowTaskbar
           v-if="windows"
@@ -149,6 +155,8 @@ async function logout() {
   padding: 0 var(--dp-space-3);
   font-size: 12px;
 }
+
+.app-layout__status-end { margin-left: auto; flex: none; }
 
 /* A filling page hands its whole height to what it holds, and that has to be
    said at every step down from the viewport: Quasar gives the layout and the

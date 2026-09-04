@@ -126,6 +126,12 @@ class JobPublic(BaseModel):
     finished_at: datetime | None
 
 
+class JobsPublic(BaseModel):
+    data: list[JobPublic]
+    count: int
+    active_count: int
+
+
 def public(job: Job) -> JobPublic:
     return JobPublic.model_validate(job, from_attributes=True)
 

@@ -2835,6 +2835,24 @@ export type JobPublic = {
 }
 
 /**
+ * JobsPublic
+ */
+export type JobsPublic = {
+  /**
+   * Data
+   */
+  data: Array<JobPublic>
+  /**
+   * Count
+   */
+  count: number
+  /**
+   * Active Count
+   */
+  active_count: number
+}
+
+/**
  * JsonArray
  */
 export type JsonArray = {
@@ -9832,6 +9850,40 @@ export type backupsRestoreResponses = {
 }
 
 export type backupsRestoreResponse = backupsRestoreResponses[keyof backupsRestoreResponses]
+
+export type jobsReadJobsData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Skip
+     */
+    skip?: number
+    /**
+     * Limit
+     */
+    limit?: number
+  }
+  url: "/api/v1/jobs/"
+}
+
+export type jobsReadJobsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type jobsReadJobsError = jobsReadJobsErrors[keyof jobsReadJobsErrors]
+
+export type jobsReadJobsResponses = {
+  /**
+   * Successful Response
+   */
+  200: JobsPublic
+}
+
+export type jobsReadJobsResponse = jobsReadJobsResponses[keyof jobsReadJobsResponses]
 
 export type jobsReadJobData = {
   body?: never

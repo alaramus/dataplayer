@@ -43,13 +43,15 @@ guard.
 
 Known deviations:
 
-- **Nothing moves or copies.** An action works inside one node of one connector;
-  moving a file to another folder means downloading and uploading it again.
+- **Nothing moves or copies across connectors.** D74 defines copying and moving
+  within a file source.
 - **Folder creation and rename can still race another writer.** Upload retries
   through no-overwrite publication; the other two use ordinary filesystem
   operations after choosing their target.
-- **An upload gives no progress and cannot be resumed.**
-- **Nothing records what was done.** No audit trail, no history of deletions.
+- **Uploads cannot resume partway through a file.** D95 shows transport progress
+  and allows pausing or stopping a batch before its next request.
+- **There is no durable action audit trail.** D95 retains local process results
+  for the page session only.
 - **A set is acted on one call at a time.** Deleting five files is five requests
   run in order; a refusal in the middle is collected and reported rather than
   stopping the rest. Nothing is transactional.
@@ -320,8 +322,8 @@ Known deviations:
 
 - **Nothing crosses connections.** A held selection belongs to the connection
   it came from, because an opaque node id means nothing to another source.
-- **A large copy has no progress and no cancel.** It is one request, bounded by
-  the ceilings and by nothing else.
+- **A large copy has no internal progress or cancel.** D95 shows its request as
+  an indeterminate process; the request still has no filesystem checkpoints.
 - **There is no undo.** A move is a move.
 - **The clipboard does not survive a reload**, and says so by being empty.
 

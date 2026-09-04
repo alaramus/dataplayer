@@ -123,6 +123,7 @@ def _event(job: Job) -> JobEvent:
 class _Active:
     task: asyncio.Task[None]
     owner_id: uuid.UUID
+    started: asyncio.Event
 
 
 class JobRunner:
@@ -158,9 +159,12 @@ class JobRunner:
 
     async def launch(self, job: Job, topics: TopicSet | None = None) -> None:
         """Start carrying out a job that has already been written down."""
-        task = asyncio.create_task(self._carry_out(job.id, job.kind, topics))
+        started = asyncio.Event()
         async with self._lock:
-            self._active[job.id] = _Active(task=task, owner_id=job.owner_id)
+            task = asyncio.create_task(self._carry_out(job.id, job.kind, topics, started))
+            self._active[job.id] = _Active(
+                task=task, owner_id=job.owner_id, started=started
+            )
 
     async def cancel(self, job_id: uuid.UUID) -> bool:
         """Ask a job this process is carrying out to stop. False if it is not.
@@ -173,7 +177,12 @@ class JobRunner:
             active = self._active.get(job_id)
             if active is None:
                 return False
+            if job_id in self._cancelling:
+                return True
             self._cancelling.add(job_id)
+        # A task cancelled before its first instruction never enters its
+        # cleanup. Let it establish the cancellation handler first.
+        await active.started.wait()
         active.task.cancel()
         return True
 
@@ -197,7 +206,9 @@ class JobRunner:
         async with self._lock:
             active = list(self._active.values())
         for job in active:
-            job.task.cancel()
+            await job.started.wait()
+            if not job.task.cancelling():
+                job.task.cancel()
         for job in active:
             try:
                 await job.task
@@ -207,6 +218,44 @@ class JobRunner:
                 continue
 
     async def _carry_out(
+        self, job_id: uuid.UUID, kind: str, topics: TopicSet | None,
+        started: asyncio.Event,
+    ) -> None:
+        started.set()
+        try:
+            await self._execute(job_id, kind, topics)
+        except asyncio.CancelledError:
+            async with self._lock:
+                asked = job_id in self._cancelling
+            if not asked:
+                raise
+            # Cancellation may have interrupted a database operation. Let
+            # that session unwind, then settle through a fresh transaction.
+            await self._finish_after_failure(
+                job_id, "cancelled", "Stopped before it finished", topics
+            )
+        except JobFailed as refusal:
+            await self._finish_after_failure(job_id, "failed", str(refusal), topics)
+        except Exception:
+            logger.exception("Job %s (%s) failed", job_id, kind)
+            await self._finish_after_failure(
+                job_id, "failed", "The job could not be completed", topics
+            )
+        finally:
+            async with self._lock:
+                self._active.pop(job_id, None)
+                self._cancelling.discard(job_id)
+
+    async def _finish_after_failure(
+        self, job_id: uuid.UUID, state: JobState, message: str,
+        topics: TopicSet | None,
+    ) -> None:
+        async with async_session_maker() as session:
+            job = await session.get(Job, job_id)
+            if job is not None and job.state not in TERMINAL:
+                await self._settle(session, job, state, message, topics)
+
+    async def _execute(
         self, job_id: uuid.UUID, kind: str, topics: TopicSet | None
     ) -> None:
         handler = self._handlers.get(kind)
@@ -226,34 +275,8 @@ class JobRunner:
             progress = Progress(
                 session=session, job=job, topics=topics, steps=handler.steps
             )
-            try:
-                message = await handler.carry_out(job, progress)
-            except JobFailed as refusal:
-                await self._settle(session, job, "failed", str(refusal), topics)
-            except asyncio.CancelledError:
-                async with self._lock:
-                    asked = job_id in self._cancelling
-                    self._cancelling.discard(job_id)
-                if not asked:
-                    # The process is going away; the row stays non-terminal and
-                    # the next startup calls it interrupted.
-                    raise
-                # Somebody stopped it. Written down here because a task that
-                # is gone cannot write anything down about itself.
-                await self._settle(
-                    session, job, "cancelled", "Stopped before it finished", topics
-                )
-            except Exception:
-                # Whatever this was, its text belongs in the log and not in an
-                # answer: an engine names sockets and paths of this machine.
-                logger.exception("Job %s (%s) failed", job_id, kind)
-                await self._settle(
-                    session, job, "failed", "The job could not be completed", topics
-                )
-            else:
-                await self._settle(session, job, "succeeded", message, topics)
-        async with self._lock:
-            self._active.pop(job_id, None)
+            message = await handler.carry_out(job, progress)
+            await self._settle(session, job, "succeeded", message, topics)
 
     async def _begin(
         self,

@@ -290,6 +290,8 @@ export interface ActionOutcome {
   done: ActionResult[]
   failures: ActionFailure[]
   total: number
+  /** Unsent requests after Stop. Completed effects have not been undone. */
+  skipped?: ActionFailure[]
 }
 
 /**
@@ -336,7 +338,9 @@ export function summarize(outcome: ActionOutcome, label: string): string {
   if (outcome.total === 1 && outcome.failures.length === 0) {
     return first?.message ?? `${label} done`
   }
-  const head = `${label}: ${String(outcome.done.length)} of ${String(outcome.total)}`
+  const stopped = outcome.skipped?.length ?? 0
+  const head = `${label}: ${String(outcome.done.length)} of ${String(outcome.total)}` +
+    (stopped > 0 ? `. Stopped; ${stopped} not started` : "")
   if (outcome.failures.length === 0) return head
   const said = outcome.failures
     .map((failure) => `${subjectOf(failure)} — ${failure.message}`)

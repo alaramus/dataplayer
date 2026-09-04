@@ -5,11 +5,11 @@ where it has got to, and what happens to one when the process running it stops.
 Read this before making something wait, before adding a kind of long work, or
 before putting progress on a screen.
 
-Decisions here: D81.
+Decisions here: D81, D95.
 
 ## What exists today
 
-One table, one runner, one topic, one read route. Its first user is the
+One table, one runner, one topic, owner-scoped reads and cancellation. Its first user is the
 lifecycle of a [managed service](services.md); the phase that introduced it
 names backup and restore as the second.
 
@@ -20,11 +20,13 @@ backend/app/jobs/
 ├── runner.py     the handler protocol, the task, the restart sweep
 ├── recovery.py   settling what a stopped process left behind
 ├── topic.py      jobs on the socket
-└── routes.py     GET /jobs/{job_id}
+└── routes.py     owned listing, detail and cancellation
 ```
 
 ```
 GET /api/v1/jobs/{job_id}
+GET /api/v1/jobs/
+POST /api/v1/jobs/{job_id}/cancel
 ```
 
 ## D81. Long work is a row the server owns, not a request that waits
@@ -40,8 +42,8 @@ up.
   job down and answers; a task carries it out afterwards. Nothing waits for an
   image pull, and a client that has the id can ask again after a reload.
 - **The states are closed**: `queued → running → succeeded | failed |
-  interrupted`. Cancellation is not among them yet — stopping a pull halfway
-  has semantics of its own, and it arrives with retry and idempotency.
+  cancelled | interrupted`. Cancellation leaves completed effects in place;
+  service retry and idempotency are defined by D84.
 - **Progress is a named step, never a percentage.** A handler declares its
   steps in order, and a step it did not declare raises rather than being
   shown: a person promised a list of steps must not be shown something that is
@@ -77,10 +79,8 @@ up.
 
 Known deviations:
 
-- **No cancellation.** `aclose` cancels tasks at shutdown, and the sweep ends
-  their rows, but a person cannot stop a job they started.
-- **No retry, and no idempotency key.** Asking twice makes two jobs; the
-  one-at-a-time rule is what stops them overlapping.
+- **No generic retry.** Services implement retry and idempotency under D84;
+  the runner never replays a job on its own.
 - **A job is carried out by the process that accepted it.** Another process
   can read the row but will not pick up work left `queued` by a process that
   died before starting it — that row is settled as `interrupted` instead.
@@ -91,3 +91,34 @@ Known deviations:
   because the engine's own progress stream is not read yet.
 
 Spec: [Owned asynchronous jobs](../superpowers/specs/2026-09-02-owned-jobs-design.md)
+
+## D95. Progress is visible in the footer and controls follow execution boundaries
+
+The footer's right-hand button names an active operation, shows its progress
+and counts other active operations. Selecting it opens the floating Processes
+window with progress, outcomes and available controls. Starting work does not
+open the window. Closing or minimizing it never cancels work.
+
+Server jobs are read through a bounded, owner-scoped listing, active first,
+with an independent active count. Vue-query owns this state; socket events
+invalidate it and polling recovers missed events. Job steps remain named and
+indeterminate. Cancellation uses the existing endpoint and never implies undo.
+
+Catalog actions register existing requests in an application-scoped local
+registry. Uploads report transport bytes and then wait for the server's result;
+batches report completed requests. Unknown work is indeterminate. A batch may
+pause or stop before its next request, keeping completed effects and reporting
+unsent items separately. A stopped upload retains unsent and refused files in
+the form. A synchronous request has no fake pause, resume or HTTP-only cancel.
+Local history retains the latest 50 finished operations until reload/sign-out
+or explicit clearing; active work is never evicted. Signing out also stops
+unsent requests. Server jobs can still be read after reload.
+
+Known deviations:
+
+- Archive, extract, copy and move inside a single server request have no
+  internal byte/entry progress or cancellation checkpoints yet.
+- Server jobs cannot pause. An upload has transport progress, not resumable
+  transfer. Native browser downloads remain in the browser's download manager.
+
+Spec: [Operation progress in the footer](../superpowers/specs/2026-09-04-operation-progress-design.md)

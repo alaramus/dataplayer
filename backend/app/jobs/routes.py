@@ -1,15 +1,26 @@
 import uuid
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from app.core.db import SessionDep
 from app.jobs import crud
-from app.jobs.models import JobPublic, is_terminal, public
+from app.jobs.models import JobPublic, JobsPublic, is_terminal, public
 from app.jobs.runner import JobRunnerDep
 from app.users.deps import CurrentUser
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
+
+
+@router.get("/", response_model=JobsPublic)
+async def read_jobs(
+    session: SessionDep,
+    current_user: CurrentUser,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> JobsPublic:
+    """This owner's work, active first, with counts independent of the page."""
+    return await crud.for_owner(session, current_user.id, skip=skip, limit=limit)
 
 
 @router.get("/{job_id}", response_model=JobPublic)

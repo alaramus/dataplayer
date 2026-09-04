@@ -124,6 +124,54 @@ async def test_an_accepted_job_is_a_row_before_anything_runs(owner: User) -> Non
     assert job.started_at is None
 
 
+async def test_cancellation_immediately_after_launch_settles_the_row(owner: User) -> None:
+    handler = _Recording()
+    runner = _runner(handler)
+    job = await _accepted(owner, runner, handler.kind)
+    await runner.launch(job)
+    assert await runner.cancel(job.id)
+    await runner.wait_for(job.id)
+    settled = await _read(job.id)
+    assert settled.state == "cancelled"
+    assert settled.finished_at is not None
+    assert handler.done == []
+    assert await runner.active_count(owner.id) == 0
+
+
+async def test_repeated_cancel_does_not_interrupt_cleanup(owner: User) -> None:
+    entered = asyncio.Event()
+    cleaning = asyncio.Event()
+    release = asyncio.Event()
+
+    class _Cleanup:
+        kind: ClassVar[JobKind] = "service.start"
+        steps: ClassVar[tuple[str, ...]] = ("waiting",)
+
+        async def carry_out(self, job: Job, progress: Progress) -> str:
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cleaning.set()
+                await release.wait()
+            return "done"
+
+    handler = _Cleanup()
+    runner = _runner(handler)
+    job = await _accepted(owner, runner, handler.kind)
+    await runner.launch(job)
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=5)
+        assert await runner.cancel(job.id)
+        await asyncio.wait_for(cleaning.wait(), timeout=5)
+        assert await runner.cancel(job.id)
+    finally:
+        release.set()
+        await runner.wait_for(job.id)
+    assert (await _read(job.id)).state == "cancelled"
+    assert await runner.active_count(owner.id) == 0
+
+
 async def test_a_job_runs_its_declared_steps_and_ends_with_a_sentence(
     owner: User,
 ) -> None:

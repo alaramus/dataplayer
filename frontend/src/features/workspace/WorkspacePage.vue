@@ -22,6 +22,7 @@ import ShareDialog from "@/features/shares/ShareDialog.vue"
 import { chartViewKey } from "@/features/charts/view"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import CommandBar from "@/features/workspace/CommandBar.vue"
+import OperationsIndicator from "@/features/operations/OperationsIndicator.vue"
 import WorkspaceGroups from "@/features/workspace/WorkspaceGroups.vue"
 import {
   catalogPanelId,
@@ -742,6 +743,9 @@ provide(workspaceActionsKey, {
 
     <template #status>
       <CommandBar />
+    </template>
+    <template #status-end>
+      <OperationsIndicator />
     </template>
 
     <WorkspaceRoot :context="workspace.context" />

@@ -1,6 +1,9 @@
 import { useQueryClient } from "@tanstack/vue-query"
+import { onScopeDispose } from "vue"
 
+import type { JobPublic } from "@/client"
 import { connectorsKey } from "@/features/connectors/api"
+import { jobsKey } from "@/features/operations/api"
 import { backupsKey, servicesKey } from "@/features/services/api"
 import { realtime } from "@/shared/realtime/client"
 
@@ -19,22 +22,28 @@ export interface JobEvent {
   job_id: string
   kind: string
   subject_id: string | null
-  state: "queued" | "running" | "succeeded" | "failed" | "interrupted"
+  state: JobPublic["state"]
   step: string | null
   step_index: number
   step_count: number
   message: string | null
 }
 
-const TERMINAL = new Set(["succeeded", "failed", "interrupted"])
+const TERMINAL = new Set(["succeeded", "failed", "cancelled", "interrupted"])
+const STATES = new Set(["queued", "running", ...TERMINAL])
 
 export function isJobEvent(payload: unknown): payload is JobEvent {
   return (
     typeof payload === "object" &&
     payload !== null &&
-    "job_id" in payload &&
-    "state" in payload &&
-    "kind" in payload
+    "job_id" in payload && typeof payload.job_id === "string" &&
+    "state" in payload && typeof payload.state === "string" && STATES.has(payload.state) &&
+    "kind" in payload && typeof payload.kind === "string" &&
+    "subject_id" in payload && (payload.subject_id === null || typeof payload.subject_id === "string") &&
+    "step" in payload && (payload.step === null || typeof payload.step === "string") &&
+    "step_index" in payload && typeof payload.step_index === "number" && Number.isInteger(payload.step_index) &&
+    "step_count" in payload && typeof payload.step_count === "number" && Number.isInteger(payload.step_count) &&
+    "message" in payload && (payload.message === null || typeof payload.message === "string")
   )
 }
 
@@ -64,6 +73,7 @@ export function useServiceJobs() {
   const queryClient = useQueryClient()
   const stop = realtime().subscribe(JOBS_TOPIC, (payload) => {
     if (!isJobEvent(payload)) return
+    void queryClient.invalidateQueries({ queryKey: jobsKey })
     if (payload.kind.startsWith("service.")) {
       void queryClient.invalidateQueries({ queryKey: servicesKey })
     }
@@ -74,6 +84,7 @@ export function useServiceJobs() {
       void queryClient.invalidateQueries({ queryKey: connectorsKey })
     }
   })
+  onScopeDispose(stop)
   return { stop }
 }
 

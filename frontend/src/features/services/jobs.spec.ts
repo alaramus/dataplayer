@@ -26,6 +26,10 @@ describe("what a job event is", () => {
     expect(isJobEvent({ connector_id: "c1", result: {} })).toBe(false)
     expect(isJobEvent(null)).toBe(false)
     expect(isJobEvent("jobs")).toBe(false)
+    expect(isJobEvent(event({ state: "cancelled" }))).toBe(true)
+    expect(isJobEvent({ ...event(), state: "unknown" })).toBe(false)
+    expect(isJobEvent({ ...event(), step_count: "five" })).toBe(false)
+    expect(isJobEvent({ job_id: "j1", kind: "service.create", state: "running" })).toBe(false)
   })
 })
 
@@ -104,6 +108,7 @@ describe("whether something is still happening", () => {
     expect(isWorking({ state: "running" })).toBe(true)
     expect(isWorking({ state: "succeeded" })).toBe(false)
     expect(isWorking({ state: "failed" })).toBe(false)
+    expect(isWorking({ state: "cancelled" })).toBe(false)
     expect(isWorking({ state: "interrupted" })).toBe(false)
     expect(isWorking(null)).toBe(false)
   })

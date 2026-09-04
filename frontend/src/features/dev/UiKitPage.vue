@@ -15,6 +15,7 @@ import {
   AppMenu,
   AppNumberInput,
   AppPageHeader,
+  AppProgress,
   AppCheckbox,
   AppCopyButton,
   AppSection,
@@ -250,6 +251,16 @@ function flash() {
       </AppSection>
       <AppSection divided>
         <AppSpinner />
+        <AppProgress
+          label="Measured work"
+          :value="0.45"
+        />
+        <AppProgress label="Unknown work" />
+        <AppProgress
+          label="Paused work"
+          :value="0.65"
+          paused
+        />
       </AppSection>
     </AppCard>
 
