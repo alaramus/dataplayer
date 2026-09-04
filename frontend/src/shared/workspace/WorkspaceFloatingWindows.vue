@@ -9,6 +9,15 @@ import { panelTargetsKey } from "./panelTargets"
 import WorkspaceFloatingPanel from "./WorkspaceFloatingPanel.vue"
 
 const props = defineProps<{ context: WorkspaceContext }>()
+/**
+ * The engine's own state, which this component is handed rather than owns.
+ *
+ * Named once here because writing `props.context.focusedDetached.value` reads
+ * as changing a prop and is linted as one, while what it changes is a ref
+ * inside an object every part of the workspace shares — the same object
+ * `WorkspaceLeaf` reaches by injection and writes to in the same way.
+ */
+const workspace = props.context
 const windows = inject(windowsApiKey)
 const targets = inject(panelTargetsKey)
 const opened = new Map<string, { windowId: string; panelId: Ref<string> }>()
@@ -58,7 +67,7 @@ if (windows !== undefined && targets !== undefined) {
             // Keep the frame if that same detached slot still holds a panel.
             return !props.context.detached.value.some((one) => one.fallbackLeafId === entry.fallbackLeafId)
           },
-          onFocus: () => { props.context.focusedDetached.value = panelId.value },
+          onFocus: () => { workspace.focusedDetached.value = panelId.value },
         })
       }
     },
@@ -71,7 +80,7 @@ if (windows !== undefined && targets !== undefined) {
   })
   watch(manager.context.frontId, (windowId) => {
     const record = [...opened.values()].find((one) => one.windowId === windowId)
-    props.context.focusedDetached.value = record?.panelId.value ?? null
+    workspace.focusedDetached.value = record?.panelId.value ?? null
   })
   onBeforeUnmount(() => {
     for (const record of opened.values()) manager.close(record.windowId)
@@ -80,6 +89,11 @@ if (windows !== undefined && targets !== undefined) {
 }
 </script>
 
+<!-- eslint-disable vue/valid-template-root --
+     This component draws nothing at all: it opens and closes windows, and the
+     windows draw themselves elsewhere. A root element would be an empty box
+     in the middle of the workspace, so the template is deliberately a comment
+     and the rule that wants a child element is switched off for it. -->
 <template>
   <!-- Windows own targets; WorkspacePanels owns the live panel instances. -->
 </template>
