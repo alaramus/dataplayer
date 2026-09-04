@@ -10,7 +10,6 @@ from sqlmodel import Field, SQLModel
 from app.core.access import Access, ExecutionPolicy, Grant
 from app.core.schemas import get_datetime_utc
 
-
 TabColor = Annotated[
     str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$", max_length=7)
 ]
