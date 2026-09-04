@@ -252,8 +252,15 @@ Consequences:
   read is `activeConnectorId`, already derived from the layout tree rather than
   kept beside it; nothing new is stored.
 - **Whether a command applies is the source's own answer**, never a branch on
-  the adapter type (D62). For Queries it is the query profile: a source that
-  does not run queries has no profile and answers 501.
+  the adapter type (D62). Copying a database out is the example: a driver that
+  can name a program to dump it declares the capability, and one that cannot
+  does not.
+- **One button in that row is not a connection's.** The library of queries
+  belongs to a person and outlives the connections in it (D65), so it is never
+  greyed out with the rest: what it says changes — which connection it would
+  open against, or simply what it holds — and pressing it always opens. It sits
+  with them because that is where a person looks for it, not because it is one
+  of them.
 - **"Not asked yet" is not "no".** Three states rather than two, because half a
   second of "this source does not run queries" about a PostgreSQL connection is
   a worse answer than saying nothing.
@@ -270,10 +277,6 @@ Consequences:
 
 Known deviations:
 
-- **The query library is unreachable while no connection is open.** It is a
-  person's own library and outlives the connections in it (D65), but the way
-  in is now a command of a connection. Opening any source that runs queries
-  gets there, and the filter inside the panel still lists everything.
 - **The right half holds only the services.** What a status line is usually
   also for — what the last request cost — is still not said anywhere.
 - **A disabled command explains itself only on hover.** The tooltip hangs off

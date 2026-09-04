@@ -5170,6 +5170,10 @@ export type RunSummary = {
    */
   document_id: string | null
   /**
+   * Document Title
+   */
+  document_title?: string | null
+  /**
    * Status
    */
   status: string

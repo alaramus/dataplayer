@@ -140,12 +140,32 @@ describe("the library of queries", () => {
     const wrapper = mountPanel()
     await flushPromises()
 
-    await wrapper.get('[data-testid="queries-trash"]').trigger("click")
+    await wrapper.get('[data-testid="queries-place-trash"]').trigger("click")
     await flushPromises()
 
     expect(list).toHaveBeenLastCalledWith({
       query: { search: "", trashed: true },
     })
+    expect(wrapper.get('[data-testid="queries-empty"]').text()).toContain("Nothing in Trash")
+  })
+
+  it("is in one of its three places at a time", async () => {
+    // Two toggles overlapped: pressing Trash while History was showing did
+    // nothing, and the button had to be greyed out to say so.
+    mockConnectors()
+    vi.spyOn(QueriesService, "listDocuments").mockResolvedValue({
+      data: { data: [], count: 0 },
+    } as never)
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="queries-place-history"]').trigger("click")
+    await flushPromises()
+    expect(wrapper.find('[data-testid="queries-history-list"]').exists()).toBe(true)
+
+    await wrapper.get('[data-testid="queries-place-trash"]').trigger("click")
+    await flushPromises()
+    expect(wrapper.find('[data-testid="queries-history-list"]').exists()).toBe(false)
     expect(wrapper.get('[data-testid="queries-empty"]').text()).toContain("Nothing in Trash")
   })
 

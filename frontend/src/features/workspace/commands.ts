@@ -48,19 +48,32 @@ export interface ConnectionCommand {
 const NOTHING_OPEN = "Open a connection to use this"
 const STILL_ASKING = "Asking this connection what it can do"
 
+/**
+ * The library of queries, which is a person's rather than a connection's.
+ *
+ * In the bar with the connection's own commands because that is where a
+ * person looks for it, but never disabled with them: a query outlives the
+ * connection it was written against (D63), and the library has a filter of
+ * its own for choosing which connection to look at. It used to be greyed out
+ * until a catalog was open, which made the one place your own work lives
+ * reachable only through somebody else's database.
+ */
+export function queriesCommand(state: ConnectionState): ConnectionCommand {
+  const about =
+    state.name !== null && state.supportsQueries === "yes"
+      ? `Queries written against ${state.name}`
+      : "Every query you have written"
+  return {
+    name: "queries",
+    label: "Queries",
+    icon: "manage_search",
+    enabled: true,
+    tooltip: about,
+  }
+}
+
 export function connectionCommands(state: ConnectionState): ConnectionCommand[] {
   return [
-    {
-      name: "queries",
-      label: "Queries",
-      icon: "manage_search",
-      ...offered(
-        state,
-        state.supportsQueries,
-        "This source does not run queries",
-        (name) => `Queries written against ${name}`
-      ),
-    },
     {
       name: "backups",
       label: "Backups",

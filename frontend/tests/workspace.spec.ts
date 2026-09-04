@@ -692,21 +692,24 @@ test("the bar at the foot offers what the open connection can do", async ({ page
   const bar = page.getByTestId("command-bar")
   const queries = page.getByTestId("command-queries")
 
-  // Nothing is being read, so there is nothing for a command to be about.
+  // Nothing is being read, so there is nothing for a command of a connection
+  // to be about — but the library is a person's own and opens all the same.
   await expect(bar).toContainText("No connection open")
-  await expect(queries).toBeDisabled()
+  await expect(queries).toBeEnabled()
+  await expect(page.getByTestId("command-backups")).toBeDisabled()
 
-  // A source that runs queries offers the command, and the bar says which
-  // connection it is about (D69).
+  // A source that runs queries offers the commands, and the bar says which
+  // connection they are about (D69).
   await openConnector(page, sql)
   await expect(bar).toContainText(sql)
   await expect(queries).toBeEnabled()
 
-  // A source that does not run them keeps the button and turns it off: the
-  // bar keeps its shape as somebody walks about.
+  // A source that does not is what the greying out is for: the bar keeps its
+  // shape as somebody walks about, and the library stays reachable.
   await openConnector(page, files)
   await expect(bar).toContainText(files)
-  await expect(queries).toBeDisabled()
+  await expect(page.getByTestId("command-backups")).toBeDisabled()
+  await expect(queries).toBeEnabled()
 
   // Pressed from the connection, the library opens filtered to it.
   await openConnector(page, sql)

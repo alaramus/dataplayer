@@ -9,6 +9,7 @@ ninety days or a thousand runs, whichever comes first.
 """
 
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
@@ -20,6 +21,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.config import settings
 from app.queries.content import preview_of, text_of
+from app.queries.models import QueryDocument
 from app.queries.runs import TERMINAL, ExecutionRun
 
 # What a person may choose. A closed set rather than a number, because these
@@ -64,6 +66,11 @@ class RunSummary(BaseModel):
     id: uuid.UUID
     connector_id: uuid.UUID | None
     document_id: uuid.UUID | None
+    # What that document is called, when it is still there and has a name. The
+    # id alone made history a second list of SQL beside the library, with no
+    # way to see that a run is something that happened *to* a document rather
+    # than another copy of one.
+    document_title: str | None = None
     status: str
     scope: str
     statement_count: int
@@ -129,7 +136,9 @@ async def choose_retention(
     return await retention_of(session, user_id)
 
 
-def summarise(run: ExecutionRun, text: str) -> RunSummary:
+def summarise(
+    run: ExecutionRun, text: str, document_title: str | None = None
+) -> RunSummary:
     duration: int | None = None
     if run.started_at is not None and run.finished_at is not None:
         duration = int((run.finished_at - run.started_at).total_seconds() * 1000)
@@ -137,6 +146,7 @@ def summarise(run: ExecutionRun, text: str) -> RunSummary:
         id=run.id,
         connector_id=run.connector_id,
         document_id=run.document_id,
+        document_title=document_title,
         status=run.status,
         scope=run.scope,
         statement_count=run.statement_count,
@@ -146,6 +156,33 @@ def summarise(run: ExecutionRun, text: str) -> RunSummary:
         finished_at=run.finished_at,
         duration_ms=duration,
     )
+
+
+async def titles_of(
+    session: AsyncSession, runs: Sequence[ExecutionRun]
+) -> dict[uuid.UUID | None, str]:
+    """What the documents behind one page of runs are called.
+
+    One query for the page rather than one per row, and only the named ones: a
+    draft has no title, and "Untitled" repeated down a list is not a name.
+    A document that has since been deleted is simply absent, which is the same
+    answer as never having had a name — the run stands on its own either way.
+    """
+    wanted = {run.document_id for run in runs if run.document_id is not None}
+    if not wanted:
+        return {}
+    rows = await session.exec(
+        select(QueryDocument.id, QueryDocument.title).where(
+            col(QueryDocument.id).in_(wanted)
+        )
+    )
+    # Keyed by the same nullable type a run's `document_id` has, so a run
+    # that belongs to no document is a miss rather than a type error at the
+    # one call site.
+    found: dict[uuid.UUID | None, str] = {
+        document_id: title for document_id, title in rows if title is not None
+    }
+    return found
 
 
 async def delete(

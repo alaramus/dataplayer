@@ -225,7 +225,14 @@ without a data migration makes stored content unreadable and is not a supported
 rotation procedure.
 
 History is a view of accepted immutable runs, not a second collection of query
-text. Successful, failed, cancelled, timed-out and interrupted runs are kept;
+text — and the screen has to say so, because a list of runs and a list of
+documents are both lists of SQL and read alike. A run row names the document it
+was run from when that document still has a name, which is what makes it
+visibly an event of a document rather than another copy of one; the library
+holds three named places — Queries, History, Trash — one of which is always the
+one you are in. They were two independent toggles, and the pair had a state
+that meant nothing: Trash pressed while History showed did nothing, and had to
+be greyed out to say so. Successful, failed, cancelled, timed-out and interrupted runs are kept;
 requests rejected before execution are not. Rows are never retained. The
 default is the earlier of ninety days and one thousand runs per user, with
 7/30/90-day and no-retention choices and deletion of one, selected, older or

@@ -36,6 +36,21 @@ import {
  * may outlive the connection it was written against.
  */
 
+/**
+ * The three places this panel holds, and what each of them answers.
+ *
+ * Queries are documents somebody is writing; History is what actually ran.
+ * They read alike — both are lists of SQL — so each row says which kind of
+ * thing it is: a document by its name and its connection, a run by what it
+ * did, when, and which document it was run from.
+ */
+const PLACES = [
+  { value: "queries", label: "Queries", icon: "description" },
+  { value: "history", label: "History", icon: "history" },
+  { value: "trash", label: "Trash", icon: "delete" },
+] as const
+type Place = (typeof PLACES)[number]["value"]
+
 const props = defineProps<{ panelId: string }>()
 
 const workspace = useWorkspaceActions()
@@ -45,15 +60,17 @@ const connectors = useConnectors()
 
 const connectorId = ref<string | null>(null)
 const search = ref("")
-const trashed = ref(false)
 /**
- * Which of the three lists this panel is showing.
+ * Which of the three places this panel is showing.
  *
- * Documents are what somebody is writing, Trash is what they deleted, and
- * history is what actually ran — the same person's three questions about their
- * own queries, in the one place they look for them (D63).
+ * One state rather than two flags that overlap. Queries are what somebody is
+ * writing, Trash is what they deleted, and History is what actually ran — the
+ * same person's three questions about their own queries, in the one place they
+ * look for them (D63). As two booleans, pressing Trash while looking at
+ * History did nothing and the button had to be greyed out to say so.
  */
-const showing = ref<"documents" | "history">("documents")
+const showing = ref<Place>("queries")
+const trashed = computed(() => showing.value === "trash")
 
 const filters = computed(() => ({
   connectorId: connectorId.value,
@@ -261,21 +278,33 @@ async function deleteForGood(documentId: string) {
         data-testid="queries-connector"
         @update:model-value="pickConnector"
       />
-      <AppIconButton
-        icon="delete"
-        :tooltip="trashed ? 'Back to your queries' : 'Trash'"
-        :aria-pressed="trashed"
-        :disable="showing === 'history'"
-        data-testid="queries-trash"
-        @click="trashed = !trashed"
-      />
-      <AppIconButton
-        icon="history"
-        :tooltip="showing === 'history' ? 'Back to your queries' : 'What you have run'"
-        :aria-pressed="showing === 'history'"
-        data-testid="queries-history"
-        @click="showing = showing === 'history' ? 'documents' : 'history'"
-      />
+    </div>
+
+    <!-- Three places, one of which is always the one you are in. As two
+         toggles they overlapped: Trash did nothing while History was showing,
+         and had to be greyed out to say so. -->
+    <div
+      class="queries-panel__places"
+      role="tablist"
+      data-testid="queries-places"
+    >
+      <button
+        v-for="place in PLACES"
+        :key="place.value"
+        type="button"
+        role="tab"
+        class="queries-panel__place"
+        :class="{ 'queries-panel__place--here': showing === place.value }"
+        :aria-selected="showing === place.value"
+        :data-testid="`queries-place-${place.value}`"
+        @click="showing = place.value"
+      >
+        <q-icon
+          :name="place.icon"
+          size="14px"
+        />
+        {{ place.label }}
+      </button>
     </div>
 
     <AppInput
@@ -301,7 +330,7 @@ async function deleteForGood(documentId: string) {
       />
       <template v-else>
         <div class="queries-panel__history-bar">
-          <span class="queries-panel__heading">Runs</span>
+          <span class="queries-panel__heading">What you have run</span>
           <AppIconButton
             icon="delete_sweep"
             tooltip="Delete all of your history"
@@ -326,6 +355,11 @@ async function deleteForGood(documentId: string) {
               {{ run.status }} · {{ when(run.created_at) }}
               <template v-if="run.duration_ms !== null">
                 · {{ run.duration_ms }} ms
+              </template>
+              <!-- Which document this was run from, when it still has a name.
+                   Without it the two lists read as the same list twice. -->
+              <template v-if="run.document_title">
+                · from {{ run.document_title }}
               </template>
             </span>
           </button>
@@ -438,6 +472,37 @@ async function deleteForGood(documentId: string) {
 .queries-panel__connector {
   flex: 1;
   min-width: 0;
+}
+.queries-panel__places {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px 0;
+}
+.queries-panel__place {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: var(--dp-radius-control);
+  background: none;
+  color: var(--dp-text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.queries-panel__place:hover {
+  background: var(--dp-hover);
+}
+/* The one you are in, said by weight and ground rather than by a tick: three
+   of these sit in a column a fifth of the screen wide. */
+.queries-panel__place--here {
+  background: var(--dp-surface-raised);
+  color: var(--dp-text-strong);
+  font-weight: 600;
 }
 .queries-panel__search {
   flex: none;

@@ -907,8 +907,13 @@ async def list_runs(
         skip=skip,
         limit=limit,
     )
+    titles = await history.titles_of(session, runs)
     return RunsPublic(
-        data=[history.summarise(run, text_of(run)) for run in runs], count=count
+        data=[
+            history.summarise(run, text_of(run), titles.get(run.document_id))
+            for run in runs
+        ],
+        count=count,
     )
 
 

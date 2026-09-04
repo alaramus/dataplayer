@@ -8,7 +8,11 @@ import BackupsDialog from "@/features/services/BackupsDialog.vue"
 import ServicesDialog from "@/features/services/ServicesDialog.vue"
 import { useBackupOffer, useServices } from "@/features/services/api"
 import { isWorking, progressOf } from "@/features/services/jobs"
-import { connectionCommands, servicesCommand } from "@/features/workspace/commands"
+import {
+  connectionCommands,
+  queriesCommand,
+  servicesCommand,
+} from "@/features/workspace/commands"
 import type { Support } from "@/features/workspace/commands"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppButton, AppTooltip } from "@/shared/ui"
@@ -85,14 +89,19 @@ const backupsRefusal = computed(() =>
     : (offer.data.value?.reason ?? undefined)
 )
 
-const commands = computed(() =>
-  connectionCommands({
-    name: connector.value?.name ?? null,
-    supportsQueries: supportsQueries.value,
-    supportsBackups: supportsBackups.value,
-    backupsRefusal: backupsRefusal.value,
-  })
-)
+const state = computed(() => ({
+  name: connector.value?.name ?? null,
+  supportsQueries: supportsQueries.value,
+  supportsBackups: supportsBackups.value,
+  backupsRefusal: backupsRefusal.value,
+}))
+/**
+ * The library, which is the one thing in this row that is not the open
+ * connection's: it is always pressable, and what it says depends on whether
+ * there is a connection to open it against.
+ */
+const library = computed(() => queriesCommand(state.value))
+const commands = computed(() => connectionCommands(state.value))
 
 /**
  * What this server is running for this person, which is not about a
@@ -150,6 +159,20 @@ function run(name: string) {
     </span>
 
     <q-separator vertical />
+
+    <!-- First, and never greyed out: what a person has written is theirs
+         whether or not a connection is open. -->
+    <span class="command-bar__slot">
+      <AppButton
+        variant="quiet"
+        size="sm"
+        :icon="library.icon"
+        :label="library.label"
+        data-testid="command-queries"
+        @click="run('queries')"
+      />
+      <AppTooltip>{{ library.tooltip }}</AppTooltip>
+    </span>
 
     <!-- Greyed out rather than hidden, for the reason the catalog's menu is:
          a bar that changes shape as the user walks about is a bar they have to

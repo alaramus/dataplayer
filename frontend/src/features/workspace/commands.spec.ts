@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { connectionCommands, servicesCommand } from "./commands"
+import { connectionCommands, queriesCommand, servicesCommand } from "./commands"
 import type { ConnectionState } from "./commands"
 
 function bar(state: Partial<ConnectionState> = {}) {
@@ -13,9 +13,12 @@ function bar(state: Partial<ConnectionState> = {}) {
 }
 
 function queries(state: Partial<ConnectionState> = {}) {
-  const found = bar(state).find((command) => command.name === "queries")
-  if (found === undefined) throw new Error("the bar offers no queries command")
-  return found
+  return queriesCommand({
+    name: "local pg",
+    supportsQueries: "yes",
+    supportsBackups: "yes",
+    ...state,
+  })
 }
 
 describe("what the bar at the foot of the screen offers", () => {
@@ -28,33 +31,41 @@ describe("what the bar at the foot of the screen offers", () => {
   })
 
   it("offers a command of a connection that can do it", () => {
-    const command = queries()
+    const command = bar().find((one) => one.name === "backups")
 
-    expect(command.enabled).toBe(true)
-    expect(command.tooltip).toBe("Queries written against local pg")
+    expect(command?.enabled).toBe(true)
   })
 
   it("says to open a connection when none is being read", () => {
-    const command = queries({ name: null })
+    const command = bar({ name: null }).find((one) => one.name === "backups")
 
-    expect(command.enabled).toBe(false)
-    expect(command.tooltip).toBe("Open a connection to use this")
+    expect(command?.enabled).toBe(false)
+    expect(command?.tooltip).toBe("Open a connection to use this")
+  })
+})
+
+describe("what the bar says about the library of queries", () => {
+  it("opens whether or not a connection is being read", () => {
+    // A query outlives the connection it was written against, and the library
+    // has a filter of its own for choosing which one to look at. Greying it
+    // out made the one place a person's own work lives reachable only through
+    // somebody else's database.
+    expect(queries().enabled).toBe(true)
+    expect(queries({ name: null }).enabled).toBe(true)
+    expect(queries({ supportsQueries: "no" }).enabled).toBe(true)
   })
 
-  it("says the source cannot do it when the source has said so", () => {
-    const command = queries({ supportsQueries: "no" })
-
-    expect(command.enabled).toBe(false)
-    expect(command.tooltip).toBe("This source does not run queries")
+  it("says which connection it would open against, when there is one", () => {
+    expect(queries().tooltip).toBe("Queries written against local pg")
   })
 
-  it("does not claim a refusal it has not heard yet", () => {
-    // Half a second of "this source does not run queries" about a PostgreSQL
-    // connection is a worse answer than saying nothing.
-    const command = queries({ supportsQueries: "asking" })
-
-    expect(command.enabled).toBe(false)
-    expect(command.tooltip).toBe("Asking this connection what it can do")
+  it("says what it holds when there is not", () => {
+    expect(queries({ name: null }).tooltip).toBe("Every query you have written")
+    // And when the open connection is one that runs nothing: the library is
+    // still every query, rather than a refusal about this database.
+    expect(queries({ supportsQueries: "no" }).tooltip).toBe(
+      "Every query you have written"
+    )
   })
 })
 

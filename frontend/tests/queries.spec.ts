@@ -81,16 +81,16 @@ test("writes a query document, names it, and finds it again after a reload", asy
   await expect(page.locator('[data-testid^="workspace-tab-query:"]')).toHaveCount(0)
   await expect(page.getByTestId("queries-empty")).toBeVisible()
 
-  await page.getByTestId("queries-trash").click()
+  await page.getByTestId("queries-place-trash").click()
   const trashed = page.locator('[data-testid^="query-row-"]')
   await expect(trashed).toContainText(title)
   await trashed.locator('[data-testid^="restore-query-"]').click()
-  await page.getByTestId("queries-trash").click()
+  await page.getByTestId("queries-place-queries").click()
   await expect(page.locator('[data-testid^="query-row-"]')).toContainText(title)
 
   // --- and deleting it for good is a second, deliberate step ---------------
   await page.locator('[data-testid^="trash-query-"]').click()
-  await page.getByTestId("queries-trash").click()
+  await page.getByTestId("queries-place-trash").click()
   await page.locator('[data-testid^="purge-query-"]').click()
   await page.getByTestId("confirm-accept").click()
   await expect(page.getByTestId("queries-empty")).toBeVisible()
@@ -216,7 +216,7 @@ test("history keeps what ran, opens it again and can be deleted", async ({ page 
   await expect(page.getByTestId("run-statement-0")).toContainText("succeeded")
 
   // --- what ran is in history, by what was written in it -------------------
-  await page.getByTestId("queries-history").click()
+  await page.getByTestId("queries-place-history").click()
   await page.getByTestId("queries-search").fill(marker)
   const row = page.locator('[data-testid^="history-row-"]')
   await expect(row).toHaveCount(1)
