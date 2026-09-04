@@ -98,7 +98,6 @@ function connection(service: ServicePublic): string {
 async function retry(service: ServicePublic) {
   try {
     await retryService.mutateAsync(service.id)
-    toast.info(`Starting ${service.connector_name} again`)
   } catch (cause) {
     toast.error(messageOf(cause, "It could not be started again"))
   }

@@ -345,7 +345,6 @@ async function startService(payload: {
       start: payload.start,
     })
     justStarted.value = accepted.service.id
-    toast.info(`Starting ${payload.label}`)
   } catch (cause) {
     toast.error(messageOf(cause, "It could not be started"))
   }

@@ -41,7 +41,7 @@ const rows = computed(() => {
   const server = serverJobs.value.map((job) => {
     const subject = job.kind.startsWith("service.")
       ? services.data.value?.find((service) => service.id === job.subject_id)?.connector_name
-      : connectors.data.value?.find((connector) => connector.id === job.subject_id)?.name
+      : connectors.data.value?.data.find((connector) => connector.id === job.subject_id)?.name
     return serverRow(job, subject)
   }).filter((row) => row.active || !hidden.value.has(row.id))
   return [...operations.items.value.map(localRow), ...server]

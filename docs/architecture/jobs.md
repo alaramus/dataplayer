@@ -98,6 +98,8 @@ The footer's right-hand button names an active operation, shows its progress
 and counts other active operations. Selecting it opens the floating Processes
 window with progress, outcomes and available controls. Starting work does not
 open the window. Closing or minimizing it never cancels work.
+Service startup and retry use this progress surface without a separate
+"Starting" notification; a refused request still reports its error.
 
 Server jobs are read through a bounded, owner-scoped listing, active first,
 with an independent active count. Vue-query owns this state; socket events
