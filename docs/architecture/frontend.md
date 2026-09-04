@@ -26,6 +26,9 @@ A connection can be shared with a colleague at a level, and an administrator
 manages accounts on a page of their own. Light and dark themes,
 switched by a button beside Sign out and remembered.
 
+The application uses the legacy cube artwork: blue for the browser favicon
+and the light header, white for the dark header.
+
 The visible page of any tabular source can open as a chart beside its rows.
 The chart keeps that page's request and visible columns, offers line, bar and
 pie views, and derives a deterministic first choice without sending samples

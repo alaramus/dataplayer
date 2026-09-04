@@ -6,6 +6,7 @@ import { useRouter } from "vue-router"
 import WindowTaskbar from "@/shared/windows/WindowTaskbar.vue"
 import { windowsApiKey } from "@/shared/windows/useWindows"
 import { useAuthStore } from "@/stores/auth"
+import { useThemeStore } from "@/stores/theme"
 
 import AppButton from "./AppButton.vue"
 import AppThemeToggle from "./AppThemeToggle.vue"
@@ -13,6 +14,7 @@ import AppThemeToggle from "./AppThemeToggle.vue"
 defineProps<{ fill?: boolean }>()
 
 const auth = useAuthStore()
+const theme = useThemeStore()
 const router = useRouter()
 const queryClient = useQueryClient()
 const windows = inject(windowsApiKey, undefined)
@@ -54,6 +56,13 @@ async function logout() {
           class="app-layout__title"
           :class="{ 'app-layout__title--compact': $slots['workspace-tools'] }"
         >
+          <img
+            :src="theme.dark ? '/icons/logodpW.svg' : '/icons/logodp.svg'"
+            alt=""
+            width="16"
+            height="16"
+            class="app-layout__logo"
+          />
           <span>DataPlayer</span>
         </q-toolbar-title>
         <slot name="workspace-tools" />
@@ -144,6 +153,11 @@ async function logout() {
 
 .app-layout__title--compact {
   flex: none;
+}
+
+.app-layout__logo {
+  flex: none;
+  object-fit: contain;
 }
 
 /* Shorter than the toolbar above it: it is a line, not a second header. */
