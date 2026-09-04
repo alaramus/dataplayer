@@ -420,8 +420,9 @@ async def test_a_workbook_lists_its_sheets_as_children(
     workbook = next(
         node for node in listing.json() if node["name"] == "budget.xlsx"
     )
+    # Both: it opens as its first sheet and holds the rest of them (D51).
     assert workbook["has_children"] is True
-    assert workbook["representations"] == []
+    assert [one["kind"] for one in workbook["representations"]] == ["table"]
 
     response = await client.get(
         f"{BASE}/{connector_id}/catalog",

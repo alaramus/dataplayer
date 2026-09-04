@@ -203,8 +203,8 @@ async def test_a_workbook_counts_its_sheets(summaries: FileSummaries) -> None:
     assert isinstance(contents, WorkbookContents)
     assert contents.sheets == 2
     assert contents.hidden_sheets == 1
-    # A workbook is not one table, so it opens nothing itself (D51).
-    assert summary.representations == []
+    # It opens as a table, which is its first sheet, and holds the rest (D51).
+    assert [one.kind for one in summary.representations] == ["table"]
 
 
 async def test_one_sheet_is_described_as_the_member_it_is(

@@ -134,9 +134,14 @@ describe("groupings", () => {
     // what is in it. A server this application started has `public` and the
     // demonstration schema, and showing only the empty one of the two is
     // showing nothing.
+    // Three answers for three readings: the level itself, and then the
+    // children of each grouping that opens. A page short and the spy falls
+    // through to a real request, which is a network error rather than an
+    // empty list.
     answers(
       [schema("pg_catalog", true), schema("public"), schema("sales")],
-      [table("public.orders", "orders")]
+      [table("public.orders", "orders")],
+      []
     )
 
     await withLevel(async (level) => {

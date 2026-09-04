@@ -38,7 +38,10 @@ async def test_the_section_lists_every_registered_report() -> None:
     for node in nodes:
         assert isinstance(node, ReportNode)
         assert node.has_children is False
-        assert [item.kind for item in node.representations] == ["table"]
+        # A table of what the server says, and the statement that asked it:
+        # a report answers for its own SQL, which is how somebody checks what
+        # they are reading.
+        assert [item.kind for item in node.representations] == ["table", "sql"]
         # A report is not a relation and answers no relation model.
         assert node.describable is False
 

@@ -1,6 +1,7 @@
 import { QueryClient, VueQueryPlugin } from "@tanstack/vue-query"
 import { AxiosError } from "axios"
 import { flushPromises, mount } from "@vue/test-utils"
+import { createPinia } from "pinia"
 import { Dialog, Notify, Quasar } from "quasar"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -73,6 +74,10 @@ function mountGrid(
         plugins: [
           [Quasar, { plugins: { Dialog, Notify } }],
           [VueQueryPlugin, { queryClient }],
+          // The grid says when a run has changed the structure of a source,
+          // and that word is kept in a store (D66): without one the component
+          // cannot be mounted at all.
+          createPinia(),
         ],
       },
     }

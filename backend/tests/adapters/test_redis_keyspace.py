@@ -287,9 +287,15 @@ async def test_the_server_itself_is_not_a_page_of_rows(
     adapter: RedisAdapter,
 ) -> None:
     """What is at the root is the list of databases, and a list of databases is
-    a catalog level rather than something to read."""
+    a catalog level rather than something to read.
+
+    Asked as a client would ask it: `node_id` is a string, so the root is not
+    a thing a fetch can even name — the test used to build a request with
+    `None` in it, which pydantic refused before this source was consulted at
+    all, and so proved nothing about this source.
+    """
     with pytest.raises(NodeNotFound):
-        await adapter.fetch(FetchRequest(node_id=None))
+        await adapter.fetch(FetchRequest(node_id=""))
 
 
 @pytest.mark.parametrize(

@@ -120,9 +120,11 @@ async def test_reports_what_a_type_can_do(
         "Rename schema",
         "Move to schema",
         "Drop schema",
-        "Install extension",
-        "Remove extension",
         "New role",
+        # Installing and removing an extension are row commands of the report
+        # that lists them rather than actions of the type: they are done to
+        # the rows somebody ticked, not to a name typed into a form.
+        "Create a relation from rows",
         # Not an action: a capability read off `SupportsBackup`, which is what
         # greys the Backups button out on a source that has no such program.
         "Copy the whole database out",

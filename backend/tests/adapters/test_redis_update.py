@@ -296,17 +296,20 @@ async def test_an_element_changed_since_it_was_read_is_refused(
 
 
 async def test_an_element_that_is_gone_is_refused(adapter: RedisAdapter) -> None:
+    """The row, not the key: a key whose last field went is a key that no
+    longer exists, and "no such node" is the answer to that one."""
     client = await _client()
     try:
-        await client.hset("person", mapping={"name": "Ada"})
+        await client.hset("person", mapping={"city": "London", "name": "Ada"})
         page = await _page(adapter, "person")
         await client.hdel("person", "name")
 
+        # The page lists fields in order, so the second row is `name`.
         with pytest.raises(RowConflict):
             await adapter.update_cell(
                 UpdateCellRequest(
                     node_id=key_id(DB, "person"),
-                    row_handle=_handle(page, 0),
+                    row_handle=_handle(page, 1),
                     column="value",
                     value="Grace",
                 )

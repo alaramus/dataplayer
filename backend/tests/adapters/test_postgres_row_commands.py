@@ -99,14 +99,20 @@ async def test_the_report_asks_to_be_read_again_and_others_do_not() -> None:
     assert settings.refresh_seconds is None
 
 
-async def test_a_report_withdraws_what_would_take_its_page_away() -> None:
-    """A report is a picture of the server, not data somebody is keeping."""
+async def test_a_report_withdraws_only_what_a_picture_cannot_be() -> None:
+    """A report is a page like any other except in one way.
+
+    A list of settings is downloaded to be compared with another server's, and
+    a link to what is running is exactly what one sends a colleague — so
+    download, chart, share and open-as-a-query are over it. Only making a
+    relation out of it is withdrawn: a copy of a moment is not refreshable.
+    """
     source = adapter()
 
     processes = await source.fetch(FetchRequest(node_id=PROCESSES_REPORT_ID, limit=1))
     relation = await source.fetch(FetchRequest(node_id="pg_catalog.pg_class", limit=1))
 
-    assert processes.page_commands == []
+    assert set(processes.page_commands) == {"download", "chart", "share", "query"}
     assert set(relation.page_commands) == {
         "download",
         "chart",

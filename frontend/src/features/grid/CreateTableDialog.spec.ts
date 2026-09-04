@@ -4,7 +4,7 @@ import { Dialog, Notify, Quasar } from "quasar"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ConnectorsService } from "@/client"
-import { connectorsKey } from "@/features/connectors/api"
+import { adapterTypesKey, connectorsKey } from "@/features/connectors/api"
 import { withWindowHost } from "@/shared/testing/windows"
 
 import CreateTableDialog from "./CreateTableDialog.vue"
@@ -30,6 +30,20 @@ function mountDialog() {
     ],
     count: 1,
   })
+  // And the types those connections are of. Which of them can take a new
+  // relation is read off the source's own capabilities (D2), so a dialog that
+  // has not been told any offers no destination at all.
+  queryClient.setQueryData(adapterTypesKey, [
+    {
+      name: "postgres",
+      title: "PostgreSQL",
+      category: "sql",
+      description: "",
+      capabilities: [{ group: "manage", title: "Create a relation from rows", code: "create_relation" }],
+      options_schema: {},
+      catalog_shape: "list",
+    },
+  ])
   return mount(
     withWindowHost(CreateTableDialog, {
       modelValue: true,

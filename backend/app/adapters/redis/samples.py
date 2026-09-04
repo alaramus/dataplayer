@@ -72,6 +72,12 @@ class RedisSamples:
         """
         async with self._session.connection() as client:
             pipe = client.pipeline(transaction=False)
+            # What was written before is taken away first, so filling a server
+            # twice leaves what filling it once does. Only these keys: this
+            # writes a demonstration into a server, not over one — and the
+            # stream is why it matters at all, since its entries carry ids of
+            # their own and a second `xadd` of the same id is refused.
+            pipe.delete(*sorted(key_names()))
             for command, arguments in _commands():
                 getattr(pipe, command)(*arguments)
             await pipe.execute()
