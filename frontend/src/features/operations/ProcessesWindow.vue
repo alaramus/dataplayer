@@ -63,7 +63,9 @@ defineEmits<{
           :label="stopping.has(row.id) ? 'Stopping' : row.status"
         />
       </div>
-      <div class="processes__detail">{{ row.detail }}</div>
+      <div class="processes__detail">
+        {{ row.detail }}
+      </div>
       <AppProgress
         v-if="row.active"
         :label="row.label"

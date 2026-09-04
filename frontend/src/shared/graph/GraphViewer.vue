@@ -88,59 +88,244 @@ onBeforeUnmount(stopLayout)
 </script>
 
 <template>
-  <div class="graph-viewer" data-testid="graph-viewer">
+  <div
+    class="graph-viewer"
+    data-testid="graph-viewer"
+  >
     <div class="graph-viewer__toolbar">
-      <AppButton label="2D" size="sm" :variant="view.mode === '2d' ? 'primary' : 'quiet'" :aria-pressed="view.mode === '2d'" data-testid="graph-mode-2d" @click="patch({ mode: '2d' })" />
-      <AppButton label="3D" size="sm" :variant="view.mode === '3d' ? 'primary' : 'quiet'" :aria-pressed="view.mode === '3d'" data-testid="graph-mode-3d" @click="patch({ mode: '3d' })" />
-      <q-separator vertical inset />
-      <AppIconButton icon="center_focus_strong" tooltip="Fit graph" data-testid="graph-fit" :disable="!ready" @click="surface?.fit()" />
-      <AppIconButton icon="add" tooltip="Zoom in" :disable="!ready" @click="surface?.zoom(1.25)" />
-      <AppIconButton icon="remove" tooltip="Zoom out" :disable="!ready" @click="surface?.zoom(0.8)" />
-      <AppIconButton icon="auto_awesome_mosaic" tooltip="Arrange this view" data-testid="graph-arrange" :disable="Boolean(problem) || loading" @click="arrange(view.mode)" />
-      <AppIconButton v-if="view.mode === '2d'" :icon="view.expanded ? 'unfold_less' : 'unfold_more'" :tooltip="view.expanded ? 'Collapse fields' : 'Show fields'" data-testid="graph-details-toggle" @click="patch({ expanded: !view.expanded })" />
-      <AppIconButton v-else :icon="view.labels ? 'label_off' : 'label'" :tooltip="view.labels ? 'Hide labels' : 'Show labels'" @click="patch({ labels: !view.labels })" />
-      <AppSelect v-if="graph.groups.length" :model-value="view.groupId ?? ''" :options="groups" compact aria-label="Graph group" data-testid="graph-group" class="graph-viewer__group" @update:model-value="chooseGroup" />
+      <AppButton
+        label="2D"
+        size="sm"
+        :variant="view.mode === '2d' ? 'primary' : 'quiet'"
+        :aria-pressed="view.mode === '2d'"
+        data-testid="graph-mode-2d"
+        @click="patch({ mode: '2d' })"
+      />
+      <AppButton
+        label="3D"
+        size="sm"
+        :variant="view.mode === '3d' ? 'primary' : 'quiet'"
+        :aria-pressed="view.mode === '3d'"
+        data-testid="graph-mode-3d"
+        @click="patch({ mode: '3d' })"
+      />
+      <q-separator
+        vertical
+        inset
+      />
+      <AppIconButton
+        icon="center_focus_strong"
+        tooltip="Fit graph"
+        data-testid="graph-fit"
+        :disable="!ready"
+        @click="surface?.fit()"
+      />
+      <AppIconButton
+        icon="add"
+        tooltip="Zoom in"
+        :disable="!ready"
+        @click="surface?.zoom(1.25)"
+      />
+      <AppIconButton
+        icon="remove"
+        tooltip="Zoom out"
+        :disable="!ready"
+        @click="surface?.zoom(0.8)"
+      />
+      <AppIconButton
+        icon="auto_awesome_mosaic"
+        tooltip="Arrange this view"
+        data-testid="graph-arrange"
+        :disable="Boolean(problem) || loading"
+        @click="arrange(view.mode)"
+      />
+      <AppIconButton
+        v-if="view.mode === '2d'"
+        :icon="view.expanded ? 'unfold_less' : 'unfold_more'"
+        :tooltip="view.expanded ? 'Collapse fields' : 'Show fields'"
+        data-testid="graph-details-toggle"
+        @click="patch({ expanded: !view.expanded })"
+      />
+      <AppIconButton
+        v-else
+        :icon="view.labels ? 'label_off' : 'label'"
+        :tooltip="view.labels ? 'Hide labels' : 'Show labels'"
+        @click="patch({ labels: !view.labels })"
+      />
+      <AppSelect
+        v-if="graph.groups.length"
+        :model-value="view.groupId ?? ''"
+        :options="groups"
+        compact
+        aria-label="Graph group"
+        data-testid="graph-group"
+        class="graph-viewer__group"
+        @update:model-value="chooseGroup"
+      />
       <div class="graph-viewer__search">
-        <AppInput v-model="search" compact clearable placeholder="Find a node or field" aria-label="Find a node or field" data-testid="graph-search" />
-        <div v-if="search.trim()" class="graph-viewer__matches" role="list" aria-label="Matching nodes">
-          <AppButton v-for="node in matches" :key="node.id" variant="quiet" :label="node.label" size="sm" @click="searchPick(node.id)" />
+        <AppInput
+          v-model="search"
+          compact
+          clearable
+          placeholder="Find a node or field"
+          aria-label="Find a node or field"
+          data-testid="graph-search"
+        />
+        <div
+          v-if="search.trim()"
+          class="graph-viewer__matches"
+          role="list"
+          aria-label="Matching nodes"
+        >
+          <AppButton
+            v-for="node in matches"
+            :key="node.id"
+            variant="quiet"
+            :label="node.label"
+            size="sm"
+            @click="searchPick(node.id)"
+          />
           <span v-if="!matches.length">No matching nodes</span>
         </div>
       </div>
     </div>
-    <div v-if="loading" class="graph-viewer__loading" role="status">
-      <span>Arranging graph…</span><AppProgress label="Arranging graph" /><AppIconButton icon="close" tooltip="Cancel layout" @click="cancelLayout" />
+    <div
+      v-if="loading"
+      class="graph-viewer__loading"
+      role="status"
+    >
+      <span>Arranging graph…</span><AppProgress label="Arranging graph" /><AppIconButton
+        icon="close"
+        tooltip="Cancel layout"
+        @click="cancelLayout"
+      />
     </div>
-    <AppBanner v-if="problem || layoutError" tone="warning" data-testid="graph-error">{{ problem || layoutError }}</AppBanner>
-    <div v-if="!problem && ready && graph.nodes.length" class="graph-viewer__body">
+    <AppBanner
+      v-if="problem || layoutError"
+      tone="warning"
+      data-testid="graph-error"
+    >
+      {{ problem || layoutError }}
+    </AppBanner>
+    <div
+      v-if="!problem && ready && graph.nodes.length"
+      class="graph-viewer__body"
+    >
       <div class="graph-viewer__canvas">
-        <Graph2D v-if="view.mode === '2d'" ref="surface" :graph="graph" :positions="view.positions2" :camera="view.camera2" :selection="selection" :expanded="view.expanded" @camera="patch({ camera2: $event })" @move="moved2" @select="select" @activate="emit('activate', $event)" />
-        <Graph3D v-else ref="surface" :graph="graph" :positions="view.positions3" :camera="view.camera3" :selection="selection" :labels="view.labels" @camera="patch({ camera3: $event })" @move="moved3" @select="select" @activate="emit('activate', $event)" />
+        <Graph2D
+          v-if="view.mode === '2d'"
+          ref="surface"
+          :graph="graph"
+          :positions="view.positions2"
+          :camera="view.camera2"
+          :selection="selection"
+          :expanded="view.expanded"
+          @camera="patch({ camera2: $event })"
+          @move="moved2"
+          @select="select"
+          @activate="emit('activate', $event)"
+        />
+        <Graph3D
+          v-else
+          ref="surface"
+          :graph="graph"
+          :positions="view.positions3"
+          :camera="view.camera3"
+          :selection="selection"
+          :labels="view.labels"
+          @camera="patch({ camera3: $event })"
+          @move="moved3"
+          @select="select"
+          @activate="emit('activate', $event)"
+        />
       </div>
-      <aside v-if="selection" class="graph-viewer__inspector" data-testid="graph-inspector" aria-label="Selection details">
-        <div class="graph-viewer__inspector-head"><strong>{{ selectedNode?.label ?? selectedEdge?.label }}</strong><AppIconButton icon="close" tooltip="Clear selection" @click="select(null)" /></div>
+      <aside
+        v-if="selection"
+        class="graph-viewer__inspector"
+        data-testid="graph-inspector"
+        aria-label="Selection details"
+      >
+        <div class="graph-viewer__inspector-head">
+          <strong>{{ selectedNode?.label ?? selectedEdge?.label }}</strong><AppIconButton
+            icon="close"
+            tooltip="Clear selection"
+            @click="select(null)"
+          />
+        </div>
         <template v-if="selectedNode">
           <p>{{ selectedNode.caption }}</p>
-          <slot name="node-actions" :node="selectedNode" />
-          <dl><template v-for="(detail, index) in selectedNode.details" :key="index"><dt>{{ detail.label }}</dt><dd>{{ detail.value }}</dd></template></dl>
-          <div v-for="row in selectedNode.rows" :key="row.id" class="graph-viewer__field" :class="{ 'graph-viewer__field--selected': selection.kind === 'node' && selection.portId === row.id }">
-            <AppButton variant="quiet" size="sm" :label="row.label" @click="select({ kind: 'node', id: selectedNode.id, portId: row.id })" />
+          <slot
+            name="node-actions"
+            :node="selectedNode"
+          />
+          <dl>
+            <template
+              v-for="(detail, index) in selectedNode.details"
+              :key="index"
+            >
+              <dt>{{ detail.label }}</dt><dd>{{ detail.value }}</dd>
+            </template>
+          </dl>
+          <div
+            v-for="row in selectedNode.rows"
+            :key="row.id"
+            class="graph-viewer__field"
+            :class="{ 'graph-viewer__field--selected': selection.kind === 'node' && selection.portId === row.id }"
+          >
+            <AppButton
+              variant="quiet"
+              size="sm"
+              :label="row.label"
+              @click="select({ kind: 'node', id: selectedNode.id, portId: row.id })"
+            />
             <small>{{ row.badges?.join(' · ') }} {{ row.detail }}</small>
           </div>
         </template>
         <template v-if="selectedEdge">
-          <AppButton variant="quiet" size="sm" :label="`From: ${nameOf(selectedEdge.source.nodeId)}`" @click="select({ kind: 'node', id: selectedEdge.source.nodeId }, true)" />
-          <AppButton variant="quiet" size="sm" :label="`To: ${nameOf(selectedEdge.target.nodeId)}`" @click="select({ kind: 'node', id: selectedEdge.target.nodeId }, true)" />
-          <dl><template v-for="(detail, index) in selectedEdge.details" :key="index"><dt>{{ detail.label }}</dt><dd>{{ detail.value }}</dd></template></dl>
+          <AppButton
+            variant="quiet"
+            size="sm"
+            :label="`From: ${nameOf(selectedEdge.source.nodeId)}`"
+            @click="select({ kind: 'node', id: selectedEdge.source.nodeId }, true)"
+          />
+          <AppButton
+            variant="quiet"
+            size="sm"
+            :label="`To: ${nameOf(selectedEdge.target.nodeId)}`"
+            @click="select({ kind: 'node', id: selectedEdge.target.nodeId }, true)"
+          />
+          <dl>
+            <template
+              v-for="(detail, index) in selectedEdge.details"
+              :key="index"
+            >
+              <dt>{{ detail.label }}</dt><dd>{{ detail.value }}</dd>
+            </template>
+          </dl>
         </template>
-        <div v-if="selectedNode" class="graph-viewer__connections">
+        <div
+          v-if="selectedNode"
+          class="graph-viewer__connections"
+        >
           <strong>Connections · {{ related.length }}</strong>
-          <AppButton v-for="edge in related" :key="edge.id" variant="quiet" size="sm" :label="edge.label" @click="select({ kind: 'edge', id: edge.id })" />
+          <AppButton
+            v-for="edge in related"
+            :key="edge.id"
+            variant="quiet"
+            size="sm"
+            :label="edge.label"
+            @click="select({ kind: 'edge', id: edge.id })"
+          />
           <span v-if="!related.length">No connections in this graph</span>
         </div>
       </aside>
     </div>
-    <div v-else-if="!loading && !problem && !layoutError" class="graph-viewer__empty">No nodes to display</div>
+    <div
+      v-else-if="!loading && !problem && !layoutError"
+      class="graph-viewer__empty"
+    >
+      No nodes to display
+    </div>
     <!-- No standing bar under the canvas: it counted what is already on
          screen and listed the gestures, and the canvas itself carries those
          in the label a reader hears. -->

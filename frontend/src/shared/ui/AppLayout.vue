@@ -88,7 +88,7 @@ async function logout() {
             width="16"
             height="16"
             class="app-layout__logo"
-          />
+          >
           <span>DataPlayer</span>
         </q-toolbar-title>
         <slot name="workspace-tools" />

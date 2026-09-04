@@ -57,7 +57,9 @@ async function connect() {
       title="Choose the server for this link"
     >
       <AppSection gutter>
-        <AppBanner tone="info">This link uses another server. Check the address before connecting; you may need to sign in there.</AppBanner>
+        <AppBanner tone="info">
+          This link uses another server. Check the address before connecting; you may need to sign in there.
+        </AppBanner>
         <AppInput
           v-model="name"
           label="Server name"

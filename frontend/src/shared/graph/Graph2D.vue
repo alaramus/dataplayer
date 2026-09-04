@@ -111,34 +111,83 @@ defineExpose({ fit, zoom, focus })
 
 <template>
   <div
-    ref="root" class="graph-2d" :class="{ 'graph-2d--dragging': dragging }"
-    data-testid="graph-2d" tabindex="0" aria-label="Graph canvas. Drag the background to pan, scroll to zoom."
-    @wheel.prevent="wheel" @pointerdown="start($event)" @pointermove="move"
-    @pointerup="end" @pointercancel="cancel" @lostpointercapture="cancel" @keydown.esc="cancel"
+    ref="root"
+    class="graph-2d"
+    :class="{ 'graph-2d--dragging': dragging }"
+    data-testid="graph-2d"
+    tabindex="0"
+    aria-label="Graph canvas. Drag the background to pan, scroll to zoom."
+    @wheel.prevent="wheel"
+    @pointerdown="start($event)"
+    @pointermove="move"
+    @pointerup="end"
+    @pointercancel="cancel"
+    @lostpointercapture="cancel"
+    @keydown.esc="cancel"
   >
-    <div class="graph-2d__world" :style="{ transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})` }">
-      <svg class="graph-2d__edges" width="1" height="1" aria-label="Connections">
-        <defs><marker :id="arrowId" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" class="graph-2d__arrow" /></marker></defs>
-        <g v-for="item in paths" :key="item.edge.id" :class="{ 'graph-2d__edge--active': highlighted.has(item.edge.id), 'graph-2d__dim': selection && !highlighted.has(item.edge.id) }">
-          <path :d="item.path" class="graph-2d__edge" :class="{ 'graph-2d__edge--dashed': item.edge.dashed }" :marker-end="item.edge.directed ? `url(#${arrowId})` : undefined" />
+    <div
+      class="graph-2d__world"
+      :style="{ transform: `translate(${camera.x}px, ${camera.y}px) scale(${camera.zoom})` }"
+    >
+      <svg
+        class="graph-2d__edges"
+        width="1"
+        height="1"
+        aria-label="Connections"
+      >
+        <defs><marker
+          :id="arrowId"
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="7"
+          markerHeight="7"
+          orient="auto-start-reverse"
+        ><path
+          d="M 0 0 L 10 5 L 0 10 z"
+          class="graph-2d__arrow"
+        /></marker></defs>
+        <g
+          v-for="item in paths"
+          :key="item.edge.id"
+          :class="{ 'graph-2d__edge--active': highlighted.has(item.edge.id), 'graph-2d__dim': selection && !highlighted.has(item.edge.id) }"
+        >
           <path
-            :d="item.path" class="graph-2d__edge-hit" tabindex="0" role="button" data-graph-interactive
-            :aria-label="item.edge.label" :data-testid="`graph-edge-${item.edge.id}`"
+            :d="item.path"
+            class="graph-2d__edge"
+            :class="{ 'graph-2d__edge--dashed': item.edge.dashed }"
+            :marker-end="item.edge.directed ? `url(#${arrowId})` : undefined"
+          />
+          <path
+            :d="item.path"
+            class="graph-2d__edge-hit"
+            tabindex="0"
+            role="button"
+            data-graph-interactive
+            :aria-label="item.edge.label"
+            :data-testid="`graph-edge-${item.edge.id}`"
             @pointerdown.stop="emit('select', { kind: 'edge', id: item.edge.id })"
             @keydown.enter.prevent="emit('select', { kind: 'edge', id: item.edge.id })"
           ><title>{{ item.edge.label }}</title></path>
         </g>
       </svg>
       <article
-        v-for="node in graph.nodes" :key="node.id" class="graph-node" :data-testid="`graph-node-${node.id}`"
+        v-for="node in graph.nodes"
+        :key="node.id"
+        class="graph-node"
+        :data-testid="`graph-node-${node.id}`"
         :class="{ 'graph-node--selected': selection?.kind === 'node' && selection.id === node.id, 'graph-node--placeholder': node.placeholder, 'graph-2d__dim': selection && !neighbors.has(node.id) }"
         :style="{ left: `${positions[node.id]!.x}px`, top: `${positions[node.id]!.y}px`, width: `${CARD_WIDTH}px`, '--node-accent': `var(--dp-chart-${accentIndex(node)})` }"
         data-graph-interactive
       >
         <div
-          class="graph-node__head" role="button" tabindex="0" :aria-label="node.label"
+          class="graph-node__head"
+          role="button"
+          tabindex="0"
+          :aria-label="node.label"
           :style="{ height: `${HEADER_HEIGHT}px` }"
-          @pointerdown.stop="start($event, node.id)" @dblclick.stop="emit('activate', node.id)"
+          @pointerdown.stop="start($event, node.id)"
+          @dblclick.stop="emit('activate', node.id)"
           @keydown.enter.prevent="emit('select', { kind: 'node', id: node.id })"
         >
           <strong :title="node.label">{{ node.label }}</strong>
@@ -146,20 +195,40 @@ defineExpose({ fit, zoom, focus })
         </div>
         <template v-if="expanded">
           <div
-            v-for="row in node.rows" :key="row.id" class="graph-node__row" role="button" tabindex="0"
+            v-for="row in node.rows"
+            :key="row.id"
+            class="graph-node__row"
+            role="button"
+            tabindex="0"
             :class="{ 'graph-node__row--selected': selection?.kind === 'node' && selection.id === node.id && selection.portId === row.id }"
-            :style="{ height: `${ROW_HEIGHT}px` }" :aria-label="`${node.label}: ${row.label}`"
+            :style="{ height: `${ROW_HEIGHT}px` }"
+            :aria-label="`${node.label}: ${row.label}`"
             :data-testid="`graph-port-${node.id}-${row.id}`"
-            @pointerdown.stop @click.stop="emit('select', { kind: 'node', id: node.id, portId: row.id })"
+            @pointerdown.stop
+            @click.stop="emit('select', { kind: 'node', id: node.id, portId: row.id })"
             @keydown.enter.prevent="emit('select', { kind: 'node', id: node.id, portId: row.id })"
           >
             <!-- A dot where a line actually arrives, and nowhere else: every
                  row carrying two of them made a card a column of dots. -->
-            <span v-if="anchorOf(node.id, row.id).left" class="graph-node__port graph-node__port--left" :data-testid="`graph-anchor-${node.id}-${row.id}`" />
-            <span v-if="anchorOf(node.id, row.id).right" class="graph-node__port graph-node__port--right" :data-testid="`graph-anchor-${node.id}-${row.id}`" />
+            <span
+              v-if="anchorOf(node.id, row.id).left"
+              class="graph-node__port graph-node__port--left"
+              :data-testid="`graph-anchor-${node.id}-${row.id}`"
+            />
+            <span
+              v-if="anchorOf(node.id, row.id).right"
+              class="graph-node__port graph-node__port--right"
+              :data-testid="`graph-anchor-${node.id}-${row.id}`"
+            />
             <span class="graph-node__badges">{{ row.badges?.join(' ') }}</span>
-            <span class="graph-node__name" :title="row.label">{{ row.label }}</span>
-            <span class="graph-node__type" :title="row.detail">{{ row.detail }}</span>
+            <span
+              class="graph-node__name"
+              :title="row.label"
+            >{{ row.label }}</span>
+            <span
+              class="graph-node__type"
+              :title="row.detail"
+            >{{ row.detail }}</span>
           </div>
         </template>
       </article>

@@ -170,7 +170,9 @@ function remove(profile: ServerProfile) {
           <div class="server-switcher__details">
             <strong>{{ profile.name }}</strong>
             <span v-if="profile.url === servers.active.url"> · Current</span>
-            <div class="server-switcher__url">{{ profile.url }}</div>
+            <div class="server-switcher__url">
+              {{ profile.url }}
+            </div>
           </div>
           <AppButton
             :label="profile.url === servers.active.url ? 'Check' : 'Connect'"

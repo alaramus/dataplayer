@@ -38,9 +38,23 @@ defineExpose({ fit: () => scene?.fit(), zoom: (factor: number) => scene?.zoom(fa
 </script>
 
 <template>
-  <div class="graph-3d" data-testid="graph-3d">
-    <AppBanner v-if="unavailable" tone="warning" data-testid="graph-3d-unavailable">3D rendering is unavailable in this browser. You can continue in 2D.</AppBanner>
-    <div v-show="!unavailable" ref="root" class="graph-3d__surface" tabindex="0" />
+  <div
+    class="graph-3d"
+    data-testid="graph-3d"
+  >
+    <AppBanner
+      v-if="unavailable"
+      tone="warning"
+      data-testid="graph-3d-unavailable"
+    >
+      3D rendering is unavailable in this browser. You can continue in 2D.
+    </AppBanner>
+    <div
+      v-show="!unavailable"
+      ref="root"
+      class="graph-3d__surface"
+      tabindex="0"
+    />
   </div>
 </template>
 

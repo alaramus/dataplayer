@@ -55,7 +55,9 @@ async function submit() {
           <q-form @submit.prevent="submit">
             <AppSection gutter>
               <ServerSwitcher />
-              <div class="login-server-url">{{ servers.active.url }}</div>
+              <div class="login-server-url">
+                {{ servers.active.url }}
+              </div>
               <div
                 v-if="serverStatus.isPending.value"
                 class="login-server-url"

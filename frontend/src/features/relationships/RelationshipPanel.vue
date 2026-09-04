@@ -87,27 +87,82 @@ function openStructure(id: string) {
 </script>
 
 <template>
-  <div class="relationship-panel" data-testid="relationship-panel">
+  <div
+    class="relationship-panel"
+    data-testid="relationship-panel"
+  >
     <!-- No line naming the scope and no line explaining the arrows: the tab
          already says which connection this is and how many tables were asked
          for, and a placeholder card says on its own face whether it is outside
          the selection or unreadable. Two standing bars for that took height
          from the only thing here that needs it. -->
-    <div v-if="source.isFetching.value" class="relationship-panel__loading" role="status">
+    <div
+      v-if="source.isFetching.value"
+      class="relationship-panel__loading"
+      role="status"
+    >
       <span>Reading structure {{ loaded }} / {{ nodes.length }}</span>
-      <AppProgress label="Reading table structures" :value="nodes.length ? loaded / nodes.length : 0" />
-      <AppIconButton icon="stop" tooltip="Stop loading" @click="cancel" />
+      <AppProgress
+        label="Reading table structures"
+        :value="nodes.length ? loaded / nodes.length : 0"
+      />
+      <AppIconButton
+        icon="stop"
+        tooltip="Stop loading"
+        @click="cancel"
+      />
     </div>
-    <AppBanner v-if="source.error.value" tone="error">{{ loadError }}</AppBanner>
-    <AppBanner v-if="cancelled" tone="info">Loading stopped. Reload to read the selection again.</AppBanner>
-    <AppBanner v-if="source.data.value?.failures.length" tone="warning">{{ source.data.value.failures.length }} structures could not be read. Select a dashed node for details.</AppBanner>
-    <GraphViewer v-if="graph" v-model="view" :graph="graph" class="relationship-panel__viewer" @activate="openTable">
+    <AppBanner
+      v-if="source.error.value"
+      tone="error"
+    >
+      {{ loadError }}
+    </AppBanner>
+    <AppBanner
+      v-if="cancelled"
+      tone="info"
+    >
+      Loading stopped. Reload to read the selection again.
+    </AppBanner>
+    <AppBanner
+      v-if="source.data.value?.failures.length"
+      tone="warning"
+    >
+      {{ source.data.value.failures.length }} structures could not be read. Select a dashed node for details.
+    </AppBanner>
+    <GraphViewer
+      v-if="graph"
+      v-model="view"
+      :graph="graph"
+      class="relationship-panel__viewer"
+      @activate="openTable"
+    >
       <template #node-actions="{ node }">
         <template v-if="modelOf(node.id)">
-          <AppButton variant="quiet" size="sm" icon="table_chart" label="Open table" data-testid="graph-open-table" @click="openTable(node.id)" />
-          <AppButton variant="quiet" size="sm" icon="account_tree" label="Structure" @click="openStructure(node.id)" />
+          <AppButton
+            variant="quiet"
+            size="sm"
+            icon="table_chart"
+            label="Open table"
+            data-testid="graph-open-table"
+            @click="openTable(node.id)"
+          />
+          <AppButton
+            variant="quiet"
+            size="sm"
+            icon="account_tree"
+            label="Structure"
+            @click="openStructure(node.id)"
+          />
         </template>
-        <AppButton v-else variant="quiet" size="sm" icon="my_location" label="Show in catalog" @click="openTable(node.id)" />
+        <AppButton
+          v-else
+          variant="quiet"
+          size="sm"
+          icon="my_location"
+          label="Show in catalog"
+          @click="openTable(node.id)"
+        />
       </template>
     </GraphViewer>
   </div>

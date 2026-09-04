@@ -32,7 +32,9 @@ watch(status.data, (value) => { if (value === true) admitted.value = true }, { i
     >
       <AppSection gutter>
         <ServerSwitcher />
-        <div class="server-boundary__url">{{ servers.active.url }}</div>
+        <div class="server-boundary__url">
+          {{ servers.active.url }}
+        </div>
         <AppSpinner v-if="status.isPending.value" />
         <AppBanner
           v-if="status.isError.value"
