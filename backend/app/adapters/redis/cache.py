@@ -77,7 +77,7 @@ class RedisDataCache:
         encryption_key: bytes,
         timeout_seconds: float,
         max_entries: int,
-    ) -> "RedisDataCache":
+    ) -> RedisDataCache:
         return cls(
             RedisCacheConnection(url, timeout_seconds=timeout_seconds),
             namespace=CacheNamespace(deployment),

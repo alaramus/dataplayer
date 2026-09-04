@@ -123,7 +123,7 @@ class DataCache(Protocol):
         *,
         ttl_seconds: float,
         load: Callable[[], Awaitable[T]],
-        cache_format: "CacheFormat[T]",
+        cache_format: CacheFormat[T],
         refresh: bool = False,
     ) -> CacheResult[T]: ...
 
@@ -166,7 +166,7 @@ class MemoryDataCache:
         *,
         ttl_seconds: float,
         load: Callable[[], Awaitable[T]],
-        cache_format: "CacheFormat[T]",
+        cache_format: CacheFormat[T],
         refresh: bool = False,
     ) -> CacheResult[T]:
         """Return a live value, sharing an identical concurrent load."""
@@ -306,7 +306,7 @@ async def cached_read[T](
     refresh: bool,
     response: Response,
     load: Callable[[], Awaitable[T]],
-    cache_format: "CacheFormat[T]",
+    cache_format: CacheFormat[T],
 ) -> T:
     if not isinstance(adapter, SupportsReadCache):
         data_cache.observe("bypass")
