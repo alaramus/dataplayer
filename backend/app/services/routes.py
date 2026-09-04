@@ -1,17 +1,20 @@
 import uuid
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters import options as adapter_options
 from app.adapters import registry
 from app.adapters.cache import DataCache, DataCacheDep
 from app.adapters.protocol import DescribesDraft, SupportsSampleData
 from app.adapters.registry import AdapterType
 from app.connectors import crud as connector_crud
 from app.connectors.models import Connector
+from app.connectors.service import merge_options
 from app.core import crypto
 from app.core.config import settings
 from app.core.db import SessionDep, async_session_maker
@@ -38,6 +41,7 @@ from app.services.models import (
     ManagedService,
     NoPassword,
     PasswordMode,
+    RevealedCredentials,
     ServiceAccepted,
     ServiceCredentials,
     ServicePublic,
@@ -327,11 +331,10 @@ async def read_service_credentials(
     it answers on is not the one the connector holds — that is a container
     name on a network only this server is on.
 
-    Never the password. It is encrypted in the connector and stays there
-    (D4); somebody who needs to know a service's password starts one with a
-    password of their own. That is what makes this answerable more than once,
-    and what makes it answerable at all for a service whose connection its
-    owner has since deleted.
+    Never the password. That one is handed over once, by the route below, at
+    the moment the service becomes usable. Leaving it out here is what makes
+    this answerable more than once — and what makes it answerable at all for a
+    service whose connection its owner has since deleted.
     """
     service = await _own_or_404(session, service_id, current_user.id)
     if service.connected_at is None:
@@ -340,6 +343,55 @@ async def read_service_credentials(
             detail={"message": "This service has no connection yet"},
         )
     return _credentials_of(service)
+
+
+@router.post(
+    "/{service_id}/credentials/reveal", response_model=RevealedCredentials
+)
+async def reveal_service_credentials(
+    session: SessionDep, current_user: CurrentUser, service_id: uuid.UUID
+) -> Any:
+    """
+    The password this service was started with, handed over once.
+
+    A service is used through the connection it became, and this application
+    never needs to say its password out loud. A person who has just started a
+    database usually wants to open it in their own tools as well, and a
+    password the server made up is one they were never told — so it is said at
+    that moment, and the row remembers that it was said.
+
+    A POST because it is not a read: the stamp it leaves is the whole reason
+    asking twice is refused, and a GET that changed something would be a GET
+    that a refresh could spend. Every later question about this service goes
+    to the route above and comes back without a password.
+
+    Not a second home for a secret: it is read out of the connector, where the
+    job encrypted it (D4), and nothing is written down to make this possible.
+    """
+    service = await _own_or_404(session, service_id, current_user.id)
+    if service.connected_at is None:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": "This service has no connection yet"},
+        )
+    if service.credentials_shown_at is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": (
+                    "That was shown once already. Start another service if you "
+                    "need a password you can see."
+                )
+            },
+        )
+    answer = RevealedCredentials(
+        **_credentials_of(service).model_dump(),
+        password=await _password_of(session, service),
+    )
+    service.credentials_shown_at = datetime.now(UTC)
+    session.add(service)
+    await session.commit()
+    return answer
 
 
 @router.get("/{service_id}/logs", response_model=ServiceLogs)
@@ -891,6 +943,34 @@ def _credentials_of(service: ManagedService) -> ServiceCredentials:
         else None,
         unreachable_reason=None if published is not None else NOT_PUBLISHED,
     )
+
+
+async def _password_of(
+    session: AsyncSession, service: ManagedService
+) -> str | None:
+    """The password this service runs with, out of its one home.
+
+    The connector, where the create job encrypted it (D4). Not the plan, which
+    is long gone, and not a column of its own: the whole point of reading it
+    here is that there is nowhere else it could be read from.
+
+    Through the adapter's own options model rather than off the raw
+    dictionary, because a secret is a `SecretStr` there and that declaration
+    is what says which field it is. A service started without a password has
+    none to give, and so does one whose connection has been deleted — which is
+    a state, not a failure: the address is still known.
+    """
+    if service.password_mode == "none" or service.connector_id is None:
+        return None
+    connector = await session.get(Connector, service.connector_id)
+    if connector is None:
+        return None
+    kind = registry.get(connector.adapter_type)
+    options = adapter_options.validate(
+        kind.options_schema, merge_options(connector.config, connector.secrets)
+    )
+    password = getattr(options, "password", None)
+    return None if password is None else str(password.get_secret_value())
 
 
 def _url_of(kind: AdapterType, parts: Mapping[str, Any]) -> str | None:

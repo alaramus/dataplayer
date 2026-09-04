@@ -51,16 +51,13 @@ def upgrade():
         'UPDATE managedservice SET connected_at = created_at '
         'WHERE connector_id IS NOT NULL'
     )
-    # The password is not shown at all any more, so the stamp that rationed it
-    # has nothing left to say (D89).
-    op.drop_column('managedservice', 'credentials_shown_at')
+    # `credentials_shown_at` stays as it is. The password is still handed over
+    # exactly once, at the moment a service becomes usable; what changed is
+    # that everything beside it — the address and the names — is no longer
+    # rationed along with it (D89).
 
 
 def downgrade():
-    op.add_column(
-        'managedservice',
-        sa.Column('credentials_shown_at', sa.DateTime(timezone=True), nullable=True),
-    )
     op.drop_column('managedservice', 'connected_at')
     op.drop_column('managedservice', 'chosen_password')
     op.drop_column('managedservice', 'password_mode')

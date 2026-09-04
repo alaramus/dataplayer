@@ -458,9 +458,9 @@ async def test_where_a_service_listens_can_be_asked_again_and_again(
 async def test_no_password_is_ever_in_that_answer(
     client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
 ) -> None:
-    """Not the field, and not inside the address either. It is encrypted in
-    the connector and stays there; somebody who needs to know a service's
-    password starts one with a password of their own (D89)."""
+    """Not the field, and not inside the address either. This is the answer
+    that has no end, so a secret in it would be one anybody could ask for at
+    any time; the password is handed over once, by the other route (D89)."""
     engine.gives_port = 49216
     accepted = await _start(client, normal_user_token_headers)
     password = engine.created[0].environment["POSTGRES_PASSWORD"]
@@ -473,6 +473,79 @@ async def test_no_password_is_ever_in_that_answer(
     assert "password" not in shown.json()
     assert password not in shown.text
     assert shown.json()["password_mode"] == "generated"
+
+
+async def test_the_password_is_handed_over_once_and_then_refused(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+) -> None:
+    """A password the server made up is one its owner was never told, so it is
+    said at the moment the service becomes usable — and it lives encrypted in
+    the connector from then on, with no second way to read it out (D4)."""
+    engine.gives_port = 49218
+    accepted = await _start(client, normal_user_token_headers)
+    service_id = accepted["service"]["id"]
+    made = engine.created[0].environment["POSTGRES_PASSWORD"]
+
+    handed = await client.post(
+        f"{BASE}/{service_id}/credentials/reveal", headers=normal_user_token_headers
+    )
+    again = await client.post(
+        f"{BASE}/{service_id}/credentials/reveal", headers=normal_user_token_headers
+    )
+
+    assert handed.status_code == 200
+    body = handed.json()
+    assert body["password"] == made
+    assert body["port"] == 49218
+    assert body["user"] == "dataplayer"
+    assert again.status_code == 409
+    # And the answer that has no end still carries nothing.
+    listening = await client.get(
+        f"{BASE}/{service_id}/credentials", headers=normal_user_token_headers
+    )
+    assert made not in listening.text
+
+
+async def test_a_service_started_without_one_has_no_password_to_hand_over(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+) -> None:
+    """Null rather than an empty string: there is nothing to remember, and the
+    window says that instead of showing an empty box."""
+    engine.gives_port = 49219
+    accepted = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={
+            "template_key": "redis",
+            "start": {"mode": "chosen", "name": "Open", "password": {"kind": "none"}},
+        },
+    )
+    await _wait(accepted.json()["job"]["id"])
+
+    handed = await client.post(
+        f"{BASE}/{accepted.json()['service']['id']}/credentials/reveal",
+        headers=normal_user_token_headers,
+    )
+
+    assert handed.status_code == 200
+    assert handed.json()["password"] is None
+    assert handed.json()["password_mode"] == "none"
+
+
+@pytest.mark.usefixtures("engine")
+async def test_nobody_else_may_ask_for_that_password(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    superuser_token_headers: dict[str, str],
+) -> None:
+    accepted = await _start(client, normal_user_token_headers)
+
+    refused = await client.post(
+        f"{BASE}/{accepted['service']['id']}/credentials/reveal",
+        headers=superuser_token_headers,
+    )
+
+    assert refused.status_code == 404
 
 
 async def test_where_it_listens_survives_the_connection_being_deleted(

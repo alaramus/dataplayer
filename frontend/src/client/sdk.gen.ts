@@ -334,6 +334,9 @@ import type {
   servicesRetryServiceData,
   servicesRetryServiceErrors,
   servicesRetryServiceResponses,
+  servicesRevealServiceCredentialsData,
+  servicesRevealServiceCredentialsErrors,
+  servicesRevealServiceCredentialsResponses,
   servicesStartServiceData,
   servicesStartServiceErrors,
   servicesStartServiceResponses,
@@ -2393,11 +2396,10 @@ export class ServicesService {
    * it answers on is not the one the connector holds — that is a container
    * name on a network only this server is on.
    *
-   * Never the password. It is encrypted in the connector and stays there
-   * (D4); somebody who needs to know a service's password starts one with a
-   * password of their own. That is what makes this answerable more than once,
-   * and what makes it answerable at all for a service whose connection its
-   * owner has since deleted.
+   * Never the password. That one is handed over once, by the route below, at
+   * the moment the service becomes usable. Leaving it out here is what makes
+   * this answerable more than once — and what makes it answerable at all for a
+   * service whose connection its owner has since deleted.
    */
   public static readServiceCredentials<ThrowOnError extends boolean = true>(
     options: Options<servicesReadServiceCredentialsData, ThrowOnError>
@@ -2410,6 +2412,40 @@ export class ServicesService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/services/{service_id}/credentials",
+      ...options,
+    })
+  }
+
+  /**
+   * Reveal Service Credentials
+   *
+   * The password this service was started with, handed over once.
+   *
+   * A service is used through the connection it became, and this application
+   * never needs to say its password out loud. A person who has just started a
+   * database usually wants to open it in their own tools as well, and a
+   * password the server made up is one they were never told — so it is said at
+   * that moment, and the row remembers that it was said.
+   *
+   * A POST because it is not a read: the stamp it leaves is the whole reason
+   * asking twice is refused, and a GET that changed something would be a GET
+   * that a refresh could spend. Every later question about this service goes
+   * to the route above and comes back without a password.
+   *
+   * Not a second home for a secret: it is read out of the connector, where the
+   * job encrypted it (D4), and nothing is written down to make this possible.
+   */
+  public static revealServiceCredentials<ThrowOnError extends boolean = true>(
+    options: Options<servicesRevealServiceCredentialsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      servicesRevealServiceCredentialsResponses,
+      servicesRevealServiceCredentialsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/services/{service_id}/credentials/reveal",
       ...options,
     })
   }
@@ -2443,11 +2479,13 @@ export class ServicesService {
    *
    * Make it again, from the beginning.
    *
-   * Not "carry on where it stopped": a password is settled once per attempt
-   * and lives only in the connector that attempt would have saved, so whatever
-   * a failed one left behind has a password nobody knows. Starting over is the
-   * only honest meaning of retry here, and it takes the earlier container and
-   * its data with it (D84).
+   * Not "carry on where it stopped": a password this server made up is settled
+   * once per attempt and lives only in the connector that attempt would have
+   * saved, so whatever a failed one left behind has a password nobody knows.
+   * Starting over is the only honest meaning of retry here, and it takes the
+   * earlier container and its data with it (D84). A password somebody typed is
+   * the exception that proves it — it is still on the row, encrypted, because
+   * no connector took it over, so the second attempt uses the same one.
    *
    * A service that ever became a connection is refused: that one is finished,
    * and remaking it would destroy a database somebody is using. Asked of the

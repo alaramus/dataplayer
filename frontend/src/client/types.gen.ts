@@ -4751,6 +4751,55 @@ export type RetentionSettings = {
 }
 
 /**
+ * RevealedCredentials
+ *
+ * The same, with the password, given exactly once.
+ *
+ * A larger answer to a narrower question rather than a flag on the one
+ * above: which of the two a caller got is decided by which route it called,
+ * so nothing has to read a boolean to know whether it is holding a secret.
+ *
+ * Once, at the moment the service becomes usable — that is when a password
+ * nobody was asked for is worth saying out loud, and the window that says it
+ * warns before it does. Every later question about the service answers
+ * without it.
+ */
+export type RevealedCredentials = {
+  /**
+   * Host
+   */
+  host: string | null
+  /**
+   * Port
+   */
+  port: number | null
+  /**
+   * User
+   */
+  user: string | null
+  /**
+   * Database
+   */
+  database: string | null
+  /**
+   * Password Mode
+   */
+  password_mode: "generated" | "chosen" | "none"
+  /**
+   * Url
+   */
+  url?: string | null
+  /**
+   * Unreachable Reason
+   */
+  unreachable_reason?: string | null
+  /**
+   * Password
+   */
+  password: string | null
+}
+
+/**
  * RowCommand
  *
  * One thing a source offers to do to selected rows of one relation.
@@ -5287,9 +5336,9 @@ export type ServiceAccepted = {
  * Everything but the password. A service is used through the connection it
  * became, and what a person needs from this window is the address and the
  * names — which they can be told again tomorrow, so it is not a thing to
- * ration. The password is the one part never shown: it stays encrypted in
- * the connector (D4), and somebody who needs to know a service's password
- * starts it with one of their own.
+ * ration. The password is not here because this answer has no end: it is
+ * handed over once, at the moment the service becomes usable, by the other
+ * route.
  *
  * Read off the service row and its template rather than out of the
  * connector, so that a person who deleted the connection can still be told
@@ -9468,6 +9517,38 @@ export type servicesReadServiceCredentialsResponses = {
 
 export type servicesReadServiceCredentialsResponse =
   servicesReadServiceCredentialsResponses[keyof servicesReadServiceCredentialsResponses]
+
+export type servicesRevealServiceCredentialsData = {
+  body?: never
+  path: {
+    /**
+     * Service Id
+     */
+    service_id: string
+  }
+  query?: never
+  url: "/api/v1/services/{service_id}/credentials/reveal"
+}
+
+export type servicesRevealServiceCredentialsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type servicesRevealServiceCredentialsError =
+  servicesRevealServiceCredentialsErrors[keyof servicesRevealServiceCredentialsErrors]
+
+export type servicesRevealServiceCredentialsResponses = {
+  /**
+   * Successful Response
+   */
+  200: RevealedCredentials
+}
+
+export type servicesRevealServiceCredentialsResponse =
+  servicesRevealServiceCredentialsResponses[keyof servicesRevealServiceCredentialsResponses]
 
 export type servicesReadServiceLogsData = {
   body?: never

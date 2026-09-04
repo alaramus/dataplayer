@@ -1,64 +1,109 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import { useServiceCredentials } from "@/features/services/api"
+import {
+  useRevealedCredentials,
+  useServiceCredentials,
+} from "@/features/services/api"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import { AppBanner, AppButton, AppCopyButton, AppSpinner, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 /**
- * How to reach a service from outside this application, whenever it is asked.
+ * How to reach a service from outside this application.
  *
  * The service is used through the connection beside it, and this application
  * never needs any of this. It is here because somebody who starts a
  * PostgreSQL usually wants to point their own tools at it too, and the
  * address it answers on for them is not the one the connection holds.
  *
- * Never the password. It stays where every credential in this application
- * stays — encrypted in the connector (D4) — and that is what makes the rest
- * of it something a person can be told again tomorrow.
+ * The same window in two situations, and the password is what separates them.
+ * Opened by itself the moment a service becomes usable, it hands over the
+ * password once — that is when a password nobody was asked for is worth
+ * saying out loud, and the warning above it is the whole reason it is said
+ * before anything else. Opened later from the services window, it shows the
+ * address and the names and no secret at all, which is what makes that one
+ * askable as often as anybody likes.
  */
 const props = defineProps<{
   service: { id: string; name: string } | null
+  /**
+   * Whether this is that first moment. Decided by whoever opens the window
+   * rather than by this component: only the screen that asked for a service
+   * knows that one has just been made.
+   */
+  reveal?: boolean
 }>()
 
 const emit = defineEmits<{ "update:service": [value: null] }>()
 
 const serviceId = computed(() => props.service?.id ?? null)
-const credentials = useServiceCredentials(serviceId)
+// Both are declared and one is enabled: which of the two answers this window
+// is showing is a property of how it was opened, and a request that hands a
+// password over must not be made by a window that was not opened to do it.
+const revealing = computed(() => props.reveal === true)
+const listening = computed(() => !revealing.value)
+const shown = useServiceCredentials(serviceId, listening)
+const handed = useRevealedCredentials(serviceId, revealing)
+
+const answer = computed(() =>
+  revealing.value ? handed.data.value : shown.data.value
+)
+const loading = computed(() =>
+  revealing.value ? handed.isLoading.value : shown.isLoading.value
+)
+const failure = computed(() =>
+  revealing.value ? handed.error.value : shown.error.value
+)
 
 const rows = computed(() => {
-  const found = credentials.data.value
+  const found = answer.value
   if (found === undefined) return []
   return [
     { label: "Host", value: found.host },
     { label: "Port", value: found.port === null ? null : String(found.port) },
     { label: "User", value: found.user },
     { label: "Database", value: found.database },
+    // Only in the answer that carries one, and last of the parts, so it is
+    // read after everything that says what it belongs to.
+    { label: "Password", value: revealing.value ? handed.data.value?.password : null },
   ].filter((row): row is { label: string; value: string } => Boolean(row.value))
 })
 
 /**
- * What to say about the password, which is never one of the rows above.
+ * What to say about the password.
  *
- * Three different things rather than one: one somebody typed is one they
- * already know, one this server made up is gone for good, and a service that
- * wants none has nothing to say at all.
+ * Four situations, and the one that matters is the first: a password this
+ * server made up is being said for the only time it will ever be said, and a
+ * person who closes this window without copying it has lost it. Said before
+ * the rows rather than after them, because a warning under something the
+ * reader has already closed is not a warning.
  */
 const aboutThePassword = computed(() => {
-  switch (credentials.data.value?.password_mode) {
-    case "chosen":
-      return "It uses the password you typed when you started it."
-    case "none":
-      return "This service was started without a password."
-    default:
-      return (
-        "Its password was made up here and is not shown anywhere. Start a " +
-        "service with a password of your own if you need to type one in."
-      )
+  const mode = answer.value?.password_mode
+  if (mode === "none") return "This service was started without a password."
+  if (revealing.value) {
+    if (mode === "chosen") return "It uses the password you typed for it."
+    return (
+      "This is the only time this password is shown. Copy it now — from here " +
+      "on it lives encrypted in the connection and nothing can read it back."
+    )
   }
+  if (mode === "chosen") return "It uses the password you typed when you started it."
+  return (
+    "Its password was made up here and was shown once, when the service was " +
+    "made. Start a service with a password of your own if you need to type " +
+    "one in."
+  )
 })
+
+/** Whether that sentence is a warning or a fact. */
+const passwordTone = computed(() =>
+  revealing.value && answer.value?.password_mode === "generated"
+    ? "warning"
+    : "info"
+)
 
 /**
  * The same thing as one line, which is what most tools actually take.
@@ -69,7 +114,7 @@ const aboutThePassword = computed(() => {
  * address of its own answers with nothing, and then there is nothing to show.
  * Without the password, so it is a line that can be pasted anywhere.
  */
-const url = computed(() => credentials.data.value?.url ?? null)
+const url = computed(() => answer.value?.url ?? null)
 
 const toast = useToast()
 
@@ -89,27 +134,27 @@ async function copy(what: string, said: string) {
     @update:model-value="emit('update:service', null)"
   >
     <div class="credentials">
-      <AppSpinner v-if="credentials.isLoading.value" />
+      <AppSpinner v-if="loading" />
       <AppBanner
-        v-else-if="credentials.isError.value"
+        v-else-if="failure"
         tone="warning"
       >
-        {{ messageOf(credentials.error.value, "These could not be shown") }}
+        {{ messageOf(failure, "These could not be shown") }}
       </AppBanner>
       <template v-else>
-        <!-- What is not on the list, said where somebody looking for it will
-             read it rather than after they have closed the window. -->
+        <!-- First of all, because it is the sentence that decides whether
+             the reader has to do something before closing the window. -->
         <AppBanner
-          tone="info"
+          :tone="passwordTone"
           data-testid="credential-password-note"
         >
           {{ aboutThePassword }}
         </AppBanner>
         <AppBanner
-          v-if="credentials.data.value?.unreachable_reason"
+          v-if="answer?.unreachable_reason"
           tone="info"
         >
-          {{ credentials.data.value.unreachable_reason }}
+          {{ answer.unreachable_reason }}
         </AppBanner>
         <div
           v-for="row in rows"

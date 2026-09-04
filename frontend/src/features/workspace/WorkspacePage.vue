@@ -715,6 +715,11 @@ provide(workspaceActionsKey, {
       @start="startService"
     />
 
-    <ServiceCredentialsDialog v-model:service="revealing" />
+    <!-- The one that hands the password over, because this is the screen
+         that knows a service has just been made (D89). -->
+    <ServiceCredentialsDialog
+      v-model:service="revealing"
+      reveal
+    />
   </AppLayout>
 </template>

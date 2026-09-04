@@ -17,9 +17,9 @@ version answered both with "the server decides, and it will tell you once".
 Four things, which are one thing: a chosen start may name the port and the
 password; a Redis may be asked to want no password at all; nobody is asked any
 more whether the service should be reachable from the machine, because the
-answer was always yes; and the window that says where a service listens stops
-being a one-time reveal, because once the password is out of it there is
-nothing left to ration.
+answer was always yes; and what that window says splits in two — the password
+once, at the moment it becomes useful, and the address as often as anybody
+asks.
 
 ## The password was the whole knot
 
@@ -51,13 +51,30 @@ bounded:
   anything that can read the table, and it stays that way precisely so that
   nothing in it has to be treated as a secret.
 
-The window that used to reveal a password is the other half of this. It showed
-one thing worth protecting and, because of it, could be opened once — so the
-address and the names, which are not secret at all, were rationed too, and a
-person who closed the window lost them. Now nothing secret is in the answer:
-the password is shown in neither mode, and a person who needs to know one
-types it when they start the service. What that costs is written down as a
-deviation: a password this server made up cannot be recovered.
+The window that reveals a password is the other half of this, and it was the
+part that took two goes to get right. It showed one thing worth protecting
+and, because of it, could be opened once — so the address, the role and the
+database, which are not secret at all, were rationed along with the password,
+and a person who closed the window lost all four.
+
+The first attempt cut the knot the wrong way, by never showing the password at
+all. That made the window repeatable, which was the point, and it made an
+automatically started database unopenable from anybody's own tools, which was
+not: the whole reason the password is said out loud is that nobody was asked
+for it.
+
+So the two are separated instead of one being sacrificed. There are two
+routes: a GET that answers with the address and the names, as often as
+anybody asks and without a secret in it, and a POST that hands the password
+over once and stamps the row. Which one a caller is holding is decided by
+which one it called, rather than by a flag on a single answer that something
+would have to read to know whether it holds a secret — and the POST is a POST
+because it changes something, so a refresh cannot spend it.
+
+The window is one component either way. The screen that asked for the service
+opens it with the reveal on, because that screen is the only one that knows a
+service has just been made; the services list opens it without, and gets the
+answer with no password in it.
 
 ### Where a bad password is refused
 
@@ -134,11 +151,12 @@ work to watch, and the container is the only part that is.
 
 ## What was removed
 
-`ComposesSecretUrl` and its two implementations. Its docstring said it had
-exactly one caller — the window that revealed a service's password — and that
-caller is gone. A helper whose only job is to put a password into a string,
-kept with nothing calling it, is the most dangerous kind of dead code there
-is. The address the window shows is now composed by `draft_connection_string`,
-which is the one that builds from loose values and leaves the password out;
-reading a pasted URL that carries a password is unaffected, because tools
-people paste from still write them.
+`ComposesSecretUrl` and its two implementations. Its only caller composed the
+one-line address for the window that reveals a password, with the password in
+it — and that line is gone even from the reveal: the password is a row of its
+own there, so nothing has to hold a secret inside a string. A helper whose
+only job is to put a password into a string, kept with nothing calling it, is
+the most dangerous kind of dead code there is. Both windows now compose the
+address with `draft_connection_string`, which builds from loose values and
+leaves the password out; reading a pasted URL that carries one is unaffected,
+because the tools people paste from still write them.

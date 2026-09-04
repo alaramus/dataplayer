@@ -44,6 +44,7 @@ POST   /api/v1/services/{service_id}/restart
 POST   /api/v1/services/{service_id}/retry
 GET    /api/v1/services/{service_id}/logs
 GET    /api/v1/services/{service_id}/credentials
+POST   /api/v1/services/{service_id}/credentials/reveal
 DELETE /api/v1/services/{service_id}
 GET    /api/v1/backups/
 GET    /api/v1/backups/offer
@@ -209,7 +210,7 @@ becoming a second kind of connection with rules of its own.
   used is not an offer. A port on the host is a second thing with a different
   audience — the person who started it, in their own tools — and it is bound
   to the loopback address and numbered by the runtime unless somebody named a
-  port ([D89](#d89-where-a-service-listens-is-told-as-often-as-it-is-asked-and-its-password-never)).
+  port ([D89](#d89-the-password-is-handed-over-once-where-a-service-listens-is-told-always)).
 - **How much a person is asked depends on which of the two ways they asked**
   (D88). The image, the command, the volume and the data path are the
   server's in both.
@@ -548,29 +549,34 @@ Known deviations:
 
 Spec: [Choosing what a started service is made with](../superpowers/specs/2026-09-03-service-start-choices-design.md)
 
-## D89. Where a service listens is told as often as it is asked, and its password never
+## D89. The password is handed over once, where a service listens is told always
 
 A service is used through the connection it became, so this application never
-needs to say any of this out loud. A person who started a database usually
-wants to open it in their own tools as well, and the address it answers on for
-them is not the one the connection holds — so it is shown, whenever they ask.
+needs to say any of this out loud. A person who has just started a database
+usually wants to open it in their own tools as well, and two of the things
+they need are things nobody told them: the password, when the server made it
+up, and the address, which is not the one the connection holds. The two are
+said in different ways, because only one of them is a secret.
 
-- **The password is not part of the answer, in either mode.** It was shown
-  once before, and once is what made everything beside it a thing to ration.
-  Somebody who needs to know a service's password types one when they start it
-  ([D88](#d88-two-ways-to-ask-for-a-service-and-neither-of-them-names-a-container));
-  one this server made up stays encrypted in the connector ([D4](backend.md))
-  and is read by nothing but a driver. The window says which of the three it
-  was, so a reader knows whether there is anything to remember.
-- **What is left is not a secret**, so there is nothing to stamp, nothing to
-  refuse and nothing to lose by closing the window. The route reads rather
-  than writes, which is what a GET should have been all along.
-- **It is read off the service row and its template**, not out of the
-  connector. Every value in a connector would have to be replaced or ignored —
-  it holds the container name on this server's own network — and the
-  connector is gone the moment its owner deletes it, which is exactly when
-  somebody still wants to know where the container they still have is
-  listening.
+- **The password is handed over once, at the moment the service becomes
+  usable.** That is when a password nobody was asked for is worth saying, and
+  `credentials_shown_at` is stamped when it is said. Asking again is refused
+  rather than answered, and the window warns before it shows anything —
+  a warning under something the reader has already closed is not a warning.
+- **It is a POST, and a route of its own.** The stamp is the whole reason a
+  second ask is refused, and a GET that changed something would be a GET a
+  refresh could spend. Which of the two answers a caller is holding is decided
+  by which route it called, rather than by a flag on one answer that something
+  would have to read to know whether it holds a secret.
+- **It is read out of the connector**, where the job encrypted it (D4). There
+  is no second home for it once the service is made, and nothing is written
+  down to make this route possible.
+- **Everything else is told as often as it is asked.** The address, the role
+  and the database are not secrets, and rationing them along with the password
+  is what made a closed window lose them. That answer carries no password at
+  all, which is what lets it be read off the service row and its template
+  rather than out of the connector — so a person who deleted the connection
+  can still be told where the container they still have is listening.
 - **The address is the one somebody else could use**: `127.0.0.1` and the port
   the container was published on, and a service the runtime published nowhere
   says why there is no address instead of showing one that would fail.
@@ -578,19 +584,24 @@ them is not the one the connection holds — so it is shown, whenever they ask.
   and a port; a terminal takes a URL. The line is written by the source type
   that owns the grammar (D15), never joined together by the screen, and it is
   composed by the same call every other address in this application goes
-  through — so there is no longer a function anywhere whose job is to put a
-  password into a string.
+  through — so no line this application shows carries a password, including
+  this one.
 - **Both modes open the window by themselves** when the service becomes ready.
   Neither kind of requester was told where it listens: the port is the
-  runtime's answer, and the host is not the one they would have guessed.
+  runtime's answer, and the host is not the one they would have guessed. The
+  window opened later from the services list is the same component with the
+  reveal left off.
 
 Known deviations:
 
-- **A password this server made up cannot be recovered.** It works through the
-  connection and nowhere else; a person who wants to open the database in
-  their own tools starts it with a password of their own.
-- **Nothing is audited.** Who looked at an address, and when, is not recorded
-  at all now that the stamp is gone.
+- **A closed window loses a password the server made up.** There is no second
+  reveal; the service can be started again with a password of one's own, which
+  is what the form is for.
+- **A password somebody typed is shown back to them** in that window, although
+  they already know it. Suppressing it would mean the window said different
+  things in the two cases for no gain to the reader.
+- **The reveal is not audited.** That it happened is a stamp on the row and
+  nothing more.
 - **A published port is on the loopback only**, so "from outside" means from
   the machine this server runs on. Reaching it from another machine is that
   machine's tunnel to arrange.

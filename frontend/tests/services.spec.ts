@@ -19,7 +19,8 @@ import { closeWindowDialog, connectorRow } from "./utils/workspace"
 // told from another one.
 const SERVICE_NAME = `e2e-service-${Date.now()}`
 // Typed rather than left to the server, because that is the half of the form
-// with a consequence: a password made up here is never shown again.
+// with a consequence: what the server makes up is said once and then never
+// again, and this scenario looks at both halves of that.
 const SERVICE_PASSWORD = "e2e-chosen-9"
 
 async function openTheCatalog(page: import("@playwright/test").Page) {
@@ -49,7 +50,7 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   await page.getByRole("option", { name: "Let me choose" }).click()
   await page.getByTestId("service-name").fill(SERVICE_NAME)
   // A password of its own, which is the reason the form asks for one: what
-  // this server makes up is never shown afterwards.
+  // this server makes up is said once and then gone.
   await page.getByTestId("service-password").fill(SERVICE_PASSWORD)
   // Nothing to look at: this scenario is about the lifecycle, and filling a
   // database is minutes it does not need. The port stays at zero, so the
@@ -77,9 +78,10 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   const details = page.getByTestId("service-credentials-dialog")
   await expect(details).toBeVisible({ timeout: 90_000 })
   await expect(details.getByTestId("credential-host")).toContainText("127.0.0.1")
-  // And never a password — not as a row, and not inside the address either.
-  await expect(details.getByTestId("credential-password")).toHaveCount(0)
-  await expect(details).not.toContainText(SERVICE_PASSWORD)
+  // And this is the one moment the password is said out loud.
+  await expect(details.getByTestId("credential-password")).toContainText(
+    SERVICE_PASSWORD
+  )
   await page.getByTestId("credentials-done").click()
 
   // Opening it reads the catalog of the database that was just made.
@@ -87,14 +89,17 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   await connectorRow(page, SERVICE_NAME).click()
   await expect(page.getByTestId("catalog-list")).toContainText("System")
 
-  // The same window again, as often as it is asked: an address is not a
-  // secret, so there is nothing to ration.
+  // The same window again, as often as it is asked — and without the password
+  // this time: an address is not a secret, and that is what makes it something
+  // a person can be told twice (D89).
   await openServices.click()
   const row = services
     .locator('[data-testid^="managed-service-"]')
     .filter({ hasText: SERVICE_NAME })
   await row.locator('[data-testid^="credentials-service-"]').click()
   await expect(details.getByTestId("credential-host")).toContainText("127.0.0.1")
+  await expect(details.getByTestId("credential-password")).toHaveCount(0)
+  await expect(details).not.toContainText(SERVICE_PASSWORD)
   await page.getByTestId("credentials-done").click()
 
   // Removing the service takes the container and its data, and the connection

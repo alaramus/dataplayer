@@ -113,12 +113,15 @@ export function useCancelJob() {
 /**
  * Where one service listens, and under what names.
  *
- * An ordinary read, which it became when the password stopped being part of
- * the answer: nothing is stamped, nothing is rationed, and asking again is
- * asking again. Kept a short while because an address changes only when the
- * service is started afresh.
+ * An ordinary read, which it is because the password is not in it: nothing is
+ * stamped, nothing is rationed, and asking again is asking again. Kept a
+ * short while because an address changes only when the service is started
+ * afresh.
  */
-export function useServiceCredentials(serviceId: Ref<string | null>) {
+export function useServiceCredentials(
+  serviceId: Ref<string | null>,
+  enabled: Ref<boolean>
+) {
   return useQuery({
     queryKey: computed(() => ["service-credentials", serviceId.value] as const),
     queryFn: async () =>
@@ -127,8 +130,42 @@ export function useServiceCredentials(serviceId: Ref<string | null>) {
           path: { service_id: serviceId.value ?? "" },
         })
       ).data,
-    enabled: computed(() => serviceId.value !== null),
+    enabled: computed(() => serviceId.value !== null && enabled.value),
     staleTime: 30_000,
+  })
+}
+
+/**
+ * The same, with the password, asked for exactly once.
+ *
+ * `staleTime: Infinity` and no retry, because this is not a read: the server
+ * stamps the row as handed over and refuses the second ask. A refetch would
+ * turn the one answer into a refusal on the screen of the person who was
+ * being told it — which is why the cached answer has to outlive the window
+ * being closed and opened again in the same session.
+ */
+export function useRevealedCredentials(
+  serviceId: Ref<string | null>,
+  enabled: Ref<boolean>
+) {
+  const queryClient = useQueryClient()
+  return useQuery({
+    queryKey: computed(() => ["service-secret", serviceId.value] as const),
+    queryFn: async () => {
+      const answer = (
+        await ServicesService.revealServiceCredentials({
+          path: { service_id: serviceId.value ?? "" },
+        })
+      ).data
+      // The row now says it has been handed over, which is what a later
+      // request for it will be refused by.
+      await queryClient.invalidateQueries({ queryKey: servicesKey })
+      return answer
+    },
+    enabled: computed(() => serviceId.value !== null && enabled.value),
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: false,
   })
 }
 

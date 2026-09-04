@@ -215,7 +215,7 @@ async function forget(service: ServicePublic) {
       <AppIconButton
         v-if="service.was_connected"
         icon="vpn_key"
-        tooltip="How to reach it from your own tools"
+        tooltip="Where it listens, for your own tools"
         :data-testid="`credentials-service-${service.id}`"
         @click="revealing = { id: service.id, name: service.connector_name }"
       />
@@ -235,6 +235,8 @@ async function forget(service: ServicePublic) {
     </div>
 
     <ServiceLogsDialog v-model:service="reading" />
+    <!-- Without `reveal`: this one is opened whenever somebody asks, so it
+         shows the address and the names and no secret at all (D89). -->
     <ServiceCredentialsDialog v-model:service="revealing" />
   </div>
 </template>

@@ -104,6 +104,14 @@ class ManagedService(SQLModel, table=True):
     chosen_password: bytes | None = Field(
         default=None, sa_column=Column(LargeBinary, nullable=True)
     )
+    # When the password was handed to its owner, if it ever was. A stamp
+    # rather than a flag, because "when" is the useful answer and a flag is
+    # derivable from it. Once, deliberately: it is handed over at the moment
+    # the service becomes usable and is an encrypted secret of the connector
+    # from then on, which is the only place a password lives (D4).
+    credentials_shown_at: datetime | None = Field(
+        default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
     # When this service became a connection. Kept after the connector itself
     # is deleted, which is the whole reason it exists: `connector_id` going
     # null then looks exactly like a creation that never got that far, and a
@@ -328,9 +336,9 @@ class ServiceCredentials(BaseModel):
     Everything but the password. A service is used through the connection it
     became, and what a person needs from this window is the address and the
     names — which they can be told again tomorrow, so it is not a thing to
-    ration. The password is the one part never shown: it stays encrypted in
-    the connector (D4), and somebody who needs to know a service's password
-    starts it with one of their own.
+    ration. The password is not here because this answer has no end: it is
+    handed over once, at the moment the service becomes usable, by the other
+    route.
 
     Read off the service row and its template rather than out of the
     connector, so that a person who deleted the connection can still be told
@@ -354,6 +362,25 @@ class ServiceCredentials(BaseModel):
     # without a port on the host is reachable by this server and by nothing
     # else.
     unreachable_reason: str | None = None
+
+
+class RevealedCredentials(ServiceCredentials):
+    """The same, with the password, given exactly once.
+
+    A larger answer to a narrower question rather than a flag on the one
+    above: which of the two a caller got is decided by which route it called,
+    so nothing has to read a boolean to know whether it is holding a secret.
+
+    Once, at the moment the service becomes usable — that is when a password
+    nobody was asked for is worth saying out loud, and the window that says it
+    warns before it does. Every later question about the service answers
+    without it.
+    """
+
+    # Null for a service started without one, which is a real configuration
+    # rather than a missing value: there is nothing to remember, and the
+    # window says that instead of showing an empty box.
+    password: str | None
 
 
 class ServiceAccepted(BaseModel):
