@@ -89,14 +89,23 @@ watch(selected, (id) => {
 })
 
 /**
- * A click on a leaf opens it, the way a click in the list does.
+ * A click is on the whole row, wherever in it the pointer landed.
  *
- * Only a leaf: a branch is a place, and clicking one selects it so that what
- * is made next is made there. Quasar toggles the branch on the same click,
- * which is what a person expects from a tree.
+ * Every click selects, because the menu of actions acts on the selection and
+ * a menu whose subject is invisible is a menu nobody presses. A leaf then
+ * opens, the way a click in the list does; a branch opens and closes, because
+ * a name is a bigger target than the arrow beside it and reaching for the
+ * arrow is the whole of what made this tree feel stiff.
  */
 function onClick(row: TreeRow) {
-  if (row.node.role === "leaf") emit("open", row.node)
+  selected.value = row.id
+  if (row.node.role === "leaf") {
+    emit("open", row.node)
+    return
+  }
+  expanded.value = expanded.value.includes(row.id)
+    ? expanded.value.filter((one) => one !== row.id)
+    : [...expanded.value, row.id]
 }
 
 const empty = computed(() => !loading.value && rows.value.length === 0)
@@ -135,7 +144,11 @@ defineExpose({ reload: () => load(true) })
              about it. -->
         <div
           class="keyspace__row"
+          :class="{
+            'keyspace__row--here': selected === (node as TreeRow).id,
+          }"
           :data-testid="`keyspace-row-${(node as TreeRow).id}`"
+          :aria-selected="selected === (node as TreeRow).id"
           @click="onClick(node as TreeRow)"
         >
           <q-icon
@@ -166,6 +179,17 @@ defineExpose({ reload: () => load(true) })
   gap: 6px;
   min-width: 0;
   flex: 1;
+  padding: 2px 6px;
+  border-radius: var(--dp-radius-control);
+}
+/* What the actions menu is about. Said by ground rather than by colour alone,
+   because the row already carries a muted caption beside the name and a second
+   shade of grey is not a mark. */
+.keyspace__row--here {
+  background: var(--dp-selected);
+}
+.keyspace__row:hover:not(.keyspace__row--here) {
+  background: var(--dp-hover);
 }
 .keyspace__label {
   font-size: 13px;

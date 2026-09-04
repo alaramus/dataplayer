@@ -482,6 +482,12 @@ structure the names were given when they were chosen.
   that picks a grouping, because a grouping is where the tree is rooted. The
   actions menu is fed from the one selected node instead of from a set of
   ticks.
+- **A click is on the whole row.** A branch opens and closes by its name, and
+  a leaf opens in a tab; reaching for the arrow beside the name was a
+  ten-pixel target for the commonest thing anybody does to a tree. Every click
+  also selects, and the selected row is marked — the menu of actions acts on
+  the selection, and a menu whose subject is invisible is a menu nobody
+  presses.
 - **A tree stops at the nodes.** Expanding a branch asks the catalog for its
   children; a leaf is opened in a tab, exactly as it is in a list. Showing the
   first rows of a key inside the tree made one branch mean two different
