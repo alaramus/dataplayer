@@ -4,7 +4,7 @@ The panel engine, the three columns built on it, the drag gesture that moves a
 tab, and the floating windows that edit a connection. The component kit and the
 screens themselves are in [frontend.md](frontend.md).
 
-Decisions here: D12, D14, D69.
+Decisions here: D12, D14, D69, D92.
 
 ## What exists today
 
@@ -348,9 +348,31 @@ Known deviations:
 - **The tab strip inside a window has never been seen.** Both source types put
   everything in one group, and one tab is not a choice, so the strip does not
   render — that half of D14 is unproven in a browser.
-- **Nothing minimises or maximises.** The old engine had both; a window here is a
-  thing you do and then close, not a place you live in.
 - **A window reopened does not return to where it was.** It joins the cascade
   again.
 
 Spec: [The connection window: floating windows and form layout](../superpowers/specs/2026-08-23-connector-window-design.md)
+
+## D92. A window can be put aside without losing its contents
+
+Every floating window offers Minimize, Maximize or Restore size, and Close.
+Double-clicking its title bar also toggles maximization. Maximization fills the
+browser viewport above the application footer; it is an application window
+state, not the browser's fullscreen mode. The layout reports its measured
+footer height to the window manager, so the engine knows an inset rather than
+what the footer contains.
+
+Minimization hides the whole frame while keeping its component mounted. The
+footer lists minimized windows by their current title and icon in a horizontally
+scrollable row. Selecting one, or opening its existing id again, restores it to
+the front. A minimized maximized window returns maximized. Hidden windows never
+claim to be the front window.
+
+The normal rectangle and automatic fitting preference survive both operations.
+Hidden and maximized windows do not accept dragging, resizing or content fitting;
+restoring normal size makes the saved rectangle reachable in the current
+viewport. Maximized geometry follows browser and footer resizing without
+overwriting that saved rectangle. All of this is held only in memory until the
+window closes or the page reloads; the existing close confirmation still applies.
+
+Spec: [Minimizing and maximizing floating windows](../superpowers/specs/2026-09-04-window-states-design.md)

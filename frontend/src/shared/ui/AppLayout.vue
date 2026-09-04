@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
+import { inject, onBeforeUnmount, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 
+import WindowTaskbar from "@/shared/windows/WindowTaskbar.vue"
+import { windowsApiKey } from "@/shared/windows/useWindows"
 import { useAuthStore } from "@/stores/auth"
 
 import AppButton from "./AppButton.vue"
@@ -12,6 +15,24 @@ defineProps<{ fill?: boolean }>()
 const auth = useAuthStore()
 const router = useRouter()
 const queryClient = useQueryClient()
+const windows = inject(windowsApiKey, undefined)
+const footer = ref<HTMLElement | null>(null)
+let footerObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  if (footer.value === null || windows === undefined) return
+  const measure = () => windows.setBottomInset(footer.value?.getBoundingClientRect().height ?? 0)
+  measure()
+  if (typeof ResizeObserver !== "undefined") {
+    footerObserver = new ResizeObserver(measure)
+    footerObserver.observe(footer.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  footerObserver?.disconnect()
+  windows?.setBottomInset(0)
+})
 
 async function logout() {
   auth.clear()
@@ -59,16 +80,22 @@ async function logout() {
       </q-page>
     </q-page-container>
 
-    <!-- A bar of the same colour as the header, closing the screen at the
-         bottom. Empty on purpose: what belongs in a status bar - what is
-         connected, what is running, what the last request cost - arrives with
-         the work that produces it, and the room for it is here. -->
+    <!-- The status commands and minimized windows share one measured footer. -->
     <q-footer
       class="app-layout__footer"
       data-testid="app-footer"
     >
-      <div class="app-layout__status">
-        <slot name="status" />
+      <div
+        ref="footer"
+        class="app-layout__footer-content"
+      >
+        <div class="app-layout__status">
+          <slot name="status" />
+        </div>
+        <WindowTaskbar
+          v-if="windows"
+          :context="windows.context"
+        />
       </div>
     </q-footer>
   </q-layout>
@@ -86,7 +113,7 @@ async function logout() {
   border-bottom: 1px solid var(--dp-border);
 }
 
-.app-layout__footer {
+.app-layout__footer-content {
   border-top: 1px solid var(--dp-border);
 }
 

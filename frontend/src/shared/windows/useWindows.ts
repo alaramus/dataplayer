@@ -46,6 +46,9 @@ export interface OpenWindow {
 export interface WindowState extends OpenWindow {
   rect: Rect
   hasFit: boolean
+  minimized: boolean
+  /** The normal rectangle stays in rect while the frame fills the viewport. */
+  maximized: boolean
   /**
    * What this window *is*, as opposed to what it shows.
    *
@@ -62,7 +65,10 @@ export interface WindowsContext {
   /** Back to front, so the last one is on top. */
   windows: Ref<WindowState[]>
   frontId: Ref<string | null>
+  bottomInset: Ref<number>
   focus: (id: string) => void
+  minimize: (id: string) => void
+  toggleMaximize: (id: string) => void
   close: (id: string) => void
   requestClose: (id: string) => Promise<void>
   move: (id: string, to: { x: number; y: number }) => void
@@ -112,6 +118,8 @@ export interface WindowsApi {
    * saying the other one has already misled the reader.
    */
   retitle: (id: string, look: WindowLook) => void
+  /** Space reserved by the application footer, measured by its layout. */
+  setBottomInset: (height: number) => void
 }
 
 export function useWindows(
@@ -121,6 +129,7 @@ export function useWindows(
   // would walk the whole component definition.
   const windows = shallowRef<WindowState[]>([])
   const order = ref<string[]>([])
+  const bottomInset = ref(0)
   let keys = 0
 
   function ordered(): WindowState[] {
@@ -132,8 +141,26 @@ export function useWindows(
   }
 
   function focus(id: string) {
+    windows.value = windows.value.map((entry) =>
+      entry.id === id && entry.minimized ? { ...entry, minimized: false } : entry
+    )
     order.value = bringToFront(order.value, id)
     windows.value = ordered()
+  }
+
+  function minimize(id: string) {
+    windows.value = windows.value.map((entry) =>
+      entry.id === id ? { ...entry, minimized: true } : entry
+    )
+  }
+
+  function toggleMaximize(id: string) {
+    windows.value = windows.value.map((entry) =>
+      entry.id === id
+        ? { ...entry, maximized: !entry.maximized, rect: clamp(entry.rect, viewportSize()) }
+        : entry
+    )
+    focus(id)
   }
 
   function isOpen(id: string) {
@@ -150,7 +177,15 @@ export function useWindows(
     keys += 1
     windows.value = [
       ...windows.value,
-      { ...window, autoFit: window.autoFit ?? true, rect, hasFit: false, key: `w${keys}` },
+      {
+        ...window,
+        autoFit: window.autoFit ?? true,
+        rect,
+        hasFit: false,
+        minimized: false,
+        maximized: false,
+        key: `w${keys}`,
+      },
     ]
     order.value = [...order.value, window.id]
   }
@@ -172,14 +207,16 @@ export function useWindows(
   function move(id: string, to: { x: number; y: number }) {
     const viewport = viewportSize()
     windows.value = windows.value.map((entry) =>
-      entry.id === id ? { ...entry, rect: clamp({ ...entry.rect, ...to }, viewport) } : entry
+      entry.id === id && !entry.minimized && !entry.maximized
+        ? { ...entry, rect: clamp({ ...entry.rect, ...to }, viewport) }
+        : entry
     )
   }
 
   function resizeWindow(id: string, edge: ResizeEdge, pointer: { x: number; y: number }) {
     const viewport = viewportSize()
     windows.value = windows.value.map((entry) =>
-      entry.id === id
+      entry.id === id && !entry.minimized && !entry.maximized
         ? {
             ...entry,
             autoFit: false,
@@ -198,7 +235,7 @@ export function useWindows(
   function fitWindow(id: string, size: Size) {
     const viewport = viewportSize()
     windows.value = windows.value.map((entry) => {
-      if (entry.id !== id || entry.autoFit === false) return entry
+      if (entry.id !== id || entry.autoFit === false || entry.minimized || entry.maximized) return entry
       const minimum = entry.minSize ?? { width: 280, height: 160 }
       const wanted = {
         width: Math.max(minimum.width, size.width),
@@ -247,13 +284,19 @@ export function useWindows(
   window.addEventListener("resize", reclamp)
   onScopeDispose(() => window.removeEventListener("resize", reclamp))
 
-  const frontId = computed(() => windows.value[windows.value.length - 1]?.id ?? null)
+  const frontId = computed(() => {
+    const visible = windows.value.filter((entry) => !entry.minimized)
+    return visible[visible.length - 1]?.id ?? null
+  })
 
   return {
     context: {
       windows,
       frontId,
+      bottomInset,
       focus,
+      minimize,
+      toggleMaximize,
       close,
       requestClose,
       move,
@@ -266,5 +309,6 @@ export function useWindows(
     isOpen,
     rename,
     retitle,
+    setBottomInset: (height) => { bottomInset.value = Math.max(0, height) },
   }
 }

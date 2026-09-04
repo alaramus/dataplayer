@@ -352,3 +352,66 @@ test("a value typed and then put back is not a change", async ({ page }) => {
 
   await deleteConnector(page, name)
 })
+
+test("maximizes above the footer and restores a minimized draft until reload", async ({ page }) => {
+  await login(page)
+  await pickAdapterType(page, "postgres")
+  const draft = `unsaved-window-${Date.now()}`
+  await page.getByTestId("connector-name").fill(draft)
+  await expect(page.getByTestId("connector-url")).not.toHaveValue("")
+
+  const frame = windows(page).first()
+  const normal = await frame.boundingBox()
+  if (normal === null) throw new Error("The draft window has no rectangle")
+  const footer = page.getByTestId("app-footer")
+
+  const expectMaximized = async () => {
+    await expect.poll(async () => {
+      const box = await frame.boundingBox()
+      const foot = await footer.boundingBox()
+      const viewport = page.viewportSize()
+      if (box === null || foot === null || viewport === null) return false
+      return box.x === 0 && box.y === 0 &&
+        Math.abs(box.width - viewport.width) < 2 &&
+        Math.abs(box.height - foot.y) < 2
+    }).toBe(true)
+    await expect(frame.getByRole("button", { name: "Restore size", exact: true })).toBeVisible()
+    await expect(frame.getByTestId(/^window-resize-/)).toHaveCount(0)
+  }
+
+  await frame.getByRole("button", { name: "Maximize", exact: true }).click()
+  await expectMaximized()
+  await page.setViewportSize({ width: 1100, height: 800 })
+  await expectMaximized()
+
+  await frame.getByRole("button", { name: "Minimize", exact: true }).click()
+  await expect(frame).toBeHidden()
+  const taskbar = page.getByRole("navigation", { name: "Minimized windows" })
+  await expect(taskbar).toBeVisible()
+  await expect(footer.getByTestId("window-taskbar")).toBeVisible()
+  await expect(taskbar.getByRole("button", { name: "Restore New connection" })).toBeFocused()
+
+  // A second maximized window must leave the first one's restore button usable.
+  await page.getByTestId("add-connector").click()
+  const catalog = page.getByRole("dialog", { name: "New connection", exact: true }).filter({
+    has: page.getByTestId("adapter-postgres"),
+  })
+  await catalog.getByRole("button", { name: "Maximize", exact: true }).click()
+  await taskbar.getByRole("button", { name: "Restore New connection" }).click()
+  await expectMaximized()
+  await expect(frame.getByTestId("connector-name")).toHaveValue(draft)
+
+  await frame.getByRole("button", { name: "Restore size", exact: true }).click()
+  await expect.poll(async () => (await frame.boundingBox())?.width).toBeCloseTo(normal.width, 0)
+  await frame.getByRole("button", { name: "Close window", exact: true }).click()
+  await expect(page.getByTestId("confirm-accept")).toBeVisible()
+  await page.getByTestId("confirm-cancel").click()
+  await expect(frame.getByTestId("connector-name")).toHaveValue(draft)
+
+  await frame.getByRole("button", { name: "Minimize", exact: true }).click()
+  await expect(taskbar).toBeVisible()
+  await page.reload()
+  await expect(page.getByTestId("add-connector")).toBeVisible()
+  await expect(taskbar).toHaveCount(0)
+  await expect(windows(page)).toHaveCount(0)
+})

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from "vue"
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { AppIconButton } from "@/shared/ui"
 
@@ -9,16 +9,18 @@ import type { WindowState } from "./useWindows"
 import type { ResizeEdge } from "./geometry"
 
 /**
- * The chrome of one floating window: a bar to drag it by, and a cross.
+ * The chrome of one floating window, including its size and visibility controls.
  *
  * Dragging is pointer events rather than a directive: a pointer capture keeps
  * the window following the cursor when it leaves the bar, which is what makes
  * a fast drag not lose the window halfway.
  */
-const props = defineProps<{ window: WindowState; front: boolean }>()
+const props = defineProps<{ window: WindowState; front: boolean; bottomInset: number }>()
 
 const emit = defineEmits<{
   focus: []
+  minimize: []
+  toggleMaximize: []
   close: []
   move: [to: { x: number; y: number }]
   resize: [edge: ResizeEdge, pointer: { x: number; y: number }]
@@ -33,7 +35,7 @@ let observer: ResizeObserver | null = null
 
 function startDrag(event: PointerEvent) {
   // Only the primary button, and never from a control inside the bar.
-  if (event.button !== 0) return
+  if (event.button !== 0 || props.window.maximized) return
   emit("focus")
   dragging.value = true
   grabbedAt = { x: event.clientX - props.window.rect.x, y: event.clientY - props.window.rect.y }
@@ -52,7 +54,10 @@ function endDrag(event: PointerEvent) {
 }
 
 function measure() {
-  if (props.window.autoFit === false || frame.value === null || body.value === null) return
+  if (
+    props.window.autoFit === false || props.window.minimized || props.window.maximized ||
+    frame.value === null || body.value === null
+  ) return
   const bar = frame.value.querySelector<HTMLElement>(".app-window__bar")
   emit("fit", {
     width: Math.ceil(Math.max(props.window.rect.width, body.value.scrollWidth + 2)),
@@ -72,8 +77,18 @@ onMounted(async () => {
 
 onBeforeUnmount(() => observer?.disconnect())
 
+watch(
+  () => props.window.minimized,
+  async (minimized) => {
+    if (minimized) return
+    await nextTick()
+    frame.value?.focus({ preventScroll: true })
+    measure()
+  }
+)
+
 function startResize(edge: ResizeEdge, event: PointerEvent) {
-  if (event.button !== 0) return
+  if (event.button !== 0 || props.window.maximized) return
   emit("focus")
   const target = event.currentTarget as HTMLElement
   target.setPointerCapture(event.pointerId)
@@ -104,19 +119,23 @@ const resizeEdges: ResizeEdge[] = [
   <!-- An automatically fitted window keeps measuring for its whole lifetime.
        A manual resize turns autoFit off and restores a fixed height. -->
   <section
+    v-show="!window.minimized"
     ref="frame"
     class="app-window"
-    :class="{ 'app-window--front': front }"
+    :class="{ 'app-window--front': front, 'app-window--maximized': window.maximized }"
     :style="{
-      left: `${window.rect.x}px`,
-      top: `${window.rect.y}px`,
-      width: `${window.rect.width}px`,
-      height: window.autoFit !== false ? 'auto' : `${window.rect.height}px`,
+      left: window.maximized ? '0' : `${window.rect.x}px`,
+      top: window.maximized ? '0' : `${window.rect.y}px`,
+      width: window.maximized ? '100vw' : `${window.rect.width}px`,
+      height: window.maximized
+        ? `calc(100dvh - ${bottomInset}px)`
+        : window.autoFit !== false ? 'auto' : `${window.rect.height}px`,
       maxHeight:
-        window.autoFit !== false ? `calc(100vh - ${FIT_MARGIN}px)` : undefined,
+        !window.maximized && window.autoFit !== false ? `calc(100vh - ${FIT_MARGIN}px)` : undefined,
     }"
     :data-testid="`window-${window.id}`"
     role="dialog"
+    tabindex="-1"
     :aria-label="window.look.title"
     @pointerdown="emit('focus')"
   >
@@ -128,6 +147,7 @@ const resizeEdges: ResizeEdge[] = [
       @pointermove="onDrag"
       @pointerup="endDrag"
       @pointercancel="endDrag"
+      @dblclick="emit('toggleMaximize')"
     >
       <q-icon
         v-if="window.look.icon"
@@ -136,10 +156,29 @@ const resizeEdges: ResizeEdge[] = [
       />
       <span class="app-window__title">{{ window.look.title }}</span>
       <!-- Wrapped so the drag handler above does not see the press. -->
-      <span @pointerdown.stop>
+      <span
+        class="app-window__controls"
+        @pointerdown.stop
+        @dblclick.stop
+      >
+        <AppIconButton
+          icon="minimize"
+          tooltip="Minimize"
+          aria-label="Minimize"
+          :data-testid="`window-minimize-${window.id}`"
+          @click="emit('minimize')"
+        />
+        <AppIconButton
+          :icon="window.maximized ? 'filter_none' : 'crop_square'"
+          :tooltip="window.maximized ? 'Restore size' : 'Maximize'"
+          :aria-label="window.maximized ? 'Restore size' : 'Maximize'"
+          :data-testid="`window-maximize-${window.id}`"
+          @click="emit('toggleMaximize')"
+        />
         <AppIconButton
           icon="close"
           tooltip="Close"
+          aria-label="Close window"
           :data-testid="`window-close-${window.id}`"
           @click="emit('close')"
         />
@@ -153,7 +192,7 @@ const resizeEdges: ResizeEdge[] = [
       <component :is="window.component" />
     </div>
     <span
-      v-for="edge in resizeEdges"
+      v-for="edge in window.maximized ? [] : resizeEdges"
       :key="edge"
       class="app-window__resize"
       :class="`app-window__resize--${edge}`"
@@ -184,6 +223,16 @@ const resizeEdges: ResizeEdge[] = [
 .app-window--front {
   box-shadow: 0 10px 40px var(--dp-shadow-strong);
   border-color: var(--dp-focus-border);
+}
+.app-window--maximized {
+  border-radius: 0;
+}
+.app-window--maximized .app-window__bar {
+  cursor: default;
+}
+.app-window__controls {
+  display: flex;
+  flex: none;
 }
 .app-window__bar {
   flex: none;

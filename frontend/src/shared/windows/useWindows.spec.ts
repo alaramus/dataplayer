@@ -1,10 +1,10 @@
-import { defineComponent } from "vue"
-import { describe, expect, it } from "vitest"
+import { defineComponent, effectScope } from "vue"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { first } from "@/shared/testing/collections"
 
 import { useWindows } from "./useWindows"
-import type { OpenWindow } from "./useWindows"
+import type { OpenWindow, WindowsApi } from "./useWindows"
 
 const Blank = defineComponent({ render: () => null })
 
@@ -184,5 +184,114 @@ describe("content-sized windows", () => {
     windows.context.fit("a", { width: 400, height: 200 })
 
     expect(first(windows.context.windows.value).rect.height).toBe(chosen)
+  })
+})
+
+describe("minimized and maximized windows", () => {
+  let scope: ReturnType<typeof effectScope>
+  let windows: WindowsApi
+
+  beforeEach(() => {
+    scope = effectScope()
+    scope.run(() => { windows = useWindows() })
+  })
+
+  afterEach(() => {
+    scope.stop()
+    vi.unstubAllGlobals()
+  })
+
+  it("puts a window aside without closing it and reveals the next visible window", () => {
+    const beforeClose = vi.fn(() => false)
+    const onClosed = vi.fn()
+    windows.open(windowOf("a"))
+    windows.open({ ...windowOf("b"), beforeClose, onClosed })
+    const original = windows.context.windows.value.find((entry) => entry.id === "b")
+
+    windows.context.minimize("b")
+    expect(windows.context.frontId.value).toBe("a")
+    expect(windows.isOpen("b")).toBe(true)
+    expect(beforeClose).not.toHaveBeenCalled()
+    expect(onClosed).not.toHaveBeenCalled()
+
+    windows.context.minimize("a")
+    expect(windows.context.frontId.value).toBeNull()
+
+    windows.open(windowOf("b"))
+    expect(windows.context.windows.value).toHaveLength(2)
+    expect(windows.context.frontId.value).toBe("b")
+    expect(windows.context.windows.value.find((entry) => entry.id === "b")).toEqual({
+      ...original, minimized: false,
+    })
+  })
+
+  it("restores the chosen size after maximizing, minimizing and reopening", () => {
+    windows.open(windowOf("a"))
+    windows.context.resize("a", "bottom-right", { x: 800, y: 650 })
+    const normal = first(windows.context.windows.value)
+
+    windows.context.toggleMaximize("a")
+    windows.context.minimize("a")
+    windows.open(windowOf("a"))
+    expect(first(windows.context.windows.value).maximized).toBe(true)
+
+    windows.context.toggleMaximize("a")
+    expect(first(windows.context.windows.value)).toEqual(normal)
+  })
+
+  it.each(["minimized", "maximized"] as const)(
+    "ignores hidden measurements and geometry gestures while %s",
+    (mode) => {
+      windows.open(windowOf("a"))
+      windows.context.fit("a", { width: 440, height: 320 })
+      const normal = first(windows.context.windows.value)
+      if (mode === "minimized") windows.context.minimize("a")
+      else windows.context.toggleMaximize("a")
+
+      windows.context.fit("a", { width: 1500, height: 0 })
+      windows.context.move("a", { x: 0, y: 0 })
+      windows.context.resize("a", "bottom-right", { x: 300, y: 160 })
+      expect(first(windows.context.windows.value).rect).toEqual(normal.rect)
+      expect(first(windows.context.windows.value).autoFit).toBe(true)
+
+      if (mode === "minimized") windows.context.focus("a")
+      else windows.context.toggleMaximize("a")
+      windows.context.fit("a", { width: 440, height: 380 })
+      expect(first(windows.context.windows.value).rect.height).toBe(380)
+    }
+  )
+
+  it("keeps the normal window reachable after the viewport shrinks while maximized", () => {
+    windows.open(windowOf("a"))
+    windows.context.move("a", { x: 700, y: 600 })
+    windows.context.toggleMaximize("a")
+
+    vi.stubGlobal("innerWidth", 500)
+    vi.stubGlobal("innerHeight", 400)
+    window.dispatchEvent(new Event("resize"))
+    windows.context.toggleMaximize("a")
+
+    const rect = first(windows.context.windows.value).rect
+    expect(rect.x).toBeLessThanOrEqual(380)
+    expect(rect.y).toBeLessThanOrEqual(280)
+    expect(rect.width).toBe(400)
+  })
+
+  it("keeps the usual close confirmation after a minimized window is restored", async () => {
+    const beforeClose = vi.fn(() => false)
+    const onClosed = vi.fn()
+    windows.open({ ...windowOf("a"), beforeClose, onClosed })
+    windows.context.minimize("a")
+    windows.context.focus("a")
+
+    await windows.context.requestClose("a")
+    expect(windows.isOpen("a")).toBe(true)
+    expect(onClosed).not.toHaveBeenCalled()
+
+    beforeClose.mockReturnValue(true)
+    await windows.context.requestClose("a")
+    expect(windows.context.windows.value).toEqual([])
+    expect(windows.context.frontId.value).toBeNull()
+    expect(onClosed).toHaveBeenCalledOnce()
   })
 })
