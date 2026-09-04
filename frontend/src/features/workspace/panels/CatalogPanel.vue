@@ -745,11 +745,40 @@ async function afterAction(outcome: ActionOutcome) {
           @select="selectHistory"
           @remove="history.remove"
         />
+        <!-- Beside the field rather than under it. The head of a catalog is
+             one height whatever the source puts in it, and a row of its own
+             for what one kind of source happens to detect moved the list
+             every time somebody stepped between two connections. -->
         <template
-          v-if="canRunSearch"
+          v-if="canRunSearch || frameworks.length"
           #after
         >
+          <span
+            v-if="frameworks.length"
+            class="catalog-panel__frameworks"
+            role="group"
+            aria-label="Detected frameworks"
+            data-testid="catalog-frameworks"
+          >
+            <AppButton
+              v-for="framework in frameworks"
+              :key="framework.id"
+              :label="framework.title"
+              :variant="level.filter.value === framework.table_filter ? 'primary' : 'secondary'"
+              :aria-pressed="level.filter.value === framework.table_filter"
+              :data-testid="`catalog-framework-${framework.id}`"
+              size="sm"
+              @click="filterFramework(framework)"
+            >
+              <AppTooltip>
+                {{ level.filter.value === framework.table_filter
+                  ? 'Clear the table filter'
+                  : 'Detected from table names. Filter matching tables' }}
+              </AppTooltip>
+            </AppButton>
+          </span>
           <AppIconButton
+            v-if="canRunSearch"
             icon="search"
             :tooltip="searchTooltip"
             :loading="level.searching.value"
@@ -758,31 +787,6 @@ async function afterAction(outcome: ActionOutcome) {
           />
         </template>
       </AppInput>
-
-      <div
-        v-if="!asTree && frameworks.length"
-        class="catalog-panel__frameworks"
-        role="group"
-        aria-label="Detected frameworks"
-        data-testid="catalog-frameworks"
-      >
-        <AppButton
-          v-for="framework in frameworks"
-          :key="framework.id"
-          :label="framework.title"
-          :variant="level.filter.value === framework.table_filter ? 'primary' : 'secondary'"
-          :aria-pressed="level.filter.value === framework.table_filter"
-          :data-testid="`catalog-framework-${framework.id}`"
-          size="sm"
-          @click="filterFramework(framework)"
-        >
-          <AppTooltip>
-            {{ level.filter.value === framework.table_filter
-              ? 'Clear the table filter'
-              : 'Detected from table names. Filter matching tables' }}
-          </AppTooltip>
-        </AppButton>
-      </div>
     </div>
 
     <AppBanner
@@ -880,11 +884,12 @@ async function afterAction(outcome: ActionOutcome) {
   flex: none;
   padding: 4px 4px 0;
 }
+/* A row beside the filter, not under it: no wrapping and no padding of its
+   own, so what a source detects costs the head no height. */
 .catalog-panel__frameworks {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: var(--dp-space-1);
-  padding-bottom: var(--dp-space-1);
 }
 /* One line of one height, whatever the source puts in it.
    A button and the menu are 32px, a field is 40, and a source with no
