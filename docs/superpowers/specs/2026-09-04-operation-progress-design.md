@@ -4,8 +4,8 @@ The footer's right edge shows a compact progress button, like an IDE's task
 indicator. It names one active operation and counts the others. Selecting it
 opens the ordinary floating Processes window; starting work never opens it.
 Closing or minimizing that window does not stop work.
-Starting or retrying a Docker service does not also show a startup notification.
-Request errors still appear where the start was requested.
+Starting, retrying or deleting a Docker service does not also show a notification
+that work has begun. Request errors still appear where the action was requested.
 
 ## Ownership and progress
 

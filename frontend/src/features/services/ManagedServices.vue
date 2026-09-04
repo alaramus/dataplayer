@@ -145,7 +145,6 @@ async function forget(service: ServicePublic) {
       serviceId: service.id,
       deleteConnector: alsoTheConnection,
     })
-    toast.info(`Removing ${name}`)
   } catch {
     toast.error(`${name} could not be removed`)
   }
