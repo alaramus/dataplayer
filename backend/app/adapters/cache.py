@@ -1,4 +1,4 @@
-"""Bounded, process-local cache for reads from external data sources."""
+"""The read-cache contract and its bounded process-local implementation."""
 
 import asyncio
 import time
@@ -47,7 +47,27 @@ class _Entry[T]:
     used_at: float
 
 
-class DataCache:
+@runtime_checkable
+class DataCache(Protocol):
+    """The cache behaviour application code may rely on (D100)."""
+
+    async def get_or_load[T](
+        self,
+        key: CacheKey,
+        *,
+        ttl_seconds: float,
+        load: Callable[[], Awaitable[T]],
+        refresh: bool = False,
+    ) -> CacheResult[T]: ...
+
+    async def invalidate_connector(self, connector_id: uuid.UUID) -> None: ...
+
+    async def size(self) -> int: ...
+
+    async def aclose(self) -> None: ...
+
+
+class MemoryDataCache:
     """TTL cache with LRU bounds and one in-flight load per exact key.
 
     Invalidation drops the connector's entries and forgets its loads in

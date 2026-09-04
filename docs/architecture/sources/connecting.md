@@ -199,3 +199,19 @@ Known deviations:
   rows, but wide values make entry sizes unequal.
 
 Spec: [The catalog and fetch read cache](../../superpowers/specs/2026-08-29-read-cache-design.md)
+
+## D100. Read-cache behaviour is independent of its backend
+
+`DataCache` is the protocol used by routes, query execution and the application
+lifespan. `MemoryDataCache` is the default implementation. Replacing storage
+does not replace D31: an implementation must preserve the exact owner,
+connector, area and normalized-request key; source-owned TTL; explicit refresh;
+one in-flight load per exact key; and connector-wide invalidation that prevents
+an older load from restoring stale data.
+
+The protocol is deliberately the complete operation rather than a dictionary
+of values. If callers performed `get`, `load` and `set` themselves, every
+backend would expose the race D31 already closed and every route would have to
+remember the same invalidation rules.
+
+Spec: [A replaceable read-cache backend](../../superpowers/specs/2026-09-04-cache-backend-contract-design.md)

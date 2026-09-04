@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
 
-from app.adapters.cache import DataCache
+from app.adapters.cache import MemoryDataCache
 from app.adapters.resources import ResourceStore
 from app.api.main import api_router
 from app.core.config import settings
@@ -42,7 +42,9 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         max_entries=settings.POOL_MAX_POOLS,
         max_idle_seconds=settings.POOL_MAX_IDLE_SECONDS,
     )
-    application.state.data_cache = DataCache(max_entries=settings.DATA_CACHE_MAX_ENTRIES)
+    application.state.data_cache = MemoryDataCache(
+        max_entries=settings.DATA_CACHE_MAX_ENTRIES
+    )
     application.state.topics = topics.build_all()
     # Captured results and the runs producing them: both process-local, both
     # holding what cannot cross a process — memory and a connection (D64).

@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 
-from app.adapters.cache import CacheKey, DataCache
+from app.adapters.cache import CacheKey, DataCache, MemoryDataCache
 
 
 def key(connector_id: uuid.UUID | None = None, request: str = "root") -> CacheKey:
@@ -17,7 +17,7 @@ def key(connector_id: uuid.UUID | None = None, request: str = "root") -> CacheKe
 
 async def test_reuses_an_exact_read_until_its_ttl_expires() -> None:
     now = [10.0]
-    cache = DataCache(max_entries=8, clock=lambda: now[0])
+    cache = MemoryDataCache(max_entries=8, clock=lambda: now[0])
     calls = 0
 
     async def load() -> str:
@@ -37,7 +37,7 @@ async def test_reuses_an_exact_read_until_its_ttl_expires() -> None:
 
 
 async def test_refresh_skips_a_live_entry_and_replaces_it() -> None:
-    cache = DataCache(max_entries=8)
+    cache = MemoryDataCache(max_entries=8)
     values = iter(["old", "fresh"])
 
     async def load() -> str:
@@ -55,7 +55,7 @@ async def test_refresh_skips_a_live_entry_and_replaces_it() -> None:
 
 
 async def test_identical_concurrent_reads_share_one_load() -> None:
-    cache = DataCache(max_entries=8)
+    cache = MemoryDataCache(max_entries=8)
     started = asyncio.Event()
     release = asyncio.Event()
     calls = 0
@@ -89,7 +89,7 @@ async def test_invalidation_during_a_load_prevents_stale_reinsertion() -> None:
     A later call must not coalesce with the read begun before the mutation, and
     that read must not store what it returns once it finishes.
     """
-    cache = DataCache(max_entries=8)
+    cache = MemoryDataCache(max_entries=8)
     connector_id = uuid.uuid4()
     cache_key = key(connector_id)
     started = asyncio.Event()
@@ -127,7 +127,7 @@ async def test_invalidation_during_a_load_prevents_stale_reinsertion() -> None:
 
 async def test_evicts_the_least_recently_used_entry_at_the_bound() -> None:
     now = [1.0]
-    cache = DataCache(max_entries=2, clock=lambda: now[0])
+    cache = MemoryDataCache(max_entries=2, clock=lambda: now[0])
     connector_id = uuid.uuid4()
     first = key(connector_id, "first")
     second = key(connector_id, "second")
@@ -152,7 +152,7 @@ async def test_evicts_the_least_recently_used_entry_at_the_bound() -> None:
 
 
 async def test_failed_load_is_not_cached() -> None:
-    cache = DataCache(max_entries=8)
+    cache = MemoryDataCache(max_entries=8)
     cache_key = key()
 
     async def fail() -> str:
@@ -168,3 +168,7 @@ async def test_failed_load_is_not_cached() -> None:
     )
     assert recovered.value == "recovered"
     assert recovered.status == "miss"
+
+
+def test_memory_cache_implements_the_application_cache_protocol() -> None:
+    assert isinstance(MemoryDataCache(max_entries=1), DataCache)

@@ -93,8 +93,6 @@ because the old project had a Redis object.
 
 Sequence:
 
-- [ ] Extract a cache backend protocol without weakening D31's exact keys,
-  in-flight coalescing, LRU/TTL bounds or post-mutation invalidation rules.
 - [ ] Define versioned serialization, namespace by deployment and user, and
   decide whether sensitive fetched values require encryption in Redis.
 - [ ] Implement optional Redis cache storage plus a cross-worker invalidation
