@@ -35,9 +35,13 @@ const KINDS: PanelKind[] = [
   "queries",
   "query",
   "result",
+  "relationships",
 ]
 
 const samples: Record<PanelKind, Panel> = {
+  relationships: {
+    id: "relationships:selection-1", kind: "relationships", connectorId: "c1", connectorName: "local pg", adapterType: "postgres", nodes: [{ id: "orders", label: "orders" }],
+  },
   connectors: { id: "connectors", kind: "connectors" },
   catalog: {
     id: catalogPanelId("c1"),
@@ -165,6 +169,7 @@ describe("the panel registry", () => {
     "queries",
     "query",
     "result",
+    "relationships",
   ] as PanelKind[])(
     "lets %s be closed",
     (kind) => {
@@ -178,6 +183,13 @@ describe("the panel registry", () => {
 
   it("refuses a panel of a kind it does not know", () => {
     expect(panelSchema.safeParse({ id: "x", kind: "sql" }).success).toBe(false)
+  })
+
+  it("refuses empty, repeated or unbounded relationship scopes from storage", () => {
+    const node = { id: "orders", label: "Orders" }
+    for (const nodes of [[], [node, node], Array.from({ length: 101 }, (_, index) => ({ ...node, id: String(index) }))]) {
+      expect(panelSchema.safeParse({ ...samples.relationships, nodes }).success).toBe(false)
+    }
   })
 
   it("gives a data tab the name of the node and nothing else", () => {

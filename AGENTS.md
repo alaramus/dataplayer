@@ -45,6 +45,7 @@ legacy notes and stay unchanged.
 | Screens, components, colours, layers | [frontend.md](docs/architecture/frontend.md) |
 | A page of rows: the grid, downloads, charts | [grid.md](docs/architecture/grid.md) |
 | Layout, tabs, dragging, floating windows | [workspace.md](docs/architecture/workspace.md) |
+| A diagram of nodes and connections, in 2D or 3D | [graphs.md](docs/architecture/graphs.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | Any code | [ENGINEERING.md](ENGINEERING.md) |
 
@@ -158,6 +159,7 @@ files. IDs are stable because specs and commits refer to them.
 | D94 | [workspace](docs/architecture/workspace.md) |
 | D95 | [jobs](docs/architecture/jobs.md) |
 | D96 | [querying](docs/architecture/querying.md) |
+| D97 | [graphs](docs/architecture/graphs.md) |
 
 ## Working rules
 

@@ -20,6 +20,7 @@ import { takeShareIntent } from "@/features/shares/intent"
 import { useAccessRequestEvents, wordingOf } from "@/features/shares/requests"
 import ShareDialog from "@/features/shares/ShareDialog.vue"
 import { chartViewKey } from "@/features/charts/view"
+import { relationshipPanelId } from "@/features/relationships/model"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import CommandBar from "@/features/workspace/CommandBar.vue"
 import OperationsIndicator from "@/features/operations/OperationsIndicator.vue"
@@ -54,6 +55,7 @@ import type {
   OpenChartRequest,
   OpenQueryDocumentRequest,
   OpenQueryDraftRequest,
+  OpenRelationshipsRequest,
   OpenRepresentationRequest,
   OpenRowsRequest,
   OpenSharedRequest,
@@ -448,6 +450,14 @@ onMounted(() => {
 
 function replaceNode(connectorId: string, replacement: NodeReplacement) {
   for (const panel of [...workspace.panels.value]) {
+    if (panel.kind === "relationships" && panel.connectorId === connectorId) {
+      if (panel.nodes.some((node) => node.id === replacement.old_node_id)) {
+        const nodes = panel.nodes.map((node) => node.id === replacement.old_node_id
+          ? { id: replacement.new_node_id, label: replacement.title } : node)
+        workspace.replace(panel.id, { ...panel, id: relationshipPanelId(connectorId, nodes), nodes })
+      }
+      continue
+    }
     if (
       (panel.kind !== "rows" &&
         panel.kind !== "content" &&
@@ -628,6 +638,9 @@ provide(workspaceActionsKey, {
       kind: "structure",
       ...request,
     })
+  },
+  openRelationships: (request: OpenRelationshipsRequest) => {
+    workspace.open({ id: relationshipPanelId(request.connectorId, request.nodes), kind: "relationships", ...request })
   },
   openSummary: (request: OpenSummaryRequest) => {
     workspace.open({

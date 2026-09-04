@@ -10,6 +10,7 @@ import type {
   RowsView,
 } from "@/client"
 import type { Filter } from "@/features/grid/types"
+import type { DiagramNodeRef } from "@/features/relationships/model"
 
 /**
  * What one panel may ask the workspace to open.
@@ -112,6 +113,7 @@ export interface WorkspaceActions {
   /** Take the shared view meant for this tab, if this is the tab it named. */
   takeShared: (connectorId: string, nodeId: string) => SharedTarget | null
   openStructure: (request: OpenStructureRequest) => void
+  openRelationships: (request: OpenRelationshipsRequest) => void
   /**
    * Show what one node is: its facts, and what its format states (D75).
    *
@@ -317,6 +319,13 @@ export interface OpenChartRequest {
   adapterType: string
   request: FetchRequest
   columns: string[]
+}
+
+export interface OpenRelationshipsRequest {
+  connectorId: string
+  connectorName: string
+  adapterType: string
+  nodes: DiagramNodeRef[]
 }
 
 export const workspaceActionsKey: InjectionKey<WorkspaceActions> = Symbol("workspace-actions")

@@ -19,6 +19,8 @@
  */
 
 :root {
+  --dp-graph-edge: #73869e;
+  --dp-graph-label: #172435;
   /* The ground a panel stands on, and what floats above it. */
   --dp-surface: #fff;
   --dp-surface-raised: #fff;
@@ -105,6 +107,8 @@
 }
 
 body.body--dark {
+  --dp-graph-edge: #8499b6;
+  --dp-graph-label: #e8eef7;
   --dp-surface: #121212;
   --dp-surface-raised: #1d1d1d;
   --dp-chrome: #1e1f22;

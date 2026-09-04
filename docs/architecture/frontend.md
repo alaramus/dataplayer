@@ -3,7 +3,8 @@
 How a screen is built, where state lives, and what the component kit is. The
 panel engine, the layout and floating windows are in
 [workspace.md](workspace.md); the grid, its downloads and its charts are in
-[grid.md](grid.md).
+[grid.md](grid.md). Domain-independent 2D and 3D graph viewers are described in
+[graphs.md](graphs.md).
 
 Decisions here: D6, D7, D11, D50.
 

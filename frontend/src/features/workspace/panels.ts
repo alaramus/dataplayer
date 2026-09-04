@@ -20,6 +20,7 @@ import StructurePanelView from "@/features/workspace/panels/StructurePanel.vue"
 import SummaryPanelView from "@/features/workspace/panels/SummaryPanel.vue"
 import WorkspaceSceneView from "@/features/workspace/panels/WorkspaceScene.vue"
 import type { PanelLook } from "@/shared/workspace"
+import { MAX_RELATIONS } from "@/features/relationships/model"
 
 const scalarFilterSchema = z.object({
   column: z.string(),
@@ -72,6 +73,16 @@ export const CONTENT_REPRESENTATIONS = [
 export type ContentRepresentation = (typeof CONTENT_REPRESENTATIONS)[number]
 
 export const panelSchema = z.discriminatedUnion("kind", [
+  z.object({
+    id: z.string(),
+    kind: z.literal("relationships"),
+    connectorId: z.string(),
+    connectorName: z.string(),
+    adapterType: z.string(),
+    nodes: z.array(z.object({ id: z.string().min(1).max(2048), label: z.string() }))
+      .min(1).max(MAX_RELATIONS)
+      .refine((nodes) => new Set(nodes.map((node) => node.id)).size === nodes.length, "Nodes must be distinct"),
+  }),
   z.object({ id: z.string(), kind: z.literal("connectors") }),
   z.object({
     id: z.string(),
@@ -227,6 +238,10 @@ const MarkdownPanelView = defineAsyncComponent(
   () => import("@/features/content/markdown/MarkdownPanel.vue")
 )
 
+const RelationshipPanelView = defineAsyncComponent(
+  () => import("@/features/relationships/RelationshipPanel.vue")
+)
+
 /**
  * The PDF renderer is the same kind of cost as the document stack: nobody who
  * does not open a PDF downloads it.
@@ -279,6 +294,7 @@ export function roleOf(panel: Panel): PanelRole {
     case "chart":
     case "query":
     case "result":
+    case "relationships":
       return "work"
   }
 }
@@ -330,6 +346,13 @@ function rowsIcon(panel: Extract<Panel, { kind: "rows" }>): string {
 
 export function lookOf(panel: Panel): PanelLook {
   switch (panel.kind) {
+    case "relationships":
+      return {
+        title: `Relationships · ${panel.connectorName}`,
+        icon: "hub",
+        iconTooltip: `${panel.nodes.length} tables · ${panel.connectorName}`,
+        reloadTooltip: "Re-read these relationships",
+      }
     case "connectors":
       // Not closable: it has no parameters, so a closed one leaves a column
       // with nothing to say about how to bring it back. See T3.
@@ -447,6 +470,14 @@ function boundComponent(id: string, render: () => VNode): Component {
 
 export function componentOf(panel: Panel): Component {
   switch (panel.kind) {
+    case "relationships":
+      return boundComponent(panel.id, () => h(RelationshipPanelView, {
+        panelId: panel.id,
+        connectorId: panel.connectorId,
+        connectorName: panel.connectorName,
+        adapterType: panel.adapterType,
+        nodes: panel.nodes,
+      }))
     case "connectors":
       return ConnectorsPanelView
     case "catalog":

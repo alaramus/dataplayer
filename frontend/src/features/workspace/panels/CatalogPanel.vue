@@ -28,6 +28,7 @@ import {
   useToast,
 } from "@/shared/ui"
 import { useSourceChangesStore } from "@/stores/sourceChanges"
+import { diagramNodes, MAX_RELATIONS } from "@/features/relationships/model"
 
 const props = defineProps<{
   panelId: string
@@ -42,6 +43,16 @@ const workspace = useWorkspaceActions()
 const connectorId = computed(() => props.connectorId)
 const rootLabel = computed(() => props.title)
 const level = useCatalogLevel(connectorId, rootLabel)
+const diagramSelection = computed(() => diagramNodes(level.checkedNodes.value, level.items.value))
+const diagramTooltip = computed(() => {
+  if (!diagramSelection.value.length) return "Select nodes with a structure to show relationships"
+  if (diagramSelection.value.length > MAX_RELATIONS) return `Select at most ${MAX_RELATIONS} tables for one diagram`
+  return `Show relationships for ${diagramSelection.value.length} ${level.checked.value.length ? 'selected' : 'listed'} tables`
+})
+function showRelationships() {
+  if (!diagramSelection.value.length || diagramSelection.value.length > MAX_RELATIONS) return
+  workspace.openRelationships({ connectorId: props.connectorId, connectorName: props.title, adapterType: props.adapterType, nodes: diagramSelection.value })
+}
 
 /**
  * Whether the first level has come back.
@@ -575,6 +586,12 @@ async function afterAction(outcome: ActionOutcome) {
         <!-- One menu, fed from wherever the selection lives: a level's ticks
              or a tree's one selected node. What an action may do to them is
              still the server's answer about those nodes. -->
+        <AppIconButton
+          v-if="!asTree"
+          icon="hub" :tooltip="diagramTooltip"
+          :disable="level.loading.value || !diagramSelection.length || diagramSelection.length > MAX_RELATIONS"
+          data-testid="catalog-relationships" @click="showRelationships"
+        />
         <CatalogActions
           v-if="asTree"
           class="catalog-panel__menu"
