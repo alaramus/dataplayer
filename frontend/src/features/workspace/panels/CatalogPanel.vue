@@ -12,6 +12,7 @@ import { rememberAnswer, shouldAsk } from "@/features/catalog/contentSearch"
 import { useFadingMark } from "@/features/catalog/fadingMark"
 import { locationOf } from "@/features/catalog/location"
 import { searchSummary } from "@/features/catalog/search"
+import { useSearchHistory } from "@/features/catalog/useSearchHistory"
 import { useAdapterTypes } from "@/features/connectors/api"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { groupTitle, showsPath } from "@/features/catalog/nodes"
@@ -19,11 +20,15 @@ import type { ListNode } from "@/features/catalog/nodes"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import { useCurrentUser } from "@/shared/auth/currentUser"
 import {
   AppBanner,
+  AppButton,
   AppIconButton,
   AppInput,
+  AppMenu,
   AppSelect,
+  AppTooltip,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -43,6 +48,29 @@ const workspace = useWorkspaceActions()
 const connectorId = computed(() => props.connectorId)
 const rootLabel = computed(() => props.title)
 const level = useCatalogLevel(connectorId, rootLabel)
+const me = useCurrentUser()
+const history = useSearchHistory(
+  computed(() => me.data.value?.id ?? null),
+  connectorId,
+  level.filter
+)
+const historyOpen = ref(false)
+const historyItems = computed(() =>
+  history.entries.value.map((query) => ({
+    name: query,
+    label: query,
+    removeLabel: `Remove “${query}” from history`,
+  }))
+)
+watch(history.entries, (entries) => {
+  if (entries.length === 0) historyOpen.value = false
+})
+
+function selectHistory(query: string) {
+  level.clearSearch()
+  history.select(query)
+}
+
 /**
  * What a diagram would be drawn of: the ticks, or everything the filter left.
  *
@@ -414,6 +442,7 @@ const foundText = computed(() => {
  * its files simply never sees the difference.
  */
 async function runSearch(event?: MouseEvent | KeyboardEvent) {
+  history.remember(true)
   if (!canRunSearch.value) return
   const scope: SearchScope =
     event?.shiftKey === true && canSearchContents.value ? "contents" : "names"
@@ -452,6 +481,7 @@ async function agreedToRead(): Promise<boolean> {
  * them and being thrown back to a folder after the first is not a search.
  */
 async function openFound(node: ListNode) {
+  history.remember()
   if (node.role !== "container") {
     onOpen(node)
     return
@@ -466,6 +496,8 @@ async function openFound(node: ListNode) {
 
 /** A click opens what can be read and walks into what cannot. */
 function onOpen(node: ListNode) {
+  // Remember before navigation can clear the field ahead of its blur event.
+  history.remember()
   if (node.role === "container") {
     void level.enter(node)
     return
@@ -648,13 +680,31 @@ async function afterAction(outcome: ActionOutcome) {
         compact
         clearable
         data-testid="catalog-filter"
+        @blur="history.remember()"
         @keyup.enter="runSearch"
       >
-        <template
-          v-if="canRunSearch"
-          #after
-        >
+        <template #after>
+          <AppButton
+            variant="quiet"
+            size="sm"
+            icon="history"
+            aria-label="Search history"
+            aria-haspopup="menu"
+            :aria-expanded="historyOpen"
+            :disable="history.entries.value.length === 0 && level.filter.value.trim() === ''"
+            data-testid="catalog-search-history"
+            @click="history.remember()"
+          >
+            <AppTooltip>Search history</AppTooltip>
+            <AppMenu
+              v-model="historyOpen"
+              :items="historyItems"
+              @select="selectHistory"
+              @remove="history.remove"
+            />
+          </AppButton>
           <AppIconButton
+            v-if="canRunSearch"
             icon="search"
             :tooltip="searchTooltip"
             :loading="level.searching.value"

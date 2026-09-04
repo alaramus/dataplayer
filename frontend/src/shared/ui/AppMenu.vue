@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIconButton from "./AppIconButton.vue"
+
 /**
  * A menu of actions, anchored to the element it is placed inside.
  *
@@ -14,17 +16,19 @@ export interface MenuItem {
   /** A destructive action: coloured, never filled. Same idea as useConfirm. */
   danger?: boolean
   disable?: boolean
+  /** An optional removal action beside a saved entry; also its accessible label. */
+  removeLabel?: string
 }
 
 defineProps<{ items: MenuItem[] }>()
 
 const open = defineModel<boolean>({ default: false })
-const emit = defineEmits<{ select: [name: string] }>()
+const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
 </script>
 
 <template>
-  <!-- auto-close: every item here is a command, so none of them leaves the
-       menu open. A menu of toggles would need its own component. -->
+  <!-- Selecting an entry closes the menu. A removal button stops its click
+       so deleting a saved entry neither selects it nor closes the list. -->
   <q-menu
     v-model="open"
     auto-close
@@ -53,6 +57,24 @@ const emit = defineEmits<{ select: [name: string] }>()
           />
         </q-item-section>
         <q-item-section>{{ item.label }}</q-item-section>
+        <q-item-section
+          v-if="item.removeLabel"
+          side
+        >
+          <AppIconButton
+            icon="close"
+            :tooltip="item.removeLabel"
+            :aria-label="item.removeLabel"
+            :data-testid="`menu-remove-${item.name}`"
+            :disable="item.disable === true"
+            compact
+            @click.stop="emit('remove', item.name)"
+            @keydown.enter.stop
+            @keyup.enter.stop
+            @keydown.space.stop
+            @keyup.space.stop
+          />
+        </q-item-section>
       </q-item>
     </q-list>
   </q-menu>

@@ -8,6 +8,7 @@ import { login } from "./utils/login"
 import {
   catalogTabIcon,
   connectorRow,
+  connectionsTab,
   deleteConnector,
   openConnector,
 } from "./utils/workspace"
@@ -44,6 +45,54 @@ test("browses a database as a list filtered by schema", async ({ page }) => {
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("keeps filter history per connector and remembers deletions after reload", async ({ page }) => {
+  const first = `e2e-history-first-${Date.now()}`
+  const second = `e2e-history-second-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, first)
+  await createPostgresConnector(page, second)
+  await openConnector(page, first)
+
+  const filter = page.getByTestId("catalog-filter")
+  const history = page.getByTestId("catalog-search-history")
+  await filter.fill("pg_class")
+  await filter.press("Enter")
+  await filter.fill("connector")
+  // Leaving the field remembers ordinary filtering too, without Enter.
+  await connectionsTab(page).click()
+  await history.click()
+  await expect(page.getByTestId("menu-item-connector")).toBeVisible()
+  await page.getByTestId("menu-item-pg_class").click()
+  await expect(filter).toHaveValue("pg_class")
+
+  await history.click()
+  await page.getByRole("button", { name: "Remove “pg_class” from history", exact: true }).click()
+  await expect(page.getByTestId("menu-item-pg_class")).toHaveCount(0)
+  await expect(page.getByTestId("menu-item-connector")).toBeVisible()
+  await expect(filter).toHaveValue("pg_class")
+  await page.keyboard.press("Escape")
+  await filter.click()
+  await connectionsTab(page).click()
+
+  await openConnector(page, second)
+  await expect(history).toBeDisabled()
+  await filter.fill("other connector")
+  await filter.press("Enter")
+
+  await page.reload()
+  await openConnector(page, first)
+  await history.click()
+  await expect(page.getByTestId("menu-item-connector")).toBeVisible()
+  await expect(page.getByTestId("menu-item-pg_class")).toHaveCount(0)
+  await expect(page.getByTestId("menu-item-other connector")).toHaveCount(0)
+  await page.getByRole("button", { name: "Remove “connector” from history", exact: true })
+    .press("Enter")
+  await expect(page.getByTestId("menu-item-connector")).toHaveCount(0)
+  await expect(history).toHaveAttribute("aria-expanded", "false")
+
+  for (const name of [first, second]) await deleteConnector(page, name)
 })
 
 test("the tab icon of the catalog opens the window of its connection", async ({ page }) => {

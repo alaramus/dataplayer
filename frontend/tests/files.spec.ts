@@ -631,6 +631,14 @@ test("finds a file by name anywhere below a folder", async ({ page }) => {
   await expect(page.getByTestId("catalog-search-summary")).toHaveCount(0)
   await expect(filter).toHaveValue("q3")
 
+  // History restores the text as a filter without starting another recursive search.
+  await filter.fill("")
+  await page.getByTestId("catalog-search-history").click()
+  await page.getByTestId("menu-item-q3").click()
+  await expect(filter).toHaveValue("q3")
+  await expect(page.getByTestId("catalog-search-summary")).toHaveCount(0)
+  await expect(list).toContainText("Nothing here")
+
   // A folder that was found is walked into, and walking ends the search.
   await filter.fill("reports")
   await page.getByTestId("catalog-search").click()

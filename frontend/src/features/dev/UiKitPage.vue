@@ -46,6 +46,10 @@ const MENU_ITEMS: MenuItem[] = [
   { name: "delete", label: "Delete", icon: "delete", danger: true },
 ]
 const menuOpen = ref(false)
+const savedEntries = ref<MenuItem[]>([
+  { name: "pg_class", label: "pg_class", removeLabel: "Remove pg_class from history" },
+  { name: "notes", label: "notes", removeLabel: "Remove notes from history" },
+])
 
 const TONES: Tone[] = ["error", "success", "warning", "info"]
 // The window sizes a dialog opens at. A window is measured to its
@@ -210,6 +214,18 @@ function flash() {
               v-model="menuOpen"
               :items="MENU_ITEMS"
               @select="toast.success(`chose ${$event}`)"
+            />
+          </AppButton>
+          <AppButton
+            variant="secondary"
+            label="Saved searches"
+            icon="history"
+            :disable="savedEntries.length === 0"
+          >
+            <AppMenu
+              :items="savedEntries"
+              @select="toast.success(`chose ${$event}`)"
+              @remove="savedEntries = savedEntries.filter((item) => item.name !== $event)"
             />
           </AppButton>
           <span class="text-caption text-grey">

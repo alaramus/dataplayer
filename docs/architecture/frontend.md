@@ -326,6 +326,17 @@ carries everything the source can do, live for what is ticked and greyed out for
 the rest — standing in a folder is not choosing it. What that menu offers comes
 from the server; see D9 in [sources/actions.md](sources/actions.md).
 
+The catalog's filter and search field keeps the ten most recent distinct,
+non-empty queries per account and connector in this browser's local storage.
+Enter, a search, or leaving an edited field remembers its trimmed text; merely
+typing does not add partial queries. Reusing a query moves it to the front.
+The history button offers the saved text with a removal cross beside each
+entry. Selecting one returns to the current level and applies the text as a
+filter; recursive and content searches still require their usual explicit
+gesture. Removing an entry leaves the current filter alone and does not
+restore it on blur unless the text is edited again. History stays local to
+the session if browser storage cannot be written.
+
 A connection is a row of two things: the icon of its type, with the dot of the
 last check standing on it, and its name. Everything else about it lives in the
 window that icon opens.
