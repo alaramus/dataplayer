@@ -13,7 +13,13 @@ class CacheConnectionError(RuntimeError):
 
 
 class InvalidationSubscription(Protocol):
-    async def next_message(self, *, timeout: float) -> bytes | None: ...
+    # The waiting is the driver's, not this function's: `timeout` travels to
+    # `pubsub.get_message`, which is what blocks and what returns None when
+    # nothing arrived. `asyncio.timeout` around the call would cancel the read
+    # instead of asking it to come back empty, which is a different thing - so
+    # the rule that says an async function should not take a timeout does not
+    # describe this one.
+    async def next_message(self, *, timeout: float) -> bytes | None: ...  # noqa: ASYNC109
 
     async def aclose(self) -> None: ...
 
@@ -107,7 +113,7 @@ class RedisInvalidationSubscription:
     async def subscribe(self, channel: str) -> None:
         await _command(self._pubsub.subscribe(channel))
 
-    async def next_message(self, *, timeout: float) -> bytes | None:
+    async def next_message(self, *, timeout: float) -> bytes | None:  # noqa: ASYNC109
         message: Any = await _command(
             self._pubsub.get_message(
                 ignore_subscribe_messages=True,
@@ -125,7 +131,9 @@ class RedisInvalidationSubscription:
 
     async def aclose(self) -> None:
         try:
-            await _command(self._pubsub.aclose())
+            # redis-py leaves PubSub.aclose unannotated, so a strict call site
+            # sees an untyped function where there is an ordinary coroutine.
+            await _command(self._pubsub.aclose())  # type: ignore[no-untyped-call]
         except CacheConnectionError:
             pass
 

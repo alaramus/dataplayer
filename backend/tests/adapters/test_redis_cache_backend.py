@@ -32,7 +32,7 @@ class FakeSubscription:
     def __init__(self, queue: asyncio.Queue[bytes]) -> None:
         self._queue = queue
 
-    async def next_message(self, *, timeout: float) -> bytes | None:
+    async def next_message(self, *, timeout: float) -> bytes | None:  # noqa: ASYNC109
         try:
             return await asyncio.wait_for(self._queue.get(), timeout)
         except TimeoutError:
