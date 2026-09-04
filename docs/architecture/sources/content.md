@@ -192,7 +192,10 @@ which is what the old `sheet_title` parameter did to every caller.
   of the file: which sheet is being read is what the strip says, and renaming
   the tab made the file disappear from the screen the moment somebody looked
   at its second table. What is named after the sheet is the structure of it,
-  which is one sheet's columns. Only a node that was opened
+  which is one sheet's columns — and it is asked of the sheet being read
+  rather than of the node the tab was opened on: a file that holds tables
+  states no columns of its own, so asking it left the button missing until
+  somebody had switched sheets. Only a node that was opened
   as one of several has them: the reading that answers "what else is in here"
   is the container's own listing, and a node with no container asks for
   nothing.

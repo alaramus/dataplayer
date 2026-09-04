@@ -169,15 +169,30 @@ watch(
   { immediate: true }
 )
 
+/**
+ * What this tab is actually showing, which is not always the node it is on.
+ *
+ * A workbook opens as its first sheet, so a tab opened on the file is reading
+ * a sheet — and everything it offers about what it shows has to be that
+ * sheet's. The structure button was the file's answer, and a file that holds
+ * tables states no columns of its own: the button appeared only once somebody
+ * had switched sheets, which is the moment the node stopped being the file.
+ */
+const showing = computed(() => currentSheet.value)
+const canDescribe = computed(() =>
+  showing.value === null ? props.describable : showing.value.describable === true
+)
+
 function showStructure() {
+  const node = showing.value
   workspace.openStructure({
     connectorId: props.connectorId,
-    nodeId: props.nodeId,
+    nodeId: node?.id ?? props.nodeId,
     // Named after the sheet where there is one: this tab is called after the
     // file and shows whichever sheet is chosen, but the structure is one
     // sheet's columns and a tab of them called after the file would be three
     // tabs with one name.
-    title: currentSheet.value?.name ?? props.title,
+    title: node?.name ?? props.title,
     connectorName: props.connectorName,
     adapterType: props.adapterType,
   })
@@ -228,7 +243,7 @@ function showReferenced(target: ReferencedRows) {
       :connector-id="connectorId"
       :node-id="nodeId"
       :title="title"
-      :can-describe="describable"
+      :can-describe="canDescribe"
       :can-query="canQuery"
       :content-title="contentRepresentation?.title"
       :reference-filters="referenceFilters"

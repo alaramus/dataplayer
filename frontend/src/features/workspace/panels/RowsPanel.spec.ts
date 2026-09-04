@@ -25,14 +25,22 @@ const workspace = {
 }
 
 const DataGridStub = {
-  props: { contentTitle: { type: String, default: "" } },
+  props: {
+    contentTitle: { type: String, default: "" },
+    canDescribe: { type: Boolean, default: false },
+  },
   emits: ["content", "describe", "chart", "follow"],
   // The row the pager is on is the grid's, and what the panel puts there is
   // handed to it as a slot — so a stub that dropped it would hide the strip
   // this file is about.
   template: `
     <div>
-      <button data-testid="rows-content" :data-title="contentTitle" @click="$emit('content')">
+      <button
+        data-testid="rows-content"
+        :data-title="contentTitle"
+        :data-describable="String(canDescribe)"
+        @click="$emit('content')"
+      >
         content
       </button>
       <slot name="pager-start" />
@@ -158,6 +166,22 @@ describe("a rows panel over one of several tables in a file", () => {
         containerId: "budget.xlsx",
       })
     )
+  })
+
+  it("describes the sheet it is showing, not the file it was opened on", async () => {
+    // A workbook opens as its first sheet, so a tab opened on the file is
+    // reading a sheet. A file that holds tables states no columns of its own,
+    // so asking it made the button appear only once somebody had switched —
+    // which is the moment the node stopped being the file.
+    vi.spyOn(ConnectorsService, "readCatalog").mockResolvedValue({
+      data: SHEETS,
+    } as never)
+    const wrapper = mounted(Workbook)
+    await flushPromises()
+
+    expect(
+      wrapper.get('[data-testid="rows-content"]').attributes("data-describable")
+    ).toBe("true")
   })
 
   it("offers nothing where the node is not one of several", async () => {
