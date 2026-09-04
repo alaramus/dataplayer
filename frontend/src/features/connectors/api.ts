@@ -29,6 +29,22 @@ export function connectorNameOf(
   return connectors?.data.find((one) => one.id === connectorId)?.name ?? null
 }
 
+/**
+ * The colour chosen for a connection, if one was.
+ *
+ * Beside the name and for the same reason: read by id out of the list, never
+ * copied onto whatever is drawn in it. A colour saved or reset while a
+ * catalog is open has to reach that catalog, and a copy taken when the panel
+ * opened would not.
+ */
+export function connectorColorOf(
+  connectors: ConnectorsPublic | undefined,
+  connectorId: string | null
+): string | null {
+  if (connectorId === null) return null
+  return connectors?.data.find((one) => one.id === connectorId)?.tab_color ?? null
+}
+
 export function useAdapterTypes() {
   return useQuery({
     queryKey: adapterTypesKey,

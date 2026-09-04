@@ -279,9 +279,13 @@ const countLabel = computed(() => {
 /* An outline and not a fill: a fill is what a tick already means here, and
    "an action will be done to this" and "here it is" are not the same thing.
    It comes off after a few seconds — held longer it stops saying "here it is"
-   and starts reading as a state the row is in. */
+   and starts reading as a state the row is in.
+
+   In the colour of the tab the press came from: the connection's own where it
+   has one, and the plain fill every tab carries where it has not. The two ends
+   of one gesture, drawn the same. */
 .catalog-list__row--revealed {
-  outline-color: var(--dp-focus-border);
+  outline-color: var(--dp-panel-background, var(--dp-panel-plain));
   border-radius: 4px;
 }
 .catalog-list__tick-space {

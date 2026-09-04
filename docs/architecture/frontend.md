@@ -391,8 +391,69 @@ workspace tab belonging to that connection reads the current saved color,
 including catalogs, data, query consoles and captured results. Text uses
 whichever of black or white has higher contrast. A tab is the same shape either
 way: filled, one font weight, and a line under the one being read. A connection
-with no color of its own is filled with the theme's surface, so whether
-somebody chose a color is not something the size or form of a tab says.
+with no color of its own is filled with `--dp-panel-plain`, so whether somebody
+chose a color is not something the size or form of a tab says.
+
+The connections column carries the same color. A row whose catalog is being
+read is marked in it whole, and one merely open somewhere in a wash of it. A
+connection with no color is marked just the same, in `--dp-panel-plain` — the
+same fill its tabs carry, so the default is a color rather than the absence of
+one — and in `--dp-panel-plain-quiet`, which is half a step from that fill
+towards the surface rather than a wash of it, because the plain fill is already
+close to the surface it is laid on. The pointer over a row lays the hover wash
+on top of whatever fills it instead of replacing it, so arriving at a row does
+not take its color away. The strip a collapsed column leaves behind marks its
+icons the same way.
+
+The catalog carries the color for one mark only: the outline that points at a
+row after the icon of a table's tab was pressed. That mark is the far end of a
+gesture whose near end is a tab, so it is drawn in whatever that tab is drawn
+in — the connection's color, or `--dp-panel-plain` where none was chosen.
+Everything else in a catalog — a ticked row, a row under the pointer — keeps
+the theme's, because a tick is about an action and not about which connection
+this is. `connectorColorOf` reads the color out of the list of connections by
+id, so saving or resetting one reaches a catalog already open.
+
+Known deviation: with no color chosen the outline is that plain fill, which is
+a step from the surface it is drawn on and so barely visible — asked for
+deliberately, so that the mark says nothing the tab does not.
+`shared/ui/panelColor.ts` turns one chosen color into the fill, the text color
+that stays readable on it, and the wash, so nothing mixes a color of its own.
+
+### Taking the connection colors back out
+
+Everything above that carries a connection's color beyond its own tabs — the
+marked rows in the connections column and in the strip a collapsed column
+leaves behind, the plain fill that stands in where nobody chose a color, and
+the outline that points at a row in a catalog — is one commit, "Mark a
+connection in its own colour where it is listed" (`git log --grep "in its own
+colour"`). Reverting it puts the screens back and leaves the tabs and the color
+picker untouched. It is one commit for that reason and not because it was
+written in one sitting.
+
+By hand, if only part of it is to go, each place falls back to what the theme
+already had:
+
+| Place | What to take out | What it falls back to |
+| --- | --- | --- |
+| `shared/ui/theme.css` | `--dp-panel-plain` and `--dp-panel-plain-quiet`, from both the light and the dark block | — |
+| `shared/workspace/WorkspaceLeaf.vue` | the plain fill in `.workspace-leaf__tab` | `var(--dp-surface)`, which is what it was |
+| `features/connectors/ConnectorList.vue` | the `panelColorStyle` binding on the row, and the color in the two marks | `var(--dp-selected-quiet)` and `var(--dp-selected)` |
+| `features/workspace/panels/ConnectorRail.vue` | the same two | the same two |
+| `features/catalog/CatalogList.vue` | the color in `.catalog-list__row--revealed` | `var(--dp-focus-border)` |
+| `features/workspace/panels/CatalogPanel.vue` | `color`, its query and the style it binds | nothing; the list stops carrying a color |
+| `features/connectors/api.ts` | `connectorColorOf`, and its case in the spec | — |
+| `shared/ui/panelColor.ts` | `--dp-panel-quiet`, and its column in the spec | — |
+
+Two things are deliberately not on that list, because they are not about color.
+The hover wash in the connections column is laid over the row as an inset
+shadow rather than as a background; a row is filled by whichever mark it
+carries, so that stays whatever the row is filled with. And a tab is filled
+whether or not a color was chosen, one weight, marked by a line under it — that
+is the shape of a tab (in the commit before this one), not the color of one.
+
+Tests to drop with it: the color assertions in `frontend/tests/connectors.spec.ts`
+and the cases named above in the two unit specs.
 
 **What a screen may offer, it is told.** A connection carries `access`, so the
 window of one that belongs to somebody else shows its options disabled, names

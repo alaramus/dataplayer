@@ -421,10 +421,11 @@ const overlayStyle = computed((): CSSProperties => {
 }
 
 /* One shape for every tab. A connection with no colour of its own is drawn
-   in the neutral one rather than in no colour at all: whether somebody has
+   in the plain one rather than in no colour at all: whether somebody has
    chosen a colour is not something the size and form of a tab should say, and
    a strip of half-filled and half-transparent tabs read as two kinds of
-   thing. The colour is the only difference the choice makes. */
+   thing. The colour is the only difference the choice makes, and the plain
+   fill is the same one a row of the connections carries. */
 .workspace-leaf__tab {
   display: flex;
   align-items: center;
@@ -432,7 +433,7 @@ const overlayStyle = computed((): CSSProperties => {
   padding: 4px 8px;
   border: none;
   border-radius: var(--dp-radius-control);
-  background: var(--dp-panel-background, var(--dp-surface));
+  background: var(--dp-panel-background, var(--dp-panel-plain));
   /* A native button takes its colour from the browser, which is black, and
      `font: inherit` does not carry colour with it. Black on a dark panel is
      an invisible tab. */

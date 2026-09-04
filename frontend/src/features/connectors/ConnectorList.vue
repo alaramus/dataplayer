@@ -4,6 +4,7 @@ import { computed } from "vue"
 import type { ConnectorPublic } from "@/client"
 import ConnectorIcon from "@/features/connectors/ConnectorIcon.vue"
 import { AppEmptyState, AppSpinner } from "@/shared/ui"
+import { panelColorStyle } from "@/shared/ui/panelColor"
 
 /**
  * The sources of the workspace, one per row.
@@ -63,6 +64,7 @@ const open = computed(() => props.openIds ?? new Set<string>())
         'connector-list__row--open': open.has(connector.id),
         'connector-list__row--selected': connector.id === selected,
       }"
+      :style="panelColorStyle(connector.tab_color)"
       :data-testid="`connector-${connector.name}`"
       @click="emit('open', connector)"
       @keydown.enter="emit('open', connector)"
@@ -103,16 +105,29 @@ const open = computed(() => props.openIds ?? new Set<string>())
   padding: 1px 8px 1px 4px;
   cursor: pointer;
 }
+/* Over the fill rather than instead of it: a hover rule is a class and a
+   pseudo-class, so it outweighs the class that marks a row however the two
+   are ordered — and the pointer arriving used to take the connection's colour
+   off the row it was arriving at. A shadow spread over the whole box is the
+   wash laid on top of whatever the row is filled with. */
 .connector-list__row:hover {
-  background: var(--dp-hover);
+  box-shadow: inset 0 0 0 999px var(--dp-hover);
 }
 /* Open somewhere, and the one being read. The full mark is written after the
-   quiet one so that it wins where both apply. */
+   quiet one so that it wins where both apply.
+
+   In the connection's own colour where it has one, so a row and the tabs it
+   opened are visibly one thing. The row being read takes the colour whole and
+   the text that contrasts with it; a row merely open takes a wash of it. A
+   connection with no colour is marked just the same, in the plain colour its
+   tabs are filled with and in the quiet half of that — the mark is the same
+   mark either way, and only the colour of it is a choice. */
 .connector-list__row--open {
-  background: var(--dp-selected-quiet);
+  background: var(--dp-panel-quiet, var(--dp-panel-plain-quiet));
 }
 .connector-list__row--selected {
-  background: var(--dp-selected);
+  background: var(--dp-panel-background, var(--dp-panel-plain));
+  color: var(--dp-panel-foreground, inherit);
   font-weight: 500;
 }
 .connector-list__name {

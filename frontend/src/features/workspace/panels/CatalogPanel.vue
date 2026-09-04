@@ -15,7 +15,7 @@ import { frameworksOf, toggleFrameworkFilter } from "@/features/catalog/framewor
 import { locationOf } from "@/features/catalog/location"
 import { searchSummary } from "@/features/catalog/search"
 import { useSearchHistory } from "@/features/catalog/useSearchHistory"
-import { useAdapterTypes } from "@/features/connectors/api"
+import { connectorColorOf, useAdapterTypes, useConnectors } from "@/features/connectors/api"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { groupTitle, showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
@@ -34,6 +34,7 @@ import {
   useConfirm,
   useToast,
 } from "@/shared/ui"
+import { panelColorStyle } from "@/shared/ui/panelColor"
 import { useSourceChangesStore } from "@/stores/sourceChanges"
 import { diagramNodes, MAX_RELATIONS } from "@/features/relationships/model"
 
@@ -50,6 +51,17 @@ const workspace = useWorkspaceActions()
 const connectorId = computed(() => props.connectorId)
 const rootLabel = computed(() => props.title)
 const level = useCatalogLevel(connectorId, rootLabel)
+
+/**
+ * The colour of the connection this catalog belongs to, if it was given one.
+ *
+ * Only the mark that points at a row uses it: that mark is the answer to a
+ * press on the tab of a table, and the tab it came from is drawn in this
+ * colour. Read out of the list rather than carried on the panel, so saving or
+ * resetting a colour reaches a catalog that is already open.
+ */
+const connectors = useConnectors()
+const color = computed(() => connectorColorOf(connectors.data.value, props.connectorId))
 const frameworks = computed(() => frameworksOf(level.groups.value, level.selectedGroups.value))
 
 function filterFramework(framework: DetectedFramework) {
@@ -822,6 +834,7 @@ async function afterAction(outcome: ActionOutcome) {
     <CatalogList
       v-else
       class="catalog-panel__body"
+      :style="panelColorStyle(color)"
       :items="level.items.value"
       :checked="level.checked.value"
       :loading="level.loading.value"

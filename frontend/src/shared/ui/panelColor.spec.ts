@@ -4,16 +4,17 @@ import { panelColorStyle } from "./panelColor"
 
 describe("custom panel colors", () => {
   it.each([
-    ["#000000", "#ffffff"],
-    ["#ffffff", "#000000"],
-    ["#0000FF", "#ffffff"],
-    ["#ff0000", "#000000"],
-    ["#00ff00", "#000000"],
-    ["#777777", "#000000"],
-  ])("keeps text readable on %s", (background, foreground) => {
+    ["#000000", "#ffffff", "rgba(0, 0, 0, 0.28)"],
+    ["#ffffff", "#000000", "rgba(255, 255, 255, 0.28)"],
+    ["#0000FF", "#ffffff", "rgba(0, 0, 255, 0.28)"],
+    ["#ff0000", "#000000", "rgba(255, 0, 0, 0.28)"],
+    ["#00ff00", "#000000", "rgba(0, 255, 0, 0.28)"],
+    ["#777777", "#000000", "rgba(119, 119, 119, 0.28)"],
+  ])("keeps text readable on %s", (background, foreground, quiet) => {
     expect(panelColorStyle(background)).toEqual({
       "--dp-panel-background": background,
       "--dp-panel-foreground": foreground,
+      "--dp-panel-quiet": quiet,
     })
   })
 

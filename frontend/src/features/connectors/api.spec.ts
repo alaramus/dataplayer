@@ -5,7 +5,7 @@ import type { ConnectorsPublic } from "@/client"
 import { grantsKey } from "@/features/connectors/grants"
 import { unlockKey } from "@/features/queries/runs"
 
-import { connectorNameOf, connectorsKey } from "./api"
+import { connectorColorOf, connectorNameOf, connectorsKey } from "./api"
 
 const list = (name: string): ConnectorsPublic => ({
   count: 1,
@@ -28,6 +28,18 @@ describe("the name a connection has now", () => {
     expect(connectorNameOf(list("renamed"), "c2")).toBeNull()
     expect(connectorNameOf(list("renamed"), null)).toBeNull()
     expect(connectorNameOf(undefined, "c1")).toBeNull()
+  })
+})
+
+describe("the colour a connection was given", () => {
+  it("is read the same way, and is nothing where none was chosen", () => {
+    const coloured = list("kept")
+    coloured.data[0]!.tab_color = "#246abc"
+    expect(connectorColorOf(coloured, "c1")).toBe("#246abc")
+    expect(connectorColorOf(coloured, "c2")).toBeNull()
+    expect(connectorColorOf(coloured, null)).toBeNull()
+    expect(connectorColorOf(undefined, "c1")).toBeNull()
+    expect(connectorColorOf(list("plain"), "c1")).toBeNull()
   })
 })
 

@@ -5,6 +5,7 @@ import ConnectorIcon from "@/features/connectors/ConnectorIcon.vue"
 import { useConnectors } from "@/features/connectors/api"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppIconButton } from "@/shared/ui"
+import { panelColorStyle } from "@/shared/ui/panelColor"
 
 /**
  * The connections while their column is pushed aside.
@@ -50,6 +51,7 @@ const rows = computed(() => connectors.data.value?.data ?? [])
         'connector-rail__slot--open': workspace.openConnectorIds.value.has(connector.id),
         'connector-rail__slot--selected': connector.id === workspace.activeConnectorId.value,
       }"
+      :style="panelColorStyle(connector.tab_color)"
     >
       <ConnectorIcon
         :connector-id="connector.id"
@@ -86,11 +88,13 @@ const rows = computed(() => connectors.data.value?.data ?? [])
   justify-content: center;
   border-radius: 4px;
 }
-/* The same two states the wide row carries, at a smaller width. */
+/* The same two states the wide row carries, at a smaller width — and in the
+   connection's own colour for the same reason: pushing the column aside takes
+   away the name and nothing else. */
 .connector-rail__slot--open {
-  background: var(--dp-selected-quiet);
+  background: var(--dp-panel-quiet, var(--dp-panel-plain-quiet));
 }
 .connector-rail__slot--selected {
-  background: var(--dp-selected);
+  background: var(--dp-panel-background, var(--dp-panel-plain));
 }
 </style>

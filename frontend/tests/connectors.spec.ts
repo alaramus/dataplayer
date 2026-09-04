@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import type { Locator } from "@playwright/test"
 
 import { chooseTabColor, DATABASE, openPermissions, pickAdapterType } from "./utils/connectors"
 import { openNode } from "./utils/catalog"
@@ -43,8 +44,8 @@ test("a connector color follows its open tabs and can be reset after reload", as
   // The tab being read and the one beside it are the same size and the same
   // weight: only the line under the active one says which is which, so
   // pressing a tab does not move the tabs around it.
-  const shape = async (tab: ReturnType<typeof catalogTab>) =>
-    await tab.evaluate((element) => {
+  const shape = (tab: Locator) =>
+    tab.evaluate((element) => {
       const style = getComputedStyle(element)
       return {
         weight: style.fontWeight,
@@ -54,6 +55,19 @@ test("a connector color follows its open tabs and can be reset after reload", as
     })
   const activeRows = await shape(rowsTabs(page).nth(1))
   expect(await shape(rowsTabs(page).nth(0))).toEqual(activeRows)
+
+  // And the row this was opened from is marked in the same colour, so the row
+  // and the tabs it opened are visibly one thing.
+  await expect(connectorRow(page, name)).toHaveCSS("background-color", "rgb(36, 106, 188)")
+  await expect(connectorRow(page, name)).toHaveCSS("color", "rgb(255, 255, 255)")
+  // And the pointer arriving at the row does not take the colour off it.
+  await connectorRow(page, name).hover()
+  await expect(connectorRow(page, name)).toHaveCSS("background-color", "rgb(36, 106, 188)")
+
+  // The catalog carries it too, for the mark that points at a row: that mark
+  // is the answer to a press on the tab of a table, and the tab is drawn in
+  // this colour.
+  await expect(page.getByTestId("catalog-list")).toHaveCSS("--dp-panel-background", "#246abc")
 
   await editConnector(page, name)
   await chooseTabColor(page, "#ffffff")
@@ -84,6 +98,17 @@ test("a connector color follows its open tabs and can be reset after reload", as
   await page.getByTestId("cancel-connector").click()
   await page.reload()
   for (const tab of tabs) await expect(tab).toHaveCSS("--dp-panel-background", "")
+  await expect(page.getByTestId("catalog-list")).toHaveCSS("--dp-panel-background", "")
+  // A connection with no colour of its own is marked in the plain one, and
+  // the plain one is what its tabs are filled with: the mark is the same mark
+  // either way, and only the colour of it was ever a choice. Asked of the tab
+  // rather than written down, so this holds in either theme.
+  await page.mouse.move(0, 0)
+  const plain = await catalogTab(page).evaluate(
+    (element) => getComputedStyle(element).backgroundColor
+  )
+  expect(plain).not.toBe("rgba(0, 0, 0, 0)")
+  await expect(connectorRow(page, name)).toHaveCSS("background-color", plain)
   await deleteConnector(page, name)
 })
 

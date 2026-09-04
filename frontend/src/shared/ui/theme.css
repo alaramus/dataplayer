@@ -27,6 +27,29 @@
   --dp-chrome: #eef0f3;
   --dp-chrome-raised: #f7f8fa;
 
+  /* What a tab or a marked row of connections is filled with when nobody
+     chose a colour for the connection. The plain half of the colour that
+     arrives from the connection itself: whether somebody chose one must not
+     change the shape of a tab or the kind of mark a row carries, so the
+     default is a fill and not the absence of one. One value for both surfaces
+     it is used on — the strip of tabs and the list of connections — because
+     "the same as the colour that would fill it" is the whole point of it.
+
+     A step darker than the chrome it started as. In the light theme the
+     chrome grey lies between the surface (#fff) and the raised chrome the tab
+     strip is drawn with (#f7f8fa), which is a mark that can be told from
+     neither: a fill nobody can see is the transparent tab under another name.
+     The dark theme keeps the chrome value, where it stands clear of both. */
+  --dp-panel-plain: #e2e6ec;
+  /* And the same fill said quietly, for a connection that is open somewhere
+     but is not the one being read. Half a step towards the surface it is laid
+     on, rather than a wash of the fill itself: the plain fill is close to that
+     surface, so a translucent version of it would be nothing at all. Read off
+     the fill rather than written down, so the two cannot drift apart. A
+     colour chosen for a connection carries its own quiet half, mixed by
+     `shared/ui/panelColor.ts`. */
+  --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 50%, var(--dp-surface));
+
   /* Lines. Faint separates rows, plain separates regions, strong outlines a
      thing that floats free of the page. */
   --dp-border-faint: rgba(0, 0, 0, 0.08);
@@ -121,6 +144,11 @@ body.body--dark {
   --dp-surface-raised: #1d1d1d;
   --dp-chrome: #1e1f22;
   --dp-chrome-raised: #2b2d30;
+  /* Written again rather than inherited: a custom property is substituted
+     where it is *declared*, and these values are declared on `body`, so a
+     lone :root declaration would hand the dark theme the light grey. */
+  --dp-panel-plain: var(--dp-chrome);
+  --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 50%, var(--dp-surface));
 
   --dp-border-faint: rgba(255, 255, 255, 0.09);
   --dp-border: rgba(255, 255, 255, 0.16);
