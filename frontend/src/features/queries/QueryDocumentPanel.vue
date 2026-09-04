@@ -177,7 +177,7 @@ const server = computed(() => document.data.value)
 /** Whether this console is in the library at all. */
 const remembered = computed(() => props.documentId !== undefined)
 const connectorId = computed(
-  () => server.value?.connector_id ?? props.connectorId ?? null
+  () => server.value === undefined ? props.connectorId ?? null : server.value.connector_id
 )
 const profile = useQueryProfile(connectorId)
 const unlockState = useUnlockState(connectorId)
@@ -350,6 +350,7 @@ watch(
   server,
   (loaded) => {
     if (loaded === undefined || loaded.id === loadedId) return
+    workspace.renameQueryDocument(loaded.id, loaded.title, loaded.connector_id)
     loadedId = loaded.id
     draft.value = draftOf(loaded)
     state.value = "saved"
@@ -745,6 +746,7 @@ function promote(statement: StatementPublic) {
   if (statement.result_id === null || statement.result_id === undefined) return
   workspace.openQueryResult({
     resultId: statement.result_id,
+    connectorId: shown.value?.connector_id ?? undefined,
     title: draft.value.title ?? "Query result",
   })
 }
@@ -825,6 +827,7 @@ async function resolveSaveACopy() {
     resolveUseRemote()
     workspace.openQueryDocument({
       documentId: copy.id,
+      connectorId: copy.connector_id ?? undefined,
       title: copy.title,
       connectorName: copy.connector_label,
     })

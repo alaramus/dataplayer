@@ -482,6 +482,7 @@ async def create_connector(
         secrets=secrets,
         owner_id=current_user.id,
         execution_policy=connector_in.execution_policy,
+        tab_color=connector_in.tab_color,
     )
     return await _public(session, connector, "own")
 
@@ -537,6 +538,10 @@ async def update_connector(
 
     if connector_in.name is not None:
         connector.name = connector_in.name
+
+    # An explicit null restores the theme; an omitted field keeps the color.
+    if "tab_color" in connector_in.model_fields_set:
+        connector.tab_color = connector_in.tab_color
 
     if connector_in.enabled is not None:
         connector.enabled = connector_in.enabled

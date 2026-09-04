@@ -67,6 +67,14 @@ is a list of panels with one active, and that is the only notion of a tab in the
 application. What a panel is belongs to `features/workspace`, which hands the
 engine a component and a look per panel.
 
+The feature also supplies an optional `color` in the panel look. It reads the
+connector's saved `tab_color` from the query cache rather than copying it into
+each panel, so saving or resetting a color updates all its open tabs. Query
+and result panels carry their connector identity for this lookup; older layouts
+remain readable without it, and an old query panel acquires it when its document
+loads. The engine applies the look to tabs, drag previews, floating title bars
+and minimized windows, without knowing what a connector is.
+
 The old application had such an engine and it grew to 2438 lines: nodes were
 mutated in place and carried parent back-pointers, so undoing anything needed a
 history of layouts and a command language of nine verbs, and a node it could not

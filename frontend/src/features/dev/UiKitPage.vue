@@ -7,6 +7,7 @@ import {
   AppBanner,
   AppButton,
   AppCard,
+  AppColorPicker,
   AppEmptyState,
   AppFileInput,
   AppIconButton,
@@ -75,6 +76,7 @@ const dialogSize = ref<DialogSize>("md")
 const dialogOpen = ref(false)
 const text = ref("localhost")
 const secret = ref("")
+const tabColor = ref<string | null>(null)
 const broken = ref<number | null>(null)
 const choice = ref<string | null>("postgres")
 const plain = ref("prefer")
@@ -288,7 +290,14 @@ function removeSavedEntry(name: string) {
         <AppInput
           v-model="text"
           label="Host"
-        />
+        >
+          <template #after>
+            <AppColorPicker
+              v-model="tabColor"
+              label="Tab color"
+            />
+          </template>
+        </AppInput>
         <AppInput
           v-model="secret"
           label="Password"

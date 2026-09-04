@@ -145,15 +145,17 @@ export interface WorkspaceActions {
    * Two runs are two panels even when their SQL is equal: comparing them is
    * what the existing split and drag are for (D65).
    */
-  openQueryResult: (request: { resultId: string; title: string }) => void
+  openQueryResult: (request: { resultId: string; title: string; connectorId?: string }) => void
   /**
    * Put a document's new name on its tab.
    *
    * The panel carries the title because a layout restored from storage has to
    * label its tabs before anything has been read, exactly as a rows tab
    * carries the name of its node. Renaming therefore has to say so.
+   * Loading also fills in the connector identity for layouts saved without it;
+   * an explicit null clears an identity whose connection has gone away.
    */
-  renameQueryDocument: (documentId: string, title: string | null) => void
+  renameQueryDocument: (documentId: string, title: string | null, connectorId?: string | null) => void
   /** Close the tab of a document that has just gone to Trash. */
   closeQueryDocument: (documentId: string) => void
   openChart: (request: OpenChartRequest) => void
@@ -308,6 +310,7 @@ export interface OpenQueryDraftRequest {
 
 export interface OpenQueryDocumentRequest {
   documentId: string
+  connectorId?: string
   title: string | null
   connectorName: string | null
 }

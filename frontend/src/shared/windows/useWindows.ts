@@ -29,6 +29,7 @@ import type { Rect, ResizeEdge, Size } from "./geometry"
 export interface WindowLook {
   title: string
   icon?: string
+  color?: string | null
 }
 
 export interface OpenWindow {

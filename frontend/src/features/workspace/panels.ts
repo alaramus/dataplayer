@@ -182,6 +182,7 @@ export const panelSchema = z.discriminatedUnion("kind", [
   z.object({
     id: z.string(),
     kind: z.literal("result"),
+    connectorId: z.string().optional(),
     // Into the process-local store of D64, which is why a restored layout may
     // find it gone: the panel says so rather than pretending to reload it.
     resultId: z.string(),
@@ -344,7 +345,18 @@ function rowsIcon(panel: Extract<Panel, { kind: "rows" }>): string {
   return REPRESENTATION_ICONS[preferred.kind] ?? adapterIcon(panel.adapterType)
 }
 
-export function lookOf(panel: Panel): PanelLook {
+export function lookOf(
+  panel: Panel,
+  colors?: ReadonlyMap<string, string | null | undefined>
+): PanelLook {
+  const connectorId = "connectorId" in panel ? panel.connectorId : undefined
+  return {
+    ...baseLookOf(panel),
+    color: connectorId === undefined ? null : colors?.get(connectorId) ?? null,
+  }
+}
+
+function baseLookOf(panel: Panel): PanelLook {
   switch (panel.kind) {
     case "relationships":
       return {

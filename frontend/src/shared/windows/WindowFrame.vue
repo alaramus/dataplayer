@@ -2,6 +2,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { AppIconButton } from "@/shared/ui"
+import { panelColorStyle } from "@/shared/ui/panelColor"
 
 import { FIT_MARGIN } from "./geometry"
 
@@ -141,6 +142,7 @@ const resizeEdges: ResizeEdge[] = [
   >
     <header
       class="app-window__bar"
+      :style="panelColorStyle(window.look.color)"
       :class="{ 'app-window__bar--dragging': dragging }"
       :data-testid="`window-bar-${window.id}`"
       @pointerdown="startDrag"
@@ -240,7 +242,8 @@ const resizeEdges: ResizeEdge[] = [
   align-items: center;
   gap: 6px;
   padding: 4px 4px 4px 10px;
-  background: var(--dp-active);
+  background: var(--dp-panel-background, var(--dp-active));
+  color: var(--dp-panel-foreground, inherit);
   cursor: grab;
   /* Otherwise a drag selects the title text instead of moving the window. */
   user-select: none;

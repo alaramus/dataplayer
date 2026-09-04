@@ -4,6 +4,7 @@ import type { Page } from "@playwright/test"
 import { catalogAction, catalogCheck, catalogRow, openNode, pickSchema } from "./utils/catalog"
 import {
   choosePolicy,
+  chooseTabColor,
   createFileConnector,
   createPostgresConnector,
 } from "./utils/connectors"
@@ -191,8 +192,14 @@ test("a captured result is paged, ordered and opened in a panel of its own", asy
   const name = `e2e-result-${Date.now()}`
   await login(page)
   await createPostgresConnector(page, name)
+  await editConnector(page, name)
+  await chooseTabColor(page, "#246abc")
+  await page.getByTestId("save-connector").click()
   await openQueries(page, name)
   await page.getByTestId("new-query").click()
+  await expect(page.locator('[data-testid^="workspace-tab-query:draft:"]')).toHaveCSS(
+    "background-color", "rgb(36, 106, 188)"
+  )
 
   await typeQuery(page, "select i from generate_series(1, 12) i")
   await page.getByTestId("query-run").click()
@@ -207,6 +214,9 @@ test("a captured result is paged, ordered and opened in a panel of its own", asy
   // And the result can leave the console for a tab of its own (D65).
   await page.getByTestId("run-promote").click()
   await expect(page.locator('[data-testid^="workspace-tab-result:"]')).toHaveCount(1)
+  await expect(page.locator('[data-testid^="workspace-tab-result:"]')).toHaveCSS(
+    "background-color", "rgb(36, 106, 188)"
+  )
 
   await deleteConnector(page, name)
 })

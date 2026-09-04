@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test"
 
-import { DATABASE, openPermissions, pickAdapterType } from "./utils/connectors"
+import { chooseTabColor, DATABASE, openPermissions, pickAdapterType } from "./utils/connectors"
+import { openNode } from "./utils/catalog"
 import { login } from "./utils/login"
-import { connectorRow, deleteConnector, editConnector } from "./utils/workspace"
+import { catalogTab, connectorRow, deleteConnector, editConnector, openConnector, rowsTabs } from "./utils/workspace"
 
 
 // Quasar forwards data-testid onto the input element, so field ids address the
@@ -20,6 +21,50 @@ async function fillConnectionFields(
   await page.getByTestId("field-user").fill(DATABASE.user)
   await page.getByTestId("field-password").fill(password)
 }
+
+test("a connector color follows its open tabs and can be reset after reload", async ({ page }) => {
+  const name = `e2e-colored-${Date.now()}`
+  await login(page)
+  await pickAdapterType(page, "postgres")
+  await page.getByTestId("connector-name").fill(name)
+  await fillConnectionFields(page, DATABASE.password)
+  await chooseTabColor(page, "#246abc")
+  await page.getByTestId("save-connector").click()
+  await openConnector(page, name)
+  await openNode(page, "connector")
+  await openNode(page, "user")
+  await expect(rowsTabs(page)).toHaveCount(2)
+  const tabs = [catalogTab(page), rowsTabs(page).nth(0), rowsTabs(page).nth(1)]
+  for (const tab of tabs) {
+    await expect(tab).toHaveCSS("background-color", "rgb(36, 106, 188)")
+    await expect(tab).toHaveCSS("color", "rgb(255, 255, 255)")
+  }
+
+  await editConnector(page, name)
+  await chooseTabColor(page, "#ffffff")
+  // Draft choices do not recolor the workspace until Apply or OK.
+  for (const tab of tabs) await expect(tab).toHaveCSS("background-color", "rgb(36, 106, 188)")
+  await page.getByTestId("apply-connector").click()
+  for (const tab of tabs) {
+    await expect(tab).toHaveCSS("background-color", "rgb(255, 255, 255)")
+    await expect(tab).toHaveCSS("color", "rgb(0, 0, 0)")
+  }
+  await page.getByTestId("cancel-connector").click()
+  await page.reload()
+  for (const tab of tabs) await expect(tab).toHaveCSS("background-color", "rgb(255, 255, 255)")
+
+  await editConnector(page, name)
+  await page.getByTestId("connector-tab-color").click()
+  const picker = page.getByRole("dialog", { name: "Tab color", exact: true })
+  await expect(picker.getByRole("textbox")).toHaveValue(/#ffffff/i)
+  await picker.getByRole("button", { name: "Reset color", exact: true }).click()
+  await page.getByTestId("apply-connector").click()
+  for (const tab of tabs) await expect(tab).toHaveCSS("--dp-panel-background", "")
+  await page.getByTestId("cancel-connector").click()
+  await page.reload()
+  for (const tab of tabs) await expect(tab).toHaveCSS("--dp-panel-background", "")
+  await deleteConnector(page, name)
+})
 
 test("creates a connection, checks it and deletes it", async ({ page }) => {
   const name = `e2e-postgres-${Date.now()}`

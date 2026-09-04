@@ -76,6 +76,10 @@ import { makeLeaf, makeSplit, useWorkspace, WorkspaceDetachTarget, WorkspaceRoot
  * it is closed. Everything else is the user's — widths, which tabs are open,
  * and a data tab torn off into a section of its own. See the spec, T5.
  */
+const connectors = useConnectors()
+const connectorColors = computed(() => new Map(
+  (connectors.data.value?.data ?? []).map((connector) => [connector.id, connector.tab_color])
+))
 const workspace = useWorkspace<Panel>({
   storageKey: "dataplayer-workspace",
   panelSchema,
@@ -93,7 +97,7 @@ const workspace = useWorkspace<Panel>({
     panels: [{ id: "connectors", kind: "connectors" }],
   }),
   kindOf: roleOf,
-  look: lookOf,
+  look: (panel) => lookOf(panel, connectorColors.value),
   component: componentOf,
   empty: emptyOf,
   collapsed: collapsedOf,
@@ -152,7 +156,6 @@ const openConnectors = computed(() => openConnectorIds(workspace.panels.value))
  * modality would have given is replaced by asking before a window with
  * unsaved changes is closed. See the spec, O1.
  */
-const connectors = useConnectors()
 const me = useCurrentUser()
 const windows = useWindowManager()
 const confirm = useConfirm()
@@ -664,6 +667,7 @@ provide(workspaceActionsKey, {
       id: queryPanelId(request.documentId),
       kind: "query",
       documentId: request.documentId,
+      connectorId: request.connectorId,
       title: request.title,
       connectorName: request.connectorName,
     })
@@ -678,11 +682,12 @@ provide(workspaceActionsKey, {
       connectorName: request.connectorName,
     })
   },
-  openQueryResult: (request: { resultId: string; title: string }) => {
+  openQueryResult: (request: { resultId: string; title: string; connectorId?: string }) => {
     workspace.open({
       id: resultPanelId(request.resultId),
       kind: "result",
       resultId: request.resultId,
+      connectorId: request.connectorId,
       title: request.title,
     })
   },
@@ -701,12 +706,14 @@ provide(workspaceActionsKey, {
       connectorName: kept.connectorName,
     })
   },
-  renameQueryDocument: (documentId: string, title: string | null) => {
+  renameQueryDocument: (documentId: string, title: string | null, connectorId?: string | null) => {
     const panel = workspace.panels.value.find(
       (candidate) => candidate.id === queryPanelId(documentId)
     )
-    if (panel === undefined || panel.kind !== "query" || panel.title === title) return
-    workspace.replace(panel.id, { ...panel, title })
+    if (panel === undefined || panel.kind !== "query") return
+    const source = connectorId === undefined ? panel.connectorId : connectorId ?? undefined
+    if (panel.title === title && panel.connectorId === source) return
+    workspace.replace(panel.id, { ...panel, title, connectorId: source })
   },
   closeQueryDocument: (documentId: string) => {
     workspace.context.close(queryPanelId(documentId))

@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from "vue"
 
 import AppButton from "@/shared/ui/AppButton.vue"
 import AppTooltip from "@/shared/ui/AppTooltip.vue"
+import { panelColorStyle } from "@/shared/ui/panelColor"
 
 import type { WindowsContext } from "./useWindows"
 
@@ -37,6 +38,7 @@ watch(
         v-for="entry in minimized"
         :key="entry.key"
         class="window-taskbar__item"
+        :style="panelColorStyle(entry.look.color)"
         variant="quiet"
         size="sm"
         :icon="entry.look.icon ?? 'web_asset'"
@@ -75,6 +77,8 @@ watch(
 .window-taskbar__item {
   flex: none;
   max-width: 240px;
+  background: var(--dp-panel-background, transparent);
+  color: var(--dp-panel-foreground, inherit);
 }
 .window-taskbar__item :deep(.q-btn__content) {
   flex-wrap: nowrap;

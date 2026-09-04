@@ -3,6 +3,7 @@ import { computed, inject, ref } from "vue"
 import type { CSSProperties } from "vue"
 
 import AppTooltip from "@/shared/ui/AppTooltip.vue"
+import { panelColorStyle } from "@/shared/ui/panelColor"
 
 import { workspaceKey } from "./context"
 import type { WorkspaceContext } from "./context"
@@ -234,7 +235,11 @@ const overlayStyle = computed((): CSSProperties => {
             ref="tabElements"
             type="button"
             class="workspace-leaf__tab"
-            :class="{ 'workspace-leaf__tab--active': panelId === active }"
+            :class="{
+              'workspace-leaf__tab--active': panelId === active,
+              'workspace-leaf__tab--colored': Boolean(workspace.lookOf(panelId).color),
+            }"
+            :style="panelColorStyle(workspace.lookOf(panelId).color)"
             :data-testid="`workspace-tab-${panelId}`"
             @pointerdown="onTabPointerDown($event, panelId)"
             @click="workspace.activate(panelId)"
@@ -425,20 +430,24 @@ const overlayStyle = computed((): CSSProperties => {
   padding: 4px 8px;
   border: none;
   border-radius: var(--dp-radius-control);
-  background: transparent;
+  background: var(--dp-panel-background, transparent);
   /* A native button takes its colour from the browser, which is black, and
      `font: inherit` does not carry colour with it. Black on a dark panel is
      an invisible tab. */
-  color: inherit;
+  color: var(--dp-panel-foreground, inherit);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
 }
 .workspace-leaf__tab--active {
-  background: var(--dp-surface);
+  background: var(--dp-panel-background, var(--dp-surface));
   box-shadow: inset 0 0 0 1px var(--dp-border);
   font-weight: 500;
+}
+.workspace-leaf__tab--colored.workspace-leaf__tab--active {
+  box-shadow: inset 0 -3px currentColor;
+  font-weight: 600;
 }
 .workspace-leaf__icon {
   display: inline-flex;
@@ -466,7 +475,7 @@ const overlayStyle = computed((): CSSProperties => {
   border-radius: 4px;
   padding: 2px;
   margin: -2px;
-  color: var(--dp-text-faint);
+  color: var(--dp-panel-foreground, var(--dp-text-faint));
 }
 .workspace-leaf__reload:hover {
   background: var(--dp-hover);
@@ -502,7 +511,7 @@ const overlayStyle = computed((): CSSProperties => {
   text-overflow: ellipsis;
   min-width: 0;
   max-width: 96px;
-  color: var(--dp-text-faint);
+  color: var(--dp-panel-foreground, var(--dp-text-faint));
 }
 /* The tabs take the room, so the handles sit at the end without a margin of
    their own - which two of them beside each other would fight over. */

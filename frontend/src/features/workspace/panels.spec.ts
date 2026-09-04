@@ -105,18 +105,32 @@ const samples: Record<PanelKind, Panel> = {
     id: resultPanelId("r1"),
     kind: "result",
     resultId: "r1",
+    connectorId: "c1",
     title: "Daily counts",
   },
   query: {
     id: queryPanelId("d1"),
     kind: "query",
     documentId: "d1",
+    connectorId: "c1",
     title: null,
     connectorName: "local pg",
   },
 }
 
 describe("the panel registry", () => {
+  it.each(KINDS)("reads the current connector color for %s", (kind) => {
+    const panel = samples[kind]
+    const colors = new Map<string, string | null>([["c1", "#246abc"]])
+    const belongsToConnector = kind !== "connectors" && kind !== "queries"
+    expect(lookOf(panel, colors).color).toBe(belongsToConnector ? "#246abc" : null)
+    colors.set("c1", "#ffffff")
+    expect(lookOf(panel, colors).color).toBe(belongsToConnector ? "#ffffff" : null)
+    colors.set("c1", null)
+    expect(lookOf(panel, colors).color).toBeNull()
+    expect(lookOf(panel, new Map([["other", "#123456"]])).color).toBeNull()
+  })
+
   it.each(KINDS)("has a component for %s", (kind) => {
     expect(componentOf(samples[kind])).toBeDefined()
   })

@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
+from pydantic import StringConstraints
 from sqlalchemy import Column, DateTime, Index, LargeBinary, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
@@ -10,9 +11,15 @@ from app.core.access import Access, ExecutionPolicy, Grant
 from app.core.schemas import get_datetime_utc
 
 
+TabColor = Annotated[
+    str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$", max_length=7)
+]
+
+
 class Connector(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     name: str = Field(min_length=1, max_length=255)
+    tab_color: str | None = Field(default=None, max_length=7)
     # A key into the adapter type registry, not a foreign key: the registry
     # lives in code, so a new source type needs no migration.
     adapter_type: str = Field(max_length=64)
@@ -49,6 +56,7 @@ class Connector(SQLModel, table=True):
 
 class ConnectorCreate(SQLModel):
     name: str = Field(min_length=1, max_length=255)
+    tab_color: TabColor | None = None
     adapter_type: str = Field(max_length=64)
     options: dict[str, Any]
     # Decided with the connection rather than after it: whoever is registering
@@ -59,6 +67,7 @@ class ConnectorCreate(SQLModel):
 
 class ConnectorUpdate(SQLModel):
     name: str | None = Field(default=None, min_length=1, max_length=255)
+    tab_color: TabColor | None = None
     options: dict[str, Any] | None = None
     enabled: bool | None = None
     # Only the owner may change this, which the route enforces rather than the
@@ -98,6 +107,7 @@ class ConnectorGrant(SQLModel, table=True):
 class ConnectorPublic(SQLModel):
     id: uuid.UUID
     name: str
+    tab_color: TabColor | None = None
     adapter_type: str
     config: dict[str, Any]
     enabled: bool

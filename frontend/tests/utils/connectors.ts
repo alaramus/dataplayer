@@ -45,6 +45,15 @@ export async function createPostgresConnector(page: Page, name: string) {
   await expect(connectorRow(page, name)).toBeVisible()
 }
 
+/** Choose a tab color in the connector form that is already open. */
+export async function chooseTabColor(page: Page, color: string) {
+  await page.getByTestId("connector-tab-color").click()
+  const picker = page.getByRole("dialog", { name: "Tab color", exact: true })
+  await picker.getByRole("textbox").fill(color)
+  await page.keyboard.press("Escape")
+  await expect(picker).toBeHidden()
+}
+
 /**
  * The window's page for who may reach a connection and what may be done
  * through it, rather than how to reach it (D66).

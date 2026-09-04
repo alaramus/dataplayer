@@ -36,6 +36,7 @@ async def create(
     secrets: bytes,
     owner_id: uuid.UUID,
     execution_policy: ExecutionPolicy = "confirm_writes",
+    tab_color: str | None = None,
 ) -> Connector:
     connector = Connector(
         name=name,
@@ -44,6 +45,7 @@ async def create(
         secrets=secrets,
         owner_id=owner_id,
         execution_policy=execution_policy,
+        tab_color=tab_color,
     )
     session.add(connector)
     await session.commit()

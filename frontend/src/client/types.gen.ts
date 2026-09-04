@@ -1069,6 +1069,10 @@ export type ConnectorCreate = {
    */
   name: string
   /**
+   * Tab Color
+   */
+  tab_color?: string | null
+  /**
    * Adapter Type
    */
   adapter_type: string
@@ -1096,6 +1100,10 @@ export type ConnectorPublic = {
    * Name
    */
   name: string
+  /**
+   * Tab Color
+   */
+  tab_color?: string | null
   /**
    * Adapter Type
    */
@@ -1140,6 +1148,10 @@ export type ConnectorUpdate = {
    * Name
    */
   name?: string | null
+  /**
+   * Tab Color
+   */
+  tab_color?: string | null
   /**
    * Options
    */

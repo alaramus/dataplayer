@@ -343,6 +343,14 @@ A connection is a row of two things: the icon of its type, with the dot of the
 last check standing on it, and its name. Everything else about it lives in the
 window that icon opens.
 
+The name field in the connection window has a rainbow color picker. Its
+optional tab color is connector metadata, saved by the owner with Apply or OK;
+Reset color clears it. A draft choice stays in the form until saved. Every
+workspace tab belonging to that connection reads the current saved color,
+including catalogs, data, query consoles and captured results. Text uses
+whichever of black or white has higher contrast, and a colored active tab has
+an underline. Connections with no color keep the theme's normal appearance.
+
 **What a screen may offer, it is told.** A connection carries `access`, so the
 window of one that belongs to somebody else shows its options disabled, names
 who shared it, and drops Apply, Delete and Share; sharing is offered only to

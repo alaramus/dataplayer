@@ -8,6 +8,8 @@ import type { DropZone, LayoutNode, NodeId, PanelId } from "./model"
 export interface PanelLook {
   title: string
   icon: string
+  /** Optional #RRGGBB background shared by this panel's tab and floating title. */
+  color?: string | null
   /**
    * A quieter second line beside the title: whose panel this is.
    *

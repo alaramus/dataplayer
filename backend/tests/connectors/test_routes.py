@@ -1,5 +1,6 @@
 import uuid
 
+import pytest
 from httpx import AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -36,10 +37,71 @@ async def test_create_returns_connector_without_secrets(
     assert response.status_code == 200
     body = response.json()
     assert body["name"] == "created"
+    assert body["tab_color"] is None
     assert body["adapter_type"] == "postgres"
     assert body["config"]["host"] == "localhost"
     assert "secrets" not in body
     assert PASSWORD not in response.text
+
+
+async def test_tab_color_is_stored_listed_changed_and_reset(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    headers = normal_user_token_headers
+    created = await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={**_payload("colored"), "tab_color": "#246AbC"},
+    )
+    assert created.status_code == 200
+    assert created.json()["tab_color"] == "#246AbC"
+    connector_id = created.json()["id"]
+    url = f"{BASE}/{connector_id}"
+
+    listed = await client.get(f"{BASE}/", headers=headers)
+    assert next(
+        item for item in listed.json()["data"] if item["id"] == connector_id
+    )["tab_color"] == "#246AbC"
+
+    renamed = await client.patch(url, headers=headers, json={"name": "still colored"})
+    assert renamed.status_code == 200
+    assert renamed.json()["tab_color"] == "#246AbC"
+
+    changed = await client.patch(url, headers=headers, json={"tab_color": "#000000"})
+    assert changed.status_code == 200
+    assert changed.json()["tab_color"] == "#000000"
+    reread = await client.get(url, headers=headers)
+    assert reread.json()["tab_color"] == "#000000"
+
+    cleared = await client.patch(url, headers=headers, json={"tab_color": None})
+    assert cleared.status_code == 200
+    assert cleared.json()["tab_color"] is None
+    assert cleared.json()["name"] == "still colored"
+    reread = await client.get(url, headers=headers)
+    assert reread.json()["tab_color"] is None
+
+
+@pytest.mark.parametrize(
+    "color", ["red", "#abc", "#12345678", "#zzzzzz", "#123456\n", "", 123]
+)
+async def test_invalid_tab_colors_are_rejected_on_create_and_update(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], color: object
+) -> None:
+    headers = normal_user_token_headers
+    refused = await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={**_payload("invalid color"), "tab_color": color},
+    )
+    assert refused.status_code == 422
+    created = await client.post(f"{BASE}/", headers=headers, json=_payload("valid"))
+    assert created.status_code == 200
+    refused = await client.patch(
+        f"{BASE}/{created.json()['id']}",
+        headers=headers,
+        json={"tab_color": color},
+    )
+    assert refused.status_code == 422
 
 
 async def test_execution_policy_is_decided_with_the_connection(

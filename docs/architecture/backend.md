@@ -216,6 +216,12 @@ rather than offering what running would refuse — the same rule as D2d.
 `ConnectorPublic` carries `access` for the same reason: a screen that hid a
 button by knowing the rules would be a second place the rules live.
 
+`Connector.tab_color` is optional presentation metadata, separate from adapter
+options. Create and update accept a six-digit `#RRGGBB` color or null; an omitted
+update preserves the color and an explicit null clears it. It is included in
+the public connection for every grantee, and only the owner may change it,
+under the same rule as the name. Existing connections default to no color.
+
 A refusal is also stated in the answer where the answer already had a place
 for it, rather than only as a status the client must interpret. A caller below
 `write` gets a page whose columns are not editable and whose insert and delete

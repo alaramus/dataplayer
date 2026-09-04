@@ -158,9 +158,15 @@ function nameOf(id: string): string | null {
   return connectorNameOf(connectors.data.value, id)
 }
 
-function openDocument(row: { id: string; title: string | null; connector_label: string | null }) {
+function openDocument(row: {
+  id: string
+  title: string | null
+  connector_id: string | null
+  connector_label: string | null
+}) {
   workspace.openQueryDocument({
     documentId: row.id,
+    connectorId: row.connector_id ?? undefined,
     title: row.title,
     connectorName: row.connector_label,
   })

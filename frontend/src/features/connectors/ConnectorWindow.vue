@@ -31,6 +31,7 @@ import type { FieldSpec, JsonSchema } from "@/shared/SchemaForm/jsonSchema"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
 import {
   AppButton,
+  AppColorPicker,
   AppCopyButton,
   AppInput,
   AppSelect,
@@ -99,6 +100,7 @@ const {
 } = useSchemaForm()
 
 const name = ref("")
+const tabColor = ref<string | null>(null)
 const enabled = ref(true)
 /**
  * How far a console may go through this connection (D66).
@@ -152,7 +154,7 @@ function snapshot(): string {
   const ordered = Object.keys(values)
     .sort()
     .map((key) => [key, values[key]])
-  return JSON.stringify([name.value, enabled.value, executionPolicy.value, ordered])
+  return JSON.stringify([name.value, tabColor.value, enabled.value, executionPolicy.value, ordered])
 }
 
 const dirty = computed(() => snapshot() !== baseline.value)
@@ -344,6 +346,7 @@ function load() {
   saved.value = props.connector
   if (props.connector) {
     name.value = props.connector.name
+    tabColor.value = props.connector.tab_color ?? null
     enabled.value = props.connector.enabled
     executionPolicy.value = props.connector.execution_policy
     resetOptions(allFields.value, props.connector.config as Record<string, unknown>)
@@ -352,6 +355,7 @@ function load() {
     // picked without a row that only ever states it. One word to replace
     // beats an empty box, and a connection nobody renames still has a name.
     name.value = selectedType.value?.title ?? ""
+    tabColor.value = null
     enabled.value = true
     executionPolicy.value = "confirm_writes"
     resetOptions(allFields.value)
@@ -430,6 +434,7 @@ async function apply(): Promise<boolean> {
         connectorId: saved.value.id,
         body: {
           name: name.value,
+          tab_color: tabColor.value,
           enabled: enabled.value,
           execution_policy: executionPolicy.value,
           options: filledOptions(),
@@ -438,6 +443,7 @@ async function apply(): Promise<boolean> {
     } else {
       const created = await createConnector.mutateAsync({
         name: name.value,
+        tab_color: tabColor.value,
         adapter_type: typeName.value,
         options: filledOptions(),
         execution_policy: executionPolicy.value,
@@ -564,7 +570,16 @@ async function parseTyped(text: string) {
             data-testid="connector-name"
             :disable="readOnly"
             :error="nameError"
-          />
+          >
+            <template #after>
+              <AppColorPicker
+                v-model="tabColor"
+                label="Tab color"
+                data-testid="connector-tab-color"
+                :disable="readOnly"
+              />
+            </template>
+          </AppInput>
           <!-- Only for a connection that exists: there is nothing to switch
                off before it is saved, and the row would ask a question about
                a thing that is not there yet. -->

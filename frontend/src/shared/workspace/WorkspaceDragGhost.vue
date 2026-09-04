@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { panelColorStyle } from "@/shared/ui/panelColor"
+
 import type { PanelLook } from "./context"
 
 /**
@@ -19,7 +21,7 @@ defineProps<{ look: PanelLook; x: number; y: number }>()
   <div
     class="drag-ghost"
     data-testid="workspace-drag-ghost"
-    :style="{ left: `${String(x)}px`, top: `${String(y)}px` }"
+    :style="{ ...panelColorStyle(look.color), left: `${String(x)}px`, top: `${String(y)}px` }"
   >
     <q-icon
       :name="look.icon"
@@ -49,7 +51,8 @@ defineProps<{ look: PanelLook; x: number; y: number }>()
   padding: 4px 8px;
   border: 1px solid var(--dp-border-strong);
   border-radius: 4px;
-  background: var(--dp-surface-raised);
+  background: var(--dp-panel-background, var(--dp-surface-raised));
+  color: var(--dp-panel-foreground, inherit);
   box-shadow: 0 4px 14px var(--dp-shadow);
   font-size: 12px;
   white-space: nowrap;
@@ -63,6 +66,6 @@ defineProps<{ look: PanelLook; x: number; y: number }>()
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 96px;
-  color: var(--dp-text-faint);
+  color: var(--dp-panel-foreground, var(--dp-text-faint));
 }
 </style>
