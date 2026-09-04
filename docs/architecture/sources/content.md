@@ -46,6 +46,9 @@ leaf has rows.
   new one is an entry in `file/logs.py` and nothing else. Lines of JSON objects
   are records and go to the projection above; a file that fits no shape is read
   as the numbered lines it is. Only `.log`: a `.txt` is as likely to be a note.
+  SQL reuses this projection through the same View as table → Open as query
+  path as JSON, with whole-input bounds and canonical text columns
+  ([D96](../querying.md#d96-sql-over-a-log-reuses-its-table-projection)).
 - **What has text to show is read off what the format offers**, rather than
   listed a second time beside it. The editor route used to hold its own set of
   editable formats, and the two drifted the moment `.log` arrived: a log's

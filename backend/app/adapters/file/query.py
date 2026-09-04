@@ -16,6 +16,7 @@ import time
 from collections.abc import AsyncIterator, Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from threading import Event
 from typing import Any
 
 import anyio
@@ -25,6 +26,12 @@ from anyio import to_thread
 from app.adapters.file.arrow import column_type, encoder
 from app.adapters.file.dialect import REFUSALS, prepare
 from app.adapters.file.formats import format_of
+from app.adapters.file.query_readers import (
+    QUERY_FORMATS,
+    FileReaders,
+    Preparation,
+    PreparationStopped,
+)
 from app.adapters.file.session import FileSession
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
@@ -65,14 +72,6 @@ THREADS = 2
 # How many rows are pulled from the engine at a time. Small enough that a
 # ceiling is noticed early, large enough that a full page is one or two pulls.
 BATCH_ROWS = 2048
-
-# Which formats SQL sees, and how the engine is asked to read each one.
-_READERS: dict[str, str] = {
-    "delimited": "csv",
-    "parquet": "parquet",
-    "json": "json",
-    "jsonl": "json",
-}
 
 # How far the editor's list of relations may look, and how much of it it may
 # offer. A walk of a tree is unbounded by nature (D76 bounds the search the
@@ -148,13 +147,23 @@ class _Engine:
     def __init__(self, root: Path) -> None:
         self._root = root
         self._connection: duckdb.DuckDBPyConnection | None = None
+        self._interrupted = Event()
 
-    def open(self, relations: dict[str, Path]) -> None:
+    def open(self, relations: dict[str, Path], deadline: float | None = None) -> None:
+        preparation = Preparation(
+            deadline
+            if deadline is not None
+            else time.monotonic() + DEFAULT_TIMEOUT_SECONDS,
+            self._interrupted,
+        )
+        preparation.check()
         connection = duckdb.connect(config=_CONFIG)
         self._connection = connection
         connection.execute("SET errors_as_json=true")
+        readers = FileReaders(connection, preparation.check)
         for name, path in relations.items():
-            connection.register(name, _read(connection, path))
+            connection.register(name, readers.read(path))
+        preparation.check()
         connection.execute("SET allowed_directories=?", [[str(self._root)]])
         connection.execute("SET disabled_filesystems=?", ["HTTPFileSystem,S3FileSystem"])
         connection.execute("SET enable_external_access=false")
@@ -168,6 +177,7 @@ class _Engine:
 
     def interrupt(self) -> None:
         """Stop whatever the engine is doing. Safe from another thread."""
+        self._interrupted.set()
         connection = self._connection
         if connection is None:
             return
@@ -204,12 +214,8 @@ def _read(connection: duckdb.DuckDBPyConnection, path: Path) -> duckdb.DuckDBPyR
     server's own answer from `resolve`, and composing it into a statement would
     put a filename with a quote in it back into the parser.
     """
-    reader = _READERS[format_of(path.name)]
-    if reader == "parquet":
-        return connection.read_parquet(str(path))
-    if reader == "json":
-        return connection.read_json(str(path))
-    return connection.read_csv(str(path))
+    preparation = Preparation(time.monotonic() + DEFAULT_TIMEOUT_SECONDS)
+    return FileReaders(connection, preparation.check).read(path)
 
 
 class _Bounds:
@@ -257,16 +263,35 @@ class FileExecution:
             )
         script = prepare(request.text)
         relations = await to_thread.run_sync(relations_of, self._session, script)
-        await to_thread.run_sync(self._engine.open, relations)
         started = time.monotonic()
         state = _Bounds(limits)
         try:
+            deadline = started + min(
+                limits.statement_timeout_seconds, limits.script_timeout_seconds
+            )
+            preparation_status: StatementStatus | None = None
+            try:
+                await to_thread.run_sync(self._engine.open, relations, deadline)
+            except PreparationStopped as stopped_preparing:
+                preparation_status = stopped_preparing.status
+            except duckdb.InterruptException:
+                if not self._cancelled:
+                    raise
+                preparation_status = "cancelled"
             stopped = False
             for statement in script.statements:
                 if stopped:
                     yield StatementFinished(
                         ordinal=statement.ordinal, status="not_run", duration_ms=0
                     )
+                    continue
+                if preparation_status is not None:
+                    yield StatementFinished(
+                        ordinal=statement.ordinal,
+                        status=preparation_status,
+                        duration_ms=_since(started),
+                    )
+                    stopped = True
                     continue
                 if self._cancelled:
                     yield StatementFinished(
@@ -413,10 +438,10 @@ def resolve_relation(session: FileSession, name: str) -> Path:
             f"{shown} is a workbook, and a worksheet is not offered to SQL: "
             "reading one needs an engine extension this source will not download",
         )
-    if found not in _READERS:
+    if found not in QUERY_FORMATS:
         raise AdapterError(
             "config",
-            "SQL here reads CSV, TSV, Parquet, JSON and JSON lines, "
+            "SQL here reads CSV, TSV, Parquet, JSON, JSON lines and logs, "
             f"and {shown} is none of them",
         )
     return path
@@ -655,7 +680,7 @@ class FileQuery:
                         if depth + 1 <= MAX_DEPTH:
                             queue.append((entry, depth + 1))
                         continue
-                    if format_of(entry.name) not in _READERS:
+                    if format_of(entry.name) not in QUERY_FORMATS:
                         continue
                 except OSError:
                     continue
@@ -682,7 +707,7 @@ class FileQuery:
             path = self._session.resolve(name)
         except ValueError:
             return None
-        if not path.is_file() or format_of(path.name) not in _READERS:
+        if not path.is_file() or format_of(path.name) not in QUERY_FORMATS:
             return None
         try:
             with _describing() as connection:
@@ -693,7 +718,7 @@ class FileQuery:
                         relation.columns, relation.types, strict=False
                     )
                 ]
-        except duckdb.Error:
+        except (duckdb.Error, AdapterError, PreparationStopped):
             # A file the engine cannot make sense of is one the editor has
             # nothing to say about. Run will report it properly.
             return None
@@ -725,8 +750,8 @@ class FileQuery:
             raise ValueError("Only a read is planned here")
 
         engine = _Engine(self._session.resolved_root)
-        engine.open(relations_of(self._session, script))
         try:
+            engine.open(relations_of(self._session, script))
             values = {
                 parameter.name: parameter.value
                 for parameter in request.parameters
@@ -738,6 +763,8 @@ class FileQuery:
             planned = engine.connection.execute(
                 f"EXPLAIN (FORMAT JSON) {statement.text}", values
             ).fetchall()
+        except PreparationStopped:
+            raise AdapterError("timeout", "Preparing the log input ran out of time") from None
         except duckdb.Error as exc:
             raise AdapterError(
                 "config",

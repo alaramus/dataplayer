@@ -7,7 +7,7 @@ too large to read whole is not read as records at all — and it is why nothing
 here takes a limit or an offset.
 """
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from json import JSONDecodeError
 from pathlib import Path, PurePosixPath
@@ -89,11 +89,27 @@ def read(path: Path, *, one_per_line: bool | None = None) -> Table | NotRecords:
         if one_per_line is not None
         else PurePosixPath(path.name).suffix.lower() in LINE_SUFFIXES
     )
-    parsed = _lines(text) if by_line else _document(text)
+    return from_text(text, one_per_line=by_line)
+
+
+def from_text(
+    text: str,
+    *,
+    one_per_line: bool,
+    max_cells: int | None = None,
+    checkpoint: Callable[[], None] | None = None,
+) -> Table | NotRecords:
+    """Project already bounded text using the file reader's lossless rules."""
+    if len(text.encode("utf-8")) > MAX_RECORD_BYTES:
+        return NotRecords(
+            f"This file is larger than {MAX_RECORD_BYTES // (1024 * 1024)} MB, "
+            "so it cannot be projected as one table."
+        )
+    parsed = _lines(text, checkpoint) if one_per_line else _document(text)
     if isinstance(parsed, NotRecords):
         return parsed
     try:
-        return _table(parsed)
+        return _table(parsed, max_cells=max_cells, checkpoint=checkpoint)
     except RecursionError:
         return NotRecords("This JSON is too deeply nested to project as a table.")
 
@@ -119,7 +135,7 @@ def _document(text: str) -> list[Any] | NotRecords:
     return value if isinstance(value, list) else [value]
 
 
-def _lines(text: str) -> list[Any] | NotRecords:
+def _lines(text: str, checkpoint: Callable[[], None] | None = None) -> list[Any] | NotRecords:
     """The records of a file that holds one per line.
 
     A blank line separates records rather than being one, which is what every
@@ -127,6 +143,8 @@ def _lines(text: str) -> list[Any] | NotRecords:
     """
     parsed: list[Any] = []
     for number, line in enumerate(text.splitlines(), start=1):
+        if checkpoint is not None:
+            checkpoint()
         if not line.strip():
             continue
         try:
@@ -160,22 +178,37 @@ def _decode_reason(exc: JSONDecodeError) -> str:
     )
 
 
-def _table(records: list[Any]) -> Table:
+def _table(
+    records: list[Any],
+    *,
+    max_cells: int | None = None,
+    checkpoint: Callable[[], None] | None = None,
+) -> Table | NotRecords:
     """Columns from every record, then every record shaped to them."""
     if not records:
         return Table(columns=[], rows=[])
     if not all(isinstance(record, dict) for record in records):
+        if max_cells is not None and len(records) > max_cells:
+            return NotRecords("The log projection exceeds the SQL cell limit")
         return _flat_table(records)
 
     keys: list[str] = []
     seen: set[str] = set()
     for record in records:
+        if checkpoint is not None:
+            checkpoint()
         for key in record:
             if key not in seen:
                 seen.add(key)
                 keys.append(key)
 
-    rows = [[_cell(record.get(key)) for key in keys] for record in records]
+    if max_cells is not None and len(keys) * len(records) > max_cells:
+        return NotRecords("The log projection exceeds the SQL cell limit")
+    rows: list[list[str | None]] = []
+    for record in records:
+        if checkpoint is not None:
+            checkpoint()
+        rows.append([_cell(record.get(key)) for key in keys])
     columns = [
         FetchColumn(name=name, type=_type_of(record.get(key) for record in records))
         for key, name in zip(keys, usable_names(keys), strict=True)

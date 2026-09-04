@@ -5,7 +5,7 @@ documents in which a user develops one, the bounded results it produces and the
 transaction state of mutations. Read this before changing query documents, SQL
 parsing, execution, history, result snapshots, Explain or query transactions.
 
-Decisions here: D62, D63, D64, D65, D66, D77, D78.
+Decisions here: D62, D63, D64, D65, D66, D77, D78, D96.
 
 ## Implementation state
 
@@ -106,7 +106,7 @@ Known deviations:
 A second source runs SQL, and it has no server: the file source answers with an
 embedded DuckDB whose relations are its own nodes and whose engine is thrown
 away after every run (D77, D78). It reads, and only reads — CSV, TSV, Parquet,
-JSON and JSON lines — so the console opens read-only against a file connection
+JSON, JSON lines and logs — so the console opens read-only against a file connection
 and the write mode is not offered at all. Explain, metadata and a generated
 SELECT are there; formatting and transactions are not, and the profile says so
 because it is derived from what the adapter implements.
@@ -547,6 +547,26 @@ diagnostic carries the exception's class as its code, a category, and one
 bounded line with the root redacted out of it.
 
 Spec: [SQL over tabular files](../superpowers/specs/2026-09-02-file-sql-design.md)
+
+## D96. SQL over a log reuses its table projection
+
+A `.log` follows the JSON workflow: source viewer, View as table, Open as query.
+Its opaque file node id names the SQL relation. The grid's log detector and
+parser supply the fields, continuation rows and unknown-format numbered lines;
+JSON-object logs reuse the record projection and its 4 MiB source ceiling.
+SQL columns contain canonical text as VARCHAR, preserving identifiers and
+nested JSON; numeric and date calculations require explicit casts.
+
+Logs are bounded byte snapshots, projected once into Arrow and registered in
+the existing DuckDB sandbox. A script reuses that snapshot, and joins with
+other supported files need no extra connection. Input ceilings across all logs
+in a run or Explain are 32 MiB source, 100,000 rows, 500,000 cells and 4 MiB per
+cell. Exceeding one refuses the input before SQL runs; it never computes over
+a truncated prefix or the visible grid page. Preparation checks cancellation
+and a deadline and always closes its engine, including on failure. Result
+bounds, read-only execution and path containment remain D64, D77 and D78's.
+
+Spec: [SQL over log files](../superpowers/specs/2026-09-04-log-sql-design.md)
 
 ## Verification boundary
 

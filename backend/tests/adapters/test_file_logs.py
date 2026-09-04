@@ -182,6 +182,15 @@ def test_a_shape_names_its_columns_once() -> None:
         assert len(shape.columns) == shape.pattern.groups
 
 
+@pytest.mark.parametrize("text", [POSTGRES, BRACKETED, CONTAINER, SYSLOG, PLAIN, JSON_LINES, "line\n\n", ""])
+def test_sql_snapshot_projection_matches_the_file_reader(tmp_path: Path, text: str) -> None:
+    path = _log(tmp_path, text)
+    reader = LogReader()
+    assert reader.read_snapshot(
+        path.read_bytes(), 100, max_cells=500_000, checkpoint=lambda: None,
+    ) == reader.read(path, 100, 0)
+
+
 def test_a_page_of_a_log_is_a_page(tmp_path: Path) -> None:
     path = _log(
         tmp_path,

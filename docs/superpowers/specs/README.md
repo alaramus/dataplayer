@@ -96,6 +96,7 @@ translations; those files are not.
 | 2026-09-04 | [Detaching a tab into a floating window](2026-09-04-detached-tabs-design.md) | D93: move a live panel through the header, return it to a section and retain open tabs on reload |
 | 2026-09-04 | [Saved tab groups](2026-09-04-tab-groups-design.md) | D94: explicit layout snapshots, header buttons, guarded replacement and a remembered warning preference |
 | 2026-09-04 | [Operation progress in the footer](2026-09-04-operation-progress-design.md) | D95: measured progress, owned jobs and controls at real execution boundaries |
+| 2026-09-04 | [SQL over log files](2026-09-04-log-sql-design.md) | D96: the same log projection in the grid and SQL, with bounded whole-file snapshots |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

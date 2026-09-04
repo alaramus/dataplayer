@@ -9,11 +9,13 @@ reached through a check that already refused proves nothing.
 import os
 import time
 from pathlib import Path
+from threading import Event
 
 import anyio
 import duckdb
 import pytest
 
+from app.adapters.file import query_readers, records
 from app.adapters.file.query import (
     _FALLBACKS,
     FileExecution,
@@ -23,6 +25,8 @@ from app.adapters.file.query import (
     diagnostic_of,
     quoted,
 )
+from app.adapters.file.query_readers import FileReaders, Preparation
+from app.adapters.file.readers import LogReader
 from app.adapters.file.session import FileSession
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
@@ -233,7 +237,7 @@ async def test_a_file_with_no_tabular_reader_is_refused(query: FileQuery) -> Non
     with pytest.raises(AdapterError) as refusal:
         await _events(query, 'SELECT * FROM "notes.txt"')
 
-    assert "CSV, TSV, Parquet, JSON and JSON lines" in refusal.value.message
+    assert "CSV, TSV, Parquet, JSON, JSON lines and logs" in refusal.value.message
 
 
 async def test_a_workbook_is_refused_with_its_own_reason(
@@ -584,3 +588,231 @@ def _walked(node: object) -> int:
 async def test_explain_refuses_what_run_refuses(query: FileQuery) -> None:
     with pytest.raises(ValueError, match="table function"):
         await query.explain(ExplainRequest(text="SELECT * FROM read_csv('x.csv')"))
+
+
+# --- logs use the grid's projection, over the whole bounded input (D96) ------
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "2026-09-04 12:00:00.123 UTC [42] ERROR:  failed\n"
+        "  at handler()\n2026-09-04 12:00:01.123 UTC [42] LOG:  recovered\n",
+        "arbitrary text\n\nlast line\n",
+        '{"id":10000000000000001,"level":"INFO","extra":{"n":1.234567890123456789}}\n'
+        '{"id":2,"level":null,"flag":true}\n',
+    ],
+)
+async def test_sql_log_columns_and_values_match_the_grid(
+    root: Path, query: FileQuery, text: str,
+) -> None:
+    path = root / "server.log"
+    path.write_text(text, encoding="utf-8")
+    expected = LogReader().read(path, 100, 0)
+
+    result = _result(await _finished(query, 'SELECT * FROM "server.log"'))
+
+    assert [column.name for column in result.columns] == [column.name for column in expected.columns]
+    assert all(column.type.sql == "VARCHAR" for column in result.columns)
+    assert result.rows == expected.rows
+    assert result.truncated is False
+
+
+async def test_log_aggregates_read_beyond_the_grid_page_and_join_other_files(
+    root: Path, query: FileQuery,
+) -> None:
+    (root / "server.log").write_text(
+        "2026-09-04 12:00:00 INFO north\n" * 125
+        + "2026-09-04 12:00:01 ERROR south\n" * 26,
+        encoding="utf-8",
+    )
+    result = _result(await _finished(
+        query,
+        'SELECT l.level, count(*) AS n, max(q.target) AS target FROM "server.log" l '
+        'JOIN "reports/q1.csv" q ON l.message = q.region GROUP BY l.level ORDER BY l.level',
+    ))
+
+    assert result.rows == [["ERROR", "26", "30"], ["INFO", "125", "10"]]
+
+
+async def test_every_statement_reads_the_same_log_snapshot(root: Path, query: FileQuery) -> None:
+    path = root / "server.log"
+    path.write_text("first\n", encoding="utf-8")
+    execution = query.open(_request(
+        'SELECT count(*) FROM "server.log"; SELECT count(*) FROM "server.log"'
+    ))
+    results: list[MaterialisedResult] = []
+    async for event in execution.events():
+        if isinstance(event, StatementFinished):
+            results.append(_result(event))
+            path.write_text("first\nsecond\n", encoding="utf-8")
+
+    assert [result.rows for result in results] == [[["1"]], [["1"]]]
+    assert _result(await _finished(query, 'SELECT count(*) FROM "server.log"')).rows == [["2"]]
+
+
+async def test_an_empty_log_has_a_schema_and_no_rows(root: Path, query: FileQuery) -> None:
+    (root / "server.log").write_bytes(b"")
+    result = _result(await _finished(query, 'SELECT count(line_no) FROM "server.log"'))
+    assert result.rows == [["0"]]
+
+
+async def test_log_metadata_generated_sql_and_explain_use_the_same_columns(
+    root: Path, query: FileQuery,
+) -> None:
+    (root / "server.log").write_text("2026-09-04 12:00:00 INFO ready\n", encoding="utf-8")
+    metadata = await query.metadata(QueryMetadataRequest(relations=["server.log"]))
+    assert "server.log" in {relation.name for relation in metadata.relations}
+    assert [(column.name, column.type_sql) for column in metadata.columns["server.log"]] == [
+        ("time", "VARCHAR"), ("level", "VARCHAR"), ("message", "VARCHAR"),
+    ]
+    generated = await query.generate(GenerateQueryRequest(node_id="server.log"))
+    assert generated.text == 'SELECT *\nFROM "server.log"\nLIMIT 100'
+    assert _result(await _finished(query, generated.text)).rows[0][-1] == "ready"
+    plan = await query.explain(ExplainRequest(text=generated.text))
+    assert "ARROW_SCAN" in plan.raw
+
+
+@pytest.mark.parametrize(
+    ("ceiling", "value", "reason"),
+    [
+        ("MAX_LOG_BYTES", 4, "byte limit"),
+        ("MAX_LOG_ROWS", 2, "row limit"),
+        ("MAX_LOG_CELLS", 5, "cell limit"),
+        ("MAX_LOG_CELL_BYTES", 2, "cell size limit"),
+    ],
+)
+async def test_log_input_limits_refuse_aggregates_instead_of_truncating(
+    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+    ceiling: str, value: int, reason: str,
+) -> None:
+    (root / "server.log").write_text("one\ntwo\nthree\n", encoding="utf-8")
+    monkeypatch.setattr(query_readers, ceiling, value)
+    execution = query.open(_request('SELECT count(*) FROM "server.log"'))
+    with pytest.raises(AdapterError, match=reason):
+        _ = [event async for event in execution.events()]
+    with pytest.raises(AdapterError, match="not open"):
+        _ = execution._engine.connection
+
+
+@pytest.mark.parametrize(
+    ("ceiling", "value"),
+    [("MAX_LOG_BYTES", 12), ("MAX_LOG_ROWS", 3), ("MAX_LOG_CELLS", 6)],
+)
+async def test_log_input_budget_is_shared_by_all_logs_in_a_run(
+    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch, ceiling: str, value: int,
+) -> None:
+    for name in ("a.log", "b.log"):
+        (root / name).write_bytes(b"one\ntwo\n")
+    monkeypatch.setattr(query_readers, ceiling, value)
+    assert _result(await _finished(query, 'SELECT count(*) FROM "a.log"')).rows == [["2"]]
+    with pytest.raises(AdapterError, match="SQL input"):
+        await _events(query, 'SELECT count(*) FROM "a.log" JOIN "b.log" ON true')
+
+
+async def test_sparse_json_log_cells_are_bounded_before_the_table_is_built(
+    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (root / "server.log").write_text('{"a":1}\n{"b":2}\n{"c":3}\n', encoding="utf-8")
+    monkeypatch.setattr(query_readers, "MAX_LOG_CELLS", 8)
+    with pytest.raises(AdapterError, match="cell limit"):
+        await _events(query, 'SELECT count(*) FROM "server.log"')
+
+
+@pytest.mark.parametrize(
+    ("text", "reason"),
+    [
+        ('{"a":1}\n{"a":2}\nbroken\n', "Line 3 is not valid JSON"),
+        ('{"a":"\\ud800"}\n', "cannot be represented in UTF-8"),
+        ('{}\n', "no columns"),
+    ],
+)
+async def test_unreadable_json_logs_have_a_safe_refusal(
+    root: Path, query: FileQuery, text: str, reason: str,
+) -> None:
+    (root / "server.log").write_text(text, encoding="utf-8")
+    with pytest.raises(AdapterError, match=reason) as failure:
+        await _events(query, 'SELECT * FROM "server.log"')
+    assert str(root) not in failure.value.message
+
+
+async def test_json_log_projection_keeps_the_grid_source_size_limit(
+    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (root / "server.log").write_bytes(b'{"a":1}\n{"a":2}\n')
+    monkeypatch.setattr(records, "MAX_RECORD_BYTES", 12)
+    with pytest.raises(AdapterError, match="cannot be projected as one table"):
+        await _events(query, 'SELECT count(*) FROM "server.log"')
+
+
+async def test_binary_bytes_cannot_be_read_by_renaming_a_file_to_log(
+    root: Path, query: FileQuery,
+) -> None:
+    (root / "server.log").write_bytes(b"binary\x00content")
+    with pytest.raises(AdapterError, match="binary data"):
+        await _events(query, 'SELECT * FROM "server.log"')
+
+
+async def test_explain_obeys_log_input_limits_and_metadata_omits_unreadable_columns(
+    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (root / "server.log").write_bytes(b"one\ntwo\n")
+    monkeypatch.setattr(query_readers, "MAX_LOG_ROWS", 1)
+    metadata = await query.metadata(QueryMetadataRequest(relations=["server.log"]))
+    assert "server.log" not in metadata.columns
+    with pytest.raises(AdapterError, match="row limit"):
+        await query.explain(ExplainRequest(text='SELECT count(*) FROM "server.log"'))
+
+
+async def test_a_run_can_be_cancelled_while_loading_a_log(
+    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (root / "server.log").write_bytes(b"one\n")
+    entered = Event()
+    resume = Event()
+    snapshot = FileReaders._snapshot
+
+    def waiting_snapshot(readers: FileReaders, path: Path) -> bytes:
+        entered.set()
+        assert resume.wait(5)
+        return snapshot(readers, path)
+
+    monkeypatch.setattr(FileReaders, "_snapshot", waiting_snapshot)
+    execution = query.open(_request('SELECT count(*) FROM "server.log"; SELECT 1'))
+    finished: list[StatementFinished] = []
+
+    async def read() -> None:
+        async for event in execution.events():
+            if isinstance(event, StatementFinished):
+                finished.append(event)
+
+    async with anyio.create_task_group() as group:
+        group.start_soon(read)
+        try:
+            assert await anyio.to_thread.run_sync(entered.wait, 5)
+            await execution.cancel()
+        finally:
+            resume.set()
+    assert [event.status for event in finished] == ["cancelled", "not_run"]
+    with pytest.raises(AdapterError, match="not open"):
+        _ = execution._engine.connection
+
+
+async def test_preparation_timeout_settles_the_run_and_closes_the_engine(
+    root: Path, query: FileQuery, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (root / "server.log").write_bytes(b"one\n")
+    snapshot = FileReaders._snapshot
+
+    def expired_snapshot(readers: FileReaders, path: Path) -> bytes:
+        readers._checkpoint = Preparation(time.monotonic() - 1).check
+        return snapshot(readers, path)
+
+    monkeypatch.setattr(FileReaders, "_snapshot", expired_snapshot)
+    execution = query.open(_request('SELECT count(*) FROM "server.log"; SELECT 1'))
+    events = [event async for event in execution.events()]
+    assert [event.status for event in events if isinstance(event, StatementFinished)] == [
+        "timed_out", "not_run",
+    ]
+    with pytest.raises(AdapterError, match="not open"):
+        _ = execution._engine.connection

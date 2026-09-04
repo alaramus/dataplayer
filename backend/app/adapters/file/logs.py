@@ -16,6 +16,7 @@ shape is one regular expression and nothing else has to agree with it.
 
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -115,23 +116,22 @@ def shape_named(name: str) -> LogShape | None:
     return _BY_NAME.get(name)
 
 
-def _sample(path: Path) -> list[str]:
+def _sample(source: Iterable[str]) -> list[str]:
     lines: list[str] = []
-    with path.open("r", encoding="utf-8", errors="replace") as handle:
-        for line in handle:
-            stripped = line.rstrip("\n").rstrip("\r")
-            if stripped.strip() == "":
-                continue
-            lines.append(stripped)
-            if len(lines) == SAMPLE_LINES:
-                break
+    for line in source:
+        stripped = line.rstrip("\n").rstrip("\r")
+        if stripped.strip() == "":
+            continue
+        lines.append(stripped)
+        if len(lines) == SAMPLE_LINES:
+            break
     return lines
 
 
 def _is_json_object(line: str) -> bool:
     try:
         return isinstance(json.loads(line), dict)
-    except ValueError:
+    except (ValueError, RecursionError):
         return False
 
 
@@ -141,7 +141,13 @@ def shape_of(path: Path) -> str | None:
     Nothing means no shape fits, and the caller shows the lines as they are —
     which is the honest answer for a log nobody has taught this module yet.
     """
-    lines = _sample(path)
+    with path.open("r", encoding="utf-8", errors="replace") as handle:
+        return shape_of_lines(handle)
+
+
+def shape_of_lines(source: Iterable[str]) -> str | None:
+    """The same detection for a file handle and a bounded SQL snapshot."""
+    lines = _sample(source)
     if not lines:
         return None
     if sum(1 for line in lines if _is_json_object(line)) >= AGREEMENT * len(lines):

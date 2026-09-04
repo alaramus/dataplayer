@@ -157,6 +157,7 @@ files. IDs are stable because specs and commits refer to them.
 | D93 | [workspace](docs/architecture/workspace.md) |
 | D94 | [workspace](docs/architecture/workspace.md) |
 | D95 | [jobs](docs/architecture/jobs.md) |
+| D96 | [querying](docs/architecture/querying.md) |
 
 ## Working rules
 

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
-import { catalogRow, openNode, pickSchema } from "./utils/catalog"
+import { catalogAction, catalogCheck, catalogRow, openNode, pickSchema } from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import {
@@ -589,5 +589,56 @@ test("runs SQL over the files of a personal directory", async ({ page }) => {
   await page.getByTestId("query-run").click()
   await expect(page.getByTestId("run-refusal")).toContainText("no file called")
 
+  await deleteConnector(page, name)
+})
+
+test("opens a log as a table and queries all its lines from the grid", async ({ page }) => {
+  const stamp = Date.now()
+  const name = `e2e-log-sql-${stamp}`
+  const filename = `query-${stamp}.log`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  await catalogAction(page, "upload")
+  await page.getByTestId("action-file").setInputFiles({
+    name: filename,
+    mimeType: "text/plain",
+    buffer: Buffer.from(
+      "2026-09-04 12:00:00 INFO ready\n".repeat(125) +
+      "2026-09-04 12:00:01 ERROR failed\n".repeat(25)
+    ),
+  })
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, filename)).toBeVisible()
+
+  await openNode(page, filename)
+  await expect(page.getByTestId("content-editor")).toContainText("INFO ready")
+  await page.getByTestId("content-view-table").click()
+  await expect(page.getByTestId("row-grid")).toContainText("level")
+  await expect(page.getByTestId("grid-cell-0-message")).toHaveText("ready")
+  await page.getByTestId("grid-query").click()
+
+  const consolePanel = page.locator(".query-panel")
+  const editor = consolePanel.locator(".cm-content")
+  await expect(editor).toContainText(`FROM "${filename}"`)
+  await expect(editor).toContainText("LIMIT 100")
+  await editor.click()
+  await page.keyboard.press("ControlOrMeta+a")
+  await page.keyboard.type(
+    `SELECT level, count(*) AS n FROM "${filename}" GROUP BY level ORDER BY level`
+  )
+  await consolePanel.getByTestId("query-run").click()
+  await expect(consolePanel.getByTestId("run-statement-0")).toContainText("succeeded")
+  await expect(consolePanel.getByTestId("grid-cell-0-0")).toHaveText("ERROR")
+  await expect(consolePanel.getByTestId("grid-cell-0-1")).toHaveText("25")
+  await expect(consolePanel.getByTestId("grid-cell-1-0")).toHaveText("INFO")
+  await expect(consolePanel.getByTestId("grid-cell-1-1")).toHaveText("125")
+  await expect(consolePanel.getByTestId("query-mode")).toHaveCount(0)
+
+  await catalogCheck(page, filename).click()
+  await catalogAction(page, "delete")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, filename)).toHaveCount(0)
   await deleteConnector(page, name)
 })
