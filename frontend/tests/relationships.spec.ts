@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 import type { Locator, Page } from "@playwright/test"
 
-import { catalogCheck, pickSchema } from "./utils/catalog"
+import { catalogAction, catalogCheck, pickSchema } from "./utils/catalog"
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { deleteConnector, openConnector, rowsTabs } from "./utils/workspace"
@@ -21,7 +21,7 @@ const PROJECTS = "graph-node-demo_lab.projects"
 const ORGANIZATIONS = "graph-node-demo_lab.organizations"
 const OUTSIDE = "graph-node-demo_lab.app_users"
 /** An edge is identified by its table and the key's own name. */
-const ORGANIZATION_EDGE = '["demo_lab.projects","projects_organization_id_fkey"]'
+const ORGANIZATION_EDGE = 'graph-edge-["demo_lab.projects","projects_organization_id_fkey"]'
 
 /** The card's header, which is what a user grabs and what names the node. */
 function header(card: Locator, label: string) {
@@ -39,10 +39,10 @@ async function openDiagram(page: Page, name: string) {
   await pickSchema(page, "demo_lab")
   await catalogCheck(page, "projects").click()
   await catalogCheck(page, "organizations").click()
-  await page.getByTestId("catalog-relationships").click()
-  await expect(page.getByTestId("relationship-panel")).toContainText(
-    `2 requested tables · ${name}`
-  )
+  // A line of the one actions menu, beside Details rather than an icon of its
+  // own: the tab that opens is what says which connection and how many tables.
+  await catalogAction(page, "client:relationships")
+  await expect(page.getByTestId("relationship-panel")).toBeVisible()
   await expect(page.getByTestId(PROJECTS)).toBeVisible()
 }
 
@@ -84,9 +84,15 @@ test("draws the checked tables, the keys between them and what they point at", a
 
   // Three cards for two tables: the table the selection points at is drawn as
   // a placeholder rather than left out, and both declared keys are drawn.
-  const viewer = page.getByTestId("graph-viewer")
-  await expect(viewer).toContainText("3 nodes · 2 connections")
+  await expect(page.locator('[data-testid^="graph-node-"]')).toHaveCount(3)
+  await expect(page.locator('[data-testid^="graph-edge-"]')).toHaveCount(2)
   await expect(page.getByTestId(OUTSIDE)).toContainText("Outside selection")
+
+  // A field is anchored only where a line arrives at it. Both keys of projects
+  // leave the same card, and the columns no key names carry nothing.
+  await expect(page.getByTestId("graph-anchor-demo_lab.projects-organization_id")).toHaveCount(1)
+  await expect(page.getByTestId("graph-anchor-demo_lab.projects-owner_id")).toHaveCount(1)
+  await expect(page.getByTestId("graph-anchor-demo_lab.projects-code")).toHaveCount(0)
 
   // Both themes reach the edges, and a token nothing reads changes nothing: the
   // question is what the curve is painted with, not what is declared. The

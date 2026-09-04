@@ -406,26 +406,40 @@ describe("what counts as a set", () => {
 })
 
 describe("the client's own lines of the menu", () => {
-  const everything = { describes: true, describable: true, holds: true, ticked: 1 }
+  const everything = {
+    describes: true, describable: true, diagrams: true, diagrammable: true, holds: true, ticked: 1,
+  }
 
-  it("puts the three the client owns before the source's own", () => {
+  it("puts the four the client owns before the source's own", () => {
     const items = clientMenu(everything)
 
-    expect(items.map((item) => item.label)).toEqual(["Details", "Copy", "Cut"])
+    expect(items.map((item) => item.label)).toEqual([
+      "Details",
+      "Relationships",
+      "Copy",
+      "Cut",
+    ])
     expect(items.every((item) => item.disable === false)).toBe(true)
   })
 
   it("leaves out what a source has no use for", () => {
-    // A database describes no nodes and has nowhere to paste.
-    const items = clientMenu({ ...everything, describes: false, holds: false })
+    // A database describes no nodes, draws none of them and has nowhere to
+    // paste.
+    const items = clientMenu({
+      ...everything, describes: false, diagrams: false, holds: false,
+    })
 
     expect(items).toEqual([])
   })
 
   it("keeps a line and disables it while the selection is not the one it needs", () => {
-    const items = clientMenu({ ...everything, describable: false, ticked: 0 })
+    // A diagram of nothing, and a diagram of more than one holds, are the two
+    // ways that line is not the one to offer, and neither hides it.
+    const items = clientMenu({
+      ...everything, describable: false, diagrammable: false, ticked: 0,
+    })
 
-    expect(items.map((item) => item.disable)).toEqual([true, true, true])
+    expect(items.map((item) => item.disable)).toEqual([true, true, true, true])
   })
 
   it("tells its own command from a source's by the one thing a name cannot be", () => {

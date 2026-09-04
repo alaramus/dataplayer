@@ -134,6 +134,65 @@ test("selected text is readable in the dark theme", async ({ page }) => {
   await deleteConnector(page, name)
 })
 
+test("the editor's own tooltips and panels take the dark theme", async ({
+  page,
+}) => {
+  // What CodeMirror draws around the text — the list of completions, the
+  // search bar — is painted by its base theme, and that theme is the light
+  // one here because nothing tells it otherwise. The completions came out
+  // near-white under text this application had already made near-white: the
+  // words were there and could not be read. Only the cascade can say whether
+  // they can be, so it is asked where the cascade is real.
+  const name = `e2e-completion-${Date.now()}`
+  await login(page)
+  await page.emulateMedia({ colorScheme: "dark" })
+  await forget(page)
+  await page.reload()
+  await expect(dark(page)).toHaveCount(1)
+
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await page.getByTestId("command-queries").click()
+  await page.getByTestId("queries-connector").click()
+  await page.getByRole("option", { name, exact: true }).click()
+  await page.getByTestId("new-query").click()
+  await page.locator(".cm-content").click()
+  await page.keyboard.type("a")
+
+  const offered = page.locator(".cm-tooltip-autocomplete")
+  await expect(offered).toBeVisible()
+  await expect(offered).toHaveCSS("background-color", "rgb(29, 29, 29)")
+
+  // Every word in the same colour the rest of the application writes in, and
+  // the row under the caret on this application's own selection tint rather
+  // than the white-on-blue the base theme reaches for.
+  const chosen = offered.getByRole("option", { selected: true })
+  await expect(chosen).toHaveCSS("color", "rgba(255, 255, 255, 0.87)")
+  await expect(chosen).toHaveCSS("background-color", "rgba(100, 181, 246, 0.18)")
+  await expect(offered.getByRole("option").last()).toHaveCSS(
+    "color",
+    "rgba(255, 255, 255, 0.87)"
+  )
+
+  // The search bar, on the ground the gutters stand on, with a field and a
+  // button that belong to it. The button is the one that cannot be fixed by a
+  // colour: what the base theme gives it is a grey gradient.
+  await page.keyboard.press("Escape")
+  await page.keyboard.press("ControlOrMeta+f")
+  const panel = page.locator(".cm-panels")
+  await expect(panel).toBeVisible()
+  await expect(panel).toHaveCSS("background-color", "rgb(43, 45, 48)")
+  await expect(panel.getByRole("textbox", { name: "Find" })).toHaveCSS(
+    "background-color",
+    "rgb(18, 18, 18)"
+  )
+  const next = panel.getByRole("button", { name: "next", exact: true })
+  await expect(next).toHaveCSS("background-color", "rgb(18, 18, 18)")
+  await expect(next).toHaveCSS("background-image", "none")
+
+  await deleteConnector(page, name)
+})
+
 test("a tab is legible in the dark theme", async ({ page }) => {
   await login(page)
 

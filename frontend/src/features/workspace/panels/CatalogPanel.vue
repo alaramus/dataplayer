@@ -43,14 +43,22 @@ const workspace = useWorkspaceActions()
 const connectorId = computed(() => props.connectorId)
 const rootLabel = computed(() => props.title)
 const level = useCatalogLevel(connectorId, rootLabel)
+/**
+ * What a diagram would be drawn of: the ticks, or everything the filter left.
+ *
+ * A line of the actions menu like Details, so the scope is the same question
+ * the rest of the menu asks — and the line is disabled, not hidden, while the
+ * set is empty or larger than one diagram holds (D97).
+ */
 const diagramSelection = computed(() => diagramNodes(level.checkedNodes.value, level.items.value))
-const diagramTooltip = computed(() => {
-  if (!diagramSelection.value.length) return "Select nodes with a structure to show relationships"
-  if (diagramSelection.value.length > MAX_RELATIONS) return `Select at most ${MAX_RELATIONS} tables for one diagram`
-  return `Show relationships for ${diagramSelection.value.length} ${level.checked.value.length ? 'selected' : 'listed'} tables`
-})
+const drawsNodes = computed(() => level.items.value.some((node) => node.describable))
+const drawableNodes = computed(() =>
+  !level.loading.value &&
+  diagramSelection.value.length > 0 &&
+  diagramSelection.value.length <= MAX_RELATIONS
+)
 function showRelationships() {
-  if (!diagramSelection.value.length || diagramSelection.value.length > MAX_RELATIONS) return
+  if (!drawableNodes.value) return
   workspace.openRelationships({ connectorId: props.connectorId, connectorName: props.title, adapterType: props.adapterType, nodes: diagramSelection.value })
 }
 
@@ -586,12 +594,6 @@ async function afterAction(outcome: ActionOutcome) {
         <!-- One menu, fed from wherever the selection lives: a level's ticks
              or a tree's one selected node. What an action may do to them is
              still the server's answer about those nodes. -->
-        <AppIconButton
-          v-if="!asTree"
-          icon="hub" :tooltip="diagramTooltip"
-          :disable="level.loading.value || !diagramSelection.length || diagramSelection.length > MAX_RELATIONS"
-          data-testid="catalog-relationships" @click="showRelationships"
-        />
         <CatalogActions
           v-if="asTree"
           class="catalog-panel__menu"
@@ -607,6 +609,8 @@ async function afterAction(outcome: ActionOutcome) {
           :checked-label="treeChecked[0]?.label ?? ''"
           :describes-nodes="false"
           :described-node="null"
+          :draws-nodes="false"
+          :drawable-nodes="false"
           @done="afterAction"
           @details="showDetails"
         />
@@ -625,8 +629,11 @@ async function afterAction(outcome: ActionOutcome) {
           :checked-label="checkedLabel"
           :describes-nodes="describesNodes"
           :described-node="describedNode"
+          :draws-nodes="drawsNodes"
+          :drawable-nodes="drawableNodes"
           @done="afterAction"
           @details="showDetails"
+          @relationships="showRelationships"
         />
       </div>
 

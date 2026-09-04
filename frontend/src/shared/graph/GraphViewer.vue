@@ -141,7 +141,9 @@ onBeforeUnmount(stopLayout)
       </aside>
     </div>
     <div v-else-if="!loading && !problem && !layoutError" class="graph-viewer__empty">No nodes to display</div>
-    <div class="graph-viewer__foot"><span>{{ graph.nodes.length }} nodes · {{ graph.edges.length }} connections</span><span>{{ view.mode === '2d' ? 'Drag cards to move · Drag canvas to pan · Scroll to zoom' : 'Drag to orbit · Right-drag to pan · Shift-drag to move a node' }}</span></div>
+    <!-- No standing bar under the canvas: it counted what is already on
+         screen and listed the gestures, and the canvas itself carries those
+         in the label a reader hears. -->
   </div>
 </template>
 
@@ -165,6 +167,5 @@ onBeforeUnmount(stopLayout)
 .graph-viewer__connections { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; }
 .graph-viewer__loading { display: flex; gap: 10px; align-items: center; padding: 3px 8px; font-size: 12px; }
 .graph-viewer__loading > span { white-space: nowrap; }
-.graph-viewer__foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 4px 8px; border-top: 1px solid var(--dp-border); color: var(--dp-muted); font-size: 10px; }
 .graph-viewer__empty { flex: 1; display: grid; place-content: center; color: var(--dp-muted); }
 </style>

@@ -209,17 +209,18 @@ export function nodeSetOf(nodeIds: (string | null)[]): string[] | null {
 /**
  * The verbs the client owns, in the same menu as the source's own.
  *
- * Three of them, and none reaches the server as a command: Copy and Cut
- * remember a selection here (D74), and Details opens what the source says
- * one node is (D75). They belong in the one menu rather than beside it —
- * somebody looking for what can be done with a ticked row looks in one place,
- * and a row of icons that grows with every client verb is the alternative.
+ * Four of them, and none reaches the server as a command: Copy and Cut
+ * remember a selection here (D74), Details opens what the source says one
+ * node is (D75), and Relationships draws the nodes in view as a diagram
+ * (D97). They belong in the one menu rather than beside it — somebody looking
+ * for what can be done with a ticked row looks in one place, and a row of
+ * icons that grows with every client verb is the alternative.
  *
  * The names are prefixed because one menu now carries two vocabularies. A
  * source names its actions with identifiers, so a colon cannot collide with
  * one, and `pick` can tell whose command it was handed without a lookup.
  */
-export const CLIENT_COMMANDS = ["details", "copy", "cut"] as const
+export const CLIENT_COMMANDS = ["details", "relationships", "copy", "cut"] as const
 export type ClientCommand = (typeof CLIENT_COMMANDS)[number]
 
 export function clientCommandName(command: ClientCommand): string {
@@ -235,6 +236,10 @@ export interface ClientMenuState {
   describes: boolean
   /** Whether exactly one ticked node is one it describes. */
   describable: boolean
+  /** Whether anything on this level has a structure to draw (D97). */
+  diagrams: boolean
+  /** Whether the set that would be drawn is one a diagram can hold. */
+  diagrammable: boolean
   /** Whether this source has anywhere to put what is held (D74). */
   holds: boolean
   /** How many nodes are ticked. */
@@ -256,6 +261,13 @@ export function clientMenu(state: ClientMenuState): MenuItem[] {
       name: clientCommandName("details"),
       label: "Details",
       disable: !state.describable,
+    })
+  }
+  if (state.diagrams) {
+    items.push({
+      name: clientCommandName("relationships"),
+      label: "Relationships",
+      disable: !state.diagrammable,
     })
   }
   if (state.holds) {

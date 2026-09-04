@@ -54,6 +54,45 @@ function anchor(endpoint: GraphEndpoint, nodes: Map<string, GraphNode>, position
   return { x: point.x + (right ? CARD_WIDTH : 0), y: point.y + y }
 }
 
+/** One end of a drawn edge: whose ports it holds, and which side it left by. */
+export interface EdgeEnd {
+  nodeId: string
+  portIds: readonly string[]
+  right: boolean
+}
+
+/**
+ * Where a card's ports are drawn, from the same anchors the curves use.
+ *
+ * A field that no key names has nothing arriving at it, and a dot on every row
+ * of every card was noise the eye had to read past. Which side is not a
+ * property of the field either: it follows from where the other card sits, so
+ * it is answered by the geometry rather than guessed a second time.
+ */
+export function portAnchors(paths: readonly { ends: readonly EdgeEnd[] }[]) {
+  // Node, then port, rather than one key built from both: this is read twice
+  // per row while the canvas is being panned, and a composed key would build a
+  // string for every field of every card on every frame.
+  const sides = new Map<string, Map<string, { left: boolean; right: boolean }>>()
+  for (const path of paths) {
+    for (const end of path.ends) {
+      // An edge that names no port on this end is drawn from the header and
+      // leaves the card without an entry of its own.
+      for (const portId of end.portIds) {
+        let ports = sides.get(end.nodeId)
+        if (ports === undefined) {
+          ports = new Map()
+          sides.set(end.nodeId, ports)
+        }
+        const found = ports.get(portId) ?? { left: false, right: false }
+        found[end.right ? "right" : "left"] = true
+        ports.set(portId, found)
+      }
+    }
+  }
+  return sides
+}
+
 /** Stable lanes keep parallel and self references individually selectable. */
 export function edgePaths(graph: GraphDocument, positions: Record<string, Point2>, expanded: boolean) {
   const nodes = new Map(graph.nodes.map((node) => [node.id, node]))
@@ -64,6 +103,10 @@ export function edgePaths(graph: GraphDocument, positions: Record<string, Point2
     lanes.set(key, lane + 1)
     const self = edge.source.nodeId === edge.target.nodeId
     const right = self || positions[edge.target.nodeId]!.x >= positions[edge.source.nodeId]!.x + CARD_WIDTH
+    const ends: EdgeEnd[] = [
+      { nodeId: edge.source.nodeId, portIds: edge.source.portIds ?? [], right },
+      { nodeId: edge.target.nodeId, portIds: edge.target.portIds ?? [], right: self || !right },
+    ]
     const a = anchor(edge.source, nodes, positions, expanded, right)
     const b = anchor(edge.target, nodes, positions, expanded, self || !right)
     let path: string
@@ -76,6 +119,6 @@ export function edgePaths(graph: GraphDocument, positions: Record<string, Point2
       const direction = right ? 1 : -1
       path = `M ${a.x} ${a.y} C ${a.x + direction * bend} ${a.y + lane * 12}, ${b.x - direction * bend} ${b.y + lane * 12}, ${b.x} ${b.y}`
     }
-    return { edge, path }
+    return { edge, path, ends }
   })
 }

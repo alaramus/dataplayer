@@ -87,10 +87,11 @@ function openStructure(id: string) {
 
 <template>
   <div class="relationship-panel" data-testid="relationship-panel">
-    <div class="relationship-panel__scope">
-      <span>{{ nodes.length }} requested tables · {{ connectorName }}</span>
-      <AppIconButton icon="refresh" tooltip="Reload relationships" data-testid="graph-reload" :disable="source.isFetching.value" @click="source.refetch()" />
-    </div>
+    <!-- No line naming the scope and no line explaining the arrows: the tab
+         already says which connection this is and how many tables were asked
+         for, and a placeholder card says on its own face whether it is outside
+         the selection or unreadable. Two standing bars for that took height
+         from the only thing here that needs it. -->
     <div v-if="source.isFetching.value" class="relationship-panel__loading" role="status">
       <span>Reading structure {{ loaded }} / {{ nodes.length }}</span>
       <AppProgress label="Reading table structures" :value="nodes.length ? loaded / nodes.length : 0" />
@@ -108,15 +109,12 @@ function openStructure(id: string) {
         <AppButton v-else variant="quiet" size="sm" icon="my_location" label="Show in catalog" @click="openTable(node.id)" />
       </template>
     </GraphViewer>
-    <div class="relationship-panel__note">Arrows follow declared foreign keys. Dashed nodes are outside the selection or unavailable; incoming references from unloaded tables are not included.</div>
   </div>
 </template>
 
 <style scoped>
 .relationship-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.relationship-panel__scope, .relationship-panel__loading { display: flex; align-items: center; gap: 12px; padding: 3px 8px; font-size: 12px; border-bottom: 1px solid var(--dp-border); }
-.relationship-panel__scope { justify-content: space-between; }
+.relationship-panel__loading { display: flex; align-items: center; gap: 12px; padding: 3px 8px; font-size: 12px; border-bottom: 1px solid var(--dp-border); }
 .relationship-panel__loading > span { white-space: nowrap; }
 .relationship-panel__viewer { flex: 1; min-height: 0; }
-.relationship-panel__note { font-size: 10px; color: var(--dp-muted); padding: 5px 8px; border-top: 1px solid var(--dp-border); }
 </style>

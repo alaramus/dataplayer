@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { deliveryGraph } from "./fixtures"
-import { arrange, CARD_WIDTH, edgePaths, fit2, HEADER_HEIGHT, nodeHeight, ROW_HEIGHT, zoomAt } from "./layout"
+import { arrange, CARD_WIDTH, edgePaths, fit2, HEADER_HEIGHT, nodeHeight, portAnchors, ROW_HEIGHT, zoomAt } from "./layout"
 
 describe("graph geometry", () => {
   it("places cyclic and disconnected components deterministically without overlapping cards", () => {
@@ -45,5 +45,28 @@ describe("graph geometry", () => {
     expect(new Set(paths.map((item) => item.path)).size).toBe(4)
     expect(paths[0]!.path).toMatch(new RegExp(`^M ${CARD_WIDTH} ${HEADER_HEIGHT + ROW_HEIGHT / 2} `))
     expect(edgePaths(graph, positions, false)[0]!.path).toMatch(new RegExp(`^M ${CARD_WIDTH} ${HEADER_HEIGHT / 2} `))
+  })
+
+  it("anchors only the ports an edge reaches, on the side the curve leaves by", () => {
+    const positions = { api: { x: 0, y: 0 }, worker: { x: 500, y: 0 }, monitor: { x: 1000, y: 0 } }
+    const anchors = portAnchors(edgePaths(deliveryGraph, positions, true))
+
+    // The worker is to the right of the gateway and holds a self reference,
+    // so one of its fields is reached from both sides at once.
+    expect(anchors.get("api")?.get("events")).toEqual({ left: false, right: true })
+    expect(anchors.get("worker")?.get("input")).toEqual({ left: true, right: true })
+    // Nothing else is anchored: the gateway's third field is named by no edge,
+    // and the connection to the monitor names no port on it at all.
+    expect([...anchors].map(([id, ports]) => [id, [...ports.keys()].sort()])).toEqual([
+      ["api", ["events", "metrics"]],
+      ["worker", ["input", "retry"]],
+    ])
+
+    // Which side is geometry, not a property of the field: the same document
+    // laid out the other way round anchors the same port on the other side.
+    const mirrored = portAnchors(
+      edgePaths(deliveryGraph, { ...positions, api: { x: 500, y: 0 }, worker: { x: 0, y: 0 } }, true)
+    )
+    expect(mirrored.get("api")?.get("events")).toEqual({ left: true, right: false })
   })
 })

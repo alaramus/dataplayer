@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, useId } from "vue"
 
-import { CARD_WIDTH, HEADER_HEIGHT, ROW_HEIGHT, edgePaths, fit2, zoomAt } from "./layout"
+import { CARD_WIDTH, HEADER_HEIGHT, ROW_HEIGHT, edgePaths, fit2, portAnchors, zoomAt } from "./layout"
 import { accentIndex, edgesOf, neighborsOf } from "./model"
 import type { Camera2, GraphDocument, GraphSelection, Point2 } from "./model"
 
@@ -21,6 +21,10 @@ const emit = defineEmits<{
 const root = ref<HTMLDivElement>()
 const camera = computed(() => props.camera ?? { x: 32, y: 32, zoom: 1 })
 const paths = computed(() => edgePaths(props.graph, props.positions, props.expanded))
+const anchors = computed(() => portAnchors(paths.value))
+const NO_ANCHOR = { left: false, right: false }
+const anchorOf = (nodeId: string, portId: string) =>
+  anchors.value.get(nodeId)?.get(portId) ?? NO_ANCHOR
 const neighbors = computed(() => neighborsOf(props.graph, props.selection))
 const highlighted = computed(() => new Set(edgesOf(props.graph, props.selection).map((edge) => edge.id)))
 const arrowId = `graph-arrow-${useId()}`
@@ -149,7 +153,10 @@ defineExpose({ fit, zoom, focus })
             @pointerdown.stop @click.stop="emit('select', { kind: 'node', id: node.id, portId: row.id })"
             @keydown.enter.prevent="emit('select', { kind: 'node', id: node.id, portId: row.id })"
           >
-            <span class="graph-node__port graph-node__port--left" /><span class="graph-node__port graph-node__port--right" />
+            <!-- A dot where a line actually arrives, and nowhere else: every
+                 row carrying two of them made a card a column of dots. -->
+            <span v-if="anchorOf(node.id, row.id).left" class="graph-node__port graph-node__port--left" :data-testid="`graph-anchor-${node.id}-${row.id}`" />
+            <span v-if="anchorOf(node.id, row.id).right" class="graph-node__port graph-node__port--right" :data-testid="`graph-anchor-${node.id}-${row.id}`" />
             <span class="graph-node__badges">{{ row.badges?.join(' ') }}</span>
             <span class="graph-node__name" :title="row.label">{{ row.label }}</span>
             <span class="graph-node__type" :title="row.detail">{{ row.detail }}</span>

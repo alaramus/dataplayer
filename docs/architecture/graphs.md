@@ -18,9 +18,11 @@ positions and cameras. Moving nodes changes view state only; this slice has no
 edge authoring or source mutation. Controlled interaction events and a separate
 view-state type leave that possible without introducing a second graph model.
 
-The catalog opens a diagram for checked describable nodes, or the current
-filtered list if none are checked. The explicit set lives in its workspace
-descriptor. Loading is limited to 100 relations and four concurrent reads.
+The catalog's actions menu opens a diagram for checked describable nodes, or
+for the current filtered list if none are checked; the line is disabled, not
+hidden, while that set is empty or larger than one diagram holds. The panel's
+tab names the connection and the size of the set, so the view itself carries no
+standing bar of its own. The explicit set lives in its workspace descriptor. Loading is limited to 100 relations and four concurrent reads.
 Failed reads and references outside the set appear as distinct placeholders.
 Only outgoing foreign keys of loaded tables are claimed; unseen incoming
 references are not inferred. Graph bounds are 300 nodes, 5,000 rows/ports and

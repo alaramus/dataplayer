@@ -4,7 +4,9 @@ import type { GraphDocument } from "./model"
 export const deliveryGraph: GraphDocument = {
   groups: [{ id: "delivery", label: "Delivery" }, { id: "monitoring", label: "Monitoring" }],
   nodes: [
-    { id: "api", label: "Gateway", groupId: "delivery", rows: [{ id: "events", label: "Events", detail: "stream" }, { id: "metrics", label: "Metrics" }] },
+    // "version" is named by no edge: a row that takes part in nothing is what
+    // tells a drawn anchor from one drawn on every row.
+    { id: "api", label: "Gateway", groupId: "delivery", rows: [{ id: "events", label: "Events", detail: "stream" }, { id: "metrics", label: "Metrics" }, { id: "version", label: "Version", detail: "text" }] },
     { id: "worker", label: "Worker", groupId: "delivery", rows: [{ id: "input", label: "Input" }, { id: "retry", label: "Retry" }] },
     { id: "monitor", label: "Monitor", groupId: "monitoring", rows: [] },
   ],

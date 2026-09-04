@@ -29,6 +29,11 @@ describe("the generic 2D canvas", () => {
     expect(wrapper.emitted("select")!.at(-1)).toEqual([{ kind: "edge", id: "jobs" }])
     await wrapper.get('[aria-label="Gateway"]').trigger("dblclick")
     expect(wrapper.emitted("activate")).toEqual([["api"]])
+    // An anchor only where a line arrives: the gateway sits left of both the
+    // worker and the monitor, so its two connected fields are anchored on the
+    // right alone, and the field no edge names is anchored nowhere.
+    expect(wrapper.findAll('[data-testid="graph-anchor-api-events"]')).toHaveLength(1)
+    expect(wrapper.find('[data-testid="graph-anchor-api-version"]').exists()).toBe(false)
     await wrapper.setProps({ expanded: false })
     expect(wrapper.find('[data-testid="graph-port-api-events"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="graph-edge-jobs"]').exists()).toBe(true)

@@ -127,7 +127,6 @@ function completionExtension(): Extension {
     const dotted = context.matchBefore(/[\w.:]+/)
     const plain = context.matchBefore(/[\w:]+/)
     const qualifying = dotted !== null && dotted.text.includes(".")
-    console.warn("DP-OFFER", props.suggestions.length, JSON.stringify(dotted?.text ?? null), qualifying)
 
     if (qualifying) {
       // Inside `schema.rel`: a keyword would be nonsense here, so only the
@@ -218,10 +217,6 @@ onMounted(() => {
         validationSlot.of(validationExtension()),
         wrapSlot.of(wrapExtension()),
         completionSlot.of(completionExtension()),
-        EditorState.languageData.of((_state, pos) => {
-          console.warn("DP-DIRECT-LD", pos)
-          return []
-        }),
         marksSlot.of(marksExtension()),
         EditorView.contentAttributes.of({
           "aria-label": `${props.filename} source`,
@@ -290,10 +285,73 @@ onMounted(() => {
           "&.cm-editor .cm-content ::selection": {
             background: "var(--dp-text-selection)",
           },
-          // The match a search is standing on, which is drawn over the
-          // selection and has to stay legible against it.
-          ".cm-selectionMatch, .cm-searchMatch": {
+          // Another occurrence of whatever is selected, which is drawn over
+          // the selection and has to stay legible against it.
+          ".cm-selectionMatch": {
             backgroundColor: "var(--dp-selected)",
+          },
+          // What a search found, in the colour a match has in a rendered
+          // document: the same word looks the same in the source and in the
+          // page, and the one the caret is on is the same colour said louder.
+          "&.cm-editor .cm-searchMatch": {
+            backgroundColor: "color-mix(in srgb, var(--dp-find) 45%, transparent)",
+          },
+          "&.cm-editor .cm-searchMatch-selected": {
+            backgroundColor: "color-mix(in srgb, var(--dp-find) 70%, transparent)",
+          },
+          // The search bar is CodeMirror's own panel, painted by the same
+          // light palette: a near-white bar, a white field and a button with
+          // a grey gradient, all inside a dark editor. It is chrome attached
+          // to the editor, so it stands on the ground the gutters do.
+          "&.cm-editor .cm-panels": {
+            backgroundColor: "var(--dp-chrome-raised)",
+            color: "var(--dp-text-strong)",
+          },
+          "&.cm-editor .cm-panels-top": {
+            borderBottom: "1px solid var(--dp-border)",
+          },
+          "&.cm-editor .cm-panels-bottom": {
+            borderTop: "1px solid var(--dp-border)",
+          },
+          "&.cm-editor .cm-textfield": {
+            backgroundColor: "var(--dp-surface)",
+            border: "1px solid var(--dp-border-strong)",
+            color: "var(--dp-text-strong)",
+          },
+          // A gradient, so a background colour alone would leave it showing.
+          "&.cm-editor .cm-button": {
+            backgroundImage: "none",
+            backgroundColor: "var(--dp-surface)",
+            border: "1px solid var(--dp-border-strong)",
+            borderRadius: "3px",
+            color: "var(--dp-text-strong)",
+          },
+          "&.cm-editor .cm-button:hover, &.cm-editor .cm-button:active": {
+            backgroundImage: "none",
+            backgroundColor: "var(--dp-chrome)",
+          },
+          // What is offered while typing floats in a tooltip, and a tooltip
+          // is CodeMirror's: its base theme paints a near-white panel, while
+          // the colour set for the editor's own text is inherited into it. In
+          // the dark theme that was white on white — the words were there and
+          // could not be read. Written with `.cm-editor` in it for the reason
+          // the selection above is: the base rules carry the editor root too,
+          // and a shorter selector loses to them whenever it is added.
+          "&.cm-editor .cm-tooltip": {
+            border: "1px solid var(--dp-border-strong)",
+            backgroundColor: "var(--dp-surface-raised)",
+            color: "var(--dp-text-strong)",
+          },
+          // The row under the caret. The base theme puts white text on a
+          // strong blue; the tint this application marks a selection with is
+          // pale in the light theme, so the colour has to be taken back too
+          // or the highlighted word is the one that disappears.
+          "&.cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": {
+            backgroundColor: "var(--dp-selected)",
+            color: "var(--dp-text-strong)",
+          },
+          "&.cm-editor .cm-completionDetail": {
+            color: "var(--dp-text-muted)",
           },
         }),
       ],

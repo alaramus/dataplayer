@@ -61,9 +61,17 @@ const props = defineProps<{
   describesNodes: boolean
   /** The one ticked node it will describe, or nothing. */
   describedNode: { id: string; label: string } | null
+  /** Whether anything on this level has a structure to draw as a diagram (D97). */
+  drawsNodes: boolean
+  /** Whether what would be drawn — the ticks, or the list — is a set a diagram can hold. */
+  drawableNodes: boolean
 }>()
 
-const emit = defineEmits<{ done: [outcome: ActionOutcome]; details: [] }>()
+const emit = defineEmits<{
+  done: [outcome: ActionOutcome]
+  details: []
+  relationships: []
+}>()
 const toast = useToast()
 const downloadAction = useDownloadAction()
 
@@ -132,6 +140,8 @@ const items = computed<MenuItem[]>(() => [
   ...clientMenu({
     describes: props.describesNodes,
     describable: props.describedNode !== null,
+    diagrams: props.drawsNodes,
+    diagrammable: props.drawableNodes,
     holds: canHold.value,
     ticked: props.checkedIds.length,
   }),
@@ -150,6 +160,12 @@ const items = computed<MenuItem[]>(() => [
 function run(command: ClientCommand) {
   if (command === "details") {
     if (props.describedNode !== null) emit("details")
+    return
+  }
+  // A diagram is the one client verb that works without ticks: what is listed
+  // is the scope when nothing is picked out of it.
+  if (command === "relationships") {
+    if (props.drawableNodes) emit("relationships")
     return
   }
   if (props.checkedIds.length === 0) return
