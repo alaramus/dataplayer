@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from "vitest"
-import { defineComponent, h, nextTick } from "vue"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { defineComponent, effectScope, h, nextTick } from "vue"
 import { z } from "zod"
 
 import { makeLeaf, makeSplit } from "./model"
@@ -83,6 +83,99 @@ function build() {
 
 beforeEach(() => {
   localStorage.clear()
+})
+
+describe("detached workspace panels", () => {
+  it("removes only the layout reference and raises the existing detached panel on open", () => {
+    const workspace = buildDragging()
+    workspace.context.detach("p2")
+    expect(leafNamed(workspace, "main").panels).toEqual(["p3"])
+    expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p1", "p2", "p3"])
+    workspace.context.focus("main")
+    workspace.open({ id: "p2", kind: "rows" })
+    expect(workspace.context.focusedDetached.value).toBe("p2")
+    expect(workspace.context.detached.value).toHaveLength(1)
+    expect(leafNamed(workspace, "main").panels).toEqual(["p3"])
+
+    workspace.context.dock("p2")
+    expect(leafNamed(workspace, "main").panels).toEqual(["p2", "p3"])
+    expect(leafNamed(workspace, "main").activePanel).toBe("p2")
+    expect(workspace.context.detached.value).toEqual([])
+  })
+
+  it("persists detached panels as docked tabs without changing the running layout", async () => {
+    const scope = effectScope()
+    const workspace = scope.run(buildDragging)
+    if (workspace === undefined) throw new Error("Missing workspace")
+    workspace.context.detach("p2")
+    workspace.context.detach("p3")
+    await nextTick()
+    expect(workspace.context.detached.value).toHaveLength(2)
+    expect(workspace.context.tree.value).not.toEqual(JSON.parse(localStorage.getItem("test-workspace") ?? "{}").tree)
+    scope.stop()
+
+    const restored = buildDragging()
+    expect(restored.context.detached.value).toEqual([])
+    expect(restored.panels.value.map((panel) => panel.id)).toEqual(["p1", "p2", "p3"])
+    expect(leavesOf(restored.context.tree.value).flatMap((leaf) => leaf.panels).sort())
+      .toEqual(["p1", "p2", "p3"])
+  })
+
+  it("keeps a detached window's return destination when its panel id changes", () => {
+    const workspace = buildDragging()
+    workspace.context.detach("p2")
+    workspace.replace("p2", { id: "saved", kind: "rows" })
+    expect(workspace.context.detached.value[0]?.panelId).toBe("saved")
+    expect(workspace.context.focusedDetached.value).toBe("saved")
+    workspace.context.dock("saved")
+    expect(leafNamed(workspace, "main").panels).toEqual(["saved", "p3"])
+    expect(workspace.context.panelIds.value).not.toContain("p2")
+  })
+
+  it("keeps the fixed panel in place and never leaves the workspace without a section", () => {
+    const workspace = useWorkspace<DemoPanel>({
+      storageKey: "fixed-test", panelSchema, defaults: dragging,
+      kindOf: (panel) => panel.kind,
+      look: (panel) => ({ title: panel.id, icon: "square", closable: panel.id !== "p1" }),
+      component: () => Stub,
+    })
+    expect(workspace.context.canDetach("p1")).toBe(false)
+    workspace.context.detach("p1")
+    expect(workspace.context.detached.value).toEqual([])
+
+    const single = build()
+    single.context.detach("p2")
+    expect(single.context.canDetach("p1")).toBe(false)
+    expect(single.context.canDetach("missing")).toBe(false)
+  })
+
+  it("asks the panel before closing its window, and removes its metadata on acceptance", async () => {
+    const beforeClose = vi.fn(() => false)
+    const workspace = useWorkspace<DemoPanel>({
+      storageKey: "close-test", panelSchema, defaults: dragging,
+      kindOf: (panel) => panel.kind, look: (panel) => ({ title: panel.id, icon: "square" }),
+      component: () => Stub, beforeClose,
+    })
+    workspace.context.detach("p2")
+    expect(beforeClose).not.toHaveBeenCalled()
+    expect(await workspace.context.requestClose("p2")).toBe(false)
+    expect(workspace.context.detached.value).toHaveLength(1)
+    beforeClose.mockReturnValue(true)
+    expect(await workspace.context.requestClose("p2")).toBe(true)
+    expect(workspace.context.detached.value).toEqual([])
+    expect(workspace.context.panelIds.value).not.toContain("p2")
+  })
+
+  it("clears detached panels and a pending drag on reset", () => {
+    const workspace = buildDragging()
+    workspace.context.detach("p2")
+    beginDrag(workspace, "p3")
+    workspace.reset()
+    expect(workspace.context.detached.value).toEqual([])
+    expect(workspace.context.dragging.value).toBeNull()
+    expect(workspace.context.focusedDetached.value).toBeNull()
+    expect(leafNamed(workspace, "main").panels).toEqual(["p2", "p3"])
+  })
 })
 
 describe("a workspace", () => {

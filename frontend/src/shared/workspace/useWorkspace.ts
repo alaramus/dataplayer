@@ -1,9 +1,11 @@
-import { ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 import type { Component, Ref } from "vue"
 import type { ZodType } from "zod"
 
 import { workspaceKey } from "./context"
 import type { PanelLook, WorkspaceContext } from "./context"
+import { dockedLayout, returnPanel } from "./detached"
+import type { DetachedPanel } from "./detached"
 import { admittedZone } from "./dropZone"
 import type { DropAdmission } from "./dropZone"
 import { nextId, PRESS_THRESHOLD_PX } from "./model"
@@ -93,6 +95,8 @@ export function useWorkspace<P extends { id: string }>(
   const panels = ref<P[]>(start.panels) as Ref<P[]>
   const focusedLeaf = ref<NodeId | null>(null)
   const dragging = ref<PanelId | null>(null)
+  const detached = ref<DetachedPanel[]>([])
+  const focusedDetached = ref<PanelId | null>(null)
 
   // Not a ref: nothing renders from it, and a press that never becomes a drag
   // must not make the screen do anything at all.
@@ -106,16 +110,16 @@ export function useWorkspace<P extends { id: string }>(
   // frame of a border drag, which is a price the user pays so that a test can
   // skip an await.
   watch(
-    [tree, panels],
+    [tree, panels, detached],
     () => {
-      localStorage.setItem(options.storageKey, serializeWorkspace(tree.value, panels.value))
+      localStorage.setItem(options.storageKey, serializeWorkspace(dockedLayout(tree.value, detached.value), panels.value))
     },
     { deep: true }
   )
 
   function open(panel: P, { replace = false }: OpenOptions = {}) {
     if (panelOf(panel.id) !== undefined) {
-      tree.value = activatePanel(tree.value, panel.id)
+      activate(panel.id)
       return
     }
     if (replace) {
@@ -149,6 +153,10 @@ export function useWorkspace<P extends { id: string }>(
       candidateIndex === index ? panel : candidate
     )
     tree.value = renamePanel(tree.value, oldPanelId, panel.id)
+    detached.value = detached.value.map((entry) => entry.panelId === oldPanelId
+      ? { ...entry, panelId: panel.id, accepts: options.kindOf(panel) }
+      : entry)
+    if (focusedDetached.value === oldPanelId) focusedDetached.value = panel.id
   }
 
   function close(panelId: PanelId) {
@@ -160,6 +168,47 @@ export function useWorkspace<P extends { id: string }>(
     if (without === null) return
     tree.value = without
     panels.value = panels.value.filter((panel) => panel.id !== panelId)
+    detached.value = detached.value.filter((entry) => entry.panelId !== panelId)
+    if (focusedDetached.value === panelId) focusedDetached.value = null
+  }
+
+  function activate(panelId: PanelId) {
+    if (detached.value.some((entry) => entry.panelId === panelId)) {
+      focusedDetached.value = panelId
+      return
+    }
+    focusedDetached.value = null
+    tree.value = activatePanel(tree.value, panelId)
+  }
+
+  function canDetach(panelId: PanelId): boolean {
+    return panelOf(panelId) !== undefined && lookOf(panelId).closable !== false &&
+      leavesOf(tree.value).some((leaf) => leaf.panels.includes(panelId)) &&
+      removePanel(tree.value, panelId) !== null
+  }
+
+  function detach(panelId: PanelId) {
+    if (!canDetach(panelId)) return
+    const leaf = leavesOf(tree.value).find((one) => one.panels.includes(panelId))
+    const panel = panelOf(panelId)
+    const without = removePanel(tree.value, panelId)
+    if (leaf === undefined || panel === undefined || without === null) return
+    context.endDrag(null, null)
+    detached.value = [...detached.value, {
+      panelId, leafId: leaf.id, at: leaf.panels.indexOf(panelId),
+      accepts: options.kindOf(panel), fallbackLeafId: nextId("returned"),
+    }]
+    tree.value = without
+    focusedDetached.value = panelId
+  }
+
+  function dock(panelId: PanelId) {
+    const entry = detached.value.find((one) => one.panelId === panelId)
+    if (entry === undefined) return
+    tree.value = returnPanel(tree.value, entry)
+    detached.value = detached.value.filter((one) => one.panelId !== panelId)
+    focusedDetached.value = null
+    focusedLeaf.value = leavesOf(tree.value).find((leaf) => leaf.panels.includes(panelId))?.id ?? null
   }
 
   /**
@@ -206,6 +255,9 @@ export function useWorkspace<P extends { id: string }>(
 
   const context: WorkspaceContext = {
     tree,
+    panelIds: computed(() => panels.value.map((panel) => panel.id)),
+    detached,
+    focusedDetached,
     focusedLeaf,
     dragging,
     lookOf,
@@ -220,9 +272,10 @@ export function useWorkspace<P extends { id: string }>(
       const panel = panelOf(panelId)
       return panel === undefined ? null : (options.collapsed?.(panel) ?? null)
     },
-    activate: (panelId) => {
-      tree.value = activatePanel(tree.value, panelId)
-    },
+    activate,
+    canDetach,
+    detach,
+    dock,
     onIconClick:
       options.onIconClick === undefined
         ? undefined
@@ -241,10 +294,12 @@ export function useWorkspace<P extends { id: string }>(
     requestClose: async (panelId) => {
       const allowed = await (options.beforeClose?.(panelId) ?? true)
       if (allowed) close(panelId)
+      return !panels.value.some((panel) => panel.id === panelId)
     },
     closeOthers,
     focus: (leafId) => {
       focusedLeaf.value = leafId
+      focusedDetached.value = null
     },
     toggleCollapse: (leafId) => {
       // A workspace of one section has nothing to collapse against, and
@@ -283,6 +338,8 @@ export function useWorkspace<P extends { id: string }>(
         nextId("leaf"),
         allowed === "center" ? at : undefined
       )
+      detached.value = detached.value.filter((entry) => entry.panelId !== panelId)
+      focusedDetached.value = null
     },
   }
 
@@ -293,6 +350,9 @@ export function useWorkspace<P extends { id: string }>(
     tree.value = fresh.tree
     panels.value = fresh.panels
     focusedLeaf.value = null
+    detached.value = []
+    focusedDetached.value = null
+    context.endDrag(null, null)
   }
 
   return { context, panels, open, replace, reset }

@@ -1,27 +1,26 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, provide, ref } from "vue"
+import { onBeforeUnmount, onMounted, ref } from "vue"
 
-import { workspaceKey } from "./context"
 import type { WorkspaceContext } from "./context"
+import WorkspaceFloatingWindows from "./WorkspaceFloatingWindows.vue"
+import WorkspacePanels from "./WorkspacePanels.vue"
 import WorkspaceDragGhost from "./WorkspaceDragGhost.vue"
 import WorkspaceNode from "./WorkspaceNode.vue"
 
 const props = defineProps<{ context: WorkspaceContext }>()
 
-provide(workspaceKey, props.context)
-
 /** Where the hand is, so that what it carries can be drawn there. */
 const pointer = ref<{ x: number; y: number } | null>(null)
 
 /**
- * Every movement inside the workspace arrives here by bubbling, so this is the
+ * Every movement in the browser arrives here, so this is the
  * one place that knows where the pointer is - and the one place a press turns
  * into a drag, which cannot be the section the tab came from: the pointer
  * leaves it immediately. See G1.
  */
 function onPointerMove(event: PointerEvent) {
-  pointer.value = { x: event.clientX, y: event.clientY }
   props.context.pointerMoved(event.clientX, event.clientY)
+  if (props.context.dragging.value !== null) pointer.value = { x: event.clientX, y: event.clientY }
 }
 
 /**
@@ -37,12 +36,24 @@ function onWindowPointerUp() {
   props.context.endDrag(null, null)
 }
 
+function onKeyDown(event: KeyboardEvent) {
+  if (event.key === "Escape") onWindowPointerUp()
+}
+
 onMounted(() => {
+  window.addEventListener("pointermove", onPointerMove)
   window.addEventListener("pointerup", onWindowPointerUp)
+  window.addEventListener("pointercancel", onWindowPointerUp)
+  window.addEventListener("blur", onWindowPointerUp)
+  window.addEventListener("keydown", onKeyDown)
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener("pointermove", onPointerMove)
   window.removeEventListener("pointerup", onWindowPointerUp)
+  window.removeEventListener("pointercancel", onWindowPointerUp)
+  window.removeEventListener("blur", onWindowPointerUp)
+  window.removeEventListener("keydown", onKeyDown)
 })
 </script>
 
@@ -50,9 +61,11 @@ onBeforeUnmount(() => {
   <div
     class="workspace"
     data-testid="workspace"
-    @pointermove="onPointerMove"
   >
-    <WorkspaceNode :node="context.tree.value" />
+    <WorkspacePanels :context="context">
+      <WorkspaceNode :node="context.tree.value" />
+      <WorkspaceFloatingWindows :context="context" />
+    </WorkspacePanels>
 
     <WorkspaceDragGhost
       v-if="context.dragging.value !== null && pointer !== null"

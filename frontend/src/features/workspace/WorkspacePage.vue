@@ -63,7 +63,7 @@ import type {
 import { messageOf } from "@/shared/api/errors"
 import { AppButton, AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
-import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
+import { makeLeaf, makeSplit, useWorkspace, WorkspaceDetachTarget, WorkspaceRoot } from "@/shared/workspace"
 
 /**
  * The workspace: connections, catalogs and node-specific work, side by side.
@@ -126,6 +126,8 @@ const workspace = useWorkspace<Panel>({
  * itself. See P7.
  */
 const activeConnectorId = computed(() => {
+  const floating = workspace.panels.value.find((one) => one.id === workspace.context.focusedDetached.value)
+  if (floating?.kind === "catalog") return floating.connectorId
   const panelId = activeCatalogPanel(
     workspace.context.tree.value,
     workspace.context.focusedLeaf.value
@@ -715,6 +717,9 @@ provide(workspaceActionsKey, {
 
 <template>
   <AppLayout fill>
+    <template #header-overlay>
+      <WorkspaceDetachTarget :context="workspace.context" />
+    </template>
     <template #actions>
       <AppButton
         v-if="me.data.value?.is_superuser"

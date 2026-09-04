@@ -432,7 +432,7 @@ export function lookOf(panel: Panel): PanelLook {
  * what the panel shows, so a stale entry is the component it would rebuild.
  *
  * A component and not a render function: a functional component has no
- * instance, so <KeepAlive> in the section would have nothing to keep and a tab
+ * instance, so <KeepAlive> in the workspace would have nothing to keep and a tab
  * switched away from would come back reloaded.
  */
 const bound = new Map<string, Component>()

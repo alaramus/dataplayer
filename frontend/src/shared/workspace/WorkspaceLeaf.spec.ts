@@ -1,21 +1,36 @@
-import { mount } from "@vue/test-utils"
+import { flushPromises, mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import { describe, expect, it } from "vitest"
-import { defineComponent, h, ref } from "vue"
+import { defineComponent, h, inject, ref } from "vue"
+import type { PropType } from "vue"
 
 import { workspaceKey } from "./context"
 import type { WorkspaceContext } from "./context"
 import { makeLeaf } from "./model"
+import type { LeafNode } from "./model"
 import WorkspaceLeaf from "./WorkspaceLeaf.vue"
+import WorkspacePanels from "./WorkspacePanels.vue"
 
 /* eslint-disable vue/one-component-per-file -- two stand-ins for panel bodies, not components of the application. */
 const Stub = defineComponent({ setup: () => () => h("div", { class: "stub" }, "panel body") })
 const Hint = defineComponent({ setup: () => () => h("div", { class: "hint" }, "pick a source") })
 const Rail = defineComponent({ setup: () => () => h("div", { class: "rail" }, "icons") })
 
+const LeafWithPanels = defineComponent({
+  props: { leaf: { type: Object as PropType<LeafNode>, required: true }, collapsible: Boolean },
+  setup(props) {
+    const context = inject(workspaceKey)
+    if (context === undefined) throw new Error("Missing test workspace")
+    return () => h(WorkspacePanels, { context }, () => h(WorkspaceLeaf, props))
+  },
+})
+
 function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext {
   return {
     tree: ref(makeLeaf("a", ["p1", "p2"])),
+    panelIds: ref(["p1", "p2"]),
+    detached: ref([]),
+    focusedDetached: ref(null),
     focusedLeaf: ref(null),
     dragging: ref(null),
     lookOf: (panelId) => ({ title: `title ${panelId}`, icon: "square" }),
@@ -24,8 +39,11 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
     admissionOf: () => ({ accepts: true, remaining: 1 }),
     collapsedOf: () => null,
     activate: () => undefined,
+    canDetach: () => true,
+    detach: () => undefined,
+    dock: () => undefined,
     close: () => undefined,
-    requestClose: async () => undefined,
+    requestClose: async () => true,
     closeOthers: async () => undefined,
     focus: () => undefined,
     toggleCollapse: () => undefined,
@@ -38,7 +56,7 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
 }
 
 function mountLeaf(context: WorkspaceContext, collapsible = true) {
-  return mount(WorkspaceLeaf, {
+  return mount(LeafWithPanels, {
     props: { leaf: makeLeaf("a", ["p1", "p2"]), collapsible },
     global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: context } },
   })
@@ -63,8 +81,10 @@ describe("a section", () => {
     expect(wrapper.get('[data-testid="workspace-tab-p1"]').text()).toContain("prod-db")
   })
 
-  it("renders only the active panel", () => {
-    expect(mountLeaf(contextFor()).findAll(".stub")).toHaveLength(1)
+  it("renders only the active panel", async () => {
+    const wrapper = mountLeaf(contextFor())
+    await flushPromises()
+    expect(wrapper.findAll(".stub")).toHaveLength(1)
   })
 
   it("activates the panel whose tab is clicked", async () => {
@@ -82,6 +102,7 @@ describe("a section", () => {
       contextFor({
         requestClose: async (id) => {
           seen.push(id)
+          return true
         },
       })
     )
@@ -176,7 +197,7 @@ describe("a section", () => {
   })
 
   it("hides the body of a collapsed section but keeps the strip", () => {
-    const wrapper = mount(WorkspaceLeaf, {
+    const wrapper = mount(LeafWithPanels, {
       props: { leaf: { ...makeLeaf("a", ["p1"]), collapsed: true }, collapsible: true },
       global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: contextFor() } },
     })
@@ -185,7 +206,7 @@ describe("a section", () => {
   })
 
   it("shows what the feature keeps at the width of a collapsed section", () => {
-    const wrapper = mount(WorkspaceLeaf, {
+    const wrapper = mount(LeafWithPanels, {
       props: { leaf: { ...makeLeaf("a", ["p1"]), collapsed: true }, collapsible: true },
       global: {
         plugins: [Quasar],
@@ -208,7 +229,7 @@ describe("a section", () => {
   })
 
   it("offers no such command when there is nothing else to close", () => {
-    const wrapper = mount(WorkspaceLeaf, {
+    const wrapper = mount(LeafWithPanels, {
       props: { leaf: makeLeaf("a", ["p1"]), collapsible: true },
       global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: contextFor() } },
     })
@@ -273,7 +294,7 @@ describe("a section", () => {
   })
 
   it("marks the whole of a section that holds nothing yet", async () => {
-    const wrapper = mount(WorkspaceLeaf, {
+    const wrapper = mount(LeafWithPanels, {
       props: {
         leaf: makeLeaf("work", [], { pinned: true, accepts: "work" }),
         collapsible: true,
@@ -306,7 +327,7 @@ describe("a section", () => {
 /** A column of the screen that nothing has been opened in yet. See T2. */
 describe("an empty pinned section", () => {
   function mountEmpty() {
-    return mount(WorkspaceLeaf, {
+    return mount(LeafWithPanels, {
       props: { leaf: makeLeaf("navigate", [], { pinned: true, accepts: "navigate" }), collapsible: true },
       global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: contextFor() } },
     })

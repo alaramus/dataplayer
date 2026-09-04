@@ -6,6 +6,7 @@
  * that can be resized, collapsed, tabbed and rearranged.
  */
 export { default as WorkspaceRoot } from "./WorkspaceRoot.vue"
+export { default as WorkspaceDetachTarget } from "./WorkspaceDetachTarget.vue"
 export { useWorkspace, workspaceKey } from "./useWorkspace"
 export type {
   OpenOptions,

@@ -68,6 +68,7 @@ async function logout() {
           @click="logout"
         />
       </q-toolbar>
+      <slot name="header-overlay" />
     </q-header>
     <q-page-container>
       <q-page

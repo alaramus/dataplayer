@@ -93,6 +93,7 @@ translations; those files are not.
 | 2026-09-03 | [A key space, walked and written](2026-09-03-redis-keyspace-design.md) | D91: the tree is the colons in the names, and four actions are what people do to a key by hand |
 | 2026-09-03 | [Choosing what a started service is made with](2026-09-03-service-start-choices-design.md) | D88, D89: a chosen start names the port and the password, and the password is handed over once while the address is told always |
 | 2026-09-04 | [Minimizing and maximizing floating windows](2026-09-04-window-states-design.md) | D92: preserve live window contents when minimized, restore through the footer, and maximize above it |
+| 2026-09-04 | [Detaching a tab into a floating window](2026-09-04-detached-tabs-design.md) | D93: move a live panel through the header, return it to a section and retain open tabs on reload |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

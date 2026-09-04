@@ -15,6 +15,66 @@ import {
   rowsTabs,
 } from "./utils/workspace"
 
+test("detaches through the header, keeps the grid page and returns the tab", async ({ page }) => {
+  const name = `e2e-detached-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+  await openNode(page, "pg_class")
+  await expect(page.getByTestId("grid-next")).toBeEnabled()
+  const firstPage = await page.getByTestId("grid-page-range").innerText()
+  await page.getByTestId("grid-next").click()
+  await expect(page.getByTestId("grid-page-range")).not.toHaveText(firstPage)
+  const range = await page.getByTestId("grid-page-range").innerText()
+  const tab = rowsTabs(page).first()
+  const preview = page.getByTestId("workspace-detach-target")
+
+  const carryToHeader = async () => {
+    const from = await tab.boundingBox()
+    if (from === null) throw new Error("The table tab has no rectangle")
+    await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(from.x + from.width / 2, from.y - 12, { steps: 4 })
+    await expect(preview).toBeVisible()
+    const target = await preview.boundingBox()
+    if (target === null) throw new Error("The header drop target has no rectangle")
+    await page.mouse.move(target.x + 80, target.y + target.height / 2, { steps: 6 })
+    await expect(preview).toContainText("Drop here to open in a window")
+    await expect(preview).toHaveCSS("border-top-style", "solid")
+  }
+
+  await carryToHeader()
+  await page.keyboard.press("Escape")
+  await page.mouse.up()
+  await expect(preview).toHaveCount(0)
+  await expect(tab).toBeVisible()
+  await expect(page.getByRole("dialog", { name: "pg_class", exact: true })).toHaveCount(0)
+
+  await carryToHeader()
+  await page.mouse.up()
+  const floating = page.getByRole("dialog", { name: "pg_class", exact: true })
+  await expect(floating).toBeVisible()
+  await expect(tab).toHaveCount(0)
+  await expect(floating.getByTestId("grid-page-range")).toHaveText(range)
+  await floating.getByRole("button", { name: "Maximize", exact: true }).click()
+  await floating.getByRole("button", { name: "Minimize", exact: true }).click()
+  await page.getByRole("button", { name: "Restore pg_class", exact: true }).click()
+  await expect(floating.getByTestId("grid-page-range")).toHaveText(range)
+  await floating.getByRole("button", { name: "Return to panel", exact: true }).click()
+  await expect(floating).toHaveCount(0)
+  await expect(tab).toBeVisible()
+  await expect(page.getByTestId("grid-page-range")).toHaveText(range)
+
+  await carryToHeader()
+  await page.mouse.up()
+  await expect(floating).toBeVisible()
+  await page.reload()
+  await expect(tab).toBeVisible()
+  await expect(floating).toHaveCount(0)
+  await deleteConnector(page, name)
+})
+
 /**
  * The engine is exercised on its own route with placeholder panels: nothing
  * here touches a connector, so a failure is a failure of the layout and not of

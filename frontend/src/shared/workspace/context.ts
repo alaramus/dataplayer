@@ -1,6 +1,7 @@
 import type { Component, InjectionKey, Ref } from "vue"
 
 import type { DropAdmission } from "./dropZone"
+import type { DetachedPanel } from "./detached"
 import type { DropZone, LayoutNode, NodeId, PanelId } from "./model"
 
 /** What a panel shows of itself in a tab: nothing else about it is needed. */
@@ -51,6 +52,9 @@ export interface PanelLook {
  */
 export interface WorkspaceContext {
   tree: Ref<LayoutNode>
+  panelIds: Ref<PanelId[]>
+  detached: Ref<DetachedPanel[]>
+  focusedDetached: Ref<PanelId | null>
   focusedLeaf: Ref<NodeId | null>
   dragging: Ref<PanelId | null>
   lookOf: (panelId: PanelId) => PanelLook
@@ -79,6 +83,9 @@ export interface WorkspaceContext {
    */
   admissionOf: (leafId: NodeId) => DropAdmission
   activate: (panelId: PanelId) => void
+  canDetach: (panelId: PanelId) => boolean
+  detach: (panelId: PanelId) => void
+  dock: (panelId: PanelId) => void
   /**
    * What a click on the icon of a tab does, if the feature says it does
    * anything at all rather than activating the tab.
@@ -104,8 +111,9 @@ export interface WorkspaceContext {
    * What the cross on a tab does. `close` stays as it is, because a layout
    * operation the application itself performs — replacing a renamed panel,
    * clearing a strip — is not a person changing their mind (D66).
+   * Returns whether it closed, so a floating frame honours the same refusal.
    */
-  requestClose: (panelId: PanelId) => Promise<void>
+  requestClose: (panelId: PanelId) => Promise<boolean>
   /**
    * Close every panel of this section but the active one.
    *

@@ -40,6 +40,8 @@ export interface OpenWindow {
   autoFit?: boolean
   minSize?: Size
   beforeClose?: () => boolean | Promise<boolean>
+  /** The user returns to this window, even when it is already frontmost. */
+  onFocus?: () => void
   onClosed?: () => void
 }
 
@@ -146,6 +148,7 @@ export function useWindows(
     )
     order.value = bringToFront(order.value, id)
     windows.value = ordered()
+    windows.value.find((entry) => entry.id === id)?.onFocus?.()
   }
 
   function minimize(id: string) {
@@ -188,6 +191,7 @@ export function useWindows(
       },
     ]
     order.value = [...order.value, window.id]
+    window.onFocus?.()
   }
 
   function close(id: string) {

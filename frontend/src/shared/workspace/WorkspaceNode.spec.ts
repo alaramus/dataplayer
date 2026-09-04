@@ -7,6 +7,7 @@ import { workspaceKey } from "./context"
 import type { WorkspaceContext } from "./context"
 import { makeLeaf, makeSplit } from "./model"
 import WorkspaceNode from "./WorkspaceNode.vue"
+import { createPanelTargets, panelTargetsKey } from "./panelTargets"
 
 /* eslint-disable vue/one-component-per-file -- two stand-ins for panel bodies, not components of the application. */
 const Stub = defineComponent({ setup: () => () => h("div", { class: "stub" }, "panel body") })
@@ -28,6 +29,9 @@ const columns = () =>
 function contextFor(): WorkspaceContext {
   return {
     tree: ref(columns()),
+    panelIds: ref(["p1", "p2"]),
+    detached: ref([]),
+    focusedDetached: ref(null),
     focusedLeaf: ref(null),
     dragging: ref(null),
     lookOf: (panelId) => ({ title: `title ${panelId}`, icon: "square" }),
@@ -38,8 +42,11 @@ function contextFor(): WorkspaceContext {
     admissionOf: () => ({ accepts: true, remaining: 1 }),
     collapsedOf: () => null,
     activate: () => undefined,
+    canDetach: () => true,
+    detach: () => undefined,
+    dock: () => undefined,
     close: () => undefined,
-    requestClose: async () => undefined,
+    requestClose: async () => true,
     closeOthers: async () => undefined,
     focus: () => undefined,
     toggleCollapse: () => undefined,
@@ -53,7 +60,9 @@ function contextFor(): WorkspaceContext {
 function mountColumns() {
   return mount(WorkspaceNode, {
     props: { node: columns() },
-    global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: contextFor() } },
+    global: { plugins: [Quasar], provide: {
+      [workspaceKey as symbol]: contextFor(), [panelTargetsKey as symbol]: createPanelTargets(),
+    } },
   })
 }
 
@@ -109,7 +118,9 @@ describe("a column whose role is served by the section beside it", () => {
     context.tree.value = torn()
     return mount(WorkspaceNode, {
       props: { node: torn() },
-      global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: context } },
+      global: { plugins: [Quasar], provide: {
+        [workspaceKey as symbol]: context, [panelTargetsKey as symbol]: createPanelTargets(),
+      } },
     })
   }
 

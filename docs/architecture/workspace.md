@@ -4,7 +4,7 @@ The panel engine, the three columns built on it, the drag gesture that moves a
 tab, and the floating windows that edit a connection. The component kit and the
 screens themselves are in [frontend.md](frontend.md).
 
-Decisions here: D12, D14, D69, D92.
+Decisions here: D12, D14, D69, D92, D93.
 
 ## What exists today
 
@@ -123,8 +123,9 @@ Consequences:
   their state dots. Closing every tab but the active one is the engine's too — it
   is a layout operation — and it leaves a panel the feature says has no cross.
 - **A tab that is not showing is kept, not destroyed.** Switching away and back is
-  no reason to re-read a catalog or to lose the page a grid was on, so the section
-  wraps the active panel in `<KeepAlive>`. That puts one requirement on the
+  no reason to re-read a catalog or to lose the page a grid was on, so the workspace
+  keeps each panel in its own `<KeepAlive>` and moves its rendered contents between
+  section and window targets (D93). That puts one requirement on the
   feature: `component(panel)` must answer with the same component for the same
   panel. A wrapper built afresh on each call is a different component each time,
   and a functional wrapper cannot be kept alive at all.
@@ -207,8 +208,6 @@ Known deviations:
   two tabs of one node from different connections are told apart by the icon of
   the source and, once hovered, by the tooltip on it.
 - **The ghost hangs from the pointer, not from where the tab was grabbed.**
-- **A drag cannot be cancelled from the keyboard.** Escape does nothing; releasing
-  over no target is the only way to change one's mind.
 - **The threshold is three pixels for everyone.** The same number the border
   between two columns uses; nobody has measured it against a touch screen or an
   unsteady hand.
@@ -217,10 +216,9 @@ Known deviations:
 - **A panel of a connector that was deleted stays until it is closed.** It shows
   the error the server gave rather than disappearing, because the panel cannot
   tell a deleted connector from a failed request.
-- **A closed panel is still held.** Both the map of bound components in
-  `features/workspace/panels.ts` and the cache inside `<KeepAlive>` keep what they
-  were given for as long as the page lives. Bounded by how many distinct panels
-  one session opens.
+- **A closed panel's component definition is still held.** The map of bound
+  components in `features/workspace/panels.ts` keeps definitions for the page's
+  lifetime; the workspace releases the actual component instance on close.
 
 Spec: [The workspace and the panel engine](../superpowers/specs/2026-08-22-workspace-design.md)
 
@@ -376,3 +374,30 @@ overwriting that saved rectangle. All of this is held only in memory until the
 window closes or the page reloads; the existing close confirmation still applies.
 
 Spec: [Minimizing and maximizing floating windows](../superpowers/specs/2026-09-04-window-states-design.md)
+
+## D93. Detaching moves the live panel into an application window
+
+Dragging a closable tab onto the application header shows a window outline and
+a drop instruction. Releasing there removes the tab from its section and opens
+it in the existing floating-window manager. The fixed connections panel stays
+in the workspace. Pointer cancellation, Escape and leaving the browser cancel
+the gesture without moving the panel.
+
+Panel instances belong to the workspace, with one KeepAlive per panel and a
+Teleport to the active section or window target. Moving between those targets
+preserves the editor, grid state and registered close/reload callbacks. Hidden
+panels remain cached but deactivated, including minimized detached panels.
+Closing removes the instance and follows the panel's existing close guard.
+
+The floating panel offers Return to panel and its existing reload and icon
+actions. Return restores its original section and position when possible,
+otherwise a section accepting the same role; if that role has no section left,
+one is added. Reopening a detached panel raises its existing window. Catalog
+focus follows the floating catalog as well as docked catalog tabs.
+
+Detachment and window geometry last for the page session. The persisted layout
+contains the detached panels docked back into their return destinations, so
+reloading preserves open tabs without restoring transient windows. No panel
+contents or new storage format are introduced.
+
+Spec: [Detaching a tab into a floating window](../superpowers/specs/2026-09-04-detached-tabs-design.md)

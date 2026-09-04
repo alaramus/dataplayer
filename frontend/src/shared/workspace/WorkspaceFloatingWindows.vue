@@ -1,0 +1,85 @@
+<script setup lang="ts">
+import { defineComponent, h, inject, onBeforeUnmount, provide, ref, watch } from "vue"
+import type { Ref } from "vue"
+
+import { windowsApiKey } from "@/shared/windows/useWindows"
+
+import type { WorkspaceContext } from "./context"
+import { panelTargetsKey } from "./panelTargets"
+import WorkspaceFloatingPanel from "./WorkspaceFloatingPanel.vue"
+
+const props = defineProps<{ context: WorkspaceContext }>()
+const windows = inject(windowsApiKey)
+const targets = inject(panelTargetsKey)
+const opened = new Map<string, { windowId: string; panelId: Ref<string> }>()
+
+if (windows !== undefined && targets !== undefined) {
+  const manager = windows
+  const registry = targets
+  watch(
+    () => props.context.detached.value.map((entry) => ({
+      ...entry, look: props.context.lookOf(entry.panelId),
+    })),
+    (entries) => {
+      const kept = new Set(entries.map((entry) => entry.fallbackLeafId))
+      for (const [key, record] of opened) {
+        if (kept.has(key)) continue
+        opened.delete(key)
+        manager.close(record.windowId)
+      }
+      for (const entry of entries) {
+        const existing = opened.get(entry.fallbackLeafId)
+        if (existing !== undefined) {
+          existing.panelId.value = entry.panelId
+          manager.retitle(existing.windowId, entry.look)
+          continue
+        }
+        const windowId = `workspace:${entry.fallbackLeafId}`
+        const panelId = ref(entry.panelId)
+        opened.set(entry.fallbackLeafId, { windowId, panelId })
+        const component = defineComponent({
+          name: "DetachedPanelTarget",
+          setup() {
+            // The window host is outside the workspace. Only its DOM target
+            // needs this registry; the live panel keeps its page injections.
+            provide(panelTargetsKey, registry)
+            return () => h(WorkspaceFloatingPanel, {
+              context: props.context, panelId: panelId.value, targetId: windowId,
+              minimized: manager.context.windows.value.find((one) => one.id === windowId)?.minimized ?? false,
+            })
+          },
+        })
+        manager.open({
+          id: windowId, look: entry.look, component,
+          size: { width: 960, height: 640 }, minSize: { width: 360, height: 240 }, autoFit: false,
+          beforeClose: async () => {
+            await props.context.requestClose(panelId.value)
+            // A panel may have changed id while its confirmation was open.
+            // Keep the frame if that same detached slot still holds a panel.
+            return !props.context.detached.value.some((one) => one.fallbackLeafId === entry.fallbackLeafId)
+          },
+          onFocus: () => { props.context.focusedDetached.value = panelId.value },
+        })
+      }
+    },
+    { immediate: true }
+  )
+
+  watch(props.context.focusedDetached, (panelId) => {
+    const record = [...opened.values()].find((one) => one.panelId.value === panelId)
+    if (record !== undefined) manager.context.focus(record.windowId)
+  })
+  watch(manager.context.frontId, (windowId) => {
+    const record = [...opened.values()].find((one) => one.windowId === windowId)
+    props.context.focusedDetached.value = record?.panelId.value ?? null
+  })
+  onBeforeUnmount(() => {
+    for (const record of opened.values()) manager.close(record.windowId)
+    opened.clear()
+  })
+}
+</script>
+
+<template>
+  <!-- Windows own targets; WorkspacePanels owns the live panel instances. -->
+</template>

@@ -154,6 +154,7 @@ files. IDs are stable because specs and commits refer to them.
 | D90 | [services](docs/architecture/services.md) |
 | D91 | [sources/contract](docs/architecture/sources/contract.md) |
 | D92 | [workspace](docs/architecture/workspace.md) |
+| D93 | [workspace](docs/architecture/workspace.md) |
 
 ## Working rules
 

@@ -9,6 +9,7 @@ import type { WorkspaceContext } from "./context"
 import { dropShape, dropZoneFor, insertionAt } from "./dropZone"
 import type { SectionRects } from "./dropZone"
 import type { DropZone, LeafNode } from "./model"
+import WorkspacePanelTarget from "./WorkspacePanelTarget.vue"
 
 const props = defineProps<{ leaf: LeafNode; collapsible: boolean }>()
 
@@ -156,6 +157,7 @@ function onPointerUp() {
  * click and never pointerdown.
  */
 function onTabPointerDown(event: PointerEvent, panelId: string) {
+  if (event.button !== 0) return
   workspace.focus(props.leaf.id)
   workspace.press(panelId, event.clientX, event.clientY)
 }
@@ -199,8 +201,10 @@ const overlayStyle = computed((): CSSProperties => {
     ref="element"
     class="workspace-leaf"
     :data-testid="`workspace-leaf-${leaf.id}`"
+    @pointerdown="workspace.focus(leaf.id)"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
+    @pointerleave="zone = null; insertion = null"
   >
     <div
       ref="stripElement"
@@ -341,26 +345,17 @@ const overlayStyle = computed((): CSSProperties => {
       />
     </div>
 
-    <div
+    <WorkspacePanelTarget
       v-else
       class="workspace-leaf__body"
+      :target-id="leaf.id"
+      :panel-id="active"
     >
-      <!-- A tab that is not showing is kept rather than destroyed: switching
-           away and back is not a reason to re-read a catalog or to lose the
-           page a grid was on, which is what a plain <component :is> would
-           do. -->
-      <KeepAlive v-if="active !== null">
-        <component
-          :is="workspace.componentOf(active)"
-          :key="active"
-        />
-      </KeepAlive>
-
       <component
         :is="empty"
-        v-else-if="empty"
+        v-if="empty"
       />
-    </div>
+    </WorkspacePanelTarget>
 
     <div
       v-if="workspace.dragging.value !== null"
