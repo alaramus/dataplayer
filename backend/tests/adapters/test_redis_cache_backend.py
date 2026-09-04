@@ -1,6 +1,9 @@
 import asyncio
+import os
 import uuid
 from dataclasses import dataclass, field
+
+import pytest
 
 from app.adapters.cache import CacheKey, DataCache
 from app.adapters.cache_serialization import CacheCipher, CacheFormat, CacheNamespace
@@ -8,9 +11,11 @@ from app.adapters.redis.cache import RedisDataCache
 from app.adapters.redis.cache_connection import (
     CacheConnectionError,
     InvalidationSubscription,
+    RedisCacheConnection,
 )
 
 TEXT_FORMAT: CacheFormat[str] = CacheFormat(str)
+TEST_REDIS_URL = os.environ.get("TEST_REDIS_URL")
 
 
 @dataclass
@@ -219,8 +224,68 @@ async def test_redis_failure_bypasses_cache_and_never_fails_data_access() -> Non
             cache_format=TEXT_FORMAT,
         )
         await cache.invalidate_connector(connector_id)
+        health = await cache.health()
 
         assert (result.value, result.status) == ("direct", "bypass")
         assert cache.available is False
+        assert health.status == "degraded"
+        assert health.shared is True
     finally:
         await cache.aclose()
+
+
+@pytest.mark.skipif(TEST_REDIS_URL is None, reason="TEST_REDIS_URL not configured")
+async def test_two_cache_instances_observe_real_redis_invalidation() -> None:
+    """The phase exit condition against the Redis service used by CI."""
+    assert TEST_REDIS_URL is not None
+    deployment = f"phase5-{uuid.uuid4().hex}"
+    namespace = CacheNamespace(deployment)
+    connector_id = uuid.uuid4()
+    cache_key = key(connector_id)
+    first = RedisDataCache.from_url(
+        TEST_REDIS_URL,
+        deployment=deployment,
+        encryption_key=b"r" * 32,
+        timeout_seconds=1,
+    )
+    second = RedisDataCache.from_url(
+        TEST_REDIS_URL,
+        deployment=deployment,
+        encryption_key=b"r" * 32,
+        timeout_seconds=1,
+    )
+    first.start()
+    second.start()
+    try:
+        await first.get_or_load(
+            cache_key,
+            ttl_seconds=2,
+            load=lambda: asyncio.sleep(0, result="before"),
+            cache_format=TEXT_FORMAT,
+        )
+        shared = await second.get_or_load(
+            cache_key,
+            ttl_seconds=2,
+            load=lambda: asyncio.sleep(0, result="wrong"),
+            cache_format=TEXT_FORMAT,
+        )
+        await second.invalidate_connector(connector_id)
+        after = await first.get_or_load(
+            cache_key,
+            ttl_seconds=2,
+            load=lambda: asyncio.sleep(0, result="after"),
+            cache_format=TEXT_FORMAT,
+        )
+
+        assert (shared.value, shared.status) == ("before", "hit")
+        assert (after.value, after.status) == ("after", "miss")
+    finally:
+        await first.aclose()
+        await second.aclose()
+        cleanup = RedisCacheConnection(TEST_REDIS_URL, timeout_seconds=1)
+        try:
+            await cleanup.delete(namespace.generation_key(connector_id))
+        except CacheConnectionError:
+            pass
+        finally:
+            await cleanup.aclose()

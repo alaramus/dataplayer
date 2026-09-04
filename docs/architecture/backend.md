@@ -52,7 +52,7 @@ backend/app/
 │   ├── topic.py         run state on the socket
 │   ├── cleanup.py       the lifespan timer that empties Trash
 │   └── routes.py        the library, one document, Trash, runs, results
-├── system/              operational routes: /utils health check, test email
+├── system/              operational routes: readiness, cache health, test email
 ├── seed_database.py     dev tool: rebuilds the demo_lab PostgreSQL fixtures
 ├── seed_storage.py      dev tool: sample files into a personal directory
 ├── core/                depends on nothing else in the app
@@ -71,6 +71,9 @@ backend/app/
 
 ```
 POST   /api/v1/login/access-token
+GET    /api/v1/utils/health-check/
+GET    /api/v1/utils/cache-health/
+GET    /api/v1/utils/server-info
 GET    /api/v1/users/directory
 GET    /api/v1/adapter-types/
 POST   /api/v1/connectors/

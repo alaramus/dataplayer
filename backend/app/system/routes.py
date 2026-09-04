@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from pydantic.networks import EmailStr
 from starlette.concurrency import run_in_threadpool
 
+from app.adapters.cache import CacheHealth, DataCacheDep
 from app.core.email import generate_test_email, send_email
 from app.core.schemas import Message
 from app.users.deps import get_current_active_superuser
@@ -36,6 +37,12 @@ async def test_email(email_to: EmailStr) -> Message:
 @router.get("/health-check/")
 async def health_check() -> bool:
     return True
+
+
+@router.get("/cache-health/", response_model=CacheHealth)
+async def cache_health(data_cache: DataCacheDep) -> CacheHealth:
+    """Report the optional accelerator without making it application readiness."""
+    return await data_cache.health()
 
 
 class ServerInfo(BaseModel):

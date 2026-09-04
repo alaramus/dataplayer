@@ -406,6 +406,8 @@ import type {
   usersUpdateUserMeErrors,
   usersUpdateUserMeResponses,
   usersUpdateUserResponses,
+  utilsCacheHealthData,
+  utilsCacheHealthResponses,
   utilsHealthCheckData,
   utilsHealthCheckResponses,
   utilsServerInfoData,
@@ -804,6 +806,21 @@ export class UtilsService {
     return (options?.client ?? client).get<utilsHealthCheckResponses, unknown, ThrowOnError>({
       responseType: "json",
       url: "/api/v1/utils/health-check/",
+      ...options,
+    })
+  }
+
+  /**
+   * Cache Health
+   *
+   * Report the optional accelerator without making it application readiness.
+   */
+  public static cacheHealth<ThrowOnError extends boolean = true>(
+    options?: Options<utilsCacheHealthData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<utilsCacheHealthResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      url: "/api/v1/utils/cache-health/",
       ...options,
     })
   }

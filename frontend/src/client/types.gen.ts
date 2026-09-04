@@ -533,6 +533,28 @@ export type Body_login_login_access_token = {
 }
 
 /**
+ * CacheHealth
+ */
+export type CacheHealth = {
+  /**
+   * Backend
+   */
+  backend: "memory" | "redis"
+  /**
+   * Status
+   */
+  status: "healthy" | "degraded"
+  /**
+   * Shared
+   */
+  shared: boolean
+  /**
+   * Message
+   */
+  message: string
+}
+
+/**
  * CandidateKey
  *
  * A set of columns a foreign key may point at, and what provides it.
@@ -7456,6 +7478,22 @@ export type utilsHealthCheckResponses = {
 }
 
 export type utilsHealthCheckResponse = utilsHealthCheckResponses[keyof utilsHealthCheckResponses]
+
+export type utilsCacheHealthData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/utils/cache-health/"
+}
+
+export type utilsCacheHealthResponses = {
+  /**
+   * Successful Response
+   */
+  200: CacheHealth
+}
+
+export type utilsCacheHealthResponse = utilsCacheHealthResponses[keyof utilsCacheHealthResponses]
 
 export type utilsServerInfoData = {
   body?: never

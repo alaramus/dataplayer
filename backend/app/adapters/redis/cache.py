@@ -9,7 +9,7 @@ from typing import cast
 
 from cryptography.exceptions import InvalidTag
 
-from app.adapters.cache import CacheKey, CacheResult, CacheStatus
+from app.adapters.cache import CacheHealth, CacheKey, CacheResult, CacheStatus
 from app.adapters.cache_serialization import (
     CacheCipher,
     CacheFormat,
@@ -224,6 +224,19 @@ class RedisDataCache:
         except CacheConnectionError:
             self._failed()
             return False
+
+    async def health(self) -> CacheHealth:
+        available = await self.ping()
+        return CacheHealth(
+            backend="redis",
+            status="healthy" if available else "degraded",
+            shared=True,
+            message=(
+                "Shared Redis cache is reachable"
+                if available
+                else "Shared Redis cache is unavailable; source reads are direct"
+            ),
+        )
 
     @property
     def available(self) -> bool | None:

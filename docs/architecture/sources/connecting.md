@@ -257,3 +257,25 @@ answer, and the cache reports itself unavailable. Redis therefore changes
 latency and upstream load, not whether source data can be accessed.
 
 Spec: [An optional shared Redis cache](../../superpowers/specs/2026-09-04-redis-cache-design.md)
+
+## D103. Shared caching is configured explicitly and reports degradation
+
+`DATA_CACHE_BACKEND` is `memory` unless a deployment chooses `redis`. Redis
+selection also requires a `redis://` or TLS `rediss://` URL (which may carry
+password or ACL authentication), a
+bounded deployment name and a dedicated 32-byte encryption key. The URL is a
+`SecretStr`; neither health nor driver errors expose it. Application assembly
+chooses the one backend and owns its startup and shutdown.
+
+`GET /utils/cache-health/` reports backend, `healthy` or `degraded`, whether it
+is shared and a safe sentence. Redis degradation keeps HTTP 200 and does not
+change `/utils/health-check/`: optional acceleration cannot make the server
+unready while its database and sources still work. The in-memory backend always
+reports healthy.
+
+The Compose Redis service is disposable, authenticated, has no volume and is
+behind the `shared-cache` profile. It is a local example, not a production TLS
+terminator. `.env.example` shows both its authenticated URL and an external
+`rediss://` ACL URL; neither mode is enabled by default.
+
+Spec: [Selecting and observing the cache backend](../../superpowers/specs/2026-09-04-cache-configuration-design.md)

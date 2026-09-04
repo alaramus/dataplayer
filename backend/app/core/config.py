@@ -2,10 +2,13 @@ import base64
 import warnings
 from pathlib import Path
 from typing import Literal, Self
+from urllib.parse import urlsplit
 
 from pydantic import (
     EmailStr,
+    Field,
     PostgresDsn,
+    SecretStr,
     ValidationInfo,
     computed_field,
     field_validator,
@@ -33,10 +36,16 @@ class Settings(BaseSettings):
     # rotated by different procedures. See D63.
     QUERY_CONTENT_KEY: str
 
-    @field_validator("CONNECTOR_SECRET_KEY", "QUERY_CONTENT_KEY")
+    @field_validator(
+        "CONNECTOR_SECRET_KEY", "QUERY_CONTENT_KEY", "DATA_CACHE_SECRET_KEY"
+    )
     @classmethod
-    def _validate_encryption_key(cls, value: str, info: ValidationInfo) -> str:
-        """Both keys are AES-GCM keys, so both are checked by the same rule."""
+    def _validate_encryption_key(
+        cls, value: str | None, info: ValidationInfo
+    ) -> str | None:
+        """Every supplied AES-GCM key is checked by the same rule."""
+        if value is None:
+            return None
         try:
             raw = base64.urlsafe_b64decode(value)
         except Exception:
@@ -71,6 +80,49 @@ class Settings(BaseSettings):
     # Exact catalog levels and bounded fetch pages kept per backend process.
     # A source opts in and chooses its own TTL; this only bounds memory.
     DATA_CACHE_MAX_ENTRIES: int = 512
+    # Memory is the correctness baseline. Redis is an optional shared
+    # accelerator and needs all three values before it can be selected (D103).
+    DATA_CACHE_BACKEND: Literal["memory", "redis"] = "memory"
+    DATA_CACHE_REDIS_URL: SecretStr | None = None
+    DATA_CACHE_DEPLOYMENT: str = Field(
+        default="default",
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$",
+    )
+    DATA_CACHE_SECRET_KEY: str | None = None
+    DATA_CACHE_REDIS_TIMEOUT_SECONDS: float = Field(default=1.0, gt=0, le=30)
+
+    @field_validator("DATA_CACHE_REDIS_URL")
+    @classmethod
+    def _validate_cache_redis_url(
+        cls, value: SecretStr | None
+    ) -> SecretStr | None:
+        if value is None:
+            return None
+        try:
+            parsed = urlsplit(value.get_secret_value())
+            valid = parsed.scheme in {"redis", "rediss"} and bool(parsed.hostname)
+        except ValueError:
+            valid = False
+        if not valid:
+            raise ValueError("DATA_CACHE_REDIS_URL must be a redis:// or rediss:// URL")
+        return value
+
+    @model_validator(mode="after")
+    def _require_shared_cache_settings(self) -> Self:
+        if self.DATA_CACHE_BACKEND == "redis":
+            missing = [
+                name
+                for name, value in (
+                    ("DATA_CACHE_REDIS_URL", self.DATA_CACHE_REDIS_URL),
+                    ("DATA_CACHE_SECRET_KEY", self.DATA_CACHE_SECRET_KEY),
+                )
+                if value is None
+            ]
+            if missing:
+                raise ValueError(
+                    f"{', '.join(missing)} required when DATA_CACHE_BACKEND=redis"
+                )
+        return self
 
     # Whether this installation may start containers of its own, and where the
     # runtime that would do it listens. Off unless a deployment says otherwise:

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Literal, Protocol, cast, runtime_checkable
 
 from fastapi import Depends, Request, Response
+from pydantic import BaseModel
 
 from app.adapters.protocol import DataAdapter
 
@@ -18,6 +19,15 @@ if TYPE_CHECKING:
 # completes against, which changes far less often than rows do (D65).
 CacheArea = Literal["catalog", "fetch", "metadata"]
 CacheStatus = Literal["hit", "miss", "coalesced", "refreshed", "bypass"]
+CacheBackendName = Literal["memory", "redis"]
+CacheHealthStatus = Literal["healthy", "degraded"]
+
+
+class CacheHealth(BaseModel):
+    backend: CacheBackendName
+    status: CacheHealthStatus
+    shared: bool
+    message: str
 
 
 @runtime_checkable
@@ -67,6 +77,8 @@ class DataCache(Protocol):
     async def invalidate_connector(self, connector_id: uuid.UUID) -> None: ...
 
     async def size(self) -> int: ...
+
+    async def health(self) -> CacheHealth: ...
 
     async def aclose(self) -> None: ...
 
@@ -182,6 +194,14 @@ class MemoryDataCache:
         async with self._lock:
             self._drop_expired(self._clock())
             return len(self._entries)
+
+    async def health(self) -> CacheHealth:
+        return CacheHealth(
+            backend="memory",
+            status="healthy",
+            shared=False,
+            message="Process-local cache is ready",
+        )
 
     async def aclose(self) -> None:
         async with self._lock:

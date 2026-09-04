@@ -25,6 +25,11 @@ x-backend-environment: &backend-environment
   SERVICE_PIDS_LIMIT: ${SERVICE_PIDS_LIMIT:-512}
   SERVICE_MAX_PER_USER: ${SERVICE_MAX_PER_USER:-5}
   SERVICE_STORAGE_VOLUME: ${SERVICE_STORAGE_VOLUME:-}
+  DATA_CACHE_BACKEND: ${DATA_CACHE_BACKEND:-memory}
+  DATA_CACHE_DEPLOYMENT: ${DATA_CACHE_DEPLOYMENT:-development}
+  DATA_CACHE_REDIS_URL: ${DATA_CACHE_REDIS_URL:-}
+  DATA_CACHE_SECRET_KEY: ${DATA_CACHE_SECRET_KEY:-}
+  DATA_CACHE_REDIS_TIMEOUT_SECONDS: ${DATA_CACHE_REDIS_TIMEOUT_SECONDS:-1}
 
 services:
 
@@ -48,6 +53,25 @@ services:
       - db
     environment:
       - ADMINER_DESIGN=pepa-linha-dark
+
+  # Disposable shared cache for multi-worker deployments. It has no volume and
+  # starts only when explicitly selected: docker compose --profile shared-cache up.
+  redis-cache:
+    image: redis:8
+    profiles: ["shared-cache"]
+    environment:
+      REDIS_PASSWORD: ${DATA_CACHE_REDIS_PASSWORD:-development-cache-only}
+    command:
+      [
+        "sh",
+        "-c",
+        "exec redis-server --save '' --appendonly no --requirepass \"$${REDIS_PASSWORD}\"",
+      ]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Everything the database needs before the application may serve a request:
   # wait for the server, migrate to head, create the first superuser. It runs

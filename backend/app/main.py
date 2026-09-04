@@ -1,3 +1,4 @@
+import base64
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -6,7 +7,8 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
 
-from app.adapters.cache import MemoryDataCache
+from app.adapters.cache import DataCache, MemoryDataCache
+from app.adapters.redis.cache import RedisDataCache
 from app.adapters.resources import ResourceStore
 from app.api.main import api_router
 from app.core.config import settings
@@ -29,6 +31,26 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
 
 
+def build_data_cache() -> DataCache:
+    if settings.DATA_CACHE_BACKEND == "memory":
+        return MemoryDataCache(max_entries=settings.DATA_CACHE_MAX_ENTRIES)
+    url = settings.DATA_CACHE_REDIS_URL
+    encoded_key = settings.DATA_CACHE_SECRET_KEY
+    if url is None or encoded_key is None:
+        # Settings validation normally makes this unreachable. Keeping the
+        # assembly boundary explicit makes a partially constructed Settings
+        # double fail closed as well.
+        raise RuntimeError("Redis cache settings are incomplete")
+    cache = RedisDataCache.from_url(
+        url.get_secret_value(),
+        deployment=settings.DATA_CACHE_DEPLOYMENT,
+        encryption_key=base64.urlsafe_b64decode(encoded_key),
+        timeout_seconds=settings.DATA_CACHE_REDIS_TIMEOUT_SECONDS,
+    )
+    cache.start()
+    return cache
+
+
 @asynccontextmanager
 async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     """What outlives a request is created here and closed here.
@@ -42,9 +64,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         max_entries=settings.POOL_MAX_POOLS,
         max_idle_seconds=settings.POOL_MAX_IDLE_SECONDS,
     )
-    application.state.data_cache = MemoryDataCache(
-        max_entries=settings.DATA_CACHE_MAX_ENTRIES
-    )
+    application.state.data_cache = build_data_cache()
     application.state.topics = topics.build_all()
     # Captured results and the runs producing them: both process-local, both
     # holding what cannot cross a process — memory and a connection (D64).
