@@ -40,6 +40,21 @@ test("a connector color follows its open tabs and can be reset after reload", as
     await expect(tab).toHaveCSS("color", "rgb(255, 255, 255)")
   }
 
+  // The tab being read and the one beside it are the same size and the same
+  // weight: only the line under the active one says which is which, so
+  // pressing a tab does not move the tabs around it.
+  const shape = async (tab: ReturnType<typeof catalogTab>) =>
+    await tab.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return {
+        weight: style.fontWeight,
+        height: Math.round(element.getBoundingClientRect().height),
+        padding: `${style.paddingTop} ${style.paddingRight}`,
+      }
+    })
+  const activeRows = await shape(rowsTabs(page).nth(1))
+  expect(await shape(rowsTabs(page).nth(0))).toEqual(activeRows)
+
   await editConnector(page, name)
   await chooseTabColor(page, "#ffffff")
   // Draft choices do not recolor the workspace until Apply or OK.
@@ -60,6 +75,12 @@ test("a connector color follows its open tabs and can be reset after reload", as
   await picker.getByRole("button", { name: "Reset color", exact: true }).click()
   await page.getByTestId("apply-connector").click()
   for (const tab of tabs) await expect(tab).toHaveCSS("--dp-panel-background", "")
+  // A connection with no colour of its own is drawn like one that has it:
+  // filled, and the same shape. The colour is the only difference the choice
+  // makes.
+  for (const tab of tabs) await expect(tab).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+  expect(await shape(rowsTabs(page).nth(1))).toEqual(activeRows)
+  expect(await shape(rowsTabs(page).nth(0))).toEqual(activeRows)
   await page.getByTestId("cancel-connector").click()
   await page.reload()
   for (const tab of tabs) await expect(tab).toHaveCSS("--dp-panel-background", "")

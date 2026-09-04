@@ -389,8 +389,10 @@ optional tab color is connector metadata, saved by the owner with Apply or OK;
 Reset color clears it. A draft choice stays in the form until saved. Every
 workspace tab belonging to that connection reads the current saved color,
 including catalogs, data, query consoles and captured results. Text uses
-whichever of black or white has higher contrast, and a colored active tab has
-an underline. Connections with no color keep the theme's normal appearance.
+whichever of black or white has higher contrast. A tab is the same shape either
+way: filled, one font weight, and a line under the one being read. A connection
+with no color of its own is filled with the theme's surface, so whether
+somebody chose a color is not something the size or form of a tab says.
 
 **What a screen may offer, it is told.** A connection carries `access`, so the
 window of one that belongs to somebody else shows its options disabled, names

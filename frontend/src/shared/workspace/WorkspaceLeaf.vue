@@ -235,10 +235,7 @@ const overlayStyle = computed((): CSSProperties => {
             ref="tabElements"
             type="button"
             class="workspace-leaf__tab"
-            :class="{
-              'workspace-leaf__tab--active': panelId === active,
-              'workspace-leaf__tab--colored': Boolean(workspace.lookOf(panelId).color),
-            }"
+            :class="{ 'workspace-leaf__tab--active': panelId === active }"
             :style="panelColorStyle(workspace.lookOf(panelId).color)"
             :data-testid="`workspace-tab-${panelId}`"
             @pointerdown="onTabPointerDown($event, panelId)"
@@ -423,6 +420,11 @@ const overlayStyle = computed((): CSSProperties => {
   background: var(--dp-dropzone-border);
 }
 
+/* One shape for every tab. A connection with no colour of its own is drawn
+   in the neutral one rather than in no colour at all: whether somebody has
+   chosen a colour is not something the size and form of a tab should say, and
+   a strip of half-filled and half-transparent tabs read as two kinds of
+   thing. The colour is the only difference the choice makes. */
 .workspace-leaf__tab {
   display: flex;
   align-items: center;
@@ -430,24 +432,23 @@ const overlayStyle = computed((): CSSProperties => {
   padding: 4px 8px;
   border: none;
   border-radius: var(--dp-radius-control);
-  background: var(--dp-panel-background, transparent);
+  background: var(--dp-panel-background, var(--dp-surface));
   /* A native button takes its colour from the browser, which is black, and
      `font: inherit` does not carry colour with it. Black on a dark panel is
      an invisible tab. */
   color: var(--dp-panel-foreground, inherit);
   font: inherit;
   font-size: 12px;
+  /* The same weight whether or not this is the tab being read: bold text is
+     wider, so a weight that changed with the state moved every tab beside it
+     at the moment one was pressed. What marks the active one is the line
+     under it, which costs no room. */
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
 }
 .workspace-leaf__tab--active {
-  background: var(--dp-panel-background, var(--dp-surface));
-  box-shadow: inset 0 0 0 1px var(--dp-border);
-  font-weight: 500;
-}
-.workspace-leaf__tab--colored.workspace-leaf__tab--active {
   box-shadow: inset 0 -3px currentColor;
-  font-weight: 600;
 }
 .workspace-leaf__icon {
   display: inline-flex;
