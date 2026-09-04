@@ -79,8 +79,12 @@ export interface WorkspaceApi<P extends { id: string }> {
   panels: Ref<P[]>
   open: (panel: P, options?: OpenOptions) => void
   replace: (oldPanelId: string, panel: P) => void
+  snapshot: () => string
+  restore: (snapshot: string) => Promise<RestoreOutcome>
   reset: () => void
 }
+
+export type RestoreOutcome = "restored" | "cancelled" | "changed" | "invalid"
 
 export function useWorkspace<P extends { id: string }>(
   options: WorkspaceOptions<P>
@@ -355,7 +359,37 @@ export function useWorkspace<P extends { id: string }>(
     context.endDrag(null, null)
   }
 
-  return { context, panels, open, replace, reset }
+  function snapshot(): string {
+    return serializeWorkspace(dockedLayout(tree.value, detached.value), panels.value)
+  }
+
+  async function restore(raw: string): Promise<RestoreOutcome> {
+    const saved = parseWorkspace(raw, options.panelSchema)
+    if (saved === null) return "invalid"
+    const incoming = new Map(saved.panels.map((panel) => [panel.id, panel]))
+    if (leavesOf(saved.tree).some((leaf) => leaf.panels.some((id) => {
+      const panel = incoming.get(id)
+      return panel === undefined || (leaf.accepts !== undefined && leaf.accepts !== options.kindOf(panel))
+    }))) return "invalid"
+    const before = panels.value
+    const departing = before.filter((panel) => !incoming.has(panel.id))
+    if (departing.some((panel) => lookOf(panel.id).closable === false)) return "invalid"
+    // Ask everyone before removing anyone. A nonmodal question lets the user
+    // keep working; a changed panel set means these answers no longer apply.
+    for (const panel of departing) {
+      if (!(await (options.beforeClose?.(panel.id) ?? true))) return "cancelled"
+      if (panels.value !== before) return "changed"
+    }
+    tree.value = saved.tree
+    panels.value = saved.panels
+    detached.value = []
+    focusedLeaf.value = null
+    focusedDetached.value = null
+    context.endDrag(null, null)
+    return "restored"
+  }
+
+  return { context, panels, open, replace, snapshot, restore, reset }
 }
 
 function isCollapsed(root: LayoutNode, leafId: NodeId): boolean {

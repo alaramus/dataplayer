@@ -94,6 +94,27 @@ async function fixture() {
 }
 
 describe("moving a live panel between the workspace and a window", () => {
+  it("restores a saved layout with common drafts alive and unrelated windows still open", async () => {
+    const { workspace, windows, body, disposed, mayClose } = await fixture()
+    const saved = workspace.snapshot()
+    const input = body.get('input[aria-label="Draft p2"]')
+    await input.setValue("kept across group restoration")
+    workspace.context.detach("p2")
+    workspace.open({ id: "extra", title: "Extra", kind: "work" })
+    const blank = defineComponent({ render: () => null })
+    windows.open({ id: "form", look: { title: "Other form" }, size: { width: 300, height: 200 }, component: blank })
+    await flushPromises()
+    expect(await workspace.restore(saved)).toBe("restored")
+    await flushPromises()
+    expect(windows.context.windows.value.map((entry) => entry.id)).toEqual(["form"])
+    expect(mayClose).toHaveBeenCalledWith("extra")
+    expect(mayClose).not.toHaveBeenCalledWith("p2")
+    expect(body.get('[data-testid="workspace-leaf-work"] input').element).toBe(input.element)
+    expect((input.element as HTMLInputElement).value).toBe("kept across group restoration")
+    expect(disposed).toHaveBeenCalledWith("extra")
+    expect(disposed).not.toHaveBeenCalledWith("p2")
+  })
+
   it("retains the same input and page injections across detachment, minimization and return", async () => {
     const { workspace, body, mounted, disposed, deactivated } = await fixture()
     const input = body.get('input[aria-label="Draft p2"]')

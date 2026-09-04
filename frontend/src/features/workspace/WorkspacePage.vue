@@ -22,6 +22,7 @@ import ShareDialog from "@/features/shares/ShareDialog.vue"
 import { chartViewKey } from "@/features/charts/view"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import CommandBar from "@/features/workspace/CommandBar.vue"
+import WorkspaceGroups from "@/features/workspace/WorkspaceGroups.vue"
 import {
   catalogPanelId,
   chartPanelId,
@@ -719,6 +720,14 @@ provide(workspaceActionsKey, {
   <AppLayout fill>
     <template #header-overlay>
       <WorkspaceDetachTarget :context="workspace.context" />
+    </template>
+    <template #workspace-tools>
+      <WorkspaceGroups
+        v-if="me.data.value"
+        :key="me.data.value.id"
+        :user-id="me.data.value.id"
+        :workspace="workspace"
+      />
     </template>
     <template #actions>
       <AppButton

@@ -4,7 +4,7 @@ The panel engine, the three columns built on it, the drag gesture that moves a
 tab, and the floating windows that edit a connection. The component kit and the
 screens themselves are in [frontend.md](frontend.md).
 
-Decisions here: D12, D14, D69, D92, D93.
+Decisions here: D12, D14, D69, D92, D93, D94.
 
 ## What exists today
 
@@ -401,3 +401,29 @@ reloading preserves open tabs without restoring transient windows. No panel
 contents or new storage format are introduced.
 
 Spec: [Detaching a tab into a floating window](../superpowers/specs/2026-09-04-detached-tabs-design.md)
+
+## D94. Named tab groups restore a saved workspace layout
+
+A group is an explicitly saved copy of the layout and panel descriptors:
+sections, sizes, collapsed states, tab order and active tabs. Its button lives
+in the application header. Opening or closing tabs afterwards does not change
+the group; Update from current layout replaces its saved copy. Groups can be
+renamed and deleted, and are stored per signed-in user in this browser's
+localStorage. They contain no fetched rows or editor text and do not copy
+per-table filters or other independently persisted feature state.
+
+Opening a group replaces the current layout. A warning explains that the
+current tabs will disappear and offers Don't show again. Only accepting with
+the checkbox selected persists that preference in localStorage; cancelling
+does not. The preference never disables panel close guards. Guards are asked
+before any panel is removed; refusal leaves the layout in place. Panels found
+in both layouts keep their live instances, while tabs absent from the group
+close. A changed set of panels during confirmation cancels that restore.
+
+Detached tabs are saved in their docked positions using D93's return rule;
+restoring closes their frames and places the panels back in the workspace.
+Unrelated floating forms stay open. Saved data is versioned and validated
+before use, including unique section/panel identities and role compatibility.
+Storage failures are reported without pretending a group was saved.
+
+Spec: [Saved tab groups](../superpowers/specs/2026-09-04-tab-groups-design.md)

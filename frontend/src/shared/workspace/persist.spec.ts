@@ -14,6 +14,21 @@ const panels: DemoPanel[] = [
 const tree = makeSplit("root", "row", [makeLeaf("a", ["p1"]), makeLeaf("b", ["p2"])], [40, 60])
 
 describe("a stored workspace", () => {
+  it("refuses duplicate panels, repeated placements, orphan panels and duplicate section ids", () => {
+    expect(parseWorkspace(serializeWorkspace(tree, [...panels, panels[0]!]), panelSchema)).toBeNull()
+    expect(parseWorkspace(serializeWorkspace(tree, [...panels, { id: "p3", kind: "demo" }]), panelSchema)).toBeNull()
+    const repeatedPanel = makeSplit("root", "row", [makeLeaf("a", ["p1"]), makeLeaf("b", ["p1", "p2"])], [50, 50])
+    expect(parseWorkspace(serializeWorkspace(repeatedPanel, panels), panelSchema)).toBeNull()
+    const repeatedSection = makeSplit("root", "row", [makeLeaf("a", ["p1"]), makeLeaf("a", ["p2"])], [50, 50])
+    expect(parseWorkspace(serializeWorkspace(repeatedSection, panels), panelSchema)).toBeNull()
+  })
+
+  it("refuses negative sizes and shares that do not total a full layout", () => {
+    for (const sizes of [[-10, 110], [0, 0], [40, 40]]) {
+      expect(parseWorkspace(serializeWorkspace({ ...tree, sizes }, panels), panelSchema)).toBeNull()
+    }
+  })
+
   it("comes back the way it went in", () => {
     const restored = parseWorkspace(serializeWorkspace(tree, panels), panelSchema)
     expect(restored?.tree).toEqual(tree)

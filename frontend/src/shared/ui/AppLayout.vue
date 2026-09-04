@@ -50,9 +50,13 @@ async function logout() {
   >
     <q-header class="app-layout__header">
       <q-toolbar class="app-layout__toolbar">
-        <q-toolbar-title class="app-layout__title">
+        <q-toolbar-title
+          class="app-layout__title"
+          :class="{ 'app-layout__title--compact': $slots['workspace-tools'] }"
+        >
           <span>DataPlayer</span>
         </q-toolbar-title>
+        <slot name="workspace-tools" />
         <!-- What a screen wants in the header, before the two things that
              belong to the session. The kit knows no feature: whoever renders
              the layout decides what goes here. -->
@@ -130,6 +134,10 @@ async function logout() {
   font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.01em;
+}
+
+.app-layout__title--compact {
+  flex: none;
 }
 
 /* Shorter than the toolbar above it: it is a line, not a second header. */

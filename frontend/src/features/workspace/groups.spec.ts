@@ -1,0 +1,42 @@
+import { describe, expect, it } from "vitest"
+
+import { makeLeaf } from "@/shared/workspace/model"
+import { serializeWorkspace } from "@/shared/workspace/persist"
+
+import { groupNameProblem, parseGroups, serializeGroups, validGroupSnapshot } from "./groups"
+import { groupFixture } from "./testing/tabGroups"
+
+describe("saved tab group data", () => {
+  it("round trips several independently saved layouts", () => {
+    const groups = [
+      { id: "one", name: "Queries", snapshot: groupFixture().snapshot },
+      { id: "two", name: "Empty", snapshot: groupFixture(false).snapshot },
+    ]
+    expect(parseGroups(serializeGroups(groups))).toEqual(groups)
+    expect(parseGroups(null)).toEqual([])
+  })
+
+  it("rejects unknown versions, malformed layouts and duplicate identities", () => {
+    const group = { id: "one", name: "Queries", snapshot: groupFixture().snapshot }
+    expect(parseGroups("broken")).toBeNull()
+    expect(parseGroups(JSON.stringify({ version: 2, groups: [group] }))).toBeNull()
+    expect(parseGroups(serializeGroups([{ ...group, snapshot: "broken" }]))).toBeNull()
+    expect(parseGroups(serializeGroups([group, { ...group, name: "Another" }]))).toBeNull()
+    expect(parseGroups(serializeGroups([group, { ...group, id: "two", name: "QUERIES" }]))).toBeNull()
+  })
+
+  it("requires the fixed panel and pinned roles, and checks what each section accepts", () => {
+    const { tree, panels } = groupFixture()
+    expect(validGroupSnapshot(serializeWorkspace(makeLeaf("work", ["queries"], { accepts: "work" }), [panels[1]!]))).toBe(false)
+    tree.children[2] = makeLeaf("work", ["queries"], { accepts: "navigate", pinned: true })
+    expect(validGroupSnapshot(serializeWorkspace(tree, panels))).toBe(false)
+  })
+
+  it("requires a usable name and treats case and surrounding spaces as the same name", () => {
+    const groups = [{ id: "one", name: "Queries", snapshot: groupFixture().snapshot }]
+    expect(groupNameProblem("  ", groups)).toBe("Enter a group name.")
+    expect(groupNameProblem("x".repeat(81), groups)).toBe("Use at most 80 characters.")
+    expect(groupNameProblem(" queries ", groups)).toBe("A group with this name already exists.")
+    expect(groupNameProblem(" Queries ", groups, "one")).toBe("")
+  })
+})

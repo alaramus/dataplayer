@@ -106,10 +106,7 @@ export function makeSplit(
   return { kind: "split", id, direction, children, sizes }
 }
 
-let counter = 0
-
-/** Ids are only ever compared, never parsed, so a counter is enough. */
+/** A restored layout can contain ids from an earlier browser session. */
 export function nextId(prefix: string): string {
-  counter += 1
-  return `${prefix}-${String(counter)}`
+  return `${prefix}-${crypto.randomUUID()}`
 }

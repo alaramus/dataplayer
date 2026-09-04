@@ -3,6 +3,7 @@ import { defineComponent, effectScope, h, nextTick } from "vue"
 import { z } from "zod"
 
 import { makeLeaf, makeSplit } from "./model"
+import { serializeWorkspace } from "./persist"
 import { leavesOf } from "./tree"
 import type { LeafNode, SplitNode } from "./model"
 import { useWorkspace } from "./useWorkspace"
@@ -83,6 +84,77 @@ function build() {
 
 beforeEach(() => {
   localStorage.clear()
+})
+
+describe("restoring a saved layout", () => {
+  function guarded(beforeClose: (id: string) => boolean | Promise<boolean>) {
+    return useWorkspace<DemoPanel>({
+      storageKey: "test-workspace", panelSchema, defaults: dragging,
+      kindOf: (panel) => panel.kind,
+      look: (panel) => ({ title: panel.id, icon: "square", closable: panel.id !== "p1" }),
+      component: () => Stub, beforeClose,
+    })
+  }
+
+  it("restores saved order, sizes and collapse state independently of later changes", async () => {
+    const workspace = buildDragging()
+    workspace.context.toggleCollapse("left")
+    workspace.context.resize("root", 1, 2, 5, 10)
+    workspace.context.activate("p3")
+    const tree = workspace.context.tree.value
+    workspace.context.detach("p3")
+    const snapshot = workspace.snapshot()
+    workspace.context.close("p2")
+    workspace.open({ id: "other", kind: "rows" })
+    expect(await workspace.restore(snapshot)).toBe("restored")
+    expect(workspace.context.tree.value).toEqual(tree)
+    expect(workspace.context.detached.value).toEqual([])
+    expect(workspace.panels.value.map((panel) => panel.id)).toEqual(["p1", "p2", "p3"])
+  })
+
+  it("asks only departing panels and commits no partial layout when one refuses", async () => {
+    const guard = vi.fn((id: string) => id !== "p5")
+    const workspace = guarded(guard)
+    const snapshot = workspace.snapshot()
+    workspace.open({ id: "p4", kind: "rows" })
+    workspace.open({ id: "p5", kind: "rows" })
+    const tree = workspace.context.tree.value
+    expect(await workspace.restore(snapshot)).toBe("cancelled")
+    expect(workspace.context.tree.value).toBe(tree)
+    expect(workspace.context.panelIds.value).toContain("p4")
+    expect(workspace.context.panelIds.value).toContain("p5")
+    expect(guard.mock.calls.map(([id]) => id)).toEqual(["p4", "p5"])
+    guard.mockReturnValue(true)
+    expect(await workspace.restore(snapshot)).toBe("restored")
+    expect(workspace.context.panelIds.value).toEqual(["p1", "p2", "p3"])
+  })
+
+  it("leaves newly opened work in place when tabs change during a close question", async () => {
+    let answer: (allowed: boolean) => void = () => { throw new Error("No question") }
+    const workspace = guarded(() => new Promise<boolean>((resolve) => { answer = resolve }))
+    const snapshot = workspace.snapshot()
+    workspace.open({ id: "p4", kind: "rows" })
+    const restoring = workspace.restore(snapshot)
+    workspace.open({ id: "p5", kind: "rows" })
+    answer(true)
+    expect(await restoring).toBe("changed")
+    expect(workspace.context.panelIds.value).toContain("p5")
+  })
+
+  it("refuses malformed data, incompatible roles and removal of the fixed panel", async () => {
+    const guard = vi.fn(() => true)
+    const workspace = guarded(guard)
+    const tree = workspace.context.tree.value
+    expect(await workspace.restore("broken")).toBe("invalid")
+    expect(await workspace.restore(serializeWorkspace(
+      makeLeaf("work", ["p2"], { accepts: "catalog" }), [{ id: "p2", kind: "rows" }]
+    ))).toBe("invalid")
+    expect(await workspace.restore(serializeWorkspace(
+      makeLeaf("work", ["p2"], { accepts: "rows" }), [{ id: "p2", kind: "rows" }]
+    ))).toBe("invalid")
+    expect(workspace.context.tree.value).toBe(tree)
+    expect(guard).not.toHaveBeenCalled()
+  })
 })
 
 describe("detached workspace panels", () => {

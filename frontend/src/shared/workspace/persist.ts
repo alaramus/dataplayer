@@ -40,7 +40,7 @@ const nodeSchema: ZodType<LayoutNode> = z.lazy(() =>
       id: z.string(),
       direction: z.union([z.literal("row"), z.literal("column")]),
       children: z.array(nodeSchema).min(2),
-      sizes: z.array(z.number()).min(2),
+      sizes: z.array(z.number().finite().nonnegative()).min(2),
     }),
   ])
 )
@@ -75,8 +75,21 @@ export function parseWorkspace<P extends { id: string }>(
   if (!sizesMatchChildren(tree)) return null
 
   const known = new Set<PanelId>(panels.map((panel) => panel.id))
+  if (known.size !== panels.length) return null
+  const placed = new Set<PanelId>()
+  const nodeIds = new Set<string>()
+  function uniqueNodes(node: LayoutNode): boolean {
+    if (nodeIds.has(node.id)) return false
+    nodeIds.add(node.id)
+    return node.kind === "leaf" || node.children.every(uniqueNodes)
+  }
+  if (!uniqueNodes(tree)) return null
   for (const leaf of leavesOf(tree)) {
     if (!leaf.panels.every((id) => known.has(id))) return null
+    for (const id of leaf.panels) {
+      if (placed.has(id)) return null
+      placed.add(id)
+    }
     // Emptiness is allowed to a pinned section and to nothing else, and it is
     // the only case in which nothing is active. The two are checked together
     // so that neither can be restored without the other.
@@ -86,6 +99,7 @@ export function parseWorkspace<P extends { id: string }>(
     }
     if (leaf.activePanel === null || !leaf.panels.includes(leaf.activePanel)) return null
   }
+  if (placed.size !== known.size) return null
 
   return { tree, panels }
 }
@@ -93,5 +107,6 @@ export function parseWorkspace<P extends { id: string }>(
 function sizesMatchChildren(node: LayoutNode): boolean {
   if (node.kind === "leaf") return true
   if (node.sizes.length !== node.children.length) return false
+  if (Math.abs(node.sizes.reduce((sum, size) => sum + size, 0) - 100) > 0.001) return false
   return node.children.every(sizesMatchChildren)
 }
