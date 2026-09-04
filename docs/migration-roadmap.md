@@ -93,8 +93,6 @@ because the old project had a Redis object.
 
 Sequence:
 
-- [ ] Define versioned serialization, namespace by deployment and user, and
-  decide whether sensitive fetched values require encryption in Redis.
 - [ ] Implement optional Redis cache storage plus a cross-worker invalidation
   channel. Failure must degrade to direct reads, not take data access down.
 - [ ] Add configuration, health reporting, TLS/auth examples and an optional

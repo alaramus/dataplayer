@@ -163,6 +163,7 @@ files. IDs are stable because specs and commits refer to them.
 | D98 | [sources/contract](docs/architecture/sources/contract.md) |
 | D99 | [frontend](docs/architecture/frontend.md) |
 | D100 | [sources/connecting](docs/architecture/sources/connecting.md) |
+| D101 | [sources/connecting](docs/architecture/sources/connecting.md) |
 
 ## Working rules
 

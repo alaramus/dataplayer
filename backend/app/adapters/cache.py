@@ -5,11 +5,14 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Annotated, Literal, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Annotated, Literal, Protocol, cast, runtime_checkable
 
 from fastapi import Depends, Request, Response
 
 from app.adapters.protocol import DataAdapter
+
+if TYPE_CHECKING:
+    from app.adapters.cache_serialization import CacheFormat
 
 # What a source may be asked to cache. "metadata" is what an editor
 # completes against, which changes far less often than rows do (D65).
@@ -57,6 +60,7 @@ class DataCache(Protocol):
         *,
         ttl_seconds: float,
         load: Callable[[], Awaitable[T]],
+        cache_format: "CacheFormat[T]",
         refresh: bool = False,
     ) -> CacheResult[T]: ...
 
@@ -94,9 +98,13 @@ class MemoryDataCache:
         *,
         ttl_seconds: float,
         load: Callable[[], Awaitable[T]],
+        cache_format: "CacheFormat[T]",
         refresh: bool = False,
     ) -> CacheResult[T]:
         """Return a live value, sharing an identical concurrent load."""
+        # Memory retains the typed object. The explicit format belongs to the
+        # protocol because a remote backend must never guess what to rebuild.
+        _ = cache_format
         if ttl_seconds <= 0:
             return CacheResult(await load(), "refreshed" if refresh else "miss")
 
@@ -213,6 +221,7 @@ async def cached_read[T](
     refresh: bool,
     response: Response,
     load: Callable[[], Awaitable[T]],
+    cache_format: "CacheFormat[T]",
 ) -> T:
     if not isinstance(adapter, SupportsReadCache):
         response.headers["X-Data-Cache"] = "bypass"
@@ -225,6 +234,7 @@ async def cached_read[T](
         key,
         ttl_seconds=ttl_seconds,
         load=load,
+        cache_format=cache_format,
         refresh=refresh,
     )
     response.headers["X-Data-Cache"] = cached.status

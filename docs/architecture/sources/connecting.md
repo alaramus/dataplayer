@@ -215,3 +215,23 @@ backend would expose the race D31 already closed and every route would have to
 remember the same invalidation rules.
 
 Spec: [A replaceable read-cache backend](../../superpowers/specs/2026-09-04-cache-backend-contract-design.md)
+
+## D101. Shared cache values have one encrypted, versioned wire format
+
+A shared key is namespaced by deployment, wire version, user, connector,
+generation and cache area. The exact normalized request is represented by its
+SHA-256 digest in the Redis key and repeated in authenticated data with the
+complete namespace. A digest collision therefore fails authentication instead
+of returning another request's answer. Connector generation is intentionally
+outside the user namespace: one mutation invalidates entries belonging to the
+owner and every grantee.
+
+The value begins with a DataPlayer marker and a one-byte format version, then
+contains JSON validated against the closed Pydantic response type supplied by
+the caller. An unknown version or invalid shape is a miss, never guessed or
+unpickled. Every value stored outside the backend process is encrypted with
+AES-GCM under a cache-only key. Catalog names and arbitrary fetched cells can
+both be sensitive, and no reliable field-level classifier exists; TLS and Redis
+authentication control access but do not replace encryption at rest.
+
+Spec: [The shared-cache wire format](../../superpowers/specs/2026-09-04-shared-cache-wire-design.md)

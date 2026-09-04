@@ -47,6 +47,7 @@ from app.adapters.cache import (
     DataCacheDep,
     cached_read,
 )
+from app.adapters.cache_serialization import CacheFormat
 from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
     AddColumnRequest,
@@ -201,6 +202,8 @@ from app.users.deps import CurrentUser, get_current_user
 from app.users.models import User
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
+CATALOG_CACHE_FORMAT: CacheFormat[list[CatalogNode]] = CacheFormat(list[CatalogNode])
+FETCH_CACHE_FORMAT: CacheFormat[FetchResult] = CacheFormat(FetchResult)
 
 
 def _cache_key(
@@ -804,6 +807,7 @@ async def fetch_rows(
             refresh=refresh,
             response=response,
             load=lambda: adapter.fetch(request),
+            cache_format=FETCH_CACHE_FORMAT,
         )
         result = result.model_copy(
             update={
@@ -1045,6 +1049,7 @@ async def read_catalog(
             refresh=refresh,
             response=response,
             load=lambda: adapter.list_children(node_id),
+            cache_format=CATALOG_CACHE_FORMAT,
         )
     except ValueError as exc:
         # 422: the node id names something this source may not or cannot

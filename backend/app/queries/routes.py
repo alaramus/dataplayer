@@ -18,6 +18,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters.cache import CacheKey, DataCacheDep, cached_read
+from app.adapters.cache_serialization import CacheFormat
 from app.adapters.protocol import AdapterError
 from app.adapters.query import (
     ExplainRequest,
@@ -108,6 +109,7 @@ from app.users.deps import CurrentUser
 from app.users.models import User
 
 router = APIRouter(prefix="/queries", tags=["queries"])
+QUERY_METADATA_CACHE_FORMAT: CacheFormat[QueryMetadata] = CacheFormat(QueryMetadata)
 
 MAX_PAGE = 200
 
@@ -1005,6 +1007,7 @@ async def read_metadata(
         refresh=refresh,
         response=response,
         load=lambda: source.query_metadata(body),
+        cache_format=QUERY_METADATA_CACHE_FORMAT,
     )
 
 

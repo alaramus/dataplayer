@@ -101,6 +101,7 @@ translations; those files are not.
 | 2026-09-04 | [Framework detection in the catalog](2026-09-04-framework-detection-design.md) | D98: schema-owned table signatures and clickable filters for every detected framework |
 | 2026-09-04 | [Choosing a DataPlayer server](2026-09-04-server-profiles-design.md) | D99: per-tab server selection, independent sessions and source state, and anonymous compatibility checks |
 | 2026-09-04 | [A replaceable read-cache backend](2026-09-04-cache-backend-contract-design.md) | D100: D31's cache semantics sit behind one application protocol, with memory as the default backend |
+| 2026-09-04 | [The shared-cache wire format](2026-09-04-shared-cache-wire-design.md) | D101: deployment/user namespaces, typed versioned JSON and encryption of every remote cache value |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the
