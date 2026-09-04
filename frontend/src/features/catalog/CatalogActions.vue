@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
+import type { ConnectorDraft } from "@/client"
 import ActionDialog from "@/features/catalog/ActionDialog.vue"
 import {
   clientCommandOf,
@@ -15,7 +16,7 @@ import type {
   Grouping,
   MenuCommand,
 } from "@/features/catalog/actions"
-import { useDownloadAction, useNodeActions } from "@/features/catalog/api"
+import { useDownloadAction, useNodeActions, usePrepareConnectorAction } from "@/features/catalog/api"
 import type { CatalogNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
 import { saveNativeDownload } from "@/shared/download"
@@ -71,9 +72,11 @@ const emit = defineEmits<{
   done: [outcome: ActionOutcome]
   details: []
   relationships: []
+  connector: [draft: ConnectorDraft]
 }>()
 const toast = useToast()
 const downloadAction = useDownloadAction()
+const prepareConnector = usePrepareConnectorAction()
 
 const connectorId = computed(() => props.connectorId)
 
@@ -187,6 +190,7 @@ const targetNode = computed(() =>
 )
 
 async function pick(name: string) {
+  if (prepareConnector.isPending.value) return
   const client = clientCommandOf(name)
   if (client !== null) {
     run(client)
@@ -201,6 +205,21 @@ async function pick(name: string) {
   }
   if (needsClipboard(command) && held.value === null) {
     active.value = null
+    return
+  }
+  if (command.preparesConnector) {
+    const nodeId = command.targets[0]
+    if (command.targets.length !== 1 || nodeId === null || nodeId === undefined) return
+    try {
+      const draft = await prepareConnector.mutateAsync({
+        connectorId: props.connectorId,
+        name: command.name,
+        nodeId,
+      })
+      emit("connector", draft)
+    } catch (cause) {
+      toast.error(messageOf(cause, "The connector form could not be prepared"))
+    }
     return
   }
   // A download runs straight from the menu only when it has nothing to ask
@@ -240,6 +259,7 @@ async function pick(name: string) {
       icon="more_vert"
       tooltip="Actions"
       data-testid="catalog-actions"
+      :loading="prepareConnector.isPending.value"
     />
     <AppMenu
       :items="items"

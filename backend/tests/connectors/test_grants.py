@@ -100,6 +100,36 @@ async def test_your_own_connection_says_you_own_it(
 # --- no grant -------------------------------------------------------------
 
 
+async def test_a_grantee_cannot_turn_a_shared_folder_into_an_owned_connector(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+) -> None:
+    user, headers = colleague
+    connector_id = await _file_connector(client, normal_user_token_headers)
+    folder = f"shared-{uuid.uuid4()}"
+    made = await client.post(
+        f"{BASE}/{connector_id}/actions/create_folder",
+        headers=normal_user_token_headers,
+        json={"params": {"name": folder}},
+    )
+    assert made.status_code == 200
+    await _grant(client, normal_user_token_headers, connector_id, user, "structure")
+    listed = await client.post(
+        f"{BASE}/{connector_id}/actions",
+        headers=headers,
+        json={"node_ids": [folder]},
+    )
+    assert listed.status_code == 200
+    assert "connect_folder" not in {action["name"] for action in listed.json()}
+    refused = await client.post(
+        f"{BASE}/{connector_id}/actions/connect_folder/connector-draft",
+        headers=headers,
+        json={"node_id": folder},
+    )
+    assert refused.status_code == 403
+
+
 async def test_shared_connector_shows_the_owners_color_but_cannot_change_it(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

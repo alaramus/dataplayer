@@ -383,6 +383,19 @@ export function useDownloadAction() {
   })
 }
 
+/** Resolve a selected node into a connector draft; saving is a separate action. */
+export function usePrepareConnectorAction() {
+  return useMutation({
+    mutationFn: async (input: { connectorId: string; name: string; nodeId: string }) =>
+      (
+        await ConnectorsService.prepareConnectorAction({
+          path: { connector_id: input.connectorId, action_name: input.name },
+          body: { node_id: input.nodeId, params: {} },
+        })
+      ).data,
+  })
+}
+
 /**
  * Ask one action what it would do, without doing it.
  *

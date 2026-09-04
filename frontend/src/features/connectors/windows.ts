@@ -1,7 +1,7 @@
 import { h } from "vue"
 import type { Component } from "vue"
 
-import type { ConnectorPublic } from "@/client"
+import type { ConnectorDraft, ConnectorPublic } from "@/client"
 import ConnectorWindowView from "@/features/connectors/ConnectorWindow.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import type { OpenWindow } from "@/shared/windows"
@@ -33,6 +33,7 @@ export function connectorWindow(options: {
   id: string
   connector: ConnectorPublic | null
   adapterType: string | null
+  draft?: ConnectorDraft
   onCreated: (connector: ConnectorPublic) => void
   onClose: () => void
   onBack: () => void
@@ -51,6 +52,7 @@ export function connectorWindow(options: {
       h(ConnectorWindowView, {
         connector: options.connector,
         adapterType: options.adapterType,
+        draft: options.draft,
         startOn: options.startOn,
         onCreated: options.onCreated,
         onClose: options.onClose,

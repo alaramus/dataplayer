@@ -60,6 +60,7 @@ async def test_a_directory_admits_creating_uploading_renaming_and_deleting(
 
     assert names == {
         "create_folder",
+        "connect_folder",
         "upload",
         "paste",
         "download",
@@ -97,6 +98,7 @@ async def test_the_whole_vocabulary_is_offered_whatever_the_node(
 
     assert names == {
         "create_folder",
+        "connect_folder",
         "upload",
         "paste",
         "download",
@@ -114,6 +116,7 @@ async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
 
     assert by_name == {
         "create_folder": "children",
+        "connect_folder": "node",
         "upload": "children",
         # Pasting puts something into a place, so the place is the subject.
         "paste": "children",

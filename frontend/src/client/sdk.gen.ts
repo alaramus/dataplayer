@@ -108,6 +108,9 @@ import type {
   connectorsPrepareActionDownloadData,
   connectorsPrepareActionDownloadErrors,
   connectorsPrepareActionDownloadResponses,
+  connectorsPrepareConnectorActionData,
+  connectorsPrepareConnectorActionErrors,
+  connectorsPrepareConnectorActionResponses,
   connectorsPreviewActionData,
   connectorsPreviewActionErrors,
   connectorsPreviewActionOnSetData,
@@ -1942,6 +1945,30 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/actions",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Prepare Connector Action
+   *
+   * Prepare a new connector form without creating a connection or changing files.
+   */
+  public static prepareConnectorAction<ThrowOnError extends boolean = true>(
+    options: Options<connectorsPrepareConnectorActionData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsPrepareConnectorActionResponses,
+      connectorsPrepareConnectorActionErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/actions/{action_name}/connector-draft",
       ...options,
       headers: {
         "Content-Type": "application/json",

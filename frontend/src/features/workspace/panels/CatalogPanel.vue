@@ -657,6 +657,7 @@ async function afterAction(outcome: ActionOutcome) {
           :draws-nodes="false"
           :drawable-nodes="false"
           @done="afterAction"
+          @connector="workspace.createConnector"
           @details="showDetails"
         />
         <CatalogActions
@@ -677,6 +678,7 @@ async function afterAction(outcome: ActionOutcome) {
           :draws-nodes="drawsNodes"
           :drawable-nodes="drawableNodes"
           @done="afterAction"
+          @connector="workspace.createConnector"
           @details="showDetails"
           @relationships="showRelationships"
         />

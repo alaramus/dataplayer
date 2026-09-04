@@ -176,6 +176,7 @@ async def test_a_directory_offers_the_actions_that_change_it(
     offered = {action["name"]: action for action in response.json()}
     assert _applicable(response) == {
         "create_folder",
+        "connect_folder",
         "upload",
         "paste",
         "download",
@@ -190,6 +191,8 @@ async def test_a_directory_offers_the_actions_that_change_it(
     assert offered["upload"]["takes_many_files"] is True
     assert offered["download"]["downloads"] is True
     assert offered["delete"]["downloads"] is False
+    assert offered["connect_folder"]["prepares_connector"] is True
+    assert offered["create_folder"]["prepares_connector"] is False
     assert offered["create_folder"]["takes_file"] is False
     assert offered["create_folder"]["takes_many_files"] is False
     assert "name" in offered["create_folder"]["params_schema"]["properties"]
@@ -214,6 +217,7 @@ async def test_an_action_says_whether_it_changes_the_node_or_its_contents(
     scopes = {action["name"]: action["acts_on"] for action in response.json()}
     assert scopes == {
         "create_folder": "children",
+        "connect_folder": "node",
         "upload": "children",
         "paste": "children",
         "download": "node",
@@ -233,6 +237,99 @@ async def test_the_root_offers_no_way_to_remove_itself(
     response = await _offered(client, normal_user_token_headers, connector_id)
 
     assert _applicable(response) == {"create_folder", "upload", "paste"}
+
+
+async def test_folder_draft_prepares_a_nested_root_without_saving_it(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+) -> None:
+    headers = normal_user_token_headers
+    child_name = f"draft-{uuid.uuid4()}"
+    child = home / "reports" / child_name
+    child.mkdir()
+    (child / "inside.txt").write_text("kept", encoding="utf-8")
+    parent = await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={
+            "name": "nested source",
+            "adapter_type": "file",
+            "options": {"path": "reports"},
+        },
+    )
+    assert parent.status_code == 200
+    parent_id = parent.json()["id"]
+    before = await client.get(f"{BASE}/", headers=headers)
+    prepared = await client.post(
+        f"{BASE}/{parent_id}/actions/connect_folder/connector-draft",
+        headers=headers,
+        json={"node_id": child_name},
+    )
+    assert prepared.status_code == 200
+    assert prepared.json() == {
+        "name": child_name,
+        "adapter_type": "file",
+        "options": {"path": f"reports/{child_name}"},
+    }
+    assert str(home) not in prepared.text
+    after = await client.get(f"{BASE}/", headers=headers)
+    assert after.json()["count"] == before.json()["count"]
+
+    saved = await client.post(f"{BASE}/", headers=headers, json=prepared.json())
+    assert saved.status_code == 200
+    saved_id = saved.json()["id"]
+    catalog = await client.get(f"{BASE}/{saved_id}/catalog", headers=headers)
+    assert catalog.status_code == 200
+    assert [node["name"] for node in catalog.json()] == ["inside.txt"]
+    escape = await client.get(
+        f"{BASE}/{saved_id}/catalog",
+        headers=headers,
+        params={"node_id": ".."},
+    )
+    assert escape.status_code == 422
+    assert (child / "inside.txt").read_text(encoding="utf-8") == "kept"
+
+
+@pytest.mark.usefixtures("home")
+@pytest.mark.parametrize(
+    "node_id", [None, "", "notes.txt", "missing", "../outside", "/etc"]
+)
+async def test_folder_draft_rechecks_which_node_may_be_connected(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    node_id: str | None,
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+    refused = await client.post(
+        f"{BASE}/{connector_id}/actions/connect_folder/connector-draft",
+        headers=normal_user_token_headers,
+        json={"node_id": node_id},
+    )
+    assert refused.status_code == 422
+
+
+@pytest.mark.usefixtures("home")
+async def test_connector_drafts_use_only_the_declared_action_transport(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    headers = normal_user_token_headers
+    connector_id = await _file_connector(client, headers)
+    for action, status in [("rename", 415), ("unknown", 404)]:
+        refused = await client.post(
+            f"{BASE}/{connector_id}/actions/{action}/connector-draft",
+            headers=headers,
+            json={"node_id": "reports"},
+        )
+        assert refused.status_code == status
+    ordinary = await _run(client, headers, connector_id, "connect_folder", "reports")
+    assert ordinary.status_code == 415
+    supplied = await client.post(
+        f"{BASE}/{connector_id}/actions/connect_folder/connector-draft",
+        headers=headers,
+        json={"node_id": "reports", "params": {"path": "elsewhere"}},
+    )
+    assert supplied.status_code == 422
 
 
 async def test_postgres_declares_schema_creation_as_an_action_on_the_level(
@@ -266,6 +363,7 @@ async def test_what_does_not_apply_here_is_listed_and_marked(
     listed = {action["name"] for action in response.json()}
     assert listed == {
         "create_folder",
+        "connect_folder",
         "upload",
         "paste",
         "download",

@@ -117,6 +117,10 @@ export type ActionInfo = {
    */
   downloads: boolean
   /**
+   * Prepares Connector
+   */
+  prepares_connector?: boolean
+  /**
    * Acts On
    */
   acts_on: "node" | "children" | "level"
@@ -1086,6 +1090,28 @@ export type ConnectorCreate = {
    * Execution Policy
    */
   execution_policy?: "read_only" | "confirm_writes" | "allow_writes"
+}
+
+/**
+ * ConnectorDraft
+ *
+ * Source-provided values for a new connector form; nothing is saved yet.
+ */
+export type ConnectorDraft = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Adapter Type
+   */
+  adapter_type: string
+  /**
+   * Options
+   */
+  options: {
+    [key: string]: unknown
+  }
 }
 
 /**
@@ -9007,6 +9033,42 @@ export type connectorsReadActionsResponses = {
 
 export type connectorsReadActionsResponse =
   connectorsReadActionsResponses[keyof connectorsReadActionsResponses]
+
+export type connectorsPrepareConnectorActionData = {
+  body: ActionRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+    /**
+     * Action Name
+     */
+    action_name: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/actions/{action_name}/connector-draft"
+}
+
+export type connectorsPrepareConnectorActionErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsPrepareConnectorActionError =
+  connectorsPrepareConnectorActionErrors[keyof connectorsPrepareConnectorActionErrors]
+
+export type connectorsPrepareConnectorActionResponses = {
+  /**
+   * Successful Response
+   */
+  200: ConnectorDraft
+}
+
+export type connectorsPrepareConnectorActionResponse =
+  connectorsPrepareConnectorActionResponses[keyof connectorsPrepareConnectorActionResponses]
 
 export type connectorsRunActionData = {
   body: ActionRequest

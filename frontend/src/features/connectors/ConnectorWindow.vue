@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
-import type { ConnectionCheckResult, ConnectorPublic } from "@/client"
+import type { ConnectionCheckResult, ConnectorDraft, ConnectorPublic } from "@/client"
 import { ACCESS_LABELS } from "@/features/connectors/access"
 import ConnectionCheck from "@/features/connectors/ConnectionCheck.vue"
 import AccessRequests from "@/features/shares/AccessRequests.vue"
@@ -60,6 +60,8 @@ const props = defineProps<{
   connector: ConnectorPublic | null
   /** The type chosen in the catalog; used only while creating. */
   adapterType: string | null
+  /** Source-prepared defaults for a new connection, still editable before saving. */
+  draft?: ConnectorDraft
   /**
    * The page to open on, when the window is opened for something in
    * particular: answering a request for access arrives at the page where
@@ -351,14 +353,13 @@ function load() {
     executionPolicy.value = props.connector.execution_policy
     resetOptions(allFields.value, props.connector.config as Record<string, unknown>)
   } else {
-    // Named after the type it connects to, so the form says which one was
-    // picked without a row that only ever states it. One word to replace
-    // beats an empty box, and a connection nobody renames still has a name.
-    name.value = selectedType.value?.title ?? ""
+    // A source action supplies the node's name and options; otherwise the
+    // chosen type gives a new connection its initial name.
+    name.value = props.draft?.name ?? selectedType.value?.title ?? ""
     tabColor.value = null
     enabled.value = true
     executionPolicy.value = "confirm_writes"
-    resetOptions(allFields.value)
+    resetOptions(allFields.value, props.draft?.options)
   }
   baseline.value = snapshot()
   describe()
@@ -366,7 +367,7 @@ function load() {
 
 // The schema arrives with the list of types, which may still be loading when
 // the window opens; the form is filled in as soon as it is there.
-watch([() => props.connector, selectedSchema], load, { immediate: true })
+watch([() => props.connector, () => props.draft, selectedSchema], load, { immediate: true })
 watch(dirty, (value) => emit("update:dirty", value), { immediate: true })
 // A page can go: switching the way of connecting replaces the source's groups,
 // and Apply on a new connection adds the settings page under the same window.

@@ -70,6 +70,16 @@ class ActionDownloadReady(BaseModel):
     download_url: str
 
 
+class ConnectorDraft(BaseModel):
+    """Source-provided values for a new connector form; nothing is saved yet."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=255)
+    adapter_type: str = Field(min_length=1, max_length=64)
+    options: dict[str, Any]
+
+
 # Why an action that is understood must still not be performed. Kept apart
 # from AdapterError, which means the source itself failed: a taken name is not
 # a failure of the file system, and answering 502 for it would be a lie.
@@ -259,6 +269,15 @@ class ProducesDownload(Protocol):
     async def download(
         self, node_ids: Sequence[str], raw: Mapping[str, Any]
     ) -> ActionDownload: ...
+
+
+@runtime_checkable
+class PreparesConnector(Protocol):
+    """An action that opens a connector form with source-resolved options."""
+
+    async def prepare_connector(
+        self, node_id: str | None, raw: Mapping[str, Any]
+    ) -> ConnectorDraft: ...
 
 
 class ActionPreview(BaseModel):

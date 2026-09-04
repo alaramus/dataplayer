@@ -40,6 +40,8 @@ export interface ActionCommand {
   previewsSet: boolean
   /** Whether the action returns one native browser download for all targets. */
   downloads: boolean
+  /** Opens the ordinary connector form with values prepared by the source. */
+  preparesConnector?: boolean
   /** Whether it changes selected nodes, their shown place, or the level itself. */
   actsOn: ActionInfo["acts_on"]
   fields: FieldSpec[]
@@ -64,6 +66,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       takesSet: action.takes_set,
       previewsSet: action.previews_set,
       downloads: action.downloads,
+      preparesConnector: action.prepares_connector === true,
       actsOn: action.acts_on,
       fields: schema["x-ui-workflow"] === undefined ? schemaToFields(schema) : [],
       // Read whether or not a form is built: a workflow screen still asks the

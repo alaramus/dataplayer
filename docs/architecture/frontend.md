@@ -343,6 +343,12 @@ A connection is a row of two things: the icon of its type, with the dot of the
 last check standing on it, and its name. Everything else about it lives in the
 window that icon opens.
 
+The catalog's **Connect folder** action opens that same form for a new
+connection, with the folder name and path supplied by the source. These are
+editable initial values, not a saved connector or unsaved user changes.
+Cancel leaves the connector list and files alone; Save or Apply follows the
+ordinary creation flow, including the tab color and access settings.
+
 The name field in the connection window has a rainbow color picker. Its
 optional tab color is connector metadata, saved by the owner with Apply or OK;
 Reset color clears it. A draft choice stays in the form until saved. Every

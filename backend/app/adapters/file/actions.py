@@ -11,11 +11,11 @@ import shutil
 import tempfile
 from collections.abc import Mapping, Sequence
 from functools import partial
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar, Literal, Protocol
 
 from anyio import to_thread
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.adapters.actions import (
     CHUNK_BYTES,
@@ -26,6 +26,7 @@ from app.adapters.actions import (
     ActionSet,
     ActionType,
     ActsOn,
+    ConnectorDraft,
     FileAction,
     FilePayload,
     JsonAction,
@@ -34,6 +35,7 @@ from app.adapters.catalog import NodeKind
 from app.adapters.file.download import FileDownload
 from app.adapters.file.formats import format_of
 from app.adapters.file.members import resolve_node
+from app.adapters.file.options import FileOptions
 from app.adapters.file.packing import (
     MAX_BYTES,
     MAX_ENTRIES,
@@ -73,6 +75,10 @@ class RenameParams(BaseModel):
 
 class DeleteParams(BaseModel):
     pass
+
+
+class ConnectFolderParams(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
 
 class UploadParams(BaseModel):
@@ -173,6 +179,39 @@ class _ActsOnNode(_Bound):
         if not path.exists():
             raise ValueError(f"No such node: {node_id}")
         return path
+
+
+class ConnectFolder(_ActsOnNode, Action[ConnectFolderParams]):
+    name: ClassVar[str] = "connect_folder"
+    title: ClassVar[str] = "Connect folder"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
+    # A new file connection is rooted in its creator's home. A grantee cannot
+    # turn access to somebody else's folder into an independently owned source.
+    requires: ClassVar[Access] = "own"
+    params_model = ConnectFolderParams
+
+    async def prepare_connector(
+        self, node_id: str | None, raw: Mapping[str, Any]
+    ) -> ConnectorDraft:
+        self._validated(raw)
+        return await to_thread.run_sync(partial(self._draft, node_id))
+
+    def _draft(self, node_id: str | None) -> ConnectorDraft:
+        path = self._target(node_id)
+        if not path.is_dir():
+            raise ActionRefused("not_applicable", "Choose a folder to connect")
+        relative = self._session.path_in_home(path)
+        options = FileOptions(path=relative)
+        if options.path != relative:
+            raise ActionRefused(
+                "not_applicable",
+                "A connection path cannot start or end with spaces",
+            )
+        return ConnectorDraft(
+            name=PurePosixPath(node_id or "").name,
+            adapter_type="file",
+            options=options.model_dump(mode="json"),
+        )
 
 
 class CreateFolder(_Bound, JsonAction[NameParams]):
@@ -652,6 +691,7 @@ class FileActionType(ActionType, Protocol):
 # from `SecretStr` rather than from a register of names.
 FILE_ACTION_TYPES: tuple[FileActionType, ...] = (
     CreateFolder,
+    ConnectFolder,
     Upload,
     PasteHere,
     Download,

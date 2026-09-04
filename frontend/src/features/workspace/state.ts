@@ -2,6 +2,7 @@ import { inject } from "vue"
 import type { InjectionKey, Ref } from "vue"
 
 import type {
+  ConnectorDraft,
   ConnectorPublic,
   FetchRequest,
   NodeRepresentation,
@@ -30,6 +31,8 @@ export interface WorkspaceActions {
    */
   openConnectorIds: Readonly<Ref<ReadonlySet<string>>>
   openCatalog: (connector: ConnectorPublic) => void
+  /** Open a new connection with defaults prepared by a source action. */
+  createConnector: (draft: ConnectorDraft) => void
   /**
    * Show the catalog of a connection and point at one node in it.
    *

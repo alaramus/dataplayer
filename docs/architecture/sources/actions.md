@@ -35,6 +35,20 @@ guard.
   other transport with 415.
 - `ActionResult.reload_node_ids` names every branch that changed, rather than the
   client inferring one from the action name.
+- `PreparesConnector` is an action capability that returns a `ConnectorDraft`
+  with a name, adapter type and source-resolved options. Its
+  `POST /connectors/{id}/actions/{name}/connector-draft` route rechecks the action,
+  node and access like execution does, but saves nothing and invalidates no
+  source cache. `ActionInfo.prepares_connector` is derived from the protocol;
+  the menu opens the ordinary connector form directly, and its normal Save or
+  Apply creates the connection. The client never constructs a path from node ids.
+- File sources offer **Connect folder** for one selected child directory, to
+  the owner only. The source resolves the folder against its current root, then
+  expresses it relative to the owner's personal home, including when the
+  source itself starts in a nested folder. Internal symlinks use the resolved
+  target path; an escape, the current connector root, files and multiple
+  selections are refused. A path that the connection options would trim is
+  refused instead of quietly pointing the new connection at another folder.
 - Personal-file defaults are resolved by the source: a folder submitted unchanged
   becomes `new folder`, then `new folder (1)`. Deleting a directory removes its
   contents after the action's one destructive confirmation. Upload first refuses

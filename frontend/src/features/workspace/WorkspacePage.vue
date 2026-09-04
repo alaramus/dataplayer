@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, provide, ref, watch } from "vue"
 
-import type { ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
+import type { ConnectorDraft, ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import { connectorWindow, connectorWindowId, draftWindowId } from "@/features/connectors/windows"
@@ -232,7 +232,8 @@ function forget(id: string) {
 function openConnectorWindow(
   connector: ConnectorPublic | null,
   adapterType: string | null,
-  startOn?: string
+  startOn?: string,
+  draft?: ConnectorDraft
 ) {
   const opened = connector ? connectorWindowId(connector.id) : draftWindowId()
 
@@ -247,6 +248,7 @@ function openConnectorWindow(
       connector,
       adapterType,
       startOn,
+      draft,
       // A saved draft becomes the window of the connection it created, so a
       // second Apply updates rather than opening a duplicate. See O7.
       onCreated: (created) => {
@@ -729,6 +731,9 @@ provide(workspaceActionsKey, {
   },
   replaceNode,
   editConnector,
+  createConnector: (draft: ConnectorDraft) => {
+    openConnectorWindow(null, draft.adapter_type, undefined, draft)
+  },
 })
 </script>
 

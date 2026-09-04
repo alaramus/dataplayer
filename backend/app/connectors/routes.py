@@ -27,6 +27,8 @@ from app.adapters.actions import (
     ActionRefused,
     ActionResult,
     ActsOn,
+    ConnectorDraft,
+    PreparesConnector,
     Previews,
     PreviewsSet,
     ProducesDownload,
@@ -2510,6 +2512,7 @@ class ActionInfo(BaseModel):
     # Whether selecting this action produces bytes through the native browser
     # download transport. Derived from the callable action capability.
     downloads: bool
+    prepares_connector: bool = False
     # What the action changes, so a client knows what to send it: selected
     # nodes, the places whose children are shown, or the level itself.
     acts_on: ActsOn
@@ -2575,6 +2578,7 @@ def _describe(action: Action[Any], *, applicable: bool) -> ActionInfo:
         takes_set=isinstance(action, TakesNodeSet),
         previews_set=isinstance(action, PreviewsSet),
         downloads=isinstance(action, ProducesDownload),
+        prepares_connector=isinstance(action, PreparesConnector),
         acts_on=action.acts_on,
         applicable=applicable,
         question=action.question,
@@ -2746,6 +2750,34 @@ async def read_actions(
         for action in acting.all_actions()
         if at_least(access, action.requires)
     ]
+
+
+@router.post(
+    "/{connector_id}/actions/{action_name}/connector-draft",
+    response_model=ConnectorDraft,
+)
+async def prepare_connector_action(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    action_name: str,
+    body: ActionRequest,
+) -> ConnectorDraft:
+    """Prepare a new connector form without creating a connection or changing files."""
+    adapter, access = await resolve_adapter(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    action = await _action_for_node(
+        _acting_or_501(adapter), action_name, body.node_id
+    )
+    _allowed_or_403(action, access)
+    if not isinstance(action, PreparesConnector):
+        raise HTTPException(
+            status_code=415,
+            detail={"message": f"{action.title} does not prepare a connector"},
+        )
+    return await _perform(lambda: action.prepare_connector(body.node_id, body.params))
 
 
 @router.post("/{connector_id}/actions/{action_name}", response_model=ActionResult)

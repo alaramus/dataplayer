@@ -47,8 +47,9 @@ def stays_inside_root(relative: str) -> bool:
 
 
 class FileSession:
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, *, home_dir: Path | None = None) -> None:
         self._root = root
+        self._home_dir = home_dir if home_dir is not None else root
 
     @property
     def root(self) -> Path:
@@ -109,6 +110,15 @@ class FileSession:
     def relative_id(self, path: Path) -> str:
         """The node id of a path: what the client gets back and may send in."""
         return path.relative_to(self.resolved_root).as_posix()
+
+    def path_in_home(self, path: Path) -> str:
+        """A resolved folder as a connector option, without any server path."""
+        try:
+            return path.relative_to(self._home_dir.resolve()).as_posix()
+        except ValueError:
+            raise ValueError(
+                "The folder must stay inside your personal storage"
+            ) from None
 
     async def check(self) -> ConnectionCheckResult:
         started = time.perf_counter()

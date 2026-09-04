@@ -81,6 +81,22 @@ const upload: ActionInfo = {
 }
 
 describe("toCommands", () => {
+  it("recognizes a connector draft by capability rather than action name", () => {
+    const sourceAction: ActionInfo = {
+      ...remove,
+      name: "source_specific_connection",
+      title: "Connect this node",
+      destructive: false,
+      prepares_connector: true,
+    }
+    expect(only([sourceAction]).preparesConnector).toBe(true)
+    expect(only([remove]).preparesConnector).toBe(false)
+    expect(first(toMenu([sourceAction], [], [], null, [null], [])).enabled).toBe(false)
+    const picked = first(toMenu([sourceAction], [], [sourceAction], null, [null], ["folder"]))
+    expect(picked.enabled).toBe(true)
+    expect(picked.targets).toEqual(["folder"])
+  })
+
   it("keeps the label the server gave", () => {
     expect(only([createFolder]).label).toBe("New folder")
   })
