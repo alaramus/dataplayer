@@ -107,6 +107,9 @@ defineSlots<{
     requestPaste: () => void
   }): unknown
   "before-grid"(): unknown
+  /** The far end of the row the pager is on, where something about the whole
+      page belongs: which sheet of a workbook is being read (D51). */
+  "pager-start"(): unknown
   "cell-overlay"(props: {
     row: GridRow
     column: TabularColumn
@@ -712,6 +715,9 @@ defineExpose({
     </div>
 
     <div class="data-grid__pager">
+      <div class="data-grid__pager-start">
+        <slot name="pager-start" />
+      </div>
       <span data-testid="grid-page-range">{{ range }}</span>
       <AppIconButton
         icon="chevron_left"
@@ -952,5 +958,12 @@ defineExpose({
   justify-content: flex-end;
   gap: 4px;
   color: var(--dp-text-muted);
+}
+/* The far end of the same row: what is about the whole page reads from the
+   left, and the pager keeps the right where it has always been. */
+.data-grid__pager-start {
+  flex: 1;
+  min-width: 0;
+  margin-inline-end: auto;
 }
 </style>

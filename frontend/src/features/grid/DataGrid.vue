@@ -142,6 +142,10 @@ const props = defineProps<{
    */
   sharedView?: RowsView | null
 }>()
+defineSlots<{
+  /** The far end of the row the pager is on, passed through to the grid. */
+  "pager-start"(): unknown
+}>()
 const emit = defineEmits<{
   describe: []
   content: []
@@ -1245,6 +1249,12 @@ defineExpose({
           @click="deleteSelection(selectedRowIndexes)"
         />
       </span>
+    </template>
+
+    <!-- Forwarded rather than filled: what belongs on the pager's row is
+         about the node the tab is on, and this grid knows nothing about it. -->
+    <template #pager-start>
+      <slot name="pager-start" />
     </template>
 
     <template #before-grid>

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
 import { computed } from "vue"
-import type { Ref } from "vue"
+import type { ComputedRef, Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type { ActionPreview, ActionResult, NodeSearchResult } from "@/client"
@@ -56,8 +56,8 @@ export function useCatalogLoader() {
 export function useSiblingTables(
   connectorId: Ref<string>,
   containerId: Ref<string | null>
-) {
-  return useQuery({
+): ComputedRef<CatalogNode[]> {
+  const query = useQuery({
     queryKey: computed(() => catalogKey(connectorId.value, containerId.value)),
     queryFn: async () =>
       (
@@ -68,11 +68,18 @@ export function useSiblingTables(
       ).data,
     enabled: computed(() => containerId.value !== null),
     staleTime: 60_000,
-    select: (nodes: CatalogNode[]) =>
-      nodes.filter((node) =>
-        node.representations.some((one) => one.kind === "table")
-      ),
   })
+  // Answered rather than handed over, and empty when there is no container to
+  // ask about: a disabled query still reads whatever is under its key, and
+  // the key of "no container" is the root of the catalog — which is how every
+  // table in a connection came to offer the files of its root as sheets.
+  return computed(() =>
+    containerId.value === null
+      ? []
+      : (query.data.value ?? []).filter((node) =>
+          node.representations.some((one) => one.kind === "table")
+        )
+  )
 }
 
 export const nodePathKey = (connectorId: string, nodeId: string) =>

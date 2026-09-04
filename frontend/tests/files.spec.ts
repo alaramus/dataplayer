@@ -327,17 +327,24 @@ test("opens a columnar file and a workbook sheet as datasets", async ({ page }) 
   // Nothing about a file dataset can be changed, and the screen says so.
   await expect(page.getByTestId("structure-add-column")).toBeDisabled()
 
-  // A workbook is a place: it is walked into, and its sheets are the nodes.
+  // A workbook opens as its first sheet rather than as a folder to walk into,
+  // and the tab it opens switches between the rest along the foot (D51).
   await openConnector(page, name)
   await openNode(page, "budget.xlsx")
-  await expect(page.getByTestId("catalog-path")).toContainText("budget.xlsx")
-  await expect(list).toContainText("Revenue")
-  await expect(list).toContainText("People")
-  await expect(list).toContainText("rows")
+  await expect(page.getByTestId("row-grid")).toContainText("quarter")
+  const sheets = page.getByTestId("sheet-switcher")
+  await expect(sheets.getByTestId("sheet-Revenue")).toHaveAttribute(
+    "aria-selected",
+    "true"
+  )
 
-  await openNode(page, "People")
+  await sheets.getByTestId("sheet-People").click()
   await expect(page.getByTestId("row-grid")).toContainText("name")
   await expect(page.getByTestId("row-grid")).toContainText("Ann")
+  await expect(sheets.getByTestId("sheet-People")).toHaveAttribute(
+    "aria-selected",
+    "true"
+  )
 
   // A sheet knows where it sits, and cannot be renamed, deleted or downloaded.
   await page.getByTestId("grid-structure").click()

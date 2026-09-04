@@ -185,9 +185,13 @@ which is what the old `sheet_title` parameter did to every caller.
   before they could see a single figure — a file behaving like a directory
   because of how it is built rather than because of what it is. A node that says
   how it opens is opened; walking in is what is left for one that says nothing,
-  which is still an archive. The tab it opens offers the other sheets and
-  switches between them in place, so reaching the second sheet is a select
-  rather than a journey back through the catalog.
+  which is still an archive. The tab it opens offers the other sheets along the
+  foot of the grid, on the row the pager is on and marked like a tab strip —
+  where a spreadsheet puts them, and where something about the whole page
+  belongs. Choosing one switches the tab in place. Only a node that was opened
+  as one of several has them: the reading that answers "what else is in here"
+  is the container's own listing, and a node with no container asks for
+  nothing.
 - `dataset` is the node kind for a tabular member of a container file.
   Deliberately not a `file`: it has no bytes of its own, so rename, delete and
   download are ruled out by the kind their `applies_to` already names.

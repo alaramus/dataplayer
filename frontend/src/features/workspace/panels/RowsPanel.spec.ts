@@ -130,12 +130,13 @@ describe("a rows panel over one of several tables in a file", () => {
     const wrapper = mounted(Workbook)
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="sheet-switcher"]').exists()).toBe(true)
-
-    await wrapper.findComponent({ name: "AppSelect" }).vm.$emit(
-      "update:modelValue",
-      "budget.xlsx/2"
+    const switcher = wrapper.get('[data-testid="sheet-switcher"]')
+    // The one being read is marked, the way a tab strip marks a tab.
+    expect(switcher.get('[data-testid="sheet-Revenue"]').attributes("aria-selected")).toBe(
+      "true"
     )
+
+    await switcher.get('[data-testid="sheet-People"]').trigger("click")
 
     expect(showInPlace).toHaveBeenCalledWith(
       "rows:c1:budget.xlsx",
@@ -151,10 +152,18 @@ describe("a rows panel over one of several tables in a file", () => {
   })
 
   it("offers nothing where the node is not one of several", async () => {
+    // A table of a database belongs to no container of tables, and the reading
+    // that would answer for one is the root of the catalog: every table in a
+    // connection offered the files of its root as its sheets, because a
+    // disabled query still reads whatever is under its key.
+    const listing = vi.spyOn(ConnectorsService, "readCatalog").mockResolvedValue({
+      data: SHEETS,
+    } as never)
     const wrapper = mounted(Host)
     await flushPromises()
 
     expect(wrapper.find('[data-testid="sheet-switcher"]').exists()).toBe(false)
+    expect(listing).not.toHaveBeenCalled()
   })
 })
 

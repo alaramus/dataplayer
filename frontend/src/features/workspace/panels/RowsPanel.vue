@@ -10,7 +10,7 @@ import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { useSiblingTables } from "@/features/catalog/api"
 import { messageOf } from "@/shared/api/errors"
-import { AppSelect, useToast } from "@/shared/ui"
+import { useToast } from "@/shared/ui"
 
 /**
  * One relation, in its own tab.
@@ -53,16 +53,13 @@ const sheets = useSiblingTables(
   computed(() => props.connectorId),
   computed(() => props.containerId ?? null)
 )
-const onSheet = computed(
-  () => sheets.data.value?.find((sheet) => sheet.id === props.nodeId) ?? null
-)
-const sheetOptions = computed(() =>
-  (sheets.data.value ?? []).map((sheet) => ({ label: sheet.name, value: sheet.id }))
-)
-/** Which one the switcher shows: the one open, or the first when this tab is
-    on the file itself, which is what opening it showed. */
+/** Which one is being read: the one this tab is on, or the first — a workbook
+    opens as its first sheet, so the tab that opened is on the file itself. */
 const currentSheet = computed(
-  () => onSheet.value?.id ?? sheets.data.value?.[0]?.id ?? ""
+  () =>
+    sheets.value.find((sheet) => sheet.id === props.nodeId)?.id ??
+    sheets.value[0]?.id ??
+    ""
 )
 
 /**
@@ -72,8 +69,8 @@ const currentSheet = computed(
  * the strip, and its title becomes the sheet's. A second tab per sheet would
  * turn "look at the other one" into housekeeping.
  */
-function showSheet(value: unknown) {
-  const chosen = (sheets.data.value ?? []).find((sheet) => sheet.id === value)
+function showSheet(value: string) {
+  const chosen = sheets.value.find((sheet) => sheet.id === value)
   if (chosen === undefined || chosen.id === props.nodeId) return
   workspace.showInPlace(props.panelId, {
     connectorId: props.connectorId,
@@ -221,23 +218,6 @@ function showReferenced(target: ReferencedRows) {
 
 <template>
   <div class="rows-panel">
-    <!-- Only where there is a choice: one sheet is a table, and a select with
-         one option in it is a control that does nothing. -->
-    <div
-      v-if="sheetOptions.length > 1"
-      class="rows-panel__sheets"
-      data-testid="sheet-switcher"
-    >
-      <span class="rows-panel__sheets-label">Sheet</span>
-      <AppSelect
-        :model-value="currentSheet"
-        :options="sheetOptions"
-        compact
-        class="rows-panel__sheet"
-        data-testid="sheet-choice"
-        @update:model-value="showSheet"
-      />
-    </div>
     <DataGrid
       ref="grid"
       :connector-id="connectorId"
@@ -253,7 +233,36 @@ function showReferenced(target: ReferencedRows) {
       @content="showContent"
       @chart="showChart"
       @follow="showReferenced"
-    />
+    >
+      <!-- On the row the pager is on, at the other end of it: which sheet is
+           being read is about the whole page, the way the page number is.
+           Only where there is a choice — one sheet is a table, and a strip of
+           one tab is a control that does nothing (D51). -->
+      <template
+        v-if="sheets.length > 1"
+        #pager-start
+      >
+        <div
+          class="rows-panel__sheets"
+          role="tablist"
+          data-testid="sheet-switcher"
+        >
+          <button
+            v-for="sheet in sheets"
+            :key="sheet.id"
+            type="button"
+            role="tab"
+            class="rows-panel__sheet"
+            :class="{ 'rows-panel__sheet--here': sheet.id === currentSheet }"
+            :aria-selected="sheet.id === currentSheet"
+            :data-testid="`sheet-${sheet.name}`"
+            @click="showSheet(sheet.id)"
+          >
+            {{ sheet.name }}
+          </button>
+        </div>
+      </template>
+    </DataGrid>
   </div>
 </template>
 
@@ -267,22 +276,38 @@ function showReferenced(target: ReferencedRows) {
   min-height: 0;
   padding: 4px;
 }
-/* Above the grid and outside it: the grid's own header belongs to the columns,
-   and which sheet is being read is a fact about the file. */
+/* Where a spreadsheet puts them: along the foot, beside the paging controls
+   rather than above the columns, which belong to the sheet being read. */
 .rows-panel__sheets {
-  flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 4px 4px;
-}
-.rows-panel__sheets-label {
-  color: var(--dp-text-muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
 }
 .rows-panel__sheet {
-  min-width: 160px;
+  flex: none;
+  max-width: 180px;
+  overflow: hidden;
+  padding: 3px 10px;
+  border: none;
+  border-radius: var(--dp-radius-control) var(--dp-radius-control) 0 0;
+  background: none;
+  color: var(--dp-text-muted);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.rows-panel__sheet:hover:not(.rows-panel__sheet--here) {
+  background: var(--dp-hover);
+}
+/* The one being read, marked the way the tab strip above marks a tab: a
+   ground it keeps and a line under it. */
+.rows-panel__sheet--here {
+  background: var(--dp-selected);
+  color: var(--dp-text-strong);
+  box-shadow: inset 0 -2px 0 var(--dp-link);
 }
 </style>
