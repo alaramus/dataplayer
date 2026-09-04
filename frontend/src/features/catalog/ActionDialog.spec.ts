@@ -383,7 +383,7 @@ describe("renaming a database relation", () => {
 describe("uploading files", () => {
   it("keeps unsent files for retry when the queue is paused and stopped", async () => {
     const operations = createOperations()
-    let release = () => { throw new Error("The first upload has not started") }
+    let release: () => void = () => { throw new Error("The first upload has not started") }
     const held = new Promise<never>((resolve) => {
       release = () => resolve({ data: { message: "first.csv uploaded", reload_node_ids: [null] } } as never)
     })
@@ -426,7 +426,7 @@ describe("uploading files", () => {
 
   it("continues to report an upload after its form closes", async () => {
     const operations = createOperations()
-    let release = () => { throw new Error("The upload has not started") }
+    let release: () => void = () => { throw new Error("The upload has not started") }
     vi.spyOn(ConnectorsService, "runActionWithFile").mockReturnValue(new Promise<never>((resolve) => {
       release = () => resolve({ data: { message: "Uploaded", reload_node_ids: [null] } } as never)
     }))

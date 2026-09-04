@@ -58,7 +58,7 @@ describe("the shared graph viewer", () => {
     expect(wrapper.get('[data-testid="graph-inspector"]').text()).toContain("Gateway")
     await wrapper.get('[data-testid="graph-mode-2d"]').trigger("click")
     await flushPromises()
-    expect(wrapper.get('[data-testid="graph-port-api-events"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="graph-port-api-events"]').exists()).toBe(true)
     wrapper.unmount()
     expect(LayoutWorker.instances[0]!.terminate).toHaveBeenCalled()
   })

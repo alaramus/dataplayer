@@ -6,7 +6,13 @@
     "vitest.setup.ts",
     "playwright.config.ts",
     "openapi-ts.config.ts",
-    "tests/**/*"
+    "tests/**/*",
+    // The end-to-end tests are typed against the generated client, the same
+    // one the application uses: a scenario that reads an operation says what
+    // an operation is by importing it rather than by describing it again.
+    // Listed here because a composite project checks only the files it names,
+    // and an imported file that no project claims is an error of its own.
+    "src/client/**/*"
   ],
   "compilerOptions": {
     "composite": true,
