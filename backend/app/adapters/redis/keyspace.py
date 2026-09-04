@@ -44,6 +44,13 @@ SEPARATOR = ":"
 # what it found rather than slowly with everything.
 SCAN_CEILING = 5_000
 
+# How much of one value this source ever holds at a time. A viewer is a
+# preview and a cell is not where a megabyte is typed, so the reader shows a
+# string up to here and the writer refuses one longer: the two are the same
+# number because a save that silently truncated what was shown is worse than
+# a refusal.
+MAX_STRING_BYTES = 64 * 1024
+
 # How many keys the server is asked for per round trip. A hint rather than a
 # limit, which is what Redis documents it as.
 SCAN_BATCH = 500

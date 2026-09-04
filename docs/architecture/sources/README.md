@@ -95,6 +95,8 @@ backend/app/adapters/
 ├── redis/              session.py (reaching the server, and reducing its
 │                       errors), keyspace.py (the databases, the tree, and
 │                       what a key is), fetch.py (a key read as rows),
+│                       update.py (one element of one written back),
+│                       row_handle.py (which element, and what it held),
 │                       actions.py (six ways to write one, three after),
 │                       url.py (the address, both ways), samples.py (the
 │                       demonstration key space), options.py (a union by

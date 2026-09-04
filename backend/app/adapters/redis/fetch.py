@@ -19,6 +19,7 @@ from typing import Any
 from app.adapters.fetch import FetchColumn, FetchRequest, FetchResult
 from app.adapters.protocol import NodeNotFound
 from app.adapters.redis.keyspace import (
+    MAX_STRING_BYTES,
     SCAN_CEILING,
     KeyFacts,
     KeyRef,
@@ -29,12 +30,14 @@ from app.adapters.redis.keyspace import (
     place_of,
 )
 from app.adapters.redis.session import RedisSession, resolved, text
+from app.adapters.redis.update import (
+    NO_DELETE,
+    NO_INSERT,
+    NO_UPDATE,
+    row_handle_of,
+    writer_for,
+)
 from app.adapters.relation import ColumnType, TypeCategory
-
-# What a string key shows. A value larger than this is shown up to here and
-# said to be longer: a viewer is a preview, and a megabyte of JSON in a cell
-# is not something a grid can do anything with.
-MAX_STRING_BYTES = 64 * 1024
 
 
 def _column(name: str, sql: str, category: TypeCategory) -> FetchColumn:
@@ -42,6 +45,10 @@ def _column(name: str, sql: str, category: TypeCategory) -> FetchColumn:
 
     Redis has no index over values, so a source that offered either would be
     offering to read everything and do it here.
+
+    Whether it can be written is added afterwards, from the one place that
+    knows how each type is written: a reader that also declared what is
+    editable would be a second answer to that question.
     """
     return FetchColumn(
         name=name,
@@ -110,12 +117,7 @@ class RedisFetch:
             raise NodeNotFound(request.node_id)
         reader = _READERS[facts.data_type]
         columns, rows, has_more = await reader(self, ref, request)
-        return FetchResult(
-            columns=columns,
-            rows=rows,
-            has_more=has_more,
-            page_commands=["download", "share"],
-        )
+        return _writable(facts.data_type, columns, rows, has_more)
 
     async def _string(
         self, ref: KeyRef, request: FetchRequest
@@ -219,6 +221,50 @@ class RedisFetch:
             [[entry_id, fields] for entry_id, fields in _page(entries, request)],
             _has_more(entries, request),
         )
+
+
+def _writable(
+    data_type: str,
+    columns: list[FetchColumn],
+    rows: list[list[str | None]],
+    has_more: bool,
+) -> FetchResult:
+    """A page of a key, saying which of it can be written and how.
+
+    Every one of these answers comes from the writer of that type, so the page
+    cannot offer an edit the write side would refuse. A row whose values are
+    not all there — a string too long to have been shown whole — still gets a
+    handle: the fingerprint is of what was shown, so an edit of it is refused
+    for the reason it should be.
+    """
+    writer = writer_for(data_type)
+    if writer is None or not writer.editable:
+        return FetchResult(
+            columns=columns,
+            rows=rows,
+            has_more=has_more,
+            update_reason=NO_UPDATE.get(data_type),
+            insert_reason=NO_INSERT.get(data_type),
+            delete_reason=NO_DELETE.get(data_type),
+            page_commands=["download", "share"],
+        )
+    return FetchResult(
+        columns=[
+            column.model_copy(update={"editable": column.name in writer.editable})
+            for column in columns
+        ],
+        rows=rows,
+        has_more=has_more,
+        row_handles=[
+            row_handle_of(data_type, [value or "" for value in row]) for row in rows
+        ],
+        update_supported=True,
+        insert_supported=data_type not in NO_INSERT,
+        insert_reason=NO_INSERT.get(data_type),
+        delete_supported=data_type not in NO_DELETE,
+        delete_reason=NO_DELETE.get(data_type),
+        page_commands=["download", "share"],
+    )
 
 
 def _page[T](items: Sequence[T], request: FetchRequest) -> Sequence[T]:

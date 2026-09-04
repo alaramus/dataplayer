@@ -45,7 +45,21 @@ def test_what_it_can_do_is_read_off_the_driver() -> None:
 
     assert "Browse the catalog" in titles
     assert "Read rows" in titles
-    assert {"New key", "Delete", "Set expiry", "Remove expiry"} <= set(titles)
+    # Six ways to write a key rather than one with a type to pick (D91), the
+    # three that act on one that exists, and the ordinary editing of what a
+    # key already holds.
+    assert {
+        "New string",
+        "New hash",
+        "New list",
+        "New set",
+        "New sorted set",
+        "New stream",
+        "Delete",
+        "Set expiry",
+        "Remove expiry",
+    } <= set(titles)
+    assert {"Edit rows", "Insert rows", "Delete rows"} <= set(titles)
     # Still not a source with statements, relations or a query console.
     assert "Describe a relation" not in titles
     assert "Follow references" not in titles

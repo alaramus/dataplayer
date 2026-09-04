@@ -28,11 +28,24 @@ from app.adapters.redis.keyspace import RedisKeyspace, is_database, is_key
 from app.adapters.redis.options import RedisOptions
 from app.adapters.redis.samples import RedisSamples
 from app.adapters.redis.session import RedisSession
+from app.adapters.redis.update import RedisUpdate
 from app.adapters.redis.url import (
     compose_url,
     options_from_url,
 )
 from app.adapters.registry import AdapterContext, register
+from app.adapters.update import (
+    DeleteRowsRequest,
+    DeleteRowsResult,
+    InsertRowRequest,
+    InsertRowResult,
+    InsertRowsRequest,
+    InsertRowsResult,
+    UpdateCellRequest,
+    UpdateCellResult,
+    UpdateCellsRequest,
+    UpdateCellsResult,
+)
 
 
 class RedisAdapter:
@@ -47,6 +60,7 @@ class RedisAdapter:
         self._session = RedisSession(options)
         self._keyspace = RedisKeyspace(self._session)
         self._fetch = RedisFetch(self._session, self._keyspace)
+        self._update = RedisUpdate(self._session, self._keyspace)
         self._samples = RedisSamples(self._session)
         self._actions = ActionSet(
             [action_type(self._session, self._keyspace) for action_type in REDIS_ACTION_TYPES]
@@ -96,6 +110,28 @@ class RedisAdapter:
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         return await self._fetch.fetch(request)
+
+    # --- writing what a key holds, one element at a time -------------------
+    #
+    # The ordinary editing contract (D25, D26): the six actions write a whole
+    # key, and these change one field, one element, one member of the key
+    # somebody is already looking at. What each type admits is the writer's to
+    # say, and the page said the same thing before the edit was offered.
+
+    async def update_cell(self, request: UpdateCellRequest) -> UpdateCellResult:
+        return await self._update.update_cell(request)
+
+    async def update_cells(self, request: UpdateCellsRequest) -> UpdateCellsResult:
+        return await self._update.update_cells(request)
+
+    async def insert_row(self, request: InsertRowRequest) -> InsertRowResult:
+        return await self._update.insert_row(request)
+
+    async def insert_rows(self, request: InsertRowsRequest) -> InsertRowsResult:
+        return await self._update.insert_rows(request)
+
+    async def delete_rows(self, request: DeleteRowsRequest) -> DeleteRowsResult:
+        return await self._update.delete_rows(request)
 
     # --- what may be done to a key -----------------------------------------
 

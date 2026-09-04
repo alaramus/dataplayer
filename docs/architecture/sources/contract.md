@@ -448,6 +448,24 @@ structure the names were given when they were chosen.
   depending on a select above it, and whose description could describe at most
   one of them. The six share everything else through one base class, so a
   seventh type would be a class with one method in it.
+- **What a key holds is edited element by element**, through the same contract
+  every relation uses (D25, D26): a field of a hash, a position in a list, the
+  score of a member. The actions write a whole key, which is how one is made;
+  this is how one is corrected, and a person looking at a page should be able
+  to type into it rather than rewrite the key around the cell they meant.
+- **What stands in for a row version is a fingerprint of what was read.**
+  Redis has no `xmin` and no compare-and-set for a field, so the row handle
+  carries a digest of the values the page showed, and an edit whose element no
+  longer holds them is refused rather than applied. Optimism with a re-read:
+  honest about being a race the server does not arbitrate, and still better
+  than overwriting what somebody has just put there.
+- **What each type admits is the writer's to say, and the page says the same.**
+  A string offers its value and no rows to add — there is one, and removing it
+  is removing the key; a list offers its values but not its positions, because
+  where an element is is not something it holds; a stream offers nothing,
+  because an entry is an event that was written once. The refusals are one
+  table, read both by the page that offers the edit and by the write that
+  would refuse it, so the two cannot say different things.
 - **A key is made where the catalog is standing.** The name typed into the
   form is added to the prefix of the place, so `one` written in `cache:` is
   `cache:one`. Worked out by the source, which is the only party that may take
@@ -487,6 +505,10 @@ Known deviations:
   `SET` has a "if it is not there" of its own, so the five other types would
   each need a transaction to say the same thing. The gap between the two is a
   race nobody writing keys by hand loses.
+- **An element of a list cannot be removed.** Redis removes by value or by
+  trimming the ends, so removing the third of five means writing a sentinel
+  over it and then removing that — two commands and a value nobody asked for.
+  The page says so instead.
 - **A hash and a set are paged in this process.** Both are read whole and then
   sliced, so a hash of a million fields is a million fields in memory. A list
   and a sorted set page in the server, because those two carry an order.
