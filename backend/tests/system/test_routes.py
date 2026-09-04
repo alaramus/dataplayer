@@ -30,9 +30,21 @@ async def test_cache_health_reports_the_default_without_making_redis_required(
     response = await client.get(f"{settings.API_V1_STR}/utils/cache-health/")
 
     assert response.status_code == 200
-    assert response.json() == {
+    body = response.json()
+    measurements = body.pop("measurements")
+    assert body == {
         "backend": "memory",
         "status": "healthy",
         "shared": False,
         "message": "Process-local cache is ready",
     }
+    assert set(measurements) == {
+        "hits",
+        "misses",
+        "coalesced",
+        "refreshed",
+        "bypasses",
+        "invalidations",
+        "failures",
+    }
+    assert all(value >= 0 for value in measurements.values())

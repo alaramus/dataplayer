@@ -77,9 +77,9 @@ class Settings(BaseSettings):
     POOL_MAX_POOLS: int = 20
     POOL_MAX_IDLE_SECONDS: float = 300.0
 
-    # Exact catalog levels and bounded fetch pages kept per backend process.
-    # A source opts in and chooses its own TTL; this only bounds memory.
-    DATA_CACHE_MAX_ENTRIES: int = 512
+    # Exact catalog levels and bounded fetch pages: per process in memory, or
+    # per deployment in Redis. A source chooses its own TTL independently.
+    DATA_CACHE_MAX_ENTRIES: int = Field(default=512, ge=1)
     # Memory is the correctness baseline. Redis is an optional shared
     # accelerator and needs all three values before it can be selected (D103).
     DATA_CACHE_BACKEND: Literal["memory", "redis"] = "memory"

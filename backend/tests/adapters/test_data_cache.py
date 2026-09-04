@@ -43,6 +43,15 @@ async def test_reuses_an_exact_read_until_its_ttl_expires() -> None:
     assert (first.value, first.status) == ("value 1", "miss")
     assert (second.value, second.status) == ("value 1", "hit")
     assert (third.value, third.status) == ("value 2", "miss")
+    assert (await cache.health()).measurements.model_dump() == {
+        "hits": 1,
+        "misses": 2,
+        "coalesced": 0,
+        "refreshed": 0,
+        "bypasses": 0,
+        "invalidations": 0,
+        "failures": 0,
+    }
 
 
 async def test_refresh_skips_a_live_entry_and_replaces_it() -> None:

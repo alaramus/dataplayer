@@ -189,9 +189,10 @@ read directly rather than cached on a guess.
 
 Known deviations:
 
-- **The cache is process-local.** Multiple backend workers do not share entries
-  or invalidation. TTL bounds the inconsistency until a distributed cache and
-  invalidation channel are justified.
+- **The default cache is process-local.** Multiple backend workers using the
+  memory default do not share entries or invalidation. A deployment that needs
+  them may explicitly select D102's Redis backend; Redis is not required for a
+  single worker to be correct.
 - **Invalidation knows connector identity, not upstream identity.** Two saved
   connectors pointing at the same database do not invalidate one another, and
   changes made outside DataPlayer are visible after TTL or explicit Reload.
@@ -203,7 +204,8 @@ Spec: [The catalog and fetch read cache](../../superpowers/specs/2026-08-29-read
 ## D100. Read-cache behaviour is independent of its backend
 
 `DataCache` is the protocol used by routes, query execution and the application
-lifespan. `MemoryDataCache` is the default implementation. Replacing storage
+lifespan, including cache outcome observation and health. `MemoryDataCache` is
+the default implementation. Replacing storage
 does not replace D31: an implementation must preserve the exact owner,
 connector, area and normalized-request key; source-owned TTL; explicit refresh;
 one in-flight load per exact key; and connector-wide invalidation that prevents
@@ -243,6 +245,9 @@ in-flight tasks in each worker. A connector generation is read before an entry
 or flight is chosen and incremented after every successful mutation. Value keys
 include that generation. An older load rechecks it before storing, so a late
 answer can neither be joined by a post-mutation read nor become visible again.
+The deployment shares one LRU index: reads touch it, writes atomically add the
+value and evict its oldest members above `DATA_CACHE_MAX_ENTRIES`, and Redis TTL
+still expires every value independently.
 
 Invalidation also publishes the connector UUID on a deployment-scoped channel.
 Every worker forgets matching local flights. Pub/Sub is prompt notification;
@@ -279,3 +284,21 @@ terminator. `.env.example` shows both its authenticated URL and an external
 `rediss://` ACL URL; neither mode is enabled by default.
 
 Spec: [Selecting and observing the cache backend](../../superpowers/specs/2026-09-04-cache-configuration-design.md)
+
+## D104. Infrastructure Redis remains a measured read accelerator
+
+The cache health response reports process-lifetime counts of hits, misses,
+coalesced loads, refreshes, bypasses, invalidations and failures. Together with
+the per-response `X-Data-Cache` outcome, these are the evidence a deployment
+must collect before proposing another shared Redis responsibility. The counters
+reset with the worker and are observations, not durable application state.
+
+There is no such deployment evidence in this repository, so Phase 5 adds no
+distributed lock, job fan-out or share acceleration. The infrastructure Redis
+connection deliberately exposes no lock, queue or durable-record operation,
+and an import contract keeps jobs, queries, services and shares away from its
+concrete implementation. Job state, share records and access requests remain
+PostgreSQL rows; cached reads remain disposable answers rather than snapshots
+any durable workflow may cite as truth.
+
+Spec: [Redis stops at measured read caching](../../superpowers/specs/2026-09-04-cache-scope-design.md)

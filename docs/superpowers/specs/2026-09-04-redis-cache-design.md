@@ -25,6 +25,14 @@ generation may answer its existing caller but cannot publish stale data.
 Old-generation values expire under the source TTL. Invalidation does not scan
 and delete an unbounded namespace.
 
+All workers share one deployment-scoped sorted-set LRU index. A read touches
+its member. A write atomically stores the TTL-bound value, touches the member
+and evicts oldest values until the index is at `DATA_CACHE_MAX_ENTRIES`. Fixed
+server-owned Lua scripts keep value and index changes together under concurrent
+workers; their keys share one Redis Cluster hash tag. Expired members are
+removed on access and, because the index itself never exceeds the ceiling,
+cannot make metadata grow without bound.
+
 ## Invalidation channel
 
 After incrementing the generation, a worker publishes the connector UUID on a

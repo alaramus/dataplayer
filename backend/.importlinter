@@ -135,3 +135,19 @@ source_modules =
     app.adapters.postgres
 forbidden_modules =
     redis
+
+# Infrastructure Redis remains a cache rather than becoming a second state
+# store by convenience. Jobs, queries, services and shares may use the generic
+# cache contract where D31 calls for invalidation, but may not depend on its
+# concrete Redis implementation or driver surface (D104).
+[importlinter:contract:redis-cache-is-not-coordination]
+name = jobs, queries, services and shares do not use infrastructure Redis
+type = forbidden
+source_modules =
+    app.jobs
+    app.queries
+    app.services
+    app.shares
+forbidden_modules =
+    app.adapters.redis.cache
+    app.adapters.redis.cache_connection

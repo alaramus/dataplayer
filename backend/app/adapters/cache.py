@@ -23,11 +23,64 @@ CacheBackendName = Literal["memory", "redis"]
 CacheHealthStatus = Literal["healthy", "degraded"]
 
 
+class CacheMeasurements(BaseModel):
+    hits: int
+    misses: int
+    coalesced: int
+    refreshed: int
+    bypasses: int
+    invalidations: int
+    failures: int
+
+
 class CacheHealth(BaseModel):
     backend: CacheBackendName
     status: CacheHealthStatus
     shared: bool
     message: str
+    measurements: CacheMeasurements
+
+
+class CacheMeter:
+    """Process-lifetime evidence for deciding whether more cache is justified."""
+
+    def __init__(self) -> None:
+        self._hits = 0
+        self._misses = 0
+        self._coalesced = 0
+        self._refreshed = 0
+        self._bypasses = 0
+        self._invalidations = 0
+        self._failures = 0
+
+    def observe(self, status: CacheStatus) -> None:
+        if status == "hit":
+            self._hits += 1
+        elif status == "miss":
+            self._misses += 1
+        elif status == "coalesced":
+            self._coalesced += 1
+        elif status == "refreshed":
+            self._refreshed += 1
+        else:
+            self._bypasses += 1
+
+    def invalidated(self) -> None:
+        self._invalidations += 1
+
+    def failed(self) -> None:
+        self._failures += 1
+
+    def snapshot(self) -> CacheMeasurements:
+        return CacheMeasurements(
+            hits=self._hits,
+            misses=self._misses,
+            coalesced=self._coalesced,
+            refreshed=self._refreshed,
+            bypasses=self._bypasses,
+            invalidations=self._invalidations,
+            failures=self._failures,
+        )
 
 
 @runtime_checkable
@@ -78,6 +131,8 @@ class DataCache(Protocol):
 
     async def size(self) -> int: ...
 
+    def observe(self, status: CacheStatus) -> None: ...
+
     async def health(self) -> CacheHealth: ...
 
     async def aclose(self) -> None: ...
@@ -103,6 +158,7 @@ class MemoryDataCache:
         self._flights: dict[CacheKey, asyncio.Task[object]] = {}
         self._tasks: set[asyncio.Task[object]] = set()
         self._lock = asyncio.Lock()
+        self._meter = CacheMeter()
 
     async def get_or_load[T](
         self,
@@ -118,7 +174,7 @@ class MemoryDataCache:
         # protocol because a remote backend must never guess what to rebuild.
         _ = cache_format
         if ttl_seconds <= 0:
-            return CacheResult(await load(), "refreshed" if refresh else "miss")
+            return self._result(await load(), "refreshed" if refresh else "miss")
 
         now = self._clock()
         async with self._lock:
@@ -126,7 +182,7 @@ class MemoryDataCache:
             entry = self._entries.get(key)
             if entry is not None and not refresh:
                 entry.used_at = now
-                return CacheResult(cast(T, entry.value), "hit")
+                return self._result(cast(T, entry.value), "hit")
 
             existing = self._flights.get(key)
             if existing is not None:
@@ -145,7 +201,7 @@ class MemoryDataCache:
                 status = "refreshed" if refresh else "miss"
 
         value = await asyncio.shield(task)
-        return CacheResult(cast(T, value), status)
+        return self._result(cast(T, value), status)
 
     async def _load_and_store[T](
         self, key: CacheKey, ttl_seconds: float, load: Callable[[], Awaitable[T]]
@@ -174,6 +230,7 @@ class MemoryDataCache:
 
     async def invalidate_connector(self, connector_id: uuid.UUID) -> None:
         """Forget all areas and prevent older in-flight reads being stored."""
+        self._meter.invalidated()
         async with self._lock:
             self._entries = {
                 key: entry
@@ -201,7 +258,11 @@ class MemoryDataCache:
             status="healthy",
             shared=False,
             message="Process-local cache is ready",
+            measurements=self._meter.snapshot(),
         )
+
+    def observe(self, status: CacheStatus) -> None:
+        self._meter.observe(status)
 
     async def aclose(self) -> None:
         async with self._lock:
@@ -220,6 +281,10 @@ class MemoryDataCache:
             # loader. Retrieving the exception avoids an unhandled-task warning;
             # ordinary awaiters still receive the same exception.
             task.exception()
+
+    def _result[T](self, value: T, status: CacheStatus) -> CacheResult[T]:
+        self.observe(status)
+        return CacheResult(value, status)
 
     def _drop_expired(self, now: float) -> None:
         for key in [
@@ -244,10 +309,12 @@ async def cached_read[T](
     cache_format: "CacheFormat[T]",
 ) -> T:
     if not isinstance(adapter, SupportsReadCache):
+        data_cache.observe("bypass")
         response.headers["X-Data-Cache"] = "bypass"
         return await load()
     ttl_seconds = adapter.cache_ttl(key.area)
     if ttl_seconds <= 0:
+        data_cache.observe("bypass")
         response.headers["X-Data-Cache"] = "bypass"
         return await load()
     cached = await data_cache.get_or_load(

@@ -14,7 +14,8 @@ not restore its stale answer afterwards.
 ## Boundary
 
 `DataCache` is a runtime-checkable protocol exposing the complete
-`get_or_load`, connector invalidation, size and lifecycle operations.
+`get_or_load`, connector invalidation, observation, health, size and lifecycle
+operations.
 `MemoryDataCache` implements it and remains the application default.
 
 The boundary is the complete cache operation, not a key/value store. Exact

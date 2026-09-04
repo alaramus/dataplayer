@@ -9,7 +9,13 @@ from typing import cast
 
 from cryptography.exceptions import InvalidTag
 
-from app.adapters.cache import CacheHealth, CacheKey, CacheResult, CacheStatus
+from app.adapters.cache import (
+    CacheHealth,
+    CacheKey,
+    CacheMeter,
+    CacheResult,
+    CacheStatus,
+)
 from app.adapters.cache_serialization import (
     CacheCipher,
     CacheFormat,
@@ -41,13 +47,17 @@ class RedisDataCache:
         *,
         namespace: CacheNamespace,
         cipher: CacheCipher,
+        max_entries: int,
         listener_retry_seconds: float = 1.0,
     ) -> None:
+        if max_entries < 1:
+            raise ValueError("max_entries must be positive")
         if listener_retry_seconds <= 0:
             raise ValueError("listener_retry_seconds must be positive")
         self._connection = connection
         self._namespace = namespace
         self._cipher = cipher
+        self._max_entries = max_entries
         self._listener_retry_seconds = listener_retry_seconds
         self._flights: dict[tuple[CacheKey, int], asyncio.Task[object]] = {}
         self._tasks: set[asyncio.Task[object]] = set()
@@ -56,6 +66,7 @@ class RedisDataCache:
         self._listener: asyncio.Task[None] | None = None
         self._closing = False
         self._available: bool | None = None
+        self._meter = CacheMeter()
 
     @classmethod
     def from_url(
@@ -65,11 +76,13 @@ class RedisDataCache:
         deployment: str,
         encryption_key: bytes,
         timeout_seconds: float,
+        max_entries: int,
     ) -> "RedisDataCache":
         return cls(
             RedisCacheConnection(url, timeout_seconds=timeout_seconds),
             namespace=CacheNamespace(deployment),
             cipher=CacheCipher(encryption_key),
+            max_entries=max_entries,
         )
 
     def start(self) -> None:
@@ -87,7 +100,7 @@ class RedisDataCache:
         refresh: bool = False,
     ) -> CacheResult[T]:
         if ttl_seconds <= 0 or await self._is_invalidating(key.connector_id):
-            return CacheResult(await load(), "bypass")
+            return self._result(await load(), "bypass")
 
         try:
             generation = await self._generation(key.connector_id)
@@ -95,10 +108,10 @@ class RedisDataCache:
                 cached = await self._read(key, generation, cache_format)
                 if cached is not None:
                     self._available = True
-                    return CacheResult(cached, "hit")
+                    return self._result(cached, "hit")
         except CacheConnectionError:
             self._failed()
-            return CacheResult(await load(), "bypass")
+            return self._result(await load(), "bypass")
 
         flight_key = (key, generation)
         async with self._lock:
@@ -124,7 +137,7 @@ class RedisDataCache:
                 status = "refreshed" if refresh else "miss"
 
         value = await asyncio.shield(task)
-        return CacheResult(cast(T, value), status)
+        return self._result(cast(T, value), status)
 
     async def _read[T](
         self,
@@ -133,7 +146,9 @@ class RedisDataCache:
         cache_format: CacheFormat[T],
     ) -> T | None:
         value_key = self._namespace.value_key(key, generation)
-        payload = await self._connection.get(value_key)
+        payload = await self._connection.read_entry(
+            value_key, lru_key=self._namespace.lru_key
+        )
         if payload is None:
             return None
         try:
@@ -143,9 +158,12 @@ class RedisDataCache:
             )
             return cache_format.decode(plaintext)
         except (CacheSerializationError, InvalidTag):
+            self._meter.failed()
             logger.warning("Discarding an unreadable shared cache value")
             try:
-                await self._connection.delete(value_key)
+                await self._connection.delete_entry(
+                    value_key, lru_key=self._namespace.lru_key
+                )
             except CacheConnectionError:
                 self._failed()
             return None
@@ -174,10 +192,12 @@ class RedisDataCache:
                     plaintext,
                     associated_data=self._namespace.associated_data(key, generation),
                 )
-                await self._connection.set(
+                await self._connection.write_entry(
                     self._namespace.value_key(key, generation),
                     payload,
                     ttl_ms=max(1, math.ceil(ttl_seconds * 1000)),
+                    lru_key=self._namespace.lru_key,
+                    max_entries=self._max_entries,
                 )
                 self._available = True
         except CacheConnectionError:
@@ -187,6 +207,7 @@ class RedisDataCache:
         return value
 
     async def invalidate_connector(self, connector_id: uuid.UUID) -> None:
+        self._meter.invalidated()
         async with self._lock:
             self._invalidating.add(connector_id)
             self._forget_connector_unlocked(connector_id)
@@ -236,7 +257,11 @@ class RedisDataCache:
                 if available
                 else "Shared Redis cache is unavailable; source reads are direct"
             ),
+            measurements=self._meter.snapshot(),
         )
+
+    def observe(self, status: CacheStatus) -> None:
+        self._meter.observe(status)
 
     @property
     def available(self) -> bool | None:
@@ -327,7 +352,12 @@ class RedisDataCache:
         if not task.cancelled():
             task.exception()
 
+    def _result[T](self, value: T, status: CacheStatus) -> CacheResult[T]:
+        self.observe(status)
+        return CacheResult(value, status)
+
     def _failed(self) -> None:
+        self._meter.failed()
         if self._available is not False:
             logger.warning("Shared cache unavailable; source reads will bypass it")
         self._available = False

@@ -15,13 +15,15 @@ every user who can read a shared connector.
 
 One deployment chooses a bounded plain name. Values live below:
 
-`dataplayer:<deployment>:cache:v1:user:<owner>:connector:<connector>:generation:<n>:<area>:<sha256(request)>`
+`dataplayer:{<deployment>}:cache:v1:user:<owner>:connector:<connector>:generation:<n>:<area>:<sha256(request)>`
 
 The full request is authenticated with that name inside the encrypted value.
 The digest only bounds the Redis key length; a collision cannot make one
 request accept another's value. The invalidation generation is keyed by
 deployment and connector, without a user, because a successful mutation must
 invalidate the owner's and all grantees' cached reads together.
+Braces form one Redis Cluster hash tag for the deployment, allowing the entry
+and its shared LRU index to change atomically.
 
 ## Values
 

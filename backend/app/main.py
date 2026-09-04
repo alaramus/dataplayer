@@ -46,6 +46,7 @@ def build_data_cache() -> DataCache:
         deployment=settings.DATA_CACHE_DEPLOYMENT,
         encryption_key=base64.urlsafe_b64decode(encoded_key),
         timeout_seconds=settings.DATA_CACHE_REDIS_TIMEOUT_SECONDS,
+        max_entries=settings.DATA_CACHE_MAX_ENTRIES,
     )
     cache.start()
     return cache

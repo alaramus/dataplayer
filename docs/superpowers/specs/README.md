@@ -104,6 +104,7 @@ translations; those files are not.
 | 2026-09-04 | [The shared-cache wire format](2026-09-04-shared-cache-wire-design.md) | D101: deployment/user namespaces, typed versioned JSON and encryption of every remote cache value |
 | 2026-09-04 | [An optional shared Redis cache](2026-09-04-redis-cache-design.md) | D102: shared encrypted entries, connector generations, Pub/Sub invalidation and direct-read degradation |
 | 2026-09-04 | [Selecting and observing the cache backend](2026-09-04-cache-configuration-design.md) | D103: memory by default, explicit Redis settings, non-fatal health and an optional Compose profile |
+| 2026-09-04 | [Redis stops at measured read caching](2026-09-04-cache-scope-design.md) | D104: observable cache outcomes and no locks, job fan-out, share acceleration or durable truth without evidence |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

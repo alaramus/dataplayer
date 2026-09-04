@@ -86,6 +86,9 @@ Known deviations:
   died before starting it — that row is settled as `interrupted` instead.
 - **Nothing bounds how many jobs one user may have.** Runs have an admission
   limit; jobs do not yet.
+- **Jobs are not fanned out through infrastructure Redis.** The database row
+  remains the authority and the accepting process performs it. D104 requires
+  measured need and a separate durable delivery contract before that changes.
 - **Progress is one step at a time.** A pull that takes four minutes reports
   one step for four minutes: there are no bytes, no layers and no percentage,
   because the engine's own progress stream is not read yet.

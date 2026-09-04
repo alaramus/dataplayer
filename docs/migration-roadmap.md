@@ -93,11 +93,23 @@ because the old project had a Redis object.
 
 Sequence:
 
-- [ ] Only after measurement, reuse Redis for distributed locks, job fan-out or
+- [~] Extract a cache backend protocol without weakening D31's exact keys,
+  in-flight coalescing, LRU/TTL bounds or post-mutation invalidation rules.
+- [~] Define versioned serialization, namespace by deployment and user, and
+  decide whether sensitive fetched values require encryption in Redis.
+- [~] Implement optional Redis cache storage plus a cross-worker invalidation
+  channel. Failure must degrade to direct reads, not take data access down.
+- [~] Add configuration, health reporting, TLS/auth examples and an optional
+  Compose service; keep the in-memory backend as the default.
+- [~] Only after measurement, reuse Redis for distributed locks, job fan-out or
   share acceleration. Snapshot truth and job truth remain durable elsewhere.
 
 Exit condition: two backend workers observe the same invalidation behaviour,
 and turning Redis off changes performance rather than correctness.
+
+Implementation and tests are written in D100 through D104. Validation is still
+pending under the repository rule that requires explicit approval for the
+backend, generated-client and documentation checks.
 
 ## Phase 6 — add adapter families deliberately
 

@@ -552,6 +552,41 @@ export type CacheHealth = {
    * Message
    */
   message: string
+  measurements: CacheMeasurements
+}
+
+/**
+ * CacheMeasurements
+ */
+export type CacheMeasurements = {
+  /**
+   * Hits
+   */
+  hits: number
+  /**
+   * Misses
+   */
+  misses: number
+  /**
+   * Coalesced
+   */
+  coalesced: number
+  /**
+   * Refreshed
+   */
+  refreshed: number
+  /**
+   * Bypasses
+   */
+  bypasses: number
+  /**
+   * Invalidations
+   */
+  invalidations: number
+  /**
+   * Failures
+   */
+  failures: number
 }
 
 /**

@@ -60,6 +60,7 @@ export type {
   Body_connectors_run_action_with_file,
   Body_login_login_access_token,
   CacheHealth,
+  CacheMeasurements,
   CandidateKey,
   Capability,
   CellEdit,

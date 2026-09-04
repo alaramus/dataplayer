@@ -70,6 +70,7 @@ def test_namespace_separates_deployments_users_and_exact_requests() -> None:
 
     assert len(names) == 4
     assert f":user:{key.owner_id}:" in first.value_key(key, 3)
+    assert "{staging}" in first.lru_key
     assert key.request in first.associated_data(key, 3).decode()
 
 

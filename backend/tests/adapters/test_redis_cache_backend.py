@@ -12,6 +12,7 @@ from app.adapters.redis.cache_connection import (
     CacheConnectionError,
     InvalidationSubscription,
     RedisCacheConnection,
+    SharedCacheConnection,
 )
 
 TEXT_FORMAT: CacheFormat[str] = CacheFormat(str)
@@ -21,6 +22,7 @@ TEST_REDIS_URL = os.environ.get("TEST_REDIS_URL")
 @dataclass
 class FakeRedis:
     values: dict[str, bytes] = field(default_factory=dict)
+    lru: dict[str, list[str]] = field(default_factory=dict)
     subscribers: dict[str, list[asyncio.Queue[bytes]]] = field(default_factory=dict)
     publications: list[tuple[str, bytes]] = field(default_factory=list)
     failing: bool = False
@@ -52,10 +54,44 @@ class FakeConnection:
         self._check()
         return self._server.values.get(key)
 
-    async def set(self, key: str, value: bytes, *, ttl_ms: int) -> None:
+    def _touch(self, lru_key: str, key: str) -> None:
+        order = self._server.lru.setdefault(lru_key, [])
+        if key in order:
+            order.remove(key)
+        order.append(key)
+
+    async def read_entry(self, key: str, *, lru_key: str) -> bytes | None:
+        self._check()
+        value = self._server.values.get(key)
+        if value is None:
+            if key in self._server.lru.setdefault(lru_key, []):
+                self._server.lru[lru_key].remove(key)
+            return None
+        self._touch(lru_key, key)
+        return value
+
+    async def write_entry(
+        self,
+        key: str,
+        value: bytes,
+        *,
+        ttl_ms: int,
+        lru_key: str,
+        max_entries: int,
+    ) -> None:
         self._check()
         assert ttl_ms > 0
         self._server.values[key] = value
+        self._touch(lru_key, key)
+        order = self._server.lru[lru_key]
+        while len(order) > max_entries:
+            self._server.values.pop(order.pop(0), None)
+
+    async def delete_entry(self, key: str, *, lru_key: str) -> None:
+        self._check()
+        self._server.values.pop(key, None)
+        if key in self._server.lru.setdefault(lru_key, []):
+            self._server.lru[lru_key].remove(key)
 
     async def delete(self, key: str) -> None:
         self._check()
@@ -92,21 +128,22 @@ class FakeConnection:
         pass
 
 
-def make_cache(server: FakeRedis) -> RedisDataCache:
+def make_cache(server: FakeRedis, *, max_entries: int = 8) -> RedisDataCache:
     return RedisDataCache(
         FakeConnection(server),
         namespace=CacheNamespace("test"),
         cipher=CacheCipher(b"k" * 32),
+        max_entries=max_entries,
         listener_retry_seconds=0.01,
     )
 
 
-def key(connector_id: uuid.UUID) -> CacheKey:
+def key(connector_id: uuid.UUID, request: str = "people") -> CacheKey:
     return CacheKey(
         owner_id=uuid.UUID("11111111-1111-1111-1111-111111111111"),
         connector_id=connector_id,
         area="fetch",
-        request='{\"node_id\":\"public.people\"}',
+        request=f'{{"node_id":"public.{request}"}}',
     )
 
 
@@ -151,7 +188,7 @@ async def test_two_workers_share_values_and_connector_invalidation() -> None:
 
         assert (refreshed.value, refreshed.status) == ("Grace Hopper", "miss")
         assert server.publications == [
-            ("dataplayer:test:cache:v1:invalidate", str(connector_id).encode())
+            ("dataplayer:{test}:cache:v1:invalidate", str(connector_id).encode())
         ]
         assert isinstance(first, DataCache)
     finally:
@@ -211,6 +248,42 @@ async def test_cross_worker_invalidation_does_not_restore_an_old_flight() -> Non
         await second.aclose()
 
 
+async def test_shared_entries_keep_the_d31_lru_ceiling() -> None:
+    server = FakeRedis()
+    cache = make_cache(server, max_entries=2)
+    connector_id = uuid.uuid4()
+    first = key(connector_id, "first")
+    second = key(connector_id, "second")
+    third = key(connector_id, "third")
+
+    async def read(cache_key: CacheKey, value: str) -> str:
+        return (
+            await cache.get_or_load(
+                cache_key,
+                ttl_seconds=30,
+                load=lambda: asyncio.sleep(0, result=value),
+                cache_format=TEXT_FORMAT,
+            )
+        ).value
+
+    try:
+        assert await read(first, "first") == "first"
+        assert await read(second, "second") == "second"
+        assert await read(first, "wrong") == "first"
+        assert await read(third, "third") == "third"
+
+        reloaded = await cache.get_or_load(
+            second,
+            ttl_seconds=30,
+            load=lambda: asyncio.sleep(0, result="second again"),
+            cache_format=TEXT_FORMAT,
+        )
+        assert (reloaded.value, reloaded.status) == ("second again", "miss")
+        assert await cache.size() == 2
+    finally:
+        await cache.aclose()
+
+
 async def test_redis_failure_bypasses_cache_and_never_fails_data_access() -> None:
     server = FakeRedis(failing=True)
     cache = make_cache(server)
@@ -230,6 +303,8 @@ async def test_redis_failure_bypasses_cache_and_never_fails_data_access() -> Non
         assert cache.available is False
         assert health.status == "degraded"
         assert health.shared is True
+        assert health.measurements.bypasses == 1
+        assert health.measurements.failures >= 2
     finally:
         await cache.aclose()
 
@@ -247,12 +322,14 @@ async def test_two_cache_instances_observe_real_redis_invalidation() -> None:
         deployment=deployment,
         encryption_key=b"r" * 32,
         timeout_seconds=1,
+        max_entries=8,
     )
     second = RedisDataCache.from_url(
         TEST_REDIS_URL,
         deployment=deployment,
         encryption_key=b"r" * 32,
         timeout_seconds=1,
+        max_entries=8,
     )
     first.start()
     second.start()
@@ -289,3 +366,25 @@ async def test_two_cache_instances_observe_real_redis_invalidation() -> None:
             pass
         finally:
             await cleanup.aclose()
+
+
+def test_infrastructure_redis_exposes_no_lock_queue_or_durable_state_commands() -> None:
+    commands = {
+        name
+        for name, value in vars(SharedCacheConnection).items()
+        if not name.startswith("_") and callable(value)
+    }
+
+    assert commands == {
+        "get",
+        "read_entry",
+        "write_entry",
+        "delete_entry",
+        "delete",
+        "increment",
+        "publish",
+        "subscribe",
+        "count",
+        "ping",
+        "aclose",
+    }

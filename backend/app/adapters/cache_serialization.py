@@ -70,7 +70,9 @@ class CacheNamespace:
                 "deployment must be 1-63 letters, digits, dots, dashes or underscores"
             )
         self._deployment = deployment
-        self._prefix = f"dataplayer:{deployment}:cache:v{WIRE_VERSION}"
+        # One cluster hash tag keeps entry and LRU keys in the same Redis slot,
+        # which makes the fixed atomic entry scripts valid on clustered Redis.
+        self._prefix = f"dataplayer:{{{deployment}}}:cache:v{WIRE_VERSION}"
 
     @property
     def invalidation_channel(self) -> str:
@@ -84,6 +86,10 @@ class CacheNamespace:
     @property
     def values_prefix(self) -> str:
         return self._prefix
+
+    @property
+    def lru_key(self) -> str:
+        return f"{self._prefix}:lru"
 
     def value_key(self, key: CacheKey, generation: int) -> str:
         request_digest = hashlib.sha256(key.request.encode()).hexdigest()

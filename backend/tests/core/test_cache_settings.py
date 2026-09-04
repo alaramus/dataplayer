@@ -56,3 +56,8 @@ def test_redis_backend_accepts_authenticated_plain_or_tls_urls(url: str) -> None
 def test_non_redis_cache_url_is_rejected() -> None:
     with pytest.raises(ValidationError, match="redis:// or rediss://"):
         Settings(DATA_CACHE_REDIS_URL="https://cache.example.com")
+
+
+def test_cache_entry_ceiling_must_be_positive() -> None:
+    with pytest.raises(ValidationError):
+        Settings(DATA_CACHE_MAX_ENTRIES=0)
