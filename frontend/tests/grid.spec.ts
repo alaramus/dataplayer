@@ -290,6 +290,62 @@ test("offers a CSV no filtering and no sorting", async ({ page }) => {
   await deleteConnector(page, name)
 })
 
+test("opening the row count menu does not briefly widen the grid toolbar", async ({ page }) => {
+  const name = `e2e-grid-page-size-width-${Date.now()}`
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+  await openNode(page, "sample.csv")
+  await expect(page.getByTestId("grid-cell-0-id")).toBeVisible()
+
+  const header = page.getByTestId("grid-header")
+  // A final bounding box misses the bug: the arrow only overflows while it
+  // rotates. Record every rendered frame from the click through its transition.
+  await header.evaluate((element) => {
+    const bar = element.firstElementChild
+    if (!(bar instanceof HTMLElement)) throw new Error("The toolbar is missing")
+    element.addEventListener("click", () => {
+      const baseline = {
+        width: bar.clientWidth,
+        scrollWidth: bar.scrollWidth,
+        height: bar.getBoundingClientRect().height,
+      }
+      let maxScrollWidth = baseline.scrollWidth
+      let maxHeight = baseline.height
+      const until = performance.now() + 500
+      const sample = () => {
+        maxScrollWidth = Math.max(maxScrollWidth, bar.scrollWidth)
+        maxHeight = Math.max(maxHeight, bar.getBoundingClientRect().height)
+        if (performance.now() < until) {
+          requestAnimationFrame(sample)
+        } else {
+          element.setAttribute("data-menu-dimensions", JSON.stringify({
+            baseline, maxScrollWidth, maxHeight,
+          }))
+        }
+      }
+      requestAnimationFrame(sample)
+    }, { once: true, capture: true })
+  })
+  await page.getByTestId("grid-page-size").click()
+  const option = page.getByRole("option", { name: "50", exact: true })
+  await expect(option).toBeVisible()
+  await expect.poll(() => header.getAttribute("data-menu-dimensions")).not.toBeNull()
+  const dimensions = JSON.parse(await header.getAttribute("data-menu-dimensions") ?? "null") as {
+    baseline: { width: number; scrollWidth: number; height: number }
+    maxScrollWidth: number
+    maxHeight: number
+  }
+  expect(dimensions.baseline.scrollWidth).toBe(dimensions.baseline.width)
+  expect(dimensions.maxScrollWidth).toBe(dimensions.baseline.scrollWidth)
+  expect(dimensions.maxHeight).toBe(dimensions.baseline.height)
+
+  await option.click()
+  await expect(page.getByTestId("grid-page-range")).toContainText("Rows 1–50")
+  await deleteConnector(page, name)
+})
+
 test("keeps the grid legible in the dark theme", async ({ page }) => {
   const name = `e2e-grid-dark-${Date.now()}`
   await login(page)

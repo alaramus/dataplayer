@@ -171,6 +171,9 @@ Consequences:
   beside one of the kit's fields goes through its `after` slot: the field kit
   then aligns it with the control rather than with the extra line reserved
   underneath for a validation message.
+  `AppSelect` clips its append area so the rotating dropdown arrow cannot
+  temporarily widen a scrollable toolbar. The teleported options remain outside
+  that clipping boundary.
 - **The rule is a lint rule, not a habit.** `vue/no-restricted-html-elements`
   forbids, outside `shared/ui`, exactly those `q-*` that have a replacement, in
   both spellings Vue accepts — matching only `q-btn` would let `<QBtn>` walk

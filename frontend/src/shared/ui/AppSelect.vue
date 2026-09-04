@@ -53,6 +53,7 @@ const labelled = computed(() => props.options.some((option) => typeof option ===
 
 <template>
   <q-select
+    class="app-select"
     :model-value="modelValue"
     :options="options"
     :label="label"
@@ -83,3 +84,12 @@ const labelled = computed(() => props.options.some((option) => typeof option ===
     </template>
   </q-select>
 </template>
+
+<style scoped>
+.app-select :deep(.q-field__append) {
+  /* The dropdown arrow rotates on opening. Its intermediate transformed box
+     is wider than the icon and can give a scrollable toolbar a scrollbar.
+     Keep that paint inside the append area; the popup is teleported outside. */
+  overflow: hidden;
+}
+</style>
