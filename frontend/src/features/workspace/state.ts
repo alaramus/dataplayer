@@ -56,12 +56,12 @@ export interface WorkspaceActions {
   /**
    * Show another table in a tab that is already showing one.
    *
-   * The sheets of a workbook: the tab keeps its place in the strip and its
-   * title becomes the sheet's, because a second tab per sheet turns "look at
-   * the other one" into housekeeping (D51). The whole request rather than a
-   * new id, because the tab is now about a different node — what it can be
-   * described as and what else it opens as are that node's, not the old
-   * one's.
+   * The sheets of a workbook: the tab keeps its place in the strip, because a
+   * second tab per sheet turns "look at the other one" into housekeeping
+   * (D51). The whole request rather than a new id, because the tab is now
+   * about a different node — what it can be described as and what else it
+   * opens as are that node's, not the old one's. What it is *called* is the
+   * caller's: a tab on a file stays named after the file.
    */
   showInPlace: (panelId: string, request: OpenRowsRequest) => void
   /** Open the source's chosen representation with the matching viewer. */

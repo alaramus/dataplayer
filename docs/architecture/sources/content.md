@@ -188,7 +188,11 @@ which is what the old `sheet_title` parameter did to every caller.
   which is still an archive. The tab it opens offers the other sheets along the
   foot of the grid, on the row the pager is on and marked like a tab strip —
   where a spreadsheet puts them, and where something about the whole page
-  belongs. Choosing one switches the tab in place. Only a node that was opened
+  belongs. Choosing one switches the tab in place, and the tab keeps the name
+  of the file: which sheet is being read is what the strip says, and renaming
+  the tab made the file disappear from the screen the moment somebody looked
+  at its second table. What is named after the sheet is the structure of it,
+  which is one sheet's columns. Only a node that was opened
   as one of several has them: the reading that answers "what else is in here"
   is the container's own listing, and a node with no container asks for
   nothing.

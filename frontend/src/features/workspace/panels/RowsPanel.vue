@@ -57,17 +57,18 @@ const sheets = useSiblingTables(
     opens as its first sheet, so the tab that opened is on the file itself. */
 const currentSheet = computed(
   () =>
-    sheets.value.find((sheet) => sheet.id === props.nodeId)?.id ??
-    sheets.value[0]?.id ??
-    ""
+    sheets.value.find((sheet) => sheet.id === props.nodeId) ??
+    sheets.value[0] ??
+    null
 )
 
 /**
  * Switch this tab to another sheet, in place.
  *
- * The same move a rename makes: the tab keeps its position and its place in
- * the strip, and its title becomes the sheet's. A second tab per sheet would
- * turn "look at the other one" into housekeeping.
+ * The tab keeps its position, its place in the strip and its name: it is a tab
+ * on the file, and which sheet of it is being read is said by the strip along
+ * the foot. Renaming the tab to the sheet made the file disappear from the
+ * screen the moment somebody looked at its second table.
  */
 function showSheet(value: string) {
   const chosen = sheets.value.find((sheet) => sheet.id === value)
@@ -75,7 +76,7 @@ function showSheet(value: string) {
   workspace.showInPlace(props.panelId, {
     connectorId: props.connectorId,
     nodeId: chosen.id,
-    title: chosen.name,
+    title: props.title,
     connectorName: props.connectorName,
     adapterType: props.adapterType,
     // The sheet's own answers, not the workbook's: a sheet states its columns
@@ -172,7 +173,11 @@ function showStructure() {
   workspace.openStructure({
     connectorId: props.connectorId,
     nodeId: props.nodeId,
-    title: props.title,
+    // Named after the sheet where there is one: this tab is called after the
+    // file and shows whichever sheet is chosen, but the structure is one
+    // sheet's columns and a tab of them called after the file would be three
+    // tabs with one name.
+    title: currentSheet.value?.name ?? props.title,
     connectorName: props.connectorName,
     adapterType: props.adapterType,
   })
@@ -253,8 +258,8 @@ function showReferenced(target: ReferencedRows) {
             type="button"
             role="tab"
             class="rows-panel__sheet"
-            :class="{ 'rows-panel__sheet--here': sheet.id === currentSheet }"
-            :aria-selected="sheet.id === currentSheet"
+            :class="{ 'rows-panel__sheet--here': sheet.id === currentSheet?.id }"
+            :aria-selected="sheet.id === currentSheet?.id"
             :data-testid="`sheet-${sheet.name}`"
             @click="showSheet(sheet.id)"
           >

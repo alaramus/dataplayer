@@ -27,10 +27,16 @@ const workspace = {
 const DataGridStub = {
   props: { contentTitle: { type: String, default: "" } },
   emits: ["content", "describe", "chart", "follow"],
+  // The row the pager is on is the grid's, and what the panel puts there is
+  // handed to it as a slot — so a stub that dropped it would hide the strip
+  // this file is about.
   template: `
-    <button data-testid="rows-content" :data-title="contentTitle" @click="$emit('content')">
-      content
-    </button>
+    <div>
+      <button data-testid="rows-content" :data-title="contentTitle" @click="$emit('content')">
+        content
+      </button>
+      <slot name="pager-start" />
+    </div>
   `,
 }
 
@@ -142,7 +148,10 @@ describe("a rows panel over one of several tables in a file", () => {
       "rows:c1:budget.xlsx",
       expect.objectContaining({
         nodeId: "budget.xlsx/2",
-        title: "People",
+        // Still the file: which sheet is being read is said by the strip along
+        // the foot, and renaming the tab made the file disappear from the
+        // screen the moment somebody looked at its second table.
+        title: "budget.xlsx",
         // The sheet's own answers rather than the file's: a sheet states its
         // columns and can be described, and the workbook cannot.
         describable: true,
