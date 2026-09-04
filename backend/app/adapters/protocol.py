@@ -608,31 +608,6 @@ class ParsesConnectionString(Protocol):
 
 
 @runtime_checkable
-class ComposesSecretUrl(Protocol):
-    """A source type that can write its address with the password in it.
-
-    Named so that the one thing it does differently is the first thing read.
-    There is exactly one caller — the window that shows a started service's
-    credentials once (D89) — because a person who has just been given a
-    password wants to paste an address rather than assemble one.
-
-    Everything else composes through `SupportsConnectionString`, which is
-    obliged to leave the password out. Two methods rather than a flag, so that
-    "does this string carry a secret" is answered by which one was called.
-
-    A classmethod for the reason `draft_connection_string` is one: the values
-    are the ones the caller assembled — a published port on the host, rather
-    than the container name the connector holds — so there is no instance to
-    ask.
-    """
-
-    @classmethod
-    def connection_url_with_password(
-        cls, options: Mapping[str, Any]
-    ) -> str | None: ...
-
-
-@runtime_checkable
 class DescribesDraft(Protocol):
     """A source type that can address a form that is not filled in yet.
 

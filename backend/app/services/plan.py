@@ -21,7 +21,10 @@ from app.services.templates import (
     Fixed,
     Generated,
     ServiceTemplate,
+    Shape,
     Value,
+    shape_of,
+    slots_of,
 )
 
 # Letters and digits only. A generated password is never typed by a person and
@@ -69,11 +72,15 @@ class Placement:
     # without one, only a published port is left.
     network: str | None = None
     # Whether the service is also reachable from the machine this server runs
-    # on. A boolean rather than a port: which port is the runtime's to choose
-    # and this application's to read back, so no part of a request and no part
-    # of a plan names one. Bound to the loopback wherever it is honoured
-    # (D86).
+    # on. Bound to the loopback wherever it is honoured (D86).
     publish: bool = False
+    # Which port on the host, when somebody asked for a particular one.
+    # `None` means the runtime picks a free one, which is what it does for
+    # everybody who has no reason to care: this application would otherwise
+    # have to bind a socket to find out what is free and then race whoever
+    # took it in between. A number here is a person saying they will point
+    # something at it that already knows the port.
+    host_port: int | None = None
 
 
 @dataclass(frozen=True)
@@ -103,9 +110,11 @@ class ContainerSpec:
     volume: str
     data_path: str
     container_port: int
-    # Whether to ask the runtime for a port on the host. Which port it picks
-    # is read off the container afterwards.
+    # Whether to ask the runtime for a port on the host, and which one when
+    # somebody named it. Without a number the runtime picks, and what it
+    # picked is read off the container afterwards.
     publish: bool
+    host_port: int | None
     network: str | None
     labels: Mapping[str, str]
 
@@ -135,6 +144,11 @@ class ServicePlan:
 
     service_id: UUID
     template: ServiceTemplate
+    # Which of the template's shapes this service took: with a password, or
+    # without one where the template allows that. Carried rather than worked
+    # out again, because the connector must be described the same way the
+    # container was started.
+    shape: Shape
     credentials: Credentials
     container: ContainerSpec
 
@@ -153,7 +167,10 @@ def generate_password() -> str:
 
 
 def settle_credentials(
-    template: ServiceTemplate, chosen: Mapping[CredentialSlot, str] | None = None
+    template: ServiceTemplate,
+    chosen: Mapping[CredentialSlot, str] | None = None,
+    *,
+    shape: Shape | None = None,
 ) -> Credentials:
     """What this service's credentials are: the constants, and a new secret.
 
@@ -161,13 +178,20 @@ def settle_credentials(
     which is why the plan carries the answer rather than a way of asking again.
 
     A requester may name the slots the template calls choosable, and nothing
-    else: a value offered for a slot the template did not open is ignored
-    here and refused before it ever gets here. `password` is never on that
-    list, so a secret still comes into existence in exactly one place.
+    else: a value offered for a slot the template did not open is ignored here
+    and refused before it ever gets here.
+
+    Only the slots the shape refers to are settled. A Redis asked to run
+    without a password names none, so no secret comes into existence for it —
+    rather than one being made and then left out of the container, which is
+    the version of this that leaves a password in a log.
     """
     named = chosen or {}
+    used = slots_of(shape if shape is not None else shape_of(template, protected=True))
     settled: dict[CredentialSlot, str] = {}
     for slot, source in template.credentials.items():
+        if slot not in used:
+            continue
         if slot in template.choosable and slot in named:
             settled[slot] = named[slot]
             continue
@@ -175,6 +199,25 @@ def settle_credentials(
             source.value if isinstance(source, Fixed) else generate_password()
         )
     return settled
+
+
+def settled_names(
+    template: ServiceTemplate, chosen: Mapping[str, str] | None = None
+) -> dict[CredentialSlot, str]:
+    """The credentials of a service that are not secrets, without settling any.
+
+    What a service calls its role and its database: a constant of the template
+    unless the requester named something else. Deliberately not
+    `settle_credentials` with the secret thrown away — that one makes a
+    password every time it is called, and a function called to fill a screen
+    must not be one that creates secrets.
+    """
+    named = chosen or {}
+    return {
+        slot: named.get(slot, source.value)
+        for slot, source in template.credentials.items()
+        if isinstance(source, Fixed)
+    }
 
 
 def container_name(service_id: UUID, template: ServiceTemplate) -> str:
@@ -192,16 +235,20 @@ def build_plan(
     owner_id: UUID,
     placement: Placement,
     chosen: Mapping[CredentialSlot, str] | None = None,
+    protected: bool = True,
 ) -> ServicePlan:
     """What would be created for one service of this kind.
 
     The credentials are settled here rather than passed in, so there is one
-    moment at which a service's password comes into existence.
+    moment at which a service's password comes into existence — and one place
+    where a password somebody chose is used instead of one being made up.
     """
-    credentials = settle_credentials(template, chosen)
+    shape = shape_of(template, protected=protected)
+    credentials = settle_credentials(template, chosen, shape=shape)
     return ServicePlan(
         service_id=service_id,
         template=template,
+        shape=shape,
         credentials=credentials,
         container=build_container(
             template,
@@ -209,6 +256,7 @@ def build_plan(
             owner_id=owner_id,
             credentials=credentials,
             placement=placement,
+            shape=shape,
         ),
     )
 
@@ -220,21 +268,22 @@ def build_container(
     owner_id: UUID,
     credentials: Credentials,
     placement: Placement,
+    shape: Shape | None = None,
 ) -> ContainerSpec:
+    taken = shape if shape is not None else shape_of(template, protected=True)
     return ContainerSpec(
         name=container_name(service_id, template),
         image=template.image,
         environment={
             key: _credential_value(value, credentials)
-            for key, value in template.environment.items()
+            for key, value in taken.environment.items()
         },
-        command=tuple(
-            _credential_value(part, credentials) for part in template.command
-        ),
+        command=tuple(_credential_value(part, credentials) for part in taken.command),
         volume=volume_name(service_id, template),
         data_path=template.data_path,
         container_port=template.container_port,
         publish=placement.publish,
+        host_port=placement.host_port if placement.publish else None,
         network=placement.network,
         labels={
             SERVICE_LABEL: str(service_id),
@@ -255,7 +304,7 @@ def connector_options(plan: ServicePlan, endpoint: Endpoint) -> dict[str, str | 
     """
     return {
         field: _value(value, plan.credentials, endpoint)
-        for field, value in plan.template.connector_options.items()
+        for field, value in plan.shape.connector_options.items()
     }
 
 

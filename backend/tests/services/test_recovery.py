@@ -181,6 +181,31 @@ async def test_a_service_that_already_works_is_not_retried(
     assert "remove it instead" in again.json()["detail"]["message"]
 
 
+@pytest.mark.usefixtures("engine")
+async def test_a_service_whose_connection_was_deleted_is_not_retried_either(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """`connector_id` goes null when somebody deletes the connection, and a
+    row read by that alone looks exactly like a creation that never finished —
+    so the database would be offered a retry that starts by destroying it."""
+    accepted = await _ask(client, normal_user_token_headers)
+    await _wait(accepted["job"]["id"])
+    service = await client.get(
+        f"{BASE}/{accepted['service']['id']}", headers=normal_user_token_headers
+    )
+    await client.delete(
+        f"{CONNECTORS}/{service.json()['connector_id']}",
+        headers=normal_user_token_headers,
+    )
+
+    again = await client.post(
+        f"{BASE}/{accepted['service']['id']}/retry", headers=normal_user_token_headers
+    )
+
+    assert again.status_code == 409
+    assert "remove it instead" in again.json()["detail"]["message"]
+
+
 # --- stopping --------------------------------------------------------------
 
 
@@ -412,6 +437,33 @@ async def test_removing_a_service_leaves_the_connection_for_its_owner_to_remove(
     await client.delete(
         f"{CONNECTORS}/{connector_id}", headers=normal_user_token_headers
     )
+
+
+async def test_removing_a_service_takes_the_connection_when_asked(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """A connection to a database that no longer exists is a row nobody wants,
+    so the question is asked and this is the other answer to it."""
+    engine = FakeEngine()
+    with engine_of(app, engine):
+        accepted = await _ask(client, normal_user_token_headers)
+        await _wait(accepted["job"]["id"])
+        service = await client.get(
+            f"{BASE}/{accepted['service']['id']}", headers=normal_user_token_headers
+        )
+        connector_id = service.json()["connector_id"]
+
+        removal = await client.delete(
+            f"{BASE}/{accepted['service']['id']}?delete_connector=true",
+            headers=normal_user_token_headers,
+        )
+        await _wait(removal.json()["job"]["id"])
+
+    connector = await client.get(
+        f"{CONNECTORS}/{connector_id}", headers=normal_user_token_headers
+    )
+    assert removal.status_code == 200
+    assert connector.status_code == 404
 
 
 async def test_removing_a_connection_leaves_the_service_running(

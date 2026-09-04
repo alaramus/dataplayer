@@ -9,17 +9,12 @@ import pytest
 
 from app.adapters import registry
 from app.adapters.protocol import (
-    ComposesSecretUrl,
     DescribesDraft,
     ParsesConnectionString,
     SupportsConnectionString,
 )
 from app.adapters.redis.adapter import RedisAdapter
-from app.adapters.redis.url import (
-    compose_url,
-    compose_url_with_password,
-    options_from_url,
-)
+from app.adapters.redis.url import compose_url, options_from_url
 from tests.utils.keyspace import redis_options
 
 
@@ -30,7 +25,6 @@ def test_the_type_says_it_can_write_and_read_an_address() -> None:
     assert isinstance(adapter, SupportsConnectionString)
     assert issubclass(RedisAdapter, ParsesConnectionString)
     assert issubclass(RedisAdapter, DescribesDraft)
-    assert issubclass(RedisAdapter, ComposesSecretUrl)
     assert registry.get("redis").adapter_class is RedisAdapter
 
 
@@ -49,14 +43,14 @@ def test_the_address_shown_never_carries_the_password() -> None:
     assert "@" not in adapter.connection_string()
 
 
-def test_the_one_that_does_carry_it_quotes_it() -> None:
-    """A generated password may hold a character with meaning in a URL."""
-    written = compose_url_with_password(
-        host="127.0.0.1", port=6380, database=0, password="a/b:c@d"
-    )
+def test_a_pasted_address_carrying_a_password_is_still_read() -> None:
+    """Nothing here writes one any more — no screen in this application shows
+    a password (D89) — but the tools people paste from do, and a quoted
+    password has to come back exactly as it went in."""
+    read = options_from_url("redis://:a%2Fb%3Ac%40d@127.0.0.1:6380/0")
 
-    assert written == "redis://:a%2Fb%3Ac%40d@127.0.0.1:6380/0"
-    assert options_from_url(written)["password"] == "a/b:c@d"
+    assert read["password"] == "a/b:c@d"
+    assert read["auth_method"] == "password"
 
 
 @pytest.mark.parametrize(

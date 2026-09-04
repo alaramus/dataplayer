@@ -646,19 +646,41 @@ export type CheckConstraint = {
 }
 
 /**
+ * ChosenPassword
+ *
+ * This one, because the person asking will type it somewhere else.
+ *
+ * A `SecretStr`, so nothing prints it by accident on the way through — the
+ * same protection the connector's own fields have.
+ *
+ * Deliberately without a `pattern`: a constraint that fails puts the value
+ * it rejected into the validation error, and a 422 body echoing somebody's
+ * password is exactly what `SecretStr` is here to prevent. What a usable one
+ * looks like is checked where the other refusals about a password are made,
+ * and the answer names the rule rather than the value.
+ */
+export type ChosenPassword = {
+  /**
+   * Kind
+   */
+  kind?: "chosen"
+}
+
+/**
  * ChosenStart
  *
  * Start it the way the person asking said.
  *
- * Every field here is either a label in this application's own database or a
- * name inside the server being started. Nothing about the container is on
- * this list — not the image, not the command, not a path, not a port number
- * — because none of that is a request's to choose (D80).
+ * Every field here is either a label in this application's own database, a
+ * name inside the server being started, or the one number about placement a
+ * person can have a reason to care about. Nothing else about the container
+ * is on this list — not the image, not the command, not a path, not a
+ * network — because none of that is a request's to choose (D80).
  *
- * The password is not here either. A chosen one would have to be written
- * down between this request and the job that uses it, and the only encrypted
- * home for a service's password is the connector it becomes (D4, D84); it is
- * made up by the server and shown once instead.
+ * Whether it is reachable from this machine is not asked any more: it always
+ * is, on the loopback address and nowhere else (D86). A service nobody can
+ * open in their own tools was a choice that only ever produced a service
+ * somebody then had to remake.
  */
 export type ChosenStart = {
   /**
@@ -678,9 +700,22 @@ export type ChosenStart = {
    */
   database?: string | null
   /**
-   * Publish
+   * Port
    */
-  publish?: boolean
+  port?: number
+  /**
+   * Password
+   */
+  password?:
+    | ({
+        kind: "generated"
+      } & GeneratedPassword)
+    | ({
+        kind: "chosen"
+      } & ChosenPassword)
+    | ({
+        kind: "none"
+      } & NoPassword)
   /**
    * Sample Data
    */
@@ -2363,6 +2398,21 @@ export type GenerateQueryRequest = {
 }
 
 /**
+ * GeneratedPassword
+ *
+ * Let the server make one up, which is what it does when nobody says.
+ *
+ * Carries nothing, deliberately: how a secret is made is one rule, and a
+ * request that could influence it is a request that could weaken it (D80).
+ */
+export type GeneratedPassword = {
+  /**
+   * Kind
+   */
+  kind?: "generated"
+}
+
+/**
  * GeneratedQuery
  */
 export type GeneratedQuery = {
@@ -3137,6 +3187,22 @@ export type NewRelationTarget = {
    * Parent Node Id
    */
   parent_node_id: string
+}
+
+/**
+ * NoPassword
+ *
+ * None at all, for a server where that is a real configuration.
+ *
+ * Refused for a template that has no unprotected shape: a PostgreSQL which
+ * trusts every connection is not something this server will start, and
+ * saying so is better than quietly making one up instead.
+ */
+export type NoPassword = {
+  /**
+   * Kind
+   */
+  kind?: "none"
 }
 
 /**
@@ -5216,16 +5282,18 @@ export type ServiceAccepted = {
 /**
  * ServiceCredentials
  *
- * How to reach a service from outside this application, once.
+ * How to reach a service from outside this application, whenever asked.
  *
- * A service is used through the connection it became, and this application
- * never needs these: they are here because a person who started a database
- * may want to open it in their own tools, and the password was made up by
- * the server rather than chosen by them.
+ * Everything but the password. A service is used through the connection it
+ * became, and what a person needs from this window is the address and the
+ * names — which they can be told again tomorrow, so it is not a thing to
+ * ration. The password is the one part never shown: it stays encrypted in
+ * the connector (D4), and somebody who needs to know a service's password
+ * starts it with one of their own.
  *
- * Shown once and then not again. It stays where every credential in this
- * application stays — encrypted in the connector — and there is no second
- * way to read it out.
+ * Read off the service row and its template rather than out of the
+ * connector, so that a person who deleted the connection can still be told
+ * where the container they still have is listening.
  */
 export type ServiceCredentials = {
   /**
@@ -5245,9 +5313,9 @@ export type ServiceCredentials = {
    */
   database: string | null
   /**
-   * Password
+   * Password Mode
    */
-  password: string
+  password_mode: "generated" | "chosen" | "none"
   /**
    * Url
    */
@@ -5316,9 +5384,9 @@ export type ServicePublic = {
    */
   connector_name: string
   /**
-   * Credentials Shown
+   * Was Connected
    */
-  credentials_shown: boolean
+  was_connected: boolean
   /**
    * Created At
    */
@@ -5403,6 +5471,10 @@ export type ServiceTemplateInfo = {
    * Choosable
    */
   choosable: Array<"user" | "password" | "database">
+  /**
+   * Optional Password
+   */
+  optional_password: boolean
   /**
    * Offers Sample Data
    */
@@ -6668,6 +6740,117 @@ export type WorksheetDataset = {
    * Columns
    */
   columns?: number | null
+}
+
+/**
+ * ChosenPassword
+ *
+ * This one, because the person asking will type it somewhere else.
+ *
+ * A `SecretStr`, so nothing prints it by accident on the way through — the
+ * same protection the connector's own fields have.
+ *
+ * Deliberately without a `pattern`: a constraint that fails puts the value
+ * it rejected into the validation error, and a 422 body echoing somebody's
+ * password is exactly what `SecretStr` is here to prevent. What a usable one
+ * looks like is checked where the other refusals about a password are made,
+ * and the answer names the rule rather than the value.
+ */
+export type ChosenPasswordWritable = {
+  /**
+   * Kind
+   */
+  kind?: "chosen"
+  /**
+   * Value
+   */
+  value: string
+}
+
+/**
+ * ChosenStart
+ *
+ * Start it the way the person asking said.
+ *
+ * Every field here is either a label in this application's own database, a
+ * name inside the server being started, or the one number about placement a
+ * person can have a reason to care about. Nothing else about the container
+ * is on this list — not the image, not the command, not a path, not a
+ * network — because none of that is a request's to choose (D80).
+ *
+ * Whether it is reachable from this machine is not asked any more: it always
+ * is, on the loopback address and nowhere else (D86). A service nobody can
+ * open in their own tools was a choice that only ever produced a service
+ * somebody then had to remake.
+ */
+export type ChosenStartWritable = {
+  /**
+   * Mode
+   */
+  mode?: "chosen"
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * User
+   */
+  user?: string | null
+  /**
+   * Database
+   */
+  database?: string | null
+  /**
+   * Port
+   */
+  port?: number
+  /**
+   * Password
+   */
+  password?:
+    | ({
+        kind: "generated"
+      } & GeneratedPassword)
+    | ({
+        kind: "chosen"
+      } & ChosenPasswordWritable)
+    | ({
+        kind: "none"
+      } & NoPassword)
+  /**
+   * Sample Data
+   */
+  sample_data?: boolean
+}
+
+/**
+ * ServiceRequest
+ *
+ * Everything a client may say about a service it wants.
+ *
+ * The template names what will run (D80); the rest is how the person asking
+ * wants it set up, and the shape of that says which of the two ways they
+ * asked.
+ */
+export type ServiceRequestWritable = {
+  /**
+   * Template Key
+   */
+  template_key: string
+  /**
+   * Request Id
+   */
+  request_id?: string | null
+  /**
+   * Start
+   */
+  start?:
+    | ({
+        mode: "automatic"
+      } & AutomaticStart)
+    | ({
+        mode: "chosen"
+      } & ChosenStartWritable)
 }
 
 export type loginLoginAccessTokenData = {
@@ -9109,7 +9292,7 @@ export type servicesReadServicesResponse =
   servicesReadServicesResponses[keyof servicesReadServicesResponses]
 
 export type servicesRequestServiceData = {
-  body: ServiceRequest
+  body: ServiceRequestWritable
   path?: never
   query?: never
   url: "/api/v1/services/"
@@ -9194,7 +9377,12 @@ export type servicesDeleteServiceData = {
      */
     service_id: string
   }
-  query?: never
+  query?: {
+    /**
+     * Delete Connector
+     */
+    delete_connector?: boolean
+  }
   url: "/api/v1/services/{service_id}"
 }
 

@@ -407,9 +407,11 @@ def _creation_body(spec: ContainerSpec) -> dict[str, Any]:
         # An empty host port means "pick a free one", which is the runtime's
         # job: this application would have to bind a socket to find out what
         # is free and then race whoever took it in between. What it picked is
-        # read back off the container.
+        # read back off the container either way — a number written here is
+        # still confirmed rather than assumed.
+        wanted = "" if spec.host_port is None else str(spec.host_port)
         host_config["PortBindings"] = {
-            port: [{"HostIp": "127.0.0.1", "HostPort": ""}]
+            port: [{"HostIp": "127.0.0.1", "HostPort": wanted}]
         }
     body: dict[str, Any] = {
         "Image": spec.image,

@@ -17,6 +17,7 @@ from app.services.plan import (
     build_plan,
     connector_options,
     settle_credentials,
+    settled_names,
 )
 from app.services.templates import SERVICE_TEMPLATES, template_for
 
@@ -42,15 +43,31 @@ def test_the_container_is_the_template_and_nothing_else() -> None:
     assert set(plan.container.environment) == set(template.environment)
 
 
-def test_a_placement_decides_the_port_and_the_network_and_a_request_never_does() -> (
-    None
-):
+def test_a_placement_decides_the_network_and_a_request_never_does() -> None:
     plan = _plan(Placement(network="dataplayer_default", publish=True))
 
     assert plan.container.network == "dataplayer_default"
-    # A boolean and never a number: which port is free is the runtime's to
-    # answer, and the plan is written before anything is asked.
     assert plan.container.publish is True
+    # No number unless somebody named one: which port is free is the runtime's
+    # to answer, and this application would have to bind a socket to find out.
+    assert plan.container.host_port is None
+
+
+def test_a_port_somebody_named_is_the_one_the_container_asks_for() -> None:
+    """The one number about a container a request may carry: somebody who has
+    a configuration file pointing at 5433 wants 5433."""
+    plan = _plan(Placement(network="dataplayer_default", publish=True, host_port=5433))
+
+    assert plan.container.host_port == 5433
+
+
+def test_a_port_is_meaningless_without_a_port_on_the_host_at_all() -> None:
+    """Not carried forward as a number nothing will bind: a spec that named a
+    port it does not publish is a spec two readers would read differently."""
+    plan = _plan(Placement(publish=False, host_port=5433))
+
+    assert plan.container.publish is False
+    assert plan.container.host_port is None
 
 
 def test_a_service_that_is_not_published_says_so_rather_than_guessing() -> None:
@@ -206,3 +223,78 @@ def test_a_command_carries_what_the_template_said_it_would() -> None:
         plan.credentials["password"],
     )
     assert plan.container.environment == {}
+
+
+def test_a_password_somebody_typed_is_the_one_the_container_gets() -> None:
+    """Not generated and then overwritten somewhere later: the plan is what
+    the container is started with and what the connector is filled from, so a
+    chosen password has to arrive here or nowhere (D83)."""
+    plan = build_plan(
+        template_for("postgres"),
+        service_id=uuid4(),
+        owner_id=uuid4(),
+        placement=Placement(),
+        chosen={"password": "s3cret-enough"},
+    )
+
+    assert plan.credentials["password"] == "s3cret-enough"
+    assert plan.container.environment["POSTGRES_PASSWORD"] == "s3cret-enough"
+
+
+def test_a_service_asked_to_run_without_one_settles_no_password_at_all() -> None:
+    """Not a password made and then left out of the container: a secret that
+    exists and is unused is a secret in a log waiting to happen."""
+    plan = build_plan(
+        template_for("redis"),
+        service_id=uuid4(),
+        owner_id=uuid4(),
+        placement=Placement(),
+        protected=False,
+    )
+
+    assert "password" not in plan.credentials
+    assert plan.container.command == ("redis-server",)
+
+
+def test_the_connector_of_an_unprotected_service_says_it_authenticates_with_none() -> (
+    None
+):
+    """The command, the environment and the word the connector uses vary
+    together, which is why they are one shape rather than three fields."""
+    plan = build_plan(
+        template_for("redis"),
+        service_id=uuid4(),
+        owner_id=uuid4(),
+        placement=Placement(),
+        protected=False,
+    )
+
+    filled = connector_options(plan, Endpoint(host=plan.container.name, port=6379))
+    validated = adapter_options.validate(
+        registry.get(plan.template.adapter_type).options_schema, filled
+    )
+
+    assert filled["auth_method"] == "no_auth"
+    assert "password" not in filled
+    assert validated.auth_method == "no_auth"
+
+
+def test_a_template_that_has_no_unprotected_shape_refuses_to_take_one() -> None:
+    """A PostgreSQL that trusts every connection is not a service this server
+    will start, and saying so beats quietly making a password up instead."""
+    with pytest.raises(ValueError, match="without a password"):
+        build_plan(
+            template_for("postgres"),
+            service_id=uuid4(),
+            owner_id=uuid4(),
+            placement=Placement(),
+            protected=False,
+        )
+
+
+def test_the_names_of_a_service_can_be_read_without_making_a_password() -> None:
+    """What fills the window saying where a service listens. A function called
+    to fill a screen must not be one that creates secrets."""
+    names = settled_names(template_for("postgres"), {"database": "sales"})
+
+    assert names == {"user": "dataplayer", "database": "sales"}

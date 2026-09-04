@@ -7,11 +7,14 @@ from app.adapters import registry
 from app.services.templates import (
     CREDENTIAL_SLOTS,
     SERVICE_TEMPLATES,
-    Fixed,
     Generated,
     UnknownServiceTemplate,
     all_templates,
     generated_slots,
+    may_run_unprotected,
+    shape_of,
+    shapes,
+    slots_of,
     template_for,
 )
 
@@ -50,7 +53,11 @@ def test_every_template_becomes_a_source_type_this_server_has() -> None:
 def test_every_option_a_template_fills_is_a_field_of_that_adapter() -> None:
     """The connector a service becomes goes through the adapter's own schema,
     so a field the model does not have is a mistake to catch here rather than
-    at the moment somebody presses the button."""
+    at the moment somebody presses the button.
+
+    Every shape, not only the ordinary one: a template that runs without a
+    password fills a different set of fields, and it is the one nothing
+    exercises by default."""
     for template in SERVICE_TEMPLATES:
         schema = registry.get(template.adapter_type).options_schema
         known = {
@@ -59,7 +66,8 @@ def test_every_option_a_template_fills_is_a_field_of_that_adapter() -> None:
             for name in variant.model_fields
         }
 
-        assert set(template.connector_options) <= known, template.key
+        for shape in shapes(template):
+            assert set(shape.connector_options) <= known, template.key
 
 
 def test_every_slot_a_template_uses_is_one_it_settled() -> None:
@@ -67,17 +75,27 @@ def test_every_slot_a_template_uses_is_one_it_settled() -> None:
     the worst moment."""
     for template in SERVICE_TEMPLATES:
         settled = set(template.credentials)
-        used = {
-            value
-            for value in template.environment.values()
-            if not isinstance(value, Fixed)
-        } | {
-            value
-            for value in template.connector_options.values()
-            if not isinstance(value, Fixed) and value in CREDENTIAL_SLOTS
-        }
 
-        assert used <= settled, template.key
+        for shape in shapes(template):
+            assert slots_of(shape) <= settled, template.key
+
+
+def test_a_shape_without_a_password_refers_to_none() -> None:
+    """What makes "no password" mean no secret settled rather than one made
+    and then left out of the container."""
+    redis = template_for("redis")
+    assert redis.unprotected is not None
+
+    assert slots_of(shape_of(redis, protected=True)) == {"password"}
+    assert slots_of(redis.unprotected) == set()
+
+
+def test_a_template_with_no_unprotected_shape_will_not_be_asked_for_one() -> None:
+    for template in SERVICE_TEMPLATES:
+        assert may_run_unprotected(template) is (template.unprotected is not None)
+
+    with pytest.raises(ValueError, match="without a password"):
+        shape_of(template_for("postgres"), protected=False)
 
 
 def test_what_is_generated_is_read_off_the_declaration() -> None:

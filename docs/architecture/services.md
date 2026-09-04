@@ -111,10 +111,10 @@ Known deviations:
   `compose.yml` uses.
 - **There are two templates.** PostgreSQL and Redis, which is what proves
   the registry is not one image with steps around it ([D85](#d85-the-second-service-is-what-proves-the-first-one-was-not-a-shape)).
-- **What a person may name is a short list.** The role and the database, and
-  only where the template opens them
-  ([D88](#d88-two-ways-to-ask-for-a-service-and-neither-of-them-names-a-container));
-  everything about the container stays the template's.
+- **What a person may name is a short list.** The role, the database, the
+  password and the port on this machine, and only where the template opens
+  them ([D88](#d88-two-ways-to-ask-for-a-service-and-neither-of-them-names-a-container));
+  everything about what runs stays the template's.
 
 Spec: [Approved service templates](../superpowers/specs/2026-09-02-service-templates-design.md)
 
@@ -191,8 +191,11 @@ becoming a second kind of connection with rules of its own.
 - **It goes through the ordinary path**: the adapter's own options model
   validates it and [D4](backend.md)'s schema split encrypts what is declared
   `SecretStr`. Nothing was told that a password is a secret.
-- **A service row holds no credentials.** The connector is their one home. A
-  creation that fails before that step leaves a container nobody can use, so
+- **A service row holds no credentials once it is made.** The connector is
+  their one home; a password somebody typed waits on the row encrypted until
+  that home exists and is erased then
+  ([D88](#d88-two-ways-to-ask-for-a-service-and-neither-of-them-names-a-container)).
+  A creation that fails before that step leaves a container nobody can use, so
   the service is marked failed and can be removed — which is why removal is
   the way out of every state.
 - **Ready means the source answered**, not that a container is running. The
@@ -205,10 +208,10 @@ becoming a second kind of connection with rules of its own.
   network configured offers nothing: a service that could be started and not
   used is not an offer. A port on the host is a second thing with a different
   audience — the person who started it, in their own tools — and it is bound
-  to the loopback address and numbered by the runtime
-  ([D89](#d89-a-generated-password-is-shown-once-where-it-becomes-useful)).
+  to the loopback address and numbered by the runtime unless somebody named a
+  port ([D89](#d89-where-a-service-listens-is-told-as-often-as-it-is-asked-and-its-password-never)).
 - **How much a person is asked depends on which of the two ways they asked**
-  (D88). The image, the command, the volume and the port number are the
+  (D88). The image, the command, the volume and the data path are the
   server's in both.
 - **A service and its connection are both shown, because both are true.** The
   connection is how a database is used; the service is the container it lives
@@ -248,9 +251,12 @@ person's behalf, and nothing is quietly undone.
   therefore begins by taking away whatever an earlier attempt left, including
   the volume: the data in it is a database initialised with that unknown
   password. A first attempt finds nothing and skips the step.
-- **A service that already has a connection is not retried.** That one is
+- **A service that ever became a connection is not retried.** That one is
   finished, and remaking it would destroy a database somebody is using; the
-  answer names removal instead.
+  answer names removal instead. Asked of a stamp on the row rather than of
+  `connector_id`, which goes null again when somebody deletes the connection —
+  read by that alone, a running database looks exactly like a creation that
+  never got there, and the screen would offer to start it over.
 - **A job can be stopped, and what it had already done is left standing.**
   There is no `cancelling` state: a task stops at its next await. Undoing its
   work here would be this application guessing at what somebody wanted kept,
@@ -277,9 +283,17 @@ person's behalf, and nothing is quietly undone.
   its data — which the confirmation says in so many words. That is the rule
   the roadmap asked for: a volume is not deleted by anything but an explicit
   removal of the service that owns it.
-- **Removing a service leaves the connection behind.** It may be shared, it
-  may be named in somebody's query history, and it is not that command's to
-  destroy. It stops working, and its owner removes it when they choose.
+- **Removing a service asks about the connection rather than deciding.** It
+  may be shared and it may be named in somebody's query history, so it is not
+  that command's to destroy unasked; but a connection to a database that no
+  longer exists works for nobody, so the question is put with the removal and
+  ticked by default. The answer travels as a flag on the request, and the
+  connector goes through its own deletion — cached pool and all — rather than
+  in the job: taking away a row of this application is not minutes of work to
+  watch, and the container is the only part that is.
+- **A service says whether it ever became a connection**, which is what tells
+  a creation that failed early from one whose connection its owner deleted.
+  Both have no `connector_id`; only the first may be started over.
 
 Known deviations:
 
@@ -468,23 +482,50 @@ so they are two shapes rather than one shape with everything optional.
   It publishes a port and fills the database, because a demonstration nobody
   can connect to and which holds nothing demonstrates nothing.
 - **A chosen start names what is a person's to decide**: what the connection
-  is called, the role and the database to create inside it, whether it is
-  reachable from the machine, and whether to put a sample schema in it. That
-  is the whole list.
+  is called, the role and the database to create inside it, the port on this
+  machine, the password, and whether to put a sample schema in it. That is the
+  whole list.
 - **Which credentials may be named is the template's to say.** `choosable` is
   a closed set per template, and a value for a slot it did not open is refused
   rather than dropped — a Redis server has no role, and somebody who typed one
-  should be told so. PostgreSQL opens the role and the database; Redis opens
-  nothing.
-- **The password is never on that list.** A chosen one would have to be
-  written down between the request and the job that uses it, and the only
-  encrypted home for a service's password is the connector it becomes
-  ([D4](backend.md)). It is made up by the server in both modes.
+  should be told so. PostgreSQL opens the role, the database and the password;
+  Redis opens the password alone.
+- **The password is decided in one of three ways, as three shapes.** Made up
+  here, which is the default and the whole of the automatic start; typed by
+  the person asking; or none at all, for an image where that is an ordinary
+  configuration. A nullable string plus a boolean has a fourth combination
+  that means nothing, and something would eventually have to decide what.
+- **A typed password is encrypted on the service row until the connector
+  holds it.** This is the one place a service's password lives outside the
+  connector ([D4](backend.md)), and it is bounded on both sides: encrypted
+  under the connector's own key, so there is no second key to rotate, and
+  erased by the job that saves the connector. The alternative was refusing to
+  let anybody choose one, which left every started database openable only from
+  inside this application.
+- **What a password may be made of is checked where the other refusals are,
+  not by a constraint on the field.** A failed constraint puts the value it
+  rejected into the validation error, and a 422 body echoing somebody's
+  password is exactly what `SecretStr` is there to prevent. The answer names
+  the rule — printable characters, no spaces, eight to a hundred and
+  twenty-eight — and never the value.
+- **Running without a password is a shape of the template, not a flag.** The
+  command, the environment and the word the connector authenticates by all
+  change together; a template that said only "the password is optional" would
+  leave three things to be worked out elsewhere. A template with no such shape
+  refuses the request rather than quietly making a password up instead.
+- **A port on this machine is the one number about a container a request may
+  carry.** Zero — the default — means the runtime picks a free one, which is
+  what everybody without a reason to care gets; a number is somebody who will
+  point a configuration file at it. It changes where the container is
+  published and nothing about what runs, so D80 is untouched: a port already
+  taken is a refusal from the runtime rather than a silent move.
+- **Whether it is reachable from this machine is no longer asked.** It always
+  is, on the loopback address and nowhere else ([D86](#d86-running-containers-is-the-machines-power-bounded-by-what-this-application-will-ask-for)).
+  The choice only ever produced a service its owner then had to remake.
 - **A request is a discriminated union**, so "automatic" is a thing a client
   says rather than a thing it fails to say, and both shapes forbid unknown
-  keys: a request that names an image, a command, a volume or a port number
-  does not validate. That is D80 stated a second time, where a client can
-  reach.
+  keys: a request that names an image, a command, a volume or a path does not
+  validate. That is D80 stated a second time, where a client can reach.
 - **The names a person may write are letters, digits and underscores.** They
   become an environment variable in a container specification and a role in
   somebody's server, and neither takes a quote.
@@ -494,57 +535,67 @@ Known deviations:
 - **The automatic name is not unique across a rename.** It avoids the names a
   person's services already have at the moment it is chosen; renaming a
   connection afterwards can make two of them agree.
-- **A chosen start cannot ask for a password.** The reason is above, and the
-  consequence is that somebody automating this cannot decide credentials in
-  advance.
+- **A typed password has two homes for as long as the creation runs.** Both
+  encrypted, and the second is erased when the connector exists — but a
+  creation that fails leaves it on the row until the service is removed or
+  retried.
+- **A port already in use is found out by the runtime.** Nothing checks
+  beforehand, because anything that did would be checking a moment rather than
+  a fact; the creation fails with the daemon's refusal turned into this
+  repository's own words.
 - **Sample data is all or nothing.** One schema, the project's own, and no
   choice of what goes in.
 
-Spec: [Two ways to start a service, and what comes back](../superpowers/specs/2026-09-03-service-start-modes-design.md)
+Spec: [Choosing what a started service is made with](../superpowers/specs/2026-09-03-service-start-choices-design.md)
 
-## D89. A generated password is shown once, where it becomes useful
+## D89. Where a service listens is told as often as it is asked, and its password never
 
 A service is used through the connection it became, so this application never
-needs to say its password out loud. A person who started a database usually
-wants to open it in their own tools as well, and the password is one they were
-never asked for — so it is shown, once, at the moment the service is ready.
+needs to say any of this out loud. A person who started a database usually
+wants to open it in their own tools as well, and the address it answers on for
+them is not the one the connection holds — so it is shown, whenever they ask.
 
-- **Once, and the row remembers.** `credentials_shown_at` is stamped when the
-  answer is given, and asking again is refused rather than answered. The
-  window says so before it shows anything, because a warning under something
-  the reader has already closed is not a warning.
-- **It is read out of the connector**, where the job encrypted it (D4). There
-  is no second home for it, and nothing is written down to make this route
-  possible.
+- **The password is not part of the answer, in either mode.** It was shown
+  once before, and once is what made everything beside it a thing to ration.
+  Somebody who needs to know a service's password types one when they start it
+  ([D88](#d88-two-ways-to-ask-for-a-service-and-neither-of-them-names-a-container));
+  one this server made up stays encrypted in the connector ([D4](backend.md))
+  and is read by nothing but a driver. The window says which of the three it
+  was, so a reader knows whether there is anything to remember.
+- **What is left is not a secret**, so there is nothing to stamp, nothing to
+  refuse and nothing to lose by closing the window. The route reads rather
+  than writes, which is what a GET should have been all along.
+- **It is read off the service row and its template**, not out of the
+  connector. Every value in a connector would have to be replaced or ignored —
+  it holds the container name on this server's own network — and the
+  connector is gone the moment its owner deletes it, which is exactly when
+  somebody still wants to know where the container they still have is
+  listening.
 - **The address is the one somebody else could use**: `127.0.0.1` and the port
-  the runtime picked, not the container name the connector holds — that
-  resolves only on the network this server is on. A service started without a
-  port says why there is no address instead of showing one that would fail.
+  the container was published on, and a service the runtime published nowhere
+  says why there is no address instead of showing one that would fail.
 - **The parts, and then the whole thing as one line.** A form asks for a host
   and a port; a terminal takes a URL. The line is written by the source type
   that owns the grammar (D15), never joined together by the screen, and it is
-  the only place in this application where a password is put into a string
-  anybody sees.
-- **The port is the runtime's answer.** The request says only whether to
-  publish; Docker picks a free port and the create job reads it back off the
-  container. This application never binds a socket to find out what is free
-  and then races whoever took it in between.
-- **Automatic starts open the window by themselves**, and only they: somebody
-  who filled in a form knows what they asked for, and somebody who pressed one
-  button has been told nothing yet. Until it has been shown, the services
-  window offers it.
+  composed by the same call every other address in this application goes
+  through — so there is no longer a function anywhere whose job is to put a
+  password into a string.
+- **Both modes open the window by themselves** when the service becomes ready.
+  Neither kind of requester was told where it listens: the port is the
+  runtime's answer, and the host is not the one they would have guessed.
 
 Known deviations:
 
-- **A closed window loses the password.** There is no second reveal; the
-  service can be started again, which makes a new one.
-- **The reveal is not audited.** That it happened is a stamp on the row and
-  nothing more.
+- **A password this server made up cannot be recovered.** It works through the
+  connection and nowhere else; a person who wants to open the database in
+  their own tools starts it with a password of their own.
+- **Nothing is audited.** Who looked at an address, and when, is not recorded
+  at all now that the stamp is gone.
 - **A published port is on the loopback only**, so "from outside" means from
   the machine this server runs on. Reaching it from another machine is that
   machine's tunnel to arrange.
 
-Spec: [Two ways to start a service, and what comes back](../superpowers/specs/2026-09-03-service-start-modes-design.md)
+Spec: [Choosing what a started service is made with](../superpowers/specs/2026-09-03-service-start-choices-design.md)
 
 ## D90. An empty database demonstrates nothing, so an automatic start fills one
 

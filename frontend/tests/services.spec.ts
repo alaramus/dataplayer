@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
-import { closeWindowDialog, connectorRow, deleteConnector } from "./utils/workspace"
+import { closeWindowDialog, connectorRow } from "./utils/workspace"
 
 /**
  * A database somebody asked this server to start.
@@ -18,6 +18,9 @@ import { closeWindowDialog, connectorRow, deleteConnector } from "./utils/worksp
 // whatever the last run left, and a name that repeats is a row that cannot be
 // told from another one.
 const SERVICE_NAME = `e2e-service-${Date.now()}`
+// Typed rather than left to the server, because that is the half of the form
+// with a consequence: a password made up here is never shown again.
+const SERVICE_PASSWORD = "e2e-chosen-9"
 
 async function openTheCatalog(page: import("@playwright/test").Page) {
   await page.getByTestId("add-connector").click()
@@ -45,9 +48,12 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   await page.getByTestId("service-mode").click()
   await page.getByRole("option", { name: "Let me choose" }).click()
   await page.getByTestId("service-name").fill(SERVICE_NAME)
-  // Nothing to look at and nothing to open from outside: this scenario is
-  // about the lifecycle, and both of those are minutes it does not need.
-  await page.getByTestId("service-publish").click()
+  // A password of its own, which is the reason the form asks for one: what
+  // this server makes up is never shown afterwards.
+  await page.getByTestId("service-password").fill(SERVICE_PASSWORD)
+  // Nothing to look at: this scenario is about the lifecycle, and filling a
+  // database is minutes it does not need. The port stays at zero, so the
+  // runtime picks one.
   await page.getByTestId("service-sample-data").click()
   await page.getByTestId("start-service-confirm").click()
 
@@ -65,21 +71,39 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   await expect(connectorRow(page, SERVICE_NAME)).toBeVisible({ timeout: 90_000 })
   await expect(services).toContainText("running")
 
+  // Where it listens opens by itself once it is ready, whichever way it was
+  // asked for: the port is the runtime's answer and the host is not the one
+  // the connection holds, so neither is something anybody was told (D89).
+  const details = page.getByTestId("service-credentials-dialog")
+  await expect(details).toBeVisible({ timeout: 90_000 })
+  await expect(details.getByTestId("credential-host")).toContainText("127.0.0.1")
+  // And never a password — not as a row, and not inside the address either.
+  await expect(details.getByTestId("credential-password")).toHaveCount(0)
+  await expect(details).not.toContainText(SERVICE_PASSWORD)
+  await page.getByTestId("credentials-done").click()
+
   // Opening it reads the catalog of the database that was just made.
   await closeWindowDialog(page, "services-dialog")
   await connectorRow(page, SERVICE_NAME).click()
   await expect(page.getByTestId("catalog-list")).toContainText("System")
 
-  // Removing the service takes the container and its data; the connection it
-  // made is a separate thing and is removed separately.
+  // The same window again, as often as it is asked: an address is not a
+  // secret, so there is nothing to ration.
   await openServices.click()
   const row = services
     .locator('[data-testid^="managed-service-"]')
     .filter({ hasText: SERVICE_NAME })
+  await row.locator('[data-testid^="credentials-service-"]').click()
+  await expect(details.getByTestId("credential-host")).toContainText("127.0.0.1")
+  await page.getByTestId("credentials-done").click()
+
+  // Removing the service takes the container and its data, and the connection
+  // it made when that is ticked as well — which it is by default, because a
+  // connection to a database that no longer exists works for nobody.
   await row.locator('[data-testid^="remove-service-"]').click()
+  await expect(page.getByTestId("confirm-also")).toBeVisible()
   await page.getByTestId("confirm-accept").click()
   await expect(row).toHaveCount(0, { timeout: 60_000 })
 
-  await deleteConnector(page, SERVICE_NAME)
   await expect(connectorRow(page, SERVICE_NAME)).toHaveCount(0)
 })

@@ -3,7 +3,7 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 
 import { BackupsService, JobsService, ServicesService } from "@/client"
-import type { RestoreRequest, ServiceRequest } from "@/client"
+import type { RestoreRequest, ServiceRequestWritable } from "@/client"
 import { connectorsKey } from "@/features/connectors/api"
 
 /**
@@ -36,7 +36,7 @@ export function useServices() {
 export function useRequestService() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: ServiceRequest) =>
+    mutationFn: async (body: ServiceRequestWritable) =>
       (await ServicesService.requestService({ body })).data,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: servicesKey })
@@ -44,13 +44,21 @@ export function useRequestService() {
   })
 }
 
+/**
+ * Take a service away, and its connection when that was asked for too.
+ *
+ * Two answers rather than one, because they are two things: the container and
+ * its data are this command's, and the connection it made may be shared or
+ * named in somebody's query history (D84).
+ */
 export function useDeleteService() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (serviceId: string) =>
+    mutationFn: async (asked: { serviceId: string; deleteConnector: boolean }) =>
       (
         await ServicesService.deleteService({
-          path: { service_id: serviceId },
+          path: { service_id: asked.serviceId },
+          query: { delete_connector: asked.deleteConnector },
         })
       ).data,
     onSuccess: async () => {
@@ -103,31 +111,24 @@ export function useCancelJob() {
 }
 
 /**
- * How to reach one service from outside, asked for exactly once.
+ * Where one service listens, and under what names.
  *
- * `staleTime: Infinity` and no retry, because this is not a read: the server
- * stamps the row as shown and refuses the second ask. A refetch would turn
- * the one answer into a refusal on the screen of the person who asked for it.
+ * An ordinary read, which it became when the password stopped being part of
+ * the answer: nothing is stamped, nothing is rationed, and asking again is
+ * asking again. Kept a short while because an address changes only when the
+ * service is started afresh.
  */
 export function useServiceCredentials(serviceId: Ref<string | null>) {
-  const queryClient = useQueryClient()
   return useQuery({
     queryKey: computed(() => ["service-credentials", serviceId.value] as const),
-    queryFn: async () => {
-      const answer = (
+    queryFn: async () =>
+      (
         await ServicesService.readServiceCredentials({
           path: { service_id: serviceId.value ?? "" },
         })
-      ).data
-      // The row now says it has been shown, and the button that offered it
-      // has to go grey.
-      await queryClient.invalidateQueries({ queryKey: servicesKey })
-      return answer
-    },
+      ).data,
     enabled: computed(() => serviceId.value !== null),
-    staleTime: Infinity,
-    gcTime: Infinity,
-    retry: false,
+    staleTime: 30_000,
   })
 }
 

@@ -1,18 +1,18 @@
 import uuid
 from collections.abc import Mapping
-from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.adapters import options as adapter_options
 from app.adapters import registry
-from app.adapters.protocol import ComposesSecretUrl, SupportsSampleData
+from app.adapters.cache import DataCache, DataCacheDep
+from app.adapters.protocol import DescribesDraft, SupportsSampleData
 from app.adapters.registry import AdapterType
+from app.connectors import crud as connector_crud
 from app.connectors.models import Connector
-from app.connectors.service import merge_options
+from app.core import crypto
 from app.core.config import settings
 from app.core.db import SessionDep, async_session_maker
 from app.core.schemas import Message
@@ -31,18 +31,28 @@ from app.services.engine import (
 )
 from app.services.models import (
     BUSY_STATES,
+    UNUSABLE_PASSWORD,
+    ChosenPassword,
     ChosenStart,
     ContainerReport,
     ManagedService,
+    NoPassword,
+    PasswordMode,
     ServiceAccepted,
     ServiceCredentials,
     ServicePublic,
     ServiceRequest,
     ServiceState,
     StartRequest,
+    password_survives_where_it_goes,
 )
-from app.services.plan import Placement
-from app.services.templates import UnknownServiceTemplate
+from app.services.plan import Placement, settled_names
+from app.services.templates import (
+    DATABASE,
+    PASSWORD,
+    USER,
+    UnknownServiceTemplate,
+)
 from app.users.deps import (
     CurrentUser,
     get_current_active_superuser,
@@ -90,6 +100,10 @@ class ServiceTemplateInfo(BaseModel):
     # form that asks is built from this, so a template that opens a slot gains
     # a field without the client being changed.
     choosable: list[templates.CredentialSlot]
+    # Whether this one runs without a password at all as an ordinary
+    # configuration. Read off the template, so the form offers the choice
+    # exactly where the server would accept it (D82's rule about offers).
+    optional_password: bool
     # Whether this server has anything to put in one of these worth looking
     # at. Read off the driver, so a type that cannot be filled does not offer
     # to be.
@@ -140,6 +154,7 @@ async def read_service_templates(engine: ServiceEngineDep) -> Any:
             adapter_title=registry.get(template.adapter_type).title,
             generated=list(templates.generated_slots(template)),
             choosable=list(templates.choosable_slots(template)),
+            optional_password=templates.may_run_unprotected(template),
             offers_sample_data=issubclass(
                 registry.get(template.adapter_type).adapter_class, SupportsSampleData
             ),
@@ -185,6 +200,7 @@ async def request_service(
     _refuse_without_a_runtime(await _offer(engine))
     await _refuse_if_at_the_ceiling(session, current_user.id)
     chosen = _chosen_credentials(template, body.start)
+    password_mode, chosen_password = _password_choice(template, body.start)
     service = await crud.create(
         session,
         owner_id=current_user.id,
@@ -194,6 +210,8 @@ async def request_service(
         request_id=body.request_id,
         chosen_credentials=chosen,
         sample_data=_wants_sample_data(body.start),
+        password_mode=password_mode,
+        chosen_password=chosen_password,
     )
     job = await _accept(session, runner, topics, service, "service.create")
     return ServiceAccepted(
@@ -301,45 +319,27 @@ async def read_service_credentials(
     session: SessionDep, current_user: CurrentUser, service_id: uuid.UUID
 ) -> Any:
     """
-    The password this server made up for a service, shown once.
+    Where a service listens, and under what names, as often as it is asked.
 
     A service is used through the connection it became, and this application
-    never needs to say these out loud. A person who started a database may
-    want to open it in their own tools, though, and the password is one they
-    were never asked for — so it is shown exactly once, at the moment it
-    becomes useful, and the row remembers that it was.
+    never needs any of this. It is here because somebody who started a
+    database usually wants to point their own tools at it too, and the address
+    it answers on is not the one the connector holds — that is a container
+    name on a network only this server is on.
 
-    Not a second home for a secret: it is read out of the connector, where it
-    has been encrypted since the job saved it (D4), and asking again is
-    refused rather than answered.
+    Never the password. It is encrypted in the connector and stays there
+    (D4); somebody who needs to know a service's password starts one with a
+    password of their own. That is what makes this answerable more than once,
+    and what makes it answerable at all for a service whose connection its
+    owner has since deleted.
     """
     service = await _own_or_404(session, service_id, current_user.id)
-    if service.connector_id is None:
+    if service.connected_at is None:
         raise HTTPException(
             status_code=409,
             detail={"message": "This service has no connection yet"},
         )
-    if service.credentials_shown_at is not None:
-        raise HTTPException(
-            status_code=409,
-            detail={
-                "message": (
-                    "These were shown once already. Start another service if "
-                    "you need a password you can see."
-                )
-            },
-        )
-    connector = await session.get(Connector, service.connector_id)
-    if connector is None:
-        raise HTTPException(
-            status_code=409,
-            detail={"message": "The connection this service made is gone"},
-        )
-    answer = _credentials_of(service, connector)
-    service.credentials_shown_at = datetime.now(UTC)
-    session.add(service)
-    await session.commit()
-    return answer
+    return _credentials_of(service)
 
 
 @router.get("/{service_id}/logs", response_model=ServiceLogs)
@@ -377,17 +377,22 @@ async def retry_service(
     """
     Make it again, from the beginning.
 
-    Not "carry on where it stopped": a password is settled once per attempt
-    and lives only in the connector that attempt would have saved, so whatever
-    a failed one left behind has a password nobody knows. Starting over is the
-    only honest meaning of retry here, and it takes the earlier container and
-    its data with it (D84).
+    Not "carry on where it stopped": a password this server made up is settled
+    once per attempt and lives only in the connector that attempt would have
+    saved, so whatever a failed one left behind has a password nobody knows.
+    Starting over is the only honest meaning of retry here, and it takes the
+    earlier container and its data with it (D84). A password somebody typed is
+    the exception that proves it — it is still on the row, encrypted, because
+    no connector took it over, so the second attempt uses the same one.
 
-    A service that already has a connection is refused: that one is finished,
-    and remaking it would destroy a database somebody is using.
+    A service that ever became a connection is refused: that one is finished,
+    and remaking it would destroy a database somebody is using. Asked of the
+    stamp rather than of `connector_id`, which goes null again when somebody
+    deletes the connection — the database is still there, and offering to
+    start over would offer to destroy it (D84).
     """
     service = await _own_or_404(session, service_id, current_user.id)
-    if service.connector_id is not None:
+    if service.connected_at is not None:
         raise HTTPException(
             status_code=409,
             detail={"message": "This service is already made; remove it instead"},
@@ -449,25 +454,56 @@ async def delete_service(
     current_user: CurrentUser,
     runner: JobRunnerDep,
     topics: TopicsDep,
+    data_cache: DataCacheDep,
     service_id: uuid.UUID,
+    delete_connector: bool = False,
 ) -> Any:
     """
-    Remove a service and the data it kept.
+    Remove a service and the data it kept, and its connection when asked.
 
     Destructive, and meant to be: the volume was made for this service and
     belongs to nothing else. The service is not gone when this answers — the
     job is what removes it, and the row stays until the container is gone so
     that a failure leaves something a person can see.
+
+    The connection is a separate decision, which is why it is a separate
+    answer rather than something this route assumes either way. It may be
+    shared and it may be named in somebody's query history, so it goes only
+    when its owner says so — and it goes here rather than in the job, through
+    the same path a connection deleted from its own screen takes: deleting a
+    row of this application is not minutes of work to watch.
     """
     service = await _own_or_404(session, service_id, current_user.id)
     # Not `_refuse_if_busy`: removal is the way out of every state, including
     # the `creating` a job that never finished left behind.
     await _refuse_if_working(session, service)
+    if delete_connector:
+        await _delete_the_connection(session, data_cache, service)
     await crud.set_state(session, service, "removing")
     job = await _accept(session, runner, topics, service, "service.delete")
     return ServiceAccepted(
         service=_public(service, job, "unknown"), job=job_public(job)
     )
+
+
+async def _delete_the_connection(
+    session: AsyncSession, data_cache: DataCache, service: ManagedService
+) -> None:
+    """Take the connector this service made, if it still has one.
+
+    Through the connector's own deletion so that what happens is exactly what
+    happens when somebody deletes it from its own screen, cached pool
+    included. It never reaches a container or a volume — that is this
+    command's other half, and it is the job's (D84).
+    """
+    if service.connector_id is None:
+        return
+    connector = await session.get(Connector, service.connector_id)
+    if connector is None:
+        return
+    await connector_crud.delete(session, connector=connector)
+    await data_cache.invalidate_connector(connector.id)
+    await session.refresh(service)
 
 
 async def _command(
@@ -534,20 +570,23 @@ NO_NETWORK_MESSAGE = "This server has no network to put a service on"
 
 
 def _placement(start: StartRequest) -> Placement:
-    """Where a service goes: the configured network, and a port when asked.
+    """Where a service goes: the configured network, and a port on the machine.
 
     The network is how this server reaches it — by container name, which
     resolves only on a network they share. A port on the host is a second
     thing and a different audience: it is what lets the person who started it
-    open it in their own tools, and it is bound to the loopback address and
-    numbered by the runtime, never by a request (D86).
+    open it in their own tools, and it is bound to the loopback address (D86).
 
-    An automatic start publishes, because a demonstration nobody can connect
-    to from their own machine is half a demonstration.
+    Every service published, in both modes, because a database nobody can
+    open in their own tools was a choice that only ever produced a service
+    somebody then had to remake. Which port is still the runtime's answer
+    unless a person named one, and a named one is the only number about a
+    container a request may carry.
     """
     return Placement(
         network=settings.SERVICE_NETWORK or None,
-        publish=start.publish if isinstance(start, ChosenStart) else True,
+        publish=True,
+        host_port=start.port or None if isinstance(start, ChosenStart) else None,
     )
 
 
@@ -559,6 +598,9 @@ def _chosen_credentials(
     A value for a slot this template does not call choosable is refused rather
     than dropped: silently ignoring it would let somebody believe they had
     named the role of a Redis server.
+
+    The password is not among these. It goes to the row encrypted, and this
+    dictionary is a JSON column anybody with the database can read.
     """
     if not isinstance(start, ChosenStart):
         return {}
@@ -574,6 +616,51 @@ def _chosen_credentials(
             )
         chosen[slot] = value
     return chosen
+
+
+def _password_choice(
+    template: templates.ServiceTemplate, start: StartRequest
+) -> tuple[str, bytes | None]:
+    """How this service's password was decided, and the typed one encrypted.
+
+    Three answers, and the refusals are what makes them three rather than a
+    field left empty. A template with nothing to protect cannot be given a
+    password, and one that has no unprotected shape cannot be asked to run
+    without one: a PostgreSQL that trusts every connection is not a service
+    this server will start.
+
+    A typed password is encrypted here, at the edge, so that nothing between
+    this function and the database holds it in the clear. It is a connector
+    secret that has not reached its connector yet, so it is encrypted under
+    the connector key (D4).
+    """
+    if not isinstance(start, ChosenStart):
+        return "generated", None
+    choice = start.password
+    if isinstance(choice, NoPassword):
+        if not templates.may_run_unprotected(template):
+            raise HTTPException(
+                status_code=422,
+                detail={"message": "This service cannot run without a password"},
+            )
+        return "none", None
+    if isinstance(choice, ChosenPassword):
+        if PASSWORD not in template.choosable:
+            raise HTTPException(
+                status_code=422,
+                detail={"message": "This service has no password to name"},
+            )
+        plain = choice.value.get_secret_value()
+        if not password_survives_where_it_goes(plain):
+            # Refused here rather than by a constraint on the field: a failed
+            # constraint puts the value it rejected into the validation error,
+            # and a 422 body echoing somebody's password is the thing
+            # `SecretStr` is there to prevent.
+            raise HTTPException(
+                status_code=422, detail={"message": UNUSABLE_PASSWORD}
+            )
+        return "chosen", crypto.encrypt(plain.encode(), purpose="connector")
+    return "generated", None
 
 
 def _wants_sample_data(start: StartRequest) -> bool:
@@ -752,7 +839,7 @@ def _public(
         published_port=service.published_port,
         connector_id=service.connector_id,
         connector_name=service.connector_name,
-        credentials_shown=service.credentials_shown_at is not None,
+        was_connected=service.connected_at is not None,
         created_at=service.created_at,
         job=job_public(job) if job is not None else None,
     )
@@ -770,41 +857,38 @@ NOT_PUBLISHED = (
 )
 
 
-def _credentials_of(
-    service: ManagedService, connector: Connector
-) -> ServiceCredentials:
-    """What the connector holds, as an address somebody else could use.
+def _credentials_of(service: ManagedService) -> ServiceCredentials:
+    """Where this service listens, and under what names.
 
-    The values come out of the connector rather than out of the plan: the plan
-    is gone by now, and the connector is what the container was actually
-    started with (D83). The host and port are replaced, because the connector
-    reaches the service by container name on a network only this server is on.
+    Off the row and its template rather than out of the connector. The
+    connector would do while it exists, but it holds the container name on
+    this server's own network — every value here would have to be replaced or
+    ignored — and it is gone the moment its owner deletes it, which is exactly
+    when somebody still wants to know where the container they still have is
+    listening.
+
+    Nothing secret is read, so nothing is decrypted: the names come from the
+    template's constants and from what the requester chose, and the address
+    from what the runtime reported.
     """
-    # Through the adapter's own options model rather than off the raw
-    # dictionary: a secret is a `SecretStr` there, which is what says which
-    # field it is (D4), and the model is the only thing that knows the shape
-    # of this source's options.
-    kind = registry.get(connector.adapter_type)
-    options = adapter_options.validate(
-        kind.options_schema, merge_options(connector.config, connector.secrets)
-    )
-    password = getattr(options, "password", None)
+    template = templates.template_for(service.template_key)
+    names = settled_names(template, service.chosen_credentials)
     published = service.published_port
-    plain = password.get_secret_value() if password is not None else ""
     parts = {
         "host": PUBLISHED_HOST,
         "port": published,
-        "user": getattr(options, "user", None),
-        "database": _database_of(options),
-        "password": plain,
+        "user": names.get(USER),
+        "database": names.get(DATABASE),
     }
     return ServiceCredentials(
         host=PUBLISHED_HOST if published is not None else None,
         port=published,
-        user=getattr(options, "user", None),
-        database=_database_of(options),
-        password=plain,
-        url=_url_of(kind, parts) if published is not None else None,
+        user=names.get(USER),
+        database=names.get(DATABASE),
+        password_mode=cast(PasswordMode, service.password_mode),
+        url=_url_of(registry.get(template.adapter_type), parts)
+        if published is not None
+        else None,
         unreachable_reason=None if published is not None else NOT_PUBLISHED,
     )
 
@@ -812,25 +896,19 @@ def _credentials_of(
 def _url_of(kind: AdapterType, parts: Mapping[str, Any]) -> str | None:
     """The one-line address, written by the source type that owns the grammar.
 
-    The only caller of `connection_url_with_password` there is, and the only
-    place a password is ever put into a string this application shows (D89). A
-    type that cannot write one — a personal directory has no address — answers
-    with nothing, and the window shows the parts alone.
+    `draft_connection_string` because that is the one that composes from loose
+    values rather than from a built adapter — which is what this has: a
+    published port on the host, not the container name the connector holds. It
+    leaves the password out, as every address this application shows does. A
+    type that cannot write one at all answers with nothing, and the window
+    shows the parts alone.
     """
     driver = kind.adapter_class
-    if not issubclass(driver, ComposesSecretUrl):
+    if not issubclass(driver, DescribesDraft):
         return None
-    return driver.connection_url_with_password(parts)
+    return driver.draft_connection_string(parts)
 
 
-def _database_of(options: Any) -> str | None:
-    """What the source calls the thing inside it, when it calls it anything.
-
-    PostgreSQL has a named database; Redis has sixteen numbered ones, and a
-    number is what a client is told to write.
-    """
-    database = getattr(options, "database", None)
-    return None if database is None else str(database)
 
 
 def _title_of(template_key: str) -> str:

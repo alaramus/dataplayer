@@ -65,6 +65,9 @@ function saying(service: ServicePublic): string {
 function tone(service: ServicePublic): Tone {
   if (isWorking(service.job)) return "info"
   if (service.state === "failed") return "error"
+  // A running container whose connection somebody deleted is not a green
+  // thing: the database is fine and nothing in this application can reach it.
+  if (service.connector_id === null && service.was_connected) return "warning"
   if (service.state === "running") return "success"
   return "warning"
 }
@@ -74,9 +77,22 @@ function madeOn(service: ServicePublic): string {
   return new Date(service.created_at).toLocaleString()
 }
 
-/** A creation that did not finish can be made again, from the beginning. */
+/**
+ * A creation that did not finish can be made again, from the beginning.
+ *
+ * Asked of `was_connected` rather than of `connector_id`, which goes empty
+ * again when somebody deletes the connection: that service is a database
+ * still running, and retry starts by destroying what the earlier attempt left
+ * (D84).
+ */
 function canRetry(service: ServicePublic): boolean {
-  return !isWorking(service.job) && service.connector_id === null
+  return !isWorking(service.job) && !service.was_connected
+}
+
+/** What the badge says about the connection this service made, if any. */
+function connection(service: ServicePublic): string {
+  if (service.connector_id !== null) return "connected"
+  return service.was_connected ? "connection deleted" : "no connection yet"
 }
 
 async function retry(service: ServicePublic) {
@@ -103,20 +119,33 @@ const confirm = useConfirm()
 /**
  * Taking a service away takes its data with it, so it is asked about first.
  *
- * The connection it made is left alone here: what happens to that is the
- * connector's own question, and answering it from this row would be this
- * screen deciding something the server has not been asked.
+ * And the connection it made is a second question in the same breath, ticked
+ * by default: a connection to a database that no longer exists works for
+ * nobody. Not decided here either way, because it may be shared and it may be
+ * named in somebody's query history (D84) — so it is asked rather than
+ * assumed, and a service that never became one is not asked about at all.
  */
-async function forget(serviceId: string, name: string) {
+async function forget(service: ServicePublic) {
+  const name = service.connector_name
+  let alsoTheConnection = service.connector_id !== null
   const sure = await confirm({
     title: "Remove this service?",
     message: `${name} and everything stored in it will be removed from this server.`,
     confirmLabel: "Remove",
     danger: true,
+    alsoLabel:
+      service.connector_id === null ? undefined : "Remove the connection as well",
+    alsoDefault: true,
+    onAlso: (chosen) => {
+      alsoTheConnection = chosen
+    },
   })
   if (!sure) return
   try {
-    await removeService.mutateAsync(serviceId)
+    await removeService.mutateAsync({
+      serviceId: service.id,
+      deleteConnector: alsoTheConnection,
+    })
     toast.info(`Removing ${name}`)
   } catch {
     toast.error(`${name} could not be removed`)
@@ -163,7 +192,7 @@ async function forget(serviceId: string, name: string) {
         <span class="starting__step">{{ saying(service) }}</span>
       </div>
       <AppBadge
-        :label="service.connector_id === null ? 'no connection yet' : 'connected'"
+        :label="connection(service)"
         :tone="tone(service)"
       />
       <AppIconButton
@@ -180,12 +209,13 @@ async function forget(serviceId: string, name: string) {
         :data-testid="`retry-service-${service.id}`"
         @click="retry(service)"
       />
-      <!-- Offered until it has been taken: the password is shown once, and a
-           button that would be refused is worse than no button (D82). -->
+      <!-- Offered for as long as the service exists: an address and the names
+           it goes by are not a secret, so there is nothing to ration. Whatever
+           was made up here is not in the answer (D89). -->
       <AppIconButton
-        v-if="service.connector_id !== null && !service.credentials_shown"
+        v-if="service.was_connected"
         icon="vpn_key"
-        tooltip="How to reach it from your own tools — shown once"
+        tooltip="How to reach it from your own tools"
         :data-testid="`credentials-service-${service.id}`"
         @click="revealing = { id: service.id, name: service.connector_name }"
       />
@@ -200,7 +230,7 @@ async function forget(serviceId: string, name: string) {
         tooltip="Remove this service"
         :disable="isWorking(service.job)"
         :data-testid="`remove-service-${service.id}`"
-        @click="forget(service.id, service.connector_name)"
+        @click="forget(service)"
       />
     </div>
 

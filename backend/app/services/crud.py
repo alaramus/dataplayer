@@ -22,12 +22,18 @@ async def create(
     request_id: uuid.UUID | None = None,
     chosen_credentials: Mapping[str, str] | None = None,
     sample_data: bool = False,
+    password_mode: str = "generated",
+    chosen_password: bytes | None = None,
 ) -> ManagedService:
     """Write down a service before anything is started.
 
     The names are settled here rather than when the container is made, so
     every later command — start, stop, remove, a sweep for orphans — names the
     same container as the one that was planned.
+
+    A password somebody typed arrives here already encrypted: this module does
+    database access and nothing else, and a function that took a plaintext
+    secret would be one more place a secret could be written down by mistake.
     """
     service_id = uuid.uuid4()
     service = ManagedService(
@@ -40,8 +46,11 @@ async def create(
         volume_name=volume_name(service_id, template),
         network=placement.network,
         publish=placement.publish,
+        requested_port=placement.host_port,
         sample_data=sample_data,
         chosen_credentials=dict(chosen_credentials or {}),
+        password_mode=password_mode,
+        chosen_password=chosen_password,
         state="creating",
     )
     session.add(service)

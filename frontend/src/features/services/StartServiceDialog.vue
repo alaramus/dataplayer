@@ -2,9 +2,15 @@
 import { computed, ref, watch } from "vue"
 
 import type { ServiceTemplateInfo } from "@/client"
-import { buildStart, canStart } from "@/features/services/starts"
+import { buildStart, canStart, passwordProblem } from "@/features/services/starts"
 import type { StartForm, StartRequest } from "@/features/services/starts"
-import { AppButton, AppCheckbox, AppInput, AppSelect } from "@/shared/ui"
+import {
+  AppButton,
+  AppCheckbox,
+  AppInput,
+  AppNumberInput,
+  AppSelect,
+} from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 /**
@@ -13,15 +19,15 @@ import { WindowDialog } from "@/shared/windows"
  *
  * Automatic asks none — not even the name. It is the demonstration: one press
  * and a server appears, filled with something to look at and reachable from
- * the machine, with a password this server made up and shows once. Somebody
- * who has not been asked for a name has not got one in mind, and asking for
- * one is the difference between a demonstration and a form.
+ * the machine, with a password this server made up. Somebody who has not been
+ * asked for a name has not got one in mind, and asking for one is the
+ * difference between a demonstration and a form.
  *
- * Chosen asks for what is a person's to decide, and nothing else. What runs
- * is still the template's — no image, no command, no path, no port number
- * (D80) — and the password is still the server's, because a chosen one would
- * have to be written down somewhere between the request and the job that uses
- * it (D4).
+ * Chosen asks for what is a person's to decide: what it is called, the names
+ * inside it, the port on this machine it answers on, and the password —
+ * because somebody setting a database up for their own tools usually wants one
+ * they already know. What runs is still the template's: no image, no command,
+ * no path (D80).
  */
 const props = defineProps<{
   template: ServiceTemplateInfo | null
@@ -36,12 +42,17 @@ const mode = ref<"automatic" | "chosen">("automatic")
 const name = ref("")
 const user = ref("")
 const database = ref("")
-const publish = ref(true)
+// Zero rather than empty: the server takes it to mean "pick a free one", and
+// a field that starts empty asks a question nobody has to answer.
+const port = ref<number | null>(0)
+const wantsPassword = ref(true)
+const password = ref("")
 const sampleData = ref(true)
 
 /** Which credentials this template lets a person name, in the server's order. */
 const asksFor = computed(() => props.template?.choosable ?? [])
 const offersSampleData = computed(() => props.template?.offers_sample_data ?? false)
+const optionalPassword = computed(() => props.template?.optional_password ?? false)
 
 // Opened on a template, it starts over: the last service somebody made is not
 // a draft of the next one.
@@ -52,7 +63,9 @@ watch(
     name.value = template?.title ?? ""
     user.value = ""
     database.value = ""
-    publish.value = true
+    port.value = 0
+    wantsPassword.value = true
+    password.value = ""
     sampleData.value = template?.offers_sample_data ?? false
   }
 )
@@ -63,13 +76,17 @@ const form = computed<StartForm>(() => ({
   name: name.value,
   user: user.value,
   database: database.value,
-  publish: publish.value,
+  port: port.value ?? 0,
+  wantsPassword: wantsPassword.value,
+  password: password.value,
   sampleData: sampleData.value,
   choosable: asksFor.value,
   offersSampleData: offersSampleData.value,
+  optionalPassword: optionalPassword.value,
 }))
 
 const ready = computed(() => canStart(form.value))
+const passwordSays = computed(() => passwordProblem(form.value) ?? "")
 
 function start() {
   const template = props.template
@@ -112,8 +129,8 @@ const modes = [
         data-testid="service-automatic-summary"
       >
         Runs <code>{{ template?.image }}</code> on this server, names the
-        connection for you, and gives it a password nobody has to choose. You
-        will be shown how to reach it from your own tools once — and only once.
+        connection for you, and gives it a password nobody has to choose. It
+        will tell you where to reach it from your own tools.
         <template v-if="offersSampleData">
           It comes filled with sample data, so there is something to look at.
         </template>
@@ -138,10 +155,29 @@ const modes = [
           label="Database to create (optional)"
           data-testid="service-database"
         />
+        <AppNumberInput
+          v-model="port"
+          label="Port on this machine"
+          hint="0 lets this server pick a free one"
+          data-testid="service-port"
+        />
+        <!-- Only where running without one is a configuration rather than a
+             mistake. A PostgreSQL that trusts every connection is not a
+             service this server will start, so it is never offered. -->
         <AppCheckbox
-          v-model="publish"
-          label="Reachable from this machine, on a port picked for it"
-          data-testid="service-publish"
+          v-if="optionalPassword"
+          v-model="wantsPassword"
+          label="Ask for a password"
+          data-testid="service-wants-password"
+        />
+        <AppInput
+          v-if="asksFor.includes('password') && (wantsPassword || !optionalPassword)"
+          v-model="password"
+          type="password"
+          label="Password"
+          hint="Leave it empty and one is made up here"
+          :error="passwordSays"
+          data-testid="service-password"
         />
         <AppCheckbox
           v-if="offersSampleData"
@@ -150,8 +186,9 @@ const modes = [
           data-testid="service-sample-data"
         />
         <p class="start-service__what">
-          Runs <code>{{ template?.image }}</code> on this server. The password
-          is made up here either way and shown to you once.
+          Runs <code>{{ template?.image }}</code> on this server, reachable
+          from this machine and from nowhere else. A password made up here is
+          never shown afterwards, so type one if you mean to use it elsewhere.
         </p>
       </template>
     </div>

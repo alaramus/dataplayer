@@ -91,6 +91,7 @@ translations; those files are not.
 | 2026-09-03 | [Copying a database out, and putting it back](2026-09-03-backup-and-restore-design.md) | D87: pg_dump runs in the image of the server's own version, and a backup is a file in personal storage |
 | 2026-09-03 | [Two ways to start a service, and what comes back](2026-09-03-service-start-modes-design.md) | D88, D89, D90: automatic or chosen, the password shown once, and an empty database filled |
 | 2026-09-03 | [A key space, walked and written](2026-09-03-redis-keyspace-design.md) | D91: the tree is the colons in the names, and four actions are what people do to a key by hand |
+| 2026-09-03 | [Choosing what a started service is made with](2026-09-03-service-start-choices-design.md) | D88, D89: a chosen start names the port and the password, and where a service listens is told as often as it is asked |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

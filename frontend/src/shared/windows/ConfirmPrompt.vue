@@ -13,9 +13,14 @@ const emit = defineEmits<{ answer: [value: boolean] }>()
 
 /** Ticked here and read on the way out; nothing else watches it. */
 const remember = ref(false)
+/** The second thing this press decides, when the question carries one. */
+const also = ref(props.request.alsoDefault ?? false)
 
 function accept() {
   if (remember.value) props.request.onRemember?.()
+  // Both answers, not only the ticked one: this box is part of what is being
+  // agreed to rather than a request to stop asking.
+  props.request.onAlso?.(also.value)
   emit("answer", true)
 }
 </script>
@@ -28,6 +33,14 @@ function accept() {
     >
       {{ request.message }}
     </AppSection>
+    <AppCheckbox
+      v-if="request.alsoLabel"
+      v-model="also"
+      :label="request.alsoLabel"
+      dense
+      class="confirm-prompt__remember"
+      data-testid="confirm-also"
+    />
     <AppCheckbox
       v-if="request.rememberLabel"
       v-model="remember"

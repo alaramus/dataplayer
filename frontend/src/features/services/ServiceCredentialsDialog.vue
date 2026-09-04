@@ -8,17 +8,16 @@ import { AppBanner, AppButton, AppCopyButton, AppSpinner, useToast } from "@/sha
 import { WindowDialog } from "@/shared/windows"
 
 /**
- * How to reach a service from outside this application, shown once.
+ * How to reach a service from outside this application, whenever it is asked.
  *
  * The service is used through the connection beside it, and this application
- * never needs to say any of this out loud. It is here because the password
- * was made up by the server rather than chosen by the person who asked for
- * the database, and because somebody who starts a PostgreSQL usually wants to
- * point their own tools at it too.
+ * never needs any of this. It is here because somebody who starts a
+ * PostgreSQL usually wants to point their own tools at it too, and the
+ * address it answers on for them is not the one the connection holds.
  *
- * Once, and the window says so. It stays where every credential in this
- * application stays — encrypted in the connector — and there is no second way
- * to read it out (D4).
+ * Never the password. It stays where every credential in this application
+ * stays — encrypted in the connector (D4) — and that is what makes the rest
+ * of it something a person can be told again tomorrow.
  */
 const props = defineProps<{
   service: { id: string; name: string } | null
@@ -37,8 +36,28 @@ const rows = computed(() => {
     { label: "Port", value: found.port === null ? null : String(found.port) },
     { label: "User", value: found.user },
     { label: "Database", value: found.database },
-    { label: "Password", value: found.password },
   ].filter((row): row is { label: string; value: string } => Boolean(row.value))
+})
+
+/**
+ * What to say about the password, which is never one of the rows above.
+ *
+ * Three different things rather than one: one somebody typed is one they
+ * already know, one this server made up is gone for good, and a service that
+ * wants none has nothing to say at all.
+ */
+const aboutThePassword = computed(() => {
+  switch (credentials.data.value?.password_mode) {
+    case "chosen":
+      return "It uses the password you typed when you started it."
+    case "none":
+      return "This service was started without a password."
+    default:
+      return (
+        "Its password was made up here and is not shown anywhere. Start a " +
+        "service with a password of your own if you need to type one in."
+      )
+  }
 })
 
 /**
@@ -48,6 +67,7 @@ const rows = computed(() => {
  * source type that owns it: a screen that joined the parts itself would be a
  * second implementation of it, differing in the quoting first. A type with no
  * address of its own answers with nothing, and then there is nothing to show.
+ * Without the password, so it is a line that can be pasted anywhere.
  */
 const url = computed(() => credentials.data.value?.url ?? null)
 
@@ -64,7 +84,7 @@ async function copy(what: string, said: string) {
     :model-value="service !== null"
     size="md"
     :title="`Connecting to ${service?.name ?? ''}`"
-    subtitle="Shown once. Copy anything you want to keep."
+    subtitle="Where this service answers, for your own tools."
     data-testid="service-credentials-dialog"
     @update:model-value="emit('update:service', null)"
   >
@@ -77,12 +97,13 @@ async function copy(what: string, said: string) {
         {{ messageOf(credentials.error.value, "These could not be shown") }}
       </AppBanner>
       <template v-else>
-        <!-- Said before the password rather than after it: a warning under
-             something a person has already closed the window on is not a
-             warning. -->
-        <AppBanner tone="warning">
-          This password is not stored anywhere you can read it again. It lives
-          encrypted in the connection from here on.
+        <!-- What is not on the list, said where somebody looking for it will
+             read it rather than after they have closed the window. -->
+        <AppBanner
+          tone="info"
+          data-testid="credential-password-note"
+        >
+          {{ aboutThePassword }}
         </AppBanner>
         <AppBanner
           v-if="credentials.data.value?.unreachable_reason"
@@ -106,7 +127,9 @@ async function copy(what: string, said: string) {
         </div>
 
         <!-- Last, and the one most people will actually use: the parts above
-             are what a form asks for, and this is what a terminal takes. -->
+             are what a form asks for, and this is what a terminal takes. The
+             password is not in it, like every other address this application
+             shows. -->
         <div
           v-if="url"
           class="credentials__row"

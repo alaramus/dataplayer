@@ -25,6 +25,17 @@ export interface ConfirmRequest {
    */
   rememberLabel?: string
   onRemember?: () => void
+  /**
+   * A tick box that is part of the answer rather than about the question.
+   *
+   * `rememberLabel` asks whether to stop asking; this asks a second thing the
+   * same press decides — whether removing a service takes its connection too.
+   * So `onAlso` runs on yes whatever the box says, because "no" is one of its
+   * two answers rather than the absence of one.
+   */
+  alsoLabel?: string
+  alsoDefault?: boolean
+  onAlso?: (chosen: boolean) => void
 }
 
 /** Reusable geometry and behaviour for short questions. */

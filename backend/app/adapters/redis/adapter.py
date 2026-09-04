@@ -30,7 +30,6 @@ from app.adapters.redis.samples import RedisSamples
 from app.adapters.redis.session import RedisSession
 from app.adapters.redis.url import (
     compose_url,
-    compose_url_with_password,
     options_from_url,
 )
 from app.adapters.registry import AdapterContext, register
@@ -83,20 +82,6 @@ class RedisAdapter:
             host=host,
             port=_as_number(options.get("port")),
             database=_as_number(options.get("database")),
-        )
-
-    @classmethod
-    def connection_url_with_password(cls, options: Mapping[str, Any]) -> str | None:
-        """The address a person pastes into redis-cli, password included (D89)."""
-        host = options.get("host")
-        if not isinstance(host, str) or host == "":
-            return None
-        password = options.get("password")
-        return compose_url_with_password(
-            host=host,
-            port=_as_number(options.get("port")),
-            database=_as_number(options.get("database")),
-            password=password if isinstance(password, str) else "",
         )
 
     async def check_connection(self) -> ConnectionCheckResult:

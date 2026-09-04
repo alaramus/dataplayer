@@ -55,7 +55,6 @@ from app.adapters.postgres.samples import PostgresSamples
 from app.adapters.postgres.session import (
     PostgresSession,
     compose_url,
-    compose_url_with_password,
     options_from_url,
 )
 from app.adapters.postgres.statements import format_text
@@ -243,26 +242,6 @@ class PostgresAdapter:
             port=_as_port(options.get("port")),
             user=_as_text(options.get("user")),
             database=_as_text(options.get("database")),
-        )
-
-    @classmethod
-    def connection_url_with_password(cls, options: Mapping[str, Any]) -> str | None:
-        """The address a person pastes into psql, password included (D89).
-
-        Written here rather than by whoever shows it, for the reason every
-        other spelling of an address is written here: the grammar has one
-        home.
-        """
-        host = options.get("host")
-        if not isinstance(host, str) or host == "":
-            return None
-        password = options.get("password")
-        return compose_url_with_password(
-            host=host,
-            port=_as_port(options.get("port")),
-            user=_as_text(options.get("user")),
-            database=_as_text(options.get("database")),
-            password=password if isinstance(password, str) else "",
         )
 
     async def check_connection(self) -> ConnectionCheckResult:

@@ -23,13 +23,15 @@ async def test_the_templates_are_listed_with_what_each_one_becomes(
     # The words for a source type are the server's, so a screen showing what a
     # service becomes does not keep a second name for it.
     assert postgres["adapter_title"] == "PostgreSQL"
-    # What a person will not be asked for, and what they may name when they
-    # want to. The password is on the first list and never on the second: a
-    # chosen one would have to be written down between the request and the job
-    # that uses it (D4).
+    # What this server makes up when nobody says otherwise, and what a person
+    # may name themselves. The password is on both: made up by default, and
+    # typed by somebody who will point their own tools at the result (D88).
     assert postgres["generated"] == ["password"]
-    assert postgres["choosable"] == ["user", "database"]
+    assert postgres["choosable"] == ["user", "password", "database"]
     assert postgres["offers_sample_data"] is True
+    # And PostgreSQL is not one of the things that runs without a password at
+    # all, so the form never offers that.
+    assert postgres["optional_password"] is False
 
 
 async def test_nothing_about_the_container_is_published(
@@ -52,6 +54,9 @@ async def test_nothing_about_the_container_is_published(
         # What a person may name themselves, which is names inside the server
         # rather than anything about the container that runs it.
         "choosable",
+        # Whether running it without a password at all is a configuration
+        # rather than a mistake, which is a fact about the image.
+        "optional_password",
         "offers_sample_data",
         # Not about the container: about whether this server could start one.
         "available",

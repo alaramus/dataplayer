@@ -2333,12 +2333,19 @@ export class ServicesService {
   /**
    * Delete Service
    *
-   * Remove a service and the data it kept.
+   * Remove a service and the data it kept, and its connection when asked.
    *
    * Destructive, and meant to be: the volume was made for this service and
    * belongs to nothing else. The service is not gone when this answers — the
    * job is what removes it, and the row stays until the container is gone so
    * that a failure leaves something a person can see.
+   *
+   * The connection is a separate decision, which is why it is a separate
+   * answer rather than something this route assumes either way. It may be
+   * shared and it may be named in somebody's query history, so it goes only
+   * when its owner says so — and it goes here rather than in the job, through
+   * the same path a connection deleted from its own screen takes: deleting a
+   * row of this application is not minutes of work to watch.
    */
   public static deleteService<ThrowOnError extends boolean = true>(
     options: Options<servicesDeleteServiceData, ThrowOnError>
@@ -2378,17 +2385,19 @@ export class ServicesService {
   /**
    * Read Service Credentials
    *
-   * The password this server made up for a service, shown once.
+   * Where a service listens, and under what names, as often as it is asked.
    *
    * A service is used through the connection it became, and this application
-   * never needs to say these out loud. A person who started a database may
-   * want to open it in their own tools, though, and the password is one they
-   * were never asked for — so it is shown exactly once, at the moment it
-   * becomes useful, and the row remembers that it was.
+   * never needs any of this. It is here because somebody who started a
+   * database usually wants to point their own tools at it too, and the address
+   * it answers on is not the one the connector holds — that is a container
+   * name on a network only this server is on.
    *
-   * Not a second home for a secret: it is read out of the connector, where it
-   * has been encrypted since the job saved it (D4), and asking again is
-   * refused rather than answered.
+   * Never the password. It is encrypted in the connector and stays there
+   * (D4); somebody who needs to know a service's password starts one with a
+   * password of their own. That is what makes this answerable more than once,
+   * and what makes it answerable at all for a service whose connection its
+   * owner has since deleted.
    */
   public static readServiceCredentials<ThrowOnError extends boolean = true>(
     options: Options<servicesReadServiceCredentialsData, ThrowOnError>
@@ -2440,8 +2449,11 @@ export class ServicesService {
    * only honest meaning of retry here, and it takes the earlier container and
    * its data with it (D84).
    *
-   * A service that already has a connection is refused: that one is finished,
-   * and remaking it would destroy a database somebody is using.
+   * A service that ever became a connection is refused: that one is finished,
+   * and remaking it would destroy a database somebody is using. Asked of the
+   * stamp rather than of `connector_id`, which goes null again when somebody
+   * deletes the connection — the database is still there, and offering to
+   * start over would offer to destroy it (D84).
    */
   public static retryService<ThrowOnError extends boolean = true>(
     options: Options<servicesRetryServiceData, ThrowOnError>

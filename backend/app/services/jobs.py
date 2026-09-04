@@ -19,6 +19,7 @@ from app.adapters import registry
 from app.adapters.registry import AdapterType
 from app.connectors import crud as connector_crud
 from app.connectors.service import split_options
+from app.core import crypto
 from app.jobs.models import Job, JobKind
 from app.jobs.runner import JobFailed, JobHandler, Progress
 from app.services.engine import ServiceEngine
@@ -38,6 +39,7 @@ from app.services.readiness import (
 )
 from app.services.templates import (
     CREDENTIAL_SLOTS,
+    PASSWORD,
     CredentialSlot,
     ServiceTemplate,
     UnknownServiceTemplate,
@@ -113,8 +115,13 @@ class CreateService(_ServiceJob):
             template,
             service_id=service.id,
             owner_id=service.owner_id,
-            placement=Placement(network=service.network, publish=service.publish),
+            placement=Placement(
+                network=service.network,
+                publish=service.publish,
+                host_port=service.requested_port,
+            ),
             chosen=_chosen_of(service),
+            protected=service.password_mode != "none",
         )
         try:
             await self._clear_earlier_attempt(service, progress)
@@ -123,7 +130,7 @@ class CreateService(_ServiceJob):
             await progress.reached("creating the container")
             await self._engine.create(plan.container)
             await progress.reached("starting the container")
-            await self._engine.start(plan.container.name)
+            await self._start_it(service, plan.container.name)
             await self._record_published_port(session, service)
             await progress.reached("waiting for it to answer")
             options = connector_options(plan, _endpoint_of(plan))
@@ -143,8 +150,37 @@ class CreateService(_ServiceJob):
             await self._settle(session, service, "failed")
             raise
         service.connector_id = connector_id
+        # Stamped rather than derived from `connector_id`, which goes null
+        # again if somebody deletes the connection: this is what tells a
+        # service that never got this far from one whose connection is gone
+        # but whose database is still running (D84).
+        service.connected_at = datetime.now(UTC)
+        # The connector holds the password now, encrypted, so the copy that
+        # carried it from the request to here has nothing left to do. One home
+        # again (D4).
+        service.chosen_password = None
         await self._settle(session, service, "running")
         return f"{template.title} is ready"
+
+    async def _start_it(self, service: ManagedService, container: str) -> None:
+        """Start it, and name the likeliest reason when it will not.
+
+        A container asked for a particular port on the host is the one that
+        fails for a reason the person who asked can act on — something else is
+        already listening there. The daemon says which port and which address,
+        and its words do not cross (D82), so the sentence is this
+        repository's own and names the number the request carried.
+        """
+        try:
+            await self._engine.start(container)
+        except JobFailed:
+            if service.requested_port is None:
+                raise
+            raise JobFailed(
+                f"It could not start. Port {service.requested_port} may already "
+                "be in use on this machine; leave the port at 0 to have one "
+                "picked."
+            ) from None
 
     async def _record_published_port(
         self, session: AsyncSession, service: ManagedService
@@ -204,11 +240,14 @@ class CreateService(_ServiceJob):
         """Take away whatever a previous attempt left, before making it again.
 
         This is what makes creation something that can be tried again. A
-        password is settled once per attempt and lives only in the connector
-        the attempt would have saved, so a container left by a failed one has
-        a password nobody knows — starting it again would produce a service
-        nobody can open. The data in its volume is a database initialised with
-        that unknown password, so it goes too.
+        password this server made up is settled once per attempt and lives
+        only in the connector the attempt would have saved, so a container
+        left by a failed one has a password nobody knows — starting it again
+        would produce a service nobody can open. The data in its volume is a
+        database initialised with that unknown password, so it goes too. A
+        password somebody typed survives on the row and would still open the
+        old container; it is cleared anyway, because a half-initialised data
+        directory is not something to carry into a second attempt.
 
         A first attempt finds nothing and skips the step, which is why the
         step is reached rather than announced up front.
@@ -253,13 +292,32 @@ def _chosen_of(service: ManagedService) -> dict[CredentialSlot, str]:
     The route checked these against the template before writing them down, so
     a value here is one the template opened; `settle_credentials` checks again
     rather than trusting that, because a row outlives the code that wrote it.
+
+    The password is the one that is not in the JSON column: it comes out of
+    the encrypted one beside it, which is where a typed password waits for the
+    job that will start the container with it.
     """
     by_slot: dict[CredentialSlot, str] = {}
     for slot in CREDENTIAL_SLOTS:
         value = service.chosen_credentials.get(slot)
         if value is not None:
             by_slot[slot] = value
+    typed = _typed_password(service)
+    if typed is not None:
+        by_slot[PASSWORD] = typed
     return by_slot
+
+
+def _typed_password(service: ManagedService) -> str | None:
+    """The password somebody typed, if this service was started with one.
+
+    Under the connector key rather than a key of its own: it is a connector
+    secret that has not reached its connector yet, and a second key would be a
+    second thing to rotate (D4).
+    """
+    if service.password_mode != "chosen" or service.chosen_password is None:
+        return None
+    return crypto.decrypt(service.chosen_password, purpose="connector").decode()
 
 
 def _endpoint_of(plan: ServicePlan) -> Endpoint:
@@ -328,9 +386,10 @@ class DeleteService(_ServiceJob):
     """Take the container away, and its data with it.
 
     Deleting a service is destructive and is meant to be: the volume was made
-    for this service and belongs to nothing else. What must not happen — a
-    connector being deleted quietly taking a volume with it — is a different
-    question, and it is answered where connectors are.
+    for this service and belongs to nothing else. What happens to the
+    connection it became is decided where connectors are, by the route that
+    accepted this job: a connector is a row of this application, and taking it
+    away is not minutes of work to watch.
 
     The row goes only once the engine has said the container is gone, so a
     failed removal leaves something a person can see and try again.

@@ -73,6 +73,33 @@ class UnknownServiceTemplate(Exception):
 
 
 @dataclass(frozen=True)
+class Shape:
+    """What a container is given, and what the connector to it then says.
+
+    Three things that vary together. A server asked to run without a password
+    is not the same container with one value missing: Redis is told
+    `redis-server` rather than `redis-server --requirepass …`, and the
+    connector it becomes authenticates by a different word. A template that
+    said only "the password is optional" would leave all three to be worked
+    out somewhere else, which is where they would come apart.
+    """
+
+    # What the container is started with, when the image needs more than its
+    # own entrypoint. Written as values rather than plain strings because one
+    # image takes its password on the command line: `redis-server
+    # --requirepass …` is how that image is told, and a template that could
+    # only write constants there could not describe it.
+    command: tuple[CredentialValue, ...]
+    # Every environment key the container gets, and where each value comes
+    # from. A key that is not here is not passed.
+    environment: Mapping[str, CredentialValue]
+    # How the connector this service becomes is filled. The names are the
+    # fields of the adapter's own options model, so a connector made from a
+    # service goes through the same schema as one somebody typed.
+    connector_options: Mapping[str, Value]
+
+
+@dataclass(frozen=True)
 class ServiceTemplate:
     """One approved service: what runs, and what the connector to it becomes.
 
@@ -103,29 +130,27 @@ class ServiceTemplate:
     credentials: Mapping[CredentialSlot, Fixed | Generated]
     # Which of those a requester may name instead, when they want to. A
     # closed set per template, so a request naming anything else is refused
-    # rather than quietly ignored — and never `password`: a chosen password
-    # would have to be written down somewhere between the request and the job
-    # that uses it, and the only encrypted home for a service's password is
-    # the connector it becomes (D4, D84).
+    # rather than quietly ignored. `password` is on this list where a template
+    # has one: a person setting a database up for their own tools may want a
+    # password they already know, and what that costs — one encrypted copy on
+    # the row until the connector takes it over — is the subject of D88.
     choosable: frozenset[CredentialSlot]
-    # Every environment key the container gets, and where each value comes
-    # from. A key that is not here is not passed.
+    # Every environment key, every command part and every connector field,
+    # for a service that has the credentials this template declares.
     environment: Mapping[str, CredentialValue]
-    # What the container is started with, when the image needs more than its
-    # own entrypoint. Written as values rather than plain strings because one
-    # image takes its password on the command line: `redis-server
-    # --requirepass …` is how that image is told, and a template that could
-    # only write constants there could not describe it.
     command: tuple[CredentialValue, ...]
-    # The source type a ready service becomes, and how its options are filled.
-    # The names are the fields of that adapter's own options model, so a
-    # connector made from a service goes through the same schema as one
-    # somebody typed.
-    adapter_type: str
     connector_options: Mapping[str, Value]
+    # The source type a ready service becomes.
+    adapter_type: str
     # How long this kind of service may reasonably take to become usable, in
     # seconds. Read by whatever waits for it, never by a client.
     startup_timeout_seconds: int
+    # What this template becomes when it is asked to run with no password at
+    # all, for the images where that is a real configuration rather than a
+    # mistake. `None` means there is no such configuration and asking for one
+    # is refused: a PostgreSQL that trusts every connection is not a service
+    # this server will start.
+    unprotected: Shape | None = None
 
 
 POSTGRES = ServiceTemplate(
@@ -150,10 +175,10 @@ POSTGRES = ServiceTemplate(
         DATABASE: Fixed("dataplayer"),
         PASSWORD: Generated(),
     },
-    # The role and the database are names in somebody's own server, so they
-    # are theirs to choose when they want to. The password is not on this
-    # list, for the reason `choosable` gives.
-    choosable=frozenset({USER, DATABASE}),
+    # The role, the database and the password are all names in somebody's own
+    # server, so they are theirs to choose when they want to. A password left
+    # unchosen is still made up here.
+    choosable=frozenset({USER, DATABASE, PASSWORD}),
     environment={
         "POSTGRES_USER": USER,
         "POSTGRES_PASSWORD": PASSWORD,
@@ -191,8 +216,8 @@ REDIS = ServiceTemplate(
     data_path="/data",
     credentials={PASSWORD: Generated()},
     # A Redis server has no user and no named database — the sixteen it has
-    # are numbered — so there is nothing here anybody could name.
-    choosable=frozenset(),
+    # are numbered — so the password is the only thing anybody could name.
+    choosable=frozenset({PASSWORD}),
     # Nothing. The official image has no variable for a password: it is told
     # on the command line, which is the whole reason `command` takes values.
     environment={},
@@ -206,6 +231,18 @@ REDIS = ServiceTemplate(
     },
     # It answers as soon as it is up; there is no data directory to build.
     startup_timeout_seconds=60,
+    # The one image here that runs without a password as an ordinary
+    # configuration rather than as a mistake: no `--requirepass`, nothing to
+    # settle, and a connector that says it authenticates with nothing.
+    unprotected=Shape(
+        command=(Fixed("redis-server"),),
+        environment={},
+        connector_options={
+            "auth_method": Fixed("no_auth"),
+            "host": HOST,
+            "port": PORT,
+        },
+    ),
 )
 
 
@@ -238,6 +275,59 @@ def choosable_slots(template: ServiceTemplate) -> tuple[CredentialSlot, ...]:
     them in the same order every time.
     """
     return tuple(slot for slot in CREDENTIAL_SLOTS if slot in template.choosable)
+
+
+def shape_of(template: ServiceTemplate, *, protected: bool) -> Shape:
+    """What this template runs and becomes, with a password or without one.
+
+    The one place the two are told apart. Everything downstream — the
+    environment, the command, the fields of the connector and which
+    credentials there are to settle at all — is read off the shape this
+    returns, so there is no second place where "without a password" has to be
+    remembered.
+    """
+    if protected:
+        return Shape(
+            command=template.command,
+            environment=template.environment,
+            connector_options=template.connector_options,
+        )
+    if template.unprotected is None:
+        raise ValueError(f"{template.key} cannot run without a password")
+    return template.unprotected
+
+
+def shapes(template: ServiceTemplate) -> tuple[Shape, ...]:
+    """Every shape this template can take, for whatever must hold for all of
+    them: that each names a field its adapter has, and settles what it uses."""
+    protected = shape_of(template, protected=True)
+    if template.unprotected is None:
+        return (protected,)
+    return (protected, template.unprotected)
+
+
+def slots_of(shape: Shape) -> frozenset[CredentialSlot]:
+    """Which credentials a shape actually refers to.
+
+    Derived rather than declared beside it, so that a shape which stopped
+    naming the password stops having one settled — which is exactly what the
+    unprotected shape is.
+    """
+    named: set[CredentialSlot] = set()
+    for given in (*shape.command, *shape.environment.values()):
+        if not isinstance(given, Fixed):
+            named.add(given)
+    for filled in shape.connector_options.values():
+        # A placement is settled when the service is put somewhere; only
+        # credentials are settled per service.
+        if not isinstance(filled, Fixed) and filled in CREDENTIAL_SLOTS:
+            named.add(filled)
+    return frozenset(named)
+
+
+def may_run_unprotected(template: ServiceTemplate) -> bool:
+    """Whether asking for this one without a password is a thing to offer."""
+    return template.unprotected is not None
 
 
 def generated_slots(template: ServiceTemplate) -> tuple[CredentialSlot, ...]:

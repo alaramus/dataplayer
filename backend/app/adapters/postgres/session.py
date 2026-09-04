@@ -96,33 +96,6 @@ def compose_url(
     return f"postgresql://{authority}/{quote(database, safe='')}"
 
 
-def compose_url_with_password(
-    *,
-    host: str,
-    port: int | None = None,
-    user: str = "",
-    database: str = "",
-    password: str = "",
-) -> str:
-    """The same address with the password in it, for somebody to paste.
-
-    Deliberately a second function rather than an argument to the first, so
-    that "does this string carry a secret" is answered by which one was
-    called. There is exactly one caller: the window that shows a started
-    service's credentials once (D89).
-
-    The password is quoted the way every other part is, so a generated one
-    holding a character with meaning in a URL still parses on the other side.
-    """
-    plain = compose_url(host=host, port=port, user=user, database=database)
-    if password == "":
-        return plain
-    secret = quote(password, safe="")
-    if user == "":
-        return plain.replace("://", f"://:{secret}@", 1)
-    return plain.replace(f"{quote(user, safe='')}@", f"{quote(user, safe='')}:{secret}@", 1)
-
-
 def options_from_url(url: str) -> dict[str, Any]:
     """A connection string taken apart into the fields of the form.
 

@@ -1,19 +1,20 @@
 """A service this server started, as a row that outlives the job that made it.
 
-What is deliberately not here: the password. A service's credentials live in
-the connector the service becomes and nowhere else, so there is exactly one
-encrypted home for them (D4) and no second copy to keep in step. A creation
-that fails before the connector exists leaves nothing usable, and what happens
-to the container it left behind is the job's business rather than a secret's.
+The password a service runs with lives in the connector it becomes and nowhere
+else (D4). The one exception is a password somebody typed themselves: it has
+to survive the gap between the request and the job that starts the container,
+so it is kept here encrypted under the same key the connector's secrets use,
+and erased the moment the connector holds it.
 """
 
+import re
 import uuid
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, SecretStr
 from pydantic import Field as PydanticField
-from sqlalchemy import JSON, Column, DateTime
+from sqlalchemy import JSON, Column, DateTime, LargeBinary
 from sqlmodel import Field, SQLModel
 
 from app.core.schemas import get_datetime_utc
@@ -70,24 +71,44 @@ class ManagedService(SQLModel, table=True):
     network: str | None = Field(default=None, max_length=128)
     # Whether it was asked for with a port on the host at all. Kept because
     # every later attempt is planned from this row: a service made reachable
-    # from the machine stays reachable when it is started again.
+    # from the machine stays reachable when it is started again. Everything
+    # started from now on is, so this is what old rows are read by rather than
+    # a question anybody is asked.
     publish: bool = Field(default=False)
+    # Which port on the host somebody asked for, when they asked for one at
+    # all. Null is the ordinary case and means the runtime picks; a number is
+    # a person who will point something at it that already knows the port.
+    requested_port: int | None = Field(default=None)
     # Whether it was asked to be filled with something to look at. A property
     # of the request rather than of the template, kept for the same reason.
     sample_data: bool = Field(default=False)
     # The credential slots the requester named themselves, as the template's
-    # own field names. A JSON column and never a secret: `password` is not a
-    # slot anybody may name, exactly so that nothing here has to be encrypted
-    # (D4).
+    # own field names. A JSON column and never a secret: a typed password goes
+    # in the encrypted column below rather than in here, so nothing in this
+    # one has to be treated as a secret at all (D4).
     chosen_credentials: dict[str, str] = Field(
         default_factory=dict, sa_column=Column(JSON, nullable=False)
     )
-    # When the password this server made up was shown to its owner, if it
-    # ever was. A stamp rather than a flag, because "when" is the useful
-    # answer and a flag is derivable from it. Shown once, deliberately: it is
-    # in the connector as an encrypted secret from then on, which is the only
-    # place a password lives (D4).
-    credentials_shown_at: datetime | None = Field(
+    # Where this service's password comes from: made up here, typed by the
+    # person who asked, or absent because they asked for a server that wants
+    # none. A column rather than something inferred from the two below,
+    # because "no password" and "the password has been handed over already"
+    # would otherwise look the same.
+    password_mode: str = Field(default="generated", max_length=16)
+    # A password somebody typed, encrypted under the connector key, and only
+    # until the connector exists. The job that starts the container needs it
+    # after the request that carried it is over, and the alternative — a
+    # secret in a job row, or in a process's memory across a restart — is
+    # worse. `_save_connector` erases it, so a finished service has exactly
+    # one home for its password again (D4).
+    chosen_password: bytes | None = Field(
+        default=None, sa_column=Column(LargeBinary, nullable=True)
+    )
+    # When this service became a connection. Kept after the connector itself
+    # is deleted, which is the whole reason it exists: `connector_id` going
+    # null then looks exactly like a creation that never got that far, and a
+    # running database would be offered a retry that would destroy it (D84).
+    connected_at: datetime | None = Field(
         default=None, sa_column=Column(DateTime(timezone=True), nullable=True)
     )
     state: str = Field(default="creating", max_length=16, index=True)
@@ -127,10 +148,11 @@ class ServicePublic(BaseModel):
     # succeeded, and empty until then.
     connector_id: uuid.UUID | None
     connector_name: str
-    # Whether the password this server made up has already been shown. What
-    # greys out the button that would show it: it is shown once, and a button
-    # that would refuse is worse than no button (D82).
-    credentials_shown: bool
+    # Whether this service ever became a connection. With `connector_id` it
+    # tells the two empty cases apart: one that never got that far, and one
+    # whose connection its owner has since deleted. Only the first may be
+    # started over; the second is a database somebody is still using (D84).
+    was_connected: bool
     created_at: datetime
     job: JobPublic | None = None
 
@@ -140,6 +162,88 @@ class ServicePublic(BaseModel):
 # PostgreSQL accepts unquoted and what survives being an environment variable
 # in a container's specification, which is where these two values go.
 NAME_PATTERN = r"^[A-Za-z][A-Za-z0-9_]{0,62}$"
+
+# What a password somebody types may be made of: printable ASCII with no
+# space in it. The same reasoning as the alphabet the server generates from,
+# arrived at from the other side — this string becomes an environment
+# variable in a container specification, an argument on a command line and
+# part of a connection string, and a space or a control character survives
+# none of those reliably. Eight characters because a database published on
+# the machine is worth that much.
+PASSWORD_PATTERN = r"[!-~]{8,128}"
+# What to say when one does not fit, naming the rule and never the value.
+UNUSABLE_PASSWORD = (
+    "A password is 8 to 128 characters, with no spaces and nothing exotic in it"
+)
+
+
+def password_survives_where_it_goes(value: str) -> bool:
+    """Whether a typed password can be everything it has to become.
+
+    `fullmatch` rather than anchors, so that a trailing newline is not let
+    through by `$` — the one character that would break an environment
+    variable in a container specification without looking wrong in a form.
+    """
+    return re.fullmatch(PASSWORD_PATTERN, value) is not None
+
+
+class GeneratedPassword(BaseModel):
+    """Let the server make one up, which is what it does when nobody says.
+
+    Carries nothing, deliberately: how a secret is made is one rule, and a
+    request that could influence it is a request that could weaken it (D80).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["generated"] = "generated"
+
+
+class ChosenPassword(BaseModel):
+    """This one, because the person asking will type it somewhere else.
+
+    A `SecretStr`, so nothing prints it by accident on the way through — the
+    same protection the connector's own fields have.
+
+    Deliberately without a `pattern`: a constraint that fails puts the value
+    it rejected into the validation error, and a 422 body echoing somebody's
+    password is exactly what `SecretStr` is here to prevent. What a usable one
+    looks like is checked where the other refusals about a password are made,
+    and the answer names the rule rather than the value.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["chosen"] = "chosen"
+    value: SecretStr
+
+
+class NoPassword(BaseModel):
+    """None at all, for a server where that is a real configuration.
+
+    Refused for a template that has no unprotected shape: a PostgreSQL which
+    trusts every connection is not something this server will start, and
+    saying so is better than quietly making one up instead.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["none"] = "none"
+
+
+# How a service's password was decided, once the request is over. The three
+# shapes below, flattened to the word the row keeps and the screens read.
+PasswordMode = Literal["generated", "chosen", "none"]
+
+
+PasswordChoice = Annotated[
+    GeneratedPassword | ChosenPassword | NoPassword,
+    PydanticField(discriminator="kind"),
+]
+"""How a service's password is decided, as three shapes rather than two
+nullable fields. A `password: str | None` plus a `no_password: bool` has a
+fourth combination that means nothing, and something would eventually have to
+decide what it meant."""
 
 
 class AutomaticStart(BaseModel):
@@ -159,15 +263,16 @@ class AutomaticStart(BaseModel):
 class ChosenStart(BaseModel):
     """Start it the way the person asking said.
 
-    Every field here is either a label in this application's own database or a
-    name inside the server being started. Nothing about the container is on
-    this list — not the image, not the command, not a path, not a port number
-    — because none of that is a request's to choose (D80).
+    Every field here is either a label in this application's own database, a
+    name inside the server being started, or the one number about placement a
+    person can have a reason to care about. Nothing else about the container
+    is on this list — not the image, not the command, not a path, not a
+    network — because none of that is a request's to choose (D80).
 
-    The password is not here either. A chosen one would have to be written
-    down between this request and the job that uses it, and the only encrypted
-    home for a service's password is the connector it becomes (D4, D84); it is
-    made up by the server and shown once instead.
+    Whether it is reachable from this machine is not asked any more: it always
+    is, on the loopback address and nowhere else (D86). A service nobody can
+    open in their own tools was a choice that only ever produced a service
+    somebody then had to remake.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -179,9 +284,15 @@ class ChosenStart(BaseModel):
     # refused rather than ignored.
     user: str | None = PydanticField(default=None, pattern=NAME_PATTERN)
     database: str | None = PydanticField(default=None, pattern=NAME_PATTERN)
-    # Whether the machine this server runs on may reach it too, on a port the
-    # runtime picks and the loopback address only (D86).
-    publish: bool = True
+    # Which port on the machine it answers on. Zero — the default — means the
+    # runtime picks a free one, which is the right answer for anybody without
+    # a reason to care; a number is somebody who will point a configuration
+    # file at it. The container port is still the template's, and a port
+    # already taken is a refusal from the runtime rather than a silent move.
+    port: int = PydanticField(default=0, ge=0, le=65535)
+    # How the password is decided. Three shapes, because "the one I typed" and
+    # "none at all" are different requests rather than one field left empty.
+    password: PasswordChoice = PydanticField(default_factory=GeneratedPassword)
     # Whether to put something in it worth looking at.
     sample_data: bool = False
 
@@ -212,27 +323,32 @@ class ServiceRequest(BaseModel):
 
 
 class ServiceCredentials(BaseModel):
-    """How to reach a service from outside this application, once.
+    """How to reach a service from outside this application, whenever asked.
 
-    A service is used through the connection it became, and this application
-    never needs these: they are here because a person who started a database
-    may want to open it in their own tools, and the password was made up by
-    the server rather than chosen by them.
+    Everything but the password. A service is used through the connection it
+    became, and what a person needs from this window is the address and the
+    names — which they can be told again tomorrow, so it is not a thing to
+    ration. The password is the one part never shown: it stays encrypted in
+    the connector (D4), and somebody who needs to know a service's password
+    starts it with one of their own.
 
-    Shown once and then not again. It stays where every credential in this
-    application stays — encrypted in the connector — and there is no second
-    way to read it out.
+    Read off the service row and its template rather than out of the
+    connector, so that a person who deleted the connection can still be told
+    where the container they still have is listening.
     """
 
     host: str | None
     port: int | None
     user: str | None
     database: str | None
-    password: str
+    # Which of the three ways this service's password was decided, so the
+    # window can say whether there is one to remember at all.
+    password_mode: PasswordMode
     # The same thing again as one line, which is what most tools take. Written
     # by the source type rather than assembled on the client: the grammar of
     # an address has one home, and a screen that joined the parts itself would
-    # be a second implementation of it that differed in the quoting first.
+    # be a second implementation of it that differed in the quoting first. No
+    # password in it, like every other address this application composes.
     url: str | None = None
     # Why there is no address, when there is none: a service that was started
     # without a port on the host is reachable by this server and by nothing

@@ -45,22 +45,6 @@ def compose_url(*, host: str, port: int | None = None, database: int | None = No
     return f"{SCHEME}://{authority}/{database}"
 
 
-def compose_url_with_password(
-    *, host: str, port: int | None, database: int | None, password: str
-) -> str:
-    """The same address with the password in it, for somebody to paste.
-
-    Deliberately separate from `compose_url`, and named so that the one thing
-    it does differently is the first thing read. Nothing shows this except the
-    window that reveals a service's credentials once (D89); everything else
-    composes the address without a secret in it.
-    """
-    if password == "":
-        return compose_url(host=host, port=port, database=database)
-    plain = compose_url(host=host, port=port, database=database)
-    return plain.replace(f"{SCHEME}://", f"{SCHEME}://:{quote(password, safe='')}@", 1)
-
-
 def options_from_url(url: str) -> dict[str, Any]:
     """A connection string taken apart into the fields of the form.
 
