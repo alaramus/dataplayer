@@ -4,6 +4,8 @@ import { computed, ref, watch } from "vue"
 import type { ConnectionCheckResult, ConnectorPublic } from "@/client"
 import { ACCESS_LABELS } from "@/features/connectors/access"
 import ConnectionCheck from "@/features/connectors/ConnectionCheck.vue"
+import AccessRequests from "@/features/shares/AccessRequests.vue"
+import GrantList from "@/features/shares/GrantList.vue"
 import ShareDialog from "@/features/shares/ShareDialog.vue"
 import {
   useAdapterTypes,
@@ -15,10 +17,16 @@ import {
   useUpdateConnector,
 } from "@/features/connectors/api"
 import { mergeParsedOptions } from "@/features/connectors/parsedOptions"
+import { windowPages } from "@/features/connectors/windowPages"
 import { fieldErrorsFrom, messageOf, statusOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
-import { fieldGroups, fieldsToZod, readSchema } from "@/shared/SchemaForm/jsonSchema"
+import {
+  DEFAULT_GROUP,
+  fieldGroups,
+  fieldsToZod,
+  readSchema,
+} from "@/shared/SchemaForm/jsonSchema"
 import type { FieldSpec, JsonSchema } from "@/shared/SchemaForm/jsonSchema"
 import { useSchemaForm } from "@/shared/SchemaForm/useSchemaForm"
 import {
@@ -51,6 +59,13 @@ const props = defineProps<{
   connector: ConnectorPublic | null
   /** The type chosen in the catalog; used only while creating. */
   adapterType: string | null
+  /**
+   * The page to open on, when the window is opened for something in
+   * particular: answering a request for access arrives at the page where
+   * access is given (D61). Absent means the address, which is what a window
+   * opened to look at a connection is about.
+   */
+  startOn?: string
 }>()
 
 const emit = defineEmits<{
@@ -240,9 +255,19 @@ const allFields = computed<FieldSpec[]>(() => {
 })
 
 const groups = computed(() => fieldGroups(activeFields.value))
-// One tab is not a choice, so the strip only appears once there are two.
-const showTabs = computed(() => groups.value.length > 1)
-const activeGroup = ref("general")
+const pages = computed(() => windowPages(groups.value))
+const activePage = ref(props.startOn ?? DEFAULT_GROUP)
+/**
+ * Whether the page showing is the one about permissions rather than a page of
+ * the source's own fields.
+ *
+ * What follows from it is more than which block is drawn: the connection
+ * string belongs to the address, so it goes away with the fields it is
+ * composed from.
+ */
+const onPermissions = computed(
+  () => pages.value.find((page) => page.id === activePage.value)?.permissions === true
+)
 
 // A stored connection has secrets the server will never send back, so an
 // untouched secret field stands in for a value this screen does not hold.
@@ -339,9 +364,11 @@ function load() {
 // the window opens; the form is filled in as soon as it is there.
 watch([() => props.connector, selectedSchema], load, { immediate: true })
 watch(dirty, (value) => emit("update:dirty", value), { immediate: true })
-watch(groups, (list) => {
-  if (!list.some((group) => group.id === activeGroup.value)) {
-    activeGroup.value = list[0]?.id ?? "general"
+// A page can go: switching the way of connecting replaces the source's groups,
+// and Apply on a new connection adds the settings page under the same window.
+watch(pages, (list) => {
+  if (!list.some((page) => page.id === activePage.value)) {
+    activePage.value = list[0]?.id ?? DEFAULT_GROUP
   }
 })
 
@@ -413,6 +440,7 @@ async function apply(): Promise<boolean> {
         name: name.value,
         adapter_type: typeName.value,
         options: filledOptions(),
+        execution_policy: executionPolicy.value,
       })
       // From here on this is that connection's window, so a second Apply
       // updates it rather than creating a second one. See O7.
@@ -549,69 +577,28 @@ async function parseTyped(text: string) {
           />
         </div>
 
-        <!-- The owner's alone, like sharing below: how far anybody may go
-             through this connection is a property of the connection, and a
-             person given access to it does not widen their own (D66). Only
-             for a saved one, for the same reason as the switch above. -->
+        <!-- Always two pages at least: how to reach the connection, and what
+             may be done through it once it is reached. -->
         <div
-          v-if="saved && isOwner"
-          class="connector-window__policy"
-        >
-          <AppSelect
-            :model-value="executionPolicy"
-            :options="POLICY_OPTIONS"
-            label="Statements from a console"
-            compact
-            class="connector-window__policy-select"
-            data-testid="connector-policy"
-            @update:model-value="choosePolicy"
-          />
-          <span class="connector-window__policy-note">
-            {{
-              executionPolicy === "read_only"
-                ? "Consoles on this connection can only read."
-                : executionPolicy === "allow_writes"
-                  ? "Writing is unlocked by choosing a writing mode."
-                  : "Writing asks for the name of this connection first."
-            }}
-          </span>
-        </div>
-
-        <!-- Whose it is and what was given. Stated in words rather than by the
-             name of the level, and only when it is somebody else's: a line
-             saying you own your own connection would be on every window. -->
-        <div
-          v-if="readOnly && saved"
-          class="connector-window__shared"
-          data-testid="connector-shared"
-        >
-          Shared by {{ saved.owner_email }} — you may
-          {{ ACCESS_LABELS[access].toLowerCase() }}
-        </div>
-
-        <!-- Only once the server names a second group: one tab is not a
-             choice, and a strip of one would say nothing. -->
-        <div
-          v-if="showTabs"
           class="connector-window__tabs"
           data-testid="connector-tabs"
         >
           <button
-            v-for="group in groups"
-            :key="group.id"
+            v-for="page in pages"
+            :key="page.id"
             type="button"
             class="connector-window__tab"
-            :class="{ 'connector-window__tab--active': group.id === activeGroup }"
-            :data-testid="`connector-tab-${group.id}`"
-            @click="activeGroup = group.id"
+            :class="{ 'connector-window__tab--active': page.id === activePage }"
+            :data-testid="`connector-tab-${page.id}`"
+            @click="activePage = page.id"
           >
-            {{ group.id }}
+            {{ page.label }}
           </button>
         </div>
 
         <SchemaFields
           v-for="group in groups"
-          v-show="!showTabs || group.id === activeGroup"
+          v-show="group.id === activePage"
           :key="group.id"
           v-model="optionValues"
           :fields="group.fields"
@@ -619,6 +606,81 @@ async function parseTyped(text: string) {
           :secrets-are-stored="secretsAreStored"
           :disable="readOnly"
         />
+
+        <!-- Who may reach this connection and what may be done through it,
+             away from how to reach it: beside the host and the port a policy
+             reads as a connection parameter, and it is not one — it governs
+             nothing but the statements somebody types into a console (D66).
+             Everything here is the owner's: a person given access does not
+             widen their own. -->
+        <div
+          v-show="onPermissions"
+          class="connector-window__permissions"
+          data-testid="connector-permissions"
+        >
+          <div
+            v-if="!readOnly"
+            class="connector-window__policy"
+          >
+            <AppSelect
+              :model-value="executionPolicy"
+              :options="POLICY_OPTIONS"
+              label="Statements from a console"
+              compact
+              class="connector-window__policy-select"
+              data-testid="connector-policy"
+              @update:model-value="choosePolicy"
+            />
+            <span class="connector-window__policy-note">
+              {{
+                executionPolicy === "read_only"
+                  ? "Consoles on this connection can only read."
+                  : executionPolicy === "allow_writes"
+                    ? "Writing is unlocked by choosing a writing mode."
+                    : "Writing asks for the name of this connection first."
+              }}
+            </span>
+          </div>
+
+          <!-- Only once there is a connection to give away, and only for whom
+               it belongs to: a grant does not pass on the right to grant.
+               The list is here rather than behind the button, because who can
+               reach a connection is a thing to know, not a thing to go and
+               look up; the button is left with what it is for, which is adding
+               somebody (D33). -->
+          <section
+            v-if="isEdit && isOwner"
+            class="connector-window__grants"
+          >
+            <header class="connector-window__grants-head">
+              <h3 class="connector-window__heading-3">
+                Who else may reach it
+              </h3>
+              <AppButton
+                variant="secondary"
+                size="sm"
+                label="Share"
+                data-testid="share-connector"
+                @click="sharing = true"
+              />
+            </header>
+            <GrantList :connector-id="saved?.id ?? null" />
+            <AccessRequests :connector-id="saved?.id ?? null" />
+          </section>
+
+          <!-- Whose it is and what was given. Stated in words rather than by
+               the name of the level, and only when it is somebody else's: a
+               line saying you own your own connection would be on every
+               window. -->
+          <div
+            v-if="readOnly && saved"
+            class="connector-window__shared"
+            data-testid="connector-shared"
+          >
+            Shared by {{ saved.owner_email }} — you may
+            {{ ACCESS_LABELS[access].toLowerCase() }}
+          </div>
+        </div>
       </div>
 
       <!-- Pinned above the buttons rather than left at the end of the
@@ -629,6 +691,7 @@ async function parseTyped(text: string) {
            501 and gets no row at all. -->
       <div
         v-if="hasConnectionString !== false"
+        v-show="!onPermissions"
         class="connector-window__url"
       >
         <AppInput
@@ -670,15 +733,6 @@ async function parseTyped(text: string) {
             :disable="!typeName"
             :loading="checkDraft.isPending.value"
             @click="check"
-          />
-          <!-- The owner's only: who else may reach a connection is decided by
-               whoever owns it, and a grant does not pass that on. -->
-          <AppButton
-            v-if="isEdit && isOwner"
-            variant="secondary"
-            label="Share"
-            data-testid="share-connector"
-            @click="sharing = true"
           />
           <AppButton
             v-if="isEdit && isOwner"
@@ -755,6 +809,30 @@ async function parseTyped(text: string) {
 .connector-window__shared {
   font-size: 12px;
   color: var(--dp-text-muted);
+}
+.connector-window__permissions {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.connector-window__grants {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-2);
+}
+.connector-window__grants-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--dp-space-2);
+}
+.connector-window__heading-3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dp-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .connector-window__policy {
   display: flex;

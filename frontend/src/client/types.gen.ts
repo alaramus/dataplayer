@@ -1078,6 +1078,10 @@ export type ConnectorCreate = {
   options: {
     [key: string]: unknown
   }
+  /**
+   * Execution Policy
+   */
+  execution_policy?: "read_only" | "confirm_writes" | "allow_writes"
 }
 
 /**

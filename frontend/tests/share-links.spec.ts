@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
 import { addFilter, openNode, pickSchema, sortColumn } from "./utils/catalog"
-import { createPostgresConnector } from "./utils/connectors"
+import { createPostgresConnector, openPermissions } from "./utils/connectors"
 import { login } from "./utils/login"
 import {
   COLLEAGUE_PASSWORD,
@@ -80,6 +80,7 @@ test("a link shows nothing to a stranger and the sender's view to a colleague", 
 
     // --- the owner gives them the connection -------------------------------
     await editConnector(page, name)
+    await openPermissions(page)
     await page.getByTestId("share-connector").click()
     await page.getByTestId("share-user").click()
     await page.getByRole("option", { name: email }).click()
@@ -156,7 +157,11 @@ test("access is asked for through the link and given from the notification", asy
     // The owner is told where they are working, and the way to the answer is
     // in the message rather than somewhere they have to go looking.
     await expect(page.getByText(`${email} is asking for access to ${name}`)).toBeVisible()
+    // The way to the answer leads to the connection's own window, open on the
+    // page where access is given: a request is answered by an ordinary grant
+    // and by nothing else (D61).
     await page.getByRole("button", { name: "Open", exact: true }).click()
+    await expect(page.getByTestId("connector-permissions")).toBeVisible()
     await expect(page.getByTestId(`share-request-${email}`)).toBeVisible()
     await page.getByTestId(`share-approve-${email}`).click()
     await expect(page.getByTestId(`share-request-${email}`)).toHaveCount(0)
@@ -168,7 +173,7 @@ test("access is asked for through the link and given from the notification", asy
     await theirs.close()
   }
 
-  await page.getByTestId("share-close").click()
+  await page.getByTestId("cancel-connector").click()
   await deleteConnector(page, name)
   await removeColleague(page, email)
 })

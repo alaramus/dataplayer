@@ -1,0 +1,163 @@
+<script setup lang="ts">
+import { computed, ref } from "vue"
+
+import { GRANT_OPTIONS } from "@/features/connectors/access"
+import type { Grant } from "@/features/connectors/access"
+import { connectorNameOf, useConnectors } from "@/features/connectors/api"
+import { useAccessRequests, useAnswerRequest } from "@/features/shares/api"
+import { messageOf } from "@/shared/api/errors"
+import { AppButton, AppIconButton, AppSelect, useToast } from "@/shared/ui"
+
+/**
+ * Who is waiting to be let in, and the answer.
+ *
+ * Beside the people who already hold a level, because it is the same question
+ * one step earlier: a request is answered by an ordinary grant and by nothing
+ * else (D61). Nothing at all is drawn while nobody is waiting — an empty list
+ * under a heading is a heading about nothing.
+ *
+ * The owner's alone, like the grants: asking for the requests on a connection
+ * somebody else owns is answered with 403.
+ */
+const props = defineProps<{ connectorId: string | null }>()
+
+const toast = useToast()
+const connectorId = computed(() => props.connectorId)
+const requests = useAccessRequests(connectorId)
+const answerRequest = useAnswerRequest(connectorId)
+const connectors = useConnectors()
+
+/**
+ * What the connection is called now, for a request that named no node.
+ *
+ * Read from the list rather than taken as a prop: this is drawn inside a
+ * window where the name is being edited, and what somebody asked for is the
+ * connection as it stands, not as it is being renamed.
+ */
+const connectorName = computed(
+  () => connectorNameOf(connectors.data.value, connectorId.value) ?? "this connection"
+)
+
+const waiting = computed(() => requests.data.value?.data ?? [])
+
+/** The level each waiting person would be given, until the owner says otherwise. */
+const answerLevel = ref<Record<string, Grant>>({})
+
+/**
+ * Answer somebody: a level gives it, nothing declines it.
+ *
+ * Both are the same movement for the person waiting — they are told either way
+ * — so they are one function rather than two that must stay in step.
+ */
+async function answer(requestId: string, access: Grant | null) {
+  try {
+    await answerRequest.mutateAsync({ requestId, access })
+  } catch (error) {
+    toast.error(messageOf(error, "That request could not be answered"))
+  }
+}
+</script>
+
+<template>
+  <section
+    v-if="waiting.length > 0"
+    class="asking"
+  >
+    <h3 class="asking__heading">
+      Waiting for an answer
+    </h3>
+    <ul
+      class="asking__list"
+      data-testid="share-requests"
+    >
+      <li
+        v-for="ask in waiting"
+        :key="ask.id"
+        class="asking__row"
+        :data-testid="`share-request-${ask.requester_email}`"
+      >
+        <span class="asking__who">
+          <span class="asking__name">
+            {{ ask.requester_name ?? ask.requester_email }}
+          </span>
+          <span class="asking__email">
+            asked for {{ ask.node_label ?? connectorName }}
+          </span>
+        </span>
+        <AppSelect
+          :model-value="answerLevel[ask.id] ?? 'read'"
+          class="asking__level"
+          compact
+          :options="GRANT_OPTIONS"
+          :data-testid="`share-request-level-${ask.requester_email}`"
+          @update:model-value="answerLevel[ask.id] = $event as Grant"
+        />
+        <AppButton
+          label="Give access"
+          size="sm"
+          :loading="answerRequest.isPending.value"
+          :data-testid="`share-approve-${ask.requester_email}`"
+          @click="answer(ask.id, answerLevel[ask.id] ?? 'read')"
+        />
+        <AppIconButton
+          icon="close"
+          variant="danger-quiet"
+          tooltip="Say no. They are told, without a reason."
+          :data-testid="`share-decline-${ask.requester_email}`"
+          @click="answer(ask.id, null)"
+        />
+      </li>
+    </ul>
+  </section>
+</template>
+
+<style scoped>
+.asking {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-2);
+}
+.asking__heading {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dp-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.asking__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.asking__row {
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-2);
+}
+.asking__who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.asking__name,
+.asking__email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asking__email {
+  font-size: 12px;
+  color: var(--dp-text-muted);
+}
+/* Wide enough for the longest wording in GRANT_OPTIONS, so the row does not
+   change width as a level is chosen. */
+.asking__level {
+  width: 160px;
+}
+</style>

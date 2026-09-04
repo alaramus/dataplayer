@@ -45,6 +45,25 @@ export async function createPostgresConnector(page: Page, name: string) {
   await expect(connectorRow(page, name)).toBeVisible()
 }
 
+/**
+ * The window's page for who may reach a connection and what may be done
+ * through it, rather than how to reach it (D66).
+ *
+ * A step of its own because scenarios go there for different things — the
+ * policy, sharing, what a colleague was given — and because the name and the
+ * fields are on the page it leaves.
+ */
+export async function openPermissions(page: Page) {
+  await page.getByTestId("connector-tab-permissions").click()
+}
+
+/** Set how far a console may go, in the window that is already open. */
+export async function choosePolicy(page: Page, label: string) {
+  await openPermissions(page)
+  await page.getByTestId("connector-policy").click()
+  await page.getByRole("option", { name: label, exact: true }).click()
+}
+
 /** Personal storage has no options: the server composes the root itself. */
 export async function createFileConnector(page: Page, name: string) {
   await pickAdapterType(page, "file")

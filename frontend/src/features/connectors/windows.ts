@@ -38,6 +38,8 @@ export function connectorWindow(options: {
   onBack: () => void
   onDirty: (dirty: boolean) => void
   beforeClose: () => boolean | Promise<boolean>
+  /** The page to open on, for a window opened to do one thing (D61). */
+  startOn?: string
 }): OpenWindow {
   const type = options.connector?.adapter_type ?? options.adapterType ?? null
 
@@ -49,6 +51,7 @@ export function connectorWindow(options: {
       h(ConnectorWindowView, {
         connector: options.connector,
         adapterType: options.adapterType,
+        startOn: options.startOn,
         onCreated: options.onCreated,
         onClose: options.onClose,
         onBack: options.onBack,

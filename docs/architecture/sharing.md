@@ -19,15 +19,17 @@ the link and the grid it was made from are looked at together rather than one
 covering the other. Everybody who can reach the connection sees the link to
 this view and who has opened it; the owner of the connection also sees who
 holds a grant, who is waiting for one, and every link made to that connection.
-The same window opens from the connection's own window, without the link half.
+A connection's own window answers the same questions on its Permissions
+page — who holds a level, who is waiting — and the dialog opens from there
+with the adding half alone, so the two are never on screen at once.
 
 Opening a link signs the reader in if needed, then reveals the node in the
 catalog and opens the tab with the filters, sorting, column layout and page
 size the sender saw. A reader without a grant gets a card naming who shared
 what, and a button that asks the owner for access. The owner hears about the
-ask wherever they are working and answers it in the same dialog, beside the
-grants; the person waiting is told, and if the answer was yes the link they are
-holding opens in front of them.
+ask wherever they are working and answers it beside the grants, on the
+connection's Permissions page; the person waiting is told, and if the answer
+was yes the link they are holding opens in front of them.
 
 ```
 backend/app/shares/
@@ -184,8 +186,8 @@ context — "came through Maxim's link" — and is cleared when that link goes.
 
 Both sides hear through one topic of this module, per user, on the socket D18
 describes: the owner that a request arrived, the requester that it was answered.
-The notification leads into the access dialog of that connection, where grants
-are given anyway. There is no inbox screen, and nothing opens by itself while
+The notification leads to that connection's own window, open on the page
+where grants are given anyway. There is no inbox screen, and nothing opens by itself while
 somebody is working.
 
 A connection is invisible without a grant, so a request can only ever arrive

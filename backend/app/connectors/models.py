@@ -51,6 +51,10 @@ class ConnectorCreate(SQLModel):
     name: str = Field(min_length=1, max_length=255)
     adapter_type: str = Field(max_length=64)
     options: dict[str, Any]
+    # Decided with the connection rather than after it: whoever is registering
+    # a source is the person who knows whether anybody should be able to write
+    # through it, and the answer nobody gave is still confirmation (D66).
+    execution_policy: ExecutionPolicy = "confirm_writes"
 
 
 class ConnectorUpdate(SQLModel):

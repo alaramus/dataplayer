@@ -481,6 +481,7 @@ async def create_connector(
         config=config,
         secrets=secrets,
         owner_id=current_user.id,
+        execution_policy=connector_in.execution_policy,
     )
     return await _public(session, connector, "own")
 

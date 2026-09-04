@@ -2,7 +2,11 @@ import { expect, test } from "@playwright/test"
 import type { Page } from "@playwright/test"
 
 import { catalogAction, catalogCheck, catalogRow, openNode, pickSchema } from "./utils/catalog"
-import { createFileConnector, createPostgresConnector } from "./utils/connectors"
+import {
+  choosePolicy,
+  createFileConnector,
+  createPostgresConnector,
+} from "./utils/connectors"
 import { login } from "./utils/login"
 import {
   catalogTab,
@@ -432,8 +436,7 @@ test("a console follows the connection it is open on", async ({ page }) => {
   // console is touched afterwards: either it is told, or it goes on judging
   // the connection by a policy it no longer has (D66).
   await editConnector(page, name)
-  await page.getByTestId("connector-policy").click()
-  await page.getByRole("option", { name: "Read only", exact: true }).click()
+  await choosePolicy(page, "Read only")
   await page.getByTestId("save-connector").click()
   await expect(page.getByTestId("query-write-forbidden")).toBeVisible()
   await expect(page.getByTestId("query-unlock")).toHaveCount(0)
@@ -441,8 +444,7 @@ test("a console follows the connection it is open on", async ({ page }) => {
   // Opened again, under another name. What has to be typed back is the name
   // the connection has now, because that is the one the server compares with.
   await editConnector(page, name)
-  await page.getByTestId("connector-policy").click()
-  await page.getByRole("option", { name: "Ask before writing", exact: true }).click()
+  await choosePolicy(page, "Ask before writing")
   await page.getByTestId("connector-name").fill(renamed)
   await page.getByTestId("save-connector").click()
 
@@ -464,8 +466,7 @@ test("a transaction says what it has done, and closing the console rolls it back
 
   // --- how far a console may go is the connection's own setting ------------
   await editConnector(page, name)
-  await page.getByTestId("connector-policy").click()
-  await page.getByRole("option", { name: "Writing allowed", exact: true }).click()
+  await choosePolicy(page, "Writing allowed")
   await page.getByTestId("save-connector").click()
 
   await openQueries(page, name)

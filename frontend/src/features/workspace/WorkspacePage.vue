@@ -18,7 +18,7 @@ import { useServiceJobs } from "@/features/services/jobs"
 import { moveChartSpec } from "@/features/charts/persist"
 import { takeShareIntent } from "@/features/shares/intent"
 import { useAccessRequestEvents, wordingOf } from "@/features/shares/requests"
-import ShareDialog from "@/features/shares/ShareDialog.vue"
+import { PERMISSIONS_PAGE } from "@/features/connectors/windowPages"
 import { chartViewKey } from "@/features/charts/view"
 import { relationshipPanelId } from "@/features/relationships/model"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
@@ -195,22 +195,19 @@ useServiceJobs()
 const requestService = useRequestService()
 
 /**
- * The connection whose access is being answered, if any.
- *
- * A request is answered where grants are given, so the notification leads into
- * that dialog rather than to an inbox screen of its own (D61). The dialog is
- * hosted here for the reason the connection windows are: the column it would
- * otherwise live in can be collapsed.
+ * A request is answered where grants are given, so the notification leads to
+ * the connection's own window, open on the page that holds both, rather than
+ * to an inbox screen of its own (D61).
  */
-const requestsFor = ref<string | null>(null)
+function answerRequestsFor(connectorId: string) {
+  editConnector(connectorId, PERMISSIONS_PAGE)
+}
 
 useAccessRequestEvents({
   onAsked: (event) => {
     toast.offer(wordingOf(event), {
       label: "Open",
-      onClick: () => {
-        requestsFor.value = event.connector_id
-      },
+      onClick: () => answerRequestsFor(event.connector_id),
     })
   },
   onAnswered: (event) => {
@@ -235,7 +232,11 @@ function forget(id: string) {
   windows.close(id)
 }
 
-function openConnectorWindow(connector: ConnectorPublic | null, adapterType: string | null) {
+function openConnectorWindow(
+  connector: ConnectorPublic | null,
+  adapterType: string | null,
+  startOn?: string
+) {
   const opened = connector ? connectorWindowId(connector.id) : draftWindowId()
 
   // Read at call time, never captured: saving a draft renames the window, and
@@ -248,6 +249,7 @@ function openConnectorWindow(connector: ConnectorPublic | null, adapterType: str
       id: opened,
       connector,
       adapterType,
+      startOn,
       // A saved draft becomes the window of the connection it created, so a
       // second Apply updates rather than opening a duplicate. See O7.
       onCreated: (created) => {
@@ -352,14 +354,14 @@ async function startService(payload: {
   }
 }
 
-function editConnector(connectorId: string | null) {
+function editConnector(connectorId: string | null, startOn?: string) {
   // A new connection starts at the catalog, an existing one at its window.
   if (connectorId === null) {
     catalogOpen.value = true
     return
   }
   const found = (connectors.data.value?.data ?? []).find((row) => row.id === connectorId)
-  if (found) openConnectorWindow(found, null)
+  if (found) openConnectorWindow(found, null, startOn)
 }
 
 function openCatalog(connector: ConnectorPublic) {
@@ -761,13 +763,6 @@ provide(workspaceActionsKey, {
     </template>
 
     <WorkspaceRoot :context="workspace.context" />
-
-    <ShareDialog
-      v-if="requestsFor !== null"
-      :model-value="true"
-      :connector-id="requestsFor"
-      @update:model-value="requestsFor = null"
-    />
 
     <AdapterCatalogDialog
       v-model="catalogOpen"

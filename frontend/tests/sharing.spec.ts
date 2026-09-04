@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { createPostgresConnector } from "./utils/connectors"
+import { createPostgresConnector, openPermissions } from "./utils/connectors"
 import { firstSuperuser } from "./config"
 import {
   COLLEAGUE_PASSWORD,
@@ -34,6 +34,7 @@ test("a shared connection appears for the colleague and stays the owner's", asyn
 
   // --- the owner hands it over ---------------------------------------------
   await editConnector(page, name)
+  await openPermissions(page)
   await page.getByTestId("share-connector").click()
   await page.getByTestId("share-user").click()
   await page.getByRole("option", { name: email }).click()
@@ -42,8 +43,10 @@ test("a shared connection appears for the colleague and stays the owner's", asyn
     page.getByTestId("share-submit")
   )
   await page.getByTestId("share-submit").click()
-  await expect(page.getByTestId(`share-row-${email}`)).toBeVisible()
   await page.getByTestId("share-close").click()
+  // The list is on the page and not behind the button: closing the dialog
+  // leaves the connection's own window showing who now holds a level.
+  await expect(page.getByTestId(`share-row-${email}`)).toBeVisible()
   await page.getByTestId("cancel-connector").click()
 
   // --- the colleague finds it ----------------------------------------------
@@ -52,8 +55,6 @@ test("a shared connection appears for the colleague and stays the owner's", asyn
   await expect(connectorRow(page, name)).toBeVisible()
 
   await editConnector(page, name)
-  // Whose it is, said in the window rather than left to be worked out.
-  await expect(page.getByTestId("connector-shared")).toContainText("Shared by")
   // A grant is access to the source, not to the record of how to reach it:
   // the options are shown, and none of them can be touched.
   await expect(page.getByTestId("connector-name")).toBeDisabled()
@@ -62,6 +63,13 @@ test("a shared connection appears for the colleague and stays the owner's", asyn
   await expect(page.getByTestId("save-connector")).toHaveCount(0)
   await expect(page.getByTestId("apply-connector")).toHaveCount(0)
   await expect(page.getByTestId("delete-connector")).toHaveCount(0)
+
+  // Whose it is and what was given, on the page that answers exactly that.
+  // Nothing on it to change: a level does not pass on the right to widen it,
+  // and how far a console may go is the owner's alone (D66).
+  await openPermissions(page)
+  await expect(page.getByTestId("connector-shared")).toContainText("Shared by")
+  await expect(page.getByTestId("connector-policy")).toHaveCount(0)
   await expect(page.getByTestId("share-connector")).toHaveCount(0)
   await page.getByTestId("cancel-connector").click()
 
@@ -69,10 +77,10 @@ test("a shared connection appears for the colleague and stays the owner's", asyn
   await signOut(page)
   await login(page)
   await editConnector(page, name)
-  await page.getByTestId("share-connector").click()
+  // Taking it back is on the page too: the row is there, and so is the cross.
+  await openPermissions(page)
   await page.getByTestId(`share-revoke-${email}`).click()
   await expect(page.getByTestId(`share-row-${email}`)).toHaveCount(0)
-  await page.getByTestId("share-close").click()
   await page.getByTestId("cancel-connector").click()
 
   await signOut(page)

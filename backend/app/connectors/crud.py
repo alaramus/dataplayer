@@ -9,7 +9,7 @@ from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.connectors.models import Connector, ConnectorGrant
-from app.core.access import Access, Grant
+from app.core.access import Access, ExecutionPolicy, Grant
 from app.users.models import User
 
 _LEVEL: TypeAdapter[Grant] = TypeAdapter(Grant)
@@ -35,6 +35,7 @@ async def create(
     config: dict[str, Any],
     secrets: bytes,
     owner_id: uuid.UUID,
+    execution_policy: ExecutionPolicy = "confirm_writes",
 ) -> Connector:
     connector = Connector(
         name=name,
@@ -42,6 +43,7 @@ async def create(
         config=config,
         secrets=secrets,
         owner_id=owner_id,
+        execution_policy=execution_policy,
     )
     session.add(connector)
     await session.commit()

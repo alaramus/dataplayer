@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test"
 
-import { DATABASE, pickAdapterType } from "./utils/connectors"
+import { DATABASE, openPermissions, pickAdapterType } from "./utils/connectors"
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector, editConnector } from "./utils/workspace"
 
@@ -46,6 +46,51 @@ test("creates a connection, checks it and deletes it", async ({ page }) => {
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("the window separates how to reach a connection from what may be done through it", async ({
+  page,
+}) => {
+  const name = `e2e-pages-${Date.now()}`
+  await login(page)
+
+  // Both pages from the start. Whoever registers a source is the person who
+  // knows whether anybody should be able to write through it, and the address
+  // is what opens (D66).
+  await pickAdapterType(page, "postgres")
+  await expect(page.getByTestId("connector-tabs")).toBeVisible()
+  await expect(page.getByTestId("field-host")).toBeVisible()
+  await expect(page.getByTestId("connector-url")).toBeVisible()
+
+  await openPermissions(page)
+  await expect(page.getByTestId("connector-policy")).toBeVisible()
+  await expect(page.getByTestId("field-host")).toBeHidden()
+  // The connection string is composed from the fields, so it belongs to them.
+  await expect(page.getByTestId("connector-url")).toBeHidden()
+  // The name and whether the connection is in use belong to neither page:
+  // they name the thing both pages are about.
+  await expect(page.getByTestId("connector-name")).toBeVisible()
+  // Nothing to give away yet, so there is nobody to give it to.
+  await expect(page.getByTestId("share-connector")).toHaveCount(0)
+
+  await page.getByTestId("connector-policy").click()
+  await page.getByRole("option", { name: "Read only", exact: true }).click()
+  await page.getByTestId("connector-tab-general").click()
+  await expect(page.getByTestId("field-host")).toBeVisible()
+  await page.getByTestId("connector-name").fill(name)
+  await fillConnectionFields(page, DATABASE.password)
+  await page.getByTestId("save-connector").click()
+  await expect(connectorRow(page, name)).toBeVisible()
+
+  // What was chosen while creating it is what it was created with, rather
+  // than a default somebody has to go back and correct.
+  await editConnector(page, name)
+  await openPermissions(page)
+  await expect(page.getByTestId("connector-policy")).toContainText("Read only")
+  await expect(page.getByTestId("share-connector")).toBeVisible()
+
+  await page.getByRole("button", { name: "Cancel" }).click()
+  await deleteConnector(page, name)
 })
 
 test("a wrong password reports an auth failure without leaking the password", async ({

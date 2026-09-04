@@ -9,23 +9,17 @@ import {
   offerable,
   useDirectory,
   useGrants,
-  useRevokeGrant,
   useWriteGrant,
 } from "@/features/connectors/grants"
-import {
-  useAccessRequests,
-  useAnswerRequest,
-  useCreateShare,
-  useDeleteShare,
-  useShares,
-} from "@/features/shares/api"
+import GrantList from "@/features/shares/GrantList.vue"
+import { useCreateShare, useDeleteShare, useShares } from "@/features/shares/api"
+import AccessRequests from "@/features/shares/AccessRequests.vue"
 import { linkFor } from "@/features/shares/sharedView"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import {
   AppButton,
   AppCopyButton,
-  AppEmptyState,
   AppIconButton,
   AppInput,
   AppSelect,
@@ -70,18 +64,10 @@ const isOwner = computed(() => connector.value?.access === "own")
 const grants = useGrants(computed(() => (isOwner.value ? connectorId.value : null)))
 const directory = useDirectory(computed(() => open.value && isOwner.value))
 const writeGrant = useWriteGrant(connectorId)
-const revokeGrant = useRevokeGrant(connectorId)
 
 const shares = useShares(connectorId)
 const createShare = useCreateShare(connectorId)
 const deleteShare = useDeleteShare(connectorId)
-const requests = useAccessRequests(
-  computed(() => (isOwner.value ? connectorId.value : null))
-)
-const answerRequest = useAnswerRequest(connectorId)
-
-/** The level each waiting person would be given, until the owner says otherwise. */
-const answerLevel = ref<Record<string, Grant>>({})
 
 const pickedUser = ref<string | null>(null)
 const pickedLevel = ref<Grant>("read")
@@ -132,22 +118,6 @@ const link = computed(() =>
 
 const held = computed(() => grants.data.value?.data ?? [])
 
-const waiting = computed(() => requests.data.value?.data ?? [])
-
-/**
- * Answer somebody: a level gives it, nothing declines it.
- *
- * Both are the same movement for the person waiting — they are told either way
- * — so they are one function rather than two that must stay in step.
- */
-async function answer(requestId: string, access: Grant | null) {
-  try {
-    await answerRequest.mutateAsync({ requestId, access })
-  } catch (error) {
-    toast.error(messageOf(error, "That request could not be answered"))
-  }
-}
-
 const candidates = computed(() =>
   offerable(directory.data.value?.data ?? [], held.value).map((user) => ({
     label: user.full_name ? `${user.full_name} (${user.email})` : user.email,
@@ -187,22 +157,6 @@ async function share() {
     pickedLevel.value = "read"
   } catch (error) {
     toast.error(messageOf(error, "That access could not be given"))
-  }
-}
-
-async function change(userId: string, level: Grant) {
-  try {
-    await writeGrant.mutateAsync({ user_id: userId, access: level })
-  } catch (error) {
-    toast.error(messageOf(error, "That access could not be changed"))
-  }
-}
-
-async function revoke(userId: string) {
-  try {
-    await revokeGrant.mutateAsync(userId)
-  } catch (error) {
-    toast.error(messageOf(error, "That access could not be taken away"))
   }
 }
 
@@ -305,100 +259,22 @@ async function forget(shareId: string) {
             {{ nodeLabel ?? "this node" }}.
           </p>
 
-          <AppEmptyState
-            v-if="held.length === 0"
-            text="Nobody else can reach this connection"
+          <!-- Only where there is no page already showing it: opened from
+               the connection's own window, the list is behind this dialog and
+               a second copy of it would be a second answer (D33). -->
+          <GrantList
+            v-if="nodeId !== undefined"
+            :connector-id="connectorId"
           />
-
-          <ul
-            v-else
-            class="share__list"
-            data-testid="share-list"
-          >
-            <li
-              v-for="grant in held"
-              :key="grant.user_id"
-              class="share__row"
-              :data-testid="`share-row-${grant.email}`"
-            >
-              <span class="share__who">
-                <span class="share__name">{{ grant.full_name ?? grant.email }}</span>
-                <span
-                  v-if="grant.full_name"
-                  class="share__email"
-                >
-                  {{ grant.email }}
-                </span>
-              </span>
-              <AppSelect
-                :model-value="grant.access"
-                class="share__level"
-                compact
-                :options="GRANT_OPTIONS"
-                :data-testid="`share-level-${grant.email}`"
-                @update:model-value="change(grant.user_id, $event as Grant)"
-              />
-              <AppIconButton
-                icon="close"
-                variant="danger-quiet"
-                tooltip="Take this access away"
-                :data-testid="`share-revoke-${grant.email}`"
-                @click="revoke(grant.user_id)"
-              />
-            </li>
-          </ul>
         </template>
 
-        <section
-          v-if="isOwner && waiting.length > 0"
-          class="share__links"
-        >
-          <h3 class="share__heading">
-            Waiting for an answer
-          </h3>
-          <ul
-            class="share__list"
-            data-testid="share-requests"
-          >
-            <li
-              v-for="ask in waiting"
-              :key="ask.id"
-              class="share__row"
-              :data-testid="`share-request-${ask.requester_email}`"
-            >
-              <span class="share__who">
-                <span class="share__name">
-                  {{ ask.requester_name ?? ask.requester_email }}
-                </span>
-                <span class="share__email">
-                  asked for {{ ask.node_label ?? connectorName }}
-                </span>
-              </span>
-              <AppSelect
-                :model-value="answerLevel[ask.id] ?? 'read'"
-                class="share__level"
-                compact
-                :options="GRANT_OPTIONS"
-                :data-testid="`share-request-level-${ask.requester_email}`"
-                @update:model-value="answerLevel[ask.id] = $event as Grant"
-              />
-              <AppButton
-                label="Give access"
-                size="sm"
-                :loading="answerRequest.isPending.value"
-                :data-testid="`share-approve-${ask.requester_email}`"
-                @click="answer(ask.id, answerLevel[ask.id] ?? 'read')"
-              />
-              <AppIconButton
-                icon="close"
-                variant="danger-quiet"
-                tooltip="Say no. They are told, without a reason."
-                :data-testid="`share-decline-${ask.requester_email}`"
-                @click="answer(ask.id, null)"
-              />
-            </li>
-          </ul>
-        </section>
+        <!-- Where there is no page showing them: from a tab this dialog is
+             the only place the owner has, and from the connection's own
+             window they are on the page behind it (D61). -->
+        <AccessRequests
+          v-if="isOwner && nodeId !== undefined"
+          :connector-id="connectorId"
+        />
 
         <section
           v-if="otherLinks.length > 0"

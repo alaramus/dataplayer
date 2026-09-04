@@ -42,6 +42,36 @@ async def test_create_returns_connector_without_secrets(
     assert PASSWORD not in response.text
 
 
+async def test_execution_policy_is_decided_with_the_connection(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Whoever registers a source says what may be written through it (D66).
+
+    Answering afterwards was the only way once, so a connection was open to
+    writing for as long as it took somebody to go back and close it.
+    """
+    default = await client.post(
+        f"{BASE}/", headers=normal_user_token_headers, json=_payload("unstated")
+    )
+    assert default.status_code == 200
+    assert default.json()["execution_policy"] == "confirm_writes"
+
+    chosen = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={**_payload("read only"), "execution_policy": "read_only"},
+    )
+    assert chosen.status_code == 200
+    assert chosen.json()["execution_policy"] == "read_only"
+
+    refused = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={**_payload("nonsense"), "execution_policy": "whatever"},
+    )
+    assert refused.status_code == 422
+
+
 async def test_stored_secrets_are_encrypted(
     client: AsyncClient, normal_user_token_headers: dict[str, str], db: AsyncSession
 ) -> None:
