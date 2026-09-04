@@ -755,6 +755,8 @@ defineExpose({
   height: 100%;
   min-height: 0;
   color: inherit;
+  /* Keep cells on the same surface as sticky headings, including in windows. */
+  background: var(--dp-surface);
 }
 
 .data-grid__scroll {

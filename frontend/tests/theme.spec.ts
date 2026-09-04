@@ -94,10 +94,10 @@ test("a column of the workspace is one colour, grid included", async ({ page }) 
   const colourOf = (selector: string) =>
     page.locator(selector).first().evaluate((node) => getComputedStyle(node).backgroundColor)
 
-  // Cells are transparent over the panel and the grid heading spends the same
-  // surface token, so the table does not become a raised card or a stripe.
+  // The grid paints its own surface to match the panel and sticky heading,
+  // including when a floating window supplies a different background.
   const panel = await colourOf('[data-testid^="workspace-leaf-"]')
-  expect(await colourOf('[data-testid="row-grid"]')).toBe("rgba(0, 0, 0, 0)")
+  expect(await colourOf('[data-testid="row-grid"]')).toBe(panel)
   expect(await colourOf('[data-testid="grid-column-relname"]')).toBe(panel)
 
   await deleteConnector(page, name)

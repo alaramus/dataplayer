@@ -21,6 +21,10 @@ in plain modules. `GridHeader.vue` stays mounted at one height in loading, empty
 and error states; a controller alone decides which source commands exist and
 why a supported one is disabled.
 
+The tabular surface paints its own `--dp-surface` background, matching sticky
+headings, row selectors and pinned columns. Moving it into a floating window
+does not expose the window's raised background through ordinary cells.
+
 A captured query result is the second controller of that surface: it supplies
 typed columns and a page read from the snapshot store, offers paging, filtering
 and ordering over what was captured, and offers none of the row commands,

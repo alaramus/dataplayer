@@ -15,14 +15,20 @@ import {
   rowsTabs,
 } from "./utils/workspace"
 
-test("detaches through the header, keeps the grid page and returns the tab", async ({ page }) => {
+test("detaches through the header, keeps the grid page and dark surface and returns the tab", async ({ page }) => {
   const name = `e2e-detached-${Date.now()}`
   await login(page)
+  const theme = page.getByTestId("theme-toggle")
+  if (await theme.getAttribute("data-theme") === "light") await theme.click()
+  await expect(theme).toHaveAttribute("data-theme", "dark")
   await createPostgresConnector(page, name)
   await openConnector(page, name)
   await pickSchema(page, "pg_catalog")
   await openNode(page, "pg_class")
   await expect(page.getByTestId("grid-next")).toBeEnabled()
+  const surface = await page.getByTestId("grid-column-relname")
+    .evaluate((node) => getComputedStyle(node).backgroundColor)
+  await expect(page.getByTestId("row-grid")).toHaveCSS("background-color", surface)
   const firstPage = await page.getByTestId("grid-page-range").innerText()
   await page.getByTestId("grid-next").click()
   await expect(page.getByTestId("grid-page-range")).not.toHaveText(firstPage)
@@ -57,6 +63,11 @@ test("detaches through the header, keeps the grid page and returns the tab", asy
   await expect(floating).toBeVisible()
   await expect(tab).toHaveCount(0)
   await expect(floating.getByTestId("grid-page-range")).toHaveText(range)
+  // The window has its own raised surface; ordinary cells must keep the
+  // docked grid's background instead of showing that through transparent rows.
+  await expect(floating).not.toHaveCSS("background-color", surface)
+  await expect(floating.getByTestId("row-grid")).toHaveCSS("background-color", surface)
+  await expect(floating.getByTestId("grid-column-relname")).toHaveCSS("background-color", surface)
   await floating.getByRole("button", { name: "Maximize", exact: true }).click()
   await floating.getByRole("button", { name: "Minimize", exact: true }).click()
   await page.getByRole("button", { name: "Restore pg_class", exact: true }).click()
@@ -65,6 +76,7 @@ test("detaches through the header, keeps the grid page and returns the tab", asy
   await expect(floating).toHaveCount(0)
   await expect(tab).toBeVisible()
   await expect(page.getByTestId("grid-page-range")).toHaveText(range)
+  await expect(page.getByTestId("row-grid")).toHaveCSS("background-color", surface)
 
   await carryToHeader()
   await page.mouse.up()
