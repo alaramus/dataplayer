@@ -12,8 +12,8 @@ import {
   validate,
 } from "@/features/admin/users"
 import type { UserForm } from "@/features/admin/users"
-import { useCurrentUser } from "@/features/auth/api"
 import { messageOf } from "@/shared/api/errors"
+import { useCurrentUser } from "@/shared/auth/currentUser"
 import {
   AppBadge,
   AppButton,

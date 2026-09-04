@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router"
 
 import UsersSection from "@/features/admin/UsersSection.vue"
 import { ADMIN_SECTIONS, sectionFor } from "@/features/admin/sections"
-import { useCurrentUser } from "@/features/auth/api"
+import { useCurrentUser } from "@/shared/auth/currentUser"
 import { AppButton, AppEmptyState, AppLayout, AppPageHeader } from "@/shared/ui"
 
 /**

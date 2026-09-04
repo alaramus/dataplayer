@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
+import { signOut } from "./utils/people"
 
 test("a token the server no longer accepts sends the user to the login page", async ({
   page,
@@ -23,8 +24,7 @@ test("signing out in one tab signs out the other", async ({ page, context }) => 
 
   const other = await context.newPage()
   await other.goto("/")
-  await other.getByTestId("logout").click()
-  await other.waitForURL("/login")
+  await signOut(other)
   await other.close()
 
   // The token is gone from storage, but this tab still holds it in memory and
@@ -42,7 +42,7 @@ test("a signed out tab cannot walk back into the application", async ({
 
   const other = await context.newPage()
   await other.goto("/")
-  await other.getByTestId("logout").click()
+  await signOut(other)
   await other.close()
 
   await page.waitForURL("/login")

@@ -18,13 +18,17 @@ export interface MenuItem {
 
 defineProps<{ items: MenuItem[] }>()
 
+const open = defineModel<boolean>({ default: false })
 const emit = defineEmits<{ select: [name: string] }>()
 </script>
 
 <template>
   <!-- auto-close: every item here is a command, so none of them leaves the
        menu open. A menu of toggles would need its own component. -->
-  <q-menu auto-close>
+  <q-menu
+    v-model="open"
+    auto-close
+  >
     <q-list
       dense
       class="app-menu"

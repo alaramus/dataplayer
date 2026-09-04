@@ -1,25 +1,48 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
-import { inject, onBeforeUnmount, onMounted, ref } from "vue"
+import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 
+import { useCurrentUser } from "@/shared/auth/currentUser"
 import WindowTaskbar from "@/shared/windows/WindowTaskbar.vue"
 import { windowsApiKey } from "@/shared/windows/useWindows"
 import { useAuthStore } from "@/stores/auth"
 import { useThemeStore } from "@/stores/theme"
 
 import AppButton from "./AppButton.vue"
+import AppMenu from "./AppMenu.vue"
+import type { MenuItem } from "./AppMenu.vue"
 import AppThemeToggle from "./AppThemeToggle.vue"
+import AppTooltip from "./AppTooltip.vue"
 
 defineProps<{ fill?: boolean }>()
 
 const auth = useAuthStore()
+const me = useCurrentUser()
 const theme = useThemeStore()
 const router = useRouter()
 const queryClient = useQueryClient()
 const windows = inject(windowsApiKey, undefined)
 const footer = ref<HTMLElement | null>(null)
+const userMenuOpen = ref(false)
 let footerObserver: ResizeObserver | null = null
+
+const userMenuItems = computed<MenuItem[]>(() => {
+  const items: MenuItem[] = []
+  if (me.data.value?.is_superuser === true) {
+    items.push({ name: "admin", label: "Admin", icon: "admin_panel_settings" })
+  }
+  items.push({ name: "logout", label: "Sign out", icon: "logout" })
+  return items
+})
+
+async function selectUserAction(name: string) {
+  if (name === "admin") {
+    await router.push({ name: "admin" })
+  } else if (name === "logout") {
+    await logout()
+  }
+}
 
 onMounted(() => {
   if (footer.value === null || windows === undefined) return
@@ -66,20 +89,27 @@ async function logout() {
           <span>DataPlayer</span>
         </q-toolbar-title>
         <slot name="workspace-tools" />
-        <!-- What a screen wants in the header, before the two things that
-             belong to the session. The kit knows no feature: whoever renders
-             the layout decides what goes here. -->
+        <!-- Page actions precede the theme control and the account menu. -->
         <slot name="actions" />
-        <!-- Beside signing out: both are about this session rather than about
-             what is on the screen. -->
         <AppThemeToggle />
         <AppButton
           variant="quiet"
           size="sm"
-          label="Sign out"
-          data-testid="logout"
-          @click="logout"
-        />
+          icon="account_circle"
+          aria-label="User menu"
+          aria-haspopup="menu"
+          :aria-expanded="userMenuOpen"
+          data-testid="user-menu"
+        >
+          <AppTooltip>User menu</AppTooltip>
+          <AppMenu
+            v-model="userMenuOpen"
+            :items="userMenuItems"
+            anchor="bottom right"
+            self="top right"
+            @select="selectUserAction"
+          />
+        </AppButton>
       </q-toolbar>
       <slot name="header-overlay" />
     </q-header>

@@ -22,13 +22,19 @@ export async function signInAs(page: Page, email: string, password: string) {
 }
 
 export async function signOut(page: Page) {
-  await page.getByTestId("logout").click()
+  await page.getByTestId("user-menu").click()
+  await page.getByTestId("menu-item-logout").click()
   await page.waitForURL("/login")
 }
 
-export async function createColleague(page: Page, email: string) {
-  await page.getByTestId("open-users").click()
+export async function openAdmin(page: Page) {
+  await page.getByTestId("user-menu").click()
+  await page.getByTestId("menu-item-admin").click()
   await page.waitForURL("/admin")
+}
+
+export async function createColleague(page: Page, email: string) {
+  await openAdmin(page)
   await page.getByTestId("new-user").click()
   await page.getByTestId("user-email").fill(email)
   await page.getByTestId("user-password").fill(COLLEAGUE_PASSWORD)
@@ -39,8 +45,7 @@ export async function createColleague(page: Page, email: string) {
 }
 
 export async function removeColleague(page: Page, email: string) {
-  await page.getByTestId("open-users").click()
-  await page.waitForURL("/admin")
+  await openAdmin(page)
   await page.getByTestId(`delete-user-${email}`).click()
   await page.getByTestId("confirm-accept").click()
   await expect(page.getByTestId(`edit-user-${email}`)).toHaveCount(0)

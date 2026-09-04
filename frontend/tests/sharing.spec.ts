@@ -6,6 +6,7 @@ import {
   COLLEAGUE_PASSWORD,
   colleagueEmail,
   createColleague,
+  openAdmin,
   removeColleague,
   signInAs,
   signOut,
@@ -105,8 +106,13 @@ test("the accounts screen is an administrator's", async ({ page }) => {
   await signOut(page)
   await signInAs(page, email, COLLEAGUE_PASSWORD)
 
-  // Not offered, because the routes behind it would refuse.
-  await expect(page.getByTestId("open-users")).toHaveCount(0)
+  // Inspect the open menu so an unmounted popup cannot hide a leaked action.
+  await page.getByTestId("user-menu").click()
+  await expect(page.getByTestId("user-menu")).toHaveAttribute("aria-expanded", "true")
+  await expect(page.getByTestId("menu-item-logout")).toBeVisible()
+  await expect(page.getByTestId("menu-item-admin")).toHaveCount(0)
+  await page.keyboard.press("Escape")
+  await expect(page.getByTestId("user-menu")).toHaveAttribute("aria-expanded", "false")
   // The old address still works, and lands where accounts live now.
   await page.goto("/users")
   await page.waitForURL("/admin/users")
@@ -123,8 +129,7 @@ test("an administrator is not offered a way to delete their own account", async 
   page,
 }) => {
   await login(page)
-  await page.getByTestId("open-users").click()
-  await page.waitForURL("/admin")
+  await openAdmin(page)
   await expect(page.getByTestId("admin-section-users")).toBeVisible()
 
   // The server refuses it; the button says so before it is pressed.

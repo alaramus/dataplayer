@@ -23,8 +23,9 @@ source-issued DDL in a bounded read-only SQL panel. Download is a
 source-declared catalog action over the checked nodes; there is no
 adapter-specific button in a row or an open content panel.
 A connection can be shared with a colleague at a level, and an administrator
-manages accounts on a page of their own. Light and dark themes,
-switched by a button beside Sign out and remembered.
+manages accounts on a page of their own. The user icon at the right of the
+header opens an account menu with Sign out and, for administrators, Admin.
+Light and dark themes are switched by the adjacent button and remembered.
 
 The application uses the legacy cube artwork: blue for the browser favicon
 and the light header, white for the dark header.
@@ -61,7 +62,7 @@ frontend/src/
 │   │                    useToast and useConfirm replace $q,
 │   │                    index.ts is the one import path
 │   ├── api/             client setup, and one reading of an API error
-│   ├── auth/            the session, watched across tabs
+│   ├── auth/            the current account and session, watched across tabs
 │   ├── SchemaForm/      JSON Schema to form, framework-independent core;
 │   │                    a field says which tab and which row it belongs to,
 │   │                    and readSchema tells a plain schema from a union
@@ -340,9 +341,9 @@ read. The one comparison the client makes is `atLeast` in
 rather than written out again. See D33 in [backend.md](backend.md).
 
 Administering the installation is a page of its own at `/admin/<section>`,
-opened from a header button that appears only for an administrator. It is a
-list of sections beside what one of them shows, and there is one section
-today: accounts. The shape says so honestly — what comes next arrives as an
+opened from the header's user menu, where Admin appears only for an
+administrator. It is a list of sections beside what one of them shows, and
+there is one section today: accounts. The shape says so honestly — what comes next arrives as an
 entry in `features/admin/sections.ts` and a line in the page's table, rather
 than as a rearrangement of a screen built around exactly one thing. The
 section is in the address, so a link into one is a link; an address naming

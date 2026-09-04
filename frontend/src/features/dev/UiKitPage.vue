@@ -45,6 +45,7 @@ const MENU_ITEMS: MenuItem[] = [
   { name: "away", label: "Not available here", icon: "block", disable: true },
   { name: "delete", label: "Delete", icon: "delete", danger: true },
 ]
+const menuOpen = ref(false)
 
 const TONES: Tone[] = ["error", "success", "warning", "info"]
 // The window sizes a dialog opens at. A window is measured to its
@@ -202,8 +203,11 @@ function flash() {
             variant="secondary"
             label="Row actions"
             icon="more_vert"
+            aria-haspopup="menu"
+            :aria-expanded="menuOpen"
           >
             <AppMenu
+              v-model="menuOpen"
               :items="MENU_ITEMS"
               @select="toast.success(`chose ${$event}`)"
             />
