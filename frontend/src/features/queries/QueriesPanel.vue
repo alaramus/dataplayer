@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
-import { useConnectors } from "@/features/connectors/api"
+import { connectorNameOf, useConnectors } from "@/features/connectors/api"
 import {
   usePurgeQueryDocument,
   useQueryDocuments,
@@ -155,7 +155,7 @@ function newDocument() {
 
 /** What a connection is called, for the tab of a console with no name yet. */
 function nameOf(id: string): string | null {
-  return (connectors.data.value?.data ?? []).find((one) => one.id === id)?.name ?? null
+  return connectorNameOf(connectors.data.value, id)
 }
 
 function openDocument(row: { id: string; title: string | null; connector_label: string | null }) {

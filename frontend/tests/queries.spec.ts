@@ -415,6 +415,45 @@ ${countTag(label)}`)
   await deleteConnector(page, name)
 })
 
+test("a console follows the connection it is open on", async ({ page }) => {
+  const name = `e2e-follow-${Date.now()}`
+  const renamed = `${name}-renamed`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+
+  // Confirmation is where every connection starts, so the console asks for a
+  // name before it will write.
+  await chooseMode(page, "Auto-commit")
+  await expect(page.getByTestId("query-unlock-name")).toBeVisible()
+
+  // The owner closes writing while this console is open, and nothing in the
+  // console is touched afterwards: either it is told, or it goes on judging
+  // the connection by a policy it no longer has (D66).
+  await editConnector(page, name)
+  await page.getByTestId("connector-policy").click()
+  await page.getByRole("option", { name: "Read only", exact: true }).click()
+  await page.getByTestId("save-connector").click()
+  await expect(page.getByTestId("query-write-forbidden")).toBeVisible()
+  await expect(page.getByTestId("query-unlock")).toHaveCount(0)
+
+  // Opened again, under another name. What has to be typed back is the name
+  // the connection has now, because that is the one the server compares with.
+  await editConnector(page, name)
+  await page.getByTestId("connector-policy").click()
+  await page.getByRole("option", { name: "Ask before writing", exact: true }).click()
+  await page.getByTestId("connector-name").fill(renamed)
+  await page.getByTestId("save-connector").click()
+
+  await expect(page.getByTestId("query-unlock")).toContainText(renamed)
+  await page.getByTestId("query-unlock-name").fill(renamed)
+  await page.getByTestId("query-unlock-submit").click()
+  await expect(page.getByTestId("query-relock")).toBeVisible()
+
+  await deleteConnector(page, renamed)
+})
+
 test("a transaction says what it has done, and closing the console rolls it back", async ({
   page,
 }) => {

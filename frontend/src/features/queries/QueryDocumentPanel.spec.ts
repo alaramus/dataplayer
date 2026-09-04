@@ -6,7 +6,7 @@ import { Dialog, Notify, Quasar } from "quasar"
 import { defineComponent } from "vue"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { QueriesService } from "@/client"
+import { ConnectorsService, QueriesService } from "@/client"
 import type { QueryDocumentPublic } from "@/client"
 import { workspaceActionsKey } from "@/features/workspace/state"
 import { withWindowHost } from "@/shared/testing/windows"
@@ -97,6 +97,12 @@ async function type(wrapper: ReturnType<typeof mountPanel>, text: string) {
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  // The console asks what its connection is called now rather than trusting
+  // the name copied into the tab when it opened (D66). Nothing here is about
+  // that, so the list is simply empty and the document's own label stands.
+  vi.spyOn(ConnectorsService, "readConnectors").mockResolvedValue({
+    data: { data: [], count: 0 },
+  } as never)
   vi.useFakeTimers()
   sessionStorage.clear()
   workspace.openQueryDocument.mockReset()

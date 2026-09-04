@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue"
 
 import type { ExplainResult, PreparedScript, StatementPublic } from "@/client"
+import { connectorNameOf, useConnectors } from "@/features/connectors/api"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import {
   useCreateQueryDocument,
@@ -207,8 +208,22 @@ const knowledge = computed(() =>
 )
 const run = useRun(runId)
 const kept = useRun(keptRunId)
+/**
+ * What this console's connection is called, now rather than when it opened.
+ *
+ * The list is asked first, and the label the document carries is the fallback
+ * for a connection that is no longer in it. A renamed connection kept its old
+ * name in the tab that was already open, and under confirmation this is the
+ * word a person is asked to type back — the server compares it with the name
+ * the connection has now, so the old one could not unlock anything (D66).
+ */
+const connectors = useConnectors()
 const connectorLabel = computed(
-  () => server.value?.connector_label ?? props.connectorName ?? null
+  () =>
+    connectorNameOf(connectors.data.value, connectorId.value) ??
+    server.value?.connector_label ??
+    props.connectorName ??
+    null
 )
 const searchPath = computed(() => server.value?.search_path ?? [])
 const error = computed(() =>

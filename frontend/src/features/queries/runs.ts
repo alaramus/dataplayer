@@ -219,6 +219,19 @@ export function useQueryMetadata(
  * nothing is captured, so there is no lifecycle to watch.
  */
 /**
+ * Where a person stands on writing through one connection.
+ *
+ * Keyed under the connection rather than under the queries, as the grants on
+ * it are: the answer is made of the owner's policy and this person's level,
+ * both of which are facts about the connection. It was under `queries` once,
+ * and editing a connection then left an open console judging it by the policy
+ * it used to have — every cache of a connection is dropped when it changes,
+ * and this one was not among them (D66).
+ */
+export const unlockKey = (connectorId: string) =>
+  ["connectors", connectorId, "unlock"] as const
+
+/**
  * Whether writing is open on this connection, and until when (D66).
  *
  * Server state like everything else, and asked again after every unlock:
@@ -227,7 +240,7 @@ export function useQueryMetadata(
 export function useUnlockState(connectorId: MaybeRefOrGetter<string | null>) {
   const id = computed(() => toValue(connectorId))
   return useQuery({
-    queryKey: computed(() => ["queries", "unlock", id.value ?? "none"] as const),
+    queryKey: computed(() => unlockKey(id.value ?? "none")),
     queryFn: async () =>
       (await QueriesService.readUnlock({ path: { connector_id: id.value as string } }))
         .data,
@@ -247,7 +260,7 @@ export function useOpenWrites() {
         })
       ).data,
     onSuccess: (state) =>
-      queryClient.setQueryData(["queries", "unlock", state.connector_id], state),
+      queryClient.setQueryData(unlockKey(state.connector_id), state),
   })
 }
 
@@ -259,7 +272,7 @@ export function useCloseWrites() {
         await QueriesService.closeWrites({ path: { connector_id: connectorId } })
       ).data,
     onSuccess: (state) =>
-      queryClient.setQueryData(["queries", "unlock", state.connector_id], state),
+      queryClient.setQueryData(unlockKey(state.connector_id), state),
   })
 }
 

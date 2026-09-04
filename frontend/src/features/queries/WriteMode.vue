@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
+import { computed, ref } from "vue"
 
 import type { UnlockState } from "@/client"
 import { AppButton, AppInput, AppSelect } from "@/shared/ui"
@@ -35,7 +35,6 @@ const emit = defineEmits<{
 }>()
 
 const typed = ref("")
-const asking = ref(false)
 
 const policy = computed(() => props.unlock?.policy ?? "confirm_writes")
 const unlocked = computed(() => props.unlock?.unlocked === true)
@@ -54,13 +53,17 @@ const options = computed(() =>
 /** Whether there is anything here to decide. */
 const choosable = computed(() => props.modes.length > 1)
 
-// Choosing a writing mode while writes are locked is what raises the question.
-watch(
-  () => [props.mode, unlocked.value] as const,
-  ([mode, open]) => {
-    asking.value = mode !== "read" && !open && !forbidden.value
-  },
-  { immediate: true }
+/**
+ * Whether the question is on screen: a writing mode, chosen while writes are
+ * locked and while the connection admits them at all.
+ *
+ * Read from all three, and not set when the mode changes. What the connection
+ * allows can change under an open console — its owner may close writing on it
+ * or open it again — and a flag written on the way in kept asking, or kept not
+ * asking, whatever the connection said afterwards (D66).
+ */
+const asking = computed(
+  () => props.mode !== "read" && !unlocked.value && !forbidden.value
 )
 
 function choose(value: unknown) {

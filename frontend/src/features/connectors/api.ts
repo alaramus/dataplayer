@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
 
 import { AdaptersService, ConnectorsService } from "@/client"
-import type { ConnectorCreate, ConnectorUpdate } from "@/client"
+import type { ConnectorCreate, ConnectorsPublic, ConnectorUpdate } from "@/client"
 
 export const connectorsKey = ["connectors"] as const
 export const adapterTypesKey = ["adapter-types"] as const
@@ -11,6 +11,22 @@ export function useConnectors() {
     queryKey: connectorsKey,
     queryFn: async () => (await ConnectorsService.readConnectors()).data,
   })
+}
+
+/**
+ * What a connection is called now.
+ *
+ * By id and out of the list, never from a name copied when a tab was opened.
+ * A rename leaves every such copy behind, and the name is the word a console
+ * has to type back to leave read-only — the server compares it with the one
+ * the connection has now (D66).
+ */
+export function connectorNameOf(
+  connectors: ConnectorsPublic | undefined,
+  connectorId: string | null
+): string | null {
+  if (connectorId === null) return null
+  return connectors?.data.find((one) => one.id === connectorId)?.name ?? null
 }
 
 export function useAdapterTypes() {
