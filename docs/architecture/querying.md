@@ -188,14 +188,30 @@ bound to one connector and carries an ordered schema context, an optional title,
 encrypted body, revision, editor layout and lifecycle timestamps. Any number of
 documents may belong to one connector and titles need not be unique.
 
-A new console is an unnamed document from the first edit. Debounced autosave
-sends the base revision; a mismatch stops saving and offers keep mine, use
-remote or save mine as a copy. Closing a tab only removes it from the workspace.
-Deletion moves it to a thirty-day Trash; permanent deletion removes its body,
-remembered parameters and layout. While autosave cannot reach the server, one
-unsynchronised shadow may live in that browser tab's `sessionStorage`, is marked
-visibly and is removed after a successful save. No durable plaintext browser
-cache is introduced.
+**A console is not a document until somebody asks for it to be one.** It used
+to become one at once — the plus wrote an "Untitled" before a word was typed,
+and opening a table as a query left a document behind on every press, so the
+library filled with rows nobody had decided to keep and became a log of every
+console ever opened. A console now holds its text in its own browser tab, and
+`Remember` is the one command that puts it into the library. Nothing else
+writes one: running does not, because an `ExecutionRun` is the record of what
+was executed and needs no document (`document_id` is nullable), so a console
+nobody kept runs and appears in the history exactly like one they did.
+
+Until it is remembered the text lives in that tab's `sessionStorage` under the
+panel's own draft id — never in the workspace layout, which is durable and
+would be the plaintext browser cache this decision forbids. It dies with the
+tab, which is the point: a console closed without being kept leaves nothing
+anywhere.
+
+From `Remember` on it is an ordinary document and behaves as it always has.
+Debounced autosave sends the base revision; a mismatch stops saving and offers
+keep mine, use remote or save mine as a copy. Closing a tab only removes it
+from the workspace. Deletion moves it to a thirty-day Trash; permanent
+deletion removes its body, remembered parameters and layout. While autosave
+cannot reach the server, one unsynchronised shadow may live in that browser
+tab's `sessionStorage`, is marked visibly and is removed after a successful
+save. No durable plaintext browser cache is introduced.
 
 The connector id never changes silently. Losing a grant or deleting the
 connector leaves the user's document readable but makes its context unavailable
@@ -240,10 +256,19 @@ all entries. A bounded search decrypts at most those retained runs in server
 memory and builds no plaintext token index. Secret values are absent; ordinary
 values are present only when the document explicitly remembers them.
 
-Saved favourites are unnecessary: a useful query is a named document. Legacy
-history and favourites are not migrated because their ownership, ordering,
-context and retention are not trustworthy. Documents, history and query
-results are not shareable in phase 3.
+Saved favourites are unnecessary: a useful query is one somebody remembered.
+Legacy history and favourites are not migrated because their ownership,
+ordering, context and retention are not trustworthy. Documents, history and
+query results are not shareable in phase 3.
+
+Known deviations:
+
+- **A console nobody remembered is lost with its browser tab.** That is what
+  not keeping it means, and the history still holds whatever was run from it;
+  but a tab restored in a *new* browser tab comes back empty rather than with
+  the text, because the text was never anywhere durable.
+- **Remember has no undo of its own.** What it makes is an ordinary document,
+  so the way back is Trash.
 
 Spec: [The query editor](../superpowers/specs/2026-09-01-query-editor-design.md)
 

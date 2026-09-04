@@ -151,7 +151,17 @@ export const panelSchema = z.discriminatedUnion("kind", [
   z.object({
     id: z.string(),
     kind: z.literal("query"),
-    documentId: z.string(),
+    // The document this console became, once somebody asked to keep it. Absent
+    // until then: a console opens outside the library, and "Remember" is what
+    // makes a document of it (D65).
+    documentId: z.string().optional(),
+    // What names the text of a console nobody has kept. Its body lives in this
+    // browser tab's own storage under this id and nowhere else — never in the
+    // layout, which is durable and would make a plaintext library of it (D63).
+    draftId: z.string().optional(),
+    // Which connection it is written against. Carried while there is no
+    // document to read it from.
+    connectorId: z.string().optional(),
     // What the tab says. Null while the document has no name of its own; the
     // panel carries it so a restored layout can label its tabs before
     // anything has been read (D65).
@@ -205,6 +215,8 @@ export const summaryPanelId = (connectorId: string, nodeId: string) =>
 export const chartPanelId = (viewKey: string) => `chart:${viewKey}`
 export const QUERIES_PANEL_ID = "queries"
 export const queryPanelId = (documentId: string) => `query:${documentId}`
+/** A console nobody has asked to keep is named by the draft it holds. */
+export const queryDraftPanelId = (draftId: string) => `query:draft:${draftId}`
 export const resultPanelId = (resultId: string) => `result:${resultId}`
 
 /**
@@ -576,6 +588,9 @@ export function componentOf(panel: Panel): Component {
         h(QueryDocumentPanelView, {
           panelId: panel.id,
           documentId: panel.documentId,
+          draftId: panel.draftId,
+          connectorId: panel.connectorId,
+          connectorName: panel.connectorName,
         })
       )
   }

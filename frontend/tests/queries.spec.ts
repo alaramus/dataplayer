@@ -49,18 +49,21 @@ test("writes a query document, names it, and finds it again after a reload", asy
   await createPostgresConnector(page, name)
   await openQueries(page, name)
 
-  // --- a new console is an unnamed draft the server already holds ----------
+  // --- a new console is in its own tab and in nothing else -----------------
   await page.getByTestId("new-query").click()
-  await expect(page.getByTestId("query-state")).toHaveText("Saved")
+  await expect(page.getByTestId("query-state")).toHaveText("Not kept")
   await expect(page.getByTestId("query-context")).toContainText(name)
 
   await typeQuery(page, "select 1 as answer")
-  await expect(page.getByTestId("query-state")).toHaveText("Unsaved changes")
-  await expect(page.getByTestId("query-state")).toHaveText("Saved")
+  // Still nothing in the library: what a person opened and closed leaves no
+  // row behind (D65).
+  await expect(page.getByTestId("queries-empty")).toBeVisible()
 
-  // --- naming it changes its title and nothing else ------------------------
+  // --- keeping it is one press, and names it what the box says -------------
   await page.getByTestId("query-title").fill(title)
+  await page.getByTestId("query-remember").click()
   await expect(page.getByTestId("query-state")).toHaveText("Saved")
+  await expect(page.getByTestId("query-remember")).toHaveCount(0)
   // The tab takes the name, because a tab is what a person looks for.
   await expect(page.locator('[data-testid^="workspace-tab-query:"]')).toContainText(title)
 
@@ -106,6 +109,7 @@ test("a query outlives the connection it was written against", async ({ page }) 
   await openQueries(page, name)
   await page.getByTestId("new-query").click()
   await typeQuery(page, "select 'kept'")
+  await page.getByTestId("query-remember").click()
   await expect(page.getByTestId("query-state")).toHaveText("Saved")
 
   await deleteConnector(page, name)

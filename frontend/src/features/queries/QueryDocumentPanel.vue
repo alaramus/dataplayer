@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, toRef, useTemplateRef, watch } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue"
 
 import type { ExplainResult, PreparedScript, StatementPublic } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
@@ -21,13 +21,17 @@ import {
 import type { ParameterEntry, RunTarget } from "@/features/queries/console"
 import {
   changed,
+  clearDraft,
   clearShadow,
   copyTitle,
   draftOf,
+  emptyDraft,
   keepMine,
+  readDraft,
   readShadow,
   recoverable,
   saveFor,
+  writeDraft,
   writeShadow,
 } from "@/features/queries/draft"
 import type { DraftState, SaveState } from "@/features/queries/draft"
@@ -91,12 +95,26 @@ import {
  * this screen's — the browser does not split SQL (D62).
  */
 
-const props = defineProps<{ panelId: string; documentId: string }>()
+/**
+ * A console is opened outside the library and put into it on request.
+ *
+ * `documentId` once somebody has pressed Remember, `draftId` until then. The
+ * text of an unremembered one lives in this browser tab and nowhere else, so
+ * opening a console — from the plus, from a table, from a run in the history —
+ * writes nothing anybody has to tidy up afterwards (D65).
+ */
+const props = defineProps<{
+  panelId: string
+  documentId?: string
+  draftId?: string
+  connectorId?: string
+  connectorName?: string | null
+}>()
 
 const workspace = useWorkspaceActions()
 const toast = useToast()
 const confirm = useConfirm()
-const document = useQueryDocument(toRef(props, "documentId"))
+const document = useQueryDocument(computed(() => props.documentId ?? null))
 const save = useSaveQueryDocument()
 const create = useCreateQueryDocument()
 const trash = useTrashQueryDocument()
@@ -155,7 +173,11 @@ let observer: ResizeObserver | null = null
 let loadedId = ""
 
 const server = computed(() => document.data.value)
-const connectorId = computed(() => server.value?.connector_id ?? null)
+/** Whether this console is in the library at all. */
+const remembered = computed(() => props.documentId !== undefined)
+const connectorId = computed(
+  () => server.value?.connector_id ?? props.connectorId ?? null
+)
 const profile = useQueryProfile(connectorId)
 const unlockState = useUnlockState(connectorId)
 const transaction = useTransaction(transactionId)
@@ -185,7 +207,9 @@ const knowledge = computed(() =>
 )
 const run = useRun(runId)
 const kept = useRun(keptRunId)
-const connectorLabel = computed(() => server.value?.connector_label ?? null)
+const connectorLabel = computed(
+  () => server.value?.connector_label ?? props.connectorName ?? null
+)
 const searchPath = computed(() => server.value?.search_path ?? [])
 const error = computed(() =>
   document.isError.value
@@ -194,6 +218,7 @@ const error = computed(() =>
 )
 /** One word for each state, and no state without one. */
 const STATE_LABELS: Record<SaveState, string> = {
+  unremembered: "Not kept",
   saved: "Saved",
   dirty: "Unsaved changes",
   saving: "Saving…",
@@ -323,9 +348,31 @@ watch(
   { immediate: true }
 )
 
+/**
+ * A console nobody has kept fills itself from this browser tab.
+ *
+ * Whatever opened it — the plus, a table, a run in the history — left the text
+ * there under this panel's draft id. A reload finds it again; a new browser
+ * tab does not, and shows an empty console rather than somebody else's text.
+ */
+onMounted(() => {
+  const draftId = props.draftId
+  if (draftId === undefined || remembered.value) return
+  draft.value = readDraft(draftId) ?? emptyDraft()
+  state.value = "unremembered"
+  schedulePrepare()
+})
+
 watch(
   draft,
   () => {
+    const draftId = props.draftId
+    if (!remembered.value) {
+      // Nothing is sent anywhere: this one is not in the library, and the tab
+      // is the only thing holding it.
+      if (draftId !== undefined) writeDraft(draftId, draft.value)
+      return
+    }
     const loaded = server.value
     if (loaded === undefined || state.value === "conflict") return
     if (!changed(loaded, draft.value)) {
@@ -449,7 +496,10 @@ async function runEverything() {
 async function go(target: RunTarget | null) {
   const loaded = server.value
   const connector = connectorId.value
-  if (target === null || loaded === undefined || connector === null) return
+  // A run needs a connection and a statement, not a document: what ran is
+  // recorded by the run itself, so a console nobody has kept runs and appears
+  // in the history exactly like one they have (D63).
+  if (target === null || connector === null) return
   if (!ready(parameters.value)) {
     toast.info("Fill in the parameters this query asks for")
     return
@@ -465,7 +515,7 @@ async function go(target: RunTarget | null) {
     const accepted = await confirm({
       title: "Run something that cannot be undone?",
       message:
-        `This changes ${loaded.connector_label ?? "the source"} and there is no ` +
+        `This changes ${connectorLabel.value ?? "the source"} and there is no ` +
         "undo. In a transaction you can still roll it back; with auto-commit " +
         "you cannot." +
         tried,
@@ -480,7 +530,7 @@ async function go(target: RunTarget | null) {
     try {
       const opened = await openTransaction.mutateAsync({
         connector_id: connector,
-        document_id: loaded.id,
+        document_id: loaded?.id ?? null,
       })
       transactionId.value = opened.id
     } catch (cause) {
@@ -494,8 +544,8 @@ async function go(target: RunTarget | null) {
     const started = await startRun.mutateAsync({
       run_id: crypto.randomUUID(),
       connector_id: connector,
-      document_id: loaded.id,
-      document_revision: loaded.revision,
+      document_id: loaded?.id ?? null,
+      document_revision: loaded?.revision ?? null,
       text: target.text,
       range_start: target.start,
       range_end: target.end,
@@ -543,7 +593,7 @@ async function explain() {
   const current = await currentScript()
   const loaded = server.value
   const connector = connectorId.value
-  if (current === null || loaded === undefined || connector === null) return
+  if (current === null || connector === null) return
   const target = targetFor(current, draft.value.body, selection.value)
   if (target === null) return
   try {
@@ -551,7 +601,7 @@ async function explain() {
       connectorId: connector,
       body: {
         text: target.text,
-        document_id: loaded.id,
+        document_id: loaded?.id ?? null,
         parameters: bindingsOf(parameters.value),
       },
     })
@@ -642,12 +692,12 @@ async function endTheTransaction(commit: boolean) {
 async function tryItOut(target: RunTarget): Promise<string | "blocked" | null> {
   const connector = connectorId.value
   const loaded = server.value
-  if (connector === null || loaded === undefined) return null
+  if (connector === null) return null
   try {
     const rehearsal = await rehearse.mutateAsync({
       connector_id: connector,
       text: target.text,
-      document_id: loaded.id,
+      document_id: loaded?.id ?? null,
       transaction_id: mode.value === "manual" ? transactionId.value : null,
       parameters: bindingsOf(parameters.value),
     })
@@ -711,6 +761,41 @@ function resolveUseRemote() {
   failure.value = ""
 }
 
+/**
+ * Put this console into the library, which is what the library is.
+ *
+ * Until this is pressed the text is in the tab and nowhere else, so nothing a
+ * person opened and closed leaves a row behind. Afterwards it is an ordinary
+ * document and saves itself as it is typed, which is what a thing somebody
+ * asked to keep should do (D65).
+ */
+async function remember() {
+  const connector = connectorId.value
+  const draftId = props.draftId
+  if (connector === null || remembered.value) return
+  state.value = "saving"
+  failure.value = ""
+  try {
+    const kept = await create.mutateAsync({
+      connector_id: connector,
+      title: draft.value.title,
+      body: draft.value.body,
+    })
+    if (draftId !== undefined) clearDraft(draftId)
+    // The same tab, now about a document: it keeps its place in the strip and
+    // its results, and the panel is named by what it now holds.
+    workspace.rememberedQuery(props.panelId, {
+      documentId: kept.id,
+      title: kept.title,
+      connectorName: kept.connector_label,
+    })
+    toast.success("Kept in your queries")
+  } catch (cause) {
+    state.value = "unremembered"
+    failure.value = messageOf(cause, "Could not keep this query")
+  }
+}
+
 async function resolveSaveACopy() {
   const remote = server.value
   if (remote === undefined || remote.connector_id === null) return
@@ -743,14 +828,16 @@ function takeShadow() {
 
 function dropShadow() {
   shadowOffer.value = null
-  clearShadow(props.documentId)
+  if (props.documentId !== undefined) clearShadow(props.documentId)
 }
 
 async function moveToTrash() {
+  const documentId = props.documentId
+  if (documentId === undefined) return
   try {
-    await trash.mutateAsync(props.documentId)
-    clearShadow(props.documentId)
-    workspace.closeQueryDocument(props.documentId)
+    await trash.mutateAsync(documentId)
+    clearShadow(documentId)
+    workspace.closeQueryDocument(documentId)
     toast.success("Moved to Trash")
   } catch (cause) {
     toast.error(messageOf(cause, "Could not delete this query"))
@@ -883,7 +970,21 @@ onBeforeUnmount(() => {
         data-testid="query-wrap"
         @click="draft.wrap = !draft.wrap"
       />
+      <!-- The one command that puts this console into the library. Until it
+           is pressed the text is in this tab and nowhere else, which is why
+           the button says what it does rather than "Save". -->
+      <AppButton
+        v-if="!remembered"
+        variant="quiet"
+        size="sm"
+        icon="bookmark_add"
+        label="Remember"
+        :disable="connectorId === null || create.isPending.value"
+        data-testid="query-remember"
+        @click="remember"
+      />
       <AppIconButton
+        v-else
         icon="delete"
         tooltip="Move to Trash"
         data-testid="query-trash"
@@ -1019,9 +1120,11 @@ onBeforeUnmount(() => {
       />
     </div>
 
-    <AppSpinner v-if="document.isPending.value" />
+    <!-- A console nobody has kept has no document to wait for: it is the text
+         in this tab, and it is ready the moment the tab is. -->
+    <AppSpinner v-if="remembered && document.isPending.value" />
     <div
-      v-else-if="server !== undefined"
+      v-else-if="!remembered || server !== undefined"
       ref="frame"
       class="query-panel__frame"
     >

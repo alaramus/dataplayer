@@ -66,6 +66,18 @@ export interface WorkspaceActions {
   showInPlace: (panelId: string, request: OpenRowsRequest) => void
   /** Open the source's chosen representation with the matching viewer. */
   openRepresentation: (request: OpenRepresentationRequest) => void
+  /**
+   * A console that was just put into the library, in the tab it is already in.
+   *
+   * The panel is named by what it holds, so a console that has become a
+   * document is a different panel with the same place in the strip — the same
+   * move switching a sheet makes (D51), for the same reason: a second tab
+   * would be housekeeping nobody asked for.
+   */
+  rememberedQuery: (
+    panelId: string,
+    kept: { documentId: string; title: string | null; connectorName: string | null }
+  ) => void
   /** A one-shot fragment handed to a Markdown panel opened from another document. */
   documentTarget: Readonly<Ref<DocumentTarget | null>>
   takeDocumentTarget: (connectorId: string, nodeId: string) => DocumentTarget | null
@@ -123,6 +135,8 @@ export interface WorkspaceActions {
   takeQueriesTarget: () => string | null
   /** Open one console, or bring the tab already showing it forward. */
   openQueryDocument: (request: OpenQueryDocumentRequest) => void
+  /** Open a console on a connection without putting anything in the library. */
+  openQueryDraft: (request: OpenQueryDraftRequest) => void
   /**
    * Give one captured result a panel of its own.
    *
@@ -274,6 +288,22 @@ export interface SharedTarget {
  * layout restored from storage draws its tabs before the first request
  * finishes. A draft has no title, and the tab says so in its own words.
  */
+/**
+ * A console to open outside the library.
+ *
+ * The text is not in this request: it is written into the tab's own storage
+ * under `draftId` by whoever opened it, because a panel is kept in the layout
+ * and the layout is durable — SQL in it would be the plaintext browser cache
+ * D63 forbids.
+ */
+export interface OpenQueryDraftRequest {
+  draftId: string
+  connectorId: string
+  connectorName: string | null
+  /** What the tab is called before anybody has named the query. */
+  title: string | null
+}
+
 export interface OpenQueryDocumentRequest {
   documentId: string
   title: string | null

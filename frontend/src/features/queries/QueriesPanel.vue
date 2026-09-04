@@ -3,12 +3,12 @@ import { computed, ref, watch } from "vue"
 
 import { useConnectors } from "@/features/connectors/api"
 import {
-  useCreateQueryDocument,
   usePurgeQueryDocument,
   useQueryDocuments,
   useRestoreQueryDocument,
   useTrashQueryDocument,
 } from "@/features/queries/api"
+import { emptyDraft, writeDraft } from "@/features/queries/draft"
 import {
   useDeleteRuns,
   useRunHistory,
@@ -84,7 +84,6 @@ const history = useRunHistory(
 )
 const runText = useRunText()
 const deleteRuns = useDeleteRuns()
-const create = useCreateQueryDocument()
 const trash = useTrashQueryDocument()
 const restore = useRestoreQueryDocument()
 const purge = usePurgeQueryDocument()
@@ -134,19 +133,29 @@ function pickConnector(value: unknown) {
   connectorId.value = value === "" || typeof value !== "string" ? null : value
 }
 
-async function newDocument() {
+/**
+ * A new console, which is not yet a query anybody has.
+ *
+ * Nothing is written down: the library is what a person decided to keep, and
+ * pressing this used to put an empty "Untitled" into it before a word had
+ * been typed. The console keeps its text in its own tab until Remember (D65).
+ */
+function newDocument() {
   const chosen = connectorId.value
   if (chosen === null) return
-  try {
-    const document = await create.mutateAsync({ connector_id: chosen })
-    workspace.openQueryDocument({
-      documentId: document.id,
-      title: document.title,
-      connectorName: document.connector_label,
-    })
-  } catch (cause) {
-    toast.error(messageOf(cause, "Could not open a new query"))
-  }
+  const draftId = crypto.randomUUID()
+  writeDraft(draftId, emptyDraft())
+  workspace.openQueryDraft({
+    draftId,
+    connectorId: chosen,
+    connectorName: nameOf(chosen),
+    title: null,
+  })
+}
+
+/** What a connection is called, for the tab of a console with no name yet. */
+function nameOf(id: string): string | null {
+  return (connectors.data.value?.data ?? []).find((one) => one.id === id)?.name ?? null
 }
 
 function openDocument(row: { id: string; title: string | null; connector_label: string | null }) {
@@ -194,20 +203,22 @@ function when(moment: string | null | undefined): string {
  * it was, and what comes back is a new console holding the same text (D63).
  */
 async function openAsQuery(run: { id: string; connector_id: string | null }) {
-  if (run.connector_id === null) {
+  const connector = run.connector_id
+  if (connector === null) {
     toast.info("The connection this ran against is no longer available")
     return
   }
   try {
     const text = await runText.mutateAsync(run.id)
-    const document = await create.mutateAsync({
-      connector_id: run.connector_id,
-      body: text.text,
-    })
-    workspace.openQueryDocument({
-      documentId: document.id,
-      title: document.title,
-      connectorName: document.connector_label,
+    // A console holding what it ran, and not a second copy in the library:
+    // the run is already the record of what was executed (D63).
+    const draftId = crypto.randomUUID()
+    writeDraft(draftId, { ...emptyDraft(), body: text.text })
+    workspace.openQueryDraft({
+      draftId,
+      connectorId: connector,
+      connectorName: nameOf(connector),
+      title: null,
     })
   } catch (cause) {
     toast.error(messageOf(cause, "Could not open this run as a query"))
@@ -265,7 +276,7 @@ async function deleteForGood(documentId: string) {
             ? 'Choose a connection to write a query against'
             : 'New query'
         "
-        :disable="connectorId === null || create.isPending.value"
+        :disable="connectorId === null"
         data-testid="new-query"
         @click="newDocument"
       />

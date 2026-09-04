@@ -10,7 +10,14 @@ import type { QueryDocumentPublic, QueryDocumentUpdate } from "@/client"
  */
 
 /** What a document is at this moment, said in one word to the person editing. */
-export type SaveState = "saved" | "dirty" | "saving" | "conflict" | "unsynchronised"
+export type SaveState =
+  /** Nobody has asked to keep this one: it is in this tab and nowhere else. */
+  | "unremembered"
+  | "saved"
+  | "dirty"
+  | "saving"
+  | "conflict"
+  | "unsynchronised"
 
 /** The parts of a document a person edits, including how it is laid out. */
 export interface DraftState {
@@ -97,6 +104,63 @@ export function keepMine(remote: QueryDocumentPublic, draft: DraftState): QueryD
  */
 export function copyTitle(title: string | null): string {
   return title === null ? "Unsaved copy" : `${title} (copy)`
+}
+
+/**
+ * A console nobody has asked to keep, held in this browser tab and nowhere
+ * else.
+ *
+ * The library is what a person decided to keep, so a console starts outside
+ * it: opening one writes nothing to the server, and "Remember" is what makes
+ * a document of it. Until then the text has to live somewhere between the tab
+ * being opened and the page being reloaded, and `sessionStorage` is the only
+ * place D63 allows — it dies with the tab, so this never becomes a durable
+ * plaintext library of everybody's SQL.
+ *
+ * Written under the panel's own draft id rather than a document id: there is
+ * no document yet, which is the whole point.
+ */
+const DRAFT_PREFIX = "dp.query.draft."
+
+export function readDraft(draftId: string): DraftState | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_PREFIX + draftId)
+    if (raw === null) return null
+    const parsed: unknown = JSON.parse(raw)
+    if (parsed === null || typeof parsed !== "object") return null
+    const held = parsed as Partial<DraftState>
+    if (typeof held.body !== "string") return null
+    return {
+      body: held.body,
+      title: typeof held.title === "string" ? held.title : null,
+      wrap: held.wrap === true,
+      split: typeof held.split === "number" ? held.split : 0.6,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function writeDraft(draftId: string, draft: DraftState): void {
+  try {
+    sessionStorage.setItem(DRAFT_PREFIX + draftId, JSON.stringify(draft))
+  } catch {
+    // A tab with no storage left keeps its text on screen; losing the copy is
+    // not worth interrupting typing for.
+  }
+}
+
+export function clearDraft(draftId: string): void {
+  try {
+    sessionStorage.removeItem(DRAFT_PREFIX + draftId)
+  } catch {
+    // Nothing to do: it is a convenience, not a record.
+  }
+}
+
+/** An empty console, which is what one starts as. */
+export function emptyDraft(title: string | null = null): DraftState {
+  return { body: "", title, wrap: false, split: 0.6 }
 }
 
 /** One tab's unsynchronised text, kept only while the server cannot be reached. */

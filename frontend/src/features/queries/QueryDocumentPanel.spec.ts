@@ -16,6 +16,8 @@ import { readShadow } from "./draft"
 
 const workspace = {
   openQueryDocument: vi.fn(),
+  openQueryDraft: vi.fn(),
+  rememberedQuery: vi.fn(),
   renameQueryDocument: vi.fn(),
   closeQueryDocument: vi.fn(),
 }
@@ -64,11 +66,13 @@ function conflict(): AxiosError {
   return error
 }
 
-function mountPanel() {
+function mountPanel(
+  props: Record<string, unknown> = { panelId: "query:d1", documentId: "d1" }
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   })
-  return mount(withWindowHost(QueryDocumentPanel, { panelId: "query:d1", documentId: "d1" }), {
+  return mount(withWindowHost(QueryDocumentPanel, props), {
     global: {
       plugins: [
         [Quasar, { plugins: { Dialog, Notify } }],
@@ -194,6 +198,69 @@ describe("one console", () => {
     expect(
       (wrapper.get('[data-testid="query-editor"]').element as HTMLTextAreaElement).value
     ).toBe("unsaved")
+  })
+
+  it("keeps a console out of the library until somebody asks for it", async () => {
+    // Opening one used to put an "Untitled" into the library before a word had
+    // been typed, and every table opened as a query left another behind (D65).
+    sessionStorage.setItem(
+      "dp.query.draft.n1",
+      JSON.stringify({ body: "select 7", title: null, wrap: false, split: 0.6 })
+    )
+    const reading = vi.spyOn(QueriesService, "readDocument")
+    const creating = vi.spyOn(QueriesService, "createDocument")
+    const wrapper = mountPanel({
+      panelId: "query:draft:n1",
+      draftId: "n1",
+      connectorId: "c1",
+      connectorName: "local pg",
+    })
+    await flushPromises()
+
+    expect(reading).not.toHaveBeenCalled()
+    expect(creating).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="query-state"]').text()).toBe("Not kept")
+    expect(
+      (wrapper.get('[data-testid="query-editor"]').element as HTMLTextAreaElement).value
+    ).toBe("select 7")
+
+    // Typing writes to this tab and to nothing else.
+    await type(wrapper, "select 8")
+    expect(creating).not.toHaveBeenCalled()
+    expect(JSON.parse(sessionStorage.getItem("dp.query.draft.n1") ?? "{}").body).toBe(
+      "select 8"
+    )
+  })
+
+  it("puts the console into the library when Remember is pressed", async () => {
+    sessionStorage.setItem(
+      "dp.query.draft.n1",
+      JSON.stringify({ body: "select 7", title: "Kept", wrap: false, split: 0.6 })
+    )
+    const creating = vi
+      .spyOn(QueriesService, "createDocument")
+      .mockResolvedValue({ data: document({ id: "d9", title: "Kept" }) } as never)
+    const wrapper = mountPanel({
+      panelId: "query:draft:n1",
+      draftId: "n1",
+      connectorId: "c1",
+      connectorName: "local pg",
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-testid="query-remember"]').trigger("click")
+    await flushPromises()
+
+    expect(creating).toHaveBeenCalledWith({
+      body: { connector_id: "c1", title: "Kept", body: "select 7" },
+    })
+    // The same tab, now about a document, and the text it was holding is no
+    // longer needed anywhere but the server.
+    expect(workspace.rememberedQuery).toHaveBeenCalledWith(
+      "query:draft:n1",
+      expect.objectContaining({ documentId: "d9", title: "Kept" })
+    )
+    expect(sessionStorage.getItem("dp.query.draft.n1")).toBeNull()
   })
 
   it("says so when the connection this query was written against has gone", async () => {

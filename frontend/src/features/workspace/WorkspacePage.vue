@@ -33,6 +33,7 @@ import {
   openConnectorIds,
   panelSchema,
   QUERIES_PANEL_ID,
+  queryDraftPanelId,
   queryPanelId,
   resultPanelId,
   roleOf,
@@ -50,6 +51,7 @@ import type {
   FollowTarget,
   OpenChartRequest,
   OpenQueryDocumentRequest,
+  OpenQueryDraftRequest,
   OpenRepresentationRequest,
   OpenRowsRequest,
   OpenSharedRequest,
@@ -654,12 +656,37 @@ provide(workspaceActionsKey, {
       connectorName: request.connectorName,
     })
   },
+  openQueryDraft: (request: OpenQueryDraftRequest) => {
+    workspace.open({
+      id: queryDraftPanelId(request.draftId),
+      kind: "query",
+      draftId: request.draftId,
+      connectorId: request.connectorId,
+      title: request.title,
+      connectorName: request.connectorName,
+    })
+  },
   openQueryResult: (request: { resultId: string; title: string }) => {
     workspace.open({
       id: resultPanelId(request.resultId),
       kind: "result",
       resultId: request.resultId,
       title: request.title,
+    })
+  },
+  rememberedQuery: (
+    panelId: string,
+    kept: { documentId: string; title: string | null; connectorName: string | null }
+  ) => {
+    const panel = workspace.panels.value.find((one) => one.id === panelId)
+    if (panel === undefined || panel.kind !== "query") return
+    workspace.replace(panelId, {
+      ...panel,
+      id: queryPanelId(kept.documentId),
+      documentId: kept.documentId,
+      draftId: undefined,
+      title: kept.title,
+      connectorName: kept.connectorName,
     })
   },
   renameQueryDocument: (documentId: string, title: string | null) => {

@@ -4,7 +4,7 @@ import { computed, ref, useTemplateRef, watch } from "vue"
 import type { FetchRequest, NodeRepresentation, ReferencedRows, RowsView } from "@/client"
 import DataGrid from "@/features/grid/DataGrid.vue"
 import type { Filter } from "@/features/grid/types"
-import { useCreateQueryDocument } from "@/features/queries/api"
+import { emptyDraft, writeDraft } from "@/features/queries/draft"
 import { useGenerateQuery, useQueryProfile } from "@/features/queries/runs"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -98,7 +98,6 @@ const grid = useTemplateRef<{ reload: () => Promise<void> }>("grid")
 const profile = useQueryProfile(() => props.connectorId)
 const canQuery = computed(() => profile.data.value?.supports_generated_query === true)
 const generate = useGenerateQuery()
-const createDocument = useCreateQueryDocument()
 const toast = useToast()
 
 /**
@@ -113,15 +112,16 @@ async function openAsQuery() {
       connectorId: props.connectorId,
       body: { node_id: props.nodeId, kind: "select" },
     })
-    const document = await createDocument.mutateAsync({
-      connector_id: props.connectorId,
+    // Nothing is put in the library: pressing this used to leave a document
+    // behind every time, so a person who looked at six tables had six queries
+    // they never wrote. The console holds the text until they keep it (D65).
+    const draftId = crypto.randomUUID()
+    writeDraft(draftId, { ...emptyDraft(props.title), body: generated.text })
+    workspace.openQueryDraft({
+      draftId,
+      connectorId: props.connectorId,
+      connectorName: props.connectorName,
       title: props.title,
-      body: generated.text,
-    })
-    workspace.openQueryDocument({
-      documentId: document.id,
-      title: document.title,
-      connectorName: document.connector_label,
     })
   } catch (cause) {
     toast.error(messageOf(cause, "Could not open this table as a query"))
