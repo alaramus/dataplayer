@@ -498,6 +498,12 @@ async def test_the_password_is_handed_over_once_and_then_refused(
     assert body["password"] == made
     assert body["port"] == 49218
     assert body["user"] == "dataplayer"
+    # And the one line most tools take, with the password in it: this is the
+    # moment it is worth pasting, and the only answer that carries one. Written
+    # by the source type that owns the grammar, never spliced in here.
+    assert body["url"] == (
+        f"postgresql://dataplayer:{made}@127.0.0.1:49218/dataplayer"
+    )
     assert again.status_code == 409
     # And the answer that has no end still carries nothing.
     listening = await client.get(
@@ -530,6 +536,8 @@ async def test_a_service_started_without_one_has_no_password_to_hand_over(
     assert handed.status_code == 200
     assert handed.json()["password"] is None
     assert handed.json()["password_mode"] == "none"
+    # Nothing to put in the address either, so it is the ordinary one.
+    assert handed.json()["url"] == "redis://127.0.0.1:49219"
 
 
 @pytest.mark.usefixtures("engine")

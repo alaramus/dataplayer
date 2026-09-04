@@ -582,10 +582,12 @@ said in different ways, because only one of them is a secret.
   says why there is no address instead of showing one that would fail.
 - **The parts, and then the whole thing as one line.** A form asks for a host
   and a port; a terminal takes a URL. The line is written by the source type
-  that owns the grammar (D15), never joined together by the screen, and it is
-  composed by the same call every other address in this application goes
-  through — so no line this application shows carries a password, including
-  this one.
+  that owns the grammar (D15), never joined together by the screen — putting a
+  password into one included, which is a second method rather than a flag, so
+  that "does this string carry a secret" is answered by which one was called.
+  The answer that hands a password over uses it and is the only caller there
+  is; the answer that can be asked for again composes the ordinary address,
+  with no password in it.
 - **Both modes open the window by themselves** when the service becomes ready.
   Neither kind of requester was told where it listens: the port is the
   runtime's answer, and the host is not the one they would have guessed. The
@@ -594,9 +596,9 @@ said in different ways, because only one of them is a secret.
 
 Known deviations:
 
-- **A closed window loses a password the server made up.** There is no second
-  reveal; the service can be started again with a password of one's own, which
-  is what the form is for.
+- **A closed window loses a password the server made up**, and the address to
+  paste with it. There is no second reveal; the service can be started again
+  with a password of one's own, which is what the form is for.
 - **A password somebody typed is shown back to them** in that window, although
   they already know it. Suppressing it would mean the window said different
   things in the two cases for no gain to the reader.

@@ -110,9 +110,10 @@ const passwordTone = computed(() =>
  *
  * Written by the server, because the grammar of an address belongs to the
  * source type that owns it: a screen that joined the parts itself would be a
- * second implementation of it, differing in the quoting first. A type with no
- * address of its own answers with nothing, and then there is nothing to show.
- * Without the password, so it is a line that can be pasted anywhere.
+ * second implementation of it, differing in the quoting first — putting a
+ * password into one included. It carries the password in the answer that
+ * hands one over and in no other, which is why this component does nothing
+ * about it either way.
  */
 const url = computed(() => answer.value?.url ?? null)
 
@@ -172,9 +173,9 @@ async function copy(what: string, said: string) {
         </div>
 
         <!-- Last, and the one most people will actually use: the parts above
-             are what a form asks for, and this is what a terminal takes. The
-             password is not in it, like every other address this application
-             shows. -->
+             are what a form asks for, and this is what a terminal takes. In
+             the one window that hands a password over it carries one, so this
+             is the line to copy and keep. -->
         <div
           v-if="url"
           class="credentials__row"

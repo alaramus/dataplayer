@@ -10,7 +10,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.adapters import options as adapter_options
 from app.adapters import registry
 from app.adapters.cache import DataCache, DataCacheDep
-from app.adapters.protocol import DescribesDraft, SupportsSampleData
+from app.adapters.protocol import (
+    ComposesSecretUrl,
+    DescribesDraft,
+    SupportsSampleData,
+)
 from app.adapters.registry import AdapterType
 from app.connectors import crud as connector_crud
 from app.connectors.models import Connector
@@ -384,10 +388,7 @@ async def reveal_service_credentials(
                 )
             },
         )
-    answer = RevealedCredentials(
-        **_credentials_of(service).model_dump(),
-        password=await _password_of(session, service),
-    )
+    answer = _revealed(service, await _password_of(session, service))
     service.credentials_shown_at = datetime.now(UTC)
     session.add(service)
     await session.commit()
@@ -971,6 +972,51 @@ async def _password_of(
     )
     password = getattr(options, "password", None)
     return None if password is None else str(password.get_secret_value())
+
+
+def _revealed(service: ManagedService, password: str | None) -> RevealedCredentials:
+    """The same answer with the password in it, address included.
+
+    The address is written a second time rather than patched: putting a
+    password into a URL is the source type's grammar, like every other part of
+    one, and a screen — or a route — splicing it in after the fact would be a
+    second implementation of that grammar differing in the quoting first. This
+    is the only caller of the composer that carries a secret (D89), which is
+    what the two functions exist to make visible.
+    """
+    shown = _credentials_of(service)
+    if password is None or shown.port is None:
+        return RevealedCredentials(**shown.model_dump(), password=password)
+    template = templates.template_for(service.template_key)
+    names = settled_names(template, service.chosen_credentials)
+    return RevealedCredentials(
+        **shown.model_dump(exclude={"url"}),
+        password=password,
+        url=_secret_url_of(
+            registry.get(template.adapter_type),
+            {
+                "host": PUBLISHED_HOST,
+                "port": shown.port,
+                "user": names.get(USER),
+                "database": names.get(DATABASE),
+                "password": password,
+            },
+        ),
+    )
+
+
+def _secret_url_of(kind: AdapterType, parts: Mapping[str, Any]) -> str | None:
+    """The one-line address with the password in it, for somebody to paste.
+
+    The only caller of `connection_url_with_password` there is, and the only
+    place in this application where a password is put into a string anybody
+    sees. A type that cannot write one answers with nothing and the window
+    shows the parts alone.
+    """
+    driver = kind.adapter_class
+    if not issubclass(driver, ComposesSecretUrl):
+        return None
+    return driver.connection_url_with_password(parts)
 
 
 def _url_of(kind: AdapterType, parts: Mapping[str, Any]) -> str | None:

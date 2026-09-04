@@ -149,14 +149,17 @@ deletion a connection removed from its own screen takes — cached pool
 invalidation included. Deleting a row of this application is not minutes of
 work to watch, and the container is the only part that is.
 
-## What was removed
+## Two addresses, because there are two answers
 
-`ComposesSecretUrl` and its two implementations. Its only caller composed the
-one-line address for the window that reveals a password, with the password in
-it — and that line is gone even from the reveal: the password is a row of its
-own there, so nothing has to hold a secret inside a string. A helper whose
-only job is to put a password into a string, kept with nothing calling it, is
-the most dangerous kind of dead code there is. Both windows now compose the
-address with `draft_connection_string`, which builds from loose values and
-leaves the password out; reading a pasted URL that carries one is unaffected,
-because the tools people paste from still write them.
+`ComposesSecretUrl` was removed while the password was not shown at all and
+came back with it. Its one caller is the answer that hands a password over: a
+person who has just been given one wants a line to paste, and assembling it in
+the browser would be a second implementation of the source type's grammar
+differing in the quoting first — a generated password holding a `/` or an `@`
+is exactly where it would differ.
+
+Two methods rather than one with a flag, so "does this string carry a secret"
+is answered by which one was called. The answer that can be asked for again
+composes through `draft_connection_string`, which leaves the password out;
+the reveal composes through `connection_url_with_password`, which is the only
+place in this application where a password is put into a string anybody sees.

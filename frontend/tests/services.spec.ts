@@ -78,8 +78,12 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   const details = page.getByTestId("service-credentials-dialog")
   await expect(details).toBeVisible({ timeout: 90_000 })
   await expect(details.getByTestId("credential-host")).toContainText("127.0.0.1")
-  // And this is the one moment the password is said out loud.
+  // And this is the one moment the password is said out loud — in the row and
+  // in the line most tools take, which is the one worth keeping.
   await expect(details.getByTestId("credential-password")).toContainText(
+    SERVICE_PASSWORD
+  )
+  await expect(details.getByTestId("credential-url")).toContainText(
     SERVICE_PASSWORD
   )
   await page.getByTestId("credentials-done").click()
@@ -100,6 +104,7 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   await expect(details.getByTestId("credential-host")).toContainText("127.0.0.1")
   await expect(details.getByTestId("credential-password")).toHaveCount(0)
   await expect(details).not.toContainText(SERVICE_PASSWORD)
+  await expect(details.getByTestId("credential-url")).toBeVisible()
   await page.getByTestId("credentials-done").click()
 
   // Removing the service takes the container and its data, and the connection
