@@ -7,6 +7,7 @@ import ContentPanelView from "@/features/content/ContentPanel.vue"
 import ImagePanelView from "@/features/content/ImagePanel.vue"
 import MediaPanelView from "@/features/content/MediaPanel.vue"
 import SqlPanelView from "@/features/content/SqlPanel.vue"
+import { REPRESENTATION_ICONS } from "@/features/catalog/nodes"
 import { adapterIcon } from "@/features/connectors/adapters"
 import QueriesPanelView from "@/features/queries/QueriesPanel.vue"
 import QueryDocumentPanelView from "@/features/queries/QueryDocumentPanel.vue"
@@ -201,18 +202,6 @@ export const QUERIES_PANEL_ID = "queries"
 export const queryPanelId = (documentId: string) => `query:${documentId}`
 export const resultPanelId = (resultId: string) => `result:${resultId}`
 
-const CONTENT_ICONS: Record<ContentRepresentation, string> = {
-  text: "description",
-  json: "data_object",
-  jsonl: "format_list_numbered",
-  image: "image",
-  markdown: "article",
-  audio: "graphic_eq",
-  video: "movie",
-  pdf: "picture_as_pdf",
-  sql: "code",
-}
-
 /**
  * The whole Markdown stack — parser, sanitiser, KaTeX — is loaded only when a
  * document is opened. Somebody who never opens one never downloads it.
@@ -308,6 +297,20 @@ export function collapsedOf(panel: Panel): Component | null {
   return panel.kind === "connectors" ? ConnectorRailView : null
 }
 
+/**
+ * What a tab of rows is drawn as.
+ *
+ * The preferred representation of the node when the catalog told the panel
+ * what they were, because that is exactly what the catalog itself drew. A node
+ * that declared none — every table of a database — keeps the icon of its
+ * source, which is what tells two tabs of one name from two connections apart.
+ */
+function rowsIcon(panel: Extract<Panel, { kind: "rows" }>): string {
+  const preferred = panel.representations?.[0]
+  if (preferred === undefined) return adapterIcon(panel.adapterType)
+  return REPRESENTATION_ICONS[preferred.kind] ?? adapterIcon(panel.adapterType)
+}
+
 export function lookOf(panel: Panel): PanelLook {
   switch (panel.kind) {
     case "connectors":
@@ -327,25 +330,27 @@ export function lookOf(panel: Panel): PanelLook {
         reloadTooltip: "Re-read this level",
       }
     case "rows":
-      // The icon of the source rather than a generic grid: with several
-      // catalogs open the right-hand column holds tabs from several
-      // connections at once. Pressing it goes to the catalog of the
-      // connection that owns the node — the one way there that exists
-      // nowhere else, where editing the connection has two others.
+      // Drawn the way the catalog drew the node, when the node said how: a
+      // file whose one view is a table is a grid in the list, and a tab of it
+      // showing a folder is the same node saying two different things about
+      // itself. A database table says nothing of the kind, and keeps the icon
+      // of its source — with several catalogs open the right-hand column holds
+      // tabs from several connections at once.
       //
-      // The name of the connection is in the tooltip rather than beside the
-      // title: two `users` from two databases would otherwise be the same
-      // tab, and the tooltip has to say something anyway.
+      // Pressing it goes to the catalog of the connection that owns the node,
+      // which is the one way there that exists nowhere else; the name of the
+      // connection is in the tooltip rather than beside the title, because two
+      // `users` from two databases would otherwise be the same tab.
       return {
         title: panel.title,
-        icon: adapterIcon(panel.adapterType),
+        icon: rowsIcon(panel),
         iconTooltip: `${panel.connectorName} · Show in catalog`,
         reloadTooltip: "Re-read this table",
       }
     case "content":
       return {
         title: panel.title,
-        icon: CONTENT_ICONS[panel.representation],
+        icon: REPRESENTATION_ICONS[panel.representation],
         iconTooltip: `${panel.connectorName} · Show in catalog`,
         reloadTooltip:
           panel.representation === "sql" ? "Re-read this DDL" : "Re-read this file",

@@ -97,6 +97,12 @@ function showTable() {
     // A file has no structure to describe: its columns exist only in the
     // projection this tab is asking for.
     describable: false,
+    // Said so the tab is drawn as the grid the catalog drew, rather than as
+    // the folder its source is. The title is the source's own: this panel was
+    // given it because the node declared a table.
+    representations: props.tableTitle
+      ? [{ kind: "table", title: props.tableTitle }]
+      : undefined,
   })
 }
 

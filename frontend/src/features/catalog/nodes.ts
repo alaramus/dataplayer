@@ -124,7 +124,15 @@ export function groupTitle(groups: ListNode[]): string {
   return (kind === undefined ? undefined : GROUP_TITLES[kind]) ?? "Groups"
 }
 
-const FILE_ICONS: Partial<Record<NodeRepresentation["kind"], string>> = {
+/**
+ * How each representation is drawn, wherever it is drawn.
+ *
+ * One table rather than one per screen. The catalog draws a node by what
+ * opening it shows, and the tab that opening it produced has to agree — a
+ * `.csv` drawn as a grid in the list and as a folder in its own tab is the
+ * same node saying two different things about itself.
+ */
+export const REPRESENTATION_ICONS: Record<NodeRepresentation["kind"], string> = {
   table: "grid_on",
   text: "description",
   json: "data_object",
@@ -175,7 +183,7 @@ function iconOf(node: CatalogNode): string {
   if (preferred === undefined) {
     return node.has_children ? ICONS.directory : ICONS[node.kind]
   }
-  return FILE_ICONS[preferred.kind] ?? ICONS[node.kind]
+  return REPRESENTATION_ICONS[preferred.kind] ?? ICONS[node.kind]
 }
 
 function captionOf(node: CatalogNode): string | undefined {

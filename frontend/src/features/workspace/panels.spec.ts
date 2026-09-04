@@ -123,6 +123,25 @@ describe("the panel registry", () => {
     expect(look.icon.length).toBeGreaterThan(0)
   })
 
+  it("draws a tab of rows the way the catalog drew the node", () => {
+    // A file whose one view is a table is a grid in the list, and a tab of it
+    // showing its source's folder is the same node saying two different things
+    // about itself.
+    const file: Panel = {
+      ...(samples.rows as Extract<Panel, { kind: "rows" }>),
+      adapterType: "file",
+      representations: [{ kind: "table", title: "View as table" }],
+    }
+
+    expect(lookOf(file).icon).toBe("grid_on")
+  })
+
+  it("leaves a tab whose node declared no views with the icon of its source", () => {
+    // A table of a database is not a node with a choice of views, and with
+    // several catalogs open the icon is what tells two tabs of one name apart.
+    expect(lookOf(samples.rows).icon).toBe(adapterIcon("postgres"))
+  })
+
   it.each(KINDS)("reports the kind of %s", (kind) => {
     expect(kindOf(samples[kind])).toBe(kind)
   })

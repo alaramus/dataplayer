@@ -172,6 +172,14 @@ export interface OpenRowsRequest {
   adapterType: string
   /** Whether this tabular node also has a relation model. */
   describable: boolean
+  /**
+   * What the node said it can be opened as, when the caller was told.
+   *
+   * Only so the tab is drawn the way the catalog drew the node. A caller that
+   * does not have them — a table of a database is not a node with views —
+   * leaves them out and the tab keeps the icon of its source.
+   */
+  representations?: NodeRepresentation[]
 }
 
 export interface OpenRepresentationRequest {
