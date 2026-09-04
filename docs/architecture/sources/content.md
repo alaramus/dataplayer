@@ -180,6 +180,14 @@ which is what the old `sheet_title` parameter did to every caller.
 - An `.xlsx` or `.xlsm` file has children: listing it opens the workbook once and
   answers with one node per worksheet, in workbook order, each declaring `table`.
   `FetchRequest` keeps its single opaque `node_id`.
+- **It also opens as a table itself, which is its first visible sheet.** It used
+  to open as nothing at all, so a spreadsheet was a folder somebody walked into
+  before they could see a single figure — a file behaving like a directory
+  because of how it is built rather than because of what it is. A node that says
+  how it opens is opened; walking in is what is left for one that says nothing,
+  which is still an archive. The tab it opens offers the other sheets and
+  switches between them in place, so reaching the second sheet is a select
+  rather than a journey back through the catalog.
 - `dataset` is the node kind for a tabular member of a container file.
   Deliberately not a `file`: it has no bytes of its own, so rename, delete and
   download are ruled out by the kind their `applies_to` already names.
@@ -224,6 +232,13 @@ Known deviations:
   stays opaque and downloadable.
 - **A sheet's node id follows its position, not its title.** Reordering the sheets
   of an open workbook changes what a reopened tab shows.
+- **The workbook's own id and its first sheet's id read the same rows.** Opening
+  the file gives a tab on the file; switching sheets and switching back gives a
+  tab on the sheet. Two ids for one page, which is the price of a file that both
+  opens and holds nodes.
+- **A workbook of nothing but hidden sheets opens the first of them.** They were
+  hidden by whoever wrote the file, and refusing to show anything would be worse
+  than showing what is there.
 - **Merged ranges, formatting and formulas are not carried.**
 - **A directory of Parquet part files is a directory.** One dataset over many
   files needs a decision about schema unification.

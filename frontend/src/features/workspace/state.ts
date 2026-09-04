@@ -53,6 +53,17 @@ export interface WorkspaceActions {
    */
   takeReveal: (connectorId: string) => RevealTarget | null
   openRows: (request: OpenRowsRequest) => void
+  /**
+   * Show another table in a tab that is already showing one.
+   *
+   * The sheets of a workbook: the tab keeps its place in the strip and its
+   * title becomes the sheet's, because a second tab per sheet turns "look at
+   * the other one" into housekeeping (D51). The whole request rather than a
+   * new id, because the tab is now about a different node — what it can be
+   * described as and what else it opens as are that node's, not the old
+   * one's.
+   */
+  showInPlace: (panelId: string, request: OpenRowsRequest) => void
   /** Open the source's chosen representation with the matching viewer. */
   openRepresentation: (request: OpenRepresentationRequest) => void
   /** A one-shot fragment handed to a Markdown panel opened from another document. */
@@ -180,6 +191,14 @@ export interface OpenRowsRequest {
    * leaves them out and the tab keeps the icon of its source.
    */
   representations?: NodeRepresentation[]
+  /**
+   * The node whose children are the other tables this one is one of.
+   *
+   * A workbook, for a sheet: it opens as its first sheet and holds the rest,
+   * so the tab that opened offers them rather than sending somebody back to
+   * the catalog to walk into a file (D51).
+   */
+  containerId?: string
 }
 
 export interface OpenRepresentationRequest {
@@ -192,6 +211,8 @@ export interface OpenRepresentationRequest {
   describable: boolean
   /** A heading id from a relative document link, not part of panel identity. */
   fragment?: string
+  /** The node whose children are this one's sibling tables, when it has one. */
+  containerId?: string
 }
 
 export interface DocumentTarget {

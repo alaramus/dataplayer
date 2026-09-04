@@ -117,8 +117,12 @@ class FileFetch:
                 # magic bytes are what the footer read checks instead.
                 return parquet.read_page(path, request.limit, request.offset)
             case "workbook":
-                raise ValueError(
-                    f"A workbook is read one sheet at a time: {request.node_id}"
+                # The first sheet somebody would see on opening it in a
+                # spreadsheet: a hidden one is hidden because whoever wrote
+                # the file did not mean it to be read first. Every other sheet
+                # is a member of this node and is read by naming it.
+                return workbook.read_page(
+                    path, _first_sheet(path), request.limit, request.offset
                 )
             case "delimited" | "json" | "jsonl" | "log" | "text" as textual:
                 if looks_binary(path):
@@ -138,6 +142,20 @@ class FileFetch:
         return workbook.read_page(
             resolved.path, int(member), request.limit, request.offset
         )
+
+
+def _first_sheet(path: Path) -> int:
+    """Which sheet a workbook opens as, and a refusal when it has none.
+
+    Visible ones first, in the workbook's own order; a file of nothing but
+    hidden sheets falls back to the first of those rather than refusing,
+    because a person who opened it wants to see what is in it.
+    """
+    found = workbook.sheets(path)
+    if not found:
+        raise ValueError(f"This workbook has no sheets: {path.name}")
+    visible = [sheet for sheet in found if not sheet.hidden]
+    return (visible or found)[0].position
 
 
 def entry_name(resolved: ResolvedNode) -> str:

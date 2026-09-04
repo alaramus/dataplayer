@@ -8,8 +8,9 @@ import { useCreateQueryDocument } from "@/features/queries/api"
 import { useGenerateQuery, useQueryProfile } from "@/features/queries/runs"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
+import { useSiblingTables } from "@/features/catalog/api"
 import { messageOf } from "@/shared/api/errors"
-import { useToast } from "@/shared/ui"
+import { AppSelect, useToast } from "@/shared/ui"
 
 /**
  * One relation, in its own tab.
@@ -27,12 +28,66 @@ const props = defineProps<{
   adapterType: string
   describable: boolean
   representations?: NodeRepresentation[]
+  /** The node whose children are this one's sibling tables, when it has one. */
+  containerId?: string
 }>()
 const workspace = useWorkspaceActions()
 
 const contentRepresentation = computed(() =>
   props.representations?.find((representation) => representation.kind !== "table")
 )
+
+/**
+ * The other tables this one is one of: the sheets of a workbook.
+ *
+ * A spreadsheet is one file with several tables in it, and being sent back to
+ * the catalog to walk into a file to reach the second of them is what made it
+ * feel like a folder. The container's children are asked for through the same
+ * cached query the catalog uses, so opening a workbook and switching between
+ * its sheets reads it once.
+ *
+ * The node this tab is on is one of them — a workbook opens as its first
+ * sheet, so the tab that opened is on the file itself until somebody switches.
+ */
+const sheets = useSiblingTables(
+  computed(() => props.connectorId),
+  computed(() => props.containerId ?? null)
+)
+const onSheet = computed(
+  () => sheets.data.value?.find((sheet) => sheet.id === props.nodeId) ?? null
+)
+const sheetOptions = computed(() =>
+  (sheets.data.value ?? []).map((sheet) => ({ label: sheet.name, value: sheet.id }))
+)
+/** Which one the switcher shows: the one open, or the first when this tab is
+    on the file itself, which is what opening it showed. */
+const currentSheet = computed(
+  () => onSheet.value?.id ?? sheets.data.value?.[0]?.id ?? ""
+)
+
+/**
+ * Switch this tab to another sheet, in place.
+ *
+ * The same move a rename makes: the tab keeps its position and its place in
+ * the strip, and its title becomes the sheet's. A second tab per sheet would
+ * turn "look at the other one" into housekeeping.
+ */
+function showSheet(value: unknown) {
+  const chosen = (sheets.data.value ?? []).find((sheet) => sheet.id === value)
+  if (chosen === undefined || chosen.id === props.nodeId) return
+  workspace.showInPlace(props.panelId, {
+    connectorId: props.connectorId,
+    nodeId: chosen.id,
+    title: chosen.name,
+    connectorName: props.connectorName,
+    adapterType: props.adapterType,
+    // The sheet's own answers, not the workbook's: a sheet states its columns
+    // and can be described, and the file it lives in cannot.
+    describable: chosen.describable === true,
+    representations: chosen.representations,
+    containerId: props.containerId,
+  })
+}
 
 const grid = useTemplateRef<{ reload: () => Promise<void> }>("grid")
 
@@ -166,6 +221,23 @@ function showReferenced(target: ReferencedRows) {
 
 <template>
   <div class="rows-panel">
+    <!-- Only where there is a choice: one sheet is a table, and a select with
+         one option in it is a control that does nothing. -->
+    <div
+      v-if="sheetOptions.length > 1"
+      class="rows-panel__sheets"
+      data-testid="sheet-switcher"
+    >
+      <span class="rows-panel__sheets-label">Sheet</span>
+      <AppSelect
+        :model-value="currentSheet"
+        :options="sheetOptions"
+        compact
+        class="rows-panel__sheet"
+        data-testid="sheet-choice"
+        @update:model-value="showSheet"
+      />
+    </div>
     <DataGrid
       ref="grid"
       :connector-id="connectorId"
@@ -194,5 +266,23 @@ function showReferenced(target: ReferencedRows) {
   height: 100%;
   min-height: 0;
   padding: 4px;
+}
+/* Above the grid and outside it: the grid's own header belongs to the columns,
+   and which sheet is being read is a fact about the file. */
+.rows-panel__sheets {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px 4px;
+}
+.rows-panel__sheets-label {
+  color: var(--dp-text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.rows-panel__sheet {
+  min-width: 160px;
 }
 </style>

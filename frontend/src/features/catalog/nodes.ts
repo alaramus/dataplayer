@@ -77,6 +77,14 @@ export interface ListNode {
   preferred: boolean
   /** Which grouping this node came from, when several were listed at once. */
   group?: string
+  /**
+   * Whether this node holds nodes of its own as well as opening.
+   *
+   * A workbook does both: it opens as its first sheet, and the rest of them
+   * are inside it. What opens it needs to know, so the tab it makes can offer
+   * the others (D51).
+   */
+  holdsNodes: boolean
 }
 
 /**
@@ -163,13 +171,18 @@ export function formatSize(bytes: number): string {
  * What the catalog does with one node.
  *
  * The kind decides it, with one exception the kind cannot express: a file that
- * says it has children is a place one walks into, because a workbook holds
- * sheets and each of them is a node of its own (D51). An empty directory is
- * still a directory, so the exception only ever adds a way in.
+ * says it has children is a place one walks into, because an archive holds
+ * files and each of them is a node of its own (D53).
+ *
+ * Unless it also says how it opens. A workbook holds sheets *and* opens as the
+ * first of them, and a spreadsheet somebody has to walk into before they can
+ * see a single figure is a spreadsheet behind a filing cabinet. What it says
+ * it opens as wins; walking in is what is left for a node that says nothing.
  */
 export function roleOf(node: CatalogNode): NodeRole {
   const role = ROLES[node.kind]
-  return role === "leaf" && node.has_children ? "container" : role
+  if (role !== "leaf" || !node.has_children) return role
+  return node.representations.length > 0 ? "leaf" : "container"
 }
 
 function iconOf(node: CatalogNode): string {
@@ -332,6 +345,7 @@ export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
     preferred: isPreferred(node),
     describable: node.describable === true,
     summarizable: node.summarizable === true,
+    holdsNodes: node.has_children === true,
     // Only a table knows roughly how many rows it holds. A file would have
     // to be read from end to end to answer, so the grid pages without a
     // total.

@@ -65,15 +65,18 @@ def relations(root: Path) -> FileRelations:
     return FileRelations(FileSession(root))
 
 
-async def test_a_workbook_is_a_file_with_children_and_no_viewer(
+async def test_a_workbook_is_a_file_that_opens_and_also_holds_nodes(
     catalog: FileCatalog,
 ) -> None:
+    """Both, which is what a spreadsheet is: several tables in one file. It
+    opens as the first of them rather than making somebody walk into a folder
+    before they can see a figure."""
     nodes = {node.name: node for node in await catalog.list_children(None)}
 
     workbook = nodes["budget.xlsx"]
     assert workbook.kind == "file"
     assert workbook.has_children is True
-    assert workbook.representations == []
+    assert [one.kind for one in workbook.representations] == ["table"]
     assert workbook.describable is False
 
 
@@ -190,9 +193,17 @@ async def test_the_last_page_of_a_sheet_knows_it_is_the_last(
     assert result.has_more is False
 
 
-async def test_the_workbook_itself_is_not_read_as_rows(fetch: FileFetch) -> None:
-    with pytest.raises(ValueError, match="one sheet at a time"):
-        await fetch.fetch(FetchRequest(node_id="budget.xlsx", limit=1))
+async def test_the_workbook_itself_is_read_as_its_first_sheet(
+    fetch: FileFetch,
+) -> None:
+    """What somebody opening it in a spreadsheet would see first."""
+    opened = await fetch.fetch(FetchRequest(node_id="budget.xlsx", limit=5))
+    first = await fetch.fetch(FetchRequest(node_id="budget.xlsx/1", limit=5))
+
+    assert [column.name for column in opened.columns] == [
+        column.name for column in first.columns
+    ]
+    assert opened.rows == first.rows
 
 
 async def test_a_sheet_that_does_not_exist_is_refused(fetch: FileFetch) -> None:

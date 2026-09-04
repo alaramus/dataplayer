@@ -167,9 +167,12 @@ def representations_of(name: str) -> list[NodeRepresentation]:
             # table is the file rather than a projection of one (D51).
             return [TABLE]
         case "workbook":
-            # A workbook is not one table. Its sheets are children, and each of
-            # them declares the table; the file itself opens nothing.
-            return []
+            # A workbook holds several tables, and opening it opens the first
+            # of them: its sheets are still children, and the tab that opened
+            # switches between them. It used to open nothing at all, which
+            # made a spreadsheet a folder somebody had to walk into before
+            # they could see a single figure.
+            return [TABLE]
         case "audio":
             return [AUDIO]
         case "video":

@@ -513,6 +513,13 @@ provide(workspaceActionsKey, {
       ...request,
     })
   },
+  showInPlace: (panelId: string, request: OpenRowsRequest) => {
+    workspace.replace(panelId, {
+      id: rowsPanelId(request.connectorId, request.nodeId),
+      kind: "rows",
+      ...request,
+    })
+  },
   openRepresentation: (request: OpenRepresentationRequest) => {
     const preferred = request.representations[0]
     if (preferred === undefined) return
@@ -536,6 +543,7 @@ provide(workspaceActionsKey, {
         adapterType: request.adapterType,
         describable: request.describable,
         representations: request.representations,
+        containerId: request.containerId,
       })
       return
     }

@@ -18,6 +18,7 @@ function table(id: string, label: string): ListNode {
     summarizable: false,
     system: false,
     preferred: false,
+    holdsNodes: false,
   }
 }
 

@@ -58,8 +58,28 @@ describe("what the catalog does with a node", () => {
     expect(roleOf(leaf("dataset"))).toBe("leaf")
   })
 
-  it("walks into a file that says it holds nodes of its own", () => {
+  it("walks into a file that says it holds nodes and nothing else", () => {
+    // An archive: what is inside it has the viewers, and the file itself has
+    // none of its own.
     expect(roleOf(leaf("file", true))).toBe("container")
+  })
+
+  it("opens a file that holds nodes and also says how it opens", () => {
+    // A workbook does both. Walking into a spreadsheet before a single figure
+    // can be seen is a file behaving like a directory because of how it is
+    // built rather than because of what it is (D51).
+    const workbook = {
+      kind: "file",
+      id: "budget.xlsx",
+      name: "budget.xlsx",
+      has_children: true,
+      size_bytes: 1,
+      representations: [{ kind: "table", title: "View as table" }],
+    } as CatalogNode
+
+    expect(roleOf(workbook)).toBe("leaf")
+    // And it is drawn as what opening it shows, not as a folder.
+    expect(first(toListNodes([workbook])).icon).toBe("grid_on")
   })
 
   it("names the grouping a node was listed under, when it was", () => {

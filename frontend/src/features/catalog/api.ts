@@ -44,6 +44,37 @@ export function useCatalogLoader() {
   }
 }
 
+/**
+ * The tables inside one node: the sheets of a workbook.
+ *
+ * The same query the catalog itself makes, by the same key, so a tab that
+ * offers the sheets of a file the catalog has already listed reads nothing
+ * again. Only nodes that open as a table are offered — a container of tables
+ * holds nothing else today, and a listing that quietly included something
+ * unopenable would be a switcher with a dead entry in it.
+ */
+export function useSiblingTables(
+  connectorId: Ref<string>,
+  containerId: Ref<string | null>
+) {
+  return useQuery({
+    queryKey: computed(() => catalogKey(connectorId.value, containerId.value)),
+    queryFn: async () =>
+      (
+        await ConnectorsService.readCatalog({
+          path: { connector_id: connectorId.value },
+          query: { node_id: containerId.value ?? "" },
+        })
+      ).data,
+    enabled: computed(() => containerId.value !== null),
+    staleTime: 60_000,
+    select: (nodes: CatalogNode[]) =>
+      nodes.filter((node) =>
+        node.representations.some((one) => one.kind === "table")
+      ),
+  })
+}
+
 export const nodePathKey = (connectorId: string, nodeId: string) =>
   ["nodePath", connectorId, nodeId] as const
 

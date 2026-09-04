@@ -96,6 +96,11 @@ export const panelSchema = z.discriminatedUnion("kind", [
     // Optional so a layout saved before D28 still restores. It gains the
     // source-declared value the next time the node is opened from its catalog.
     describable: z.boolean().optional(),
+    // The node whose children are the other tables this one is one of: a
+    // workbook, for one of its sheets. Optional for the same reason the
+    // representations below are — a layout saved before it restores without
+    // one, and gains it the next time the node is opened.
+    containerId: z.string().optional(),
     // Retained only when the node was opened from a catalog that had just
     // declared its views. Old stored layouts and tabs opened by a reference
     // still restore without inventing alternatives.

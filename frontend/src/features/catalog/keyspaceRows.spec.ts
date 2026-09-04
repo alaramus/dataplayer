@@ -17,6 +17,7 @@ function node(over: Partial<ListNode> = {}): ListNode {
     summarizable: false,
     system: false,
     preferred: false,
+    holdsNodes: false,
     ...over,
   }
 }

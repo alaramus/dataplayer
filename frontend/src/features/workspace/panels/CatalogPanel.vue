@@ -460,6 +460,9 @@ function onOpen(node: ListNode) {
       adapterType: props.adapterType,
       representations: node.representations,
       describable: node.describable,
+      // A node that opens and also holds nodes is a container of tables — a
+      // workbook — so the tab it makes can offer the rest of them (D51).
+      containerId: node.holdsNodes ? node.id : undefined,
     })
     return
   }
