@@ -6,8 +6,11 @@ import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { deleteConnector, openConnector, rowsTabs } from "./utils/workspace"
 
-async function saveGroup(page: Page, name: string) {
+async function saveGroup(page: Page, name: string, offered?: string) {
   await page.getByTestId("save-tab-group").click()
+  // What the dialog opens on, when the caller cares: a name nobody has to
+  // think of, and one Save accepts as it stands.
+  if (offered !== undefined) await expect(page.getByTestId("tab-group-name")).toHaveValue(offered)
   await page.getByTestId("tab-group-name").fill(name)
   await page.getByTestId("confirm-tab-group-name").click()
   await expect(page.getByRole("button", { name: `Open group ${name}`, exact: true })).toBeVisible()
@@ -34,7 +37,7 @@ test("saves column layouts, replaces tabs, remembers the warning and manages mul
   const columns = page.locator('[data-testid^="workspace-leaf-"]')
   await expect(columns).toHaveCount(4)
   const widths = await columns.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().width))
-  await saveGroup(page, "Catalog tables")
+  await saveGroup(page, "Catalog tables", "new group")
 
   await namespaceTab.locator('[data-testid^="workspace-close-"]').click()
   await classTab.locator('[data-testid^="workspace-close-"]').click()

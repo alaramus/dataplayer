@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { makeLeaf } from "@/shared/workspace/model"
 import { serializeWorkspace } from "@/shared/workspace/persist"
 
-import { groupNameProblem, parseGroups, serializeGroups, validGroupSnapshot } from "./groups"
+import { groupNameProblem, parseGroups, serializeGroups, suggestedGroupName, validGroupSnapshot } from "./groups"
 import { groupFixture } from "./testing/tabGroups"
 
 describe("saved tab group data", () => {
@@ -38,5 +38,20 @@ describe("saved tab group data", () => {
     expect(groupNameProblem("x".repeat(81), groups)).toBe("Use at most 80 characters.")
     expect(groupNameProblem(" queries ", groups)).toBe("A group with this name already exists.")
     expect(groupNameProblem(" Queries ", groups, "one")).toBe("")
+  })
+
+  it("offers a free name, stepping past the ones already taken however they are written", () => {
+    const snapshot = groupFixture().snapshot
+    const named = (names: string[]) => names.map((name, index) => ({ id: String(index), name, snapshot }))
+    expect(suggestedGroupName([])).toBe("new group")
+    expect(suggestedGroupName(named(["Queries"]))).toBe("new group")
+    expect(suggestedGroupName(named([" New Group "]))).toBe("new group(1)")
+    expect(suggestedGroupName(named(["new group", "new group(1)"]))).toBe("new group(2)")
+    // A gap is filled rather than stepped over: the number is which name is
+    // free, not how many groups there have ever been.
+    expect(suggestedGroupName(named(["new group", "new group(2)"]))).toBe("new group(1)")
+    // And whatever is offered is a name the dialog will accept.
+    const taken = named(["new group", "new group(1)", "new group(2)"])
+    expect(groupNameProblem(suggestedGroupName(taken), taken)).toBe("")
   })
 })

@@ -59,3 +59,24 @@ export function groupNameProblem(name: string, groups: readonly TabGroup[], exce
   }
   return ""
 }
+
+/** What the dialog offers before anybody has typed a name of their own. */
+export const DEFAULT_GROUP_NAME = "new group"
+
+/**
+ * The first name of that family which is free.
+ *
+ * Free by the rule `groupNameProblem` enforces — case and surrounding spaces
+ * do not make a second name — so the dialog opens on something Save accepts
+ * rather than on a name it is about to refuse.
+ */
+export function suggestedGroupName(groups: readonly TabGroup[]): string {
+  const taken = new Set(groups.map((group) => group.name.trim().toLowerCase()))
+  const candidates = [
+    DEFAULT_GROUP_NAME,
+    ...groups.map((_, index) => `${DEFAULT_GROUP_NAME}(${index + 1})`),
+  ]
+  // One candidate more than there are groups, so one of them is always free;
+  // the fallback is there for the type and for nothing else.
+  return candidates.find((candidate) => !taken.has(candidate)) ?? DEFAULT_GROUP_NAME
+}

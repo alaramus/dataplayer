@@ -5,7 +5,7 @@ import { AppButton, AppInput, AppMenu, AppTooltip, useConfirm, useToast } from "
 import { WindowDialog } from "@/shared/windows"
 import type { WorkspaceApi } from "@/shared/workspace"
 
-import { groupNameProblem } from "./groups"
+import { groupNameProblem, suggestedGroupName } from "./groups"
 import type { TabGroup } from "./groups"
 import type { Panel } from "./panels"
 import { useTabGroups } from "./useTabGroups"
@@ -23,8 +23,13 @@ const menuItems = [
   { name: "delete-group", label: "Delete", icon: "delete", danger: true },
 ]
 
+/**
+ * Renaming starts from the name there is; saving starts from one nobody has
+ * to think of. A dialog that opens empty asks a question before it has said
+ * what it is about, and most groups are saved without wanting a name at all.
+ */
 function askForName(group?: TabGroup) {
-  name.value = group?.name ?? ""
+  name.value = group?.name ?? suggestedGroupName(groups.value)
   editing.value = group === undefined ? {} : { id: group.id }
 }
 
