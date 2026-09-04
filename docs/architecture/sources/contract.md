@@ -485,9 +485,15 @@ structure the names were given when they were chosen.
 - **A click is on the whole row.** A branch opens and closes by its name, and
   a leaf opens in a tab; reaching for the arrow beside the name was a
   ten-pixel target for the commonest thing anybody does to a tree. Every click
-  also selects, and the selected row is marked — the menu of actions acts on
-  the selection, and a menu whose subject is invisible is a menu nobody
-  presses.
+  also selects and the selection stays — the menu of actions acts on it, and a
+  menu whose subject clears itself under the pointer is worse than one with no
+  subject at all. The selected row is marked across its whole width, arrow and
+  indent included.
+- **Opening a branch is asked of the tree, never marked from outside.** A
+  branch loads its children as it opens, so the component that opens it is the
+  one that asks for them; adding a key to the set of open branches marks it
+  open and asks for nothing, and it stays shut with its arrow pointing the
+  wrong way.
 - **A tree stops at the nodes.** Expanding a branch asks the catalog for its
   children; a leaf is opened in a tab, exactly as it is in a list. Showing the
   first rows of a key inside the tree made one branch mean two different

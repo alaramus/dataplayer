@@ -89,9 +89,29 @@ describe("clicking a row of the key space", () => {
     expect(wrapper.emitted("open")).toBeUndefined()
     expect(wrapper.get(folder).attributes("aria-selected")).toBe("true")
 
-    // And the same click again puts it back, which is what a tree does.
+    // And the same click again puts it back, which is what a tree does —
+    // without letting go of the selection, which is what the menu of actions
+    // is about.
     await wrapper.get(folder).trigger("click")
     await flushPromises()
     expect(wrapper.get(folder).attributes("aria-selected")).toBe("true")
+  })
+
+  it("asks the tree to open a branch rather than marking it open", async () => {
+    // Setting the expanded keys from outside marks a branch open and asks for
+    // nothing, so a branch that loads its children when it opens stayed shut
+    // with its arrow pointing the wrong way.
+    const wrapper = mountTree()
+    await flushPromises()
+    const listing = vi.spyOn(ConnectorsService, "readCatalog").mockResolvedValue({
+      data: [{ ...KEY, id: "k0:cache:one", name: "one" }],
+    } as never)
+
+    await wrapper.get('[data-testid="keyspace-row-f0:cache:"]').trigger("click")
+    await flushPromises()
+
+    expect(listing).toHaveBeenCalledWith(
+      expect.objectContaining({ query: expect.objectContaining({ node_id: "f0:cache:" }) })
+    )
   })
 })

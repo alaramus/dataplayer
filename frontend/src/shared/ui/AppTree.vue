@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { QTreeProps } from "quasar"
+import type { QTree, QTreeProps } from "quasar"
+import { useTemplateRef } from "vue"
 
 /**
  * The catalog tree.
@@ -25,6 +26,14 @@ defineProps<{
   nodeKey: string
   expanded: string[]
   selected: string | null
+  /**
+   * Whether clicking the selected row leaves it selected.
+   *
+   * Off by default, which is Quasar's own behaviour: a second click clears the
+   * selection. A tree whose selection is the subject of a menu wants the
+   * opposite — the menu would empty itself under the pointer.
+   */
+  keepSelection?: boolean
 }>()
 
 defineEmits<{
@@ -32,14 +41,35 @@ defineEmits<{
   "update:selected": [value: string | null]
   lazyLoad: [payload: TreeLazyLoad]
 }>()
+
+const tree = useTemplateRef<QTree>("tree")
+
+/**
+ * Open or close one branch, through the tree's own method.
+ *
+ * Not by pushing a key into `expanded`: a branch that loads its children when
+ * it opens is opened by the tree, which is what asks for them. Setting the
+ * array from outside marks it open and asks for nothing, so it stays shut.
+ */
+function setExpanded(key: string, open: boolean) {
+  tree.value?.setExpanded(key, open)
+}
+
+function isExpanded(key: string): boolean {
+  return tree.value?.isExpanded(key) === true
+}
+
+defineExpose({ setExpanded, isExpanded })
 </script>
 
 <template>
   <q-tree
+    ref="tree"
     :nodes="nodes"
     :node-key="nodeKey"
     :expanded="expanded"
     :selected="selected"
+    :no-selection-unset="keepSelection"
     @update:expanded="$emit('update:expanded', [...$event])"
     @update:selected="$emit('update:selected', $event)"
     @lazy-load="$emit('lazyLoad', $event)"

@@ -459,6 +459,7 @@ export function componentOf(panel: Panel): Component {
           adapterType: panel.adapterType,
           describable: panel.describable === true,
           representations: panel.representations,
+          containerId: panel.containerId,
         })
       )
     case "content": {

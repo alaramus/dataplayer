@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
+import { computed, ref, useTemplateRef, watch } from "vue"
 
 import { useCatalogLoader } from "@/features/catalog/api"
 import { toTreeRows, rowAt, withChildren } from "@/features/catalog/keyspaceRows"
@@ -37,6 +37,11 @@ const emit = defineEmits<{
 }>()
 
 const loadChildren = useCatalogLoader()
+
+const tree = useTemplateRef<{
+  setExpanded: (key: string, open: boolean) => void
+  isExpanded: (key: string) => boolean
+}>("tree")
 
 const rows = ref<TreeRow[]>([])
 const expanded = ref<string[]>([])
@@ -91,21 +96,26 @@ watch(selected, (id) => {
 /**
  * A click is on the whole row, wherever in it the pointer landed.
  *
- * Every click selects, because the menu of actions acts on the selection and
- * a menu whose subject is invisible is a menu nobody presses. A leaf then
- * opens, the way a click in the list does; a branch opens and closes, because
- * a name is a bigger target than the arrow beside it and reaching for the
- * arrow is the whole of what made this tree feel stiff.
+ * Selecting is the tree's own doing — with a selection bound it selects on a
+ * click and does nothing else, which is why opening a branch is here. A leaf
+ * opens in a tab, the way a click in the list does; a branch opens and closes,
+ * because a name is a bigger target than the arrow beside it and reaching for
+ * that arrow is the whole of what made this tree feel stiff.
+ *
+ * Nothing here touches the selection: a second answer to the same question
+ * arriving a moment before the tree's own turned every click into a select
+ * followed by an unselect.
  */
 function onClick(row: TreeRow) {
-  selected.value = row.id
   if (row.node.role === "leaf") {
     emit("open", row.node)
     return
   }
-  expanded.value = expanded.value.includes(row.id)
-    ? expanded.value.filter((one) => one !== row.id)
-    : [...expanded.value, row.id]
+  // Through the tree's own method rather than by pushing a key into
+  // `expanded`: a branch asks for its children as it opens, and setting the
+  // array from outside marks it open and asks for nothing — so it stayed shut
+  // with an arrow pointing the wrong way.
+  tree.value?.setExpanded(row.id, !tree.value.isExpanded(row.id))
 }
 
 const empty = computed(() => !loading.value && rows.value.length === 0)
@@ -131,8 +141,10 @@ defineExpose({ reload: () => load(true) })
     />
     <AppTree
       v-else
+      ref="tree"
       v-model:expanded="expanded"
       v-model:selected="selected"
+      keep-selection
       class="keyspace__tree"
       :nodes="rows"
       node-key="id"
@@ -144,9 +156,6 @@ defineExpose({ reload: () => load(true) })
              about it. -->
         <div
           class="keyspace__row"
-          :class="{
-            'keyspace__row--here': selected === (node as TreeRow).id,
-          }"
           :data-testid="`keyspace-row-${(node as TreeRow).id}`"
           :aria-selected="selected === (node as TreeRow).id"
           @click="onClick(node as TreeRow)"
@@ -179,17 +188,19 @@ defineExpose({ reload: () => load(true) })
   gap: 6px;
   min-width: 0;
   flex: 1;
-  padding: 2px 6px;
+}
+/* What the actions menu is about, marked across the whole row rather than
+   around the words in it: a band inside a band is two things where there is
+   one. The tree's own row is what carries it, so the mark reaches the arrow
+   and the indent as well. */
+.keyspace :deep(.q-tree__node--selected) {
+  background: var(--dp-selected);
   border-radius: var(--dp-radius-control);
 }
-/* What the actions menu is about. Said by ground rather than by colour alone,
-   because the row already carries a muted caption beside the name and a second
-   shade of grey is not a mark. */
-.keyspace__row--here {
-  background: var(--dp-selected);
-}
-.keyspace__row:hover:not(.keyspace__row--here) {
-  background: var(--dp-hover);
+/* Quasar dims the words of the selected row, which is the opposite of a
+   mark: this is the row somebody is about to act on. */
+.keyspace :deep(.q-tree__node--selected .q-tree__node-header-content) {
+  color: var(--dp-text-strong);
 }
 .keyspace__label {
   font-size: 13px;
