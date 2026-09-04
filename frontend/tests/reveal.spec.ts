@@ -98,7 +98,7 @@ test("comes back to the level the table lives on, whatever the catalog is showin
 
   // The catalog is left showing a different schema, so the table is no longer
   // among the rows: without the path from the source there is nothing to mark.
-  await showOnlySchema(page, "pg_catalog", "public")
+  await showOnlySchema(page, "pg_catalog")
   await expect(page.getByTestId("catalog-node-connector")).toHaveCount(0)
 
   await rowsTabIcon(page).click()

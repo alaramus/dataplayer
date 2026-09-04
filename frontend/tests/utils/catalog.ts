@@ -57,15 +57,27 @@ export async function hideSchema(page: Page, schema: string) {
 }
 
 /**
- * Swap one grouping for another in a single visit to the menu.
+ * Show this grouping and nothing else, in a single visit to the menu.
  *
- * Two calls to `pickSchema` do not do this: the first tick re-reads the list
- * underneath the open menu, and the second visit races the re-render.
+ * A scenario that is about one schema has to say so: a database with few
+ * schemas opens with all of them ticked, and an action that acts on "the
+ * schema being looked at" is refused while two of them are. Everything else
+ * is turned off rather than one named partner, so a schema a failed run left
+ * behind cannot quietly join the level and disable the menu.
+ *
+ * One visit, because each tick re-reads the list underneath the open menu and
+ * a second visit races the re-render.
  */
-export async function showOnlySchema(page: Page, on: string, off: string) {
+export async function showOnlySchema(page: Page, schema: string) {
   await page.getByTestId("catalog-groups").click()
-  await setSchema(page, on, true)
-  await setSchema(page, off, false)
+  await setSchema(page, schema, true)
+  // Read by name and looked up again for each one: the option elements are
+  // replaced as the level re-reads, and a handle taken before that is stale.
+  const offered = (await page.getByRole("option").allInnerTexts()).map((text) => text.trim())
+  for (const name of offered) {
+    if (name === schema) continue
+    await setSchema(page, name, false)
+  }
   await page.keyboard.press("Escape")
 }
 

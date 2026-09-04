@@ -228,7 +228,7 @@ test("creates and renames a schema, moves a relation, then drops the schema", as
   await page.getByTestId("field-name").fill(created)
   await page.getByTestId("action-submit").click()
 
-  await showOnlySchema(page, created, "public")
+  await showOnlySchema(page, created)
   await catalogAction(page, "rename_schema")
   const rename = page.getByTestId("field-new_name")
   await expect(rename).toHaveValue(created)
@@ -243,7 +243,7 @@ test("creates and renames a schema, moves a relation, then drops the schema", as
   // Where it goes is picked from the schemas this connection has — the server
   // says the field names a grouping and the level says which there are — and
   // the server's own schemas are not among them.
-  await showOnlySchema(page, "demo_lab", renamed)
+  await showOnlySchema(page, "demo_lab")
   await catalogCheck(page, "audit_events").click()
   await catalogAction(page, "move_relation")
   await page.getByTestId("field-target_schema").click()
@@ -252,7 +252,7 @@ test("creates and renames a schema, moves a relation, then drops the schema", as
   await page.getByTestId("action-submit").click()
   await expect(catalogRow(page, "audit_events")).toHaveCount(0)
 
-  await showOnlySchema(page, renamed, "demo_lab")
+  await showOnlySchema(page, renamed)
   await expect(catalogRow(page, "audit_events")).toBeVisible()
   await catalogCheck(page, "audit_events").click()
   await catalogAction(page, "move_relation")
@@ -284,7 +284,7 @@ test("loads a CSV into the schema being looked at", async ({ page }) => {
 
   // One schema on as the workflow's initial destination; the dialog can then
   // choose another existing schema or ask the database to create one.
-  await showOnlySchema(page, "demo_lab", "public")
+  await showOnlySchema(page, "demo_lab")
   // By the grouping rather than by a table in it: the scenario above renames
   // one while this runs, and the schema is what this test is standing in.
   await expect(page.getByTestId("catalog-groups")).toContainText("demo_lab")
@@ -334,7 +334,7 @@ test("shows what a cascade would take before dropping anything", async ({ page }
   await login(page)
   await createPostgresConnector(page, name)
   await openConnector(page, name)
-  await showOnlySchema(page, "demo_lab", "public")
+  await showOnlySchema(page, "demo_lab")
 
   // A table with a view built on it, which is the case the preview exists for.
   await catalogCheck(page, "projects").click()
@@ -455,7 +455,7 @@ test("drops several relations in one request", async ({ page }) => {
   await login(page)
   await createPostgresConnector(page, name)
   await openConnector(page, name)
-  await showOnlySchema(page, "demo_lab", "public")
+  await showOnlySchema(page, "demo_lab")
 
   await loadCsv(page, first)
   await loadCsv(page, second)
@@ -489,7 +489,7 @@ test("writes the model of a schema out as code", async ({ page }) => {
   // and a diagram of a schema is the thing people draw (D73). A schema is a
   // grouping rather than a row, so choosing it in the level control is how it
   // becomes what the action acts on.
-  await showOnlySchema(page, "demo_lab", "public")
+  await showOnlySchema(page, "demo_lab")
   await catalogAction(page, "describe_model")
 
   // A window of its own, showing the model before anything is saved. The three
