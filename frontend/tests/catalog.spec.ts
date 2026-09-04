@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test"
 
 import type { Page } from "@playwright/test"
 
-import { addFilter, catalogRow, pickSchema } from "./utils/catalog"
+import { addFilter, catalogRow, hideSchema, pickSchema } from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import {
@@ -76,7 +76,7 @@ test("detects a framework and toggles its table filter from the catalog", async 
   await badge.click()
 
   // A marker in an unselected schema must not label the remaining schemas.
-  await pickSchema(page, "public")
+  await hideSchema(page, "public")
   await expect(badge).toHaveCount(0)
   await pickSchema(page, "public")
   await expect(badge).toBeVisible()

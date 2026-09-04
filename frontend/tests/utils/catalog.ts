@@ -49,6 +49,13 @@ export async function pickSchema(page: Page, schema: string) {
   await page.keyboard.press("Escape")
 }
 
+/** And the other way: stop showing one, whatever state it is in. */
+export async function hideSchema(page: Page, schema: string) {
+  await page.getByTestId("catalog-groups").click()
+  await setSchema(page, schema, false)
+  await page.keyboard.press("Escape")
+}
+
 /**
  * Swap one grouping for another in a single visit to the menu.
  *
