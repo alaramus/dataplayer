@@ -78,7 +78,8 @@ backend:
     # plan — runs on a real PostgreSQL and reads or writes inside `demo_lab`;
     # a developer inherits that schema from the prestart container and CI has
     # nothing to inherit it from.
-    - uv run python -m app.seed_database ../sql
+    # Use the fixtures bundled with the PostgreSQL adapter.
+    - uv run python -m app.seed_database
     # A failure prints one line per test rather than a full traceback: 419
     # errors at once overran GitLab's 4 MB log limit and hid the cause.
     - uv run pytest tests/ -q --tb=short
