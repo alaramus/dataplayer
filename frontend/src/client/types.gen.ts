@@ -1559,6 +1559,24 @@ export type DelimitedContents = {
 }
 
 /**
+ * DetectedFramework
+ */
+export type DetectedFramework = {
+  /**
+   * Id
+   */
+  id: "django" | "alembic" | "liquibase" | "wordpress"
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Table Filter
+   */
+  table_filter: string
+}
+
+/**
  * DirectoryContents
  *
  * What one level of a folder holds, at the cost of one listing.
@@ -5376,6 +5394,10 @@ export type SchemaNode = {
    * Is System
    */
   is_system?: boolean
+  /**
+   * Frameworks
+   */
+  frameworks?: Array<DetectedFramework>
 }
 
 /**

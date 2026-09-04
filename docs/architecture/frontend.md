@@ -30,6 +30,12 @@ Light and dark themes are switched by the adjacent button and remembered.
 The application uses the legacy cube artwork: blue for the browser favicon
 and the light header, white for the dark header.
 
+Detected frameworks appear below the catalog filter for the selected schemas.
+Every match is shown once; clicking its label fills the filter with the
+source-issued table pattern, and clicking the active label clears it. The
+labels come from schema metadata, so filtering the rows does not hide them
+([D98](sources/contract.md#d98-framework-detection-belongs-to-the-schemas-catalog-metadata)).
+
 The visible page of any tabular source can open as a chart beside its rows.
 The chart keeps that page's request and visible columns, offers line, bar and
 pie views, and derives a deterministic first choice without sending samples

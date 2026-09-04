@@ -1,5 +1,5 @@
 import type { connectorsReadCatalogResponses } from "@/client"
-import type { NodeRepresentation } from "@/client"
+import type { DetectedFramework, NodeRepresentation } from "@/client"
 
 /** One catalog node as the API returns it: a union discriminated by `kind`. */
 export type CatalogNode = connectorsReadCatalogResponses[200][number]
@@ -75,6 +75,8 @@ export interface ListNode {
    * whichever happens to be listed first would ignore what the user chose.
    */
   preferred: boolean
+  /** Framework hints supplied by a schema, independent of its filtered rows. */
+  frameworks?: DetectedFramework[]
   /** Which grouping this node came from, when several were listed at once. */
   group?: string
   /**
@@ -346,6 +348,9 @@ export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
     describable: node.describable === true,
     summarizable: node.summarizable === true,
     holdsNodes: node.has_children === true,
+    ...(node.kind === "schema" && node.frameworks?.length
+      ? { frameworks: node.frameworks }
+      : {}),
     // Only a table knows roughly how many rows it holds. A file would have
     // to be read from end to end to answer, so the grid pages without a
     // total.

@@ -45,6 +45,30 @@ async def test_root_returns_schemas(
     assert "public" in [node["name"] for node in nodes]
 
 
+async def test_schema_framework_hints_travel_through_catalog_and_path(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    headers = normal_user_token_headers
+    connector_id = await _create_connector(
+        client, headers, f"catalog frameworks {uuid.uuid4()}"
+    )
+    root = await client.get(f"{BASE}/{connector_id}/catalog", headers=headers)
+    assert root.status_code == 200
+    public = next(node for node in root.json() if node["id"] == "public")
+    # Alembic creates this marker when CI builds the database from nothing.
+    assert {
+        "id": "alembic", "title": "Alembic", "table_filter": "alembic_version"
+    } in public["frameworks"]
+    path = await client.get(
+        f"{BASE}/{connector_id}/catalog/path",
+        headers=headers,
+        params={"node_id": "public.alembic_version"},
+    )
+    assert path.status_code == 200
+    assert path.json()[0] == public
+    assert "frameworks" not in path.json()[1]
+
+
 async def test_catalog_reuses_an_exact_read_and_refresh_bypasses_it(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.content import NodeRepresentation
+from app.adapters.frameworks import DetectedFramework
 
 
 class BaseNode(BaseModel):
@@ -43,6 +44,7 @@ class BaseNode(BaseModel):
 class SchemaNode(BaseNode):
     kind: Literal["schema"] = "schema"
     is_system: bool = False
+    frameworks: list[DetectedFramework] = Field(default_factory=list)
 
 
 class TableNode(BaseNode):

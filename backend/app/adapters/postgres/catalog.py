@@ -9,6 +9,7 @@ from app.adapters.catalog import (
     ViewNode,
 )
 from app.adapters.content import NodeRepresentation
+from app.adapters.frameworks import detect_frameworks
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import (
     REPORTS,
@@ -58,25 +59,42 @@ class PostgresCatalog:
         return await self._list_relations(node_id)
 
     async def _list_schemas(self) -> list[CatalogNode]:
-        rows = await self._session.query(
+        return [self._schema_of(row) for row in await self._schema_rows(None)]
+
+    async def _schema_rows(self, name: str | None) -> list[dict[str, Any]]:
+        # Table names are catalog metadata. Grouping them with their schema
+        # avoids one query per schema and never reads framework-owned rows.
+        return await self._session.query(
             """
-            SELECT nspname AS name
-            FROM pg_namespace
-            WHERE nspname NOT LIKE 'pg_toast%'
-              AND nspname NOT LIKE 'pg_temp%'
-            ORDER BY (nspname <> 'public'), nspname
-            """
-        )
-        return [
-            SchemaNode(
-                id=row["name"],
-                name=row["name"],
-                has_children=True,
-                is_system=is_system_schema(row["name"]),
-                representations=[],
+            SELECT n.nspname AS name,
+                   array_agg(c.relname) FILTER (WHERE c.oid IS NOT NULL) AS tables
+            FROM pg_namespace n
+            LEFT JOIN pg_class c ON c.relnamespace = n.oid
+              AND c.relkind IN ('r', 'p')
+              AND left(n.nspname, 3) <> 'pg_'
+              AND n.nspname <> 'information_schema'
+            WHERE n.nspname = %s OR (
+                %s::text IS NULL
+                AND left(n.nspname, 8) <> 'pg_toast'
+                AND left(n.nspname, 7) <> 'pg_temp'
             )
-            for row in rows
-        ]
+            GROUP BY n.nspname
+            ORDER BY (n.nspname <> 'public'), n.nspname
+            """,
+            (name, name),
+        )
+
+    @staticmethod
+    def _schema_of(row: Mapping[str, Any]) -> SchemaNode:
+        system = is_system_schema(row["name"])
+        return SchemaNode(
+            id=row["name"],
+            name=row["name"],
+            has_children=True,
+            is_system=system,
+            representations=[],
+            frameworks=[] if system else detect_frameworks(row["tables"] or []),
+        )
 
     async def _list_relations(self, schema: str) -> list[CatalogNode]:
         rows = await self._session.query(
@@ -127,15 +145,10 @@ class PostgresCatalog:
         return path
 
     async def _schema_node(self, schema: str, node_id: str) -> CatalogNode:
-        if not await self._schema_exists(schema):
+        rows = await self._schema_rows(schema)
+        if not rows:
             raise NodeNotFound(node_id)
-        return SchemaNode(
-            id=schema,
-            name=schema,
-            has_children=True,
-            is_system=is_system_schema(schema),
-            representations=[],
-        )
+        return self._schema_of(rows[0])
 
     async def _relation_node(
         self, schema: str, relation: str, node_id: str

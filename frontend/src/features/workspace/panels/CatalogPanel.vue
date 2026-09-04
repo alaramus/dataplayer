@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onDeactivated, ref, useId, watch } from "vue"
 
+import type { DetectedFramework } from "@/client"
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
 import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
@@ -10,6 +11,7 @@ import { useNodePathLoader } from "@/features/catalog/api"
 import type { SearchScope } from "@/features/catalog/api"
 import { rememberAnswer, shouldAsk } from "@/features/catalog/contentSearch"
 import { useFadingMark } from "@/features/catalog/fadingMark"
+import { frameworksOf, toggleFrameworkFilter } from "@/features/catalog/frameworks"
 import { locationOf } from "@/features/catalog/location"
 import { searchSummary } from "@/features/catalog/search"
 import { useSearchHistory } from "@/features/catalog/useSearchHistory"
@@ -23,10 +25,12 @@ import { messageOf, statusOf } from "@/shared/api/errors"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import {
   AppBanner,
+  AppButton,
   AppIconButton,
   AppInput,
   AppMenu,
   AppSelect,
+  AppTooltip,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -46,6 +50,14 @@ const workspace = useWorkspaceActions()
 const connectorId = computed(() => props.connectorId)
 const rootLabel = computed(() => props.title)
 const level = useCatalogLevel(connectorId, rootLabel)
+const frameworks = computed(() => frameworksOf(level.groups.value, level.selectedGroups.value))
+
+function filterFramework(framework: DetectedFramework) {
+  level.clearSearch()
+  level.filter.value = toggleFrameworkFilter(level.filter.value, framework)
+  historyOpen.value = false
+}
+
 const me = useCurrentUser()
 const history = useSearchHistory(
   computed(() => me.data.value?.id ?? null),
@@ -734,6 +746,31 @@ async function afterAction(outcome: ActionOutcome) {
           />
         </template>
       </AppInput>
+
+      <div
+        v-if="!asTree && frameworks.length"
+        class="catalog-panel__frameworks"
+        role="group"
+        aria-label="Detected frameworks"
+        data-testid="catalog-frameworks"
+      >
+        <AppButton
+          v-for="framework in frameworks"
+          :key="framework.id"
+          :label="framework.title"
+          :variant="level.filter.value === framework.table_filter ? 'primary' : 'secondary'"
+          :aria-pressed="level.filter.value === framework.table_filter"
+          :data-testid="`catalog-framework-${framework.id}`"
+          size="sm"
+          @click="filterFramework(framework)"
+        >
+          <AppTooltip>
+            {{ level.filter.value === framework.table_filter
+              ? 'Clear the table filter'
+              : 'Detected from table names. Filter matching tables' }}
+          </AppTooltip>
+        </AppButton>
+      </div>
     </div>
 
     <AppBanner
@@ -829,6 +866,12 @@ async function afterAction(outcome: ActionOutcome) {
 .catalog-panel__head {
   flex: none;
   padding: 4px 4px 0;
+}
+.catalog-panel__frameworks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--dp-space-1);
+  padding-bottom: var(--dp-space-1);
 }
 /* One line of one height, whatever the source puts in it.
    A button and the menu are 32px, a field is 40, and a source with no

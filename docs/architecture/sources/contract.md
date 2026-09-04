@@ -119,6 +119,28 @@ Known deviations:
 
 Spec: [The catalog of a data source](../../superpowers/specs/2026-08-15-catalog-design.md)
 
+## D98. Framework detection belongs to the schema's catalog metadata
+
+- `SchemaNode.frameworks` carries typed detections with a framework id, title
+  and literal table filter; absence is an empty list. The same metadata travels
+  through the catalog and node path.
+- A pure signature registry recognizes Django, Alembic, Liquibase and WordPress
+  by their conventional marker tables, ignoring case. PostgreSQL supplies the
+  table names from the schema query: ordinary and partitioned tables only,
+  excluding system schemas. It reads no application rows.
+- The catalog shows all detections from selected schemas, deduplicated by id.
+  Each label toggles its source-issued text in the existing filter. Detection
+  is independent of the filtered rows and follows the ordinary catalog cache
+  and refresh rules, without a separate request or stored connector setting.
+
+Known deviations:
+
+- **Names are hints.** Renamed markers and custom WordPress prefixes are not
+  recognized; a coincidentally named table may match. The filter shows matching
+  table names, not every application model belonging to a framework.
+
+Spec: [Framework detection in the catalog](../../superpowers/specs/2026-09-04-framework-detection-design.md)
+
 ## D21. The source answers where a node lives
 
 A node id is the source's own string, so the party that built it is the only one

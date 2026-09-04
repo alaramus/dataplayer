@@ -379,6 +379,7 @@ export type {
   DeleteRowsResult,
   DeleteSelected,
   DelimitedContents,
+  DetectedFramework,
   DirectoryContents,
   DirectoryNode,
   DownloadActionTargets,

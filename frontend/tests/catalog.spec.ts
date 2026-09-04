@@ -47,6 +47,42 @@ test("browses a database as a list filtered by schema", async ({ page }) => {
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("detects a framework and toggles its table filter from the catalog", async ({ page }) => {
+  const name = `e2e-framework-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  const badge = page.getByTestId("catalog-framework-alembic")
+  const filter = page.getByTestId("catalog-filter")
+  await expect(badge).toBeVisible()
+  await expect(badge).toHaveAttribute("aria-pressed", "false")
+  await badge.click()
+  await expect(filter).toHaveValue("alembic_version")
+  await expect(badge).toHaveAttribute("aria-pressed", "true")
+  await expect(catalogRow(page, "alembic_version")).toBeVisible()
+  await expect(catalogRow(page, "connector")).toHaveCount(0)
+
+  // The detector remains visible while its filter narrows the table list.
+  await badge.click()
+  await expect(filter).toHaveValue("")
+  await expect(catalogRow(page, "connector")).toBeVisible()
+  await filter.fill("connector")
+  await filter.press("Escape")
+  await expect(badge).toHaveAttribute("aria-pressed", "false")
+  await badge.focus()
+  await badge.press("Enter")
+  await expect(filter).toHaveValue("alembic_version")
+  await badge.click()
+
+  // A marker in an unselected schema must not label the remaining schemas.
+  await pickSchema(page, "public")
+  await expect(badge).toHaveCount(0)
+  await pickSchema(page, "public")
+  await expect(badge).toBeVisible()
+  await deleteConnector(page, name)
+})
+
 test("keeps filter history per connector and remembers deletions after reload", async ({ page }) => {
   const first = `e2e-history-first-${Date.now()}`
   const second = `e2e-history-second-${Date.now()}`
