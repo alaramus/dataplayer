@@ -107,6 +107,14 @@
 }
 
 body.body--dark {
+  /* What the browser draws itself, and CSS cannot reach: scrollbars, the
+     checkboxes in the editor's search bar, an autofilled field. Without this
+     they are drawn by the light scheme, because a scheme is not inherited
+     from the colours a page happens to use. It does not touch the
+     `prefers-color-scheme` query the theme store reads: what the system
+     prefers and what this page is are separate questions. */
+  color-scheme: dark;
+
   --dp-graph-edge: #8499b6;
   --dp-graph-label: #e8eef7;
   --dp-surface: #121212;
