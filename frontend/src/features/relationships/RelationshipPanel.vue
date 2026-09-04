@@ -6,6 +6,7 @@ import { ConnectorsService } from "@/client"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
+import { serverStorageKey } from "@/shared/servers/context"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import GraphViewer from "@/shared/graph/GraphViewer.vue"
 import { emptyGraphView, parseGraphView, serializeGraphView } from "@/shared/graph/viewState"
@@ -39,7 +40,7 @@ const graph = computed(() => source.data.value ? relationGraph(source.data.value
 const loadError = computed(() => source.error.value instanceof GraphLoadError
   ? source.error.value.message : messageOf(source.error.value, "Could not load the diagram"))
 const modelOf = (id: string) => source.data.value?.models.find((model) => model.node_id === id)
-const storageKey = computed(() => me.data.value ? `dataplayer-graph:${me.data.value.id}:${props.panelId}` : null)
+const storageKey = computed(() => me.data.value ? serverStorageKey(`dataplayer-graph:${me.data.value.id}:${props.panelId}`) : null)
 let saveTimer: ReturnType<typeof setTimeout> | undefined
 let storageReported = false
 

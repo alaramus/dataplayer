@@ -1,10 +1,11 @@
+import { serverStorageKey } from "@/shared/servers/context"
 import type { ChartSpec } from "./types"
 import { chartSpecSchema } from "./types"
 
 const PREFIX = "dataplayer-chart-view:"
 
 export function chartStorageKey(viewKey: string): string {
-  return `${PREFIX}${viewKey}`
+  return serverStorageKey(`${PREFIX}${viewKey}`)
 }
 
 export function loadChartSpec(viewKey: string): ChartSpec | null {

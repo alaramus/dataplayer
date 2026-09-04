@@ -1,3 +1,5 @@
+import { serverStorageKey } from "@/shared/servers/context"
+
 /**
  * A grid that re-reads itself, and how often.
  *
@@ -97,7 +99,7 @@ export function refreshTooltip(
 const KEY_PREFIX = "dataplayer:grid:refresh"
 
 function refreshKey(connectorId: string, nodeId: string): string {
-  return `${KEY_PREFIX}:${JSON.stringify([connectorId, nodeId])}`
+  return serverStorageKey(`${KEY_PREFIX}:${JSON.stringify([connectorId, nodeId])}`)
 }
 
 /**

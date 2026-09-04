@@ -6,7 +6,7 @@ panel engine, the layout and floating windows are in
 [grid.md](grid.md). Domain-independent 2D and 3D graph viewers are described in
 [graphs.md](graphs.md).
 
-Decisions here: D6, D7, D11, D50.
+Decisions here: D6, D7, D11, D50, D99.
 
 ## What exists today
 
@@ -110,6 +110,32 @@ frontend/src/
     ├── workspace/       the panels and their roles — see workspace.md
     └── dev/             /ui-kit and /workspace-demo, dev builds only
 ```
+
+## D99. A browser tab belongs to one backend context
+
+The configured default and named server profiles are selectable before login
+and from the footer. Profiles are shared in browser storage; the selection is
+per browser tab. Changing servers performs a guarded full navigation, leaving
+old requests and sockets in the old document. Editing a saved address never
+retargets another running tab.
+
+The canonical installation URL identifies a server. HTTP, WebSocket, download
+and media URLs use it, including any deployment prefix. Tokens, workspace
+layouts, source histories, grid/chart/graph state and query drafts are separated
+by server. Legacy keys are pinned once to the original default server; a later
+default change cannot inherit that server's credentials. Theme remains shared.
+
+The public `/api/v1/utils/server-info` endpoint identifies the product and API
+generation. A separate anonymous client checks a candidate before connecting;
+login also checks compatibility. An unknown backend in a shared link requires
+explicit selection. Old links belong to the configured default server.
+
+Panel and window close guards run before switching. Server-owned work stays on
+its server; unsaved editor changes and transactions are handled before leaving.
+The server must allow the frontend origin through CORS and support the browser's
+HTTP(S)/WebSocket transport requirements.
+
+Spec: [Choosing a DataPlayer server](../superpowers/specs/2026-09-04-server-profiles-design.md)
 
 ## D6. Server state lives in vue-query; Pinia holds only client state
 

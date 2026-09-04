@@ -8,11 +8,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ConnectorsService } from "@/client"
 import { createReloadRegistry, provideReloadRegistry } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
+import { createCloseRegistry, provideCloseRegistry } from "@/features/workspace/closable"
+import { withWindowHost } from "@/shared/testing/windows"
 
 import ContentPanel from "./ContentPanel.vue"
 
 const openRows = vi.fn()
 let registry = createReloadRegistry()
+let closings = createCloseRegistry()
 
 // A plain options object rather than defineComponent: two defineComponent
 // calls in one file trip vue/one-component-per-file, and only the mounted
@@ -41,24 +44,24 @@ const Host = defineComponent({
   props: { panel: { type: Object, required: true } },
   setup() {
     provideReloadRegistry(registry)
+    provideCloseRegistry(closings)
   },
   template: `<ContentPanel v-bind="panel" />`,
 })
 
 function mountPanel(overrides: Record<string, unknown> = {}) {
-  return mount(Host, {
-    props: {
-      panel: {
-        panelId,
-        connectorId: "c1",
-        nodeId: "worker.py",
-        title: "worker.py",
-        connectorName: "my files",
-        adapterType: "file",
-        representation: "text",
-        ...overrides,
-      },
+  return mount(withWindowHost(Host, {
+    panel: {
+      panelId,
+      connectorId: "c1",
+      nodeId: "worker.py",
+      title: "worker.py",
+      connectorName: "my files",
+      adapterType: "file",
+      representation: "text",
+      ...overrides,
     },
+  }), {
     global: {
       plugins: [
         [Quasar, { plugins: { Notify } }],
@@ -105,9 +108,24 @@ beforeEach(() => {
   vi.restoreAllMocks()
   openRows.mockReset()
   registry = createReloadRegistry()
+  closings = createCloseRegistry()
 })
 
 describe("the file content editor", () => {
+  it("asks before discarding dirty content when leaving its server", async () => {
+    vi.spyOn(ConnectorsService, "readEditorContent").mockResolvedValue(editorAnswer())
+    const wrapper = mountPanel()
+    await flushPromises()
+    expect(await closings.mayClose(panelId)).toBe(true)
+    await wrapper.get('[data-testid="content-editor"]').setValue("unsaved work")
+    const leaving = closings.mayClose(panelId)
+    await flushPromises()
+    expect(wrapper.text()).toContain("Discard file changes?")
+    await wrapper.get('[data-testid="confirm-cancel"]').trigger("click")
+    expect(await leaving).toBe(false)
+    expect(wrapper.get('[data-testid="content-editor"]').element).toHaveProperty("value", "unsaved work")
+    wrapper.unmount()
+  })
   it("opens the source itself, without asking for a separate viewer", async () => {
     const open = vi.spyOn(ConnectorsService, "readEditorContent").mockResolvedValue(editorAnswer())
     const viewer = vi.spyOn(ConnectorsService, "readContent")

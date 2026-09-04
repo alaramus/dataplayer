@@ -5,6 +5,7 @@ import { client } from "@/client/client.gen"
 import { router } from "@/router"
 import { shouldRetry } from "@/shared/api/retry"
 import { useAuthStore } from "@/stores/auth"
+import { serverContext } from "@/shared/servers/context"
 
 // How many times a failure that might pass is asked about again. The vue-query
 // default; what changed is which failures are asked about at all.
@@ -12,7 +13,7 @@ const RETRIES = 3
 
 export function configureApiClient() {
   client.setConfig({
-    baseURL: import.meta.env.VITE_API_URL ?? "",
+    baseURL: serverContext().active.url,
     // The client applies the Bearer scheme itself, per the OpenAPI security.
     auth: () => useAuthStore().token ?? "",
   })

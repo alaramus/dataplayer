@@ -62,6 +62,8 @@ import type {
   SharedTarget,
 } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
+import { serverStorageKey } from "@/shared/servers/context"
+import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import { AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
@@ -81,7 +83,7 @@ const connectorColors = computed(() => new Map(
   (connectors.data.value?.data ?? []).map((connector) => [connector.id, connector.tab_color])
 ))
 const workspace = useWorkspace<Panel>({
-  storageKey: "dataplayer-workspace",
+  storageKey: serverStorageKey("dataplayer-workspace"),
   panelSchema,
   defaults: () => ({
     tree: makeSplit(
@@ -168,6 +170,12 @@ provideReloadRegistry(reloads)
 // The same arrangement for the other direction: panels say when they may go.
 const closings = createCloseRegistry()
 provideCloseRegistry(closings)
+useServerLeaveGuard(async () => {
+  for (const panel of workspace.panels.value) {
+    if (!(await closings.mayClose(panel.id))) return false
+  }
+  return true
+})
 
 /**
  * The node a catalog has just been asked to point at.

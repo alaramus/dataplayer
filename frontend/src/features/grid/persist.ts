@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { serverStorageKey } from "@/shared/servers/context"
 
 import type { FetchColumn } from "@/client"
 
@@ -46,7 +47,7 @@ const envelopeSchema = z.strictObject({
 const pageSizeSchema = z.union([z.literal(50), z.literal(100), z.literal(250), z.literal(500)])
 
 function relationKey(connectorId: string, nodeId: string): string {
-  return `dataplayer:grid:${JSON.stringify([connectorId, nodeId])}`
+  return serverStorageKey(`dataplayer:grid:${JSON.stringify([connectorId, nodeId])}`)
 }
 
 function parseJson(raw: string): unknown | null {

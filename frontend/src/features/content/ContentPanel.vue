@@ -5,9 +5,10 @@ import type { EditorContent, EditorContentRequest } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import { useEditorContent, useUpdateContent } from "@/features/content/api"
 import { useReloadable } from "@/features/workspace/reloadable"
+import { useClosable } from "@/features/workspace/closable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
-import { AppBanner, AppButton, AppSpinner, useToast } from "@/shared/ui"
+import { AppBanner, AppButton, AppSpinner, useConfirm, useToast } from "@/shared/ui"
 
 const props = defineProps<{
   panelId: string
@@ -26,6 +27,7 @@ const editor = useEditorContent(connectorId, request)
 const updateContent = useUpdateContent(connectorId)
 const workspace = useWorkspaceActions()
 const toast = useToast()
+const confirm = useConfirm()
 
 const draft = ref("")
 const baseline = ref("")
@@ -34,6 +36,18 @@ const saveError = ref("")
 const saveConflict = ref(false)
 
 const dirty = computed(() => draft.value !== baseline.value)
+useClosable(props.panelId, async () => {
+  if (updateContent.isPending.value) {
+    toast.info("Wait for the file to finish saving before leaving")
+    return false
+  }
+  return !dirty.value || await confirm({
+    title: "Discard file changes?",
+    message: `The changes to ${props.title} have not been saved.`,
+    confirmLabel: "Discard changes",
+    danger: true,
+  })
+})
 const writable = computed(() => editor.data.value?.writable === true)
 const canSave = computed(() => writable.value && loadedVersion.value !== null && dirty.value)
 const error = computed(() =>

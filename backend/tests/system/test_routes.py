@@ -1,0 +1,24 @@
+from httpx import AsyncClient
+
+from app.core.config import settings
+
+
+async def test_server_info_is_public_and_identifies_the_client_contract(
+    client: AsyncClient,
+) -> None:
+    response = await client.get(f"{settings.API_V1_STR}/utils/server-info")
+
+    assert response.status_code == 200
+    assert response.json() == {"product": "dataplayer", "client_api_version": 1}
+
+
+async def test_server_info_is_readable_from_the_configured_frontend(
+    client: AsyncClient,
+) -> None:
+    response = await client.get(
+        f"{settings.API_V1_STR}/utils/server-info",
+        headers={"Origin": settings.FRONTEND_HOST},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == settings.FRONTEND_HOST

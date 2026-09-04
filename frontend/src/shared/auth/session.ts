@@ -1,10 +1,11 @@
 import type { QueryClient } from "@tanstack/vue-query"
 
 import { router } from "@/router"
-import { TOKEN_KEY, useAuthStore } from "@/stores/auth"
+import { useAuthStore } from "@/stores/auth"
+import { closeRealtime } from "@/shared/realtime/client"
 
 /**
- * Keep every open tab on the same session.
+ * Keep tabs connected to the same server on the same session.
  *
  * A 401 already sends the user to the login page, but signing out elsewhere
  * produces no 401 at all: the token stays valid on the server until it
@@ -13,14 +14,15 @@ import { TOKEN_KEY, useAuthStore } from "@/stores/auth"
  * which fires only in the tabs that did not make it.
  */
 export function watchSessionAcrossTabs(queryClient: QueryClient) {
+  const auth = useAuthStore()
   window.addEventListener("storage", (event) => {
     // A null key means the whole storage was cleared rather than one entry.
-    if (event.key !== null && event.key !== TOKEN_KEY) return
+    if (event.key !== null && event.key !== auth.storageKey) return
 
-    const auth = useAuthStore()
-    if (localStorage.getItem(TOKEN_KEY) === auth.token) return
+    if (localStorage.getItem(auth.storageKey) === auth.token) return
 
     auth.syncFromStorage()
+    closeRealtime()
     // Whoever is here now is not who the cached answers belong to.
     queryClient.clear()
     if (!auth.isLoggedIn) {

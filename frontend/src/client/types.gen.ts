@@ -5401,6 +5401,20 @@ export type SchemaNode = {
 }
 
 /**
+ * ServerInfo
+ */
+export type ServerInfo = {
+  /**
+   * Product
+   */
+  product?: "dataplayer"
+  /**
+   * Client Api Version
+   */
+  client_api_version?: 1
+}
+
+/**
  * ServiceAccepted
  *
  * What comes back from asking for something to happen.
@@ -7442,6 +7456,22 @@ export type utilsHealthCheckResponses = {
 }
 
 export type utilsHealthCheckResponse = utilsHealthCheckResponses[keyof utilsHealthCheckResponses]
+
+export type utilsServerInfoData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/utils/server-info"
+}
+
+export type utilsServerInfoResponses = {
+  /**
+   * Successful Response
+   */
+  200: ServerInfo
+}
+
+export type utilsServerInfoResponse = utilsServerInfoResponses[keyof utilsServerInfoResponses]
 
 export type connectorsDownloadFinishedExportData = {
   body?: never

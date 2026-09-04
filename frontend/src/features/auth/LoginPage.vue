@@ -3,11 +3,17 @@ import { ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
 import { useLogin } from "@/features/auth/api"
+import { useActiveServerCheck } from "@/features/servers/api"
+import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
+import { safeLocalPath } from "@/shared/servers/profiles"
+import { useServersStore } from "@/stores/servers"
 import { AppActions, AppBanner, AppButton, AppCard, AppInput, AppSection } from "@/shared/ui"
 
 const router = useRouter()
 const route = useRoute()
 const login = useLogin()
+const servers = useServersStore()
+const serverStatus = useActiveServerCheck()
 
 /**
  * Where to go once signed in.
@@ -18,9 +24,7 @@ const login = useLogin()
  * not a local path is ignored rather than navigated to.
  */
 function afterSignIn(): string | null {
-  const next = route.query.next
-  if (typeof next !== "string") return null
-  return next.startsWith("/") && !next.startsWith("//") ? next : null
+  return safeLocalPath(route.query.next)
 }
 
 const username = ref("")
@@ -28,6 +32,7 @@ const password = ref("")
 const failed = ref(false)
 
 async function submit() {
+  if (!serverStatus.isSuccess.value) return
   failed.value = false
   try {
     await login.mutateAsync({ username: username.value, password: password.value })
@@ -49,6 +54,26 @@ async function submit() {
         >
           <q-form @submit.prevent="submit">
             <AppSection gutter>
+              <ServerSwitcher />
+              <div class="login-server-url">{{ servers.active.url }}</div>
+              <div
+                v-if="serverStatus.isPending.value"
+                class="login-server-url"
+              >
+                Checking server…
+              </div>
+              <AppBanner
+                v-if="serverStatus.isError.value"
+                tone="error"
+              >
+                {{ serverStatus.error.value?.message }}
+                <AppButton
+                  label="Retry connection"
+                  variant="quiet"
+                  :loading="serverStatus.isFetching.value"
+                  @click="serverStatus.refetch()"
+                />
+              </AppBanner>
               <AppInput
                 v-model="username"
                 label="Email"
@@ -78,6 +103,7 @@ async function submit() {
                 class="full-width"
                 data-testid="login-submit"
                 :loading="login.isPending.value"
+                :disable="!serverStatus.isSuccess.value"
               />
             </AppActions>
           </q-form>
@@ -86,3 +112,7 @@ async function submit() {
     </q-page-container>
   </q-layout>
 </template>
+
+<style scoped>
+.login-server-url { font-size: 12px; color: var(--dp-text-muted); overflow-wrap: anywhere; }
+</style>

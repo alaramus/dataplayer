@@ -1,10 +1,11 @@
 import { defineStore } from "pinia"
 import { ref } from "vue"
+import { serverStorageKey } from "@/shared/servers/context"
 
 export const SEARCH_HISTORY_LIMIT = 10
 
 export function searchHistoryKey(userId: string, connectorId: string): string {
-  return `dataplayer-search-history:v1:${JSON.stringify([userId, connectorId])}`
+  return serverStorageKey(`dataplayer-search-history:v1:${JSON.stringify([userId, connectorId])}`)
 }
 
 function parseHistory(raw: string | null): string[] {

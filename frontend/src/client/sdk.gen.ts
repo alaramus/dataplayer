@@ -408,6 +408,8 @@ import type {
   usersUpdateUserResponses,
   utilsHealthCheckData,
   utilsHealthCheckResponses,
+  utilsServerInfoData,
+  utilsServerInfoResponses,
   utilsTestEmailData,
   utilsTestEmailErrors,
   utilsTestEmailResponses,
@@ -802,6 +804,21 @@ export class UtilsService {
     return (options?.client ?? client).get<utilsHealthCheckResponses, unknown, ThrowOnError>({
       responseType: "json",
       url: "/api/v1/utils/health-check/",
+      ...options,
+    })
+  }
+
+  /**
+   * Server Info
+   *
+   * Identify a compatible installation before the client sends credentials.
+   */
+  public static serverInfo<ThrowOnError extends boolean = true>(
+    options?: Options<utilsServerInfoData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<utilsServerInfoResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      url: "/api/v1/utils/server-info",
       ...options,
     })
   }

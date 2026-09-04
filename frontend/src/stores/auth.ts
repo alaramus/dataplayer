@@ -1,5 +1,6 @@
 import { defineStore } from "pinia"
 import { computed, ref } from "vue"
+import { serverStorageKey } from "@/shared/servers/context"
 
 export const TOKEN_KEY = "access_token"
 
@@ -10,17 +11,18 @@ export const TOKEN_KEY = "access_token"
  * vue-query, so there are no hand-rolled caches with manual invalidation.
  */
 export const useAuthStore = defineStore("auth", () => {
-  const token = ref<string | null>(localStorage.getItem(TOKEN_KEY))
+  const storageKey = serverStorageKey(TOKEN_KEY)
+  const token = ref<string | null>(localStorage.getItem(storageKey))
   const isLoggedIn = computed(() => token.value !== null)
 
   function setToken(value: string) {
     token.value = value
-    localStorage.setItem(TOKEN_KEY, value)
+    localStorage.setItem(storageKey, value)
   }
 
   function clear() {
     token.value = null
-    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(storageKey)
   }
 
   /**
@@ -31,8 +33,8 @@ export const useAuthStore = defineStore("auth", () => {
    * the server would still accept, so no request would ever reveal it.
    */
   function syncFromStorage() {
-    token.value = localStorage.getItem(TOKEN_KEY)
+    token.value = localStorage.getItem(storageKey)
   }
 
-  return { token, isLoggedIn, setToken, clear, syncFromStorage }
+  return { token, storageKey, isLoggedIn, setToken, clear, syncFromStorage }
 })

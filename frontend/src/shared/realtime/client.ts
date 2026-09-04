@@ -1,6 +1,7 @@
 import { createRealtimeSocket } from "@/shared/realtime/socket"
 import type { RealtimeSocket } from "@/shared/realtime/socket"
 import { useAuthStore } from "@/stores/auth"
+import { serverUrl } from "@/shared/servers/context"
 
 /**
  * The application's one socket.
@@ -14,8 +15,7 @@ import { useAuthStore } from "@/stores/auth"
 let socket: RealtimeSocket | null = null
 
 function socketUrl(): string {
-  const base = import.meta.env.VITE_API_URL ?? window.location.origin
-  const url = new URL("/api/v1/ws", base)
+  const url = new URL(serverUrl("/api/v1/ws"))
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
   return url.toString()
 }

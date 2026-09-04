@@ -76,6 +76,7 @@ import { useClosable } from "@/features/workspace/closable"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import {
   AppBanner,
   AppButton,
@@ -176,6 +177,32 @@ let loadedId = ""
 const server = computed(() => document.data.value)
 /** Whether this console is in the library at all. */
 const remembered = computed(() => props.documentId !== undefined)
+useServerLeaveGuard(async () => {
+  if (save.isPending.value || create.isPending.value) {
+    toast.info("Wait for the query to finish saving before switching servers")
+    return false
+  }
+  if (!remembered.value && props.draftId !== undefined) {
+    writeDraft(props.draftId, draft.value)
+    const stored = readDraft(props.draftId)
+    if (stored?.body === draft.value.body && stored.title === draft.value.title) return true
+    return await confirm({
+      title: "Leave this query behind?",
+      message: "Browser storage could not keep this draft. Copy its text before switching if you want to keep it.",
+      confirmLabel: "Discard draft",
+      danger: true,
+    })
+  }
+  if (["saved", "unremembered"].includes(state.value)) return true
+  // A shadow cannot promise recovery after a remote revision changes. Ask
+  // explicitly instead of silently treating it as a durable saved document.
+  return await confirm({
+    title: "Leave unsaved query changes?",
+    message: "Save this query or resolve its conflict before switching to keep your changes. Unsaved edits may not be recoverable after switching.",
+    confirmLabel: "Switch anyway",
+    danger: true,
+  })
+})
 const connectorId = computed(
   () => server.value === undefined ? props.connectorId ?? null : server.value.connector_id
 )
@@ -336,7 +363,7 @@ useClosable(props.panelId, async () => {
   })
   if (!leaving) return false
   await endTheTransaction(false)
-  return true
+  return transactionId.value === null
 })
 
 /**

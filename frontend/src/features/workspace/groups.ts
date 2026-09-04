@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { serverStorageKey } from "@/shared/servers/context"
 
 import { parseWorkspace } from "@/shared/workspace/persist"
 import { leavesOf } from "@/shared/workspace/tree"
@@ -12,8 +13,8 @@ const groupSchema = z.object({
 })
 export type TabGroup = z.infer<typeof groupSchema>
 
-export const groupsKey = (userId: string) => `dataplayer-tab-groups:${userId}`
-export const groupWarningKey = (userId: string) => `dataplayer-tab-groups:skip-warning:${userId}`
+export const groupsKey = (userId: string) => serverStorageKey(`dataplayer-tab-groups:${userId}`)
+export const groupWarningKey = (userId: string) => serverStorageKey(`dataplayer-tab-groups:skip-warning:${userId}`)
 
 export function validGroupSnapshot(raw: string): boolean {
   const saved = parseWorkspace(raw, panelSchema)

@@ -50,8 +50,10 @@ export function pageSizeOf(view: RowsView, fallback: PageSize = 100): PageSize {
 }
 
 /** What a link looks like where the person reading it is. */
-export function linkFor(token: string, origin: string): string {
-  return `${origin}/s/${token}`
+export function linkFor(token: string, origin: string, serverUrl?: string): string {
+  const link = new URL(`/s/${encodeURIComponent(token)}`, origin)
+  if (serverUrl !== undefined) link.searchParams.set("server", serverUrl)
+  return link.href
 }
 
 /**

@@ -114,6 +114,11 @@ describe("what the relation no longer has", () => {
 })
 
 describe("the address itself", () => {
+  it("keeps the server identity in links opened from another frontend session", () => {
+    const link = new URL(linkFor("AbC123", "https://ui.example", "https://backend.example/player"))
+    expect(link.pathname).toBe("/s/AbC123")
+    expect(link.searchParams.get("server")).toBe("https://backend.example/player")
+  })
   it("is the token under /s of wherever the reader is", () => {
     expect(linkFor("AbC123", "https://data.example.com")).toBe(
       "https://data.example.com/s/AbC123"

@@ -22,6 +22,7 @@ import type {
   Sort,
 } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { readText } from "@/shared/clipboard"
 import {
   AppBanner,
@@ -228,6 +229,19 @@ const importRows = useImportRows(toRef(props, "connectorId"))
 const createRelation = useCreateRelationFromSource()
 const followReference = useFollowReference(toRef(props, "connectorId"))
 const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
+useServerLeaveGuard(async () => {
+  if ([updateCell, updateCells, insertRow, deleteRows, importRows, createRelation].some((mutation) => mutation.isPending.value)) {
+    toast.info("Wait for the table change to finish before switching servers")
+    return false
+  }
+  if (editor.value === null && !insertOpen.value && !importOpen.value && !createTableOpen.value) return true
+  return await confirm({
+    title: "Leave the unfinished table form?",
+    message: "An edit, insertion or import form is still open. Its unapplied values will be lost when switching servers.",
+    confirmLabel: "Leave form",
+    danger: true,
+  })
+})
 const tabularGrid = useTemplateRef<{
   clearSelection: () => void
   focus: (selector: string) => void

@@ -99,6 +99,7 @@ translations; those files are not.
 | 2026-09-04 | [SQL over log files](2026-09-04-log-sql-design.md) | D96: the same log projection in the grid and SQL, with bounded whole-file snapshots |
 | 2026-09-04 | [A graph viewer with 2D and 3D presentations](2026-09-04-graph-viewer-design.md) | D97: a generic graph document, independent renderers and relation metadata as the first producer |
 | 2026-09-04 | [Framework detection in the catalog](2026-09-04-framework-detection-design.md) | D98: schema-owned table signatures and clickable filters for every detected framework |
+| 2026-09-04 | [Choosing a DataPlayer server](2026-09-04-server-profiles-design.md) | D99: per-tab server selection, independent sessions and source state, and anonymous compatibility checks |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

@@ -4,6 +4,8 @@ import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 
 import { useCurrentUser } from "@/shared/auth/currentUser"
+import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
+import { closeRealtime } from "@/shared/realtime/client"
 import WindowTaskbar from "@/shared/windows/WindowTaskbar.vue"
 import { windowsApiKey } from "@/shared/windows/useWindows"
 import { useAuthStore } from "@/stores/auth"
@@ -61,6 +63,7 @@ onBeforeUnmount(() => {
 
 async function logout() {
   auth.clear()
+  closeRealtime()
   // The cache is cleared on sign-out: otherwise the previous user's data stays
   // visible to the next one.
   queryClient.clear()
@@ -134,6 +137,7 @@ async function logout() {
         class="app-layout__footer-content"
       >
         <div class="app-layout__status">
+          <ServerSwitcher />
           <slot name="status" />
           <div
             v-if="$slots['status-end']"

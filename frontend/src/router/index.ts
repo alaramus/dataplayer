@@ -1,6 +1,9 @@
 import { createRouter, createWebHistory } from "vue-router"
 
 import { useAuthStore } from "@/stores/auth"
+import { serverContext } from "@/shared/servers/context"
+import { mayLeaveServer } from "@/shared/servers/leaving"
+import { routeServerTarget } from "@/shared/servers/profiles"
 import type { RouteRecordRaw } from "vue-router"
 
 // The kit showcase is a development tool and is not part of the application a
@@ -28,6 +31,11 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     ...devRoutes,
+    {
+      path: "/connect-server",
+      name: "connect-server",
+      component: () => import("@/features/servers/ServerConnectPage.vue"),
+    },
     {
       path: "/login",
       name: "login",
@@ -68,7 +76,16 @@ export const router = createRouter({
   ],
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to, from) => {
+  if (to.name === "connect-server") return true
+  const context = serverContext()
+  const target = routeServerTarget(to.query.server, to.name === "shared", context.active.url, context.defaultServer.url)
+  if (target !== null) {
+    // A link opened inside the app must not unmount its unsaved workspace
+    // before the connection page gets a chance to ask about switching.
+    if (from.meta.requiresAuth && !(await mayLeaveServer())) return false
+    return { name: "connect-server", query: { server: target, next: to.fullPath } }
+  }
   const auth = useAuthStore()
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
     // Where they were going is kept: somebody who opened a shared link while

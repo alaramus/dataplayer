@@ -15,6 +15,7 @@ import GrantList from "@/features/shares/GrantList.vue"
 import { useCreateShare, useDeleteShare, useShares } from "@/features/shares/api"
 import AccessRequests from "@/features/shares/AccessRequests.vue"
 import { linkFor } from "@/features/shares/sharedView"
+import { serverContext } from "@/shared/servers/context"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import {
@@ -113,7 +114,7 @@ watch(
 )
 
 const link = computed(() =>
-  token.value === null ? "" : linkFor(token.value, window.location.origin)
+  token.value === null ? "" : linkFor(token.value, window.location.origin, serverContext().active.url)
 )
 
 const held = computed(() => grants.data.value?.data ?? [])

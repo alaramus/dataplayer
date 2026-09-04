@@ -1,4 +1,5 @@
 import type { QueryDocumentPublic, QueryDocumentUpdate } from "@/client"
+import { serverStorageKey } from "@/shared/servers/context"
 
 /**
  * What the editor holds that the server has not accepted yet, and what it does
@@ -124,7 +125,7 @@ const DRAFT_PREFIX = "dp.query.draft."
 
 export function readDraft(draftId: string): DraftState | null {
   try {
-    const raw = sessionStorage.getItem(DRAFT_PREFIX + draftId)
+    const raw = sessionStorage.getItem(serverStorageKey(DRAFT_PREFIX + draftId))
     if (raw === null) return null
     const parsed: unknown = JSON.parse(raw)
     if (parsed === null || typeof parsed !== "object") return null
@@ -143,7 +144,7 @@ export function readDraft(draftId: string): DraftState | null {
 
 export function writeDraft(draftId: string, draft: DraftState): void {
   try {
-    sessionStorage.setItem(DRAFT_PREFIX + draftId, JSON.stringify(draft))
+    sessionStorage.setItem(serverStorageKey(DRAFT_PREFIX + draftId), JSON.stringify(draft))
   } catch {
     // A tab with no storage left keeps its text on screen; losing the copy is
     // not worth interrupting typing for.
@@ -152,7 +153,7 @@ export function writeDraft(draftId: string, draft: DraftState): void {
 
 export function clearDraft(draftId: string): void {
   try {
-    sessionStorage.removeItem(DRAFT_PREFIX + draftId)
+    sessionStorage.removeItem(serverStorageKey(DRAFT_PREFIX + draftId))
   } catch {
     // Nothing to do: it is a convenience, not a record.
   }
@@ -183,7 +184,7 @@ const SHADOW_PREFIX = "dp.query.shadow."
  */
 export function readShadow(documentId: string): DocumentShadow | null {
   try {
-    const raw = sessionStorage.getItem(SHADOW_PREFIX + documentId)
+    const raw = sessionStorage.getItem(serverStorageKey(SHADOW_PREFIX + documentId))
     if (raw === null) return null
     const parsed: unknown = JSON.parse(raw)
     if (parsed === null || typeof parsed !== "object") return null
@@ -202,7 +203,7 @@ export function readShadow(documentId: string): DocumentShadow | null {
 
 export function writeShadow(shadow: DocumentShadow): void {
   try {
-    sessionStorage.setItem(SHADOW_PREFIX + shadow.documentId, JSON.stringify(shadow))
+    sessionStorage.setItem(serverStorageKey(SHADOW_PREFIX + shadow.documentId), JSON.stringify(shadow))
   } catch {
     // A tab with no storage left keeps its text on screen and says it is
     // unsynchronised; losing the shadow is not worth interrupting typing for.
@@ -211,7 +212,7 @@ export function writeShadow(shadow: DocumentShadow): void {
 
 export function clearShadow(documentId: string): void {
   try {
-    sessionStorage.removeItem(SHADOW_PREFIX + documentId)
+    sessionStorage.removeItem(serverStorageKey(SHADOW_PREFIX + documentId))
   } catch {
     // Nothing to do: the shadow is a convenience, not a record.
   }

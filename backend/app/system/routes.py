@@ -1,4 +1,7 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from pydantic.networks import EmailStr
 from starlette.concurrency import run_in_threadpool
 
@@ -33,3 +36,14 @@ async def test_email(email_to: EmailStr) -> Message:
 @router.get("/health-check/")
 async def health_check() -> bool:
     return True
+
+
+class ServerInfo(BaseModel):
+    product: Literal["dataplayer"] = "dataplayer"
+    client_api_version: Literal[1] = 1
+
+
+@router.get("/server-info", response_model=ServerInfo)
+async def server_info() -> ServerInfo:
+    """Identify a compatible installation before the client sends credentials."""
+    return ServerInfo()
