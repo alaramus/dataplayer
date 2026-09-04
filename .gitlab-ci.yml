@@ -30,7 +30,8 @@ backend:
     # checkout and pydantic-settings does not need one.
     PROJECT_NAME: DataPlayer
     DATABASE_URL: postgresql://postgres:postgres@db:5432/app
-    SECRET_KEY: ci-secret-key
+    # Throwaway JWT signing key, long enough for HS256.
+    SECRET_KEY: ci-only-jwt-signing-key-at-least-32-bytes
     # urlsafe base64 of exactly 32 bytes, which is what the validator demands.
     # Throwaway: they encrypt nothing that outlives the job. Two different
     # values on purpose — the keys are independent by decision (D63), and one

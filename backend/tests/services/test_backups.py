@@ -4,12 +4,14 @@ import uuid
 from collections.abc import AsyncGenerator, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
 from sqlmodel import delete
 
 from app.adapters import registry
+from app.adapters.postgres.session import PostgresSession
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.jobs.models import Job
@@ -46,14 +48,19 @@ async def _wait(job_id: str) -> None:
     await runner.wait_for(uuid.UUID(job_id))
 
 
-async def _connector(client: AsyncClient, headers: dict[str, str]) -> str:
+async def _connector(
+    client: AsyncClient, headers: dict[str, str], *, password: str | None = None
+) -> str:
+    options = working_postgres_options()
+    if password is not None:
+        options["password"] = password
     response = await client.post(
         f"{CONNECTORS}/",
         headers=headers,
         json={
             "name": f"backed up {uuid.uuid4()}",
             "adapter_type": "postgres",
-            "options": working_postgres_options(),
+            "options": options,
         },
     )
     assert response.status_code == 200, response.text
@@ -113,21 +120,35 @@ async def test_a_backup_is_a_job_and_writes_a_file_of_the_owner_s_own(
 
 
 async def test_the_program_is_given_the_password_apart_from_its_arguments(
-    client: AsyncClient, normal_user_token_headers: dict[str, str], engine: FakeEngine
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    engine: FakeEngine,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """An argument is visible to anything that can list processes."""
-    connector_id = await _connector(client, normal_user_token_headers)
+    # CI uses "postgres" for both the user and password, and the image has
+    # that name too. A distinct secret makes substring checks unambiguous.
+    password = "backup-only-secret-4c7d94a"
+    # Only the version probe needs a live source. Keep command construction
+    # real while letting this connector carry a password chosen by the test.
+    query = AsyncMock(return_value=[{"server_version_num": "180000"}])
+    monkeypatch.setattr(PostgresSession, "query", query)
+    connector_id = await _connector(
+        client, normal_user_token_headers, password=password
+    )
     owner = await _owner_of(connector_id)
     engine.writes = str(storage.home_dir(owner) / BACKUP_FOLDER / "x.dump")
 
     started = await client.post(
         f"{BASE}/", headers=normal_user_token_headers, json={"connector_id": connector_id}
     )
+    assert started.status_code == 200, started.text
     await _wait(started.json()["id"])
 
+    query.assert_awaited_once_with("SHOW server_version_num")
+    assert len(engine.ran) == 1
     run = engine.ran[0]
-    password = working_postgres_options()["password"]
-    assert "PGPASSWORD" in run.environment
+    assert run.environment["PGPASSWORD"] == password
     assert not any(password in argument for argument in run.argv)
     # And it is not in what a log or a traceback would print either.
     assert password not in repr(run)
