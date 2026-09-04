@@ -109,8 +109,12 @@ describe("the library of queries", () => {
 
     await wrapper.get('[data-testid="open-query-d2"]').trigger("click")
 
+    // The connection travels with the request: a console restored from a
+    // saved document is written against one, and the panel carries its id
+    // rather than looking it up again by name.
     expect(workspace.openQueryDocument).toHaveBeenCalledWith({
       documentId: "d2",
+      connectorId: "c1",
       title: "Invoices",
       connectorName: "local pg",
     })
