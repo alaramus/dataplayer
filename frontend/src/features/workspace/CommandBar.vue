@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
-import { adapterIcon } from "@/features/connectors/adapters"
 import { useAdapterTypes, useConnectors } from "@/features/connectors/api"
 import { useQueryProfile } from "@/features/queries/runs"
 import BackupsDialog from "@/features/services/BackupsDialog.vue"
@@ -25,8 +24,11 @@ import { AppButton, AppTooltip } from "@/shared/ui"
  * and to no node in it, which until now had to be squeezed in beside the plus
  * in the connections column.
  *
- * It also says which connection the commands are about. A row of buttons whose
- * subject is somewhere else on the screen is a row of buttons nobody trusts.
+ * Which connection they are about is not written here. It is said twice
+ * already, in the column of connections and on the tab of the catalog being
+ * read, and a third copy at the foot of the screen only took the room the
+ * commands themselves want; each tooltip names the connection, so the answer
+ * is still a hover away where a button leaves any doubt (D69).
  */
 const workspace = useWorkspaceActions()
 const connectors = useConnectors()
@@ -139,27 +141,6 @@ function run(name: string) {
     class="command-bar"
     data-testid="command-bar"
   >
-    <span
-      v-if="connector"
-      class="command-bar__connection"
-      data-testid="command-bar-connection"
-    >
-      <q-icon
-        :name="adapterIcon(connector.adapter_type)"
-        size="14px"
-      />
-      <span class="command-bar__name">{{ connector.name }}</span>
-    </span>
-    <span
-      v-else
-      class="command-bar__connection command-bar__connection--none"
-      data-testid="command-bar-connection"
-    >
-      No connection open
-    </span>
-
-    <q-separator vertical />
-
     <!-- First, and never greyed out: what a person has written is theirs
          whether or not a connection is open. -->
     <span class="command-bar__slot">
@@ -228,24 +209,6 @@ function run(name: string) {
 
 .command-bar__aside {
   margin-left: auto;
-}
-
-.command-bar__connection {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  max-width: 240px;
-}
-
-.command-bar__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.command-bar__connection--none {
-  opacity: 0.6;
 }
 
 /* The tooltip hangs off this rather than off the button: a disabled Quasar

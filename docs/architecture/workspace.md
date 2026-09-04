@@ -253,10 +253,14 @@ Consequences:
 - **Shape before content.** Hiding what does not apply would make the bar
   change as somebody walks about, which is a bar they have to read every time.
   The same reason the catalog's action menu greys out rather than shortens.
-- **The bar says which connection it is about.** A row of buttons whose subject
-  is somewhere else on the screen is a row nobody trusts. Which connection is
-  read is `activeConnectorId`, already derived from the layout tree rather than
-  kept beside it; nothing new is stored.
+- **The bar does not repeat which connection it is about.** It did at first, on
+  the reasoning that a row of buttons whose subject is somewhere else is a row
+  nobody trusts. Two places already say it — the marked row in the column of
+  connections and the tab of the catalog being read — so a third copy only took
+  room from the commands themselves. Each tooltip names the connection instead,
+  which answers the doubt at the moment a button is being aimed at. Which
+  connection is read is still `activeConnectorId`, derived from the layout tree
+  rather than kept beside it; nothing is stored.
 - **Whether a command applies is the source's own answer**, never a branch on
   the adapter type (D62). Copying a database out is the example: a driver that
   can name a program to dump it declares the capability, and one that cannot

@@ -766,20 +766,22 @@ test("the bar at the foot offers what the open connection can do", async ({ page
 
   // Nothing is being read, so there is nothing for a command of a connection
   // to be about — but the library is a person's own and opens all the same.
-  await expect(bar).toContainText("No connection open")
   await expect(queries).toBeEnabled()
   await expect(page.getByTestId("command-backups")).toBeDisabled()
 
-  // A source that runs queries offers the commands, and the bar says which
-  // connection they are about (D69).
+  // A source that runs queries offers the commands. The bar does not repeat
+  // which connection they are about — the column and the tab both say it —
+  // and each tooltip names it (D69).
   await openConnector(page, sql)
-  await expect(bar).toContainText(sql)
+  await expect(bar).not.toContainText(sql)
   await expect(queries).toBeEnabled()
+  await queries.hover()
+  await expect(page.getByText(`Queries written against ${sql}`)).toBeVisible()
 
   // A source that does not is what the greying out is for: the bar keeps its
   // shape as somebody walks about, and the library stays reachable.
   await openConnector(page, files)
-  await expect(bar).toContainText(files)
+  await expect(bar).not.toContainText(files)
   await expect(page.getByTestId("command-backups")).toBeDisabled()
   await expect(queries).toBeEnabled()
 

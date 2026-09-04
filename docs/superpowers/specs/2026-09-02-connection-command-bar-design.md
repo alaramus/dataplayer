@@ -27,6 +27,9 @@ The bar lists commands of the connection being read. One rule, in one place:
   walks about, which is a bar they have to read every time;
 - the bar also says which connection the commands are about. A row of buttons
   whose subject is somewhere else on the screen is a row nobody trusts.
+  *(Withdrawn afterwards: the column of connections and the tab of the catalog
+  both say it already, and the tooltips of the commands name the connection, so
+  the label was only taking room from the buttons. See D69.)*
 
 `features/workspace/commands.ts` is that rule as plain functions, so it can be
 read and tested without mounting anything. `CommandBar.vue` renders it into
