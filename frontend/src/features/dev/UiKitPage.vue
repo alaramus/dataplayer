@@ -46,6 +46,8 @@ const MENU_ITEMS: MenuItem[] = [
   { name: "delete", label: "Delete", icon: "delete", danger: true },
 ]
 const menuOpen = ref(false)
+const savedHistoryOpen = ref(false)
+const searchText = ref("")
 const savedEntries = ref<MenuItem[]>([
   { name: "pg_class", label: "pg_class", removeLabel: "Remove pg_class from history" },
   { name: "notes", label: "notes", removeLabel: "Remove notes from history" },
@@ -112,6 +114,11 @@ function flash() {
   window.setTimeout(() => {
     loading.value = false
   }, 1200)
+}
+
+function removeSavedEntry(name: string) {
+  savedEntries.value = savedEntries.value.filter((item) => item.name !== name)
+  if (savedEntries.value.length === 0) savedHistoryOpen.value = false
 }
 </script>
 
@@ -216,18 +223,6 @@ function flash() {
               @select="toast.success(`chose ${$event}`)"
             />
           </AppButton>
-          <AppButton
-            variant="secondary"
-            label="Saved searches"
-            icon="history"
-            :disable="savedEntries.length === 0"
-          >
-            <AppMenu
-              :items="savedEntries"
-              @select="toast.success(`chose ${$event}`)"
-              @remove="savedEntries = savedEntries.filter((item) => item.name !== $event)"
-            />
-          </AppButton>
           <span class="text-caption text-grey">
             hover for tooltips
             <AppTooltip>A tooltip attaches to whatever contains it.</AppTooltip>
@@ -301,10 +296,28 @@ function flash() {
           placeholder="Leave unchanged"
         />
         <AppInput
-          v-model="text"
+          v-model="searchText"
           clearable
           placeholder="Search"
+          autocomplete="off"
+          @focus="savedHistoryOpen = savedEntries.length > 0"
+          @click="savedHistoryOpen = savedEntries.length > 0"
+          @blur="savedHistoryOpen = false"
+          @keydown.esc="savedHistoryOpen = false"
+          @keydown.tab="savedHistoryOpen = false"
+          @keyup.enter="savedHistoryOpen = false"
         >
+          <AppMenu
+            v-model="savedHistoryOpen"
+            :items="savedEntries"
+            no-parent-event
+            no-focus
+            no-refocus
+            fit
+            @mousedown.prevent
+            @select="searchText = $event"
+            @remove="removeSavedEntry"
+          />
           <template #prepend>
             <q-icon name="search" />
           </template>

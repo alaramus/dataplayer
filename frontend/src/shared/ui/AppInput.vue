@@ -80,6 +80,8 @@ function report(value: string | number | null) {
     @focus="emit('focus')"
     @blur="emit('blur')"
   >
+    <!-- Popups belong to the whole field, not to its trailing action area. -->
+    <slot />
     <!-- Forwarded rather than left to fall through: a slot does not fall
          through at all, so a search field had no way to carry its magnifier
          except by going around the kit. -->

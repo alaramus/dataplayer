@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue"
+import { computed, nextTick, onDeactivated, ref, useId, watch } from "vue"
 
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
@@ -23,12 +23,10 @@ import { messageOf, statusOf } from "@/shared/api/errors"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import {
   AppBanner,
-  AppButton,
   AppIconButton,
   AppInput,
   AppMenu,
   AppSelect,
-  AppTooltip,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -55,6 +53,7 @@ const history = useSearchHistory(
   level.filter
 )
 const historyOpen = ref(false)
+const historyId = useId()
 const historyItems = computed(() =>
   history.entries.value.map((query) => ({
     name: query,
@@ -65,6 +64,19 @@ const historyItems = computed(() =>
 watch(history.entries, (entries) => {
   if (entries.length === 0) historyOpen.value = false
 })
+onDeactivated(() => { historyOpen.value = false })
+
+function showHistory() {
+  historyOpen.value = history.entries.value.length > 0
+}
+
+function leaveFilter() {
+  history.remember()
+  // Keyboard users may move from the field into the popup's removal buttons.
+  if (!document.getElementById(historyId)?.contains(document.activeElement)) {
+    historyOpen.value = false
+  }
+}
 
 function selectHistory(query: string) {
   level.clearSearch()
@@ -442,6 +454,7 @@ const foundText = computed(() => {
  * its files simply never sees the difference.
  */
 async function runSearch(event?: MouseEvent | KeyboardEvent) {
+  historyOpen.value = false
   history.remember(true)
   if (!canRunSearch.value) return
   const scope: SearchScope =
@@ -679,32 +692,38 @@ async function afterAction(outcome: ActionOutcome) {
         :placeholder="canSearch ? 'Filter, or search below' : 'Filter'"
         compact
         clearable
+        autocomplete="off"
+        aria-label="Filter catalog"
+        aria-haspopup="menu"
+        :aria-controls="historyOpen ? historyId : undefined"
         data-testid="catalog-filter"
-        @blur="history.remember()"
+        @focus="showHistory"
+        @click="showHistory"
+        @blur="leaveFilter"
+        @keydown.esc="historyOpen = false"
+        @keydown.tab="historyOpen = false"
         @keyup.enter="runSearch"
       >
-        <template #after>
-          <AppButton
-            variant="quiet"
-            size="sm"
-            icon="history"
-            aria-label="Search history"
-            aria-haspopup="menu"
-            :aria-expanded="historyOpen"
-            :disable="history.entries.value.length === 0 && level.filter.value.trim() === ''"
-            data-testid="catalog-search-history"
-            @click="history.remember()"
-          >
-            <AppTooltip>Search history</AppTooltip>
-            <AppMenu
-              v-model="historyOpen"
-              :items="historyItems"
-              @select="selectHistory"
-              @remove="history.remove"
-            />
-          </AppButton>
+        <AppMenu
+          :id="historyId"
+          v-model="historyOpen"
+          :items="historyItems"
+          no-parent-event
+          no-focus
+          no-refocus
+          fit
+          anchor="bottom left"
+          self="top left"
+          data-testid="catalog-search-history"
+          @mousedown.prevent
+          @select="selectHistory"
+          @remove="history.remove"
+        />
+        <template
+          v-if="canRunSearch"
+          #after
+        >
           <AppIconButton
-            v-if="canRunSearch"
             icon="search"
             :tooltip="searchTooltip"
             :loading="level.searching.value"

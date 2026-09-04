@@ -633,7 +633,7 @@ test("finds a file by name anywhere below a folder", async ({ page }) => {
 
   // History restores the text as a filter without starting another recursive search.
   await filter.fill("")
-  await page.getByTestId("catalog-search-history").click()
+  await filter.click()
   await page.getByTestId("menu-item-q3").click()
   await expect(filter).toHaveValue("q3")
   await expect(page.getByTestId("catalog-search-summary")).toHaveCount(0)

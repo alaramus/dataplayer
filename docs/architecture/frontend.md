@@ -330,9 +330,11 @@ The catalog's filter and search field keeps the ten most recent distinct,
 non-empty queries per account and connector in this browser's local storage.
 Enter, a search, or leaving an edited field remembers its trimmed text; merely
 typing does not add partial queries. Reusing a query moves it to the front.
-The history button offers the saved text with a removal cross beside each
-entry. Selecting one returns to the current level and applies the text as a
-filter; recursive and content searches still require their usual explicit
+Focusing or clicking the field opens the saved text directly below it, with a
+removal cross beside each entry. The popup leaves keyboard focus in the field
+so typing can continue; Escape, Tab, or clicking outside closes it. An empty
+history shows no popup. Selecting one returns to the current level and applies
+the text as a filter; recursive and content searches still require their usual explicit
 gesture. Removing an entry leaves the current filter alone and does not
 restore it on blur unless the text is edited again. History stays local to
 the session if browser storage cannot be written.
