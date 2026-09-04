@@ -131,7 +131,7 @@ test("streams every matching row into a CSV download", async ({ page }) => {
 
   expect(download.suggestedFilename()).toMatch(/^projects-.*\.csv$/)
   await expect(
-    page.locator(".q-notification", { hasText: "rows exported" })
+    page.locator(".q-notification", { hasText: "rows downloaded" })
   ).toBeVisible()
 
   await deleteConnector(page, name)
