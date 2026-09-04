@@ -264,7 +264,7 @@ async def test_a_workbook_cannot_be_edited_as_a_document(root: Path) -> None:
     """Its bytes are a zip; the editor is for a document, not a container."""
     content = FileContent(FileSession(root))
 
-    with pytest.raises(ValueError, match="does not offer source editing"):
+    with pytest.raises(ValueError, match="no text to show"):
         await content.read_editor_content(EditorContentRequest(node_id="budget.xlsx"))
 
 

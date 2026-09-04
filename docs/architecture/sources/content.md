@@ -46,6 +46,14 @@ leaf has rows.
   new one is an entry in `file/logs.py` and nothing else. Lines of JSON objects
   are records and go to the projection above; a file that fits no shape is read
   as the numbered lines it is. Only `.log`: a `.txt` is as likely to be a note.
+- **What has text to show is read off what the format offers**, rather than
+  listed a second time beside it. The editor route used to hold its own set of
+  editable formats, and the two drifted the moment `.log` arrived: a log's
+  first representation is text, and opening it answered that the file offered
+  no source editing while its table worked. A format offering any
+  representation the editor serves — text, JSON, JSON lines, Markdown — has
+  text to show; whether that text may also be written back stays a question
+  about the document rather than the format, answered by `writable`.
 
 Known deviations:
 

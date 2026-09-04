@@ -45,6 +45,7 @@ from app.adapters.file import archive
 from app.adapters.file.binary import looks_binary
 from app.adapters.file.formats import (
     format_of,
+    offers_source,
     representations_inside_archive,
     representations_of,
 )
@@ -602,12 +603,20 @@ def _byte_prefix(path: Path, ceiling: int) -> tuple[bytes, bool]:
 
 
 def _require_editable_file(path: Path, node_id: str, name: str | None = None) -> None:
+    """That this node has text to show at all.
+
+    Asked of the representations the format declares rather than of a list
+    kept beside them: the two were separate, and they drifted the moment a log
+    became a thing this source could open. Whether the text may also be
+    written back is a different question, answered per document by
+    `writable` — a file too large or not valid UTF-8 is still shown.
+    """
     if not path.exists():
         raise ValueError(f"No such file: {node_id}")
     if path.is_dir():
         raise ValueError(f"A directory has no source editor: {node_id}")
-    if format_of(name or path.name) not in {"text", "markdown", "json", "jsonl"}:
-        raise ValueError("This file does not offer source editing")
+    if not offers_source(name or path.name):
+        raise ValueError("This file has no text to show")
     if looks_binary(path):
         raise ValueError("This file contains binary data and cannot be edited as text")
 

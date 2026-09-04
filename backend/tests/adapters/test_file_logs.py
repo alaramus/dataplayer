@@ -8,9 +8,12 @@ from pathlib import Path
 
 import pytest
 
+from app.adapters.content import EditorContentRequest
 from app.adapters.file import logs
-from app.adapters.file.formats import format_of, representations_of
+from app.adapters.file.content import FileContent
+from app.adapters.file.formats import format_of, offers_source, representations_of
 from app.adapters.file.readers import LogReader
+from app.adapters.file.session import FileSession
 
 POSTGRES = (
     "2026-09-03 12:00:00.123 UTC [42] LOG:  database system is ready\n"
@@ -48,6 +51,32 @@ def test_a_log_is_read_as_text_and_offered_as_a_table() -> None:
     assert [one.kind for one in representations_of("server.log")] == ["text", "table"]
     # A .txt keeps the one it had: it is as likely to be a note as a log.
     assert [one.kind for one in representations_of("notes.txt")] == ["text"]
+
+
+async def test_the_text_a_log_offers_is_text_it_will_actually_show(
+    tmp_path: Path,
+) -> None:
+    """The two lists were separate, and they drifted the moment a log arrived:
+    its first representation was text, and opening it answered that the file
+    offered no source editing while its table worked."""
+    _log(tmp_path, POSTGRES)
+    content = FileContent(FileSession(tmp_path))
+
+    document = await content.read_editor_content(
+        EditorContentRequest(node_id="server.log")
+    )
+
+    assert document.text.startswith("2026-09-03 12:00:00.123 UTC")
+    assert document.writable is True
+
+
+def test_what_has_a_source_view_is_read_off_what_it_offers() -> None:
+    """One statement instead of two lists that can disagree."""
+    for named in ["server.log", "notes.txt", "readme.md", "a.json", "a.jsonl"]:
+        assert offers_source(named) is True, named
+    # A table and nothing else, or no viewer at all: neither has text to show.
+    for named in ["rows.csv", "budget.xlsx", "photo.png", "bundle.zip"]:
+        assert offers_source(named) is False, named
 
 
 @pytest.mark.parametrize(

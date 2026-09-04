@@ -187,6 +187,23 @@ def representations_of(name: str) -> list[NodeRepresentation]:
             return []
 
 
+# Which representations are the source of a document rather than a rendering
+# of it. Everything here is served by the one editor route, so a format that
+# offers any of them has text to show.
+SOURCE_KINDS: frozenset[str] = frozenset({"text", "json", "jsonl", "markdown"})
+
+
+def offers_source(name: str) -> bool:
+    """Whether this file can be shown as the text it is made of.
+
+    Derived from what the format offers rather than listed a second time. The
+    two used to be separate lists, and they drifted the moment `.log` was
+    added: a log's first representation is text, and opening it answered
+    "this file does not offer source editing" while its table worked.
+    """
+    return any(item.kind in SOURCE_KINDS for item in representations_of(name))
+
+
 def is_container(name: str) -> bool:
     """Whether this file holds nodes of its own, rather than one document.
 
