@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import type { Page } from "@playwright/test"
+import type { Locator, Page } from "@playwright/test"
 
 import { catalogAction, catalogCheck, catalogRow, openNode, pickSchema } from "./utils/catalog"
 import {
@@ -157,6 +157,82 @@ test("runs the statement under the caret, then the whole script", async ({ page 
   await page.getByTestId("run-messages-tab").click()
   await expect(page.getByTestId("run-messages")).toContainText("MISSING_OBJECT")
 
+  await deleteConnector(page, name)
+})
+
+test("keeps the editor and results visible when the query panel is narrowed", async ({ page }) => {
+  const name = `e2e-query-narrow-${Date.now()}`
+  await page.setViewportSize({ width: 1800, height: 900 })
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openQueries(page, name)
+  await page.getByTestId("new-query").click()
+
+  const frame = page.getByTestId("query-frame")
+  const editorPane = page.getByTestId("query-editor-pane")
+  const editor = editorPane.getByRole("textbox")
+  const results = page.getByTestId("query-results-pane")
+  const split = page.getByTestId("query-split")
+  const rectangle = async (locator: Locator) => {
+    const box = await locator.boundingBox()
+    if (box === null) throw new Error("The query panel element has no rectangle")
+    return box
+  }
+  const resizeWidth = async (width: number) => {
+    const before = await rectangle(frame)
+    const grip = await rectangle(page.getByTestId("workspace-separator").last())
+    const x = grip.x + grip.width / 2
+    const y = grip.y + grip.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + before.width - width, y, { steps: 10 })
+    await page.mouse.up()
+  }
+  const expectBothPanes = async () => {
+    await expect(editor).toBeVisible()
+    await expect(results.getByTestId("grid-cell-0-0")).toBeVisible()
+    await expect(split).toBeVisible()
+    const upper = await rectangle(editorPane)
+    const lower = await rectangle(results)
+    const bounds = await rectangle(frame)
+    expect(upper.height).toBeGreaterThan(100)
+    expect(lower.height).toBeGreaterThan(100)
+    expect(upper.y + upper.height).toBeLessThanOrEqual(lower.y)
+    expect(lower.y + lower.height).toBeLessThanOrEqual(bounds.y + bounds.height + 1)
+  }
+
+  await editor.fill("select 42 as answer")
+  await page.keyboard.press("ControlOrMeta+Enter")
+  await expect(results.getByTestId("grid-cell-0-0")).toHaveText("42")
+  const wide = await rectangle(frame)
+  expect(wide.width).toBeGreaterThan(640)
+  await expectBothPanes()
+
+  // A narrower column keeps the same vertical split and the live result.
+  await resizeWidth(400)
+  await expect.poll(async () => (await rectangle(frame)).width).toBeLessThan(640)
+  await expectBothPanes()
+
+  const before = await rectangle(editorPane)
+  const grip = await rectangle(split)
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(grip.x + grip.width / 2, grip.y - 70, { steps: 10 })
+  await page.mouse.up()
+  await expect.poll(async () => (await rectangle(editorPane)).height)
+    .toBeLessThan(before.height - 50)
+
+  // Running again at this width must not replace the editor with its output.
+  await editor.fill("select 43 as answer")
+  await page.keyboard.press("ControlOrMeta+Enter")
+  await expect(results.getByTestId("grid-cell-0-0")).toHaveText("43")
+  await expectBothPanes()
+  const resized = await rectangle(editorPane)
+
+  await resizeWidth(wide.width)
+  await expect.poll(async () => (await rectangle(frame)).width).toBeGreaterThan(640)
+  await expectBothPanes()
+  expect((await rectangle(editorPane)).height).toBeCloseTo(resized.height, 0)
   await deleteConnector(page, name)
 })
 

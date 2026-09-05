@@ -33,9 +33,8 @@ data exploration and development of complex read SQL. Administrative scripts
 and migrations are later, explicit modes with a different price of error.
 
 The editor is desktop-first and keyboard-first. It remains operable with a
-pointer and degrades to an Editor/Results switch when the workspace is too
-narrow for a split, but it does not pretend that completion, diagnostics and
-several result sets are a mobile-first interaction.
+pointer and keeps the editor above the results when the workspace narrows.
+Completion, diagnostics and several result sets remain desktop interactions.
 
 Phase 3 is not closed by a SELECT text box. It includes the complete read
 console, metadata intelligence and Explain, then DML transactions and a bounded
@@ -222,8 +221,8 @@ canonical boundary, source type description and lossless null distinction.
 The panel is editor over results, initially 60/40. Each side can fill the panel
 and the split is remembered per document. The permanent toolbar shows document
 and save state, connector/database/schema, execution policy, transaction mode,
-Run or Cancel, elapsed time and layout controls. Narrow space becomes an
-Editor/Results switch without destroying either side.
+Run or Cancel, elapsed time and layout controls. Narrowing the panel keeps both
+the editor and the results visible, with the same adjustable vertical split.
 
 During a new run the previous answer stays readable and is labelled previous.
 A successful answer replaces only an unpinned card; a failure opens its own

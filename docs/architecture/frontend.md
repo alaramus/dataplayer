@@ -356,8 +356,10 @@ Spec: [Markdown as a rendered document representation](../superpowers/specs/2026
 
 The catalog is a list of one level: a click opens what can be read and walks into
 what cannot, a tick box picks a node out without opening it, the way back is the
-first row, and the path above it starts at a home button and ends at a button
-that copies where we are. What it copies is the level's own id, which for a
+first row, and the path above it starts at a home button and ends at a compact
+copy button at the right edge. The copy button appears while the path is hovered
+or contains keyboard focus; its space stays reserved so the path does not move.
+What it copies is the level's own id, which for a
 file source is the path below the root: the trail is labels for a reader, and
 the id is the string that names the place. At the root there is nothing to
 copy — the root is the connection, and a client is never told where on the
@@ -373,6 +375,8 @@ a name and a count under a count. The exception is a report: its caption is the
 sentence the source wrote about what its statement answers, and in the shared
 column that sentence would set the column's width for every row in the list. So
 a report lays itself out and keeps its sentence beside its name.
+The scrolling list reserves a scrollbar gutter and a small trailing inset so
+its final column stays readable beside classic and overlay scrollbars.
 
 The icon of a row is also where its name is copied from: under the pointer, or
 while the button has focus, it gives way to a copy button of exactly its size.

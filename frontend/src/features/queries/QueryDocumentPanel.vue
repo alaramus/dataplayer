@@ -136,8 +136,6 @@ const forgetStale = useSchemaInvalidation()
 const AUTOSAVE_PAUSE = 800
 /** And before asking the source where the statements are. */
 const PREPARE_PAUSE = 400
-/** Below this the two halves would be two unusable slivers (D65). */
-const NARROW = 640
 
 const draft = ref<DraftState>({ body: "", title: null, wrap: false, split: 0.6 })
 const state = ref<SaveState>("saved")
@@ -160,8 +158,6 @@ const plan = ref<ExplainResult | null>(null)
  */
 const mode = ref<"read" | "auto_commit" | "manual">("read")
 const transactionId = ref<string | null>(null)
-const narrow = ref(false)
-const showing = ref<"editor" | "results">("editor")
 const frame = useTemplateRef<HTMLElement>("frame")
 
 let pending: ReturnType<typeof setTimeout> | null = null
@@ -171,7 +167,6 @@ let preparing: ReturnType<typeof setTimeout> | null = null
 // Run a moment after typing must not run yesterday's parse.
 let preparedFor: string | null = null
 let ticking: ReturnType<typeof setInterval> | null = null
-let observer: ResizeObserver | null = null
 let loadedId = ""
 
 const server = computed(() => document.data.value)
@@ -652,7 +647,6 @@ async function explain() {
         parameters: bindingsOf(parameters.value),
       },
     })
-    if (narrow.value) showing.value = "results"
   } catch (cause) {
     toast.error(messageOf(cause, "This statement could not be planned"))
   }
@@ -915,20 +909,12 @@ onMounted(() => {
   ticking = setInterval(() => {
     now.value = Date.now()
   }, 200)
-  const host = frame.value
-  if (host !== null && typeof ResizeObserver !== "undefined") {
-    observer = new ResizeObserver(([entry]) => {
-      narrow.value = (entry?.contentRect.width ?? NARROW) < NARROW
-    })
-    observer.observe(host)
-  }
 })
 
 onBeforeUnmount(() => {
   if (pending !== null) clearTimeout(pending)
   if (preparing !== null) clearTimeout(preparing)
   if (ticking !== null) clearInterval(ticking)
-  observer?.disconnect()
 })
 </script>
 
@@ -1148,27 +1134,6 @@ onBeforeUnmount(() => {
       @update:entries="parameters = $event"
     />
 
-    <div
-      v-if="narrow"
-      class="query-panel__switch"
-      data-testid="query-switch"
-    >
-      <AppButton
-        :variant="showing === 'editor' ? 'primary' : 'quiet'"
-        size="sm"
-        label="Editor"
-        data-testid="query-show-editor"
-        @click="showing = 'editor'"
-      />
-      <AppButton
-        :variant="showing === 'results' ? 'primary' : 'quiet'"
-        size="sm"
-        label="Results"
-        data-testid="query-show-results"
-        @click="showing = 'results'"
-      />
-    </div>
-
     <!-- A console nobody has kept has no document to wait for: it is the text
          in this tab, and it is ready the moment the tab is. -->
     <AppSpinner v-if="remembered && document.isPending.value" />
@@ -1176,13 +1141,12 @@ onBeforeUnmount(() => {
       v-else-if="!remembered || server !== undefined"
       ref="frame"
       class="query-panel__frame"
-      :class="{ 'query-panel__frame--narrow': narrow }"
       data-testid="query-frame"
     >
       <div
-        v-show="!narrow || showing === 'editor'"
         class="query-panel__editor"
-        :style="narrow ? undefined : { flex: `${draft.split} 1 0` }"
+        :style="{ flex: `${draft.split} 1 0` }"
+        data-testid="query-editor-pane"
       >
         <CodeEditor
           :model-value="draft.body"
@@ -1200,16 +1164,15 @@ onBeforeUnmount(() => {
       </div>
 
       <div
-        v-if="!narrow"
         class="query-panel__separator"
         data-testid="query-split"
         @pointerdown="startResize"
       />
 
       <div
-        v-show="!narrow || showing === 'results'"
         class="query-panel__results"
-        :style="narrow ? undefined : { flex: `${1 - draft.split} 1 0` }"
+        :style="{ flex: `${1 - draft.split} 1 0` }"
+        data-testid="query-results-pane"
       >
         <ExplainView
           v-if="plan !== null"
@@ -1278,13 +1241,8 @@ onBeforeUnmount(() => {
 }
 .query-panel__banner,
 .query-panel__parameters,
-.query-panel__mode,
-.query-panel__switch {
+.query-panel__mode {
   flex: none;
-}
-.query-panel__switch {
-  display: flex;
-  gap: 4px;
 }
 .query-panel__resolve {
   display: flex;
@@ -1310,16 +1268,6 @@ onBeforeUnmount(() => {
 }
 .query-panel__results {
   overflow: hidden;
-}
-/* Narrow: one half is hidden and the other is the whole frame.
-   The two halves are sized by the split only while both are drawn, so nothing
-   sizes the survivor once the split is gone — and a flex item left on its
-   `auto` basis is as tall as its own content, which for an editor of one empty
-   line is one empty line. Stated here rather than beside the split: it is a
-   rule about the narrow layout, not a number somebody drags (D65). */
-.query-panel__frame--narrow > .query-panel__editor,
-.query-panel__frame--narrow > .query-panel__results {
-  flex: 1 1 0;
 }
 .query-panel__code {
   flex: 1;

@@ -357,8 +357,8 @@ and persistence rules. Its top bar keeps title/save state, connector, database,
 schema context, transaction mode, execution policy, Run/Cancel, elapsed time and
 layout controls visible. The editor and result area start in a vertical 60/40
 split, resizable to either side; geometry and line wrapping persist per document.
-Below the useful width the two sides become an Editor/Results switch rather than
-two unusable slivers.
+The editor stays above the results at every panel width. Narrowing the panel
+keeps both visible and preserves the adjustable split.
 
 Run follows the IDE convention without importing an IDE shell: Ctrl+Enter runs
 the non-empty selection or statement under the caret, gutter Run names one

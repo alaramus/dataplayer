@@ -663,6 +663,7 @@ async function afterAction(outcome: ActionOutcome) {
                one control that takes it somewhere. -->
           <AppCopyButton
             class="catalog-panel__copy-path"
+            compact
             tooltip="Copy the path of this level"
             :disable="level.currentId.value === null"
             data-testid="catalog-copy-path"
@@ -962,6 +963,7 @@ async function afterAction(outcome: ActionOutcome) {
   display: flex;
   align-items: center;
   gap: 2px;
+  flex: 1;
   min-width: 0;
   overflow-x: auto;
   white-space: nowrap;
@@ -976,6 +978,16 @@ async function afterAction(outcome: ActionOutcome) {
 .catalog-panel__chevron,
 .catalog-panel__copy-path {
   flex: none;
+}
+/* Reserve the button's place so revealing it never shifts the path. Focusing
+   a breadcrumb also reveals it before the keyboard reaches the button. */
+.catalog-panel__copy-path {
+  margin-inline-end: 4px;
+  visibility: hidden;
+}
+.catalog-panel__crumbs:hover .catalog-panel__copy-path,
+.catalog-panel__crumbs:focus-within .catalog-panel__copy-path {
+  visibility: visible;
 }
 .catalog-panel__crumb {
   cursor: pointer;

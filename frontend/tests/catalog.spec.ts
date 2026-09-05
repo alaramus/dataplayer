@@ -54,6 +54,45 @@ test("browses a database as a list filtered by schema", async ({ page }) => {
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("keeps the catalog's measured column clear of its scrollbar", async ({ page }) => {
+  const name = `e2e-catalog-scrollbar-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "pg_catalog")
+
+  const list = page.getByTestId("catalog-list")
+  await expect(list).toContainText("pg_namespace")
+  // The system schema always has enough relations to exercise real scrolling.
+  await expect.poll(() => list.evaluate((element) => element.scrollHeight > element.clientHeight))
+    .toBe(true)
+
+  const countEdges: number[] = []
+  for (const label of ["pg_class", "pg_namespace"]) {
+    const row = catalogRow(page, label)
+    await row.scrollIntoViewIfNeeded()
+    const rowBox = await row.boundingBox()
+    if (rowBox === null) throw new Error(`${label} has no catalog row box`)
+    const viewportRight = await list.evaluate((element) =>
+      element.getBoundingClientRect().left + element.clientLeft + element.clientWidth
+    )
+    // clientWidth excludes a classic scrollbar. The additional inset also
+    // protects the columns when the browser draws an overlay scrollbar.
+    expect(viewportRight - (rowBox.x + rowBox.width)).toBeGreaterThanOrEqual(11)
+
+    const count = row.getByText(/ rows$|^N\/A$/)
+    await expect(count).toBeVisible()
+    const countBox = await count.boundingBox()
+    if (countBox === null) throw new Error(`${label} has no row count box`)
+    expect(countBox.x + countBox.width).toBeLessThanOrEqual(rowBox.x + rowBox.width)
+    expect(await count.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    countEdges.push(countBox.x + countBox.width)
+  }
+  expect(Math.max(...countEdges) - Math.min(...countEdges)).toBeLessThan(1)
+
+  await deleteConnector(page, name)
+})
+
 test("says what a relation is, from the same line a file uses", async ({ page }) => {
   const name = `e2e-relation-details-${Date.now()}`
   await login(page)
