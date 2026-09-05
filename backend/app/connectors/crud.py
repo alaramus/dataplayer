@@ -37,6 +37,7 @@ async def create(
     owner_id: uuid.UUID,
     execution_policy: ExecutionPolicy = "confirm_writes",
     tab_color: str | None = None,
+    cache_ttl_seconds: int | None = None,
 ) -> Connector:
     connector = Connector(
         name=name,
@@ -46,6 +47,7 @@ async def create(
         owner_id=owner_id,
         execution_policy=execution_policy,
         tab_color=tab_color,
+        cache_ttl_seconds=cache_ttl_seconds,
     )
     session.add(connector)
     await session.commit()

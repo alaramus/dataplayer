@@ -131,3 +131,18 @@ async def test_reports_what_a_type_can_do(
     }
     assert "Upload files" in files
     assert "Delete" in files
+
+
+async def test_a_source_says_how_long_it_keeps_its_own_answers(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await client.get(f"{BASE}/", headers=normal_user_token_headers)
+
+    types = {item["name"]: item for item in response.json()}
+    # Read off the driver rather than listed, so a source that re-times itself
+    # says so here in the same commit. The form shows these numbers beside the
+    # field that would replace them (D105).
+    assert types["postgres"]["cache_windows"] == {"catalog": 30.0, "fetch": 10.0}
+    # Nothing rather than zeroes: a screen has to tell "kept for no time" from
+    # "never cached at all", because only the first is something to change.
+    assert types["file"]["cache_windows"] is None

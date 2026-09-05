@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.adapters import options, registry
+from app.adapters.cache import SourceCacheWindows
 from app.users.deps import get_current_user
 
 # Authentication is declared on the router: the handler itself does not use the
@@ -34,6 +35,11 @@ class AdapterTypeInfo(BaseModel):
     description: str
     # Derived from the driver, never listed — see registry.capabilities_of.
     capabilities: list[registry.Capability]
+    # How long this kind of source keeps its own answers, so the form that
+    # offers to re-time a connection can say what it would be changing, and
+    # say plainly when there is nothing to change. Null when the source keeps
+    # nothing at all (D105).
+    cache_windows: SourceCacheWindows | None
     options_schema: dict[str, Any]
 
 
@@ -52,6 +58,7 @@ async def read_adapter_types() -> Any:
             catalog_shape=adapter_type.catalog_shape,
             description=adapter_type.description,
             capabilities=registry.capabilities_of(adapter_type),
+            cache_windows=registry.cache_windows_of(adapter_type),
             options_schema=options.json_schema(adapter_type.options_schema),
         )
         for adapter_type in registry.all_types()

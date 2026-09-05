@@ -338,3 +338,34 @@ async def test_none_of_this_is_offered_to_somebody_without_the_connection(
     ]:
         response = await client.post(path, headers=stranger, json=body)
         assert response.status_code == 404, path
+
+
+async def test_a_connection_that_caches_nothing_still_completes_from_memory(
+    client: AsyncClient, db: AsyncSession
+) -> None:
+    headers = await _headers(client, db)
+    response = await client.post(
+        f"{CONNECTORS}/",
+        headers=headers,
+        json={
+            "name": f"pg no cache {uuid.uuid4()}",
+            "adapter_type": "postgres",
+            "options": working_postgres_options(),
+            "cache_ttl_seconds": 0,
+        },
+    )
+    assert response.status_code == 200, response.text
+    connector_id = str(response.json()["id"])
+
+    first = await client.post(
+        f"{BASE}/connectors/{connector_id}/metadata", headers=headers, json={}
+    )
+    again = await client.post(
+        f"{BASE}/connectors/{connector_id}/metadata", headers=headers, json={}
+    )
+
+    # The window belongs to the data somebody is looking at. What an editor
+    # completes against is a whole description of the database, and it keeps
+    # the source's own five minutes whatever the rows were told to do (D105).
+    assert first.headers["x-data-cache"] == "miss"
+    assert again.headers["x-data-cache"] == "hit"

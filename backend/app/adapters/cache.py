@@ -30,6 +30,11 @@ CacheStatus = Literal["hit", "miss", "coalesced", "refreshed", "bypass"]
 CacheBackendName = Literal["memory", "redis"]
 CacheHealthStatus = Literal["healthy", "degraded"]
 
+# The longest window a connection's owner may ask for. A day is far past any
+# staleness somebody browsing data would accept, and a ceiling means a typo of
+# one extra zero cannot pin a page there for a week (D105).
+MAX_CACHE_TTL_SECONDS = 86_400
+
 
 class CacheMeasurements(BaseModel):
     hits: int
@@ -99,9 +104,28 @@ class CacheMeter:
 
 @runtime_checkable
 class SupportsReadCache(Protocol):
-    """Opt-in policy owned by the source whose answers would be cached."""
+    """Opt-in policy owned by the source whose answers would be cached.
 
-    def cache_ttl(self, area: CacheArea) -> float: ...
+    A classmethod, because the answer belongs to the kind of source rather
+    than to one connection to it: the form that offers to re-time a
+    connection has to say what it would be re-timing, and at that moment
+    there is a chosen type and no adapter (D105).
+    """
+
+    @classmethod
+    def cache_ttl(cls, area: CacheArea) -> float: ...
+
+
+class SourceCacheWindows(BaseModel):
+    """Seconds a source type keeps each kind of answer its owner may re-time.
+
+    Only the areas a connection may speak for, because this exists to be shown
+    beside the field that speaks for them. What an editor completes against is
+    not offered and so is not described.
+    """
+
+    catalog: float
+    fetch: float
 
 
 @dataclass(frozen=True)
@@ -118,11 +142,16 @@ class CacheKey:
 class CacheResult[T]:
     value: T
     status: CacheStatus
+    # How long ago the source was actually read, in seconds. Zero whenever
+    # this call is the read, and the entry's age on a hit: what the caller
+    # wants to say is how old the data is, not when the cache was asked.
+    age_seconds: float = 0.0
 
 
 @dataclass
 class _Entry[T]:
     value: T
+    stored_at: float
     expires_at: float
     used_at: float
 
@@ -194,7 +223,9 @@ class MemoryDataCache:
             entry = self._entries.get(key)
             if entry is not None and not refresh:
                 entry.used_at = now
-                return self._result(cast(T, entry.value), "hit")
+                return self._result(
+                    cast(T, entry.value), "hit", age_seconds=now - entry.stored_at
+                )
 
             existing = self._flights.get(key)
             if existing is not None:
@@ -235,7 +266,10 @@ class MemoryDataCache:
                 self._flights.pop(key)
                 used_at = self._clock()
                 self._entries[key] = _Entry(
-                    value=value, expires_at=used_at + ttl_seconds, used_at=used_at
+                    value=value,
+                    stored_at=used_at,
+                    expires_at=used_at + ttl_seconds,
+                    used_at=used_at,
                 )
                 self._drop_overflow()
         return value
@@ -294,9 +328,11 @@ class MemoryDataCache:
             # ordinary awaiters still receive the same exception.
             task.exception()
 
-    def _result[T](self, value: T, status: CacheStatus) -> CacheResult[T]:
+    def _result[T](
+        self, value: T, status: CacheStatus, *, age_seconds: float = 0.0
+    ) -> CacheResult[T]:
         self.observe(status)
-        return CacheResult(value, status)
+        return CacheResult(value, status, age_seconds)
 
     def _drop_expired(self, now: float) -> None:
         for key in [
@@ -310,6 +346,42 @@ class MemoryDataCache:
             self._entries.pop(oldest)
 
 
+def connector_may_choose(area: CacheArea) -> bool:
+    """Whether a connection's own window replaces the source's for this area.
+
+    Catalog levels and pages of rows are what somebody is looking at, and how
+    stale that may be is a judgement about their data rather than about the
+    driver. What an editor completes against is not: it is the description of
+    a whole database, re-read as one unit, and tying it to a ten second window
+    would spend that description on every suggestion list (D105).
+    """
+    match area:
+        case "catalog" | "fetch":
+            return True
+        case "metadata":
+            return False
+        case unreachable:
+            assert_never(unreachable)
+
+
+def read_ttl(
+    adapter: DataAdapter, area: CacheArea, cache_ttl_seconds: int | None
+) -> float:
+    """How long an answer to this read may be kept, in seconds.
+
+    Two parties, and only one of them may say yes. The source decides whether
+    its answers may be cached at all, because it is the only one that knows
+    what its freshness rules are (D31); a connection whose source never opted
+    in is not made cacheable by a number typed into a form. Where the source
+    did opt in, its owner decides how long — zero for never (D105).
+    """
+    if not isinstance(adapter, SupportsReadCache):
+        return 0.0
+    if cache_ttl_seconds is not None and connector_may_choose(area):
+        return float(cache_ttl_seconds)
+    return adapter.cache_ttl(area)
+
+
 async def cached_read[T](
     *,
     data_cache: DataCache,
@@ -319,15 +391,12 @@ async def cached_read[T](
     response: Response,
     load: Callable[[], Awaitable[T]],
     cache_format: CacheFormat[T],
+    cache_ttl_seconds: int | None = None,
 ) -> T:
-    if not isinstance(adapter, SupportsReadCache):
-        data_cache.observe("bypass")
-        response.headers["X-Data-Cache"] = "bypass"
-        return await load()
-    ttl_seconds = adapter.cache_ttl(key.area)
+    ttl_seconds = read_ttl(adapter, key.area, cache_ttl_seconds)
     if ttl_seconds <= 0:
         data_cache.observe("bypass")
-        response.headers["X-Data-Cache"] = "bypass"
+        _report(response, "bypass", 0.0)
         return await load()
     cached = await data_cache.get_or_load(
         key,
@@ -336,8 +405,19 @@ async def cached_read[T](
         cache_format=cache_format,
         refresh=refresh,
     )
-    response.headers["X-Data-Cache"] = cached.status
+    _report(response, cached.status, cached.age_seconds)
     return cached.value
+
+
+def _report(response: Response, status: CacheStatus, age_seconds: float) -> None:
+    """Say where the answer came from and how old it is.
+
+    Age travels beside the outcome rather than being worked out by whoever
+    reads it: a screen knows when the answer reached it, and only the cache
+    knows how long it had been sitting there before that (D105).
+    """
+    response.headers["X-Data-Cache"] = status
+    response.headers["X-Data-Cache-Age"] = f"{max(age_seconds, 0.0):.3f}"
 
 
 def get_data_cache(request: Request) -> DataCache:

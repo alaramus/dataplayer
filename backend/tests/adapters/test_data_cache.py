@@ -1,10 +1,20 @@
 import asyncio
 import uuid
+from typing import get_args
 
 import pytest
 
-from app.adapters.cache import CacheKey, DataCache, MemoryDataCache
+from app.adapters.cache import (
+    CacheArea,
+    CacheKey,
+    DataCache,
+    MemoryDataCache,
+    SourceCacheWindows,
+    connector_may_choose,
+    read_ttl,
+)
 from app.adapters.cache_serialization import CacheFormat
+from app.adapters.protocol import ConnectionCheckResult
 
 TEXT_FORMAT: CacheFormat[str] = CacheFormat(str)
 
@@ -236,3 +246,88 @@ async def test_failed_load_is_not_cached() -> None:
 
 def test_memory_cache_implements_the_application_cache_protocol() -> None:
     assert isinstance(MemoryDataCache(max_entries=1), DataCache)
+
+
+class _Uncacheable:
+    """A source that never said its answers may be kept."""
+
+    async def check_connection(self) -> ConnectionCheckResult:
+        raise NotImplementedError
+
+
+class _Cacheable(_Uncacheable):
+    """A source with an opinion of its own, in the shape PostgreSQL has."""
+
+    @classmethod
+    def cache_ttl(cls, area: CacheArea) -> float:
+        if area == "metadata":
+            return 300.0
+        return 30.0 if area == "catalog" else 10.0
+
+
+def test_a_source_that_never_opted_in_is_not_cached_by_a_window() -> None:
+    # The number in the form says how long, not whether. A driver whose
+    # freshness rules nobody wrote down stays read directly (D31).
+    assert read_ttl(_Uncacheable(), "catalog", 600) == 0.0
+    assert read_ttl(_Uncacheable(), "fetch", None) == 0.0
+
+
+def test_a_connector_window_replaces_the_source_window_for_what_it_shows() -> None:
+    source = _Cacheable()
+
+    assert read_ttl(source, "catalog", 600) == 600.0
+    assert read_ttl(source, "fetch", 600) == 600.0
+    # Nothing chosen is the source's own answer, which is what every
+    # connection made before the column existed still means.
+    assert read_ttl(source, "catalog", None) == 30.0
+    assert read_ttl(source, "fetch", None) == 10.0
+
+
+def test_a_connector_window_does_not_reach_editor_metadata() -> None:
+    # A whole description of the database, re-read as one unit. Tying it to
+    # the window somebody chose for their rows would spend that description
+    # on every suggestion list (D105).
+    assert read_ttl(_Cacheable(), "metadata", 5) == 300.0
+    assert connector_may_choose("metadata") is False
+
+
+def test_a_window_of_zero_turns_this_connection_off() -> None:
+    assert read_ttl(_Cacheable(), "fetch", 0) == 0.0
+
+
+async def test_a_hit_reports_how_long_ago_the_source_was_read() -> None:
+    now = [100.0]
+    cache = MemoryDataCache(max_entries=8, clock=lambda: now[0])
+    cache_key = key()
+
+    stored = await cache.get_or_load(
+        cache_key,
+        ttl_seconds=60.0,
+        load=lambda: asyncio.sleep(0, result="value"),
+        cache_format=TEXT_FORMAT,
+    )
+    now[0] = 142.0
+    reused = await cache.get_or_load(
+        cache_key,
+        ttl_seconds=60.0,
+        load=lambda: asyncio.sleep(0, result="unread"),
+        cache_format=TEXT_FORMAT,
+    )
+
+    # The read itself is not old. The entry is exactly as old as the time
+    # between the two calls, whoever asked and however often.
+    assert stored.age_seconds == 0.0
+    assert reused.status == "hit"
+    assert reused.age_seconds == 42.0
+
+
+def test_the_windows_a_source_publishes_are_the_ones_it_may_be_re_timed_for() -> None:
+    # The form shows these beside the field that replaces them, so the two
+    # sets are the same set. A fourth overridable area fails here rather than
+    # being offered without ever being described.
+    described = set(SourceCacheWindows.model_fields)
+    overridable = {
+        area for area in get_args(CacheArea) if connector_may_choose(area)
+    }
+
+    assert described == overridable

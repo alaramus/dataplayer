@@ -13,6 +13,7 @@ function adapterType(overrides: Partial<AdapterTypeInfo> = {}): AdapterTypeInfo 
     category_title: "SQL Databases",
     description: "Relational database.",
     capabilities: [{ group: "explore", title: "Browse the catalog" }],
+    cache_windows: { catalog: 30, fetch: 10 },
     options_schema: {},
     ...overrides,
   }

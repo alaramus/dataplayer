@@ -3,6 +3,8 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
+import { freshnessOf } from "@/shared/freshness/freshness"
+import type { Freshness } from "@/shared/freshness/freshness"
 import type {
   CreateRelationFromSourceRequest,
   DeleteRowsRequest,
@@ -21,20 +23,35 @@ import type {
 export const rowsKey = (connectorId: string, request: FetchRequest) =>
   ["rows", connectorId, request] as const
 
+/**
+ * A page, and whether it was read or remembered.
+ *
+ * The two travel together because they are one answer. Kept in a map beside
+ * the query cache, the freshness would be a second cache with its own
+ * eviction, and the pair would come apart the first time vue-query dropped a
+ * page this map still had an opinion about (D105).
+ */
+export interface RowsPage {
+  page: FetchResult
+  freshness: Freshness
+}
+
 export async function fetchRowsPage(
   connectorId: string,
   request: FetchRequest,
   signal: AbortSignal,
   refresh = false
-): Promise<FetchResult> {
-  return (
-    await ConnectorsService.fetchRows({
-      path: { connector_id: connectorId },
-      query: refresh ? { refresh: true } : {},
-      body: request,
-      signal,
-    })
-  ).data
+): Promise<RowsPage> {
+  const response = await ConnectorsService.fetchRows({
+    path: { connector_id: connectorId },
+    query: refresh ? { refresh: true } : {},
+    body: request,
+    signal,
+  })
+  return {
+    page: response.data,
+    freshness: freshnessOf(response.headers as Record<string, unknown>),
+  }
 }
 
 export function useRowsPage(

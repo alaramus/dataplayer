@@ -195,7 +195,8 @@ class PostgresAdapter:
     async def generate_query(self, request: GenerateQueryRequest) -> GeneratedQuery:
         return await self._generation.generate(request)
 
-    def cache_ttl(self, area: CacheArea) -> float:
+    @classmethod
+    def cache_ttl(cls, area: CacheArea) -> float:
         """A short stale window for reads whose source is under our control.
 
         What an editor completes against is worth keeping far longer than a

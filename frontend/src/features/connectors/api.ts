@@ -1,7 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/vue-query"
+import { computed } from "vue"
+import type { Ref } from "vue"
 
 import { AdaptersService, ConnectorsService } from "@/client"
-import type { ConnectorCreate, ConnectorsPublic, ConnectorUpdate } from "@/client"
+import type {
+  AdapterTypeInfo,
+  ConnectorCreate,
+  ConnectorsPublic,
+  ConnectorUpdate,
+} from "@/client"
 
 export const connectorsKey = ["connectors"] as const
 export const adapterTypesKey = ["adapter-types"] as const
@@ -43,6 +50,74 @@ export function connectorColorOf(
 ): string | null {
   if (connectorId === null) return null
   return connectors?.data.find((one) => one.id === connectorId)?.tab_color ?? null
+}
+
+/**
+ * How long this connection keeps an answer, or nothing when its owner left
+ * that to the source.
+ *
+ * Read out of the list by id, beside the name and the colour and for the same
+ * reason: a window changed while a grid is open has to reach that grid, and a
+ * copy taken when the panel opened would not (D105).
+ */
+export function connectorCacheWindowOf(
+  connectors: ConnectorsPublic | undefined,
+  connectorId: string | null
+): number | null {
+  if (connectorId === null) return null
+  return (
+    connectors?.data.find((one) => one.id === connectorId)?.cache_ttl_seconds ?? null
+  )
+}
+
+/**
+ * Whether an answer from this connection could ever be older than the read.
+ *
+ * Two ways for it to be no, and a screen has to respect both: a source that
+ * never opted into caching keeps nothing whatever its owner typed, and an
+ * owner who chose to keep nothing means it. Where the answer is no, the badge
+ * saying how old the data is has nothing to report and is not drawn — a
+ * permanent "Live" beside a source that is always live is noise that reads
+ * like a promise about a cache there is not (D105).
+ *
+ * Unknown counts as no. The lists arrive a moment after the panel, and a badge
+ * that appears is easier to read than one that appears and goes away.
+ */
+export function connectionKeepsAnswers(
+  connectors: ConnectorsPublic | undefined,
+  adapterTypes: AdapterTypeInfo[] | undefined,
+  connectorId: string | null
+): boolean {
+  if (connectorId === null) return false
+  const connector = connectors?.data.find((one) => one.id === connectorId)
+  if (connector === undefined || connector.cache_ttl_seconds === 0) return false
+  const adapterType = adapterTypes?.find(
+    (one) => one.name === connector.adapter_type
+  )
+  return adapterType?.cache_windows != null
+}
+
+/**
+ * What a screen showing data needs to know about how old it may be.
+ *
+ * One call rather than two queries and two lookups in every panel: whether
+ * there is anything to say, and the window to say it against.
+ */
+export function useConnectionFreshness(connectorId: Ref<string>) {
+  const connectors = useConnectors()
+  const adapterTypes = useAdapterTypes()
+  return {
+    keepsAnswers: computed(() =>
+      connectionKeepsAnswers(
+        connectors.data.value,
+        adapterTypes.data.value,
+        connectorId.value
+      )
+    ),
+    cacheWindow: computed(() =>
+      connectorCacheWindowOf(connectors.data.value, connectorId.value)
+    ),
+  }
 }
 
 export function useAdapterTypes() {

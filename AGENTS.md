@@ -167,6 +167,7 @@ files. IDs are stable because specs and commits refer to them.
 | D102 | [sources/connecting](docs/architecture/sources/connecting.md) |
 | D103 | [sources/connecting](docs/architecture/sources/connecting.md) |
 | D104 | [sources/connecting](docs/architecture/sources/connecting.md) |
+| D105 | [sources/connecting](docs/architecture/sources/connecting.md) |
 
 ## Working rules
 

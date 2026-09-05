@@ -11,6 +11,8 @@ import type { ListNode } from "@/features/catalog/nodes"
 import { foundNodes } from "@/features/catalog/search"
 import type { FoundNodes } from "@/features/catalog/search"
 import { messageOf } from "@/shared/api/errors"
+import type { CatalogPage } from "@/features/catalog/api"
+import type { Freshness } from "@/shared/freshness/freshness"
 
 export type { Crumb } from "@/features/catalog/location"
 
@@ -44,6 +46,14 @@ export interface CatalogLevel {
   checked: Ref<string[]>
   checkedNodes: ComputedRef<ListNode[]>
   allChecked: ComputedRef<boolean>
+  /**
+   * How old what is listed is, or nothing before anything was read.
+   *
+   * One answer for a list built from several reads — the level and every
+   * ticked grouping — and it is the oldest of them, because a list is only as
+   * fresh as the stalest thing in it (D105).
+   */
+  freshness: Ref<Freshness | undefined>
   loading: Ref<boolean>
   error: Ref<string>
   load: () => Promise<void>
@@ -94,6 +104,10 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
   const error = ref("")
   const found = ref<FoundNodes | null>(null)
   const searching = ref(false)
+  const freshness = ref<Freshness | undefined>(undefined)
+  // What the list on screen is made of, level first. Not reactive: it is the
+  // working note `freshness` is computed from, and only the answer is watched.
+  let readings: Freshness[] = []
 
   const currentId = computed(() => path.value[path.value.length - 1]?.id ?? null)
 
@@ -136,7 +150,17 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     group?: string,
     refresh = false
   ): Promise<ListNode[]> {
-    return toListNodes(await loadChildren(connectorId.value, nodeId, refresh), group)
+    const page: CatalogPage = await loadChildren(connectorId.value, nodeId, refresh)
+    readings.push(page.freshness)
+    return toListNodes(page.nodes, group)
+  }
+
+  function oldestReading(): Freshness | undefined {
+    return readings.reduce<Freshness | undefined>(
+      (oldest, one) =>
+        oldest === undefined || one.readAt < oldest.readAt ? one : oldest,
+      undefined
+    )
   }
 
   async function forget(nodeId: string | null) {
@@ -151,12 +175,17 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
    * whose level holds both keeps both. Nothing does today.
    */
   async function fillRows(refresh = false) {
+    // The level's own reading is the first and stays; the groupings' are
+    // rebuilt every time they are ticked, so one switched off stops counting
+    // towards how old this list is.
+    readings = readings.slice(0, 1)
     const grouped: ListNode[] = []
     for (const group of groups.value) {
       if (!selectedGroups.value.includes(group.id)) continue
       grouped.push(...(await childrenOf(group.id, group.label, refresh)))
     }
     rows.value = [...plain.value, ...grouped]
+    freshness.value = oldestReading()
   }
 
 /**
@@ -205,6 +234,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     found.value = null
     error.value = ""
     loading.value = true
+    readings = []
     try {
       const children = await childrenOf(nodeId, undefined, refresh)
       groups.value = groupsOf(children)
@@ -217,6 +247,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
       selectedGroups.value = []
       plain.value = []
       rows.value = []
+      freshness.value = undefined
     } finally {
       loading.value = false
     }
@@ -378,6 +409,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     checked,
     checkedNodes,
     allChecked,
+    freshness,
     loading,
     error,
     load,

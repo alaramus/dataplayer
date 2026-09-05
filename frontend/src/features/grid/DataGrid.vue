@@ -22,6 +22,8 @@ import type {
   Sort,
 } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import FreshnessBadge from "@/shared/freshness/FreshnessBadge.vue"
+import { useConnectionFreshness } from "@/features/connectors/api"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { readText } from "@/shared/clipboard"
 import {
@@ -191,7 +193,14 @@ async function refreshRows() {
     refreshNext.value = false
   }
 }
-const result = computed(() => rowsQuery.data.value)
+const result = computed(() => rowsQuery.data.value?.page)
+// Where this page came from, and how long this connection may keep one. Both
+// belong to the badge above the grid, which is the only thing on the screen
+// that can say the rows are older than they look (D105).
+const freshness = computed(() => rowsQuery.data.value?.freshness)
+const { keepsAnswers, cacheWindow } = useConnectionFreshness(
+  toRef(props, "connectorId")
+)
 const rows = computed(() =>
   result.value === undefined || rowsQuery.isError.value
     ? []
@@ -1144,6 +1153,14 @@ defineExpose({
         requestPaste,
       }"
     >
+      <FreshnessBadge
+        v-if="keepsAnswers"
+        :freshness="freshness"
+        :cache-ttl-seconds="cacheWindow"
+        :loading="rowsQuery.isFetching.value"
+        testid="grid-freshness"
+        @reload="refreshRows"
+      />
       <AutoRefreshButton
         v-if="result !== undefined"
         :seconds="refreshSeconds"

@@ -846,6 +846,7 @@ export type {
   SnapshotSort,
   SnapshotView,
   Sort,
+  SourceCacheWindows,
   SqlContent,
   StatementPublic,
   TableNode,

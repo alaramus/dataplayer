@@ -1,11 +1,16 @@
 import { QueryClient } from "@tanstack/vue-query"
 import { describe, expect, it } from "vitest"
 
-import type { ConnectorsPublic } from "@/client"
+import type { AdapterTypeInfo, ConnectorsPublic } from "@/client"
 import { grantsKey } from "@/features/connectors/grants"
 import { unlockKey } from "@/features/queries/runs"
 
-import { connectorColorOf, connectorNameOf, connectorsKey } from "./api"
+import {
+  connectionKeepsAnswers,
+  connectorColorOf,
+  connectorNameOf,
+  connectorsKey,
+} from "./api"
 
 const list = (name: string): ConnectorsPublic => ({
   count: 1,
@@ -57,5 +62,52 @@ describe("what a change to a connection invalidates", () => {
 
     expect(client.getQueryState(unlockKey("c1"))?.isInvalidated).toBe(true)
     expect(client.getQueryState(grantsKey("c1"))?.isInvalidated).toBe(true)
+  })
+})
+
+
+const adapterType = (
+  overrides: Partial<AdapterTypeInfo> = {}
+): AdapterTypeInfo => ({
+  name: "postgres",
+  title: "PostgreSQL",
+  category: "sql",
+  category_title: "SQL Databases",
+  catalog_shape: "levels",
+  description: "Relational database.",
+  capabilities: [],
+  cache_windows: { catalog: 30, fetch: 10 },
+  options_schema: {},
+  ...overrides,
+})
+
+const TYPES = [adapterType(), adapterType({ name: "file", cache_windows: null })]
+
+describe("whether an answer from a connection could be older than the read", () => {
+  it("is yes for a source that caches and a connection that did not refuse", () => {
+    expect(connectionKeepsAnswers(list("kept"), TYPES, "c1")).toBe(true)
+  })
+
+  it("is no for a source that never opted into caching", () => {
+    // A file source is read live whatever its owner typed into the form, so a
+    // badge over it would promise a cache that is not there (D105).
+    const files = list("files")
+    files.data[0]!.adapter_type = "file"
+    expect(connectionKeepsAnswers(files, TYPES, "c1")).toBe(false)
+  })
+
+  it("is no for an owner who chose to keep nothing", () => {
+    const live = list("live")
+    live.data[0]!.cache_ttl_seconds = 0
+    expect(connectionKeepsAnswers(live, TYPES, "c1")).toBe(false)
+  })
+
+  it("is no while the lists have not arrived, and for a connection that is gone", () => {
+    // A badge that appears late is easier to read than one that appears and
+    // then goes away.
+    expect(connectionKeepsAnswers(undefined, TYPES, "c1")).toBe(false)
+    expect(connectionKeepsAnswers(list("kept"), undefined, "c1")).toBe(false)
+    expect(connectionKeepsAnswers(list("kept"), TYPES, "c2")).toBe(false)
+    expect(connectionKeepsAnswers(list("kept"), TYPES, null)).toBe(false)
   })
 })

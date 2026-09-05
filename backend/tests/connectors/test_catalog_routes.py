@@ -370,3 +370,99 @@ async def test_a_source_that_cannot_walk_back_answers_501(
 
     assert response.status_code == 501
     assert "where a node lives" in response.json()["detail"]["message"]
+
+
+async def _create_with_window(
+    client: AsyncClient, headers: dict[str, str], name: str, seconds: int | None
+) -> str:
+    response = await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={
+            "name": name,
+            "adapter_type": "postgres",
+            "options": working_postgres_options(),
+            "cache_ttl_seconds": seconds,
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["cache_ttl_seconds"] == seconds
+    return str(response.json()["id"])
+
+
+async def test_a_connection_told_to_keep_nothing_reads_the_source_every_time(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    headers = normal_user_token_headers
+    connector_id = await _create_with_window(
+        client, headers, f"catalog no cache {uuid.uuid4()}", 0
+    )
+
+    first = await client.get(f"{BASE}/{connector_id}/catalog", headers=headers)
+    second = await client.get(f"{BASE}/{connector_id}/catalog", headers=headers)
+
+    # The source would have kept this level for thirty seconds. Its owner
+    # said no, and that is the whole of the difference (D105).
+    assert first.headers["x-data-cache"] == "bypass"
+    assert second.headers["x-data-cache"] == "bypass"
+    assert first.json() == second.json()
+
+
+async def test_a_reply_says_how_old_the_answer_it_carries_is(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    headers = normal_user_token_headers
+    connector_id = await _create_connector(
+        client, headers, f"catalog age {uuid.uuid4()}"
+    )
+
+    first = await client.get(f"{BASE}/{connector_id}/catalog", headers=headers)
+    second = await client.get(f"{BASE}/{connector_id}/catalog", headers=headers)
+
+    # A read of the source is not old. A reused answer has an age, which is
+    # the only thing a screen cannot work out for itself.
+    assert first.headers["x-data-cache-age"] == "0.000"
+    assert second.headers["x-data-cache"] == "hit"
+    assert float(second.headers["x-data-cache-age"]) >= 0.0
+
+
+async def test_the_window_can_be_changed_and_handed_back_to_the_source(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    headers = normal_user_token_headers
+    connector_id = await _create_with_window(
+        client, headers, f"catalog window {uuid.uuid4()}", 0
+    )
+
+    kept = await client.patch(
+        f"{BASE}/{connector_id}", headers=headers, json={"name": "renamed"}
+    )
+    given_back = await client.patch(
+        f"{BASE}/{connector_id}", headers=headers, json={"cache_ttl_seconds": None}
+    )
+    reading = await client.get(f"{BASE}/{connector_id}/catalog", headers=headers)
+    again = await client.get(f"{BASE}/{connector_id}/catalog", headers=headers)
+
+    # An omitted field keeps the window; an explicit null hands it back to
+    # the source, which is what starts caching this connection again.
+    assert kept.json()["cache_ttl_seconds"] == 0
+    assert given_back.json()["cache_ttl_seconds"] is None
+    assert reading.headers["x-data-cache"] == "miss"
+    assert again.headers["x-data-cache"] == "hit"
+
+
+async def test_a_window_beyond_the_ceiling_is_refused(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={
+            "name": f"catalog ceiling {uuid.uuid4()}",
+            "adapter_type": "postgres",
+            "options": working_postgres_options(),
+            "cache_ttl_seconds": 86_401,
+        },
+    )
+
+    assert response.status_code == 422

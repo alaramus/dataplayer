@@ -42,7 +42,7 @@ useReloadable(props.panelId, async () => {
   }
 })
 
-const result = computed(() => rowsQuery.data.value)
+const result = computed(() => rowsQuery.data.value?.page)
 const visibleColumns = computed<FetchColumn[]>(() => {
   const answer = result.value
   if (answer === undefined) return []

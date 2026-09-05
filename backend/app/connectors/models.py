@@ -2,17 +2,23 @@ import uuid
 from datetime import datetime
 from typing import Annotated, Any
 
+from pydantic import Field as Constrained
 from pydantic import StringConstraints
 from sqlalchemy import Column, DateTime, Index, LargeBinary, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
+from app.adapters.cache import MAX_CACHE_TTL_SECONDS
 from app.core.access import Access, ExecutionPolicy, Grant
 from app.core.schemas import get_datetime_utc
 
 TabColor = Annotated[
     str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$", max_length=7)
 ]
+
+# How long this connection's answers may be kept, decided by its owner. None
+# is the source's own window, and zero is no caching at all (D105).
+CacheWindow = Annotated[int, Constrained(ge=0, le=MAX_CACHE_TTL_SECONDS)]
 
 
 class Connector(SQLModel, table=True):
@@ -43,6 +49,10 @@ class Connector(SQLModel, table=True):
             String(16), nullable=False, server_default="confirm_writes"
         ),
     )
+    # How long an answer read through this connection may be reused, in
+    # seconds. Null is the window the source chooses for itself, which is what
+    # every connection made before this column existed still means (D105).
+    cache_ttl_seconds: int | None = Field(default=None, nullable=True)
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore
@@ -62,6 +72,9 @@ class ConnectorCreate(SQLModel):
     # a source is the person who knows whether anybody should be able to write
     # through it, and the answer nobody gave is still confirmation (D66).
     execution_policy: ExecutionPolicy = "confirm_writes"
+    # Omitted means the source's own freshness window, which is the answer for
+    # every connection whose owner has no opinion about staleness (D105).
+    cache_ttl_seconds: CacheWindow | None = None
 
 
 class ConnectorUpdate(SQLModel):
@@ -72,6 +85,9 @@ class ConnectorUpdate(SQLModel):
     # Only the owner may change this, which the route enforces rather than the
     # schema: what a field means is not the same as who may set it (D66).
     execution_policy: ExecutionPolicy | None = None
+    # An explicit null hands the window back to the source; an omitted field
+    # keeps whatever the connection was told to do (D105).
+    cache_ttl_seconds: CacheWindow | None = None
 
 
 class ConnectorGrant(SQLModel, table=True):
@@ -117,6 +133,9 @@ class ConnectorPublic(SQLModel):
     # What its owner allows SQL to do through it, whoever is asking. Sent for
     # the reason `access` is: a screen that guessed would find out from a 403.
     execution_policy: ExecutionPolicy
+    # How long its answers may be kept, so a screen can say what it is showing
+    # and how long a cached page of it may be (D105).
+    cache_ttl_seconds: int | None = None
     # Whose it is, when it is not the caller's own. None for your own
     # connections, where naming the owner would only be your own address.
     owner_email: str | None = None

@@ -5,6 +5,8 @@ import type { ComputedRef, Ref } from "vue"
 import { ConnectorsService } from "@/client"
 import type { ActionPreview, ActionResult, NodeSearchResult } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import { freshnessOf } from "@/shared/freshness/freshness"
+import type { Freshness } from "@/shared/freshness/freshness"
 import { useOperations } from "@/shared/operations"
 import type { OperationHandle } from "@/shared/operations"
 import { nodeSetOf, reloadedBy, summarize } from "./actions"
@@ -13,6 +15,18 @@ import type { CatalogNode } from "./nodes"
 
 export const catalogKey = (connectorId: string, nodeId: string | null) =>
   ["catalog", connectorId, nodeId] as const
+
+/**
+ * One level, and whether it was read or remembered.
+ *
+ * The pair is what the cache holds, rather than the nodes with a note about
+ * them kept somewhere else: a second store beside vue-query would have its own
+ * eviction and would come apart from the level it describes (D105).
+ */
+export interface CatalogPage {
+  nodes: CatalogNode[]
+  freshness: Freshness
+}
 
 /**
  * Loader for QTree, whose lazy loading is callback-driven.
@@ -28,19 +42,22 @@ export function useCatalogLoader() {
     connectorId: string,
     nodeId: string | null,
     refresh = false
-  ): Promise<CatalogNode[]> {
+  ): Promise<CatalogPage> {
     return queryClient.fetchQuery({
       queryKey: catalogKey(connectorId, nodeId),
-      queryFn: async () =>
-        (
-          await ConnectorsService.readCatalog({
-            path: { connector_id: connectorId },
-            query: {
-              ...(nodeId === null ? {} : { node_id: nodeId }),
-              ...(refresh ? { refresh: true } : {}),
-            },
-          })
-        ).data,
+      queryFn: async () => {
+        const response = await ConnectorsService.readCatalog({
+          path: { connector_id: connectorId },
+          query: {
+            ...(nodeId === null ? {} : { node_id: nodeId }),
+            ...(refresh ? { refresh: true } : {}),
+          },
+        })
+        return {
+          nodes: response.data,
+          freshness: freshnessOf(response.headers as Record<string, unknown>),
+        }
+      },
       staleTime: 60_000,
     })
   }
@@ -61,13 +78,16 @@ export function useSiblingTables(
 ): ComputedRef<CatalogNode[]> {
   const query = useQuery({
     queryKey: computed(() => catalogKey(connectorId.value, containerId.value)),
-    queryFn: async () =>
-      (
-        await ConnectorsService.readCatalog({
-          path: { connector_id: connectorId.value },
-          query: { node_id: containerId.value ?? "" },
-        })
-      ).data,
+    queryFn: async (): Promise<CatalogPage> => {
+      const response = await ConnectorsService.readCatalog({
+        path: { connector_id: connectorId.value },
+        query: { node_id: containerId.value ?? "" },
+      })
+      return {
+        nodes: response.data,
+        freshness: freshnessOf(response.headers as Record<string, unknown>),
+      }
+    },
     enabled: computed(() => containerId.value !== null),
     staleTime: 60_000,
   })
@@ -78,7 +98,7 @@ export function useSiblingTables(
   return computed(() =>
     containerId.value === null
       ? []
-      : (query.data.value ?? []).filter((node) =>
+      : (query.data.value?.nodes ?? []).filter((node) =>
           node.representations.some((one) => one.kind === "table")
         )
   )

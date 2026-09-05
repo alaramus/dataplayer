@@ -273,6 +273,7 @@ export type AdapterTypeInfo = {
    * Capabilities
    */
   capabilities: Array<Capability>
+  cache_windows: SourceCacheWindows | null
   /**
    * Options Schema
    */
@@ -1147,6 +1148,10 @@ export type ConnectorCreate = {
    * Execution Policy
    */
   execution_policy?: "read_only" | "confirm_writes" | "allow_writes"
+  /**
+   * Cache Ttl Seconds
+   */
+  cache_ttl_seconds?: number | null
 }
 
 /**
@@ -1210,6 +1215,10 @@ export type ConnectorPublic = {
    */
   execution_policy: "read_only" | "confirm_writes" | "allow_writes"
   /**
+   * Cache Ttl Seconds
+   */
+  cache_ttl_seconds?: number | null
+  /**
    * Owner Email
    */
   owner_email?: string | null
@@ -1249,6 +1258,10 @@ export type ConnectorUpdate = {
    * Execution Policy
    */
   execution_policy?: "read_only" | "confirm_writes" | "allow_writes" | null
+  /**
+   * Cache Ttl Seconds
+   */
+  cache_ttl_seconds?: number | null
 }
 
 /**
@@ -6115,6 +6128,26 @@ export type Sort = {
    * Descending
    */
   descending?: boolean
+}
+
+/**
+ * SourceCacheWindows
+ *
+ * Seconds a source type keeps each kind of answer its owner may re-time.
+ *
+ * Only the areas a connection may speak for, because this exists to be shown
+ * beside the field that speaks for them. What an editor completes against is
+ * not offered and so is not described.
+ */
+export type SourceCacheWindows = {
+  /**
+   * Catalog
+   */
+  catalog: number
+  /**
+   * Fetch
+   */
+  fetch: number
 }
 
 /**

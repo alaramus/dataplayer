@@ -44,7 +44,12 @@ from app.adapters.query import (
 )
 from app.adapters.resources import ResourcesDep, ResourceStore
 from app.connectors import crud as connector_crud
-from app.connectors.access import adapter_for, get_or_404, resolve
+from app.connectors.access import (
+    adapter_for,
+    get_or_404,
+    resolve,
+    resolve_source,
+)
 from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.schemas import Message
@@ -986,9 +991,10 @@ async def read_metadata(
     keeping, and thrown away when anything changes the connection — which is
     how a table created in another tab appears here (D65).
     """
-    adapter = await adapter_for(
+    source = await resolve_source(
         session, connector_id, current_user, resources, requires="read"
     )
+    adapter = source.adapter
     if not isinstance(adapter, SupportsQueryMetadata):
         raise HTTPException(
             status_code=501,
@@ -997,7 +1003,7 @@ async def read_metadata(
                 "capability": "query_metadata",
             },
         )
-    source = adapter
+    completions = adapter
     return await cached_read(
         data_cache=data_cache,
         adapter=adapter,
@@ -1006,8 +1012,12 @@ async def read_metadata(
         ),
         refresh=refresh,
         response=response,
-        load=lambda: source.query_metadata(body),
+        load=lambda: completions.query_metadata(body),
         cache_format=QUERY_METADATA_CACHE_FORMAT,
+        # Passed even though the metadata area does not take it. The rule about
+        # which areas a connection may speak for lives in one function, and a
+        # caller that decided for itself would be a second copy of it (D105).
+        cache_ttl_seconds=source.cache_ttl_seconds,
     )
 
 

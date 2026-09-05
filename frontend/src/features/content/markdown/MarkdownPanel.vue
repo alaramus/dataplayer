@@ -281,8 +281,13 @@ function updateActiveHeading(): void {
   activeSection.value = current
 }
 
+/** The nodes of a level, which is all a relative reference walks over. */
+async function childrenOf(connectorId: string, nodeId: string | null) {
+  return (await loadChildren(connectorId, nodeId)).nodes
+}
+
 async function resolveTarget(reference: string) {
-  return resolveRelativeTarget(props.connectorId, props.nodeId, reference, loadPath, loadChildren)
+  return resolveRelativeTarget(props.connectorId, props.nodeId, reference, loadPath, childrenOf)
 }
 
 let resourceEpoch = 0

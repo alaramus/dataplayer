@@ -311,3 +311,65 @@ PostgreSQL rows; cached reads remain disposable answers rather than snapshots
 any durable workflow may cite as truth.
 
 Spec: [Redis stops at measured read caching](../../superpowers/specs/2026-09-04-cache-scope-design.md)
+
+## D105. A connection chooses how long its answers are kept, and says how old they are
+
+The source decides whether its answers may be cached at all; the owner of the
+connection decides for how long. `Connector.cache_ttl_seconds` is null for the
+source's own window — which is what every connection made before the column
+existed still means — zero for no caching, and at most one day, because
+anything staler than that is a copy rather than a cache.
+
+- A source that never opted into `SupportsReadCache` is read directly whatever
+  number its owner typed. A window says how long, never whether.
+- The window covers catalog levels and pages of rows: what somebody is looking
+  at, and how stale that may be is a judgement about their data. It stops short
+  of the editor's `metadata`, which is a description of a whole database re-read
+  as one unit. Which areas it reaches is decided in `connector_may_choose`,
+  matched over the closed set, so a fourth area fails to type-check until
+  somebody says which side of the line it is on. Every route passes the window,
+  including the one that will not use it, so no route is a second copy of the
+  rule.
+- Changing the window takes effect at once, because editing a connector already
+  invalidates its entries and its loads in flight (D31).
+- `X-Data-Cache-Age` travels beside `X-Data-Cache`: the seconds since the source
+  was actually read, zero when the reply is the read. Neither end knows this
+  alone — the screen knows when the answer arrived, the cache knows how long it
+  had been kept first — so a grid can say how old its rows are through a browser
+  cache in front of a server cache. Memory stores the moment it wrote the entry;
+  the shared backend subtracts the key's remaining life from the window it was
+  stored for, in the same round trip as the value, so Redis owns that clock and
+  no cache value changed shape.
+- The screen shows how old what is on it is, beside the reload it explains, in
+  the grid header and above a catalog level, and pressing it reloads. Freshness
+  travels inside the cached value — `{ page, freshness }`, `{ nodes, freshness }`
+  — so there is no second client cache to fall out of step with the first (D7).
+- **The badge is drawn only where an answer could be older than the read.** A
+  source that never opted in keeps nothing whatever its owner typed, and an
+  owner who chose to keep nothing meant it; over either, a permanent "Live"
+  reads as a promise about a cache that is not there. Unknown counts as no,
+  because a badge that arrives late is easier to read than one that appears and
+  goes away.
+- The window is set on the connection window's Options page, which exists for
+  this and for what follows it: how a connection behaves is nobody's first
+  question, and a form asks how to reach a source before it asks anything else.
+- The form states durations rather than naming a policy. Each source type
+  publishes what it keeps its own answers for, derived from the driver like its
+  capabilities, so the default option reads "As this source decides (rows 10s,
+  lists 30s)" instead of a phrase about an inside nobody has seen. A source that
+  never opted in publishes nothing, and the field says the source is always read
+  live and is switched off — no window typed there would change anything.
+
+Known deviations:
+
+- **A window is not a poll.** It decides whether a stored answer may be reused
+  when somebody asks again; an open panel that asks nothing still shows what it
+  has. Re-reading on a timer is the grid's auto-refresh, which is per grid and
+  holds its tick while a cell is being edited.
+- **The window is one number for two areas.** Somebody who wants rows kept
+  briefly and catalog levels kept for an hour cannot say so.
+- **Age is what the cache knows, not what the source knows.** An answer read
+  from a replica is reported as old as the read, not as old as the replication
+  lag behind it.
+
+Spec: [The freshness window a connection chooses](../../superpowers/specs/2026-09-05-connector-cache-window-design.md)

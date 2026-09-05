@@ -2,7 +2,7 @@
 
 import inspect
 from collections.abc import AsyncIterator, Awaitable
-from typing import Any, Protocol, cast
+from typing import Any, NamedTuple, Protocol, cast
 
 import redis.asyncio as redis
 from redis.exceptions import RedisError
@@ -10,6 +10,18 @@ from redis.exceptions import RedisError
 
 class CacheConnectionError(RuntimeError):
     """A Redis cache operation failed; driver details stay behind this boundary."""
+
+
+class StoredEntry(NamedTuple):
+    """A value the cache still holds, and how much of its life is left.
+
+    The remaining life is read in the same round trip as the value, because
+    the two are only comparable when nothing happened between them; how old
+    the entry is follows from what it was stored for (D105).
+    """
+
+    payload: bytes
+    expires_in_ms: int
 
 
 class InvalidationSubscription(Protocol):
@@ -27,7 +39,7 @@ class InvalidationSubscription(Protocol):
 class SharedCacheConnection(Protocol):
     async def get(self, key: str) -> bytes | None: ...
 
-    async def read_entry(self, key: str, *, lru_key: str) -> bytes | None: ...
+    async def read_entry(self, key: str, *, lru_key: str) -> StoredEntry | None: ...
 
     async def write_entry(
         self,
@@ -79,10 +91,10 @@ if value then
   local now = redis.call('TIME')
   local score = tonumber(now[1]) * 1000000 + tonumber(now[2])
   redis.call('ZADD', KEYS[2], score, KEYS[1])
-else
-  redis.call('ZREM', KEYS[2], KEYS[1])
+  return {value, redis.call('PTTL', KEYS[1])}
 end
-return value
+redis.call('ZREM', KEYS[2], KEYS[1])
+return nil
 """
 
 _WRITE_ENTRY = """
@@ -157,13 +169,18 @@ class RedisCacheConnection:
             raise CacheConnectionError
         return value
 
-    async def read_entry(self, key: str, *, lru_key: str) -> bytes | None:
-        value: Any = await _command(self._client.eval(_READ_ENTRY, 2, key, lru_key))
-        if value is None:
+    async def read_entry(self, key: str, *, lru_key: str) -> StoredEntry | None:
+        found: Any = await _command(self._client.eval(_READ_ENTRY, 2, key, lru_key))
+        if found is None:
             return None
-        if not isinstance(value, bytes):
+        if not isinstance(found, list) or len(found) != 2:
             raise CacheConnectionError
-        return value
+        payload, remaining = found
+        if not isinstance(payload, bytes) or not isinstance(remaining, int):
+            raise CacheConnectionError
+        # A key with no expiry answers -1 and one already gone answers -2.
+        # Neither can be an age, so both are read as an entry stored just now.
+        return StoredEntry(payload, max(remaining, 0))
 
     async def write_entry(
         self,

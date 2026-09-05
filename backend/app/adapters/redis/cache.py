@@ -105,10 +105,11 @@ class RedisDataCache:
         try:
             generation = await self._generation(key.connector_id)
             if not refresh:
-                cached = await self._read(key, generation, cache_format)
+                cached = await self._read(key, generation, cache_format, ttl_seconds)
                 if cached is not None:
                     self._available = True
-                    return self._result(cached, "hit")
+                    stored, age = cached
+                    return self._result(stored, "hit", age_seconds=age)
         except CacheConnectionError:
             self._failed()
             return self._result(await load(), "bypass")
@@ -144,19 +145,24 @@ class RedisDataCache:
         key: CacheKey,
         generation: int,
         cache_format: CacheFormat[T],
-    ) -> T | None:
+        ttl_seconds: float,
+    ) -> tuple[T, float] | None:
         value_key = self._namespace.value_key(key, generation)
-        payload = await self._connection.read_entry(
+        entry = await self._connection.read_entry(
             value_key, lru_key=self._namespace.lru_key
         )
-        if payload is None:
+        if entry is None:
             return None
         try:
             plaintext = self._cipher.decrypt(
-                payload,
+                entry.payload,
                 associated_data=self._namespace.associated_data(key, generation),
             )
-            return cache_format.decode(plaintext)
+            # What is left of the life it was stored for is what it has
+            # already spent. Redis owns the clock, so no worker's own time of
+            # day takes part in the answer.
+            age = max(ttl_seconds - entry.expires_in_ms / 1000, 0.0)
+            return cache_format.decode(plaintext), age
         except (CacheSerializationError, InvalidTag):
             self._meter.failed()
             logger.warning("Discarding an unreadable shared cache value")
@@ -352,9 +358,11 @@ class RedisDataCache:
         if not task.cancelled():
             task.exception()
 
-    def _result[T](self, value: T, status: CacheStatus) -> CacheResult[T]:
+    def _result[T](
+        self, value: T, status: CacheStatus, *, age_seconds: float = 0.0
+    ) -> CacheResult[T]:
         self.observe(status)
-        return CacheResult(value, status)
+        return CacheResult(value, status, age_seconds)
 
     def _failed(self) -> None:
         self._meter.failed()

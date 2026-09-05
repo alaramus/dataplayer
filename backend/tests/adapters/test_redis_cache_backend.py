@@ -14,6 +14,7 @@ from app.adapters.redis.cache_connection import (
     InvalidationSubscription,
     RedisCacheConnection,
     SharedCacheConnection,
+    StoredEntry,
 )
 from app.adapters.relation import ColumnType
 
@@ -24,6 +25,9 @@ TEST_REDIS_URL = os.environ.get("TEST_REDIS_URL")
 @dataclass
 class FakeRedis:
     values: dict[str, bytes] = field(default_factory=dict)
+    # What PTTL would answer. Written when a value is, and moved by a test
+    # that wants an entry to have been sitting there for a while.
+    remaining_ms: dict[str, int] = field(default_factory=dict)
     lru: dict[str, list[str]] = field(default_factory=dict)
     subscribers: dict[str, list[asyncio.Queue[bytes]]] = field(default_factory=dict)
     publications: list[tuple[str, bytes]] = field(default_factory=list)
@@ -62,7 +66,7 @@ class FakeConnection:
             order.remove(key)
         order.append(key)
 
-    async def read_entry(self, key: str, *, lru_key: str) -> bytes | None:
+    async def read_entry(self, key: str, *, lru_key: str) -> StoredEntry | None:
         self._check()
         value = self._server.values.get(key)
         if value is None:
@@ -70,7 +74,7 @@ class FakeConnection:
                 self._server.lru[lru_key].remove(key)
             return None
         self._touch(lru_key, key)
-        return value
+        return StoredEntry(value, self._server.remaining_ms.get(key, 0))
 
     async def write_entry(
         self,
@@ -84,6 +88,7 @@ class FakeConnection:
         self._check()
         assert ttl_ms > 0
         self._server.values[key] = value
+        self._server.remaining_ms[key] = ttl_ms
         self._touch(lru_key, key)
         order = self._server.lru[lru_key]
         while len(order) > max_entries:
@@ -466,3 +471,29 @@ def test_infrastructure_redis_exposes_no_lock_queue_or_durable_state_commands() 
         "ping",
         "aclose",
     }
+
+
+async def test_a_shared_hit_reports_how_long_the_entry_has_been_kept() -> None:
+    server = FakeRedis()
+    cache = make_cache(server)
+    entry_key = key(uuid.uuid4())
+
+    await cache.get_or_load(
+        entry_key,
+        ttl_seconds=60.0,
+        load=lambda: asyncio.sleep(0, result="value"),
+        cache_format=TEXT_FORMAT,
+    )
+    # Eighteen seconds of the sixty are left, so it was read forty-two ago.
+    # Redis owns the clock, and no worker's own time of day takes part.
+    server.remaining_ms = dict.fromkeys(server.remaining_ms, 18_000)
+    reused = await cache.get_or_load(
+        entry_key,
+        ttl_seconds=60.0,
+        load=lambda: asyncio.sleep(0, result="unread"),
+        cache_format=TEXT_FORMAT,
+    )
+
+    assert reused.status == "hit"
+    assert reused.age_seconds == 42.0
+    await cache.aclose()

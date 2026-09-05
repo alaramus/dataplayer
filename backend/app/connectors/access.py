@@ -8,6 +8,7 @@ change that touches only one of the copies.
 """
 
 import uuid
+from dataclasses import dataclass
 
 from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -98,14 +99,30 @@ def context_for(
     return AdapterContext(home_dir=storage.home_dir(owner_id), pooling=pooling)
 
 
-async def resolve_adapter(
+@dataclass(frozen=True)
+class ResolvedSource:
+    """A live source, what the caller may do with it, and how long it keeps.
+
+    The freshness window travels with the adapter because it is read from the
+    same row, in the same query the access check already makes. A route that
+    asked for it separately would be a second read of the connector, and a
+    route that forgot to would silently cache for the source's window instead
+    of the owner's (D105).
+    """
+
+    adapter: DataAdapter
+    access: Access
+    cache_ttl_seconds: int | None
+
+
+async def resolve_source(
     session: AsyncSession,
     connector_id: uuid.UUID,
     current_user: User,
     resources: ResourceStore | None = None,
     *,
     requires: Access,
-) -> tuple[DataAdapter, Access]:
+) -> ResolvedSource:
     """Resolve a stored connector into a live adapter.
 
     A stored connector has an identity, so whatever it keeps between requests
@@ -133,12 +150,28 @@ async def resolve_adapter(
         if resources is not None
         else None
     )
-    return (
-        service.build_adapter(
+    return ResolvedSource(
+        adapter=service.build_adapter(
             adapter_type, options, context_for(connector.owner_id, pooling=pooling)
         ),
-        access,
+        access=access,
+        cache_ttl_seconds=connector.cache_ttl_seconds,
     )
+
+
+async def resolve_adapter(
+    session: AsyncSession,
+    connector_id: uuid.UUID,
+    current_user: User,
+    resources: ResourceStore | None = None,
+    *,
+    requires: Access,
+) -> tuple[DataAdapter, Access]:
+    """A live adapter and the caller's level, for routes that cache nothing."""
+    source = await resolve_source(
+        session, connector_id, current_user, resources, requires=requires
+    )
+    return source.adapter, source.access
 
 
 async def adapter_for(
@@ -150,7 +183,7 @@ async def adapter_for(
     requires: Access,
 ) -> DataAdapter:
     """A live adapter, for the routes that do not need to report the level."""
-    adapter, _ = await resolve_adapter(
+    source = await resolve_source(
         session, connector_id, current_user, resources, requires=requires
     )
-    return adapter
+    return source.adapter

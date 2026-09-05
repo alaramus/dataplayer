@@ -54,7 +54,7 @@ async function load(refresh = false) {
   error.value = ""
   try {
     rows.value = toTreeRows(
-      toListNodes(await loadChildren(props.connectorId, props.rootId, refresh))
+      toListNodes((await loadChildren(props.connectorId, props.rootId, refresh)).nodes)
     )
     // What was open was open about the last reading; a branch that is gone
     // would keep an arrow pointing at nothing.
@@ -79,7 +79,7 @@ async function expand({ node, done, fail }: TreeLazyLoad) {
   const row = node as TreeRow
   try {
     const children = toTreeRows(
-      toListNodes(await loadChildren(props.connectorId, row.node.id))
+      toListNodes((await loadChildren(props.connectorId, row.node.id)).nodes)
     )
     rows.value = withChildren(rows.value, row.id, children)
     done(children)

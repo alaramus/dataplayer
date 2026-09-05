@@ -66,6 +66,14 @@ export async function openPermissions(page: Page) {
   await page.getByTestId("connector-tab-permissions").click()
 }
 
+/**
+ * The window's page for how this connection behaves rather than how to reach
+ * it: nobody's first question, so it has a page of its own (D105).
+ */
+export async function openOptions(page: Page) {
+  await page.getByTestId("connector-tab-options").click()
+}
+
 /** Set how far a console may go, in the window that is already open. */
 export async function choosePolicy(page: Page, label: string) {
   await openPermissions(page)

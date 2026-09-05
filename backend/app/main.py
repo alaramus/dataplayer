@@ -130,7 +130,7 @@ app.add_middleware(
     # unless it is named here. In development the frontend is served from its
     # own port, so a download would silently fall back to a guessed filename
     # while working in a deployment, where the same build is same-origin.
-    expose_headers=["Content-Disposition", "X-Data-Cache"],
+    expose_headers=["Content-Disposition", "X-Data-Cache", "X-Data-Cache-Age"],
 )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)

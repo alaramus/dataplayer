@@ -16,6 +16,13 @@ import {
   useParseUrl,
   useUpdateConnector,
 } from "@/features/connectors/api"
+import {
+  cacheWindowNote,
+  cacheWindowOf,
+  cacheWindowOptions,
+  cacheWindowValue,
+  windowApplies,
+} from "@/features/connectors/cacheWindow"
 import { mergeParsedOptions } from "@/features/connectors/parsedOptions"
 import { windowPages } from "@/features/connectors/windowPages"
 import { fieldErrorsFrom, messageOf, statusOf } from "@/shared/api/errors"
@@ -112,6 +119,21 @@ const enabled = ref(true)
  * here at all. Confirmation is the middle setting and the default: writing is
  * possible, and never without somebody saying so first.
  */
+/**
+ * How long answers read through this connection may be reused.
+ *
+ * A property of the connection because the answer depends on the data, not on
+ * the driver: a nightly reporting replica and a queue table somebody is
+ * watching are both PostgreSQL, and the source's one guess is wrong for both.
+ * Null leaves it to the source (D105).
+ */
+const cacheWindow = ref<number | null>(null)
+
+function chooseCacheWindow(value: unknown) {
+  const chosen = cacheWindowOf(value)
+  if (chosen !== undefined) cacheWindow.value = chosen
+}
+
 type ExecutionPolicy = ConnectorPublic["execution_policy"]
 const executionPolicy = ref<ExecutionPolicy>("confirm_writes")
 const POLICY_OPTIONS: { label: string; value: ExecutionPolicy }[] = [
@@ -156,7 +178,14 @@ function snapshot(): string {
   const ordered = Object.keys(values)
     .sort()
     .map((key) => [key, values[key]])
-  return JSON.stringify([name.value, tabColor.value, enabled.value, executionPolicy.value, ordered])
+  return JSON.stringify([
+    name.value,
+    tabColor.value,
+    enabled.value,
+    executionPolicy.value,
+    cacheWindow.value,
+    ordered,
+  ])
 }
 
 const dirty = computed(() => snapshot() !== baseline.value)
@@ -213,6 +242,11 @@ const selectedSchema = computed<JsonSchema | null>(
   () => (selectedType.value?.options_schema as unknown as JsonSchema | undefined) ?? null
 )
 
+// What this kind of source keeps its own answers for, so the field that
+// offers to change it can say what it would be changing. Undefined while the
+// types are still loading, null for a source that keeps nothing (D105).
+const sourceWindows = computed(() => selectedType.value?.cache_windows)
+
 // What the schema turns out to be: a plain list of fields, or a choice of
 // ways to connect with the fields that follow from it. The screen never
 // branches on the source type — only on the shape of what it was sent.
@@ -262,16 +296,19 @@ const groups = computed(() => fieldGroups(activeFields.value))
 const pages = computed(() => windowPages(groups.value))
 const activePage = ref(props.startOn ?? DEFAULT_GROUP)
 /**
- * Whether the page showing is the one about permissions rather than a page of
- * the source's own fields.
+ * Whose page is showing: the source's own fields, or one of the two this
+ * application owns.
  *
  * What follows from it is more than which block is drawn: the connection
- * string belongs to the address, so it goes away with the fields it is
- * composed from.
+ * string belongs to the address, so it shows on the source's pages and goes
+ * away with the fields it is composed from.
  */
-const onPermissions = computed(
-  () => pages.value.find((page) => page.id === activePage.value)?.permissions === true
+const pageOwner = computed(
+  () => pages.value.find((page) => page.id === activePage.value)?.owner ?? "source"
 )
+const onSource = computed(() => pageOwner.value === "source")
+const onOptions = computed(() => pageOwner.value === "options")
+const onPermissions = computed(() => pageOwner.value === "permissions")
 
 // A stored connection has secrets the server will never send back, so an
 // untouched secret field stands in for a value this screen does not hold.
@@ -351,6 +388,7 @@ function load() {
     tabColor.value = props.connector.tab_color ?? null
     enabled.value = props.connector.enabled
     executionPolicy.value = props.connector.execution_policy
+    cacheWindow.value = props.connector.cache_ttl_seconds ?? null
     resetOptions(allFields.value, props.connector.config as Record<string, unknown>)
   } else {
     // A source action supplies the node's name and options; otherwise the
@@ -359,6 +397,7 @@ function load() {
     tabColor.value = null
     enabled.value = true
     executionPolicy.value = "confirm_writes"
+    cacheWindow.value = null
     resetOptions(allFields.value, props.draft?.options)
   }
   baseline.value = snapshot()
@@ -438,6 +477,10 @@ async function apply(): Promise<boolean> {
           tab_color: tabColor.value,
           enabled: enabled.value,
           execution_policy: executionPolicy.value,
+          // Always sent, null included: the server tells an omitted field
+          // from an explicit null, and null is the answer that hands the
+          // window back to the source (D105).
+          cache_ttl_seconds: cacheWindow.value,
           options: filledOptions(),
         },
       })
@@ -448,6 +491,7 @@ async function apply(): Promise<boolean> {
         adapter_type: typeName.value,
         options: filledOptions(),
         execution_policy: executionPolicy.value,
+        cache_ttl_seconds: cacheWindow.value,
       })
       // From here on this is that connection's window, so a second Apply
       // updates it rather than creating a second one. See O7.
@@ -593,8 +637,8 @@ async function parseTyped(text: string) {
           />
         </div>
 
-        <!-- Always two pages at least: how to reach the connection, and what
-             may be done through it once it is reached. -->
+        <!-- Always three pages at least: how to reach the connection, how it
+             behaves once reached, and what may be done through it. -->
         <div
           class="connector-window__tabs"
           data-testid="connector-tabs"
@@ -622,6 +666,28 @@ async function parseTyped(text: string) {
           :secrets-are-stored="secretsAreStored"
           :disable="readOnly"
         />
+
+        <!-- How this connection behaves, away from how to reach it and from
+             who may reach it. Nobody's first question, and nobody has to see
+             it to make a connection work: how long an answer may be reused is
+             a property of the data behind the connection, and only its owner
+             knows whether that data changes nightly or every second (D105). -->
+        <div
+          v-show="onOptions"
+          class="connector-window__options"
+          data-testid="connector-options"
+        >
+          <AppSelect
+            class="connector-window__cache"
+            :model-value="cacheWindowValue(cacheWindow)"
+            :options="cacheWindowOptions(sourceWindows)"
+            label="Keep answers"
+            :hint="cacheWindowNote(cacheWindow, sourceWindows)"
+            :disable="readOnly || !windowApplies(sourceWindows)"
+            data-testid="connector-cache-window"
+            @update:model-value="chooseCacheWindow"
+          />
+        </div>
 
         <!-- Who may reach this connection and what may be done through it,
              away from how to reach it: beside the host and the port a policy
@@ -707,7 +773,7 @@ async function parseTyped(text: string) {
            501 and gets no row at all. -->
       <div
         v-if="hasConnectionString !== false"
-        v-show="!onPermissions"
+        v-show="onSource"
         class="connector-window__url"
       >
         <AppInput
@@ -830,6 +896,16 @@ async function parseTyped(text: string) {
   display: flex;
   flex-direction: column;
   gap: 18px;
+}
+.connector-window__options {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+/* A duration is a short word in a wide window; stretched across it the field
+   reads as a place to type a sentence. */
+.connector-window__cache {
+  max-width: 320px;
 }
 .connector-window__grants {
   display: flex;

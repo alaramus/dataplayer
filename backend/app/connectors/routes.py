@@ -181,6 +181,7 @@ from app.connectors.access import (
     get_or_404,
     resolve,
     resolve_adapter,
+    resolve_source,
 )
 from app.connectors.models import (
     Connector,
@@ -488,6 +489,7 @@ async def create_connector(
         owner_id=current_user.id,
         execution_policy=connector_in.execution_policy,
         tab_color=connector_in.tab_color,
+        cache_ttl_seconds=connector_in.cache_ttl_seconds,
     )
     return await _public(session, connector, "own")
 
@@ -554,6 +556,12 @@ async def update_connector(
     if connector_in.execution_policy is not None:
         # Only reachable by the owner: this route asks for `own` above.
         connector.execution_policy = connector_in.execution_policy
+
+    # An explicit null hands the window back to the source; an omitted field
+    # leaves it alone. The same distinction `tab_color` makes above, for the
+    # same reason: null is an answer here rather than the absence of one.
+    if "cache_ttl_seconds" in connector_in.model_fields_set:
+        connector.cache_ttl_seconds = connector_in.cache_ttl_seconds
 
     if connector_in.options is not None:
         adapter_type = adapter_type_or_422(connector.adapter_type)
@@ -786,9 +794,10 @@ async def fetch_rows(
     """
     Read a page of rows from a relation named by request.node_id.
     """
-    adapter, access = await resolve_adapter(
+    source = await resolve_source(
         session, connector_id, current_user, resources, requires="read"
     )
+    adapter, access = source.adapter, source.access
     if not isinstance(adapter, SupportsFetch):
         raise HTTPException(
             status_code=501,
@@ -808,6 +817,7 @@ async def fetch_rows(
             response=response,
             load=lambda: adapter.fetch(request),
             cache_format=FETCH_CACHE_FORMAT,
+            cache_ttl_seconds=source.cache_ttl_seconds,
         )
         result = result.model_copy(
             update={
@@ -1026,9 +1036,10 @@ async def read_catalog(
 
     node_id is opaque: only the adapter that produced it knows how to read it.
     """
-    adapter = await adapter_for(
+    source = await resolve_source(
         session, connector_id, current_user, resources, requires="read"
     )
+    adapter = source.adapter
     if not isinstance(adapter, SupportsCatalog):
         # Browsing is an optional capability: a queue or a plain HTTP source
         # has no catalog to walk.
@@ -1050,6 +1061,7 @@ async def read_catalog(
             response=response,
             load=lambda: adapter.list_children(node_id),
             cache_format=CATALOG_CACHE_FORMAT,
+            cache_ttl_seconds=source.cache_ttl_seconds,
         )
     except ValueError as exc:
         # 422: the node id names something this source may not or cannot

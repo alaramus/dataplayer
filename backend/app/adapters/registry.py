@@ -6,6 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from app.adapters.actions import DeclaresActions
+from app.adapters.cache import SourceCacheWindows, SupportsReadCache
 from app.adapters.options import OptionsSchema
 from app.adapters.protocol import (
     DataAdapter,
@@ -162,6 +163,22 @@ def register(
         return factory
 
     return decorator
+
+
+def cache_windows_of(adapter_type: AdapterType) -> SourceCacheWindows | None:
+    """What this kind of source keeps its answers for, or nothing if it keeps none.
+
+    Read off the driver rather than listed, like the capabilities below: a
+    source that stops opting into caching stops claiming a window in the same
+    commit. Nothing at all is the honest answer for a source that never opted
+    in — no window its owner types would change anything about it (D105).
+    """
+    driver = adapter_type.adapter_class
+    if not issubclass(driver, SupportsReadCache):
+        return None
+    return SourceCacheWindows(
+        catalog=driver.cache_ttl("catalog"), fetch=driver.cache_ttl("fetch")
+    )
 
 
 def capabilities_of(adapter_type: AdapterType) -> list[Capability]:

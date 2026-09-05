@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, nextTick, onDeactivated, ref, useId, watch } from "vue"
+import { computed, nextTick, onDeactivated, ref, toRef, useId, watch } from "vue"
 
 import type { DetectedFramework } from "@/client"
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
+import FreshnessBadge from "@/shared/freshness/FreshnessBadge.vue"
 import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
 import { reloadedBy, replacementsOf } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
@@ -15,7 +16,12 @@ import { frameworksOf, toggleFrameworkFilter } from "@/features/catalog/framewor
 import { locationOf } from "@/features/catalog/location"
 import { searchSummary } from "@/features/catalog/search"
 import { useSearchHistory } from "@/features/catalog/useSearchHistory"
-import { connectorColorOf, useAdapterTypes, useConnectors } from "@/features/connectors/api"
+import {
+  connectorColorOf,
+  useAdapterTypes,
+  useConnectionFreshness,
+  useConnectors,
+} from "@/features/connectors/api"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { groupTitle, showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
@@ -143,9 +149,18 @@ const answered = ref(false)
 // The level that is on screen, not the root: the path and the ticks are where
 // the user put them, and going back to the top is navigation rather than a
 // refresh.
-useReloadable(props.panelId, async () => {
+async function reloadHere() {
   await level.reload(level.path.value[level.path.value.length - 1]?.id ?? null)
-})
+}
+
+useReloadable(props.panelId, reloadHere)
+
+// Whether this connection keeps anything at all, and for how long: the badge
+// is about data that may be older than the read, so a source that is always
+// read live has no badge rather than a permanent one (D105).
+const { keepsAnswers, cacheWindow } = useConnectionFreshness(
+  toRef(props, "connectorId")
+)
 
 /**
  * Something else changed this connection, so this list is out of date (D66).
@@ -670,6 +685,19 @@ async function afterAction(outcome: ActionOutcome) {
             @click="copyPath"
           />
         </div>
+
+        <!-- What is listed, and whether it was read or remembered. Beside
+             the path rather than over the list: it is about the whole level,
+             including the groupings ticked into it, and pressing it reads the
+             level again (D105). -->
+        <FreshnessBadge
+          v-if="!asTree && keepsAnswers"
+          :freshness="level.freshness.value"
+          :cache-ttl-seconds="cacheWindow"
+          :loading="level.loading.value"
+          testid="catalog-freshness"
+          @reload="reloadHere"
+        />
 
         <!-- Beside the path and not under it. The line answers one question —
              where we are inside this source — and the answer takes the shape
