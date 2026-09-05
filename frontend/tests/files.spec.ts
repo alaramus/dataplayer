@@ -57,6 +57,26 @@ test("opens a connector draft for one folder and saves only when asked", async (
   await deleteConnector(page, parent)
 })
 
+test("copies the path of the level it is standing on", async ({ page, context }) => {
+  const name = `e2e-path-${Date.now()}`
+  await context.grantPermissions(["clipboard-read", "clipboard-write"])
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  // Nothing to copy at the top: the root is the connection, and a client is
+  // never told where on the server it lies.
+  await expect(page.getByTestId("catalog-copy-path")).toBeDisabled()
+
+  await openNode(page, "reports")
+  await page.getByTestId("catalog-copy-path").click()
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe("reports")
+
+  await deleteConnector(page, name)
+})
+
 test("browses a personal directory and opens each implemented viewer", async ({ page }) => {
   const name = `e2e-files-${Date.now()}`
   await login(page)

@@ -356,7 +356,12 @@ Spec: [Markdown as a rendered document representation](../superpowers/specs/2026
 
 The catalog is a list of one level: a click opens what can be read and walks into
 what cannot, a tick box picks a node out without opening it, the way back is the
-first row, and the path above it starts at a home button. One menu in the head
+first row, and the path above it starts at a home button and ends at a button
+that copies where we are. What it copies is the level's own id, which for a
+file source is the path below the root: the trail is labels for a reader, and
+the id is the string that names the place. At the root there is nothing to
+copy — the root is the connection, and a client is never told where on the
+server it lies — so the button is disabled there, as the home button is. One menu in the head
 carries everything the source can do, live for what is ticked and greyed out for
 the rest — standing in a folder is not choosing it. What that menu offers comes
 from the server; see D9 in [sources/actions.md](sources/actions.md).

@@ -22,10 +22,12 @@ import type { ListNode } from "@/features/catalog/nodes"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import { copyText } from "@/shared/clipboard"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import {
   AppBanner,
   AppButton,
+  AppCopyButton,
   AppIconButton,
   AppInput,
   AppMenu,
@@ -350,6 +352,26 @@ const describedNode = computed(() => {
 
 const describesNodes = computed(() => level.items.value.some((node) => node.summarizable))
 
+/**
+ * Where we are, in the clipboard.
+ *
+ * The source's own name for this level and not the trail as it is drawn: the
+ * crumbs are labels a reader follows, while the id is the string that names
+ * the place — for a file source, the path below the root, which is what the
+ * root's owner types elsewhere. Nothing to copy at the root: the root is the
+ * connection, and it is never named to a client.
+ */
+async function copyPath() {
+  const here = level.currentId.value
+  if (here === null) return
+  try {
+    await copyText(here)
+    toast.success("Path copied")
+  } catch {
+    toast.error("This browser would not let the path be copied")
+  }
+}
+
 function showDetails() {
   const node = describedNode.value
   if (node === null) return
@@ -636,6 +658,16 @@ async function afterAction(outcome: ActionOutcome) {
               >{{ crumb.label }}</span>
             </template>
           </div>
+          <!-- Outside the trail, like the home button and for the same
+               reason: a path deep enough to scroll must not carry away the
+               one control that takes it somewhere. -->
+          <AppCopyButton
+            class="catalog-panel__copy-path"
+            tooltip="Copy the path of this level"
+            :disable="level.currentId.value === null"
+            data-testid="catalog-copy-path"
+            @click="copyPath"
+          />
         </div>
 
         <!-- Beside the path and not under it. The line answers one question —
@@ -910,7 +942,6 @@ async function afterAction(outcome: ActionOutcome) {
   gap: 2px;
   flex: 1;
   min-width: 0;
-  padding-right: 6px;
   border-radius: 999px;
   background: var(--dp-hover);
   font-size: 12px;
@@ -942,7 +973,8 @@ async function afterAction(outcome: ActionOutcome) {
   display: none;
 }
 .catalog-panel__crumb,
-.catalog-panel__chevron {
+.catalog-panel__chevron,
+.catalog-panel__copy-path {
   flex: none;
 }
 .catalog-panel__crumb {
