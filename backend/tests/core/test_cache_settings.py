@@ -9,11 +9,18 @@ VALID_KEY = base64.urlsafe_b64encode(b"c" * 32).decode()
 
 
 def test_memory_cache_is_the_default() -> None:
-    configured = Settings()
+    """The declared default, not whatever this machine's `.env` happens to say.
 
-    assert configured.DATA_CACHE_BACKEND == "memory"
-    assert configured.DATA_CACHE_REDIS_URL is None
-    assert configured.DATA_CACHE_SECRET_KEY is None
+    `Settings()` reads `../.env`, so building one here measured the developer's
+    deployment and called it the default. It passed for as long as nobody
+    selected Redis locally, and said nothing about the code the moment somebody
+    did.
+    """
+    fields = Settings.model_fields
+
+    assert fields["DATA_CACHE_BACKEND"].default == "memory"
+    assert fields["DATA_CACHE_REDIS_URL"].default is None
+    assert fields["DATA_CACHE_SECRET_KEY"].default is None
 
 
 @pytest.mark.parametrize(

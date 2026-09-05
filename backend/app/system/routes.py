@@ -39,9 +39,19 @@ async def health_check() -> bool:
     return True
 
 
-@router.get("/cache-health/", response_model=CacheHealth)
+@router.get(
+    "/cache-health/",
+    response_model=CacheHealth,
+    dependencies=[Depends(get_current_active_superuser)],
+)
 async def cache_health(data_cache: DataCacheDep) -> CacheHealth:
-    """Report the optional accelerator without making it application readiness."""
+    """Report the optional accelerator without making it application readiness.
+
+    Asked of an operator and answered to one. What this says — whether the
+    deployment runs a shared cache, whether it is degraded now and how much
+    the process has served — is a description of the installation rather than
+    of the application, and `/health-check/` above stays the anonymous one.
+    """
     return await data_cache.health()
 
 

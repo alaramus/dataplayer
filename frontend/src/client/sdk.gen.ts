@@ -814,12 +814,18 @@ export class UtilsService {
    * Cache Health
    *
    * Report the optional accelerator without making it application readiness.
+   *
+   * Asked of an operator and answered to one. What this says — whether the
+   * deployment runs a shared cache, whether it is degraded now and how much
+   * the process has served — is a description of the installation rather than
+   * of the application, and `/health-check/` above stays the anonymous one.
    */
   public static cacheHealth<ThrowOnError extends boolean = true>(
     options?: Options<utilsCacheHealthData, ThrowOnError>
   ) {
     return (options?.client ?? client).get<utilsCacheHealthResponses, unknown, ThrowOnError>({
       responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/utils/cache-health/",
       ...options,
     })

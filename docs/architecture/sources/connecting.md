@@ -278,10 +278,19 @@ change `/utils/health-check/`: optional acceleration cannot make the server
 unready while its database and sources still work. The in-memory backend always
 reports healthy.
 
-The Compose Redis service is disposable, authenticated, has no volume and is
-behind the `shared-cache` profile. It is a local example, not a production TLS
-terminator. `.env.example` shows both its authenticated URL and an external
-`rediss://` ACL URL; neither mode is enabled by default.
+**That answer is for an operator and asks for one.** What it says — whether the
+installation runs a shared cache, whether it is degraded now, and how much this
+process has served — describes the deployment rather than the application, so
+the route requires a superuser. `/utils/health-check/` stays the anonymous one,
+because a readiness probe has no credentials to offer.
+
+The Compose Redis service is disposable, authenticated and has no volume, and
+it starts with the stack: the backend waits for it to answer, so the first
+reads after a restart are not misses against a cache that is still starting. It
+is a local example, not a production TLS terminator. `.env.example` ships
+`DATA_CACHE_BACKEND=redis` against it and also shows an external `rediss://` ACL
+URL. The code default stays `memory`, and a deployment that removes the service
+changes one line rather than failing to start.
 
 Spec: [Selecting and observing the cache backend](../../superpowers/specs/2026-09-04-cache-configuration-design.md)
 

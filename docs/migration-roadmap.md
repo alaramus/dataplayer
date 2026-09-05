@@ -76,7 +76,8 @@ their own storage, or written back from one, by the real programs running in
 a container of the server's own version. Whether any of it is offered at all
 is a question about the machine, asked of it, and answered off by default.
 Phase 5 closed on 2026-09-05. Redis is a shared read cache and nothing else.
-The backend is chosen by configuration and memory stays the default; values on
+The backend is chosen by configuration, with memory as the code default and
+Redis as what the Compose stack runs; values on
 the wire are versioned and encrypted under a key of their own; invalidation
 crosses workers through a connector generation, with Pub/Sub as prompt notice
 rather than as the authority; and every Redis failure is a cache miss, so

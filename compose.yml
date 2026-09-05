@@ -54,11 +54,12 @@ services:
     environment:
       - ADMINER_DESIGN=pepa-linha-dark
 
-  # Disposable shared cache for multi-worker deployments. It has no volume and
-  # starts only when explicitly selected: docker compose --profile shared-cache up.
+  # The shared read cache, started with the stack. Disposable by construction:
+  # no volume, no persistence, and nothing in it that the database does not
+  # already hold. Whether the backend actually uses it is still a question for
+  # DATA_CACHE_BACKEND, which is answered in .env (D103).
   redis-cache:
     image: redis:8
-    profiles: ["shared-cache"]
     environment:
       REDIS_PASSWORD: ${DATA_CACHE_REDIS_PASSWORD:-development-cache-only}
     command:
@@ -103,6 +104,12 @@ services:
         restart: true
       prestart:
         condition: service_completed_successfully
+      # Waited for rather than merely started: a cache that is not answering
+      # yet is a cache miss, so the first reads after a restart would go to
+      # the source and the accelerator would look broken at exactly the moment
+      # somebody is watching it.
+      redis-cache:
+        condition: service_healthy
     environment: *backend-environment
 
     volumes:

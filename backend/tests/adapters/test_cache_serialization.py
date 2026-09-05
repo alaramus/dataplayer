@@ -11,6 +11,10 @@ from app.adapters.cache_serialization import (
     CacheNamespace,
     CacheSerializationError,
 )
+from app.adapters.catalog import CatalogNode, SchemaNode, TableNode
+from app.adapters.fetch import FetchColumn, FetchResult
+from app.adapters.query import ColumnSummary, QueryMetadata, RelationSummary
+from app.adapters.relation import ColumnType
 
 
 def cache_key(request: str = '{"node_id":"public.people"}') -> CacheKey:
@@ -78,3 +82,84 @@ def test_namespace_separates_deployments_users_and_exact_requests() -> None:
 def test_deployment_namespace_is_a_bounded_plain_name(deployment: str) -> None:
     with pytest.raises(ValueError, match="deployment"):
         CacheNamespace(deployment)
+
+
+def test_a_page_of_rows_survives_the_wire_unchanged() -> None:
+    """The format the fetch route actually caches, not a stand-in for it.
+
+    A shared backend rebuilds the answer from JSON while memory hands back the
+    object it was given, and D100 says a caller cannot tell which one it is
+    talking to. That only holds while every field of the real model survives
+    the round trip, so the real model is what is asked.
+    """
+    page = FetchResult(
+        columns=[
+            FetchColumn(
+                name="id",
+                type=ColumnType(sql="bigint", category="number"),
+                sortable=True,
+                filter_operators=["eq", "gt"],
+            ),
+            FetchColumn(
+                name="tags",
+                type=ColumnType(
+                    sql="text[]",
+                    category="array",
+                    element=ColumnType(sql="text", category="string"),
+                    dimensions=1,
+                ),
+                nullable=True,
+            ),
+        ],
+        rows=[["1", "{a,b}"], ["2", None]],
+        has_more=True,
+        row_handles=["handle-1", None],
+        update_supported=True,
+        update_reason=None,
+        refresh_seconds=5,
+        page_commands=["download", "chart"],
+    )
+    cache_format: CacheFormat[FetchResult] = CacheFormat(FetchResult)
+
+    assert cache_format.decode(cache_format.encode(page)) == page
+
+
+def test_a_catalog_level_comes_back_as_the_kinds_it_went_in_as() -> None:
+    """A discriminated union has to survive as its members, not as a base."""
+    level: list[CatalogNode] = [
+        SchemaNode(id="public", name="public", has_children=True, representations=[]),
+        TableNode(
+            id="public.people",
+            name="people",
+            has_children=False,
+            representations=[],
+            describable=True,
+            row_count_estimate=1200,
+        ),
+    ]
+    cache_format: CacheFormat[list[CatalogNode]] = CacheFormat(list[CatalogNode])
+
+    restored = cache_format.decode(cache_format.encode(level))
+
+    assert restored == level
+    assert [type(node) for node in restored] == [SchemaNode, TableNode]
+
+
+def test_what_the_editor_completes_against_survives_the_wire() -> None:
+    metadata = QueryMetadata(
+        schemas=["public", "demo_lab"],
+        relations=[
+            RelationSummary(schema_name="public", name="people", kind="table"),
+            RelationSummary(schema_name="public", name="active", kind="view"),
+        ],
+        columns={
+            "public.people": [
+                ColumnSummary(name="id", type_sql="bigint"),
+                ColumnSummary(name="name", type_sql="text"),
+            ]
+        },
+        complete=False,
+    )
+    cache_format: CacheFormat[QueryMetadata] = CacheFormat(QueryMetadata)
+
+    assert cache_format.decode(cache_format.encode(metadata)) == metadata

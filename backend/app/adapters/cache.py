@@ -5,7 +5,15 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Annotated, Literal, Protocol, cast, runtime_checkable
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Literal,
+    Protocol,
+    assert_never,
+    cast,
+    runtime_checkable,
+)
 
 from fastapi import Depends, Request, Response
 from pydantic import BaseModel
@@ -54,16 +62,22 @@ class CacheMeter:
         self._failures = 0
 
     def observe(self, status: CacheStatus) -> None:
-        if status == "hit":
-            self._hits += 1
-        elif status == "miss":
-            self._misses += 1
-        elif status == "coalesced":
-            self._coalesced += 1
-        elif status == "refreshed":
-            self._refreshed += 1
-        else:
-            self._bypasses += 1
+        # Every member of the closed set is named. A sixth status added to
+        # CacheStatus fails the type check here rather than being counted
+        # silently as something it is not.
+        match status:
+            case "hit":
+                self._hits += 1
+            case "miss":
+                self._misses += 1
+            case "coalesced":
+                self._coalesced += 1
+            case "refreshed":
+                self._refreshed += 1
+            case "bypass":
+                self._bypasses += 1
+            case unreachable:
+                assert_never(unreachable)
 
     def invalidated(self) -> None:
         self._invalidations += 1
@@ -128,8 +142,6 @@ class DataCache(Protocol):
     ) -> CacheResult[T]: ...
 
     async def invalidate_connector(self, connector_id: uuid.UUID) -> None: ...
-
-    async def size(self) -> int: ...
 
     def observe(self, status: CacheStatus) -> None: ...
 
@@ -326,6 +338,7 @@ async def cached_read[T](
     )
     response.headers["X-Data-Cache"] = cached.status
     return cached.value
+
 
 def get_data_cache(request: Request) -> DataCache:
     cache = request.app.state.data_cache

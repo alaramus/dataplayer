@@ -37,9 +37,17 @@ healthy workers and magnify an optional-cache outage.
 
 ## Deployment examples
 
-The Compose service is behind profile `shared-cache`, uses authentication, has
-no published port and no volume. Cache data is disposable. Its password and the
-backend URL are explicit environment values so deployments can replace them.
+The Compose service uses authentication, has no published port and no volume.
+Cache data is disposable. Its password and the backend URL are explicit
+environment values so deployments can replace them.
+
+It started behind a `shared-cache` profile, so that nothing ran unless a
+deployment asked for it. That was reversed on 2026-09-05: the service now
+starts with the stack and the backend waits for it to answer, and
+`.env.example` selects the Redis backend. A cache nobody switches on is a cache
+nobody exercises, and the first thing it must survive is ordinary daily use.
+The code default is still `memory`, so removing the service is one line rather
+than a server that will not start.
 
 The local example is `redis://` on the private Compose network. The environment
 example also shows `rediss://` with an ACL username for an externally managed

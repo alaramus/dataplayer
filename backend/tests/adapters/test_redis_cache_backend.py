@@ -7,6 +7,7 @@ import pytest
 
 from app.adapters.cache import CacheKey, DataCache
 from app.adapters.cache_serialization import CacheCipher, CacheFormat, CacheNamespace
+from app.adapters.fetch import FetchColumn, FetchResult
 from app.adapters.redis.cache import RedisDataCache
 from app.adapters.redis.cache_connection import (
     CacheConnectionError,
@@ -14,6 +15,7 @@ from app.adapters.redis.cache_connection import (
     RedisCacheConnection,
     SharedCacheConnection,
 )
+from app.adapters.relation import ColumnType
 
 TEXT_FORMAT: CacheFormat[str] = CacheFormat(str)
 TEST_REDIS_URL = os.environ.get("TEST_REDIS_URL")
@@ -359,6 +361,82 @@ async def test_two_cache_instances_observe_real_redis_invalidation() -> None:
     finally:
         await first.aclose()
         await second.aclose()
+        cleanup = RedisCacheConnection(TEST_REDIS_URL, timeout_seconds=1)
+        try:
+            await cleanup.delete(namespace.generation_key(connector_id))
+        except CacheConnectionError:
+            pass
+        finally:
+            await cleanup.aclose()
+
+
+@pytest.mark.skipif(TEST_REDIS_URL is None, reason="TEST_REDIS_URL not configured")
+async def test_a_real_page_of_rows_comes_back_from_real_redis_unchanged() -> None:
+    """The value the fetch route caches, over the storage that rebuilds it.
+
+    Everything else here caches a string. A string cannot show that a page
+    encrypted, written to Redis and read back by another worker is still the
+    page the source produced, and that is the promise D100 makes.
+    """
+    assert TEST_REDIS_URL is not None
+    deployment = f"page-{uuid.uuid4().hex}"
+    namespace = CacheNamespace(deployment)
+    connector_id = uuid.uuid4()
+    cache_key = key(connector_id)
+    page = FetchResult(
+        columns=[
+            FetchColumn(
+                name="id",
+                type=ColumnType(sql="bigint", category="number"),
+                sortable=True,
+                filter_operators=["eq"],
+            )
+        ],
+        rows=[["1"], [None]],
+        has_more=False,
+        row_handles=["h1", None],
+        refresh_seconds=5,
+        page_commands=["download"],
+    )
+    page_format: CacheFormat[FetchResult] = CacheFormat(FetchResult)
+    writer = RedisDataCache.from_url(
+        TEST_REDIS_URL,
+        deployment=deployment,
+        encryption_key=b"p" * 32,
+        timeout_seconds=1,
+        max_entries=8,
+    )
+    reader = RedisDataCache.from_url(
+        TEST_REDIS_URL,
+        deployment=deployment,
+        encryption_key=b"p" * 32,
+        timeout_seconds=1,
+        max_entries=8,
+    )
+    writer.start()
+    reader.start()
+    try:
+        stored = await writer.get_or_load(
+            cache_key,
+            ttl_seconds=5,
+            load=lambda: asyncio.sleep(0, result=page),
+            cache_format=page_format,
+        )
+        restored = await reader.get_or_load(
+            cache_key,
+            ttl_seconds=5,
+            load=lambda: asyncio.sleep(0, result=page.model_copy(update={"rows": []})),
+            cache_format=page_format,
+        )
+
+        assert stored.status == "miss"
+        assert restored.status == "hit"
+        # Equal and rebuilt, not the same object: this one crossed a process.
+        assert restored.value == page
+        assert restored.value is not page
+    finally:
+        await writer.aclose()
+        await reader.aclose()
         cleanup = RedisCacheConnection(TEST_REDIS_URL, timeout_seconds=1)
         try:
             await cleanup.delete(namespace.generation_key(connector_id))

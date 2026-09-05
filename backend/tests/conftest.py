@@ -62,8 +62,23 @@ async def db(_user_storage_root: Path) -> AsyncGenerator[AsyncSession]:
         await session.commit()
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _memory_cache() -> Generator[None]:
+    """The suite tests the application, not the machine it is running on.
+
+    `Settings` reads `../.env`, so on a developer's stack — where the cache is
+    Redis at a Compose hostname — the test application would build a client for
+    a host nothing here can resolve, and every assertion about a hit or a miss
+    would become an assertion about DNS. The shared backend is exercised where
+    it can actually be reached, in `tests/adapters/test_redis_cache_backend.py`.
+    """
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(settings, "DATA_CACHE_BACKEND", "memory")
+        yield
+
+
 @pytest.fixture(scope="session")
-async def client() -> AsyncGenerator[AsyncClient]:
+async def client(_memory_cache: None) -> AsyncGenerator[AsyncClient]:
     # The lifespan is entered explicitly: ASGITransport does not run it, and
     # without it the application has no resource store, so every request would
     # quietly fall back to opening its own connection — the very thing the
