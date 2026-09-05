@@ -276,16 +276,12 @@ test("the processes report is a task manager, not just a table", async ({ page }
   const refresh = page.getByTestId("grid-auto-refresh")
   await expect(refresh).toHaveAttribute("data-refresh", "5")
 
-  // Nothing but the controls for looking and the commands for acting: a
-  // report is a picture of the server, not data to take away (D72).
-  for (const gone of [
-    "grid-download",
-    "grid-share",
-    "grid-charts",
-    "grid-create-table",
-    "grid-query",
-  ]) {
-    await expect(page.getByTestId(gone)).toHaveCount(0)
+  // A page of a report is still a page: it is downloaded, shared, charted and
+  // opened as a query. The one command withdrawn is the copy — a table made
+  // out of a report is a moment nobody can refresh (D72).
+  await expect(page.getByTestId("grid-create-table")).toHaveCount(0)
+  for (const kept of ["grid-download", "grid-share", "grid-charts", "grid-query"]) {
+    await expect(page.getByTestId(kept)).toBeVisible()
   }
   await expect(page.getByTestId("grid-filter")).toBeVisible()
 
@@ -317,8 +313,9 @@ test("the processes report is a task manager, not just a table", async ({ page }
     "data-refresh",
     "off"
   )
-  // Settings is a report too, so it withdraws the same five.
-  await expect(page.getByTestId("grid-charts")).toHaveCount(0)
+  // Settings is a report too, so it withdraws the same one and keeps the rest.
+  await expect(page.getByTestId("grid-create-table")).toHaveCount(0)
+  await expect(page.getByTestId("grid-charts")).toBeVisible()
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

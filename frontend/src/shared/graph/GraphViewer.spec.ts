@@ -11,7 +11,9 @@ import type { GraphDocument } from "./model"
 
 // WebGL picking is exercised in Playwright. Here the alternate renderer is a
 // boundary: selection must survive replacing either presentation component.
-vi.mock("./Graph3D.vue", () => ({ default: {
+// __esModule: the viewer loads this one through defineAsyncComponent, which
+// unwraps `default` only from something that says it is a module.
+vi.mock("./Graph3D.vue", () => ({ __esModule: true, default: {
   props: ["selection"],
   template: '<div data-testid="alternate-view">{{ selection?.id }}</div>',
 } }))

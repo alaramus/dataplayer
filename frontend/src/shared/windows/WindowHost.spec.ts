@@ -1,4 +1,4 @@
-import { flushPromises, mount } from "@vue/test-utils"
+import { DOMWrapper, flushPromises, mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
 import { defineComponent, h, ref } from "vue"
 import { describe, expect, it, vi } from "vitest"
@@ -39,14 +39,16 @@ describe("the window frame and footer manager", () => {
         ])
       },
     })
-    const wrapper = mount(Root, {
-      attachTo: document.body,
-      global: { plugins: [Quasar], stubs: { teleport: true } },
-    })
+    const wrapper = mount(Root, { attachTo: document.body, global: { plugins: [Quasar] } })
     try {
-      const frame = wrapper.get('[data-testid="window-draft"]')
+      // The host teleports its frames to the body: stubbing the teleport away
+      // rebuilds the subtree on every render, which is exactly what the draft
+      // below is here to prove does not happen.
+      const frame = new DOMWrapper(
+        document.body.querySelector<HTMLElement>('[data-testid="window-draft"]')!
+      )
       const normal = first(windows!.context.windows.value).rect
-      await wrapper.get('input[aria-label="Draft"]').setValue("Keep this unsaved value")
+      await frame.get('input[aria-label="Draft"]').setValue("Keep this unsaved value")
       await frame.get('[aria-label="Maximize"]').trigger("click")
       expect(frame.attributes("style")).toContain("100dvh - 55px")
       expect(frame.find('[data-testid="window-resize-bottom-right-draft"]').exists()).toBe(false)
@@ -66,7 +68,7 @@ describe("the window frame and footer manager", () => {
       expect(document.activeElement).toBe(frame.element)
       expect(wrapper.find('[aria-label="Minimized windows"]').exists()).toBe(false)
       expect(mounted).toHaveBeenCalledOnce()
-      expect((wrapper.get('input[aria-label="Draft"]').element as HTMLInputElement).value)
+      expect((frame.get('input[aria-label="Draft"]').element as HTMLInputElement).value)
         .toBe("Keep this unsaved value")
       expect(frame.find('[aria-label="Restore size"]').exists()).toBe(true)
 
@@ -75,7 +77,7 @@ describe("the window frame and footer manager", () => {
       expect(frame.find('[data-testid="window-resize-bottom-right-saved"]').exists()).toBe(true)
       await frame.get('[aria-label="Close window"]').trigger("click")
       await flushPromises()
-      expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+      expect(document.body.querySelector('[role="dialog"]')).toBeNull()
     } finally {
       wrapper.unmount()
     }

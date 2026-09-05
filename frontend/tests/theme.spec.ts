@@ -116,14 +116,17 @@ test("selected text is readable in the dark theme", async ({ page }) => {
   await expect(dark(page)).toHaveCount(1)
 
   await createPostgresConnector(page, name)
+  // A console rather than the DDL of a relation: an editor that is not
+  // editable hands the selection to the browser and paints no layer of its
+  // own, so it could not answer what CodeMirror paints.
   await openConnector(page, name)
-  await pickSchema(page, "demo_lab")
-  await openNode(page, "projects")
-  await page.getByTestId("grid-content").click()
+  await page.getByTestId("command-queries").click()
+  await page.getByTestId("new-query").click()
   const editor = page.locator(".cm-content")
-  await expect(editor).toContainText("CREATE TABLE")
-
   await editor.click()
+  await page.keyboard.type("select 'selected'")
+  await expect(editor).toContainText("selected")
+
   await page.keyboard.press("ControlOrMeta+a")
   const painted = page.locator(".cm-selectionBackground").first()
   await expect(painted).toBeVisible()

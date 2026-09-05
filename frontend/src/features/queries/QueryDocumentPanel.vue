@@ -243,15 +243,19 @@ const kept = useRun(keptRunId)
  * name in the tab that was already open, and under confirmation this is the
  * word a person is asked to type back — the server compares it with the name
  * the connection has now, so the old one could not unlock anything (D66).
+ *
+ * A document that has arrived answers this on its own, null included: null is
+ * the whole statement that the context is gone (D63), so the name the tab was
+ * opened with must not put a deleted connection back on the screen. That name
+ * is the answer only for a console that is not a document yet.
  */
 const connectors = useConnectors()
-const connectorLabel = computed(
-  () =>
-    connectorNameOf(connectors.data.value, connectorId.value) ??
-    server.value?.connector_label ??
-    props.connectorName ??
-    null
-)
+const connectorLabel = computed(() => {
+  const listed = connectorNameOf(connectors.data.value, connectorId.value)
+  if (listed !== null) return listed
+  const loaded = server.value
+  return loaded === undefined ? props.connectorName ?? null : loaded.connector_label
+})
 const searchPath = computed(() => server.value?.search_path ?? [])
 const error = computed(() =>
   document.isError.value

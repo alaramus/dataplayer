@@ -369,37 +369,39 @@ test("installs an extension from the report that lists them, and removes it", as
   await openConnector(page, name)
 
   await catalogRow(page, "System").click()
-  // Wait for the level to finish arriving: walking in clears what was ticked,
-  // so a tick placed while it is still loading is thrown away.
-  await expect(page.getByTestId("catalog-list")).toContainText("Tablespaces")
-  await catalogCheck(page, "Extensions").click()
+  await catalogRow(page, "Extensions").click()
 
-  // Offered on this report and on no other: the kind says "a report", the
-  // driver says which one (D55).
-  await page.getByTestId("catalog-actions").click()
-  await expect(page.getByTestId("menu-item-create_extension")).not.toHaveAttribute(
-    "aria-disabled",
-    "true"
-  )
-  await page.getByTestId("menu-item-create_extension").click()
-
-  const dialog = page.getByTestId("action-dialog")
-  await dialog.getByRole("textbox").first().fill("pg_trgm")
-  // Previewed first, and asking installs nothing: the rehearsal is rolled back.
-  await expect(page.getByTestId("action-preview")).toContainText("pg_trgm")
-  await page.getByTestId("action-submit").click()
+  // Offered over the rows of this report and of no other: the source names
+  // what may be done to what it lists, and nothing here is a catalog action
+  // over the node itself (D70).
+  const install = page.getByTestId("grid-row-command-run-install_extension")
+  const remove = page.getByTestId("grid-row-command-run-drop_extension")
+  await expect(install).toBeDisabled()
+  await expect(remove).toBeDisabled()
 
   // Filtered rather than read off row 0: the report lists every extension the
   // server offers, so the name alone proves nothing — `installed` does.
-  await catalogRow(page, "Extensions").click()
   await addFilter(page, "name", "equals", "pg_trgm")
+  await expect(page.getByTestId("grid-cell-0-installed")).toHaveText("false")
+
+  await page.getByTestId("grid-select-row-0").click()
+  await expect(install).toBeEnabled()
+  await install.click()
+  await expect(
+    page.locator(".q-notification", { hasText: "1 extension installed" })
+  ).toBeVisible()
   await expect(page.getByTestId("grid-cell-0-installed")).toHaveText("true")
 
-  await catalogCheck(page, "Extensions").click()
-  await catalogAction(page, "drop_extension")
-  await page.getByTestId("action-dialog").getByRole("textbox").first().fill("pg_trgm")
-  await expect(page.getByTestId("action-preview")).toContainText("pg_trgm")
-  await page.getByTestId("action-submit").click()
+  // Removing says so first: the command declares itself destructive, and the
+  // grid asks before running one that does.
+  await page.getByTestId("grid-select-row-0").click()
+  await expect(remove).toBeEnabled()
+  await remove.click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(
+    page.locator(".q-notification", { hasText: "1 extension removed" })
+  ).toBeVisible()
+  await expect(page.getByTestId("grid-cell-0-installed")).toHaveText("false")
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

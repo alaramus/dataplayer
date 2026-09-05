@@ -1,6 +1,6 @@
 import { mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
-import { defineComponent, ref } from "vue"
+import { defineComponent, nextTick, ref } from "vue"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 import Graph3D from "./Graph3D.vue"
@@ -43,9 +43,11 @@ describe("3D scene ownership", () => {
     expect(mock.dispose).toHaveBeenCalledTimes(1)
   })
 
-  it("shows a recoverable message if the browser cannot create a WebGL scene", () => {
+  it("shows a recoverable message if the browser cannot create a WebGL scene", async () => {
     mock.fail = true
     const wrapper = mount(Graph3D, { props, global: { plugins: [Quasar] } })
+    // The scene is built in onMounted, so the banner appears one tick later.
+    await nextTick()
     expect(wrapper.get('[data-testid="graph-3d-unavailable"]').text()).toContain("continue in 2D")
     wrapper.unmount()
   })

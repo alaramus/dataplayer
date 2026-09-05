@@ -120,8 +120,10 @@ describe("the file content editor", () => {
     await wrapper.get('[data-testid="content-editor"]').setValue("unsaved work")
     const leaving = closings.mayClose(panelId)
     await flushPromises()
-    expect(wrapper.text()).toContain("Discard file changes?")
-    await wrapper.get('[data-testid="confirm-cancel"]').trigger("click")
+    // The prompt is a floating window, so it lands in the body, not in the panel.
+    expect(document.body.textContent).toContain("Discard file changes?")
+    document.body.querySelector<HTMLElement>('[data-testid="confirm-cancel"]')?.click()
+    await flushPromises()
     expect(await leaving).toBe(false)
     expect(wrapper.get('[data-testid="content-editor"]').element).toHaveProperty("value", "unsaved work")
     wrapper.unmount()

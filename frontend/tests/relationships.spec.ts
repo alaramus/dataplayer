@@ -98,7 +98,12 @@ test("draws the checked tables, the keys between them and what they point at", a
   // question is what the curve is painted with, not what is declared. The
   // painted path is the one the focusable hit path lies over, and it is asked
   // before anything is selected — a selected edge is painted the accent colour.
-  const painted = page.getByTestId(ORGANIZATION_EDGE).locator("xpath=./preceding-sibling::path")
+  // local-name(): an unprefixed XPath name test matches nothing in the SVG
+  // namespace, so `preceding-sibling::path` would walk past the very element
+  // this asks about.
+  const painted = page
+    .getByTestId(ORGANIZATION_EDGE)
+    .locator('xpath=./preceding-sibling::*[local-name()="path"]')
   const theme = page.getByTestId("theme-toggle")
   if ((await theme.getAttribute("data-theme")) === "dark") await theme.click()
   await expect(theme).toHaveAttribute("data-theme", "light")
