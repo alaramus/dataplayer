@@ -60,6 +60,15 @@ export interface ListNode {
    * being that level (D76).
    */
   location?: string
+  /**
+   * Why the caption says nothing was counted, where it says so.
+   *
+   * "N/A" is one word for two different facts, and the column has room for
+   * neither of them: a table nobody has analysed has a count the server would
+   * give if it were asked to look, and a view has no stored rows to count at
+   * all. The word is the same on both rows; this says which one it is.
+   */
+  captionHint?: string
   rowEstimate?: number | null
   /**
    * Whether the source considers this part of its own machinery. Only used to
@@ -165,6 +174,16 @@ export const REPRESENTATION_ICONS: Record<NodeRepresentation["kind"], string> = 
   sql: "code",
 }
 
+/**
+ * What stands in the counted column of a relation nothing was counted for.
+ *
+ * Said rather than left blank. A column filled on some rows and empty on
+ * others reads as a column somebody forgot to fill, and the reader cannot tell
+ * "no rows" from "no answer" — which is the one thing an estimate must never
+ * be confused with.
+ */
+const NOT_COUNTED = "N/A"
+
 const UNITS = ["B", "KB", "MB", "GB", "TB"]
 
 /** File size in the shortest form that still says which unit it is. */
@@ -218,8 +237,13 @@ function captionOf(node: CatalogNode): string | undefined {
   switch (node.kind) {
     case "table":
       return node.row_count_estimate === null || node.row_count_estimate === undefined
-        ? undefined
+        ? NOT_COUNTED
         : `~${node.row_count_estimate} rows`
+    // In the same column as a table's estimate, because it is the same
+    // question asked of the same kind of thing. The answer is that there is
+    // nothing stored to count.
+    case "view":
+      return NOT_COUNTED
     case "report":
       // The source's own line about what the report answers. Nothing here
       // rewrites it: only the source knows what its statement is for.
@@ -243,6 +267,24 @@ function captionOf(node: CatalogNode): string | undefined {
     default:
       return undefined
   }
+}
+
+/**
+ * Why a relation's count is missing, for the reader who wonders.
+ *
+ * Only a relation has one: every other kind either states its measure or is
+ * not measured at all, and a hint on a row whose column is filled would be a
+ * tooltip about nothing.
+ */
+function captionHintOf(node: CatalogNode): string | undefined {
+  if (node.kind === "view") {
+    return "A view stores no rows; how many it returns is known only when it runs"
+  }
+  if (node.kind !== "table") return undefined
+  if (node.row_count_estimate !== null && node.row_count_estimate !== undefined) {
+    return undefined
+  }
+  return "Not analysed yet, so the server offers no estimate"
 }
 
 /** What a sheet says about itself before it is opened. */
@@ -345,29 +387,33 @@ export function isReadableNode(node: CatalogNode): boolean {
  * nobody decided what to do with.
  */
 export function toListNodes(nodes: CatalogNode[], group?: string): ListNode[] {
-  return nodes.map((node) => ({
-    id: node.id,
-    label: node.name,
-    caption: captionOf(node),
-    icon: iconOf(node),
-    role: roleOf(node),
-    kind: node.kind,
-    readable: node.representations.length > 0,
-    representations: node.representations,
-    system: isSystem(node),
-    preferred: isPreferred(node),
-    describable: node.describable === true,
-    summarizable: node.summarizable === true,
-    holdsNodes: node.has_children === true,
-    ...(node.kind === "schema" && node.frameworks?.length
-      ? { frameworks: node.frameworks }
-      : {}),
-    // Only a table knows roughly how many rows it holds. A file would have
-    // to be read from end to end to answer, so the grid pages without a
-    // total.
-    rowEstimate: node.kind === "table" ? node.row_count_estimate : null,
-    ...(group === undefined ? {} : { group }),
-  }))
+  return nodes.map((node) => {
+    const hint = captionHintOf(node)
+    return {
+      id: node.id,
+      label: node.name,
+      caption: captionOf(node),
+      ...(hint === undefined ? {} : { captionHint: hint }),
+      icon: iconOf(node),
+      role: roleOf(node),
+      kind: node.kind,
+      readable: node.representations.length > 0,
+      representations: node.representations,
+      system: isSystem(node),
+      preferred: isPreferred(node),
+      describable: node.describable === true,
+      summarizable: node.summarizable === true,
+      holdsNodes: node.has_children === true,
+      ...(node.kind === "schema" && node.frameworks?.length
+        ? { frameworks: node.frameworks }
+        : {}),
+      // Only a table knows roughly how many rows it holds. A file would have
+      // to be read from end to end to answer, so the grid pages without a
+      // total.
+      rowEstimate: node.kind === "table" ? node.row_count_estimate : null,
+      ...(group === undefined ? {} : { group }),
+    }
+  })
 }
 
 /** The groupings among a level's children: what the filter above it offers. */

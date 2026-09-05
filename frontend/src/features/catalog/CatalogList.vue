@@ -207,9 +207,13 @@ const countLabel = computed(() => {
         >
           {{ node.location }}
         </span>
+        <!-- The hint is only on a caption that says nothing was counted: one
+             word stands for a table nobody has analysed and for a view with
+             no rows to count, and the column has room for neither reason. -->
         <span
           v-if="node.caption"
           class="catalog-list__caption"
+          :title="node.captionHint"
         >
           {{ node.caption }}
         </span>

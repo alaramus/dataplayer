@@ -361,7 +361,7 @@ describe("toListNodes", () => {
     expect(node.caption).toContain("1234")
   })
 
-  it("omits the caption when a table has no estimate yet", () => {
+  it("says so in the same column when a table has no estimate yet", () => {
     const node = first(
       toListNodes([
         {
@@ -375,7 +375,10 @@ describe("toListNodes", () => {
       ])
     )
 
-    expect(node.caption).toBeUndefined()
+    // Filled rather than blank: a column empty on some rows reads as one
+    // nobody filled in, and "no answer" must not look like "no rows".
+    expect(node.caption).toBe("N/A")
+    expect(node.captionHint).toContain("analysed")
   })
 
   it("distinguishes a materialized view from a plain one", () => {
@@ -408,8 +411,11 @@ describe("toListNodes", () => {
     // named its kind twice.
     expect(plain.icon).toBe(ICONS.view)
     expect(materialized.icon).toBe(MATERIALIZED_VIEW_ICON)
-    expect(plain.caption).toBeUndefined()
-    expect(materialized.caption).toBeUndefined()
+    // Both stand in the counted column with a word saying nothing is stored
+    // to count, which is the question a table answers with an estimate.
+    expect(plain.caption).toBe("N/A")
+    expect(materialized.caption).toBe("N/A")
+    expect(plain.captionHint).toContain("stores no rows")
   })
 
   it("gives every visible kind its own icon", () => {
