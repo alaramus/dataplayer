@@ -87,6 +87,30 @@ function mountPanel(
   })
 }
 
+/**
+ * The panel measures its own frame, and jsdom measures nothing.
+ *
+ * Without a stand-in for `ResizeObserver` the frame is wide forever and the
+ * narrow layout is the one arrangement this file could never see — which is
+ * how an editor collapsed to a single line went out.
+ */
+function watchWidth(): (width: number) => void {
+  let announce: ((entries: { contentRect: { width: number } }[]) => void) | null = null
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(callback: (entries: { contentRect: { width: number } }[]) => void) {
+        announce = callback
+      }
+      observe() {}
+      disconnect() {}
+    }
+  )
+  return (width: number) => {
+    announce?.([{ contentRect: { width } }])
+  }
+}
+
 async function type(wrapper: ReturnType<typeof mountPanel>, text: string) {
   await wrapper.get('[data-testid="query-editor"]').setValue(text)
   await flushPromises()
@@ -103,6 +127,7 @@ beforeEach(() => {
   vi.spyOn(ConnectorsService, "readConnectors").mockResolvedValue({
     data: { data: [], count: 0 },
   } as never)
+  vi.unstubAllGlobals()
   vi.useFakeTimers()
   sessionStorage.clear()
   workspace.openQueryDocument.mockReset()
@@ -267,6 +292,25 @@ describe("one console", () => {
       expect.objectContaining({ documentId: "d9", title: "Kept" })
     )
     expect(sessionStorage.getItem("dp.query.draft.n1")).toBeNull()
+  })
+
+  it("gives the frame to whichever half is drawn once it is too narrow for two", async () => {
+    vi.spyOn(QueriesService, "readDocument").mockResolvedValue({ data: document() } as never)
+    const resizeTo = watchWidth()
+    const wrapper = mountPanel()
+    await flushPromises()
+
+    const frame = wrapper.get('[data-testid="query-frame"]')
+    expect(frame.classes()).not.toContain("query-panel__frame--narrow")
+
+    resizeTo(400)
+    await flushPromises()
+
+    // The split sized the two halves, and below this width there is only one
+    // of them: the frame says so, and the stylesheet gives it the height the
+    // split no longer does.
+    expect(frame.classes()).toContain("query-panel__frame--narrow")
+    expect(wrapper.get('[data-testid="query-editor"]').isVisible()).toBe(true)
   })
 
   it("says so when the connection this query was written against has gone", async () => {

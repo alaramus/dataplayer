@@ -1176,6 +1176,8 @@ onBeforeUnmount(() => {
       v-else-if="!remembered || server !== undefined"
       ref="frame"
       class="query-panel__frame"
+      :class="{ 'query-panel__frame--narrow': narrow }"
+      data-testid="query-frame"
     >
       <div
         v-show="!narrow || showing === 'editor'"
@@ -1308,6 +1310,16 @@ onBeforeUnmount(() => {
 }
 .query-panel__results {
   overflow: hidden;
+}
+/* Narrow: one half is hidden and the other is the whole frame.
+   The two halves are sized by the split only while both are drawn, so nothing
+   sizes the survivor once the split is gone — and a flex item left on its
+   `auto` basis is as tall as its own content, which for an editor of one empty
+   line is one empty line. Stated here rather than beside the split: it is a
+   rule about the narrow layout, not a number somebody drags (D65). */
+.query-panel__frame--narrow > .query-panel__editor,
+.query-panel__frame--narrow > .query-panel__results {
+  flex: 1 1 0;
 }
 .query-panel__code {
   flex: 1;
