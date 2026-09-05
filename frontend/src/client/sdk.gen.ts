@@ -27,6 +27,9 @@ import type {
   connectorsAddColumnData,
   connectorsAddColumnErrors,
   connectorsAddColumnResponses,
+  connectorsArrivingReferencesData,
+  connectorsArrivingReferencesErrors,
+  connectorsArrivingReferencesResponses,
   connectorsChangeColumnDefaultData,
   connectorsChangeColumnDefaultErrors,
   connectorsChangeColumnDefaultResponses,
@@ -1584,6 +1587,35 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/references",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Arriving References
+   *
+   * List the keys of other relations that land on this one (D110).
+   *
+   * Asked when somebody wants the way back, not on every page: this is a
+   * search of the catalog for arriving keys rather than a reading of one
+   * relation's own definition. Following one is the ordinary follow route with
+   * `direction="incoming"`, so nothing here says where anything is.
+   */
+  public static arrivingReferences<ThrowOnError extends boolean = true>(
+    options: Options<connectorsArrivingReferencesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsArrivingReferencesResponses,
+      connectorsArrivingReferencesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/references/arriving",
       ...options,
       headers: {
         "Content-Type": "application/json",

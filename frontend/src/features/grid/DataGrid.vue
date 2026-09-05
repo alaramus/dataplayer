@@ -13,6 +13,7 @@ import {
 } from "vue"
 
 import type {
+  ArrivingReference,
   FetchColumn,
   FetchReference,
   FetchRequest,
@@ -30,6 +31,7 @@ import {
   AppBanner,
   AppButton,
   AppIconButton,
+  AppMenu,
   AppTooltip,
   useConfirm,
   useToast,
@@ -44,6 +46,7 @@ import {
   useImportRows,
   useKeepPage,
   useKeepRows,
+  useArrivingReferences,
   useFollowReference,
   useForgetRowsPage,
   useInsertRow,
@@ -237,6 +240,10 @@ const keepRows = useKeepRows(toRef(props, "connectorId"))
 const importRows = useImportRows(toRef(props, "connectorId"))
 const createRelation = useCreateRelationFromSource()
 const followReference = useFollowReference(toRef(props, "connectorId"))
+const arriving = useArrivingReferences(
+  toRef(props, "connectorId"),
+  toRef(props, "nodeId")
+)
 const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
 useServerLeaveGuard(async () => {
   if ([updateCell, updateCells, insertRow, deleteRows, importRows, createRelation].some((mutation) => mutation.isPending.value)) {
@@ -579,6 +586,7 @@ function openChart(columns: TabularVisibleColumn[]): void {
 }
 
 const NO_REFERENCES: FetchReference[] = []
+const NO_ARRIVING: ArrivingReference[] = []
 // Worked out once per answer rather than once per cell: the template asks
 // about every cell of every row on every render, and a page runs to five
 // hundred rows.
@@ -622,6 +630,55 @@ async function follow(row: GridRow, reference: FetchReference) {
     })
     // The source answered that the key names nothing. Not a failure: an empty
     // key is a fact about the row, and it says so in the source's own words.
+    if (target.kind === "none") {
+      toast.info(target.reason)
+      return
+    }
+    emit("follow", target)
+  } catch (error) {
+    toast.error(messageOf(error, "Could not follow this reference"))
+  }
+}
+
+/**
+ * The keys landing here, by the cell that offers them (D110).
+ *
+ * The same rule as the way out: one handle per key, on the first of its
+ * columns that is on screen. A source that cannot search for arriving keys
+ * answered 501 and this is simply empty.
+ */
+const arrivingByColumn = computed(() => {
+  const visible = visibleGridColumns.value.map((column) => column.id)
+  const found = arriving.data.value ?? []
+  const byColumn = new Map<string, ArrivingReference[]>()
+  for (const id of visible) {
+    const led = referencesLedBy(found, id, visible)
+    if (led.length > 0) byColumn.set(id, led)
+  }
+  return byColumn
+})
+
+function cellArriving(columnId: string, value: string | null): ArrivingReference[] {
+  // The same rule the way out follows: an empty cell has nothing to act on.
+  if (value === null) return NO_ARRIVING
+  return arrivingByColumn.value.get(columnId) ?? NO_ARRIVING
+}
+
+async function followBack(row: GridRow, reference: ArrivingReference) {
+  const columns = result.value?.columns
+  if (columns === undefined) return
+  const values = keyValues(reference, columns, row.values)
+  if (values === null) {
+    toast.info("This page was read before the relation changed; reload it")
+    return
+  }
+  try {
+    const target = await followReference.mutateAsync({
+      node_id: props.nodeId,
+      reference: reference.name,
+      direction: "incoming",
+      values,
+    })
     if (target.kind === "none") {
       toast.info(target.reason)
       return
@@ -1322,6 +1379,39 @@ defineExpose({
       >
         <AppTooltip>Go to {{ reference.target_title }}</AppTooltip>
       </button>
+      <!-- The opposite corner for the opposite direction: what points at this
+           row. A menu rather than a jump, because there is usually more than
+           one answer and only the reader knows which one they meant (D110). -->
+      <button
+        v-if="cellArriving(column.id, value).length > 0"
+        type="button"
+        class="data-grid__follow data-grid__follow--back"
+        title=""
+        :disabled="followReference.isPending.value"
+        aria-label="What points at this row"
+        :data-testid="`grid-arriving-${row.id}-${column.id}`"
+        @click.stop
+        @dblclick.stop
+      >
+        <AppTooltip>What points at this row</AppTooltip>
+        <AppMenu
+          :items="
+            cellArriving(column.id, value).map((reference) => ({
+              name: reference.name,
+              label: reference.source_title,
+            }))
+          "
+          @select="
+            (name) =>
+              followBack(
+                row,
+                cellArriving(column.id, value).find(
+                  (reference) => reference.name === name
+                )!
+              )
+          "
+        />
+      </button>
     </template>
 
     <template #after-rows="{ nextRowNumber }">
@@ -1432,6 +1522,33 @@ defineExpose({
 
 .data-grid__follow:disabled::after {
   border-block-start-color: var(--dp-text-faint);
+}
+
+/* The way back, in the corner opposite the way out: same colour, because both
+   mean "this row is related to rows elsewhere", and a different corner,
+   because they lead in opposite directions (D110). */
+.data-grid__follow--back {
+  inset-block-start: auto;
+  inset-block-end: 0;
+}
+
+.data-grid__follow--back::after {
+  inset-block-start: auto;
+  inset-block-end: 0;
+  border-block-start: 0;
+  border-block-end: 9px solid var(--dp-link);
+  border-inline-start: 9px solid transparent;
+}
+
+.data-grid__follow--back:hover::after,
+.data-grid__follow--back:focus-visible::after {
+  border-block-start-width: 0;
+  border-block-end-width: 12px;
+  border-inline-start-width: 12px;
+}
+
+.data-grid__follow--back:disabled::after {
+  border-block-end-color: var(--dp-text-faint);
 }
 
 .data-grid__insert-error {

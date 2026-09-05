@@ -75,7 +75,11 @@ from app.adapters.query import (
     QueryRequest,
     TransactionContext,
 )
-from app.adapters.references import FollowReferenceRequest, ReferenceTarget
+from app.adapters.references import (
+    ArrivingReference,
+    FollowReferenceRequest,
+    ReferenceTarget,
+)
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
 from app.adapters.relation_changes import (
@@ -317,6 +321,9 @@ class PostgresAdapter:
         self, request: FollowReferenceRequest
     ) -> ReferenceTarget:
         return await self._references.follow_reference(request)
+
+    async def arriving_references(self, node_id: str) -> list[ArrivingReference]:
+        return await self._references.arriving_references(node_id)
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)

@@ -173,6 +173,7 @@ files. IDs are stable because specs and commits refer to them.
 | D107 | [sources/declared](docs/architecture/sources/declared.md) |
 | D108 | [sources/declared](docs/architecture/sources/declared.md) |
 | D109 | [sources/relations](docs/architecture/sources/relations.md) |
+| D110 | [sources/relations](docs/architecture/sources/relations.md) |
 
 ## Working rules
 

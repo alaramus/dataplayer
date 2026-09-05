@@ -1,10 +1,21 @@
 import type {
   FetchColumn,
-  FetchReference,
   NodeRepresentation,
   ReferencedRows,
   ReferenceValue,
 } from "@/client"
+
+/**
+ * A key of this relation, or a key landing on it.
+ *
+ * The two are the same shape on purpose (D110): a name to send back and the
+ * columns of *this* relation it is offered from. Everything below works on
+ * either, so the screen has one rule about where a way in or out is drawn.
+ */
+export interface KeyedReference {
+  name: string
+  columns: string[]
+}
 
 /**
  * Where the way out of a row is drawn, and what is sent when it is pressed.
@@ -23,11 +34,11 @@ import type {
  * that is actually on screen. Hiding that column moves the arrow to the next
  * one rather than taking the way out away.
  */
-export function referencesLedBy(
-  references: readonly FetchReference[],
+export function referencesLedBy<T extends KeyedReference>(
+  references: readonly T[],
   columnName: string,
   visibleColumns: readonly string[]
-): FetchReference[] {
+): T[] {
   const onScreen = new Set(visibleColumns)
   return references.filter(
     (reference) => reference.columns.find((name) => onScreen.has(name)) === columnName
@@ -44,7 +55,7 @@ export function referencesLedBy(
  * relation changed.
  */
 export function keyValues(
-  reference: FetchReference,
+  reference: KeyedReference,
   columns: readonly FetchColumn[],
   values: readonly (string | null)[]
 ): ReferenceValue[] | null {

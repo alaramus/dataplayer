@@ -245,12 +245,11 @@ of asking.
 
 Known deviations:
 
-- **Only the forward direction exists.** Going from a row to the rows elsewhere
-  that point at it needs a search across a whole schema for arriving keys, and a
-  way to say which of several found relations is meant.
 - **A page costs one more catalog query.** The keys are read beside the columns
   on every fetch. The read cache ([D31](connecting.md)) absorbs repeated paging,
   and nothing measures the difference yet.
+
+The forward direction was the whole of it until [D110](#d110-a-source-says-what-points-at-a-relation-and-following-it-is-the-same-call).
 
 Spec: [Navigating by a foreign key](../../superpowers/specs/2026-08-30-reference-navigation-design.md)
 
@@ -588,3 +587,50 @@ Known deviations:
 - **Sorting is still refused**, unchanged.
 
 Spec: [A reference the person draws](../../superpowers/specs/2026-09-05-declared-references-design.md)
+
+## D110. A source says what points at a relation, and following it is the same call
+
+A relation's own keys are part of its definition and are read on every page
+(D36). The keys landing on it are a search of everything else, so they are
+asked for separately and by a capability of its own.
+
+- `SupportsArrivingReferences.arriving_references` answers with the mirror of
+  `FetchReference`: a name to send back, the columns **of this relation** the
+  key lands on, and a title for what points here. What the key is called over
+  there, and which of its columns stand for these, stay with the source.
+- **The name is a handle the source issues**, not the constraint's own name.
+  A forward key can use its own, because a constraint name is unique within the
+  relation that carries it; among arriving keys it is not — a partitioned table
+  repeats its constraint on every partition, and all of them land here. Three
+  menu entries answering to one name would all open the first of them.
+- **Asked once for the relation, when its rows are first shown**, and never per
+  page: which keys arrive does not change as rows are paged through, and the
+  cells that offer the way back cannot be drawn without knowing them. Following
+  one is on demand, which is where the cost of reading the far relation sits.
+- **The answer has a ceiling of fifty**, applied in the query. A relation that
+  everything points at would otherwise answer a menu with a report.
+- **`follow_reference` takes a direction**, and both directions answer with the
+  same union. It is said rather than guessed: a constraint name is unique
+  within the relation that carries it and not within a schema, so the same name
+  can mean a key of this relation and a key landing on it.
+- Inside a source the two differ by one thing — which column of this relation
+  is paired with which column of the far one — and everything after that
+  pairing is one piece of code: the missing-value answer, reading the far
+  columns now, refusing a type that cannot be compared, and describing the node
+  through `path_to`.
+- A source that reads its own keys but cannot search for arriving ones keeps
+  `SupportsReferences` and answers 501 to this, which is [D2d](contract.md).
+
+Known deviations:
+
+- **No count per arriving key.** The menu says which relations point here, not
+  how many rows each holds: that is a query per key against a relation nobody
+  has opened, and the answer is one click away.
+- **The row view is not part of this.** One row drawn vertically, with both
+  directions offered per column, is a screen and is built over these routes
+  without changing them.
+- **A source that cannot answer is asked anyway**, once per relation, because
+  the screen learns that from the 501 rather than from anything it holds. The
+  answer is cached for as long as the relation's tab lives.
+
+Spec: [The way back along a key](../../superpowers/specs/2026-09-05-arriving-references-design.md)

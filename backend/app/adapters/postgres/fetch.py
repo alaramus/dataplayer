@@ -70,6 +70,37 @@ WHERE n.nspname = %s AND c.relname = %s AND con.contype = 'f'
 ORDER BY con.conname
 """
 
+# The same constraints read from the other end: everything whose `confrelid`
+# is this relation. A relation everything points at — a `users` of a large
+# schema — can be named by dozens, and a menu is not a report, so the answer
+# has a ceiling and the query carries it (D110).
+_ARRIVING = """
+SELECT con.conname AS name,
+       (SELECT array_agg(att.attname ORDER BY u.ord)
+          FROM unnest(con.confkey) WITH ORDINALITY AS u(attnum, ord)
+          JOIN pg_attribute att
+            ON att.attrelid = con.confrelid AND att.attnum = u.attnum
+       ) AS column_names,
+       (SELECT array_agg(att.attname ORDER BY u.ord)
+          FROM unnest(con.conkey) WITH ORDINALITY AS u(attnum, ord)
+          JOIN pg_attribute att
+            ON att.attrelid = con.conrelid AND att.attnum = u.attnum
+       ) AS source_column_names,
+       n.nspname AS source_schema,
+       c.relname AS source_relation
+FROM pg_constraint con
+JOIN pg_class c ON c.oid = con.conrelid
+JOIN pg_namespace n ON n.oid = c.relnamespace
+JOIN pg_class fc ON fc.oid = con.confrelid
+JOIN pg_namespace fn ON fn.oid = fc.relnamespace
+WHERE fn.nspname = %s AND fc.relname = %s AND con.contype = 'f'
+ORDER BY n.nspname, c.relname, con.conname
+LIMIT %s
+"""
+
+# How many arriving keys are offered at once.
+MAX_ARRIVING = 50
+
 _ORDERED = frozenset({"number", "string", "boolean", "datetime", "uuid", "enum"})
 _COMPARED = frozenset({"number", "string", "datetime"})
 _EQUAL = frozenset({"number", "string", "datetime", "boolean", "uuid", "enum"})
@@ -89,6 +120,21 @@ class RelationReference:
     columns: list[str]
     target_node_id: str
     target_columns: list[str]
+
+
+@dataclass(frozen=True)
+class ArrivingRelationReference:
+    """One foreign key of another relation that lands on this one.
+
+    `columns` are this relation's, because they are what the caller holds
+    values for; `source_columns` are the other relation's, in the same order,
+    and never leave this package for the reason `RelationReference` gives.
+    """
+
+    name: str
+    columns: list[str]
+    source_node_id: str
+    source_columns: list[str]
 
 
 @dataclass(frozen=True)
@@ -611,6 +657,36 @@ class PostgresFetch:
                         f'{row["target_schema"]}.{row["target_relation"]}'
                     ),
                     target_columns=targets,
+                )
+            )
+        return found
+
+    async def arriving(
+        self, schema: str, table: str
+    ) -> list[ArrivingRelationReference]:
+        """Every foreign key that points at this relation, up to the ceiling.
+
+        Asked when somebody wants the way back rather than on every page: this
+        is a search of the whole catalog for keys landing here, which is the
+        reason it is a capability of its own (D110). A constraint whose ends
+        do not pair up column for column is left out, exactly as the forward
+        reading leaves one out.
+        """
+        rows = await self._session.query(_ARRIVING, (schema, table, MAX_ARRIVING))
+        found: list[ArrivingRelationReference] = []
+        for row in rows:
+            columns = [str(name) for name in (row["column_names"] or [])]
+            sources = [str(name) for name in (row["source_column_names"] or [])]
+            if len(columns) != len(sources) or not columns:
+                continue
+            found.append(
+                ArrivingRelationReference(
+                    name=str(row["name"]),
+                    columns=columns,
+                    source_node_id=(
+                        f'{row["source_schema"]}.{row["source_relation"]}'
+                    ),
+                    source_columns=sources,
                 )
             )
         return found

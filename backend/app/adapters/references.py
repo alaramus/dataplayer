@@ -1,10 +1,14 @@
-"""Going from one row's foreign key to the rows it names.
+"""Going from one row to the rows a key relates it to, either way round.
 
 The client sends back what it already read — the name of the reference and the
 values standing in that row — and gets a place to go. It never composes the
 predicate, never maps its own columns onto the target's, and never takes a node
 id apart (D21). The whole of the client's influence on the query is which
 reference of which row it pointed at.
+
+A key of this relation points away from it; a key of some other relation lands
+on it. Both are followed by the same call and answered by the same union, and
+which of the two is meant is said rather than guessed (D110).
 """
 
 import uuid
@@ -25,12 +29,46 @@ class ReferenceValue(BaseModel):
     value: str | None
 
 
+# Which way a reference is being followed. Said rather than worked out from the
+# name: a constraint name is unique within a relation and not within a schema,
+# so a key of this relation and a key landing on it can be called the same
+# thing (D110).
+FollowDirection = Literal["outgoing", "incoming"]
+
+
+class ArrivingReference(BaseModel):
+    """One key of another relation that lands on this one.
+
+    The mirror of `FetchReference`, and deliberately the same shape: `columns`
+    are this relation's, because they are the cells the way back is offered
+    from, and the name is the handle to send back. What the key is called over
+    there, and which of its columns stand for these, stay with the source —
+    the same rule that keeps a target's columns out of `FetchReference`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    columns: list[str] = Field(min_length=1)
+    # What points here, for the menu that offers it. Not an id: what to open
+    # arrives from the source when the reference is actually followed.
+    source_title: str
+
+
+class ArrivingReferencesRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str
+
+
 class FollowReferenceRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     node_id: str
-    # The source's own name for the reference, as the fetch result gave it.
+    # The source's own name for the reference, as the fetch result gave it —
+    # or as `arriving_references` gave it, for a key landing here.
     reference: str
+    direction: FollowDirection = "outgoing"
     # A row handle would not do: handles exist only where the source can
     # version a row, and a keyless table can still hold a foreign key.
     values: Annotated[list[ReferenceValue], Field(min_length=1, max_length=64)]

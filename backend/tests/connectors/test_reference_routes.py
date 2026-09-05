@@ -81,6 +81,16 @@ async def _seed(schema: str) -> None:
     )
 
 
+async def _arriving(
+    client: AsyncClient, headers: dict[str, str], connector_id: str, node_id: str
+) -> Any:
+    return await client.post(
+        f"{BASE}/{connector_id}/references/arriving",
+        headers=headers,
+        json={"node_id": node_id},
+    )
+
+
 async def test_a_page_carries_the_keys_it_can_be_left_by(
     client: AsyncClient, normal_user_token_headers: dict[str, str], schema: str
 ) -> None:
@@ -274,3 +284,182 @@ async def test_reading_is_enough_to_follow_a_key(
 
     assert response.status_code == 200
     assert response.json()["kind"] == "rows"
+
+
+async def test_a_relation_says_what_points_at_it(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], schema: str
+) -> None:
+    """The mirror of the page's own keys, asked for rather than read per page."""
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _arriving(
+        client, normal_user_token_headers, connector_id, f"{schema}.regions"
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == [
+        {
+            # A handle the source issues rather than the constraint's own name:
+            # several arriving keys can share one (D110).
+            "name": f"customers_region_fkey@{schema}.customers",
+            # This relation's columns, because they are the cells the way back
+            # is offered from and the values the caller already holds.
+            "columns": ["id", "code"],
+            "source_title": f"{schema}.customers",
+        }
+    ]
+
+
+async def test_a_relation_nothing_points_at_says_so(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], schema: str
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _arriving(
+        client, normal_user_token_headers, connector_id, f"{schema}.customers"
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == []
+
+
+async def test_a_relation_that_is_not_there_is_not_an_empty_answer(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], schema: str
+) -> None:
+    """"Nothing points here" and "there is no such relation" are not the same."""
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _arriving(
+        client, normal_user_token_headers, connector_id, f"{schema}.invented"
+    )
+
+    assert response.status_code == 404
+
+
+async def test_following_an_arriving_key_lands_on_the_rows_that_point_here(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], schema: str
+) -> None:
+    await _seed(schema)
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _follow(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        node_id=f"{schema}.regions",
+        reference=f"customers_region_fkey@{schema}.customers",
+        direction="incoming",
+        values=[
+            {"column": "id", "value": "7"},
+            {"column": "code", "value": "north"},
+        ],
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["kind"] == "rows"
+    assert body["node"]["id"] == f"{schema}.customers"
+    assert body["connector"]["id"] == connector_id
+    # The filters are over the referencing relation's own columns.
+    assert body["filters"] == [
+        {"column": "region_id", "op": "eq", "value": "7"},
+        {"column": "region_code", "op": "eq", "value": "north"},
+    ]
+
+
+async def test_the_way_back_is_a_request_the_fetch_route_accepts(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], schema: str
+) -> None:
+    await _seed(schema)
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    followed = await _follow(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        node_id=f"{schema}.regions",
+        reference=f"customers_region_fkey@{schema}.customers",
+        direction="incoming",
+        values=[
+            {"column": "id", "value": "7"},
+            {"column": "code", "value": "north"},
+        ],
+    )
+    target = followed.json()
+
+    response = await client.post(
+        f"{BASE}/{connector_id}/fetch",
+        headers=normal_user_token_headers,
+        json={
+            "node_id": target["node"]["id"],
+            "filters": target["filters"],
+            "limit": 10,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert len(response.json()["rows"]) == 1
+
+
+async def test_a_row_with_no_key_value_points_back_at_nothing(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], schema: str
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _follow(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        node_id=f"{schema}.regions",
+        reference=f"customers_region_fkey@{schema}.customers",
+        direction="incoming",
+        values=[
+            {"column": "id", "value": None},
+            {"column": "code", "value": None},
+        ],
+    )
+
+    assert response.status_code == 200
+    assert response.json()["kind"] == "none"
+
+
+async def test_an_arriving_name_the_relation_does_not_have_is_a_bad_request(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], schema: str
+) -> None:
+    """The direction decides which reading the name is checked against."""
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+
+    response = await _follow(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        # This name is a key *of* customers, so it is not one arriving at it.
+        node_id=f"{schema}.customers",
+        reference="customers_region_fkey",
+        direction="incoming",
+        values=[{"column": "region_id", "value": "7"}],
+    )
+
+    assert response.status_code == 422
+    assert "points at this relation" in response.text
+
+
+async def test_a_source_that_cannot_search_for_arriving_keys_says_so(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    listed = await _arriving(
+        client, normal_user_token_headers, connector_id, "sample.csv"
+    )
+    followed = await _follow(
+        client,
+        normal_user_token_headers,
+        connector_id,
+        node_id="sample.csv",
+        reference="anything",
+        direction="incoming",
+        values=[{"column": "id", "value": "1"}],
+    )
+
+    assert listed.status_code == 501
+    assert followed.status_code == 501

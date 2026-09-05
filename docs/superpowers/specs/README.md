@@ -107,6 +107,7 @@ translations; those files are not.
 | 2026-09-04 | [Redis stops at measured read caching](2026-09-04-cache-scope-design.md) | D104: observable cache outcomes and no locks, job fan-out, share acceleration or durable truth without evidence |
 | 2026-09-05 | [The freshness window a connection chooses](2026-09-05-connector-cache-window-design.md) | D105: the owner of a connection sets how long its reads are kept, and every reply says how old it is |
 | 2026-09-05 | [A reference the person draws](2026-09-05-declared-references-design.md) | D106, D107, D108, D109: the application keeps references no source has, checked against both ends and followed into another connection |
+| 2026-09-05 | [The way back along a key](2026-09-05-arriving-references-design.md) | D110: a source says what points at a relation, asked on demand and followed by the same call |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

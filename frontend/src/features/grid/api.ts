@@ -173,6 +173,9 @@ export function useDeleteRows(connectorId: Ref<string>) {
   )
 }
 
+export const arrivingReferencesKey = (connectorId: string, nodeId: string) =>
+  ["arrivingReferences", connectorId, nodeId] as const
+
 /**
  * Ask the source where one foreign key of one row leads.
  *
@@ -189,6 +192,31 @@ export function useFollowReference(connectorId: Ref<string>) {
           body,
         })
       ).data,
+  })
+}
+
+/**
+ * What points at this relation, asked once for the relation (D110).
+ *
+ * A query and not a mutation, unlike following one: which keys arrive does not
+ * change as the rows are paged through, and the answer decides which cells
+ * offer the way back at all — so it is read when the rows are first shown and
+ * kept. A source that cannot search for arriving keys answers 501, which is a
+ * fact about the source and not an error to show: the marks simply do not
+ * appear.
+ */
+export function useArrivingReferences(connectorId: Ref<string>, nodeId: Ref<string>) {
+  return useQuery({
+    queryKey: computed(() => arrivingReferencesKey(connectorId.value, nodeId.value)),
+    queryFn: async () =>
+      (
+        await ConnectorsService.arrivingReferences({
+          path: { connector_id: connectorId.value },
+          body: { node_id: nodeId.value },
+        })
+      ).data,
+    staleTime: 5 * 60_000,
+    retry: false,
   })
 }
 

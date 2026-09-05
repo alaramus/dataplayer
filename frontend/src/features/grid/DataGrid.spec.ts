@@ -97,6 +97,11 @@ beforeEach(() => {
   localStorage.clear()
   vi.restoreAllMocks()
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined)
+  // Every grid asks what points at its relation (D110). Most of these tests
+  // are about something else, and an unmocked call would reach the network.
+  vi.spyOn(ConnectorsService, "arrivingReferences").mockResolvedValue({
+    data: [],
+  } as never)
 })
 
 describe("the basic data grid", () => {
@@ -1189,6 +1194,68 @@ describe("following a reference out of a row", () => {
     expect(mark.classes()).toContain("data-grid__follow")
     expect(mark.attributes("title")).toBe("")
     expect(mark.attributes("aria-label")).toBe("Go to sales.regions")
+  })
+
+  it("offers the way back where a key lands, and says which one was chosen", async () => {
+    mockKeyedPage()
+    vi.spyOn(ConnectorsService, "arrivingReferences").mockResolvedValue({
+      data: [
+        { name: "orders_region_fkey", columns: ["region_id"], source_title: "sales.orders" },
+        { name: "shops_region_fkey", columns: ["region_id"], source_title: "sales.shops" },
+      ],
+    } as never)
+    const follow = vi.spyOn(ConnectorsService, "followReference").mockResolvedValue({
+      data: {
+        kind: "rows",
+        node: {
+          kind: "table",
+          id: "sales.shops",
+          name: "shops",
+          has_children: false,
+          representations: [{ kind: "table", title: "View as table" }],
+        },
+        filters: [{ column: "region_id", op: "eq", value: "7" }],
+      },
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    // The mark sits on the cell the arriving keys land on, and on no other.
+    expect(wrapper.find('[data-testid="grid-arriving-0-region_id"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="grid-arriving-0-note"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="grid-arriving-0-region_id"]').trigger("click")
+    await flushPromises()
+    document.body.querySelector<HTMLElement>('[data-testid="menu-item-shops_region_fkey"]')?.click()
+    await flushPromises()
+
+    expect(follow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: {
+          node_id: "public.projects",
+          reference: "shops_region_fkey",
+          direction: "incoming",
+          values: [{ column: "region_id", value: "7" }],
+        },
+      })
+    )
+    expect(wrapper.findComponent(DataGrid).emitted("follow")?.[0]?.[0]).toMatchObject({
+      node: { id: "sales.shops" },
+    })
+  })
+
+  it("offers no way back out of an empty cell either", async () => {
+    mockKeyedPage()
+    vi.spyOn(ConnectorsService, "arrivingReferences").mockResolvedValue({
+      data: [
+        { name: "orders_region_fkey", columns: ["region_id"], source_title: "sales.orders" },
+      ],
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="grid-arriving-0-region_id"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="grid-arriving-1-region_id"]').exists()).toBe(false)
   })
 
   it("draws no way out of an empty cell", async () => {

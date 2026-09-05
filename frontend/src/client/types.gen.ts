@@ -345,6 +345,42 @@ export type ArchiveContents = {
 }
 
 /**
+ * ArrivingReference
+ *
+ * One key of another relation that lands on this one.
+ *
+ * The mirror of `FetchReference`, and deliberately the same shape: `columns`
+ * are this relation's, because they are the cells the way back is offered
+ * from, and the name is the handle to send back. What the key is called over
+ * there, and which of its columns stand for these, stay with the source —
+ * the same rule that keeps a target's columns out of `FetchReference`.
+ */
+export type ArrivingReference = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Columns
+   */
+  columns: Array<string>
+  /**
+   * Source Title
+   */
+  source_title: string
+}
+
+/**
+ * ArrivingReferencesRequest
+ */
+export type ArrivingReferencesRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+}
+
+/**
  * AudioContent
  *
  * Verified facts about one sound file, and where its bytes are read.
@@ -2432,6 +2468,10 @@ export type FollowReferenceRequest = {
    * Reference
    */
   reference: string
+  /**
+   * Direction
+   */
+  direction?: "outgoing" | "incoming"
   /**
    * Values
    */
@@ -8764,6 +8804,40 @@ export type connectorsFollowReferenceResponses = {
 
 export type connectorsFollowReferenceResponse =
   connectorsFollowReferenceResponses[keyof connectorsFollowReferenceResponses]
+
+export type connectorsArrivingReferencesData = {
+  body: ArrivingReferencesRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/references/arriving"
+}
+
+export type connectorsArrivingReferencesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsArrivingReferencesError =
+  connectorsArrivingReferencesErrors[keyof connectorsArrivingReferencesErrors]
+
+export type connectorsArrivingReferencesResponses = {
+  /**
+   * Response Connectors-Arriving References
+   *
+   * Successful Response
+   */
+  200: Array<ArrivingReference>
+}
+
+export type connectorsArrivingReferencesResponse =
+  connectorsArrivingReferencesResponses[keyof connectorsArrivingReferencesResponses]
 
 export type connectorsReadRelationModelData = {
   body?: never

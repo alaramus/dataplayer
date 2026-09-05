@@ -12,6 +12,7 @@ from app.adapters.protocol import (
     DataAdapter,
     SearchesContents,
     SupportsAddColumn,
+    SupportsArrivingReferences,
     SupportsBackup,
     SupportsCatalog,
     SupportsContent,
@@ -225,6 +226,8 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
         found.append(Capability(group="explore", title="Describe a relation"))
     if issubclass(driver, SupportsReferences):
         found.append(Capability(group="explore", title="Follow references"))
+    if issubclass(driver, SupportsArrivingReferences):
+        found.append(Capability(group="explore", title="Find what points here"))
     if issubclass(driver, SupportsAddColumn):
         found.append(Capability(group="manage", title="Add columns"))
     if issubclass(driver, SupportsDropColumn):

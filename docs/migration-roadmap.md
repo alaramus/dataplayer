@@ -50,6 +50,7 @@ Legend:
 | 4 — server-owned jobs: Docker services, backup and restore | 2026-09-03 | D80 through D87 |
 | 5 — optional Redis infrastructure | 2026-09-05 | D100 through D104 |
 | 1.6 — a reference the person draws | 2026-09-05 | [D106](superpowers/specs/2026-09-05-declared-references-design.md) through D109 |
+| 1.7 — the way back along a key | 2026-09-05 | [D110](superpowers/specs/2026-09-05-arriving-references-design.md) |
 
 Each of those has a spec in [the index](superpowers/specs/README.md), dated the
 day it closed, and a home in `docs/architecture/`. With 1.5 validated, phase 1
@@ -96,6 +97,16 @@ it is made and again when it is followed. Following one may land in another
 connection, which the answer now names. The file source gained the one thing
 that made a reference into a CSV worth having: it looks a value up by equality,
 where the rows are read, and by nothing else.
+
+Phase 1.7 closed the same day, and it closes the deviation D36 left open. A
+source now says which keys land on a relation — a search of the catalog, so a
+capability of its own, asked once per relation and never per page — and
+following one is the same call with a direction. The screen draws the way back
+in the corner opposite the way out and offers what was found as a menu,
+because unlike the forward direction there is usually more than one answer.
+What is still missing is the old application's row window: one row drawn
+vertically with both directions offered per column, which is a screen over
+these routes rather than a contract.
 
 ## Priority order at a glance
 

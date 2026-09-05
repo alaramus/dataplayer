@@ -103,6 +103,7 @@ from app.adapters.protocol import (
     ParsesConnectionString,
     SearchesContents,
     SupportsAddColumn,
+    SupportsArrivingReferences,
     SupportsCatalog,
     SupportsColumnDefault,
     SupportsColumnNullability,
@@ -129,6 +130,8 @@ from app.adapters.protocol import (
     SupportsUpdate,
 )
 from app.adapters.references import (
+    ArrivingReference,
+    ArrivingReferencesRequest,
     FollowReferenceRequest,
     ReferenceConnection,
     ReferencedRows,
@@ -1912,12 +1915,67 @@ async def follow_reference(
                     "error_kind": "config",
                 },
             )
+        if request.direction == "incoming" and not isinstance(
+            adapter, SupportsArrivingReferences
+        ):
+            raise HTTPException(
+                status_code=501,
+                detail={
+                    "message": "This source cannot say what points at a relation",
+                    "error_kind": "config",
+                },
+            )
         return _in_connection(await adapter.follow_reference(request), connector)
     except NodeNotFound as exc:
         raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
     except ValueError as exc:
         # The reference or its columns, checked against what the source says
         # now. A bad request rather than an upstream failure: nothing was run.
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],
+        ) from exc
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
+
+
+@router.post(
+    "/{connector_id}/references/arriving", response_model=list[ArrivingReference]
+)
+async def arriving_references(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: ArrivingReferencesRequest,
+) -> Any:
+    """
+    List the keys of other relations that land on this one (D110).
+
+    Asked when somebody wants the way back, not on every page: this is a
+    search of the catalog for arriving keys rather than a reading of one
+    relation's own definition. Following one is the ordinary follow route with
+    `direction="incoming"`, so nothing here says where anything is.
+    """
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsArrivingReferences):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source cannot say what points at a relation",
+                "error_kind": "config",
+            },
+        )
+    try:
+        return await adapter.arriving_references(request.node_id)
+    except NodeNotFound as exc:
+        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
+    except ValueError as exc:
         raise HTTPException(
             status_code=422,
             detail=[{"loc": ["body"], "msg": str(exc), "type": "value_error"}],

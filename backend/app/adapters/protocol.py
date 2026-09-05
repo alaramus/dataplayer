@@ -40,7 +40,11 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
-from app.adapters.references import FollowReferenceRequest, ReferenceTarget
+from app.adapters.references import (
+    ArrivingReference,
+    FollowReferenceRequest,
+    ReferenceTarget,
+)
 from app.adapters.relation import RelationModel
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -301,6 +305,26 @@ class SupportsReferences(Protocol):
         gone, AdapterError for source failures, and ValueError for a request
         that names a reference the relation does not have or supplies values
         that are not exactly its key.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsArrivingReferences(Protocol):
+    async def arriving_references(self, node_id: str) -> list[ArrivingReference]:
+        """The keys of other relations that land on this one (D110).
+
+        Separate from `SupportsReferences` because the two are different
+        questions of a source: reading this relation's own keys is reading its
+        definition, while finding the keys that point at it is a search of
+        everything else. A source that can do the first and not the second
+        answers 501 to this and stays useful.
+
+        Following one is `follow_reference` with `direction="incoming"`, so a
+        source that implements this implements that direction too.
+
+        Raises NodeNotFound for a relation that is gone and AdapterError for
+        source failures.
         """
         ...
 
