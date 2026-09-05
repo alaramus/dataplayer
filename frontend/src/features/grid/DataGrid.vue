@@ -1302,17 +1302,26 @@ defineExpose({
     </template>
 
     <template #cell-overlay="{ row, column, value }">
-      <AppIconButton
-        v-for="reference in cellReferences(column.id, value)"
+      <!-- A corner mark rather than a button in the cell: a way out belongs to
+           the value, and an icon the size of a button was drawn over the value
+           it belongs to. `title=""` is not decoration — the cell carries the
+           browser's own hint about editing, and without an empty one here that
+           hint was drawn beside this tooltip whenever the mark was hovered. -->
+      <button
+        v-for="(reference, index) in cellReferences(column.id, value)"
         :key="reference.name"
+        type="button"
         class="data-grid__follow"
-        icon="arrow_forward"
-        :tooltip="`Go to ${reference.target_title}`"
-        :disable="followReference.isPending.value"
+        title=""
+        :style="{ insetInlineEnd: `${index * 12}px` }"
+        :disabled="followReference.isPending.value"
+        :aria-label="`Go to ${reference.target_title}`"
         :data-testid="`grid-follow-${row.id}-${reference.name}`"
         @click.stop="follow(row, reference)"
         @dblclick.stop
-      />
+      >
+        <AppTooltip>Go to {{ reference.target_title }}</AppTooltip>
+      </button>
     </template>
 
     <template #after-rows="{ nextRowNumber }">
@@ -1387,11 +1396,42 @@ defineExpose({
 <style scoped>
 /* A relationship is a cell control, not content. It occupies the corner
    without changing the row height or the width of the value. */
+/* The mark itself is drawn by the corner triangle below; the button is a
+   little larger than it so that pointing at it is not an aiming exercise. */
 .data-grid__follow {
   position: absolute;
   inset-block-start: 0;
   inset-inline-end: 0;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
   z-index: var(--dp-layer-sticky);
+}
+
+.data-grid__follow::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  border-block-start: 9px solid var(--dp-link);
+  border-inline-start: 9px solid transparent;
+}
+
+.data-grid__follow:hover::after,
+.data-grid__follow:focus-visible::after {
+  border-block-start-width: 12px;
+  border-inline-start-width: 12px;
+}
+
+.data-grid__follow:disabled {
+  cursor: default;
+}
+
+.data-grid__follow:disabled::after {
+  border-block-start-color: var(--dp-text-faint);
 }
 
 .data-grid__insert-error {

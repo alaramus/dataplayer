@@ -1174,6 +1174,23 @@ describe("following a reference out of a row", () => {
     })
   })
 
+  it("marks the corner of the cell and leaves the cell's own hint alone", async () => {
+    // Two tooltips used to be drawn over one another: the cell carries the
+    // browser's own hint about editing, and the way out carries its own. An
+    // empty `title` on the mark is what stops the browser walking up to the
+    // cell for one.
+    mockKeyedPage()
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    const mark = wrapper.get('[data-testid="grid-follow-0-customers_region_fkey"]')
+
+    expect(mark.element.tagName).toBe("BUTTON")
+    expect(mark.classes()).toContain("data-grid__follow")
+    expect(mark.attributes("title")).toBe("")
+    expect(mark.attributes("aria-label")).toBe("Go to sales.regions")
+  })
+
   it("draws no way out of an empty cell", async () => {
     mockKeyedPage()
     const wrapper = mountGrid()

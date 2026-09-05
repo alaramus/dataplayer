@@ -480,11 +480,11 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           <div class="structure-view__title">
             Columns
           </div>
-          <span
-            :title="query.data.value.column_changes_supported
-              ? undefined
-              : query.data.value.column_changes_reason ?? undefined"
-          >
+          <!-- The span is what the tooltip hangs on: a disabled button
+               takes no pointer events, so a tooltip inside it would never be
+               shown. It carries no `title` of its own — the two together drew
+               the same sentence twice, once styled and once by the browser. -->
+          <span>
             <AppButton
               label="Add column"
               variant="secondary"
@@ -592,7 +592,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           <div class="structure-view__title">
             Constraints
           </div>
-          <span :title="query.data.value.constraint_changes_supported ? undefined : query.data.value.constraint_changes_reason ?? undefined">
+          <span>
             <AppButton
               label="Add constraint"
               variant="secondary"
@@ -660,7 +660,7 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           <div class="structure-view__title">
             Indexes
           </div>
-          <span :title="query.data.value.index_changes_supported ? undefined : query.data.value.index_changes_reason ?? undefined">
+          <span>
             <AppButton
               label="Add index"
               variant="secondary"

@@ -3,9 +3,9 @@ import { flushPromises, mount } from "@vue/test-utils"
 import { Dialog, Notify, Quasar } from "quasar"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { ConnectorsService } from "@/client"
+import { ConnectorsService, DeclaredReferencesService } from "@/client"
 import type { RelationModel } from "@/client"
-import { AppInput, AppSelect } from "@/shared/ui"
+import { AppInput, AppSelect, AppTooltip } from "@/shared/ui"
 import { withWindowHost } from "@/shared/testing/windows"
 
 import StructureView from "./StructureView.vue"
@@ -101,6 +101,36 @@ beforeEach(() => {
   vi.spyOn(ConnectorsService, "readCatalog").mockResolvedValue({
     data: [{ id: "public.people", kind: "table", name: "people" }],
   } as never)
+  // The panel lists the references drawn from this node (D106); without this
+  // the section beneath the indexes would reach for the network.
+  vi.spyOn(DeclaredReferencesService, "referencesListDeclaredReferences").mockResolvedValue({
+    data: [],
+  } as never)
+})
+
+describe("an action the source refuses", () => {
+  it("gives the reason once rather than twice", async () => {
+    vi.spyOn(ConnectorsService, "readRelationModel").mockResolvedValue({
+      data: {
+        ...MODEL,
+        index_changes_supported: false,
+        index_changes_reason: "A delimited file has no indexes",
+      },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+
+    const heading = wrapper
+      .findAll(".structure-view__heading")
+      .find((element) => element.text().includes("Indexes"))
+
+    expect(heading).toBeDefined()
+    // The kit's tooltip and nothing else. A `title` on the span beside it drew
+    // the same sentence a second time, unstyled and over the first.
+    expect(heading!.findComponent(AppTooltip).exists()).toBe(true)
+    expect(heading!.findAll("[title]")).toHaveLength(0)
+    wrapper.unmount()
+  })
 })
 
 describe("relation column changes", () => {
