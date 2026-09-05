@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/vue-query"
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from "vue"
 
 import { ConnectorsService } from "@/client"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
@@ -91,11 +92,17 @@ function openStructure(id: string) {
     class="relationship-panel"
     data-testid="relationship-panel"
   >
-    <!-- No line naming the scope and no line explaining the arrows: the tab
+    <!-- Still no line naming the scope and none explaining the arrows: the tab
          already says which connection this is and how many tables were asked
          for, and a placeholder card says on its own face whether it is outside
-         the selection or unreadable. Two standing bars for that took height
-         from the only thing here that needs it. -->
+         the selection or unreadable. What this row holds is what the panel
+         offers about itself and nothing else (D112) — and no way back to a
+         catalog, because a diagram is drawn from several nodes at once and
+         every node card carries its own way there. -->
+    <div class="relationship-panel__bar">
+      <PanelCommands :panel-id="panelId" />
+    </div>
+
     <div
       v-if="source.isFetching.value"
       class="relationship-panel__loading"
@@ -172,5 +179,6 @@ function openStructure(id: string) {
 .relationship-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .relationship-panel__loading { display: flex; align-items: center; gap: 12px; padding: 3px 8px; font-size: 12px; border-bottom: 1px solid var(--dp-border); }
 .relationship-panel__loading > span { white-space: nowrap; }
+.relationship-panel__bar { display: flex; align-items: center; justify-content: flex-end; flex: none; gap: 2px; }
 .relationship-panel__viewer { flex: 1; min-height: 0; }
 </style>

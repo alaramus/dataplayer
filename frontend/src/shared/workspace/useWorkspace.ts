@@ -51,10 +51,13 @@ export interface WorkspaceOptions<P extends { id: string }> {
    * or every render replaces it.
    */
   collapsed?: (panel: P) => Component | null
-  /** What a click on the icon of a tab does, if anything. */
+  /**
+   * What a click on the icon of a tab does, if anything.
+   *
+   * Reached only from a look that sets `iconCommand`: an icon with a tooltip
+   * and no command behind it is drawn as plain hover text (D112).
+   */
   onIconClick?: (panel: P) => void
-  /** How a panel is re-read, if the feature offers it. */
-  onReload?: (panel: P) => Promise<void> | void
   /**
    * Whether a panel may be closed now.
    *
@@ -333,13 +336,6 @@ export function useWorkspace<P extends { id: string }>(
         : (panelId) => {
             const panel = panelOf(panelId)
             if (panel !== undefined) options.onIconClick?.(panel)
-          },
-    onReload:
-      options.onReload === undefined
-        ? undefined
-        : async (panelId) => {
-            const panel = panelOf(panelId)
-            if (panel !== undefined) await options.onReload?.(panel)
           },
     close,
     requestClose: async (panelId) => {

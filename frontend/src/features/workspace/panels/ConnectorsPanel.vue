@@ -3,6 +3,7 @@ import { computed } from "vue"
 
 import ConnectorList from "@/features/connectors/ConnectorList.vue"
 import { useConnectors } from "@/features/connectors/api"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppIconButton } from "@/shared/ui"
@@ -20,7 +21,10 @@ const rows = computed(() => connectors.data.value?.data ?? [])
 </script>
 
 <template>
-  <div class="connectors-panel">
+  <div
+    class="connectors-panel"
+    data-testid="connectors-panel"
+  >
     <div class="connectors-panel__bar">
       <!-- Queries used to stand here for want of anywhere better; they are
            a command of a connection and live in the bar at the foot of the
@@ -39,6 +43,12 @@ const rows = computed(() => connectors.data.value?.data ?? [])
         data-testid="add-connector"
         @click="workspace.editConnector(null)"
       />
+      <!-- At the end of the row, where every panel keeps what it offers about
+           itself. The list of connections is nobody's node, so re-reading it
+           is the only thing here (D112). -->
+      <div class="connectors-panel__commands">
+        <PanelCommands panel-id="connectors" />
+      </div>
     </div>
     <q-separator class="connectors-panel__rule" />
 
@@ -79,6 +89,12 @@ const rows = computed(() => connectors.data.value?.data ?? [])
 }
 /* The same hairline the strip draws, at the width this column happens to
    have. */
+.connectors-panel__commands {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
 .connectors-panel__rule {
   flex: none;
   margin: 2px 8px 4px;

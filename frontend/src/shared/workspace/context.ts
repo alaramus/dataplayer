@@ -26,20 +26,32 @@ export interface PanelLook {
    */
   closable?: boolean
   /**
-   * What the icon says when hovered, if clicking it does something of its
-   * own rather than activating the tab.
+   * What the icon says when hovered, if it says anything.
    *
-   * Absent means the icon is inert: the catalog carries "Edit connection"
-   * here and a data tab carries nothing, so the engine knows which tabs
-   * have an actionable icon without knowing what a catalog is. See T5.
+   * Hover text and nothing more: for a table it names the connection the node
+   * came from, which is the one thing a tab called after the node does not
+   * say. Whether pressing the icon does anything is a separate question, and
+   * `iconCommand` is the one that answers it.
    */
   iconTooltip?: string
   /**
-   * What the reload button says when hovered, if the panel offers one.
+   * Whether pressing the icon does something of its own rather than
+   * activating the tab. Defaults to false.
    *
-   * Present means the tab draws the button; absent means it does not. The same
-   * pairing as `iconTooltip`: the engine learns that a tab has something to
-   * re-read without learning what a catalog is.
+   * Separate from the tooltip because the two used to be one: an icon was
+   * drawn as a button wherever a tooltip existed, and four kinds carried a
+   * tooltip with nothing behind it. Everything a panel offers about what it
+   * shows now lives in the panel's own row of commands; the icon of a tab is
+   * a button only where pressing it reaches something that row cannot — the
+   * connection behind a catalog. See D112.
+   */
+  iconCommand?: boolean
+  /**
+   * What this panel's reload button says when hovered, if it offers one.
+   *
+   * The button is drawn by the panel and not by the tab (D112), so this is
+   * read through `lookOf` rather than by the engine itself. Absent means the
+   * panel has nothing to re-read.
    */
   reloadTooltip?: string
 }
@@ -97,23 +109,16 @@ export interface WorkspaceContext {
   detach: (panelId: PanelId) => void
   dock: (panelId: PanelId) => void
   /**
-   * What a click on the icon of a tab does, if the feature says it does
+   * What a click on the icon of a tab does, where the look says it does
    * anything at all rather than activating the tab.
    *
    * Asked of the context rather than worked out by the section, because the
    * answer needs the panel being clicked and what the feature wants to do
-   * with it - for a catalog that is opening the edit window, for data it is
-   * nothing. The engine knows the tab, not what a catalog is. See T5.
+   * with it - for a catalog that is opening the edit window. Only a look that
+   * sets `iconCommand` is drawn as a button. The engine knows the tab, not
+   * what a catalog is. See T5 and D112.
    */
   onIconClick?: (panelId: PanelId) => void
-  /**
-   * Re-read a panel, without making it the one on show.
-   *
-   * What re-reading means belongs to the panel — a list re-fetches, a catalog
-   * re-reads the level it stands on, a grid re-runs its page — so the engine
-   * asks and does not know. Awaited, so the button can say it is working.
-   */
-  onReload?: (panelId: PanelId) => Promise<void> | void
   close: (panelId: PanelId) => void
   /**
    * Close a panel unless it says it is not ready to go.

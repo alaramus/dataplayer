@@ -5,6 +5,7 @@ import type { ContentRequest } from "@/client"
 import { client } from "@/client/client.gen"
 import { formatSize } from "@/features/catalog/nodes"
 import { useContent } from "@/features/content/api"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { messageOf } from "@/shared/api/errors"
 import { AppBanner, AppSpinner } from "@/shared/ui"
@@ -58,6 +59,12 @@ useReloadable(props.panelId, reload)
   <div class="image-panel">
     <div class="image-panel__head">
       <span data-testid="image-details">{{ details }}</span>
+      <div class="image-panel__commands">
+        <PanelCommands
+          :panel-id="panelId"
+          :reveal="{ connectorId, nodeId, label: title }"
+        />
+      </div>
     </div>
 
     <AppBanner
@@ -107,6 +114,11 @@ useReloadable(props.panelId, reload)
   border-bottom: 1px solid var(--dp-border-faint);
   color: var(--dp-text-muted);
   font-size: 11px;
+}
+.image-panel__commands {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 .image-panel__stage {
   display: grid;

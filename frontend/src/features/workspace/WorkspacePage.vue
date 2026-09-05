@@ -106,32 +106,13 @@ const workspace = useWorkspace<Panel>({
   component: componentOf,
   empty: emptyOf,
   collapsed: collapsedOf,
-  // A click on the icon of a tab does the thing that tab has no other way to
-  // do, rather than activating it; the tab still activates on a click anywhere
-  // else. From a catalog that is the connection itself; from rows or content it
-  // is the catalog the node came from, which is reachable nowhere else while
-  // editing a connection has two other ways in. See T5.
+  // The one thing a tab's icon still does, and the only kind that offers it:
+  // the connection behind a catalog is not reachable from the catalog's own
+  // row of commands, while everything a panel offers about the node it shows
+  // is (D112). A look without `iconCommand` is never drawn as a button, so
+  // this list cannot grow a kind that presses and does nothing.
   onIconClick: (panel) => {
     if (panel.kind === "catalog") editConnector(panel.connectorId)
-    // Every panel opened on one node goes back to it the same way. An icon
-    // that carries a tooltip is drawn as a button, so a kind left out of this
-    // list is a button that does nothing when it is pressed.
-    if (
-      panel.kind === "rows" ||
-      panel.kind === "content" ||
-      panel.kind === "structure" ||
-      panel.kind === "summary" ||
-      panel.kind === "record"
-    ) {
-      revealInCatalog(panel.connectorId, panel.nodeId, panel.title)
-    }
-  },
-  // What re-reading means belongs to the panel, so the panel says how and this
-  // only calls it. A tab restored from storage and never opened has never
-  // mounted and registered nothing — showing it is what reads it, and that is
-  // what the button does there.
-  onReload: async (panel) => {
-    if (!(await reloads.reload(panel.id))) workspace.context.activate(panel.id)
   },
   // A tab is a person's decision to close something; what that costs is the
   // panel's to say. A console holding an open transaction is the reason (D66).
@@ -174,8 +155,9 @@ const me = useCurrentUser()
 const windows = useWindowManager()
 const confirm = useConfirm()
 
-// Panels say how they are re-read; the tab strip presses the button. Provided
-// here so that every panel of this screen registers into the same one.
+// Panels say how they are re-read, and the button that asks stands in the
+// panel's own row of commands (D112). Provided here so that every panel of
+// this screen registers into the same one.
 const reloads = createReloadRegistry()
 provideReloadRegistry(reloads)
 

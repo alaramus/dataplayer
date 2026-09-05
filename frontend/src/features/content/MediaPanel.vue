@@ -5,6 +5,7 @@ import type { ContentRequest } from "@/client"
 import { client } from "@/client/client.gen"
 import { useContent } from "@/features/content/api"
 import { mediaDetails } from "@/features/content/media"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { messageOf } from "@/shared/api/errors"
 import { AppBanner, AppSpinner } from "@/shared/ui"
@@ -54,6 +55,12 @@ useReloadable(props.panelId, reload)
   <div class="media-panel">
     <div class="media-panel__head">
       <span data-testid="media-details">{{ details }}</span>
+      <div class="media-panel__commands">
+        <PanelCommands
+          :panel-id="panelId"
+          :reveal="{ connectorId, nodeId, label: title }"
+        />
+      </div>
     </div>
 
     <AppBanner
@@ -114,6 +121,11 @@ useReloadable(props.panelId, reload)
   height: 100%;
   min-height: 0;
   padding: 4px;
+}
+.media-panel__commands {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 .media-panel__head {
   display: flex;

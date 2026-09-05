@@ -1258,6 +1258,12 @@ defineExpose({
           @click="deleteSelection(selectedRowIndexes)"
         />
       </span>
+
+      <!-- Forwarded rather than filled, for the reason the pager's row is:
+           what a panel offers about itself — the way back to its node, a
+           re-read, the way out of a window — is the tab's business and not
+           the grid's, and it goes at the end of the row (D112). -->
+      <slot name="commands-end" />
     </template>
 
     <!-- Forwarded rather than filled: what belongs on the pager's row is

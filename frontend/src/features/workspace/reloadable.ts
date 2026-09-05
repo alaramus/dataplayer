@@ -51,6 +51,18 @@ export function provideReloadRegistry(registry: ReloadRegistry) {
 }
 
 /**
+ * The registry itself, for whoever presses the button.
+ *
+ * The button lives in the panel's own row of commands (D112), so the thing
+ * that presses it is mounted inside the panel that registered the answer.
+ * Null outside the workspace page — a panel mounted on its own in a test has
+ * nothing to press.
+ */
+export function useReloadRegistry(): ReloadRegistry | null {
+  return inject(reloadRegistryKey, null)
+}
+
+/**
  * Say how this panel is re-read, for as long as it exists.
  *
  * Called from the panel's own setup. Panels are kept alive when their tab is

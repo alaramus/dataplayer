@@ -25,6 +25,7 @@ import {
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { groupTitle, showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
@@ -629,7 +630,10 @@ async function afterAction(outcome: ActionOutcome) {
 </script>
 
 <template>
-  <div class="catalog-panel">
+  <div
+    class="catalog-panel"
+    data-testid="catalog-panel"
+  >
     <div class="catalog-panel__head">
       <div class="catalog-panel__bar">
         <!-- Where we are, on the same line as the menu, not a stack of
@@ -767,6 +771,10 @@ async function afterAction(outcome: ActionOutcome) {
           @details="showDetails"
           @relationships="showRelationships"
         />
+
+        <!-- The catalog is the way to a node and not a view of one, so it
+             offers no "show in catalog" of its own (D112). -->
+        <PanelCommands :panel-id="panelId" />
       </div>
 
       <!-- On a line of its own: a filter is something a user types into, and

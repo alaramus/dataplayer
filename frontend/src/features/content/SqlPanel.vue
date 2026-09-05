@@ -4,6 +4,7 @@ import { computed } from "vue"
 import type { ContentRequest } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import { useContent } from "@/features/content/api"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
@@ -51,15 +52,21 @@ function showTable() {
   <div class="sql-panel">
     <div class="sql-panel__head">
       <span class="sql-panel__kind">SQL · read only</span>
-      <AppButton
-        v-if="tableTitle"
-        variant="quiet"
-        size="sm"
-        icon="grid_on"
-        :label="tableTitle"
-        data-testid="sql-view-table"
-        @click="showTable"
-      />
+      <div class="sql-panel__actions">
+        <AppButton
+          v-if="tableTitle"
+          variant="quiet"
+          size="sm"
+          icon="grid_on"
+          :label="tableTitle"
+          data-testid="sql-view-table"
+          @click="showTable"
+        />
+        <PanelCommands
+          :panel-id="panelId"
+          :reveal="{ connectorId, nodeId, label: title }"
+        />
+      </div>
     </div>
 
     <AppBanner
@@ -101,6 +108,11 @@ function showTable() {
   height: 100%;
   min-height: 0;
   padding: 4px;
+}
+.sql-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 .sql-panel__head {
   display: flex;

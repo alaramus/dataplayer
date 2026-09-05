@@ -407,10 +407,13 @@ function baseLookOf(panel: Panel): PanelLook {
         reloadTooltip: "Reload the list of connections",
       }
     case "catalog":
+      // The one tab whose icon is still a button: the connection behind a
+      // catalog is not a thing the catalog's own row of commands reaches.
       return {
         title: panel.title,
         icon: adapterIcon(panel.adapterType),
         iconTooltip: "Edit connection",
+        iconCommand: true,
         reloadTooltip: "Re-read this level",
       }
     case "rows":
@@ -421,21 +424,21 @@ function baseLookOf(panel: Panel): PanelLook {
       // of its source — with several catalogs open the right-hand column holds
       // tabs from several connections at once.
       //
-      // Pressing it goes to the catalog of the connection that owns the node,
-      // which is the one way there that exists nowhere else; the name of the
-      // connection is in the tooltip rather than beside the title, because two
-      // `users` from two databases would otherwise be the same tab.
+      // The name of the connection is in the tooltip rather than beside the
+      // title, because two `users` from two databases would otherwise be the
+      // same tab. Hover text and nothing more: the way back to the node in the
+      // catalog is a button in the panel's own row of commands (D112).
       return {
         title: panel.title,
         icon: rowsIcon(panel),
-        iconTooltip: `${panel.connectorName} · Show in catalog`,
+        iconTooltip: panel.connectorName,
         reloadTooltip: "Re-read this table",
       }
     case "content":
       return {
         title: panel.title,
         icon: REPRESENTATION_ICONS[panel.representation],
-        iconTooltip: `${panel.connectorName} · Show in catalog`,
+        iconTooltip: panel.connectorName,
         reloadTooltip:
           panel.representation === "sql" ? "Re-read this DDL" : "Re-read this file",
       }
@@ -443,28 +446,28 @@ function baseLookOf(panel: Panel): PanelLook {
       return {
         title: panel.title,
         icon: "account_tree",
-        iconTooltip: `${panel.connectorName} · Show in catalog`,
+        iconTooltip: panel.connectorName,
         reloadTooltip: "Re-read the structure",
       }
     case "summary":
       return {
         title: panel.title,
         icon: "info",
-        iconTooltip: `${panel.connectorName} · Show in catalog`,
+        iconTooltip: panel.connectorName,
         reloadTooltip: "Re-read these details",
       }
     case "record":
       return {
         title: `${panel.title} row`,
         icon: "table_rows",
-        iconTooltip: `${panel.connectorName} · Show in catalog`,
+        iconTooltip: panel.connectorName,
         reloadTooltip: "Re-read this row",
       }
     case "chart":
       return {
         title: `${panel.title} chart`,
         icon: "insert_chart",
-        iconTooltip: `${panel.connectorName} · Chart`,
+        iconTooltip: panel.connectorName,
         reloadTooltip: "Re-read this chart page",
       }
     case "queries":
@@ -640,6 +643,7 @@ export function componentOf(panel: Panel, key: string): Component {
           panelId: panel.id,
           connectorId: panel.connectorId,
           nodeId: panel.nodeId,
+          title: panel.title,
         })
       )
     case "summary":
@@ -648,6 +652,7 @@ export function componentOf(panel: Panel, key: string): Component {
           panelId: panel.id,
           connectorId: panel.connectorId,
           nodeId: panel.nodeId,
+          title: panel.title,
         })
       )
     case "record":

@@ -120,6 +120,7 @@ describe("a section", () => {
           title: `title ${panelId}`,
           icon: "square",
           iconTooltip: panelId === "p1" ? "Edit connection" : undefined,
+          iconCommand: panelId === "p1",
         }),
         onIconClick: (id) => iconSeen.push(id),
         activate: (id) => activated.push(id),
@@ -130,9 +131,9 @@ describe("a section", () => {
     expect(activated).toEqual([])
   })
 
-  it("re-reads the panel whose reload is pressed, without activating it", async () => {
-    const reloaded: string[] = []
-    const activated: string[] = []
+  // The tab is not where a panel is re-read any more: the button stands in the
+  // panel's own row of commands, where a detached panel keeps it too (D112).
+  it("draws no reload in the strip, whatever the look says", () => {
     const wrapper = mountLeaf(
       contextFor({
         lookOf: (panelId) => ({
@@ -140,47 +141,50 @@ describe("a section", () => {
           icon: "square",
           reloadTooltip: "Reload",
         }),
-        onReload: (id) => {
-          reloaded.push(id)
-        },
+      })
+    )
+    expect(wrapper.find('[data-testid="workspace-reload-p1"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="workspace-reload-p2"]').exists()).toBe(false)
+  })
+
+  // The defect this replaced: an icon was a button wherever it had a tooltip,
+  // so four kinds offered a press with nothing behind it.
+  it("leaves the icon inert when the look gives it a tooltip and no command", async () => {
+    const iconSeen: string[] = []
+    const activated: string[] = []
+    const wrapper = mountLeaf(
+      contextFor({
+        lookOf: (panelId) => ({
+          title: `title ${panelId}`,
+          icon: "square",
+          iconTooltip: "local pg",
+        }),
+        onIconClick: (id) => iconSeen.push(id),
         activate: (id) => activated.push(id),
       })
     )
 
-    await wrapper.get('[data-testid="workspace-reload-p2"]').trigger("click")
+    const icon = wrapper.get('[data-testid="workspace-tab-icon-p1"]')
+    expect(icon.attributes("role")).toBeUndefined()
+    await icon.trigger("click")
 
-    expect(reloaded).toEqual(["p2"])
-    expect(activated).toEqual([])
+    expect(iconSeen).toEqual([])
+    // The click reached the tab, which is what a click anywhere on a tab does.
+    expect(activated).toEqual(["p1"])
   })
 
-  it("offers no reload where the feature named none", () => {
-    const wrapper = mountLeaf(contextFor({ onReload: () => undefined }))
-    expect(wrapper.find('[data-testid="workspace-reload-p1"]').exists()).toBe(false)
-  })
-
-  // The same pairing the icon action already has: a tooltip without a handler
-  // would draw a button that does nothing.
-  it("offers no reload when the handler is absent though the tooltip is there", () => {
+  it("shows no actionable icon when the handler is absent even though the look asks", () => {
     const wrapper = mountLeaf(
       contextFor({
-        lookOf: () => ({ title: "title", icon: "square", reloadTooltip: "Reload" }),
+        lookOf: () => ({
+          title: "title p1",
+          icon: "square",
+          iconTooltip: "Edit connection",
+          iconCommand: true,
+        }),
       })
     )
-    expect(wrapper.find('[data-testid="workspace-reload-p1"]').exists()).toBe(false)
-  })
-
-  it("shows a plain icon when the tab has no action", () => {
-    const wrapper = mountLeaf(contextFor())
-    expect(wrapper.find('[data-testid="workspace-tab-icon-p1"]').exists()).toBe(false)
-  })
-
-  it("shows no actionable icon when the handler is absent even though the tooltip is there", () => {
-    const wrapper = mountLeaf(
-      contextFor({
-        lookOf: () => ({ title: "title p1", icon: "square", iconTooltip: "Edit connection" }),
-      })
-    )
-    expect(wrapper.find('[data-testid="workspace-tab-icon-p1"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="workspace-tab-icon-p1"]').attributes("role")).toBeUndefined()
   })
 
   it("does not activate the panel when its cross is clicked", async () => {

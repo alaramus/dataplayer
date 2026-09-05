@@ -175,6 +175,7 @@ files. IDs are stable because specs and commits refer to them.
 | D109 | [sources/relations](docs/architecture/sources/relations.md) |
 | D110 | [sources/relations](docs/architecture/sources/relations.md) |
 | D111 | [grid](docs/architecture/grid.md) |
+| D112 | [workspace](docs/architecture/workspace.md) |
 
 ## Working rules
 

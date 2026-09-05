@@ -6,6 +6,7 @@ import DataGrid from "@/features/grid/DataGrid.vue"
 import type { Filter } from "@/features/grid/types"
 import { emptyDraft, writeDraft } from "@/features/queries/draft"
 import { useGenerateQuery, useQueryProfile } from "@/features/queries/runs"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { useSiblingTables } from "@/features/catalog/api"
@@ -269,6 +270,13 @@ function showReferenced(target: ReferencedRows) {
       @follow="showReferenced"
       @record="showRecord"
     >
+      <template #commands-end>
+        <PanelCommands
+          :panel-id="panelId"
+          :reveal="{ connectorId, nodeId, label: title }"
+        />
+      </template>
+
       <!-- On the row the pager is on, at the other end of it: which sheet is
            being read is about the whole page, the way the page number is.
            Only where there is a choice — one sheet is a table, and a strip of

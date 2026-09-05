@@ -73,6 +73,7 @@ import {
   rehearsalReport,
 } from "@/features/queries/structure"
 import { useClosable } from "@/features/workspace/closable"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf, statusOf } from "@/shared/api/errors"
@@ -1025,6 +1026,9 @@ onBeforeUnmount(() => {
         data-testid="query-trash"
         @click="moveToTrash"
       />
+      <!-- A console is written against a connection rather than opened on a
+           node, so there is nowhere in a catalog to be shown (D112). -->
+      <PanelCommands :panel-id="panelId" />
     </div>
 
     <AppBanner

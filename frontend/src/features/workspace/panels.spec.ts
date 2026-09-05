@@ -248,9 +248,10 @@ describe("the panel registry", () => {
   })
 
   it("still says which connection a data tab came from, in the tooltip", () => {
-    // Two `users` from two databases are otherwise the same tab. The tooltip
-    // is needed anyway, since the icon no longer does what it used to.
-    expect(lookOf(samples.rows).iconTooltip).toContain("local pg")
+    // Two `users` from two databases are otherwise the same tab. Hover text
+    // and nothing more: the way back to the node is a button in the panel.
+    expect(lookOf(samples.rows).iconTooltip).toBe("local pg")
+    expect(lookOf(samples.rows).iconCommand).toBeUndefined()
   })
 
   it("draws a data tab with the icon of its source rather than a generic one", () => {
@@ -263,22 +264,23 @@ describe("the panel registry", () => {
     expect(lookOf(samples.catalog).icon).not.toBe(lookOf(samples.connectors).icon)
   })
 
-  // Both tabs offer their icon, and they offer different things: from a
-  // catalog the connection itself is what there is to reach, from a table it
-  // is the catalog the table came from. Editing a connection has two other
-  // ways in; reaching the catalog of one table has none.
+  // The catalog is the one tab whose icon is still a button: the connection
+  // behind it is not reachable from the catalog's own row of commands, and
+  // everything a panel offers about the node it shows is (D112).
   it("lets the icon of a catalog tab open the window of that connection", () => {
     expect(lookOf(samples.catalog).iconTooltip).toBe("Edit connection")
+    expect(lookOf(samples.catalog).iconCommand).toBe(true)
   })
 
-  it("lets the icon of a data tab lead to the catalog it came from", () => {
-    expect(lookOf(samples.rows).iconTooltip).toContain("Show in catalog")
-  })
+  // The defect this replaced: an icon was drawn as a button wherever it had a
+  // tooltip, so four kinds offered a press with nothing behind it. Every kind
+  // but the catalog now says so.
+  it("asks for no icon command anywhere but the catalog", () => {
+    const commanding = Object.values(samples)
+      .filter((panel) => lookOf(panel).iconCommand === true)
+      .map((panel) => panel.kind)
 
-  it("lets the icon of a row view lead to the catalog too", () => {
-    // Every panel opened on one node goes back to it the same way. An icon
-    // with a tooltip is drawn as a button, and one that led nowhere was.
-    expect(lookOf(samples.record).iconTooltip).toContain("Show in catalog")
+    expect(commanding).toEqual(["catalog"])
   })
 
   it("restores a row view stored before it remembered which row", () => {
@@ -447,7 +449,7 @@ describe("the panel registry", () => {
   it("distinguishes a chart tab from its source and rows", () => {
     expect(lookOf(samples.chart).icon).toBe("insert_chart")
     expect(lookOf(samples.chart).icon).not.toBe(adapterIcon("postgres"))
-    expect(lookOf(samples.chart).iconTooltip).toBe("local pg · Chart")
+    expect(lookOf(samples.chart).iconTooltip).toBe("local pg")
   })
 
   it("identifies a chart by its complete view key", () => {

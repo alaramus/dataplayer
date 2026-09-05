@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue"
 import type { EditorContent, EditorContentRequest } from "@/client"
 import CodeEditor from "@/features/content/CodeEditor.vue"
 import { useEditorContent, useUpdateContent } from "@/features/content/api"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useClosable } from "@/features/workspace/closable"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -162,6 +163,10 @@ watch(
           :label="tableTitle"
           data-testid="content-view-table"
           @click="showTable"
+        />
+        <PanelCommands
+          :panel-id="panelId"
+          :reveal="{ connectorId, nodeId, label: title }"
         />
       </div>
     </div>

@@ -74,6 +74,8 @@ const page = useRowsPage(
   toRef(props, "connectorId"),
   computed(() => request.value)
 )
+defineExpose({ reload: async () => void (await page.refetch()) })
+
 const result = computed(() => page.data.value?.page)
 const columns = computed(() => result.value?.columns ?? [])
 const values = computed(() => result.value?.rows[index.value] ?? null)

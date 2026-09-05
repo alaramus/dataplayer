@@ -49,6 +49,8 @@ const request = computed(() => ({
 const snapshot = useResultPage(() => props.resultId, request)
 const download = useDownloadResult()
 
+defineExpose({ reload: async () => void (await snapshot.refetch()) })
+
 const columns = computed<TabularColumn[]>(() =>
   (snapshot.data.value?.columns ?? []).map(tabularColumnOf)
 )
@@ -188,6 +190,7 @@ async function save(scope: "page" | "all") {
         data-testid="result-chart-close"
         @click="charting = false"
       />
+      <slot name="commands-end" />
     </div>
     <ChartView
       :view-key="`result:${resultId}`"
@@ -250,6 +253,7 @@ async function save(scope: "page" | "all") {
         data-testid="result-download-all"
         @click="save('all')"
       />
+      <slot name="commands-end" />
     </template>
   </TabularGrid>
 </template>

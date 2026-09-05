@@ -53,7 +53,7 @@ if (windows !== undefined && targets !== undefined) {
             // needs this registry; the live panel keeps its page injections.
             provide(panelTargetsKey, registry)
             return () => h(WorkspaceFloatingPanel, {
-              context: props.context, panelId: panelId.value, targetId: windowId,
+              panelId: panelId.value, targetId: windowId,
               minimized: manager.context.windows.value.find((one) => one.id === windowId)?.minimized ?? false,
             })
           },

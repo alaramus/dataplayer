@@ -8,6 +8,7 @@ import { client } from "@/client/client.gen"
 import { formatSize } from "@/features/catalog/nodes"
 import { useContent } from "@/features/content/api"
 import { pageScale } from "@/features/content/pdfScale"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { messageOf } from "@/shared/api/errors"
 import { AppBanner, AppSpinner } from "@/shared/ui"
@@ -223,6 +224,12 @@ onBeforeUnmount(() => {
   <div class="pdf-panel">
     <div class="pdf-panel__head">
       <span data-testid="pdf-details">{{ details }}</span>
+      <div class="pdf-panel__commands">
+        <PanelCommands
+          :panel-id="panelId"
+          :reveal="{ connectorId, nodeId, label: title }"
+        />
+      </div>
     </div>
 
     <AppBanner
@@ -259,6 +266,11 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid var(--dp-border-faint);
   color: var(--dp-text-muted);
   font-size: 11px;
+}
+.pdf-panel__commands {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 .pdf-panel__stage {
   display: flex;

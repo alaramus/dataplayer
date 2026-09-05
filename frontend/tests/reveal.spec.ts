@@ -10,7 +10,14 @@ import { catalogTab, deleteConnector, openConnector, rowsTabs } from "./utils/wo
  *
  * In the browser because both halves are about the screen: which tab is in
  * front, and which row is marked in it.
+ *
+ * The command stands in the panel's own row of buttons rather than on the tab
+ * above it (D112), so this presses what a user presses.
  */
+
+function revealCommand(page: import("@playwright/test").Page) {
+  return page.getByTestId("panel-reveal")
+}
 
 function rowsTabIcon(page: import("@playwright/test").Page) {
   return page.locator('[data-testid^="workspace-tab-icon-rows:"]').first()
@@ -28,10 +35,11 @@ test("names the table and not the connection, and says the connection in the too
   const tab = rowsTabs(page).first()
   await expect(tab).toContainText("connector")
   // The column holds tables from several connections at once, so the name has
-  // to be reachable — it moved into the tooltip, it did not go away.
+  // to be reachable — it moved into the tooltip, it did not go away. Hover
+  // text and nothing more now: the icon is no longer a button (D112).
   await expect(tab).not.toContainText(name)
   await rowsTabIcon(page).hover()
-  await expect(page.getByText(`${name} · Show in catalog`)).toBeVisible()
+  await expect(page.locator(".app-tooltip")).toHaveText(name)
 
   await deleteConnector(page, name)
 })
@@ -45,9 +53,9 @@ test("brings the catalog forward and marks the row the table came from", async (
   await openConnector(page, name)
   await openNode(page, "connector")
 
-  // Opening the table left the catalog behind in its own column; pressing the
-  // icon of the data tab is the way back to it.
-  await rowsTabIcon(page).click()
+  // Opening the table left the catalog behind in its own column; the crosshair
+  // in the grid's row of commands is the way back to it.
+  await revealCommand(page).click()
 
   await expect(catalogTab(page)).toHaveClass(/--active/)
   await expect(page.getByTestId("catalog-node-connector")).toHaveAttribute(
@@ -76,7 +84,7 @@ test("opens the catalog again when it was closed", async ({ page }) => {
   await page.locator('[data-testid^="workspace-close-catalog:"]').first().click()
   await expect(page.locator('[data-testid^="workspace-tab-catalog:"]')).toHaveCount(0)
 
-  await rowsTabIcon(page).click()
+  await revealCommand(page).click()
 
   await expect(page.locator('[data-testid^="workspace-tab-catalog:"]')).toHaveCount(1)
   await expect(page.getByTestId("catalog-node-connector")).toHaveAttribute(
@@ -101,7 +109,7 @@ test("comes back to the level the table lives on, whatever the catalog is showin
   await showOnlySchema(page, "pg_catalog")
   await expect(page.getByTestId("catalog-node-connector")).toHaveCount(0)
 
-  await rowsTabIcon(page).click()
+  await revealCommand(page).click()
 
   await expect(page.getByTestId("catalog-node-connector")).toHaveAttribute(
     "data-revealed",
@@ -125,7 +133,7 @@ test("walks into the directory a file lives in", async ({ page }) => {
   await page.getByTestId("catalog-home").click()
   await expect(page.getByTestId("catalog-node-q3.csv")).toHaveCount(0)
 
-  await rowsTabIcon(page).click()
+  await revealCommand(page).click()
 
   await expect(page.getByTestId("catalog-path")).toContainText("reports")
   await expect(page.getByTestId("catalog-node-q3.csv")).toHaveAttribute(

@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { useTemplateRef } from "vue"
+
 import type { FetchRequest, ReferencedRows } from "@/client"
 import RecordView from "@/features/record/RecordView.vue"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
+import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 
 /**
@@ -24,6 +28,11 @@ const props = defineProps<{
   index?: number
 }>()
 const workspace = useWorkspaceActions()
+const view = useTemplateRef<{ reload: () => Promise<void> }>("view")
+
+useReloadable(props.panelId, async () => {
+  await view.value?.reload()
+})
 
 function showReferenced(target: ReferencedRows) {
   workspace.followReference({
@@ -36,12 +45,42 @@ function showReferenced(target: ReferencedRows) {
 </script>
 
 <template>
-  <RecordView
-    :connector-id="connectorId"
-    :node-id="nodeId"
-    :describable="describable"
-    :request="request"
-    :index="index ?? 0"
-    @follow="showReferenced"
-  />
+  <div class="record-panel">
+    <div class="record-panel__bar">
+      <PanelCommands
+        :panel-id="panelId"
+        :reveal="{ connectorId, nodeId, label: title }"
+      />
+    </div>
+    <RecordView
+      ref="view"
+      class="record-panel__view"
+      :connector-id="connectorId"
+      :node-id="nodeId"
+      :describable="describable"
+      :request="request"
+      :index="index ?? 0"
+      @follow="showReferenced"
+    />
+  </div>
 </template>
+
+<style scoped>
+.record-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.record-panel__view {
+  flex: 1;
+  min-height: 0;
+}
+.record-panel__bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: none;
+  gap: 2px;
+}
+</style>

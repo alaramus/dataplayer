@@ -3,6 +3,7 @@ import { computed, ref, toRef } from "vue"
 
 import type { FetchColumn, FetchRequest } from "@/client"
 import { useRowsPage } from "@/features/grid/api"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { messageOf } from "@/shared/api/errors"
 import { AppBanner, AppSpinner } from "@/shared/ui"
@@ -74,6 +75,13 @@ const pageLabel = computed(() => {
     class="chart-panel"
     data-testid="chart-panel"
   >
+    <!-- No way back to a catalog: a chart is drawn from a page of rows and
+         is not a view of a node, so it offers no button rather than one that
+         does nothing (D112). -->
+    <div class="chart-panel__bar">
+      <PanelCommands :panel-id="panelId" />
+    </div>
+
     <AppBanner
       v-if="rowsQuery.isError.value"
       tone="error"
@@ -114,6 +122,14 @@ const pageLabel = computed(() => {
   height: 100%;
   min-height: 0;
   padding: 4px;
+}
+
+.chart-panel__bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: none;
+  gap: 2px;
 }
 
 .chart-panel__message {

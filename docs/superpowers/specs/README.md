@@ -109,6 +109,7 @@ translations; those files are not.
 | 2026-09-05 | [A reference the person draws](2026-09-05-declared-references-design.md) | D106, D107, D108, D109: the application keeps references no source has, checked against both ends and followed into another connection |
 | 2026-09-05 | [The way back along a key](2026-09-05-arriving-references-design.md) | D110: a source says what points at a relation, asked on demand and followed by the same call |
 | 2026-09-05 | [One row, read downwards](2026-09-05-row-view-design.md) | D111: the row view reads the page the grid is on, and a row is a position in it |
+| 2026-09-05 | [The commands of a panel belong to the panel](2026-09-05-panel-commands-design.md) | D112: showing the node, re-reading and returning from a window stand in the panel's own row, and a tab acts on nothing |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the

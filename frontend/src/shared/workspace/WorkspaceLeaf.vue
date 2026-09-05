@@ -22,26 +22,6 @@ if (injected === undefined) throw new Error("WorkspaceLeaf used outside a Worksp
 // rather than every use needing its own guard.
 const workspace: WorkspaceContext = injected
 
-/**
- * Which tabs of this section are re-reading themselves right now.
- *
- * Per tab and not one flag: two tabs of one section can be told to reload, and
- * a single flag would spin both buttons and unlock both on the first answer.
- */
-const reloading = ref<Set<string>>(new Set())
-
-async function onReload(panelId: string) {
-  if (reloading.value.has(panelId)) return
-  reloading.value = new Set(reloading.value).add(panelId)
-  try {
-    await workspace.onReload?.(panelId)
-  } finally {
-    const left = new Set(reloading.value)
-    left.delete(panelId)
-    reloading.value = left
-  }
-}
-
 const element = ref<HTMLElement | null>(null)
 const stripElement = ref<HTMLElement | null>(null)
 const zone = ref<DropZone | null>(null)
@@ -241,8 +221,13 @@ const overlayStyle = computed((): CSSProperties => {
             @pointerdown="onTabPointerDown($event, panelId)"
             @click="workspace.activate(panelId)"
           >
+            <!-- A button only where pressing it reaches something the panel's
+                 own row of commands cannot — the connection behind a catalog.
+                 Everywhere else this is an icon with hover text, because an
+                 icon drawn as a button wherever it had a tooltip is how four
+                 kinds came to offer a press that did nothing. See D112. -->
             <span
-              v-if="workspace.lookOf(panelId).iconTooltip && workspace.onIconClick"
+              v-if="workspace.lookOf(panelId).iconCommand && workspace.onIconClick"
               class="workspace-leaf__icon workspace-leaf__icon--action"
               :data-testid="`workspace-tab-icon-${panelId}`"
               role="button"
@@ -258,34 +243,24 @@ const overlayStyle = computed((): CSSProperties => {
               />
               <AppTooltip>{{ workspace.lookOf(panelId).iconTooltip }}</AppTooltip>
             </span>
-            <q-icon
+            <span
               v-else
-              :name="workspace.lookOf(panelId).icon"
-              size="16px"
-            />
+              class="workspace-leaf__icon"
+              :data-testid="`workspace-tab-icon-${panelId}`"
+            >
+              <q-icon
+                :name="workspace.lookOf(panelId).icon"
+                size="16px"
+              />
+              <AppTooltip v-if="workspace.lookOf(panelId).iconTooltip">
+                {{ workspace.lookOf(panelId).iconTooltip }}
+              </AppTooltip>
+            </span>
             <span class="workspace-leaf__title">{{ workspace.lookOf(panelId).title }}</span>
             <span
               v-if="workspace.lookOf(panelId).subtitle"
               class="workspace-leaf__subtitle"
             >{{ workspace.lookOf(panelId).subtitle }}</span>
-            <span
-              v-if="workspace.lookOf(panelId).reloadTooltip && workspace.onReload"
-              class="workspace-leaf__reload"
-              :class="{ 'workspace-leaf__reload--busy': reloading.has(panelId) }"
-              :data-testid="`workspace-reload-${panelId}`"
-              role="button"
-              tabindex="0"
-              @click.stop="onReload(panelId)"
-              @keydown.enter.stop="onReload(panelId)"
-              @keydown.space.stop.prevent="onReload(panelId)"
-              @pointerdown.stop
-            >
-              <q-icon
-                name="refresh"
-                size="14px"
-              />
-              <AppTooltip>{{ workspace.lookOf(panelId).reloadTooltip }}</AppTooltip>
-            </span>
             <span
               v-if="workspace.lookOf(panelId).closable !== false"
               class="workspace-leaf__close"
@@ -465,41 +440,6 @@ const overlayStyle = computed((): CSSProperties => {
 }
 .workspace-leaf__icon--action:hover {
   background: var(--dp-hover);
-}
-/* Beside the cross, and always drawn: reserving the room only on hover would
-   move the title under the pointer the moment it arrives. */
-.workspace-leaf__reload {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  cursor: pointer;
-  border-radius: 4px;
-  padding: 2px;
-  margin: -2px;
-  color: var(--dp-panel-foreground, var(--dp-text-faint));
-}
-.workspace-leaf__reload:hover {
-  background: var(--dp-hover);
-  color: inherit;
-}
-/* Working: the same button, turning. A separate spinner would change the width
-   of the tab at the moment it is being pressed. */
-.workspace-leaf__reload--busy {
-  cursor: default;
-  pointer-events: none;
-  animation: workspace-leaf-turn 900ms linear infinite;
-}
-@keyframes workspace-leaf-turn {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .workspace-leaf__reload--busy {
-    animation: none;
-    opacity: 0.5;
-  }
 }
 .workspace-leaf__title {
   overflow: hidden;

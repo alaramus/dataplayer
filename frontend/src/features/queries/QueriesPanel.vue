@@ -14,6 +14,7 @@ import {
   useRunHistory,
   useRunText,
 } from "@/features/queries/runs"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
@@ -295,6 +296,7 @@ async function deleteForGood(documentId: string) {
         data-testid="queries-connector"
         @update:model-value="pickConnector"
       />
+      <PanelCommands :panel-id="panelId" />
     </div>
 
     <!-- Three places, one of which is always the one you are in. As two

@@ -19,6 +19,7 @@ import {
 } from "@/features/content/markdown/export"
 import { resolveRelativeTarget } from "@/features/content/markdown/relative"
 import { outlineProse, renderProse } from "@/features/content/markdown/render"
+import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
@@ -508,17 +509,12 @@ onBeforeUnmount(() => {
   <!-- eslint-disable vue/no-v-html -- every prose string below comes from
   markdown/sanitize.ts; diagrams have their own SVG sanitising boundary. -->
   <div class="markdown-panel">
-    <AppBanner
-      v-if="error"
-      tone="error"
-      data-testid="content-error"
-    >
-      {{ error }}
-    </AppBanner>
-    <AppSpinner v-else-if="content.isPending.value" />
-    <template v-else-if="contentDocument">
-      <div class="markdown-panel__head">
-        <div class="markdown-panel__tools">
+    <!-- Above the banner rather than inside the branch that draws a document:
+         a document that failed to load is exactly when re-reading it is worth
+         offering, and the row that offers it must be on screen to be pressed. -->
+    <div class="markdown-panel__head">
+      <div class="markdown-panel__tools">
+        <template v-if="contentDocument">
           <AppButton
             v-if="headings.length > 0"
             variant="quiet"
@@ -560,8 +556,10 @@ onBeforeUnmount(() => {
             data-testid="markdown-search-next"
             @click="stepSearch(1)"
           />
-        </div>
-        <div class="markdown-panel__actions">
+        </template>
+      </div>
+      <div class="markdown-panel__actions">
+        <template v-if="contentDocument">
           <AppButton
             variant="quiet"
             size="sm"
@@ -583,8 +581,23 @@ onBeforeUnmount(() => {
             data-testid="markdown-view-source"
             @click="showSource"
           />
-        </div>
+        </template>
+        <PanelCommands
+          :panel-id="panelId"
+          :reveal="{ connectorId, nodeId, label: title }"
+        />
       </div>
+    </div>
+
+    <AppBanner
+      v-if="error"
+      tone="error"
+      data-testid="content-error"
+    >
+      {{ error }}
+    </AppBanner>
+    <AppSpinner v-else-if="content.isPending.value" />
+    <template v-else-if="contentDocument">
       <AppBanner
         v-if="contentDocument.truncated"
         tone="warning"
