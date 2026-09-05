@@ -294,6 +294,21 @@ folder, a recording and an opaque binary have no answer at all without a fourth.
   not the format their name promises leave `contents` empty and put the reader's
   own refusal in `notice`, which is D47's known deviation finally being said out
   loud. An `OSError` is not passed on: its text carries the path.
+- **A relational source answers it too, and the answer is not the relation
+  model.** The model is a table column by column and constraint by constraint,
+  and has a screen of its own. The summary says what the thing is: how it is
+  stored, who owns it, how many columns, indexes and constraints it has, how
+  big it is on disk, and how recently the server measured it. `RelationContents`
+  is built from the model that screen already asks for, so nine columns are
+  counted by the query that would list them. Its `relation_kind` is narrower
+  than the node's kind on purpose — a materialized view is a view to somebody
+  walking the catalog and a stored table to somebody asking how it works.
+- **A relation's "since when" is when it was last measured.** PostgreSQL keeps
+  neither a creation time nor a time of last write, so those fields stay absent
+  rather than being filled with something plausible, and the one statement
+  written for this capability reads `pg_stat_all_tables` for the last analyse
+  and the last vacuum, whether a person asked for them or autovacuum did. A
+  view has no entry there at all and states neither.
 - Nothing new is read to answer this. The archive's central directory, the
   workbook's sheet list, the Parquet footer, the media header and the image
   header are the readers this source already had; the one pass written for the
@@ -302,9 +317,10 @@ folder, a recording and an opaque binary have no answer at all without a fourth.
 
 Known deviations:
 
-- **Only the file source answers it.** PostgreSQL describes relations and
-  answers 501 here, so a table's own summary — its size on disk, its owner, when
-  it was last analysed — is a later slice rather than a gap in the contract.
+- **Only relations answer it on a PostgreSQL server.** A schema is not marked
+  summarizable, and neither is a report. A schema's summary would be a count of
+  what it holds, which is a different question from "what is this thing", and
+  nobody has asked it yet.
 - **An entry inside an archive states only what the archive states.** Counting
   its lines would cost expanding it to a temporary file of up to 32 MB
   ([D53](content.md)), and this question is not worth one.

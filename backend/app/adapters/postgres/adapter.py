@@ -59,6 +59,7 @@ from app.adapters.postgres.session import (
     options_from_url,
 )
 from app.adapters.postgres.statements import format_text
+from app.adapters.postgres.summary import PostgresSummaries
 from app.adapters.postgres.update import PostgresUpdate
 from app.adapters.protocol import BackupProgram, ConnectionCheckResult
 from app.adapters.query import (
@@ -77,6 +78,7 @@ from app.adapters.query import (
 from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
+from app.adapters.summary import NodeSummary
 from app.adapters.relation_changes import (
     CreateRelationRequest,
     CreateRelationResult,
@@ -146,6 +148,7 @@ class PostgresAdapter:
         self._explain = PostgresExplain(self._session)
         self._generation = PostgresGeneration(self._session, self._metadata)
         self._row_commands = PostgresRowCommands(self._session)
+        self._summaries = PostgresSummaries(self._session, self._relation)
         self._backup = PostgresBackup(self._session, options)
         self._samples = PostgresSamples(self._session)
 
@@ -316,6 +319,10 @@ class PostgresAdapter:
 
     async def relation_model(self, node_id: str) -> RelationModel:
         return await self._relation.relation_model(node_id)
+
+    async def node_summary(self, node_id: str) -> NodeSummary:
+        """What one relation is, apart from the shape of its rows (D75)."""
+        return await self._summaries.node_summary(node_id)
 
     async def new_relation_options(self, parent_node_id: str) -> NewRelationOptions:
         return await self._relations.new_relation_options(parent_node_id)

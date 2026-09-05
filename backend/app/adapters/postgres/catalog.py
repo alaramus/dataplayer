@@ -225,6 +225,7 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
             is_system=is_system,
             representations=[TABLE_REPRESENTATION, DDL_REPRESENTATION],
             describable=True,
+            summarizable=True,
         )
     estimate = int(row["row_estimate"])
     return TableNode(
@@ -237,4 +238,5 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
         is_system=is_system,
         representations=[TABLE_REPRESENTATION, DDL_REPRESENTATION],
         describable=True,
+        summarizable=True,
     )

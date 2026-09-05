@@ -28,6 +28,7 @@ from app.adapters.content import (
 )
 from app.adapters.dataset import ParquetDataset, WorksheetDataset
 from app.adapters.delimited import DelimiterName
+from app.adapters.relation import Persistence, RelationKind
 
 # What the bytes turned out to be, rather than what the name promised. A file
 # that is not UTF-8 says so instead of being decoded with replacements and
@@ -168,6 +169,48 @@ class DirectoryContents(BaseModel):
     not_counted: str | None = None
 
 
+class RelationContents(BaseModel):
+    """What a relation states about itself, apart from the shape of its rows.
+
+    Deliberately not the relation model: that is a table column by column,
+    constraint by constraint, and it has a screen of its own. This answers the
+    plainest question instead — what is this thing, who owns it, how it is
+    stored, how much of it there is, and when the server last looked at it.
+
+    The counts are of the model that was read to build this, so a reader is
+    told there are nine columns by the same query that would list them.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["relation"] = "relation"
+    # Narrower than the node's kind, which calls a materialized view a view:
+    # how a relation is stored is exactly what somebody opening this is asking.
+    relation_kind: RelationKind
+    schema_name: str
+    owner: str | None = None
+    persistence: Persistence | None = None
+    comment: str | None = None
+    columns: int = Field(ge=0)
+    indexes: int = Field(ge=0)
+    constraints: int = Field(ge=0)
+    # Estimated on purpose, as everywhere else this number is given: an exact
+    # count costs a full scan, and the name says so rather than pairing a
+    # number with a flag about how true it is.
+    row_estimate: int | None = Field(default=None, ge=0)
+    # The only "since when" a relation has. PostgreSQL records neither when a
+    # table was created nor when it was last written to, so the summary's own
+    # question is answered with what the server does record: when its planner
+    # statistics were last brought up to date, and when its dead rows were
+    # last cleared. A view has neither.
+    analyzed_at: datetime | None = None
+    vacuumed_at: datetime | None = None
+    # How a partitioned table is cut up, and what a partition is part of. Both
+    # absent for a relation that is neither.
+    partitioned_by: str | None = None
+    partition_of: str | None = None
+
+
 # Adding a format means adding a member here and a branch to the one place that
 # renders them, which is a type error until it is written.
 NodeContents = Annotated[
@@ -182,7 +225,8 @@ NodeContents = Annotated[
     | AudioContents
     | VideoContents
     | PdfContents
-    | DirectoryContents,
+    | DirectoryContents
+    | RelationContents,
     Field(discriminator="kind"),
 ]
 

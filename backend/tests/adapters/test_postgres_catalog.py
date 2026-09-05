@@ -91,6 +91,25 @@ async def test_schema_lists_views_separately_from_tables(temporary_view: str) ->
     assert views[temporary_view].is_materialized is False
 
 
+async def test_a_relation_says_it_will_describe_itself(temporary_view: str) -> None:
+    """Which nodes offer Details is the source's own answer, carried on the
+    node (D75). A schema does not: it has no summary, and a menu line that
+    answered 501 would be the client deciding what a source can say.
+    """
+    nodes = await _adapter().list_children("public")
+    relations = [
+        node for node in nodes if isinstance(node, TableNode | ViewNode)
+    ]
+
+    assert relations
+    assert all(node.summarizable for node in relations)
+    assert not any(
+        node.summarizable
+        for node in await _adapter().list_children(None)
+        if isinstance(node, SchemaNode)
+    )
+
+
 async def test_a_table_is_a_leaf_now_that_its_columns_come_from_the_model() -> None:
     nodes = await _adapter().list_children("public")
 

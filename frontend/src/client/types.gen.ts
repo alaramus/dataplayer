@@ -3591,6 +3591,9 @@ export type NodeSummary = {
     | ({
         kind: "directory"
       } & DirectoryContents)
+    | ({
+        kind: "relation"
+      } & RelationContents)
     | null
   /**
    * Notice
@@ -4479,6 +4482,84 @@ export type RejectedCell = {
    * Column
    */
   column: string
+}
+
+/**
+ * RelationContents
+ *
+ * What a relation states about itself, apart from the shape of its rows.
+ *
+ * Deliberately not the relation model: that is a table column by column,
+ * constraint by constraint, and it has a screen of its own. This answers the
+ * plainest question instead — what is this thing, who owns it, how it is
+ * stored, how much of it there is, and when the server last looked at it.
+ *
+ * The counts are of the model that was read to build this, so a reader is
+ * told there are nine columns by the same query that would list them.
+ */
+export type RelationContents = {
+  /**
+   * Kind
+   */
+  kind?: "relation"
+  /**
+   * Relation Kind
+   */
+  relation_kind:
+    | "table"
+    | "partitioned_table"
+    | "view"
+    | "materialized_view"
+    | "foreign_table"
+    | "dataset"
+  /**
+   * Schema Name
+   */
+  schema_name: string
+  /**
+   * Owner
+   */
+  owner?: string | null
+  /**
+   * Persistence
+   */
+  persistence?: "permanent" | "unlogged" | "temporary" | null
+  /**
+   * Comment
+   */
+  comment?: string | null
+  /**
+   * Columns
+   */
+  columns: number
+  /**
+   * Indexes
+   */
+  indexes: number
+  /**
+   * Constraints
+   */
+  constraints: number
+  /**
+   * Row Estimate
+   */
+  row_estimate?: number | null
+  /**
+   * Analyzed At
+   */
+  analyzed_at?: string | null
+  /**
+   * Vacuumed At
+   */
+  vacuumed_at?: string | null
+  /**
+   * Partitioned By
+   */
+  partitioned_by?: string | null
+  /**
+   * Partition Of
+   */
+  partition_of?: string | null
 }
 
 /**

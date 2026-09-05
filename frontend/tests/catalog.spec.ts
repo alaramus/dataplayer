@@ -2,7 +2,14 @@ import { expect, test } from "@playwright/test"
 
 import type { Page } from "@playwright/test"
 
-import { addFilter, catalogRow, hideSchema, pickSchema } from "./utils/catalog"
+import {
+  addFilter,
+  catalogAction,
+  catalogCheck,
+  catalogRow,
+  hideSchema,
+  pickSchema,
+} from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import {
@@ -42,6 +49,35 @@ test("browses a database as a list filtered by schema", async ({ page }) => {
   await page.getByTestId("catalog-filter").fill("pg_class")
   await expect(catalogRow(page, "connector")).toHaveCount(0)
   await expect(catalogRow(page, "pg_class")).toBeVisible()
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
+test("says what a relation is, from the same line a file uses", async ({ page }) => {
+  const name = `e2e-relation-details-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  // A table of the server's own: it always exists, and it has columns and
+  // indexes, where a nearly empty one would let every line below pass at zero.
+  await pickSchema(page, "pg_catalog")
+  await catalogCheck(page, "pg_class").click()
+  await catalogAction(page, "client:details")
+
+  const details = page.getByTestId("summary-view")
+  await expect(details).toContainText("pg_class")
+  await expect(details).toContainText("Table")
+  await expect(details).toContainText("pg_catalog")
+  await expect(details).toContainText("Columns")
+  await expect(details).toContainText("Indexes")
+  // The source's own wording for what opening it would show, not this
+  // screen's, exactly as a file's summary carries it.
+  await expect(details).toContainText("View as table")
+  await expect(details).toContainText("View DDL")
+  // An ordinary table is a table on the line above, so it is not said twice.
+  await expect(details).not.toContainText("Stored as")
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

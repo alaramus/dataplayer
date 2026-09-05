@@ -195,6 +195,66 @@ suite("describe", () => {
     expect(labelled(described.contents, "Size")).toBe("1920 × 1080")
   })
 
+  it("shows what a table is made of, without repeating its kind", () => {
+    const described = describe(
+      summary({
+        kind: "table",
+        name: "orders",
+        size_bytes: 4096,
+        representations: [{ kind: "table", title: "View as table" }],
+        contents: {
+          kind: "relation",
+          relation_kind: "table",
+          schema_name: "demo_lab",
+          owner: "app",
+          persistence: "permanent",
+          columns: 9,
+          indexes: 2,
+          constraints: 3,
+          row_estimate: 1200,
+          analyzed_at: "2026-09-02T10:00:00Z",
+        },
+      })
+    )
+
+    expect(labelled(described.facts, "Kind")).toBe("Table")
+    expect(labelled(described.contents, "Schema")).toBe("demo_lab")
+    expect(labelled(described.contents, "Owner")).toBe("app")
+    expect(labelled(described.contents, "Columns")).toBe("9")
+    expect(labelled(described.contents, "Indexes")).toBe("2")
+    expect(labelled(described.contents, "Rows")).toBe("~1200")
+    expect(labelled(described.contents, "Analysed")).toBeDefined()
+    // Two lines that would say what the line above them already says: an
+    // ordinary table is a table, and every table is permanent.
+    expect(labelled(described.contents, "Stored as")).toBeUndefined()
+    expect(labelled(described.contents, "Storage")).toBeUndefined()
+  })
+
+  it("says how a relation is stored where the kind does not", () => {
+    const described = describe(
+      summary({
+        kind: "view",
+        name: "rollup",
+        contents: {
+          kind: "relation",
+          relation_kind: "materialized_view",
+          schema_name: "demo_lab",
+          persistence: "unlogged",
+          columns: 4,
+          indexes: 1,
+          constraints: 0,
+          row_estimate: null,
+        },
+      })
+    )
+
+    expect(labelled(described.facts, "Kind")).toBe("View")
+    expect(labelled(described.contents, "Stored as")).toBe("Materialized view")
+    expect(labelled(described.contents, "Storage")).toBe("Unlogged")
+    // Said even where there is no number, as the catalog says it.
+    expect(labelled(described.contents, "Rows")).toBe("Not estimated")
+  })
+
   it("shows an entry's own facts, which are the archive's", () => {
     const described = describe(
       summary({

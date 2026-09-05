@@ -39,6 +39,21 @@ const ENCODINGS: Record<"utf-8" | "utf-8-bom" | "not-utf-8", string> = {
   "not-utf-8": "Not UTF-8",
 }
 
+/** A relation as stored, where that is not what the "Kind" line already says. */
+type RelationKind = Extract<NodeContents, { kind: "relation" }>["relation_kind"]
+
+const STORED_AS: Partial<Record<RelationKind, string>> = {
+  partitioned_table: "Partitioned table",
+  materialized_view: "Materialized view",
+  foreign_table: "Foreign table",
+}
+
+const PERSISTENCE: Record<"permanent" | "unlogged" | "temporary", string> = {
+  permanent: "Permanent",
+  unlogged: "Unlogged",
+  temporary: "Temporary",
+}
+
 const ENDINGS: Record<"lf" | "crlf" | "cr" | "mixed" | "none", string> = {
   lf: "LF (Unix)",
   crlf: "CRLF (Windows)",
@@ -205,6 +220,50 @@ function contentsFacts(contents: NodeContents): Fact[] {
       addCount(facts, "Entries", contents.entries)
       addCount(facts, "Files", contents.files)
       addCount(facts, "Folders", contents.directories)
+      return facts
+    }
+    case "relation": {
+      const facts: Fact[] = []
+      // Only where it says something the "Kind" line above does not: there a
+      // table is a table and a materialized view is only a view.
+      const stored = STORED_AS[contents.relation_kind]
+      if (stored !== undefined) facts.push({ label: "Stored as", value: stored })
+      facts.push({ label: "Schema", value: contents.schema_name })
+      if (contents.owner !== null && contents.owner !== undefined) {
+        facts.push({ label: "Owner", value: contents.owner })
+      }
+      // A permanent table is every table, and a line saying so on all of them
+      // would say nothing on any of them.
+      if (
+        contents.persistence !== null &&
+        contents.persistence !== undefined &&
+        contents.persistence !== "permanent"
+      ) {
+        facts.push({ label: "Storage", value: PERSISTENCE[contents.persistence] })
+      }
+      addCount(facts, "Columns", contents.columns)
+      addCount(facts, "Indexes", contents.indexes)
+      addCount(facts, "Constraints", contents.constraints)
+      // Said even when there is no number, as it is in the catalog: a missing
+      // line reads as one nobody filled in rather than as a count nobody has.
+      facts.push({
+        label: "Rows",
+        value:
+          contents.row_estimate === null || contents.row_estimate === undefined
+            ? "Not estimated"
+            : `~${String(contents.row_estimate)}`,
+      })
+      if (contents.partitioned_by !== null && contents.partitioned_by !== undefined) {
+        facts.push({ label: "Partitioned by", value: contents.partitioned_by })
+      }
+      if (contents.partition_of !== null && contents.partition_of !== undefined) {
+        facts.push({ label: "Partition of", value: contents.partition_of })
+      }
+      addMoment(facts, "Analysed", contents.analyzed_at)
+      addMoment(facts, "Vacuumed", contents.vacuumed_at)
+      if (contents.comment !== null && contents.comment !== undefined) {
+        facts.push({ label: "Comment", value: contents.comment })
+      }
       return facts
     }
     default:
