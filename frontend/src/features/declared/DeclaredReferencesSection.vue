@@ -12,6 +12,8 @@ import {
   AppIconButton,
   AppSection,
   AppSpinner,
+  useConfirm,
+  useToast,
 } from "@/shared/ui"
 
 import DeclareReferenceDialog from "./DeclareReferenceDialog.vue"
@@ -35,9 +37,10 @@ const query = useDeclaredReferences(
   () => props.nodeId
 )
 const undeclare = useUndeclareReference()
+const confirm = useConfirm()
+const toast = useToast()
 const open = ref(false)
 const removing = ref<string | null>(null)
-const trouble = ref("")
 
 interface Drawn {
   id: string
@@ -61,16 +64,32 @@ const drawn = computed<Drawn[]>(() =>
   })
 )
 
+/**
+ * Asked before removing, like every other thing on this panel that goes.
+ *
+ * The question says what is lost and what is not: a declared reference is a
+ * record of this application's, so removing one takes away the way out and
+ * changes neither source (D106).
+ */
 async function remove(reference: Drawn) {
+  const accepted = await confirm({
+    title: "Remove this reference?",
+    message:
+      `${reference.from} → ${reference.to} stops being offered here and at ` +
+      "the other end. Neither source is changed.",
+    confirmLabel: "Remove",
+    danger: true,
+  })
+  if (!accepted) return
   removing.value = reference.id
-  trouble.value = ""
   try {
     await undeclare.mutateAsync({
       referenceId: reference.id,
       connectorIds: reference.connectorIds,
     })
+    toast.success("Declared reference removed")
   } catch (error) {
-    trouble.value = messageOf(error, "Could not remove this reference")
+    toast.error(messageOf(error, "Could not remove this reference"))
   } finally {
     removing.value = null
   }
@@ -91,12 +110,14 @@ async function remove(reference: Drawn) {
         @click="open = true"
       />
     </div>
+    <!-- A list that could not be read says so; what a removal did is said by
+         a toast, the way the sections above this one say it. -->
     <AppBanner
-      v-if="trouble"
+      v-if="query.isError.value"
       tone="error"
       data-testid="declared-error"
     >
-      {{ trouble }}
+      {{ messageOf(query.error.value, "Could not read the references drawn from this node") }}
     </AppBanner>
     <AppSpinner v-if="query.isPending.value" />
     <AppEmptyState
