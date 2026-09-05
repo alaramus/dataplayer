@@ -5,6 +5,7 @@ import bundledIcons from "@quasar/extras/material-icons/icons.json"
 
 import {
   ICONS,
+  MATERIALIZED_VIEW_ICON,
   REPORT_SECTION_ICON,
   groupTitle,
   groupsOf,
@@ -402,7 +403,13 @@ describe("toListNodes", () => {
       ])
     )
 
-    expect(plain.caption).not.toBe(materialized.caption)
+    // By its icon and by nothing else, the way every other kind says what it
+    // is. A word beside the eye made the view the one row in the list that
+    // named its kind twice.
+    expect(plain.icon).toBe(ICONS.view)
+    expect(materialized.icon).toBe(MATERIALIZED_VIEW_ICON)
+    expect(plain.caption).toBeUndefined()
+    expect(materialized.caption).toBeUndefined()
   })
 
   it("gives every visible kind its own icon", () => {
@@ -661,7 +668,7 @@ describe("the icons a catalog row draws", () => {
     const keyOf = (name: string) =>
       "mat" + name.split("_").map((part) => part[0]?.toUpperCase() + part.slice(1)).join("")
 
-    const used = [...Object.values(ICONS), REPORT_SECTION_ICON]
+    const used = [...Object.values(ICONS), REPORT_SECTION_ICON, MATERIALIZED_VIEW_ICON]
     expect(used.length).toBeGreaterThan(0)
     expect(used.filter((name) => !known.has(keyOf(name)))).toEqual([])
   })

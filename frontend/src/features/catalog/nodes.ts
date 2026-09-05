@@ -117,6 +117,16 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
 export const REPORT_SECTION_ICON = "dns"
 
 /**
+ * A view whose rows are stored, drawn as the table it keeps rather than as the
+ * window it is.
+ *
+ * The kind of a node is what its icon says, and every other kind says it that
+ * way and only that way. A word beside the eye was the one row in a catalog
+ * that named itself twice.
+ */
+export const MATERIALIZED_VIEW_ICON = "backup_table"
+
+/**
  * What a source's groupings are called, above the control that picks them.
  *
  * A table rather than a question about the type of the source: "Schemas" over
@@ -191,6 +201,9 @@ function iconOf(node: CatalogNode): string {
   if (node.kind === "report") {
     return node.has_children ? REPORT_SECTION_ICON : ICONS.report
   }
+  if (node.kind === "view") {
+    return node.is_materialized === true ? MATERIALIZED_VIEW_ICON : ICONS.view
+  }
   // A file and a member of one are drawn the same way: by what opening them
   // shows, and as a folder when they are walked into instead.
   if (node.kind !== "file" && node.kind !== "entry") return ICONS[node.kind]
@@ -207,8 +220,6 @@ function captionOf(node: CatalogNode): string | undefined {
       return node.row_count_estimate === null || node.row_count_estimate === undefined
         ? undefined
         : `~${node.row_count_estimate} rows`
-    case "view":
-      return node.is_materialized ? "materialized view" : "view"
     case "report":
       // The source's own line about what the report answers. Nothing here
       // rewrites it: only the source knows what its statement is for.
