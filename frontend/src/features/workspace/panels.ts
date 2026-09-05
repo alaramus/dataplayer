@@ -16,6 +16,7 @@ import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
 import ConnectorsPanelView from "@/features/workspace/panels/ConnectorsPanel.vue"
 import RowsPanelView from "@/features/workspace/panels/RowsPanel.vue"
+import RecordPanelView from "@/features/workspace/panels/RecordPanel.vue"
 import StructurePanelView from "@/features/workspace/panels/StructurePanel.vue"
 import SummaryPanelView from "@/features/workspace/panels/SummaryPanel.vue"
 import WorkspaceSceneView from "@/features/workspace/panels/WorkspaceScene.vue"
@@ -145,6 +146,28 @@ export const panelSchema = z.discriminatedUnion("kind", [
   }),
   z.object({
     id: z.string(),
+    kind: z.literal("record"),
+    connectorId: z.string(),
+    nodeId: z.string(),
+    title: z.string(),
+    connectorName: z.string(),
+    adapterType: z.string(),
+    // Whether the source will describe this relation, which is where the key
+    // badges beside each column come from. A file says no and is still read.
+    describable: z.boolean().optional(),
+    // Which row, as a place in a page rather than as a handle (D111). Part of
+    // the panel and not a message to it: a tab restored from storage has to
+    // come back on the row it was left on, and a message is gone by then.
+    //
+    // Optional for the reason every field added to a stored panel is optional:
+    // a layout written before it exists must still restore. A required one
+    // fails the whole layout, and the workspace comes back empty — which is
+    // what this file learned the hard way.
+    request: fetchRequestSchema.optional(),
+    index: z.number().int().min(0).optional(),
+  }),
+  z.object({
+    id: z.string(),
     kind: z.literal("content"),
     connectorId: z.string(),
     nodeId: z.string(),
@@ -225,6 +248,13 @@ export const structurePanelId = (connectorId: string, nodeId: string) =>
   `structure:${connectorId}:${nodeId}`
 export const summaryPanelId = (connectorId: string, nodeId: string) =>
   `summary:${connectorId}:${nodeId}`
+/**
+ * One row view per relation, and not one per row: which row it is showing is
+ * something the panel is told, the way a tab is told which predicate to apply
+ * (D36). A tab per row would fill the strip by reading a table.
+ */
+export const recordPanelId = (connectorId: string, nodeId: string) =>
+  `record:${connectorId}:${nodeId}`
 export const chartPanelId = (viewKey: string) => `chart:${viewKey}`
 export const QUERIES_PANEL_ID = "queries"
 export const queryPanelId = (documentId: string) => `query:${documentId}`
@@ -293,6 +323,7 @@ export function roleOf(panel: Panel): PanelRole {
     case "content":
     case "structure":
     case "summary":
+    case "record":
     case "chart":
     case "query":
     case "result":
@@ -412,15 +443,22 @@ function baseLookOf(panel: Panel): PanelLook {
       return {
         title: panel.title,
         icon: "account_tree",
-        iconTooltip: `${panel.connectorName} · Structure`,
+        iconTooltip: `${panel.connectorName} · Show in catalog`,
         reloadTooltip: "Re-read the structure",
       }
     case "summary":
       return {
         title: panel.title,
         icon: "info",
-        iconTooltip: `${panel.connectorName} · Details`,
+        iconTooltip: `${panel.connectorName} · Show in catalog`,
         reloadTooltip: "Re-read these details",
+      }
+    case "record":
+      return {
+        title: `${panel.title} row`,
+        icon: "table_rows",
+        iconTooltip: `${panel.connectorName} · Show in catalog`,
+        reloadTooltip: "Re-read this row",
       }
     case "chart":
       return {
@@ -610,6 +648,20 @@ export function componentOf(panel: Panel, key: string): Component {
           panelId: panel.id,
           connectorId: panel.connectorId,
           nodeId: panel.nodeId,
+        })
+      )
+    case "record":
+      return boundComponent(key, () =>
+        h(RecordPanelView, {
+          panelId: panel.id,
+          connectorId: panel.connectorId,
+          nodeId: panel.nodeId,
+          title: panel.title,
+          connectorName: panel.connectorName,
+          adapterType: panel.adapterType,
+          describable: panel.describable === true,
+          request: panel.request,
+          index: panel.index,
         })
       )
     case "chart":

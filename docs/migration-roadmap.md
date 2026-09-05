@@ -51,6 +51,7 @@ Legend:
 | 5 — optional Redis infrastructure | 2026-09-05 | D100 through D104 |
 | 1.6 — a reference the person draws | 2026-09-05 | [D106](superpowers/specs/2026-09-05-declared-references-design.md) through D109 |
 | 1.7 — the way back along a key | 2026-09-05 | [D110](superpowers/specs/2026-09-05-arriving-references-design.md) |
+| 1.8 — one row, read downwards | 2026-09-05 | [D111](superpowers/specs/2026-09-05-row-view-design.md) |
 
 Each of those has a spec in [the index](superpowers/specs/README.md), dated the
 day it closed, and a home in `docs/architecture/`. With 1.5 validated, phase 1
@@ -104,9 +105,12 @@ capability of its own, asked once per relation and never per page — and
 following one is the same call with a direction. The screen draws the way back
 in the corner opposite the way out and offers what was found as a menu,
 because unlike the forward direction there is usually more than one answer.
-What is still missing is the old application's row window: one row drawn
-vertically with both directions offered per column, which is a screen over
-these routes rather than a contract.
+Phase 1.8 closed the same day and is that screen: one row drawn downwards over
+the page the grid is already on, walked with PREV and NEXT across page
+boundaries, with the keys of each column beside its value and both directions
+offered from there. It reads through the same query key as the grid, so opening
+a row costs no request; a row is a position in a page rather than a handle,
+because a keyless relation still has rows worth reading.
 
 ## Priority order at a glance
 

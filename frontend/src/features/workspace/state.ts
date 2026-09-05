@@ -116,6 +116,14 @@ export interface WorkspaceActions {
   /** Take the shared view meant for this tab, if this is the tab it named. */
   takeShared: (connectorId: string, nodeId: string) => SharedTarget | null
   openStructure: (request: OpenStructureRequest) => void
+  /**
+   * Show one row of a relation on its own, read downwards (D111).
+   *
+   * One panel per relation, and which row it is on is written into it: a
+   * stored layout then restores the tab on the row it was left on, which a
+   * message to a panel could not survive.
+   */
+  openRecord: (request: OpenRecordRequest) => void
   openRelationships: (request: OpenRelationshipsRequest) => void
   /**
    * Show what one node is: its facts, and what its format states (D75).
@@ -262,6 +270,21 @@ export interface FollowReferenceCommand {
   connectorName: string
   adapterType: string
   target: ReferencedRows
+}
+
+/** What a grid asks for when somebody opens one of its rows. */
+export interface OpenRecordRequest {
+  connectorId: string
+  nodeId: string
+  title: string
+  connectorName: string
+  adapterType: string
+  /** Whether the source will describe this relation; badges come from that. */
+  describable: boolean
+  /** The page the row is in, exactly as the grid asked for it. */
+  request: FetchRequest
+  /** Which row of that page, from zero. */
+  index: number
 }
 
 /** One tab, and the predicate it is to show when it comes up. */

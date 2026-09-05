@@ -182,6 +182,13 @@ function removeSavedEntry(name: string) {
             label="with icon"
             icon="add"
           />
+          <!-- Which side the icon is on is part of what the button says: one
+               before the label names the action, one after it points where
+               the action goes. -->
+          <AppButton
+            label="next"
+            icon-right="chevron_right"
+          />
           <AppButton
             label="loading"
             :loading="loading"

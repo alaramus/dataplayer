@@ -10,6 +10,15 @@ const props = withDefaults(
     variant?: ButtonVariant
     label?: string
     icon?: string
+    /**
+     * An icon after the label rather than before it.
+     *
+     * Which side is not decoration: an icon before the label belongs to the
+     * action ("delete"), and one after it points where the action goes
+     * ("next ›"). A button that walks forwards with its chevron on the left
+     * reads as walking backwards.
+     */
+    iconRight?: string
     size?: "sm" | "md"
     loading?: boolean
     disable?: boolean
@@ -19,6 +28,7 @@ const props = withDefaults(
     variant: "primary",
     label: undefined,
     icon: undefined,
+    iconRight: undefined,
     size: "md",
     loading: false,
     disable: false,
@@ -39,6 +49,7 @@ const look = computed(() => buttonLook(props.variant))
     :dense="size === 'sm'"
     :label="label"
     :icon="icon"
+    :icon-right="iconRight"
     :loading="loading"
     :disable="disable"
     :type="type"

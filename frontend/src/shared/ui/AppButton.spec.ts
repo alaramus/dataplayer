@@ -35,6 +35,23 @@ describe("AppButton", () => {
     expect(mountButton("primary").get("button").classes()).toContain("q-btn--no-uppercase")
   })
 
+  // Which side an icon is on is part of what the button says: before the
+  // label it names the action, after it points where the action goes. A
+  // "Next" whose chevron sits on the left reads as walking backwards.
+  it("puts an icon on the side it was asked for", () => {
+    const before = mount(AppButton, {
+      global: { plugins: [Quasar] },
+      props: { label: "Back", icon: "chevron_left" },
+    })
+    const after = mount(AppButton, {
+      global: { plugins: [Quasar] },
+      props: { label: "Next", iconRight: "chevron_right" },
+    })
+
+    expect(before.get("button").text()).toBe("chevron_leftBack")
+    expect(after.get("button").text()).toBe("Nextchevron_right")
+  })
+
   // No test that a screen cannot pass color="purple": attributes fall through
   // by design, so nothing stops it. That compromise is recorded in the spec.
 })

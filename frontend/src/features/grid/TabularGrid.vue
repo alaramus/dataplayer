@@ -110,6 +110,7 @@ defineSlots<{
   /** The far end of the row the pager is on, where something about the whole
       page belongs: which sheet of a workbook is being read (D51). */
   "pager-start"(): unknown
+  "row-actions"(props: { row: GridRow }): unknown
   "cell-overlay"(props: {
     row: GridRow
     column: TabularColumn
@@ -662,6 +663,17 @@ defineExpose({
               >
                 {{ rowNumber(row.original, rowIndex) }}
               </button>
+              <!-- Whatever the screen offers about a whole row. Drawn on the
+                   row under the pointer only: it is a way in, not a fact
+                   about the row, and one per row would be a column of
+                   buttons. The wrapper is this component's own so that its
+                   own rule about hovering applies to it. -->
+              <span class="data-grid__row-extra">
+                <slot
+                  name="row-actions"
+                  :row="row.original"
+                />
+              </span>
             </td>
             <td
               v-for="cell in row.getVisibleCells()"
@@ -867,6 +879,17 @@ defineExpose({
 
 .data-grid__resize:hover {
   background: var(--dp-separator-active);
+}
+
+.data-grid__row-extra {
+  visibility: hidden;
+  display: inline-flex;
+  align-items: center;
+}
+
+.data-grid__table tr:hover .data-grid__row-extra,
+.data-grid__table tr:focus-within .data-grid__row-extra {
+  visibility: visible;
 }
 
 .data-grid__selector {

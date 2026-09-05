@@ -26,7 +26,16 @@ export const structureInvalidationKeys = (connectorId: string, nodeId: string) =
     ["content", connectorId] as const,
   ] as const
 
-export function useRelationModel(connectorId: Ref<string>, nodeId: Ref<string>) {
+export function useRelationModel(
+  connectorId: Ref<string>,
+  nodeId: Ref<string>,
+  /**
+   * Whether to ask at all. A structure panel is only ever opened on a node
+   * that says it can be described; a row view is opened on any node at all,
+   * and asking a source to describe a CSV is asking for a 501.
+   */
+  enabled?: Ref<boolean>
+) {
   return useQuery({
     queryKey: computed(() => relationModelKey(connectorId.value, nodeId.value)),
     queryFn: async () =>
@@ -37,6 +46,7 @@ export function useRelationModel(connectorId: Ref<string>, nodeId: Ref<string>) 
         })
       ).data,
     staleTime: 5 * 60_000,
+    enabled: computed(() => enabled?.value ?? true),
   })
 }
 

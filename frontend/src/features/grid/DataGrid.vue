@@ -13,9 +13,7 @@ import {
 } from "vue"
 
 import type {
-  ArrivingReference,
   FetchColumn,
-  FetchReference,
   FetchRequest,
   ReferencedRows,
   RowCommand,
@@ -46,8 +44,6 @@ import {
   useImportRows,
   useKeepPage,
   useKeepRows,
-  useArrivingReferences,
-  useFollowReference,
   useForgetRowsPage,
   useInsertRow,
   useRowsPage,
@@ -88,7 +84,7 @@ import ImportDialog from "./ImportDialog.vue"
 import RowInsertRow from "./RowInsertRow.vue"
 import type { InsertGridColumn } from "./RowInsertRow.vue"
 import { toGridRows } from "./model"
-import { keyValues, referencesLedBy } from "./references"
+import { useReferences } from "./useReferences"
 import {
   loadGridState,
   loadPageSize,
@@ -159,6 +155,8 @@ const emit = defineEmits<{
   query: []
   chart: [request: FetchRequest, columns: string[]]
   follow: [target: ReferencedRows]
+  /** Read one row downwards, in a panel of its own (D111). */
+  record: [value: { request: FetchRequest; index: number }]
 }>()
 const toast = useToast()
 const confirm = useConfirm()
@@ -239,11 +237,21 @@ const keepPage = useKeepPage(toRef(props, "connectorId"))
 const keepRows = useKeepRows(toRef(props, "connectorId"))
 const importRows = useImportRows(toRef(props, "connectorId"))
 const createRelation = useCreateRelationFromSource()
-const followReference = useFollowReference(toRef(props, "connectorId"))
-const arriving = useArrivingReferences(
-  toRef(props, "connectorId"),
-  toRef(props, "nodeId")
-)
+/**
+ * The ways in and out of a row, shared with every screen that shows one.
+ *
+ * Which columns are on screen is this grid's business; what a key means and
+ * where it leads is the source's, and asking it is written once (D36, D110).
+ */
+const { cellReferences, cellArriving, follow, followBack, isPending: jumping } =
+  useReferences({
+    connectorId: toRef(props, "connectorId"),
+    nodeId: toRef(props, "nodeId"),
+    columns: computed(() => result.value?.columns ?? []),
+    visible: computed(() => visibleGridColumns.value.map((column) => column.id)),
+    references: computed(() => result.value?.references ?? []),
+    onFollow: (target) => emit("follow", target),
+  })
 const forgetRowsPage = useForgetRowsPage(toRef(props, "connectorId"))
 useServerLeaveGuard(async () => {
   if ([updateCell, updateCells, insertRow, deleteRows, importRows, createRelation].some((mutation) => mutation.isPending.value)) {
@@ -585,108 +593,19 @@ function openChart(columns: TabularVisibleColumn[]): void {
   )
 }
 
-const NO_REFERENCES: FetchReference[] = []
-const NO_ARRIVING: ArrivingReference[] = []
-// Worked out once per answer rather than once per cell: the template asks
-// about every cell of every row on every render, and a page runs to five
-// hundred rows.
-const referencesByColumn = computed(() => {
-  const visible = visibleGridColumns.value.map((column) => column.id)
-  const references = result.value?.references ?? []
-  const led = new Map<string, FetchReference[]>()
-  for (const id of visible) {
-    const found = referencesLedBy(references, id, visible)
-    if (found.length > 0) led.set(id, found)
-  }
-  return led
-})
-
 /**
- * The ways out drawn in this cell, for this row.
+ * Which row of which page, in the words the panel reads it back with.
  *
- * A cell with nothing in it draws none: an empty cell has no value to act on,
- * which is the same reason a null one does not open the viewer. Whether an
- * incomplete key names a row is not decided here — the source answers that
- * when the arrow is actually pressed.
+ * The request travels rather than the values: the row view reads the same page
+ * through the same query key, so opening a row costs no request at all and the
+ * two stay in step. The id of a grid row is its place in the relation, and the
+ * page's own offset turns that back into a place in the page.
  */
-function cellReferences(columnId: string, value: string | null): FetchReference[] {
-  if (value === null) return NO_REFERENCES
-  return referencesByColumn.value.get(columnId) ?? NO_REFERENCES
-}
-
-async function follow(row: GridRow, reference: FetchReference) {
-  const columns = result.value?.columns
-  if (columns === undefined) return
-  const values = keyValues(reference, columns, row.values)
-  if (values === null) {
-    toast.info("This page was read before the relation changed; reload it")
-    return
-  }
-  try {
-    const target = await followReference.mutateAsync({
-      node_id: props.nodeId,
-      reference: reference.name,
-      values,
-    })
-    // The source answered that the key names nothing. Not a failure: an empty
-    // key is a fact about the row, and it says so in the source's own words.
-    if (target.kind === "none") {
-      toast.info(target.reason)
-      return
-    }
-    emit("follow", target)
-  } catch (error) {
-    toast.error(messageOf(error, "Could not follow this reference"))
-  }
-}
-
-/**
- * The keys landing here, by the cell that offers them (D110).
- *
- * The same rule as the way out: one handle per key, on the first of its
- * columns that is on screen. A source that cannot search for arriving keys
- * answered 501 and this is simply empty.
- */
-const arrivingByColumn = computed(() => {
-  const visible = visibleGridColumns.value.map((column) => column.id)
-  const found = arriving.data.value ?? []
-  const byColumn = new Map<string, ArrivingReference[]>()
-  for (const id of visible) {
-    const led = referencesLedBy(found, id, visible)
-    if (led.length > 0) byColumn.set(id, led)
-  }
-  return byColumn
-})
-
-function cellArriving(columnId: string, value: string | null): ArrivingReference[] {
-  // The same rule the way out follows: an empty cell has nothing to act on.
-  if (value === null) return NO_ARRIVING
-  return arrivingByColumn.value.get(columnId) ?? NO_ARRIVING
-}
-
-async function followBack(row: GridRow, reference: ArrivingReference) {
-  const columns = result.value?.columns
-  if (columns === undefined) return
-  const values = keyValues(reference, columns, row.values)
-  if (values === null) {
-    toast.info("This page was read before the relation changed; reload it")
-    return
-  }
-  try {
-    const target = await followReference.mutateAsync({
-      node_id: props.nodeId,
-      reference: reference.name,
-      direction: "incoming",
-      values,
-    })
-    if (target.kind === "none") {
-      toast.info(target.reason)
-      return
-    }
-    emit("follow", target)
-  } catch (error) {
-    toast.error(messageOf(error, "Could not follow this reference"))
-  }
+function openRecord(row: GridRow) {
+  emit("record", {
+    request: { ...request.value },
+    index: Number(row.id) - (request.value.offset ?? 0),
+  })
 }
 
 async function saveCell(value: string | null) {
@@ -1358,6 +1277,16 @@ defineExpose({
       </AppBanner>
     </template>
 
+    <template #row-actions="{ row }">
+      <AppIconButton
+        icon="table_rows"
+        compact
+        tooltip="Read this row downwards"
+        :data-testid="`grid-open-row-${row.id}`"
+        @click="openRecord(row)"
+      />
+    </template>
+
     <template #cell-overlay="{ row, column, value }">
       <!-- A corner mark rather than a button in the cell: a way out belongs to
            the value, and an icon the size of a button was drawn over the value
@@ -1371,10 +1300,10 @@ defineExpose({
         class="data-grid__follow"
         title=""
         :style="{ insetInlineEnd: `${index * 12}px` }"
-        :disabled="followReference.isPending.value"
+        :disabled="jumping"
         :aria-label="`Go to ${reference.target_title}`"
         :data-testid="`grid-follow-${row.id}-${reference.name}`"
-        @click.stop="follow(row, reference)"
+        @click.stop="follow(row.values, reference)"
         @dblclick.stop
       >
         <AppTooltip>Go to {{ reference.target_title }}</AppTooltip>
@@ -1387,7 +1316,7 @@ defineExpose({
         type="button"
         class="data-grid__follow data-grid__follow--back"
         title=""
-        :disabled="followReference.isPending.value"
+        :disabled="jumping"
         aria-label="What points at this row"
         :data-testid="`grid-arriving-${row.id}-${column.id}`"
         @click.stop
@@ -1404,7 +1333,7 @@ defineExpose({
           @select="
             (name) =>
               followBack(
-                row,
+                row.values,
                 cellArriving(column.id, value).find(
                   (reference) => reference.name === name
                 )!

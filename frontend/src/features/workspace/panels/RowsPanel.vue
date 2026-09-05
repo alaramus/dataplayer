@@ -226,6 +226,20 @@ function showChart(request: FetchRequest, columns: string[]) {
   })
 }
 
+/** One row of this relation, read downwards in a panel of its own (D111). */
+function showRecord(value: { request: FetchRequest; index: number }) {
+  workspace.openRecord({
+    connectorId: props.connectorId,
+    nodeId: props.nodeId,
+    title: props.title,
+    connectorName: props.connectorName,
+    adapterType: props.adapterType,
+    describable: canDescribe.value,
+    request: value.request,
+    index: value.index,
+  })
+}
+
 function showReferenced(target: ReferencedRows) {
   workspace.followReference({
     connectorId: props.connectorId,
@@ -253,6 +267,7 @@ function showReferenced(target: ReferencedRows) {
       @content="showContent"
       @chart="showChart"
       @follow="showReferenced"
+      @record="showRecord"
     >
       <!-- On the row the pager is on, at the other end of it: which sheet is
            being read is about the whole page, the way the page number is.

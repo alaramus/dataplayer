@@ -19,6 +19,7 @@ import {
   queryPanelId,
   resultPanelId,
   roleOf,
+  recordPanelId,
   rowsPanelId,
   structurePanelId,
   summaryPanelId,
@@ -60,6 +61,18 @@ const samples: Record<PanelKind, Panel> = {
     connectorName: "local pg",
     adapterType: "postgres",
     describable: true,
+  },
+  record: {
+    id: recordPanelId("c1", "public.orders"),
+    kind: "record",
+    connectorId: "c1",
+    nodeId: "public.orders",
+    title: "orders",
+    connectorName: "local pg",
+    adapterType: "postgres",
+    describable: true,
+    request: { node_id: "public.orders", limit: 100, offset: 0 },
+    index: 3,
   },
   content: {
     id: contentPanelId("c1", "people.json", "json"),
@@ -260,6 +273,21 @@ describe("the panel registry", () => {
 
   it("lets the icon of a data tab lead to the catalog it came from", () => {
     expect(lookOf(samples.rows).iconTooltip).toContain("Show in catalog")
+  })
+
+  it("lets the icon of a row view lead to the catalog too", () => {
+    // Every panel opened on one node goes back to it the same way. An icon
+    // with a tooltip is drawn as a button, and one that led nowhere was.
+    expect(lookOf(samples.record).iconTooltip).toContain("Show in catalog")
+  })
+
+  it("restores a row view stored before it remembered which row", () => {
+    // Every field added to a stored panel is optional, because a layout
+    // written before it exists must still restore. A required one fails the
+    // whole layout and the workspace comes back empty.
+    const { request, index, ...older } = samples.record as Record<string, unknown>
+
+    expect(panelSchema.safeParse(older).success).toBe(true)
   })
 
   it("leaves the icon of the connections tab inert", () => {

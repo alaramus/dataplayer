@@ -297,3 +297,42 @@ separate: this panel can draw what it offers to build, and a document can draw
 what documents contain.
 
 Spec: [Charts over a bounded page](../superpowers/specs/2026-08-30-bounded-page-charts-design.md)
+
+## D111. One row is read downwards over the page the grid is on
+
+A wide relation is unreadable a row at a time in a grid, and the old
+application's row window was where people actually worked. It is a panel of the
+relation, not a second reading of it.
+
+- **The same page, by the same query key.** The row view reads through the same
+  `useRowsPage` the grid does, so opening a row costs no request and the two
+  cannot disagree about what the row holds.
+- **A row is a position, not a handle.** A handle exists only where a source can
+  version a row ([D25](sources/relations.md)), and a keyless relation still has
+  rows worth reading. The page travels with the position, because that is what
+  the position is relative to.
+- **Walking crosses pages.** `PREV` and `NEXT` move within the loaded rows and,
+  at either edge, move the request by the limit it already carries. The request
+  stays one the grid also uses, so the page a walk lands on is shared.
+- **Badges come from the relation model and nowhere else.** A page of rows says
+  nothing about a primary key, so a node the source will not describe has none
+  and everything else still works — which is how a CSV is read here.
+- **One panel per relation.** Opening another row tells the panel, the way a
+  rows tab is told a predicate ([D36](sources/relations.md)); a tab per row
+  would fill the strip by reading a table.
+- Both directions of key navigation are offered per column, from the same two
+  routes the grid uses ([D110](sources/relations.md)).
+
+Known deviations:
+
+- **No editing.** The old window had one; editing a row is the grid's cell
+  editor and its rules about what a source accepts, and a second editing
+  surface is a second set of those rules.
+- **No physical row identity on screen.** The old view listed `ctid` as a line
+  of the row. That is a row handle by another name, and D42 already decided
+  whose business identity is.
+- **It does not follow the grid's selection.** The old window did until it
+  froze itself, and the freezing is the tell: the useful state was the frozen
+  one, on the row somebody chose to look at.
+
+Spec: [One row, read downwards](../superpowers/specs/2026-09-05-row-view-design.md)

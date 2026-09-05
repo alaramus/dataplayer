@@ -38,6 +38,7 @@ import {
   queryPanelId,
   resultPanelId,
   roleOf,
+  recordPanelId,
   rowsPanelId,
   structurePanelId,
   summaryPanelId,
@@ -55,6 +56,7 @@ import type {
   OpenQueryDraftRequest,
   OpenRelationshipsRequest,
   OpenRepresentationRequest,
+  OpenRecordRequest,
   OpenRowsRequest,
   OpenSharedRequest,
   OpenStructureRequest,
@@ -111,7 +113,16 @@ const workspace = useWorkspace<Panel>({
   // editing a connection has two other ways in. See T5.
   onIconClick: (panel) => {
     if (panel.kind === "catalog") editConnector(panel.connectorId)
-    if (panel.kind === "rows" || panel.kind === "content") {
+    // Every panel opened on one node goes back to it the same way. An icon
+    // that carries a tooltip is drawn as a button, so a kind left out of this
+    // list is a button that does nothing when it is pressed.
+    if (
+      panel.kind === "rows" ||
+      panel.kind === "content" ||
+      panel.kind === "structure" ||
+      panel.kind === "summary" ||
+      panel.kind === "record"
+    ) {
       revealInCatalog(panel.connectorId, panel.nodeId, panel.title)
     }
   },
@@ -647,6 +658,25 @@ provide(workspaceActionsKey, {
       kind: "structure",
       ...request,
     })
+  },
+  /**
+   * Which row a row view is on is a field of the panel, so opening another one
+   * rewrites the panel that is already there rather than sending it a message.
+   * A message would be gone by the time a stored layout was restored, and the
+   * tab would come back empty (D111).
+   */
+  openRecord: (request: OpenRecordRequest) => {
+    const panel = {
+      id: recordPanelId(request.connectorId, request.nodeId),
+      kind: "record" as const,
+      ...request,
+    }
+    if (workspace.panels.value.some((open) => open.id === panel.id)) {
+      workspace.replace(panel.id, panel)
+      workspace.context.activate(panel.id)
+      return
+    }
+    workspace.open(panel)
   },
   openRelationships: (request: OpenRelationshipsRequest) => {
     workspace.open({ id: relationshipPanelId(request.connectorId, request.nodes), kind: "relationships", ...request })
