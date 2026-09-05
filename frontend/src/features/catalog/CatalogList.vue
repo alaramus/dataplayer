@@ -2,7 +2,8 @@
 import { computed, nextTick, ref, watch } from "vue"
 
 import type { ListNode } from "@/features/catalog/nodes"
-import { AppCheckbox, AppEmptyState, AppSpinner } from "@/shared/ui"
+import { copyText } from "@/shared/clipboard"
+import { AppCheckbox, AppEmptyState, AppIconButton, AppSpinner, useToast } from "@/shared/ui"
 
 /**
  * One level of a catalog, as a list.
@@ -42,6 +43,24 @@ const props = defineProps<{
 }>()
 
 const root = ref<HTMLElement | null>(null)
+const toast = useToast()
+
+/**
+ * The name of a row, in the clipboard.
+ *
+ * The gesture lives on the icon rather than in a column of its own: a control
+ * wanted only on the row under the pointer must not cost every row the width,
+ * and the icon is already the one place on a row that says nothing a reader
+ * needs while they are reaching for it.
+ */
+async function copyName(node: ListNode) {
+  try {
+    await copyText(node.label)
+    toast.success(`Copied “${node.label}”`)
+  } catch {
+    toast.error("This browser would not let the name be copied")
+  }
+}
 
 /**
  * Bring the pointed-at row into view.
@@ -188,10 +207,24 @@ const countLabel = computed(() => {
           />
         </span>
 
-        <q-icon
-          :name="node.icon"
-          size="18px"
-        />
+        <!-- The picture and the button that replaces it, one over the other
+             and both 18px: swapping them must not move the name beside them. -->
+        <span class="catalog-list__mark">
+          <q-icon
+            class="catalog-list__icon"
+            :name="node.icon"
+            size="18px"
+          />
+          <AppIconButton
+            class="catalog-list__copy"
+            icon="content_copy"
+            :tooltip="`Copy “${node.label}”`"
+            :data-testid="`catalog-copy-${node.label}`"
+            @click.stop="copyName(node)"
+            @keydown.enter.stop
+            @keydown.space.stop
+          />
+        </span>
         <span class="catalog-list__name">{{ node.label }}</span>
 
         <span
@@ -317,6 +350,39 @@ const countLabel = computed(() => {
 }
 .catalog-list__tick-space {
   visibility: hidden;
+}
+/* The icon of a row is also where its name is copied from. The button lies
+   exactly over the picture, so the row under the pointer gains a gesture and
+   loses no width, and nothing on the line moves when the pointer arrives. */
+.catalog-list__mark {
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.catalog-list__copy {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  opacity: 0;
+  /* Out of reach rather than merely invisible, or a click meant for the row
+     would land on a button nobody can see. Focus brings both back, so the
+     gesture is there for a keyboard as well as for a pointer. */
+  pointer-events: none;
+}
+.catalog-list__copy :deep(.q-icon) {
+  font-size: 15px;
+}
+.catalog-list__row:hover .catalog-list__copy,
+.catalog-list__copy:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+.catalog-list__row:hover .catalog-list__icon,
+.catalog-list__mark:has(.catalog-list__copy:focus-within) .catalog-list__icon {
+  opacity: 0;
 }
 /* The name comes first when there is not enough room: it is what the row is
    about, and the caption beside it is an aside. */

@@ -369,6 +369,11 @@ sentence the source wrote about what its statement answers, and in the shared
 column that sentence would set the column's width for every row in the list. So
 a report lays itself out and keeps its sentence beside its name.
 
+The icon of a row is also where its name is copied from: under the pointer, or
+while the button has focus, it gives way to a copy button of exactly its size.
+A gesture wanted only on the row being looked at costs no column, and nothing
+on the line moves when the pointer arrives.
+
 A kind is said by the icon and never also in words, so a materialized view is
 drawn as the table it keeps rather than labelled. What a relation measures is
 always said: a table with an estimate says it, and a table nobody has analysed
@@ -534,6 +539,12 @@ Known deviations:
   level, and the name is what shrinks, down to five characters. With
   `information_schema` among the groupings on, that costs a name a third of the
   column. Resizable columns are the only answer today.
+- **Every row carries the copy button, drawn or not.** The list is not
+  virtualised, so a schema of five thousand tables mounts five thousand
+  buttons and their tooltips beside the five thousand tick boxes it already
+  mounted. Drawing one button and moving it to the row under the pointer would
+  cost the keyboard its way to the gesture; virtualising the list would cost
+  neither, and is the answer when the list gets one.
 - **A row of the list carries four marks.** The icon, the name, the state dot on
   that icon and the highlight that says it is open. On a long list with several
   catalogs open the column becomes busy, and nobody has measured that.

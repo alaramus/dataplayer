@@ -1,5 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils"
-import { Quasar } from "quasar"
+import { Notify, Quasar } from "quasar"
 import { describe, expect, it, vi } from "vitest"
 
 import CatalogList from "./CatalogList.vue"
@@ -27,7 +27,7 @@ const items: ListNode[] = [table("public.orders", "orders"), table("public.users
 function mountList(revealed: string | null = null, checked: string[] = []) {
   return mount(CatalogList, {
     props: { items, checked, loading: false, revealed },
-    global: { plugins: [Quasar] },
+    global: { plugins: [[Quasar, { plugins: { Notify } }]] },
   })
 }
 
@@ -59,6 +59,34 @@ function report(id: string, label: string, caption: string): ListNode {
  * lays itself out instead. The class is what the stylesheet keys off, so it
  * is what this checks.
  */
+/**
+ * The name of a row, taken without reading it out.
+ *
+ * The gesture is on the icon: a control wanted only on the row under the
+ * pointer must not cost every row a column of its own.
+ */
+describe("copying the name of a row", () => {
+  it("puts the name in the clipboard", async () => {
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
+    const wrapper = mountList()
+
+    await wrapper.get('[data-testid="catalog-copy-orders"]').trigger("click")
+    await flushPromises()
+
+    expect(writeText).toHaveBeenCalledWith("orders")
+  })
+
+  it("does not open the row it was copied from", async () => {
+    vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue()
+    const wrapper = mountList()
+
+    await wrapper.get('[data-testid="catalog-copy-orders"]').trigger("click")
+    await flushPromises()
+
+    expect(wrapper.emitted("open")).toBeUndefined()
+  })
+})
+
 describe("the columns of a level", () => {
   it("keeps a measured row in the list's own columns", () => {
     const wrapper = mountList()
@@ -74,7 +102,7 @@ describe("the columns of a level", () => {
         checked: [],
         loading: false,
       },
-      global: { plugins: [Quasar] },
+      global: { plugins: [[Quasar, { plugins: { Notify } }]] },
     })
 
     expect(wrapper.get('[data-testid="catalog-node-System"]').classes()).toContain(
