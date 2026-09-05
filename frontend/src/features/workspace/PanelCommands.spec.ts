@@ -3,6 +3,9 @@ import { Quasar } from "quasar"
 import { describe, expect, it, vi } from "vitest"
 import { defineComponent, h, ref } from "vue"
 
+import { freshnessOf } from "@/shared/freshness/freshness"
+import type { Freshness } from "@/shared/freshness/freshness"
+import AppIconButton from "@/shared/ui/AppIconButton.vue"
 import { makeLeaf, workspaceKey } from "@/shared/workspace"
 import type { PanelLook, WorkspaceContext } from "@/shared/workspace"
 
@@ -19,6 +22,12 @@ import type { WorkspaceActions } from "./state"
  * node in a catalog, which was a click on the icon of the tab; the re-read,
  * which was a second button on the tab; and the way out of a window, which was
  * a strip of its own above a panel that already draws a row of buttons.
+ *
+ * The re-read also absorbed the freshness badge, which stood beside it as a
+ * control of its own and re-read the source when pressed, so the row held the
+ * same command twice. It is a mark now — "Live", or a clock — riding above the
+ * reload in room of its own, and the age it used to spell out is in what is
+ * said on hovering (D105).
  */
 
 const REVEAL = { connectorId: "c1", nodeId: "public.orders", label: "orders" }
@@ -72,13 +81,21 @@ function mountCommands(
     actions?: Partial<WorkspaceActions>
     reloads?: ReloadRegistry
     reveal?: typeof REVEAL
+    freshness?: Freshness
+    cacheTtlSeconds?: number | null
   } = {}
 ) {
   const registry = options.reloads ?? createReloadRegistry()
   const Host = defineComponent({
     setup() {
       provideReloadRegistry(registry)
-      return () => h(PanelCommands, { panelId: "p1", reveal: options.reveal })
+      return () =>
+        h(PanelCommands, {
+          panelId: "p1",
+          reveal: options.reveal,
+          freshness: options.freshness,
+          cacheTtlSeconds: options.cacheTtlSeconds,
+        })
     },
   })
 
@@ -147,6 +164,93 @@ describe("PanelCommands", () => {
 
   it("draws no reload for a panel with nothing to re-read", () => {
     expect(mountCommands().find('[data-testid="panel-reload"]').exists()).toBe(false)
+  })
+
+  it("carries no mark where the source keeps nothing", () => {
+    // Nothing it shows could be older than the read, so there is nothing to
+    // report and the button is the icon every other command in the row is.
+    const wrapper = mountCommands({ look: RELOADABLE })
+
+    expect(wrapper.find('[data-testid="panel-freshness"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="panel-reload"]').get(".q-icon").text()).toBe(
+      "refresh"
+    )
+  })
+
+  it("says the page is live while the answer is the read", () => {
+    const wrapper = mountCommands({
+      look: RELOADABLE,
+      freshness: freshnessOf({ "x-data-cache": "miss" }),
+    })
+    const mark = wrapper.get('[data-testid="panel-freshness"]')
+
+    expect(mark.attributes("data-live")).toBe("yes")
+    expect(mark.text()).toBe("Live")
+    // The button beside the mark never changes: it is the reload, one icon and
+    // one width, whatever stands next to it.
+    expect(wrapper.get('[data-testid="panel-reload"]').get(".q-icon").text()).toBe(
+      "refresh"
+    )
+  })
+
+  it("shows a clock instead once the answer is one that was kept", () => {
+    const wrapper = mountCommands({
+      look: RELOADABLE,
+      freshness: freshnessOf({ "x-data-cache": "hit", "x-data-cache-age": "20" }),
+      cacheTtlSeconds: 300,
+    })
+    const mark = wrapper.get('[data-testid="panel-freshness"]')
+
+    expect(mark.attributes("data-live")).toBe("no")
+    expect(mark.text()).toBe("schedule")
+    expect(wrapper.get('[data-testid="panel-reload"]').get(".q-icon").text()).toBe(
+      "refresh"
+    )
+  })
+
+  it("stops calling a page live once it has aged on screen", () => {
+    // The reply said it was a read of the source. Four minutes later that is
+    // still true and no longer the point.
+    const wrapper = mountCommands({
+      look: RELOADABLE,
+      freshness: freshnessOf({ "x-data-cache": "miss" }, Date.now() - 240_000),
+    })
+
+    expect(wrapper.get('[data-testid="panel-freshness"]').attributes("data-live")).toBe(
+      "no"
+    )
+  })
+
+  it("keeps the age out of the row and in what is said on hovering", () => {
+    // A control whose width follows the age of a page moves while the row is
+    // being read. Whether this may be stale is a glance; how stale is a
+    // question, and the answer is one hover away (D105).
+    const wrapper = mountCommands({
+      look: RELOADABLE,
+      freshness: freshnessOf({ "x-data-cache": "hit", "x-data-cache-age": "20" }),
+      cacheTtlSeconds: 300,
+    })
+
+    expect(wrapper.text()).not.toContain("20s")
+    expect(wrapper.getComponent(AppIconButton).props("tooltip")).toBe(
+      "Read from the source 20s ago. This connection keeps answers for 5m. " +
+        "Re-read this table."
+    )
+  })
+
+  it("re-reads from the button under the mark", async () => {
+    const reloads = createReloadRegistry()
+    const read = vi.fn()
+    reloads.register("p1", read)
+    const wrapper = mountCommands({
+      look: RELOADABLE,
+      reloads,
+      freshness: freshnessOf({ "x-data-cache": "hit", "x-data-cache-age": "20" }),
+    })
+
+    await wrapper.get('[data-testid="panel-reload"]').trigger("click")
+
+    expect(read).toHaveBeenCalledTimes(1)
   })
 
   it("offers the way back only while the panel is in a window of its own", async () => {

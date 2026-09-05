@@ -340,16 +340,28 @@ anything staler than that is a copy rather than a cache.
   the shared backend subtracts the key's remaining life from the window it was
   stored for, in the same round trip as the value, so Redis owns that clock and
   no cache value changed shape.
-- The screen shows how old what is on it is, beside the reload it explains, in
-  the grid header and above a catalog level, and pressing it reloads. Freshness
+- The screen says whether what is on it may be stale with a small mark riding
+  above the reload — "Live" while the answer is the read, a clock once it is
+  one that was kept — in the grid's row of commands and in a catalog's. It sits
+  in room of its own beside the button rather than over it, and has one width
+  in both states, so nothing is drawn on top of the arrow and nothing in the
+  row moves. It used to be a control of its own that re-read the source when
+  pressed: the same command twice, in two shapes (D112). **How old it is is not
+  drawn.** A control whose width follows the age of a page moves while the row
+  is being read, so the age is in what is said on hovering — the mark answers
+  how old, the button adds what pressing it does. Whether this may be stale is
+  a glance; how stale is a question. "Live" lasts five seconds rather than one,
+  because a mark that small has to stay long enough to be caught. Freshness
   travels inside the cached value — `{ page, freshness }`, `{ nodes, freshness }`
   — so there is no second client cache to fall out of step with the first (D7).
-- **The badge is drawn only where an answer could be older than the read.** A
+- **The mark is drawn only where an answer could be older than the read.** A
   source that never opted in keeps nothing whatever its owner typed, and an
-  owner who chose to keep nothing meant it; over either, a permanent "Live"
-  reads as a promise about a cache that is not there. Unknown counts as no,
-  because a badge that arrives late is easier to read than one that appears and
-  goes away.
+  owner who chose to keep nothing meant it; over either, a mark reads as a
+  promise about a cache that is not there. Those panels show the reload alone,
+  with no room reserved beside it. Where there is something to report the mark
+  keeps its place and only changes what it says, so the row is still. Unknown
+  counts as no, because a mark that arrives late is easier to read than one
+  that appears and goes away.
 - The window is set on the connection window's Options page, which exists for
   this and for what follows it: how a connection behaves is nobody's first
   question, and a form asks how to reach a source before it asks anything else.

@@ -11,6 +11,7 @@ import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { useSiblingTables } from "@/features/catalog/api"
 import { messageOf } from "@/shared/api/errors"
+import type { Freshness } from "@/shared/freshness/freshness"
 import { useToast } from "@/shared/ui"
 
 /**
@@ -88,7 +89,22 @@ function showSheet(value: string) {
   })
 }
 
-const grid = useTemplateRef<{ reload: () => Promise<void> }>("grid")
+const grid = useTemplateRef<{
+  reload: () => Promise<void>
+  freshness: Freshness | undefined
+  cacheWindow: number | null | undefined
+}>("grid")
+
+/**
+ * How old the page on screen is, taken from the grid that read it.
+ *
+ * The grid owns the query — which page, which filters — so it owns the answer
+ * about freshness; the row of commands belongs to the tab. Read through the
+ * grid's exposed values rather than asked for a second time, because a second
+ * read would be a second cache to fall out of step with the first (D7).
+ */
+const freshness = computed(() => grid.value?.freshness)
+const cacheWindow = computed(() => grid.value?.cacheWindow)
 
 /**
  * Whether this source writes SQL about its own nodes.
@@ -274,6 +290,8 @@ function showReferenced(target: ReferencedRows) {
         <PanelCommands
           :panel-id="panelId"
           :reveal="{ connectorId, nodeId, label: title }"
+          :freshness="freshness"
+          :cache-ttl-seconds="cacheWindow"
         />
       </template>
 

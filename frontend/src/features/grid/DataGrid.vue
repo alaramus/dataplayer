@@ -21,7 +21,6 @@ import type {
   Sort,
 } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
-import FreshnessBadge from "@/shared/freshness/FreshnessBadge.vue"
 import { useConnectionFreshness } from "@/features/connectors/api"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { readText } from "@/shared/clipboard"
@@ -1089,6 +1088,16 @@ defineExpose({
   reload: async () => {
     await refreshRows()
   },
+  /**
+   * How old this page is, for the reload button the panel draws.
+   *
+   * Undefined where an answer could not be older than the read, so that
+   * button stays a plain refresh with nothing to report (D105). The grid owns
+   * the query and therefore the answer; the tab owns the row of commands, so
+   * the two meet here.
+   */
+  freshness: computed(() => (keepsAnswers.value ? freshness.value : undefined)),
+  cacheWindow,
 })
 </script>
 
@@ -1129,14 +1138,6 @@ defineExpose({
         requestPaste,
       }"
     >
-      <FreshnessBadge
-        v-if="keepsAnswers"
-        :freshness="freshness"
-        :cache-ttl-seconds="cacheWindow"
-        :loading="rowsQuery.isFetching.value"
-        testid="grid-freshness"
-        @reload="refreshRows"
-      />
       <AutoRefreshButton
         v-if="result !== undefined"
         :seconds="refreshSeconds"

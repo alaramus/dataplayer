@@ -4,7 +4,6 @@ import { computed, nextTick, onDeactivated, ref, toRef, useId, watch } from "vue
 import type { DetectedFramework } from "@/client"
 import CatalogActions from "@/features/catalog/CatalogActions.vue"
 import CatalogList from "@/features/catalog/CatalogList.vue"
-import FreshnessBadge from "@/shared/freshness/FreshnessBadge.vue"
 import KeyspaceTree from "@/features/catalog/KeyspaceTree.vue"
 import { reloadedBy, replacementsOf } from "@/features/catalog/actions"
 import type { ActionOutcome } from "@/features/catalog/actions"
@@ -690,19 +689,6 @@ async function afterAction(outcome: ActionOutcome) {
           />
         </div>
 
-        <!-- What is listed, and whether it was read or remembered. Beside
-             the path rather than over the list: it is about the whole level,
-             including the groupings ticked into it, and pressing it reads the
-             level again (D105). -->
-        <FreshnessBadge
-          v-if="!asTree && keepsAnswers"
-          :freshness="level.freshness.value"
-          :cache-ttl-seconds="cacheWindow"
-          :loading="level.loading.value"
-          testid="catalog-freshness"
-          @reload="reloadHere"
-        />
-
         <!-- Beside the path and not under it. The line answers one question —
              where we are inside this source — and the answer takes the shape
              the level's own nodes give it: a path for a directory, a set of
@@ -773,8 +759,14 @@ async function afterAction(outcome: ActionOutcome) {
         />
 
         <!-- The catalog is the way to a node and not a view of one, so it
-             offers no "show in catalog" of its own (D112). -->
-        <PanelCommands :panel-id="panelId" />
+             offers no "show in catalog" of its own (D112). Its reload carries
+             how old this level is — the whole level, including the groupings
+             ticked into it — where the source keeps anything at all (D105). -->
+        <PanelCommands
+          :panel-id="panelId"
+          :freshness="!asTree && keepsAnswers ? level.freshness.value : undefined"
+          :cache-ttl-seconds="cacheWindow"
+        />
       </div>
 
       <!-- On a line of its own: a filter is something a user types into, and

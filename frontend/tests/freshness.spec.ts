@@ -19,7 +19,16 @@ import { deleteConnector, editConnector, openConnector } from "./utils/workspace
  * (D105).
  */
 
-test("says whether a catalog level was read or kept, and reads it again when pressed", async ({
+/** The reload of one panel, and the mark written over its corner. */
+function reloadOf(page: import("@playwright/test").Page, panel: string) {
+  return page.getByTestId(panel).getByTestId("panel-reload")
+}
+
+function markOf(page: import("@playwright/test").Page, panel: string) {
+  return page.getByTestId(panel).getByTestId("panel-freshness")
+}
+
+test("marks the reload of a catalog with whether the level was read or kept", async ({
   page,
 }) => {
   const name = `e2e-fresh-${Date.now()}`
@@ -27,16 +36,18 @@ test("says whether a catalog level was read or kept, and reads it again when pre
   await createPostgresConnector(page, name)
   await openConnector(page, name)
 
-  // The first reading of a level is a read of the source, whatever the
-  // server does with it afterwards.
-  const badge = page.getByTestId("catalog-freshness")
-  await expect(badge).toBeVisible()
-  await expect(badge).toHaveAttribute("data-live", "yes")
+  // The first reading of a level is a read of the source, whatever the server
+  // does with it afterwards — and the mark above the reload says so, rather
+  // than a second control standing beside it (D112).
+  const mark = markOf(page, "catalog-panel")
+  await expect(mark).toBeVisible()
+  await expect(mark).toHaveAttribute("data-live", "yes")
+  await expect(mark).toContainText("Live")
 
   const reread = page.waitForRequest((request) => request.url().includes("/catalog"))
-  await badge.click()
+  await reloadOf(page, "catalog-panel").click()
   await reread
-  await expect(badge).toBeVisible()
+  await expect(mark).toBeVisible()
 
   await deleteConnector(page, name)
 })
@@ -49,11 +60,14 @@ test("says how old a page of rows is, beside the rows", async ({ page }) => {
   await pickSchema(page, "public")
   await openNode(page, "alembic_version")
 
-  // Two badges on screen now, the level's and the grid's, and they are about
-  // different readings.
-  const badge = page.getByTestId("grid-freshness")
-  await expect(badge).toBeVisible()
-  await expect(badge).toContainText(/Live|\d+s/)
+  // Two marks on screen now, the level's and the grid's, and they report
+  // different readings. How old this page is is not written in the row — that
+  // width would move as the page aged — so it is asked for by hovering the
+  // mark itself.
+  const mark = markOf(page, "grid-header")
+  await expect(mark).toBeVisible()
+  await mark.hover()
+  await expect(page.locator(".app-tooltip")).toContainText("Read from the source")
 
   await deleteConnector(page, name)
 })
@@ -97,14 +111,15 @@ test("says nothing about freshness over a source that is always read live", asyn
   await openConnector(page, name)
   await expect(page.getByTestId("catalog-list")).toBeVisible()
 
-  // Personal storage never opted into caching, so there is nothing for a
-  // badge to report and a permanent "Live" would read as a promise about a
-  // cache that is not there (D105).
-  await expect(page.getByTestId("catalog-freshness")).toHaveCount(0)
+  // Personal storage never opted into caching, so there is nothing to report
+  // and a permanent "Live" would read as a promise about a cache that is not
+  // there (D105). The reload is still offered; its corner carries no mark.
+  await expect(reloadOf(page, "catalog-panel")).toBeVisible()
+  await expect(markOf(page, "catalog-panel")).toHaveCount(0)
 
   await openNode(page, "reports")
   await expect(page.getByTestId("catalog-list")).toContainText("q3.csv")
-  await expect(page.getByTestId("catalog-freshness")).toHaveCount(0)
+  await expect(markOf(page, "catalog-panel")).toHaveCount(0)
 
   await deleteConnector(page, name)
 })

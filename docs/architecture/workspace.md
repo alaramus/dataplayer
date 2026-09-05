@@ -456,13 +456,23 @@ about what the panel shows, so all three stand at the end of the row of buttons
 the panel already draws. A panel with no such row gains a thin one; a panel
 whose row belongs to a grid receives them through a forwarded slot.
 
-Show in catalog is drawn only for a panel that is a view of one node, and is
-absent — not disabled — everywhere else: a chart is drawn from a page of rows,
+Reload comes first of the three, Return to panel last. Show in catalog is
+drawn only for a panel that is a view of one node, and is absent — not
+disabled — everywhere else: a chart is drawn from a page of rows,
 a diagram from several nodes at once, a console is written against a connection
 and a captured result names no node of any source. Reload says in the panel's
 own words what re-reading it means. Return to panel is drawn only while the
-panel is in a window of its own, and last of the three, so detaching and
-docking do not move the buttons beside it.
+panel is in a window of its own, so detaching and docking move nothing that
+was already there.
+
+A small mark rides above the reload where there is anything to report:
+"Live" while the answer is the read, a clock once it is one that was kept
+(D105). It stands in room of its own beside the button and not over it, with
+one width in both states, so the arrow is never drawn on and the row never
+moves. The age is not drawn — a control whose width follows the age of a page
+moves while the row is being read — and is answered by hovering. The mark is a
+label rather than a control: it presses to nothing, and never looks as though
+it would. A panel whose source keeps nothing shows the reload alone.
 
 One icon on a tab is still a button: a catalog's, which opens the connection
 behind it. It is not a command about what the panel shows, and the connection

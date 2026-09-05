@@ -43,9 +43,19 @@ export function freshnessOf(
   }
 }
 
+/**
+ * How long a read goes on being called live.
+ *
+ * A second, while this was a control of its own beside the reload. It is a
+ * mark above that button now (D112), read out of the corner of an eye, so it
+ * has to last long enough to be caught: five seconds is about as long as
+ * somebody stays looking at the thing they have just asked for.
+ */
+export const LIVE_WINDOW_MS = 5000
+
 /** Whether this answer is the read itself rather than something kept. */
 export function isLive(freshness: Freshness, now: number = Date.now()): boolean {
-  return freshness.outcome !== "hit" && now - freshness.readAt < 1000
+  return freshness.outcome !== "hit" && now - freshness.readAt < LIVE_WINDOW_MS
 }
 
 /** How long ago, in the shortest words that are still true. */
@@ -85,6 +95,10 @@ export function windowLabel(seconds: number): string {
  * `cacheTtlSeconds` is what the connection was told to keep, `null` when its
  * owner left that to the source — in which case the window is not this
  * screen's to state.
+ *
+ * It used to end by inviting a press, because the badge was the reload. The
+ * reload is the button beside it now (D112), and it says for itself what it
+ * does.
  */
 export function freshnessTooltip(
   freshness: Freshness,
@@ -101,5 +115,5 @@ export function freshnessTooltip(
       : cacheTtlSeconds <= 0
         ? "This connection keeps nothing: every read reaches the source."
         : `This connection keeps answers for ${windowLabel(cacheTtlSeconds)}.`
-  return `${read} ${kept} Press to read it again.`
+  return `${read} ${kept}`
 }

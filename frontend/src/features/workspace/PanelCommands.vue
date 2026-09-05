@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, inject, ref } from "vue"
 
-import { AppIconButton } from "@/shared/ui"
+import { freshnessTooltip, isLive } from "@/shared/freshness/freshness"
+import type { Freshness } from "@/shared/freshness/freshness"
+import { useNow } from "@/shared/freshness/useNow"
+import { AppIconButton, AppTooltip } from "@/shared/ui"
 import { workspaceKey } from "@/shared/workspace"
 
 import { useReloadRegistry } from "./reloadable"
@@ -32,6 +35,16 @@ const props = defineProps<{
    * one that does nothing.
    */
   reveal?: { connectorId: string; nodeId: string; label: string }
+  /**
+   * Where what is on screen came from, for a source that keeps its answers.
+   *
+   * Absent where an answer could not be older than the read — a source that
+   * never opted into caching, or an owner who chose to keep nothing — and the
+   * reload then stands alone, with nothing to report (D105).
+   */
+  freshness?: Freshness
+  /** What this connection was told to keep, when its owner chose (D105). */
+  cacheTtlSeconds?: number | null
 }>()
 
 const workspace = inject(workspaceKey, null)
@@ -42,6 +55,40 @@ const reloads = useReloadRegistry()
 const reloadTooltip = computed(() =>
   workspace === null ? undefined : workspace.lookOf(props.panelId).reloadTooltip
 )
+
+/**
+ * Whether what is on screen is the read itself or something kept.
+ *
+ * Counted against the clock rather than fixed when the page arrived: an answer
+ * read four minutes ago is not live any more, whatever the server said at the
+ * time — and that is the case that made somebody press reload out of doubt.
+ */
+const now = useNow()
+const live = computed(
+  () => props.freshness !== undefined && isLive(props.freshness, now.value)
+)
+
+/**
+ * How old this is, and how long this connection keeps an answer.
+ *
+ * The mark beside the reload says which of the two states it is in; how old,
+ * exactly, is a question rather than a glance, and the answer is on hovering
+ * the mark itself. Written on the button it would make a command whose width
+ * follows the age of a page, and a row of buttons is read by where its buttons
+ * are (D105).
+ */
+const freshnessSays = computed(() =>
+  props.freshness === undefined
+    ? ""
+    : freshnessTooltip(props.freshness, props.cacheTtlSeconds, now.value)
+)
+
+/** The button's own words: how old this is, then what pressing it does. */
+const reloadSays = computed(() => {
+  const command = reloadTooltip.value ?? ""
+  if (props.freshness === undefined) return command
+  return `${freshnessSays.value} ${command}.`
+})
 
 /** In a window of its own, and so with a way back to offer. */
 const detached = computed(
@@ -79,6 +126,42 @@ function showInCatalog() {
     v-if="workspace !== null"
     class="panel-commands"
   >
+    <!-- First of the three, and always the same button. What stands beside it
+         changes; the button itself does not move, does not change width and
+         does not change what pressing it does. -->
+    <span
+      v-if="reloadTooltip"
+      class="panel-commands__reload"
+    >
+      <AppIconButton
+        icon="refresh"
+        :tooltip="reloadSays"
+        :aria-label="reloadTooltip"
+        :loading="reloading"
+        data-testid="panel-reload"
+        @click="reload"
+      />
+      <!-- Beside the button and above it, in the flow and not over it: room of
+           its own, so nothing is drawn on top of the arrow and nothing after
+           it moves. One width for both states, so the row does not shift when
+           a read stops being live. Only where the source keeps anything —
+           where it does not, an answer cannot be older than the read (D105). -->
+      <span
+        v-if="freshness"
+        class="panel-commands__freshness"
+        :class="{ 'panel-commands__freshness--live': live }"
+        data-testid="panel-freshness"
+        :data-live="live ? 'yes' : 'no'"
+      >
+        <template v-if="live">Live</template>
+        <q-icon
+          v-else
+          name="schedule"
+          size="11px"
+        />
+        <AppTooltip>{{ freshnessSays }}</AppTooltip>
+      </span>
+    </span>
     <AppIconButton
       v-if="reveal && actions"
       icon="my_location"
@@ -86,15 +169,6 @@ function showInCatalog() {
       aria-label="Show in catalog"
       data-testid="panel-reveal"
       @click="showInCatalog"
-    />
-    <AppIconButton
-      v-if="reloadTooltip"
-      icon="refresh"
-      :tooltip="reloadTooltip"
-      :aria-label="reloadTooltip"
-      :loading="reloading"
-      data-testid="panel-reload"
-      @click="reload"
     />
     <!-- Last, so that tearing a panel off and putting it back does not move
          the buttons beside it: this one appears and disappears at the end of
@@ -113,5 +187,31 @@ function showInCatalog() {
 <style scoped>
 .panel-commands {
   display: contents;
+}
+/* The mark rides at the top of the button rather than beside its middle. */
+.panel-commands__reload {
+  display: inline-flex;
+  align-items: flex-start;
+  flex: none;
+}
+.panel-commands__freshness {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  /* One width whichever state it is in, so the row does not move at the moment
+     a read stops being live. */
+  min-width: 24px;
+  margin: 3px 0 0 1px;
+  color: var(--dp-text-muted);
+  font-size: 9px;
+  line-height: 1;
+  white-space: nowrap;
+  /* A label and not a control: hovering it answers how old this is, pressing
+     it does nothing, and it never looks like it would. */
+  cursor: default;
+}
+.panel-commands__freshness--live {
+  color: var(--dp-link);
 }
 </style>

@@ -6,6 +6,7 @@ import {
   freshnessOf,
   freshnessTooltip,
   isLive,
+  LIVE_WINDOW_MS,
   windowLabel,
 } from "./freshness"
 
@@ -54,6 +55,16 @@ describe("whether what is on screen is live", () => {
     expect(freshnessLabel(read, NOW + 240_000)).toBe("4m")
   })
 
+  it("stays live long enough to be seen", () => {
+    // The reload wears this and swaps its icon on the turn (D112). A window
+    // of one second meant the swap happened before anybody had looked up.
+    const read = freshnessOf({ "x-data-cache": "miss" }, NOW)
+
+    expect(LIVE_WINDOW_MS).toBeGreaterThanOrEqual(3000)
+    expect(isLive(read, NOW + LIVE_WINDOW_MS - 1)).toBe(true)
+    expect(isLive(read, NOW + LIVE_WINDOW_MS)).toBe(false)
+  })
+
   it("is never live when the server said it kept the answer", () => {
     const kept = freshnessOf(
       { "x-data-cache": "hit", "x-data-cache-age": "3" },
@@ -88,8 +99,7 @@ describe("the sentence for somebody who stopped to ask", () => {
     )
 
     expect(freshnessTooltip(kept, 300, NOW)).toBe(
-      "Read from the source 2m ago. This connection keeps answers for 5m. " +
-        "Press to read it again."
+      "Read from the source 2m ago. This connection keeps answers for 5m."
     )
   })
 
@@ -98,7 +108,7 @@ describe("the sentence for somebody who stopped to ask", () => {
 
     expect(freshnessTooltip(read, null, NOW)).toBe(
       "Read from the source just now. This connection keeps answers for as " +
-        "long as the source says. Press to read it again."
+        "long as the source says."
     )
   })
 
