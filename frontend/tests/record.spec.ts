@@ -28,15 +28,59 @@ test("reads one row downwards and walks to the next", async ({ page }) => {
 
   const view = page.getByTestId("record-view")
   await expect(view).toBeVisible()
-  await expect(page.getByTestId("record-number")).toHaveText("Row 1")
+  await expect(page.getByTestId("record-number")).toHaveCount(0)
   // What only the relation model knows, beside the value it belongs to.
   await expect(view.getByTestId("record-badge-primary_key").first()).toBeVisible()
   await expect(view).toContainText("organization_id")
 
+  const navigation = view.getByTestId("record-navigation")
+  const previous = view.getByTestId("record-previous")
+  const next = view.getByTestId("record-next")
+  const viewBox = await view.boundingBox()
+  const navigationBox = await navigation.boundingBox()
+  const previousBox = await previous.boundingBox()
+  const nextBox = await next.boundingBox()
+  if (
+    viewBox === null ||
+    navigationBox === null ||
+    previousBox === null ||
+    nextBox === null
+  ) {
+    throw new Error("the row view is not laid out")
+  }
+  expect(Math.round(navigationBox.y + navigationBox.height)).toBe(
+    Math.round(viewBox.y + viewBox.height)
+  )
+  const previousInset = previousBox.x - navigationBox.x
+  const nextInset = navigationBox.x + navigationBox.width - (nextBox.x + nextBox.width)
+  expect(previousInset).toBeGreaterThanOrEqual(0)
+  expect(previousInset).toBeLessThanOrEqual(16)
+  expect(nextInset).toBeGreaterThanOrEqual(0)
+  expect(nextInset).toBeLessThanOrEqual(16)
+
+  const headings = ["Key", "Column", "Type", "Value"].map((name) =>
+    view.getByRole("columnheader", { name, exact: true })
+  )
+  const columnsBefore = await Promise.all(headings.map((heading) => heading.boundingBox()))
   const first = await page.getByTestId("record-value-email").innerText()
-  await page.getByTestId("record-next").click()
-  await expect(page.getByTestId("record-number")).toHaveText("Row 2")
+  await next.click()
   await expect(page.getByTestId("record-value-email")).not.toHaveText(first)
+
+  const columnsAfter = await Promise.all(headings.map((heading) => heading.boundingBox()))
+  expect(columnsBefore.every((box) => box !== null)).toBe(true)
+  expect(columnsAfter.every((box) => box !== null)).toBe(true)
+  for (const [at, before] of columnsBefore.entries()) {
+    const after = columnsAfter[at]
+    if (before === null || after === null) throw new Error("a row-view column is missing")
+    expect(Math.round(after.x)).toBe(Math.round(before.x))
+    expect(Math.round(after.width)).toBe(Math.round(before.width))
+  }
+  const navigationAfter = await navigation.boundingBox()
+  if (navigationAfter === null) throw new Error("the row navigation disappeared")
+  expect(Math.round(navigationAfter.x)).toBe(Math.round(navigationBox.x))
+  expect(Math.round(navigationAfter.y)).toBe(Math.round(navigationBox.y))
+  expect(Math.round(navigationAfter.width)).toBe(Math.round(navigationBox.width))
+  expect(Math.round(navigationAfter.height)).toBe(Math.round(navigationBox.height))
 
   // And the key of the row it is showing leads out of it, into a tab of its
   // own, exactly as the arrow in the grid does.

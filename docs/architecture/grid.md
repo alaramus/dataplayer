@@ -4,7 +4,7 @@ How a page of rows is drawn, kept, re-read, written out and charted. The
 screens around it are in [frontend.md](frontend.md); what a source says about
 its rows is in [sources/relations.md](sources/relations.md).
 
-Decisions here: D24, D67, D28, D35.
+Decisions here: D24, D67, D28, D35, D111.
 
 ## D24. The tabular surface is controlled state around a headless engine, and source operations stay server-side
 
@@ -314,6 +314,10 @@ relation, not a second reading of it.
 - **Walking crosses pages.** `PREV` and `NEXT` move within the loaded rows and,
   at either edge, move the request by the limit it already carries. The request
   stays one the grid also uses, so the page a walk lands on is shared.
+- **Walking does not move the page around.** The controls stay at the foot of
+  the panel, one at each edge, while the table owns the space and scrolling
+  above them. Its column tracks do not depend on the current row's values, so
+  replacing a short value with a long one cannot move the other columns.
 - **Badges come from the relation model and nowhere else.** A page of rows says
   nothing about a primary key, so a node the source will not describe has none
   and everything else still works — which is how a CSV is read here.

@@ -35,6 +35,12 @@ on the first or last row of the new page. A reader should not have to know that
 a page is how the source hands rows over; the request stays one the grid also
 uses, so the page a walk lands on is one both screens then share.
 
+The two controls stay at the foot of the panel, `PREV` against its left edge
+and `NEXT` against its right, with no row label between them. The table owns the
+remaining height and scrolls inside it. Its column tracks are fixed independently
+of the current values, so walking from a short row to a long one changes the
+data and not the geometry around it.
+
 ## What each line says
 
 The value, the type, and the badges. The badges come from the relation model

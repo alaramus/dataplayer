@@ -134,8 +134,6 @@ const lines = computed<Line[]>(() => {
   })
 })
 
-/** Where this row sits in the whole relation, counting from one. */
-const number = computed(() => (request.value.offset ?? 0) + index.value + 1)
 const limit = computed(() => request.value.limit ?? 100)
 const hasPrevious = computed(() => index.value > 0 || (request.value.offset ?? 0) > 0)
 const hasNext = computed(
@@ -187,55 +185,35 @@ const errorText = computed(() =>
     class="record-view"
     data-testid="record-view"
   >
-    <AppBanner
-      v-if="errorText"
-      tone="error"
-      data-testid="record-error"
+    <div
+      class="record-view__content"
+      data-testid="record-content"
     >
-      {{ errorText }}
-    </AppBanner>
+      <AppBanner
+        v-if="errorText"
+        tone="error"
+        data-testid="record-error"
+      >
+        {{ errorText }}
+      </AppBanner>
 
-    <AppSpinner v-else-if="page.isPending.value" />
-
-    <template v-else>
-      <div class="record-view__bar">
-        <AppButton
-          label="Previous"
-          variant="secondary"
-          size="sm"
-          icon="chevron_left"
-          :disable="!hasPrevious"
-          data-testid="record-previous"
-          @click="step(-1)"
-        />
-        <span
-          class="record-view__where"
-          data-testid="record-number"
-        >Row {{ number }}</span>
-        <AppButton
-          label="Next"
-          variant="secondary"
-          size="sm"
-          icon-right="chevron_right"
-          :disable="!hasNext"
-          data-testid="record-next"
-          @click="step(1)"
-        />
-      </div>
-
+      <AppSpinner v-else-if="page.isPending.value" />
       <AppEmptyState
-        v-if="lines.length === 0"
+        v-else-if="lines.length === 0"
         text="No row here"
         data-testid="record-empty"
       />
       <AppTable
         v-else
+        class="record-view__table"
         :rows="lines"
         :columns="COLUMNS"
         row-key="name"
         compact
         :paged="false"
+        sticky
         empty-text="No columns"
+        data-testid="record-table"
       >
         <template #body-cell-keys="cellProps">
           <q-td :props="cellProps">
@@ -255,10 +233,12 @@ const errorText = computed(() =>
           <q-td :props="cellProps">
             <div class="record-view__value">
               <span
+                class="record-view__text"
                 :class="{
                   'record-view__null': cellProps.row.absent,
                   'record-view__monospace': cellProps.row.monospace,
                 }"
+                :title="cellProps.row.text"
                 :data-testid="`record-value-${cellProps.row.name}`"
               >{{ cellProps.row.text }}</span>
               <span class="record-view__ways">
@@ -314,7 +294,32 @@ const errorText = computed(() =>
           </q-td>
         </template>
       </AppTable>
-    </template>
+    </div>
+
+    <nav
+      class="record-view__navigation"
+      aria-label="Row navigation"
+      data-testid="record-navigation"
+    >
+      <AppButton
+        label="Previous"
+        variant="secondary"
+        size="sm"
+        icon="chevron_left"
+        :disable="page.isPending.value || Boolean(errorText) || !hasPrevious"
+        data-testid="record-previous"
+        @click="step(-1)"
+      />
+      <AppButton
+        label="Next"
+        variant="secondary"
+        size="sm"
+        icon-right="chevron_right"
+        :disable="page.isPending.value || Boolean(errorText) || !hasNext"
+        data-testid="record-next"
+        @click="step(1)"
+      />
+    </nav>
   </div>
 </template>
 
@@ -324,16 +329,49 @@ const errorText = computed(() =>
   flex-direction: column;
   min-height: 0;
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
 }
-.record-view__bar {
+.record-view__content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.record-view__table :deep(.q-table__middle) {
+  scrollbar-gutter: stable;
+}
+/* One row replaces another without letting its longest value resize every
+   column around it. These tracks follow the proportions of the row view, and
+   the value takes the room left after its metadata. */
+.record-view__table :deep(table) {
+  width: 100%;
+  table-layout: fixed;
+}
+.record-view__table :deep(th:nth-child(1)),
+.record-view__table :deep(td:nth-child(1)) {
+  width: 12%;
+}
+.record-view__table :deep(th:nth-child(2)),
+.record-view__table :deep(td:nth-child(2)) {
+  width: 20%;
+}
+.record-view__table :deep(th:nth-child(3)),
+.record-view__table :deep(td:nth-child(3)) {
+  width: 30%;
+}
+.record-view__table :deep(th),
+.record-view__table :deep(td) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.record-view__navigation {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-}
-.record-view__where {
-  font-weight: 600;
+  justify-content: space-between;
+  flex: none;
+  min-height: var(--dp-toolbar-height);
+  padding: var(--dp-space-2) var(--dp-space-3);
+  border-top: 1px solid var(--dp-border);
 }
 .record-view__value {
   display: flex;
@@ -341,6 +379,13 @@ const errorText = computed(() =>
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
+}
+.record-view__text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .record-view__ways {
   display: flex;

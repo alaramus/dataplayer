@@ -129,7 +129,22 @@ describe("one row read downwards", () => {
     // The keys come from the relation model, which is the only thing that
     // knows them; a page of rows says nothing about a primary key.
     expect(wrapper.get('[data-testid="record-badge-primary_key"]').text()).toBe("PK")
-    expect(wrapper.get('[data-testid="record-number"]').text()).toBe("Row 1")
+    expect(wrapper.find('[data-testid="record-number"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it("keeps the row navigation after the content and at opposite ends", async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const content = wrapper.get('[data-testid="record-content"]')
+    const navigation = wrapper.get('[data-testid="record-navigation"]')
+    const previous = wrapper.get('[data-testid="record-previous"]')
+    const next = wrapper.get('[data-testid="record-next"]')
+
+    expect(content.element.nextElementSibling).toBe(navigation.element)
+    expect(navigation.element.firstElementChild).toBe(previous.element)
+    expect(navigation.element.lastElementChild).toBe(next.element)
     wrapper.unmount()
   })
 
@@ -142,7 +157,6 @@ describe("one row read downwards", () => {
     await wrapper.get('[data-testid="record-next"]').trigger("click")
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="record-number"]').text()).toBe("Row 2")
     expect(wrapper.get('[data-testid="record-value-note"]').text()).toBe("second")
     expect(read.mock.calls.length).toBe(before)
     wrapper.unmount()
@@ -158,7 +172,6 @@ describe("one row read downwards", () => {
     await wrapper.get('[data-testid="record-next"]').trigger("click")
     await flushPromises()
 
-    expect(wrapper.get('[data-testid="record-number"]').text()).toBe("Row 3")
     expect(wrapper.get('[data-testid="record-value-note"]').text()).toBe("third")
     expect(ConnectorsService.fetchRows).toHaveBeenCalledWith(
       expect.objectContaining({ body: expect.objectContaining({ offset: 2 }) })
