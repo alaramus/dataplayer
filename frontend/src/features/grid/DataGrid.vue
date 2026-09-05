@@ -1024,7 +1024,9 @@ watch(
  * of it. A page that says nothing offers everything.
  */
 function offers(command: PageCommand): boolean {
-  return result.value?.page_commands?.includes(command) ?? false
+  const page = result.value
+  if (page === undefined) return false
+  return page.page_commands?.includes(command) ?? true
 }
 
 /**

@@ -134,9 +134,17 @@ Consequences:
   no reason to re-read a catalog or to lose the page a grid was on, so the workspace
   keeps each panel in its own `<KeepAlive>` and moves its rendered contents between
   section and window targets (D93). That puts one requirement on the
-  feature: `component(panel)` must answer with the same component for the same
-  panel. A wrapper built afresh on each call is a different component each time,
-  and a functional wrapper cannot be kept alive at all.
+  feature: `component(panel, key)` must answer with the same component for the
+  same key. A wrapper built afresh on each call is a different component each
+  time, and a functional wrapper cannot be kept alive at all.
+- **A panel is not addressed by what it is.** A panel id may change: a console
+  that is kept becomes a document and is addressed by that document. So the
+  engine hands out a key of its own that survives the rename, and `replace`
+  writes the new fields into the panel object rather than putting another
+  object in its place. Keyed by the id, being kept rebuilt the panel: the
+  results in it and a parameter half answered went with it, and what renders
+  the panel went on describing it as a draft. The windows below have the same
+  rule for the same reason.
 - **A tab offers what the feature named, and the engine calls it back.** Three
   handles have this shape now: `iconTooltip` with `onIconClick`, which is how a
   catalog tab opens the window of its connection, and `reloadTooltip` with

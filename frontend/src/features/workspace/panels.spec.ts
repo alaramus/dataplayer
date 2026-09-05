@@ -15,6 +15,7 @@ import {
   panelSchema,
   PANEL_ROLES,
   QUERIES_PANEL_ID,
+  queryDraftPanelId,
   queryPanelId,
   resultPanelId,
   roleOf,
@@ -132,7 +133,25 @@ describe("the panel registry", () => {
   })
 
   it.each(KINDS)("has a component for %s", (kind) => {
-    expect(componentOf(samples[kind])).toBeDefined()
+    expect(componentOf(samples[kind], `k-${kind}`)).toBeDefined()
+  })
+
+  it("keeps one component per key, so a console that is kept is not rebuilt", () => {
+    // The engine renames the panel when a console becomes a document. Bound to
+    // the id, that rename would answer with a component of another identity
+    // and Vue would build the panel again, losing the results in it (D65).
+    const draft: Panel = {
+      id: queryDraftPanelId("d9"),
+      kind: "query",
+      draftId: "d9",
+      connectorId: "c1",
+      title: null,
+      connectorName: "local pg",
+    }
+    const kept: Panel = { ...draft, id: queryPanelId("doc-9"), documentId: "doc-9", draftId: undefined }
+
+    expect(componentOf(kept, "same-key")).toBe(componentOf(draft, "same-key"))
+    expect(componentOf(kept, "other-key")).not.toBe(componentOf(kept, "same-key"))
   })
 
   it.each(KINDS)("has a title and an icon for %s", (kind) => {
@@ -350,7 +369,7 @@ describe("the panel registry", () => {
     }
 
     expect(panelSchema.safeParse(panel).success).toBe(true)
-    expect(componentOf(panel)).toBeDefined()
+    expect(componentOf(panel, panel.id)).toBeDefined()
     expect(lookOf(panel).icon).toBe("image")
   })
 
@@ -368,7 +387,7 @@ describe("the panel registry", () => {
     }
 
     expect(panelSchema.safeParse(panel).success).toBe(true)
-    expect(componentOf(panel)).toBeDefined()
+    expect(componentOf(panel, panel.id)).toBeDefined()
     expect(lookOf(panel).icon).toBe("code")
     expect(lookOf(panel).reloadTooltip).toBe("Re-read this DDL")
   })

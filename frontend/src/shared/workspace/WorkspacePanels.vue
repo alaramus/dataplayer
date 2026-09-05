@@ -26,7 +26,7 @@ const destinations = computed(() => new Map(
   <template v-if="parking !== null">
     <WorkspacePanel
       v-for="panelId in context.panelIds.value"
-      :key="panelId"
+      :key="context.keyOf(panelId)"
       :context="context"
       :panel-id="panelId"
       :target="destinations.get(panelId) ?? null"

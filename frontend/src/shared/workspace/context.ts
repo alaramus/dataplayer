@@ -55,6 +55,14 @@ export interface PanelLook {
 export interface WorkspaceContext {
   tree: Ref<LayoutNode>
   panelIds: Ref<PanelId[]>
+  /**
+   * What to key a panel's rendering by, which is not its id.
+   *
+   * An id may be renamed — a console that is kept becomes a document — and
+   * keying by it would rebuild the panel and lose what is in it. This answer
+   * is stable for as long as the panel is open, however it is renamed.
+   */
+  keyOf: (panelId: PanelId) => string
   detached: Ref<DetachedPanel[]>
   focusedDetached: Ref<PanelId | null>
   focusedLeaf: Ref<NodeId | null>

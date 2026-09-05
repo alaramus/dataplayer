@@ -30,6 +30,7 @@ function contextFor(): WorkspaceContext {
   return {
     tree: ref(columns()),
     panelIds: ref(["p1", "p2"]),
+    keyOf: (panelId) => panelId,
     detached: ref([]),
     focusedDetached: ref(null),
     focusedLeaf: ref(null),

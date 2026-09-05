@@ -161,6 +161,27 @@ describe("the basic data grid", () => {
     expect(wrapper.find('[data-testid="grid-auto-refresh"]').exists()).toBe(true)
   })
 
+  it("offers everything to a page that says nothing about its commands", async () => {
+    // Withdrawing is the source's to do, so silence is not a withdrawal: a
+    // source that never learned to answer this keeps the whole toolbar, and
+    // only an answer takes anything away (D72).
+    const page = result(0, 2) as Record<string, unknown>
+    delete page.page_commands
+    vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({ data: page } as never)
+    const wrapper = mountGrid({ canQuery: true })
+    await flushPromises()
+
+    for (const command of [
+      "grid-download",
+      "grid-share",
+      "grid-charts",
+      "grid-create-table",
+      "grid-query",
+    ]) {
+      expect(wrapper.find(`[data-testid="${command}"]`).exists()).toBe(true)
+    }
+  })
+
   it("draws them when the source offers them", async () => {
     mockPages()
     const wrapper = mountGrid({ canQuery: true })

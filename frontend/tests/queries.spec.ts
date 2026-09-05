@@ -174,14 +174,17 @@ test("asks for the values a query needs, and keeps the ones it is told to", asyn
   // Nothing to run until the question is answered.
   await expect(page.getByTestId("query-run")).toBeDisabled()
 
-  // A value is kept with the document, and a console is not one until somebody
-  // says to keep it (D63): filled in before this, the answer would live in
-  // this browser tab and the reload below would prove nothing.
-  await page.getByTestId("query-remember").click()
-  await expect(page.getByTestId("query-state")).toHaveText("Saved")
-
   await page.getByTestId("parameter-value-from_here").fill("7")
   await page.getByTestId("parameter-remember-from_here").click()
+
+  // A value is kept with the document, and a console is not one until somebody
+  // says to keep it (D63), so the reload below would prove nothing without
+  // this. Being kept is a rename of the tab and not a new one: the answer
+  // already typed into it is still there afterwards.
+  await page.getByTestId("query-remember").click()
+  await expect(page.getByTestId("query-state")).toHaveText("Saved")
+  await expect(page.getByTestId("parameter-value-from_here")).toHaveValue("7")
+
   await page.getByTestId("query-run").click()
   await expect(page.getByTestId("grid-cell-0-0")).toHaveText("3")
 

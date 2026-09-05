@@ -29,6 +29,7 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
   return {
     tree: ref(makeLeaf("a", ["p1", "p2"])),
     panelIds: ref(["p1", "p2"]),
+    keyOf: (panelId) => panelId,
     detached: ref([]),
     focusedDetached: ref(null),
     focusedLeaf: ref(null),

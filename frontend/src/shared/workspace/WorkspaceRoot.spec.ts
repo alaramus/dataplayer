@@ -52,8 +52,10 @@ async function fixture() {
         kindOf: (panel) => panel.kind,
         look: (panel) => ({ title: panel.title, icon: "table_chart", closable: panel.id !== "p1" }),
         beforeClose: mayClose,
-        component: (panel) => {
-          let component = components.get(panel.id)
+        // Kept under the engine's key rather than the panel's id, exactly as
+        // the application does: a renamed panel is the same panel.
+        component: (panel, key) => {
+          let component = components.get(key)
           if (component === undefined) {
             component = defineComponent({
               setup() {
@@ -64,12 +66,13 @@ async function fixture() {
                 onDeactivated(() => deactivated(panel.id))
                 return () => h("input", {
                   "aria-label": `Draft ${panel.id}`, "data-page-context": page,
+                  "data-panel-title": panel.title,
                   value: value.value,
                   onInput: (event: Event) => { value.value = (event.target as HTMLInputElement).value },
                 })
               },
             })
-            components.set(panel.id, component)
+            components.set(key, component)
           }
           return component
         },
@@ -113,6 +116,30 @@ describe("moving a live panel between the workspace and a window", () => {
     expect((input.element as HTMLInputElement).value).toBe("kept across group restoration")
     expect(disposed).toHaveBeenCalledWith("extra")
     expect(disposed).not.toHaveBeenCalledWith("p2")
+  })
+
+  it("renames a panel in place, keeping the instance and what is half-written in it", async () => {
+    // A console that somebody keeps becomes a document and is renamed for it.
+    // Rebuilding the panel there would throw away the results in it and the
+    // answer half typed into it, which is the opposite of what keeping means.
+    const { workspace, body, mounted, disposed } = await fixture()
+    const input = body.get('input[aria-label="Draft p2"]')
+    await input.setValue("half-written")
+    const built = mounted.mock.calls.length
+
+    workspace.replace("p2", { id: "p9", title: "Orders, kept", kind: "work" })
+    await flushPromises()
+
+    const after = body.get('[data-testid="workspace-leaf-work"] input')
+    expect(after.element).toBe(input.element)
+    expect((after.element as HTMLInputElement).value).toBe("half-written")
+    expect(mounted.mock.calls.length).toBe(built)
+    expect(disposed).not.toHaveBeenCalledWith("p2")
+    // Drawn from the object the engine kept, so the new name reaches the panel
+    // rather than stopping at the tab above it.
+    expect(after.attributes("data-panel-title")).toBe("Orders, kept")
+    expect(body.find('[data-testid="workspace-tab-p9"]').exists()).toBe(true)
+    expect(body.find('[data-testid="workspace-tab-p2"]').exists()).toBe(false)
   })
 
   it("retains the same input and page injections across detachment, minimization and return", async () => {

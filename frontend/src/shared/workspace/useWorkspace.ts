@@ -33,13 +33,15 @@ export interface WorkspaceOptions<P extends { id: string }> {
   kindOf: (panel: P) => string
   look: (panel: P) => PanelLook
   /**
-   * What renders a panel.
+   * What renders a panel, and the key to remember it under.
    *
-   * Must answer with the same component for the same panel: a tab that is not
+   * Must answer with the same component for the same key: a tab that is not
    * showing is kept alive, and Vue tells two components apart by identity, so
-   * a component built afresh on each call is a different one each time.
+   * a component built afresh on each call is a different one each time. The
+   * key and not the panel's id, because an id may be renamed and a rename must
+   * not rebuild the panel.
    */
-  component: (panel: P) => Component
+  component: (panel: P, key: string) => Component
   /** What a pinned section shows while empty, by the role it accepts. */
   empty?: (accepts: string | null) => Component | null
   /**
@@ -106,6 +108,35 @@ export function useWorkspace<P extends { id: string }>(
   // must not make the screen do anything at all.
   let pressed: { panelId: PanelId; x: number; y: number } | null = null
 
+  /**
+   * What the render keys a panel by, which its id is not.
+   *
+   * A panel is allowed to be renamed: a console that somebody keeps becomes a
+   * document and its id says so. Keyed by the id, that rename would throw the
+   * instance away — the results in it, a half-answered parameter, an open
+   * transaction — which is the opposite of what a rename means. Not a ref: it
+   * is read while rendering and changes nothing on screen by itself.
+   */
+  const renderKeys = new Map<PanelId, string>()
+  let keys = 0
+
+  function keyOf(panelId: PanelId): string {
+    const known = renderKeys.get(panelId)
+    if (known !== undefined) return known
+    keys += 1
+    const fresh = `k${keys}`
+    renderKeys.set(panelId, fresh)
+    return fresh
+  }
+
+  /** Forget the panels that are gone, so a session does not accumulate keys. */
+  function pruneKeys() {
+    const live = new Set(panels.value.map((panel) => panel.id))
+    for (const panelId of [...renderKeys.keys()]) {
+      if (!live.has(panelId)) renderKeys.delete(panelId)
+    }
+  }
+
   const panelOf = (panelId: PanelId): P | undefined =>
     panels.value.find((panel) => panel.id === panelId)
 
@@ -153,9 +184,23 @@ export function useWorkspace<P extends { id: string }>(
     }
     const index = panels.value.findIndex((candidate) => candidate.id === oldPanelId)
     if (index < 0) return
-    panels.value = panels.value.map((candidate, candidateIndex) =>
-      candidateIndex === index ? panel : candidate
-    )
+    // The key travels with the panel, so this reads as a rename rather than as
+    // one panel closing and another opening in its place.
+    if (panel.id !== oldPanelId) {
+      const key = renderKeys.get(oldPanelId)
+      renderKeys.delete(oldPanelId)
+      if (key !== undefined) renderKeys.set(panel.id, key)
+    }
+    // Written into the panel that is already there rather than put in its
+    // place. What renders a panel was handed that object and reads its fields
+    // as it draws, so swapping in another one leaves the panel describing
+    // itself as it used to be — the console that was kept would go on calling
+    // itself a draft.
+    const existing = panels.value[index]! as P & Record<string, unknown>
+    for (const field of Object.keys(existing)) {
+      if (!(field in panel)) delete existing[field]
+    }
+    Object.assign(existing, panel)
     tree.value = renamePanel(tree.value, oldPanelId, panel.id)
     detached.value = detached.value.map((entry) => entry.panelId === oldPanelId
       ? { ...entry, panelId: panel.id, accepts: options.kindOf(panel) }
@@ -172,6 +217,7 @@ export function useWorkspace<P extends { id: string }>(
     if (without === null) return
     tree.value = without
     panels.value = panels.value.filter((panel) => panel.id !== panelId)
+    renderKeys.delete(panelId)
     detached.value = detached.value.filter((entry) => entry.panelId !== panelId)
     if (focusedDetached.value === panelId) focusedDetached.value = null
   }
@@ -260,6 +306,7 @@ export function useWorkspace<P extends { id: string }>(
   const context: WorkspaceContext = {
     tree,
     panelIds: computed(() => panels.value.map((panel) => panel.id)),
+    keyOf,
     detached,
     focusedDetached,
     focusedLeaf,
@@ -268,7 +315,7 @@ export function useWorkspace<P extends { id: string }>(
     componentOf: (panelId) => {
       const panel = panelOf(panelId)
       if (panel === undefined) throw new Error(`No panel with id ${panelId}`)
-      return options.component(panel)
+      return options.component(panel, keyOf(panelId))
     },
     emptyOf: (accepts) => options.empty?.(accepts) ?? null,
     admissionOf: (leafId) => admissionFor(leafId, dragging.value),
@@ -353,6 +400,7 @@ export function useWorkspace<P extends { id: string }>(
     const fresh = options.defaults()
     tree.value = fresh.tree
     panels.value = fresh.panels
+    pruneKeys()
     focusedLeaf.value = null
     detached.value = []
     focusedDetached.value = null
@@ -382,6 +430,7 @@ export function useWorkspace<P extends { id: string }>(
     }
     tree.value = saved.tree
     panels.value = saved.panels
+    pruneKeys()
     detached.value = []
     focusedLeaf.value = null
     focusedDetached.value = null

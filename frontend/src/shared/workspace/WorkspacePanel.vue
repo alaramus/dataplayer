@@ -18,7 +18,7 @@ defineProps<{
         <component
           :is="context.componentOf(panelId)"
           v-if="target !== null"
-          :key="panelId"
+          :key="context.keyOf(panelId)"
         />
       </KeepAlive>
     </div>
