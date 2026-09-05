@@ -35,6 +35,7 @@ legacy notes and stay unchanged.
 | Query documents, SQL execution, results, history, transactions | [querying.md](docs/architecture/querying.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
 | Reading a relation, changing rows, export, import | [sources/relations.md](docs/architecture/sources/relations.md) |
+| A reference somebody drew by hand between two columns or two sources | [sources/declared.md](docs/architecture/sources/declared.md) |
 | Columns, indexes, constraints, renaming a node | [sources/ddl.md](docs/architecture/sources/ddl.md) |
 | Opening a node as anything but rows: documents, media, archives | [sources/content.md](docs/architecture/sources/content.md) |
 | Actions, action previews, downloads, reports | [sources/actions.md](docs/architecture/sources/actions.md) |
@@ -168,6 +169,10 @@ files. IDs are stable because specs and commits refer to them.
 | D103 | [sources/connecting](docs/architecture/sources/connecting.md) |
 | D104 | [sources/connecting](docs/architecture/sources/connecting.md) |
 | D105 | [sources/connecting](docs/architecture/sources/connecting.md) |
+| D106 | [sources/declared](docs/architecture/sources/declared.md) |
+| D107 | [sources/declared](docs/architecture/sources/declared.md) |
+| D108 | [sources/declared](docs/architecture/sources/declared.md) |
+| D109 | [sources/relations](docs/architecture/sources/relations.md) |
 
 ## Working rules
 

@@ -19,8 +19,8 @@ from openpyxl.workbook import Workbook
 
 from app.adapters.cells import encode_cell
 from app.adapters.delimited import fit, usable_names
-from app.adapters.fetch import FetchColumn
-from app.adapters.file.readers import Page
+from app.adapters.fetch import FetchColumn, Filter
+from app.adapters.file.readers import Page, matcher, select
 from app.adapters.relation import ColumnType
 
 # A workbook is a zip, so its size on disk says nothing about what opening it
@@ -72,35 +72,44 @@ def sheets(path: Path) -> list[SheetFacts]:
         ]
 
 
-def read_page(path: Path, position: int, limit: int, offset: int) -> Page:
+def read_page(
+    path: Path,
+    position: int,
+    limit: int,
+    offset: int,
+    filters: Sequence[Filter] = (),
+) -> Page:
     """One bounded page of one worksheet. Blocking.
 
     Skipping to an offset walks the rows before it: XLSX has no row index, so
-    the tenth page costs ten pages of iteration.
+    the tenth page costs ten pages of iteration, and a filter costs the same
+    walk over the whole sheet (D109).
     """
     with _opened(path) as workbook:
         sheet = _worksheet(workbook, position)
         rows = sheet.iter_rows(values_only=True)
         names = _header(rows)
         if names is None:
-            return Page(columns=[], rows=[], has_more=False)
+            if filters:
+                raise ValueError("This sheet has no columns to filter by")
+            return Page(columns=[], rows=[], has_more=False, positions=[])
 
-        for _ in range(offset):
-            if next(rows, None) is None:
-                break
-
-        page: list[list[str | None]] = []
-        has_more = False
-        for raw in rows:
-            if len(page) == limit:
-                has_more = True
-                break
-            page.append(fit([_cell_text(value) for value in raw], len(names)))
+        match = matcher(filters, names)
+        page, positions, has_more = select(
+            (
+                fit([_cell_text(value) for value in raw], len(names))
+                for raw in rows
+            ),
+            limit,
+            offset,
+            match,
+        )
 
     return Page(
         columns=[FetchColumn(name=name, type=TEXT) for name in names],
         rows=page,
         has_more=has_more,
+        positions=positions,
     )
 
 

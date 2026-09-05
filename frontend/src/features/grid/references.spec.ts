@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
 
-import type { FetchColumn, FetchReference } from "@/client"
+import type { FetchColumn, FetchReference, ReferencedRows } from "@/client"
 
-import { keyValues, referencesLedBy } from "./references"
+import { followedRows, keyValues, referencesLedBy } from "./references"
 
 const composite: FetchReference = {
   name: "customers_region_fkey",
@@ -65,5 +65,62 @@ describe("what is sent when it is pressed", () => {
 
   it("sends nothing at all when the page lacks a column of the key", () => {
     expect(keyValues(composite, [column("region_id")], ["7"])).toBeNull()
+  })
+})
+
+describe("the tab a followed reference opens", () => {
+  const asking = {
+    connectorId: "here",
+    connectorName: "Warehouse",
+    adapterType: "postgres",
+  }
+  const node = {
+    id: "accounts.csv",
+    name: "accounts.csv",
+    kind: "file" as const,
+    has_children: false,
+    size_bytes: 20,
+    describable: true,
+    representations: [{ kind: "table" as const, title: "View as table" }],
+  }
+  const target = {
+    kind: "rows",
+    node,
+    connector: { id: "files", name: "My files", adapter_type: "file" },
+    filters: [{ column: "slug", op: "eq", value: "northstar-labs" }],
+  } as unknown as ReferencedRows
+
+  it("opens the connection the answer names", () => {
+    expect(followedRows(target, asking)).toMatchObject({
+      connectorId: "files",
+      connectorName: "My files",
+      adapterType: "file",
+    })
+  })
+
+  it("stays where the click came from when the answer names none", () => {
+    const inside = { ...target, connector: undefined } as unknown as ReferencedRows
+
+    expect(followedRows(inside, asking)).toMatchObject(asking)
+  })
+
+  it("carries what the node says it can be opened as", () => {
+    // Without this the tab was drawn as the logo of its source rather than as
+    // a table, and the alternatives the node declared were gone with it.
+    expect(followedRows(target, asking)).toMatchObject({
+      nodeId: "accounts.csv",
+      title: "accounts.csv",
+      describable: true,
+      representations: [{ kind: "table", title: "View as table" }],
+    })
+  })
+
+  it("says a node is not describable when it does not say it is", () => {
+    const plain = {
+      ...target,
+      node: { ...node, describable: undefined },
+    } as unknown as ReferencedRows
+
+    expect(followedRows(plain, asking).describable).toBe(false)
   })
 })

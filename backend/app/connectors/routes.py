@@ -128,7 +128,12 @@ from app.adapters.protocol import (
     SupportsRenameColumn,
     SupportsUpdate,
 )
-from app.adapters.references import FollowReferenceRequest, ReferenceTarget
+from app.adapters.references import (
+    FollowReferenceRequest,
+    ReferenceConnection,
+    ReferencedRows,
+    ReferenceTarget,
+)
 from app.adapters.registry import AdapterType
 from app.adapters.relation import RelationModel, without_structure_changes
 from app.adapters.relation_changes import (
@@ -168,6 +173,7 @@ from app.connectors import (
     action_downloads,
     content_tickets,
     crud,
+    declared,
     downloads,
     health,
     imports,
@@ -821,6 +827,19 @@ async def fetch_rows(
         )
         result = result.model_copy(
             update={
+                # After the cache with everything else here, and for the same
+                # reason: what a source produced is the same page for everyone,
+                # and which references this person has drawn over it is not
+                # (D106).
+                "references": [
+                    *result.references,
+                    *await declared.references_for(
+                        session,
+                        user=current_user,
+                        connector_id=connector_id,
+                        node_id=request.node_id,
+                    ),
+                ],
                 "export_supported": isinstance(adapter, SupportsExport),
                 "export_reason": (
                     None
@@ -1828,6 +1847,26 @@ async def create_relation_from_source(
     return result
 
 
+def _in_connection(target: ReferenceTarget, connector: Connector) -> ReferenceTarget:
+    """Say which connection the rows are in, which the source cannot (D108).
+
+    An adapter knows itself and not its own identity, so it answers with a node
+    and a predicate; this is the one place that knows which connection was
+    asked. A declared reference has already named its own, and that one stands.
+    """
+    if not isinstance(target, ReferencedRows) or target.connector is not None:
+        return target
+    return target.model_copy(
+        update={
+            "connector": ReferenceConnection(
+                id=connector.id,
+                name=connector.name,
+                adapter_type=connector.adapter_type,
+            )
+        }
+    )
+
+
 @router.post("/{connector_id}/references", response_model=ReferenceTarget)
 async def follow_reference(
     session: SessionDep,
@@ -1843,19 +1882,37 @@ async def follow_reference(
     predicate the source built against that target's own columns. Reading is
     enough: following a key looks at rows the caller may already read.
     """
+    # Through the one door to a live source, declared reference or not: that is
+    # where a switched-off connection is refused, and a route that reached past
+    # it would be the exception that unlearns the rule.
     adapter = await adapter_for(
         session, connector_id, current_user, resources, requires="read"
     )
-    if not isinstance(adapter, SupportsReferences):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source has no references to follow",
-                "error_kind": "config",
-            },
-        )
+    connector = await get_or_404(session, connector_id, current_user, requires="read")
     try:
-        return await adapter.follow_reference(request)
+        # A name this application issued is answered by this application: the
+        # source has never heard of it, and a file source has no references at
+        # all yet still has the ones somebody drew (D107).
+        if declared.parse_name(request.reference) is not None:
+            return _in_connection(
+                await declared.follow(
+                    session,
+                    user=current_user,
+                    resources=resources,
+                    connector_id=connector_id,
+                    request=request,
+                ),
+                connector,
+            )
+        if not isinstance(adapter, SupportsReferences):
+            raise HTTPException(
+                status_code=501,
+                detail={
+                    "message": "This source has no references to follow",
+                    "error_kind": "config",
+                },
+            )
+        return _in_connection(await adapter.follow_reference(request), connector)
     except NodeNotFound as exc:
         raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
     except ValueError as exc:

@@ -12,6 +12,7 @@ import StartServiceDialog from "@/features/services/StartServiceDialog.vue"
 import { useRequestService, useServices } from "@/features/services/api"
 import type { StartRequest } from "@/features/services/starts"
 import { useServiceJobs } from "@/features/services/jobs"
+import { followedRows } from "@/features/grid/references"
 import { moveChartSpec } from "@/features/charts/persist"
 import { takeShareIntent } from "@/features/shares/intent"
 import { useAccessRequestEvents, wordingOf } from "@/features/shares/requests"
@@ -607,20 +608,19 @@ provide(workspaceActionsKey, {
    * it, and the answer to the last one is what a tab shows.
    */
   followReference: (request: FollowReferenceCommand) => {
-    const node = request.target.node
-    workspace.open({
-      id: rowsPanelId(request.connectorId, node.id),
-      kind: "rows",
+    const opened = followedRows(request.target, {
       connectorId: request.connectorId,
-      nodeId: node.id,
-      title: node.name,
       connectorName: request.connectorName,
       adapterType: request.adapterType,
-      describable: node.describable === true,
+    })
+    workspace.open({
+      id: rowsPanelId(opened.connectorId, opened.nodeId),
+      kind: "rows",
+      ...opened,
     })
     followTarget.value = {
-      connectorId: request.connectorId,
-      nodeId: node.id,
+      connectorId: opened.connectorId,
+      nodeId: opened.nodeId,
       filters: request.target.filters,
     }
   },

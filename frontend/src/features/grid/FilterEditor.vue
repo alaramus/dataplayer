@@ -4,6 +4,7 @@ import { computed, ref } from "vue"
 import { AppButton, AppIconButton, AppInput, AppSelect } from "@/shared/ui"
 
 import {
+  describeFilter,
   draftFor,
   OPERATOR_LABELS,
   operatorOptions,
@@ -119,7 +120,7 @@ function removeFilter(index: number) {
         :key="`${filter.column}-${filter.op}-${index}`"
         class="filter-editor__condition"
       >
-        <span>{{ filter.column }} {{ OPERATOR_LABELS[filter.op] }}</span>
+        <span>{{ describeFilter(filter) }}</span>
         <AppIconButton
           icon="close"
           :tooltip="`Delete filter ${index + 1}`"

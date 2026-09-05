@@ -1531,6 +1531,36 @@ export type DatasetNode = {
 }
 
 /**
+ * DeclaredReferenceCreate
+ *
+ * The two ends, in no significant order.
+ */
+export type DeclaredReferenceCreate = {
+  /**
+   * Ends
+   */
+  ends: [ReferenceEnd, ReferenceEnd]
+}
+
+/**
+ * DeclaredReferencePublic
+ */
+export type DeclaredReferencePublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Ends
+   */
+  ends: [ReferenceEndPublic, ReferenceEndPublic]
+  /**
+   * Created At
+   */
+  created_at: string | null
+}
+
+/**
  * DeleteEverything
  */
 export type DeleteEverything = {
@@ -4330,6 +4360,87 @@ export type QueryRehearsal = {
 }
 
 /**
+ * ReferenceConnection
+ *
+ * The connection a target lives in, as the screen needs to open a tab.
+ *
+ * An adapter never fills this in: it knows itself and not its own identity.
+ * The route does, because it is the one place that knows which connection it
+ * just asked (D108).
+ */
+export type ReferenceConnection = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Adapter Type
+   */
+  adapter_type: string
+}
+
+/**
+ * ReferenceEnd
+ *
+ * One end of a reference, as a client names it.
+ */
+export type ReferenceEnd = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Column
+   */
+  column: string
+}
+
+/**
+ * ReferenceEndPublic
+ *
+ * An end with the names a screen shows it by.
+ *
+ * The connection's name is read live and the node's label is the stored one:
+ * the viewer holds `read` on the connection by the rule that makes the
+ * reference visible at all, but naming the node again would mean asking the
+ * source once per reference (D106).
+ */
+export type ReferenceEndPublic = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Node Id
+   */
+  node_id: string
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Connector Name
+   */
+  connector_name: string
+  /**
+   * Adapter Type
+   */
+  adapter_type: string
+  /**
+   * Node Label
+   */
+  node_label: string
+}
+
+/**
  * ReferenceValue
  *
  * One column of the key, with the value the caller read in that row.
@@ -4394,6 +4505,7 @@ export type ReferencedRows = {
     | ({
         kind: "key"
       } & KeyNode)
+  connector?: ReferenceConnection | null
   /**
    * Filters
    */
@@ -9621,6 +9733,103 @@ export type connectorsRevokeGrantResponses = {
 
 export type connectorsRevokeGrantResponse =
   connectorsRevokeGrantResponses[keyof connectorsRevokeGrantResponses]
+
+export type declaredReferencesListDeclaredReferencesData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Connector Id
+     */
+    connector_id?: string | null
+    /**
+     * Node Id
+     */
+    node_id?: string | null
+  }
+  url: "/api/v1/declared-references/"
+}
+
+export type declaredReferencesListDeclaredReferencesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type declaredReferencesListDeclaredReferencesError =
+  declaredReferencesListDeclaredReferencesErrors[keyof declaredReferencesListDeclaredReferencesErrors]
+
+export type declaredReferencesListDeclaredReferencesResponses = {
+  /**
+   * Response Declared-References-List Declared References
+   *
+   * Successful Response
+   */
+  200: Array<DeclaredReferencePublic>
+}
+
+export type declaredReferencesListDeclaredReferencesResponse =
+  declaredReferencesListDeclaredReferencesResponses[keyof declaredReferencesListDeclaredReferencesResponses]
+
+export type declaredReferencesDeclareReferenceData = {
+  body: DeclaredReferenceCreate
+  path?: never
+  query?: never
+  url: "/api/v1/declared-references/"
+}
+
+export type declaredReferencesDeclareReferenceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type declaredReferencesDeclareReferenceError =
+  declaredReferencesDeclareReferenceErrors[keyof declaredReferencesDeclareReferenceErrors]
+
+export type declaredReferencesDeclareReferenceResponses = {
+  /**
+   * Successful Response
+   */
+  200: DeclaredReferencePublic
+}
+
+export type declaredReferencesDeclareReferenceResponse =
+  declaredReferencesDeclareReferenceResponses[keyof declaredReferencesDeclareReferenceResponses]
+
+export type declaredReferencesUndeclareReferenceData = {
+  body?: never
+  path: {
+    /**
+     * Reference Id
+     */
+    reference_id: string
+  }
+  query?: never
+  url: "/api/v1/declared-references/{reference_id}"
+}
+
+export type declaredReferencesUndeclareReferenceErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type declaredReferencesUndeclareReferenceError =
+  declaredReferencesUndeclareReferenceErrors[keyof declaredReferencesUndeclareReferenceErrors]
+
+export type declaredReferencesUndeclareReferenceResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type declaredReferencesUndeclareReferenceResponse =
+  declaredReferencesUndeclareReferenceResponses[keyof declaredReferencesUndeclareReferenceResponses]
 
 export type adaptersReadAdapterTypesData = {
   body?: never

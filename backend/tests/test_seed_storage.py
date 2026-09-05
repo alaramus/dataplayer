@@ -16,6 +16,21 @@ def test_samples_cover_the_native_file_viewers(tmp_path: Path) -> None:
     assert {"sample.csv", "sample.tsv", "notes.txt", "logo.png", "reports"} <= names
 
 
+def test_a_sample_file_pairs_with_the_demonstration_schema(tmp_path: Path) -> None:
+    """A declared reference needs two ends that match (D106).
+
+    The file's slugs are the ones `postgres_complex_data.sql` inserts, so
+    drawing a reference between them and following it lands on a row rather
+    than on an empty page.
+    """
+    write_samples(tmp_path)
+
+    rows = (tmp_path / "accounts.csv").read_text(encoding="utf-8").splitlines()
+
+    assert rows[0].split(",")[0] == "slug"
+    assert [row.split(",")[0] for row in rows[1:]] == ["northstar-labs", "blue-orbit"]
+
+
 def test_samples_cover_both_structured_viewers(tmp_path: Path) -> None:
     """A document, one value per line, and invalid source text (D47)."""
     write_samples(tmp_path)

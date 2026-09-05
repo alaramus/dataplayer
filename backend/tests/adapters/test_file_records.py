@@ -124,9 +124,10 @@ def test_a_null_does_not_decide_the_type_of_a_column(tmp_path: Path) -> None:
     assert result.columns[0].type.category == "number"
 
 
-def test_a_file_source_still_cannot_sort_or_filter_a_json_column(
+def test_a_json_projection_states_no_operators_of_its_own(
     tmp_path: Path,
 ) -> None:
+    """Equality is added by the source that reads the page, not here (D109)."""
     path = write(tmp_path, "a.json", '[{"n": 1}]')
 
     result = table(path)

@@ -49,6 +49,7 @@ Legend:
 | 3.5 — the rest of the old application's daily operations | 2026-09-02 | D67 through D79 |
 | 4 — server-owned jobs: Docker services, backup and restore | 2026-09-03 | D80 through D87 |
 | 5 — optional Redis infrastructure | 2026-09-05 | D100 through D104 |
+| 1.6 — a reference the person draws | 2026-09-05 | [D106](superpowers/specs/2026-09-05-declared-references-design.md) through D109 |
 
 Each of those has a spec in [the index](superpowers/specs/README.md), dated the
 day it closed, and a home in `docs/architecture/`. With 1.5 validated, phase 1
@@ -85,6 +86,16 @@ turning Redis off changes latency and not what a read returns. The last item of
 the sequence was answered rather than built: there is no deployment evidence in
 this repository for a lock, a job queue or share acceleration, so D104 keeps
 Redis out of all three.
+
+Phase 1.6 was asked for out of order and closed on 2026-09-05. It is the old
+application's external reference: a line drawn by hand between two columns no
+source calls related, kept by this application and never written to either
+source. Both of its ends are navigable, it belongs to its author, it is visible
+only while both ends are readable, and it is checked against both sources when
+it is made and again when it is followed. Following one may land in another
+connection, which the answer now names. The file source gained the one thing
+that made a reference into a CSV worth having: it looks a value up by equality,
+where the rows are read, and by nothing else.
 
 ## Priority order at a glance
 

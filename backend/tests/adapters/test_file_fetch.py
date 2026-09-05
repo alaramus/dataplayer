@@ -3,9 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from app.adapters.fetch import FetchRequest, Sort
+from app.adapters.fetch import FetchRequest, ScalarFilter, Sort
 from app.adapters.file.fetch import FileFetch
 from app.adapters.file.session import FileSession
+from app.adapters.file.update import decode_handle
 
 
 @pytest.fixture
@@ -44,7 +45,7 @@ async def test_columns_of_a_delimited_file_have_string_types(fetch: FileFetch) -
 
     assert {column.type.category for column in result.columns} == {"string"}
     assert all(column.sortable is False for column in result.columns)
-    assert all(column.filter_operators == [] for column in result.columns)
+    assert all(column.filter_operators == ["eq"] for column in result.columns)
     assert all(
         isinstance(cell, str)
         for row in result.rows
@@ -119,13 +120,14 @@ async def test_a_text_file_is_read_line_by_line(fetch: FileFetch) -> None:
     assert result.has_more is False
 
 
-async def test_a_file_source_admits_per_column_it_cannot_sort_or_filter(
+async def test_a_file_source_admits_per_column_it_cannot_sort(
     fetch: FileFetch,
 ) -> None:
+    """Equality is the whole of what a file can be asked about a value (D109)."""
     result = await fetch.fetch(FetchRequest(node_id="notes.txt"))
 
     assert all(column.sortable is False for column in result.columns)
-    assert all(column.filter_operators == [] for column in result.columns)
+    assert all(column.filter_operators == ["eq"] for column in result.columns)
 
 
 async def test_asking_for_sorting_is_refused(fetch: FileFetch) -> None:
@@ -135,16 +137,116 @@ async def test_asking_for_sorting_is_refused(fetch: FileFetch) -> None:
         await fetch.fetch(request)
 
 
-async def test_asking_for_a_filter_is_refused(fetch: FileFetch) -> None:
+async def test_a_value_is_looked_up_by_equality(fetch: FileFetch) -> None:
+    result = await fetch.fetch(
+        FetchRequest(
+            node_id="cities.csv",
+            filters=[ScalarFilter(column="name", op="eq", value="city-4")],
+        )
+    )
+
+    assert result.rows == [["4", "city-4"]]
+    assert result.has_more is False
+
+
+async def test_two_filters_both_have_to_hold(fetch: FileFetch) -> None:
+    result = await fetch.fetch(
+        FetchRequest(
+            node_id="cities.csv",
+            filters=[
+                ScalarFilter(column="id", op="eq", value="4"),
+                ScalarFilter(column="name", op="eq", value="city-5"),
+            ],
+        )
+    )
+
+    assert result.rows == []
+
+
+async def test_paging_counts_matching_rows(root: Path, fetch: FileFetch) -> None:
+    """The offset skips matches, not rows, and `has_more` means another match."""
+    rows = "".join(f"red,player-{index}\n" for index in range(1, 6))
+    (root / "repeats.csv").write_text(f"team,name\n{rows}", encoding="utf-8")
+    where_red = [ScalarFilter(column="team", op="eq", value="red")]
+
+    first = await fetch.fetch(
+        FetchRequest(node_id="repeats.csv", limit=2, filters=where_red)
+    )
+    second = await fetch.fetch(
+        FetchRequest(node_id="repeats.csv", limit=2, offset=2, filters=where_red)
+    )
+    last = await fetch.fetch(
+        FetchRequest(node_id="repeats.csv", limit=2, offset=4, filters=where_red)
+    )
+
+    assert [row[1] for row in first.rows] == ["player-1", "player-2"]
+    assert first.has_more is True
+    assert [row[1] for row in second.rows] == ["player-3", "player-4"]
+    assert last.rows == [["red", "player-5"]]
+    assert last.has_more is False
+
+
+async def test_a_filtered_row_keeps_its_place_in_the_file(
+    root: Path, fetch: FileFetch
+) -> None:
+    """A page of matches is not a window, so the handle names the real row."""
+    result = await fetch.fetch(
+        FetchRequest(
+            node_id="cities.csv",
+            filters=[ScalarFilter(column="name", op="eq", value="city-7")],
+        )
+    )
+
+    handle = result.row_handles[0]
+    assert handle is not None
+    assert decode_handle(handle)[0] == 6
+
+
+async def test_a_filter_over_a_column_the_file_has_not_got_is_refused(
+    fetch: FileFetch,
+) -> None:
+    request = FetchRequest(
+        node_id="cities.csv",
+        filters=[ScalarFilter(column="invented", op="eq", value="1")],
+    )
+
+    with pytest.raises(ValueError, match="invented"):
+        await fetch.fetch(request)
+
+
+async def test_a_predicate_other_than_equality_is_refused(fetch: FileFetch) -> None:
+    """Approximating `contains` over a file would be answering a search (D109)."""
     request = FetchRequest.model_validate(
         {
             "node_id": "cities.csv",
-            "filters": [{"column": "id", "op": "eq", "value": "1"}],
+            "filters": [{"column": "name", "op": "contains", "value": "city"}],
         }
     )
 
-    with pytest.raises(ValueError, match="filter"):
+    with pytest.raises(ValueError, match="exact value"):
         await fetch.fetch(request)
+
+
+async def test_a_json_table_is_filtered_by_the_same_rule(fetch: FileFetch) -> None:
+    result = await fetch.fetch(
+        FetchRequest(
+            node_id="people.json",
+            filters=[ScalarFilter(column="name", op="eq", value="person-2")],
+        )
+    )
+
+    assert [row[0] for row in result.rows] == ["2"]
+
+
+async def test_a_text_file_is_filtered_by_its_line(fetch: FileFetch) -> None:
+    result = await fetch.fetch(
+        FetchRequest(
+            node_id="notes.txt",
+            filters=[ScalarFilter(column="line", op="eq", value="second")],
+        )
+    )
+
+    assert result.rows == [["2", "second"]]
 
 
 async def test_a_binary_file_is_refused(fetch: FileFetch) -> None:

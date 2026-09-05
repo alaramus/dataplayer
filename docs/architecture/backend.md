@@ -104,7 +104,14 @@ GET    /api/v1/connectors/action-downloads/{ticket}
 GET    /api/v1/connectors/{connector_id}/grants
 PUT    /api/v1/connectors/{connector_id}/grants
 DELETE /api/v1/connectors/{connector_id}/grants/{user_id}
+POST   /api/v1/connectors/{connector_id}/references
+GET    /api/v1/declared-references?connector_id=&node_id=
+POST   /api/v1/declared-references
+DELETE /api/v1/declared-references/{reference_id}
 ```
+
+A declared reference is addressed on its own and not under a connection: it has
+two ends and belongs to neither of them ([D106](sources/declared.md)).
 
 After changing a route or a schema, regenerate the typed client:
 `bash scripts/generate-client.sh`.

@@ -189,6 +189,15 @@ import type {
   connectorsWriteGrantData,
   connectorsWriteGrantErrors,
   connectorsWriteGrantResponses,
+  declaredReferencesDeclareReferenceData,
+  declaredReferencesDeclareReferenceErrors,
+  declaredReferencesDeclareReferenceResponses,
+  declaredReferencesListDeclaredReferencesData,
+  declaredReferencesListDeclaredReferencesErrors,
+  declaredReferencesListDeclaredReferencesResponses,
+  declaredReferencesUndeclareReferenceData,
+  declaredReferencesUndeclareReferenceErrors,
+  declaredReferencesUndeclareReferenceResponses,
   jobsCancelJobData,
   jobsCancelJobErrors,
   jobsCancelJobResponses,
@@ -2254,6 +2263,80 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/grants/{user_id}",
+      ...options,
+    })
+  }
+}
+
+export class DeclaredReferencesService {
+  /**
+   * List Declared References
+   *
+   * Every reference this person has drawn, or only the ones touching one node.
+   *
+   * A reference whose far end they can no longer read is not listed, for the
+   * same reason its arrow is not drawn.
+   */
+  public static referencesListDeclaredReferences<ThrowOnError extends boolean = true>(
+    options?: Options<declaredReferencesListDeclaredReferencesData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      declaredReferencesListDeclaredReferencesResponses,
+      declaredReferencesListDeclaredReferencesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/declared-references/",
+      ...options,
+    })
+  }
+
+  /**
+   * Declare Reference
+   *
+   * Draw a reference between two columns no source calls related.
+   *
+   * Both ends are read from their sources first: `read` on each connection, the
+   * node still there, the column still among the ones it states, and equality
+   * among the ways that column can be looked up (D107). Drawing the same pair
+   * twice is the same reference.
+   */
+  public static referencesDeclareReference<ThrowOnError extends boolean = true>(
+    options: Options<declaredReferencesDeclareReferenceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      declaredReferencesDeclareReferenceResponses,
+      declaredReferencesDeclareReferenceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/declared-references/",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Undeclare Reference
+   *
+   * Remove one reference. Only its author has one to remove.
+   */
+  public static referencesUndeclareReference<ThrowOnError extends boolean = true>(
+    options: Options<declaredReferencesUndeclareReferenceData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      declaredReferencesUndeclareReferenceResponses,
+      declaredReferencesUndeclareReferenceErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/declared-references/{reference_id}",
       ...options,
     })
   }

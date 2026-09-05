@@ -8,6 +8,7 @@ file holds which decision.
 | [contract.md](contract.md) | add or change a source type, a capability, a node kind or the rule about untrusted input |
 | [connecting.md](connecting.md) | change how a connection is described, composed or parsed, or anything pooled or cached between requests |
 | [relations.md](relations.md) | read a relation or change the rows in it |
+| [declared.md](declared.md) | draw a reference between two columns no source calls related |
 | [ddl.md](ddl.md) | change a column, an index, a constraint, or rename a node |
 | [content.md](content.md) | open a node as something other than a page of rows |
 | [actions.md](actions.md) | add an action, change what a form applies to, or add a report |
@@ -33,8 +34,8 @@ A zip is walked into the same way. Every node describes itself — its size, its
 times, what it can be opened as and what its format states — and the tree is
 searched by name from any folder. Five actions: create a folder, upload,
 download, rename and delete. Download returns one file unchanged or archives a
-directory or selection. No sorting and no filtering, because a file has no
-index. No connection string.
+directory or selection. Rows are looked up by equality and by nothing else, and
+never sorted, because a file has no index. No connection string.
 
 **Redis** — every database on the server as a grouping, and inside the one
 that is open, a key space shown as a tree of the colons its names already

@@ -206,6 +206,17 @@ def write_samples(home: Path) -> None:
     (home / "sample.tsv").write_text(
         "id\tname\n1\tone\n2\ttwo\n", encoding="utf-8"
     )
+    # An export from somewhere else, keyed by what the demonstration schema
+    # already calls an organization. It is here so that a declared reference
+    # (D106) has a pair that actually matches: this file's `slug` and
+    # `demo_lab.organizations.slug` are the same string, and neither source
+    # knows anything about the other.
+    (home / "accounts.csv").write_text(
+        "slug,account_manager,renewal_on,seats\n"
+        "northstar-labs,Ana Kovalenko,2027-01-31,120\n"
+        "blue-orbit,Chen Wei,2026-11-15,45\n",
+        encoding="utf-8",
+    )
     (home / "notes.txt").write_text(
         "\n".join(f"line {index}" for index in range(1, 21)) + "\n", encoding="utf-8"
     )

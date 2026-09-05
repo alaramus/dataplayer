@@ -112,9 +112,10 @@ export const panelSchema = z.discriminatedUnion("kind", [
     // representations below are — a layout saved before it restores without
     // one, and gains it the next time the node is opened.
     containerId: z.string().optional(),
-    // Retained only when the node was opened from a catalog that had just
-    // declared its views. Old stored layouts and tabs opened by a reference
-    // still restore without inventing alternatives.
+    // Optional because a layout saved before this field existed restores
+    // without it, and gains it the next time the node is opened. Every way of
+    // opening a tab carries them: the catalog, a shared link and a followed
+    // reference all hand over the node as the source described it (D36).
     representations: z
       .array(
         z.object({

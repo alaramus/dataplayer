@@ -1,8 +1,24 @@
 import type { connectorsReadCatalogResponses } from "@/client"
-import type { DetectedFramework, NodeRepresentation } from "@/client"
+import type { DetectedFramework, FetchColumn, NodeRepresentation } from "@/client"
 
 /** One catalog node as the API returns it: a union discriminated by `kind`. */
 export type CatalogNode = connectorsReadCatalogResponses[200][number]
+
+/**
+ * A node somebody chose somewhere else, with the connection it lives in.
+ *
+ * The connection travels with it because whatever was picked has to be opened,
+ * read or stored against a source that is not the one the screen is standing
+ * in — bringing rows in (D43), drawing a reference (D106).
+ */
+export interface PickedNode {
+  connectorId: string
+  connectorName: string
+  adapterType: string
+  node: CatalogNode
+  /** What the source calls its columns, read as one page of it. */
+  columns: FetchColumn[]
+}
 
 /**
  * What the catalog does with a node, decided by its kind.

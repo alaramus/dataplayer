@@ -6,7 +6,7 @@ import pyarrow.parquet as pq
 import pytest
 
 from app.adapters.dataset import ParquetDataset
-from app.adapters.fetch import FetchRequest
+from app.adapters.fetch import FetchRequest, ScalarFilter
 from app.adapters.file.fetch import FileFetch
 from app.adapters.file.parquet import MAX_COLUMNS, NotParquet
 from app.adapters.file.relation import FileRelations
@@ -101,6 +101,33 @@ async def test_the_last_page_knows_it_is_the_last(fetch: FileFetch) -> None:
 
     assert [row[0] for row in result.rows] == ["249", "250"]
     assert result.has_more is False
+
+
+async def test_a_value_is_looked_up_across_every_row_group(
+    fetch: FileFetch,
+) -> None:
+    """A filter gives up the row-group arithmetic and reads the file (D109)."""
+    result = await fetch.fetch(
+        FetchRequest(
+            node_id="cities.parquet",
+            filters=[ScalarFilter(column="city", op="eq", value="city-200")],
+        )
+    )
+
+    assert [row[0] for row in result.rows] == ["200"]
+    assert result.has_more is False
+
+
+async def test_a_filter_over_a_column_a_parquet_file_has_not_got_is_refused(
+    fetch: FileFetch,
+) -> None:
+    request = FetchRequest(
+        node_id="cities.parquet",
+        filters=[ScalarFilter(column="invented", op="eq", value="1")],
+    )
+
+    with pytest.raises(ValueError, match="invented"):
+        await fetch.fetch(request)
 
 
 async def test_a_page_past_the_end_is_empty(fetch: FileFetch) -> None:

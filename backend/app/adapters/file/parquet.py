@@ -7,7 +7,7 @@ the groups before the offset are never touched and one enormous group is not
 held whole.
 """
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -15,33 +15,66 @@ from typing import Any
 import pyarrow.parquet as pq
 
 from app.adapters.dataset import ParquetDataset
-from app.adapters.fetch import FetchColumn
+from app.adapters.fetch import FetchColumn, Filter
 from app.adapters.file.arrow import column_type, encoder
-from app.adapters.file.readers import Page
+from app.adapters.file.readers import Page, matcher, select
 from app.adapters.relation import Column
 
 # The same ceiling the workbook reader has, for the same reason: a page of a
 # thousand rows across an unbounded number of columns is bounded by nothing.
 MAX_COLUMNS = 1024
 
+# How many rows come out of the file at a time while it is being searched. Only
+# the filtered path uses it: an unfiltered page knows which row groups it wants
+# and never looks at the others.
+SCAN_BATCH = 1024
+
 
 class NotParquet(ValueError):
     """The bytes under a `.parquet` name are not a Parquet file."""
 
 
-def read_page(path: Path, limit: int, offset: int) -> Page:
-    """One bounded page, read from the row groups it falls in. Blocking."""
+def read_page(
+    path: Path, limit: int, offset: int, filters: Sequence[Filter] = ()
+) -> Page:
+    """One bounded page, read from the row groups it falls in. Blocking.
+
+    A filter gives up the row-group arithmetic and reads the file through: the
+    metadata says how many rows a group holds, not how many of them match
+    (D109). Without one, the page still touches only the groups it falls in.
+    """
     with _opened(path) as file:
         schema = file.schema_arrow
         columns = _fetch_columns(schema)
-        total = int(file.metadata.num_rows)
-        rows = _read_rows(file, schema, limit, offset)
+        match = matcher(filters, [column.name for column in columns])
+        if not match.tests:
+            total = int(file.metadata.num_rows)
+            rows = _read_rows(file, schema, limit, offset)
+            return Page(
+                columns=columns,
+                rows=rows,
+                has_more=offset + len(rows) < total,
+                positions=list(range(offset, offset + len(rows))),
+            )
+        rows, positions, has_more = select(
+            _scanned(file, schema), limit, offset, match
+        )
 
     return Page(
         columns=columns,
         rows=rows,
-        has_more=offset + len(rows) < total,
+        has_more=has_more,
+        positions=positions,
     )
+
+
+def _scanned(file: Any, schema: Any) -> Iterator[list[str | None]]:
+    """Every row of the file as text, a batch at a time. Blocking."""
+    encoders = [encoder(field.type) for field in schema]
+    if not encoders:
+        return
+    for batch in file.iter_batches(batch_size=SCAN_BATCH):
+        yield from _rows_of(batch, encoders)
 
 
 def describe(path: Path) -> tuple[list[Column], ParquetDataset]:

@@ -31,6 +31,8 @@ import {
   useToast,
 } from "@/shared/ui"
 
+import DeclaredReferencesSection from "@/features/declared/DeclaredReferencesSection.vue"
+
 import AddColumnDialog from "./AddColumnDialog.vue"
 import AddConstraintDialog from "./AddConstraintDialog.vue"
 import ColumnDefaultDialog from "./ColumnDefaultDialog.vue"
@@ -706,6 +708,12 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           </li>
         </ul>
       </AppSection>
+
+      <DeclaredReferencesSection
+        :connector-id="connectorId"
+        :node-id="nodeId"
+        :node-label="query.data.value.name"
+      />
     </template>
 
     <AddColumnDialog

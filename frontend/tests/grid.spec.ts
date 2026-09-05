@@ -273,19 +273,24 @@ test("inserts and deletes a PostgreSQL row", async ({ page }) => {
   await deleteConnector(page, name)
 })
 
-test("offers a CSV no filtering and no sorting", async ({ page }) => {
+test("looks a value up in a CSV and still offers it no sorting", async ({ page }) => {
   const name = `e2e-grid-csv-${Date.now()}`
   await login(page)
   await createFileConnector(page, name)
   await openConnector(page, name)
   await openNode(page, "sample.csv")
 
-  // The header carries only what this representation can do, so the two
-  // commands the source refuses are absent rather than dead.
+  // The header carries only what this representation can do: a file has no
+  // index to order by, so sorting is absent rather than dead (D109).
   await expect(page.getByTestId("grid-columns")).toBeVisible()
-  await expect(page.getByTestId("grid-filter")).toHaveCount(0)
   await expect(page.getByTestId("grid-sort")).toHaveCount(0)
   await expect(page.locator('[data-testid^="grid-sort-direction-"]')).toHaveCount(0)
+
+  // Equality is the whole vocabulary it states, and the row it names is on a
+  // page a scan had to reach.
+  await addFilter(page, "name", "equals", "city-7")
+  await expect(page.getByTestId("grid-page-range")).toHaveText("Rows 1–1")
+  await expect(page.getByTestId("grid-cell-0-id")).toHaveText("7")
 
   await deleteConnector(page, name)
 })

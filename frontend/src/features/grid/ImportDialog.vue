@@ -3,19 +3,10 @@ import { computed, ref, watch } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type { ColumnPair, FetchColumn, ImportPreview } from "@/client"
-import { isReadableNode, roleOf } from "@/features/catalog/nodes"
-import type { CatalogNode } from "@/features/catalog/nodes"
-import { useConnectors } from "@/features/connectors/api"
+import NodePicker from "@/features/catalog/NodePicker.vue"
+import type { CatalogNode, PickedNode } from "@/features/catalog/nodes"
 import { messageOf } from "@/shared/api/errors"
-import {
-  AppBanner,
-  AppButton,
-  AppEmptyState,
-  AppSection,
-  AppSelect,
-  AppSpinner,
-  AppTable,
-} from "@/shared/ui"
+import { AppBanner, AppButton, AppSection, AppSelect, AppTable } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 const props = defineProps<{
@@ -33,30 +24,18 @@ const emit = defineEmits<{
   run: [value: { connectorId: string; nodeId: string; columns: ColumnPair[] }]
 }>()
 
-const connectors = useConnectors()
 const sourceId = ref("")
-const trail = ref<CatalogNode[]>([])
-const nodes = ref<CatalogNode[]>([])
-const browsing = ref(false)
 const chosen = ref<CatalogNode | null>(null)
 const sourceColumns = ref<FetchColumn[]>([])
 const pairs = ref<Record<string, string>>({})
 const preview = ref<ImportPreview | null>(null)
 const trouble = ref("")
 
-const sources = computed(() =>
-  (connectors.data.value?.data ?? [])
-    .filter((connector) => connector.enabled)
-    .map((connector) => ({ label: connector.name, value: connector.id }))
-)
-
 watch(
   () => props.modelValue,
   (open) => {
     if (!open) return
     sourceId.value = ""
-    trail.value = []
-    nodes.value = []
     chosen.value = null
     sourceColumns.value = []
     pairs.value = {}
@@ -66,82 +45,26 @@ watch(
   { immediate: true }
 )
 
-async function openLevel(node: CatalogNode | null): Promise<boolean> {
-  if (sourceId.value === "") return false
-  browsing.value = true
-  trouble.value = ""
-  try {
-    const answer = await ConnectorsService.readCatalog({
-      path: { connector_id: sourceId.value },
-      query: node === null ? {} : { node_id: node.id },
-    })
-    nodes.value = answer.data
-    return true
-  } catch (error) {
-    trouble.value = messageOf(error, "Could not read that source")
-    return false
-  } finally {
-    browsing.value = false
-  }
-}
-
-watch(sourceId, async () => {
-  trail.value = []
-  chosen.value = null
-  sourceColumns.value = []
-  pairs.value = {}
+/** What the picker found, and the pairing it suggests to start from. */
+function picked(source: PickedNode | null) {
   preview.value = null
-  await openLevel(null)
-})
-
-async function step(node: CatalogNode) {
-  if (roleOf(node) === "leaf") {
-    if (isReadableNode(node)) await choose(node)
-    return
-  }
-  if (await openLevel(node)) trail.value = [...trail.value, node]
-}
-
-async function back() {
-  const shorter = trail.value.slice(0, -1)
-  if (await openLevel(shorter.at(-1) ?? null)) trail.value = shorter
-}
-
-/** The source's own columns, read the way any other page of it is read. */
-async function choose(node: CatalogNode) {
-  chosen.value = node
-  preview.value = null
-  trouble.value = ""
-  try {
-    const answer = await ConnectorsService.fetchRows({
-      path: { connector_id: sourceId.value },
-      body: { node_id: node.id, limit: 1 },
-    })
-    sourceColumns.value = answer.data.columns
-    // Same-named columns are offered as a starting point, never applied
-    // silently: the reader confirms every pair before anything is read.
-    const names = new Set(answer.data.columns.map((column) => column.name))
-    pairs.value = Object.fromEntries(
-      props.targetColumns
-        .filter((column) => names.has(column.name))
-        .map((column) => [column.name, column.name])
-    )
-  } catch (error) {
-    trouble.value = messageOf(error, "Could not read that source as rows")
-    sourceColumns.value = []
-  }
+  sourceId.value = source?.connectorId ?? ""
+  chosen.value = source?.node ?? null
+  sourceColumns.value = source?.columns ?? []
+  // Same-named columns are offered as a starting point, never applied
+  // silently: the reader confirms every pair before anything is read.
+  const names = new Set(sourceColumns.value.map((column) => column.name))
+  pairs.value = Object.fromEntries(
+    props.targetColumns
+      .filter((column) => names.has(column.name))
+      .map((column) => [column.name, column.name])
+  )
 }
 
 const columnPairs = computed<ColumnPair[]>(() =>
   Object.entries(pairs.value)
     .filter(([, source]) => source !== "")
     .map(([target, source]) => ({ source, target }))
-)
-
-const here = computed(() =>
-  trail.value.length === 0
-    ? "Pick a source node"
-    : trail.value.map((node) => node.name).join(" / ")
 )
 
 const ready = computed(() => chosen.value !== null && columnPairs.value.length > 0)
@@ -201,51 +124,12 @@ function run() {
       >
         {{ trouble }}
       </AppBanner>
-      <AppSelect
-        :model-value="sourceId"
-        :options="sources"
-        label="Source"
-        :loading="connectors.isFetching.value"
-        data-testid="grid-import-source"
-        @update:model-value="sourceId = String($event)"
+      <NodePicker
+        :key="modelValue ? 'open' : 'closed'"
+        testid="grid-import"
+        @pick="picked"
+        @trouble="trouble = $event"
       />
-
-      <template v-if="sourceId !== ''">
-        <div class="import__where">
-          <AppButton
-            v-if="trail.length > 0"
-            label="Back"
-            variant="quiet"
-            size="sm"
-            data-testid="grid-import-back"
-            @click="back"
-          />
-          <span>{{ chosen === null ? here : chosen.name }}</span>
-        </div>
-        <AppSpinner v-if="browsing" />
-        <ul
-          v-else-if="chosen === null"
-          class="import__nodes"
-        >
-          <li
-            v-for="node in nodes"
-            :key="node.id"
-          >
-            <AppButton
-              :label="node.name"
-              variant="quiet"
-              size="sm"
-              :disable="roleOf(node) === 'leaf' && !isReadableNode(node)"
-              :data-testid="`grid-import-node-${node.name}`"
-              @click="step(node)"
-            />
-          </li>
-        </ul>
-        <AppEmptyState
-          v-if="!browsing && chosen === null && nodes.length === 0"
-          text="Nothing here"
-        />
-      </template>
 
       <template v-if="sourceColumns.length > 0">
         <div class="import__title">
@@ -315,19 +199,6 @@ function run() {
 <style scoped>
 .import__title {
   font-weight: 600;
-}
-.import__where {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-}
-.import__nodes {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  max-height: 180px;
-  overflow: auto;
 }
 .import__pair {
   display: flex;

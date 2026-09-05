@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.adapters.routes import router as adapter_types_router
 from app.connectors import health as connector_health
+from app.connectors.declared_routes import router as declared_references_router
 from app.connectors.routes import router as connectors_router
 from app.core.config import settings
 from app.jobs.routes import router as jobs_router
@@ -22,6 +23,7 @@ api_router.include_router(utils_router)
 # Importing the connectors router pulls in app.adapters, so drivers register
 # themselves when the application starts.
 api_router.include_router(connectors_router)
+api_router.include_router(declared_references_router)
 api_router.include_router(adapter_types_router)
 api_router.include_router(services_router)
 api_router.include_router(backups_router)

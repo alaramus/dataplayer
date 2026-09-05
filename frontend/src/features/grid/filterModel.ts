@@ -26,6 +26,40 @@ export const OPERATOR_LABELS: Record<FilterOp, string> = {
 
 const NULL_OPERATORS = new Set<FilterOp>(["is_null", "is_not_null"])
 
+// A condition has to fit on one line beside the others, and a cell may hold a
+// paragraph. Both ceilings are about the chip and nothing else: what was sent
+// is unaffected.
+const MAX_SHOWN_VALUE = 40
+const MAX_SHOWN_VALUES = 3
+
+function quoted(value: string): string {
+  const shown =
+    value.length > MAX_SHOWN_VALUE ? `${value.slice(0, MAX_SHOWN_VALUE)}\u2026` : value
+  return `"${shown}"`
+}
+
+/**
+ * What an applied filter says, the value included.
+ *
+ * The value is the half that used to be missing. A page filtered to nothing
+ * read as broken, because the condition on screen named the column and the
+ * operator and left out the one thing that explained the empty result — and a
+ * predicate that arrived by following a reference was never typed by anybody,
+ * so there was nowhere else to see it (D106).
+ */
+export function describeFilter(filter: Filter): string {
+  const head = `${filter.column} ${OPERATOR_LABELS[filter.op]}`
+  // Written out rather than asked of NULL_OPERATORS: a set membership check
+  // proves nothing to the compiler, and the branch below reads `value`.
+  if (filter.op === "is_null" || filter.op === "is_not_null") return head
+  if (filter.op === "in") {
+    const shown = filter.values.slice(0, MAX_SHOWN_VALUES).map(quoted)
+    const rest = filter.values.length - shown.length
+    return `${head} ${shown.join(", ")}${rest > 0 ? ` +${rest} more` : ""}`
+  }
+  return `${head} ${quoted(filter.value)}`
+}
+
 interface FilterColumn {
   id?: string
   name?: string

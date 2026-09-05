@@ -7,6 +7,7 @@ id apart (D21). The whole of the client's influence on the query is which
 reference of which row it pointed at.
 """
 
+import uuid
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -35,6 +36,21 @@ class FollowReferenceRequest(BaseModel):
     values: Annotated[list[ReferenceValue], Field(min_length=1, max_length=64)]
 
 
+class ReferenceConnection(BaseModel):
+    """The connection a target lives in, as the screen needs to open a tab.
+
+    An adapter never fills this in: it knows itself and not its own identity.
+    The route does, because it is the one place that knows which connection it
+    just asked (D108).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: uuid.UUID
+    name: str
+    adapter_type: str
+
+
 class ReferencedRows(BaseModel):
     """Where to go, and the predicate that gets there.
 
@@ -48,6 +64,10 @@ class ReferencedRows(BaseModel):
 
     kind: Literal["rows"] = "rows"
     node: CatalogNode
+    # Filled in on the way out, by the route rather than by the source that
+    # answered. Null only inside the application, never in a reply: a declared
+    # reference can land in another connection entirely (D108).
+    connector: ReferenceConnection | None = None
     # Built by the source against the target's own columns, in the same closed
     # vocabulary any other filter uses, so the fetch it is handed to validates
     # it exactly as it validates a filter a user typed.

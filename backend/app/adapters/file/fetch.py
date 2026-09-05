@@ -6,7 +6,7 @@ branched on the extension in six places inside one method.
 """
 
 from pathlib import Path
-from typing import Literal, assert_never
+from typing import Any, Literal, assert_never
 
 from anyio import to_thread
 
@@ -16,6 +16,7 @@ from app.adapters.file.binary import looks_binary
 from app.adapters.file.formats import format_of
 from app.adapters.file.members import ResolvedNode, resolve_node
 from app.adapters.file.readers import (
+    FILE_FILTER_OPERATORS,
     CsvReader,
     JsonTableReader,
     LogReader,
@@ -40,31 +41,27 @@ class FileFetch:
         self._session = session
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
-        # Neither is possible over a file: there is no index to order by, and
-        # the columns of a delimited file have no types to compare. Saying so
-        # beats sorting one page and calling it sorted.
+        # A file has no index to order by, and ordering one page of it would be
+        # ordering the page rather than the file. Looking a value up is a scan
+        # the source can do honestly, and does (D109).
         if request.sort:
             raise ValueError("This source cannot sort rows")
-        if request.filters:
-            raise ValueError("This source cannot filter rows")
 
         # One hop into the worker thread, resolution included: deciding what a
         # node id names asks the filesystem, which blocks like the read does.
         page, editable, version = await to_thread.run_sync(self._read, request)
         columns = [
-            column.model_copy(
-                update={"editable": True, "nullable": True, "insertable": True}
-            )
-            if editable
-            else column
+            column.model_copy(update=_column_capabilities(editable))
             for column in page.columns
         ]
         return FetchResult(
             columns=columns,
             rows=page.rows,
             has_more=page.has_more,
+            # The row's own place in the file, which is not its place on the
+            # page once a filter has left rows out (D109).
             row_handles=(
-                [encode_handle(request.offset + index, version) for index in range(len(page.rows))]
+                [encode_handle(position, version) for position in page.positions]
                 if editable and version is not None
                 else [None for _ in page.rows]
             ),
@@ -115,20 +112,28 @@ class FileFetch:
             case "parquet":
                 # Binary by nature, so the sniff below would refuse it. Its own
                 # magic bytes are what the footer read checks instead.
-                return parquet.read_page(path, request.limit, request.offset)
+                return parquet.read_page(
+                    path, request.limit, request.offset, request.filters
+                )
             case "workbook":
                 # The first sheet somebody would see on opening it in a
                 # spreadsheet: a hidden one is hidden because whoever wrote
                 # the file did not mean it to be read first. Every other sheet
                 # is a member of this node and is read by naming it.
                 return workbook.read_page(
-                    path, _first_sheet(path), request.limit, request.offset
+                    path,
+                    _first_sheet(path),
+                    request.limit,
+                    request.offset,
+                    request.filters,
                 )
             case "delimited" | "json" | "jsonl" | "log" | "text" as textual:
                 if looks_binary(path):
                     # Classification goes by name; the bytes get the last word.
                     raise ValueError(f"This file is binary: {request.node_id}")
-                return _reader_for(textual).read(path, request.limit, request.offset)
+                return _reader_for(textual).read(
+                    path, request.limit, request.offset, request.filters
+                )
             case "markdown" | "image" | "audio" | "video" | "pdf" | "archive" | "opaque":
                 raise ValueError(f"This file cannot be read as rows: {request.node_id}")
             case unreachable:
@@ -140,8 +145,24 @@ class FileFetch:
         if member is None or not member.isdigit():
             raise ValueError(f"No such sheet: {request.node_id}")
         return workbook.read_page(
-            resolved.path, int(member), request.limit, request.offset
+            resolved.path, int(member), request.limit, request.offset, request.filters
         )
+
+
+def _column_capabilities(editable: bool) -> dict[str, Any]:
+    """What the file source states every column of a page can do.
+
+    Filtering is stated for every tabular projection, editing only where the
+    representation is one the source can write back (D48).
+    """
+    if not editable:
+        return {"filter_operators": FILE_FILTER_OPERATORS}
+    return {
+        "filter_operators": FILE_FILTER_OPERATORS,
+        "editable": True,
+        "nullable": True,
+        "insertable": True,
+    }
 
 
 def _first_sheet(path: Path) -> int:

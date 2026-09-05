@@ -49,8 +49,9 @@ expose a complex value while allowing only null checks on it.
 
 - `FetchColumn` is the complete contract for one displayed column: `name`, the
   same structured `ColumnType` D22 uses, `sortable`, and an ordered list of
-  `filter_operators`. The file source describes its string and number columns
-  but declares no sorting or filtering; the client never names either adapter.
+  `filter_operators`. The file source describes its string and number columns,
+  declares no sorting and declares equality alone ([D109](#d109-the-file-source-looks-a-value-up-by-equality-and-nothing-else));
+  the client never names either adapter.
 - `FetchResult.rows` is `list[list[str | None]]`. `bigint` and `numeric` never
   pass through a JavaScript number, date and time keep ISO 8601, boolean is
   `true` or `false`, binary is uppercase hex with a `0x` prefix, and JSON is
@@ -557,3 +558,33 @@ Known deviations:
   them.
 
 Spec: [What the old PostgreSQL adapter does beyond the table rounds](../../superpowers/specs/2026-08-31-postgres-system-operations-design.md)
+
+## D109. The file source looks a value up, by equality and nothing else
+
+Refusing to sort a file is right: an ordered page needs the whole file ordered.
+Refusing to filter one was not, and it is what stopped a reference from pointing
+at a CSV ([D106](declared.md)).
+
+- Equality is the whole vocabulary. `filter_operators` on every column of every
+  tabular file projection is `["eq"]`, and any other predicate is refused by the
+  source rather than approximated.
+- It is applied where the rows are read, on the canonical text of D23 that the
+  page already carries. A filtered page is an unfiltered one with rows left out:
+  no second reader, no typed reinterpretation of a CSV, no ceiling that
+  truncates the answer without saying so.
+- Paging counts matching rows, and `has_more` means another matching row exists.
+- A row handle carries the row's real position in the file rather than its
+  position on the page, because a page of matches is not a window into a
+  contiguous run and an edit has to land where the row actually is.
+- It costs a scan, which is what paging a file already costs: the tenth page of
+  a delimited file walks the nine before it.
+
+Known deviations:
+
+- **No `contains` and no null tests.** Searching the text inside files is a
+  different request with a different answer shape, and the roadmap says so. An
+  empty cell in a delimited file is the ambiguity D45 already decided once, and
+  a null test would be answering it a second time for this source alone.
+- **Sorting is still refused**, unchanged.
+
+Spec: [A reference the person draws](../../superpowers/specs/2026-09-05-declared-references-design.md)

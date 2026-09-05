@@ -8,7 +8,7 @@ from openpyxl import Workbook
 from app.adapters.catalog import DatasetNode
 from app.adapters.content import ContentRequest, EditorContentRequest
 from app.adapters.dataset import WorksheetDataset
-from app.adapters.fetch import FetchRequest
+from app.adapters.fetch import FetchRequest, ScalarFilter
 from app.adapters.file.actions import FileActions
 from app.adapters.file.catalog import FileCatalog
 from app.adapters.file.content import FileContent
@@ -190,6 +190,20 @@ async def test_the_last_page_of_a_sheet_knows_it_is_the_last(
     )
 
     assert len(result.rows) == 2
+    assert result.has_more is False
+
+
+async def test_a_sheet_is_filtered_by_a_value_in_a_column(
+    fetch: FileFetch,
+) -> None:
+    result = await fetch.fetch(
+        FetchRequest(
+            node_id="budget.xlsx/1",
+            filters=[ScalarFilter(column="quarter", op="eq", value="Q7")],
+        )
+    )
+
+    assert result.rows == [["Q7", "700", "false"]]
     assert result.has_more is False
 
 
