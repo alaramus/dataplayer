@@ -102,6 +102,9 @@ async def test_a_relation_says_it_will_describe_itself(temporary_view: str) -> N
     ]
 
     assert relations
+    assert any(
+        isinstance(node, ViewNode) and node.name == temporary_view for node in relations
+    )
     assert all(node.summarizable for node in relations)
     assert not any(
         node.summarizable

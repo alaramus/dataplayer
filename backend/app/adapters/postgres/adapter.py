@@ -78,7 +78,6 @@ from app.adapters.query import (
 from app.adapters.references import FollowReferenceRequest, ReferenceTarget
 from app.adapters.registry import AdapterContext, register
 from app.adapters.relation import RelationModel
-from app.adapters.summary import NodeSummary
 from app.adapters.relation_changes import (
     CreateRelationRequest,
     CreateRelationResult,
@@ -86,6 +85,7 @@ from app.adapters.relation_changes import (
 )
 from app.adapters.resources import Pooling
 from app.adapters.row_commands import RowCommand, RowCommandResult
+from app.adapters.summary import NodeSummary
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
