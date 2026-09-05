@@ -61,7 +61,10 @@ services:
   redis-cache:
     image: redis:8
     environment:
-      REDIS_PASSWORD: ${DATA_CACHE_REDIS_PASSWORD:-development-cache-only}
+      # No default: a fallback here would start the cache under one password
+      # while DATA_CACHE_REDIS_URL carried another, and the backend would report
+      # a degraded cache rather than a missing setting.
+      REDIS_PASSWORD: ${DATA_CACHE_REDIS_PASSWORD:?Variable not set}
     command:
       [
         "sh",
