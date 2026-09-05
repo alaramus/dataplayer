@@ -217,6 +217,14 @@ def write_samples(home: Path) -> None:
         "blue-orbit,Chen Wei,2026-11-15,45\n",
         encoding="utf-8",
     )
+    # The other half of a reference that crosses nothing but a person's own
+    # storage: two files that share a slug, which neither of them says.
+    (home / "renewals.csv").write_text(
+        "slug,stage,decided_on\n"
+        "northstar-labs,signed,2026-08-14\n"
+        "blue-orbit,in review,\n",
+        encoding="utf-8",
+    )
     (home / "notes.txt").write_text(
         "\n".join(f"line {index}" for index in range(1, 21)) + "\n", encoding="utf-8"
     )

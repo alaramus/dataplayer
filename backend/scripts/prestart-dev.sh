@@ -15,3 +15,7 @@ bash scripts/prestart.sh
 
 python -m app.seed_database
 python -m app.seed_storage
+# The examples of D106, drawn between the connections that are already there.
+# It makes none of its own, so a stack with no connections yet simply logs
+# what it skipped and gets them on the next start.
+python -m app.seed_references

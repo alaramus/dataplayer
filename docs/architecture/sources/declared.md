@@ -117,8 +117,10 @@ The catalog walk both this and D43 need is `frontend/src/features/catalog/NodePi
 
 ## Something to try it on
 
-The development stack seeds a pair that matches. `accounts.csv` in personal
-storage is keyed by the same slug as `demo_lab.organizations`, and neither
-source knows anything about the other — so a reference between
-`demo_lab.organizations.slug` and `accounts.csv.slug` is drawn in one window
-and followed in one click.
+The development stack draws two of them itself, in `app/seed_references.py`,
+between whatever connections the developer already has: `demo_lab.organizations`
+to `accounts.csv` in personal storage, and `accounts.csv` to `renewals.csv`
+beside it. Both are keyed by a slug neither source says anything about. The
+seeder makes no connection of its own — what a machine is connected to is not
+a fixture — so a stack whose file source was registered a moment ago gets its
+examples on the next start.

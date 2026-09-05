@@ -25,10 +25,10 @@ def test_a_sample_file_pairs_with_the_demonstration_schema(tmp_path: Path) -> No
     """
     write_samples(tmp_path)
 
-    rows = (tmp_path / "accounts.csv").read_text(encoding="utf-8").splitlines()
-
-    assert rows[0].split(",")[0] == "slug"
-    assert [row.split(",")[0] for row in rows[1:]] == ["northstar-labs", "blue-orbit"]
+    for name in ("accounts.csv", "renewals.csv"):
+        rows = (tmp_path / name).read_text(encoding="utf-8").splitlines()
+        assert rows[0].split(",")[0] == "slug"
+        assert [row.split(",")[0] for row in rows[1:]] == ["northstar-labs", "blue-orbit"]
 
 
 def test_samples_cover_both_structured_viewers(tmp_path: Path) -> None:
