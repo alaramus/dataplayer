@@ -361,6 +361,21 @@ carries everything the source can do, live for what is ticked and greyed out for
 the rest — standing in a folder is not choosing it. What that menu offers comes
 from the server; see D9 in [sources/actions.md](sources/actions.md).
 
+A level's rows share one set of columns: the tick box, the icon, the name, the
+grouping a row came from, where a search found it, and what it measures. A row
+takes those columns rather than laying itself out again, so a name stands under
+a name and a count under a count. The exception is a report: its caption is the
+sentence the source wrote about what its statement answers, and in the shared
+column that sentence would set the column's width for every row in the list. So
+a report lays itself out and keeps its sentence beside its name.
+
+A kind is said by the icon and never also in words, so a materialized view is
+drawn as the table it keeps rather than labelled. What a relation measures is
+always said: a table with an estimate says it, and a table nobody has analysed
+and a view, which stores no rows to count, both say `N/A` with a hint saying
+which of the two reasons applies. A column filled on some rows and blank on
+others reads as one somebody forgot rather than as a count nobody has.
+
 The catalog's filter and search field keeps the ten most recent distinct,
 non-empty queries per account and connector in this browser's local storage.
 Enter, a search, or leaving an edited field remembers its trimmed text; merely
@@ -514,10 +529,11 @@ Known deviations:
   with six schemas feels like.
 - **Where one was in a catalog is not remembered.** The layout survives a reload;
   the path inside a catalog does not, so a reloaded page is back at the root.
-- **The name of a row loses to its captions in a narrow column.** With several
-  groupings on, the row carries the name of its grouping and its size or row
-  estimate, and the name is elided first. Resizable columns are the only answer
-  today.
+- **The name of a row loses to the columns beside it in a narrow panel.** The
+  grouping and the measurement each take the width of the widest of them in the
+  level, and the name is what shrinks, down to five characters. With
+  `information_schema` among the groupings on, that costs a name a third of the
+  column. Resizable columns are the only answer today.
 - **A row of the list carries four marks.** The icon, the name, the state dot on
   that icon and the highlight that says it is open. On a long list with several
   catalogs open the column becomes busy, and nobody has measured that.

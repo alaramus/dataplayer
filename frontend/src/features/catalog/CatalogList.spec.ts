@@ -31,6 +31,58 @@ function mountList(revealed: string | null = null, checked: string[] = []) {
   })
 }
 
+function report(id: string, label: string, caption: string): ListNode {
+  return {
+    id,
+    label,
+    caption,
+    icon: "assessment",
+    kind: "report",
+    role: "leaf",
+    readable: true,
+    representations: [{ kind: "table", title: "View as table" }],
+    describable: false,
+    summarizable: false,
+    system: false,
+    preferred: false,
+    holdsNodes: false,
+  }
+}
+
+/**
+ * The columns are the list's, not each row's.
+ *
+ * A row takes them with `subgrid`, so names stand under names and counts
+ * under counts. The one exception is a report, whose caption is a sentence
+ * the source wrote rather than a measurement — left in the shared column it
+ * would set the width of that column for every row in the list, so the row
+ * lays itself out instead. The class is what the stylesheet keys off, so it
+ * is what this checks.
+ */
+describe("the columns of a level", () => {
+  it("keeps a measured row in the list's own columns", () => {
+    const wrapper = mountList()
+    expect(wrapper.get('[data-testid="catalog-node-orders"]').classes()).not.toContain(
+      "catalog-list__row--sentence"
+    )
+  })
+
+  it("lets a row whose caption is a sentence lay itself out", () => {
+    const wrapper = mount(CatalogList, {
+      props: {
+        items: [report("system", "System", "What this server says about itself")],
+        checked: [],
+        loading: false,
+      },
+      global: { plugins: [Quasar] },
+    })
+
+    expect(wrapper.get('[data-testid="catalog-node-System"]').classes()).toContain(
+      "catalog-list__row--sentence"
+    )
+  })
+})
+
 /**
  * The head counts twice: what is here, and what an action would be done to.
  *

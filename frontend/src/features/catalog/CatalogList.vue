@@ -156,6 +156,7 @@ const countLabel = computed(() => {
 
       <AppEmptyState
         v-if="items.length === 0"
+        class="catalog-list__empty"
         :text="emptyText ?? 'Nothing here'"
       />
 
@@ -170,6 +171,7 @@ const countLabel = computed(() => {
         :class="{
           'catalog-list__row--checked': checked.includes(node.id),
           'catalog-list__row--revealed': node.id === revealed,
+          'catalog-list__row--sentence': node.kind === 'report',
         }"
         :data-testid="`catalog-node-${node.label}`"
         :data-revealed="node.id === revealed ? 'true' : undefined"
@@ -242,7 +244,6 @@ const countLabel = computed(() => {
   color: var(--dp-text-muted);
 }
 .catalog-list__location {
-  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -250,13 +251,35 @@ const countLabel = computed(() => {
   font-size: 11px;
   color: var(--dp-text-muted);
 }
+/* One level, one set of columns.
+   The list is a grid and not a stack of rows that each lay themselves out,
+   so that what a row says stands under what the row above it says: names
+   under names, groupings under groupings, counts under counts. A row is
+   still a box of its own — it carries the hover, the tick and the mark that
+   points at it — so it takes the list's columns with `subgrid` rather than
+   dissolving into it.
+
+   Every column but the name may shrink to nothing: the name is what the row
+   is about, and a long path found by a search must not leave it 5ch wide by
+   taking the width it would like. */
 .catalog-list__rows {
   flex: 1;
   min-height: 0;
   overflow: auto;
+  display: grid;
+  grid-template-columns:
+    auto auto minmax(5ch, 1fr) minmax(0, auto) minmax(0, auto) minmax(0, auto);
+  align-content: start;
+  column-gap: 6px;
+}
+.catalog-list__empty {
+  grid-column: 1 / -1;
+  padding: 4px 8px;
 }
 .catalog-list__row {
-  display: flex;
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
   align-items: center;
   gap: 6px;
   padding: 1px 8px;
@@ -298,24 +321,42 @@ const countLabel = computed(() => {
 /* The name comes first when there is not enough room: it is what the row is
    about, and the caption beside it is an aside. */
 .catalog-list__name {
-  flex: 1 1 auto;
-  min-width: 5ch;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .catalog-list__group,
 .catalog-list__caption {
-  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11px;
   color: var(--dp-text-muted);
   white-space: nowrap;
 }
+/* Names of things, so their left edges line up; measurements, so their right
+   edges do. */
 .catalog-list__group {
+  justify-self: start;
   border: 1px solid var(--dp-border);
   border-radius: 3px;
   padding: 0 4px;
+}
+.catalog-list__caption {
+  justify-self: end;
+}
+/* A row whose caption is a sentence rather than a measurement.
+   Only a report has one — it is the line the source wrote about what its
+   statement answers — and a sentence in a column shared with "~8 rows" would
+   set that column's width for every row in the list. So this one row lays
+   itself out and takes the width it needs, leaving the columns to the rows
+   that have something to line up. Its name still starts where the others do:
+   the two things before it are a tick box and an 18px icon, on every row. */
+.catalog-list__row--sentence {
+  display: flex;
+}
+.catalog-list__row--sentence .catalog-list__caption {
+  flex: 0 1 auto;
 }
 </style>
