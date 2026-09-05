@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Last updated: 2026-09-03.
+Last updated: 2026-09-05.
 
 The order for moving useful behaviour from `dbwebtool` and `myquasar` into
 DataPlayer. It is a route, not a promise to reproduce every old screen. The old
@@ -48,6 +48,7 @@ Legend:
 | 3 — query editor | 2026-09-02 | D62, D63, D64, D65, D66 |
 | 3.5 — the rest of the old application's daily operations | 2026-09-02 | D67 through D79 |
 | 4 — server-owned jobs: Docker services, backup and restore | 2026-09-03 | D80 through D87 |
+| 5 — optional Redis infrastructure | 2026-09-05 | D100 through D104 |
 
 Each of those has a spec in [the index](superpowers/specs/README.md), dated the
 day it closed, and a home in `docs/architecture/`. With 1.5 validated, phase 1
@@ -74,49 +75,30 @@ an ordinary encrypted connector; and a database is copied out into a file of
 their own storage, or written back from one, by the real programs running in
 a container of the server's own version. Whether any of it is offered at all
 is a question about the machine, asked of it, and answered off by default.
+Phase 5 closed on 2026-09-05. Redis is a shared read cache and nothing else.
+The backend is chosen by configuration and memory stays the default; values on
+the wire are versioned and encrypted under a key of their own; invalidation
+crosses workers through a connector generation, with Pub/Sub as prompt notice
+rather than as the authority; and every Redis failure is a cache miss, so
+turning Redis off changes latency and not what a read returns. The last item of
+the sequence was answered rather than built: there is no deployment evidence in
+this repository for a lock, a job queue or share acceleration, so D104 keeps
+Redis out of all three.
 
 ## Priority order at a glance
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 5 | Optional Redis infrastructure | Medium | Needed only when multiple backend processes must share cache or coordination state |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation, saved layouts and a history to draw over require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
-
-## Phase 5 — optional Redis infrastructure
-
-The rewrite already has D31's bounded, process-local `DataCache`. Redis is not
-needed to make a single-process installation correct. Add it when deployments
-need shared cache entries and invalidation across backend workers, not merely
-because the old project had a Redis object.
-
-Sequence:
-
-- [~] Extract a cache backend protocol without weakening D31's exact keys,
-  in-flight coalescing, LRU/TTL bounds or post-mutation invalidation rules.
-- [~] Define versioned serialization, namespace by deployment and user, and
-  decide whether sensitive fetched values require encryption in Redis.
-- [~] Implement optional Redis cache storage plus a cross-worker invalidation
-  channel. Failure must degrade to direct reads, not take data access down.
-- [~] Add configuration, health reporting, TLS/auth examples and an optional
-  Compose service; keep the in-memory backend as the default.
-- [~] Only after measurement, reuse Redis for distributed locks, job fan-out or
-  share acceleration. Snapshot truth and job truth remain durable elsewhere.
-
-Exit condition: two backend workers observe the same invalidation behaviour,
-and turning Redis off changes performance rather than correctness.
-
-Implementation and tests are written in D100 through D104. Validation is still
-pending under the repository rule that requires explicit approval for the
-backend, generated-client and documentation checks.
 
 ## Phase 6 — add adapter families deliberately
 
 Do not port seventy adapters as seventy partial packages. Add one representative
 of a new contract family, settle the capability, then add siblings cheaply.
 
-Recommended order after Phase 5:
+Recommended order:
 
 1. DuckDB or SQLite as a source of its own — somebody's `.duckdb` or `.sqlite`
    file, with a catalog, a grid and structure. The engine itself arrived with
