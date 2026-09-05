@@ -141,10 +141,16 @@ async def test_a_path_out_of_the_root_is_refused_by_the_route(
     assert response.status_code == 422
 
 
-async def test_a_source_that_describes_no_nodes_says_so(
-    client: AsyncClient, normal_user_token_headers: dict[str, str]
+@pytest.mark.parametrize(
+    ("name", "kind"), [("pg_class", "table"), ("pg_views", "view")]
+)
+async def test_postgres_describes_a_relation_through_the_route(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    name: str,
+    kind: str,
 ) -> None:
-    """PostgreSQL describes relations and does not describe nodes (D75)."""
+    """D75 includes PostgreSQL relations; system nodes exist in a fresh database."""
     created = await client.post(
         f"{BASE}/",
         headers=normal_user_token_headers,
@@ -158,11 +164,20 @@ async def test_a_source_that_describes_no_nodes_says_so(
 
     response = await client.get(
         f"{BASE}/{created.json()['id']}/node-summary",
-        params={"node_id": "public.users"},
+        params={"node_id": f"pg_catalog.{name}"},
         headers=normal_user_token_headers,
     )
 
-    assert response.status_code == 501
+    assert response.status_code == 200
+    body = response.json()
+    assert body["node_id"] == f"pg_catalog.{name}"
+    assert body["name"] == name
+    assert body["kind"] == kind
+    assert [item["kind"] for item in body["representations"]] == ["table", "sql"]
+    assert body["contents"]["kind"] == "relation"
+    assert body["contents"]["relation_kind"] == kind
+    assert body["contents"]["schema_name"] == "pg_catalog"
+    assert body["contents"]["columns"] > 0
 
 
 @pytest.mark.usefixtures("isolated_registry")
