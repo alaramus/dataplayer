@@ -1,13 +1,11 @@
 /**
- * Whether what is on screen was read now or kept, and how old it is.
+ * Whether what is on screen was read now or kept, and how old it is (D105).
  *
- * Two caches sit between a source and a grid: the browser's, which decides
- * whether to ask at all, and the server's, which decides whether to read.
- * Neither can answer the question on its own — the browser knows when the
- * reply arrived, the server knows how long the reply had been sitting there
- * first — so the server sends its part and this adds the browser's (D105).
+ * Two caches sit between a source and a grid and neither can answer alone: the
+ * browser knows when the reply arrived, the server knows how long it had been
+ * sitting there first. The server sends its part and this adds the browser's.
  *
- * Plain functions, so what a badge says can be tested without mounting one.
+ * Plain functions, so what is drawn can be tested without mounting anything.
  */
 
 /** What the server did with the read, as `X-Data-Cache` reports it. */
@@ -22,11 +20,8 @@ export interface Freshness {
 const OUTCOMES: CacheOutcome[] = ["hit", "miss", "coalesced", "refreshed", "bypass"]
 
 /**
- * What a response says about itself.
- *
- * A reply without the headers is treated as a read of the source, because
- * that is what a route that does not cache is: `bypass` is the answer the
- * server itself gives for a source with no freshness rules.
+ * A reply with no headers counts as a read of the source: `bypass` is what the
+ * server itself answers for a route that does not cache.
  */
 export function freshnessOf(
   headers: Record<string, unknown> | undefined,
@@ -44,12 +39,9 @@ export function freshnessOf(
 }
 
 /**
- * How long a read goes on being called live.
- *
- * A second, while this was a control of its own beside the reload. It is a
- * mark above that button now (D112), read out of the corner of an eye, so it
- * has to last long enough to be caught: five seconds is about as long as
- * somebody stays looking at the thing they have just asked for.
+ * How long a read goes on being called live. A second was enough while this
+ * was a control of its own; the mark above the reload (D112) is read out of
+ * the corner of an eye and has to last long enough to be caught.
  */
 export const LIVE_WINDOW_MS = 5000
 
@@ -69,12 +61,9 @@ export function ageLabel(milliseconds: number): string {
 }
 
 /**
- * What the badge says.
- *
- * `Live` only while the reply is the read and nothing has aged since. A page
- * read from the source four minutes ago is not live any more, whatever the
- * server said when it sent it — which is the case that made somebody press
- * reload out of doubt.
+ * `Live` only while the reply is the read and nothing has aged since: a page
+ * read four minutes ago is not live whatever the server said at the time,
+ * which is the case that made somebody press reload out of doubt.
  */
 export function freshnessLabel(
   freshness: Freshness,
@@ -90,15 +79,9 @@ export function windowLabel(seconds: number): string {
 }
 
 /**
- * The whole sentence, for somebody who stopped to ask.
- *
- * `cacheTtlSeconds` is what the connection was told to keep, `null` when its
- * owner left that to the source — in which case the window is not this
- * screen's to state.
- *
- * It used to end by inviting a press, because the badge was the reload. The
- * reload is the button beside it now (D112), and it says for itself what it
- * does.
+ * The whole sentence, for somebody who stopped to ask. `cacheTtlSeconds` is
+ * null when the owner left the window to the source, which this screen then
+ * does not state.
  */
 export function freshnessTooltip(
   freshness: Freshness,

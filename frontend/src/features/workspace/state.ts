@@ -22,61 +22,44 @@ import type { DiagramNodeRef } from "@/features/relationships/model"
 export interface WorkspaceActions {
   /** The connection whose catalog is being looked at, of those that are open. */
   activeConnectorId: Readonly<Ref<string | null>>
-  /**
-   * Every connection that has a catalog open somewhere.
-   *
-   * Two states rather than one, now that catalogs are as many as were opened:
-   * a row says whether it is open at all, and the active one says so fully.
-   * See P7.
-   */
+  /** Every connection that has a catalog open somewhere. */
   openConnectorIds: Readonly<Ref<ReadonlySet<string>>>
   openCatalog: (connector: ConnectorPublic) => void
   /** Open a new connection with defaults prepared by a source action. */
   createConnector: (draft: ConnectorDraft) => void
   /**
-   * Show the catalog of a connection and point at one node in it.
-   *
-   * Opening and coming forward are one thing: a panel is identified by what it
-   * shows, so asking for a catalog that is already open brings its tab
-   * forward. What is added here is the pointing.
+   * Show the catalog of a connection and point at one node in it. A panel is
+   * identified by what it shows, so asking for one already open brings its tab
+   * forward; the pointing is what this adds.
    */
   revealInCatalog: (connectorId: string, nodeId: string, label: string) => void
   /**
    * The node a catalog has just been asked to point at, or nothing.
    *
-   * A piece of state rather than a call into the panel: the panel may not have
-   * mounted yet — it was opened a moment ago — and a call does not survive
-   * that, while something to watch does.
+   * State to watch and not a call into the panel: the panel may have been
+   * opened a moment ago and not be mounted yet, and a call does not survive
+   * that. Every `…Target` below exists for this reason.
    */
   revealTarget: Readonly<Ref<RevealTarget | null>>
   /**
-   * Take the pointing meant for this connection, if the current one is.
-   *
-   * Taken rather than read: it is acted on once, and a target left behind
-   * would point again at the next thing that made the panel re-render.
+   * Taken rather than read: a target left behind would point again at the next
+   * thing that made the panel re-render. Every `take…` below does the same.
    */
   takeReveal: (connectorId: string) => RevealTarget | null
   openRows: (request: OpenRowsRequest) => void
   /**
-   * Show another table in a tab that is already showing one.
-   *
-   * The sheets of a workbook: the tab keeps its place in the strip, because a
-   * second tab per sheet turns "look at the other one" into housekeeping
-   * (D51). The whole request rather than a new id, because the tab is now
-   * about a different node — what it can be described as and what else it
-   * opens as are that node's, not the old one's. What it is *called* is the
-   * caller's: a tab on a file stays named after the file.
+   * Show another table in a tab already showing one — the sheets of a workbook
+   * (D51). The whole request and not a new id: the tab is now about a different
+   * node, and what it can be described as is that node's. What it is *called*
+   * stays the caller's, so a tab on a file keeps the file's name.
    */
   showInPlace: (panelId: string, request: OpenRowsRequest) => void
   /** Open the source's chosen representation with the matching viewer. */
   openRepresentation: (request: OpenRepresentationRequest) => void
   /**
-   * A console that was just put into the library, in the tab it is already in.
-   *
-   * The panel is named by what it holds, so a console that has become a
-   * document is a different panel with the same place in the strip — the same
-   * move switching a sheet makes (D51), for the same reason: a second tab
-   * would be housekeeping nobody asked for.
+   * A console just put into the library, in the tab it is already in. A panel
+   * is named by what it holds, so this is a different panel keeping the same
+   * place in the strip — the move switching a sheet makes (D51).
    */
   rememberedQuery: (
     panelId: string,
@@ -86,30 +69,15 @@ export interface WorkspaceActions {
   documentTarget: Readonly<Ref<DocumentTarget | null>>
   takeDocumentTarget: (connectorId: string, nodeId: string) => DocumentTarget | null
   /**
-   * Open what a foreign key points at, showing exactly the rows it names.
-   *
-   * The target arrived from the source: its node, as the catalog describes
-   * it, and a predicate built against that node's own columns. Nothing here
-   * composes either one, and nothing takes the id apart (D21).
+   * Open what a foreign key points at. The target arrived from the source —
+   * nothing here composes it and nothing takes the id apart (D21).
    */
   followReference: (request: FollowReferenceCommand) => void
-  /**
-   * The predicate a tab has just been asked to show, or nothing.
-   *
-   * State to watch rather than a call into the panel, for the reason
-   * `revealTarget` is: the tab may have been opened a moment ago and not be
-   * mounted yet.
-   */
+  /** The predicate a tab has just been asked to show, or nothing. */
   followTarget: Readonly<Ref<FollowTarget | null>>
   /** Take the predicate meant for this tab, if this is the tab it named. */
   takeFollow: (connectorId: string, nodeId: string) => FollowTarget | null
-  /**
-   * Open what a link named, with the query the sender was looking at.
-   *
-   * The same two steps as `followReference`, for the same reason: the tab may
-   * already be open, so opening brings it forward and what it is to show is
-   * left where the tab picks it up. See D60.
-   */
+  /** Open what a link named, with the query the sender was looking at (D60). */
   openShared: (request: OpenSharedRequest) => void
   /** The shared view a tab has just been asked to show, or nothing. */
   sharedTarget: Readonly<Ref<SharedTarget | null>>
@@ -117,29 +85,21 @@ export interface WorkspaceActions {
   takeShared: (connectorId: string, nodeId: string) => SharedTarget | null
   openStructure: (request: OpenStructureRequest) => void
   /**
-   * Show one row of a relation on its own, read downwards (D111).
-   *
-   * One panel per relation, and which row it is on is written into it: a
-   * stored layout then restores the tab on the row it was left on, which a
-   * message to a panel could not survive.
+   * One row of a relation, read downwards (D111). One panel per relation, with
+   * the row written into it: a stored layout then restores the tab on the row
+   * it was left on, which a message to a panel could not survive.
    */
   openRecord: (request: OpenRecordRequest) => void
   openRelationships: (request: OpenRelationshipsRequest) => void
   /**
-   * Show what one node is: its facts, and what its format states (D75).
-   *
-   * A panel rather than a window, because it is a read of a source that can
-   * fail, be re-read and be kept open beside the thing it describes.
+   * What one node is: its facts, and what its format states (D75). A panel and
+   * not a window, because it is a read that can fail and be re-read.
    */
   openSummary: (request: OpenSummaryRequest) => void
   /**
-   * Show the library of query documents, filtered to one connection.
-   *
-   * One panel however many connections are open: a query belongs to a person
-   * rather than to a source, and which connections it lists is a filter
-   * inside it rather than a panel each (D65). The command that opens it
-   * belongs to the connection being read (D69), so the connection it was
-   * opened from arrives as that filter; null leaves the library whole.
+   * The library of query documents. One panel however many connections are
+   * open, because a query belongs to a person rather than to a source (D65);
+   * the connection it was opened from arrives as a filter, null for all.
    */
   openQueries: (connectorId: string | null) => void
   /** The connection the library has just been asked to filter to, or nothing. */
@@ -151,20 +111,14 @@ export interface WorkspaceActions {
   /** Open a console on a connection without putting anything in the library. */
   openQueryDraft: (request: OpenQueryDraftRequest) => void
   /**
-   * Give one captured result a panel of its own.
-   *
-   * Two runs are two panels even when their SQL is equal: comparing them is
-   * what the existing split and drag are for (D65).
+   * One captured result, one panel. Two runs are two panels even when their
+   * SQL is equal: comparing them is what the split and drag are for (D65).
    */
   openQueryResult: (request: { resultId: string; title: string; connectorId?: string }) => void
   /**
-   * Put a document's new name on its tab.
-   *
-   * The panel carries the title because a layout restored from storage has to
-   * label its tabs before anything has been read, exactly as a rows tab
-   * carries the name of its node. Renaming therefore has to say so.
-   * Loading also fills in the connector identity for layouts saved without it;
-   * an explicit null clears an identity whose connection has gone away.
+   * Put a document's new name on its tab: the panel carries the title so a
+   * restored layout can label tabs before anything is read. An explicit null
+   * connector clears an identity whose connection has gone away.
    */
   renameQueryDocument: (documentId: string, title: string | null, connectorId?: string | null) => void
   /** Close the tab of a document that has just gone to Trash. */
@@ -172,11 +126,9 @@ export interface WorkspaceActions {
   openChart: (request: OpenChartRequest) => void
   replaceNode: (connectorId: string, replacement: NodeReplacement) => void
   /**
-   * Show the window of one connection, or an empty one for a new connection.
-   *
-   * Owned by the page rather than by the panel that lists connections: that
-   * panel is not rendered while its column is collapsed, and a window inside
-   * it would go with it — which is exactly when the catalog needs to open one.
+   * Owned by the page and not by the panel that lists connections: that panel
+   * is not rendered while its column is collapsed, and a window inside it
+   * would go with it — which is exactly when the catalog needs to open one.
    */
   editConnector: (connectorId: string | null) => void
 }
@@ -186,21 +138,17 @@ export interface RevealTarget {
   connectorId: string
   nodeId: string
   /**
-   * What the node is called, which the catalog cannot work out on its own.
-   *
-   * The id is the source's own string and the catalog never takes one apart,
-   * so a node that has been deleted since the tab was opened has no name left
-   * anywhere else — and "it is gone" is worth saying with the name in it.
+   * What the node is called: the id is the source's own string and is never
+   * taken apart, so a node deleted since the tab was opened has its name
+   * nowhere else, and "it is gone" is worth saying with the name in it.
    */
   label: string
 }
 
 /**
- * What a data tab needs to be opened, which is what it is labelled by.
- *
- * The connection travels with the request rather than being looked up when the
- * tab is drawn: the tab has to name it after a reload too, before the list of
- * connections has been read. See P8.
+ * What a data tab needs to be opened. The connection travels with the request
+ * rather than being looked up when the tab is drawn: after a reload the tab
+ * has to name it before the list of connections has been read.
  */
 export interface OpenRowsRequest {
   connectorId: string
@@ -221,11 +169,9 @@ export interface OpenRowsRequest {
    */
   representations?: NodeRepresentation[]
   /**
-   * The node whose children are the other tables this one is one of.
-   *
-   * A workbook, for a sheet: it opens as its first sheet and holds the rest,
-   * so the tab that opened offers them rather than sending somebody back to
-   * the catalog to walk into a file (D51).
+   * The node whose children are this one's sibling tables — a workbook, for a
+   * sheet — so the tab offers them instead of sending somebody back to the
+   * catalog to walk into a file (D51).
    */
   containerId?: string
 }
@@ -258,10 +204,6 @@ export interface OpenStructureRequest {
   adapterType: string
 }
 
-/**
- * What a details tab needs, which is what a structure tab needs: one node, and
- * the connection that labels the tab before anything has been read (P8).
- */
 export type OpenSummaryRequest = OpenStructureRequest
 
 /** What a grid asks for when somebody presses the arrow in a keyed cell. */
@@ -312,19 +254,11 @@ export interface SharedTarget {
 }
 
 /**
- * One console, and what its tab says while nothing has been read.
- *
- * The title travels for the reason a rows tab carries the name of its node: a
- * layout restored from storage draws its tabs before the first request
- * finishes. A draft has no title, and the tab says so in its own words.
- */
-/**
  * A console to open outside the library.
  *
- * The text is not in this request: it is written into the tab's own storage
- * under `draftId` by whoever opened it, because a panel is kept in the layout
- * and the layout is durable — SQL in it would be the plaintext browser cache
- * D63 forbids.
+ * The text is not in this request: whoever opens it writes it into the tab's
+ * own storage under `draftId`, because the layout is durable and SQL in it
+ * would be the plaintext browser cache D63 forbids.
  */
 export interface OpenQueryDraftRequest {
   draftId: string

@@ -196,6 +196,41 @@ pure-logic split rests on review.
 **Enforced:** `uv run pytest tests/ -q`, `bun run test:unit`,
 `bunx playwright test`.
 
+## Comments
+
+Nobody reads this repository for pleasure. A comment exists to stop the next
+session breaking working code, and it earns its place only three ways:
+
+- **A trap.** Behaviour of the platform or a library that has already cost
+  somebody an afternoon: a narrowing that does not survive into a closure,
+  `KeepAlive` needing a component instance rather than a render function, a
+  pool bound to the loop that created it.
+- **A decision against the obvious alternative.** One sentence on what was
+  rejected and why, so the next reader does not simplify working code back
+  into the bug it was written to avoid.
+- **An invariant that cannot be broken.** Every field added to a stored panel
+  is optional; a `# type: ignore` carries its reason; duplication left in
+  place says why it stays.
+
+Everything else goes. Restating a signature is a second copy of the code that
+is not kept in step. Narrating what the code used to do is what git holds.
+Re-arguing a decision that `docs/architecture/` already argues is a second
+copy of the argument — **name it instead**, `(D112)`, and let the argument live
+once.
+
+**A wrong comment is worse than none**, because it is read as true. Changing
+behaviour means changing the prose around it in the same commit; when that
+feels like too many places to visit, the comment was in too many places.
+
+Write dry. A comment is read every time the code around it is, and its length
+is the price. The voice of this file is not the standard for a line above a
+function.
+
+**Enforced:** `bash scripts/check-docs.sh` fails on a `D…` named in code that
+is not in the AGENTS.md table, so the short form cannot rot into a wrong
+statement; verified by naming a decision that does not exist. That a comment
+earns its place at all rests on review.
+
 ## Documentation of decisions
 
 - A decision that shaped the code is written down three times over, each shorter
@@ -239,7 +274,7 @@ the way to a green run.
 | `bun run lint` | frontend style, stores not reaching the API | works |
 | `bun run test:unit` | pure frontend logic | works |
 | `bunx playwright test` | end-to-end, needs db + backend + dev server | works |
-| `bash scripts/check-docs.sh` | doc links, each decision in the file the registry names and naming its spec, no orphan architecture file, AGENTS.md and per-file size | works |
+| `bash scripts/check-docs.sh` | doc links, each decision in the file the registry names and naming its spec, every decision named in code existing at all, no orphan architecture file, AGENTS.md and per-file size | works |
 
 A change is ready when every command touching the affected side is clean. That
 is necessary, not sufficient: it says nothing about whether the thing asked for

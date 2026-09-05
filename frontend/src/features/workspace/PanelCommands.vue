@@ -11,21 +11,11 @@ import { useReloadRegistry } from "./reloadable"
 import { workspaceActionsKey } from "./state"
 
 /**
- * What a panel offers about itself, at the end of its own row of commands.
+ * What a panel offers about itself, at the end of its own row of commands
+ * (D112): the way back to its node in the catalog, and re-reading.
  *
- * Two things that used to be drawn by the chrome around a panel rather than by
- * the panel: the way back to the node in the catalog, which was a click on the
- * icon of the tab, and re-reading, which was a second button on the tab. Both
- * are commands about what the panel is showing, so they sit where every other
- * such command sits (D112).
- *
- * The way out of a window is not one of them. It is about the frame rather
- * than about the rows, so it stands with minimize and close in the window's
- * own bar — which is also where somebody looks for it.
- *
- * A panel mounted outside the workspace — every panel has a unit test that
- * does exactly that — has no tab to return to and no look to read, so this
- * draws nothing at all there rather than half of itself.
+ * Draws nothing when mounted outside the workspace, which every panel's own
+ * unit test does: there is no look to read there.
  */
 const props = defineProps<{
   panelId: string
@@ -59,26 +49,15 @@ const reloadTooltip = computed(() =>
   workspace === null ? undefined : workspace.lookOf(props.panelId).reloadTooltip
 )
 
-/**
- * Whether what is on screen is the read itself or something kept.
- *
- * Counted against the clock rather than fixed when the page arrived: an answer
- * read four minutes ago is not live any more, whatever the server said at the
- * time — and that is the case that made somebody press reload out of doubt.
- */
+/** Counted against the clock, not fixed when the page arrived: see isLive. */
 const now = useNow()
 const live = computed(
   () => props.freshness !== undefined && isLive(props.freshness, now.value)
 )
 
 /**
- * How old this is, and how long this connection keeps an answer.
- *
- * The mark beside the reload says which of the two states it is in; how old,
- * exactly, is a question rather than a glance, and the answer is on hovering
- * the mark itself. Written on the button it would make a command whose width
- * follows the age of a page, and a row of buttons is read by where its buttons
- * are (D105).
+ * How old this is. Never drawn in the row: a control whose width follows the
+ * age of a page moves while the row is being read (D105).
  */
 const freshnessSays = computed(() =>
   props.freshness === undefined
@@ -86,7 +65,6 @@ const freshnessSays = computed(() =>
     : freshnessTooltip(props.freshness, props.cacheTtlSeconds, now.value)
 )
 
-/** The button's own words: how old this is, then what pressing it does. */
 const reloadSays = computed(() => {
   const command = reloadTooltip.value ?? ""
   if (props.freshness === undefined) return command
@@ -120,9 +98,7 @@ function showInCatalog() {
     v-if="workspace !== null"
     class="panel-commands"
   >
-    <!-- Always the same button. What stands beside it changes; the button
-         itself does not move, does not change width and does not change what
-         pressing it does. -->
+    <!-- The button never changes; only the mark beside it does. -->
     <span
       v-if="reloadTooltip"
       class="panel-commands__reload"
@@ -135,11 +111,10 @@ function showInCatalog() {
         data-testid="panel-reload"
         @click="reload"
       />
-      <!-- Beside the button and above it, in the flow and not over it: room of
-           its own, so nothing is drawn on top of the arrow and nothing after
-           it moves. One width for both states, so the row does not shift when
-           a read stops being live. Only where the source keeps anything —
-           where it does not, an answer cannot be older than the read (D105). -->
+      <!-- In the flow and not over the button: room of its own, one width in
+           both states, so nothing is drawn on the arrow and nothing moves when
+           a read stops being live. Absent where the source keeps nothing, as
+           an answer cannot then be older than the read (D105). -->
       <span
         v-if="freshness"
         class="panel-commands__freshness"
@@ -171,7 +146,6 @@ function showInCatalog() {
 .panel-commands {
   display: contents;
 }
-/* The mark rides at the top of the button rather than beside its middle. */
 .panel-commands__reload {
   display: inline-flex;
   align-items: flex-start;
@@ -182,16 +156,14 @@ function showInCatalog() {
   align-items: center;
   justify-content: flex-start;
   gap: 2px;
-  /* One width whichever state it is in, so the row does not move at the moment
-     a read stops being live. */
+  /* One width in both states, so the row does not move. */
   min-width: 24px;
   margin: 3px 0 0 1px;
   color: var(--dp-text-muted);
   font-size: 9px;
   line-height: 1;
   white-space: nowrap;
-  /* A label and not a control: hovering it answers how old this is, pressing
-     it does nothing, and it never looks like it would. */
+  /* A label, not a control: it presses to nothing and must not look otherwise. */
   cursor: default;
 }
 .panel-commands__freshness--live {

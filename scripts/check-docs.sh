@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Six assertions about the documentation:
+# Seven assertions about the documentation:
 #
 #   1. every relative link in a tracked .md file resolves to something that
 #      exists;
@@ -21,7 +21,11 @@
 #      every file under docs/architecture/ and the roadmap. This is the ceiling
 #      adapters.md never had, and it reached 114 KB;
 #   6. no file under docs/architecture/ is an orphan — something in AGENTS.md
-#      or in another architecture file links to it.
+#      or in another architecture file links to it;
+#   7. every decision the code names in a comment exists in the AGENTS.md
+#      table. Pointing at a decision is how a comment stays short: the
+#      argument lives once, in docs/architecture/, and the code names it.
+#      That only works while the name resolves.
 #
 set -euo pipefail
 
@@ -122,6 +126,22 @@ while IFS= read -r id; do
 done < <(printf '%s\n' "$documented" | awk '{ print $1 }')
 
 
+# 7. Decisions named in code -------------------------------------------------
+
+# Skips the generated client, which has no comments of ours in it.
+named_in_code=$(git ls-files --cached --others --exclude-standard \
+    'frontend/src/*.ts' 'frontend/src/*.vue' 'backend/app/*.py' |
+    grep -v '^frontend/src/client/' |
+    xargs grep -hoE '\bD[0-9]{1,3}[a-z]?\b' 2>/dev/null | sort -u || true)
+
+while IFS= read -r id; do
+    [ -n "$id" ] || continue
+    case " $listed " in
+        *" $id "*) ;;
+        *) note "the code names decision $id, which is not in the AGENTS.md table" ;;
+    esac
+done < <(printf '%s\n' "$named_in_code")
+
 # 3. AGENTS.md size ----------------------------------------------------------
 
 # Carriage returns are stripped before counting: a Windows working tree holds
@@ -176,7 +196,7 @@ while IFS= read -r file; do
 done < <(architecture_files)
 
 if [ "$failed" -eq 0 ]; then
-    printf 'docs ok: links resolve, decisions sit where the table says, every decision names a spec, AGENTS.md is %s of %s bytes\n' "$size" "$AGENTS_BUDGET"
+    printf 'docs ok: links resolve, decisions sit where the table says and where the code names them, every decision names a spec, AGENTS.md is %s of %s bytes\n' "$size" "$AGENTS_BUDGET"
 fi
 
 exit "$failed"

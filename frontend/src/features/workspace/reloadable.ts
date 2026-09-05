@@ -2,15 +2,10 @@ import { inject, onUnmounted, provide } from "vue"
 import type { InjectionKey } from "vue"
 
 /**
- * Who knows how to re-read a panel.
+ * Who knows how to re-read a panel: the panel, which registers here by id.
  *
- * The tab strip offers the button; what pressing it means belongs to the panel
- * — the connections list re-fetches a query, the catalog re-reads the level it
- * is standing on, the grid re-runs the page it is showing. So a panel says how,
- * and this holds the answers by panel id.
- *
- * Not component instance refs held by the engine: that would tie the engine to
- * the insides of panels, which is the thing D12 exists to prevent.
+ * Not component instance refs held by the engine — that would tie the engine
+ * to the insides of panels, which is what D12 exists to prevent.
  */
 export type Reload = () => Promise<void> | void
 
@@ -50,24 +45,14 @@ export function provideReloadRegistry(registry: ReloadRegistry) {
   provide(reloadRegistryKey, registry)
 }
 
-/**
- * The registry itself, for whoever presses the button.
- *
- * The button lives in the panel's own row of commands (D112), so the thing
- * that presses it is mounted inside the panel that registered the answer.
- * Null outside the workspace page — a panel mounted on its own in a test has
- * nothing to press.
- */
+/** Null outside the workspace page: a panel mounted alone has nothing to press. */
 export function useReloadRegistry(): ReloadRegistry | null {
   return inject(reloadRegistryKey, null)
 }
 
 /**
- * Say how this panel is re-read, for as long as it exists.
- *
- * Called from the panel's own setup. Panels are kept alive when their tab is
- * not showing, so the registration survives switching away and back; it goes
- * when the panel really goes.
+ * Called from the panel's own setup. A panel is kept alive while its tab is
+ * not showing, so the registration survives switching away and back.
  */
 export function useReloadable(panelId: string, reload: Reload) {
   const registry = inject(reloadRegistryKey, null)
