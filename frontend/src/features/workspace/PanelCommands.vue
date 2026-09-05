@@ -13,12 +13,15 @@ import { workspaceActionsKey } from "./state"
 /**
  * What a panel offers about itself, at the end of its own row of commands.
  *
- * Three things that used to be drawn by the chrome around a panel rather than
- * by the panel: the way back to the node in the catalog, which was a click on
- * the icon of the tab; re-reading, which was a second button on the tab; and
- * the way out of a window, which was a strip of its own above a panel that
- * already draws a row of buttons. All three are commands about what the panel
- * is showing, so they sit where every other such command sits (D112).
+ * Two things that used to be drawn by the chrome around a panel rather than by
+ * the panel: the way back to the node in the catalog, which was a click on the
+ * icon of the tab, and re-reading, which was a second button on the tab. Both
+ * are commands about what the panel is showing, so they sit where every other
+ * such command sits (D112).
+ *
+ * The way out of a window is not one of them. It is about the frame rather
+ * than about the rows, so it stands with minimize and close in the window's
+ * own bar — which is also where somebody looks for it.
  *
  * A panel mounted outside the workspace — every panel has a unit test that
  * does exactly that — has no tab to return to and no look to read, so this
@@ -90,11 +93,6 @@ const reloadSays = computed(() => {
   return `${freshnessSays.value} ${command}.`
 })
 
-/** In a window of its own, and so with a way back to offer. */
-const detached = computed(
-  () => workspace?.detached.value.some((one) => one.panelId === props.panelId) === true
-)
-
 const reloading = ref(false)
 
 async function reload() {
@@ -105,10 +103,6 @@ async function reload() {
   } finally {
     reloading.value = false
   }
-}
-
-function dockHere() {
-  workspace?.dock(props.panelId)
 }
 
 function showInCatalog() {
@@ -126,9 +120,9 @@ function showInCatalog() {
     v-if="workspace !== null"
     class="panel-commands"
   >
-    <!-- First of the three, and always the same button. What stands beside it
-         changes; the button itself does not move, does not change width and
-         does not change what pressing it does. -->
+    <!-- Always the same button. What stands beside it changes; the button
+         itself does not move, does not change width and does not change what
+         pressing it does. -->
     <span
       v-if="reloadTooltip"
       class="panel-commands__reload"
@@ -169,17 +163,6 @@ function showInCatalog() {
       aria-label="Show in catalog"
       data-testid="panel-reveal"
       @click="showInCatalog"
-    />
-    <!-- Last, so that tearing a panel off and putting it back does not move
-         the buttons beside it: this one appears and disappears at the end of
-         the row rather than in front of the others. -->
-    <AppIconButton
-      v-if="detached"
-      icon="tab"
-      tooltip="Return to panel"
-      aria-label="Return to panel"
-      data-testid="dock-panel"
-      @click="dockHere"
     />
   </span>
 </template>

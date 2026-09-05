@@ -451,19 +451,22 @@ Spec: [Saved tab groups](../superpowers/specs/2026-09-04-tab-groups-design.md)
 ## D112. What a panel offers about itself lives in the panel's row of commands
 
 A tab says what a panel is; it does not act on it. Showing the panel's node in
-the catalog, re-reading the panel and returning it from a window are commands
-about what the panel shows, so all three stand at the end of the row of buttons
-the panel already draws. A panel with no such row gains a thin one; a panel
-whose row belongs to a grid receives them through a forwarded slot.
+the catalog and re-reading the panel are commands about what the panel shows,
+so both stand at the end of the row of buttons the panel already draws. A panel
+with no such row gains a thin one; a panel whose row belongs to a grid receives
+them through a forwarded slot.
 
-Reload comes first of the three, Return to panel last. Show in catalog is
-drawn only for a panel that is a view of one node, and is absent — not
-disabled — everywhere else: a chart is drawn from a page of rows,
+Reload comes first, and says in the panel's own words what re-reading it means.
+Show in catalog follows, drawn only for a panel that is a view of one node and
+absent — not disabled — everywhere else: a chart is drawn from a page of rows,
 a diagram from several nodes at once, a console is written against a connection
-and a captured result names no node of any source. Reload says in the panel's
-own words what re-reading it means. Return to panel is drawn only while the
-panel is in a window of its own, so detaching and docking move nothing that
-was already there.
+and a captured result names no node of any source.
+
+Returning a detached panel is not one of them. It is about the frame rather
+than about what the frame holds, so it stands in the window's own bar beside
+minimize, maximize and close, where somebody looks for it. A window may declare
+commands of its own for exactly this; the window engine knows the icon, the
+words and what to call, and nothing about panels.
 
 A small mark rides above the reload where there is anything to report:
 "Live" while the answer is the read, a clock once it is one that was kept

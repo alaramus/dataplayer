@@ -169,10 +169,8 @@ describe("moving a live panel between the workspace and a window", () => {
     await flushPromises()
     expect(body.findAll('[role="dialog"]')).toHaveLength(1)
     expect(floating.get('input[aria-label="Draft p2"]').element).toBe(input.element)
-    // The way back is a button in the panel's own row of commands now (D112),
-    // and the panel here is a stand-in with no row, so the engine is asked
-    // directly — what that button does is covered by PanelCommands.spec.ts.
-    workspace.context.dock("p2")
+    // The way back is a command of the frame, beside minimize and close (D112).
+    await floating.get('[data-testid="dock-panel"]').trigger("click")
     await flushPromises()
     expect(body.findAll('[role="dialog"]')).toHaveLength(0)
     expect(body.get('[data-testid="workspace-leaf-work"] input').element).toBe(input.element)

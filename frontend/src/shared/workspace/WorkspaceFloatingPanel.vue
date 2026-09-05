@@ -4,11 +4,11 @@ import WorkspacePanelTarget from "./WorkspacePanelTarget.vue"
 /**
  * The body of a window a panel was torn off into.
  *
- * Nothing but the panel. There used to be a strip of commands above it —
- * the way back, the panel's icon and a reload — and it was a second row of
- * buttons over a panel that already draws one. All three moved into that row,
- * where a detached panel offers the way back beside everything else it offers
- * (D112).
+ * Nothing but the panel. There used to be a strip of commands above it — the
+ * way back, the panel's icon and a reload — and it was a second row of buttons
+ * over a panel that already draws one. The two that are about what the panel
+ * shows moved into that row; the way back is about the frame, so it stands in
+ * the window's own bar with minimize and close (D112).
  */
 defineProps<{ panelId: string; targetId: string; minimized: boolean }>()
 </script>

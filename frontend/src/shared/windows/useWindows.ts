@@ -32,11 +32,35 @@ export interface WindowLook {
   color?: string | null
 }
 
+/**
+ * One command of a window's own, drawn in its bar beside the size controls.
+ *
+ * What a window *is* rather than what it holds: returning a detached panel to
+ * the workspace belongs with minimize, maximize and close, because all four
+ * are about the frame and none of them is about the rows inside it. The engine
+ * knows only the icon, the words and what to call — which feature supplies it
+ * and what pressing it does are none of its business (D112).
+ */
+export interface WindowAction {
+  icon: string
+  tooltip: string
+  /** How a test addresses it; the window's own id is appended by the frame. */
+  testid?: string
+  run: () => void
+}
+
 export interface OpenWindow {
   id: string
   look: WindowLook
   size: Size
   component: Component
+  /**
+   * Commands of this window's own, before the size controls in its bar.
+   *
+   * Read on every render, so a closure over a ref stays right when what the
+   * window shows is replaced.
+   */
+  actions?: WindowAction[]
   /** Follow rendered content size until the user manually resizes the window. */
   autoFit?: boolean
   minSize?: Size

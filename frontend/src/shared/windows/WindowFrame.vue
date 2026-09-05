@@ -163,6 +163,20 @@ const resizeEdges: ResizeEdge[] = [
         @pointerdown.stop
         @dblclick.stop
       >
+        <!-- What this window can do about itself, before what every window
+             can do about itself. A detached panel's way back is here rather
+             than in the panel's own row of commands: it is about the frame,
+             the way minimize and close are, and not about what is inside it
+             (D112). -->
+        <AppIconButton
+          v-for="action in window.actions ?? []"
+          :key="action.icon"
+          :icon="action.icon"
+          :tooltip="action.tooltip"
+          :aria-label="action.tooltip"
+          :data-testid="action.testid"
+          @click="action.run()"
+        />
         <AppIconButton
           icon="minimize"
           tooltip="Minimize"

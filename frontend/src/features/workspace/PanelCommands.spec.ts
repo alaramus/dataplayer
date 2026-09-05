@@ -18,10 +18,11 @@ import type { WorkspaceActions } from "./state"
 /**
  * The row of commands a panel keeps about itself (D112).
  *
- * Three things the chrome around a panel used to draw: the way back to the
- * node in a catalog, which was a click on the icon of the tab; the re-read,
- * which was a second button on the tab; and the way out of a window, which was
- * a strip of its own above a panel that already draws a row of buttons.
+ * Two things the chrome around a panel used to draw: the way back to the node
+ * in a catalog, which was a click on the icon of the tab, and the re-read,
+ * which was a second button on the tab. The way out of a window is not here —
+ * it is about the frame rather than about the rows, and stands in the window's
+ * own bar with minimize and close.
  *
  * The re-read also absorbed the freshness badge, which stood beside it as a
  * control of its own and re-read the source when pressed, so the row held the
@@ -253,22 +254,17 @@ describe("PanelCommands", () => {
     expect(read).toHaveBeenCalledTimes(1)
   })
 
-  it("offers the way back only while the panel is in a window of its own", async () => {
-    const dock = vi.fn()
-    expect(mountCommands({ context: { dock } }).find('[data-testid="dock-panel"]').exists()).toBe(
-      false
-    )
-
+  it("leaves the way out of a window to the window", () => {
+    // Detached or docked, this row says nothing about the frame: returning a
+    // panel stands with minimize and close, where somebody looks for it.
     const floating = mountCommands({
       context: {
-        dock,
         detached: ref([
           { panelId: "p1", leafId: "work", at: 0, accepts: "work", fallbackLeafId: "work" },
         ]),
       },
     })
-    await floating.get('[data-testid="dock-panel"]').trigger("click")
 
-    expect(dock).toHaveBeenCalledWith("p1")
+    expect(floating.find('[data-testid="dock-panel"]').exists()).toBe(false)
   })
 })

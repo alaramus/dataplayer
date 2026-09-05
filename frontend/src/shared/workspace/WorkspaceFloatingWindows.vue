@@ -60,6 +60,14 @@ if (windows !== undefined && targets !== undefined) {
         })
         manager.open({
           id: windowId, look: entry.look, component,
+          // The way back sits with the other things this frame can do to
+          // itself, rather than inside the panel it holds (D112).
+          actions: [{
+            icon: "tab",
+            tooltip: "Return to panel",
+            testid: "dock-panel",
+            run: () => { props.context.dock(panelId.value) },
+          }],
           size: { width: 960, height: 640 }, minSize: { width: 360, height: 240 }, autoFit: false,
           beforeClose: async () => {
             await props.context.requestClose(panelId.value)

@@ -82,4 +82,42 @@ describe("the window frame and footer manager", () => {
       wrapper.unmount()
     }
   })
+
+  it("draws a window's own command before the ones every window has", async () => {
+    // Returning a detached panel to the workspace is about the frame, the way
+    // minimize and close are, so a feature declares it here rather than
+    // drawing a second row of buttons inside the window (D112).
+    const run = vi.fn()
+    const Root = defineComponent({
+      setup() {
+        const windows = useWindows()
+        windows.open({
+          id: "held",
+          look: { title: "Orders" },
+          size: { width: 300, height: 200 },
+          component: defineComponent({ setup: () => () => h("div", "rows") }),
+          autoFit: false,
+          actions: [
+            { icon: "tab", tooltip: "Return to panel", testid: "dock-panel", run },
+          ],
+        })
+        return () => h("main", [h(WindowHost, { context: windows.context })])
+      },
+    })
+    const wrapper = mount(Root, { attachTo: document.body, global: { plugins: [Quasar] } })
+    try {
+      const frame = new DOMWrapper(
+        document.body.querySelector<HTMLElement>('[data-testid="window-held"]')!
+      )
+      const buttons = frame.findAll('[data-testid="window-bar-held"] button')
+      const labels = buttons.map((button) => button.attributes("aria-label"))
+
+      expect(labels).toEqual(["Return to panel", "Minimize", "Maximize", "Close window"])
+
+      await frame.get('[data-testid="dock-panel"]').trigger("click")
+      expect(run).toHaveBeenCalledOnce()
+    } finally {
+      wrapper.unmount()
+    }
+  })
 })

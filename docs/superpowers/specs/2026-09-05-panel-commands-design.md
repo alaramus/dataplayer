@@ -34,19 +34,25 @@ the dead press described above, now with a label.
 Everything a panel offers about what it is showing lives in the panel's own row
 of commands. The tab says what the panel is; it does not act on it.
 
-That gives each of the three a place:
+That gives each of them a place:
 
-- **Reload** — first of the three, saying in the panel's own words what
-  re-reading means: "Re-read this table", "Re-read this level", "Reload the
-  list of connections". First so that the freshness badge has a fixed place
-  against it; see the last section.
+- **Reload** — first, saying in the panel's own words what re-reading means:
+  "Re-read this table", "Re-read this level", "Reload the list of connections".
+  First so that the freshness mark has a fixed place against it; see the last
+  section.
 - **Show in catalog** — a crosshair, for a panel that is a view of one node. A
   panel that is a view of no node draws no button rather than one that does
   nothing. Which panels those are is decided by whether they can name a
   connection and a node, not by a list of kinds.
-- **Return to panel** — only while the panel is in a window of its own. Last of
-  the three, so tearing a panel off and putting it back does not move the
-  buttons beside it.
+
+**Returning a detached panel is not one of them**, and the first attempt put it
+there. It reads as a command of the panel only until it is next to one: the row
+holds what this table can do, and "put this window back" is not about the
+table. It went to the window's bar, beside minimize, maximize and close — the
+three other things that are about the frame — where somebody looks for it
+without being told. `OpenWindow` gained an optional list of actions for it, so
+the window engine learned that a frame may carry a command of its own and
+nothing at all about panels.
 
 The one thing left on a tab is the icon of a catalog, which opens the connection
 behind it. It stays because it is not a command about what the panel shows: the
