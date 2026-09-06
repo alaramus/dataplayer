@@ -1488,7 +1488,11 @@ defineExpose({
   border: 0;
   background: none;
   cursor: pointer;
-  z-index: var(--dp-layer-sticky);
+  /* No layer of its own. It is content of one cell and has only to sit over
+     that cell's value, which nothing positioned needs a z-index for — and
+     with one it tied with the pinned column beside it, so the mark of a
+     column scrolled underneath was drawn on top of the column that is
+     supposed to hide it. */
 }
 
 .data-grid__follow::after {

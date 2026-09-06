@@ -66,3 +66,56 @@ test("draws no way out of a cell with nothing in it", async ({ page }) => {
 
   await deleteConnector(page, name)
 })
+
+test("keeps a key's corner mark under the column pinned over it", async ({
+  page,
+}) => {
+  // Only a browser answers this. The mark and a pinned column were on the same
+  // layer, so the one later in the row won: the mark of a column scrolled
+  // underneath was drawn on top of the column that is there to hide it.
+  const name = `e2e-reference-pinned-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "projects")
+  await expect(
+    page.getByTestId("grid-follow-0-projects_organization_id_fkey")
+  ).toBeVisible()
+
+  await page.getByTestId("grid-pin-name").click()
+  const scroll = page.locator(".data-grid__scroll").first()
+  await expect(scroll.locator("td.data-grid__pinned").first()).toBeVisible()
+
+  // Put the mark exactly behind the pinned column, wherever the two are.
+  await scroll.evaluate((box) => {
+    const mark = box.querySelector(
+      '[data-testid="grid-follow-0-projects_organization_id_fkey"]'
+    )
+    const pinned = box.querySelector("td.data-grid__pinned")
+    if (mark === null || pinned === null) throw new Error("nothing to line up")
+    const one = mark.getBoundingClientRect()
+    const other = pinned.getBoundingClientRect()
+    box.scrollLeft += one.left + one.width / 2 - (other.left + other.width / 2)
+  })
+  await expect.poll(() => scroll.evaluate((box) => box.scrollLeft)).toBeGreaterThan(0)
+
+  const painted = await page.evaluate(() => {
+    const mark = document.querySelector(
+      '[data-testid="grid-follow-0-projects_organization_id_fkey"]'
+    )
+    const pinned = document.querySelector("td.data-grid__pinned")
+    if (mark === null || pinned === null) return "nothing to look at"
+    const one = mark.getBoundingClientRect()
+    const other = pinned.getBoundingClientRect()
+    const x = one.left + one.width / 2
+    const y = one.top + one.height / 2
+    if (x < other.left || x > other.right || y < other.top || y > other.bottom) {
+      return "the mark did not end up behind the pinned column"
+    }
+    return document.elementFromPoint(x, y)?.closest("td")?.className ?? "nothing"
+  })
+  expect(painted).toContain("data-grid__pinned")
+
+  await deleteConnector(page, name)
+})
