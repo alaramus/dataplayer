@@ -50,6 +50,8 @@ import {
   useUpdateCells,
 } from "./api"
 import AutoRefreshButton from "./AutoRefreshButton.vue"
+import { NOT_OFFERED, NOT_YET, tipOf } from "./toolbar"
+import type { Unavailable } from "./toolbar"
 import {
   loadRefreshSeconds,
   refreshHeldBy,
@@ -1010,6 +1012,56 @@ function offers(command: PageCommand): boolean {
 }
 
 /**
+ * Why each command of this row is off, or null while it is not.
+ *
+ * Every one of them was a `v-if` until now: a command the source cannot do
+ * simply was not drawn, so the row changed shape between a table and a file
+ * and no button had a place a person could learn. They are all disabled with
+ * a sentence instead — the answer the command bar already gives (D69).
+ *
+ * The order inside each is the order of the answers: what the source will
+ * never do outranks what is merely missing this second, because "tick a row"
+ * under a button that will never delete anything is a lie.
+ */
+const chartReason = computed<Unavailable>(() => {
+  if (!offers("chart")) return NOT_OFFERED.chart
+  return visibleGridColumns.value.length === 0 ? NOT_YET.noColumns : null
+})
+
+const downloadReason = computed<Unavailable>(() => {
+  if (!offers("download")) return NOT_OFFERED.download
+  return visibleGridColumns.value.length === 0 ? NOT_YET.noColumns : null
+})
+
+const keepReason = computed<Unavailable>(() => {
+  if (!offers("create_relation")) return NOT_OFFERED.keep
+  if (result.value === undefined) return NOT_YET.reading
+  return result.value.columns.length === 0 ? NOT_YET.noColumns : null
+})
+
+const importReason = computed<Unavailable>(() => {
+  if (result.value?.insert_supported !== true) return NOT_OFFERED.import
+  return importColumns.value.length === 0 ? NOT_OFFERED.import : null
+})
+
+const insertReason = computed<Unavailable>(() => {
+  if (result.value?.insert_supported !== true) return NOT_OFFERED.insert
+  return canInsert.value ? null : NOT_YET.reading
+})
+
+/** Taken as a function: what may be pasted is the grid's own selection. */
+function pasteReason(canCopy: boolean): Unavailable {
+  if (result.value?.update_supported !== true) return NOT_OFFERED.paste
+  return canCopy ? null : NOT_YET.noSelection
+}
+
+function deleteReason(selected: readonly number[]): Unavailable {
+  if (result.value?.delete_supported !== true) return NOT_OFFERED.remove
+  return canDeleteRows([...selected]) ? null : NOT_YET.noRowsPicked
+}
+
+
+/**
  * What one source-declared command over rows would be given (D70).
  *
  * Nothing here knows what a command means: which column names a row came
@@ -1126,94 +1178,94 @@ defineExpose({
     @visible-columns="visibleGridColumns = $event"
     @selection="selectedRows = $event"
   >
-    <template
-      #commands="{
-        canCopy,
-        selectedRowIndexes,
-        visibleColumns,
-        requestPaste,
-      }"
-    >
-      <AutoRefreshButton
-        v-if="result !== undefined"
-        :seconds="refreshSeconds"
-        :held="refreshHeld"
-        @update:seconds="chooseRefresh"
+    <!-- Read as something else: each of these opens a tab of its own on the
+         same rows, which is what puts them together. -->
+    <template #commands-open="{ visibleColumns }">
+      <AppIconButton
+        icon="account_tree"
+        :tooltip="tipOf('Structure', canDescribe ? null : NOT_OFFERED.structure)"
+        :disable="!canDescribe"
+        data-testid="grid-structure"
+        @click="emit('describe')"
       />
       <AppIconButton
-        v-if="canInsert && importColumns.length > 0"
-        icon="input"
-        tooltip="Bring rows in"
-        data-testid="grid-import"
-        @click="openImport"
+        icon="terminal"
+        :tooltip="tipOf('Open as a query', canQuery && offers('query') ? null : NOT_OFFERED.query)"
+        :disable="!(canQuery && offers('query'))"
+        data-testid="grid-query"
+        @click="emit('query')"
       />
       <AppIconButton
-        v-if="result?.update_supported === true"
-        icon="content_paste"
-        tooltip="Paste into the selection"
-        :disable="!canCopy"
-        data-testid="grid-paste"
-        @click="requestPaste"
+        icon="code"
+        :tooltip="contentTitle ?? tipOf('Open as a document', NOT_OFFERED.document)"
+        :disable="!contentTitle"
+        data-testid="grid-content"
+        @click="emit('content')"
       />
       <AppIconButton
-        v-if="offers('download') && visibleColumns.length > 0"
+        icon="insert_chart"
+        :tooltip="tipOf('Charts', chartReason)"
+        :disable="chartReason !== null"
+        data-testid="grid-charts"
+        @click="openChart(visibleColumns)"
+      />
+    </template>
+
+    <!-- Out of the grid: a clipboard, a file, a link, a relation of its own.
+         None of them writes to the source. -->
+    <template #commands-out="{ visibleColumns }">
+      <AppIconButton
         icon="download"
-        tooltip="Download"
-        :disable="writingOut"
+        :tooltip="tipOf('Download', downloadReason)"
+        :disable="downloadReason !== null || writingOut"
         :loading="writingOut"
         data-testid="grid-download"
         @click="openDownload(visibleColumns)"
       />
       <AppIconButton
-        v-if="offers('share')"
         icon="share"
-        tooltip="Share this view"
+        :tooltip="tipOf('Share this view', offers('share') ? null : NOT_OFFERED.share)"
+        :disable="!offers('share')"
         data-testid="grid-share"
         @click="shareOpen = true"
       />
       <AppIconButton
-        v-if="offers('chart') && visibleColumns.length > 0"
-        icon="insert_chart"
-        tooltip="Charts"
-        data-testid="grid-charts"
-        @click="openChart(visibleColumns)"
-      />
-      <AppIconButton
-        v-if="offers('create_relation') && result !== undefined && result.columns.length > 0"
         icon="post_add"
-        tooltip="Keep these rows as a new table or file"
+        :tooltip="tipOf('Keep these rows as a new table or file', keepReason)"
+        :disable="keepReason !== null"
         data-testid="grid-create-table"
         @click="openCreateTable"
       />
+    </template>
+
+    <!-- Everything that writes to the source, and nothing else. Apart from
+         the rest by a rule, which is half the reason the groups exist. -->
+    <template
+      #commands-write="{
+        canCopy,
+        selectedRowIndexes,
+        requestPaste,
+      }"
+    >
       <AppIconButton
-        v-if="contentTitle"
-        icon="code"
-        :tooltip="contentTitle"
-        data-testid="grid-content"
-        @click="emit('content')"
+        icon="content_paste"
+        :tooltip="tipOf('Paste into the selection', pasteReason(canCopy))"
+        :disable="pasteReason(canCopy) !== null"
+        data-testid="grid-paste"
+        @click="requestPaste"
       />
       <AppIconButton
-        v-if="canQuery && offers('query')"
-        icon="terminal"
-        tooltip="Open as a query"
-        data-testid="grid-query"
-        @click="emit('query')"
+        icon="input"
+        :tooltip="tipOf('Bring rows in', importReason)"
+        :disable="importReason !== null"
+        data-testid="grid-import"
+        @click="openImport"
       />
-      <AppIconButton
-        v-if="canDescribe"
-        icon="account_tree"
-        tooltip="Structure"
-        data-testid="grid-structure"
-        @click="emit('describe')"
-      />
-      <span
-        v-if="result?.insert_supported === true"
-        data-testid="grid-insert-command"
-      >
+      <span data-testid="grid-insert-command">
         <AppIconButton
           icon="add"
-          tooltip="Insert row"
-          :disable="!canInsert"
+          :tooltip="tipOf('Insert row', insertReason)"
+          :disable="insertReason !== null"
           data-testid="grid-insert"
           @click="openInsert"
         />
@@ -1239,27 +1291,33 @@ defineExpose({
         </AppButton>
       </span>
 
-      <span
-        v-if="result?.delete_supported === true"
-        data-testid="grid-delete-command"
-      >
+      <span data-testid="grid-delete-command">
         <AppIconButton
           icon="remove"
-          :tooltip="
+          :tooltip="tipOf(
             selectedRowIndexes.length > 0
               ? `Delete ${selectedRowIndexes.length} selected rows`
-              : 'Delete selected rows'
-          "
-          :disable="!canDeleteRows(selectedRowIndexes)"
+              : 'Delete selected rows',
+            deleteReason(selectedRowIndexes)
+          )"
+          :disable="deleteReason(selectedRowIndexes) !== null"
           data-testid="grid-delete"
           @click="deleteSelection(selectedRowIndexes)"
         />
       </span>
+    </template>
 
-      <!-- Forwarded rather than filled, for the reason the pager's row is:
-           what a panel offers about itself — the way back to its node, a
-           re-read, the way out of a window — is the tab's business and not
-           the grid's, and it goes at the end of the row (D112). -->
+    <!-- About the tab rather than about the rows: how often it re-reads
+         itself, the way back to its node, the way out of a window (D112). The
+         auto-refresh belongs to this grid and the rest is forwarded, so this
+         is the one group with two owners. -->
+    <template #commands-tab>
+      <AutoRefreshButton
+        :seconds="refreshSeconds"
+        :held="refreshHeld"
+        :disable="result === undefined"
+        @update:seconds="chooseRefresh"
+      />
       <slot name="commands-end" />
     </template>
 

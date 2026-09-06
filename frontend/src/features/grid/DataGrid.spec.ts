@@ -143,10 +143,12 @@ describe("the basic data grid", () => {
     })
   })
 
-  it("draws only the commands the source offers over this page", async () => {
+  it("greys the commands the source withdraws over this page, and keeps them", async () => {
     // A report is the server describing what it is doing, not data somebody
     // is keeping, so it withdraws everything that would take a copy of the
-    // page away (D72). The grid is told, not asked to work it out.
+    // page away (D72). The grid is told, not asked to work it out — and what
+    // is withdrawn stays in its place, greyed, rather than leaving a row of a
+    // different shape behind it.
     vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({
       data: { ...result(0, 2), page_commands: [] },
     } as never)
@@ -160,11 +162,29 @@ describe("the basic data grid", () => {
       "grid-create-table",
       "grid-query",
     ]) {
-      expect(wrapper.find(`[data-testid="${command}"]`).exists()).toBe(false)
+      const button = wrapper.get(`[data-testid="${command}"]`)
+      expect(button.attributes("disabled")).toBeDefined()
     }
     // What is left is what reading the page needs.
-    expect(wrapper.find('[data-testid="grid-filter"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="grid-filter"]').attributes("disabled")).toBeUndefined()
     expect(wrapper.find('[data-testid="grid-auto-refresh"]').exists()).toBe(true)
+  })
+
+  it("says why a withdrawn command cannot be used", async () => {
+    // The reason is read off the prop: a tooltip is drawn only once something
+    // hovers it, and nothing hovers in jsdom. That it opens over a disabled
+    // button at all is a browser question, asserted in `grid.spec.ts`.
+    vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({
+      data: { ...result(0, 2), page_commands: [] },
+    } as never)
+    const wrapper = mountGrid({ canQuery: true })
+    await flushPromises()
+
+    const share = wrapper
+      .findAllComponents(AppIconButton)
+      .find((one) => one.props("icon") === "share")
+
+    expect(String(share?.props("tooltip"))).toContain("cannot be shared")
   })
 
   it("offers everything to a page that says nothing about its commands", async () => {
@@ -1307,7 +1327,10 @@ describe("following a reference out of a row", () => {
     ])
     const command = wrapper
       .findAllComponents(AppIconButton)
-      .find((button) => button.attributes("data-testid") === "grid-filter")
+      // By the icon rather than by the test id: the kit stopped letting
+      // attributes fall through to its root so a disabled button could carry
+      // its tooltip on a wrapper.
+      .find((button) => button.props("icon") === "filter_alt")
     expect(command?.props("tooltip")).toBe("Filters (1)")
   })
 })

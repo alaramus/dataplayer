@@ -75,7 +75,9 @@ describe("the controlled tabular grid", () => {
         layout: defaultColumnLayout(COLUMNS),
       },
       slots: {
-        commands: ({ selectedRowIndexes, requestPaste }) =>
+        // The writing group, because a paste is a write: what the row offers
+        // is handed out a group at a time now.
+        "commands-write": ({ selectedRowIndexes, requestPaste }) =>
           h(
             "button",
             {

@@ -222,23 +222,16 @@ async function save(scope: "page" | "all") {
     @turn-page="turnPage"
     @retry="snapshot.refetch()"
   >
-    <template #commands>
-      <span
-        v-if="stale"
-        class="result-table__stale"
-        data-testid="result-previous"
-      >Previous result</span>
-      <span
-        v-if="snapshot.data.value?.truncated"
-        class="result-table__truncated"
-        data-testid="result-truncated"
-      >Capped at {{ total }} rows</span>
+    <template #commands-open>
       <AppIconButton
         icon="insert_chart"
         tooltip="Chart this page"
         data-testid="result-chart"
         @click="charting = true"
       />
+    </template>
+
+    <template #commands-out>
       <AppIconButton
         icon="download"
         tooltip="Save this page"
@@ -253,7 +246,26 @@ async function save(scope: "page" | "all") {
         data-testid="result-download-all"
         @click="save('all')"
       />
+    </template>
+
+    <template #commands-tab>
       <slot name="commands-end" />
+    </template>
+
+    <!-- Beside the range rather than among the commands: neither of these is
+         something to press, and both are about how much of the result is
+         being looked at. -->
+    <template #pager-start>
+      <span
+        v-if="stale"
+        class="result-table__stale"
+        data-testid="result-previous"
+      >Previous result</span>
+      <span
+        v-if="snapshot.data.value?.truncated"
+        class="result-table__truncated"
+        data-testid="result-truncated"
+      >Capped at {{ total }} rows</span>
     </template>
   </TabularGrid>
 </template>

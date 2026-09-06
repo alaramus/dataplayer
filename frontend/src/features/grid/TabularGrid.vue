@@ -28,6 +28,7 @@ import {
   AppButton,
   AppEmptyState,
   AppIconButton,
+  AppSelect,
   useToast,
 } from "@/shared/ui"
 
@@ -48,6 +49,7 @@ import type {
   TabularVisibleColumn,
 } from "./tabular"
 import type { CellPresentation } from "./model"
+import { PAGE_SIZES } from "./types"
 import type { Filter, GridRow, PageSize } from "./types"
 
 const props = withDefaults(
@@ -99,13 +101,27 @@ const emit = defineEmits<{
    */
   selection: [indexes: number[]]
 }>()
+/**
+ * The command row is filled a group at a time, not all at once.
+ *
+ * One slot per group of the toolbar, because which group a command belongs in
+ * is a fact about the command, and the grid that owns the command is the only
+ * thing that knows it. The header owns the names, the order and the lines
+ * between them; the payload is the same for every group.
+ */
+type CommandSlot = (props: {
+  canCopy: boolean
+  selectedRowIndexes: number[]
+  visibleColumns: TabularVisibleColumn[]
+  requestPaste: () => void
+}) => unknown
+
 defineSlots<{
-  commands(props: {
-    canCopy: boolean
-    selectedRowIndexes: number[]
-    visibleColumns: TabularVisibleColumn[]
-    requestPaste: () => void
-  }): unknown
+  "commands-view": CommandSlot
+  "commands-open": CommandSlot
+  "commands-out": CommandSlot
+  "commands-write": CommandSlot
+  "commands-tab": CommandSlot
   "before-grid"(): unknown
   /** The far end of the row the pager is on, where something about the whole
       page belongs: which sheet of a workbook is being read (D51). */
@@ -222,6 +238,13 @@ const selectedRowIndexes = computed(() =>
   selectedWholeRowIndexes(table.getCellSelectionBounds(), visibleColumns.value.length)
 )
 const offset = computed(() => props.page * props.pageSize)
+const pageSizeOptions = PAGE_SIZES.map((size) => ({ label: String(size), value: size }))
+
+function selectPageSize(value: unknown) {
+  if (typeof value === "number" && PAGE_SIZES.some((size) => size === value)) {
+    emit("update:pageSize", value as PageSize)
+  }
+}
 const range = computed(() => {
   if (props.rows.length === 0) return "Rows 0"
   return `Rows ${offset.value + 1}–${offset.value + props.rows.length}`
@@ -492,21 +515,58 @@ defineExpose({
     :style="columnWidthVariables"
   >
     <GridHeader
-      :page-size="pageSize"
       :columns="columns"
       :filters="filters"
       :sort="sort"
       :layout="layout"
       :can-copy="canCopy"
-      @update:page-size="emit('update:pageSize', $event)"
       @update:filters="emit('update:filters', $event)"
       @update:sort="emit('update:sort', $event)"
       @update:layout="changeLayout"
       @copy="copySelection"
     >
-      <template #commands>
+      <!-- One payload, five groups. Written out rather than looped:
+           a slot name built at runtime is a name `vue-tsc` cannot check,
+           and these are the names the whole row is assembled from. -->
+      <template #commands-view>
         <slot
-          name="commands"
+          name="commands-view"
+          :can-copy="canCopy"
+          :selected-row-indexes="selectedRowIndexes"
+          :visible-columns="visibleColumnsForSlot"
+          :request-paste="requestPaste"
+        />
+      </template>
+      <template #commands-open>
+        <slot
+          name="commands-open"
+          :can-copy="canCopy"
+          :selected-row-indexes="selectedRowIndexes"
+          :visible-columns="visibleColumnsForSlot"
+          :request-paste="requestPaste"
+        />
+      </template>
+      <template #commands-out>
+        <slot
+          name="commands-out"
+          :can-copy="canCopy"
+          :selected-row-indexes="selectedRowIndexes"
+          :visible-columns="visibleColumnsForSlot"
+          :request-paste="requestPaste"
+        />
+      </template>
+      <template #commands-write>
+        <slot
+          name="commands-write"
+          :can-copy="canCopy"
+          :selected-row-indexes="selectedRowIndexes"
+          :visible-columns="visibleColumnsForSlot"
+          :request-paste="requestPaste"
+        />
+      </template>
+      <template #commands-tab>
+        <slot
+          name="commands-tab"
           :can-copy="canCopy"
           :selected-row-indexes="selectedRowIndexes"
           :visible-columns="visibleColumnsForSlot"
@@ -726,10 +786,25 @@ defineExpose({
       />
     </div>
 
-    <div class="data-grid__pager">
+    <div
+      class="data-grid__pager"
+      data-testid="grid-pager"
+    >
       <div class="data-grid__pager-start">
         <slot name="pager-start" />
       </div>
+      <!-- Beside the range it changes and the arrows that walk it, rather than
+           alone at the far end of the command row: how many rows a page holds
+           is a fact about paging. -->
+      <AppSelect
+        :model-value="pageSize"
+        :options="pageSizeOptions"
+        label="Per page"
+        compact
+        class="data-grid__page-size"
+        data-testid="grid-page-size"
+        @update:model-value="selectPageSize"
+      />
       <span data-testid="grid-page-range">{{ range }}</span>
       <AppIconButton
         icon="chevron_left"
@@ -986,6 +1061,11 @@ defineExpose({
 }
 /* The far end of the same row: what is about the whole page reads from the
    left, and the pager keeps the right where it has always been. */
+.data-grid__page-size {
+  width: 84px;
+  flex: none;
+}
+
 .data-grid__pager-start {
   flex: 1;
   min-width: 0;

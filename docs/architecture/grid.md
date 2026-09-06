@@ -4,7 +4,7 @@ How a page of rows is drawn, kept, re-read, written out and charted. The
 screens around it are in [frontend.md](frontend.md); what a source says about
 its rows is in [sources/relations.md](sources/relations.md).
 
-Decisions here: D24, D67, D28, D35, D111.
+Decisions here: D24, D67, D28, D35, D111, D116.
 
 ## D24. The tabular surface is controlled state around a headless engine, and source operations stay server-side
 
@@ -340,3 +340,59 @@ Known deviations:
   one, on the row somebody chose to look at.
 
 Spec: [One row, read downwards](../superpowers/specs/2026-09-05-row-view-design.md)
+
+## D116. The row of commands keeps its shape, and says why a command is off
+
+Twenty commands sat in one undifferentiated run, and which of them appeared
+changed with the source: a file drew eleven, a table eighteen, a query result
+eight. Nothing said where one kind of command ended and the next began, and no
+button had a place a person could learn, because the buttons before it came and
+went.
+
+Two rules, and they only work together.
+
+**Nothing is hidden for want of support.** A command the source cannot carry
+out stays where it is, greyed, and says why on hover. The same answer the
+command bar gives (D69) and for the same reason: a row that changes shape as
+somebody walks between a table and a file is a row they have to read every
+time. A group in which nothing is available keeps its place too — the point is
+that the row is the same row everywhere.
+
+**The commands are grouped by what they act on, and each group is named.** Five
+groups, in the order of a working session: *The view* narrows what is on
+screen, *Read it as* opens the same rows in another shape, *Take it out* copies
+them somewhere, *Change the rows* writes, *This tab* is about the tab rather
+than the data. `features/grid/toolbar.ts` holds the names and the order;
+`GridHeader.vue` draws them and the lines between them, and offers a slot per
+group so the grid that owns a command decides which group it belongs in.
+
+Consequences:
+
+- **Everything that writes is together and apart.** That is half of why the
+  groups are worth their room: it answers "where do I look" and "what can I
+  press by accident" at once.
+- **There are two kinds of off, worded apart and drawn the same.** One names
+  something to do — tick a row, copy some cells — and the other says the source
+  will never offer this, so a person can stop looking. They are two shades of
+  the same grey on purpose: two shades of grey in one row is a distinction
+  nobody compares, and the sentence is where the difference lives. What the
+  source will never do outranks what is merely missing this second, because
+  "tick a row" under a button that will never delete anything is a lie.
+- **A disabled button has to be able to speak.** Quasar gives a disabled button
+  no pointer events, so a tooltip hung on it never opens. `AppIconButton` wraps
+  the disabled shape in a span that carries the tooltip instead — which is what
+  removes D69's deviation for icon buttons rather than repeating its workaround
+  at every call site.
+- **The bar scrolls sideways.** It does not wrap, and it folds nothing away
+  behind a "more" button: either would put a command somewhere other than where
+  it was learned, which is the thing this decision exists to stop.
+- **How many rows a page holds moved to the pager.** It is a fact about paging
+  and it now sits beside the range it changes, rather than at the far end of a
+  row of commands where it was the only control that did not do anything.
+- **A command the source declares for itself goes in *Change the rows*.** An
+  adapter says whether a command is destructive and not whether it writes, so
+  this is true of every one that exists rather than known to be true of every
+  one that could. A source-declared command that only reads would land in the
+  wrong group; the fix then is for the declaration to say which it is.
+
+Spec: [The row of commands above a table](../superpowers/specs/2026-09-06-grid-toolbar-design.md)

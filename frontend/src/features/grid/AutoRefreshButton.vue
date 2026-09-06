@@ -25,6 +25,8 @@ const props = defineProps<{
   seconds: RefreshSeconds | null
   /** Why it is not refreshing at this moment, from `refreshHeldBy`. */
   held?: string | null
+  /** Nothing has been read yet, so there is nothing to re-read. */
+  disable?: boolean
 }>()
 
 const emit = defineEmits<{ "update:seconds": [value: RefreshSeconds | null] }>()
@@ -60,6 +62,7 @@ function pick(name: string) {
     icon="autorenew"
     :label="seconds === null ? undefined : refreshLabel(seconds)"
     class="auto-refresh"
+    :disable="disable"
     data-testid="grid-auto-refresh"
     :data-refresh="seconds === null ? 'off' : String(seconds)"
   >

@@ -180,6 +180,7 @@ files. IDs are stable because specs and commits refer to them.
 | D113 | [notifications](docs/architecture/notifications.md) |
 | D114 | [notifications](docs/architecture/notifications.md) |
 | D115 | [notifications](docs/architecture/notifications.md) |
+| D116 | [grid](docs/architecture/grid.md) |
 
 ## Working rules
 

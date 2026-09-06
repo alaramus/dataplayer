@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest"
 import type { Sort } from "@/client"
 import { first } from "@/shared/testing/collections"
 
+import AppIconButton from "@/shared/ui/AppIconButton.vue"
 import GridHeader from "./GridHeader.vue"
 import SortEditor from "./SortEditor.vue"
 import { defaultColumnLayout } from "./columnLayout"
@@ -27,10 +28,17 @@ const COLUMNS: TabularColumn[] = [
   },
 ]
 
+/** What the icon button with this icon promises to say on hover. */
+function tooltipOf(wrapper: ReturnType<typeof mount>, icon: string): string {
+  const button = wrapper
+    .findAllComponents(AppIconButton)
+    .find((one) => one.props("icon") === icon)
+  return String(button?.props("tooltip") ?? "")
+}
+
 function mountHeader(columns: TabularColumn[] = COLUMNS) {
   return mount(GridHeader, {
     props: {
-      pageSize: 100,
       columns,
       filters: [],
       sort: [],
@@ -88,10 +96,12 @@ describe("the sort editor", () => {
     expect(first(wrapper.emitted("apply") ?? [])[0]).toEqual([])
   })
 
-  it("offers no sorting when every server column refuses it", () => {
+  it("keeps sorting in its place and says the source will not do it", () => {
     const wrapper = mountHeader(COLUMNS.map((column) => ({ ...column, sortable: false })))
 
-    expect(wrapper.find('[data-testid="grid-sort-command"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="grid-sort"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="grid-sort"]').attributes("disabled")).toBeDefined()
+    // The reason is read off the prop rather than the DOM: a tooltip is drawn
+    // only once something hovers it, and nothing hovers in jsdom.
+    expect(tooltipOf(wrapper, "sort")).toContain("does not sort rows")
   })
 })

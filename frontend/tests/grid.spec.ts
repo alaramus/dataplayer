@@ -14,6 +14,56 @@ import { login } from "./utils/login"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
 import { toast } from "./utils/notices"
 
+test("groups the commands, keeps them all, and says why a greyed one is off", async ({
+  page,
+}) => {
+  const table = `e2e-toolbar-${Date.now()}`
+  const file = `e2e-toolbar-file-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, table)
+  await openConnector(page, table)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "tags")
+  await expect(page.getByTestId("grid-page-range")).toContainText("Rows")
+
+  // Five named groups, in the order of a working session. The row is the same
+  // row wherever it is opened, so a command keeps the place it was learned in.
+  for (const [group, label] of [
+    ["view", "The view"],
+    ["open", "Read it as"],
+    ["out", "Take it out"],
+    ["write", "Change the rows"],
+    ["tab", "This tab"],
+  ]) {
+    await expect(page.getByTestId(`grid-group-${group}`)).toContainText(label)
+  }
+
+  // Greyed for want of a selection, and the sentence names what to do about
+  // it. Whether a tooltip opens over a disabled button at all is a question
+  // about pointer events that only a browser answers.
+  await expect(page.getByTestId("grid-delete")).toBeDisabled()
+  await page.getByTestId("grid-delete").hover()
+  await expect(page.locator(".q-tooltip")).toContainText("tick a row first")
+
+  // How many rows a page holds is a fact about paging, so it sits with the
+  // range it changes rather than at the far end of the command row.
+  await expect(page.getByTestId("grid-header").getByTestId("grid-page-size")).toHaveCount(0)
+  await expect(page.getByTestId("grid-page-size")).toBeVisible()
+
+  // The other kind of greyed: a delimited file does not sort, and no amount of
+  // clicking will make it. The command is drawn all the same, in its place.
+  await createFileConnector(page, file)
+  await openConnector(page, file)
+  await openNode(page, "sample.csv")
+  await expect(page.getByTestId("grid-page-range")).toContainText("Rows")
+  await expect(page.getByTestId("grid-sort")).toBeDisabled()
+  await page.getByTestId("grid-sort").hover()
+  await expect(page.locator(".q-tooltip")).toContainText("does not sort rows")
+
+  await deleteConnector(page, file)
+  await deleteConnector(page, table)
+})
+
 test("keeps the column names in sight while their rows scroll away", async ({ page }) => {
   // Geometry, which is the one thing a unit test cannot see: the names used to
   // scroll off the top with the first rows, leaving a page of values with
@@ -281,10 +331,12 @@ test("looks a value up in a CSV and still offers it no sorting", async ({ page }
   await openConnector(page, name)
   await openNode(page, "sample.csv")
 
-  // The header carries only what this representation can do: a file has no
-  // index to order by, so sorting is absent rather than dead (D109).
+  // A file has no index to order by (D109), so sorting is greyed — in its
+  // place, and saying so on hover, rather than gone. The per-column controls
+  // are a different thing and are absent: a column offers no direction to
+  // pick when the source will not order by it at all.
   await expect(page.getByTestId("grid-columns")).toBeVisible()
-  await expect(page.getByTestId("grid-sort")).toHaveCount(0)
+  await expect(page.getByTestId("grid-sort")).toBeDisabled()
   await expect(page.locator('[data-testid^="grid-sort-direction-"]')).toHaveCount(0)
 
   // Equality is the whole vocabulary it states, and the row it names is on a
@@ -296,7 +348,7 @@ test("looks a value up in a CSV and still offers it no sorting", async ({ page }
   await deleteConnector(page, name)
 })
 
-test("opening the row count menu does not briefly widen the grid toolbar", async ({ page }) => {
+test("opening the row count menu does not briefly widen the pager", async ({ page }) => {
   const name = `e2e-grid-page-size-width-${Date.now()}`
   await page.setViewportSize({ width: 1440, height: 900 })
   await login(page)
@@ -305,12 +357,12 @@ test("opening the row count menu does not briefly widen the grid toolbar", async
   await openNode(page, "sample.csv")
   await expect(page.getByTestId("grid-cell-0-id")).toBeVisible()
 
-  const header = page.getByTestId("grid-header")
+  const header = page.getByTestId("grid-pager")
   // A final bounding box misses the bug: the arrow only overflows while it
   // rotates. Record every rendered frame from the click through its transition.
   await header.evaluate((element) => {
-    const bar = element.firstElementChild
-    if (!(bar instanceof HTMLElement)) throw new Error("The toolbar is missing")
+    const bar = element
+    if (!(bar instanceof HTMLElement)) throw new Error("The pager is missing")
     element.addEventListener("click", () => {
       const baseline = {
         width: bar.clientWidth,

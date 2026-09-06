@@ -6,6 +6,7 @@ import { AppInput } from "@/shared/ui"
 import { at, first } from "@/shared/testing/collections"
 
 import FilterEditor from "./FilterEditor.vue"
+import AppIconButton from "@/shared/ui/AppIconButton.vue"
 import GridHeader from "./GridHeader.vue"
 import { defaultColumnLayout } from "./columnLayout"
 import type { Filter } from "./types"
@@ -33,10 +34,17 @@ const FILE_COLUMN: TabularColumn = {
   filter_operators: [],
 }
 
+/** What the icon button with this icon promises to say on hover. */
+function tooltipOf(wrapper: ReturnType<typeof mount>, icon: string): string {
+  const button = wrapper
+    .findAllComponents(AppIconButton)
+    .find((one) => one.props("icon") === icon)
+  return String(button?.props("tooltip") ?? "")
+}
+
 function mountHeader(columns: TabularColumn[], filters: Filter[] = []) {
   return mount(GridHeader, {
     props: {
-      pageSize: 100,
       columns,
       filters,
       sort: [],
@@ -122,10 +130,15 @@ describe("the filter band", () => {
     expect(first(wrapper.emitted("apply") ?? [])[0]).toEqual([])
   })
 
-  it("offers no filtering when no column has an operator", () => {
+  it("keeps filtering in its place and says the source will not do it", () => {
+    // Greyed rather than gone: a row that changes shape between a table and a
+    // file is a row somebody has to read every time, and the sentence is what
+    // a button that cannot be pressed is for.
     const wrapper = mountHeader([FILE_COLUMN])
 
-    expect(wrapper.find('[data-testid="grid-filter-command"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="grid-filter"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="grid-filter"]').attributes("disabled")).toBeDefined()
+    // The reason is read off the prop rather than the DOM: a tooltip is drawn
+    // only once something hovers it, and nothing hovers in jsdom.
+    expect(tooltipOf(wrapper, "filter_alt")).toContain("does not filter rows")
   })
 })

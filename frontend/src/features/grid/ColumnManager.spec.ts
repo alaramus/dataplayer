@@ -91,8 +91,7 @@ describe("the column manager", () => {
   it("does not keep a separate pin command in the toolbar", () => {
     const wrapper = mount(GridHeader, {
       props: {
-        pageSize: 100,
-        columns: COLUMNS,
+          columns: COLUMNS,
         filters: [],
         sort: [],
         layout: defaultColumnLayout(COLUMNS),
@@ -103,30 +102,36 @@ describe("the column manager", () => {
     expect(wrapper.find('[data-testid="grid-pin-current"]').exists()).toBe(false)
   })
 
-  it("hides commands the current representation does not support", () => {
+  it("keeps every group and every command, whatever the source can do", () => {
+    // The row is the same row on a table, a file and a query result. What a
+    // source cannot do is greyed and says so; nothing is dropped, because a
+    // command that moves is a command whose place nobody learns.
     const wrapper = mount(GridHeader, {
       props: {
-        pageSize: 100,
         columns: [],
         filters: [],
         sort: [],
         layout: defaultColumnLayout([]),
-        canInsert: false,
-        insertSupported: false,
-        canDelete: false,
-        deleteSupported: false,
-        pasteSupported: false,
       },
       global: { plugins: [Quasar] },
     })
 
-    for (const testId of [
-      "grid-filter-command",
-      "grid-sort-command",
-      "grid-insert-command",
-      "grid-delete-command",
-    ]) {
-      expect(wrapper.find(`[data-testid="${testId}"]`).exists()).toBe(false)
+    for (const group of ["view", "open", "out", "write", "tab"]) {
+      expect(wrapper.find(`[data-testid="grid-group-${group}"]`).exists()).toBe(true)
     }
+    for (const command of ["grid-filter", "grid-sort", "grid-columns", "grid-copy"]) {
+      expect(wrapper.get(`[data-testid="${command}"]`).attributes("disabled")).toBeDefined()
+    }
+  })
+
+  it("names each group over the buttons in it", () => {
+    const wrapper = mount(GridHeader, {
+      props: { columns: [], filters: [], sort: [], layout: defaultColumnLayout([]) },
+      global: { plugins: [Quasar] },
+    })
+
+    expect(wrapper.get('[data-testid="grid-group-write"]').text()).toContain(
+      "Change the rows"
+    )
   })
 })

@@ -111,6 +111,7 @@ translations; those files are not.
 | 2026-09-05 | [One row, read downwards](2026-09-05-row-view-design.md) | D111: the row view reads the page the grid is on, and a row is a position in it |
 | 2026-09-05 | [The commands of a panel belong to the panel](2026-09-05-panel-commands-design.md) | D112: showing the node, re-reading and returning from a window stand in the panel's own row, and a tab acts on nothing |
 | 2026-09-06 | [Everything that needs a person](2026-09-06-activity-centre-design.md) | D113, D114, D115: one sheet for waiting, working and recent; a message is recorded before it is shown; attention comes from sources |
+| 2026-09-06 | [The row of commands above a table](2026-09-06-grid-toolbar-design.md) | D116: five named groups in the order of a working session, and a command greyed with its reason rather than hidden |
 
 Implementation plans are in [../plans/](../plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the
