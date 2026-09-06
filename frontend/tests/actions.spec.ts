@@ -136,6 +136,39 @@ test("creates, fills, renames and removes a folder in personal storage", async (
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("opens a second action beside the first rather than over it", async ({
+  page,
+}) => {
+  const name = `e2e-two-forms-${Date.now()}`
+  const folder = `two-forms-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  await catalogAction(page, "create_folder")
+  await page.getByTestId("action-dialog").getByRole("textbox").first().fill(folder)
+  await page.getByTestId("action-submit").click()
+  await expect(page.getByTestId("catalog-list")).toContainText(folder)
+
+  // How many forms are worth having open is the user's decision: a second one
+  // is a second window, and the first keeps whatever was typed into it.
+  await catalogAction(page, "create_folder")
+  await page.getByTestId("action-dialog").getByRole("textbox").first().fill("kept")
+  await catalogCheck(page, folder).click()
+  await catalogAction(page, "rename")
+  await expect(page.getByTestId("action-dialog")).toHaveCount(2)
+  await expect(
+    page.getByTestId("action-dialog").first().getByRole("textbox").first()
+  ).toHaveValue("kept")
+
+  // And the same line twice is one window, not a pile of identical forms.
+  await catalogAction(page, "rename")
+  await expect(page.getByTestId("action-dialog")).toHaveCount(2)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
 test("two files at once admit only what can be done to many", async ({ page }) => {
   const name = `e2e-bulk-${Date.now()}`
   const first = `bulk-a-${Date.now()}`

@@ -175,19 +175,59 @@ function run(command: ClientCommand) {
   holdNodes(props.connectorId, [...props.checkedIds], command === "copy" ? "copy" : "move")
 }
 
-const active = ref<MenuCommand | null>(null)
+/**
+ * The forms this menu has opened, one window each.
+ *
+ * A list rather than one command at a time: how many windows are worth having
+ * open is the user's decision, and a second action used to replace the first
+ * one's window with its own contents. Each entry carries the target it was
+ * opened on, because the ticks move on while the form stays.
+ */
+interface OpenAction {
+  key: string
+  /** The action and what it was opened on, so one pair is one window. */
+  signature: string
+  command: MenuCommand
+  nodeLabel: string
+  targetNode: { label: string; kind: CatalogNode["kind"] } | null
+}
 
-const targetLabel = computed(() => {
-  if (active.value?.actsOn === "level") return props.levelLabel
-  if (active.value?.actsOn === "children") return props.placeLabel
+const opened = ref<OpenAction[]>([])
+let openings = 0
+
+function labelFor(command: MenuCommand) {
+  if (command.actsOn === "level") return props.levelLabel
+  if (command.actsOn === "children") return props.placeLabel
   if (props.checkedIds.length > 0) return props.checkedLabel
   return props.selectedGroups.map((group) => group.label).join(", ")
-})
-const targetNode = computed(() =>
-  active.value?.actsOn === "node" && nodeTargetNodes.value.length === 1
+}
+
+function nodeFor(command: MenuCommand) {
+  return command.actsOn === "node" && nodeTargetNodes.value.length === 1
     ? nodeTargetNodes.value[0] ?? null
     : null
-)
+}
+
+/** One window per action and target: picking the same line twice is one form. */
+function openForm(command: MenuCommand) {
+  const signature = `${command.name}:${command.targets.join(",")}`
+  if (opened.value.some((entry) => entry.signature === signature)) return
+  openings += 1
+  opened.value = [
+    ...opened.value,
+    {
+      key: `a${openings}`,
+      signature,
+      command,
+      nodeLabel: labelFor(command),
+      targetNode: nodeFor(command),
+    },
+  ]
+}
+
+function closeForm(key: string) {
+  opened.value = opened.value.filter((entry) => entry.key !== key)
+}
 
 async function pick(name: string) {
   if (prepareConnector.isPending.value) return
@@ -199,14 +239,8 @@ async function pick(name: string) {
   const command = commands.value.find((one) => one.name === name) ?? null
   // A disabled item raises no click in Quasar; this is the second guard, so
   // that nothing opens a form for what the server would refuse anyway.
-  if (command === null || !command.enabled) {
-    active.value = null
-    return
-  }
-  if (needsClipboard(command) && held.value === null) {
-    active.value = null
-    return
-  }
+  if (command === null || !command.enabled) return
+  if (needsClipboard(command) && held.value === null) return
   if (command.preparesConnector) {
     const nodeId = command.targets[0]
     if (command.targets.length !== 1 || nodeId === null || nodeId === undefined) return
@@ -230,7 +264,7 @@ async function pick(name: string) {
     command.fields.length > 0 ||
     command.workflow !== undefined
   ) {
-    active.value = command
+    openForm(command)
     return
   }
 
@@ -269,13 +303,15 @@ async function pick(name: string) {
     <!-- Not v-model: the dialog only ever gives the command back closed, and
          binding it would narrow the menu command to the plainer one it takes. -->
     <ActionDialog
-      :command="active"
+      v-for="entry in opened"
+      :key="entry.key"
+      :command="entry.command"
       :connector-id="connectorId"
-      :node-ids="active?.targets ?? []"
-      :node-label="targetLabel"
-      :target-node="targetNode"
+      :node-ids="entry.command.targets"
+      :node-label="entry.nodeLabel"
+      :target-node="entry.targetNode"
       :groupings="groupings"
-      @update:command="active = null"
+      @update:command="closeForm(entry.key)"
       @done="emit('done', $event)"
     />
   </span>

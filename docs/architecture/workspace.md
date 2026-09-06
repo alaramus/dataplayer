@@ -340,6 +340,11 @@ Consequences:
   already open brings that window forward. Two windows of one row are two unsaved
   edits of it, and whichever is saved second silently wins. Drafts have no row to
   overwrite, so any number of them may be open.
+- **An action's form is a window of its own.** Picking a second action from the
+  catalog menu opens a second window; it does not replace the first one's
+  contents. The pair — the action and the nodes it was opened on — is what
+  identifies it, so the same line pressed twice brings nothing new, and each
+  form keeps the target it was opened on while the ticks below move on.
 - **What a window is is not what it is addressed by.** Saving a draft renames the
   window to the connection it created — so a second Apply updates rather than
   duplicating — and the list is keyed by a separate immutable key. Keying it by
