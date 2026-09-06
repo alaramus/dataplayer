@@ -45,9 +45,18 @@ import TableOptionsInspector from "./TableOptionsInspector.vue"
 const props = defineProps<{
   modelValue: boolean
   connectorId: string
-  /** The schema it is created in, as the catalog issued it. */
+  /** The schema the menu was opened in, as the catalog issued it. */
   nodeId: string
   nodeLabel: string
+  /**
+   * Every schema of this connection a table may be made in.
+   *
+   * Where a table goes is a choice, not the accident of which schema was
+   * being looked at when the menu was opened. The list is the level's own
+   * groupings with the source's machinery left out, so nothing here decides
+   * what a schema is.
+   */
+  destinations?: { value: string; label: string }[]
   running: boolean
   error: string
 }>()
@@ -59,7 +68,10 @@ const emit = defineEmits<{
 
 const confirm = useConfirm()
 const connectorId = computed(() => props.connectorId)
-const nodeId = computed(() => props.nodeId)
+/** Where the table is going. It starts where the menu was opened. */
+const destination = ref(props.nodeId)
+watch(() => props.nodeId, (id) => { destination.value = id })
+const nodeId = computed(() => destination.value)
 const options = useTableDesignOptions(connectorId, nodeId)
 const planTable = usePlanTable()
 
@@ -173,7 +185,7 @@ async function ask(): Promise<void> {
   try {
     const answer = await planTable.mutateAsync({
       connectorId: props.connectorId,
-      nodeId: props.nodeId,
+      nodeId: destination.value,
       definition: definition.value,
       revision,
     })
@@ -186,6 +198,14 @@ async function ask(): Promise<void> {
     }
   }
 }
+
+// The schema is part of every statement the plan composes, so moving the
+// table asks again just as editing it does.
+watch(destination, () => {
+  touched.value = true
+  if (step.value === "review") step.value = "definition"
+  schedulePlan()
+})
 
 watch(
   definition,
@@ -226,7 +246,7 @@ function add(group: DraftSection): void {
     return
   }
   if (group === "foreign-keys") {
-    const foreign = newForeignKey(props.nodeId)
+    const foreign = newForeignKey(destination.value)
     draft.foreignKeys.push(foreign)
     select("foreign-keys", foreign.id)
     return
@@ -278,7 +298,7 @@ function create(): void {
   const held = plan.value
   if (held === null || !ready.value) return
   emit("run", {
-    nodeId: props.nodeId,
+    nodeId: destination.value,
     params: { definition: definition.value, fingerprint: held.fingerprint },
   })
 }
@@ -294,7 +314,28 @@ async function mayClose(): Promise<boolean> {
   })
 }
 
-const schemaLabel = computed(() => options.data.value?.schema_label || props.nodeLabel)
+const openedIn = computed(
+  () => options.data.value?.schema_label || props.nodeLabel
+)
+
+/**
+ * Where the table may go, the place the menu was opened in always among them.
+ *
+ * A level that lists no groupings still has to offer the one destination it
+ * has, or the field would name nowhere at all.
+ */
+const places = computed(() => {
+  const offered = props.destinations ?? []
+  if (props.nodeId === "") return offered
+  if (offered.some((place) => place.value === props.nodeId)) return offered
+  return [{ value: props.nodeId, label: openedIn.value }, ...offered]
+})
+
+const schemaLabel = computed(
+  () =>
+    places.value.find((place) => place.value === destination.value)?.label ??
+    openedIn.value
+)
 const headings: Record<DraftSection, string> = {
   columns: "Columns",
   indexes: "Indexes",
@@ -379,8 +420,8 @@ function moveColumn(by: number): void {
           data-testid="design-identity"
         >
           <AppSelect
-            :model-value="schemaLabel"
-            :options="[schemaLabel]"
+            v-model="destination"
+            :options="places"
             label="Schema"
             data-testid="table-schema"
           />

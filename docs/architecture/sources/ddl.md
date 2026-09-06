@@ -288,6 +288,11 @@ the composition before anything runs.
   parameter schema declares, never by the name of the action (D73).
 - Two capability questions sit beside it, `table_design_options` and
   `plan_table`. A source without them answers 501. Neither creates anything.
+- Where the table goes is a choice, not the accident of which schema the menu
+  was opened in. The editor is handed the level's own groupings with the
+  source's machinery left out — the same list a field naming a grouping is
+  turned into (D56) — and moving the destination asks the server to plan again,
+  because the schema is part of every statement it composes.
 - The vocabulary is the server's: types and their typed parameters, index
   methods and their limits, functions with the contexts each may appear in,
   operator classes and collations read from `pg_catalog`, and whether this

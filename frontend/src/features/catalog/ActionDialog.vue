@@ -90,9 +90,17 @@ const visibleFields = computed(
  */
 const dialectChoices = computed(() => props.command?.choices.dialect ?? [])
 
+/**
+ * Every place of this connection something may be made in.
+ *
+ * The same list a field naming a grouping is turned into, so a screen that
+ * asks where a table goes offers what such a field would.
+ */
+const destinationChoices = computed(() => groupingChoices(props.groupings ?? []))
+
 /** The visible fields, with a field naming a grouping offering the ones there are. */
 const formFields = computed(() =>
-  withGroupingChoices(visibleFields.value, groupingChoices(props.groupings ?? []))
+  withGroupingChoices(visibleFields.value, destinationChoices.value)
 )
 const conflictField = computed(() =>
   props.command?.fields.find((field) => field.purpose === "file-conflict") ?? null
@@ -546,6 +554,7 @@ async function runDesign(value: {
     :connector-id="connectorId"
     :node-id="String(nodeIds[0] ?? '')"
     :node-label="nodeLabel"
+    :destinations="destinationChoices"
     :running="runAction.isPending.value"
     :error="failure"
     @run="runDesign"

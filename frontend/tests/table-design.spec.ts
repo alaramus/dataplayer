@@ -31,6 +31,15 @@ test("designs a table, reviews the SQL, and only then creates it", async ({ page
   await expect(designer).toContainText("demo_lab")
   await expect(page.getByTestId("table-schema")).toContainText("demo_lab")
   await expect(page.getByTestId("design-identity")).toContainText("Schema")
+
+  // Where the table goes is a choice, not the accident of which schema was
+  // being looked at: every schema of the connection is offered, and the
+  // server's own are not.
+  await page.getByTestId("table-schema").click()
+  await expect(page.getByRole("option", { name: "public", exact: true })).toBeVisible()
+  await expect(page.getByRole("option", { name: "pg_catalog", exact: true }))
+    .toHaveCount(0)
+  await page.getByRole("option", { name: "demo_lab", exact: true }).click()
   await expect(page.getByTestId("design-sql")).toContainText("SQL preview")
   const navigation = await page.getByTestId("design-navigation").boundingBox()
   const inspector = await page.getByTestId("design-inspector").boundingBox()
