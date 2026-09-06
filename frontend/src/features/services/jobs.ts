@@ -3,7 +3,7 @@ import { onScopeDispose } from "vue"
 
 import type { JobPublic } from "@/client"
 import { connectorsKey } from "@/features/connectors/api"
-import { jobsKey } from "@/features/operations/api"
+import { jobsKey } from "@/features/activity/api"
 import { backupsKey, servicesKey } from "@/features/services/api"
 import { realtime } from "@/shared/realtime/client"
 

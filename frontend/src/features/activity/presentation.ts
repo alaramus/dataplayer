@@ -23,7 +23,7 @@ export interface ProcessRow {
   controlsHint: string
 }
 
-const JOB_LABELS: Record<JobPublic["kind"], string> = {
+export const JOB_LABELS: Record<JobPublic["kind"], string> = {
   "service.create": "Start service",
   "service.start": "Start service",
   "service.stop": "Stop service",

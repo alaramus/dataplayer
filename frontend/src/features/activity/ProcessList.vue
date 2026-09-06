@@ -14,32 +14,14 @@ defineEmits<{
   resume: [row: ProcessRow]
   stop: [row: ProcessRow]
   more: []
-  refresh: []
-  clear: []
 }>()
 </script>
 
 <template>
   <div
     class="processes"
-    data-testid="processes-window"
+    data-testid="processes"
   >
-    <div class="processes__toolbar">
-      <span>Completed changes are kept when work stops.</span>
-      <AppButton
-        variant="quiet"
-        size="sm"
-        label="Clear finished"
-        @click="$emit('clear')"
-      />
-      <AppButton
-        variant="quiet"
-        size="sm"
-        label="Refresh"
-        :loading="loading"
-        @click="$emit('refresh')"
-      />
-    </div>
     <p
       v-if="error"
       role="alert"
@@ -48,7 +30,7 @@ defineEmits<{
     </p>
     <AppEmptyState
       v-if="rows.length === 0 && !error"
-      :text="loading ? 'Loading processes' : 'No processes'"
+      :text="loading ? 'Loading processes' : 'Nothing is running'"
     />
     <article
       v-for="row in rows"
@@ -111,6 +93,7 @@ defineEmits<{
     <AppButton
       v-if="more"
       variant="quiet"
+      size="sm"
       label="Load more"
       :loading="loading"
       @click="$emit('more')"
@@ -119,20 +102,20 @@ defineEmits<{
 </template>
 
 <style scoped>
-.processes { padding: var(--dp-space-3); overflow: auto; }
-.processes__toolbar, .processes__heading, .processes__meta, .processes__controls {
+.processes__heading, .processes__meta, .processes__controls {
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
 }
-.processes__toolbar, .processes__controls { flex-wrap: wrap; }
-.processes__toolbar > span, .processes__controls > span { flex: 1; min-width: 180px; }
-.processes__row { padding: var(--dp-space-3) 0; border-top: 1px solid var(--dp-border); }
+.processes__controls { flex-wrap: wrap; }
+.processes__controls > span { flex: 1; min-width: 140px; }
+.processes__row { padding: var(--dp-space-2) 0; border-top: 1px solid var(--dp-border-faint); }
+.processes__row:first-of-type { border-top: none; }
 .processes__heading { justify-content: space-between; }
 .processes__heading strong { overflow-wrap: anywhere; }
-.processes__detail { padding: var(--dp-space-2) 0; overflow-wrap: anywhere; white-space: pre-wrap; }
-.processes__meta { justify-content: space-between; margin-top: var(--dp-space-2); }
-.processes__meta, .processes__controls > span, .processes__toolbar > span {
+.processes__detail { padding: var(--dp-space-1) 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.processes__meta { justify-content: space-between; margin-top: var(--dp-space-1); }
+.processes__meta, .processes__controls > span {
   font-size: 12px;
   color: var(--dp-text-muted);
 }

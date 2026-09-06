@@ -1,4 +1,4 @@
-import { watch } from "vue"
+import { getCurrentScope, onScopeDispose, watch } from "vue"
 
 import { useConnectors } from "@/features/connectors/api"
 import { realtime } from "@/shared/realtime/client"
@@ -87,6 +87,10 @@ export function useConnectorHealth() {
     },
     { deep: true }
   )
+
+  // Released with the component that asked, for the reason the requests topic
+  // gives: a listener outliving its screen is a second copy of every event.
+  if (getCurrentScope()) onScopeDispose(stop)
 
   return { stop }
 }

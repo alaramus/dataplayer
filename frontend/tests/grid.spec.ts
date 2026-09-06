@@ -12,6 +12,7 @@ import {
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
+import { toast } from "./utils/notices"
 
 test("keeps the column names in sight while their rows scroll away", async ({ page }) => {
   // Geometry, which is the one thing a unit test cannot see: the names used to
@@ -131,7 +132,7 @@ test("streams every matching row into a CSV download", async ({ page }) => {
 
   expect(download.suggestedFilename()).toMatch(/^projects-.*\.csv$/)
   await expect(
-    page.locator(".q-notification", { hasText: "rows downloaded" })
+    toast(page, "rows downloaded")
   ).toBeVisible()
 
   await deleteConnector(page, name)
@@ -454,7 +455,7 @@ test("pastes a block of cells and refuses one the column cannot read", async ({
   await page.evaluate(() => navigator.clipboard.writeText("not a number"))
   await page.getByTestId("grid-cell-0-organization_id").click()
   await page.getByTestId("grid-paste").click()
-  await expect(page.locator(".q-notification", { hasText: "cannot be read" })).toBeVisible()
+  await expect(toast(page, "cannot be read")).toBeVisible()
   // Contains rather than equals: a foreign-key cell also carries the arrow
   // that leads to the row it names.
   const key = page.getByTestId("grid-cell-0-organization_id")
@@ -532,7 +533,7 @@ test("copies a whole row and fills a new one from it", async ({ page, context })
   await page.getByTestId("grid-insert").click()
   await page.getByTestId("grid-insert-paste").click()
   await expect(
-    page.locator(".q-notification", { hasText: "Left to the source: tag_id" })
+    toast(page, "Left to the source: tag_id")
   ).toBeVisible()
   await expect(page.getByTestId("grid-insert-value-color")).toHaveValue("#ABCDEF")
   await page.getByTestId("grid-insert-value-label").fill(copy)
@@ -597,7 +598,7 @@ test("brings rows in from a file in personal storage", async ({ page }) => {
 
   await page.getByTestId("grid-import-run").click()
   await expect(
-    page.locator(".q-notification", { hasText: "2 rows brought in" })
+    toast(page, "2 rows brought in")
   ).toBeVisible()
 
   // The first of them, through the filter that showed nothing a moment ago.
@@ -653,7 +654,7 @@ test("brings rows in from a table through another database connection", async ({
   await expect(page.getByTestId("grid-import-dialog")).toContainText("Northstar Labs")
   await page.getByTestId("grid-import-run").click()
   await expect(
-    page.locator(".q-notification", { hasText: "2 rows brought in" })
+    toast(page, "2 rows brought in")
   ).toBeVisible()
 
   await expect(page.getByTestId("grid-cell-0-label")).toHaveText("Northstar Labs")

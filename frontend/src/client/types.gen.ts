@@ -10603,11 +10603,11 @@ export type sharesCreateShareResponse = sharesCreateShareResponses[keyof sharesC
 export type sharesListRequestsData = {
   body?: never
   path?: never
-  query: {
+  query?: {
     /**
      * Connector Id
      */
-    connector_id: string
+    connector_id?: string | null
   }
   url: "/api/v1/shares/requests"
 }

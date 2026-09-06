@@ -9,6 +9,7 @@ import {
   createPostgresConnector,
 } from "./utils/connectors"
 import { login } from "./utils/login"
+import { toast } from "./utils/notices"
 import {
   catalogTab,
   deleteConnector,
@@ -85,7 +86,7 @@ test("writes a query document, names it, and finds it again after a reload", asy
 
   // --- deleting is Trash for thirty days, and Trash gives it back ----------
   await page.getByTestId("query-trash").click()
-  await expect(page.locator(".q-notification", { hasText: "Trash" })).toBeVisible()
+  await expect(toast(page, "Trash")).toBeVisible()
   await expect(page.locator('[data-testid^="workspace-tab-query:"]')).toHaveCount(0)
   await expect(page.getByTestId("queries-empty")).toBeVisible()
 
@@ -488,7 +489,7 @@ test("a console reads until somebody unlocks it, and auto-commit keeps what it d
   await typeQuery(page, insertTag(label))
   await page.getByTestId("query-run").click()
   await expect(
-    page.locator(".q-notification", { hasText: "this run is a read" })
+    toast(page, "this run is a read")
   ).toBeVisible()
 
   // --- leaving it is typing the name of the connection, and only that ------
@@ -496,7 +497,7 @@ test("a console reads until somebody unlocks it, and auto-commit keeps what it d
   await expect(page.getByTestId("query-unlock")).toBeVisible()
   await page.getByTestId("query-unlock-name").fill("not the name")
   await page.getByTestId("query-unlock-submit").click()
-  await expect(page.locator(".q-notification", { hasText: "exactly" })).toBeVisible()
+  await expect(toast(page, "exactly")).toBeVisible()
 
   await page.getByTestId("query-unlock-name").fill(name)
   await page.getByTestId("query-unlock-submit").click()
@@ -683,7 +684,7 @@ test("what the editor will not change is refused before anything runs", async ({
   await page.getByTestId("confirm-accept").click()
 
   await expect(
-    page.locator(".q-notification", { hasText: "Permissions" })
+    toast(page, "Permissions")
   ).toBeVisible()
 
   await deleteConnector(page, name)
@@ -723,7 +724,7 @@ test("runs SQL over the files of a personal directory", async ({ page }) => {
   await typeQuery(page, 'delete from "sample.csv"')
   await page.getByTestId("query-run").click()
   await expect(
-    page.locator(".q-notification", { hasText: "does not change them through SQL" })
+    toast(page, "does not change them through SQL")
   ).toBeVisible()
 
   // --- and a name that leaves the directory is refused by the one rule -----

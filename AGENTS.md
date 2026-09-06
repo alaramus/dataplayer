@@ -46,6 +46,7 @@ legacy notes and stay unchanged.
 | Screens, components, colours, layers | [frontend.md](docs/architecture/frontend.md) |
 | A page of rows: the grid, downloads, charts | [grid.md](docs/architecture/grid.md) |
 | Layout, tabs, dragging, floating windows | [workspace.md](docs/architecture/workspace.md) |
+| A notification, something waiting for an answer, running work on screen | [notifications.md](docs/architecture/notifications.md) |
 | A diagram of nodes and connections, in 2D or 3D | [graphs.md](docs/architecture/graphs.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | Any code | [ENGINEERING.md](ENGINEERING.md) |
@@ -176,6 +177,9 @@ files. IDs are stable because specs and commits refer to them.
 | D110 | [sources/relations](docs/architecture/sources/relations.md) |
 | D111 | [grid](docs/architecture/grid.md) |
 | D112 | [workspace](docs/architecture/workspace.md) |
+| D113 | [notifications](docs/architecture/notifications.md) |
+| D114 | [notifications](docs/architecture/notifications.md) |
+| D115 | [notifications](docs/architecture/notifications.md) |
 
 ## Working rules
 

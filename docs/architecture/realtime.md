@@ -102,6 +102,17 @@ down here rather than left to be discovered.
 
 Spec: [The socket, health and a switched-off connector](../superpowers/specs/2026-08-24-realtime-and-connector-health-design.md)
 
+## A trap on the client side
+
+**A subscription is released with the scope that made it.** `useConnectorHealth`
+and `useAccessRequestEvents` returned a `stop` that no caller ever called, and
+the workspace page is mounted twice while the server check settles — so the
+first listener stayed behind and every event was handled twice. It went
+unnoticed for as long as Quasar drew the notifications, because Notify groups
+two identical messages into one with a counter on it; the first thing that drew
+them itself (D114) showed two cards. Both composables now dispose with their
+scope, and a unit test stops a scope and expects the listener to go.
+
 ## A trap in the end-to-end scenarios
 
 Playwright's thirty-second default is the budget for the whole test, not for

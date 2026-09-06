@@ -3005,14 +3005,17 @@ export class SharesService {
   /**
    * List Requests
    *
-   * Who is waiting on this connection.
+   * Who is waiting: on one connection, or on every connection of mine.
    *
-   * The owner's business, like the grants beside which these are answered.
+   * The owner's business either way, like the grants beside which these are
+   * answered. Naming none is what the activity sheet asks (D113), and it widens
+   * nothing: the query joins on ownership rather than trusting a list of ids
+   * from the caller.
    */
   public static listRequests<ThrowOnError extends boolean = true>(
-    options: Options<sharesListRequestsData, ThrowOnError>
+    options?: Options<sharesListRequestsData, ThrowOnError>
   ) {
-    return (options.client ?? client).get<
+    return (options?.client ?? client).get<
       sharesListRequestsResponses,
       sharesListRequestsErrors,
       ThrowOnError

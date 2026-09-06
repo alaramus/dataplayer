@@ -13,6 +13,7 @@ import {
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
+import { toast } from "./utils/notices"
 
 /** A small table in the schema being looked at, made through the source's own action. */
 async function loadCsv(page: Page, table: string) {
@@ -165,7 +166,7 @@ test("two files at once admit only what can be done to many", async ({ page }) =
 
   await page.getByTestId("action-submit").click()
   // One line for the whole set, and both are gone.
-  await expect(page.locator(".q-notification", { hasText: "2 of 2" })).toBeVisible()
+  await expect(toast(page, "2 of 2")).toBeVisible()
   await expect(catalogRow(page, first)).toHaveCount(0)
   await expect(catalogRow(page, second)).toHaveCount(0)
 
@@ -388,7 +389,7 @@ test("installs an extension from the report that lists them, and removes it", as
   await expect(install).toBeEnabled()
   await install.click()
   await expect(
-    page.locator(".q-notification", { hasText: "1 extension installed" })
+    toast(page, "1 extension installed")
   ).toBeVisible()
   await expect(page.getByTestId("grid-cell-0-installed")).toHaveText("true")
 
@@ -399,7 +400,7 @@ test("installs an extension from the report that lists them, and removes it", as
   await remove.click()
   await page.getByTestId("confirm-accept").click()
   await expect(
-    page.locator(".q-notification", { hasText: "1 extension removed" })
+    toast(page, "1 extension removed")
   ).toBeVisible()
   await expect(page.getByTestId("grid-cell-0-installed")).toHaveText("false")
 

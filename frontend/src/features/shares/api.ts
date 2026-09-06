@@ -4,6 +4,7 @@ import type { MaybeRefOrGetter } from "vue"
 
 import { SharesService } from "@/client"
 import type { Grant } from "@/features/connectors/access"
+import { waitingKey } from "@/features/shares/attention"
 import type { ShareCreate } from "@/client"
 
 /**
@@ -98,6 +99,8 @@ export function useAnswerRequest(connectorId: MaybeRefOrGetter<string | null>) {
     onSuccess: async () => {
       // Approving writes a grant, so the people on this connection changed too.
       await queryClient.invalidateQueries({ queryKey: requestsKey(id.value ?? "none") })
+      // And one fewer thing is waiting in the activity sheet (D113).
+      await queryClient.invalidateQueries({ queryKey: waitingKey })
       await queryClient.invalidateQueries({
         queryKey: ["connectors", id.value ?? "none", "grants"],
       })

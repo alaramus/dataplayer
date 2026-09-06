@@ -1,10 +1,15 @@
-import { useQuasar } from "quasar"
+import { notices } from "@/shared/notifications/notices"
 
 /**
  * A transient message, named by what happened rather than by its colour.
  *
  * Screens used to call `notify({ type: "positive" })` directly, which meant
  * every screen deciding what a success looks like.
+ *
+ * What the four functions do now is write to the log behind the activity
+ * sheet (D114). Whether anything appears on screen, where, and for how long is
+ * that store's decision — a screen that says something is not the place to
+ * decide whether the person is being disturbed.
  */
 /** A way to act on what a message is about, offered beside it. */
 export interface ToastAction {
@@ -27,27 +32,26 @@ export interface Toast {
 }
 
 export function useToast(): Toast {
-  const quasar = useQuasar()
+  const log = notices()
 
   return {
     success: (message) => {
-      quasar.notify({ type: "positive", message })
+      log.record({ tone: "success", message, sticky: false, action: null })
     },
+    // An error does not fade: the one message worth reading is the one most
+    // likely to be missed, and it is still in the sheet either way.
     error: (message) => {
-      quasar.notify({ type: "negative", message })
+      log.record({ tone: "error", message, sticky: true, action: null })
     },
     info: (message) => {
-      quasar.notify({ type: "info", message })
+      log.record({ tone: "info", message, sticky: false, action: null })
     },
     offer: (message, action) => {
-      quasar.notify({
-        type: "info",
+      log.record({
+        tone: "info",
         message,
-        timeout: 0,
-        actions: [
-          { label: action.label, color: "white", handler: action.onClick },
-          { label: "Dismiss", color: "white" },
-        ],
+        sticky: true,
+        action: { label: action.label, run: action.onClick },
       })
     },
   }

@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/vue-query"
 import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 
+import ToastHost from "@/shared/notifications/ToastHost.vue"
+import { resetNotices } from "@/shared/notifications/notices"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
 import { closeRealtime } from "@/shared/realtime/client"
@@ -26,6 +28,9 @@ const router = useRouter()
 const queryClient = useQueryClient()
 const windows = inject(windowsApiKey, undefined)
 const footer = ref<HTMLElement | null>(null)
+// Measured for the cards as well as for the windows: a screen with no window
+// manager still has a footer, and a card must sit above it there too.
+const footerHeight = ref(0)
 const userMenuOpen = ref(false)
 let footerObserver: ResizeObserver | null = null
 
@@ -47,8 +52,11 @@ async function selectUserAction(name: string) {
 }
 
 onMounted(() => {
-  if (footer.value === null || windows === undefined) return
-  const measure = () => windows.setBottomInset(footer.value?.getBoundingClientRect().height ?? 0)
+  if (footer.value === null) return
+  const measure = () => {
+    footerHeight.value = footer.value?.getBoundingClientRect().height ?? 0
+    windows?.setBottomInset(footerHeight.value)
+  }
   measure()
   if (typeof ResizeObserver !== "undefined") {
     footerObserver = new ResizeObserver(measure)
@@ -64,6 +72,8 @@ onBeforeUnmount(() => {
 async function logout() {
   auth.clear()
   closeRealtime()
+  // What was said was said to whoever was here before.
+  resetNotices()
   // The cache is cleared on sign-out: otherwise the previous user's data stays
   // visible to the next one.
   queryClient.clear()
@@ -152,6 +162,8 @@ async function logout() {
         />
       </div>
     </q-footer>
+
+    <ToastHost :bottom="footerHeight" />
   </q-layout>
 </template>
 

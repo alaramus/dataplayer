@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Last updated: 2026-09-05.
+Last updated: 2026-09-06.
 
 The order for moving useful behaviour from `dbwebtool` and `myquasar` into
 DataPlayer. It is a route, not a promise to reproduce every old screen. The old
@@ -52,6 +52,7 @@ Legend:
 | 1.6 — a reference the person draws | 2026-09-05 | [D106](superpowers/specs/2026-09-05-declared-references-design.md) through D109 |
 | 1.7 — the way back along a key | 2026-09-05 | [D110](superpowers/specs/2026-09-05-arriving-references-design.md) |
 | 1.8 — one row, read downwards | 2026-09-05 | [D111](superpowers/specs/2026-09-05-row-view-design.md) |
+| 1.9 — everything that needs a person | 2026-09-06 | [D113](superpowers/specs/2026-09-06-activity-centre-design.md) through D115 |
 
 Each of those has a spec in [the index](superpowers/specs/README.md), dated the
 day it closed, and a home in `docs/architecture/`. With 1.5 validated, phase 1
@@ -111,6 +112,16 @@ boundaries, with the keys of each column beside its value and both directions
 offered from there. It reads through the same query key as the grid, so opening
 a row costs no request; a row is a position in a page rather than a handle,
 because a keyless relation still has rows worth reading.
+
+Phase 1.9 was asked for out of order and closed on 2026-09-06. The three ways
+the application had of speaking to a person became one: a sheet at the right
+edge holding what is waiting, what is running and what was said, opened by the
+button that used to open the processes window. A message is recorded before it
+is shown, so nothing is lost by looking away; what needs an answer comes from a
+list of sources a feature registers rather than from branches in the panel; and
+the count on the button deliberately ignores the log. It also settled a leak it
+uncovered — a socket subscription outliving the screen that made it, which
+Quasar's grouped notifications had been hiding.
 
 ## Priority order at a glance
 

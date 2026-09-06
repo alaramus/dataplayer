@@ -12,6 +12,7 @@ import {
 } from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { toast } from "./utils/notices"
 import {
   catalogTabIcon,
   connectorRow,
@@ -376,7 +377,7 @@ test("the processes report is a task manager, not just a table", async ({ page }
   await cancel.click()
   await page.getByTestId("confirm-accept").click()
   await expect(
-    page.locator(".q-notification", { hasText: "asked to stop" })
+    toast(page, "asked to stop")
   ).toBeVisible()
 
   // Another report in the same section offers none of it: the commands

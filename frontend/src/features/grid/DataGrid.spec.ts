@@ -10,6 +10,7 @@ import type { FetchColumn, FetchResult } from "@/client"
 import { AppSelect } from "@/shared/ui"
 import { AppIconButton, AppInput } from "@/shared/ui"
 import { withWindowHost } from "@/shared/testing/windows"
+import { notices } from "@/shared/notifications"
 
 import CreateTableDialog from "./CreateTableDialog.vue"
 import DataGrid from "./DataGrid.vue"
@@ -1280,7 +1281,10 @@ describe("following a reference out of a row", () => {
     await flushPromises()
 
     expect(wrapper.findComponent(DataGrid).emitted("follow")).toBeUndefined()
-    expect(document.body.textContent).toContain("no value for that reference")
+    // What was said, not where it was drawn: the card is the notification
+    // log's business and this grid is mounted without one (D114).
+    expect(notices().entries.value.map((entry) => entry.message).join(" "))
+      .toContain("no value for that reference")
   })
 
   it("shows the predicate it was navigated to by, over the remembered query", async () => {

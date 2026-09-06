@@ -4,6 +4,7 @@ import type { Locator } from "@playwright/test"
 import { catalogAction, catalogCheck, catalogRow, openNode } from "./utils/catalog"
 import { createFileConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { toast } from "./utils/notices"
 import {
   catalogTabIcon,
   connectorRow,
@@ -387,7 +388,7 @@ test("opens a file as its own source and saves an edit back", async ({ page }) =
   await page.keyboard.press("ControlOrMeta+a")
   await page.keyboard.type("VALUE = 'after'")
   await page.getByTestId("content-save").click()
-  await expect(page.locator(".q-notification", { hasText: "saved" })).toBeVisible()
+  await expect(toast(page, "saved")).toBeVisible()
 
   // The bytes reached the source, not only the browser: a reload re-reads the
   // file, and the tab comes back with what was written.

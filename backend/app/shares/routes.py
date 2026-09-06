@@ -238,12 +238,24 @@ async def _answerable(
 async def list_requests(
     session: SessionDep,
     current_user: CurrentUser,
-    connector_id: uuid.UUID = Query(),
+    connector_id: uuid.UUID | None = Query(default=None),
 ) -> Any:
-    """Who is waiting on this connection.
+    """Who is waiting: on one connection, or on every connection of mine.
 
-    The owner's business, like the grants beside which these are answered.
+    The owner's business either way, like the grants beside which these are
+    answered. Naming none is what the activity sheet asks (D113), and it widens
+    nothing: the query joins on ownership rather than trusting a list of ids
+    from the caller.
     """
+    if connector_id is None:
+        across = await crud.pending_for_owner(session, owner_id=current_user.id)
+        labels = await _node_labels(session, [asked for asked, _, _ in across])
+        return AccessRequestsPublic(
+            data=[
+                _asked_public(asked, requester, connector.name, labels.get(asked.id))
+                for asked, requester, connector in across
+            ]
+        )
     connector = await get_or_404(session, connector_id, current_user, requires="own")
     waiting = await crud.pending_for_connector(session, connector_id=connector_id)
     labels = await _node_labels(session, [asked for asked, _ in waiting])

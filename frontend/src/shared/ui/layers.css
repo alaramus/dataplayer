@@ -45,4 +45,16 @@
   /* What is in the hand: the copy of a tab that follows the pointer. Above
      everything of ours, because a hand cannot pass under what it carries. */
   --dp-layer-drag: 4000;
+
+  /* The activity sheet: the application talking about the work, so over the
+     work — floating windows included — and under the menus and dialogs that
+     open from inside it. */
+  --dp-layer-sheet: 5000;
+
+  /* A message that has just been said: above everything, ours and Quasar's
+     alike, which is where Quasar's own notifications were drawn. Most of the
+     application's messages are raised from inside a floating window — a
+     connection's form, an action's dialog, a confirmation — and a card under
+     the window that raised it is a message nobody receives (D114). */
+  --dp-layer-toast: 6500;
 }

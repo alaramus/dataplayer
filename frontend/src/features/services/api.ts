@@ -5,7 +5,7 @@ import type { Ref } from "vue"
 import { BackupsService, JobsService, ServicesService } from "@/client"
 import type { RestoreRequest, ServiceRequestWritable } from "@/client"
 import { connectorsKey } from "@/features/connectors/api"
-import { jobsKey } from "@/features/operations/api"
+import { jobsKey } from "@/features/activity/api"
 
 /**
  * Services this server runs, and what may be asked of it.

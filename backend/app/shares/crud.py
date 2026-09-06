@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.connectors.models import Connector
 from app.core.schemas import get_datetime_utc
 from app.shares.models import TOKEN_BYTES, AccessRequest, Share, ShareOpen
 from app.shares.view import SharedView, fingerprint_of
@@ -220,6 +221,27 @@ async def pending_for_connector(
         .join(User, onclause=col(AccessRequest.requester_id) == User.id)
         .where(
             AccessRequest.connector_id == connector_id,
+            AccessRequest.state == "pending",
+        )
+        .order_by(col(AccessRequest.created_at))
+    )
+    return list((await session.exec(statement)).all())
+
+
+async def pending_for_owner(
+    session: AsyncSession, *, owner_id: uuid.UUID
+) -> list[tuple[AccessRequest, User, Connector]]:
+    """Everything waiting on every connection this person owns, oldest first.
+
+    The connection travels with the ask because the caller is about to name it:
+    a list that crosses connections cannot say "this connection" (D113).
+    """
+    statement = (
+        select(AccessRequest, User, Connector)
+        .join(User, onclause=col(AccessRequest.requester_id) == User.id)
+        .join(Connector, onclause=col(AccessRequest.connector_id) == Connector.id)
+        .where(
+            Connector.owner_id == owner_id,
             AccessRequest.state == "pending",
         )
         .order_by(col(AccessRequest.created_at))

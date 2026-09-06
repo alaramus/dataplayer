@@ -4,6 +4,7 @@ import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { openNode, pickSchema } from "./utils/catalog"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
+import { toast } from "./utils/notices"
 
 test("shows the structure of a relation beside its rows", async ({ page }) => {
   const name = `e2e-structure-${Date.now()}`
@@ -256,7 +257,7 @@ test("indexes a column, refuses a unique one that repeats, and drops it again", 
   await view.getByTestId("structure-drop-index-app_users_organization_id_email_key").click()
   await page.getByTestId("confirm-accept").click()
   await expect(
-    page.locator(".q-notification", { hasText: "app_users_organization_id_email_key" })
+    toast(page, "app_users_organization_id_email_key")
   ).toBeVisible()
 
   await deleteConnector(page, name)

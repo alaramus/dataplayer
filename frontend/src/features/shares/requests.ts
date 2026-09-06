@@ -1,7 +1,9 @@
 import { useQueryClient } from "@tanstack/vue-query"
+import { getCurrentScope, onScopeDispose } from "vue"
 
 import { connectorsKey } from "@/features/connectors/api"
 import { requestsKey } from "@/features/shares/api"
+import { waitingKey } from "@/features/shares/attention"
 import { realtime } from "@/shared/realtime/client"
 
 /**
@@ -73,6 +75,7 @@ export function useAccessRequestEvents(handlers: RequestEventHandlers) {
     if (!isRequestEvent(payload)) return
     if (payload.kind === "asked") {
       void queryClient.invalidateQueries({ queryKey: requestsKey(payload.connector_id) })
+      void queryClient.invalidateQueries({ queryKey: waitingKey })
       handlers.onAsked(payload)
       return
     }
@@ -80,6 +83,12 @@ export function useAccessRequestEvents(handlers: RequestEventHandlers) {
     void queryClient.invalidateQueries({ queryKey: connectorsKey })
     handlers.onAnswered(payload)
   })
+
+  // Released with the component that asked. A caller mounted twice — which
+  // the workspace is, briefly, while the server check settles — otherwise
+  // leaves a listener behind, and the second copy of a message is then said
+  // by a screen that no longer exists.
+  if (getCurrentScope()) onScopeDispose(stop)
 
   return { stop }
 }

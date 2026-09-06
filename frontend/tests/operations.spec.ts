@@ -6,7 +6,7 @@ import { createFileConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { deleteConnector, openConnector } from "./utils/workspace"
 
-test("shows server progress in the footer, opens on demand and cancels from a reusable window", async ({ page }) => {
+test("shows server progress in the footer, opens the sheet on demand and cancels from it", async ({ page }) => {
   let job: JobPublic = {
     id: "12345678-1234-4123-8123-123456789012", kind: "service.create",
     subject_id: null, parameters: null, state: "running",
@@ -25,39 +25,46 @@ test("shows server progress in the footer, opens on demand and cancels from a re
     }
   })
   await login(page)
-  const indicator = page.getByTestId("operations-indicator")
+  const indicator = page.getByTestId("activity-indicator")
   await expect(indicator).toContainText("Start service")
   await expect(indicator.locator('[role="progressbar"]')).toBeVisible()
   await expect(indicator.locator('[role="progressbar"]')).not.toHaveAttribute("aria-valuenow")
-  await expect(page.getByTestId("processes-window")).toHaveCount(0)
+  await expect(page.getByTestId("activity-panel")).toHaveCount(0)
   const footerBox = await page.getByTestId("app-footer").boundingBox()
   const buttonBox = await indicator.boundingBox()
   expect(Math.abs((footerBox!.x + footerBox!.width) - (buttonBox!.x + buttonBox!.width))).toBeLessThan(30)
 
   await indicator.click()
-  const window = page.getByRole("dialog", { name: "Processes", exact: true })
-  await expect(window).toContainText("pulling the image (1 of 6)")
-  await expect(window.getByRole("button", { name: "Pause after current" })).toHaveCount(0)
-  await window.getByRole("button", { name: "Minimize", exact: true }).click()
-  await expect(window).toBeHidden()
+  const sheet = page.getByTestId("activity-panel")
+  await expect(sheet).toContainText("pulling the image (1 of 6)")
+  await expect(sheet.getByRole("button", { name: "Pause after current" })).toHaveCount(0)
+  // The sheet floats over the work rather than moving it: the workspace keeps
+  // the width it had before the sheet was opened (D113).
+  const workspace = page.getByTestId("app-footer")
+  const before = (await workspace.boundingBox())!.width
+  await expect.poll(async () => (await workspace.boundingBox())!.width).toBe(before)
+
+  // Escape closes it, and so does the button that opened it.
+  await page.keyboard.press("Escape")
+  await expect(sheet).toHaveCount(0)
   await indicator.click()
-  await expect(window).toBeVisible()
-  await expect(page.getByTestId("processes-window")).toHaveCount(1)
-  await window.getByRole("button", { name: "Close window", exact: true }).click()
+  await expect(sheet).toBeVisible()
+  await indicator.click()
+  await expect(sheet).toHaveCount(0)
   expect(cancelled).toBe(0)
   await expect(indicator.locator('[role="progressbar"]')).toBeVisible()
 
   await indicator.click()
-  await window.getByRole("button", { name: "Cancel job", exact: true }).click()
-  await expect(window).toContainText("Stopped before it finished")
+  await sheet.getByRole("button", { name: "Cancel job", exact: true }).click()
+  await expect(sheet).toContainText("Stopped before it finished")
   expect(cancelled).toBe(1)
   await expect(indicator.locator('[role="progressbar"]')).toHaveCount(0)
   await page.reload()
-  await expect(page.getByTestId("processes-window")).toHaveCount(0)
+  await expect(page.getByTestId("activity-panel")).toHaveCount(0)
   await indicator.click()
-  await expect(window).toContainText("Stopped before it finished")
-  await window.getByRole("button", { name: "Clear finished", exact: true }).click()
-  await expect(window).toContainText("No processes")
+  await expect(sheet).toContainText("Stopped before it finished")
+  await sheet.getByRole("button", { name: "Clear finished", exact: true }).click()
+  await expect(sheet).toContainText("Nothing is running")
 })
 
 test("pauses an upload batch, resumes it and leaves only unsent files after stopping", async ({ page }) => {
@@ -85,9 +92,9 @@ test("pauses an upload batch, resumes it and leaves only unsent files after stop
   )
   await page.getByTestId("action-submit").click()
   await expect.poll(() => uploads).toBe(1)
-  await expect(page.getByTestId("processes-window")).toHaveCount(0)
-  await page.getByTestId("operations-indicator").click()
-  const window = page.getByRole("dialog", { name: "Processes", exact: true })
+  await expect(page.getByTestId("activity-panel")).toHaveCount(0)
+  await page.getByTestId("activity-indicator").click()
+  const window = page.getByTestId("activity-panel")
   await window.getByRole("button", { name: "Pause after current", exact: true }).click()
   await expect(window).toContainText("Pausing after current")
   release?.()
@@ -101,7 +108,7 @@ test("pauses an upload batch, resumes it and leaves only unsent files after stop
   await expect(window.getByText("Stopped", { exact: true })).toBeVisible()
   await expect(window).toContainText("1 not started")
   expect(uploads).toBe(2)
-  await window.getByRole("button", { name: "Close window", exact: true }).click()
+  await page.keyboard.press("Escape")
   await expect(page.getByTestId("action-files")).toContainText("third.csv")
   await expect(page.getByTestId("action-files")).not.toContainText("first.csv")
   await expect(page.getByTestId("action-files")).not.toContainText("second.csv")

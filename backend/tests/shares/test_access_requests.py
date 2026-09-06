@@ -270,6 +270,47 @@ async def test_answering_belongs_to_the_owner_alone(
     assert with_read.status_code == 403
 
 
+async def test_everything_waiting_on_me_crosses_connections(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+) -> None:
+    """What the activity sheet asks for: no connection named (D113)."""
+    first = await _connector(client, normal_user_token_headers)
+    second = await _connector(client, normal_user_token_headers)
+    user, headers = colleague
+    await _ask(client, headers, await _share(client, normal_user_token_headers, first))
+    await _ask(client, headers, await _share(client, normal_user_token_headers, second))
+
+    waiting = await client.get(f"{BASE}/requests", headers=normal_user_token_headers)
+
+    assert waiting.status_code == 200
+    # Contains rather than equals: the point of the route is that it crosses
+    # connections, so whatever else this user owns is in the answer too.
+    rows = [row for row in waiting.json()["data"] if row["connector_id"] in {first, second}]
+    assert {row["connector_id"] for row in rows} == {first, second}
+    assert {row["requester_email"] for row in rows} == {user.email}
+    # Each row names its own connection: a list that crosses them cannot say
+    # "this connection".
+    assert all(row["connector_label"] for row in rows)
+
+
+async def test_everything_waiting_on_me_is_only_mine(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+) -> None:
+    """Somebody else's asks are not in my list, and mine are not in theirs."""
+    mine = await _connector(client, normal_user_token_headers)
+    _, headers = colleague
+    await _ask(client, headers, await _share(client, normal_user_token_headers, mine))
+
+    theirs = await client.get(f"{BASE}/requests", headers=headers)
+
+    assert theirs.status_code == 200
+    assert theirs.json()["data"] == []
+
+
 async def _event_on(ws: AsyncWebSocketSession, *, within: float = 10) -> dict[str, Any]:
     """The next frame of this topic, whatever else is on the socket."""
     while True:

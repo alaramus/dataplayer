@@ -21,7 +21,7 @@ import { chartViewKey } from "@/features/charts/view"
 import { relationshipPanelId } from "@/features/relationships/model"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import CommandBar from "@/features/workspace/CommandBar.vue"
-import OperationsIndicator from "@/features/operations/OperationsIndicator.vue"
+import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
 import WorkspaceGroups from "@/features/workspace/WorkspaceGroups.vue"
 import {
   catalogPanelId,
@@ -770,7 +770,10 @@ provide(workspaceActionsKey, {
       <CommandBar />
     </template>
     <template #status-end>
-      <OperationsIndicator />
+      <ActivityIndicator
+        @answer-access="answerRequestsFor"
+        @open-connection="editConnector"
+      />
     </template>
 
     <WorkspaceRoot :context="workspace.context" />
