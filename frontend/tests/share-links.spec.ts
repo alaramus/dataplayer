@@ -156,11 +156,25 @@ test("access is asked for through the link and given from the notification", asy
 
     // The owner is told where they are working, and the way to the answer is
     // in the message rather than somewhere they have to go looking.
-    await expect(page.getByText(`${email} is asking for access to ${name}`)).toBeVisible()
+    const card = page.getByTestId("toast").filter({ hasText: "is asking for access" })
+    await expect(card).toContainText(`${email} is asking for access to ${name}`)
+
+    // The card is a courtesy and goes; what is waiting stays in the sheet
+    // until it is answered (D113), and the way to the answer is there too.
+    await page.getByTestId("activity-indicator").click()
+    const sheet = page.getByTestId("activity-panel")
+    await expect(sheet).toContainText(`${email} is asking for access to ${name}`)
+
     // The way to the answer leads to the connection's own window, open on the
     // page where access is given: a request is answered by an ordinary grant
-    // and by nothing else (D61).
-    await page.getByRole("button", { name: "Open", exact: true }).click()
+    // and by nothing else (D61). One click, not two: the sheet gets out of the
+    // way of the window it opens rather than swallowing the next click.
+    // Addressed by the request it is about: this owner may have others waiting.
+    const item = sheet
+      .locator('[data-testid^="attention-access:"]')
+      .filter({ hasText: `${email} is asking for access to ${name}` })
+    await item.getByRole("button", { name: "Open", exact: true }).click()
+    await expect(sheet).toHaveCount(0)
     await expect(page.getByTestId("connector-permissions")).toBeVisible()
     await expect(page.getByTestId(`share-request-${email}`)).toBeVisible()
     await page.getByTestId(`share-approve-${email}`).click()

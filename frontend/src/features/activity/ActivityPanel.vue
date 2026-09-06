@@ -49,6 +49,19 @@ onMounted(() => { window.addEventListener("keydown", onKey) })
 onBeforeUnmount(() => { window.removeEventListener("keydown", onKey) })
 
 const working = () => props.rows.filter((row) => row.active).length
+
+/**
+ * Every action here leads somewhere else, so the sheet gets out of the way.
+ *
+ * It floats over the work and swallows the first click anywhere outside
+ * itself, which is right for a flyout and wrong for one that has just opened
+ * a window to work in: leaving it up made "Open" a two-click movement, the
+ * first click only closing the sheet.
+ */
+function follow(run: () => void) {
+  emit("close")
+  run()
+}
 </script>
 
 <template>
@@ -118,7 +131,7 @@ const working = () => props.rows.filter((row) => row.active).length
               variant="secondary"
               size="sm"
               :label="item.action.label"
-              @click="item.action.run()"
+              @click="follow(item.action.run)"
             />
             <AppIconButton
               v-if="item.dismiss"
@@ -208,7 +221,7 @@ const working = () => props.rows.filter((row) => row.active).length
               variant="secondary"
               size="sm"
               :label="notice.action.label"
-              @click="notice.action.run()"
+              @click="follow(notice.action.run)"
             />
             <AppIconButton
               icon="close"

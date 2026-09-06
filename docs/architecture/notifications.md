@@ -64,6 +64,10 @@ Consequences:
   is where the rule about answering lives (D61) — the sheet opens it. A second
   copy of an answering form is a second thing to keep in step, and D112 already
   says a thing's commands belong to the thing.
+- **Following one closes the sheet.** It floats over the work and swallows the
+  first click outside itself; leaving it up made every "Open" a two-click
+  movement, the first click spent only on closing the sheet in front of the
+  window it had just opened.
 - **It floats over the work rather than moving it.** Opening the sheet does not
   reflow the workspace: a grid that re-measures every time somebody glances at
   a notification is a grid that jumps under the hand. Not modal either, and no
@@ -92,8 +96,12 @@ bottom right is what the log does when the sheet is shut; when the sheet is
 open the message is a new row in it. The screens did not change: `useToast` has
 the same four functions, and roughly a hundred calls stayed as they were.
 
-- **Errors do not vanish.** Success and information fade; an error and an offer
-  to act stay until dismissed, and both are in the log afterwards either way.
+- **Only a failure stays.** Everything else fades after a few seconds and is
+  in the log afterwards. An offer to act fades too, though it did not at first:
+  a card carrying the one way to answer something looks like it must be kept,
+  until the first section of the sheet is where that something already lives.
+  A card that never leaves is then an interruption that has stopped saying
+  anything new.
 - **At most three cards.** The rest are already in the sheet, and the stack
   says how many.
 - **Do not disturb suppresses the cards, never the record.** While a large

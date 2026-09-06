@@ -100,9 +100,14 @@ screen → useToast → notices store ─┬→ sheet is open:  a row appears in
 ```
 
 No screen changes. What changes is where the card is drawn (bottom right, above
-the button that owns the list, in our own tokens), how long it stays (success
-and information fade, an error and an offer do not), and that it is still there
-afterwards.
+the button that owns the list, in our own tokens), how long it stays (only a
+failure waits to be dismissed; everything else fades), and that it is still
+there afterwards.
+
+An offer to act was sticky in the first cut, and stopped being so on the first
+day of use. The reasoning that made it sticky — the card carries the only way
+to answer, so losing it loses the request — stops being true the moment the
+first section of the sheet holds that request until it is answered.
 
 Two rules that came out of reading the existing call sites:
 

@@ -72,7 +72,7 @@ describe("the activity sheet", () => {
 
   it("leads to where a thing is answered instead of answering it here", async () => {
     const run = vi.fn()
-    open([waiting({ action: { label: "Open", run } })])
+    const wrapper = open([waiting({ action: { label: "Open", run } })])
 
     const button = [...document.querySelectorAll("button")].find(
       (element) => element.textContent?.includes("Open")
@@ -81,6 +81,10 @@ describe("the activity sheet", () => {
     await Promise.resolve()
 
     expect(run).toHaveBeenCalled()
+    // And gets out of the way: it floats over the work and swallows the first
+    // click outside itself, so a window opened behind it took two clicks to
+    // reach.
+    expect(wrapper.emitted("close")).toBeTruthy()
   })
 
   it("offers no way to wave away something that is still waiting on an answer", () => {

@@ -27,6 +27,11 @@ export interface Toast {
    * For news a person may want to act on at once — somebody asking for access
    * to a connection — where sending them hunting for the screen would be the
    * whole cost of the notification.
+   *
+   * The card fades like any other. It used to stay until dismissed, because
+   * missing it meant missing the whole thing; the sheet's first section now
+   * holds what is still waiting (D113), so a card that sits there forever is
+   * an interruption that has stopped saying anything new.
    */
   offer(message: string, action: ToastAction): void
 }
@@ -50,7 +55,7 @@ export function useToast(): Toast {
       log.record({
         tone: "info",
         message,
-        sticky: true,
+        sticky: false,
         action: { label: action.label, run: action.onClick },
       })
     },
