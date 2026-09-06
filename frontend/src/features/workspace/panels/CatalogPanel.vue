@@ -12,6 +12,7 @@ import type { SearchScope } from "@/features/catalog/api"
 import { rememberAnswer, shouldAsk } from "@/features/catalog/contentSearch"
 import { useFadingMark } from "@/features/catalog/fadingMark"
 import { frameworksOf, toggleFrameworkFilter } from "@/features/catalog/frameworks"
+import { rememberGroups, rememberedGroups } from "@/features/catalog/groupsMemory"
 import { locationOf } from "@/features/catalog/location"
 import { searchSummary } from "@/features/catalog/search"
 import { useSearchHistory } from "@/features/catalog/useSearchHistory"
@@ -254,7 +255,9 @@ function queue(job: () => Promise<void>): Promise<void> {
 
 void queue(async () => {
   try {
-    await level.load()
+    // What was ticked here last time, when anybody has said. The default rule
+    // is for a connection nobody has an opinion about yet.
+    await level.load(rememberedGroups(props.connectorId))
   } finally {
     answered.value = true
   }
@@ -478,7 +481,9 @@ const groupLabel = computed(
 /** One control, whichever shape it is in: a list of ids either way. */
 function pickGroups(chosen: unknown) {
   const ids = Array.isArray(chosen) ? (chosen as string[]) : [chosen as string]
-  void level.setGroups(ids.filter((id) => id !== null && id !== undefined))
+  const wanted = ids.filter((id) => id !== null && id !== undefined)
+  rememberGroups(props.connectorId, wanted)
+  void level.setGroups(wanted)
 }
 
 /**

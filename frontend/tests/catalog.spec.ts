@@ -55,6 +55,31 @@ test("browses a database as a list filtered by schema", async ({ page }) => {
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("opens on the schemas chosen last time, not on the default set", async ({
+  page,
+}) => {
+  // The default rule — every real schema while there are few — is for a
+  // connection nobody has an opinion about yet. Turning one off and finding it
+  // back after a reload is the application overruling the person.
+  const name = `e2e-catalog-groups-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+
+  const groups = page.getByTestId("catalog-groups")
+  await expect(groups).toContainText("demo_lab")
+  await hideSchema(page, "demo_lab")
+  await expect(groups).not.toContainText("demo_lab")
+
+  await page.reload()
+  await expect(page.getByTestId("catalog-list")).toContainText("connector")
+  await expect(groups).toContainText("public")
+  await expect(groups).not.toContainText("demo_lab")
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
 test("keeps the catalog's measured column clear of its scrollbar", async ({ page }) => {
   const name = `e2e-catalog-scrollbar-${Date.now()}`
   await login(page)

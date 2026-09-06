@@ -56,7 +56,7 @@ export interface CatalogLevel {
   freshness: Ref<Freshness | undefined>
   loading: Ref<boolean>
   error: Ref<string>
-  load: () => Promise<void>
+  load: (groupIds?: string[]) => Promise<void>
   enter: (node: ListNode) => Promise<void>
   up: () => Promise<void>
   goTo: (index: number) => Promise<void>
@@ -264,9 +264,10 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
     }
   }
 
-  async function load() {
+  /** The first read of the root. `groupIds` is a choice made earlier, if any. */
+  async function load(groupIds?: string[]) {
     path.value = [{ id: null, label: rootLabel.value }]
-    await show(null)
+    await show(null, groupIds)
   }
 
   async function enter(node: ListNode) {

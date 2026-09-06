@@ -153,6 +153,29 @@ describe("groupings", () => {
     })
   })
 
+  it("opens on the choice made last time rather than on the default", async () => {
+    // The default rule is for a connection nobody has an opinion about yet.
+    // Turning a schema off and finding it back after a reload is the
+    // application overruling the person.
+    answers([schema("pg_catalog", true), schema("public"), schema("sales")], [])
+
+    await withLevel(async (level) => {
+      await level.load(["sales"])
+
+      expect(level.selectedGroups.value).toEqual(["sales"])
+    })
+  })
+
+  it("goes back to the default when nothing that was chosen is there any more", async () => {
+    answers([schema("public"), schema("sales")], [])
+
+    await withLevel(async (level) => {
+      await level.load(["gone"])
+
+      expect(level.selectedGroups.value).toEqual(["public", "sales"])
+    })
+  })
+
   it("shows only the first when there are more than a handful", async () => {
     // Opening forty schemas at once is a page nobody asked for.
     const many = Array.from({ length: 8 }, (_, index) => schema(`s${String(index)}`))

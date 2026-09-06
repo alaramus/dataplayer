@@ -446,6 +446,14 @@ structure the names were given when they were chosen.
   marks it, because only the source has read the connection. Everything else
   keeps the client's rule: every non-system grouping while there are few, the
   first while there are many.
+- **Both of those are only for a connection nobody has an opinion about yet.**
+  A choice made in the grouping control is remembered by the browser, keyed by
+  server and connection the way a grid remembers its columns, and the catalog
+  opens on it next time — turning a schema off and finding it back after a
+  reload is the application overruling the person. Nothing chosen and
+  everything turned off are different answers, and only the second is
+  remembered as such; a remembered choice whose groupings have all gone falls
+  back to the rule above.
 - **How many databases there are is asked of the server**, since it is a
   setting; a server that refuses to say — as managed ones do — gets the
   sixteen every client assumes.
