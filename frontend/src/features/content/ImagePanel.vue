@@ -58,7 +58,10 @@ useReloadable(props.panelId, reload)
 <template>
   <div class="image-panel">
     <div class="image-panel__head">
-      <span data-testid="image-details">{{ details }}</span>
+      <span
+        class="image-panel__details"
+        data-testid="image-details"
+      >{{ details }}</span>
       <div class="image-panel__commands">
         <PanelCommands
           :panel-id="panelId"
@@ -112,6 +115,12 @@ useReloadable(props.panelId, reload)
   min-height: 40px;
   padding: 0 8px;
   border-bottom: 1px solid var(--dp-border-faint);
+}
+
+/* On the words and not on the head that holds them: a flat button takes its
+   colour from whatever contains it, so a muted head drew the commands beside
+   this line in the colour of a disabled control. */
+.image-panel__details {
   color: var(--dp-text-muted);
   font-size: 11px;
 }

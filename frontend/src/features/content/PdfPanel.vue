@@ -222,7 +222,10 @@ onBeforeUnmount(() => {
 <template>
   <div class="pdf-panel">
     <div class="pdf-panel__head">
-      <span data-testid="pdf-details">{{ details }}</span>
+      <span
+        class="pdf-panel__details"
+        data-testid="pdf-details"
+      >{{ details }}</span>
       <div class="pdf-panel__commands">
         <PanelCommands
           :panel-id="panelId"
@@ -263,6 +266,12 @@ onBeforeUnmount(() => {
   min-height: 40px;
   padding: 0 8px;
   border-bottom: 1px solid var(--dp-border-faint);
+}
+
+/* On the words and not on the head that holds them: a flat button takes its
+   colour from whatever contains it, so a muted head drew the commands beside
+   this line in the colour of a disabled control. */
+.pdf-panel__details {
   color: var(--dp-text-muted);
   font-size: 11px;
 }

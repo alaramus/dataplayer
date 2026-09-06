@@ -473,6 +473,18 @@ test("plays a sound file and a recording, and draws a PDF", async ({ page }) => 
     .poll(async () => audio.evaluate((element: HTMLMediaElement) => element.duration))
     .toBeCloseTo(2, 1)
 
+  // The two commands beside the details are not drawn the colour of a disabled
+  // control. The head painted everything inside it muted to grey that line of
+  // text, and a flat button takes its colour from whatever contains it — so
+  // both looked dead while working perfectly.
+  const mutedText = await page
+    .getByTestId("media-details")
+    .evaluate((element) => getComputedStyle(element).color)
+  const command = await page
+    .getByTestId("panel-reveal")
+    .evaluate((element) => getComputedStyle(element).color)
+  expect(command).not.toBe(mutedText)
+
   // A recording opens in the same panel with the picture size beside it.
   await openNode(page, "clip.mp4")
   await expect(page.getByTestId("media-details")).toContainText("160 × 120")
