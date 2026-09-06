@@ -114,6 +114,20 @@ async def _follow(
     )
 
 
+def _between(listed: Any, first: str, second: str) -> list[str]:
+    """The listed references drawn between exactly these two sources.
+
+    Every test here signs in as the same person and the suite wipes only at
+    the end, so the whole list also carries what earlier tests drew.
+    """
+    ends = {first, second}
+    return [
+        item["id"]
+        for item in listed
+        if {end["connector_id"] for end in item["ends"]} == ends
+    ]
+
+
 async def _seed(schema: str) -> None:
     await run(
         f"INSERT INTO {schema}.regions (id, code) "  # noqa: S608 -- fixture-owned.
@@ -431,7 +445,7 @@ async def test_the_same_pair_drawn_twice_is_one_reference(
     assert again.status_code == 200, again.text
     assert again.json()["id"] == reference_id
     listed = await client.get(f"{DECLARED}/", headers=normal_user_token_headers)
-    assert [item["id"] for item in listed.json()] == [reference_id]
+    assert _between(listed.json(), postgres_id, file_id) == [reference_id]
 
 
 @pytest.mark.usefixtures("normal_user_token_headers", "schema")
@@ -496,7 +510,7 @@ async def test_a_switched_off_far_end_takes_the_arrow_off_the_page(
     )
     assert page.json()["references"] == []
     listed = await client.get(f"{DECLARED}/", headers=normal_user_token_headers)
-    assert listed.json() == []
+    assert _between(listed.json(), postgres_id, file_id) == []
 
 
 async def test_the_list_is_filtered_to_one_node(

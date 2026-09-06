@@ -256,7 +256,7 @@ async def test_a_delimited_file_is_read_as_rows(
 
 
 @pytest.mark.usefixtures("home")
-async def test_the_answer_says_the_source_cannot_sort_or_filter(
+async def test_the_answer_says_the_source_cannot_sort_but_can_match(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:
     connector_id = await _create_connector(client, normal_user_token_headers)
@@ -269,7 +269,7 @@ async def test_the_answer_says_the_source_cannot_sort_or_filter(
 
     body = response.json()
     assert all(column["sortable"] is False for column in body["columns"])
-    assert all(column["filter_operators"] == [] for column in body["columns"])
+    assert all(column["filter_operators"] == ["eq"] for column in body["columns"])
 
 
 @pytest.mark.usefixtures("home")

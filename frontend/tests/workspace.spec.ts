@@ -175,7 +175,7 @@ test("drops a tab where it is aimed in a strip, not at the end of it", async ({
   // from measured tab rectangles under a captured pointer.
   const main = page.getByTestId("workspace-leaf-main")
   const order = () =>
-    main.locator('[data-testid^="workspace-tab-"]').evaluateAll((tabs) =>
+    main.locator('button[data-testid^="workspace-tab-"]').evaluateAll((tabs) =>
       tabs.map((tab) => (tab as HTMLElement).dataset.testid ?? "")
     )
   expect(await order()).toEqual(["workspace-tab-beta", "workspace-tab-gamma"])
