@@ -130,6 +130,17 @@ test("keeps rows compact and follows a column drag before release", async ({ pag
   const cell = page.getByTestId("grid-cell-0-name")
   await expect(cell).toBeVisible()
 
+  const toolbarButton = (await page.getByTestId("grid-sort").boundingBox())!
+  const header = (await page.getByTestId("grid-column-name").boundingBox())!
+  expect(header.height).toBeGreaterThan((await cell.boundingBox())!.height)
+  for (const id of ["grid-select-page", "grid-sort-direction-name", "grid-pin-name", "grid-hide-name"]) {
+    const button = (await page.getByTestId(id).boundingBox())!
+    expect(button.height).toBeCloseTo(toolbarButton.height, 0)
+    expect(button.width).toBeCloseTo(toolbarButton.width, 0)
+    expect(button.y).toBeGreaterThanOrEqual(header.y)
+    expect(button.y + button.height).toBeLessThanOrEqual(header.y + header.height)
+  }
+
   for (let row = 0; row < 5; row += 1) {
     const dataRow = page.getByTestId(`grid-row-${row}`)
     await dataRow.hover()

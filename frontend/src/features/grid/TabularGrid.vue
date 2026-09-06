@@ -346,7 +346,7 @@ function fittedColumnWidth(source: TabularColumn, index: number): number {
     (text) => measureFullText(text, monospace),
     { min: 72, max: 480 }
   )
-  const headerWidth = measureFullText(source.label, false, true) + (source.sortable ? 56 : 36)
+  const headerWidth = measureFullText(source.label, false, true) + (source.sortable ? 96 : 64)
   return Math.min(480, Math.ceil(Math.max(contentWidth, headerWidth)))
 }
 
@@ -666,7 +666,6 @@ defineExpose({
             >
               <AppIconButton
                 icon="select_all"
-                compact
                 tooltip="Select page"
                 data-testid="grid-select-page"
                 @click="selectPage"
@@ -700,7 +699,6 @@ defineExpose({
                 >{{ sortIndex(header.column.id) + 1 }}</span>
                 <AppIconButton
                   v-if="columnIsSortable(header.column.id)"
-                  compact
                   :icon="sortIcon(header.column.id)"
                   :tooltip="`Sort by ${columnOf(columns, header.column.id)?.label ?? header.column.id}`"
                   :data-direction="sortDirection(header.column.id)"
@@ -709,7 +707,6 @@ defineExpose({
                 />
                 <AppIconButton
                   icon="push_pin"
-                  compact
                   :class="{
                     'data-grid__pin--active': header.column.getIsPinned() === 'start',
                   }"
@@ -720,7 +717,6 @@ defineExpose({
                 />
                 <AppIconButton
                   icon="visibility_off"
-                  compact
                   :tooltip="`Hide ${columnOf(columns, header.column.id)?.label ?? header.column.id}`"
                   :data-testid="`grid-hide-${header.column.id}`"
                   @click.stop="hideColumn(header.column)"
@@ -954,16 +950,14 @@ defineExpose({
 }
 
 .data-grid__table th {
+  --grid-header-actions-width: 64px;
+  height: var(--dp-toolbar-height);
   background: var(--dp-surface);
   color: var(--dp-text-strong);
 }
 
-.data-grid__table th:not(.data-grid__selector) {
-  padding-inline-end: 42px;
-}
-
-.data-grid__sortable {
-  padding-inline-end: 62px !important;
+.data-grid__table th.data-grid__sortable {
+  --grid-header-actions-width: 96px;
 }
 
 .data-grid__pinned {
@@ -1023,7 +1017,7 @@ defineExpose({
 
 .data-grid__column-name {
   display: block;
-  max-width: 100%;
+  max-width: max(0px, calc(100% - var(--grid-header-actions-width)));
   padding: 0;
   border: 0;
   overflow: hidden;
@@ -1042,6 +1036,8 @@ defineExpose({
   inset-inline-end: 6px;
   display: flex;
   align-items: center;
+  max-width: calc(100% - 12px);
+  overflow: hidden;
 }
 
 .data-grid__pin--active {
