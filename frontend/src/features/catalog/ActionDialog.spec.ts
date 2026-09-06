@@ -624,3 +624,65 @@ describe("moving a relation", () => {
     wrapper.unmount()
   })
 })
+
+describe("an action with nothing to fill in", () => {
+  const PASTE: ActionCommand = {
+    name: "paste",
+    label: "Paste",
+    destructive: false,
+    question: null,
+    takesFile: false,
+    takesManyFiles: false,
+    previews: false,
+    takesSet: false,
+    previewsSet: false,
+    choices: {},
+    defaults: {},
+    downloads: false,
+    actsOn: "children",
+    fields: [
+      {
+        name: "sources",
+        label: "What to put here",
+        kind: "hidden",
+        required: false,
+        defaultValue: [],
+        group: "general",
+        purpose: "clipboard-nodes",
+      },
+      {
+        name: "mode",
+        label: "Copy or move",
+        kind: "hidden",
+        required: false,
+        defaultValue: "copy",
+        group: "general",
+        purpose: "clipboard-mode",
+      },
+    ],
+  }
+
+  it("runs at once instead of opening an empty confirmation", async () => {
+    // Pick up, then put down. A window between the two asks nothing and
+    // confirms a gesture already made.
+    const run = vi.spyOn(ConnectorsService, "runAction").mockResolvedValue({
+      data: { message: "1 file copied", reload_node_ids: ["reports"] },
+    } as never)
+    const wrapper = mountDialog(PASTE, ["reports"])
+    await flushPromises()
+
+    expect(run).toHaveBeenCalledTimes(1)
+    expect(document.body.querySelector('[data-testid="action-dialog"]')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it("opens the window when the source refuses, because the answer is there", async () => {
+    vi.spyOn(ConnectorsService, "runAction").mockRejectedValue(refused(409))
+    const wrapper = mountDialog(PASTE, ["reports"])
+    await flushPromises()
+
+    expect(document.body.querySelector('[data-testid="action-dialog"]')).not.toBeNull()
+    expect(text("action-error")).not.toBe("")
+    wrapper.unmount()
+  })
+})

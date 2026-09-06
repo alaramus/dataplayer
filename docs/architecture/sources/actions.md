@@ -324,6 +324,13 @@ Consequences:
   a source's identifier-named action cannot collide with.
 - **A command needing the clipboard is disabled while it is empty** and says
   what it would paste while it is not.
+- **Paste opens no window.** A form whose every field is hidden, that is not
+  destructive, takes no file and previews nothing has nothing to ask, and the
+  window it opened was an empty confirmation of a gesture already made twice —
+  pick up, walk, put down. Such an action runs the moment its line is chosen;
+  the window comes up only when the source refuses, because the refusal is
+  read there. The rule is about the form and not about paste: any action that
+  asks nothing behaves the same way.
 - **Every id is judged on arrival**, by the containment rule of D8, exactly as
   a path typed into a form is.
 - **A move names both ends** in `reload_node_ids`, and the clipboard is

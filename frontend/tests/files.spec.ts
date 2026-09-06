@@ -634,12 +634,14 @@ test("copies a file into another folder, then moves one out again", async ({ pag
   await catalogAction(page, "client:copy")
   await catalogCheck(page, "notes.txt").click()
 
-  // Paste acts on the place being looked at, so the folder is walked into.
+  // Paste acts on the place being looked at, so the folder is walked into. It
+  // asks nothing — what to put here and whether it was cut are both already
+  // known — so it runs from the menu without a window in between.
   await openNode(page, folder)
   await catalogAction(page, "paste")
-  await page.getByTestId("action-submit").click()
   const list = page.getByTestId("catalog-list")
   await expect(list).toContainText("notes.txt")
+  await expect(page.getByTestId("action-dialog")).toHaveCount(0)
 
   // And what was copied stays where it was.
   await page.getByTestId("catalog-home").click()
@@ -651,8 +653,7 @@ test("copies a file into another folder, then moves one out again", async ({ pag
   await catalogAction(page, "client:cut")
   await page.getByTestId("catalog-home").click()
   await catalogAction(page, "paste")
-  await page.getByTestId("action-submit").click()
-  // Refused, and said where the answer belongs: the name is taken at the top,
+  // Refused, and the window comes up for it: the name is taken at the top,
   // because the copy from a moment ago is still there.
   await expect(page.getByTestId("action-error")).toContainText("already there")
   await page.getByRole("button", { name: "Cancel" }).click()

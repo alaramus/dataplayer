@@ -180,7 +180,37 @@ function forgetPreview() {
   previewFailed.value = ""
 }
 
-const open = computed(() => props.command !== null)
+/**
+ * Whether this form has anything to ask before it runs.
+ *
+ * Paste is the case where it has not: every parameter it takes is filled from
+ * what the catalog is holding and none of them is drawn, so its window was an
+ * empty confirmation of a gesture already made — pick up, then put down. It
+ * runs at once instead.
+ */
+const asksNothing = computed(() => {
+  const command = props.command
+  return (
+    command !== null &&
+    !command.destructive &&
+    !command.takesFile &&
+    command.workflow === undefined &&
+    !previewable.value &&
+    visibleFields.value.length === 0
+  )
+})
+
+/**
+ * Whether a run that asked nothing came back with something to answer.
+ *
+ * The window still opens then: a refusal is read here, and the two answers to
+ * a name already taken are pressed here.
+ */
+const answering = ref(false)
+
+const open = computed(
+  () => props.command !== null && (!asksNothing.value || answering.value)
+)
 const destructiveQuestion = computed(
   () =>
     props.command?.question ??
@@ -192,15 +222,23 @@ watch(
   (command) => {
     failure.value = ""
     conflict.value = false
+    answering.value = false
     files.value = []
     forgetPreview()
     reset(command?.fields ?? [], initialValues(command))
     schedulePreview()
+    if (command !== null && asksNothing.value) void submit()
   },
   // Immediately, so the form and its preview do not depend on this component
   // having been mounted before the command arrived.
   { immediate: true }
 )
+
+// Whatever a run leaves unanswered brings the window up, however it was
+// started. Said once here rather than at each of the ways submit() ends.
+watch(failure, (message) => {
+  if (message !== "") answering.value = true
+})
 
 // The answer is about the parameters, so it is asked again when they change.
 // Deeply, because the form holds one object for every field it has.
@@ -283,6 +321,7 @@ async function submit() {
     const fieldErrors = fieldErrorsFrom(cause)
     if (fieldErrors) {
       applyServerErrors(fieldErrors)
+      answering.value = true
       return
     }
     const sent = files.value[0]
