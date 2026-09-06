@@ -46,6 +46,9 @@ test("creates, fills, renames and removes a folder in personal storage", async (
   await page.getByTestId("catalog-actions").click()
   await expect(page.getByTestId("menu-item-create_folder")).toBeVisible()
   await expect(page.getByTestId("menu-item-upload")).toBeVisible()
+  // A file source declares no way of being copied out, so the line is absent
+  // rather than present and dead.
+  await expect(page.getByTestId("menu-item-client:backups")).toHaveCount(0)
   await expect(page.getByTestId("menu-item-delete")).toHaveAttribute(
     "aria-disabled",
     "true"
@@ -223,6 +226,13 @@ test("renames a relation without leaving its schema", async ({ page }) => {
   await openConnector(page, name)
   await pickSchema(page, "demo_lab")
   await expect(catalogRow(page, "audit_events")).toBeVisible()
+
+  // Copying the connection out is a line of this menu rather than a button in
+  // the footer: it acts on the connection, and this is the connection's menu.
+  // Whether it is live depends on the machine, so only the line is asserted.
+  await page.getByTestId("catalog-actions").click()
+  await expect(page.getByTestId("menu-item-client:backups")).toBeVisible()
+  await page.keyboard.press("Escape")
 
   await catalogCheck(page, "audit_events").click()
   await catalogAction(page, "rename_relation")

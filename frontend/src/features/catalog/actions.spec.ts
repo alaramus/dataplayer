@@ -461,6 +461,35 @@ describe("the client's own lines of the menu", () => {
     expect(items.every((item) => item.disable === false)).toBe(true)
   })
 
+  it("puts the one line about the connection after the ones about its nodes", () => {
+    const items = clientMenu({ ...everything, backups: { enabled: true } })
+
+    expect(items.map((item) => item.label)).toEqual([
+      "Details",
+      "Relationships",
+      "Copy",
+      "Cut",
+      "Backups",
+    ])
+  })
+
+  it("leaves out copying a source out that cannot be copied out", () => {
+    // A file source declares no `backup` capability, and a line that can never
+    // work is worse than no line.
+    expect(clientMenu(everything).map((item) => item.label)).not.toContain("Backups")
+  })
+
+  it("keeps the line and says why when the server cannot copy anything out", () => {
+    const items = clientMenu({
+      ...everything,
+      backups: { enabled: false, reason: "This server cannot copy a database out" },
+    })
+    const backups = items.find((item) => item.label === "Backups")
+
+    expect(backups?.disable).toBe(true)
+    expect(backups?.hint).toBe("This server cannot copy a database out")
+  })
+
   it("leaves out what a source has no use for", () => {
     // A database describes no nodes, draws none of them and has nowhere to
     // paste.

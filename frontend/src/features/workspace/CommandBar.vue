@@ -1,25 +1,20 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
-import { useAdapterTypes, useConnectors } from "@/features/connectors/api"
+import { useConnectors } from "@/features/connectors/api"
 import { useQueryProfile } from "@/features/queries/runs"
-import BackupsDialog from "@/features/services/BackupsDialog.vue"
 import ServicesDialog from "@/features/services/ServicesDialog.vue"
-import { useBackupOffer, useServices } from "@/features/services/api"
+import { useServices } from "@/features/services/api"
 import { isWorking, progressOf } from "@/features/services/jobs"
-import {
-  connectionCommands,
-  queriesCommand,
-  servicesCommand,
-} from "@/features/workspace/commands"
+import { queriesCommand, servicesCommand } from "@/features/workspace/commands"
 import type { Support } from "@/features/workspace/commands"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppButton, AppTooltip } from "@/shared/ui"
 
 /**
- * The bar at the foot of the screen: what can be done to the open connection —
- * a command that belongs to a connection and to no node in it, which until now
- * was squeezed in beside the plus in the connections column.
+ * The bar at the foot of the screen: the library of queries and what this
+ * server is running. What acts on the open connection is in the connection's
+ * own menu, where the rest of what a connection can do already was.
  *
  * Which connection is not written here. It is already said in the column of
  * connections and on the tab of the catalog, and a third copy took the room
@@ -48,42 +43,9 @@ const supportsQueries = computed<Support>(() => {
   return profile.isError.value ? "no" : "asking"
 })
 
-/**
- * Whether this connection could be copied out, which is two questions: the
- * machine answers with a reason when it cannot (D87), and the source declares
- * `backup` off its type or does not (D2). The refusal names whichever said no.
- */
-const offer = useBackupOffer()
-const adapterTypes = useAdapterTypes()
-
-const sourceCanBackUp = computed<Support>(() => {
-  const adapterType = connector.value?.adapter_type
-  if (adapterType === undefined) return "no"
-  if (adapterTypes.data.value === undefined) return "asking"
-  return (adapterTypes.data.value.find((type) => type.name === adapterType)
-    ?.capabilities.some((capability) => capability.code === "backup") ?? false)
-    ? "yes"
-    : "no"
-})
-
-const supportsBackups = computed<Support>(() => {
-  if (workspace.activeConnectorId.value === null) return "no"
-  if (sourceCanBackUp.value !== "yes") return sourceCanBackUp.value
-  if (offer.isLoading.value) return "asking"
-  return offer.data.value?.available ? "yes" : "no"
-})
-
-const backupsRefusal = computed(() =>
-  sourceCanBackUp.value === "no"
-    ? "This kind of connection cannot be copied out"
-    : (offer.data.value?.reason ?? undefined)
-)
-
 const state = computed(() => ({
   name: connector.value?.name ?? null,
   supportsQueries: supportsQueries.value,
-  supportsBackups: supportsBackups.value,
-  backupsRefusal: backupsRefusal.value,
 }))
 /**
  * The library, which is the one thing in this row that is not the open
@@ -91,7 +53,6 @@ const state = computed(() => ({
  * there is a connection to open it against.
  */
 const library = computed(() => queriesCommand(state.value))
-const commands = computed(() => connectionCommands(state.value))
 
 /**
  * What this server is running for this person, which is not about a
@@ -112,14 +73,8 @@ const serviceCommand = computed(() =>
 )
 const servicesOpen = ref(false)
 
-/** The connection whose backups are being looked at, if any. */
-const backingUp = ref<{ id: string; name: string } | null>(null)
-
 function run(name: string) {
   if (name === "queries") workspace.openQueries(workspace.activeConnectorId.value)
-  if (name === "backups" && connector.value) {
-    backingUp.value = { id: connector.value.id, name: connector.value.name }
-  }
   if (name === "services") servicesOpen.value = true
 }
 </script>
@@ -143,26 +98,6 @@ function run(name: string) {
       <AppTooltip>{{ library.tooltip }}</AppTooltip>
     </span>
 
-    <!-- Greyed out rather than hidden, for the reason the catalog's menu is:
-         a bar that changes shape as the user walks about is a bar they have to
-         read every time. The tooltip is where the reason is. -->
-    <span
-      v-for="command in commands"
-      :key="command.name"
-      class="command-bar__slot"
-    >
-      <AppButton
-        variant="quiet"
-        size="sm"
-        :icon="command.icon"
-        :label="command.label"
-        :disable="!command.enabled"
-        :data-testid="`command-${command.name}`"
-        @click="run(command.name)"
-      />
-      <AppTooltip>{{ command.tooltip }}</AppTooltip>
-    </span>
-
     <!-- On the right, away from the commands of the open connection: this one
          is about the machine, and a button whose subject is different from
          its neighbours' should not sit in the same row of them. -->
@@ -179,7 +114,6 @@ function run(name: string) {
       <AppTooltip>{{ serviceCommand.tooltip }}</AppTooltip>
     </span>
 
-    <BackupsDialog v-model:connector="backingUp" />
     <ServicesDialog v-model="servicesOpen" />
   </div>
 </template>

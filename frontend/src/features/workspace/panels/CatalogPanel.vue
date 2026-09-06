@@ -24,6 +24,7 @@ import {
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
 import { groupTitle, showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
+import BackupsDialog from "@/features/services/BackupsDialog.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
 import { useWorkspaceActions } from "@/features/workspace/state"
@@ -383,6 +384,13 @@ async function copyPath() {
   }
 }
 
+/** The connection whose backups are being looked at, when they are. */
+const backingUp = ref<{ id: string; name: string } | null>(null)
+
+function showBackups() {
+  backingUp.value = { id: props.connectorId, name: props.title }
+}
+
 function showDetails() {
   const node = describedNode.value
   if (node === null) return
@@ -727,9 +735,11 @@ async function afterAction(outcome: ActionOutcome) {
           :described-node="null"
           :draws-nodes="false"
           :drawable-nodes="false"
+          :adapter-type="adapterType"
           @done="afterAction"
           @connector="workspace.createConnector"
           @details="showDetails"
+          @backups="showBackups"
         />
         <CatalogActions
           v-else
@@ -748,10 +758,12 @@ async function afterAction(outcome: ActionOutcome) {
           :described-node="describedNode"
           :draws-nodes="drawsNodes"
           :drawable-nodes="drawableNodes"
+          :adapter-type="adapterType"
           @done="afterAction"
           @connector="workspace.createConnector"
           @details="showDetails"
           @relationships="showRelationships"
+          @backups="showBackups"
         />
 
         <!-- The catalog is the way to a node and not a view of one, so it
@@ -907,6 +919,8 @@ async function afterAction(outcome: ActionOutcome) {
       @toggle="onToggle"
       @toggle-all="level.toggleAll"
     />
+
+    <BackupsDialog v-model:connector="backingUp" />
   </div>
 </template>
 

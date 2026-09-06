@@ -238,7 +238,7 @@ Known deviations:
 
 Spec: [The workspace and the panel engine](../superpowers/specs/2026-08-22-workspace-design.md)
 
-## D69. The bar at the foot of the screen holds the commands of a connection
+## D69. The bar at the foot of the screen holds what hangs off nothing else
 
 Almost every button hangs off the thing it acts on: a table's commands are in
 its grid, a node's are in the catalog's menu, a connection's form opens from
@@ -273,6 +273,13 @@ Consequences:
   the adapter type (D62). Copying a database out is the example: a driver that
   can name a program to dump it declares the capability, and one that cannot
   does not.
+- **What acts on the open connection sits in that connection's menu.** Copying
+  a database out was the one command here that did, and it stood alone in a bar
+  of things belonging to the person and to the server while the rest of what a
+  connection can do was already in the catalog's own menu. It is a line there
+  now, last of the client's own, drawn only for a source that declares the
+  capability and greyed out with the server's reason when the machine cannot
+  run a dump (D87).
 - **One button in that row is not a connection's.** The library of queries
   belongs to a person and outlives the connections in it (D65), so it is never
   greyed out with the rest: what it says changes — which connection it would

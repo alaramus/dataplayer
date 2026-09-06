@@ -18,6 +18,7 @@ import type {
 } from "@/features/catalog/actions"
 import { useDownloadAction, useNodeActions, usePrepareConnectorAction } from "@/features/catalog/api"
 import type { CatalogNode } from "@/features/catalog/nodes"
+import { useBackupSupport } from "@/features/services/backups"
 import { messageOf } from "@/shared/api/errors"
 import { saveNativeDownload } from "@/shared/download"
 import { AppIconButton, AppMenu, useToast } from "@/shared/ui"
@@ -59,12 +60,15 @@ const props = defineProps<{
   drawsNodes: boolean
   /** Whether what would be drawn — the ticks, or the list — is a set a diagram can hold. */
   drawableNodes: boolean
+  /** What kind of source this is, for the one command about the connection. */
+  adapterType: string
 }>()
 
 const emit = defineEmits<{
   done: [outcome: ActionOutcome]
   details: []
   relationships: []
+  backups: []
   connector: [draft: ConnectorDraft]
 }>()
 const toast = useToast()
@@ -126,11 +130,20 @@ const canHold = computed(() =>
 )
 
 /**
+ * The one line about the connection rather than about a node in it.
+ *
+ * It used to stand in the footer beside the library of queries, where it was
+ * the only command in that bar acting on the open connection while the rest
+ * of what a connection can do already lived in this menu.
+ */
+const backups = useBackupSupport(() => props.adapterType)
+
+/**
  * One menu, two vocabularies: what the client can do, then what the source can.
  *
- * The client's three come first because they are the same three wherever one
- * stands, while the source's own lines vary with the level — and because Copy
- * and Cut read as the pair Paste completes when they sit above it.
+ * The client's come first because they are the same wherever one stands, while
+ * the source's own lines vary with the level — and because Copy and Cut read
+ * as the pair Paste completes when they sit above it.
  */
 const items = computed<MenuItem[]>(() => [
   ...clientMenu({
@@ -140,6 +153,14 @@ const items = computed<MenuItem[]>(() => [
     diagrammable: props.drawableNodes,
     holds: canHold.value,
     ticked: props.checkedIds.length,
+    ...(backups.value.offered
+      ? {
+          backups: {
+            enabled: backups.value.enabled,
+            ...(backups.value.reason === undefined ? {} : { reason: backups.value.reason }),
+          },
+        }
+      : {}),
   }),
   ...commands.value.map((command) => {
     // An empty clipboard is the client's own reason and outranks the source's,
@@ -165,10 +186,15 @@ function run(command: ClientCommand) {
     if (props.describedNode !== null) emit("details")
     return
   }
-  // A diagram is the one client verb that works without ticks: what is listed
-  // is the scope when nothing is picked out of it.
+  // A diagram works without ticks: what is listed is the scope when nothing is
+  // picked out of it.
   if (command === "relationships") {
     if (props.drawableNodes) emit("relationships")
+    return
+  }
+  // And copying the connection out is about no node in it at all.
+  if (command === "backups") {
+    if (backups.value.enabled) emit("backups")
     return
   }
   if (props.checkedIds.length === 0) return

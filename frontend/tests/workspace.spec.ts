@@ -753,7 +753,7 @@ test("every column collapses and comes back, and none of them scrolls the page",
 })
 
 
-test("the bar at the foot offers what the open connection can do", async ({ page }) => {
+test("the bar at the foot offers what hangs off nothing else", async ({ page }) => {
   const sql = `e2e-bar-pg-${Date.now()}`
   const files = `e2e-bar-file-${Date.now()}`
   await login(page)
@@ -764,10 +764,10 @@ test("the bar at the foot offers what the open connection can do", async ({ page
   const bar = page.getByTestId("command-bar")
   const queries = page.getByTestId("command-queries")
 
-  // Nothing is being read, so there is nothing for a command of a connection
-  // to be about — but the library is a person's own and opens all the same.
+  // Nothing is being read, and the library is a person's own: it opens all
+  // the same. What acts on a connection lives in that connection's own menu.
   await expect(queries).toBeEnabled()
-  await expect(page.getByTestId("command-backups")).toBeDisabled()
+  await expect(page.getByTestId("command-backups")).toHaveCount(0)
 
   // A source that runs queries offers the commands. The bar does not repeat
   // which connection they are about — the column and the tab both say it —
@@ -778,11 +778,10 @@ test("the bar at the foot offers what the open connection can do", async ({ page
   await queries.hover()
   await expect(page.getByText(`Queries written against ${sql}`)).toBeVisible()
 
-  // A source that does not is what the greying out is for: the bar keeps its
-  // shape as somebody walks about, and the library stays reachable.
+  // And a source that does not run queries keeps the bar's shape: the library
+  // stays reachable whatever is open.
   await openConnector(page, files)
   await expect(bar).not.toContainText(files)
-  await expect(page.getByTestId("command-backups")).toBeDisabled()
   await expect(queries).toBeEnabled()
 
   // Pressed from the connection, the library opens filtered to it.

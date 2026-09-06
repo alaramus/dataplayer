@@ -1,12 +1,13 @@
 /**
- * The commands that belong to a connection rather than to anything on screen.
+ * The commands in the bar at the foot of the screen.
  *
  * A console is written against a connection and belongs to a person, so there
  * is no node whose toolbar it could live in; it used to be squeezed in beside
- * the plus in the connections column. The bar at the foot of the screen is
- * where those go, under one rule: offered while a connection is being read and
- * that connection can do the thing. Plain functions, so the rule is tested in
- * one place rather than inferred from a row of `v-if`s.
+ * the plus in the connections column. What acts on the open connection lives
+ * in the connection's own menu instead — copying a database out went there —
+ * and what is left here belongs to the person or to the server. Plain
+ * functions, so the rule is tested in one place rather than inferred from a
+ * row of `v-if`s.
  */
 
 /** What a connection has answered about one capability, including "not yet". */
@@ -16,18 +17,6 @@ export interface ConnectionState {
   /** The connection being read, or null when none is. */
   name: string | null
   supportsQueries: Support
-  /**
-   * Whether this connection could be copied out, which is two questions.
-   *
-   * One is about the machine — a container runtime to run `pg_dump` in and
-   * somewhere to write what it produces (D87) — and the server answers it for
-   * the installation. The other is about the source: only a type whose driver
-   * can name a program that dumps it declares the `backup` capability, and
-   * neither a file source nor a Redis server does. Both must say yes, and the
-   * refusal is whichever one said no.
-   */
-  supportsBackups: Support
-  backupsRefusal?: string
 }
 
 export interface ConnectionCommand {
@@ -38,9 +27,6 @@ export interface ConnectionCommand {
   /** What pressing it would do, or why it cannot be pressed. */
   tooltip: string
 }
-
-const NOTHING_OPEN = "Open a connection to use this"
-const STILL_ASKING = "Asking this connection what it can do"
 
 /**
  * The library of queries, which is a person's rather than a connection's.
@@ -64,41 +50,6 @@ export function queriesCommand(state: ConnectionState): ConnectionCommand {
     enabled: true,
     tooltip: about,
   }
-}
-
-export function connectionCommands(state: ConnectionState): ConnectionCommand[] {
-  return [
-    {
-      name: "backups",
-      label: "Backups",
-      icon: "inventory_2",
-      ...offered(
-        state,
-        state.supportsBackups,
-        state.backupsRefusal ?? "This server cannot copy a database out",
-        (name) => `Copy ${name} out, or put a backup back`
-      ),
-    },
-  ]
-}
-
-/**
- * Whether one command is offered, and what it says either way.
- *
- * Three answers rather than two, because "we have not asked yet" is not "no".
- * Telling somebody their PostgreSQL connection does not run queries for the
- * half second before the answer arrives is a worse lie than saying nothing.
- */
-function offered(
-  state: ConnectionState,
-  support: Support,
-  refusal: string,
-  wording: (name: string) => string
-): { enabled: boolean; tooltip: string } {
-  if (state.name === null) return { enabled: false, tooltip: NOTHING_OPEN }
-  if (support === "asking") return { enabled: false, tooltip: STILL_ASKING }
-  if (support === "no") return { enabled: false, tooltip: refusal }
-  return { enabled: true, tooltip: wording(state.name) }
 }
 
 /**

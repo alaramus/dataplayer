@@ -248,7 +248,7 @@ export function nodeSetOf(nodeIds: (string | null)[]): string[] | null {
  * The names are prefixed because one menu carries two vocabularies: a source
  * names its actions with identifiers, so a colon cannot collide.
  */
-export const CLIENT_COMMANDS = ["details", "relationships", "copy", "cut"] as const
+export const CLIENT_COMMANDS = ["details", "relationships", "copy", "cut", "backups"] as const
 export type ClientCommand = (typeof CLIENT_COMMANDS)[number]
 
 export function clientCommandName(command: ClientCommand): string {
@@ -272,6 +272,17 @@ export interface ClientMenuState {
   holds: boolean
   /** How many nodes are ticked. */
   ticked: number
+  /**
+   * Whether this connection could be copied out, and why not when it cannot.
+   *
+   * Absent when this kind of source cannot be copied out at all: only a type
+   * whose driver can name a program that dumps it declares the `backup`
+   * capability, and neither a file source nor a Redis server does. The other
+   * half of the question is about the machine — a container runtime to run the
+   * dump in and somewhere to write what it produces (D87) — and that is the
+   * refusal carried here.
+   */
+  backups?: { enabled: boolean; reason?: string }
 }
 
 /**
@@ -316,6 +327,16 @@ export function clientMenu(state: ClientMenuState): MenuItem[] {
         hint: nothingTicked,
       }
     )
+  }
+  // Last of the client's, because it is the one line about the connection
+  // rather than about anything picked out inside it.
+  if (state.backups) {
+    items.push({
+      name: clientCommandName("backups"),
+      label: "Backups",
+      disable: !state.backups.enabled,
+      hint: state.backups.reason,
+    })
   }
   return items
 }
