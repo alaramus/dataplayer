@@ -54,6 +54,12 @@ test("creates, fills, renames and removes a folder in personal storage", async (
     "aria-disabled",
     "true"
   )
+  // And each greyed line says what would make it usable, on hover. Whether a
+  // tooltip opens over a disabled item is a question about pointer events
+  // that only a browser answers: a unit test can see the text is there and
+  // not that anybody can reach it.
+  await page.getByTestId("menu-item-rename").hover()
+  await expect(page.locator(".q-tooltip")).toContainText("Tick a row to use this")
   await page.keyboard.press("Escape")
 
   // --- create a folder, and see it appear without reopening the dialog

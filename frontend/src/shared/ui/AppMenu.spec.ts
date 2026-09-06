@@ -13,6 +13,10 @@ import type { MenuItem } from "./AppMenu.vue"
  * body rather than into the component. A hint computed and never rendered is
  * exactly the failure the catalog's captions were — they had no prop to render
  * into, and the unit test that built them was green throughout.
+ *
+ * Whether the tooltip actually opens over a disabled line is a question about
+ * pointer events, which jsdom does not have: that half is a Playwright
+ * scenario in `actions.spec.ts`.
  */
 let host: ReturnType<typeof mount> | null = null
 
@@ -36,18 +40,37 @@ describe("a menu line", () => {
     host = null
   })
 
-  it("says why it cannot be used, under its label", async () => {
+  it("carries the reason it cannot be used, without saying it out loud", async () => {
     await open([
       { name: "delete", label: "Delete", disable: true, hint: "Tick a row to use this" },
     ])
 
-    expect(line("delete")).toContain("Delete")
-    expect(line("delete")).toContain("Tick a row to use this")
+    // The label reads as the label. The reason is a tooltip, which Quasar
+    // renders only once something hovers it.
+    expect(line("delete").trim()).toBe("Delete")
+    expect(document.body.querySelector('[data-testid="menu-item-delete"] .q-tooltip'))
+      .toBeNull()
   })
 
-  it("says nothing extra when it can be used", async () => {
-    await open([{ name: "upload", label: "Upload" }])
+  it("refuses to report a selection nobody could make", async () => {
+    // The label takes the pointer back so the tooltip can open, which puts a
+    // clickable target inside an item that is meant to be inert.
+    const wrapper = await open([{ name: "delete", label: "Delete", disable: true }])
+    const item = document.body.querySelector('[data-testid="menu-item-delete"]')
 
-    expect(line("upload").trim()).toBe("Upload")
+    item?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    await flushPromises()
+
+    expect(wrapper.findComponent(AppMenu).emitted("select")).toBeUndefined()
+  })
+
+  it("reports one that can be made", async () => {
+    const wrapper = await open([{ name: "upload", label: "Upload" }])
+    const item = document.body.querySelector('[data-testid="menu-item-upload"]')
+
+    item?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    await flushPromises()
+
+    expect(wrapper.findComponent(AppMenu).emitted("select")).toEqual([["upload"]])
   })
 })

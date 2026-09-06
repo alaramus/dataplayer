@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppIconButton from "./AppIconButton.vue"
+import AppTooltip from "./AppTooltip.vue"
 
 /**
  * A menu of actions, anchored to the element it is placed inside.
@@ -17,14 +18,14 @@ export interface MenuItem {
   danger?: boolean
   disable?: boolean
   /**
-   * Why the line cannot be used, under the label.
+   * Why the line cannot be used, on hover.
    *
    * A greyed line and a barred cursor say that something is not available and
    * nothing about what would make it available, which leaves the reader to
    * guess between "wrong place", "nothing ticked" and "this source cannot".
-   * The same reasoning as the command bar's tooltips (D69), said in the menu
-   * itself because a disabled item takes no pointer events and so has no
-   * hover of its own.
+   * The same answer the command bar gives (D69), and for the same reason it
+   * hangs off a wrapper there: a disabled item is inert, so the span inside it
+   * takes the pointer back for the hover alone.
    */
   hint?: string
   /** An optional removal action beside a saved entry; also its accessible label. */
@@ -55,7 +56,7 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
         :disable="item.disable === true"
         :class="item.danger === true ? 'text-negative' : undefined"
         :data-testid="`menu-item-${item.name}`"
-        @click="emit('select', item.name)"
+        @click="item.disable === true ? undefined : emit('select', item.name)"
       >
         <q-item-section
           v-if="item.icon"
@@ -68,14 +69,10 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
           />
         </q-item-section>
         <q-item-section>
-          <q-item-label>{{ item.label }}</q-item-label>
-          <q-item-label
-            v-if="item.hint"
-            caption
-            class="app-menu__hint"
-          >
-            {{ item.hint }}
-          </q-item-label>
+          <span class="app-menu__label">
+            {{ item.label }}
+            <AppTooltip v-if="item.hint">{{ item.hint }}</AppTooltip>
+          </span>
         </q-item-section>
         <q-item-section
           v-if="item.removeLabel"
@@ -109,11 +106,8 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
   padding-right: 0;
 }
 
-/* Quasar dims a disabled item as a whole, and a caption dimmed twice over is
-   the one line in it that has to stay readable. */
-.app-menu__hint {
-  color: var(--dp-text-muted);
-  white-space: normal;
-  max-width: 260px;
-}
+/* A disabled item is inert, so a tooltip hung on it never opens. The label
+   inside takes the pointer back, which is enough for a hover and not enough
+   for a click — the item's own handler refuses a disabled line anyway. */
+.app-menu__label { pointer-events: auto; }
 </style>
