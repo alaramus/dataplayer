@@ -137,29 +137,28 @@ async function logout() {
       </q-page>
     </q-page-container>
 
-    <!-- The status commands and minimized windows share one measured footer. -->
+    <!-- One row: the status commands and the open windows, the way a desktop
+         puts its taskbar beside the rest of its bar rather than under it. -->
     <q-footer
       class="app-layout__footer"
       data-testid="app-footer"
     >
       <div
         ref="footer"
-        class="app-layout__footer-content"
+        class="app-layout__status"
       >
-        <div class="app-layout__status">
-          <ServerSwitcher />
-          <slot name="status" />
-          <div
-            v-if="$slots['status-end']"
-            class="app-layout__status-end"
-          >
-            <slot name="status-end" />
-          </div>
-        </div>
+        <ServerSwitcher />
         <WindowTaskbar
           v-if="windows"
           :context="windows.context"
         />
+        <slot name="status" />
+        <div
+          v-if="$slots['status-end']"
+          class="app-layout__status-end"
+        >
+          <slot name="status-end" />
+        </div>
       </div>
     </q-footer>
 
@@ -177,10 +176,6 @@ async function logout() {
 
 .app-layout__header {
   border-bottom: 1px solid var(--dp-border);
-}
-
-.app-layout__footer-content {
-  border-top: 1px solid var(--dp-border);
 }
 
 .app-layout__toolbar {
@@ -211,8 +206,10 @@ async function logout() {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   min-height: var(--dp-status-height);
   padding: 0 var(--dp-space-3);
+  border-top: 1px solid var(--dp-border);
   font-size: 12px;
 }
 

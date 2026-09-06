@@ -385,11 +385,20 @@ state, not the browser's fullscreen mode. The layout reports its measured
 footer height to the window manager, so the engine knows an inset rather than
 what the footer contains.
 
-Minimization hides the whole frame while keeping its component mounted. The
-footer lists minimized windows by their current title and icon in a horizontally
-scrollable row. Selecting one, or opening its existing id again, restores it to
-the front. A minimized maximized window returns maximized. Hidden windows never
-claim to be the front window.
+Minimization hides the whole frame while keeping its component mounted.
+
+The footer lists every open window, not only the ones put aside, in one
+horizontally scrollable row beside the status commands rather than in a second
+row of its own: it is a desktop taskbar, and a bar that appears and disappears
+as windows are minimized moves the rest of the footer under the pointer. A
+window is on it by its current title and icon from the moment it opens, in the
+order the windows were opened — the manager's own list is in stacking order and
+rearranges as one window is focused after another. The window one is looking at
+is marked; its button puts it aside, and any other button brings it to the
+front, as does opening its existing id again. Each button also closes its
+window, through the same question the frame's own cross asks. A minimized
+maximized window returns maximized. Hidden windows never claim to be the front
+window.
 
 The normal rectangle and automatic fitting preference survive both operations.
 Hidden and maximized windows do not accept dragging, resizing or content fitting;

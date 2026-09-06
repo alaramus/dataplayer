@@ -386,18 +386,27 @@ test("maximizes above the footer and restores a minimized draft until reload", a
 
   await frame.getByRole("button", { name: "Minimize", exact: true }).click()
   await expect(frame).toBeHidden()
-  const taskbar = page.getByRole("navigation", { name: "Minimized windows" })
+  // One footer row: the bar lists open windows beside the status commands
+  // rather than growing a second row of its own under them.
+  const taskbar = page.getByRole("navigation", { name: "Open windows" })
   await expect(taskbar).toBeVisible()
   await expect(footer.getByTestId("window-taskbar")).toBeVisible()
-  await expect(taskbar.getByRole("button", { name: "Restore New connection" })).toBeFocused()
+  await expect(
+    taskbar.getByRole("button", { name: "New connection", exact: true })
+  ).toBeFocused()
 
-  // A second maximized window must leave the first one's restore button usable.
+  // A second maximized window must leave the first one's button on the bar
+  // usable. Both are called "New connection", so the draft is addressed by
+  // what it is rather than by what it says.
+  const draftTab = taskbar.locator('[data-testid^="window-tab-connector"]')
   await page.getByTestId("add-connector").click()
   const catalog = page.getByRole("dialog", { name: "New connection", exact: true }).filter({
     has: page.getByTestId("adapter-postgres"),
   })
+  await expect(taskbar.getByRole("button", { name: "New connection", exact: true }))
+    .toHaveCount(2)
   await catalog.getByRole("button", { name: "Maximize", exact: true }).click()
-  await taskbar.getByRole("button", { name: "Restore New connection" }).click()
+  await draftTab.click()
   await expectMaximized()
   await expect(frame.getByTestId("connector-name")).toHaveValue(draft)
 

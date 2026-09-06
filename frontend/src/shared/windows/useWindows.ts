@@ -81,8 +81,12 @@ export interface WindowState extends OpenWindow {
    * `id` unmounted the window at that moment and mounted a fresh one: the
    * form reset itself, and the close that followed the save was delivered to
    * an instance that no longer existed.
+   *
+   * A rising number rather than a string, so the taskbar can put the windows
+   * back into the order they were opened in: the list itself is kept in
+   * stacking order and rearranges under the pointer.
    */
-  key: string
+  key: number
 }
 
 export interface WindowsContext {
@@ -209,7 +213,7 @@ export function useWindows(
         hasFit: false,
         minimized: false,
         maximized: false,
-        key: `w${keys}`,
+        key: keys,
       },
     ]
     order.value = [...order.value, window.id]

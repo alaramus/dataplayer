@@ -56,17 +56,19 @@ describe("the window frame and footer manager", () => {
       await frame.get('[aria-label="Minimize"]').trigger("click")
       await flushPromises()
       expect(frame.isVisible()).toBe(false)
-      const restore = wrapper.get('[aria-label="Restore New connection"]')
-      expect(document.activeElement).toBe(restore.element)
+      const tab = wrapper.get('[aria-label="New connection"]')
+      expect(document.activeElement).toBe(tab.element)
 
       windows!.rename("draft", "saved", { title: "Renamed connection", icon: "storage" })
       await flushPromises()
-      expect(wrapper.find('[data-testid="window-restore-draft"]').exists()).toBe(false)
-      await wrapper.get('[aria-label="Restore Renamed connection"]').trigger("click")
+      expect(wrapper.find('[data-testid="window-tab-draft"]').exists()).toBe(false)
+      await wrapper.get('[aria-label="Renamed connection"]').trigger("click")
       await flushPromises()
       expect(frame.isVisible()).toBe(true)
       expect(document.activeElement).toBe(frame.element)
-      expect(wrapper.find('[aria-label="Minimized windows"]').exists()).toBe(false)
+      // The bar keeps the window once it is back: it lists what is open, not
+      // what has been put aside.
+      expect(wrapper.find('[data-testid="window-tab-saved"]').exists()).toBe(true)
       expect(mounted).toHaveBeenCalledOnce()
       expect((frame.get('input[aria-label="Draft"]').element as HTMLInputElement).value)
         .toBe("Keep this unsaved value")
@@ -78,6 +80,47 @@ describe("the window frame and footer manager", () => {
       await frame.get('[aria-label="Close window"]').trigger("click")
       await flushPromises()
       expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it("lists an open window and closes it from the bar", async () => {
+    let windows: WindowsApi
+    const Root = defineComponent({
+      setup() {
+        windows = useWindows()
+        windows.open({
+          id: "rows",
+          look: { title: "orders" },
+          size: { width: 300, height: 200 },
+          component: defineComponent({ setup: () => () => h("div", "rows") }),
+          autoFit: false,
+        })
+        return () => h("main", [
+          h(WindowHost, { context: windows.context }),
+          h(WindowTaskbar, { context: windows.context }),
+        ])
+      },
+    })
+    const wrapper = mount(Root, { attachTo: document.body, global: { plugins: [Quasar] } })
+    try {
+      // On the bar from the moment it opens, not only once it is put aside.
+      expect(wrapper.find('[data-testid="window-tab-rows"]').exists()).toBe(true)
+
+      // The window one is looking at goes away when its own button is pressed,
+      // and comes back the next time.
+      await wrapper.get('[data-testid="window-tab-rows"]').trigger("click")
+      await flushPromises()
+      expect(first(windows!.context.windows.value).minimized).toBe(true)
+      await wrapper.get('[data-testid="window-tab-rows"]').trigger("click")
+      await flushPromises()
+      expect(first(windows!.context.windows.value).minimized).toBe(false)
+
+      await wrapper.get('[data-testid="window-tab-close-rows"]').trigger("click")
+      await flushPromises()
+      expect(windows!.context.windows.value).toEqual([])
+      expect(wrapper.find('[data-testid="window-taskbar"]').exists()).toBe(false)
     } finally {
       wrapper.unmount()
     }
