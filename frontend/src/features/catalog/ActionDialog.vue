@@ -526,8 +526,7 @@ async function runDesign(value: {
     v-else-if="command"
     :model-value="open"
     size="sm"
-    :title="command.label"
-    :subtitle="nodeLabel"
+    :title="nodeLabel ? `${command.label} — ${nodeLabel}` : command.label"
     data-testid="action-dialog"
     @update:model-value="close"
   >

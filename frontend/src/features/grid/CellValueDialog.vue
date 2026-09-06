@@ -25,8 +25,7 @@ async function copyValue() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    :title="columnName"
-    :subtitle="typeSql"
+    :title="`${columnName} — ${typeSql}`"
     size="lg"
     data-testid="grid-viewer"
     @update:model-value="emit('update:modelValue', $event)"

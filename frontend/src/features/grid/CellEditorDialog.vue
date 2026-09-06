@@ -44,8 +44,7 @@ function save() {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    :title="`Edit ${column.name}`"
-    :subtitle="column.type.sql"
+    :title="`Edit ${column.name} — ${column.type.sql}`"
     data-testid="grid-cell-editor"
     @update:model-value="emit('update:modelValue', $event)"
   >

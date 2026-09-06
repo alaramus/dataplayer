@@ -43,8 +43,7 @@ const blockedText = computed(() => {
 <template>
   <WindowDialog
     :model-value="modelValue"
-    title="Column type"
-    :subtitle="name"
+    :title="`Column type — ${name}`"
     data-testid="structure-type-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >

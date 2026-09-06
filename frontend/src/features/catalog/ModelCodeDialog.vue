@@ -126,8 +126,7 @@ function close() {
   <WindowDialog
     :model-value="modelValue"
     size="lg"
-    title="Model as code"
-    :subtitle="label"
+    :title="`Model as code — ${label}`"
     data-testid="model-code-dialog"
     @update:model-value="close"
   >

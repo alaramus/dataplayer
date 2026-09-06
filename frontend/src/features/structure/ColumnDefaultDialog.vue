@@ -30,8 +30,7 @@ watch(
 <template>
   <WindowDialog
     :model-value="modelValue"
-    title="Column default"
-    :subtitle="name"
+    :title="`Column default — ${name}`"
     data-testid="structure-default-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >

@@ -186,8 +186,7 @@ async function remove(user: UserPublic) {
 
     <WindowDialog
       v-model="dialogOpen"
-      :title="isNew ? 'New user' : 'Edit user'"
-      :subtitle="isNew ? undefined : editing?.email"
+      :title="isNew ? 'New user' : `Edit user — ${editing?.email ?? ''}`"
       data-testid="user-dialog"
     >
       <div class="user-form">

@@ -178,8 +178,7 @@ async function forget(shareId: string) {
   -->
   <WindowDialog
     :model-value="modelValue"
-    title="Share"
-    :subtitle="nodeLabel ?? connectorName"
+    :title="`Share — ${nodeLabel ?? connectorName}`"
     size="lg"
     data-testid="share-dialog"
     @update:model-value="emit('update:modelValue', $event)"
