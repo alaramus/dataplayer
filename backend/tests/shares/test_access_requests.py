@@ -295,6 +295,31 @@ async def test_everything_waiting_on_me_crosses_connections(
     assert all(row["connector_label"] for row in rows)
 
 
+async def test_deleting_a_connection_takes_what_was_waiting_on_it(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+) -> None:
+    """Nothing is left for the owner to answer about a connection that is gone.
+
+    The activity sheet leads from a waiting request to the connection it is
+    about (D113), so a request outliving its subject would be a line nobody
+    could act on.
+    """
+    connector_id = await _connector(client, normal_user_token_headers)
+    _, headers = colleague
+    await _ask(client, headers, await _share(client, normal_user_token_headers, connector_id))
+
+    gone = await client.delete(
+        f"{CONNECTORS}/{connector_id}", headers=normal_user_token_headers
+    )
+    assert gone.status_code == 200, gone.text
+
+    waiting = await client.get(f"{BASE}/requests", headers=normal_user_token_headers)
+    assert waiting.status_code == 200
+    assert [row for row in waiting.json()["data"] if row["connector_id"] == connector_id] == []
+
+
 async def test_everything_waiting_on_me_is_only_mine(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

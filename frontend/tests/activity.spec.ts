@@ -1,9 +1,17 @@
 import { expect, test } from "@playwright/test"
 
-import { createFileConnector } from "./utils/connectors"
+import { openNode, pickSchema } from "./utils/catalog"
+import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { toast } from "./utils/notices"
-import { deleteConnector, editConnector } from "./utils/workspace"
+import {
+  COLLEAGUE_PASSWORD,
+  colleagueEmail,
+  createColleague,
+  removeColleague,
+  signInAs,
+} from "./utils/people"
+import { connectorRow, deleteConnector, editConnector } from "./utils/workspace"
 
 /**
  * The claims about the activity sheet that only a browser can settle (D113,
@@ -70,4 +78,50 @@ test("keeps what was said, shows it in the sheet and stops interrupting on reque
   await page.keyboard.press("Escape")
 
   await deleteConnector(page, `${name}-again`)
+})
+
+test("stops offering a request whose connection has gone", async ({ page, browser }) => {
+  const email = colleagueEmail()
+  const name = `e2e-gone-${Date.now()}`
+
+  await login(page)
+  await createColleague(page, email)
+  await createPostgresConnector(page, name)
+  await connectorRow(page, name).click()
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "projects")
+  await page.getByTestId("grid-share").click()
+  const link = await page.getByTestId("share-link").inputValue()
+  await page.getByTestId("share-close").click()
+
+  const theirs = await browser.newContext({ baseURL: new URL(link).origin })
+  const colleague = await theirs.newPage()
+  try {
+    await signInAs(colleague, email, COLLEAGUE_PASSWORD)
+    await colleague.goto(new URL(link).pathname)
+    await colleague.getByTestId("share-request").click()
+    await expect(colleague.getByTestId("share-requested")).toBeVisible()
+
+    await page.getByTestId("activity-indicator").click()
+    const sheet = page.getByTestId("activity-panel")
+    const waiting = sheet
+      .locator('[data-testid^="attention-access:"]')
+      .filter({ hasText: name })
+    await expect(waiting).toHaveCount(1)
+
+    // Deleted where it was deleted for real: in this tab, from the window of
+    // the connection itself. The database takes the request with it, and the
+    // line about it used to sit in the sheet regardless — with an Open that
+    // did nothing at all, which is what a dead button looks like.
+    await page.keyboard.press("Escape")
+    await deleteConnector(page, name)
+
+    await page.getByTestId("activity-indicator").click()
+    await expect(waiting).toHaveCount(0)
+    await page.keyboard.press("Escape")
+  } finally {
+    await theirs.close()
+  }
+
+  await removeColleague(page, email)
 })

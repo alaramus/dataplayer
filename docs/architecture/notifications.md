@@ -76,6 +76,12 @@ Consequences:
   open.
 - **The processes window is gone.** What it held is the "Working" section.
 
+- **A line goes when its subject goes.** Deleting a connection deletes the
+  requests waiting on it, in the database; the list of what is waiting is read
+  across every connection, so it is the one cache that deletion leaves wrong
+  and it is refreshed there. And an action that cannot find its subject says so
+  rather than doing nothing, which is what a dead button looks like.
+
 Known deviations:
 
 - **A connection that stopped answering is only noticed while it is watched.**

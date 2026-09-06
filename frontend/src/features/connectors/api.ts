@@ -3,6 +3,7 @@ import { computed } from "vue"
 import type { Ref } from "vue"
 
 import { AdaptersService, ConnectorsService } from "@/client"
+import { waitingKey } from "@/features/shares/attention"
 import type {
   AdapterTypeInfo,
   ConnectorCreate,
@@ -157,7 +158,15 @@ export function useDeleteConnector() {
           path: { connector_id: connectorId },
         })
       ).data,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: connectorsKey }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: connectorsKey })
+      // Deleting a connection takes its unanswered requests for access with
+      // it, in the database (they cascade). The list of what is waiting is
+      // read across every connection, so it is stale here and nowhere else,
+      // and a request nobody can answer any more would sit in the activity
+      // sheet until its next refresh (D113).
+      await queryClient.invalidateQueries({ queryKey: waitingKey })
+    },
   })
 }
 

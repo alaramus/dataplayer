@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import { useQueryClient } from "@tanstack/vue-query"
 import { computed, onMounted, provide, ref, watch } from "vue"
 
 import type { ConnectorDraft, ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import { connectorWindow, connectorWindowId, draftWindowId } from "@/features/connectors/windows"
-import { useConnectors } from "@/features/connectors/api"
+import { connectorsKey, useConnectors } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
 import ServiceCredentialsDialog from "@/features/services/ServiceCredentialsDialog.vue"
 import StartServiceDialog from "@/features/services/StartServiceDialog.vue"
@@ -15,6 +16,7 @@ import { useServiceJobs } from "@/features/services/jobs"
 import { followedRows } from "@/features/grid/references"
 import { moveChartSpec } from "@/features/charts/persist"
 import { takeShareIntent } from "@/features/shares/intent"
+import { waitingKey } from "@/features/shares/attention"
 import { useAccessRequestEvents, wordingOf } from "@/features/shares/requests"
 import { PERMISSIONS_PAGE } from "@/features/connectors/windowPages"
 import { chartViewKey } from "@/features/charts/view"
@@ -179,6 +181,7 @@ const documentTarget = ref<DocumentTarget | null>(null)
 const sharedTarget = ref<SharedTarget | null>(null)
 const queriesTarget = ref<string | null>(null)
 const toast = useToast()
+const queryClient = useQueryClient()
 
 // The state of every connection, pushed while this screen is open. Called
 // here and nowhere else: the server probes only while somebody is watching,
@@ -358,7 +361,17 @@ function editConnector(connectorId: string | null, startOn?: string) {
     return
   }
   const found = (connectors.data.value?.data ?? []).find((row) => row.id === connectorId)
-  if (found) openConnectorWindow(found, null, startOn)
+  if (found) {
+    openConnectorWindow(found, null, startOn)
+    return
+  }
+  // Asked for a connection that is not there any more — from the activity
+  // sheet, whose copy of what is waiting was read before somebody deleted its
+  // subject. Silence is what a dead button looks like, so it says what
+  // happened and re-reads the two lists that were wrong.
+  toast.info("That connection is no longer here")
+  void queryClient.invalidateQueries({ queryKey: connectorsKey })
+  void queryClient.invalidateQueries({ queryKey: waitingKey })
 }
 
 function openCatalog(connector: ConnectorPublic) {
