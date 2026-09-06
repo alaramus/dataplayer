@@ -22,6 +22,16 @@ watch(status.data, (value) => { if (value === true) admitted.value = true }, { i
 
 <template>
   <slot v-if="!required || route.name === 'login' || admitted" />
+  <!-- Still asking. Nothing is claimed about the server yet, so nothing is
+       said: a reload used to draw the whole "cannot connect" card for the
+       fraction of a second the first health check takes. -->
+  <div
+    v-else-if="status.isPending.value"
+    class="server-boundary server-boundary--waiting"
+    data-testid="server-connecting"
+  >
+    <AppSpinner />
+  </div>
   <div
     v-else
     class="server-boundary"
@@ -35,7 +45,6 @@ watch(status.data, (value) => { if (value === true) admitted.value = true }, { i
         <div class="server-boundary__url">
           {{ servers.active.url }}
         </div>
-        <AppSpinner v-if="status.isPending.value" />
         <AppBanner
           v-if="status.isError.value"
           tone="error"
@@ -55,4 +64,15 @@ watch(status.data, (value) => { if (value === true) admitted.value = true }, { i
 <style scoped>
 .server-boundary { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
 .server-boundary__url { overflow-wrap: anywhere; }
+
+/* Even a spinner is a flash when the answer takes 80ms. It appears only if
+   the wait is long enough to be worth explaining — a delay rather than a
+   timer, so nothing has to be cleaned up. */
+.server-boundary--waiting {
+  opacity: 0;
+  animation: server-boundary-appear 0s linear 400ms forwards;
+}
+@keyframes server-boundary-appear {
+  to { opacity: 1; }
+}
 </style>
