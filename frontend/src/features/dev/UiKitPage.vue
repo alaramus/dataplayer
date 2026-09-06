@@ -43,7 +43,13 @@ const BUTTON_VARIANTS: ButtonVariant[] = [
 const MENU_ITEMS: MenuItem[] = [
   { name: "check", label: "Check connection", icon: "bolt" },
   { name: "edit", label: "Edit", icon: "edit" },
-  { name: "away", label: "Not available here", icon: "block", disable: true },
+  {
+    name: "away",
+    label: "Not available here",
+    icon: "block",
+    disable: true,
+    hint: "Tick a row to use this",
+  },
   { name: "delete", label: "Delete", icon: "delete", danger: true },
 ]
 const menuOpen = ref(false)

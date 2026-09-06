@@ -189,6 +189,29 @@ describe("toMenu", () => {
     expect(enabled(commands)).toEqual(["create_folder", "upload"])
   })
 
+  it("says which of the two things a greyed line is missing", () => {
+    // A greyed line and a barred cursor name no remedy, and there are three
+    // different ones: tick something, stand somewhere else, or nothing —
+    // this source cannot do it here at all.
+    const nothingTicked = menu(vocabulary, [], ["reports"], [])
+    const refused = menu(vocabulary, [], ["reports"], ["reports/q3.csv"])
+    const reasons = (commands: { name: string; reason: string | null }[]) =>
+      Object.fromEntries(commands.map((command) => [command.name, command.reason]))
+
+    expect(reasons(nothingTicked).delete).toBe("Tick a row to use this")
+    expect(reasons(refused).delete).toBe("This source does not offer it for what is ticked")
+    // What is available says nothing: a reason under a line that works is noise.
+    expect(reasons(nothingTicked).upload).toBeNull()
+  })
+
+  it("says there is nowhere to put a thing when the level offers no place", () => {
+    const commands = menu(vocabulary, [], [], [])
+    const upload = commands.find((command) => command.name === "upload")
+
+    expect(upload?.enabled).toBe(false)
+    expect(upload?.reason).toBe("There is nowhere here to put it")
+  })
+
   it("turns on what the server says the ticked nodes admit", () => {
     const commands = menu(vocabulary, [{ ...remove, applicable: true }], ["reports"], [
       "reports/q3.csv",
@@ -456,6 +479,23 @@ describe("the client's own lines of the menu", () => {
     })
 
     expect(items.map((item) => item.disable)).toEqual([true, true, true, true])
+  })
+
+  it("says under each greyed line what would make it usable", () => {
+    const items = clientMenu({
+      ...everything, describable: false, diagrammable: false, ticked: 0,
+    })
+
+    expect(items.map((item) => item.hint)).toEqual([
+      "Tick one row to describe",
+      "Nothing here has a structure to draw",
+      "Tick a row to use this",
+      "Tick a row to use this",
+    ])
+  })
+
+  it("says nothing under a line that works", () => {
+    expect(clientMenu(everything).every((item) => item.hint === undefined)).toBe(true)
   })
 
   it("tells its own command from a source's by the one thing a name cannot be", () => {

@@ -125,6 +125,37 @@ export interface MenuCommand extends ActionCommand {
   /** The nodes the filled form is applied to. `[null]` is the root. */
   targets: (string | null)[]
   enabled: boolean
+  /**
+   * Why it cannot be used, or nothing when it can.
+   *
+   * Said here rather than in the menu, because it is the same three facts the
+   * line above it is enabled by: a reason worked out separately would be a
+   * second rule to keep in step, and the wrong sentence under a greyed line
+   * is worse than no sentence.
+   *
+   * The source is not asked. It answers `applicable` and no more, so the one
+   * case this cannot be specific about is the source's own refusal — where it
+   * says that, and not why. Making it specific means a reason travelling with
+   * `applicable`, which is a change to every adapter.
+   */
+  reason: string | null
+}
+
+/** Why a line of the source's own vocabulary is not available. */
+function reasonFor(
+  actsOn: ActionInfo["acts_on"],
+  applicable: boolean,
+  hasTarget: boolean
+): string | null {
+  if (actsOn === "level") {
+    return applicable ? null : "This source does not offer it at this level"
+  }
+  if (actsOn === "children") {
+    if (!hasTarget) return "There is nowhere here to put it"
+    return applicable ? null : "This source does not offer it where you are"
+  }
+  if (!hasTarget) return "Tick a row to use this"
+  return applicable ? null : "This source does not offer it for what is ticked"
 }
 
 /**
@@ -166,10 +197,19 @@ export function toMenu(
       }
       return nodeTargets.length > 0 && admitted.has(command.name)
     })()
+    const applicable =
+      command.actsOn === "level"
+        ? applicableLevel.has(command.name)
+        : command.actsOn === "children"
+          ? applicableHere.has(command.name)
+          : admitted.has(command.name)
+    const hasTarget =
+      command.actsOn === "level" ? true : command.actsOn === "children" ? places.length > 0 : nodeTargets.length > 0
     return {
       ...command,
       targets,
       enabled,
+      reason: reasonFor(command.actsOn, applicable, hasTarget),
     }
   })
 }
@@ -249,6 +289,7 @@ export function clientMenu(state: ClientMenuState): MenuItem[] {
       name: clientCommandName("details"),
       label: "Details",
       disable: !state.describable,
+      hint: state.describable ? undefined : "Tick one row to describe",
     })
   }
   if (state.diagrams) {
@@ -256,19 +297,23 @@ export function clientMenu(state: ClientMenuState): MenuItem[] {
       name: clientCommandName("relationships"),
       label: "Relationships",
       disable: !state.diagrammable,
+      hint: state.diagrammable ? undefined : "Nothing here has a structure to draw",
     })
   }
   if (state.holds) {
+    const nothingTicked = state.ticked === 0 ? "Tick a row to use this" : undefined
     items.push(
       {
         name: clientCommandName("copy"),
         label: "Copy",
         disable: state.ticked === 0,
+        hint: nothingTicked,
       },
       {
         name: clientCommandName("cut"),
         label: "Cut",
         disable: state.ticked === 0,
+        hint: nothingTicked,
       }
     )
   }

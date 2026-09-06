@@ -16,6 +16,17 @@ export interface MenuItem {
   /** A destructive action: coloured, never filled. Same idea as useConfirm. */
   danger?: boolean
   disable?: boolean
+  /**
+   * Why the line cannot be used, under the label.
+   *
+   * A greyed line and a barred cursor say that something is not available and
+   * nothing about what would make it available, which leaves the reader to
+   * guess between "wrong place", "nothing ticked" and "this source cannot".
+   * The same reasoning as the command bar's tooltips (D69), said in the menu
+   * itself because a disabled item takes no pointer events and so has no
+   * hover of its own.
+   */
+  hint?: string
   /** An optional removal action beside a saved entry; also its accessible label. */
   removeLabel?: string
 }
@@ -56,7 +67,16 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
             size="18px"
           />
         </q-item-section>
-        <q-item-section>{{ item.label }}</q-item-section>
+        <q-item-section>
+          <q-item-label>{{ item.label }}</q-item-label>
+          <q-item-label
+            v-if="item.hint"
+            caption
+            class="app-menu__hint"
+          >
+            {{ item.hint }}
+          </q-item-label>
+        </q-item-section>
         <q-item-section
           v-if="item.removeLabel"
           side
@@ -87,5 +107,13 @@ const emit = defineEmits<{ select: [name: string]; remove: [name: string] }>()
 .app-menu__icon {
   min-width: 28px;
   padding-right: 0;
+}
+
+/* Quasar dims a disabled item as a whole, and a caption dimmed twice over is
+   the one line in it that has to stay readable. */
+.app-menu__hint {
+  color: var(--dp-text-muted);
+  white-space: normal;
+  max-width: 260px;
 }
 </style>

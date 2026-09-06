@@ -141,15 +141,22 @@ const items = computed<MenuItem[]>(() => [
     holds: canHold.value,
     ticked: props.checkedIds.length,
   }),
-  ...commands.value.map((command) => ({
-    name: command.name,
-    label: needsClipboard(command) && held.value !== null
-      ? `${command.label} — ${clipboardWording(held.value)}`
-      : command.label,
-    danger: command.destructive,
-    disable:
-      !command.enabled || (needsClipboard(command) && held.value === null),
-  })),
+  ...commands.value.map((command) => {
+    // An empty clipboard is the client's own reason and outranks the source's,
+    // because it is the one the reader can act on immediately.
+    const empty = needsClipboard(command) && held.value === null
+    return {
+      name: command.name,
+      label: needsClipboard(command) && held.value !== null
+        ? `${command.label} — ${clipboardWording(held.value)}`
+        : command.label,
+      danger: command.destructive,
+      disable: !command.enabled || empty,
+      hint: empty
+        ? "Copy or cut something first"
+        : command.enabled ? undefined : command.reason ?? undefined,
+    }
+  }),
 ])
 
 /** A verb of the client's: nothing is sent, and nothing waits for an answer. */
