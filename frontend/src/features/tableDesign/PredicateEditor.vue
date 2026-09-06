@@ -193,9 +193,7 @@ function takesList(term: DraftTerm): boolean {
    row. */
 .predicate__term {
   display: grid;
-  grid-template-columns:
-    minmax(90px, 1fr) minmax(90px, 1fr) minmax(80px, 0.8fr)
-    minmax(120px, 1.4fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   gap: var(--dp-space-1);
   align-items: start;
 }
@@ -217,5 +215,16 @@ function takesList(term: DraftTerm): boolean {
   align-items: center;
   gap: var(--dp-space-1);
   width: 100%;
+}
+.predicate__term > :nth-child(3),
+.predicate__term > :nth-child(4) {
+  grid-row: 2;
+}
+.predicate__term > :last-child {
+  grid-column: 3;
+  grid-row: 1;
+}
+.predicate__values {
+  min-width: 0;
 }
 </style>

@@ -33,13 +33,7 @@ import {
 import type { ButtonVariant, MenuItem, Tone } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui/AppTable.vue"
 
-const BUTTON_VARIANTS: ButtonVariant[] = [
-  "primary",
-  "secondary",
-  "danger",
-  "danger-quiet",
-  "quiet",
-]
+const BUTTON_VARIANTS: ButtonVariant[] = ["primary", "secondary", "danger", "danger-quiet", "quiet"]
 const MENU_ITEMS: MenuItem[] = [
   { name: "check", label: "Check connection", icon: "bolt" },
   { name: "edit", label: "Edit", icon: "edit" },
@@ -92,9 +86,7 @@ const file = ref<File | null>(null)
 const files = ref<File[]>([])
 const loading = ref(false)
 
-const treeNodes = [
-  { id: "public", label: "public", children: [{ id: "orders", label: "orders" }] },
-]
+const treeNodes = [{ id: "public", label: "public", children: [{ id: "orders", label: "orders" }] }]
 const treeExpanded = ref<string[]>(["public"])
 const treeSelected = ref<string | null>(null)
 
@@ -161,8 +153,8 @@ function removeSavedEntry(name: string) {
       tone="info"
       class="q-mb-md"
     >
-      Every component of the kit, with every variant it offers. Rendered from
-      the real components, so this page breaks when one of them does.
+      Every component of the kit, with every variant it offers. Rendered from the real components,
+      so this page breaks when one of them does.
     </AppBanner>
 
     <AppCard
@@ -460,8 +452,8 @@ function removeSavedEntry(name: string) {
       :subtitle="`size ${dialogSize}`"
     >
       <AppSection>
-        The header, the body and the footer are the dialog's three slots. The
-        body is whatever the screen puts there.
+        The header, the body and the footer are the dialog's three slots. The body is whatever the
+        screen puts there.
       </AppSection>
       <AppSection
         divided

@@ -59,9 +59,7 @@ const keyChoices = computed(() =>
     value: JSON.stringify(key.columns),
   }))
 )
-const chosenKey = computed(() =>
-  JSON.stringify(foreign.value?.targetColumns ?? [])
-)
+const chosenKey = computed(() => JSON.stringify(foreign.value?.targetColumns ?? []))
 
 const actions = computed(() =>
   (design.options.value?.reference_actions ?? []).map((choice) => ({
@@ -105,6 +103,7 @@ function chooseKey(value: string): void {
   if (held === undefined) return
   const chosen = keys.data.value?.find((key) => JSON.stringify(key.columns) === value)
   held.targetColumns = chosen === undefined ? [] : [...chosen.columns]
+  held.columnIds = held.targetColumns.map((_, at) => held.columnIds[at] ?? "")
 }
 </script>
 
@@ -114,26 +113,16 @@ function chooseKey(value: string): void {
     class="inspector"
     data-testid="foreign-key-inspector"
   >
-    <div class="inspector__row">
-      <AppInput
-        v-model="foreign.name"
-        label="Name"
-        hint="Left empty, the database names it"
-      />
-      <AppSelect
-        v-model="foreign.columnIds"
-        :options="design.columnChoices.value"
-        label="Columns here"
-        multiple
-        data-testid="foreign-columns"
-      />
-    </div>
-
+    <AppInput
+      v-model="foreign.name"
+      label="Constraint name"
+      placeholder="Automatic name"
+    />
     <div class="inspector__row">
       <AppSelect
         :model-value="schemaId"
         :options="schemaChoices"
-        label="Schema"
+        label="Referenced schema"
         :loading="schemas.isLoading.value"
         data-testid="foreign-schema"
         @update:model-value="chooseSchema(String($event))"
@@ -141,18 +130,64 @@ function chooseKey(value: string): void {
       <AppSelect
         :model-value="foreign.targetNodeId"
         :options="tableChoices"
-        label="Table"
+        label="Referenced table"
         data-testid="foreign-table"
         @update:model-value="chooseTable(String($event))"
       />
       <AppSelect
         :model-value="chosenKey"
         :options="keyChoices"
-        label="Key it points at"
+        label="Referenced key"
         :loading="keys.isLoading.value"
-        hint="What that table says may be pointed at"
         data-testid="foreign-key-columns"
         @update:model-value="chooseKey(String($event))"
+      />
+      <AppSelect
+        v-model="foreign.match"
+        :options="matches"
+        label="Match"
+      />
+    </div>
+    <div
+      class="inspector__relationship"
+      data-testid="foreign-relationship"
+    >
+      <div class="inspector__relation">
+        <strong>{{ design.draft.name || "New table" }} · new</strong>
+        <span>{{
+          foreign.columnIds
+            .map(
+              (id) =>
+                design.draft.columns.find((column) => column.id === id)?.name || "Choose column"
+            )
+            .join(" + ") || "Choose columns"
+        }}</span>
+      </div>
+      <span class="inspector__arrow">N → 1</span>
+      <div class="inspector__relation">
+        <strong>{{ schemaChoices.find((choice) => choice.value === schemaId)?.label
+        }}{{ foreign.targetLabel ? "." + foreign.targetLabel : " · target" }}</strong>
+        <span>{{ foreign.targetColumns.join(" + ") || "Choose key" }}</span>
+      </div>
+    </div>
+    <h3>Column mapping</h3>
+    <div
+      v-for="(target, at) in foreign.targetColumns"
+      :key="target"
+      class="inspector__mapping"
+    >
+      <AppSelect
+        :model-value="foreign.columnIds[at] ?? ''"
+        :options="design.columnChoices.value"
+        label="Local column"
+        :data-testid="`foreign-column-${at}`"
+        @update:model-value="foreign.columnIds[at] = String($event)"
+      />
+      <span class="inspector__arrow">→</span>
+      <AppInput
+        :model-value="target"
+        label="Target column"
+        readonly
       />
     </div>
     <AppBanner
@@ -165,61 +200,105 @@ function chooseKey(value: string): void {
       v-else-if="arity > 0 && !paired"
       tone="warning"
     >
-      A foreign key names as many columns as it points at:
-      {{ arity }} {{ arity === 1 ? "column" : "columns" }} are expected here.
+      A foreign key names as many columns as it points at: {{ arity }}
+      {{ arity === 1 ? "column" : "columns" }} are expected here.
     </AppBanner>
-
     <div class="inspector__row">
-      <AppSelect
-        v-model="foreign.onUpdate"
-        :options="actions"
-        label="When it changes there"
-      />
       <AppSelect
         v-model="foreign.onDelete"
         :options="actions"
-        label="When it goes there"
+        label="On delete"
         data-testid="foreign-on-delete"
       />
       <AppSelect
-        v-model="foreign.match"
-        :options="matches"
-        label="Matching"
+        v-model="foreign.onUpdate"
+        :options="actions"
+        label="On update"
       />
-    </div>
-
-    <div class="inspector__row">
       <AppCheckbox
         v-model="foreign.deferrable"
-        label="May be checked at the end of a transaction"
+        label="Deferrable"
         dense
       />
       <AppCheckbox
         v-model="foreign.initiallyDeferred"
-        label="Checked at the end by default"
+        label="Initially deferred"
         dense
         :disable="!foreign.deferrable"
       />
     </div>
   </div>
+  <p
+    v-else
+    class="inspector__note"
+  >
+    No foreign keys.
+  </p>
 </template>
 
 <style scoped>
 .inspector {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-2);
+  display: grid;
+  gap: 12px;
 }
-
+.inspector h3 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dp-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 .inspector__row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--dp-space-2);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.inspector__relationship {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr);
+  gap: 8px;
   align-items: center;
 }
-
-.inspector__row > * {
-  flex: 1 1 180px;
-  min-width: 0;
+.inspector__relation {
+  border: 1px solid var(--dp-border);
+  border-radius: 4px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.inspector__relation strong {
+  display: block;
+  background: var(--dp-chrome-raised);
+  border-bottom: 1px solid var(--dp-border);
+  padding: 6px 8px;
+}
+.inspector__relation > span {
+  display: block;
+  padding: 5px 8px;
+  color: var(--dp-link);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+.inspector__arrow {
+  text-align: center;
+  color: var(--dp-link);
+}
+.inspector__mapping {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 25px minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+}
+.inspector__note {
+  color: var(--dp-text-muted);
+}
+@container table-designer (max-width: 560px) {
+  .inspector__row,
+  .inspector__relationship {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .inspector__relationship > .inspector__arrow {
+    transform: rotate(90deg);
+  }
 }
 </style>

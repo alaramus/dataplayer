@@ -7,7 +7,7 @@ import {
   AppBanner,
   AppButton,
   AppInput,
-  AppSection,
+  AppSelect,
   AppSpinner,
   useConfirm,
 } from "@/shared/ui"
@@ -25,7 +25,6 @@ import {
   newColumn,
   newForeignKey,
   newIndex,
-  tally,
   toDefinition,
   withoutColumn,
   worthPlanning,
@@ -33,6 +32,7 @@ import {
 import type { Draft, DraftSection } from "./draft"
 import ForeignKeyInspector from "./ForeignKeyInspector.vue"
 import IndexInspector from "./IndexInspector.vue"
+import DesignSql from "./DesignSql.vue"
 import TableOptionsInspector from "./TableOptionsInspector.vue"
 
 /**
@@ -126,14 +126,16 @@ watch(types, (published) => {
 
 const problems = computed(() => plan.value?.problems ?? [])
 const statements = computed(() => plan.value?.statements ?? [])
-const script = computed(() =>
-  statements.value.map((statement) => statement.sql).join(";\n\n") + (statements.value.length ? ";" : "")
+const script = computed(
+  () =>
+    statements.value.map((statement) => statement.sql).join(";\n\n") +
+    (statements.value.length ? ";" : "")
 )
 /** The part of the plan the selected object is responsible for. */
 const selectedSql = computed(() => {
   const own = statements.value.filter((statement) => statement.object_id === selected.value)
   const [first] = own.length > 0 ? own : statements.value
-  return first?.sql ?? ""
+  return first ? first.sql + ";" : ""
 })
 const stale = computed(() => plan.value === null || plan.value.revision !== asked)
 const ready = computed(
@@ -149,7 +151,7 @@ const status = computed(() => {
   if (problems.value.length > 0) {
     return `${String(problems.value.length)} ${problems.value.length === 1 ? "problem" : "problems"} to resolve`
   }
-  return `${tally(draft)} · nothing has been created`
+  return "Preview only"
 })
 
 function schedulePlan(): void {
@@ -292,8 +294,39 @@ async function mayClose(): Promise<boolean> {
   })
 }
 
-async function close(): Promise<void> {
-  if (await mayClose()) emit("update:modelValue", false)
+const schemaLabel = computed(() => options.data.value?.schema_label || props.nodeLabel)
+const headings: Record<DraftSection, string> = {
+  columns: "Columns",
+  indexes: "Indexes",
+  "foreign-keys": "Foreign keys",
+  constraints: "Constraints",
+  options: "Table options",
+}
+const objectLabels: Record<DraftSection, string> = {
+  columns: "column",
+  indexes: "index",
+  "foreign-keys": "foreign key",
+  constraints: "check",
+  options: "",
+}
+const editorTitle = computed(() =>
+  section.value === "columns"
+    ? draft.columns.find((column) => column.id === selected.value)?.name || "Columns"
+    : headings[section.value]
+)
+const summary = computed(
+  () =>
+    `${draft.columns.length} ${draft.columns.length === 1 ? "column" : "columns"} · ${draft.indexes.length} ${draft.indexes.length === 1 ? "index" : "indexes"} · ${draft.foreignKeys.length} foreign ${draft.foreignKeys.length === 1 ? "key" : "keys"}`
+)
+const columnPosition = computed(() =>
+  draft.columns.findIndex((column) => column.id === selected.value)
+)
+function moveColumn(by: number): void {
+  const at = columnPosition.value
+  const to = at + by
+  if (at < 0 || to < 0 || to >= draft.columns.length) return
+  const [column] = draft.columns.splice(at, 1)
+  if (column) draft.columns.splice(to, 0, column)
 }
 </script>
 
@@ -302,12 +335,19 @@ async function close(): Promise<void> {
     :model-value="modelValue"
     size="xl"
     title="Create table"
-    :subtitle="`In ${options.data.value?.schema_label || nodeLabel}`"
     :before-close="mayClose"
     data-testid="table-designer"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <AppSection gutter>
+    <div class="designer">
+      <div class="designer__document">
+        <q-icon
+          name="table_chart"
+          aria-hidden="true"
+        />
+        <strong>Create table</strong>
+        <span class="designer__draft">Unsaved draft</span>
+      </div>
       <AppBanner
         v-if="error"
         tone="error"
@@ -322,22 +362,28 @@ async function close(): Promise<void> {
         {{ trouble }}
       </AppBanner>
       <AppBanner
-        v-else-if="options.data.value && options.data.value.supported === false"
+        v-else-if="options.data.value?.supported === false"
         tone="warning"
       >
         {{ options.data.value.reason }}
       </AppBanner>
-
       <div
         v-if="options.isLoading.value"
         class="designer__waiting"
       >
         <AppSpinner />
       </div>
-
-      <!-- Step one: the definition. -->
       <template v-else-if="step === 'definition'">
-        <div class="designer__identity">
+        <div
+          class="designer__identity"
+          data-testid="design-identity"
+        >
+          <AppSelect
+            :model-value="schemaLabel"
+            :options="[schemaLabel]"
+            label="Schema"
+            data-testid="table-schema"
+          />
           <AppInput
             v-model="draft.name"
             label="Table name"
@@ -345,25 +391,39 @@ async function close(): Promise<void> {
           />
           <AppInput
             v-model="draft.comment"
+            class="designer__comment"
             label="Comment"
           />
         </div>
-
-        <div class="designer__body">
+        <div
+          class="designer__body"
+          data-testid="design-body"
+        >
           <DesignNavigation
             :design-id="designId"
             :section="section"
             :selected="selected"
             :problems="problems"
             @select="select"
-            @add="add"
-            @remove="remove"
           />
-
           <main
             class="designer__editor"
             data-testid="design-inspector"
           >
+            <div class="designer__toolbar">
+              <strong>{{ editorTitle }}</strong>
+              <AppButton
+                v-if="section !== 'options'"
+                variant="quiet"
+                icon="add"
+                :label="
+                  objectLabels[section].charAt(0).toUpperCase() + objectLabels[section].slice(1)
+                "
+                :aria-label="`Add a${section === 'indexes' ? 'n' : ''} ${objectLabels[section]}`"
+                :data-testid="`add-${section}`"
+                @click="add(section)"
+              />
+            </div>
             <ColumnInspector
               v-if="section === 'columns'"
               :key="selected"
@@ -385,40 +445,67 @@ async function close(): Promise<void> {
             />
             <ConstraintInspector
               v-else-if="section === 'constraints'"
-              :key="selected"
               :design-id="designId"
-              :constraint-id="selected"
+              @remove="remove('constraints', $event)"
             />
             <TableOptionsInspector
               v-else
               :design-id="designId"
             />
+            <div
+              v-if="section !== 'options' && section !== 'constraints' && selected"
+              class="designer__object-actions"
+              :class="{ 'designer__object-actions--column': section === 'columns' }"
+            >
+              <template v-if="section === 'columns'">
+                <AppButton
+                  variant="quiet"
+                  label="Move up"
+                  icon="arrow_upward"
+                  :disable="columnPosition <= 0"
+                  @click="moveColumn(-1)"
+                />
+                <AppButton
+                  variant="quiet"
+                  label="Move down"
+                  icon="arrow_downward"
+                  :disable="columnPosition >= draft.columns.length - 1"
+                  @click="moveColumn(1)"
+                />
+              </template>
+              <AppButton
+                variant="quiet"
+                icon="delete_outline"
+                :label="`Remove ${objectLabels[section]}`"
+                :disable="section === 'columns' && draft.columns.length === 1"
+                data-testid="remove-object"
+                @click="remove(section, selected)"
+              />
+            </div>
           </main>
-
           <aside
             class="designer__sql"
             aria-label="SQL preview"
             data-testid="design-sql"
+            :aria-busy="stale"
           >
             <div class="designer__sql-head">
-              <span>SQL</span>
-              <span class="designer__sql-state">{{ stale ? "stale" : "live" }}</span>
+              <span>SQL preview</span><span>{{ stale && worthPlanning(draft) ? "Updating…" : "Live" }}</span>
             </div>
-            <pre
-              class="designer__code"
-              :class="{ 'designer__code--stale': stale }"
-            >{{ selectedSql }}</pre>
-            <details v-if="statements.length > 1">
-              <summary>Full script</summary>
-              <pre class="designer__code">{{ script }}</pre>
-            </details>
+            <div :class="{ 'designer__sql--stale': stale }">
+              <DesignSql :sql="selectedSql" />
+              <details v-if="statements.length">
+                <summary>Full creation script</summary>
+                <DesignSql :sql="script" />
+              </details>
+            </div>
           </aside>
         </div>
-
         <ul
           v-if="problems.length"
           class="designer__problems"
           data-testid="design-problems"
+          role="alert"
         >
           <li
             v-for="(problem, at) in problems"
@@ -427,179 +514,178 @@ async function close(): Promise<void> {
             {{ problem.message }}
           </li>
         </ul>
+        <footer class="designer__footer">
+          <span
+            class="designer__status"
+            aria-live="polite"
+            data-testid="design-status"
+          >{{ summary }} · {{ status }}</span>
+          <AppButton
+            label="Review SQL"
+            icon-right="arrow_forward"
+            :disable="!ready"
+            data-testid="design-review-sql"
+            @click="step = 'review'"
+          />
+        </footer>
       </template>
-
-      <!-- Step two: what would run, and the one button that runs it. -->
-      <template v-else>
-        <div
-          class="designer__review"
-          data-testid="design-review"
-        >
-          <p class="designer__target">
-            {{ options.data.value?.schema_label || nodeLabel }}.{{ draft.name }} ·
-            {{ statements.length }}
-            {{ statements.length === 1 ? "statement" : "statements" }}
-          </p>
-          <pre class="designer__code designer__code--whole">{{ script }}</pre>
+      <section
+        v-else
+        class="designer__review"
+        data-testid="design-review"
+        aria-label="Review table creation"
+      >
+        <div class="designer__toolbar">
+          <strong>Review · {{ schemaLabel }}.{{ draft.name }}</strong>
+          <AppButton
+            variant="quiet"
+            label="Back to definition"
+            data-testid="design-back"
+            @click="step = 'definition'"
+          />
         </div>
-      </template>
-    </AppSection>
-
-    <template #actions>
-      <span
-        class="designer__status"
-        aria-live="polite"
-        data-testid="design-status"
-      >{{ step === "review" ? "Nothing has been created yet" : status }}</span>
-      <AppButton
-        variant="quiet"
-        label="Cancel"
-        @click="close"
-      />
-      <AppButton
-        v-if="step === 'definition'"
-        label="Review SQL"
-        icon-right="arrow_forward"
-        :disable="!ready"
-        data-testid="design-review-sql"
-        @click="step = 'review'"
-      />
-      <template v-else>
-        <AppButton
-          variant="quiet"
-          label="Back to definition"
-          icon="arrow_back"
-          data-testid="design-back"
-          @click="step = 'definition'"
-        />
-        <AppButton
-          label="Create table"
-          :loading="running"
-          :disable="!ready"
-          data-testid="design-create"
-          @click="create"
-        />
-      </template>
-    </template>
+        <DesignSql :sql="script" />
+        <footer class="designer__footer">
+          <span class="designer__status">Nothing has been created yet</span>
+          <AppButton
+            label="Create table"
+            :loading="running"
+            :disable="!ready"
+            data-testid="design-create"
+            @click="create"
+          />
+        </footer>
+      </section>
+    </div>
   </WindowDialog>
 </template>
 
 <style scoped>
+.designer {
+  container: table-designer / inline-size;
+}
+.designer__document {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--dp-border);
+}
+.designer__draft {
+  margin-left: auto;
+  color: var(--dp-link);
+}
 .designer__waiting {
   display: flex;
   justify-content: center;
-  padding: var(--dp-space-4);
+  padding: 24px;
 }
-
 .designer__identity {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(160px, 2fr);
-  gap: var(--dp-space-2);
+  grid-template-columns: 150px minmax(150px, 1fr) minmax(180px, 1.3fr);
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--dp-border);
 }
-
-/* Three panes on a desktop window. Below 850 the SQL moves under the
-   inspector, and below 560 the navigation joins it: what a pane cannot show
-   at 180 pixels is nothing anybody can read. */
 .designer__body {
   display: grid;
-  grid-template-columns: minmax(160px, 220px) minmax(0, 3fr) minmax(0, 2fr);
-  gap: var(--dp-space-2);
-  min-height: 320px;
+  grid-template-columns: 175px minmax(0, 1fr) minmax(250px, 0.78fr);
 }
-
 .designer__editor {
+  padding: 12px;
   min-width: 0;
-  overflow: auto;
+  min-height: 330px;
 }
-
+.designer__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-height: 31px;
+  margin-bottom: 10px;
+}
+.designer__toolbar strong {
+  overflow-wrap: anywhere;
+}
+.designer__object-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+  margin-top: 12px;
+  border-top: 1px solid var(--dp-border);
+}
+.designer__object-actions--column > :last-child {
+  margin-left: auto;
+}
 .designer__sql {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-1);
-  border-left: 1px solid var(--dp-border-faint);
-  padding-left: var(--dp-space-2);
+  background: var(--dp-chrome-raised);
+  border-left: 1px solid var(--dp-border);
 }
-
 .designer__sql-head {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--dp-border);
   color: var(--dp-text-muted);
 }
-
-.designer__code {
-  margin: 0;
-  padding: var(--dp-space-2);
-  background: var(--dp-surface-raised);
-  border-radius: var(--dp-radius-panel);
-  font-family: var(--dp-font-mono, monospace);
-  font-size: 12px;
-  line-height: 1.5;
-  /* Wrapped rather than scrolled sideways: the pane beside the inspector is
-     narrower than a CREATE TABLE line, and a statement read in a 300-pixel
-     window through a horizontal scrollbar is not read at all. */
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* A plan that is being worked out again is dimmed rather than emptied: what it
-   said a moment ago is still the closest thing to the truth on screen. */
-.designer__code--stale {
+.designer__sql--stale {
   opacity: 0.5;
 }
-
-.designer__code--whole {
-  max-height: 420px;
-  overflow: auto;
+.designer__sql summary {
+  padding: 10px 12px;
+  cursor: pointer;
+  color: var(--dp-text-muted);
 }
-
 .designer__problems {
   margin: 0;
-  padding-left: var(--dp-space-4);
+  padding: 10px 12px 10px 30px;
+  border-top: 1px solid var(--dp-border);
   color: var(--q-negative);
 }
-
-.designer__review {
+.designer__footer {
   display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-2);
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--dp-border);
 }
-
-.designer__target {
-  margin: 0;
-  font-weight: 600;
-}
-
 .designer__status {
   margin-right: auto;
   color: var(--dp-text-muted);
 }
-
-@media (max-width: 850px) {
+.designer__review {
+  padding: 12px 12px 0;
+}
+.designer__review > .designer__footer {
+  margin: 0 -12px;
+}
+@container table-designer (max-width: 850px) {
   .designer__body {
-    grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+    grid-template-columns: 160px minmax(0, 1fr);
   }
-
   .designer__sql {
     grid-column: 1 / -1;
     border-left: 0;
-    border-top: 1px solid var(--dp-border-faint);
-    padding-left: 0;
-    padding-top: var(--dp-space-2);
+    border-top: 1px solid var(--dp-border);
   }
 }
-
-@media (max-width: 560px) {
+@container table-designer (max-width: 560px) {
   .designer__body {
-    grid-template-columns: minmax(0, 1fr);
+    display: block;
   }
-
   .designer__identity {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+  .designer__comment {
+    grid-column: 1 / -1;
+  }
+  .designer__status {
+    width: 100%;
   }
 }
 </style>

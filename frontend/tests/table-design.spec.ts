@@ -18,9 +18,7 @@ function object(page: Page, label: string) {
   return page.getByTestId("design-navigation").getByRole("button", { name: label })
 }
 
-test("designs a table, reviews the SQL, and only then creates it", async ({
-  page,
-}) => {
+test("designs a table, reviews the SQL, and only then creates it", async ({ page }) => {
   const connector = `e2e-design-${Date.now()}`
   const table = `designed_${Date.now()}`
   await login(page)
@@ -31,6 +29,18 @@ test("designs a table, reviews the SQL, and only then creates it", async ({
   await catalogAction(page, "create_table")
   const designer = page.getByTestId("table-designer")
   await expect(designer).toContainText("demo_lab")
+  await expect(page.getByTestId("table-schema")).toContainText("demo_lab")
+  await expect(page.getByTestId("design-identity")).toContainText("Schema")
+  await expect(page.getByTestId("design-sql")).toContainText("SQL preview")
+  const navigation = await page.getByTestId("design-navigation").boundingBox()
+  const inspector = await page.getByTestId("design-inspector").boundingBox()
+  const preview = await page.getByTestId("design-sql").boundingBox()
+  expect(navigation).not.toBeNull()
+  expect(inspector).not.toBeNull()
+  expect(preview).not.toBeNull()
+  expect(navigation!.width).toBeCloseTo(175, 0)
+  expect(navigation!.x + navigation!.width).toBeCloseTo(inspector!.x, 0)
+  expect(inspector!.x + inspector!.width).toBeCloseTo(preview!.x, 0)
 
   await page.getByTestId("table-name").fill(table)
 
@@ -38,7 +48,7 @@ test("designs a table, reviews the SQL, and only then creates it", async ({
   // only offered on a type that can carry it, which is the server's rule.
   await page.getByTestId("column-name").fill("id")
   await choose(page, "column-type", "Integer")
-  await choose(page, "column-generation", "Numbered by the database")
+  await choose(page, "column-generation", "Identity")
 
   // A second column, and the SQL follows without anything being created.
   await page.getByTestId("add-columns").click()
@@ -52,6 +62,7 @@ test("designs a table, reviews the SQL, and only then creates it", async ({
 
   // An index over the key the table already has is refused, by the server,
   // with the object named — and the review button goes with it.
+  await page.getByTestId("section-indexes").click()
   await page.getByTestId("add-indexes").click()
   await expect(page.getByTestId("design-problems")).toContainText(
     "The primary key already indexes those columns"
@@ -64,12 +75,11 @@ test("designs a table, reviews the SQL, and only then creates it", async ({
 
   // A check, built out of a column, a comparison and a typed value: there is
   // no field here that could hold a fragment of SQL.
+  await page.getByTestId("section-constraints").click()
   await page.getByTestId("add-constraints").click()
+  await page.getByTestId("check-predicate-field").click()
   await page.getByTestId("check-predicate-add").click()
-  await page
-    .getByTestId("check-predicate-term-0")
-    .getByLabel("Comparison")
-    .click()
+  await page.getByTestId("check-predicate-term-0").getByLabel("Comparison").click()
   await page.getByRole("option", { name: "is not empty", exact: true }).click()
   await expect(sql).toContainText("CHECK")
 
@@ -105,10 +115,12 @@ test("a draft that is closed asks first, and creates nothing", async ({ page }) 
   await catalogAction(page, "create_table")
   await page.getByTestId("table-name").fill("abandoned")
 
-  await page.getByTestId("table-designer").getByRole("button", { name: "Cancel" }).click()
-  await expect(page.getByTestId("confirm-message")).toContainText(
-    "Nothing has been created"
-  )
+  await page
+    .getByRole("dialog")
+    .filter({ has: page.getByTestId("table-designer") })
+    .getByRole("button", { name: "Close window", exact: true })
+    .click()
+  await expect(page.getByTestId("confirm-message")).toContainText("Nothing has been created")
   await page.getByTestId("confirm-accept").click()
 
   await expect(page.getByTestId("table-designer")).toBeHidden()

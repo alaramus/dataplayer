@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import { AppBanner, AppInput, AppSelect } from "@/shared/ui"
+import { AppBanner, AppInput, AppSelect, AppTooltip } from "@/shared/ui"
 
 import { useDesign } from "./design"
 
@@ -16,7 +16,7 @@ const persistence = computed(() =>
   }))
 )
 const strategies = computed(() => [
-  { label: "Not split into partitions", value: "" },
+  { label: "None", value: "" },
   ...(design.options.value?.partition_strategies ?? []).map((choice) => ({
     label: choice.title,
     value: choice.code,
@@ -33,21 +33,32 @@ const strategies = computed(() => [
       <AppSelect
         v-model="design.draft.persistence"
         :options="persistence"
-        label="Kept"
-        hint="An unlogged table is faster and does not survive a crash"
+        label="Persistence"
         data-testid="table-persistence"
       />
       <AppInput
-        v-model="design.draft.comment"
-        label="Comment"
-      />
+        model-value=""
+        label="Tablespace · optional"
+        disable
+        data-testid="table-tablespace"
+      >
+        <AppTooltip>Tablespace selection is not supported by table creation yet.</AppTooltip>
+      </AppInput>
     </div>
 
     <div class="inspector__row">
+      <AppInput
+        model-value=""
+        label="Owner · optional"
+        disable
+        data-testid="table-owner"
+      >
+        <AppTooltip>Owner selection is not supported by table creation yet.</AppTooltip>
+      </AppInput>
       <AppSelect
         v-model="design.draft.partitionStrategy"
         :options="strategies"
-        label="Split by"
+        label="Partition by"
         data-testid="table-partition"
       />
       <AppSelect
@@ -62,28 +73,26 @@ const strategies = computed(() => [
       v-if="design.draft.partitionStrategy !== ''"
       tone="info"
     >
-      This creates the parent. Rows go into partitions of it, which are made
-      separately, and every key of the table must hold its partition columns.
+      This creates the parent. Rows go into partitions of it, which are made separately, and every
+      key of the table must hold its partition columns.
     </AppBanner>
   </div>
 </template>
 
 <style scoped>
 .inspector {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-2);
+  display: grid;
+  gap: 12px;
 }
-
 .inspector__row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--dp-space-2);
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
 }
-
-.inspector__row > * {
-  flex: 1 1 200px;
-  min-width: 0;
+@container table-designer (max-width: 560px) {
+  .inspector__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

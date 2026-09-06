@@ -570,3 +570,17 @@ Known deviations:
   the user checks it; nothing checks in the background, because that would mean
   opening a connection to every source on every load. The record is not
   persisted: a dot restored from yesterday would claim more than it knows.
+
+The table designer follows the
+[Variant B reference](../superpowers/specs/assets/2026-09-06-table-designer/variant-b.html)
+for its arrangement: a narrow object navigation, an inspector, and an SQL
+preview beside them, with creation review replacing the definition. The
+breakpoints follow the floating window's width through a container query. Its
+appearance is the application's own — the kit's controls as they come, colours
+from the theme tokens, no type sizes of its own — because a visual pass over
+the whole application comes after its behaviour is finished.
+
+Conditions appear as read-only fields and expand into the typed editor on click
+or Enter. The labels are presentation only and are never submitted as SQL.
+Tablespace and owner retain their places from the reference but are disabled:
+the creation API currently accepts neither option.

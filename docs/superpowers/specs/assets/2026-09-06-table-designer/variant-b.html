@@ -1,0 +1,1455 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Variant B.fragment</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Variant B.fragment" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Variant B.fragment&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;dp-table-studio&quot; data-layout=&quot;studio&quot; aria-label=&quot;DataPlayer table designer&quot;&gt;
+  &lt;div class=&quot;dp-window&quot;&gt;
+    &lt;div class=&quot;dp-appbar&quot;&gt;&lt;span class=&quot;dp-brand&quot;&gt;&lt;i data-lucide=&quot;database&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt; DataPlayer&lt;/span&gt;&lt;span class=&quot;dp-context&quot;&gt;Development / PostgreSQL / demo_lab&lt;/span&gt;&lt;span class=&quot;dp-demo&quot;&gt;Interactive demo&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;dp-document&quot;&gt;&lt;i data-lucide=&quot;table-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;strong&gt;Create table&lt;/strong&gt;&lt;span class=&quot;dp-muted&quot;&gt;PostgreSQL 18&lt;/span&gt;&lt;span class=&quot;dp-spacer&quot;&gt;&lt;/span&gt;&lt;span class=&quot;dp-draft&quot;&gt;Unsaved draft&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;dp-identity&quot;&gt;
+      &lt;label&gt;Schema&lt;select name=&quot;schema&quot; data-scope=&quot;table&quot;&gt;&lt;option&gt;demo_lab&lt;/option&gt;&lt;option&gt;public&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;
+      &lt;label class=&quot;dp-name&quot;&gt;Table name&lt;input name=&quot;name&quot; data-scope=&quot;table&quot; value=&quot;orders&quot; autocomplete=&quot;off&quot;&gt;&lt;/label&gt;
+      &lt;label class=&quot;dp-comment&quot;&gt;Comment&lt;input name=&quot;comment&quot; data-scope=&quot;table&quot; value=&quot;Customer orders&quot; autocomplete=&quot;off&quot;&gt;&lt;/label&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;dp-body&quot;&gt;&lt;nav class=&quot;dp-navigation&quot; aria-label=&quot;Table definition&quot;&gt;&lt;/nav&gt;&lt;main class=&quot;dp-editor&quot;&gt;&lt;/main&gt;&lt;aside class=&quot;dp-sql&quot; aria-label=&quot;SQL preview&quot;&gt;&lt;/aside&gt;&lt;/div&gt;
+    &lt;div class=&quot;dp-errors&quot; role=&quot;alert&quot; hidden&gt;&lt;/div&gt;
+    &lt;footer class=&quot;dp-footer&quot;&gt;&lt;span class=&quot;dp-status&quot; aria-live=&quot;polite&quot;&gt;Local draft&lt;/span&gt;&lt;span class=&quot;dp-spacer&quot;&gt;&lt;/span&gt;&lt;button class=&quot;dp-review&quot;&gt;Review SQL &lt;i data-lucide=&quot;arrow-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/footer&gt;
+    &lt;section class=&quot;dp-review-pane&quot; hidden aria-label=&quot;Review table creation&quot;&gt;&lt;/section&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+&lt;style&gt;
+#dp-table-studio{--dt-bg:light-dark(#fff,#111315);--dt-raised:light-dark(#f4f5f7,#1b1e21);--dt-field:light-dark(#fff,#171a1d);--dt-line:light-dark(#d9dde3,#343a40);--dt-text:light-dark(#202832,#e5e9ed);--dt-muted:light-dark(#596572,#a1aab3);--dt-accent:light-dark(#246bc0,#8fc4fa);--dt-selection:light-dark(#eaf2fc,#203245);--dt-error:light-dark(#a32a23,#ffaaa1);--dt-good:light-dark(#27764d,#83c3a2);font:13px/1.45 Inter,&quot;Segoe UI&quot;,system-ui,sans-serif;color:var(--dt-text);width:100%;color-scheme:light dark;--dt-row:31px}
+#dp-table-studio *{box-sizing:border-box}
+#dp-table-studio .dp-window{background:var(--dt-bg);border:1px solid var(--dt-line);border-radius:8px;overflow:hidden}
+#dp-table-studio button,#dp-table-studio input,#dp-table-studio select,#dp-table-studio textarea{font:inherit;color:inherit;min-width:0}
+#dp-table-studio button{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--dt-field);border:1px solid var(--dt-line);border-radius:4px;padding:5px 9px;cursor:pointer}
+#dp-table-studio button:hover{background:var(--dt-selection)}
+#dp-table-studio button:disabled{opacity:.5;cursor:default}
+#dp-table-studio button:focus-visible,#dp-table-studio input:focus-visible,#dp-table-studio select:focus-visible,#dp-table-studio textarea:focus-visible{outline:2px solid var(--dt-accent);outline-offset:1px}
+#dp-table-studio input:not([type=checkbox]),#dp-table-studio select,#dp-table-studio textarea{width:100%;background:var(--dt-field);border:1px solid var(--dt-line);border-radius:4px;padding:5px 7px;min-height:30px}
+#dp-table-studio textarea{resize:vertical;min-height:62px}
+#dp-table-studio input[type=checkbox]{accent-color:var(--dt-accent);width:14px;height:14px;vertical-align:middle}
+#dp-table-studio label{display:flex;flex-direction:column;gap:4px;color:var(--dt-muted);font-size:12px}
+#dp-table-studio label input,#dp-table-studio label select,#dp-table-studio label textarea{color:var(--dt-text);font-size:13px}
+#dp-table-studio .dp-inline-check{flex-direction:row;align-items:center;gap:6px;color:var(--dt-text);min-height:30px}
+#dp-table-studio .dp-appbar,#dp-table-studio .dp-document,#dp-table-studio .dp-footer,#dp-table-studio .dp-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#dp-table-studio .dp-appbar{padding:9px 12px;background:var(--dt-raised);border-bottom:1px solid var(--dt-line)}
+#dp-table-studio .dp-brand{display:flex;align-items:center;gap:7px;font-weight:500}
+#dp-table-studio svg{width:16px;height:16px;flex:none}
+#dp-table-studio .dp-context{color:var(--dt-muted);font-size:11px;flex:1}
+#dp-table-studio .dp-demo{color:var(--dt-muted);font-size:11px}
+#dp-table-studio .dp-document{padding:10px 12px;border-bottom:1px solid var(--dt-line)}
+#dp-table-studio strong{font-weight:500}
+#dp-table-studio .dp-muted,#dp-table-studio small{color:var(--dt-muted)}
+#dp-table-studio .dp-draft{font-size:11px;color:var(--dt-accent)}
+#dp-table-studio .dp-spacer{flex:1}
+#dp-table-studio .dp-identity{display:grid;grid-template-columns:150px minmax(150px,1fr) minmax(180px,1.3fr);gap:12px;padding:12px;border-bottom:1px solid var(--dt-line)}
+#dp-table-studio .dp-body{display:grid;grid-template-columns:minmax(0,1fr)}
+#dp-table-studio .dp-navigation{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--dt-line);padding:0 8px;background:var(--dt-raised)}
+#dp-table-studio .dp-navigation&gt;button{border:0;border-bottom:2px solid transparent;border-radius:0;padding:10px;background:transparent;gap:7px}
+#dp-table-studio .dp-navigation button[aria-current=true]{border-color:var(--dt-accent);color:var(--dt-accent);background:var(--dt-selection)}
+#dp-table-studio .dp-count{font-size:11px;color:var(--dt-muted);font-variant-numeric:tabular-nums}
+#dp-table-studio .dp-editor{padding:12px;min-width:0;min-height:330px}
+#dp-table-studio .dp-toolbar{margin-bottom:10px;min-height:31px}
+#dp-table-studio .dp-toolbar strong{font-size:14px}
+#dp-table-studio .dp-table-scroll{overflow-x:auto;max-width:100%}
+#dp-table-studio table{width:100%;border-collapse:collapse;text-align:left;font-size:12px}
+#dp-table-studio th{font-weight:500;color:var(--dt-muted);height:30px;background:var(--dt-raised)}
+#dp-table-studio td,#dp-table-studio th{padding:3px 6px;border-bottom:1px solid var(--dt-line);white-space:nowrap}
+#dp-table-studio td{height:var(--dt-row)}
+#dp-table-studio tr[data-selected=true]{background:var(--dt-selection)}
+#dp-table-studio td input:not([type=checkbox]),#dp-table-studio td select{border-color:transparent;background:transparent;min-height:25px;padding:2px 3px;border-radius:2px}
+#dp-table-studio td input:focus,#dp-table-studio td select:focus{border-color:var(--dt-accent);background:var(--dt-field)}
+#dp-table-studio .dp-column-table{min-width:670px;table-layout:fixed}
+#dp-table-studio .dp-column-table th:nth-child(1){width:30px}
+#dp-table-studio .dp-column-table th:nth-child(2){width:155px}
+#dp-table-studio .dp-column-table th:nth-child(3){width:150px}
+#dp-table-studio .dp-column-table th:nth-child(4),#dp-table-studio .dp-column-table th:nth-child(5){width:44px;text-align:center}
+#dp-table-studio .dp-column-table th:nth-child(7){width:38px}
+#dp-table-studio .dp-center{text-align:center}
+#dp-table-studio .dp-icon-btn{padding:3px;border:0;background:transparent;min-width:26px}
+#dp-table-studio .dp-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}
+#dp-table-studio .dp-span{grid-column:1/-1}
+#dp-table-studio .dp-subhead{display:flex;align-items:center;gap:8px;justify-content:space-between;margin:14px 0 8px}
+#dp-table-studio h3{font-size:13px;font-weight:500;margin:0}
+#dp-table-studio .dp-object-list{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+#dp-table-studio .dp-object-list button{font-size:12px;max-width:100%;overflow-wrap:anywhere}
+#dp-table-studio .dp-object-list button[aria-pressed=true]{border-color:var(--dt-accent);background:var(--dt-selection)}
+#dp-table-studio .dp-rule{border-top:1px solid var(--dt-line);margin-top:12px;padding-top:10px}
+#dp-table-studio .dp-badges{display:flex;flex-wrap:wrap;gap:6px}
+#dp-table-studio .dp-badges label{border:1px solid var(--dt-line);padding:3px 8px;border-radius:3px}
+#dp-table-studio .dp-key-row{display:grid;grid-template-columns:minmax(0,1fr) 84px 106px 30px;gap:6px;margin:6px 0;align-items:center}
+#dp-table-studio .dp-key-row select{font-size:12px}
+#dp-table-studio .dp-key-row&gt;button{grid-column:4;grid-row:1;align-self:end;height:30px}
+#dp-table-studio .dp-advanced{margin-top:12px;border-top:1px solid var(--dt-line);padding-top:8px}
+#dp-table-studio .dp-advanced summary{cursor:pointer;color:var(--dt-muted);font-size:12px}
+#dp-table-studio .dp-mapping{display:grid;grid-template-columns:minmax(0,1fr) 25px minmax(0,1fr) 30px;gap:5px;align-items:center;margin:6px 0}
+#dp-table-studio .dp-relationship{display:grid;grid-template-columns:1fr 32px 1fr;gap:8px;align-items:center;margin:12px 0}
+#dp-table-studio .dp-relation-node{border:1px solid var(--dt-line);border-radius:4px;overflow:hidden}
+#dp-table-studio .dp-relation-node strong{display:block;background:var(--dt-raised);border-bottom:1px solid var(--dt-line);padding:6px 8px;overflow-wrap:anywhere}
+#dp-table-studio .dp-relation-node span{display:block;padding:5px 8px;color:var(--dt-accent);font-family:ui-monospace,Consolas,monospace;overflow-wrap:anywhere}
+#dp-table-studio .dp-link-arrow{text-align:center;color:var(--dt-accent)}
+#dp-table-studio .dp-sql{border-top:1px solid var(--dt-line);min-width:0;background:var(--dt-raised)}
+#dp-table-studio .dp-sql summary{padding:10px 12px;cursor:pointer;font-size:12px;color:var(--dt-muted)}
+#dp-table-studio pre{margin:0;padding:12px;font:12px/1.65 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--dt-text)}
+#dp-table-studio .dp-keyword{color:var(--dt-accent)}
+#dp-table-studio .dp-literal{color:var(--dt-good)}
+#dp-table-studio .dp-sql-heading{padding:10px 12px;border-bottom:1px solid var(--dt-line);font-size:12px;color:var(--dt-muted);display:flex;justify-content:space-between;gap:8px}
+#dp-table-studio .dp-sql-heading span:last-child{color:var(--dt-good)}
+#dp-table-studio .dp-footer{padding:10px 12px;border-top:1px solid var(--dt-line)}
+#dp-table-studio .dp-status{color:var(--dt-muted);font-size:11px}
+#dp-table-studio .dp-review{background:var(--dt-selection);border-color:var(--dt-accent);color:var(--dt-accent)}
+#dp-table-studio .dp-errors{padding:10px 12px;color:var(--dt-error);border-top:1px solid var(--dt-line);font-size:12px}
+#dp-table-studio .dp-errors ul{margin:0;padding-left:18px}
+#dp-table-studio .dp-note{font-size:11px;color:var(--dt-muted);margin:8px 0;overflow-wrap:anywhere}
+#dp-table-studio .dp-nav-group{font-size:11px;color:var(--dt-muted);padding:10px 8px 3px;display:flex;justify-content:space-between}
+#dp-table-studio .dp-tree-item{display:flex!important;justify-content:flex-start!important;text-align:left;width:100%;border:0!important;background:transparent;font-size:12px;padding:6px 8px!important;overflow-wrap:anywhere}
+#dp-table-studio .dp-tree-item span{min-width:0;overflow-wrap:anywhere}
+#dp-table-studio .dp-tree-item[aria-current=true]{background:var(--dt-selection)!important;color:var(--dt-accent)}
+#dp-table-studio .dp-tree-item svg{width:13px;height:13px}
+#dp-table-studio .dp-review-pane{padding:12px;background:var(--dt-raised)}
+#dp-table-studio .dp-review-pane pre{padding-left:0;padding-right:0}
+#dp-table-studio [hidden]{display:none!important}
+#dp-table-studio[data-layout=studio] .dp-body{grid-template-columns:175px minmax(0,1fr) minmax(250px,.78fr)}
+#dp-table-studio[data-layout=studio] .dp-navigation{display:block;padding:6px;border-bottom:0;border-right:1px solid var(--dt-line)}
+#dp-table-studio[data-layout=studio] .dp-sql{border-top:0;border-left:1px solid var(--dt-line)}
+#dp-table-studio[data-layout=studio] .dp-key-row{grid-template-columns:minmax(0,1fr) 60px 78px 26px}
+#dp-table-studio[data-layout=studio] .dp-column-table{min-width:600px}
+@media(max-width:850px){#dp-table-studio[data-layout=studio] .dp-body{grid-template-columns:160px minmax(0,1fr)}#dp-table-studio[data-layout=studio] .dp-sql{grid-column:1/-1;border-left:0;border-top:1px solid var(--dt-line)}}
+@media(max-width:560px){#dp-table-studio .dp-identity{grid-template-columns:110px minmax(0,1fr)}#dp-table-studio .dp-comment{grid-column:1/-1}#dp-table-studio .dp-context{display:none}#dp-table-studio .dp-fields{grid-template-columns:minmax(0,1fr)}#dp-table-studio .dp-navigation&gt;button{padding:8px 6px;font-size:12px}#dp-table-studio[data-layout=studio] .dp-body{display:block}#dp-table-studio[data-layout=studio] .dp-navigation{display:flex;flex-wrap:wrap;gap:4px;border-right:0;border-bottom:1px solid var(--dt-line)}#dp-table-studio .dp-nav-group{width:100%}#dp-table-studio .dp-tree-item{width:auto!important;max-width:100%}#dp-table-studio .dp-key-row,#dp-table-studio[data-layout=studio] .dp-key-row{grid-template-columns:minmax(0,1fr) 72px 30px}#dp-table-studio .dp-key-row&gt;button{grid-column:3}#dp-table-studio .dp-null-order{grid-column:1/-1}#dp-table-studio .dp-relationship{grid-template-columns:1fr}#dp-table-studio .dp-link-arrow{transform:rotate(90deg)}#dp-table-studio .dp-footer{align-items:stretch}#dp-table-studio .dp-status{width:100%}}
+@media(pointer:coarse){#dp-table-studio button{min-height:40px}#dp-table-studio input:not([type=checkbox]),#dp-table-studio select,#dp-table-studio textarea{font-size:16px;min-height:40px}#dp-table-studio .dp-icon-btn{min-width:40px}#dp-table-studio .dp-key-row,#dp-table-studio .dp-mapping{grid-template-columns:minmax(0,1fr);border-bottom:1px solid var(--dt-line);padding-bottom:8px}}
+&lt;/style&gt;
+&lt;script&gt;
+(() =&gt; {
+  const root = document.getElementById(&#x27;dp-table-studio&#x27;);
+  const initialLayout = root.dataset.layout;
+  const design = { layout: initialLayout, density: &#x27;Compact&#x27;, sqlOpen: initialLayout === &#x27;studio&#x27; };
+  const state = {
+    table: { schema:&#x27;demo_lab&#x27;, name:&#x27;orders&#x27;, comment:&#x27;Customer orders&#x27;, persistence:&#x27;Regular&#x27;, partition:&#x27;None&#x27;, partitionKey:&#x27;c7&#x27;, tablespace:&#x27;&#x27;, owner:&#x27;&#x27; },
+    columns: [
+      {id:&#x27;c1&#x27;,name:&#x27;id&#x27;,type:&#x27;bigint&#x27;,nn:true,pk:true,def:&#x27;&#x27;,generation:&#x27;Identity · always&#x27;,expression:&#x27;&#x27;,comment:&#x27;&#x27;,collation:&#x27;&#x27;},
+      {id:&#x27;c2&#x27;,name:&#x27;order_number&#x27;,type:&#x27;text&#x27;,nn:true,pk:false,def:&#x27;&#x27;,generation:&#x27;None&#x27;,expression:&#x27;&#x27;,comment:&#x27;Public order reference&#x27;,collation:&#x27;&#x27;},
+      {id:&#x27;c3&#x27;,name:&#x27;customer_id&#x27;,type:&#x27;bigint&#x27;,nn:true,pk:false,def:&#x27;&#x27;,generation:&#x27;None&#x27;,expression:&#x27;&#x27;,comment:&#x27;&#x27;,collation:&#x27;&#x27;},
+      {id:&#x27;c4&#x27;,name:&#x27;status&#x27;,type:&#x27;text&#x27;,nn:true,pk:false,def:&quot;&#x27;draft&#x27;&quot;,generation:&#x27;None&#x27;,expression:&#x27;&#x27;,comment:&#x27;&#x27;,collation:&#x27;&#x27;},
+      {id:&#x27;c5&#x27;,name:&#x27;total&#x27;,type:&#x27;numeric(12,2)&#x27;,nn:true,pk:false,def:&#x27;0&#x27;,generation:&#x27;None&#x27;,expression:&#x27;&#x27;,comment:&#x27;&#x27;,collation:&#x27;&#x27;},
+      {id:&#x27;c6&#x27;,name:&#x27;metadata&#x27;,type:&#x27;jsonb&#x27;,nn:true,pk:false,def:&quot;&#x27;{}&#x27;::jsonb&quot;,generation:&#x27;None&#x27;,expression:&#x27;&#x27;,comment:&#x27;&#x27;,collation:&#x27;&#x27;},
+      {id:&#x27;c7&#x27;,name:&#x27;created_at&#x27;,type:&#x27;timestamptz&#x27;,nn:true,pk:false,def:&#x27;now()&#x27;,generation:&#x27;None&#x27;,expression:&#x27;&#x27;,comment:&#x27;&#x27;,collation:&#x27;&#x27;}
+    ],
+    indexes: [
+      {id:&#x27;i1&#x27;,name:&#x27;orders_customer_created_idx&#x27;,method:&#x27;btree&#x27;,unique:false,keys:[{column:&#x27;c3&#x27;,order:&#x27;ASC&#x27;,nulls:&#x27;Default&#x27;},{column:&#x27;c7&#x27;,order:&#x27;DESC&#x27;,nulls:&#x27;Default&#x27;}],include:[&#x27;c5&#x27;],predicate:&quot;status = &#x27;paid&#x27;&quot;,expression:&#x27;&#x27;,opclass:&#x27;&#x27;},
+      {id:&#x27;i2&#x27;,name:&#x27;orders_metadata_idx&#x27;,method:&#x27;gin&#x27;,unique:false,keys:[{column:&#x27;c6&#x27;,order:&#x27;ASC&#x27;,nulls:&#x27;Default&#x27;}],include:[],predicate:&#x27;&#x27;,expression:&#x27;&#x27;,opclass:&#x27;jsonb_path_ops&#x27;}
+    ],
+    foreignKeys:[{id:&#x27;f1&#x27;,name:&#x27;orders_customer_fk&#x27;,target:&#x27;customers&#x27;,pairs:[{source:&#x27;c3&#x27;,target:&#x27;id&#x27;}],onDelete:&#x27;RESTRICT&#x27;,onUpdate:&#x27;CASCADE&#x27;,deferrable:false,deferred:false,match:&#x27;SIMPLE&#x27;}],
+    checks:[{id:&#x27;k1&#x27;,name:&#x27;orders_total_check&#x27;,expression:&#x27;total &gt;= 0&#x27;},{id:&#x27;k2&#x27;,name:&#x27;orders_status_check&#x27;,expression:&quot;status IN (&#x27;draft&#x27;, &#x27;paid&#x27;, &#x27;cancelled&#x27;)&quot;}],
+    unique:{enabled:true,name:&#x27;orders_number_key&#x27;,columns:[&#x27;c2&#x27;],nulls:false},
+    section:initialLayout===&#x27;studio&#x27;?&#x27;Indexes&#x27;:&#x27;Columns&#x27;,selectedColumn:&#x27;c3&#x27;,selectedIndex:&#x27;i1&#x27;,selectedForeign:&#x27;f1&#x27;,columnDetails:false,review:false,serial:10
+  };
+  const types=[&#x27;bigint&#x27;,&#x27;integer&#x27;,&#x27;smallint&#x27;,&#x27;text&#x27;,&#x27;varchar(255)&#x27;,&#x27;numeric(12,2)&#x27;,&#x27;boolean&#x27;,&#x27;uuid&#x27;,&#x27;jsonb&#x27;,&#x27;timestamptz&#x27;,&#x27;date&#x27;,&#x27;text[]&#x27;,&#x27;tsrange&#x27;];
+  const sections=[[&#x27;Columns&#x27;,&#x27;columns&#x27;,&#x27;columns-3&#x27;],[&#x27;Indexes&#x27;,&#x27;indexes&#x27;,&#x27;list-filter&#x27;],[&#x27;Foreign keys&#x27;,&#x27;foreignKeys&#x27;,&#x27;link-2&#x27;],[&#x27;Constraints&#x27;,&#x27;checks&#x27;,&#x27;shield-check&#x27;],[&#x27;Options&#x27;,null,&#x27;settings-2&#x27;]];
+  const sectionCount=(label,key)=&gt;key?state[key].length+(label===&#x27;Constraints&#x27;?(state.columns.some(c=&gt;c.pk)?1:0)+(state.unique.enabled?1:0):0):&#x27;&#x27;;
+  const esc=v=&gt;String(v??&#x27;&#x27;).replace(/[&amp;&lt;&gt;&quot;&#x27;]/g,ch=&gt;({&#x27;&amp;&#x27;:&#x27;&amp;amp;&#x27;,&#x27;&lt;&#x27;:&#x27;&amp;lt;&#x27;,&#x27;&gt;&#x27;:&#x27;&amp;gt;&#x27;,&#x27;&quot;&#x27;:&#x27;&amp;quot;&#x27;,&quot;&#x27;&quot;:&#x27;&amp;#39;&#x27;}[ch]));
+  const quote=v=&gt;&#x27;&quot;&#x27;+String(v).replace(/&quot;/g,&#x27;&quot;&quot;&#x27;)+&#x27;&quot;&#x27;;
+  const literal=v=&gt;&quot;&#x27;&quot;+String(v).replace(/&#x27;/g,&quot;&#x27;&#x27;&quot;)+&quot;&#x27;&quot;;
+  const column=id=&gt;state.columns.find(c=&gt;c.id===id);
+  const colName=id=&gt;column(id)?.name??&#x27;missing_column&#x27;;
+  const qcol=id=&gt;quote(colName(id));
+  const icon=name=&gt;`&lt;i data-lucide=&quot;${name}&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;`;
+  const attr=(scope,key,id=&#x27;&#x27;)=&gt;`data-scope=&quot;${scope}&quot; name=&quot;${key}&quot; data-id=&quot;${id}&quot;`;
+  function field(label,scope,key,value,id=&#x27;&#x27;,extra=&#x27;&#x27;) {return `&lt;label ${extra}&gt;${label}&lt;input ${attr(scope,key,id)} value=&quot;${esc(value)}&quot; autocomplete=&quot;off&quot;&gt;&lt;/label&gt;`;}
+  function select(label,scope,key,value,values,id=&#x27;&#x27;,extra=&#x27;&#x27;) {return `&lt;label ${extra}&gt;${label}&lt;select ${attr(scope,key,id)}&gt;${values.map(v=&gt;{const pair=Array.isArray(v)?v:[v,v];return `&lt;option value=&quot;${esc(pair[0])}&quot; ${pair[0]===value?&#x27;selected&#x27;:&#x27;&#x27;}&gt;${esc(pair[1])}&lt;/option&gt;`}).join(&#x27;&#x27;)}&lt;/select&gt;&lt;/label&gt;`;}
+  function check(label,scope,key,value,id=&#x27;&#x27;,disabled=false) {return `&lt;label class=&quot;dp-inline-check&quot;&gt;&lt;input type=&quot;checkbox&quot; ${attr(scope,key,id)} ${value?&#x27;checked&#x27;:&#x27;&#x27;} ${disabled?&#x27;disabled&#x27;:&#x27;&#x27;}&gt;${label}&lt;/label&gt;`;}
+  const columnOptions=()=&gt;state.columns.map(c=&gt;[c.id,c.name]);
+  const toolbar=(title,action,label)=&gt;`&lt;div class=&quot;dp-toolbar&quot;&gt;&lt;strong&gt;${title}&lt;/strong&gt;&lt;span class=&quot;dp-spacer&quot;&gt;&lt;/span&gt;${action?`&lt;button data-action=&quot;${action}&quot;&gt;${icon(&#x27;plus&#x27;)}${label}&lt;/button&gt;`:&#x27;&#x27;}&lt;/div&gt;`;
+  const currentIndex=()=&gt;state.indexes.find(x=&gt;x.id===state.selectedIndex);
+  const currentForeign=()=&gt;state.foreignKeys.find(x=&gt;x.id===state.selectedForeign);
+  function nav() {
+    const area=root.querySelector(&#x27;.dp-navigation&#x27;);
+    if(design.layout===&#x27;tabs&#x27;) {
+      area.innerHTML=sections.map(([label,key,ic])=&gt;`&lt;button data-section=&quot;${label}&quot; aria-current=&quot;${state.section===label}&quot;&gt;${icon(ic)}${label}${key?`&lt;span class=&quot;dp-count&quot;&gt;${sectionCount(label,key)}&lt;/span&gt;`:&#x27;&#x27;}&lt;/button&gt;`).join(&#x27;&#x27;);
+      return;
+    }
+    area.innerHTML=sections.map(([label,key,ic])=&gt;{
+      let entries=[];
+      if(label===&#x27;Columns&#x27;)entries=state.columns.map(c=&gt;[c.id,c.name]);
+      if(label===&#x27;Indexes&#x27;)entries=state.indexes.map(c=&gt;[c.id,c.name]);
+      if(label===&#x27;Foreign keys&#x27;)entries=state.foreignKeys.map(c=&gt;[c.id,c.name]);
+      if(label===&#x27;Constraints&#x27;)entries=[[&#x27;constraints&#x27;,&#x27;Primary / unique / checks&#x27;]];
+      if(label===&#x27;Options&#x27;)entries=[[&#x27;options&#x27;,&#x27;Storage &amp; partitioning&#x27;]];
+      const selected=label===&#x27;Columns&#x27;?state.selectedColumn:label===&#x27;Indexes&#x27;?state.selectedIndex:label===&#x27;Foreign keys&#x27;?state.selectedForeign:entries[0]?.[0];
+      return `&lt;div class=&quot;dp-nav-group&quot;&gt;&lt;span&gt;${label}&lt;/span&gt;&lt;span&gt;${sectionCount(label,key)}&lt;/span&gt;&lt;/div&gt;`+entries.map(([id,text])=&gt;`&lt;button class=&quot;dp-tree-item&quot; data-section=&quot;${label}&quot; data-object=&quot;${id}&quot; aria-current=&quot;${state.section===label&amp;&amp;selected===id}&quot;&gt;${icon(ic)}&lt;span&gt;${esc(text)}&lt;/span&gt;&lt;/button&gt;`).join(&#x27;&#x27;);
+    }).join(&#x27;&#x27;);
+  }
+  function columnEditor(c) {
+    if(!c)return &#x27;&lt;span class=&quot;dp-muted&quot;&gt;Add a column to start.&lt;/span&gt;&#x27;;
+    return `&lt;div class=&quot;dp-fields&quot;&gt;${field(&#x27;Name&#x27;,&#x27;column&#x27;,&#x27;name&#x27;,c.name,c.id)}${select(&#x27;Data type&#x27;,&#x27;column&#x27;,&#x27;type&#x27;,c.type,types,c.id)}${select(&#x27;Value generation&#x27;,&#x27;column&#x27;,&#x27;generation&#x27;,c.generation,[&#x27;None&#x27;,&#x27;Identity · always&#x27;,&#x27;Identity · by default&#x27;,&#x27;Generated · stored&#x27;],c.id)}${c.generation===&#x27;Generated · stored&#x27;?field(&#x27;Generation expression&#x27;,&#x27;column&#x27;,&#x27;expression&#x27;,c.expression,c.id):field(&#x27;Default expression&#x27;,&#x27;column&#x27;,&#x27;def&#x27;,c.def,c.id)}${check(&#x27;Not null&#x27;,&#x27;column&#x27;,&#x27;nn&#x27;,c.nn,c.id)}${check(&#x27;Primary key&#x27;,&#x27;column&#x27;,&#x27;pk&#x27;,c.pk,c.id)}${field(&#x27;Collation&#x27;,&#x27;column&#x27;,&#x27;collation&#x27;,c.collation,c.id)}${field(&#x27;Comment&#x27;,&#x27;column&#x27;,&#x27;comment&#x27;,c.comment,c.id)}&lt;/div&gt;&lt;div class=&quot;dp-toolbar&quot;&gt;&lt;button data-action=&quot;move-column&quot; data-delta=&quot;-1&quot;&gt;${icon(&#x27;arrow-up&#x27;)}Move up&lt;/button&gt;&lt;button data-action=&quot;move-column&quot; data-delta=&quot;1&quot;&gt;${icon(&#x27;arrow-down&#x27;)}Move down&lt;/button&gt;&lt;span class=&quot;dp-spacer&quot;&gt;&lt;/span&gt;&lt;button data-action=&quot;remove-column&quot;&gt;${icon(&#x27;trash-2&#x27;)}Remove column&lt;/button&gt;&lt;/div&gt;`;
+  }
+  function columnsPanel() {
+    const title=design.layout===&#x27;studio&#x27;?esc(colName(state.selectedColumn)):&#x27;Columns&#x27;;
+    let html=toolbar(title,&#x27;add-column&#x27;,&#x27;Column&#x27;);
+    if(design.layout===&#x27;studio&#x27;)return html+columnEditor(column(state.selectedColumn));
+    html+=`&lt;div class=&quot;dp-table-scroll&quot;&gt;&lt;table class=&quot;dp-column-table&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;#&lt;/th&gt;&lt;th&gt;Name&lt;/th&gt;&lt;th&gt;Data type&lt;/th&gt;&lt;th&gt;PK&lt;/th&gt;&lt;th&gt;NN&lt;/th&gt;&lt;th&gt;Default / generated&lt;/th&gt;&lt;th&gt;&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;${state.columns.map((c,i)=&gt;`&lt;tr data-selected=&quot;${state.selectedColumn===c.id&amp;&amp;state.columnDetails}&quot;&gt;&lt;td class=&quot;dp-muted&quot;&gt;${i+1}&lt;/td&gt;&lt;td&gt;&lt;input aria-label=&quot;Column ${i+1} name&quot; ${attr(&#x27;column&#x27;,&#x27;name&#x27;,c.id)} value=&quot;${esc(c.name)}&quot;&gt;&lt;/td&gt;&lt;td&gt;&lt;select aria-label=&quot;Type of ${esc(c.name)}&quot; ${attr(&#x27;column&#x27;,&#x27;type&#x27;,c.id)}&gt;${types.map(t=&gt;`&lt;option ${t===c.type?&#x27;selected&#x27;:&#x27;&#x27;}&gt;${esc(t)}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;/td&gt;&lt;td class=&quot;dp-center&quot;&gt;&lt;input type=&quot;checkbox&quot; aria-label=&quot;Primary key ${esc(c.name)}&quot; ${attr(&#x27;column&#x27;,&#x27;pk&#x27;,c.id)} ${c.pk?&#x27;checked&#x27;:&#x27;&#x27;}&gt;&lt;/td&gt;&lt;td class=&quot;dp-center&quot;&gt;&lt;input type=&quot;checkbox&quot; aria-label=&quot;Not null ${esc(c.name)}&quot; ${attr(&#x27;column&#x27;,&#x27;nn&#x27;,c.id)} ${c.nn?&#x27;checked&#x27;:&#x27;&#x27;}&gt;&lt;/td&gt;&lt;td&gt;${c.generation!==&#x27;None&#x27;?`&lt;span class=&quot;dp-muted&quot;&gt;${esc(c.generation)}&lt;/span&gt;`:`&lt;input aria-label=&quot;Default for ${esc(c.name)}&quot; ${attr(&#x27;column&#x27;,&#x27;def&#x27;,c.id)} value=&quot;${esc(c.def)}&quot;&gt;`}&lt;/td&gt;&lt;td&gt;&lt;button class=&quot;dp-icon-btn&quot; aria-label=&quot;Options for ${esc(c.name)}&quot; data-action=&quot;column-options&quot; data-id=&quot;${c.id}&quot;&gt;${icon(&#x27;settings-2&#x27;)}&lt;/button&gt;&lt;/td&gt;&lt;/tr&gt;`).join(&#x27;&#x27;)}&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;&lt;div class=&quot;dp-note&quot;&gt;PK · primary key &amp;nbsp; NN · not null&lt;/div&gt;`;
+    if(state.columnDetails)html+=`&lt;div class=&quot;dp-rule&quot;&gt;&lt;div class=&quot;dp-subhead&quot;&gt;&lt;h3&gt;${esc(colName(state.selectedColumn))} · column options&lt;/h3&gt;&lt;button data-action=&quot;close-column&quot; class=&quot;dp-icon-btn&quot; aria-label=&quot;Close column options&quot;&gt;${icon(&#x27;x&#x27;)}&lt;/button&gt;&lt;/div&gt;${columnEditor(column(state.selectedColumn))}&lt;/div&gt;`;
+    return html;
+  }
+  function objectPicker(items,selected,section) {
+    return design.layout===&#x27;studio&#x27;?&#x27;&#x27;:`&lt;div class=&quot;dp-object-list&quot;&gt;${items.map(it=&gt;`&lt;button data-section=&quot;${section}&quot; data-object=&quot;${it.id}&quot; aria-pressed=&quot;${it.id===selected}&quot;&gt;${esc(it.name)}&lt;/button&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;`;
+  }
+  function indexPanel() {
+    const idx=currentIndex();
+    let html=toolbar(&#x27;Indexes&#x27;,&#x27;add-index&#x27;,&#x27;Index&#x27;)+objectPicker(state.indexes,state.selectedIndex,&#x27;Indexes&#x27;);
+    if(!idx)return html+&#x27;&lt;span class=&quot;dp-muted&quot;&gt;No additional indexes.&lt;/span&gt;&#x27;;
+    const ordered=idx.method===&#x27;btree&#x27;;
+    html+=`&lt;div class=&quot;dp-fields&quot;&gt;${field(&#x27;Index name&#x27;,&#x27;index&#x27;,&#x27;name&#x27;,idx.name,idx.id,&#x27;class=&quot;dp-span&quot;&#x27;)}${select(&#x27;Access method&#x27;,&#x27;index&#x27;,&#x27;method&#x27;,idx.method,[&#x27;btree&#x27;,&#x27;hash&#x27;,&#x27;gin&#x27;,&#x27;gist&#x27;,&#x27;spgist&#x27;,&#x27;brin&#x27;],idx.id)}${check(&#x27;Unique&#x27;,&#x27;index&#x27;,&#x27;unique&#x27;,idx.unique,idx.id,!ordered)}&lt;/div&gt;&lt;div class=&quot;dp-subhead&quot;&gt;&lt;h3&gt;Index keys · in order&lt;/h3&gt;&lt;button data-action=&quot;add-index-key&quot;&gt;${icon(&#x27;plus&#x27;)}Key&lt;/button&gt;&lt;/div&gt;`;
+    html+=idx.keys.map((key,n)=&gt;`&lt;div class=&quot;dp-key-row&quot;&gt;${select(&#x27;Column&#x27;,&#x27;index-key&#x27;,&#x27;column&#x27;,key.column,columnOptions(),String(n))}${ordered?select(&#x27;Order&#x27;,&#x27;index-key&#x27;,&#x27;order&#x27;,key.order,[&#x27;ASC&#x27;,&#x27;DESC&#x27;],String(n)):&#x27;&lt;span class=&quot;dp-muted&quot;&gt;&#x27;+esc(idx.method)+&#x27;&lt;/span&gt;&#x27;}${ordered?select(&#x27;Nulls&#x27;,&#x27;index-key&#x27;,&#x27;nulls&#x27;,key.nulls,[&#x27;Default&#x27;,&#x27;FIRST&#x27;,&#x27;LAST&#x27;],String(n),&#x27;class=&quot;dp-null-order&quot;&#x27;):&#x27;&#x27;}&lt;button data-action=&quot;remove-index-key&quot; data-id=&quot;${n}&quot; class=&quot;dp-icon-btn&quot; aria-label=&quot;Remove index key ${n+1}&quot;&gt;${icon(&#x27;x&#x27;)}&lt;/button&gt;&lt;/div&gt;`).join(&#x27;&#x27;);
+    html+=`&lt;div class=&quot;dp-fields&quot;&gt;${field(&#x27;Partial index · WHERE&#x27;,&#x27;index&#x27;,&#x27;predicate&#x27;,idx.predicate,idx.id,&#x27;class=&quot;dp-span&quot;&#x27;)}&lt;/div&gt;`;
+    if([&#x27;btree&#x27;,&#x27;gist&#x27;,&#x27;spgist&#x27;].includes(idx.method))html+=`&lt;div class=&quot;dp-subhead&quot;&gt;&lt;h3&gt;Included columns · INCLUDE&lt;/h3&gt;&lt;/div&gt;&lt;div class=&quot;dp-badges&quot;&gt;${state.columns.filter(c=&gt;!idx.keys.some(k=&gt;k.column===c.id)).map(c=&gt;check(esc(c.name),&#x27;include&#x27;,c.id,idx.include.includes(c.id),idx.id)).join(&#x27;&#x27;)}&lt;/div&gt;`;
+    html+=`&lt;details class=&quot;dp-advanced&quot; ${idx.expression||idx.opclass?&#x27;open&#x27;:&#x27;&#x27;}&gt;&lt;summary&gt;Expression &amp; operator class&lt;/summary&gt;&lt;div class=&quot;dp-fields&quot;&gt;${field(&#x27;Expression instead of column keys&#x27;,&#x27;index&#x27;,&#x27;expression&#x27;,idx.expression,idx.id,&#x27;class=&quot;dp-span&quot;&#x27;)}${field(&#x27;Operator class · optional&#x27;,&#x27;index&#x27;,&#x27;opclass&#x27;,idx.opclass,idx.id,&#x27;class=&quot;dp-span&quot;&#x27;)}&lt;/div&gt;&lt;/details&gt;`;
+    html+=`&lt;div class=&quot;dp-note&quot;&gt;${{btree:&#x27;Equality, ranges and ordering. Supports unique and covering indexes.&#x27;,hash:&#x27;Equality lookups on one column.&#x27;,gin:&#x27;Inverted index for JSON, arrays and full-text search.&#x27;,gist:&#x27;Generalized search tree for ranges, geometry and other supported types.&#x27;,spgist:&#x27;Space-partitioned search tree; one key with a compatible operator class.&#x27;,brin:&#x27;Block summaries for large, physically ordered tables.&#x27;}[idx.method]}&lt;/div&gt;&lt;div class=&quot;dp-toolbar dp-rule&quot;&gt;&lt;button data-action=&quot;remove-index&quot;&gt;${icon(&#x27;trash-2&#x27;)}Remove index&lt;/button&gt;&lt;/div&gt;`;
+    return html;
+  }
+  function foreignPanel() {
+    const fk=currentForeign();
+    let html=toolbar(&#x27;Foreign keys&#x27;,&#x27;add-foreign&#x27;,&#x27;Foreign key&#x27;)+objectPicker(state.foreignKeys,state.selectedForeign,&#x27;Foreign keys&#x27;);
+    if(!fk)return html+&#x27;&lt;span class=&quot;dp-muted&quot;&gt;No foreign keys.&lt;/span&gt;&#x27;;
+    html+=`&lt;div class=&quot;dp-fields&quot;&gt;${field(&#x27;Constraint name&#x27;,&#x27;foreign&#x27;,&#x27;name&#x27;,fk.name,fk.id,&#x27;class=&quot;dp-span&quot;&#x27;)}${select(&#x27;Referenced table&#x27;,&#x27;foreign&#x27;,&#x27;target&#x27;,fk.target,[&#x27;customers&#x27;,&#x27;accounts&#x27;],fk.id)}${select(&#x27;Match&#x27;,&#x27;foreign&#x27;,&#x27;match&#x27;,fk.match,[&#x27;SIMPLE&#x27;,&#x27;FULL&#x27;],fk.id)}&lt;/div&gt;&lt;div class=&quot;dp-relationship&quot;&gt;&lt;div class=&quot;dp-relation-node&quot;&gt;&lt;strong&gt;${esc(state.table.name)} · new&lt;/strong&gt;&lt;span&gt;${fk.pairs.map(p=&gt;esc(colName(p.source))).join(&#x27; + &#x27;)}&lt;/span&gt;&lt;/div&gt;&lt;span class=&quot;dp-link-arrow&quot;&gt;N → 1&lt;/span&gt;&lt;div class=&quot;dp-relation-node&quot;&gt;&lt;strong&gt;${esc(state.table.schema)}.${esc(fk.target)}&lt;/strong&gt;&lt;span&gt;${fk.pairs.map(p=&gt;esc(p.target)).join(&#x27; + &#x27;)}&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;dp-subhead&quot;&gt;&lt;h3&gt;Column mapping&lt;/h3&gt;&lt;button data-action=&quot;add-mapping&quot;&gt;${icon(&#x27;plus&#x27;)}Pair&lt;/button&gt;&lt;/div&gt;`;
+    html+=fk.pairs.map((pair,n)=&gt;`&lt;div class=&quot;dp-mapping&quot;&gt;${select(&#x27;Local column&#x27;,&#x27;mapping&#x27;,&#x27;source&#x27;,pair.source,columnOptions(),String(n))}&lt;span class=&quot;dp-center&quot;&gt;→&lt;/span&gt;${select(&#x27;Target column&#x27;,&#x27;mapping&#x27;,&#x27;target&#x27;,pair.target,[&#x27;id&#x27;,&#x27;tenant_id&#x27;],String(n))}&lt;button data-action=&quot;remove-mapping&quot; data-id=&quot;${n}&quot; class=&quot;dp-icon-btn&quot; aria-label=&quot;Remove mapping ${n+1}&quot;&gt;${icon(&#x27;x&#x27;)}&lt;/button&gt;&lt;/div&gt;`).join(&#x27;&#x27;);
+    html+=`&lt;div class=&quot;dp-fields&quot;&gt;${select(&#x27;On delete&#x27;,&#x27;foreign&#x27;,&#x27;onDelete&#x27;,fk.onDelete,[&#x27;NO ACTION&#x27;,&#x27;RESTRICT&#x27;,&#x27;CASCADE&#x27;,&#x27;SET NULL&#x27;,&#x27;SET DEFAULT&#x27;],fk.id)}${select(&#x27;On update&#x27;,&#x27;foreign&#x27;,&#x27;onUpdate&#x27;,fk.onUpdate,[&#x27;NO ACTION&#x27;,&#x27;RESTRICT&#x27;,&#x27;CASCADE&#x27;,&#x27;SET NULL&#x27;,&#x27;SET DEFAULT&#x27;],fk.id)}${check(&#x27;Deferrable&#x27;,&#x27;foreign&#x27;,&#x27;deferrable&#x27;,fk.deferrable,fk.id)}${check(&#x27;Initially deferred&#x27;,&#x27;foreign&#x27;,&#x27;deferred&#x27;,fk.deferred,fk.id,!fk.deferrable)}&lt;/div&gt;&lt;div class=&quot;dp-note&quot;&gt;Target key in this demo: id, or (id, tenant_id). Both columns are bigint.&lt;/div&gt;&lt;div class=&quot;dp-toolbar dp-rule&quot;&gt;&lt;button data-action=&quot;remove-foreign&quot;&gt;${icon(&#x27;trash-2&#x27;)}Remove foreign key&lt;/button&gt;&lt;/div&gt;`;
+    return html;
+  }
+  function constraintsPanel() {
+    let html=toolbar(&#x27;Constraints&#x27;,&#x27;add-check&#x27;,&#x27;Check&#x27;)+`&lt;h3&gt;Primary key · ${esc(state.table.name)}_pkey&lt;/h3&gt;&lt;div class=&quot;dp-badges&quot;&gt;${state.columns.map(c=&gt;check(esc(c.name),&#x27;column&#x27;,&#x27;pk&#x27;,c.pk,c.id)).join(&#x27;&#x27;)}&lt;/div&gt;&lt;div class=&quot;dp-rule&quot;&gt;${check(&#x27;Unique constraint&#x27;,&#x27;unique&#x27;,&#x27;enabled&#x27;,state.unique.enabled)}&lt;div class=&quot;dp-fields&quot;&gt;${field(&#x27;Name&#x27;,&#x27;unique&#x27;,&#x27;name&#x27;,state.unique.name)}${check(&#x27;Nulls not distinct&#x27;,&#x27;unique&#x27;,&#x27;nulls&#x27;,state.unique.nulls)}&lt;/div&gt;&lt;div class=&quot;dp-badges&quot;&gt;${state.columns.map(c=&gt;check(esc(c.name),&#x27;unique-column&#x27;,c.id,state.unique.columns.includes(c.id))).join(&#x27;&#x27;)}&lt;/div&gt;&lt;/div&gt;`;
+    html+=state.checks.map(c=&gt;`&lt;div class=&quot;dp-rule&quot;&gt;&lt;div class=&quot;dp-subhead&quot;&gt;&lt;h3&gt;CHECK&lt;/h3&gt;&lt;button class=&quot;dp-icon-btn&quot; data-action=&quot;remove-check&quot; data-id=&quot;${c.id}&quot; aria-label=&quot;Remove ${esc(c.name)}&quot;&gt;${icon(&#x27;trash-2&#x27;)}&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;dp-fields&quot;&gt;${field(&#x27;Name&#x27;,&#x27;check&#x27;,&#x27;name&#x27;,c.name,c.id)}${field(&#x27;Expression&#x27;,&#x27;check&#x27;,&#x27;expression&#x27;,c.expression,c.id)}&lt;/div&gt;&lt;/div&gt;`).join(&#x27;&#x27;);
+    return html;
+  }
+  function optionsPanel() {
+    return toolbar(&#x27;Table options&#x27;)+`&lt;div class=&quot;dp-fields&quot;&gt;${select(&#x27;Persistence&#x27;,&#x27;table&#x27;,&#x27;persistence&#x27;,state.table.persistence,[&#x27;Regular&#x27;,&#x27;Unlogged&#x27;,&#x27;Temporary&#x27;])}${field(&#x27;Tablespace · optional&#x27;,&#x27;table&#x27;,&#x27;tablespace&#x27;,state.table.tablespace)}${field(&#x27;Owner · optional&#x27;,&#x27;table&#x27;,&#x27;owner&#x27;,state.table.owner)}${select(&#x27;Partition by&#x27;,&#x27;table&#x27;,&#x27;partition&#x27;,state.table.partition,[&#x27;None&#x27;,&#x27;RANGE&#x27;,&#x27;LIST&#x27;,&#x27;HASH&#x27;])}${state.table.partition!==&#x27;None&#x27;?select(&#x27;Partition key&#x27;,&#x27;table&#x27;,&#x27;partitionKey&#x27;,state.table.partitionKey,columnOptions()):&#x27;&#x27;}&lt;/div&gt;${state.table.partition!==&#x27;None&#x27;?&#x27;&lt;div class=&quot;dp-note&quot;&gt;Creates the partitioned parent. Child partitions are a separate step.&lt;/div&gt;&#x27;:&#x27;&#x27;}`;
+  }
+  function getSql() {
+    const t=state.table;
+    const name=t.persistence===&#x27;Temporary&#x27;?quote(t.name):quote(t.schema)+&#x27;.&#x27;+quote(t.name);
+    const pk=state.columns.filter(c=&gt;c.pk);
+    const defs=state.columns.map(c=&gt;{
+      let d=&#x27;  &#x27;+quote(c.name)+&#x27; &#x27;+c.type;
+      if(c.collation)d+=&#x27; COLLATE &#x27;+quote(c.collation);
+      if(c.generation.startsWith(&#x27;Identity&#x27;))d+=&#x27; GENERATED &#x27;+(c.generation===&#x27;Identity · always&#x27;?&#x27;ALWAYS&#x27;:&#x27;BY DEFAULT&#x27;)+&#x27; AS IDENTITY&#x27;;
+      if(c.generation===&#x27;Generated · stored&#x27;)d+=&#x27; GENERATED ALWAYS AS (&#x27;+c.expression+&#x27;) STORED&#x27;;
+      if(c.generation===&#x27;None&#x27;&amp;&amp;c.def)d+=&#x27; DEFAULT &#x27;+c.def;
+      if(c.nn||c.pk)d+=&#x27; NOT NULL&#x27;;
+      return d;
+    });
+    if(pk.length)defs.push(&#x27;  CONSTRAINT &#x27;+quote(t.name+&#x27;_pkey&#x27;)+&#x27; PRIMARY KEY (&#x27;+pk.map(c=&gt;quote(c.name)).join(&#x27;, &#x27;)+&#x27;)&#x27;);
+    if(state.unique.enabled)defs.push(&#x27;  CONSTRAINT &#x27;+quote(state.unique.name)+&#x27; UNIQUE&#x27;+(state.unique.nulls?&#x27; NULLS NOT DISTINCT&#x27;:&#x27;&#x27;)+&#x27; (&#x27;+state.unique.columns.map(qcol).join(&#x27;, &#x27;)+&#x27;)&#x27;);
+    state.checks.forEach(c=&gt;defs.push(&#x27;  CONSTRAINT &#x27;+quote(c.name)+&#x27; CHECK (&#x27;+c.expression+&#x27;)&#x27;));
+    state.foreignKeys.forEach(f=&gt;defs.push(&#x27;  CONSTRAINT &#x27;+quote(f.name)+&#x27; FOREIGN KEY (&#x27;+f.pairs.map(p=&gt;qcol(p.source)).join(&#x27;, &#x27;)+&#x27;)\n    REFERENCES &#x27;+quote(t.schema)+&#x27;.&#x27;+quote(f.target)+&#x27; (&#x27;+f.pairs.map(p=&gt;quote(p.target)).join(&#x27;, &#x27;)+&#x27;)\n    MATCH &#x27;+f.match+&#x27; ON DELETE &#x27;+f.onDelete+&#x27; ON UPDATE &#x27;+f.onUpdate+(f.deferrable?&#x27;\n    DEFERRABLE INITIALLY &#x27;+(f.deferred?&#x27;DEFERRED&#x27;:&#x27;IMMEDIATE&#x27;):&#x27;&#x27;)));
+    let sql=&#x27;CREATE &#x27;+(t.persistence===&#x27;Unlogged&#x27;?&#x27;UNLOGGED &#x27;:t.persistence===&#x27;Temporary&#x27;?&#x27;TEMPORARY &#x27;:&#x27;&#x27;)+&#x27;TABLE &#x27;+name+&#x27; (\n&#x27;+defs.join(&#x27;,\n&#x27;)+&#x27;\n)&#x27;;
+    if(t.partition!==&#x27;None&#x27;)sql+=&#x27; PARTITION BY &#x27;+t.partition+&#x27; (&#x27;+qcol(t.partitionKey)+&#x27;)&#x27;;
+    if(t.tablespace)sql+=&#x27; TABLESPACE &#x27;+quote(t.tablespace);
+    sql+=&#x27;;&#x27;;
+    state.indexes.forEach(idx=&gt;{
+      let keys=idx.expression?&#x27;(&#x27;+idx.expression+&#x27;)&#x27;:idx.keys.map(k=&gt;qcol(k.column)+(idx.opclass?&#x27; &#x27;+idx.opclass:&#x27;&#x27;)+(idx.method===&#x27;btree&#x27;?&#x27; &#x27;+k.order+(k.nulls!==&#x27;Default&#x27;?&#x27; NULLS &#x27;+k.nulls:&#x27;&#x27;):&#x27;&#x27;)).join(&#x27;, &#x27;);
+      sql+=&#x27;\n\nCREATE &#x27;+(idx.unique?&#x27;UNIQUE &#x27;:&#x27;&#x27;)+&#x27;INDEX &#x27;+quote(idx.name)+&#x27;\n  ON &#x27;+name+&#x27; USING &#x27;+idx.method+&#x27; (&#x27;+keys+&#x27;)&#x27;+(idx.include.length?&#x27;\n  INCLUDE (&#x27;+idx.include.map(qcol).join(&#x27;, &#x27;)+&#x27;)&#x27;:&#x27;&#x27;)+(idx.predicate?&#x27;\n  WHERE &#x27;+idx.predicate:&#x27;&#x27;)+&#x27;;&#x27;;
+    });
+    if(t.comment)sql+=&#x27;\n\nCOMMENT ON TABLE &#x27;+name+&#x27; IS &#x27;+literal(t.comment)+&#x27;;&#x27;;
+    state.columns.filter(c=&gt;c.comment).forEach(c=&gt;sql+=&#x27;\nCOMMENT ON COLUMN &#x27;+name+&#x27;.&#x27;+quote(c.name)+&#x27; IS &#x27;+literal(c.comment)+&#x27;;&#x27;);
+    if(t.owner)sql+=&#x27;\n\nALTER TABLE &#x27;+name+&#x27; OWNER TO &#x27;+quote(t.owner)+&#x27;;&#x27;;
+    return sql;
+  }
+  function errors() {
+    const problems=[];
+    if(!state.table.name.trim())problems.push(&#x27;Enter a table name.&#x27;);
+    if(!state.columns.length)problems.push(&#x27;Add at least one column.&#x27;);
+    const names=state.columns.map(c=&gt;c.name.trim());
+    if(names.some(n=&gt;!n))problems.push(&#x27;Every column needs a name.&#x27;);
+    if(new Set(names).size!==names.length)problems.push(&#x27;Column names must be unique.&#x27;);
+    state.columns.forEach(c=&gt;{
+      if(c.generation.startsWith(&#x27;Identity&#x27;)&amp;&amp;![&#x27;bigint&#x27;,&#x27;integer&#x27;,&#x27;smallint&#x27;].includes(c.type))problems.push(c.name+&#x27;: identity requires an integer type.&#x27;);
+      if(c.generation!==&#x27;None&#x27;&amp;&amp;c.def)problems.push(c.name+&#x27;: remove the default when using generated values.&#x27;);
+      if(c.generation===&#x27;Generated · stored&#x27;&amp;&amp;!c.expression.trim())problems.push(c.name+&#x27;: enter a generation expression.&#x27;);
+    });
+    const idxNames=state.indexes.map(i=&gt;i.name);
+    if(new Set(idxNames).size!==idxNames.length)problems.push(&#x27;Index names must be unique.&#x27;);
+    state.indexes.forEach(i=&gt;{
+      if(!i.name.trim())problems.push(&#x27;Every index needs a name.&#x27;);
+      if(!i.keys.length&amp;&amp;!i.expression.trim())problems.push(i.name+&#x27;: add a key or expression.&#x27;);
+      if([&#x27;hash&#x27;,&#x27;spgist&#x27;].includes(i.method)&amp;&amp;i.keys.length&gt;1&amp;&amp;!i.expression)problems.push(i.name+&#x27;: this method supports one key.&#x27;);
+      if(i.method===&#x27;gin&#x27;&amp;&amp;i.keys.some(k=&gt;![&#x27;jsonb&#x27;,&#x27;text[]&#x27;].includes(column(k.column)?.type))&amp;&amp;!i.expression)problems.push(i.name+&#x27;: choose jsonb or text[] for the GIN demo.&#x27;);
+    });
+    state.foreignKeys.forEach(f=&gt;{
+      if(!f.pairs.length)problems.push(f.name+&#x27;: add a column mapping.&#x27;);
+      if(f.pairs.some(p=&gt;column(p.source)?.type!==&#x27;bigint&#x27;))problems.push(f.name+&#x27;: local and target column types must match (bigint in this demo).&#x27;);
+      if(f.pairs.some(p=&gt;column(p.source)?.nn)&amp;&amp;(f.onDelete===&#x27;SET NULL&#x27;||f.onUpdate===&#x27;SET NULL&#x27;))problems.push(f.name+&#x27;: SET NULL conflicts with a not-null local column.&#x27;);
+      if(![&#x27;id&#x27;,&#x27;id,tenant_id&#x27;].includes(f.pairs.map(p=&gt;p.target).join(&#x27;,&#x27;)))problems.push(f.name+&#x27;: target mapping must reference an available unique key.&#x27;);
+    });
+    if(state.unique.enabled&amp;&amp;!state.unique.columns.length)problems.push(&#x27;Choose columns for the unique constraint.&#x27;);
+    state.checks.forEach(c=&gt;{if(!c.name.trim()||!c.expression.trim())problems.push(&#x27;Every check needs a name and expression.&#x27;);});
+    if(state.table.partition!==&#x27;None&#x27;){
+      const key=state.table.partitionKey;
+      if(state.columns.some(c=&gt;c.pk)&amp;&amp;!column(key)?.pk)problems.push(&#x27;The primary key must include the partition key.&#x27;);
+      if(state.unique.enabled&amp;&amp;!state.unique.columns.includes(key))problems.push(&#x27;The unique constraint must include the partition key.&#x27;);
+    }
+    if(state.table.persistence===&#x27;Temporary&#x27;&amp;&amp;state.foreignKeys.length)problems.push(&#x27;Temporary tables cannot reference the permanent demo tables.&#x27;);
+    return problems;
+  }
+  function colorSql(sql) {
+    return sql.split(/(&#x27;(?:&#x27;&#x27;|[^&#x27;])*&#x27;|&quot;(?:&quot;&quot;|[^&quot;])*&quot;)/g).map((part,i)=&gt;i%2?`&lt;span class=&quot;${part.startsWith(&quot;&#x27;&quot;)?&#x27;dp-literal&#x27;:&#x27;&#x27;}&quot;&gt;${esc(part)}&lt;/span&gt;`:esc(part).replace(/\b(CREATE|UNLOGGED|TEMPORARY|TABLE|INDEX|UNIQUE|NULLS|NOT|NULL|CONSTRAINT|PRIMARY|KEY|FOREIGN|REFERENCES|CHECK|GENERATED|ALWAYS|BY|DEFAULT|AS|IDENTITY|STORED|MATCH|SIMPLE|FULL|ON|DELETE|UPDATE|RESTRICT|CASCADE|DEFERRABLE|INITIALLY|DEFERRED|IMMEDIATE|USING|INCLUDE|WHERE|ASC|DESC|FIRST|LAST|COMMENT|IS|ALTER|OWNER|TO|PARTITION|RANGE|LIST|HASH|TABLESPACE|COLLATE)\b/g,&#x27;&lt;span class=&quot;dp-keyword&quot;&gt;$1&lt;/span&gt;&#x27;)).join(&#x27;&#x27;);
+  }
+  function renderSql() {
+    const sql=getSql();
+    const issue=errors();
+    const area=root.querySelector(&#x27;.dp-sql&#x27;);
+    const content=&#x27;&lt;pre&gt;&lt;code&gt;&#x27;+colorSql(sql)+&#x27;&lt;/code&gt;&lt;/pre&gt;&#x27;;
+    if(design.layout===&#x27;studio&#x27;){
+      const idx=currentIndex();
+      const fragment=state.section===&#x27;Indexes&#x27;&amp;&amp;idx?sql.split(&#x27;\n\n&#x27;).find(part=&gt;part.startsWith(&#x27;CREATE &#x27;)&amp;&amp;part.includes(&#x27;INDEX &#x27;+quote(idx.name)+&#x27;\n&#x27;)):sql.split(&#x27;\n\n&#x27;)[0];
+      area.innerHTML=&#x27;&lt;div class=&quot;dp-sql-heading&quot;&gt;&lt;span&gt;SQL preview&lt;/span&gt;&lt;span&gt;Live&lt;/span&gt;&lt;/div&gt;&lt;pre&gt;&lt;code&gt;&#x27;+colorSql(fragment||sql)+&#x27;&lt;/code&gt;&lt;/pre&gt;&lt;details&gt;&lt;summary&gt;Full creation script&lt;/summary&gt;&#x27;+content+&#x27;&lt;/details&gt;&#x27;;
+    }
+    else area.innerHTML=`&lt;details ${design.sqlOpen?&#x27;open&#x27;:&#x27;&#x27;}&gt;&lt;summary&gt;SQL preview · ${state.indexes.length+1} creation statements&lt;/summary&gt;${content}&lt;/details&gt;`;
+    const errorArea=root.querySelector(&#x27;.dp-errors&#x27;);
+    errorArea.hidden=!issue.length;
+    errorArea.innerHTML=&#x27;&lt;ul&gt;&#x27;+issue.map(v=&gt;&#x27;&lt;li&gt;&#x27;+esc(v)+&#x27;&lt;/li&gt;&#x27;).join(&#x27;&#x27;)+&#x27;&lt;/ul&gt;&#x27;;
+    root.querySelector(&#x27;.dp-review&#x27;).disabled=issue.length&gt;0;
+    root.querySelector(&#x27;.dp-status&#x27;).textContent=`${state.columns.length} columns · ${state.indexes.length} indexes · ${state.foreignKeys.length} foreign ${state.foreignKeys.length===1?&#x27;key&#x27;:&#x27;keys&#x27;} · Preview only`;
+    const review=root.querySelector(&#x27;.dp-review-pane&#x27;);
+    review.hidden=!state.review;
+    // Review is the second step of the same window rather than a panel under
+    // the editor: what would be created is read on its own, and only there can
+    // anything be created (D117).
+    root.querySelector(&#x27;.dp-identity&#x27;).hidden=state.review;
+    root.querySelector(&#x27;.dp-body&#x27;).hidden=state.review;
+    root.querySelector(&#x27;.dp-window &gt; .dp-footer&#x27;).hidden=state.review;
+    if(state.review)root.querySelector(&#x27;.dp-errors&#x27;).hidden=true;
+    if(state.review)review.innerHTML=`&lt;div class=&quot;dp-toolbar&quot;&gt;&lt;strong&gt;Review · ${esc(state.table.schema)}.${esc(state.table.name)}&lt;/strong&gt;&lt;span class=&quot;dp-spacer&quot;&gt;&lt;/span&gt;&lt;button data-action=&quot;back&quot;&gt;Back to definition&lt;/button&gt;&lt;/div&gt;${content}&lt;div class=&quot;dp-footer&quot;&gt;&lt;span class=&quot;dp-status&quot;&gt;Demo · no database connected&lt;/span&gt;&lt;span class=&quot;dp-spacer&quot;&gt;&lt;/span&gt;&lt;button disabled&gt;Create table&lt;/button&gt;&lt;/div&gt;`;
+  }
+  function render() {
+    root.dataset.layout=design.layout;
+    root.style.setProperty(&#x27;--dt-row&#x27;,design.density===&#x27;Compact&#x27;?&#x27;31px&#x27;:&#x27;39px&#x27;);
+    nav();
+    root.querySelector(&#x27;.dp-editor&#x27;).innerHTML=({&#x27;Columns&#x27;:columnsPanel,&#x27;Indexes&#x27;:indexPanel,&#x27;Foreign keys&#x27;:foreignPanel,&#x27;Constraints&#x27;:constraintsPanel,&#x27;Options&#x27;:optionsPanel}[state.section])();
+    renderSql();
+    root.querySelectorAll(&#x27;.dp-identity [data-scope=table]&#x27;).forEach(el=&gt;el.value=state.table[el.name]);
+    if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});
+  }
+  function updateInput(el,full) {
+    const {scope,id}=el.dataset,key=el.name,value=el.type===&#x27;checkbox&#x27;?el.checked:el.value;
+    let target;
+    if(scope===&#x27;table&#x27;)target=state.table;
+    if(scope===&#x27;column&#x27;)target=column(id);
+    if(scope===&#x27;index&#x27;)target=state.indexes.find(i=&gt;i.id===id);
+    if(scope===&#x27;foreign&#x27;)target=state.foreignKeys.find(i=&gt;i.id===id);
+    if(scope===&#x27;check&#x27;)target=state.checks.find(i=&gt;i.id===id);
+    if(scope===&#x27;unique&#x27;)target=state.unique;
+    if(scope===&#x27;index-key&#x27;)target=currentIndex()?.keys[Number(id)];
+    if(scope===&#x27;mapping&#x27;)target=currentForeign()?.pairs[Number(id)];
+    if(scope===&#x27;include&#x27;||scope===&#x27;unique-column&#x27;){
+      const arr=scope===&#x27;include&#x27;?currentIndex().include:state.unique.columns;
+      const pos=arr.indexOf(key);
+      if(value&amp;&amp;pos&lt;0)arr.push(key);if(!value&amp;&amp;pos&gt;=0)arr.splice(pos,1);
+    } else if(target){
+      target[key]=value;
+      if(scope===&#x27;column&#x27;&amp;&amp;key===&#x27;pk&#x27;&amp;&amp;value)target.nn=true;
+      if(scope===&#x27;column&#x27;&amp;&amp;key===&#x27;nn&#x27;&amp;&amp;!value)target.pk=false;
+      if(scope===&#x27;foreign&#x27;&amp;&amp;key===&#x27;deferrable&#x27;&amp;&amp;!value)target.deferred=false;
+      if(scope===&#x27;index&#x27;&amp;&amp;key===&#x27;method&#x27;){
+        if(value!==&#x27;btree&#x27;)target.unique=false;
+        if(![&#x27;btree&#x27;,&#x27;gist&#x27;,&#x27;spgist&#x27;].includes(value))target.include=[];
+        target.opclass=&#x27;&#x27;;
+      }
+    }
+    if(full)render();else renderSql();
+  }
+  root.addEventListener(&#x27;input&#x27;,e=&gt;{if(e.target.matches(&#x27;input:not([type=checkbox])[data-scope],textarea[data-scope]&#x27;))updateInput(e.target,false);});
+  root.addEventListener(&#x27;change&#x27;,e=&gt;{if(e.target.matches(&#x27;[data-scope]&#x27;))updateInput(e.target,true);});
+  root.addEventListener(&#x27;toggle&#x27;,e=&gt;{if(e.target.matches(&#x27;.dp-sql details&#x27;))design.sqlOpen=e.target.open;},true);
+  root.addEventListener(&#x27;click&#x27;,e=&gt;{
+    const button=e.target.closest(&#x27;button&#x27;);if(!button||button.disabled)return;
+    if(button.dataset.section){
+      state.section=button.dataset.section;
+      const id=button.dataset.object;
+      if(id&amp;&amp;state.section===&#x27;Columns&#x27;)state.selectedColumn=id;
+      if(id&amp;&amp;state.section===&#x27;Indexes&#x27;)state.selectedIndex=id;
+      if(id&amp;&amp;state.section===&#x27;Foreign keys&#x27;)state.selectedForeign=id;
+      state.review=false;render();return;
+    }
+    if(button.classList.contains(&#x27;dp-review&#x27;)){state.review=true;renderSql();root.querySelector(&#x27;.dp-review-pane&#x27;).scrollIntoView({block:&#x27;nearest&#x27;,behavior:&#x27;auto&#x27;});return;}
+    const act=button.dataset.action,id=button.dataset.id;
+    if(!act)return;
+    if(act===&#x27;column-options&#x27;){state.selectedColumn=id;state.columnDetails=true;}
+    if(act===&#x27;close-column&#x27;)state.columnDetails=false;
+    if(act===&#x27;add-column&#x27;){
+      const uid=&#x27;c&#x27;+(++state.serial);state.columns.push({id:uid,name:&#x27;new_column_&#x27;+state.serial,type:&#x27;text&#x27;,nn:false,pk:false,def:&#x27;&#x27;,generation:&#x27;None&#x27;,expression:&#x27;&#x27;,comment:&#x27;&#x27;,collation:&#x27;&#x27;});state.selectedColumn=uid;state.columnDetails=true;
+    }
+    if(act===&#x27;move-column&#x27;){
+      const i=state.columns.findIndex(c=&gt;c.id===state.selectedColumn),next=i+Number(button.dataset.delta);
+      if(next&gt;=0&amp;&amp;next&lt;state.columns.length)[state.columns[i],state.columns[next]]=[state.columns[next],state.columns[i]];
+    }
+    if(act===&#x27;remove-column&#x27;){
+      const uid=state.selectedColumn;state.columns=state.columns.filter(c=&gt;c.id!==uid);state.selectedColumn=state.columns[0]?.id;
+      state.indexes.forEach(i=&gt;{i.keys=i.keys.filter(k=&gt;k.column!==uid);i.include=i.include.filter(k=&gt;k!==uid);});
+      state.foreignKeys.forEach(f=&gt;f.pairs=f.pairs.filter(p=&gt;p.source!==uid));state.unique.columns=state.unique.columns.filter(c=&gt;c!==uid);
+    }
+    if(act===&#x27;add-index&#x27;){
+      const uid=&#x27;i&#x27;+(++state.serial);state.indexes.push({id:uid,name:state.table.name+&#x27;_idx_&#x27;+state.serial,method:&#x27;btree&#x27;,unique:false,keys:state.columns.length?[{column:state.columns[0].id,order:&#x27;ASC&#x27;,nulls:&#x27;Default&#x27;}]:[],include:[],predicate:&#x27;&#x27;,expression:&#x27;&#x27;,opclass:&#x27;&#x27;});state.selectedIndex=uid;
+    }
+    if(act===&#x27;remove-index&#x27;){state.indexes=state.indexes.filter(i=&gt;i.id!==state.selectedIndex);state.selectedIndex=state.indexes[0]?.id;}
+    if(act===&#x27;add-index-key&#x27;&amp;&amp;state.columns.length)currentIndex().keys.push({column:state.columns.find(c=&gt;!currentIndex().keys.some(k=&gt;k.column===c.id))?.id??state.columns[0].id,order:&#x27;ASC&#x27;,nulls:&#x27;Default&#x27;});
+    if(act===&#x27;remove-index-key&#x27;)currentIndex().keys.splice(Number(id),1);
+    if(act===&#x27;add-foreign&#x27;){
+      const uid=&#x27;f&#x27;+(++state.serial);state.foreignKeys.push({id:uid,name:state.table.name+&#x27;_fk_&#x27;+state.serial,target:&#x27;customers&#x27;,pairs:state.columns.length?[{source:state.columns.find(c=&gt;c.name===&#x27;customer_id&#x27;)?.id??state.columns[0].id,target:&#x27;id&#x27;}]:[],onDelete:&#x27;NO ACTION&#x27;,onUpdate:&#x27;NO ACTION&#x27;,deferrable:false,deferred:false,match:&#x27;SIMPLE&#x27;});state.selectedForeign=uid;
+    }
+    if(act===&#x27;remove-foreign&#x27;){state.foreignKeys=state.foreignKeys.filter(f=&gt;f.id!==state.selectedForeign);state.selectedForeign=state.foreignKeys[0]?.id;}
+    if(act===&#x27;add-mapping&#x27;&amp;&amp;state.columns.length)currentForeign().pairs.push({source:state.columns.find(c=&gt;!currentForeign().pairs.some(p=&gt;p.source===c.id))?.id??state.columns[0].id,target:&#x27;tenant_id&#x27;});
+    if(act===&#x27;remove-mapping&#x27;)currentForeign().pairs.splice(Number(id),1);
+    if(act===&#x27;add-check&#x27;)state.checks.push({id:&#x27;k&#x27;+(++state.serial),name:state.table.name+&#x27;_check_&#x27;+state.serial,expression:&#x27;&#x27;});
+    if(act===&#x27;remove-check&#x27;)state.checks=state.checks.filter(c=&gt;c.id!==id);
+    if(act===&#x27;back&#x27;)state.review=false;
+    render();
+  });
+  render();
+  if(globalThis.Tweak){
+    const tweak=new Tweak({container:root,onChange:render});
+    tweak.addSelect(design,&#x27;layout&#x27;,{label:&#x27;Editor layout&#x27;,options:[{label:&#x27;Tabs &amp; grid&#x27;,value:&#x27;tabs&#x27;},{label:&#x27;Object tree &amp; SQL&#x27;,value:&#x27;studio&#x27;}]});
+    tweak.addSelect(design,&#x27;density&#x27;,{label:&#x27;Row density&#x27;,options:[&#x27;Compact&#x27;,&#x27;Comfortable&#x27;]});
+    tweak.addToggle(design,&#x27;sqlOpen&#x27;,{label:&#x27;Expand SQL below tabs&#x27;});
+  }
+})();
+&lt;/script&gt;
+
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

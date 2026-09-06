@@ -225,3 +225,21 @@ close as well as through Cancel.
 - **A route of its own for creating the table.** Creation goes through the
   ordinary action, so access, refusals, cache invalidation and which branch of
   the catalog to re-read stay where every other change keeps them (D9).
+
+## Visual reference
+
+[Variant B](assets/2026-09-06-table-designer/variant-b.html) is the authority for
+the editor's arrangement: 175-pixel navigation, an SQL pane beside the
+inspector, object actions in the inspector, a combined primary/unique/check
+section and a separate review step.
+
+Its appearance is not adopted. The reference's palette, type scale and compact
+bordered controls stay in the reference; the screen uses the kit and the theme
+tokens like every other screen, and one visual pass covers the whole
+application once its behaviour is finished.
+
+The application keeps real source capabilities: expressions open the typed
+editor from their field, foreign keys select a published target key, and owner
+and tablespace fields are disabled until the creation API supports them. Demo
+branding and a hard-coded PostgreSQL version are not application data. These
+differences must not change the reference's layout or spacing.

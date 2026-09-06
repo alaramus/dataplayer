@@ -2,90 +2,60 @@
 import { computed } from "vue"
 
 import type { PlanProblem } from "@/client"
-import { AppIconButton, AppTooltip } from "@/shared/ui"
 
 import { useDesign } from "./design"
 import type { DraftSection } from "./draft"
 
-/**
- * The objects of the table, as a list that is also the way around it.
- *
- * The selection lives in the window rather than here: two panes show it, and a
- * component that owned it would be telling its parent what is on screen.
- */
 const props = defineProps<{
   designId: string
   section: DraftSection
   selected: string
   problems: PlanProblem[]
 }>()
-
-const emit = defineEmits<{
-  select: [section: DraftSection, objectId: string]
-  add: [section: DraftSection]
-  remove: [section: DraftSection, objectId: string]
-}>()
-
-const design = useDesign(props.designId)
-
-interface Row {
-  id: string
-  label: string
-  note: string
-}
-
-const troubled = computed(
-  () => new Set(props.problems.flatMap((problem) => (problem.object_id === null || problem.object_id === undefined ? [] : [problem.object_id])))
-)
-
-const columns = computed<Row[]>(() =>
-  design.draft.columns.map((column) => ({
-    id: column.id,
-    label: column.name || "(unnamed)",
-    note: design.draft.primaryKey.includes(column.id) ? "key" : "",
-  }))
-)
-const indexes = computed<Row[]>(() =>
-  design.draft.indexes.map((index) => ({
-    id: index.id,
-    label: index.name || "(named by the database)",
-    note: index.unique ? `${index.method} · unique` : index.method,
-  }))
-)
-const foreignKeys = computed<Row[]>(() =>
-  design.draft.foreignKeys.map((foreign) => ({
-    id: foreign.id,
-    label: foreign.name || "(named by the database)",
-    note: foreign.targetLabel,
-  }))
-)
-const constraints = computed<Row[]>(() => [
-  ...design.draft.uniques.map((unique) => ({
-    id: unique.id,
-    label: unique.name || "(named by the database)",
-    note: "unique",
-  })),
-  ...design.draft.checks.map((check) => ({
-    id: check.id,
-    label: check.name || "(named by the database)",
-    note: "check",
-  })),
-])
-
+const emit = defineEmits<{ select: [section: DraftSection, objectId: string] }>()
+const { draft } = useDesign(props.designId)
+const troubled = computed(() => new Set(props.problems.map((problem) => problem.object_id)))
 const groups = computed(() => [
-  { section: "columns" as const, title: "Columns", rows: columns.value, adds: "Add a column" },
-  { section: "indexes" as const, title: "Indexes", rows: indexes.value, adds: "Add an index" },
+  {
+    section: "columns" as const,
+    title: "Columns",
+    icon: "view_column",
+    count: draft.columns.length,
+    rows: draft.columns.map((column) => ({ id: column.id, label: column.name || "(unnamed)" })),
+  },
+  {
+    section: "indexes" as const,
+    title: "Indexes",
+    icon: "filter_list",
+    count: draft.indexes.length,
+    rows: draft.indexes.map((index) => ({
+      id: index.id,
+      label: index.name || "Automatic index name",
+    })),
+  },
   {
     section: "foreign-keys" as const,
     title: "Foreign keys",
-    rows: foreignKeys.value,
-    adds: "Add a foreign key",
+    icon: "link",
+    count: draft.foreignKeys.length,
+    rows: draft.foreignKeys.map((foreign) => ({
+      id: foreign.id,
+      label: foreign.name || "Automatic constraint name",
+    })),
   },
   {
     section: "constraints" as const,
     title: "Constraints",
-    rows: constraints.value,
-    adds: "Add a check",
+    icon: "verified_user",
+    count: Number(draft.primaryKey.length > 0) + draft.uniques.length + draft.checks.length,
+    rows: [{ id: "constraints", label: "Primary / unique / checks" }],
+  },
+  {
+    section: "options" as const,
+    title: "Options",
+    icon: "tune",
+    count: null,
+    rows: [{ id: "options", label: "Storage & partitioning" }],
   },
 ])
 </script>
@@ -101,157 +71,106 @@ const groups = computed(() => [
       :key="group.section"
       class="navigation__group"
     >
-      <header class="navigation__header">
-        <span>{{ group.title }}</span>
-        <span class="navigation__count">{{ group.rows.length }}</span>
-        <AppIconButton
-          icon="add"
-          :tooltip="group.adds"
-          compact
-          :data-testid="`add-${group.section}`"
-          @click="emit('add', group.section)"
-        />
-      </header>
+      <button
+        type="button"
+        class="navigation__header"
+        :data-testid="`section-${group.section}`"
+        @click="emit('select', group.section, group.rows[0]?.id ?? '')"
+      >
+        <span>{{ group.title }}</span><span>{{ group.count }}</span>
+      </button>
       <button
         v-for="row in group.rows"
         :key="row.id"
         type="button"
         class="navigation__row"
-        :class="{
-          'navigation__row--on': section === group.section && selected === row.id,
-          'navigation__row--wrong': troubled.has(row.id),
-        }"
+        :class="{ 'navigation__row--wrong': troubled.has(row.id) }"
+        :aria-current="
+          section === group.section && (selected === row.id || group.section === 'constraints')
+        "
         :data-testid="`object-${row.id}`"
         @click="emit('select', group.section, row.id)"
       >
-        <span class="navigation__label">{{ row.label }}</span>
-        <span
-          v-if="row.note"
-          class="navigation__note"
-        >{{ row.note }}</span>
-        <AppTooltip v-if="row.label.length > 24">
-          {{ row.label }}
-        </AppTooltip>
+        <q-icon
+          :name="group.icon"
+          aria-hidden="true"
+        />
+        <span>{{ row.label }}</span>
       </button>
-      <p
-        v-if="group.rows.length === 0"
-        class="navigation__empty"
-      >
-        None yet
-      </p>
     </section>
-
-    <button
-      type="button"
-      class="navigation__row navigation__row--single"
-      :class="{ 'navigation__row--on': section === 'options' }"
-      data-testid="object-options"
-      @click="emit('select', 'options', '')"
-    >
-      <span class="navigation__label">Table options</span>
-    </button>
-
-    <div class="navigation__foot">
-      <AppIconButton
-        v-if="section !== 'options' && selected !== ''"
-        icon="delete_outline"
-        variant="danger-quiet"
-        tooltip="Remove the selected object"
-        compact
-        data-testid="remove-object"
-        @click="emit('remove', section, selected)"
-      />
-    </div>
   </nav>
 </template>
 
 <style scoped>
 .navigation {
-  display: flex;
-  flex-direction: column;
-  gap: var(--dp-space-2);
-  overflow: auto;
-  padding-right: var(--dp-space-1);
+  min-width: 0;
+  padding: 6px;
+  background: var(--dp-chrome-raised);
+  border-right: 1px solid var(--dp-border);
 }
-
-.navigation__group {
-  display: flex;
-  flex-direction: column;
-}
-
 .navigation__header {
   display: flex;
-  align-items: center;
-  gap: var(--dp-space-1);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--dp-text-muted);
-  padding: var(--dp-space-1) 0;
-}
-
-.navigation__count {
-  margin-left: auto;
-  font-variant-numeric: tabular-nums;
-}
-
-.navigation__row {
-  display: flex;
-  align-items: baseline;
-  gap: var(--dp-space-1);
+  justify-content: space-between;
+  gap: 8px;
   width: 100%;
   border: 0;
+  padding: 10px 8px 3px;
+  background: transparent;
+  color: var(--dp-text-muted);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.navigation__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 4px;
   background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
-  padding: 3px var(--dp-space-1);
-  border-radius: var(--dp-radius-control);
   cursor: pointer;
 }
-
-.navigation__row:hover {
-  background: var(--dp-hover);
+.navigation__row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
-
-.navigation__row--on {
+.navigation__row:hover,
+.navigation__row[aria-current="true"] {
   background: var(--dp-selected);
+  color: var(--dp-link);
 }
-
-/* A name too long for the pane is clipped rather than allowed to widen it:
-   the inspector beside it is what has room, and the tooltip says the rest. */
-.navigation__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.navigation__note {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--dp-text-faint);
-  white-space: nowrap;
-}
-
-.navigation__row--wrong .navigation__label {
+.navigation__row--wrong {
   text-decoration: underline wavy var(--q-negative);
 }
-
-.navigation__row--single {
-  margin-top: auto;
+.navigation button:focus-visible {
+  outline: 2px solid var(--dp-link);
+  outline-offset: -2px;
 }
-
-.navigation__empty {
-  margin: 0;
-  padding: 2px var(--dp-space-1);
-  font-size: 11px;
-  color: var(--dp-text-faint);
-}
-
-.navigation__foot {
-  display: flex;
-  justify-content: flex-end;
-  min-height: 24px;
+@container table-designer (max-width: 560px) {
+  .navigation {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-right: 0;
+    border-bottom: 1px solid var(--dp-border);
+  }
+  .navigation__group {
+    display: contents;
+  }
+  .navigation__header {
+    width: 100%;
+  }
+  .navigation__row {
+    width: auto;
+    max-width: 100%;
+  }
 }
 </style>
