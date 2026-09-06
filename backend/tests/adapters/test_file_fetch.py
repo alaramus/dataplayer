@@ -186,9 +186,8 @@ async def test_paging_counts_matching_rows(root: Path, fetch: FileFetch) -> None
     assert last.has_more is False
 
 
-async def test_a_filtered_row_keeps_its_place_in_the_file(
-    root: Path, fetch: FileFetch
-) -> None:
+@pytest.mark.usefixtures("root")
+async def test_a_filtered_row_keeps_its_place_in_the_file(fetch: FileFetch) -> None:
     """A page of matches is not a window, so the handle names the real row."""
     result = await fetch.fetch(
         FetchRequest(

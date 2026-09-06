@@ -101,7 +101,10 @@ const COLUMNS = [
   { name: "value", label: "Value", field: "value", align: "left" as const },
 ]
 
-interface Line {
+// A type and not an interface: AppTable takes rows as
+// `Record<string, unknown>`, and only a type alias gets the implicit index
+// signature that makes one assignable to it.
+type Line = {
   name: string
   type: string
   value: string | null

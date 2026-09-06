@@ -126,7 +126,7 @@ async def pair(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
     schema: str,
-    home: Path,
+    home: Path,  # noqa: ARG001 - personal storage, required for its side effect
 ) -> tuple[str, str, str]:
     """A PostgreSQL connection, a file connection, and a reference between them."""
     await _seed(schema)
@@ -142,11 +142,11 @@ async def pair(
     return postgres_id, file_id, str(response.json()["id"])
 
 
+@pytest.mark.usefixtures("home")
 async def test_a_reference_is_drawn_between_two_sources(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
     schema: str,
-    home: Path,
 ) -> None:
     postgres_id = await _postgres_connector(client, normal_user_token_headers)
     file_id = await _file_connector(client, normal_user_token_headers)
@@ -337,11 +337,11 @@ async def test_an_invented_reference_name_is_refused(
     assert response.status_code == 422
 
 
+@pytest.mark.usefixtures("home")
 async def test_a_column_the_source_does_not_have_is_refused(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
     schema: str,
-    home: Path,
 ) -> None:
     postgres_id = await _postgres_connector(client, normal_user_token_headers)
     file_id = await _file_connector(client, normal_user_token_headers)
@@ -357,11 +357,11 @@ async def test_a_column_the_source_does_not_have_is_refused(
     assert "invented" in response.text
 
 
+@pytest.mark.usefixtures("home")
 async def test_a_column_that_cannot_be_looked_up_is_refused(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
     schema: str,
-    home: Path,
 ) -> None:
     """`bytea` admits no equality, so it cannot be an end of a reference."""
     postgres_id = await _postgres_connector(client, normal_user_token_headers)
@@ -392,12 +392,12 @@ async def test_a_column_cannot_reference_itself(
     assert response.status_code == 422
 
 
+@pytest.mark.usefixtures("home")
 async def test_a_connection_the_caller_cannot_read_is_not_an_end(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
     colleague: tuple[User, dict[str, str]],
     schema: str,
-    home: Path,
 ) -> None:
     _, colleague_headers = colleague
     theirs = await _postgres_connector(client, colleague_headers)
@@ -434,11 +434,10 @@ async def test_the_same_pair_drawn_twice_is_one_reference(
     assert [item["id"] for item in listed.json()] == [reference_id]
 
 
+@pytest.mark.usefixtures("normal_user_token_headers", "schema")
 async def test_a_reference_belongs_to_the_person_who_drew_it(
     client: AsyncClient,
-    normal_user_token_headers: dict[str, str],
     colleague: tuple[User, dict[str, str]],
-    schema: str,
     pair: tuple[str, str, str],
 ) -> None:
     _, _, reference_id = pair

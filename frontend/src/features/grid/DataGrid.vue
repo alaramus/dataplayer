@@ -144,6 +144,8 @@ const props = defineProps<{
   sharedView?: RowsView | null
 }>()
 defineSlots<{
+  /** The end of the row of commands, where a panel puts what it offers (D112). */
+  "commands-end"(): unknown
   /** The far end of the row the pager is on, passed through to the grid. */
   "pager-start"(): unknown
 }>()

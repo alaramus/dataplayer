@@ -49,15 +49,14 @@ function quoted(value: string): string {
  */
 export function describeFilter(filter: Filter): string {
   const head = `${filter.column} ${OPERATOR_LABELS[filter.op]}`
-  // Written out rather than asked of NULL_OPERATORS: a set membership check
-  // proves nothing to the compiler, and the branch below reads `value`.
-  if (filter.op === "is_null" || filter.op === "is_not_null") return head
-  if (filter.op === "in") {
+  // Narrowed by the property and not by `op`: the generated union is a set of
+  // intersections, and a comparison against `op` does not narrow across them.
+  if ("values" in filter) {
     const shown = filter.values.slice(0, MAX_SHOWN_VALUES).map(quoted)
     const rest = filter.values.length - shown.length
     return `${head} ${shown.join(", ")}${rest > 0 ? ` +${rest} more` : ""}`
   }
-  return `${head} ${quoted(filter.value)}`
+  return "value" in filter ? `${head} ${quoted(filter.value)}` : head
 }
 
 interface FilterColumn {

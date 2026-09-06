@@ -1169,6 +1169,7 @@ describe("following a reference out of a row", () => {
         body: {
           node_id: "public.projects",
           reference: "customers_region_fkey",
+          direction: "outgoing",
           values: [{ column: "region_id", value: "7" }],
         },
       })

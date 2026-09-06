@@ -287,7 +287,9 @@ describe("the panel registry", () => {
     // Every field added to a stored panel is optional, because a layout
     // written before it exists must still restore. A required one fails the
     // whole layout and the workspace comes back empty.
-    const { request, index, ...older } = samples.record as Record<string, unknown>
+    const older = { ...samples.record } as Record<string, unknown>
+    delete older.request
+    delete older.index
 
     expect(panelSchema.safeParse(older).success).toBe(true)
   })
