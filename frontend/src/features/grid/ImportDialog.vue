@@ -69,6 +69,19 @@ const columnPairs = computed<ColumnPair[]>(() =>
 
 const ready = computed(() => chosen.value !== null && columnPairs.value.length > 0)
 
+/**
+ * What the block of pairs says about itself, in one line.
+ *
+ * A compact field keeps no room under it for a message, and the button this
+ * refuses is at the other end of the dialog — so the count and the reason go
+ * together above them all.
+ */
+const tally = computed(() => {
+  const filled = columnPairs.value.length
+  if (filled === 0) return "nothing paired yet"
+  return `${filled} of ${props.targetColumns.length} filled`
+})
+
 async function showPreview() {
   if (!ready.value || chosen.value === null) return
   trouble.value = ""
@@ -131,28 +144,56 @@ function run() {
         @trouble="trouble = $event"
       />
 
-      <template v-if="sourceColumns.length > 0">
-        <div class="import__title">
-          Which column fills which
+      <div
+        v-if="sourceColumns.length > 0"
+        class="import__columns"
+        data-testid="grid-import-columns"
+      >
+        <div class="import__legend">
+          <span>Column in this relation</span>
+          <span aria-hidden="true" />
+          <span>
+            Filled from
+            <span class="import__source">{{ chosen?.name ?? "the other source" }}</span>
+          </span>
+          <span
+            class="import__tally"
+            data-testid="grid-import-tally"
+          >{{ tally }}</span>
         </div>
         <div
           v-for="column in targetColumns"
           :key="column.name"
           class="import__pair"
+          :class="{ 'import__pair--idle': !pairs[column.name] }"
+          :data-testid="`grid-import-row-${column.name}`"
         >
+          <span class="import__target">
+            {{ column.name }}
+            <span class="import__type">{{ column.type.sql }}</span>
+          </span>
+          <!-- Pointing at what is filled rather than at what fills it: the
+               rows are the columns of this relation, and the eye follows the
+               fixed side to the side that changes. -->
+          <q-icon
+            name="arrow_back"
+            size="16px"
+            class="import__arrow"
+            aria-hidden="true"
+          />
           <AppSelect
             :model-value="pairs[column.name] ?? ''"
             :options="[
-              { label: '—', value: '' },
+              { label: 'Left as it is', value: '' },
               ...sourceColumns.map((item) => ({ label: item.name, value: item.name })),
             ]"
-            :label="column.name"
+            :aria-label="`Column that fills ${column.name}`"
             compact
             :data-testid="`grid-import-pair-${column.name}`"
             @update:model-value="pairs[column.name] = String($event)"
           />
         </div>
-      </template>
+      </div>
 
       <template v-if="preview !== null">
         <div class="import__title">
@@ -200,9 +241,66 @@ function run() {
 .import__title {
   font-weight: 600;
 }
-.import__pair {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+
+/* The same shape as the columns of "Create table from file", because it is
+   the same question asked twice: which column becomes which. A row was a
+   single select labelled with the column it filled, which put the name inside
+   a compact field narrow enough to truncate it to one letter. */
+.import__columns {
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius-panel);
+  padding: var(--dp-space-2) var(--dp-space-3);
 }
+
+.import__legend,
+.import__pair {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 24px minmax(160px, 1.2fr);
+  align-items: center;
+  gap: var(--dp-space-2);
+}
+
+.import__legend {
+  grid-template-columns: minmax(160px, 1fr) 24px minmax(160px, 1.2fr) auto;
+  padding-bottom: var(--dp-space-1);
+  border-bottom: 1px solid var(--dp-border-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dp-text-muted);
+}
+
+.import__tally {
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
+}
+
+/* A name is a name: the legend around it is small capitals, and running a
+   relation called `app_users` through that spelling changes what it is. */
+.import__source {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.import__pair { padding: var(--dp-space-1) 0; }
+.import__pair + .import__pair { border-top: 1px solid var(--dp-border-faint); }
+
+.import__target { overflow-wrap: anywhere; }
+
+/* The type of the column being filled, because what may fill it is the
+   question this dialog asks and the answer depends on it. */
+.import__type {
+  margin-left: var(--dp-space-2);
+  font-size: 11px;
+  color: var(--dp-text-faint);
+}
+
+.import__arrow { color: var(--dp-text-faint); justify-self: center; }
+
+/* A column nothing fills keeps its row: which columns this relation has is
+   part of what the screen says. The arrow goes, because it points nowhere. */
+.import__pair--idle .import__target { color: var(--dp-text-muted); }
+.import__pair--idle .import__arrow { visibility: hidden; }
 </style>

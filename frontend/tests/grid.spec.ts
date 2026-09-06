@@ -579,6 +579,17 @@ test("brings rows in from a file in personal storage", async ({ page }) => {
   await page.getByRole("option", { name: source, exact: true }).click()
   await page.getByTestId("grid-import-node-sample.tsv").click()
 
+  // Each column of this relation stands on its own row, named and typed,
+  // against the choice that fills it. A row used to be one select labelled
+  // with the column it filled, and a compact select is narrow enough to cut
+  // that name down to a single letter.
+  const columns = page.getByTestId("grid-import-columns")
+  await expect(columns).toContainText("Column in this relation")
+  await expect(columns).toContainText("Filled from")
+  await expect(page.getByTestId("grid-import-row-organization_id")).toContainText(
+    "organization_id"
+  )
+
   // The file's own columns, paired by hand: nothing is matched silently.
   // Every pair offers the same source columns, so a menu still closing from
   // the previous one would swallow the click. Wait for exactly one list.
@@ -592,6 +603,9 @@ test("brings rows in from a file in personal storage", async ({ page }) => {
   }
   await pair("organization_id", "id")
   await pair("label", "name")
+  // How much of the relation would be written, said once above the rows: a
+  // compact field keeps no room under it for anything.
+  await expect(page.getByTestId("grid-import-tally")).toContainText("2 of")
 
   await page.getByTestId("grid-import-preview").click()
   await expect(page.getByTestId("grid-import-dialog")).toContainText("one")
