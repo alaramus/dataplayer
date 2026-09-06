@@ -80,3 +80,19 @@ export function filenameStem(name: string): string {
   const at = tail.lastIndexOf(".")
   return at <= 0 ? tail : tail.slice(0, at)
 }
+
+/**
+ * What the block of columns says about itself, in one line.
+ *
+ * It carries the reason Create is refused as well: a compact field keeps no
+ * room under it for a message, and one line about the whole block beats the
+ * same sentence repeated under four rows. Here rather than in the component
+ * so the wording is tested without mounting a dialog that reads a catalog.
+ */
+export function columnTally(total: number, taken: number, unnamed: number): string {
+  if (unnamed > 0) {
+    return `${unnamed} of them ${unnamed === 1 ? "needs" : "need"} a name`
+  }
+  if (taken === 0) return `none of ${total}`
+  return taken === total ? `all ${total}` : `${taken} of ${total}`
+}

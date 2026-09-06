@@ -15,7 +15,7 @@ import {
 } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
-import { filenameStem, readDelimited } from "./delimitedFile"
+import { columnTally, filenameStem, readDelimited } from "./delimitedFile"
 
 interface Mapping {
   source: string
@@ -45,6 +45,14 @@ const preview = ref<string[][]>([])
 const trouble = ref("")
 
 const selected = computed(() => mappings.value.filter((mapping) => mapping.include))
+/** Columns that would be created without a name to create them under. */
+const unnamed = computed(
+  () => selected.value.filter((mapping) => mapping.target.trim() === "").length
+)
+
+const tally = computed(() =>
+  columnTally(mappings.value.length, selected.value.length, unnamed.value)
+)
 const ready = computed(
   () =>
     file.value !== null &&
@@ -193,20 +201,45 @@ function run() {
       </AppBanner>
       <div
         v-if="mappings.length"
-        class="file-to-relation__mapping"
+        class="file-to-relation__columns"
+        data-testid="load-columns"
       >
+        <div class="file-to-relation__legend">
+          <span>In the file</span>
+          <span aria-hidden="true" />
+          <span>Column in the new table</span>
+          <span
+            class="file-to-relation__tally"
+            :class="{ 'file-to-relation__tally--wrong': unnamed > 0 }"
+            data-testid="load-tally"
+          >{{ tally }}</span>
+        </div>
         <div
           v-for="mapping in mappings"
           :key="mapping.source"
-          class="file-to-relation__column"
+          class="file-to-relation__row"
+          :class="{ 'file-to-relation__row--out': !mapping.include }"
+          :data-testid="`load-column-${mapping.source}`"
         >
           <AppToggle
             v-model="mapping.include"
             :label="mapping.source"
           />
+          <q-icon
+            name="arrow_forward"
+            size="16px"
+            class="file-to-relation__arrow"
+            aria-hidden="true"
+          />
+          <!-- No visible label: the legend above the block says what this
+               column is, and repeating it on every row was most of what made
+               the pairing hard to read. Named for a screen reader all the
+               same, and by the column it renames rather than by its job.
+               Compact, so a file of forty columns is forty short rows; what a
+               compact field has no room to say is said once in the legend. -->
           <AppInput
             v-model="mapping.target"
-            label="New column"
+            :aria-label="`Name in the table for ${mapping.source}`"
             :disable="!mapping.include"
             compact
           />
@@ -245,16 +278,55 @@ function run() {
   gap: 12px;
 }
 
-.file-to-relation__mapping {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 16px;
+/* One pair to a row, and the same three columns in the legend above them, so
+   the eye reads each mapping left to right. Two pairs to a row fitted more on
+   the screen and left it ambiguous which name belonged to which — the whole
+   complaint about this dialog. */
+.file-to-relation__columns {
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius-panel);
+  padding: var(--dp-space-2) var(--dp-space-3);
 }
 
-.file-to-relation__column {
+.file-to-relation__legend,
+.file-to-relation__row {
   display: grid;
-  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr);
+  grid-template-columns: minmax(140px, 1fr) 24px minmax(160px, 1.4fr);
   align-items: center;
-  gap: 8px;
+  gap: var(--dp-space-2);
 }
+
+.file-to-relation__legend {
+  grid-template-columns: minmax(140px, 1fr) 24px minmax(160px, 1.4fr) auto;
+  padding-bottom: var(--dp-space-1);
+  border-bottom: 1px solid var(--dp-border-faint);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dp-text-muted);
+}
+
+.file-to-relation__tally {
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
+}
+
+.file-to-relation__tally--wrong { color: var(--q-negative); }
+
+.file-to-relation__row {
+  padding: var(--dp-space-1) 0;
+}
+
+.file-to-relation__row + .file-to-relation__row {
+  border-top: 1px solid var(--dp-border-faint);
+}
+
+.file-to-relation__arrow { color: var(--dp-text-faint); justify-self: center; }
+
+/* A column left out stays in place rather than disappearing: which columns the
+   file has is part of what this screen says. */
+.file-to-relation__row--out { opacity: 0.55; }
+.file-to-relation__row--out .file-to-relation__arrow { visibility: hidden; }
 </style>

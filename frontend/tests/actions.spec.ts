@@ -313,6 +313,25 @@ test("loads a CSV into the schema being looked at", async ({ page }) => {
     buffer: Buffer.from("code,label\nEU,Europe\nUS,United States\n"),
   })
   await page.getByTestId("field-name").fill(table)
+
+  // Each column of the file stands on its own row against the name it will
+  // have, under a legend that says which side is which. Two pairs to a row
+  // fitted more on the screen and left the reader guessing which name
+  // belonged to which column.
+  const columns = page.getByTestId("load-columns")
+  await expect(columns).toContainText("In the file")
+  await expect(columns).toContainText("Column in the new table")
+  await expect(page.getByTestId("load-column-code")).toContainText("code")
+  await expect(page.getByTestId("load-tally")).toHaveText("all 2")
+
+  // A column that would be created without a name refuses the whole thing,
+  // and the block says so: a compact field keeps no room for a message under
+  // it, and the button it refuses is at the other end of the dialog.
+  await page.getByTestId("load-column-label").getByRole("textbox").fill("")
+  await expect(page.getByTestId("load-tally")).toHaveText("1 of them needs a name")
+  await expect(page.getByTestId("load-create")).toBeDisabled()
+  await page.getByTestId("load-column-label").getByRole("textbox").fill("label")
+
   await page.getByTestId("load-create").click()
 
   // The schema is what gained a child, and the list says so without a reload.
