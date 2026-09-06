@@ -32,13 +32,10 @@ import { WindowDialog } from "@/shared/windows"
 /**
  * One dialog for both halves of sharing: the address, and who may follow it.
  *
- * The link is an address and carries no rights (D58), so everybody who can
- * reach the connection sees it. Grants are the owner's business (D33), so the
- * rest of the dialog appears for them alone — and the owner's sequence is one
- * movement: copy the address, add the colleague.
- *
- * Opened from a tab with a view to share, and from the connection's own window
- * without one. The link section is what differs.
+ * The link carries no rights (D58), so everybody who can reach the connection
+ * sees it; grants are the owner's business (D33), so the rest appears for them
+ * alone. Opened from a tab with a view to share and from the connection's own
+ * window without one — the link section is what differs.
  */
 const props = defineProps<{
   modelValue: boolean

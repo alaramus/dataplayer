@@ -26,17 +26,15 @@ const rows = computed(() => connectors.data.value?.data ?? [])
     data-testid="connectors-panel"
   >
     <div class="connectors-panel__bar">
-      <!-- Queries used to stand here for want of anywhere better; they are
-           a command of a connection and live in the bar at the foot of the
-           screen now (D69).
+      <!-- No title: the tab above the panel already carries one, and a column
+           a fifth of the screen wide cannot spend a line saying it twice. An
+           icon and not a labelled button, for the same reason.
 
-           No title: the tab above the panel already carries one, and saying
-           it twice costs a line of a column that is a fifth of the screen.
-           An icon and not a labelled button, for the same reason.
+           On the left, where the strip a collapsed column leaves behind puts
+           it: pushing the column aside takes the name away and moves nothing.
 
-           On the left, where it stands in the strip a collapsed column leaves
-           behind: pushing the column aside is meant to take the name away and
-           move nothing. -->
+           Queries used to stand here for want of anywhere better; they are a
+           command of a connection and live in the bar at the foot now (D69). -->
       <AppIconButton
         icon="add"
         tooltip="New connection"

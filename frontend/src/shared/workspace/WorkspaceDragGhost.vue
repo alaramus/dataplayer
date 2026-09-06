@@ -4,15 +4,12 @@ import { panelColorStyle } from "@/shared/ui/panelColor"
 import type { PanelLook } from "./context"
 
 /**
- * The tab in the user's hand.
+ * The tab in the user's hand. It shows what a tab shows: a picture of the
+ * panel would be a second render of it on every movement of the pointer, and
+ * what is needed is which of several alike tabs was picked up.
  *
- * It shows what a tab shows and nothing more: a picture of the panel would be
- * a second render of it on every movement of the pointer, and what the user
- * needs to know is which of several alike tabs they picked up — which is what
- * the subtitle is for.
- *
- * It lives in the root rather than in the section the tab came from: the
- * pointer leaves that section in the first moment of the gesture. See G2.
+ * In the root rather than in the section the tab came from, because the
+ * pointer leaves that section in the first moment of the gesture (G2).
  */
 defineProps<{ look: PanelLook; x: number; y: number }>()
 </script>

@@ -30,11 +30,9 @@ const drafts = reactive<Record<string, string>>({})
  * Every column this row has been offered, in the order it first appeared.
  *
  * `columns` is only what the grid shows now, and the grid can hide, show or
- * pin a column while the row is open. Seeded once per column and never
- * dropped, so a column revealed later still starts from its own rules — a
- * required one included, a boolean drafted as false — and a value already
- * typed is still sent after its column leaves the view rather than being
- * quietly discarded.
+ * pin one while the row is open. Seeded once per column and never dropped, so
+ * a column revealed later still starts from its own rules and a value already
+ * typed is still sent rather than quietly discarded.
  */
 const known = new Map<string, FetchColumn>()
 

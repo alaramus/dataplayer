@@ -94,14 +94,13 @@ async function open(url: string) {
 }
 
 /**
- * A placeholder per page, and a canvas only for the pages that are looked at.
- *
- * A thousand-page document then costs a thousand empty boxes rather than a
- * thousand bitmaps, which is the whole reason the renderer is worth having.
+ * A placeholder per page, and a canvas only for the pages that are looked at:
+ * a thousand-page document costs a thousand empty boxes rather than a thousand
+ * bitmaps.
  *
  * Laid out again whenever the room changes, because a panel that is not on
- * screen has no width at all: a document opened behind another tab would
- * otherwise be drawn at its own size and scroll sideways when it is shown.
+ * screen has no width at all — a document opened behind another tab would
+ * otherwise be drawn at its own size and scroll sideways when shown.
  */
 async function layOutPages(loaded: PDFDocumentProxy) {
   const host = stage.value

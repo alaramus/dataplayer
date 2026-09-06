@@ -9,15 +9,12 @@ import { messageOf } from "@/shared/api/errors"
 import { AppButton, AppIconButton, AppSelect, useToast } from "@/shared/ui"
 
 /**
- * Who is waiting to be let in, and the answer.
+ * Who is waiting to be let in, and the answer. Beside the people who already
+ * hold a level, because a request is answered by an ordinary grant and by
+ * nothing else (D61). Nothing is drawn while nobody is waiting.
  *
- * Beside the people who already hold a level, because it is the same question
- * one step earlier: a request is answered by an ordinary grant and by nothing
- * else (D61). Nothing at all is drawn while nobody is waiting — an empty list
- * under a heading is a heading about nothing.
- *
- * The owner's alone, like the grants: asking for the requests on a connection
- * somebody else owns is answered with 403.
+ * The owner's alone: asking for the requests on somebody else's connection is
+ * answered with 403.
  */
 const props = defineProps<{ connectorId: string | null }>()
 

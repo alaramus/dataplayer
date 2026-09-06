@@ -5,11 +5,11 @@ import { statusOf } from "@/shared/api/errors"
  *
  * vue-query retries everything three times, which is right for a request that
  * never arrived and wrong for one the server read and refused: it will be
- * refused again, and the retries only hold a spinner on screen first. Opening
- * a `.dump` in a file source took five seconds to say it is binary.
+ * refused again, and the retries only hold a spinner up first. Opening a
+ * `.dump` in a file source took five seconds to say it is binary.
  *
- * The line is the status class, with the two 4xx codes that are about the
- * moment as exceptions.
+ * The line is the status class, less the two 4xx codes that are about the
+ * moment rather than about the request.
  */
 
 /** Refusals that are about right now rather than about the request. */

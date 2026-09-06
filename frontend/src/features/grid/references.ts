@@ -106,10 +106,9 @@ function landingConnection(target: ReferencedRows, asking: Landing): Landing {
  *
  * The answer carries a `CatalogNode` and not an id for exactly this reason
  * (D36): a tab arrived at by following a key is the same tab as one opened
- * from the catalog, so it says what it can be opened as and is drawn as
- * itself. Built here rather than in the workspace because the workspace had
- * assembled it by hand, dropped the representations, and every followed tab
- * was drawn as the logo of its source instead of as a table.
+ * from the catalog. Built here because the workspace had assembled it by hand,
+ * dropped the representations, and drew every followed tab as the logo of its
+ * source instead of as a table.
  */
 export function followedRows(target: ReferencedRows, asking: Landing): FollowedRows {
   const node = target.node

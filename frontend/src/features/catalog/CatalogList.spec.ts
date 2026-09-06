@@ -50,14 +50,13 @@ function report(id: string, label: string, caption: string): ListNode {
 }
 
 /**
- * The columns are the list's, not each row's.
+ * The columns are the list's, not each row's: a row takes them with `subgrid`,
+ * so names stand under names.
  *
- * A row takes them with `subgrid`, so names stand under names and counts
- * under counts. The one exception is a report, whose caption is a sentence
- * the source wrote rather than a measurement — left in the shared column it
- * would set the width of that column for every row in the list, so the row
- * lays itself out instead. The class is what the stylesheet keys off, so it
- * is what this checks.
+ * The exception is a report, whose caption is a sentence the source wrote —
+ * left in the shared column it would set that column's width for every row in
+ * the list, so the row lays itself out instead. The class is what the
+ * stylesheet keys off, so it is what this checks.
  */
 /**
  * The name of a row, taken without reading it out.

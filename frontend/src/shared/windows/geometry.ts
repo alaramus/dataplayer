@@ -53,13 +53,10 @@ export const FIT_MARGIN = 16
 /**
  * Where the cascade begins: the middle of the viewport.
  *
- * Not the top left, which is where this started and where it was wrong. A
- * window opening at the corner lands on top of the column it was opened from
- * and covers the very control that opens the next one — and opening a second
- * window beside the first is the whole reason these are not modal.
- *
- * The middle is a rule the engine can state without knowing what is on the
- * screen behind it, which is the only kind of rule it is allowed to have.
+ * Not the top left, which is where this started and where it was wrong — a
+ * window opening at the corner covers the very control that opens the next
+ * one. The middle is a rule the engine can state without knowing what is on
+ * the screen behind it, which is the only kind of rule it may have.
  */
 function origin(size: Size, viewport: Size): { x: number; y: number } {
   return {

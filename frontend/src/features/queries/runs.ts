@@ -223,10 +223,9 @@ export function useQueryMetadata(
  *
  * Keyed under the connection rather than under the queries, as the grants on
  * it are: the answer is made of the owner's policy and this person's level,
- * both of which are facts about the connection. It was under `queries` once,
- * and editing a connection then left an open console judging it by the policy
- * it used to have — every cache of a connection is dropped when it changes,
- * and this one was not among them (D66).
+ * both facts about the connection. Under `queries` it was not among the caches
+ * dropped when a connection changes, so editing one left an open console
+ * judging it by the policy it used to have (D66).
  */
 export const unlockKey = (connectorId: string) =>
   ["connectors", connectorId, "unlock"] as const

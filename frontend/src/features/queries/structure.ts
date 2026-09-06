@@ -65,13 +65,10 @@ export function blockedReason(rehearsal: QueryRehearsal): string | null {
 /**
  * The cached answers a committed structure change makes untrue.
  *
- * Built from what the source said changed, never from the SQL that was sent:
- * a node id is the source's, and a browser that took one apart would be
- * reading a promise D21 does not make (D66).
- *
- * `connection` is the honest wider answer for a statement that does not say
- * which node it was about, and it becomes the prefix of every key belonging to
- * this connection.
+ * Built from what the source said changed and never from the SQL that was
+ * sent: a node id is the source's, and a browser taking one apart would read a
+ * promise D21 does not make (D66). `connection` is the honest wider answer for
+ * a statement that does not say which node it was about.
  */
 export function invalidationsFor(
   effect: SchemaEffect | null | undefined,

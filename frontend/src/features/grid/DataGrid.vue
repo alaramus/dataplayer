@@ -710,10 +710,9 @@ function resetQuery() {
  * columns it has now.
  *
  * A filter and a sort name a column by name and both outlive a reload, so a
- * column renamed or dropped — here, in another tab, or by somebody else —
- * leaves a stored query the source refuses every time it is asked. Rather than
- * reading the refusal, the grid asks again without filters or sorting and
- * keeps back everything the fresh answer still knows about.
+ * column renamed or dropped leaves a stored query the source refuses every
+ * time. Rather than reading the refusal, the grid asks again without filters
+ * or sorting and keeps back everything the fresh answer still knows about.
  */
 const quarantinedQuery = ref<GridQueryState | null>(null)
 let recoveredFrom = ""
@@ -911,15 +910,13 @@ watch(
 )
 
 /**
- * How often this grid re-reads itself, and what stops it.
+ * How often this grid re-reads itself, and what stops it. The timer is here
+ * rather than in the button because this is what owns the fetch.
  *
- * The timer is here rather than in the button because this is what owns the
- * fetch, and it runs whenever an interval is chosen — a tick that must not
- * fetch is skipped rather than queued. Two things make it skip: the tab is
- * not on screen, and the user is in the middle of something. Both matter.
- * A tab kept alive behind another one would otherwise poll the source
- * forever with nobody looking, and a poll landing while a cell is being
- * edited would throw away what was typed.
+ * A tick that must not fetch is skipped rather than queued, for two reasons: a
+ * tab kept alive behind another would otherwise poll the source forever with
+ * nobody looking, and a poll landing while a cell is being edited would throw
+ * away what was typed.
  */
 const refreshSeconds = ref<RefreshSeconds | null>(
   startingRefresh(loadRefreshSeconds(props.connectorId, props.nodeId), null)

@@ -6,11 +6,9 @@ import { estimate, flatten, nodeById, share } from "@/features/queries/explain"
 import { AppBanner, AppButton, AppIconButton } from "@/shared/ui"
 
 /**
- * A plan, in the three views D65 asks for, showing one selection.
- *
- * The tree is the source's own shape, the table is that tree read as a list,
- * and the raw plan is what the server prints. Choosing an operation in one is
- * choosing it in the others, because all three address it by the same id.
+ * A plan in the three views D65 asks for, showing one selection: the source's
+ * own tree, that tree read as a list, and what the server prints. All three
+ * address an operation by the same id.
  *
  * Everything here is an estimate. Nothing was run, and the screen says so
  * rather than letting cost figures look like measurements.

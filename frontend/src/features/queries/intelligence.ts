@@ -126,13 +126,10 @@ export interface Mark {
 /**
  * What is worth marking, and nothing else.
  *
- * A statement the source could not classify is a warning about this
- * application, not about the SQL: `unknown` means the dialect module has not
- * learnt the form, and Run will say so honestly if it is pressed.
- *
- * A relation is only marked when the metadata is complete and the schema it
- * names is one the source listed. Anything else — an alias, a CTE, a schema
- * nobody asked about, a source that answered partially — is left alone.
+ * `unknown` is a warning about this application rather than about the SQL: the
+ * dialect module has not learnt the form. A relation is marked only when the
+ * metadata is complete and the schema it names is one the source listed —
+ * an alias, a CTE or a partial answer is left alone.
  */
 export function marks(
   script: PreparedScript | null,

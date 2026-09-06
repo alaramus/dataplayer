@@ -9,14 +9,11 @@ import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
 /**
  * A connection as one thing to press: the logo of its source type with the
- * state dot on it.
+ * state dot on it. One component because the list and the collapsed strip both
+ * show it, and what a press means stays the caller's.
  *
- * One component because both the list and the collapsed strip show it, and two
- * copies of this markup would drift — pushing the column aside is meant to
- * take away the name and nothing else. What a press means stays the caller's.
- *
- * The state is said in words here rather than on the dot, which has pointer
- * events off and could never be hovered.
+ * The state is said in words here, because the dot has pointer events off and
+ * could never be hovered.
  */
 const props = withDefaults(
   defineProps<{

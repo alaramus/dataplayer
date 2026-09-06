@@ -328,14 +328,13 @@ function draftSchema() {
 const saving = computed(() => createConnector.isPending.value || updateConnector.isPending.value)
 
 /**
- * The address, asked of the server whenever the values change.
+ * The address, asked of the server whenever the values change — including
+ * while the form is still being filled in, since the defaults already put a
+ * host and a port there.
  *
- * Asked while the form is still being filled in, too. The defaults put a host
- * and a port there before anything is typed, and that is already an address
- * worth showing — but composing it here would be a second implementation of a
- * grammar that belongs to the driver, and the two would differ in the quoting
- * before they differed in anything visible. So the server answers with as
- * much of the address as there is, and this end only shows what comes back.
+ * Composing it here would be a second implementation of a grammar that belongs
+ * to the driver, and the two would differ in the quoting before they differed
+ * in anything visible.
  */
 let describeToken = 0
 async function describe() {

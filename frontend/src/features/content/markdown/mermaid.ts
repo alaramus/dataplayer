@@ -4,9 +4,8 @@
  * Mermaid renders through one shared element of its own and re-reads global
  * configuration on every call, so two diagrams drawn at once take each other's
  * output: a document of four ended up with one diagram holding another's
- * contents and two holding nothing at all. Ids and a queue live here, in module
- * scope — inside a `<script setup>` block they would be per instance, which is
- * exactly the bug. See D50.
+ * contents and two holding nothing. Ids and a queue live in module scope —
+ * inside `<script setup>` they would be per instance, which is the bug (D50).
  */
 
 let identifiers = 0

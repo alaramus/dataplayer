@@ -6,10 +6,8 @@ import { describe, expect, it } from "vitest"
  * Vue lets an unknown attribute fall through and `vue-tsc` does not object, so
  * `<AppBanner text="..." />` compiles and renders an empty coloured bar. That
  * happened: the window showing a service's password warned about nothing, and
- * it took a screenshot to notice.
- *
- * The kit is deliberately not uniform — `AppEmptyState` takes `text`,
- * `AppBanner` takes a slot — and this is what stops that being a trap.
+ * it took a screenshot to notice. The kit is deliberately not uniform here,
+ * which is what makes the mistake possible.
  */
 const SOURCES = import.meta.glob("/src/**/*.vue", {
   query: "?raw",

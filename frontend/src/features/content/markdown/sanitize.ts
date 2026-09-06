@@ -1,12 +1,12 @@
 /**
  * Every string that becomes DOM in a rendered document passes through here.
  *
- * Sanitising happens at two levels and the second is not a repeat of the first:
- * raw HTML written by the document's author is cleaned at token level with
- * `style` forbidden, and the assembled result is cleaned again keeping inline
- * `style` only inside KaTeX, whose layout is generated as inline styles. A
- * document can arrive from somebody else's connection through a read grant, so
- * remote resources are refused unless the reader asks for them. See D50.
+ * Two levels, and the second is not a repeat of the first: raw HTML written by
+ * the document's author is cleaned at token level with `style` forbidden, and
+ * the assembled result is cleaned again keeping inline `style` only inside
+ * KaTeX, whose layout is generated as inline styles. A document can arrive
+ * from somebody else's connection through a read grant, so remote resources
+ * are refused unless the reader asks for them (D50).
  */
 import DOMPurify from "dompurify"
 

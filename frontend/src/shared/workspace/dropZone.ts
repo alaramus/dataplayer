@@ -32,13 +32,11 @@ function contains(rect: Rect, x: number, y: number): boolean {
 /**
  * Where a dragged panel would land if it were released here.
  *
- * In the body the nearest edge wins and there is nothing neutral in between:
- * "beside the others" is what the strip means, and a body that meant it too
- * would be a second way to the same result, shown by a highlight describing a
- * different one. Nearness is a share of the side rather than a distance in
- * pixels — measured in pixels, the top and bottom of a wide section would
- * claim almost all of it. A tie goes to the wider side, which is the rule
- * already written for a corner. See G4.
+ * In the body the nearest edge wins, with nothing neutral in between: "beside
+ * the others" is what the strip means, and a body meaning it too would be a
+ * second way to one result. Nearness is a share of the side and not a distance
+ * in pixels — in pixels the top and bottom of a wide section would claim
+ * almost all of it. A tie goes to the wider side (G4).
  */
 export function dropZoneAt(rects: SectionRects, x: number, y: number): DropZone {
   if (contains(rects.strip, x, y)) return "center"

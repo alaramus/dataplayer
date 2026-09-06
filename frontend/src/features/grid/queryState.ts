@@ -6,11 +6,8 @@ import type { Filter, GridQueryState, PageSize } from "./types"
  * The same query with every filter and sort the relation can no longer answer
  * taken out, and the names that went.
  *
- * A filter and a sort name a column by name, and both are remembered across a
- * reload, so a column renamed or dropped leaves a stored query the source will
- * refuse forever. The columns to keep are taken from an answer the source has
- * just given rather than guessed from its refusal, which is why nothing here
- * reads an error message.
+ * The columns to keep come from an answer the source has just given rather
+ * than from its refusal, which is why nothing here reads an error message.
  */
 export function prunedToColumns(
   state: GridQueryState,

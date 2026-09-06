@@ -193,12 +193,10 @@ export function useDescribeDraft() {
 /**
  * A pasted connection string, taken apart into form values.
  *
- * Asked of the server for the same reason the string is composed there: the
- * rule for reading a DSN belongs to the driver. The driver also names the way
- * of connecting — a form deciding that from the presence of a password would
- * be a rule about authentication in a component that knows none.
- *
- * Nothing is opened, and nothing is stored. See the spec, V5 and V7.
+ * Asked of the server because the rule for reading a DSN belongs to the
+ * driver, which also names the way of connecting — a form deciding that from
+ * the presence of a password would be a rule about authentication in a
+ * component that knows none. Nothing is opened, and nothing is stored (V5, V7).
  */
 export function useParseUrl() {
   return useMutation({

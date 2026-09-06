@@ -14,13 +14,12 @@ const tip = useTemplateRef<{ hide: () => void }>("tip")
 /**
  * A tab that is switched away from takes its tooltips with it.
  *
- * A tooltip hides when the pointer leaves the button under it. Pressing a
+ * A tooltip hides when the pointer leaves the button under it, and pressing a
  * button that opens another tab is the one case where that never happens: the
- * pointer does not leave, the button does. A tab that is not showing is kept
- * rather than destroyed, so nothing is unmounted and no `mouseleave` is
- * raised, and the tooltip is teleported to the body — it stayed drawn over
- * whichever tab came next until the same button was hovered and left again.
- * Being put away is a reason to hide, exactly as leaving is.
+ * pointer does not leave, the button does. The tab is kept rather than
+ * destroyed, so no `mouseleave` is raised, and the tooltip — teleported to the
+ * body — stayed drawn over whichever tab came next. Being put away is a reason
+ * to hide, exactly as leaving is.
  */
 onDeactivated(() => {
   tip.value?.hide()

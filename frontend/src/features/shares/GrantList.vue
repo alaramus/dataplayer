@@ -16,13 +16,10 @@ import {
 /**
  * Who holds a level on one connection, and what can be done about it.
  *
- * In two places — the connection's own window, where it answers the question
- * the page is about, and the Share dialog opened from a tab, where there is no
- * such page. One component because it is one question: two copies of this list
- * would be two answers to it, and the second one would be the stale one (D33).
- *
- * Only ever drawn for the owner. It asks for the grants, and asking for the
- * grants of a connection somebody else owns is answered with 403.
+ * In two places — the connection's own window and the Share dialog — as one
+ * component, because two copies of this list would be two answers to one
+ * question and the second would be the stale one (D33). Only ever drawn for
+ * the owner: asking for somebody else's grants is answered with 403.
  */
 const props = defineProps<{ connectorId: string | null }>()
 

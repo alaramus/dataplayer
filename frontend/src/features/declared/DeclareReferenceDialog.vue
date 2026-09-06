@@ -14,12 +14,11 @@ import { WindowDialog } from "@/shared/windows"
 /**
  * Draw a reference from a column here to a column anywhere else (D106).
  *
- * One window rather than the old application's two steps — mark a column here,
- * walk somewhere else, mark another — because the second step lived in a store
- * and needed a badge in the toolbar to remind people it was waiting.
- *
- * Both ends are read the same way, as one page of the node, so the columns
- * offered are the ones the source says it can look a value up in.
+ * One window rather than the old application's two steps — mark a column,
+ * walk somewhere else, mark another — whose second step lived in a store and
+ * needed a badge in the toolbar to remind people it was waiting. Both ends are
+ * read as one page of the node, so the columns offered are the ones the source
+ * says it can look a value up in.
  */
 const props = defineProps<{
   modelValue: boolean

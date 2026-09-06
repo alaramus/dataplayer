@@ -47,8 +47,7 @@ JobKind = Literal[
 #
 # There is no `cancelling`: a task stops at its next await, and what it had
 # already done to the world is a question for whoever looks at the thing it
-# was doing — which is why a cancelled create is retried or removed rather
-# than resumed (D84).
+# was doing — a cancelled create is retried or removed, never resumed (D84).
 JobState = Literal[
     "queued", "running", "succeeded", "failed", "cancelled", "interrupted"
 ]

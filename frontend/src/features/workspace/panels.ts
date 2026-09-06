@@ -417,17 +417,13 @@ function baseLookOf(panel: Panel): PanelLook {
         reloadTooltip: "Re-read this level",
       }
     case "rows":
-      // Drawn the way the catalog drew the node, when the node said how: a
-      // file whose one view is a table is a grid in the list, and a tab of it
-      // showing a folder is the same node saying two different things about
-      // itself. A database table says nothing of the kind, and keeps the icon
-      // of its source — with several catalogs open the right-hand column holds
-      // tabs from several connections at once.
+      // Drawn the way the catalog drew the node, where the node said how. A
+      // database table says nothing of the kind and keeps the icon of its
+      // source, which tells apart tabs from several connections at once.
       //
-      // The name of the connection is in the tooltip rather than beside the
-      // title, because two `users` from two databases would otherwise be the
-      // same tab. Hover text and nothing more: the way back to the node in the
-      // catalog is a button in the panel's own row of commands (D112).
+      // The connection is in the tooltip because two `users` from two
+      // databases would otherwise be the same tab. Hover text and nothing
+      // more: the way back to the node is a button in the panel's row (D112).
       return {
         title: panel.title,
         icon: rowsIcon(panel),
