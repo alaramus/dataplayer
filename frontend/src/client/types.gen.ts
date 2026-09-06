@@ -200,6 +200,10 @@ export type ActionResult = {
    */
   reload_node_ids: Array<string | null>
   replacement?: NodeReplacement | null
+  /**
+   * Created Node Id
+   */
+  created_node_id?: string | null
 }
 
 /**
@@ -342,6 +346,88 @@ export type ArchiveContents = {
    * Links
    */
   links: number
+}
+
+/**
+ * Arithmetic
+ */
+export type Arithmetic = {
+  /**
+   * Kind
+   */
+  kind?: "arithmetic"
+  /**
+   * Operator
+   */
+  operator: "add" | "subtract" | "multiply" | "divide"
+  /**
+   * Left
+   */
+  left:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+  /**
+   * Right
+   */
+  right:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
 }
 
 /**
@@ -570,6 +656,55 @@ export type Body_login_login_access_token = {
 }
 
 /**
+ * BooleanGroup
+ */
+export type BooleanGroup = {
+  /**
+   * Kind
+   */
+  kind?: "group"
+  /**
+   * Operator
+   */
+  operator: "and" | "or"
+  /**
+   * Terms
+   */
+  terms: Array<
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+  >
+}
+
+/**
  * CacheHealth
  */
 export type CacheHealth = {
@@ -667,6 +802,54 @@ export type Capability = {
    * Code
    */
   code?: "search" | "content_search" | "create_relation" | "backup" | null
+}
+
+/**
+ * Cast
+ */
+export type Cast = {
+  /**
+   * Kind
+   */
+  kind?: "cast"
+  /**
+   * Operand
+   */
+  operand:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+  /**
+   * Type Code
+   */
+  type_code: string
 }
 
 /**
@@ -934,6 +1117,22 @@ export type ColumnPair = {
 }
 
 /**
+ * ColumnReference
+ *
+ * A column of the table being defined, by its draft id.
+ */
+export type ColumnReference = {
+  /**
+   * Kind
+   */
+  kind?: "column"
+  /**
+   * Column Id
+   */
+  column_id: string
+}
+
+/**
  * ColumnSummary
  */
 export type ColumnSummary = {
@@ -1085,6 +1284,88 @@ export type ColumnTypeRequest = {
    * Type Code
    */
   type_code: string
+}
+
+/**
+ * Comparison
+ */
+export type Comparison = {
+  /**
+   * Kind
+   */
+  kind?: "compare"
+  /**
+   * Operator
+   */
+  operator: "eq" | "ne" | "lt" | "lte" | "gt" | "gte"
+  /**
+   * Left
+   */
+  left:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+  /**
+   * Right
+   */
+  right:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
 }
 
 /**
@@ -1695,6 +1976,398 @@ export type DelimitedContents = {
 }
 
 /**
+ * DesignCheck
+ */
+export type DesignCheck = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name?: string
+  /**
+   * Expression
+   */
+  expression:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+}
+
+/**
+ * DesignChoice
+ *
+ * One value of a closed set, in the source's own words.
+ */
+export type DesignChoice = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Title
+   */
+  title: string
+}
+
+/**
+ * DesignColumn
+ */
+export type DesignColumn = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  type: DesignColumnType
+  /**
+   * Not Null
+   */
+  not_null?: boolean
+  /**
+   * Comment
+   */
+  comment?: string | null
+  /**
+   * Collation
+   */
+  collation?: string | null
+  /**
+   * Generation
+   */
+  generation?:
+    | ({
+        kind: "none"
+      } & NoGeneration)
+    | ({
+        kind: "literal"
+      } & LiteralDefault)
+    | ({
+        kind: "expression"
+      } & ExpressionDefault)
+    | ({
+        kind: "identity"
+      } & IdentityGeneration)
+    | ({
+        kind: "generated"
+      } & StoredGeneration)
+}
+
+/**
+ * DesignColumnType
+ *
+ * A published type code with the parameters that type declared.
+ */
+export type DesignColumnType = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Length
+   */
+  length?: number | null
+  /**
+   * Precision
+   */
+  precision?: number | null
+  /**
+   * Scale
+   */
+  scale?: number | null
+  /**
+   * Dimensions
+   */
+  dimensions?: number
+}
+
+/**
+ * DesignForeignKey
+ */
+export type DesignForeignKey = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name?: string
+  /**
+   * Column Ids
+   */
+  column_ids: Array<string>
+  /**
+   * Target Node Id
+   */
+  target_node_id: string
+  /**
+   * Target Columns
+   */
+  target_columns: Array<string>
+  /**
+   * On Update
+   */
+  on_update?: "no_action" | "restrict" | "cascade" | "set_null" | "set_default"
+  /**
+   * On Delete
+   */
+  on_delete?: "no_action" | "restrict" | "cascade" | "set_null" | "set_default"
+  /**
+   * Match
+   */
+  match?: "simple" | "full"
+  /**
+   * Deferrable
+   */
+  deferrable?: boolean
+  /**
+   * Initially Deferred
+   */
+  initially_deferred?: boolean
+}
+
+/**
+ * DesignIndex
+ */
+export type DesignIndex = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name?: string
+  /**
+   * Method
+   */
+  method?: string
+  /**
+   * Unique
+   */
+  unique?: boolean
+  /**
+   * Keys
+   */
+  keys: Array<
+    | ({
+        kind: "column"
+      } & IndexColumnKey)
+    | ({
+        kind: "expression"
+      } & IndexExpressionKey)
+  >
+  /**
+   * Include Column Ids
+   */
+  include_column_ids?: Array<string>
+  /**
+   * Predicate
+   */
+  predicate?:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+    | null
+}
+
+/**
+ * DesignLimits
+ *
+ * What a definition may not exceed, published so a form can say so first.
+ */
+export type DesignLimits = {
+  /**
+   * Max Columns
+   */
+  max_columns?: number
+  /**
+   * Max Indexes
+   */
+  max_indexes?: number
+  /**
+   * Max Constraints
+   */
+  max_constraints?: number
+  /**
+   * Max Key Columns
+   */
+  max_key_columns?: number
+  /**
+   * Max Expression Depth
+   */
+  max_expression_depth?: number
+  /**
+   * Max Expression Nodes
+   */
+  max_expression_nodes?: number
+  /**
+   * Name Bytes
+   */
+  name_bytes?: number
+}
+
+/**
+ * DesignPartition
+ */
+export type DesignPartition = {
+  /**
+   * Strategy
+   */
+  strategy: "range" | "list" | "hash"
+  /**
+   * Column Ids
+   */
+  column_ids: Array<string>
+}
+
+/**
+ * DesignPrimaryKey
+ */
+export type DesignPrimaryKey = {
+  /**
+   * Name
+   */
+  name?: string
+  /**
+   * Column Ids
+   */
+  column_ids: Array<string>
+}
+
+/**
+ * DesignTypeOption
+ *
+ * One type a new column may take, and what it accepts beside its code.
+ *
+ * Richer than the `ColumnTypeOption` a column added to an existing relation
+ * is offered: that list is deliberately small (D27) and takes no parameters,
+ * and widening it would change what every existing caller may send. A table
+ * being designed is the place where a length or a precision is chosen, so the
+ * parameters are declared here, still as flags rather than as syntax.
+ */
+export type DesignTypeOption = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Sql
+   */
+  sql: string
+  /**
+   * Parameters
+   */
+  parameters?: Array<"length" | "precision" | "scale">
+  /**
+   * Array Supported
+   */
+  array_supported?: boolean
+  /**
+   * Identity Supported
+   */
+  identity_supported?: boolean
+  /**
+   * Category
+   */
+  category?: "text" | "number" | "boolean" | "temporal" | "document" | "other"
+}
+
+/**
+ * DesignUnique
+ */
+export type DesignUnique = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name?: string
+  /**
+   * Column Ids
+   */
+  column_ids: Array<string>
+  /**
+   * Nulls Not Distinct
+   */
+  nulls_not_distinct?: boolean
+  /**
+   * Deferrable
+   */
+  deferrable?: boolean
+  /**
+   * Initially Deferred
+   */
+  initially_deferred?: boolean
+}
+
+/**
  * DetectedFramework
  */
 export type DetectedFramework = {
@@ -2222,6 +2895,52 @@ export type ExportReady = {
 }
 
 /**
+ * ExpressionDefault
+ *
+ * A default the source can compose, such as `now()`.
+ */
+export type ExpressionDefault = {
+  /**
+   * Kind
+   */
+  kind?: "expression"
+  /**
+   * Expression
+   */
+  expression:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+}
+
+/**
  * FetchColumn
  */
 export type FetchColumn = {
@@ -2579,6 +3298,89 @@ export type FormattedQuery = {
 }
 
 /**
+ * FunctionCall
+ *
+ * A function the source advertised, by code, with its arguments.
+ *
+ * Never a name to call: the code is looked up in a registry that fixes the
+ * fragment, the arity and the contexts it is allowed in, so a code nobody
+ * published resolves to nothing rather than to a call.
+ */
+export type FunctionCall = {
+  /**
+   * Kind
+   */
+  kind?: "call"
+  /**
+   * Function
+   */
+  function: string
+  /**
+   * Arguments
+   */
+  arguments?: Array<
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+  >
+}
+
+/**
+ * FunctionOption
+ *
+ * One function a definition may call, by code, where it may be called.
+ */
+export type FunctionOption = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Signature
+   */
+  signature: string
+  /**
+   * Arity
+   */
+  arity?: number
+  /**
+   * Contexts
+   */
+  contexts?: Array<"default" | "generated" | "check" | "index" | "predicate">
+}
+
+/**
  * GenerateQueryRequest
  *
  * Ask the source for a statement about one of its nodes.
@@ -2680,6 +3482,28 @@ export type HTTPValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>
+}
+
+/**
+ * IdentityGeneration
+ */
+export type IdentityGeneration = {
+  /**
+   * Kind
+   */
+  kind?: "identity"
+  /**
+   * Generated
+   */
+  generated?: "always" | "by_default"
+  /**
+   * Start
+   */
+  start?: number | null
+  /**
+   * Increment
+   */
+  increment?: number | null
 }
 
 /**
@@ -2864,6 +3688,32 @@ export type IndexBlocked = {
 }
 
 /**
+ * IndexColumnKey
+ */
+export type IndexColumnKey = {
+  /**
+   * Kind
+   */
+  kind?: "column"
+  /**
+   * Column Id
+   */
+  column_id: string
+  /**
+   * Direction
+   */
+  direction?: "asc" | "desc" | null
+  /**
+   * Nulls
+   */
+  nulls?: "first" | "last" | null
+  /**
+   * Operator Class
+   */
+  operator_class?: string | null
+}
+
+/**
  * IndexCreated
  *
  * The index exists, under the name the source gave it.
@@ -2887,6 +3737,62 @@ export type IndexDropped = {
    * Name
    */
   name: string
+}
+
+/**
+ * IndexExpressionKey
+ */
+export type IndexExpressionKey = {
+  /**
+   * Kind
+   */
+  kind?: "expression"
+  /**
+   * Expression
+   */
+  expression:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+  /**
+   * Direction
+   */
+  direction?: "asc" | "desc" | null
+  /**
+   * Nulls
+   */
+  nulls?: "first" | "last" | null
+  /**
+   * Operator Class
+   */
+  operator_class?: string | null
 }
 
 /**
@@ -3303,6 +4209,45 @@ export type KeyNode = {
 }
 
 /**
+ * LiteralDefault
+ *
+ * A value the column type coerces, exactly as D30 assigns one.
+ */
+export type LiteralDefault = {
+  /**
+   * Kind
+   */
+  kind?: "literal"
+  /**
+   * Value
+   */
+  value: string
+}
+
+/**
+ * LiteralValue
+ *
+ * One value, as text plus what kind of value the text spells.
+ *
+ * The text is never composed into a statement: the source hands it to the
+ * driver as a bound literal, exactly as D30 does for a default.
+ */
+export type LiteralValue = {
+  /**
+   * Kind
+   */
+  kind?: "literal"
+  /**
+   * Value Kind
+   */
+  value_kind: "text" | "number" | "boolean" | "null" | "json"
+  /**
+   * Text
+   */
+  text?: string
+}
+
+/**
  * MarkdownContent
  *
  * The bounded source of a document that the browser renders itself.
@@ -3330,6 +4275,63 @@ export type MarkdownContent = {
 }
 
 /**
+ * Membership
+ *
+ * One value against a bounded list of literals, and nothing else.
+ *
+ * Literals rather than expressions, deliberately: a subquery is the thing
+ * this model exists to make unsayable.
+ */
+export type Membership = {
+  /**
+   * Kind
+   */
+  kind?: "in"
+  /**
+   * Operand
+   */
+  operand:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+  /**
+   * Values
+   */
+  values: Array<LiteralValue>
+  /**
+   * Negated
+   */
+  negated?: boolean
+}
+
+/**
  * Message
  */
 export type Message = {
@@ -3337,6 +4339,50 @@ export type Message = {
    * Message
    */
   message: string
+}
+
+/**
+ * Negation
+ */
+export type Negation = {
+  /**
+   * Kind
+   */
+  kind?: "not"
+  /**
+   * Operand
+   */
+  operand:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
 }
 
 /**
@@ -3405,6 +4451,16 @@ export type NewRelationTarget = {
    * Parent Node Id
    */
   parent_node_id: string
+}
+
+/**
+ * NoGeneration
+ */
+export type NoGeneration = {
+  /**
+   * Kind
+   */
+  kind?: "none"
 }
 
 /**
@@ -3699,6 +4755,54 @@ export type NullFilter = {
 }
 
 /**
+ * NullTest
+ */
+export type NullTest = {
+  /**
+   * Kind
+   */
+  kind?: "null_test"
+  /**
+   * Operand
+   */
+  operand:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+  /**
+   * Negated
+   */
+  negated?: boolean
+}
+
+/**
  * NullabilityBlocked
  *
  * Rows already there contradict the constraint, and here are how many.
@@ -3746,6 +4850,38 @@ export type NullabilityChanged = {
    * Nullable
    */
   nullable: boolean
+}
+
+/**
+ * OperatorClassOption
+ *
+ * One operator class, for one access method and one type.
+ *
+ * Read from the server rather than written down: which classes exist depends
+ * on what is installed, and this is exactly the metadata the prototype
+ * guessed at in the browser.
+ */
+export type OperatorClassOption = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Method
+   */
+  method: string
+  /**
+   * Type Code
+   */
+  type_code?: string | null
+  /**
+   * Default
+   */
+  default?: boolean
 }
 
 /**
@@ -3894,6 +5030,52 @@ export type PdfContents = {
    * Version
    */
   version: string
+}
+
+/**
+ * PlanProblem
+ *
+ * Why a definition cannot become a table, next to what is wrong.
+ *
+ * The object is named by its draft id so the editor can select it, which is
+ * the difference between "this cannot be created" and a form that shows the
+ * reader where to look.
+ */
+export type PlanProblem = {
+  /**
+   * Object Id
+   */
+  object_id?: string | null
+  /**
+   * Field
+   */
+  field?: string | null
+  /**
+   * Message
+   */
+  message: string
+  /**
+   * Kind
+   */
+  kind?: "invalid" | "conflict"
+}
+
+/**
+ * PlannedStatement
+ */
+export type PlannedStatement = {
+  /**
+   * Object Id
+   */
+  object_id?: string | null
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Sql
+   */
+  sql: string
 }
 
 /**
@@ -6380,6 +7562,172 @@ export type StatementPublic = {
 }
 
 /**
+ * StoredGeneration
+ *
+ * A value computed from the row and stored with it.
+ */
+export type StoredGeneration = {
+  /**
+   * Kind
+   */
+  kind?: "generated"
+  /**
+   * Expression
+   */
+  expression:
+    | ({
+        kind: "literal"
+      } & LiteralValue)
+    | ({
+        kind: "column"
+      } & ColumnReference)
+    | ({
+        kind: "call"
+      } & FunctionCall)
+    | ({
+        kind: "compare"
+      } & Comparison)
+    | ({
+        kind: "arithmetic"
+      } & Arithmetic)
+    | ({
+        kind: "group"
+      } & BooleanGroup)
+    | ({
+        kind: "not"
+      } & Negation)
+    | ({
+        kind: "null_test"
+      } & NullTest)
+    | ({
+        kind: "in"
+      } & Membership)
+    | ({
+        kind: "cast"
+      } & Cast)
+}
+
+/**
+ * TableDefinition
+ *
+ * Everything about a table that does not exist yet.
+ *
+ * The destination is not in here: it is the node the action is performed on,
+ * so there is one place it can come from and no way for the two to disagree.
+ */
+export type TableDefinition = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Comment
+   */
+  comment?: string | null
+  /**
+   * Persistence
+   */
+  persistence?: "permanent" | "unlogged"
+  /**
+   * Columns
+   */
+  columns: Array<DesignColumn>
+  primary_key?: DesignPrimaryKey | null
+  /**
+   * Unique Constraints
+   */
+  unique_constraints?: Array<DesignUnique>
+  /**
+   * Checks
+   */
+  checks?: Array<DesignCheck>
+  /**
+   * Foreign Keys
+   */
+  foreign_keys?: Array<DesignForeignKey>
+  /**
+   * Indexes
+   */
+  indexes?: Array<DesignIndex>
+  partition?: DesignPartition | null
+}
+
+/**
+ * TableDesignOptions
+ *
+ * What one destination will accept a designed table with.
+ *
+ * Answers rather than raises when it will accept none, the way
+ * `NewRelationOptions` does: a schema the server owns is a real schema, and
+ * saying why is more use than pretending it is not there.
+ */
+export type TableDesignOptions = {
+  /**
+   * Supported
+   */
+  supported?: boolean
+  /**
+   * Reason
+   */
+  reason?: string | null
+  /**
+   * Schema Label
+   */
+  schema_label?: string
+  /**
+   * Types
+   */
+  types?: Array<DesignTypeOption>
+  /**
+   * Index Methods
+   */
+  index_methods?: Array<IndexMethodOption>
+  /**
+   * Functions
+   */
+  functions?: Array<FunctionOption>
+  /**
+   * Operator Classes
+   */
+  operator_classes?: Array<OperatorClassOption>
+  /**
+   * Collations
+   */
+  collations?: Array<string>
+  /**
+   * Reference Actions
+   */
+  reference_actions?: Array<DesignChoice>
+  /**
+   * Match Modes
+   */
+  match_modes?: Array<DesignChoice>
+  /**
+   * Persistence Options
+   */
+  persistence_options?: Array<DesignChoice>
+  /**
+   * Partition Strategies
+   */
+  partition_strategies?: Array<DesignChoice>
+  /**
+   * Nulls Not Distinct Supported
+   */
+  nulls_not_distinct_supported?: boolean
+  limits?: DesignLimits
+}
+
+/**
+ * TableDesignTarget
+ */
+export type TableDesignTarget = {
+  /**
+   * Node Id
+   */
+  node_id: string
+}
+
+/**
  * TableNode
  */
 export type TableNode = {
@@ -6423,6 +7771,53 @@ export type TableNode = {
    * Is System
    */
   is_system?: boolean
+}
+
+/**
+ * TablePlan
+ *
+ * What the definition would become, composed but not executed.
+ *
+ * This is not D46's rehearsal. Nothing runs: rolled-back DDL still takes
+ * locks and still fires whatever the server hangs off it, which is not a
+ * thing to do on every keystroke.
+ */
+export type TablePlan = {
+  /**
+   * Revision
+   */
+  revision?: number
+  /**
+   * Fingerprint
+   */
+  fingerprint?: string
+  /**
+   * Statements
+   */
+  statements?: Array<PlannedStatement>
+  /**
+   * Warnings
+   */
+  warnings?: Array<string>
+  /**
+   * Problems
+   */
+  problems?: Array<PlanProblem>
+}
+
+/**
+ * TablePlanRequest
+ */
+export type TablePlanRequest = {
+  /**
+   * Node Id
+   */
+  node_id: string
+  definition: TableDefinition
+  /**
+   * Revision
+   */
+  revision?: number
 }
 
 /**
@@ -9279,6 +10674,69 @@ export type connectorsCreateIndexResponses = {
 
 export type connectorsCreateIndexResponse =
   connectorsCreateIndexResponses[keyof connectorsCreateIndexResponses]
+
+export type connectorsTableDesignOptionsData = {
+  body: TableDesignTarget
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/table-design/options"
+}
+
+export type connectorsTableDesignOptionsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsTableDesignOptionsError =
+  connectorsTableDesignOptionsErrors[keyof connectorsTableDesignOptionsErrors]
+
+export type connectorsTableDesignOptionsResponses = {
+  /**
+   * Successful Response
+   */
+  200: TableDesignOptions
+}
+
+export type connectorsTableDesignOptionsResponse =
+  connectorsTableDesignOptionsResponses[keyof connectorsTableDesignOptionsResponses]
+
+export type connectorsPlanTableData = {
+  body: TablePlanRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/table-design/plan"
+}
+
+export type connectorsPlanTableErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsPlanTableError = connectorsPlanTableErrors[keyof connectorsPlanTableErrors]
+
+export type connectorsPlanTableResponses = {
+  /**
+   * Successful Response
+   */
+  200: TablePlan
+}
+
+export type connectorsPlanTableResponse =
+  connectorsPlanTableResponses[keyof connectorsPlanTableResponses]
 
 export type connectorsDropConstraintData = {
   body: DropConstraintRequest

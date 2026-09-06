@@ -10,9 +10,17 @@ const props = withDefaults(
     modelValue: boolean
     title: string
     subtitle?: string
-    size?: "sm" | "md" | "lg"
+    size?: "sm" | "md" | "lg" | "xl"
+    /**
+     * Whether the window may close, asked before it does.
+     *
+     * The host already supports it; a dialog holding unsaved work is the
+     * reason to pass it on — closing a draft by the frame's own X has to ask
+     * the same question the Cancel button does.
+     */
+    beforeClose?: () => boolean | Promise<boolean>
   }>(),
-  { subtitle: undefined, size: "md" }
+  { subtitle: undefined, size: "md", beforeClose: undefined }
 )
 
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>()
@@ -28,6 +36,9 @@ const sizes = {
   sm: { width: 460, height: 220 },
   md: { width: 520, height: 260 },
   lg: { width: 900, height: 360 },
+  // An editor rather than a form: the object tree, the inspector and the SQL
+  // preview are three panes, and lg puts them in 300 pixels each.
+  xl: { width: 1120, height: 680 },
 } as const
 
 const component = defineComponent({
@@ -63,6 +74,7 @@ watch(
       size: openSize.value,
       minSize: { width: 300, height: 140 },
       component,
+      ...(props.beforeClose === undefined ? {} : { beforeClose: props.beforeClose }),
       onClosed: () => emit("update:modelValue", false),
     })
   },

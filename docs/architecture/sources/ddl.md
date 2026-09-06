@@ -272,3 +272,64 @@ Known deviations:
   graph is not searched or rewritten.
 
 Spec: [Renaming a table and a view](../../superpowers/specs/2026-08-29-relation-rename-design.md)
+
+## D117. A designed table is planned, reviewed, then created
+
+A whole table cannot be asked for with a form of fields, and everything about
+it — types with parameters, ordered keys, index predicates, generated columns —
+is exactly what [D2c](contract.md) refuses to accept as typed SQL. So the
+definition is a closed model, the source composes it, and the person approves
+the composition before anything runs.
+
+- `create_table` is an ordinary catalog action on a schema, `acts_on="children"`,
+  requiring `structure`. Creation goes through it, so access, refusals, cache
+  invalidation and which branch to reload stay where every other change keeps
+  them (D9). The editor is chosen by the `table-designer` workflow the action's
+  parameter schema declares, never by the name of the action (D73).
+- Two capability questions sit beside it, `table_design_options` and
+  `plan_table`. A source without them answers 501. Neither creates anything.
+- The vocabulary is the server's: types and their typed parameters, index
+  methods and their limits, functions with the contexts each may appear in,
+  operator classes and collations read from `pg_catalog`, and whether this
+  version can treat nulls as equal in a unique constraint.
+- Expressions are a closed model — literals, draft column references,
+  comparisons, boolean groups, null tests, bounded membership, arithmetic,
+  casts and published function codes. A function's contexts are published
+  because the server has the rule: `now()` fills a column and cannot index one.
+  A raw fragment, a statement separator, a subquery or an arbitrary function
+  name has nowhere to enter.
+- Every object carries a browser-issued draft id. Keys, indexes and expressions
+  refer to columns by that id, so renaming or reordering a column changes
+  nothing else, and a problem names the object the editor should select.
+- One composer serves the preview and the creation. The plan carries the
+  statements, warnings, per-object problems and a fingerprint over the composed
+  statements; creating re-composes from the definition and refuses a fingerprint
+  that no longer matches. Statements never travel in a request.
+- Planning executes nothing. That is deliberately not D46's rehearsal: DDL that
+  runs and is rolled back still takes locks and still fires whatever the server
+  hangs off it, which is not a thing to do while somebody is typing.
+- The whole creation is one transaction, so an index the server refuses leaves
+  no table behind. A taken name is a conflict, never an implicit replacement; a
+  name the source derives is nudged past what the schema already holds, and a
+  name somebody typed is refused instead.
+- The server states the rules a form would otherwise guess: a primary-key column
+  must require a value, a partitioned table's keys must hold its partition
+  columns, `SET NULL` cannot meet a required column, a foreign key needs a
+  candidate key its target publishes, and the two sides must be comparable —
+  asked of `pg_operator` through implicit casts, because `=` for `varchar` is
+  `text`'s operator.
+
+Known deviations:
+
+- **Exclusion constraints are not implemented.** They need operator metadata per
+  method and type beyond the operator classes published here, and the design
+  names them as part of the intended feature.
+- **Temporary tables are deliberately absent.** Their lifetime is a database
+  session and a pooled request cannot promise one.
+- **A draft lives in the window that holds it.** Nothing is persisted across a
+  reload, and a second session sees nothing of it.
+- **Nothing offers to open the new table.** The action returns its source-issued
+  id and the catalog branch reloads, so it is there to click; the offer itself
+  is not built.
+
+Spec: [Creating a table with an object editor](../../superpowers/specs/2026-09-06-table-designer-design.md)

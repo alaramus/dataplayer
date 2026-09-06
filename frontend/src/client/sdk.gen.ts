@@ -108,6 +108,9 @@ import type {
   connectorsParseUrlData,
   connectorsParseUrlErrors,
   connectorsParseUrlResponses,
+  connectorsPlanTableData,
+  connectorsPlanTableErrors,
+  connectorsPlanTableResponses,
   connectorsPrepareActionDownloadData,
   connectorsPrepareActionDownloadErrors,
   connectorsPrepareActionDownloadResponses,
@@ -177,6 +180,9 @@ import type {
   connectorsSearchCatalogData,
   connectorsSearchCatalogErrors,
   connectorsSearchCatalogResponses,
+  connectorsTableDesignOptionsData,
+  connectorsTableDesignOptionsErrors,
+  connectorsTableDesignOptionsResponses,
   connectorsUpdateCellData,
   connectorsUpdateCellErrors,
   connectorsUpdateCellResponses,
@@ -1913,6 +1919,68 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/indexes",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Table Design Options
+   *
+   * What one destination will accept a designed table with.
+   *
+   * The vocabulary of types, index methods, functions and operator classes,
+   * read from this server rather than written down by the editor: which of them
+   * exist depends on the version and on what is installed, and a table kept in
+   * the browser would be wrong within a release.
+   */
+  public static tableDesignOptions<ThrowOnError extends boolean = true>(
+    options: Options<connectorsTableDesignOptionsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsTableDesignOptionsResponses,
+      connectorsTableDesignOptionsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/table-design/options",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Plan Table
+   *
+   * The statements a definition would become, composed and not executed.
+   *
+   * Nothing is created and nothing is rolled back: this is a plan, not D46's
+   * rehearsal, because DDL that runs and is undone still takes locks. It needs
+   * the level the creation needs — the answer names objects of the schema, and
+   * a plan is how somebody decides whether to go ahead.
+   *
+   * A definition with problems is an answer rather than a refusal: which object
+   * is at fault is the useful part, and the editor shows every one of them at
+   * once.
+   */
+  public static planTable<ThrowOnError extends boolean = true>(
+    options: Options<connectorsPlanTableData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsPlanTableResponses,
+      connectorsPlanTableErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/table-design/plan",
       ...options,
       headers: {
         "Content-Type": "application/json",

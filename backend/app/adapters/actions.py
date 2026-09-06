@@ -44,6 +44,11 @@ class ActionResult(BaseModel):
     # A node whose source identity changed. Panels holding the old opaque id
     # replace it with the new one; the client never derives either id.
     replacement: NodeReplacement | None = None
+    # What the action made, when it made one thing worth opening. The id is the
+    # source's own (D21), so offering to open a new table costs the client no
+    # knowledge of what the action was: it holds an id it can walk to, or it
+    # holds nothing.
+    created_node_id: str | None = None
 
 
 class ActionDownloadMetadata(BaseModel):

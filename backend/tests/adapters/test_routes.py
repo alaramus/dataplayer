@@ -115,6 +115,7 @@ async def test_reports_what_a_type_can_do(
         "Drop columns",
         "Rename",
         "Load from CSV",
+        "Create table",
         "Drop",
         "New schema",
         "Rename schema",

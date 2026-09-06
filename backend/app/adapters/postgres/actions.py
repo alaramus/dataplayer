@@ -46,12 +46,14 @@ from app.adapters.postgres.relation_changes import PostgresRelationChanges
 from app.adapters.postgres.roles import CreateRole
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import ROLES_REPORT_ID
+from app.adapters.postgres.table_design import PostgresTableDesign
 from app.adapters.relation import RelationModel
 from app.adapters.relation_changes import (
     CreateRelationRequest,
     NewColumn,
     RelationCreated,
 )
+from app.adapters.table_design import DesignRefused, TableDefinition
 from app.core.access import Access
 
 _relation_name = name_check("relation")
@@ -346,6 +348,66 @@ CSV_ROW_CEILING = 5000
 # memory of one request; the row ceiling alone would not, since one row can be
 # as long as the whole file.
 CSV_MAX_BYTES = 16 * 1024 * 1024
+
+
+class CreateTableParams(BaseModel):
+    # A screen of its own rather than a form: what a table is cannot be asked
+    # for with a list of fields, and the editor that asks for it is registered
+    # against this workflow rather than against the name of the action (D73).
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra={"x-ui-workflow": "table-designer"}
+    )
+
+    definition: TableDefinition
+    # What the reviewer was looking at. The statements are composed again here
+    # from the definition, and a definition that no longer composes to the
+    # reviewed plan is refused rather than run.
+    fingerprint: str = Field(min_length=1, max_length=64)
+
+
+class CreateTable(JsonAction[CreateTableParams]):
+    """Design a table object by object, review the SQL, then create it.
+
+    Distinct from `load_csv` and from keeping rows as a table: both of those
+    make a relation out of data that already exists and take their columns from
+    it. This one starts from nothing, so the keys, the indexes and the checks
+    are part of what is being asked for (D117).
+    """
+
+    name: ClassVar[str] = "create_table"
+    title: ClassVar[str] = "Create table"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"schema"})
+    # It makes something inside the schema rather than changing the schema, as
+    # loading a file does.
+    acts_on: ClassVar[ActsOn] = "children"
+    requires: ClassVar[Access] = "structure"
+    # One design is one table. Applying a draft to every selected schema would
+    # be creating things nobody looked at a plan for.
+    bulk: ClassVar[bool] = False
+    params_model = CreateTableParams
+
+    def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
+        self._design = PostgresTableDesign(session, catalog, PostgresRelation(session))
+
+    async def run(
+        self, node_id: str | None, params: CreateTableParams
+    ) -> ActionResult:
+        if node_id is None:
+            raise ActionRefused("not_applicable", "Choose a schema to create it in")
+        try:
+            node = await self._design.create_table(
+                node_id, params.definition, params.fingerprint
+            )
+        except DesignRefused as refused:
+            raise ActionRefused(
+                "conflict" if refused.problem.kind == "conflict" else "not_applicable",
+                refused.problem.message,
+            ) from None
+        return ActionResult(
+            message=f"{params.definition.name} created",
+            reload_node_ids=[node_id],
+            created_node_id=node.id,
+        )
 
 
 def _stem(filename: str) -> str:
@@ -942,6 +1004,7 @@ POSTGRES_ACTION_TYPES: tuple[PostgresActionType, ...] = (
     RenameRelation,
     MoveRelation,
     LoadCsv,
+    CreateTable,
     DropRelation,
     DropSchema,
     CreateRole,

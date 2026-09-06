@@ -60,6 +60,7 @@ from app.adapters.postgres.session import (
 )
 from app.adapters.postgres.statements import format_text
 from app.adapters.postgres.summary import PostgresSummaries
+from app.adapters.postgres.table_design import PostgresTableDesign
 from app.adapters.postgres.update import PostgresUpdate
 from app.adapters.protocol import BackupProgram, ConnectionCheckResult
 from app.adapters.query import (
@@ -90,6 +91,11 @@ from app.adapters.relation_changes import (
 from app.adapters.resources import Pooling
 from app.adapters.row_commands import RowCommand, RowCommandResult
 from app.adapters.summary import NodeSummary
+from app.adapters.table_design import (
+    TableDesignOptions,
+    TablePlan,
+    TablePlanRequest,
+)
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -153,6 +159,9 @@ class PostgresAdapter:
         self._generation = PostgresGeneration(self._session, self._metadata)
         self._row_commands = PostgresRowCommands(self._session)
         self._summaries = PostgresSummaries(self._session, self._relation)
+        self._design = PostgresTableDesign(
+            self._session, self._catalog, self._relation
+        )
         self._backup = PostgresBackup(self._session, options)
         self._samples = PostgresSamples(self._session)
 
@@ -339,6 +348,13 @@ class PostgresAdapter:
         self, request: CreateRelationRequest
     ) -> CreateRelationResult:
         return await self._relations.create_relation(request)
+
+    async def table_design_options(self, node_id: str) -> TableDesignOptions:
+        """What a schema will accept a designed table with (D117)."""
+        return await self._design.table_design_options(node_id)
+
+    async def plan_table(self, request: TablePlanRequest) -> TablePlan:
+        return await self._design.plan_table(request)
 
     async def add_column(self, request: AddColumnRequest) -> ColumnChangeResult:
         return await self._columns.add_column(request)

@@ -127,6 +127,7 @@ from app.adapters.protocol import (
     SupportsReferences,
     SupportsRelationModel,
     SupportsRenameColumn,
+    SupportsTableDesign,
     SupportsUpdate,
 )
 from app.adapters.references import (
@@ -158,6 +159,12 @@ from app.adapters.search import (
     NodeSearchResult,
 )
 from app.adapters.summary import NodeSummary
+from app.adapters.table_design import (
+    TableDesignOptions,
+    TableDesignTarget,
+    TablePlan,
+    TablePlanRequest,
+)
 from app.adapters.update import (
     CellsUpdated,
     DeleteRowsRequest,
@@ -2503,6 +2510,70 @@ async def drop_index(
         data_cache,
         connector_id,
     )
+
+
+async def _designing_adapter(
+    session: SessionDep,
+    connector_id: uuid.UUID,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+) -> SupportsTableDesign:
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="structure"
+    )
+    if not isinstance(adapter, SupportsTableDesign):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source cannot design a table",
+                "error_kind": "config",
+            },
+        )
+    return adapter
+
+
+@router.post("/{connector_id}/table-design/options", response_model=TableDesignOptions)
+async def table_design_options(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: TableDesignTarget,
+) -> Any:
+    """
+    What one destination will accept a designed table with.
+
+    The vocabulary of types, index methods, functions and operator classes,
+    read from this server rather than written down by the editor: which of them
+    exist depends on the version and on what is installed, and a table kept in
+    the browser would be wrong within a release.
+    """
+    adapter = await _designing_adapter(session, connector_id, current_user, resources)
+    return await _shape_change(lambda: adapter.table_design_options(request.node_id))
+
+
+@router.post("/{connector_id}/table-design/plan", response_model=TablePlan)
+async def plan_table(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    connector_id: uuid.UUID,
+    request: TablePlanRequest,
+) -> Any:
+    """
+    The statements a definition would become, composed and not executed.
+
+    Nothing is created and nothing is rolled back: this is a plan, not D46's
+    rehearsal, because DDL that runs and is undone still takes locks. It needs
+    the level the creation needs — the answer names objects of the schema, and
+    a plan is how somebody decides whether to go ahead.
+
+    A definition with problems is an answer rather than a refusal: which object
+    is at fault is the useful part, and the editor shows every one of them at
+    once.
+    """
+    adapter = await _designing_adapter(session, connector_id, current_user, resources)
+    return await _shape_change(lambda: adapter.plan_table(request))
 
 
 async def _constraining_adapter(

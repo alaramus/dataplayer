@@ -53,6 +53,11 @@ from app.adapters.relation_changes import (
 )
 from app.adapters.search import NodeSearchRequest, NodeSearchResult
 from app.adapters.summary import NodeSummary
+from app.adapters.table_design import (
+    TableDesignOptions,
+    TablePlan,
+    TablePlanRequest,
+)
 from app.adapters.update import (
     DeleteRowsRequest,
     DeleteRowsResult,
@@ -538,6 +543,36 @@ class SupportsColumnType(Protocol):
         two types with no conversion between them, and for a refusal the
         source can name — a default that cannot be cast, a view built on the
         column. Raises AdapterError for source failures.
+        """
+        ...
+
+
+@runtime_checkable
+class SupportsTableDesign(Protocol):
+    """A source that can be asked what a whole new table would become.
+
+    Two questions and no third: creating is done through the `create_table`
+    action, so access, refusals, cache invalidation and which branch of the
+    catalog to re-read stay where every other change keeps them (D9). A
+    capability that also created would be a second door into the same DDL.
+    """
+
+    async def table_design_options(self, node_id: str) -> TableDesignOptions:
+        """What this destination will accept a designed table with.
+
+        Answers rather than raises when it will accept none, the way
+        `new_relation_options` does. Raises NodeNotFound for an id that names
+        nothing and AdapterError for source failures.
+        """
+        ...
+
+    async def plan_table(self, request: TablePlanRequest) -> TablePlan:
+        """The statements this definition would become, without running them.
+
+        Answers rather than raises when the definition is wrong: which object
+        is at fault and why is the useful part, and an editor showing it needs
+        every problem rather than the first. Raises ValueError when the request
+        is wrong about the destination itself.
         """
         ...
 

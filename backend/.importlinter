@@ -67,6 +67,8 @@ source_modules =
     app.adapters.actions
     app.adapters.resources
     app.adapters.file
+    app.adapters.table_design
+    app.adapters.expressions
 forbidden_modules =
     psycopg
     psycopg_pool

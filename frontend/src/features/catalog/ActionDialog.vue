@@ -24,6 +24,7 @@ import type {
 } from "@/features/catalog/actions"
 import FileToRelationDialog from "@/features/catalog/FileToRelationDialog.vue"
 import ModelCodeDialog from "@/features/catalog/ModelCodeDialog.vue"
+import TableDesigner from "@/features/tableDesign/TableDesigner.vue"
 import { formatSize } from "@/features/catalog/nodes"
 import { fieldErrorsFrom, messageOf, statusOf } from "@/shared/api/errors"
 import SchemaFields from "@/shared/SchemaForm/SchemaFields.vue"
@@ -455,6 +456,36 @@ async function runWorkflow(value: {
     failure.value = messageOf(cause, "The table could not be created")
   }
 }
+
+/**
+ * A workflow that carries no file: one filled answer, one node.
+ *
+ * Beside `runWorkflow` rather than folded into it with an optional file: the
+ * two differ in what the request is, and a single function taking a file that
+ * is sometimes absent reads as though the difference were incidental.
+ */
+async function runDesign(value: {
+  nodeId: string
+  params: Record<string, unknown>
+}) {
+  const command = props.command
+  if (command === null) return
+  failure.value = ""
+  try {
+    const outcome = await runAction.mutateAsync({
+      connectorId: props.connectorId,
+      name: command.name,
+      nodeIds: [value.nodeId],
+      params: value.params,
+      label: command.label,
+    })
+    toast.success(summarize(outcome, command.label))
+    emit("done", outcome)
+    close()
+  } catch (cause) {
+    failure.value = messageOf(cause, "The table could not be created")
+  }
+}
 </script>
 
 <template>
@@ -468,6 +499,17 @@ async function runWorkflow(value: {
     :label="nodeLabel"
     :choices="dialectChoices"
     :chosen="String(command?.defaults.dialect ?? '')"
+    @update:model-value="close"
+  />
+  <TableDesigner
+    v-else-if="command?.workflow === 'table-designer'"
+    :model-value="open"
+    :connector-id="connectorId"
+    :node-id="String(nodeIds[0] ?? '')"
+    :node-label="nodeLabel"
+    :running="runAction.isPending.value"
+    :error="failure"
+    @run="runDesign"
     @update:model-value="close"
   />
   <FileToRelationDialog
