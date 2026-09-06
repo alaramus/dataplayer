@@ -11,20 +11,14 @@ import { AppBanner, AppButton, AppCopyButton, AppSpinner, useToast } from "@/sha
 import { WindowDialog } from "@/shared/windows"
 
 /**
- * How to reach a service from outside this application.
+ * How to reach a service from outside this application, which is not the
+ * address the connection beside it holds.
  *
- * The service is used through the connection beside it, and this application
- * never needs any of this. It is here because somebody who starts a
- * PostgreSQL usually wants to point their own tools at it too, and the
- * address it answers on for them is not the one the connection holds.
- *
- * The same window in two situations, and the password is what separates them.
- * Opened by itself the moment a service becomes usable, it hands over the
- * password once — that is when a password nobody was asked for is worth
- * saying out loud, and the warning above it is the whole reason it is said
- * before anything else. Opened later from the services window, it shows the
- * address and the names and no secret at all, which is what makes that one
- * askable as often as anybody likes.
+ * One window in two situations, separated by the password. Opened by itself
+ * the moment a service becomes usable, it hands the password over once, which
+ * is what the warning above it is for. Opened later from the services window
+ * it shows the address and the names and no secret, which is what makes that
+ * one askable as often as anybody likes.
  */
 const props = defineProps<{
   service: { id: string; name: string } | null

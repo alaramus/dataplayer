@@ -23,17 +23,13 @@ import {
 } from "@/shared/ui"
 
 /**
- * One row, read downwards.
+ * One row, read downwards: every column on screen at once with what the source
+ * says about each beside the value.
  *
  * The same page the grid is reading, asked for by the same key, so opening a
- * row costs nothing and the two stay in step. What it adds is the shape the
- * old application's window had and the grid cannot have: every column of one
- * row on screen at once, with what the source says about each — its type, the
- * keys it takes part in — beside the value.
- *
- * Which row is a position in a page rather than a handle: a handle exists only
- * where the source can version a row (D25), and walking to the next row is a
- * question about the page rather than about identity.
+ * row costs no request and the two cannot disagree. Which row is a position in
+ * that page and not a handle — a handle exists only where the source can
+ * version a row (D25), and walking to the next is a question about the page.
  */
 const props = defineProps<{
   connectorId: string

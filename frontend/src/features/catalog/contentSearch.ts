@@ -2,12 +2,9 @@
  * Whether to warn before reading every file below a folder.
  *
  * Searching inside files is minutes where searching names is milliseconds, so
- * the first one asks. It is a question worth asking once: somebody who does it
- * often knows what it costs, and a dialog in front of every search would be
- * the kind of confirmation people learn to click through without reading.
- *
- * The answer is this browser's, not the server's: it is about a habit rather
- * than about the data, and nothing else needs to know it.
+ * the first one asks — once, because a dialog in front of every search is one
+ * people learn to click through. The answer is this browser's: it is about a
+ * habit rather than about the data.
  */
 
 export const ASK_KEY = "dataplayer-content-search-ask"

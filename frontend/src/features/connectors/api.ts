@@ -73,15 +73,11 @@ export function connectorCacheWindowOf(
 /**
  * Whether an answer from this connection could ever be older than the read.
  *
- * Two ways for it to be no, and a screen has to respect both: a source that
- * never opted into caching keeps nothing whatever its owner typed, and an
- * owner who chose to keep nothing means it. Where the answer is no, the badge
- * saying how old the data is has nothing to report and is not drawn — a
- * permanent "Live" beside a source that is always live is noise that reads
- * like a promise about a cache there is not (D105).
- *
- * Unknown counts as no. The lists arrive a moment after the panel, and a badge
- * that appears is easier to read than one that appears and goes away.
+ * Two ways to be no, and both count: a source that never opted into caching
+ * keeps nothing whatever its owner typed, and an owner who chose to keep
+ * nothing meant it. Unknown counts as no as well — the lists arrive a moment
+ * after the panel, and a mark that appears is easier to read than one that
+ * appears and goes away (D105).
  */
 export function connectionKeepsAnswers(
   connectors: ConnectorsPublic | undefined,

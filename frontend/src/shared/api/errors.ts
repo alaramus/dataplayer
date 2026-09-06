@@ -3,17 +3,15 @@ import { AxiosError } from "axios"
 import type { ServerError } from "@/shared/SchemaForm/useSchemaForm"
 
 /**
- * What a failed request says, in the two shapes the backend answers with.
+ * What a failed request says, in the three shapes the backend answers with:
+ * an adapter failure as `detail: {kind, message}`, a validation failure as
+ * `detail: [{loc, msg, type}]`, and a refusal a route wrote itself as
+ * `detail: "a sentence"`.
  *
- * An adapter failure arrives as `detail: {kind, message}`; a validation
- * failure arrives as `detail: [{loc, msg, type}]`; a refusal a route wrote out
- * itself arrives as `detail: "a sentence"`. Every screen used to carry its own
- * copy of this, and they had drifted: only the grid understood the second
- * shape. The third was read as unusable until the console started refusing
- * runs, where the whole point of the refusal is the reason it gives.
- *
- * The fallback is the caller's, because what could not be done differs by
- * screen: reading rows is not saving a connection.
+ * Every screen used to carry its own copy and they had drifted: only the grid
+ * understood the second, and the third read as unusable until the console
+ * started refusing runs, where the reason is the whole point. The fallback
+ * stays the caller's, because reading rows is not saving a connection.
  */
 export function messageOf(cause: unknown, fallback: string): string {
   if (!(cause instanceof AxiosError)) return fallback

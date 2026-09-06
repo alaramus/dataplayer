@@ -16,19 +16,13 @@ import { workspaceActionsKey } from "./state"
 import type { WorkspaceActions } from "./state"
 
 /**
- * The row of commands a panel keeps about itself (D112).
+ * The row of commands a panel keeps about itself (D112): the way back to its
+ * node in a catalog, and the re-read. The way out of a window is not here — it
+ * is about the frame, and stands in the window's own bar.
  *
- * Two things the chrome around a panel used to draw: the way back to the node
- * in a catalog, which was a click on the icon of the tab, and the re-read,
- * which was a second button on the tab. The way out of a window is not here —
- * it is about the frame rather than about the rows, and stands in the window's
- * own bar with minimize and close.
- *
- * The re-read also absorbed the freshness badge, which stood beside it as a
- * control of its own and re-read the source when pressed, so the row held the
- * same command twice. It is a mark now — "Live", or a clock — riding above the
- * reload in room of its own, and the age it used to spell out is in what is
- * said on hovering (D105).
+ * The re-read absorbed the freshness badge, which stood beside it as a control
+ * of its own and re-read the source when pressed. It is a mark now, "Live" or
+ * a clock, riding above the reload; the age is in what is said on hover (D105).
  */
 
 const REVEAL = { connectorId: "c1", nodeId: "public.orders", label: "orders" }

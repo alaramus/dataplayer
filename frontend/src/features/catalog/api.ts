@@ -185,17 +185,14 @@ export const actionsKey = (connectorId: string, nodeIds: string[] | null) =>
   ["actions", connectorId, nodeIds] as const
 
 /**
- * Everything this source can do, and which of it these nodes admit.
+ * Everything this source can do, and which of it these nodes admit. Asked of
+ * the server: whether a node may be renamed depends on its state as well as
+ * its kind, and whether an action applies to many at once only the action
+ * knows. No actions at all answers 501, which is settled rather than a failure
+ * to retry.
  *
- * Asked of the server rather than worked out here: whether a node may be
- * renamed depends on its state as well as its kind, and what applies to a set
- * is what applies to all of it — including whether an action can be applied to
- * many at once, which only the action knows. A source with no actions at all
- * answers 501, which is a settled answer rather than a failure to retry.
- *
- * `enabled` is for the question that has no subject yet: nothing is ticked, so
- * there is nothing to ask about, and asking about the root instead would
- * answer a different question.
+ * `enabled` is for the question with no subject yet: nothing is ticked, and
+ * asking about the root would answer a different question.
  */
 export function useNodeActions(
   connectorId: Ref<string | null>,
@@ -271,16 +268,12 @@ async function performOne(
 }
 
 /**
- * Performing an action over everything that was ticked.
+ * Performing an action over everything that was ticked. Two transports, one
+ * mutation, chosen by whether a file was picked.
  *
- * Two transports, one mutation: which one is used follows from whether a file
- * was chosen, and the action itself declared that in the listing. A set is
- * done one at a time and a refusal does not stop the rest — deleting four of
- * five files and saying which one survived beats stopping at the first.
- *
- * A set of files is the same statement about the other axis: one request per
- * node and file, so three files into one folder are three uploads and the
- * second being refused says nothing about the third.
+ * A set is done one at a time and a refusal does not stop the rest: deleting
+ * four of five and saying which survived beats stopping at the first. Files
+ * are the same statement on the other axis — one request per node and file.
  */
 export function useRunAction() {
   const queryClient = useQueryClient()

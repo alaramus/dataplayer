@@ -104,13 +104,11 @@ export function groupingChoices(groupings: Grouping[]): SchemaChoice[] {
 /**
  * The fields of a form, with a field that names a grouping made a choice.
  *
- * The schema cannot carry the list: the groupings belong to one connection and
- * the schema is declared by the adapter class. So the server says what the
- * field means and the client fills in what this connection has.
- *
- * Nothing is changed when there is nothing to choose from — a level that
- * offers no groupings, or one whose only groupings are the source's own. A
- * select with no options is a dead end, and the name can still be typed.
+ * The schema cannot carry the list: groupings belong to one connection and the
+ * schema is declared by the adapter class, so the server says what the field
+ * means and the client fills in what this connection has. Nothing is changed
+ * where there is nothing to choose from — a select with no options is a dead
+ * end, and the name can still be typed.
  */
 export function withGroupingChoices(
   fields: FieldSpec[],
@@ -132,17 +130,10 @@ export interface MenuCommand extends ActionCommand {
 /**
  * The menu of what can be done here, in the order the server listed it.
  *
- * Every action the caller is allowed to know about stays visible. What decides
- * whether each line is enabled is the matching answer of the server — `level`
- * for the level itself, `here` for the places being looked at and `picked` for
- * an explicit node selection. Which answer a line reads follows from
- * `acts_on`, never from its name. Standing in a folder is not choosing it.
- *
- * `places` is where something new would be made. A source that offers
- * groupings shows the contents of the ones that are ticked, and those are the
- * places — a table is made in a schema, and a schema is a grouping rather than
- * a folder one walks into. Where there are none, the place is the level
- * itself, which is what a file source has.
+ * Whether a line is enabled follows from `acts_on` and never from its name:
+ * `level` for the level, `here` for the places being looked at, `picked` for
+ * an explicit selection. Standing in a folder is not choosing it. `places` is
+ * where something new would be made — the ticked groupings, or the level.
  */
 export function toMenu(
   level: ActionInfo[],
@@ -210,18 +201,12 @@ export function nodeSetOf(nodeIds: (string | null)[]): string[] | null {
 }
 
 /**
- * The verbs the client owns, in the same menu as the source's own.
+ * The verbs the client owns, in the same menu as the source's own; none of
+ * them reaches the server as a command (D74, D75, D97). One menu rather than a
+ * row of icons that grows with every client verb.
  *
- * Four of them, and none reaches the server as a command: Copy and Cut
- * remember a selection here (D74), Details opens what the source says one
- * node is (D75), and Relationships draws the nodes in view as a diagram
- * (D97). They belong in the one menu rather than beside it — somebody looking
- * for what can be done with a ticked row looks in one place, and a row of
- * icons that grows with every client verb is the alternative.
- *
- * The names are prefixed because one menu now carries two vocabularies. A
- * source names its actions with identifiers, so a colon cannot collide with
- * one, and `pick` can tell whose command it was handed without a lookup.
+ * The names are prefixed because one menu carries two vocabularies: a source
+ * names its actions with identifiers, so a colon cannot collide.
  */
 export const CLIENT_COMMANDS = ["details", "relationships", "copy", "cut"] as const
 export type ClientCommand = (typeof CLIENT_COMMANDS)[number]

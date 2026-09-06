@@ -788,13 +788,10 @@ watch(
  * The shared view this tab was opened by, applied once the source has named
  * its columns.
  *
- * Both halves of a link land here — the query and the column layout — and both
- * go through `reconcileGridState`, which is what a tab restored from storage
- * uses. So a column the relation no longer has is dropped by one function,
- * in one place, and what went is said rather than silently missing (D60).
- *
- * Waiting for the columns rather than applying at once: a filter naming a
- * column that has gone would otherwise be sent to the source and refused.
+ * Both halves of a link go through `reconcileGridState`, which a tab restored
+ * from storage also uses, so a column the relation no longer has is dropped in
+ * one place and said rather than silently missing (D60). Waiting for the
+ * columns first: a filter naming a gone column would be sent and refused.
  */
 let appliedShare: RowsView | null = null
 let restoredKey = ""

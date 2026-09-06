@@ -29,16 +29,9 @@ import { WindowDialog } from "@/shared/windows"
 import type { TableColumns } from "@/shared/ui"
 
 /**
- * The accounts of this installation.
- *
- * An administrator's screen and nothing more: it creates people, switches them
- * off and removes them. What any of them may reach is decided on the
- * connection itself, by whoever owns it — see D33 and D34.
- *
- * One section of the administration page rather than a page of its own: it is
- * the first thing an installation needs administering and not the last, and a
- * screen built around exactly one of them would have to be taken apart to gain
- * a second.
+ * The accounts of this installation: creating people, switching them off and
+ * removing them. What any of them may reach is decided on the connection
+ * itself, by whoever owns it (D33, D34).
  */
 const toast = useToast()
 const confirm = useConfirm()

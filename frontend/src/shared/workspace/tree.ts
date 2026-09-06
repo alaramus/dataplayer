@@ -241,13 +241,11 @@ export function setCollapsed(root: LayoutNode, leafId: NodeId, collapsed: boolea
  * Move the border between `children[before]` and `children[after]`.
  *
  * Two indices rather than one and its successor: a section with nothing to
- * show is off the screen, and the two sections a user sees on either side of a
- * border are then not neighbours in the tree. Everything between them keeps
- * the width it had, which is what brings it back unchanged. See P4.
+ * show is off the screen, so the two the user sees either side of a border are
+ * not neighbours in the tree, and everything between them keeps its width.
  *
- * Sizes are percentages and the limit is pixels, so the caller converts: the
- * component that owns the element knows how wide it is, and this function
- * knows nothing about the screen.
+ * Sizes are percentages and the limit is pixels, so the caller converts — this
+ * function knows nothing about the screen.
  */
 export function resizeSplit(
   root: LayoutNode,

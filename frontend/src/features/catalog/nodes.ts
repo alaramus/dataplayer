@@ -215,16 +215,10 @@ export function formatSize(bytes: number): string {
 }
 
 /**
- * What the catalog does with one node.
- *
- * The kind decides it, with one exception the kind cannot express: a file that
- * says it has children is a place one walks into, because an archive holds
- * files and each of them is a node of its own (D53).
- *
- * Unless it also says how it opens. A workbook holds sheets *and* opens as the
- * first of them, and a spreadsheet somebody has to walk into before they can
- * see a single figure is a spreadsheet behind a filing cabinet. What it says
- * it opens as wins; walking in is what is left for a node that says nothing.
+ * What the catalog does with one node. The kind decides, with one exception it
+ * cannot express: a file that says it has children is walked into, because an
+ * archive holds files (D53) — unless it also says how it opens, and then that
+ * wins, or a workbook would be a spreadsheet behind a filing cabinet.
  */
 export function roleOf(node: CatalogNode): NodeRole {
   const role = ROLES[node.kind]

@@ -2,20 +2,13 @@ import { defineStore } from "pinia"
 import { ref } from "vue"
 
 /**
- * How each connection answered the last time it was checked.
+ * How each connection answered the last time it was checked. Pinia and not
+ * vue-query (D6): the server keeps this only while somebody is watching and
+ * pushes it over the socket, so it arrives unasked.
  *
- * Client state, so Pinia and not vue-query (D6). Not because the server has no
- * such record — while the screen is open it keeps one, and pushes it over the
- * socket — but because vue-query is for state that is fetched and invalidated,
- * and this arrives unasked. What the server holds it holds only for as long as
- * somebody is watching, and this is the mirror of that.
- *
- * Whether a connection is switched off is deliberately not here: that is a
- * field of the connector and travels with the list. One fact in two places
- * drifts apart.
- *
- * Deliberately not persisted: a check tells you about a server a minute ago,
- * and a dot restored from yesterday would claim more than it knows.
+ * Whether a connection is switched off is deliberately not here — that field
+ * travels with the list, and one fact in two places drifts. Not persisted: a
+ * dot restored from yesterday would claim more than it knows.
  */
 export type CheckState = "unknown" | "ok" | "failed"
 

@@ -658,13 +658,10 @@ describe("the icons a catalog row draws", () => {
    * Every name must exist in the Material Icons set the application bundles.
    *
    * A name that only exists in the newer Material Symbols is not a missing
-   * picture: `q-icon` falls back to drawing the literal word, which overflows
-   * its 18px box, covers the tick box beside it and makes the row impossible
-   * to tick. That is how `monitoring` was found, and only a browser noticed —
-   * which is what this test is here to change.
-   *
-   * The bundled list keys each icon by its camel-cased name, so `grid_on` is
-   * `matGridOn`.
+   * picture: `q-icon` draws the literal word, which overflows its 18px box and
+   * covers the tick box beside it. That is how `monitoring` was found, and
+   * only a browser noticed. The bundled list keys each icon camel-cased, so
+   * `grid_on` is `matGridOn`.
    */
   it("are all in the bundled font", () => {
     const bundled: unknown = bundledIcons

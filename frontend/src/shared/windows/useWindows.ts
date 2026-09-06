@@ -13,17 +13,14 @@ import {
 import type { Rect, ResizeEdge, Size } from "./geometry"
 
 /**
- * Floating windows over the application.
+ * Floating windows over the application. The engine knows nothing about what a
+ * window holds — an id, a size, a look and a component — the same split that
+ * keeps `shared/workspace` free of any knowledge of panels.
  *
- * The engine knows nothing about what a window holds: a feature hands it an
- * id, a size, a look and a component, the same split that keeps
- * `shared/workspace` free of any knowledge of panels.
- *
- * Windows are not modal, and that is the requirement rather than a detail:
- * one connection is read while another is filled in beside it. What
- * modality would have given — you cannot walk away from an unfinished form —
- * is replaced by asking before a window with unsaved changes is closed, which
- * is the feature's business and not the engine's.
+ * Windows are not modal, and that is the requirement: one connection is read
+ * while another is filled in beside it. What modality would have given is
+ * replaced by asking before a window with unsaved changes is closed, which is
+ * the feature's business and not the engine's.
  */
 
 export interface WindowLook {

@@ -24,19 +24,12 @@ import { AppIconButton, AppMenu, useToast } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
 
 /**
- * What can be done, in one menu whose shape stays stable.
+ * What can be done, in one menu whose shape stays stable (D56). The server
+ * decides which lines are live; nothing is renamed or removed because of where
+ * the user happens to be, since standing in a folder is not choosing it.
  *
- * The server decides which actions are live, and the client disables the rest:
- * what changes a node waits for a ticked row or an explicitly selected
- * grouping; what changes children belongs to the shown place; and what changes
- * the level itself ignores the grouping filter. Standing in a folder is not
- * choosing it, so nothing is renamed or removed because of where the user
- * happens to be. See D56.
- *
- * The client's own verbs are lines of the same menu rather than icons beside
- * it, so a menu appears when the source has actions, when it describes its
- * nodes, or both; a source with neither shows nothing rather than an empty
- * menu.
+ * The client's own verbs are lines of the same menu, so a source with neither
+ * actions nor described nodes shows nothing rather than an empty menu.
  */
 const props = defineProps<{
   connectorId: string

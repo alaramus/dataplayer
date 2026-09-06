@@ -111,15 +111,11 @@ export function copyTitle(title: string | null): string {
  * A console nobody has asked to keep, held in this browser tab and nowhere
  * else.
  *
- * The library is what a person decided to keep, so a console starts outside
- * it: opening one writes nothing to the server, and "Remember" is what makes
- * a document of it. Until then the text has to live somewhere between the tab
- * being opened and the page being reloaded, and `sessionStorage` is the only
+ * Opening one writes nothing to the server; "Remember" is what makes a
+ * document of it. Until then the text lives in `sessionStorage`, the only
  * place D63 allows — it dies with the tab, so this never becomes a durable
- * plaintext library of everybody's SQL.
- *
- * Written under the panel's own draft id rather than a document id: there is
- * no document yet, which is the whole point.
+ * plaintext library of everybody's SQL. Keyed by the panel's draft id, because
+ * there is no document yet.
  */
 const DRAFT_PREFIX = "dp.query.draft."
 

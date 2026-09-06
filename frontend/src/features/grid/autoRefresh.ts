@@ -1,18 +1,14 @@
 import { serverStorageKey } from "@/shared/servers/context"
 
 /**
- * A grid that re-reads itself, and how often.
+ * A grid that re-reads itself, and how often. Plain functions, so what is
+ * offered, what is remembered and when a tick is skipped are tested without a
+ * timer; the timer belongs to the component that owns the fetch.
  *
- * Everything here is a plain function so the parts worth arguing about — what
- * is offered, what is remembered, and when a tick must be skipped — can be
- * tested without a timer and without mounting a grid. The timer itself belongs
- * to the component that owns the fetch.
- *
- * The pause is the interesting half. Polling a relation while somebody is
- * typing into one of its cells would throw the typing away, and polling a tab
- * nobody is looking at spends a round trip per tab per interval. So a tick is
- * not "fetch now" but "fetch unless something says not to", and what says not
- * to is one list, in one place, that a tooltip can also read out.
+ * The pause is the interesting half: polling while somebody types into a cell
+ * would throw the typing away, and polling a tab nobody looks at spends a
+ * round trip per tab per interval. So a tick is "fetch unless something says
+ * not to", and what says not to is one list a tooltip can also read out.
  */
 
 import { z } from "zod"
@@ -105,17 +101,10 @@ function refreshKey(connectorId: string, nodeId: string): string {
 /**
  * What this relation was last left refreshing at, if anybody ever said.
  *
- * Remembered per relation, like the columns and the query beside it: a table
- * watched every five seconds yesterday is one somebody is watching.
- *
- * Three answers, not two. `undefined` is nobody has ever chosen for this
- * relation, and `null` is somebody chose Off — which have to be told apart
- * now that a source may suggest an interval of its own (D70). Collapsing
- * them would turn off into "no opinion" and put the suggestion back the next
- * time the tab was opened, which is a grid refusing to stay stopped.
- *
- * A stored value that is not an offered interval is discarded rather than
- * trusted, because the offered set is allowed to change.
+ * Three answers and not two: `undefined` is nobody ever chose, `null` is
+ * somebody chose Off. Collapsing them would put a source's suggested interval
+ * (D70) back the next time the tab was opened, which is a grid refusing to
+ * stay stopped. A stored value that is not an offered interval is discarded.
  */
 export function loadRefreshSeconds(
   connectorId: string,

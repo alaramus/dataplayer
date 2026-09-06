@@ -7,15 +7,12 @@ import { AppButton, AppInput, AppSelect } from "@/shared/ui"
 /**
  * Choosing what this console may do, and leaving read-only on purpose (D66).
  *
- * Every document opens read-only, and this is the only way out of it. Under
- * confirmation the name of the connection is typed — here as well as on the
- * server, which is where it is actually checked. Nothing about the choice is
- * remembered: a reload opens read-only again.
+ * Every document opens read-only and this is the only way out. The name of the
+ * connection is typed here and checked on the server, which is where it counts.
+ * Nothing is remembered: a reload opens read-only again.
  *
- * Which modes there are to choose between is the source's answer, not this
- * component's: a source that only reads — the file source runs SQL over files
- * and changes none of them (D77) — offers one mode, and one option is not a
- * choice, so nothing is drawn at all.
+ * Which modes exist is the source's answer — a source that only reads (D77)
+ * offers one, and one option is not a choice, so nothing is drawn.
  */
 
 type Mode = "read" | "auto_commit" | "manual"

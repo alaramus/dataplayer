@@ -8,15 +8,12 @@ import { AppIconButton } from "@/shared/ui"
 import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
 /**
- * A connection, as one thing to press: the logo of its source type with the
- * state dot standing on it.
+ * A connection as one thing to press: the logo of its source type with the
+ * state dot on it.
  *
- * One component because both columns show it — the list and the strip a
- * collapsed column leaves behind — and they have to be the same thing: pushing
- * the column aside is meant to take away the name and nothing else, which two
- * copies of this markup would not survive. What a press means is still the
- * caller's: in the list it opens the connection, in the strip it opens the
- * catalog.
+ * One component because both the list and the collapsed strip show it, and two
+ * copies of this markup would drift — pushing the column aside is meant to
+ * take away the name and nothing else. What a press means stays the caller's.
  *
  * The state is said in words here rather than on the dot, which has pointer
  * events off and could never be hovered.

@@ -11,17 +11,10 @@ import { AppBanner, AppEmptyState, AppSpinner, AppTree } from "@/shared/ui"
 import type { TreeLazyLoad } from "@/shared/ui"
 
 /**
- * A catalog opened where it stands, rather than walked one level at a time.
- *
- * For the sources that say their catalog is a tree (D91): a key space is
- * bounded and its shape is already in the names, so the whole of it is one
- * thing to open and close. Expanding a branch asks the server for that branch,
- * and nothing else about it is different — a leaf is opened in a tab, exactly
- * as it is in the list.
- *
- * Where the tree is rooted is decided outside it: the source's groupings are
- * chosen in the head of the panel, the same control a list uses for schemas,
- * and this is told which one to stand in.
+ * A catalog opened where it stands rather than walked a level at a time, for
+ * sources that say their catalog is a tree (D91): a key space is bounded and
+ * its shape is already in the names. Expanding a branch asks the server for
+ * that branch, and a leaf opens in a tab exactly as it does in the list.
  */
 const props = defineProps<{
   connectorId: string
@@ -94,17 +87,13 @@ watch(selected, (id) => {
 })
 
 /**
- * A click is on the whole row, wherever in it the pointer landed.
+ * A click is on the whole row, wherever in it the pointer landed. With a
+ * selection bound the tree selects on a click and does nothing else, which is
+ * why opening a branch is here: a name is a bigger target than the arrow
+ * beside it, and reaching for that arrow is what made this tree feel stiff.
  *
- * Selecting is the tree's own doing — with a selection bound it selects on a
- * click and does nothing else, which is why opening a branch is here. A leaf
- * opens in a tab, the way a click in the list does; a branch opens and closes,
- * because a name is a bigger target than the arrow beside it and reaching for
- * that arrow is the whole of what made this tree feel stiff.
- *
- * Nothing here touches the selection: a second answer to the same question
- * arriving a moment before the tree's own turned every click into a select
- * followed by an unselect.
+ * Nothing here touches the selection — a second answer arriving a moment
+ * before the tree's own turned every click into a select and an unselect.
  */
 function onClick(row: TreeRow) {
   if (row.node.role === "leaf") {

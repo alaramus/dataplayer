@@ -8,18 +8,12 @@ import { AppIconButton } from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 
 /**
- * The connections while their column is pushed aside.
+ * The connections while their column is pushed aside. The name goes, because
+ * at forty pixels it is one letter; a click opens the catalog rather than the
+ * window, which opens from the head of the catalog anyway.
  *
- * What survives the width is what a row is for: which source it is, and what
- * the last check said. The name goes, because at forty pixels it would be one
- * letter. A click opens the catalog — the same thing the row does — rather
- * than the window of the connection: a collapsed column is a way back into a
- * source, and the window can still be opened from the head of the catalog.
- *
- * Adding one survives the width too. A column pushed aside is the same
- * commands at a smaller size, not a smaller set of them — and the button
- * makes the same call the wide panel makes rather than its own copy of what
- * "new connection" means.
+ * Adding one survives the width too, and makes the same call the wide panel
+ * makes rather than its own copy of what "new connection" means.
  */
 const workspace = useWorkspaceActions()
 const connectors = useConnectors()

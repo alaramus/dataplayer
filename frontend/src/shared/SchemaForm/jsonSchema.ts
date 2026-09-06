@@ -132,12 +132,9 @@ export interface FieldSpec {
  *
  * `int | None` reaches the client as `anyOf: [{type: "integer", …}, {type:
  * "null"}]`, and the bounds go with the branch rather than staying beside it.
- * Folding the branch that is not null back into the outer property is what
- * makes an optional field an ordinary field with `required: false`, which is
- * what it is — and what the rest of this module already knows how to draw.
- *
- * Anything else with an `anyOf` is left alone and fails loudly below: a
- * genuine union of two value types is a form nobody has designed.
+ * Folding the non-null branch back in makes it an ordinary field with
+ * `required: false`, which is what the rest of this module knows how to draw.
+ * Anything else with an `anyOf` fails loudly below.
  */
 function flattened(property: JsonSchemaProperty): JsonSchemaProperty {
   const branches = property.anyOf

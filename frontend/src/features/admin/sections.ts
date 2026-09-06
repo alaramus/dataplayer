@@ -1,14 +1,7 @@
 /**
- * What administering this installation is made of.
- *
- * A list rather than a page, because there will be more than one of them: the
- * accounts are the first thing an administrator needs and not the last, and a
- * screen built around exactly one section is a screen that has to be taken
- * apart to gain a second.
- *
- * Nothing here knows what a section shows. The page maps an id onto a
- * component; this decides only what is offered, in what order, and which one
- * an address names.
+ * A list rather than a page, because there will be more than one section.
+ * Nothing here knows what a section shows: the page maps an id onto a
+ * component, and this decides only what is offered and in what order.
  */
 
 export interface AdminSection {

@@ -3,18 +3,13 @@ import { describe, expect, it } from "vitest"
 /**
  * A kit component that takes its words in a slot must be given a slot.
  *
- * Vue lets an unknown attribute fall through to the rendered element, and
- * `vue-tsc` does not object, so `<AppBanner text="..." />` compiles, renders
- * and shows an empty coloured bar with an icon in it. That happened: the
- * window that shows a service's password warned about nothing at all, and it
- * took a screenshot to notice.
+ * Vue lets an unknown attribute fall through and `vue-tsc` does not object, so
+ * `<AppBanner text="..." />` compiles and renders an empty coloured bar. That
+ * happened: the window showing a service's password warned about nothing, and
+ * it took a screenshot to notice.
  *
- * The kit is deliberately not uniform here — `AppEmptyState` takes `text`
- * because it has one line and no rich content, `AppBanner` takes a slot
- * because banners carry sentences and links — and this is what stops the
- * difference being a trap.
- *
- * Reads `.vue` files, which is where every use of the kit is.
+ * The kit is deliberately not uniform — `AppEmptyState` takes `text`,
+ * `AppBanner` takes a slot — and this is what stops that being a trap.
  */
 const SOURCES = import.meta.glob("/src/**/*.vue", {
   query: "?raw",

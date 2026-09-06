@@ -191,21 +191,11 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
 /**
  * Which groupings are on before the user has chosen.
  *
- * What the source named, if it named one: a Redis connection is written with
- * a database number in it, and opening on whichever database happens to be
- * listed first would throw that away. Nothing else can answer this — the
- * number lives in the connection, and only the source has read it.
- *
- * Otherwise all of the real ones while there are few, and the first while
- * there are many. A database with two or three schemas is one where a person
- * wants to see what is in it — a server this application started has `public`
- * and the demonstration schema, and showing only the empty one of the two is
- * showing nothing — while a database with forty is one where opening every
- * schema at once is a page nobody asked for.
- *
- * System groupings stay off either way: `pg_catalog` is a real schema, and
- * hiding it is not the same as deciding for the user, because they can tick
- * it.
+ * What the source named, if it named one: a Redis connection is written with a
+ * database number in it, and only the source has read it. Otherwise all the
+ * real ones while there are few and the first while there are many — three
+ * schemas is a database somebody wants to see into, forty is a page nobody
+ * asked for. System groupings stay off, and can be ticked.
  */
   function defaultGroups(offered: ListNode[]): string[] {
     const named = offered.filter((group) => group.preferred)

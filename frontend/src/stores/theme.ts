@@ -5,17 +5,14 @@ import { ref } from "vue"
 export const THEME_KEY = "dataplayer-theme"
 
 /**
- * Light or dark, and where that is decided.
+ * Light or dark. Pinia, because the server knows nothing about it (D6). Two
+ * states and not three: "as the system says" is what answers before anything
+ * is chosen, and offering it back would be a state whose only job is to return
+ * to the default.
  *
- * Pinia, because the server knows nothing about it — D6. Two states and not
- * three: "as the system says" is what answers before anything has been
- * chosen, and a menu offering it back would be a third state whose only job
- * is to return to the default.
- *
- * This is the one place that names Quasar's Dark plugin. It puts `body--dark`
- * on the document, and `shared/ui/theme.css` hangs every colour of our own
- * off the same class — so the components of the kit and the colours the
- * screens draw themselves with turn over on one event rather than two.
+ * The one place that names Quasar's Dark plugin. It puts `body--dark` on the
+ * document and `shared/ui/theme.css` hangs every colour of ours off the same
+ * class, so the kit and the screens turn over on one event rather than two.
  */
 
 /** What the browser was told to prefer, asked only when nothing was chosen. */

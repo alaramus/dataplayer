@@ -7,14 +7,10 @@ import { AppBanner, AppButton } from "@/shared/ui"
 /**
  * What an open transaction has done, and the two ways it ends (D66).
  *
- * Also the commit preview: what is listed here — the connection, how long it
- * has been open, what it changed and where — is what the server would list,
- * because it is the same answer. A screen that summarised it a second way
- * could disagree with the first.
- *
- * The countdown is the promise the lease makes: five minutes idle and the
- * server rolls this back, so the last minute is said out loud rather than
- * happening quietly.
+ * The commit preview lists what the server would list, because it is the same
+ * answer: a screen summarising it a second way could disagree. The countdown
+ * is the lease — five minutes idle and the server rolls this back, so the last
+ * minute is said out loud rather than happening quietly.
  */
 
 const props = defineProps<{ transaction: TransactionPublic; busy: boolean }>()

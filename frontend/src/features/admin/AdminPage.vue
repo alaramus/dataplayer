@@ -8,16 +8,12 @@ import { useCurrentUser } from "@/shared/auth/currentUser"
 import { AppButton, AppEmptyState, AppLayout, AppPageHeader } from "@/shared/ui"
 
 /**
- * Administering this installation.
+ * Administering this installation: a list of sections beside what one of them
+ * shows. There is one section today, and what comes next arrives as an entry
+ * in `sections.ts` rather than as a rearrangement of this screen.
  *
- * A list of sections beside what one of them shows. There is one section today
- * and the shape says so honestly: accounts are where administering an
- * installation starts, and what comes next — retention, service templates,
- * whatever the server grows — arrives as an entry in `sections.ts` and a line
- * in the table below rather than as a rearrangement of this screen.
- *
- * The address names the section, so a link into one of them is a link, and the
- * back button walks between them.
+ * The address names the section, so a link into one is a link and the back
+ * button walks between them.
  */
 const route = useRoute()
 const router = useRouter()

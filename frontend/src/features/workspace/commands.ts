@@ -1,18 +1,12 @@
 /**
  * The commands that belong to a connection rather than to anything on screen.
  *
- * Most buttons in this application hang off the thing they act on: a table's
- * commands are in its grid, a node's are in the catalog's menu. A few have no
- * such thing. Queries are the first of them — a console is written against a
- * connection and belongs to a person, so there is no node whose toolbar it
- * could live in, and it ended up beside the plus in the connections column
- * where nothing else of its kind would fit.
- *
- * The bar at the foot of the screen is where those go. Its rule is one
- * sentence: a command is offered while a connection is being read and that
- * connection can do the thing. Everything here is a plain function, so the
- * rule can be read and tested in one place rather than inferred from a row of
- * `v-if`s.
+ * A console is written against a connection and belongs to a person, so there
+ * is no node whose toolbar it could live in; it used to be squeezed in beside
+ * the plus in the connections column. The bar at the foot of the screen is
+ * where those go, under one rule: offered while a connection is being read and
+ * that connection can do the thing. Plain functions, so the rule is tested in
+ * one place rather than inferred from a row of `v-if`s.
  */
 
 /** What a connection has answered about one capability, including "not yet". */
@@ -108,16 +102,11 @@ function offered(
 }
 
 /**
- * The one command in the bar that is not about a connection.
- *
- * What this server is running belongs to the person rather than to whatever
- * is open, so it sits apart from the others. It used to be a list above the
- * connections, in a column a fifth of the screen wide that is also where a
- * hundred and fifty connections go; a service is looked at when something is
- * being done to it and not otherwise, so it is a window now.
+ * The one command in the bar that is not about a connection: what this server
+ * is running belongs to the person rather than to whatever is open.
  *
  * The button stays in place whether or not there is anything to open, for the
- * reason the rest of the bar does: a bar that changes shape as the user walks
+ * reason the rest of the bar does — a bar that changes shape as the user walks
  * about is a bar they have to read every time.
  */
 export interface ServicesState {

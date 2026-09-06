@@ -1,13 +1,10 @@
 /**
  * What the catalog is holding, waiting to be put somewhere else.
  *
- * Copy and Cut change nothing: they remember a selection and a verb. The move
- * itself is one action of the source — the client never learns what copying a
- * file means, only that this source offers somewhere to put what is held.
- *
- * Module-level rather than in a store, like the share intent beside it: this
- * is one small piece of state with one reader, and Pinia is for what a screen
- * shares with another screen.
+ * Copy and Cut change nothing: they remember a selection and a verb, and the
+ * move itself is one action of the source — the client never learns what
+ * copying a file means. Module-level rather than a store: one small piece of
+ * state with one reader, and Pinia is for what one screen shares with another.
  */
 
 import { computed, ref } from "vue"

@@ -4,13 +4,10 @@ import type { Ref } from "vue"
 /**
  * A mark that takes itself off after a few seconds.
  *
- * Pointing at a row says "here it is". Held indefinitely it stops saying that
- * and starts reading as a state of the row — a second kind of selection beside
- * the tick boxes, which mean something else. A few seconds is enough for the
- * eye to catch it.
- *
- * A composable of its own so the timing can be tested with a fake clock and
- * without mounting anything.
+ * Held indefinitely it stops saying "here it is" and starts reading as a state
+ * of the row — a second kind of selection beside the tick boxes, which mean
+ * something else. A composable of its own, so the timing is tested with a fake
+ * clock and without mounting anything.
  */
 export interface FadingMark<T> {
   value: Readonly<Ref<T | null>>

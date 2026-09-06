@@ -7,17 +7,12 @@ import { badgeColor } from "@/shared/ui"
 import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
 /**
- * What state a connection is in, as one dot.
- *
- * A component of its own because two places show it — the list and the strip
- * a collapsed column leaves behind — and a second copy of the table below is a
- * second thing to keep in step.
+ * What state a connection is in, as one dot. Its own component because the
+ * list and the collapsed strip both show it.
  *
  * The words that go with the tone are the icon's business: this dot is drawn
  * over the icon with pointer events off, so a tooltip of its own would never
- * be hovered. Both read the same rule from `connectorState.ts`.
- *
- * Nothing checked has no tone of its own: it is an absence, not a warning.
+ * be hovered. Nothing checked has no tone — that is an absence, not a warning.
  */
 const props = withDefaults(
   defineProps<{ connectorId: string; name: string; enabled?: boolean }>(),

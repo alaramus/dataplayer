@@ -499,23 +499,15 @@ function baseLookOf(panel: Panel): PanelLook {
 }
 
 /**
- * One bound component per panel, kept.
+ * One bound component per panel, kept. Three traps, each a bug once:
  *
- * The engine asks for the component of the active panel on every render, and
- * Vue tells two components apart by identity: a wrapper built afresh each time
- * is a different type each time, so the panel would be torn down and mounted
- * again on every render of the section — reloading the catalog and losing the
- * page the grid was on.
- *
- * Kept under the key the workspace hands out and not under the panel's id: an
- * id is renamed when a console is kept and becomes a document, and a rename
- * that rebuilt the panel would throw away the results in it. The engine writes
- * a rename into the panel object itself, so the closure below goes on reading
- * the panel it was given and draws it as it is now.
- *
- * A component and not a render function: a functional component has no
- * instance, so <KeepAlive> in the workspace would have nothing to keep and a tab
- * switched away from would come back reloaded.
+ * - Vue tells components apart by identity, so a wrapper built afresh is a new
+ *   type every render and the panel is remounted — reloading the catalog and
+ *   losing the page the grid was on.
+ * - Keyed by the workspace's key and not the panel's id, because an id is
+ *   renamed when a console becomes a document.
+ * - A component and not a render function: a functional component has no
+ *   instance, so <KeepAlive> would have nothing to keep.
  */
 const bound = new Map<string, Component>()
 

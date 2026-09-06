@@ -1,16 +1,13 @@
 import type { AdapterTypeInfo } from "@/client"
 
 /**
- * Finding a source type in the catalog, and grouping the ones there are.
+ * Finding a source type in the catalog. Plain functions, tested without
+ * mounting anything.
  *
- * Plain functions with no imports but a type, so they are tested without
- * mounting anything — the way `nodes.ts`, `rows.ts` and `tokens.ts` are.
- *
- * Lexical only. The old application downloaded an embedding model into the
- * browser to search 84 adapters by meaning; the words it searched over were
- * hand-written on the client, which is exactly what this catalog no longer
- * has. What is matched here comes from the server, so a type gains searchable
- * words by gaining a capability, not by anyone remembering to write one down.
+ * Lexical only, and what is matched comes from the server: a type gains
+ * searchable words by gaining a capability, not by anyone remembering to write
+ * one down. The old application shipped an embedding model to the browser to
+ * search 84 hand-written descriptions.
  */
 
 /** The sidebar row that filters nothing. Not a category, so not a Category. */

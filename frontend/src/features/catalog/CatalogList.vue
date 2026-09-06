@@ -284,17 +284,13 @@ const countLabel = computed(() => {
   font-size: 11px;
   color: var(--dp-text-muted);
 }
-/* One level, one set of columns.
-   The list is a grid and not a stack of rows that each lay themselves out,
-   so that what a row says stands under what the row above it says: names
-   under names, groupings under groupings, counts under counts. A row is
-   still a box of its own — it carries the hover, the tick and the mark that
-   points at it — so it takes the list's columns with `subgrid` rather than
-   dissolving into it.
+/* One level, one set of columns. The list is a grid so that what a row says
+   stands under what the row above it says; a row is still a box of its own,
+   carrying the hover and the tick, so it takes the columns with `subgrid`
+   rather than dissolving into the list.
 
-   Every column but the name may shrink to nothing: the name is what the row
-   is about, and a long path found by a search must not leave it 5ch wide by
-   taking the width it would like. */
+   Every column but the name may shrink to nothing: a long path found by a
+   search must not leave the name 5ch wide. */
 .catalog-list__rows {
   flex: 1;
   min-height: 0;

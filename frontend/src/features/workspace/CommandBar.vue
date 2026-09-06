@@ -17,18 +17,13 @@ import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppButton, AppTooltip } from "@/shared/ui"
 
 /**
- * The bar at the foot of the screen: what can be done to the open connection.
+ * The bar at the foot of the screen: what can be done to the open connection —
+ * a command that belongs to a connection and to no node in it, which until now
+ * was squeezed in beside the plus in the connections column.
  *
- * The room for it has been there since the workspace was built and has been
- * empty since. This is what it is for — a command that belongs to a connection
- * and to no node in it, which until now had to be squeezed in beside the plus
- * in the connections column.
- *
- * Which connection they are about is not written here. It is said twice
- * already, in the column of connections and on the tab of the catalog being
- * read, and a third copy at the foot of the screen only took the room the
- * commands themselves want; each tooltip names the connection, so the answer
- * is still a hover away where a button leaves any doubt (D69).
+ * Which connection is not written here. It is already said in the column of
+ * connections and on the tab of the catalog, and a third copy took the room
+ * the commands want; each tooltip names it where a button leaves doubt (D69).
  */
 const workspace = useWorkspaceActions()
 const connectors = useConnectors()
@@ -54,16 +49,9 @@ const supportsQueries = computed<Support>(() => {
 })
 
 /**
- * Whether this connection could be copied out, which is two questions.
- *
- * The machine is one: the server answers with a reason when it cannot — no
- * container runtime, or nowhere to write what a dump produces (D87). The
- * source is the other, and it is read where every other capability is read,
- * off the type: a driver that can name a program to dump it declares
- * `backup`, and a file source and a Redis server do not (D2).
- *
- * A button offered on a connection that would be refused is the thing this
- * exists to stop, so the refusal names whichever of the two said no.
+ * Whether this connection could be copied out, which is two questions: the
+ * machine answers with a reason when it cannot (D87), and the source declares
+ * `backup` off its type or does not (D2). The refusal names whichever said no.
  */
 const offer = useBackupOffer()
 const adapterTypes = useAdapterTypes()

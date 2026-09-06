@@ -13,16 +13,10 @@ import { AppBanner, AppButton, AppSpinner, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 /**
- * The model of what was selected, read before it is taken anywhere.
- *
- * A screen of its own rather than the generic form, because the answer is a
- * document: it is worth reading, worth copying, and for one dialect worth
- * carrying to a website that draws it. A form has nowhere to put any of that,
- * and downloading a file somebody has not seen is asking them to open it in
- * something else to find out what it says (D73).
- *
- * Three dialects are three buttons, not a select: the whole choice fits on one
- * line, and a menu to pick one of three is a click that buys nothing.
+ * The model of what was selected. A screen rather than the generic form
+ * because the answer is a document — worth reading and copying — and
+ * downloading a file nobody has seen asks them to open it elsewhere to find
+ * out what it says (D73).
  */
 const props = defineProps<{
   modelValue: boolean

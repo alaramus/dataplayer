@@ -207,13 +207,9 @@ const loadPath = useNodePathLoader()
  * Stand where the node lives, then point at it.
  *
  * The path is asked for every time rather than only when the node is out of
- * sight: one road through the code instead of two, and the answer is cached,
- * so pointing at the same table twice costs one request. `showLocation` is
- * what decides whether anything moves — a level that is already the right one
- * keeps the user's ticks.
- *
- * The mark is set a tick later because putting the trail in place is itself a
- * change of level, and a change of level is what takes a mark off.
+ * sight: one road through the code, and the answer is cached. The mark is set
+ * a tick later, because putting the trail in place is itself a change of
+ * level, and a change of level is what takes a mark off.
  */
 async function reveal(nodeId: string, label: string) {
   try {

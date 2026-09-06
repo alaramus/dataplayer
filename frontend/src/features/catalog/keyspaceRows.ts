@@ -1,24 +1,12 @@
 import type { ListNode } from "./nodes"
 
 /**
- * The rows of a catalog that is expanded rather than walked.
+ * The rows of a catalog that is expanded rather than walked: a key space is
+ * bounded and its tree is already in the colons of the names.
  *
- * Some sources are read one level at a time: a PostgreSQL schema holds
- * thousands of relations, and a screen that opened them all at once is a
- * screen nobody scrolls. A Redis key space is not like that — the scan has a
- * ceiling and the tree is already in the colons of the names, so the whole of
- * it is one thing to open and close rather than a series of screens with a
- * path across the top.
- *
- * The tree stops at the nodes. What a key holds is a page of rows, and a page
- * of rows is what the grid in a tab is for: showing the first few of them
- * inside the tree made the branch that names a key mean two different things
- * depending on how far it was opened, and gave the same value two places to
- * be read in.
- *
- * Plain functions with no component around them, built on the same `ListNode`
- * the list view uses, so the two cannot disagree about what a node is called
- * or how it is drawn.
+ * The tree stops at the nodes, because showing the first rows of a key inside
+ * it gave one value two places to be read in. Built on the `ListNode` the list
+ * view uses, so the two cannot disagree about what a node is called.
  */
 
 export interface TreeRow {

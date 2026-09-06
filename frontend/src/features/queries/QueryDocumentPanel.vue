@@ -232,18 +232,14 @@ const knowledge = computed(() =>
 const run = useRun(runId)
 const kept = useRun(keptRunId)
 /**
- * What this console's connection is called, now rather than when it opened.
+ * What this console's connection is called now, not when it opened. The list
+ * is asked first; the label the document carries is the fallback.
  *
- * The list is asked first, and the label the document carries is the fallback
- * for a connection that is no longer in it. A renamed connection kept its old
- * name in the tab that was already open, and under confirmation this is the
- * word a person is asked to type back — the server compares it with the name
- * the connection has now, so the old one could not unlock anything (D66).
- *
- * A document that has arrived answers this on its own, null included: null is
- * the whole statement that the context is gone (D63), so the name the tab was
- * opened with must not put a deleted connection back on the screen. That name
- * is the answer only for a console that is not a document yet.
+ * Under confirmation this is the word a person types back, and the server
+ * compares it with the name the connection has now (D66). A document that has
+ * arrived answers on its own, null included: null states that the context is
+ * gone (D63), and the name the tab opened with must not put a deleted
+ * connection back on screen.
  */
 const connectors = useConnectors()
 const connectorLabel = computed(() => {

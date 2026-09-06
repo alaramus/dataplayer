@@ -26,15 +26,13 @@ function secretsOf(shape: SchemaShape, tag: string): FieldSpec[] {
 /**
  * Whether believing the parsed choice would drop a secret the form is holding.
  *
- * A composed address never carries a secret — that is the whole point of the
- * one on screen being safe to copy — so taking one apart can only ever answer
- * with a way of connecting that needs none. Editing the host of a connection
- * that does need one would therefore switch the choice under the user and
- * hide the secret they had just typed.
+ * A composed address never carries a secret, so taking one apart can only ever
+ * answer with a way of connecting that needs none. Editing the host of a
+ * connection that does need one would therefore switch the choice under the
+ * user and hide what they had just typed.
  *
- * Stated about secrets and variants rather than about any one source: which
- * fields are secret comes from the schema, and so does which variants there
- * are. Nothing here knows what a database is.
+ * Stated about secrets and variants and not about any one source: both come
+ * from the schema, and nothing here knows what a database is.
  */
 function wouldDropHeldSecret(
   shape: SchemaShape,

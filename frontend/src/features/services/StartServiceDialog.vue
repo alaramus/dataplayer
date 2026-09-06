@@ -14,20 +14,13 @@ import {
 import { WindowDialog } from "@/shared/windows"
 
 /**
- * Two ways to start a database here, and the difference between them is how
- * many questions get asked.
+ * Two ways to start a database, differing in how many questions are asked.
  *
- * Automatic asks none — not even the name. It is the demonstration: one press
- * and a server appears, filled with something to look at and reachable from
- * the machine, with a password this server made up. Somebody who has not been
- * asked for a name has not got one in mind, and asking for one is the
- * difference between a demonstration and a form.
- *
- * Chosen asks for what is a person's to decide: what it is called, the names
- * inside it, the port on this machine it answers on, and the password —
- * because somebody setting a database up for their own tools usually wants one
- * they already know. What runs is still the template's: no image, no command,
- * no path (D80).
+ * Automatic asks none, not even the name: somebody who has not been asked for
+ * a name has not got one in mind, and asking is the difference between a
+ * demonstration and a form. Chosen asks what is a person's to decide — the
+ * name, the names inside it, the port and the password. What runs is the
+ * template's either way: no image, no command, no path (D80).
  */
 const props = defineProps<{
   template: ServiceTemplateInfo | null

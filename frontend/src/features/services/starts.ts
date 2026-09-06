@@ -5,12 +5,8 @@ import type { ServiceRequestWritable } from "@/client"
  *
  * Named here rather than imported: the server declares them as a discriminated
  * union behind an alias, and the generator inlines an alias into the field
- * that uses it. The type is still the generated one — this only gives it a
- * name to write.
- *
- * The writable one, because this is what is sent: the generator splits a
- * model that holds a write-only field into two, and a typed password is
- * exactly such a field — it goes and never comes back.
+ * that uses it. The writable variant, because the generator splits a model
+ * holding a write-only field in two and a typed password is one.
  */
 export type StartRequest = NonNullable<ServiceRequestWritable["start"]>
 
@@ -48,16 +44,13 @@ export interface StartForm {
 }
 
 /**
- * The request a filled-in form means.
- *
- * A plain function, so what "automatic" leaves out is a thing with a test
- * rather than a shape assembled inside a component. An automatic start
- * carries nothing at all: every answer is the server's, including the name.
+ * The request a filled-in form means. A plain function, so what "automatic"
+ * leaves out is a thing with a test: an automatic start carries nothing at
+ * all, including the name.
  *
  * A value typed into a field the template did not open is dropped rather than
- * sent — the server refuses one, and a form that sends what will be refused
- * is a form that lies. The fields are only rendered when the template opens
- * them, so this is the second of two locks rather than the only one.
+ * sent, because the server refuses one and a form that sends what will be
+ * refused is a form that lies.
  */
 export function buildStart(form: StartForm): StartRequest {
   if (form.mode === "automatic") return { mode: "automatic" }

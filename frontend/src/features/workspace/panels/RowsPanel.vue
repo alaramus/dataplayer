@@ -40,16 +40,12 @@ const contentRepresentation = computed(() =>
 )
 
 /**
- * The other tables this one is one of: the sheets of a workbook.
- *
- * A spreadsheet is one file with several tables in it, and being sent back to
- * the catalog to walk into a file to reach the second of them is what made it
- * feel like a folder. The container's children are asked for through the same
- * cached query the catalog uses, so opening a workbook and switching between
- * its sheets reads it once.
+ * The other tables this one is one of: the sheets of a workbook, asked for
+ * through the same cached query the catalog uses, so switching between them
+ * reads the file once.
  *
  * The node this tab is on is one of them — a workbook opens as its first
- * sheet, so the tab that opened is on the file itself until somebody switches.
+ * sheet, so the tab is on the file itself until somebody switches.
  */
 const sheets = useSiblingTables(
   computed(() => props.connectorId),

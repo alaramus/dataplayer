@@ -1,20 +1,14 @@
 import { DEFAULT_GROUP } from "@/shared/SchemaForm/jsonSchema"
 
 /**
- * The pages of the window that edits a connection.
+ * The pages of the window that edits a connection: the groups of fields the
+ * source declares, then this application's own questions, in one strip rather
+ * than a strip inside a strip.
  *
- * Two vocabularies meet in one strip. The source declares groups of its own
- * fields — an address here, a tunnel there — and this application has its own
- * questions, which are not the driver's at all: how this connection behaves,
- * and who may reach it. All of them are pages of the same window, so they
- * share one strip rather than nesting a strip inside a strip.
- *
- * The source's pages come first, because that is what the window is for: a
- * connection that does not connect has nothing to permit. The two this
- * application owns are always there, including while a connection is being
- * created — whoever registers a source is the person who knows whether
- * anybody should be able to write through it, and asking afterwards left it
- * open until they went back (D66).
+ * The source's pages come first, because a connection that does not connect
+ * has nothing to permit. The two this application owns are there during
+ * creation too — whoever registers a source is the person who knows whether
+ * anybody should write through it, and asking afterwards left it open (D66).
  */
 export type PageOwner = "source" | "options" | "permissions"
 

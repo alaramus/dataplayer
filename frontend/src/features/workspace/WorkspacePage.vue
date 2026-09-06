@@ -140,16 +140,12 @@ const activeConnectorId = computed(() => {
 const openConnectors = computed(() => openConnectorIds(workspace.panels.value))
 
 /**
- * The windows of connections, owned by the page.
+ * The windows of connections, owned by the page: both columns that open one
+ * can be collapsed, a collapsed column renders nothing, and a window living
+ * inside one would vanish with it.
  *
- * Both columns that open one — the list of sources and the head of the
- * catalog — can be collapsed, and a collapsed column renders nothing at all.
- * A window living inside one of them would vanish with it.
- *
- * Several are open at once on purpose: one connection is read while another
- * is filled in beside it, which is what a modal window forbids. What
- * modality would have given is replaced by asking before a window with
- * unsaved changes is closed. See the spec, O1.
+ * Several are open at once on purpose — one connection read while another is
+ * filled in beside it — which is what a modal window forbids (spec O1).
  */
 const me = useCurrentUser()
 const windows = useWindowManager()

@@ -51,16 +51,11 @@ import { useServices } from "@/features/services/api"
 import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
 /**
- * One connection, in a window of its own.
+ * One connection, in a window of its own; laid out after the spec, O6 to O9.
  *
- * Laid out after the reference: the name on top, the fields in tabs the
- * server named, an address on one line because the options model says host
- * and port are one, the connection string underneath, and Test Connection
- * beside what the last check said. See the spec, O6 to O9.
- *
- * Several of these are open at once, so nothing here may assume it is the
- * only one: everything it reads it reads through vue-query, and everything it
- * changes it reports upwards.
+ * Several are open at once, so nothing here may assume it is the only one:
+ * everything it reads goes through vue-query, and everything it changes it
+ * reports upwards.
  */
 const props = defineProps<{
   /** The stored connection, or null for one being created. */
@@ -552,14 +547,11 @@ async function copyUrl() {
 /**
  * An address typed into the URL box, taken apart into the fields.
  *
- * The box answers "which of the two is true now" by never keeping an answer
- * of its own: what is typed goes to the driver, the driver produces fields,
- * and the fields compose the string that comes back. A password typed into
- * the box therefore lands in the password field and leaves the box, which is
- * the rule made visible rather than explained.
- *
- * Delayed, because it is a request, and it is not made at all for text the
- * server itself composed.
+ * The box keeps no answer of its own: what is typed goes to the driver, the
+ * driver produces fields, and the fields compose the string that comes back.
+ * A password typed into the box therefore lands in the password field and
+ * leaves the box. Delayed because it is a request, and not made at all for
+ * text the server itself composed.
  */
 let parseTimer: ReturnType<typeof setTimeout> | undefined
 

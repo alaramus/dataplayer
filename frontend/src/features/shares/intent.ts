@@ -5,15 +5,13 @@ import type { ConnectorPublic, NodeRepresentation, RowsView } from "@/client"
 /**
  * A resolved link waiting for the workspace to open it.
  *
- * The landing screen does the asking — resolve the token, read the connection,
- * walk to the node — because it is the screen that has to explain a node that
- * is gone or a connection switched off (D60). What it cannot do is open a tab:
- * the workspace is not mounted there. So the answer is left here and taken by
- * the workspace once.
+ * The landing screen does the asking, because it is the screen that has to
+ * explain a node that is gone (D60); what it cannot do is open a tab, since
+ * the workspace is not mounted there. So the answer is left here and taken
+ * once.
  *
- * A module ref rather than a Pinia store: stores may not reach into the
- * generated client, and this is one screen handing another the answer it
- * already has.
+ * A module ref and not a Pinia store: stores may not reach into the generated
+ * client, and this is one screen handing another an answer it already has.
  */
 export interface ShareIntent {
   connector: ConnectorPublic

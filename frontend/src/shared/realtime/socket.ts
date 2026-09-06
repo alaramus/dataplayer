@@ -1,14 +1,10 @@
 /**
  * The one socket to the server, and who is listening on it.
  *
- * Written here rather than taken from a library: the part that matters is
- * "on open, say who you are, then restate every subscription", and that is
- * ours whatever opens the connection. What a library would have added is the
- * reconnect delay, which is the short function below.
- *
- * Everything the client needs from the outside — how to open, how to wait, how
- * to find the token — is passed in, so the whole of it can be driven from a
- * unit test with no server and no clock.
+ * Written here rather than taken from a library: the part that matters is "on
+ * open, say who you are, then restate every subscription", and that is ours
+ * whatever opens the connection. Everything from outside is passed in, so the
+ * whole of it is driven from a unit test with no server and no clock.
  */
 
 /**

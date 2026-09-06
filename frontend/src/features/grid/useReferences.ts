@@ -14,17 +14,13 @@ import { useArrivingReferences, useFollowReference } from "./api"
 import { keyValues, referencesLedBy } from "./references"
 
 /**
- * The ways in and out of one row, wherever a row is being shown.
+ * The ways in and out of one row, wherever a row is shown: the key that leads
+ * away (D36) and the keys landing on it that lead back (D110).
  *
- * Both the grid and the row view offer the same two things per column — the
- * key of this relation that leads away (D36) and the keys landing on it that
- * lead back (D110) — and both ask them of the same routes. Written once here
- * so the two screens cannot drift into two answers about which cell offers
- * what, which is exactly how the old application ended up copying a constraint
- * onto every column it touched.
- *
- * What differs between the two callers is only which columns are on screen: a
- * grid hides them and a row view shows them all.
+ * Written once so the grid and the row view cannot drift into two answers
+ * about which cell offers what — which is how the old application ended up
+ * copying a constraint onto every column it touched. What differs between the
+ * callers is only which columns are on screen.
  */
 const NO_REFERENCES: FetchReference[] = []
 const NO_ARRIVING: ArrivingReference[] = []

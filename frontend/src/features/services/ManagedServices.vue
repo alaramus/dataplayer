@@ -23,17 +23,13 @@ import {
 import type { Tone } from "@/shared/ui"
 
 /**
- * What this server is running, and everything known about each one.
+ * What this server is running. A service is the container a database lives in;
+ * the connection beside it is how that database is used.
  *
- * A service is the container a database lives in; the connection beside it in
- * the column is how that database is used. Both are true of a ready service,
- * and this is the only place where its life can be ended — taking the volume,
- * and therefore the data, with it.
- *
- * This used to sit above the connections, in a column a fifth of the screen
- * wide that is also where every connection goes. A service is looked at while
- * something is being done to it and not otherwise, so it lives in a window
- * now and the bar at the foot of the screen says when there is one (D69).
+ * The only place a service's life can be ended, taking the volume and
+ * therefore the data with it. It lives in a window rather than above the
+ * connections: a service is looked at while something is being done to it and
+ * not otherwise, and that column is where every connection goes (D69).
  */
 const services = useServices()
 const removeService = useDeleteService()

@@ -18,18 +18,13 @@ export interface Location {
 }
 
 /**
- * A path of nodes read as a place on the screen.
+ * A path of nodes read as a place on the screen. The server answers with every
+ * node from the root down, and those are not crumbs: in PostgreSQL a schema is
+ * a node of the path but a grouping on the screen, while a directory is a
+ * level one walks into. `roleOf` decides which.
  *
- * The server answers with every node from the root down to the target, and
- * those are not the same thing as crumbs. In PostgreSQL a schema is a node of
- * the path but a grouping on the screen — `public.users` lies on the root
- * level, under a ticked `public` — while a directory is a level one walks
- * into. The difference is `roleOf`, the same rule that lets the catalog
- * never ask what type of source it is looking at, so a source with levels of
- * its own above a grouping needs no branch here.
- *
- * The root is not in the path: the root is the connector, and the level puts
- * its own crumb there.
+ * The root is not in the path — it is the connector, and the level puts its
+ * own crumb there.
  */
 export function locationOf(path: CatalogNode[]): Location {
   const ancestors = path.slice(0, -1)
