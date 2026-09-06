@@ -120,6 +120,64 @@ test("keeps the controls of a new row inside their own cell", async ({ page }) =
   await deleteConnector(page, name)
 })
 
+test("keeps rows compact and follows a column drag before release", async ({ page }) => {
+  const name = `e2e-grid-density-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "projects")
+  const cell = page.getByTestId("grid-cell-0-name")
+  await expect(cell).toBeVisible()
+
+  for (let row = 0; row < 5; row += 1) {
+    const dataRow = page.getByTestId(`grid-row-${row}`)
+    await dataRow.hover()
+    const before = (await dataRow.boundingBox())!
+    expect(before.height).toBeLessThanOrEqual(28)
+    const action = page.getByTestId(`grid-open-row-${row}`)
+    await expect(action).toBeVisible()
+    const button = (await action.boundingBox())!
+    expect(button.y).toBeGreaterThanOrEqual(before.y)
+    expect(button.y + button.height).toBeLessThanOrEqual(before.y + before.height)
+    await page.getByTestId("grid-header").hover()
+    expect((await dataRow.boundingBox())!.height).toBe(before.height)
+  }
+
+  const heading = page.getByTestId("grid-column-name")
+  const neighbor = page.getByTestId("grid-column-id")
+  const originalWidth = (await heading.boundingBox())!.width
+  const neighborWidth = (await neighbor.boundingBox())!.width
+  const handle = (await page.getByTestId("grid-resize-name").boundingBox())!
+  const x = handle.x + handle.width / 2
+  const y = handle.y + handle.height / 2
+  await page.mouse.move(x, y)
+  await page.mouse.down()
+  try {
+    for (const delta of [30, 60]) {
+      await page.mouse.move(x + delta, y, { steps: 4 })
+      await expect.poll(async () => (await heading.boundingBox())!.width)
+        .toBeCloseTo(originalWidth + delta, 0)
+      expect((await cell.boundingBox())!.width).toBeCloseTo(originalWidth + delta, 0)
+      expect((await neighbor.boundingBox())!.width).toBeCloseTo(neighborWidth, 0)
+    }
+  } finally {
+    await page.mouse.up()
+  }
+
+  await resizeColumn(page, "name", -500)
+  await expect.poll(async () => (await heading.boundingBox())!.width).toBeCloseTo(72, 0)
+  expect((await cell.boundingBox())!.width).toBeCloseTo(72, 0)
+  await page.getByTestId("grid-resize-name").dblclick()
+  await expect.poll(async () => (await heading.boundingBox())!.width)
+    .toBeCloseTo(originalWidth, 0)
+
+  await page.reload()
+  await expect(heading).toBeVisible()
+  expect((await heading.boundingBox())!.width).toBeCloseTo(originalWidth, 0)
+  await deleteConnector(page, name)
+})
+
 test("explores a relation and restores its view", async ({ page, context }) => {
   const name = `e2e-grid-${Date.now()}`
   await context.grantPermissions(["clipboard-read", "clipboard-write"])

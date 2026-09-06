@@ -759,15 +759,34 @@ describe("the basic data grid", () => {
     expect(loadGridState("connector-1", "public.projects")?.columnSizing.name).toBeGreaterThan(100)
   })
 
-  it("commits a drag resize only when the pointer is released", async () => {
+  it("updates and persists a drag resize while the pointer is still down", async () => {
+    saveGridState("connector-1", "public.projects", {
+      columnOrder: ["id", "name"],
+      columnVisibility: {},
+      columnSizing: { name: 160 },
+      pinnedLeft: [],
+      filters: [],
+      sort: [],
+    })
     mockPages()
     const wrapper = mountGrid()
     await flushPromises()
     const handle = wrapper.get('[data-testid="grid-resize-name"]')
 
     await handle.trigger("mousedown", { clientX: 100 })
+    document.dispatchEvent(new MouseEvent("mousemove", { clientX: 140, bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(loadGridState("connector-1", "public.projects")?.columnSizing.name).toBe(200)
+    expect(wrapper.get('[data-testid="row-grid"]').attributes("style")).toContain(
+      "--grid-column-1: 200px"
+    )
+
     document.dispatchEvent(new MouseEvent("mousemove", { clientX: 220, bubbles: true }))
-    expect(loadGridState("connector-1", "public.projects")?.columnSizing.name).toBeUndefined()
+    await wrapper.vm.$nextTick()
+    expect(loadGridState("connector-1", "public.projects")?.columnSizing.name).toBe(280)
+    expect(wrapper.get('[data-testid="row-grid"]').attributes("style")).toContain(
+      "--grid-column-1: 280px"
+    )
 
     document.dispatchEvent(new MouseEvent("mouseup", { clientX: 220, bubbles: true }))
     await wrapper.vm.$nextTick()

@@ -154,6 +154,9 @@ const features = tableFeatures({
 })
 type GridFeatures = typeof features
 
+let textContext: CanvasRenderingContext2D | null | undefined
+let textFont = "13px sans-serif"
+let monospaceFont = "13px monospace"
 const tableColumns = computed<ColumnDef<GridFeatures, GridRow>[]>(() =>
   props.columns.map((column, index) => ({
     id: column.id,
@@ -161,7 +164,7 @@ const tableColumns = computed<ColumnDef<GridFeatures, GridRow>[]>(() =>
     accessorFn: (row) => row.values[index],
     minSize: 72,
     maxSize: 480,
-    size: 160,
+    size: fittedColumnWidth(column, index),
   }))
 )
 const tableState = computed(() => ({
@@ -177,7 +180,7 @@ const table = useTable<GridFeatures, GridRow>({
   data: computed(() => props.rows),
   getRowId: (row) => row.id,
   state: tableState,
-  columnResizeMode: "onEnd",
+  columnResizeMode: "onChange",
   onColumnOrderChange: (updater) =>
     changeLayout({
       ...props.layout,
@@ -206,6 +209,9 @@ const columnWidthVariables = computed<Record<string, string>>(() =>
   Object.fromEntries(
     table.getAllLeafColumns().map((column) => [columnVariable(column.id), `${column.getSize()}px`])
   )
+)
+const tableWidth = computed(
+  () => 72 + table.getVisibleLeafColumns().reduce((width, column) => width + column.getSize(), 0)
 )
 const canCopy = computed(() => table.getSelectedCellCount() > 0)
 const visibleColumns = computed<VisibleGridColumn[]>(() => {
@@ -313,24 +319,42 @@ function hideColumn(column: Column<GridFeatures, GridRow, unknown>) {
   column.toggleVisibility(false)
 }
 
-let textContext: CanvasRenderingContext2D | null | undefined
-function measureFullText(text: string): number {
+function measureFullText(text: string, monospace = false, bold = false): number {
   if (textContext === undefined) {
     textContext =
       typeof CanvasRenderingContext2D === "undefined"
         ? null
         : document.createElement("canvas").getContext("2d")
-    if (textContext !== null) textContext.font = "14px sans-serif"
+    if (textContext !== null) {
+      const style = getComputedStyle(document.body)
+      textFont = `${style.fontSize || "13px"} ${style.fontFamily || "sans-serif"}`
+      monospaceFont = `${style.fontSize || "13px"} monospace`
+    }
   }
-  return (textContext?.measureText(text).width ?? text.length * 8) + 32
+  if (textContext !== null) {
+    textContext.font = `${bold ? "bold " : ""}${monospace ? monospaceFont : textFont}`
+  }
+  return (textContext?.measureText(text).width ?? text.length * 8) + 14
+}
+
+function fittedColumnWidth(source: TabularColumn, index: number): number {
+  const values = props.rows.map((row) => row.values[index] ?? null)
+  const monospace = cellPresentation("", source.type).monospace === true
+  const contentWidth = autoFitWidth(
+    source.label,
+    values,
+    (text) => measureFullText(text, monospace),
+    { min: 72, max: 480 }
+  )
+  const headerWidth = measureFullText(source.label, false, true) + (source.sortable ? 56 : 36)
+  return Math.min(480, Math.ceil(Math.max(contentWidth, headerWidth)))
 }
 
 function autoFit(columnId: string) {
   const index = props.columns.findIndex((column) => column.id === columnId)
   const source = props.columns[index]
   if (index < 0 || source === undefined) return
-  const values = props.rows.map((row) => row.values[index] ?? null)
-  const width = autoFitWidth(source.label, values, measureFullText, { min: 72, max: 480 })
+  const width = fittedColumnWidth(source, index)
   changeLayout({
     ...props.layout,
     columnSizing: { ...props.layout.columnSizing, [columnId]: width },
@@ -629,6 +653,7 @@ defineExpose({
       <table
         v-else
         class="data-grid__table"
+        :style="{ width: `${tableWidth}px` }"
       >
         <thead>
           <tr
@@ -641,6 +666,7 @@ defineExpose({
             >
               <AppIconButton
                 icon="select_all"
+                compact
                 tooltip="Select page"
                 data-testid="grid-select-page"
                 @click="selectPage"
@@ -674,6 +700,7 @@ defineExpose({
                 >{{ sortIndex(header.column.id) + 1 }}</span>
                 <AppIconButton
                   v-if="columnIsSortable(header.column.id)"
+                  compact
                   :icon="sortIcon(header.column.id)"
                   :tooltip="`Sort by ${columnOf(columns, header.column.id)?.label ?? header.column.id}`"
                   :data-direction="sortDirection(header.column.id)"
@@ -682,6 +709,7 @@ defineExpose({
                 />
                 <AppIconButton
                   icon="push_pin"
+                  compact
                   :class="{
                     'data-grid__pin--active': header.column.getIsPinned() === 'start',
                   }"
@@ -692,6 +720,7 @@ defineExpose({
                 />
                 <AppIconButton
                   icon="visibility_off"
+                  compact
                   :tooltip="`Hide ${columnOf(columns, header.column.id)?.label ?? header.column.id}`"
                   :data-testid="`grid-hide-${header.column.id}`"
                   @click.stop="hideColumn(header.column)"
@@ -751,6 +780,7 @@ defineExpose({
               @dblclick="openCell(cell, $event)"
             >
               <span
+                class="data-grid__value"
                 :class="{
                   'data-grid__null': presentCell(cell).tone === 'null',
                   'data-grid__monospace': presentCell(cell).monospace === true,
@@ -877,7 +907,7 @@ defineExpose({
 }
 
 .data-grid__skeleton-row {
-  height: 34px;
+  height: 25px;
   background: var(--dp-surface-raised);
   opacity: 0.65;
 }
@@ -893,8 +923,8 @@ defineExpose({
 }
 
 .data-grid__table {
-  width: max-content;
-  min-width: 100%;
+  /* Intrinsic table sizing otherwise overrides a dragged width with its content. */
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
@@ -904,11 +934,12 @@ defineExpose({
   box-sizing: border-box;
   min-width: 0;
   max-width: none;
-  padding: 6px 10px;
+  padding: 2px 6px;
   border-right: 1px solid var(--dp-border-faint);
   border-bottom: 1px solid var(--dp-border-faint);
   text-align: left;
   white-space: nowrap;
+  line-height: 20px;
 }
 
 /* The names stay while their own rows slide under them, the way the first
@@ -928,11 +959,11 @@ defineExpose({
 }
 
 .data-grid__table th:not(.data-grid__selector) {
-  padding-inline-end: 80px;
+  padding-inline-end: 42px;
 }
 
 .data-grid__sortable {
-  padding-inline-end: 112px !important;
+  padding-inline-end: 62px !important;
 }
 
 .data-grid__pinned {
@@ -958,6 +989,10 @@ defineExpose({
 
 .data-grid__row-extra {
   visibility: hidden;
+  position: absolute;
+  inset-inline-end: 4px;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
 }
@@ -987,6 +1022,7 @@ defineExpose({
 }
 
 .data-grid__column-name {
+  display: block;
   max-width: 100%;
   padding: 0;
   border: 0;
@@ -1001,8 +1037,9 @@ defineExpose({
 
 .data-grid__column-actions {
   position: absolute;
-  inset-block-start: 0;
-  inset-inline-end: 4px;
+  inset-block-start: 50%;
+  transform: translateY(-50%);
+  inset-inline-end: 6px;
   display: flex;
   align-items: center;
 }
@@ -1019,11 +1056,13 @@ defineExpose({
 }
 
 .data-grid__row-selector {
-  width: 100%;
-  padding: 4px;
+  display: block;
+  width: calc(100% - 20px);
+  padding: 0;
   border: 0;
   background: transparent;
   color: var(--dp-text-muted);
+  font: inherit;
   cursor: pointer;
 }
 
@@ -1035,7 +1074,7 @@ defineExpose({
   cursor: cell;
 }
 
-.data-grid__table td > span {
+.data-grid__value {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;

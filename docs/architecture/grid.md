@@ -25,6 +25,14 @@ The tabular surface paints its own `--dp-surface` background, matching sticky
 headings, row selectors and pinned columns. Moving it into a floating window
 does not expose the window's raised background through ordinary cells.
 
+Data rows use one text line with compact vertical padding; a row action sits
+beside its number and does not add another line. Header controls use compact
+buttons. Columns without a saved width fit the current page's values and header,
+within 72–480 pixels; double-clicking the resize handle fits them again. The
+table uses fixed layout and the sum of visible column widths, so content and
+unused viewport space cannot stretch a column beyond its chosen width. Dragging
+updates the visible widths and saved layout continuously, including pinned offsets.
+
 A captured query result is the second controller of that surface: it supplies
 typed columns and a page read from the snapshot store, offers paging, filtering
 and ordering over what was captured, and offers none of the row commands,

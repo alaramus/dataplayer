@@ -55,6 +55,22 @@ beforeEach(() => {
 })
 
 describe("the controlled tabular grid", () => {
+  it("fits unsized columns to their contents and preserves an explicit width", () => {
+    const wrapper = mountGrid({
+      rows: [{ id: "row-a", values: ["short", "A".repeat(100)] }],
+    })
+    const grid = wrapper.get('[data-testid="row-grid"]').element as HTMLElement
+    expect(Number.parseFloat(grid.style.getPropertyValue("--grid-column-0"))).toBeLessThan(160)
+    expect(grid.style.getPropertyValue("--grid-column-1")).toBe("480px")
+
+    const restored = mountGrid({
+      layout: { ...defaultColumnLayout(COLUMNS), columnSizing: { "0": 220 } },
+    })
+    expect(restored.get('[data-testid="row-grid"]').attributes("style")).toContain(
+      "--grid-column-0: 220px"
+    )
+  })
+
   it("keeps positional identity separate from duplicate display labels", () => {
     const wrapper = mountGrid()
 
