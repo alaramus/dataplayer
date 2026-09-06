@@ -227,12 +227,21 @@ test("keeps the editor and results visible when the query panel is narrowed", as
   await page.keyboard.press("ControlOrMeta+Enter")
   await expect(results.getByTestId("grid-cell-0-0")).toHaveText("43")
   await expectBothPanes()
-  const resized = await rectangle(editorPane)
+  // What survives a change of width is the share of the frame, not a height in
+  // pixels: the panes are flexed by the stored fraction, and the chrome above
+  // the frame takes one line more in a narrow column, so the frame itself is
+  // shorter there.
+  const share = async () => {
+    const upper = await rectangle(editorPane)
+    const lower = await rectangle(results)
+    return upper.height / (upper.height + lower.height)
+  }
+  const narrowed = await share()
 
   await resizeWidth(wide.width)
   await expect.poll(async () => (await rectangle(frame)).width).toBeGreaterThan(640)
   await expectBothPanes()
-  expect((await rectangle(editorPane)).height).toBeCloseTo(resized.height, 0)
+  expect(await share()).toBeCloseTo(narrowed, 3)
   await deleteConnector(page, name)
 })
 
