@@ -50,9 +50,12 @@ operations.
 Rows are fetched through TanStack Query with connector, node and the full
 `FetchRequest` in the key. Changing filter, sort or page size resets the offset;
 switching page changes only the offset; reload refetches the same key. A first
-request shows a skeleton, a subsequent request covers old rows with an overlay,
-and failure removes them rather than presenting a previous page under a new
-query.
+request shows a skeleton, a subsequent request covers old rows with an overlay
+once it has lasted a quarter of a second, and failure removes them rather than
+presenting a previous page under a new query. The delay is what keeps a tab on
+a five-second refresh from blinking: the read is usually answered in tens of
+milliseconds, and an overlay mounted over the whole grid for two frames is not
+information.
 
 Versioned local storage persists filters, ordered sort and column width, order,
 visibility and left pinning per `connectorId + nodeId`; page size is global.

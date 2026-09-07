@@ -949,13 +949,39 @@ describe("the basic data grid", () => {
     const wrapper = mountGrid()
     await flushPromises()
 
-    const reload = (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
-    await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="grid-loading-overlay"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="grid-cell-0-name"]').text()).toBe("Project 1")
+    vi.useFakeTimers()
+    try {
+      const reload = (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+      await wrapper.vm.$nextTick()
+      // Not yet: a read that may still answer within a frame or two is not
+      // worth drawing over the rows.
+      expect(wrapper.find('[data-testid="grid-loading-overlay"]').exists()).toBe(false)
 
-    finish?.({ data: result(0, 1) })
-    await reload
+      await vi.advanceTimersByTimeAsync(400)
+      expect(wrapper.find('[data-testid="grid-loading-overlay"]').exists()).toBe(true)
+      expect(wrapper.get('[data-testid="grid-cell-0-name"]').text()).toBe("Project 1")
+
+      finish?.({ data: result(0, 1) })
+      await reload
+      expect(fetchRows).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("says nothing about a re-read that answers at once", async () => {
+    // The tab that refreshes itself every few seconds is answered in
+    // milliseconds. A veil mounted over the whole grid for two frames reads
+    // as the table blinking out.
+    const fetchRows = mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="grid-loading-overlay"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="grid-cell-0-name"]').text()).toBe("Project 1")
     expect(fetchRows).toHaveBeenCalledTimes(2)
   })
 

@@ -18,7 +18,7 @@ import type {
   ColumnPinningState,
   Updater,
 } from "@tanstack/vue-table"
-import { computed, ref, useTemplateRef, watch } from "vue"
+import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from "vue"
 import type { CSSProperties } from "vue"
 
 import type { Sort } from "@/client"
@@ -81,6 +81,41 @@ const props = withDefaults(
     showReset: true,
   }
 )
+/**
+ * How long a re-read must last before the grid says anything about it.
+ *
+ * A tab on a five-second refresh is answered in tens of milliseconds, and a
+ * veil laid over the whole grid for two frames is not information: the table
+ * blinks, which is the one thing a live table must not do. Nothing is drawn
+ * until the read has lasted long enough to be worth reporting.
+ */
+const REFRESH_VEIL_DELAY = 250
+const veiled = ref(false)
+let veilTimer: ReturnType<typeof setTimeout> | undefined
+
+function stopVeilTimer() {
+  if (veilTimer === undefined) return
+  clearTimeout(veilTimer)
+  veilTimer = undefined
+}
+
+watch(
+  () => props.refreshing,
+  (refreshing) => {
+    stopVeilTimer()
+    // The veil goes the moment the answer is in, whether or not it ever came.
+    if (!refreshing) {
+      veiled.value = false
+      return
+    }
+    veilTimer = setTimeout(() => {
+      veiled.value = true
+    }, REFRESH_VEIL_DELAY)
+  }
+)
+
+onBeforeUnmount(stopVeilTimer)
+
 const emit = defineEmits<{
   "update:pageSize": [value: PageSize]
   "update:filters": [value: Filter[]]
@@ -805,7 +840,7 @@ defineExpose({
         data-testid="grid-empty"
       />
       <div
-        v-if="refreshing && !loading"
+        v-if="veiled && !loading"
         class="data-grid__loading-overlay"
         data-testid="grid-loading-overlay"
         aria-label="Refreshing rows"
