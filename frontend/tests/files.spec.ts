@@ -35,7 +35,9 @@ test("opens a connector draft for one folder and saves only when asked", async (
 
   await catalogAction(page, "connect_folder")
   await expect(page.getByTestId("connector-name")).toHaveValue("reports")
-  await expect(page.getByTestId("field-path")).toHaveValue("reports")
+  // Rooted, the way the folder of a connection is stored and the way the path
+  // bar copies it.
+  await expect(page.getByTestId("field-path")).toHaveValue("/reports")
   await page.getByTestId("connector-name").fill(child)
   await expect(page.getByTestId("connector-tab-color")).toBeVisible()
   await expect(connectorRow(page, child)).toHaveCount(0)

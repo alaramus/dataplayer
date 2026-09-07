@@ -338,7 +338,10 @@ test("loads a CSV into one chosen schema while multiple schemas and rows are sel
   // One schema on as the workflow's initial destination; the dialog can then
   // choose another existing schema or ask the database to create one.
   await showOnlySchema(page, "demo_lab")
-  await catalogCheck(page, "customers").click()
+  // A table of the fixture schema, ticked: the schema an action acts on is
+  // read off what is picked, and this one is never renamed or moved by
+  // another scenario.
+  await catalogCheck(page, "organizations").click()
   await catalogAction(page, "rename_schema")
   await expect(page.getByTestId("field-new_name")).toHaveValue("demo_lab")
   await page.getByTestId("action-dialog").getByRole("button", { name: "Cancel", exact: true }).click()

@@ -17,6 +17,11 @@ async function saveGroup(page: Page, name: string, offered?: string) {
 }
 
 test("saves column layouts, replaces tabs, remembers the warning and manages multiple groups", async ({ page }) => {
+  // Around eighty steps of one journey: the groups, the warning and the
+  // renaming only mean anything on state the steps before them left. It ran
+  // out of the default thirty seconds around the last of them, and which step
+  // was reported then depended on where the clock stopped.
+  test.setTimeout(90_000)
   const connection = `e2e-groups-${Date.now()}`
   await login(page)
   await createPostgresConnector(page, connection)
