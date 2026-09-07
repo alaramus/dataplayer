@@ -63,6 +63,10 @@ async def test_one_public_metadata_read_classifies_a_whole_schema() -> None:
     )
     assert schema.ordinary_statistics_are_valid_for("events") is False
     assert schema.ordinary_statistics_are_valid_for("ordinary") is True
+    assert schema.structured_operations_reason("events") == (
+        "TimescaleDB relations are read-only in this version"
+    )
+    assert schema.structured_operations_reason("ordinary") is None
     session.query.assert_awaited_once()
 
 
@@ -85,4 +89,7 @@ async def test_unsupported_timescale_never_certifies_a_relation_as_ordinary() ->
 
     assert schema.known is False
     assert schema.ordinary_statistics_are_valid_for("events") is False
+    assert schema.structured_operations_reason("events") == (
+        "This major version is not supported"
+    )
     session.query.assert_not_awaited()

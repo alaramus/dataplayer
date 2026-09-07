@@ -425,6 +425,7 @@ def _relation_model(
     kind = _KINDS[str(row["relkind"])]
     specialization = context.specialization_for(name)
     statistics_are_valid = context.ordinary_statistics_are_valid_for(name)
+    timescale_reason = context.structured_operations_reason(name)
     # A relation the server owns is described in full and changed by
     # nothing, whatever its kind would otherwise allow. PostgreSQL refuses
     # the DDL itself, but a refusal the source states is a capability the
@@ -433,6 +434,8 @@ def _relation_model(
     owned_reason = f'"{schema}" belongs to the server'
     if server_owned:
         column_changes_reason = owned_reason
+    elif timescale_reason is not None:
+        column_changes_reason = timescale_reason
     elif partition_of is not None:
         column_changes_reason = "Change columns on the partitioned parent"
     elif kind not in {"table", "partitioned_table"}:
@@ -444,6 +447,8 @@ def _relation_model(
     # indexes of its own even though its shape belongs to its parent.
     if server_owned:
         index_changes_reason = owned_reason
+    elif timescale_reason is not None:
+        index_changes_reason = timescale_reason
     elif kind in {"table", "partitioned_table", "materialized_view"}:
         index_changes_reason = None
     else:
@@ -453,6 +458,8 @@ def _relation_model(
     # columns belong to its parent.
     if server_owned:
         constraint_changes_reason = owned_reason
+    elif timescale_reason is not None:
+        constraint_changes_reason = timescale_reason
     elif kind in {"table", "partitioned_table"}:
         constraint_changes_reason = None
     else:

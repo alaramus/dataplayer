@@ -60,13 +60,16 @@ class PostgresSummaries:
         # schema gets: a schema is not marked summarizable, so nothing asks.
         model = await self._relation.relation_model(node_id)
         statistics = await self._statistics(model)
+        representations = [TABLE_REPRESENTATION]
+        if model.specialization is None:
+            representations.append(DDL_REPRESENTATION)
         return NodeSummary(
             node_id=node_id,
             name=model.name,
             kind=_node_kind(model.kind),
             # The same pair the catalog gives this node, so "what can this be
             # opened as" is answered once and in one place (D47).
-            representations=[TABLE_REPRESENTATION, DDL_REPRESENTATION],
+            representations=representations,
             size_bytes=model.size_bytes,
             contents=RelationContents(
                 relation_kind=model.kind,

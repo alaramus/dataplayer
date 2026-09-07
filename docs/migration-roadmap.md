@@ -157,8 +157,9 @@ Progress: the runtime-feature models/protocol/endpoint and generated client are
 committed in `fd79154`. PostgreSQL Timescale discovery is implemented at the
 current branch head. The typed relation-specialization wire contract is the
 current slice. Tests are written but have not been run; the shared PostgreSQL
-relation classifier is implemented at the current branch head. Timescale
-system reports are next.
+relation classifier and relation-level row/structure/DDL guards are implemented
+at the current branch head. Next: guard registered actions, schema cascades and
+backup/restore admission before adding Timescale system reports.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

@@ -232,6 +232,9 @@ def _relation_of(
     way when walked into and another way when pointed at.
     """
     is_system = is_system_schema(schema)
+    representations = [TABLE_REPRESENTATION]
+    if context.structured_operations_reason(name) is None:
+        representations.append(DDL_REPRESENTATION)
     if row["kind"] in ("v", "m"):
         return ViewNode(
             id=f"{schema}.{name}",
@@ -240,7 +243,7 @@ def _relation_of(
             is_materialized=row["kind"] == "m",
             is_system=is_system,
             specialization=context.continuous_aggregate_for(name),
-            representations=[TABLE_REPRESENTATION, DDL_REPRESENTATION],
+            representations=representations,
             describable=True,
             summarizable=True,
         )
@@ -257,7 +260,7 @@ def _relation_of(
         size_bytes=row["size_bytes"] if statistics_are_valid else None,
         is_system=is_system,
         specialization=context.hypertable_for(name),
-        representations=[TABLE_REPRESENTATION, DDL_REPRESENTATION],
+        representations=representations,
         describable=True,
         summarizable=True,
     )

@@ -14,6 +14,7 @@ from typing import Any
 from psycopg import sql
 
 from app.adapters.content import ContentRequest, ContentResult, SqlContent
+from app.adapters.postgres.relation_context import PostgresRelationContext
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import SystemReport, report_for
 from app.adapters.protocol import NodeNotFound
@@ -102,8 +103,13 @@ ORDER BY ix.indexrelid
 class PostgresContent:
     """Issue a relation's recreate-oriented DDL from server catalog facts."""
 
-    def __init__(self, session: PostgresSession) -> None:
+    def __init__(
+        self,
+        session: PostgresSession,
+        relation_context: PostgresRelationContext | None = None,
+    ) -> None:
         self._session = session
+        self._relation_context = relation_context or PostgresRelationContext(session)
 
     async def read_content(self, request: ContentRequest) -> ContentResult:
         if request.representation != "sql":
@@ -120,6 +126,11 @@ class PostgresContent:
             raise ValueError(
                 f'"{request.node_id}" is not a relation: expected schema.relation'
             )
+
+        context = await self._relation_context.schema(schema, relation)
+        refused = context.structured_operations_reason(relation)
+        if refused is not None:
+            raise ValueError(f"{refused}; reconstructed DDL is unavailable")
 
         rows = await self._session.query(
             _RELATION,

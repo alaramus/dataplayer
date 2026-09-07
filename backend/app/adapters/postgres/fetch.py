@@ -23,6 +23,7 @@ from app.adapters.fetch import (
 from app.adapters.postgres.catalog import is_system_schema
 from app.adapters.postgres.column_type import build_column_type
 from app.adapters.postgres.row_handle import encode_row_handle
+from app.adapters.postgres.relation_context import PostgresRelationContext
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import (
     SECTION_ID,
@@ -256,8 +257,13 @@ class PostgresFetch:
     which is injection by construction.
     """
 
-    def __init__(self, session: PostgresSession) -> None:
+    def __init__(
+        self,
+        session: PostgresSession,
+        relation_context: PostgresRelationContext | None = None,
+    ) -> None:
         self._session = session
+        self._relation_context = relation_context or PostgresRelationContext(session)
 
     async def fetch(self, request: FetchRequest) -> FetchResult:
         prepared = await self.prepare(request)
@@ -566,6 +572,8 @@ class PostgresFetch:
         )
         if not rows:
             raise AdapterError("config", f'Relation "{schema}.{table}" does not exist')
+        context = await self._relation_context.schema(schema, table)
+        timescale_reason = context.structured_operations_reason(table)
         primary_key = [str(value) for value in (rows[0]["primary_key"] or [])]
         table_kind = str(rows[0]["relation_kind"]) in {"r", "p"}
         # A key is not required to name a row any more: where there is none,
@@ -573,7 +581,10 @@ class PostgresFetch:
         # of it, which is all an optimistic edit ever needed (D42).
         # A view has neither: no key of its own and no ctid to fall back on,
         # which is why there is a third answer rather than a second.
-        physical_kind = str(rows[0]["relation_kind"]) in {"r", "p", "m"}
+        physical_kind = (
+            str(rows[0]["relation_kind"]) in {"r", "p", "m"}
+            and timescale_reason is None
+        )
         row_identity: Literal["primary_key", "physical", "none"] = (
             "primary_key"
             if primary_key
@@ -585,13 +596,15 @@ class PostgresFetch:
         # left to the driver, which is the same rule that already refuses a
         # new table in pg_catalog, now said for rows too (D54).
         server_owned = is_system_schema(schema)
-        writable = table_kind and not server_owned
+        writable = table_kind and not server_owned and timescale_reason is None
         owned = f'"{schema}" belongs to the server'
 
         def refusal(not_a_table: str) -> str | None:
             if writable:
                 return None
-            return owned if server_owned else not_a_table
+            if server_owned:
+                return owned
+            return timescale_reason or not_a_table
 
         update_supported = writable
         update_reason = refusal("Only tables can be edited")

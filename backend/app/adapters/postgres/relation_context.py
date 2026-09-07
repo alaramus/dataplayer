@@ -68,6 +68,14 @@ class SchemaRelationContext:
     def ordinary_statistics_are_valid_for(self, relation: str) -> bool:
         return self.known and self.specialization_for(relation) is None
 
+    def structured_operations_reason(self, relation: str) -> str | None:
+        specialization = self.specialization_for(relation)
+        if specialization is not None:
+            return "TimescaleDB relations are read-only in this version"
+        if not self.known:
+            return self.reason or "TimescaleDB relation status could not be established"
+        return None
+
 
 class PostgresRelationContext:
     def __init__(
