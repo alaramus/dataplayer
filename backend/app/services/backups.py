@@ -78,6 +78,18 @@ def backup_filename(connector_name: str, when: datetime) -> str:
     return f"{safe or 'backup'}-{stamp}.dump"
 
 
+def backup_source(connector: Connector) -> SupportsBackup:
+    options = merge_options(connector.config, connector.secrets)
+    adapter = build_adapter(
+        registry.get(connector.adapter_type),
+        options,
+        AdapterContext(home_dir=storage.home_dir(connector.owner_id)),
+    )
+    if not isinstance(adapter, SupportsBackup):
+        raise ValueError("This kind of connection cannot be backed up")
+    return adapter
+
+
 class _BackupJob:
     """What both of them need: the engine, and the connection in question."""
 
@@ -90,6 +102,11 @@ class _BackupJob:
         connector = await session.get(Connector, job.subject_id)
         if connector is None:
             raise JobFailed("That connection is no longer here")
+        await session.refresh(connector)
+        if connector.owner_id != job.owner_id:
+            raise JobFailed("This connection no longer belongs to the job owner")
+        if not connector.enabled:
+            raise JobFailed("This connection is disabled")
         return connector
 
     def _source(self, connector: Connector) -> SupportsBackup:
@@ -99,15 +116,10 @@ class _BackupJob:
         program would dump it does not implement the capability, and the
         answer is a refusal rather than a guess (D2d).
         """
-        options = merge_options(connector.config, connector.secrets)
-        adapter = build_adapter(
-            registry.get(connector.adapter_type),
-            options,
-            AdapterContext(home_dir=storage.home_dir(connector.owner_id)),
-        )
-        if not isinstance(adapter, SupportsBackup):
-            raise JobFailed("This kind of connection cannot be backed up")
-        return adapter
+        try:
+            return backup_source(connector)
+        except ValueError as exc:
+            raise JobFailed(str(exc)) from None
 
     async def _run(
         self,
@@ -161,11 +173,21 @@ class BackUpConnector(_BackupJob):
         await to_thread.run_sync(_make_folder, folder)
         filename = backup_filename(connector.name, datetime.now(UTC))
         inside = PurePosixPath(STORAGE_MOUNT) / str(connector.owner_id)
-        program = await source.backup_program(
-            into=str(inside / BACKUP_FOLDER / filename)
-        )
+        try:
+            program = await source.backup_program(
+                into=str(inside / BACKUP_FOLDER / filename)
+            )
+        except ValueError as exc:
+            raise JobFailed(str(exc)) from None
         await progress.reached("fetching the tool")
         await self._engine.pull(program.image)
+        source = self._source(await self._connector(session, job))
+        try:
+            current = await source.backup_program(into=str(inside / BACKUP_FOLDER / filename))
+        except ValueError as exc:
+            raise JobFailed(str(exc)) from None
+        if current != program:
+            raise JobFailed("The connection changed while the backup tool was being prepared")
         await progress.reached("copying the database out")
         result = await self._run(
             program, owner_id=connector.owner_id, what="backup", writes=True
@@ -176,7 +198,6 @@ class BackUpConnector(_BackupJob):
         if not await to_thread.run_sync(written.exists):
             raise JobFailed("The program finished but wrote nothing")
         return f"{filename} written to {BACKUP_FOLDER}"
-
 
 class RestoreConnector(_BackupJob):
     """Put a backup back into a source, over what is there.
@@ -205,11 +226,21 @@ class RestoreConnector(_BackupJob):
         if not await to_thread.run_sync((home / BACKUP_FOLDER / name).is_file):
             raise JobFailed(f"There is no backup called {name}")
         inside = PurePosixPath(STORAGE_MOUNT) / str(connector.owner_id)
-        program = await source.restore_program(
-            from_file=str(inside / BACKUP_FOLDER / name)
-        )
+        try:
+            program = await source.restore_program(
+                from_file=str(inside / BACKUP_FOLDER / name)
+            )
+        except ValueError as exc:
+            raise JobFailed(str(exc)) from None
         await progress.reached("fetching the tool")
         await self._engine.pull(program.image)
+        source = self._source(await self._connector(session, job))
+        try:
+            current = await source.restore_program(from_file=str(inside / BACKUP_FOLDER / name))
+        except ValueError as exc:
+            raise JobFailed(str(exc)) from None
+        if current != program:
+            raise JobFailed("The connection changed while the restore tool was being prepared")
         await progress.reached("writing the database back")
         result = await self._run(
             program, owner_id=connector.owner_id, what="restore", writes=False

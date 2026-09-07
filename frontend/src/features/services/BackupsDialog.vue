@@ -34,7 +34,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ "update:connector": [value: null] }>()
 
-const offer = useBackupOffer()
+const offer = useBackupOffer(computed(() => props.connector?.id ?? null))
 const backups = useBackups()
 const backUp = useBackUp()
 const restore = useRestore()
@@ -44,6 +44,9 @@ const confirm = useConfirm()
 const working = ref(false)
 
 const files = computed(() => backups.data.value ?? [])
+const available = computed(() =>
+  offer.data.value?.available === true && !offer.isError.value && !offer.isFetching.value
+)
 
 function readableSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -143,6 +146,9 @@ async function putBack(filename: string) {
     @update:model-value="emit('update:connector', null)"
   >
     <div class="backups">
+      <AppBanner v-if="offer.isError.value" tone="warning">
+        {{ messageOf(offer.error.value, "Backup availability could not be checked") }}
+      </AppBanner>
       <AppBanner
         v-if="offer.data.value && !offer.data.value.available"
         tone="warning"
@@ -152,7 +158,7 @@ async function putBack(filename: string) {
 
       <AppButton
         label="Copy this database out"
-        :disable="working || !(offer.data.value?.available ?? false)"
+        :disable="working || !available"
         :loading="working"
         data-testid="take-backup"
         @click="take"
@@ -180,7 +186,7 @@ async function putBack(filename: string) {
         <AppButton
           variant="danger-quiet"
           label="Restore"
-          :disable="working || !(offer.data.value?.available ?? false)"
+          :disable="working || !available"
           :data-testid="`restore-${file.filename}`"
           @click="putBack(file.filename)"
         />

@@ -12,6 +12,8 @@ from sqlmodel import delete
 
 from app.adapters import registry
 from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.backup import PostgresBackup
+from app.adapters.protocol import BackupAvailability
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.jobs.models import Job
@@ -129,9 +131,12 @@ async def test_the_program_is_given_the_password_apart_from_its_arguments(
     # CI uses "postgres" for both the user and password, and the image has
     # that name too. A distinct secret makes substring checks unambiguous.
     password = "backup-only-secret-4c7d94a"
-    # Only the version probe needs a live source. Keep command construction
+    # Extension and version probes need a live source. Keep command construction
     # real while letting this connector carry a password chosen by the test.
-    query = AsyncMock(return_value=[{"server_version_num": "180000"}])
+    async def probe(statement: str, *args: object, **kwargs: object) -> list[dict[str, str]]:
+        return [{"server_version_num": "180000"}] if statement == "SHOW server_version_num" else []
+
+    query = AsyncMock(side_effect=probe)
     monkeypatch.setattr(PostgresSession, "query", query)
     connector_id = await _connector(
         client, normal_user_token_headers, password=password
@@ -145,7 +150,7 @@ async def test_the_program_is_given_the_password_apart_from_its_arguments(
     assert started.status_code == 200, started.text
     await _wait(started.json()["id"])
 
-    query.assert_awaited_once_with("SHOW server_version_num")
+    query.assert_any_await("SHOW server_version_num")
     assert len(engine.ran) == 1
     run = engine.ran[0]
     assert run.environment["PGPASSWORD"] == password
@@ -423,4 +428,55 @@ async def _owner_of(connector_id: str) -> uuid.UUID:
     async with async_session_maker() as session:
         connector = await session.get(Connector, uuid.UUID(connector_id))
         assert connector is not None
-        return connector.owner_id
+    return connector.owner_id
+
+
+async def test_timescale_offer_and_admission_refuse_without_creating_a_job(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    engine: FakeEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connector_id = await _connector(client, normal_user_token_headers)
+    monkeypatch.setattr(
+        PostgresBackup, "backup_availability",
+        AsyncMock(return_value=BackupAvailability(available=False, reason="TimescaleDB is not supported")),
+    )
+    offer = await client.get(
+        f"{BASE}/offer", headers=normal_user_token_headers,
+        params={"connector_id": connector_id},
+    )
+    assert offer.json()["available"] is False
+    for endpoint, extra in [("/", {}), ("/restore", {"filename": "any.dump", "understood": True})]:
+        answer = await client.post(
+            f"{BASE}{endpoint}", headers=normal_user_token_headers,
+            json={"connector_id": connector_id, **extra},
+        )
+        assert answer.status_code == 422
+        assert "TimescaleDB" in answer.json()["detail"]["message"]
+    assert engine.ran == []
+
+
+async def test_timescale_added_during_tool_pull_refuses_execution(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    engine: FakeEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connector_id = await _connector(client, normal_user_token_headers)
+    monkeypatch.setattr(
+        PostgresBackup, "backup_availability", AsyncMock(side_effect=[
+            BackupAvailability(available=True),
+            BackupAvailability(available=True),
+            BackupAvailability(available=False, reason="TimescaleDB is not supported"),
+        ]),
+    )
+    started = await client.post(
+        f"{BASE}/", headers=normal_user_token_headers, json={"connector_id": connector_id},
+    )
+    assert started.status_code == 200
+    await _wait(started.json()["id"])
+    job = await client.get(f"{JOBS}/{started.json()['id']}", headers=normal_user_token_headers)
+    assert job.json()["state"] == "failed"
+    assert "TimescaleDB" in job.json()["message"]
+    assert engine.ran == []

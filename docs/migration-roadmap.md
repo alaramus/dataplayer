@@ -164,8 +164,10 @@ schema members. Dedicated Timescale namespaces and internal relation membership
 (chunks, materialisations and extension-owned relations) are now protected.
 Schema changes, destination creation, schema-level action offers and cascade
 dependencies now consult those guards. Cascade scope inspection is bounded and
-read-only. Their tests are written but have not been run. Next: add instance-level
-backup/restore admission and bounded archive inspection before Timescale reports.
+read-only. Instance-level backup/restore offers, admission and job execution
+now refuse Timescale targets and unknown extension status. Their tests are
+written but have not been run. Next: bounded source archive inspection before
+Timescale reports.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

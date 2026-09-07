@@ -149,6 +149,11 @@ class BackupProgram:
     environment: Mapping[str, str]
 
 
+class BackupAvailability(BaseModel):
+    available: bool
+    reason: str | None = None
+
+
 @runtime_checkable
 class SupportsBackup(Protocol):
     """A source that can be copied out whole and put back.
@@ -159,6 +164,8 @@ class SupportsBackup(Protocol):
     not implement this and the routes answer 501 — the rule every other
     capability follows.
     """
+
+    async def backup_availability(self) -> BackupAvailability: ...
 
     async def backup_program(self, *, into: str) -> BackupProgram: ...
 

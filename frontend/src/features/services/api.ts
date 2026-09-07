@@ -178,13 +178,15 @@ export function useRevealedCredentials(
 export const backupsKey = ["backups"] as const
 export const backupOfferKey = ["backup-offer"] as const
 
-export function useBackupOffer() {
+export function useBackupOffer(connectorId?: Ref<string | null>) {
   return useQuery({
-    queryKey: backupOfferKey,
-    queryFn: async () => (await BackupsService.readBackupOffer()).data,
-    // About the machine rather than about a source, and a daemon can go away
-    // while this page is open.
-    staleTime: 30_000,
+    queryKey: computed(() => [...backupOfferKey, connectorId?.value ?? null]),
+    enabled: computed(() => connectorId === undefined || connectorId.value !== null),
+    queryFn: async () =>
+      (await BackupsService.readBackupOffer({
+        query: { connector_id: connectorId?.value ?? undefined },
+      })).data,
+    staleTime: 0,
   })
 }
 

@@ -51,6 +51,8 @@ export type {
   backupsDeleteBackupResponse,
   backupsDeleteBackupResponses,
   backupsReadBackupOfferData,
+  backupsReadBackupOfferError,
+  backupsReadBackupOfferErrors,
   backupsReadBackupOfferResponse,
   backupsReadBackupOfferResponses,
   backupsReadBackupsData,

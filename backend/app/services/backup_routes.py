@@ -20,6 +20,7 @@ from app.services.backups import (
     BACKUP_FOLDER,
     BackUpConnector,
     RestoreConnector,
+    backup_source,
     storage_volume_reason,
 )
 from app.services.engine import ServiceEngineDep
@@ -80,13 +81,26 @@ async def read_backups(current_user: CurrentUser) -> Any:
 
 
 @router.get("/offer", response_model=BackupOffer)
-async def read_backup_offer(engine: ServiceEngineDep) -> Any:
+async def read_backup_offer(
+    engine: ServiceEngineDep,
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID | None = None,
+) -> Any:
     """
     Whether a backup could be taken now, and why not when it could not.
 
     Two reasons, and they are different: no container runtime to run the
     program in, and nowhere to write what it produces.
     """
+    if connector_id is not None:
+        connector = await _own_connector_or_404(session, connector_id, current_user.id)
+        if not connector.enabled:
+            return BackupOffer(available=False, reason="This connection is disabled")
+        _refuse_unless_the_source_can(connector)
+        source_offer = await backup_source(connector).backup_availability()
+        if not source_offer.available:
+            return BackupOffer(available=False, reason=source_offer.reason)
     runtime = await engine.availability()
     if not runtime.available:
         return BackupOffer(available=False, reason=runtime.reason)
@@ -134,6 +148,7 @@ async def back_up(
     """
     connector = await _own_connector_or_404(session, body.connector_id, current_user.id)
     _refuse_unless_the_source_can(connector)
+    await _refuse_unless_source_available(connector)
     await _refuse_unless_possible(engine)
     job = await job_crud.create(
         session,
@@ -165,6 +180,7 @@ async def restore(
     """
     connector = await _own_connector_or_404(session, body.connector_id, current_user.id)
     _refuse_unless_the_source_can(connector)
+    await _refuse_unless_source_available(connector)
     await _refuse_unless_possible(engine)
     if not body.understood:
         raise HTTPException(
@@ -250,6 +266,14 @@ async def _own_connector_or_404(
             status_code=404, detail={"message": "No such connection"}
         )
     return connector
+
+
+async def _refuse_unless_source_available(connector: Connector) -> None:
+    if not connector.enabled:
+        raise HTTPException(status_code=409, detail={"message": "This connection is disabled"})
+    offer = await backup_source(connector).backup_availability()
+    if not offer.available:
+        raise HTTPException(status_code=422, detail={"message": offer.reason})
 
 
 def _refuse_unless_the_source_can(connector: Connector) -> None:

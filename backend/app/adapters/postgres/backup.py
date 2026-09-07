@@ -11,7 +11,7 @@ Nothing here runs anything. It says what to run; a job runs it.
 
 from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.protocol import BackupProgram
+from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
 
 # The oldest image family this will ask for. A server older than this is a
 # server whose dump belongs to somebody with the right tools, not to a guess.
@@ -24,6 +24,25 @@ class PostgresBackup:
     def __init__(self, session: PostgresSession, options: PostgresOptions) -> None:
         self._session = session
         self._options = options
+
+    async def backup_availability(self) -> BackupAvailability:
+        try:
+            installed = await self._session.query(
+                "SELECT extname FROM pg_catalog.pg_extension WHERE extname = %s",
+                ("timescaledb",),
+                inspection=True,
+            )
+        except (ValueError, AdapterError):
+            return BackupAvailability(
+                available=False,
+                reason="Installed extensions could not be inspected for backup or restore",
+            )
+        if installed:
+            return BackupAvailability(
+                available=False,
+                reason="TimescaleDB backup and restore are not supported in this version",
+            )
+        return BackupAvailability(available=True)
 
     async def backup_program(self, *, into: str) -> BackupProgram:
         """`pg_dump` in its own custom format, to one file.
@@ -76,6 +95,9 @@ class PostgresBackup:
         program of a newer server is refused, and this is the one fact that
         decides whether it will work.
         """
+        offer = await self.backup_availability()
+        if not offer.available:
+            raise ValueError(offer.reason)
         rows = await self._session.query("SHOW server_version_num")
         number = int(str(rows[0]["server_version_num"]))
         major = number // 10000

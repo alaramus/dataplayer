@@ -18,6 +18,7 @@ import type {
   backupsDeleteBackupErrors,
   backupsDeleteBackupResponses,
   backupsReadBackupOfferData,
+  backupsReadBackupOfferErrors,
   backupsReadBackupOfferResponses,
   backupsReadBackupsData,
   backupsReadBackupsResponses,
@@ -2905,8 +2906,13 @@ export class BackupsService {
   public static readBackupOffer<ThrowOnError extends boolean = true>(
     options?: Options<backupsReadBackupOfferData, ThrowOnError>
   ) {
-    return (options?.client ?? client).get<backupsReadBackupOfferResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).get<
+      backupsReadBackupOfferResponses,
+      backupsReadBackupOfferErrors,
+      ThrowOnError
+    >({
       responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/backups/offer",
       ...options,
     })

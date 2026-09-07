@@ -65,7 +65,7 @@ from app.adapters.postgres.statements import format_text
 from app.adapters.postgres.summary import PostgresSummaries
 from app.adapters.postgres.table_design import PostgresTableDesign
 from app.adapters.postgres.update import PostgresUpdate
-from app.adapters.protocol import BackupProgram, ConnectionCheckResult
+from app.adapters.protocol import BackupAvailability, BackupProgram, ConnectionCheckResult
 from app.adapters.query import (
     ExplainRequest,
     ExplainResult,
@@ -171,6 +171,9 @@ class PostgresAdapter:
         )
         self._backup = PostgresBackup(self._session, options)
         self._samples = PostgresSamples(self._session)
+
+    async def backup_availability(self) -> BackupAvailability:
+        return await self._backup.backup_availability()
 
     async def backup_program(self, *, into: str) -> BackupProgram:
         """What copies this server out, in the version that can (D87)."""

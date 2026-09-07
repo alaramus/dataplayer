@@ -13,8 +13,9 @@ tests written but not yet run. Rename, move, drop previews/execution and model
 downloads consult the shared classification, including schema model members.
 Internal relation membership and dedicated namespace protection are implemented.
 Schema mutation/cascade guards and schema-level action offers are implemented;
-dependency inspection is bounded to 1000 objects and five seconds. Reports and
-backup/restore admission remain. T2 adds bounded
+dependency inspection is bounded to 1000 objects and five seconds. Instance-level
+backup/restore offers, admission and job execution now refuse Timescale targets.
+Reports and source archive inspection remain. T2 adds bounded
 changes and T3 adds owned operations. The
 [roadmap](../../migration-roadmap.md) tracks delivery.
 

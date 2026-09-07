@@ -449,6 +449,10 @@ version it is, and the program runs in the image of that version.
   type does not declare it, and pressing it anyway answers 501. Two questions,
   not one: whether the machine can run the program at all is the offer, and
   whether this source can name one is the capability.
+  `backup_availability()` adds the live source answer (D122); the authenticated
+  offer accepts a connector ID and combines it with runtime/storage availability.
+  Admission and execution repeat it. Ownership, enabled state and the prepared
+  program are rechecked after the tool image is fetched.
 - **Backing up is the owner's.** Copying a database out whole is every row,
   every schema and every function in one file the caller keeps, which is more
   than a read.

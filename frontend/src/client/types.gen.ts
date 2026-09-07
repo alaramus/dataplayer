@@ -12006,9 +12006,24 @@ export type backupsBackUpResponse = backupsBackUpResponses[keyof backupsBackUpRe
 export type backupsReadBackupOfferData = {
   body?: never
   path?: never
-  query?: never
+  query?: {
+    /**
+     * Connector Id
+     */
+    connector_id?: string | null
+  }
   url: "/api/v1/backups/offer"
 }
+
+export type backupsReadBackupOfferErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type backupsReadBackupOfferError =
+  backupsReadBackupOfferErrors[keyof backupsReadBackupOfferErrors]
 
 export type backupsReadBackupOfferResponses = {
   /**
