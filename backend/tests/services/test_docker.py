@@ -18,6 +18,7 @@ from app.services.docker import RESTART_POLICY, DockerEngine
 from app.services.engine import EngineError, EngineUnavailable
 from app.services.plan import Placement, build_plan
 from app.services.templates import template_for
+from app.services.tools import ToolRun
 
 
 def _spec(publish: bool = False, network: str | None = None) -> Any:
@@ -31,6 +32,35 @@ def _spec(publish: bool = False, network: str | None = None) -> Any:
 
 def _engine(handler: Any) -> DockerEngine:
     return DockerEngine("/nowhere.sock", transport=httpx.MockTransport(handler))
+
+
+@pytest.mark.parametrize("oversized", [False, True])
+async def test_full_tool_output_is_bounded_and_never_silently_tailed(oversized: bool) -> None:
+    from app.services.docker import MAX_TOOL_OUTPUT_BYTES
+
+    seen: list[httpx.Request] = []
+    body = b"entry\n" * 100 if not oversized else b"x" * (MAX_TOOL_OUTPUT_BYTES + 1)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        path = request.url.path
+        if path.endswith("/create"):
+            return httpx.Response(201, json={"Id": "inspect"})
+        if path.endswith("/wait"):
+            return httpx.Response(200, json={"StatusCode": 0})
+        if path.endswith("/logs"):
+            assert request.url.params["tail"] == "all"
+            return httpx.Response(200, content=body)
+        return httpx.Response(204)
+
+    result = await _engine(handler).run_once(ToolRun(
+        name="inspect", image="postgres:17", argv=("pg_restore", "--list"),
+        environment={}, mounts=(), network=None, labels={},
+        full_output=True, timeout_seconds=30,
+    ))
+    assert result.truncated == oversized
+    assert len(result.output) == (0 if oversized else 100)
+    assert seen[-1].method == "DELETE"
 
 
 def _recorder(status: int = 204, body: Any = None) -> tuple[list[httpx.Request], Any]:

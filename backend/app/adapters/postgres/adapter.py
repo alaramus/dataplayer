@@ -182,6 +182,12 @@ class PostgresAdapter:
     async def restore_program(self, *, from_file: str) -> BackupProgram:
         return await self._backup.restore_program(from_file=from_file)
 
+    async def restore_inventory_program(self, *, from_file: str) -> BackupProgram:
+        return await self._backup.restore_inventory_program(from_file=from_file)
+
+    def validate_restore_inventory(self, lines: Sequence[str]) -> None:
+        self._backup.validate_restore_inventory(lines)
+
     async def install_sample_data(self) -> str:
         """Put this project's own demonstration schema into an empty server."""
         return await self._samples.install_sample_data()

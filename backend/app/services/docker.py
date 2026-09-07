@@ -43,7 +43,7 @@ PROBE_TIMEOUT_SECONDS = 2.0
 # How long a program run in a container may take. A dump of a large database
 # is minutes rather than seconds, and the job that owns it is what a person
 # watches meanwhile.
-TOOL_TIMEOUT_SECONDS = 3600.0
+MAX_TOOL_OUTPUT_BYTES = 1024 * 1024
 # How much of a program's output is kept for the answer. A failed `pg_dump`
 # says why in one line; a successful one says nothing at all.
 TOOL_OUTPUT_LINES = 40
@@ -320,8 +320,12 @@ class DockerEngine:
             await self._request(
                 "POST", f"/containers/{run.name}/start", expected=(204, 304)
             )
-            waited = await self._wait(run.name)
-            output = await self.logs(run.name, tail=TOOL_OUTPUT_LINES)
+            waited = await self._wait(run.name, seconds=run.timeout_seconds)
+            if run.full_output:
+                result = await self._full_output(run.name, waited)
+            else:
+                output = await self.logs(run.name, tail=TOOL_OUTPUT_LINES)
+                result = ToolResult(exit_code=waited, output=output.lines)
         finally:
             await self._request(
                 "DELETE",
@@ -329,12 +333,30 @@ class DockerEngine:
                 params={"force": "true"},
                 expected=(204, 404),
             )
-        return ToolResult(exit_code=waited, output=output.lines)
+        return result
 
-    async def _wait(self, container: str) -> int:
+    async def _full_output(self, container: str, exit_code: int) -> ToolResult:
+        body = bytearray()
+        try:
+            async with self._client(COMMAND_TIMEOUT_SECONDS) as client:
+                async with client.stream(
+                    "GET", f"/containers/{container}/logs",
+                    params={"stdout": "true", "stderr": "true", "tail": "all"},
+                ) as response:
+                    if response.status_code != 200:
+                        raise _refusal(response.status_code)
+                    async for chunk in response.aiter_bytes(chunk_size=64 * 1024):
+                        if len(body) + len(chunk) > MAX_TOOL_OUTPUT_BYTES:
+                            return ToolResult(exit_code=exit_code, output=(), truncated=True)
+                        body.extend(chunk)
+        except httpx.HTTPError as failure:
+            raise _unreachable(failure) from None
+        return ToolResult(exit_code=exit_code, output=_demultiplexed(bytes(body)))
+
+    async def _wait(self, container: str, *, seconds: float) -> int:
         """Block until the container exits, and answer with its code."""
         try:
-            async with self._client(TOOL_TIMEOUT_SECONDS) as client:
+            async with self._client(seconds) as client:
                 response = await client.post(f"/containers/{container}/wait")
         except httpx.HTTPError as failure:
             raise _unreachable(failure) from None

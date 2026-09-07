@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from anyio import to_thread
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
@@ -23,6 +24,7 @@ from app.services.backups import handlers as backup_handlers
 from app.services.docker import DockerEngine
 from app.services.engine import SWITCHED_OFF_MESSAGE, NoEngine, ServiceEngine
 from app.services.jobs import handlers as service_handlers
+from app.services.restore_files import remove_stranded_snapshots
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -92,6 +94,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     )
     # What the last stop left mid-flight is ended before anything new starts.
     await settle_stranded()
+    await to_thread.run_sync(remove_stranded_snapshots)
     # Transactions held open for somebody: a connection each, so the lease is
     # what makes a forgotten one end (D66).
     application.state.query_sessions = QuerySessions(

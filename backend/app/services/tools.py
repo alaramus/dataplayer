@@ -40,6 +40,8 @@ class ToolRun:
     mounts: tuple[Mount, ...]
     network: str | None
     labels: Mapping[str, str]
+    full_output: bool = False
+    timeout_seconds: float = 3600.0
 
     def __repr__(self) -> str:
         """The environment holds a password, so it is described rather than
@@ -63,6 +65,7 @@ class ToolResult:
 
     exit_code: int
     output: Sequence[str]
+    truncated: bool = False
 
     @property
     def ok(self) -> bool:

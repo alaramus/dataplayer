@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol, runtime_checkable
 
@@ -170,6 +170,10 @@ class SupportsBackup(Protocol):
     async def backup_program(self, *, into: str) -> BackupProgram: ...
 
     async def restore_program(self, *, from_file: str) -> BackupProgram: ...
+
+    async def restore_inventory_program(self, *, from_file: str) -> BackupProgram: ...
+
+    def validate_restore_inventory(self, lines: Sequence[str]) -> None: ...
 
 
 @runtime_checkable

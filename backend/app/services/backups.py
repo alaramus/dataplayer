@@ -29,6 +29,7 @@ from app.jobs.models import Job, JobKind
 from app.jobs.runner import JobFailed, JobHandler, Progress
 from app.services.engine import ServiceEngine
 from app.services.plan import OWNER_LABEL, TOOL_LABEL
+from app.services.restore_files import snapshot
 from app.services.tools import Mount, ToolResult, ToolRun
 from app.users import storage
 
@@ -128,6 +129,7 @@ class _BackupJob:
         owner_id: uuid.UUID,
         what: str,
         writes: bool,
+        inventory: bool = False,
     ) -> ToolResult:
         """Run the program the source named, in a container of its own."""
         reason = storage_volume_reason()
@@ -149,6 +151,8 @@ class _BackupJob:
             ),
             network=settings.SERVICE_NETWORK or None,
             labels={TOOL_LABEL: what, OWNER_LABEL: str(owner_id)},
+            full_output=inventory,
+            timeout_seconds=30.0 if inventory else 3600.0,
         )
         return await self._engine.run_once(run)
 
@@ -213,6 +217,7 @@ class RestoreConnector(_BackupJob):
     steps: ClassVar[tuple[str, ...]] = (
         "asking the source what would restore it",
         "fetching the tool",
+        "inspecting the backup archive",
         "writing the database back",
     )
 
@@ -222,21 +227,40 @@ class RestoreConnector(_BackupJob):
         await progress.reached("asking the source what would restore it")
         source = self._source(connector)
         name = _restore_filename(job)
-        home = storage.home_dir(connector.owner_id)
-        if not await to_thread.run_sync((home / BACKUP_FOLDER / name).is_file):
-            raise JobFailed(f"There is no backup called {name}")
-        inside = PurePosixPath(STORAGE_MOUNT) / str(connector.owner_id)
+        staged = await to_thread.run_sync(snapshot, connector.owner_id, name)
         try:
-            program = await source.restore_program(
-                from_file=str(inside / BACKUP_FOLDER / name)
-            )
+            return await self._restore(job, progress, connector, source, name, staged)
+        finally:
+            await to_thread.run_sync(staged.unlink, True)
+
+    async def _restore(
+        self, job: Job, progress: Progress, connector: Connector,
+        source: SupportsBackup, name: str, staged: Path,
+    ) -> str:
+        archive = str(PurePosixPath(STORAGE_MOUNT) / staged.name)
+        try:
+            program = await source.restore_program(from_file=archive)
+            inspection = await source.restore_inventory_program(from_file=archive)
         except ValueError as exc:
             raise JobFailed(str(exc)) from None
+        if inspection.image != program.image:
+            raise JobFailed("The connection changed while the archive tools were being prepared")
         await progress.reached("fetching the tool")
         await self._engine.pull(program.image)
-        source = self._source(await self._connector(session, job))
+        await progress.reached("inspecting the backup archive")
+        inventory = await self._run(
+            inspection, owner_id=connector.owner_id, what="restore-inspection",
+            writes=False, inventory=True,
+        )
+        if not inventory.ok or inventory.truncated:
+            raise JobFailed("The backup inventory could not be read completely")
         try:
-            current = await source.restore_program(from_file=str(inside / BACKUP_FOLDER / name))
+            source.validate_restore_inventory(inventory.output)
+        except ValueError as exc:
+            raise JobFailed(str(exc)) from None
+        source = self._source(await self._connector(progress.session, job))
+        try:
+            current = await source.restore_program(from_file=archive)
         except ValueError as exc:
             raise JobFailed(str(exc)) from None
         if current != program:

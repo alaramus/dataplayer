@@ -9,7 +9,10 @@ pins (D87).
 Nothing here runs anything. It says what to run; a job runs it.
 """
 
+from collections.abc import Sequence
+
 from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
+from app.adapters.postgres.restore_inventory import validate_inventory
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError, BackupAvailability, BackupProgram
 
@@ -78,6 +81,8 @@ class PostgresBackup:
             image=await self._image(),
             argv=(
                 "pg_restore",
+                "--format=custom",
+                "--exit-on-error",
                 "--clean",
                 "--if-exists",
                 "--no-owner",
@@ -87,6 +92,16 @@ class PostgresBackup:
             ),
             environment=self._environment(),
         )
+
+    async def restore_inventory_program(self, *, from_file: str) -> BackupProgram:
+        return BackupProgram(
+            image=await self._image(),
+            argv=("pg_restore", "--list", "--verbose", "--format=custom", from_file),
+            environment={"LC_ALL": "C"},
+        )
+
+    def validate_restore_inventory(self, lines: Sequence[str]) -> None:
+        validate_inventory(lines)
 
     async def _image(self) -> str:
         """The image of the server's own major version.

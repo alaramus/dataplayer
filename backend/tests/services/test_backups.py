@@ -313,6 +313,10 @@ async def test_a_restore_runs_the_program_the_source_named(
     connector_id = await _connector(client, normal_user_token_headers)
     owner = await _owner_of(connector_id)
     _write_backup(owner, "a-backup.dump")
+    engine.printed = [
+        ";     TOC Entries: 1", ";     Format: CUSTOM",
+        "1; 1259 123 TABLE public events owner",
+    ]
 
     started = await client.post(
         f"{BASE}/restore",
@@ -329,8 +333,12 @@ async def test_a_restore_runs_the_program_the_source_named(
     )
 
     assert job.json()["state"] == "succeeded"
+    assert len(engine.ran) == 2
     assert engine.ran[0].argv[0] == "pg_restore"
-    assert "--clean" in engine.ran[0].argv
+    assert "--list" in engine.ran[0].argv
+    assert engine.ran[0].environment == {"LC_ALL": "C"}
+    assert "--clean" in engine.ran[1].argv
+    assert engine.ran[0].argv[-1] == engine.ran[1].argv[-1]
     # Reading a dump is not a reason to be able to write to somebody's files.
     assert engine.ran[0].mounts[0].read_only is True
 
@@ -418,7 +426,7 @@ def _write_backup(owner_id: uuid.UUID, name: str) -> Path:
     folder = storage.home_dir(owner_id) / BACKUP_FOLDER
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / name
-    path.write_bytes(b"a dump")
+    path.write_bytes(b"PGDMPfake archive for the fake tool engine")
     return path
 
 
@@ -480,3 +488,29 @@ async def test_timescale_added_during_tool_pull_refuses_execution(
     assert job.json()["state"] == "failed"
     assert "TimescaleDB" in job.json()["message"]
     assert engine.ran == []
+
+
+async def test_timescale_archive_never_reaches_restore_on_plain_postgres(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    engine: FakeEngine,
+) -> None:
+    connector_id = await _connector(client, normal_user_token_headers)
+    owner = await _owner_of(connector_id)
+    _write_backup(owner, "timescale.dump")
+    engine.printed = [
+        ";     TOC Entries: 1", ";     Format: CUSTOM",
+        "1; 3079 123 EXTENSION - timescaledb ",
+    ]
+    started = await client.post(
+        f"{BASE}/restore", headers=normal_user_token_headers,
+        json={"connector_id": connector_id, "filename": "timescale.dump", "understood": True},
+    )
+    assert started.status_code == 200
+    await _wait(started.json()["id"])
+    job = await client.get(f"{JOBS}/{started.json()['id']}", headers=normal_user_token_headers)
+    assert job.json()["state"] == "failed"
+    assert "TimescaleDB" in job.json()["message"]
+    assert len(engine.ran) == 1
+    assert "--list" in engine.ran[0].argv
+    assert engine.ran[0].full_output
