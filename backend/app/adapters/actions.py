@@ -96,6 +96,15 @@ RefusalReason = Literal["conflict", "not_applicable", "too_large"]
 # teaching the client every action that is ever added (D56).
 ActsOn = Literal["node", "children", "level"]
 
+# Where an action is offered: in the menu over the catalog, or in the row of
+# commands above the rows of the node it acts on. Making a database user was a
+# form reached by ticking the Roles report in the catalog and opening a menu,
+# while the list of roles it adds to was on screen a click away — the same
+# distance installing an extension was moved out of (D70). Declared rather
+# than read off the name, because a client that decided this per action would
+# have to be taught every action that is ever added.
+OfferedIn = Literal["catalog", "rows"]
+
 
 class ActionRefused(Exception):
     def __init__(self, reason: RefusalReason, message: str) -> None:
@@ -151,6 +160,10 @@ class Action[P: BaseModel](ABC):
     # of that node it changes. `level` is the catalog level itself, kept apart
     # from a selected grouping whose children happen to be shown in it.
     acts_on: ClassVar[ActsOn]
+    # Where the action is drawn. "catalog" is the menu over a level's nodes;
+    # "rows" is the row of commands above the node's own rows, which is where
+    # something that adds a row belongs.
+    offered_in: ClassVar[OfferedIn] = "catalog"
     destructive: ClassVar[bool] = False
     # What the confirmation asks, when "are you sure you want to delete this"
     # is not what is about to happen. Every destructive action there was until

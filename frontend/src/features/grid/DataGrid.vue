@@ -21,6 +21,10 @@ import type {
   Sort,
 } from "@/client"
 import { messageOf, statusOf } from "@/shared/api/errors"
+import ActionDialog from "@/features/catalog/ActionDialog.vue"
+import { reloadedBy, toCommands } from "@/features/catalog/actions"
+import type { ActionCommand, ActionOutcome } from "@/features/catalog/actions"
+import { useNodeActions } from "@/features/catalog/api"
 import { useConnectionFreshness } from "@/features/connectors/api"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { readText } from "@/shared/clipboard"
@@ -1076,6 +1080,40 @@ function keysFor(command: RowCommand): string[] {
   return keysOf(command, result.value?.columns ?? [], rows.value, selectedRows.value)
 }
 
+/**
+ * What the source offers to do to this node from above its own rows (D79).
+ *
+ * The same actions the catalog menu holds, asked the same way; which of them
+ * belong here is the source's answer and not a name this side knows. A new
+ * role is asked for over the list of roles, where the rows it joins are.
+ */
+const nodeActions = useNodeActions(
+  toRef(props, "connectorId"),
+  computed(() => [props.nodeId])
+)
+const rowActions = computed<ActionCommand[]>(() =>
+  toCommands(
+    (nodeActions.data.value ?? []).filter(
+      (action) => action.offered_in === "rows" && action.applicable
+    )
+  )
+)
+const openAction = ref<ActionCommand | null>(null)
+
+/**
+ * What is left to do once an action run from here has finished.
+ *
+ * Not to say what happened: the window said it, in the source's own words,
+ * and a second line saying it again is a second line. What is left is the
+ * page — a role added to this list names no branch of the catalog to re-read
+ * (D79), so nothing else on screen would ever show it.
+ */
+async function actionDone(outcome: ActionOutcome) {
+  if (outcome.done.length === 0) return
+  if (reloadedBy(outcome).length > 0) changes.announce(props.connectorId)
+  await refreshRows()
+}
+
 async function runCommand(command: RowCommand) {
   const keys = keysFor(command)
   if (keys.length === 0) return
@@ -1270,6 +1308,24 @@ defineExpose({
           @click="openInsert"
         />
       </span>
+      <!-- What the source offers to do to this node from here, rather than
+           from behind a tick in the catalog: making a database user belongs
+           over the list of users (D79). Labelled for the reason the row
+           commands below are. -->
+      <span
+        v-for="action in rowActions"
+        :key="action.name"
+        :data-testid="`grid-node-action-${action.name}`"
+      >
+        <AppButton
+          :variant="action.destructive ? 'danger-quiet' : 'quiet'"
+          size="sm"
+          :label="action.label"
+          :data-testid="`grid-node-action-run-${action.name}`"
+          @click="openAction = action"
+        />
+      </span>
+
       <!-- What the source itself offers to do to the rows that are ticked.
            Labelled rather than iconed: an icon per command would be a table
            of names on this side, which is exactly what the source declaring
@@ -1418,6 +1474,18 @@ defineExpose({
     </template>
 
     <template #after-grid>
+      <!-- One window per action, opened where the action was offered. The
+           form, the preview and the refusals are the catalog's own; only the
+           place it is asked from is new. -->
+      <ActionDialog
+        v-if="openAction !== null"
+        :command="openAction"
+        :connector-id="connectorId"
+        :node-ids="[nodeId]"
+        :node-label="title ?? nodeId"
+        @update:command="openAction = $event"
+        @done="actionDone"
+      />
       <ShareDialog
         v-if="shareOpen"
         v-model="shareOpen"

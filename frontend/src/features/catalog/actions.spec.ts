@@ -28,6 +28,7 @@ const createFolder: ActionInfo = {
   previews_set: false,
   downloads: false,
   acts_on: "children",
+  offered_in: "catalog",
   applicable: true,
   params_schema: {
     type: "object",
@@ -46,6 +47,7 @@ const remove: ActionInfo = {
   previews_set: false,
   downloads: false,
   acts_on: "node",
+  offered_in: "catalog",
   applicable: true,
   params_schema: {
     type: "object",
@@ -64,6 +66,7 @@ const upload: ActionInfo = {
   previews_set: false,
   downloads: false,
   acts_on: "children",
+  offered_in: "catalog",
   applicable: true,
   params_schema: {
     type: "object",
@@ -150,6 +153,7 @@ describe("toCommands", () => {
       previews_set: false,
       downloads: true,
       acts_on: "node",
+      offered_in: "catalog",
       applicable: true,
       params_schema: { type: "object", properties: {} },
     }
@@ -178,6 +182,29 @@ describe("toMenu", () => {
 
   it("keeps the whole action vocabulary visible in the current place", () => {
     const commands = menu(vocabulary, [], ["reports"], [])
+
+    expect(named(commands)).toEqual(["create_folder", "upload", "delete"])
+  })
+
+  it("leaves out what the source wants offered above a node's own rows", () => {
+    /* Drawn there instead, not in both places: one command in two menus is
+       two menus to keep in step. */
+    const createRole: ActionInfo = {
+      ...remove,
+      name: "create_role",
+      title: "New role",
+      destructive: false,
+      offered_in: "rows",
+    }
+
+    const commands = toMenu(
+      [...vocabulary, createRole],
+      [],
+      [createRole],
+      null,
+      ["reports"],
+      ["roles"]
+    )
 
     expect(named(commands)).toEqual(["create_folder", "upload", "delete"])
   })
@@ -276,6 +303,7 @@ describe("toMenu", () => {
       name: "create_schema",
       title: "New schema",
       acts_on: "level",
+      offered_in: "catalog",
     }
 
     const commands = toMenu(

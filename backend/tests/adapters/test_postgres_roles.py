@@ -117,6 +117,12 @@ async def test_no_other_report_offers_it() -> None:
     assert await _available(adapter, SECTION_ID) == []
 
 
+async def test_it_is_offered_above_the_rows_rather_than_in_the_catalog_menu() -> None:
+    """D79: the report it adds a row to is what a person is looking at when
+    they want another user, so the button is there and not behind a tick."""
+    assert _adapter().action("create_role").offered_in == "rows"
+
+
 async def test_making_a_role_is_asked_of_the_owner_of_the_connection() -> None:
     """D79: a role is the server's, and no grant this application hands out
     is a reason to be able to make one."""

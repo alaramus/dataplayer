@@ -491,11 +491,16 @@ test("makes a database user from the report that lists the roles", async ({
 
   await catalogRow(page, "System").click()
   await expect(page.getByTestId("catalog-list")).toContainText("Roles")
-  await catalogCheck(page, "Roles").click()
+  await catalogRow(page, "Roles").click()
 
-  // Offered here and on no other report, and offered at all only because
-  // this connection belongs to the person looking at it (D79).
-  await catalogAction(page, "create_role")
+  // Asked for above the rows it adds to rather than from behind a tick in the
+  // catalog, and offered at all only because this connection belongs to the
+  // person looking at it (D79). The catalog menu no longer holds it.
+  await page.getByTestId("catalog-actions").click()
+  await expect(page.getByTestId("menu-item-create_role")).toHaveCount(0)
+  await page.keyboard.press("Escape")
+
+  await page.getByTestId("grid-node-action-run-create_role").click()
   const dialog = page.getByTestId("action-dialog")
   await dialog.getByTestId("field-name").fill(role)
   // Masked by the generic form, because the source said `SecretStr` and
@@ -506,8 +511,8 @@ test("makes a database user from the report that lists the roles", async ({
   await page.getByTestId("action-submit").click()
 
   // Filtered rather than read off row 0: the report lists every role the
-  // server has, so a row exists whatever happened.
-  await catalogRow(page, "Roles").click()
+  // server has, so a row exists whatever happened. No walking back to the
+  // report first: the page re-read itself where the action was run.
   await addFilter(page, "name", "equals", role)
   await expect(page.getByTestId("grid-cell-0-name")).toHaveText(role)
   await expect(page.getByTestId("grid-cell-0-can_login")).toHaveText("true")

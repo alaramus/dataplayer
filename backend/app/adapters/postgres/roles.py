@@ -23,6 +23,7 @@ from app.adapters.actions import (
     ActionResult,
     ActsOn,
     JsonAction,
+    OfferedIn,
 )
 from app.adapters.catalog import NodeKind
 from app.adapters.postgres.catalog import PostgresCatalog
@@ -94,6 +95,9 @@ class CreateRole(JsonAction[CreateRoleParams]):
     title: ClassVar[str] = "New role"
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"report"})
     acts_on: ClassVar[ActsOn] = "node"
+    # Above the list of roles rather than in the catalog menu: the report this
+    # adds a row to is what a person is looking at when they want another user.
+    offered_in: ClassVar[OfferedIn] = "rows"
     requires: ClassVar[Access] = "own"
     bulk: ClassVar[bool] = False
     params_model = CreateRoleParams

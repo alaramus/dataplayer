@@ -139,6 +139,16 @@ tables.
   commands are offered on theirs. `applies_to` speaks about kinds and every
   report is a report, so which report admits which command is a table —
   `REPORT_COMMANDS` — now that two of them do.
+- **And it is asked for from above those rows, not from the catalog menu.**
+  Reaching it meant walking to the report in the catalog, ticking it and
+  opening a menu, while the list of users it adds to was already on screen —
+  the same distance installing an extension was moved out of
+  ([D70](relations.md)). `Action.offered_in` is `catalog` or `rows`, declared
+  by the action and read by the client, which knows no action's name: what
+  says `rows` is drawn in the row of commands over the node it acts on and is
+  left out of the menu, so one command is never in two places. Only this
+  action says it; a second one is when the statement earns a decision of its
+  own.
 - **The password cannot be bound: PostgreSQL takes no parameters in DDL.** It
   travels as `psycopg.sql.Literal`, the driver's own quoting of a value — the
   same code that quotes a bound parameter, run before the statement is sent
@@ -163,7 +173,8 @@ tables.
   form holds.
 - The result names no branch to re-read, because a role is not a catalog node.
   Naming one to make a grid refresh would be a claim that something in the
-  catalog changed.
+  catalog changed. The grid re-reads its own page instead: an action run from
+  above the rows changed the rows, and nothing else on screen would say so.
 
 Known deviations:
 
@@ -177,8 +188,6 @@ Known deviations:
 - **What the new role may read is not answered here.** It can connect and see
   nothing; grants are written as SQL by somebody who has left read-only on
   purpose ([D66](../querying.md)).
-- **The report does not re-read itself when a role is made**, exactly as the
-  list of extensions does not when one is installed.
 - **A name can race another creator.** The check is fresh, and the server
   refuses a duplicate safely; nothing is overwritten.
 

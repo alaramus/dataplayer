@@ -125,6 +125,10 @@ export type ActionInfo = {
    */
   acts_on: "node" | "children" | "level"
   /**
+   * Offered In
+   */
+  offered_in: "catalog" | "rows"
+  /**
    * Applicable
    */
   applicable: boolean
@@ -4858,8 +4862,8 @@ export type NullabilityChanged = {
  * One operator class, for one access method and one type.
  *
  * Read from the server rather than written down: which classes exist depends
- * on what is installed, and this is exactly the metadata the prototype
- * guessed at in the browser.
+ * on what is installed, so a list kept in this repository would be wrong
+ * within a release and a list kept in the browser would be a guess.
  */
 export type OperatorClassOption = {
   /**

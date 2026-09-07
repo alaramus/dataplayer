@@ -229,6 +229,22 @@ async def test_an_action_says_whether_it_changes_the_node_or_its_contents(
 
 
 @pytest.mark.usefixtures("home")
+async def test_an_action_says_where_it_is_offered(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Where a command is drawn is the source's answer, not a name the client
+    knows (D79). Everything a file source has belongs in the catalog menu."""
+    connector_id = await _file_connector(client, normal_user_token_headers)
+
+    response = await _offered(
+        client, normal_user_token_headers, connector_id, ["reports"]
+    )
+
+    places = {action["offered_in"] for action in response.json()}
+    assert places == {"catalog"}
+
+
+@pytest.mark.usefixtures("home")
 async def test_the_root_offers_no_way_to_remove_itself(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

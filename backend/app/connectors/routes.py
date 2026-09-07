@@ -28,6 +28,7 @@ from app.adapters.actions import (
     ActionResult,
     ActsOn,
     ConnectorDraft,
+    OfferedIn,
     PreparesConnector,
     Previews,
     PreviewsSet,
@@ -2719,6 +2720,9 @@ class ActionInfo(BaseModel):
     # What the action changes, so a client knows what to send it: selected
     # nodes, the places whose children are shown, or the level itself.
     acts_on: ActsOn
+    # Where the source wants it offered: the catalog menu, or the row of
+    # commands above the rows of the node it acts on (D79).
+    offered_in: OfferedIn
     # Whether it can be done to the nodes that were asked about. Every action
     # the source has is listed; this says which of them apply here.
     applicable: bool
@@ -2783,6 +2787,7 @@ def _describe(action: Action[Any], *, applicable: bool) -> ActionInfo:
         downloads=isinstance(action, ProducesDownload),
         prepares_connector=isinstance(action, PreparesConnector),
         acts_on=action.acts_on,
+        offered_in=action.offered_in,
         applicable=applicable,
         question=action.question,
         params_schema=action.params_schema(),

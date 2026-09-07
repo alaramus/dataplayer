@@ -44,6 +44,12 @@ export interface ActionCommand {
   preparesConnector?: boolean
   /** Whether it changes selected nodes, their shown place, or the level itself. */
   actsOn: ActionInfo["acts_on"]
+  /**
+   * Where the source wants it offered: this menu, or the row of commands above
+   * the rows of the node it acts on. Making a database user belongs over the
+   * list of users, not behind a tick in the catalog (D79).
+   */
+  offeredIn: ActionInfo["offered_in"]
   fields: FieldSpec[]
   /** What each field with a published set of values offers, by field name. */
   choices: Record<string, SchemaChoice[]>
@@ -68,6 +74,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       downloads: action.downloads,
       preparesConnector: action.prepares_connector === true,
       actsOn: action.acts_on,
+      offeredIn: action.offered_in,
       fields: schema["x-ui-workflow"] === undefined ? schemaToFields(schema) : [],
       // Read whether or not a form is built: a workflow screen still asks the
       // schema what the source offers, in the source's own words.
@@ -183,7 +190,11 @@ export function toMenu(
   const applicableLevel = new Set(
     level.filter((action) => action.applicable).map((action) => action.name)
   )
-  return toCommands(level).map((command) => {
+  // What the source wants offered above a node's own rows is drawn there and
+  // not here as well: one command in two places is two places to keep in step,
+  // and the row that lists roles is where a new role is asked for (D79).
+  const offered = level.filter((action) => action.offered_in === "catalog")
+  return toCommands(offered).map((command) => {
     const targets =
       command.actsOn === "level"
         ? [levelId]

@@ -103,6 +103,10 @@ beforeEach(() => {
   vi.spyOn(ConnectorsService, "arrivingReferences").mockResolvedValue({
     data: [],
   } as never)
+  // And what the source offers to do to this node from above its rows (D79).
+  vi.spyOn(ConnectorsService, "readActions").mockResolvedValue({
+    data: [],
+  } as never)
 })
 
 describe("the basic data grid", () => {
@@ -1176,6 +1180,62 @@ describe("the basic data grid", () => {
     await wrapper.get('[data-testid="grid-cell-0-payload"]').trigger("dblclick")
     await flushPromises()
     expect(document.body.textContent).toContain('{"full":"value"}')
+  })
+
+  it("offers what the source wants asked from above its rows, and opens its form", async () => {
+    // Which actions belong here is the source's answer (D79): nothing on this
+    // side reads the name, so the test invents one the client cannot know.
+    mockPages()
+    vi.spyOn(ConnectorsService, "readActions").mockResolvedValue({
+      data: [
+        {
+          name: "create_role",
+          title: "New role",
+          destructive: false,
+          takes_file: false,
+          takes_many_files: false,
+          previews: false,
+          takes_set: false,
+          previews_set: false,
+          downloads: false,
+          acts_on: "node",
+          offered_in: "rows",
+          applicable: true,
+          params_schema: {
+            type: "object",
+            properties: { name: { type: "string", title: "Name" } },
+          },
+        },
+        {
+          name: "rename",
+          title: "Rename",
+          destructive: false,
+          takes_file: false,
+          takes_many_files: false,
+          previews: false,
+          takes_set: false,
+          previews_set: false,
+          downloads: false,
+          acts_on: "node",
+          offered_in: "catalog",
+          applicable: true,
+          params_schema: { type: "object", properties: {} },
+        },
+      ],
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    // The one the source asked for here, and only that one: what belongs in
+    // the catalog menu stays in the catalog menu.
+    expect(wrapper.find('[data-testid="grid-node-action-rename"]').exists()).toBe(false)
+    const button = wrapper.get('[data-testid="grid-node-action-run-create_role"]')
+    expect(button.text()).toContain("New role")
+
+    await button.trigger("click")
+    await flushPromises()
+
+    expect(document.body.textContent).toContain("New role")
   })
 })
 
