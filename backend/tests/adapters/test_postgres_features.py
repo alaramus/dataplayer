@@ -30,6 +30,7 @@ async def test_supported_extension_requires_the_baseline_public_views() -> None:
     session.query.side_effect = [
         [{"oid": 42, "version": "2.18.0"}],
         BASELINE_COLUMNS,
+        [],
     ]
 
     profile = await discover(session)
@@ -49,6 +50,23 @@ async def test_missing_baseline_column_makes_the_version_unsupported() -> None:
 
     assert profile.feature.state == "unsupported"
     assert profile.feature.reason is not None
+
+
+async def test_inaccessible_public_views_make_metadata_unavailable() -> None:
+    session = AsyncMock()
+    session.query.side_effect = [
+        [{"oid": 42, "version": "2.18.0"}],
+        BASELINE_COLUMNS,
+        ValueError("driver detail must not escape"),
+    ]
+
+    profile = await discover(session)
+
+    assert profile.feature.state == "unavailable"
+    assert profile.feature.installed_version == "2.18.0"
+    assert profile.feature.reason == (
+        "This connection may not inspect TimescaleDB metadata"
+    )
 
 
 async def test_unknown_major_version_is_not_claimed_as_supported() -> None:

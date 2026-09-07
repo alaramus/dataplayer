@@ -52,6 +52,7 @@ from app.adapters.postgres.query import (
 from app.adapters.postgres.references import PostgresReferences
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.relation_changes import PostgresRelationChanges
+from app.adapters.postgres.relation_context import PostgresRelationContext
 from app.adapters.postgres.row_commands import PostgresRowCommands
 from app.adapters.postgres.samples import PostgresSamples
 from app.adapters.postgres.session import (
@@ -143,14 +144,17 @@ class PostgresAdapter:
         self, options: PostgresOptions, pooling: Pooling | None = None
     ) -> None:
         self._session = PostgresSession(options, pooling)
-        self._catalog = PostgresCatalog(self._session)
         self._features = PostgresFeatures(self._session)
+        self._relation_context = PostgresRelationContext(
+            self._session, self._features
+        )
+        self._catalog = PostgresCatalog(self._session, self._relation_context)
         self._actions = PostgresActions(self._session, self._catalog)
         self._fetch = PostgresFetch(self._session)
         self._export = PostgresExport(self._session, self._fetch)
         self._update = PostgresUpdate(self._session, self._fetch)
         self._references = PostgresReferences(self._catalog, self._fetch)
-        self._relation = PostgresRelation(self._session)
+        self._relation = PostgresRelation(self._session, self._relation_context)
         self._columns = PostgresColumns(self._session, self._relation)
         self._indexes = PostgresIndexes(self._session, self._relation)
         self._constraints = PostgresConstraints(self._session, self._relation)

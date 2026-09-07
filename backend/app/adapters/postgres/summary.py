@@ -70,6 +70,7 @@ class PostgresSummaries:
             size_bytes=model.size_bytes,
             contents=RelationContents(
                 relation_kind=model.kind,
+                specialization=model.specialization,
                 schema_name=model.schema_name or "",
                 owner=model.owner,
                 persistence=model.persistence,

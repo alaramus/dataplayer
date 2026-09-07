@@ -47,6 +47,16 @@ _BASELINE_COLUMNS = frozenset(
     }
 )
 
+_BASELINE_ACCESS_SQL = """
+SELECT hypertable_schema AS schema_name, hypertable_name AS relation_name
+FROM timescaledb_information.hypertables
+WHERE false
+UNION ALL
+SELECT view_schema AS schema_name, view_name AS relation_name
+FROM timescaledb_information.continuous_aggregates
+WHERE false
+"""
+
 _INSPECTION_REFUSALS = {
     "42501": "This connection may not inspect installed extensions",
 }
@@ -153,6 +163,18 @@ async def discover(session: PostgresSession) -> TimescaleProfile:
                 state="unsupported",
                 reason="The installed version lacks the supported inspection API",
             )
+        )
+
+    try:
+        await session.query(_BASELINE_ACCESS_SQL, refusals=_INSPECTION_REFUSALS)
+    except ValueError:
+        return _unavailable(
+            "This connection may not inspect TimescaleDB metadata", version=version
+        )
+    except AdapterError as exc:
+        _raise_connection_failure(exc)
+        return _unavailable(
+            "TimescaleDB metadata could not be inspected", version=version
         )
 
     return TimescaleProfile(

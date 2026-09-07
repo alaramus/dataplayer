@@ -10,6 +10,10 @@ from app.adapters.catalog import (
 )
 from app.adapters.content import NodeRepresentation
 from app.adapters.frameworks import detect_frameworks
+from app.adapters.postgres.relation_context import (
+    PostgresRelationContext,
+    SchemaRelationContext,
+)
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import (
     REPORTS,
@@ -48,8 +52,13 @@ class PostgresCatalog:
     how the server is reached are separate concerns, and separate files.
     """
 
-    def __init__(self, session: PostgresSession) -> None:
+    def __init__(
+        self,
+        session: PostgresSession,
+        relation_context: PostgresRelationContext | None = None,
+    ) -> None:
         self._session = session
+        self._relation_context = relation_context or PostgresRelationContext(session)
 
     async def list_children(self, node_id: str | None) -> list[CatalogNode]:
         if node_id is None:
@@ -113,7 +122,8 @@ class PostgresCatalog:
         if not rows and not await self._schema_exists(schema):
             raise AdapterError("config", f'Schema "{schema}" does not exist')
 
-        return [_relation_of(schema, row["name"], row) for row in rows]
+        context = await self._relation_context.schema(schema)
+        return [_relation_of(schema, row["name"], row, context) for row in rows]
 
     async def path_to(self, node_id: str) -> list[CatalogNode]:
         """Every node from the root down to node_id, the node itself last.
@@ -174,7 +184,8 @@ class PostgresCatalog:
             raise NodeNotFound(node_id)
 
         row = rows[0]
-        return _relation_of(schema, relation, row)
+        context = await self._relation_context.schema(schema, relation)
+        return _relation_of(schema, relation, row, context)
 
     async def _schema_exists(self, schema: str) -> bool:
         rows = await self._session.query(
@@ -209,7 +220,12 @@ def _report_node(report: SystemReport) -> ReportNode:
     )
 
 
-def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
+def _relation_of(
+    schema: str,
+    name: str,
+    row: Mapping[str, Any],
+    context: SchemaRelationContext,
+) -> CatalogNode:
     """One relation as a node, from a row that names its kind and its size.
 
     Shared by the listing and by `path_to` so a table cannot be described one
@@ -223,19 +239,24 @@ def _relation_of(schema: str, name: str, row: Mapping[str, Any]) -> CatalogNode:
             has_children=False,
             is_materialized=row["kind"] == "m",
             is_system=is_system,
+            specialization=context.continuous_aggregate_for(name),
             representations=[TABLE_REPRESENTATION, DDL_REPRESENTATION],
             describable=True,
             summarizable=True,
         )
     estimate = int(row["row_estimate"])
+    statistics_are_valid = context.ordinary_statistics_are_valid_for(name)
     return TableNode(
         id=f"{schema}.{name}",
         name=name,
         has_children=False,
         # reltuples is -1 until the table has been analysed.
-        row_count_estimate=estimate if estimate >= 0 else None,
-        size_bytes=row["size_bytes"],
+        row_count_estimate=(
+            estimate if estimate >= 0 and statistics_are_valid else None
+        ),
+        size_bytes=row["size_bytes"] if statistics_are_valid else None,
         is_system=is_system,
+        specialization=context.hypertable_for(name),
         representations=[TABLE_REPRESENTATION, DDL_REPRESENTATION],
         describable=True,
         summarizable=True,

@@ -11,6 +11,10 @@ from app.adapters.postgres.index_methods import (
     INDEX_METHOD_PROPERTIES,
     index_method_options,
 )
+from app.adapters.postgres.relation_context import (
+    PostgresRelationContext,
+    SchemaRelationContext,
+)
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError, NodeNotFound
 from app.adapters.relation import (
@@ -193,8 +197,13 @@ def qualified(model: RelationModel) -> sql.Identifier:
 class PostgresRelation:
     """Describe relations with set-oriented catalog queries."""
 
-    def __init__(self, session: PostgresSession) -> None:
+    def __init__(
+        self,
+        session: PostgresSession,
+        relation_context: PostgresRelationContext | None = None,
+    ) -> None:
         self._session = session
+        self._relation_context = relation_context or PostgresRelationContext(session)
 
     async def relation_model(self, node_id: str) -> RelationModel:
         schema, _, relation = node_id.partition(".")
@@ -246,6 +255,7 @@ class PostgresRelation:
         methods = index_method_options(
             await self._session.query(INDEX_METHOD_PROPERTIES)
         )
+        context = await self._relation_context.schema(schema, relation)
 
         return [
             _relation_model(
@@ -255,6 +265,7 @@ class PostgresRelation:
                 constraints.get(str(row["name"]), []),
                 indexes.get(str(row["name"]), []),
                 methods,
+                context,
             )
             for row in relations
         ]
@@ -386,6 +397,7 @@ def _relation_model(
     constraints: list[Constraint],
     indexes: list[Index],
     index_methods: list[IndexMethodOption],
+    context: SchemaRelationContext,
 ) -> RelationModel:
     name = str(row["name"])
     estimate = row.get("row_estimate")
@@ -411,6 +423,8 @@ def _relation_model(
         else None
     )
     kind = _KINDS[str(row["relkind"])]
+    specialization = context.specialization_for(name)
+    statistics_are_valid = context.ordinary_statistics_are_valid_for(name)
     # A relation the server owns is described in full and changed by
     # nothing, whatever its kind would otherwise allow. PostgreSQL refuses
     # the DDL itself, but a refusal the source states is a capability the
@@ -448,11 +462,16 @@ def _relation_model(
         schema_name=schema,
         name=name,
         kind=kind,
+        specialization=specialization,
         owner=str(row["owner"]),
         persistence=_PERSISTENCE.get(str(row["persistence"]), "permanent"),
         comment=row.get("comment"),
-        row_estimate=None if estimate is None or estimate < 0 else int(estimate),
-        size_bytes=row.get("size_bytes"),
+        row_estimate=(
+            None
+            if estimate is None or estimate < 0 or not statistics_are_valid
+            else int(estimate)
+        ),
+        size_bytes=row.get("size_bytes") if statistics_are_valid else None,
         columns=columns,
         constraints=constraints,
         indexes=indexes,
