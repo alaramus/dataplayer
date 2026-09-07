@@ -7536,6 +7536,46 @@ export type SourceCacheWindows = {
 }
 
 /**
+ * SourceFeature
+ */
+export type SourceFeature = {
+  /**
+   * Code
+   */
+  code: "timescaledb"
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Installed Version
+   */
+  installed_version?: string | null
+  /**
+   * State
+   */
+  state: "absent" | "available" | "unsupported" | "unavailable"
+  /**
+   * Reason
+   */
+  reason?: string | null
+}
+
+/**
+ * SourceFeatures
+ */
+export type SourceFeatures = {
+  /**
+   * Observed At
+   */
+  observed_at: string
+  /**
+   * Features
+   */
+  features: Array<SourceFeature>
+}
+
+/**
  * SqlContent
  *
  * A bounded, read-only SQL document issued by its source.
@@ -9791,6 +9831,38 @@ export type connectorsReadCatalogResponses = {
 
 export type connectorsReadCatalogResponse =
   connectorsReadCatalogResponses[keyof connectorsReadCatalogResponses]
+
+export type connectorsReadSourceFeaturesData = {
+  body?: never
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/features"
+}
+
+export type connectorsReadSourceFeaturesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsReadSourceFeaturesError =
+  connectorsReadSourceFeaturesErrors[keyof connectorsReadSourceFeaturesErrors]
+
+export type connectorsReadSourceFeaturesResponses = {
+  /**
+   * Successful Response
+   */
+  200: SourceFeatures
+}
+
+export type connectorsReadSourceFeaturesResponse =
+  connectorsReadSourceFeaturesResponses[keyof connectorsReadSourceFeaturesResponses]
 
 export type connectorsDownloadPageData = {
   body: DownloadPageRequest

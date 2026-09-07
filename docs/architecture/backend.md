@@ -86,6 +86,7 @@ POST   /api/v1/connectors/check-draft
 POST   /api/v1/connectors/describe-draft
 POST   /api/v1/connectors/parse-url
 GET    /api/v1/connectors/{connector_id}/catalog?refresh=false
+GET    /api/v1/connectors/{connector_id}/features
 GET    /api/v1/connectors/{connector_id}/relation-model
 POST   /api/v1/connectors/{connector_id}/fetch?refresh=false
 POST   /api/v1/connectors/{connector_id}/content

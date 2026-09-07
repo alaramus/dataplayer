@@ -89,6 +89,7 @@ from app.adapters.fetch import (
     FetchResult,
     as_read_only,
 )
+from app.adapters.features import SourceFeatures, SupportsSourceFeatures
 from app.adapters.indexes import (
     CreateIndexRequest,
     CreateIndexResult,
@@ -1105,6 +1106,36 @@ async def read_catalog(
             status_code=502,
             detail={"message": exc.message, "error_kind": exc.error_kind},
         )
+
+
+@router.get("/{connector_id}/features", response_model=SourceFeatures)
+async def read_source_features(
+    session: SessionDep,
+    current_user: CurrentUser,
+    resources: ResourcesDep,
+    response: Response,
+    connector_id: uuid.UUID,
+) -> Any:
+    """Inspect optional features installed in this source now (D120)."""
+    adapter = await adapter_for(
+        session, connector_id, current_user, resources, requires="read"
+    )
+    if not isinstance(adapter, SupportsSourceFeatures):
+        raise HTTPException(
+            status_code=501,
+            detail={
+                "message": "This source does not report runtime features",
+                "error_kind": "config",
+            },
+        )
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return await adapter.source_features()
+    except AdapterError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"message": exc.message, "error_kind": exc.error_kind},
+        ) from exc
 
 
 @router.post(

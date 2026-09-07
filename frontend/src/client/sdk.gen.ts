@@ -156,6 +156,9 @@ import type {
   connectorsReadRelationModelData,
   connectorsReadRelationModelErrors,
   connectorsReadRelationModelResponses,
+  connectorsReadSourceFeaturesData,
+  connectorsReadSourceFeaturesErrors,
+  connectorsReadSourceFeaturesResponses,
   connectorsRenameColumnData,
   connectorsRenameColumnErrors,
   connectorsRenameColumnResponses,
@@ -1228,6 +1231,26 @@ export class ConnectorsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/catalog",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Source Features
+   *
+   * Inspect optional features installed in this source now (D120).
+   */
+  public static readSourceFeatures<ThrowOnError extends boolean = true>(
+    options: Options<connectorsReadSourceFeaturesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      connectorsReadSourceFeaturesResponses,
+      connectorsReadSourceFeaturesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/features",
       ...options,
     })
   }
