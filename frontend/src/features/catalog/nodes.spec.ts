@@ -9,6 +9,7 @@ import {
   REPORT_SECTION_ICON,
   groupTitle,
   groupsOf,
+  levelPath,
   roleOf,
   showsPath,
   toListNodes,
@@ -619,6 +620,16 @@ describe("file sources", () => {
     // A database at its root: the head says which schema is on, and a path
     // of one step beside it would say nothing.
     expect(showsPath(1, [group("public")])).toBe(false)
+  })
+
+  it("writes the path of a level from the root of the connection", () => {
+    expect(levelPath("reports/2026")).toBe("/reports/2026")
+  })
+
+  it("calls the root itself a path", () => {
+    // The level nothing has been opened from is still somewhere, and "/" is
+    // what its owner would type into the folder of a connection.
+    expect(levelPath(null)).toBe("/")
   })
 
   it("walks into the section of reports and opens a report", () => {

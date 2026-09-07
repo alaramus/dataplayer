@@ -362,6 +362,25 @@ async def test_reading_out_of_the_root_is_a_bad_request(
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize("typed", ["", "/", "reports", "/reports/"])
+async def test_the_stored_path_is_always_rooted(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], typed: str
+) -> None:
+    """What the box held is not what the table keeps: a path starts at "/"."""
+    response = await client.post(
+        f"{BASE}/",
+        headers=normal_user_token_headers,
+        json={
+            "name": f"files {uuid.uuid4()}",
+            "adapter_type": "file",
+            "options": {"path": typed},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["config"]["path"] == ("/" + typed.strip("/"))
+
+
 async def test_a_folder_outside_the_home_is_refused_by_the_form(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

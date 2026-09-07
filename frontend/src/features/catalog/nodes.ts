@@ -443,3 +443,16 @@ export function groupsOf(nodes: ListNode[]): ListNode[] {
 export function showsPath(depth: number, groups: ListNode[]): boolean {
   return depth > 1 || groups.length === 0
 }
+
+/**
+ * The path of the level standing on the node with this id.
+ *
+ * A level whose head draws a path is a level whose ids are paths below the
+ * root of the connection, and a path is written from that root: "/" is the
+ * root itself, which is a place like any other and not a level with nothing
+ * to say. The same form the owner of the source stores as the folder their
+ * connection points at, so what is copied here can be pasted there.
+ */
+export function levelPath(currentId: string | null): string {
+  return `/${currentId ?? ""}`
+}

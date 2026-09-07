@@ -48,6 +48,44 @@ def test_a_path_option_selects_a_folder_inside_the_home(tmp_path: Path) -> None:
     assert adapter.root == tmp_path / "reports" / "2026"
 
 
+@pytest.mark.parametrize(
+    ("typed", "stored"),
+    [
+        ("", "/"),
+        ("/", "/"),
+        ("   ", "/"),
+        ("reports", "/reports"),
+        ("/reports/", "/reports"),
+        ("reports/2026", "/reports/2026"),
+    ],
+)
+def test_a_stored_path_always_begins_at_the_root(typed: str, stored: str) -> None:
+    """One form in the table, whatever the form sent: the root is "/"."""
+    assert FileOptions(path=typed).path == stored
+
+
+def test_the_default_is_stored_as_the_root() -> None:
+    assert FileOptions().path == "/"
+
+
+@pytest.mark.parametrize(
+    ("stored", "root"),
+    [("/", "home"), ("/reports", "home/reports"), ("/reports/2026", "home/reports/2026")],
+)
+def test_a_rooted_path_is_joined_below_the_home(
+    tmp_path: Path, stored: str, root: str
+) -> None:
+    """The leading separator is dropped before joining, not carried into it.
+
+    Joining a segment that starts with one would leave personal storage for
+    the file system root.
+    """
+    home = tmp_path / "home"
+    adapter = FileAdapter(FileOptions(path=stored), _context(home))
+
+    assert adapter.root == tmp_path / Path(root)
+
+
 @pytest.mark.parametrize("path", ["../other-user", "reports/../../etc", "C:/Windows"])
 def test_a_path_leaving_the_home_is_rejected_by_the_schema(path: str) -> None:
     """Rejected where the form is validated, so the user sees a field error."""

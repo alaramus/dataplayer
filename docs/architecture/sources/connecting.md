@@ -385,3 +385,26 @@ Known deviations:
   lag behind it.
 
 Spec: [The freshness window a connection chooses](../../superpowers/specs/2026-09-05-connector-cache-window-design.md)
+
+
+## A file connection stores its folder as a path
+
+The only option a file source has is the folder it points at, read inside the
+personal storage of whoever owns the connection. It is stored the way a path is
+written: `/` is the root of that storage, `/reports/2026` is a folder in it.
+
+- One form in the table. The value used to be stripped of its separators, so
+  the root was the empty string whether the user typed `/` or left the box
+  alone, and a stored option that reads like an unfilled field is one nobody
+  can tell apart from a mistake.
+- It is also the form the catalog copies out of the path bar, so what is
+  copied while browsing one connection can be pasted into the folder of the
+  next.
+- `FileOptions.below_home` is what the driver joins from, and the only reader
+  of the stored string. `Path.joinpath` treats a segment beginning with a
+  separator as "start again at the file system root", which would leave
+  personal storage entirely — the leading `/` is dropped once, in the model
+  that owns it.
+- Rows written before this were rewritten by a data migration, statement named
+  and tested against an old row. Nothing was broken without it: the driver
+  joins from either form, and the migration exists so the table holds one.

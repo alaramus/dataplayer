@@ -359,11 +359,12 @@ what cannot, a tick box picks a node out without opening it, the way back is the
 first row, and the path above it starts at a home button and ends at a compact
 copy button at the right edge. The copy button appears while the path is hovered
 or contains keyboard focus; its space stays reserved so the path does not move.
-What it copies is the level's own id, which for a
-file source is the path below the root: the trail is labels for a reader, and
-the id is the string that names the place. At the root there is nothing to
-copy — the root is the connection, and a client is never told where on the
-server it lies — so the button is disabled there, as the home button is. One menu in the head
+What it copies is the level's own id written from the
+root — for a file source, `/reports/2026`: the trail is labels for a reader,
+and the id is the string that names the place. The root itself is `/` and is
+copied like any other level; the server is never named, because what is copied
+begins where the connection does, and `/` is also what its owner would type
+into the folder of a connection. One menu in the head
 carries everything the source can do, live for what is ticked and greyed out for
 the rest — standing in a folder is not choosing it. What that menu offers comes
 from the server; see D9 in [sources/actions.md](sources/actions.md).

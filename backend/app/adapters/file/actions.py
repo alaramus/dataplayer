@@ -202,7 +202,7 @@ class ConnectFolder(_ActsOnNode, Action[ConnectFolderParams]):
             raise ActionRefused("not_applicable", "Choose a folder to connect")
         relative = self._session.path_in_home(path)
         options = FileOptions(path=relative)
-        if options.path != relative:
+        if options.below_home != relative:
             raise ActionRefused(
                 "not_applicable",
                 "A connection path cannot start or end with spaces",

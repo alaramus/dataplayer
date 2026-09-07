@@ -30,7 +30,7 @@ async def test_folder_draft_uses_the_home_path_even_from_a_nested_connector(
 
     assert draft.name == "Annual reports"
     assert draft.adapter_type == "file"
-    assert draft.options == {"path": "library/Annual reports"}
+    assert draft.options == {"path": "/library/Annual reports"}
     assert str(tmp_path) not in draft.model_dump_json()
     derived = FileAdapter(
         FileOptions.model_validate(draft.options), AdapterContext(home_dir=tmp_path)
@@ -73,7 +73,7 @@ async def test_folder_drafts_follow_internal_links_but_refuse_escape(
     assert isinstance(action, PreparesConnector)
     draft = await action.prepare_connector("alias", {})
     assert draft.name == "alias"
-    assert draft.options == {"path": "reports"}
+    assert draft.options == {"path": "/reports"}
     with pytest.raises(ValueError):
         await action.prepare_connector("escape", {})
 

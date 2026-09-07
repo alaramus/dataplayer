@@ -286,7 +286,7 @@ async def test_folder_draft_prepares_a_nested_root_without_saving_it(
     assert prepared.json() == {
         "name": child_name,
         "adapter_type": "file",
-        "options": {"path": f"reports/{child_name}"},
+        "options": {"path": f"/reports/{child_name}"},
     }
     assert str(home) not in prepared.text
     after = await client.get(f"{BASE}/", headers=headers)

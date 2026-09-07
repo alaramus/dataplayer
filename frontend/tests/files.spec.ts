@@ -65,13 +65,18 @@ test("copies the path of the level it is standing on", async ({ page, context })
   await createFileConnector(page, name)
   await openConnector(page, name)
 
-  // Nothing to copy at the top: the root is the connection, and a client is
-  // never told where on the server it lies.
-  await expect(page.getByTestId("catalog-copy-path")).toBeDisabled()
-
-  await openNode(page, "reports")
+  // The root is a place like any other, and its path is "/" — the same string
+  // its owner would type into the folder of a connection. The server is never
+  // named: what is copied begins at the root of this source.
   const path = page.getByTestId("catalog-path")
   const copy = page.getByTestId("catalog-copy-path")
+  await path.hover()
+  await copy.click()
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe("/")
+
+  await openNode(page, "reports")
   const crumb = path.getByRole("button", { name: "reports", exact: true })
   const up = page.getByTestId("catalog-up")
   await up.focus()
@@ -96,7 +101,7 @@ test("copies the path of the level it is standing on", async ({ page, context })
   await copy.click()
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-    .toBe("reports")
+    .toBe("/reports")
 
   await up.focus()
   await up.hover()
@@ -109,7 +114,7 @@ test("copies the path of the level it is standing on", async ({ page, context })
   await page.keyboard.press("Enter")
   await expect
     .poll(() => page.evaluate(() => navigator.clipboard.readText()))
-    .toBe("reports")
+    .toBe("/reports")
 
   await deleteConnector(page, name)
 })

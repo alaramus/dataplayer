@@ -75,7 +75,7 @@ class FileAdapter:
     """
 
     def __init__(self, options: FileOptions, context: AdapterContext) -> None:
-        root = context.home_dir.joinpath(*PurePosixPath(options.path).parts)
+        root = context.home_dir.joinpath(*PurePosixPath(options.below_home).parts)
         self._session = FileSession(root, home_dir=context.home_dir)
         self._catalog = FileCatalog(self._session)
         self._content = FileContent(self._session)

@@ -23,7 +23,7 @@ import {
   useConnectors,
 } from "@/features/connectors/api"
 import { useCatalogLevel } from "@/features/catalog/useCatalogLevel"
-import { groupTitle, showsPath } from "@/features/catalog/nodes"
+import { groupTitle, levelPath, showsPath } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import BackupsDialog from "@/features/services/BackupsDialog.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
@@ -373,14 +373,12 @@ const describesNodes = computed(() => level.items.value.some((node) => node.summ
  * The source's own name for this level and not the trail as it is drawn: the
  * crumbs are labels a reader follows, while the id is the string that names
  * the place — for a file source, the path below the root, which is what the
- * root's owner types elsewhere. Nothing to copy at the root: the root is the
- * connection, and it is never named to a client.
+ * root's owner types elsewhere. Written from the root, so the root itself is
+ * "/" rather than nothing to copy: see `levelPath` in `nodes.ts`.
  */
 async function copyPath() {
-  const here = level.currentId.value
-  if (here === null) return
   try {
-    await copyText(here)
+    await copyText(levelPath(level.currentId.value))
     toast.success("Path copied")
   } catch {
     toast.error("This browser would not let the path be copied")
@@ -692,7 +690,6 @@ async function afterAction(outcome: ActionOutcome) {
             class="catalog-panel__copy-path"
             compact
             tooltip="Copy the path of this level"
-            :disable="level.currentId.value === null"
             data-testid="catalog-copy-path"
             @click="copyPath"
           />
