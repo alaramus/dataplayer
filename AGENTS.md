@@ -227,6 +227,12 @@ uv run ruff check app tests
 uv run lint-imports
 ```
 
+The suite needs one container more than the stack above: `docker compose up -d
+redis`, from the repository root. `redis` is not `redis-cache` — the
+application's cache publishes no port, and the redis adapter's tests talk to
+`localhost:6379`. Nothing else starts it, and without it 64 tests error on a
+refused connection rather than failing on anything they are about.
+
 Frontend checks, from `frontend/`:
 
 ```bash
