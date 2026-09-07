@@ -63,6 +63,9 @@ test("creates, fills, renames and removes a folder in personal storage", async (
   // not that anybody can reach it.
   await page.getByTestId("menu-item-rename").hover()
   await expect(page.locator(".q-tooltip")).toContainText("Tick a row to use this")
+  // Twice: Escape dismisses the topmost thing on screen, and the hint that has
+  // just opened over the item is above the menu holding it.
+  await page.keyboard.press("Escape")
   await page.keyboard.press("Escape")
 
   // --- create a folder, and see it appear without reopening the dialog

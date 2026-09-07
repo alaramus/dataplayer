@@ -141,7 +141,11 @@ test("keeps rows compact and follows a column drag before release", async ({ pag
     expect(button.y + button.height).toBeLessThanOrEqual(header.y + header.height)
   }
 
-  for (let row = 0; row < 5; row += 1) {
+  // Every row on the page rather than a number: the claim is about how a row
+  // is drawn, and the fixture holds two projects.
+  const shown = await page.getByTestId(/^grid-row-\d+$/).count()
+  expect(shown).toBeGreaterThan(1)
+  for (let row = 0; row < shown; row += 1) {
     const dataRow = page.getByTestId(`grid-row-${row}`)
     await dataRow.hover()
     const before = (await dataRow.boundingBox())!
@@ -156,9 +160,14 @@ test("keeps rows compact and follows a column drag before release", async ({ pag
   }
 
   const heading = page.getByTestId("grid-column-name")
-  const neighbor = page.getByTestId("grid-column-id")
+  // The column beside it in this relation: widening one must leave the others
+  // the width they had.
+  const neighbor = page.getByTestId("grid-column-code")
   const originalWidth = (await heading.boundingBox())!.width
   const neighborWidth = (await neighbor.boundingBox())!.width
+  // Scrolled to first: the pointer cannot be put outside the viewport, and a
+  // drag that starts nowhere leaves the column the width it had.
+  await page.getByTestId("grid-resize-name").scrollIntoViewIfNeeded()
   const handle = (await page.getByTestId("grid-resize-name").boundingBox())!
   const x = handle.x + handle.width / 2
   const y = handle.y + handle.height / 2

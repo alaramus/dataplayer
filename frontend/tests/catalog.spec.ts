@@ -387,8 +387,10 @@ test("the processes report is a task manager, not just a table", async ({ page }
 
   // A page of a report is still a page: it is downloaded, shared, charted and
   // opened as a query. The one command withdrawn is the copy — a table made
-  // out of a report is a moment nobody can refresh (D72).
-  await expect(page.getByTestId("grid-create-table")).toHaveCount(0)
+  // out of a report is a moment nobody can refresh (D72). Greyed rather than
+  // gone: a command keeps its place and says why it cannot be used, so the
+  // row does not change shape as somebody walks between a table and a report.
+  await expect(page.getByTestId("grid-create-table")).toBeDisabled()
   for (const kept of ["grid-download", "grid-share", "grid-charts", "grid-query"]) {
     await expect(page.getByTestId(kept)).toBeVisible()
   }
@@ -426,7 +428,7 @@ test("the processes report is a task manager, not just a table", async ({ page }
     "off"
   )
   // Settings is a report too, so it withdraws the same one and keeps the rest.
-  await expect(page.getByTestId("grid-create-table")).toHaveCount(0)
+  await expect(page.getByTestId("grid-create-table")).toBeDisabled()
   await expect(page.getByTestId("grid-charts")).toBeVisible()
 
   await deleteConnector(page, name)

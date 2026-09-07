@@ -70,7 +70,12 @@ test("detaches through the header, keeps the grid page and dark surface and retu
   await expect(floating.getByTestId("grid-column-relname")).toHaveCSS("background-color", surface)
   await floating.getByRole("button", { name: "Maximize", exact: true }).click()
   await floating.getByRole("button", { name: "Minimize", exact: true }).click()
-  await page.getByRole("button", { name: "Restore pg_class", exact: true }).click()
+  // Put aside, it is on the taskbar at the foot of the screen and nowhere
+  // else, which is the way back to it.
+  await page
+    .getByTestId("window-taskbar")
+    .getByRole("button", { name: "pg_class", exact: true })
+    .click()
   await expect(floating.getByTestId("grid-page-range")).toHaveText(range)
   await floating.getByRole("button", { name: "Return to panel", exact: true }).click()
   await expect(floating).toHaveCount(0)

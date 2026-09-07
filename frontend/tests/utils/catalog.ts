@@ -148,6 +148,11 @@ export async function selectRange(
 /** Drag the column's right edge by a measured number of pixels. */
 export async function resizeColumn(page: Page, name: string, delta: number) {
   const handle = page.getByTestId(`grid-resize-${name}`)
+  // A grid scrolls sideways, and a box outside the viewport is a place the
+  // pointer cannot be put: the drag then lands on nothing and the column keeps
+  // the width it had. What a person does before dragging a column is scroll to
+  // it.
+  await handle.scrollIntoViewIfNeeded()
   const box = await handle.boundingBox()
   if (box === null) throw new Error(`the ${name} resize handle has no box`)
   const x = box.x + box.width / 2
