@@ -2723,6 +2723,9 @@ class ActionInfo(BaseModel):
     # Where the source wants it offered: the catalog menu, or the row of
     # commands above the rows of the node it acts on (D79).
     offered_in: OfferedIn
+    # What to draw for it where it is drawn as a picture. Null everywhere it
+    # is a line of a menu, which is where the title is what is read.
+    icon: str | None = None
     # Whether it can be done to the nodes that were asked about. Every action
     # the source has is listed; this says which of them apply here.
     applicable: bool
@@ -2788,6 +2791,7 @@ def _describe(action: Action[Any], *, applicable: bool) -> ActionInfo:
         prepares_connector=isinstance(action, PreparesConnector),
         acts_on=action.acts_on,
         offered_in=action.offered_in,
+        icon=action.icon,
         applicable=applicable,
         question=action.question,
         params_schema=action.params_schema(),

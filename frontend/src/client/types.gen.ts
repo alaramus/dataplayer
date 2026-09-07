@@ -129,6 +129,10 @@ export type ActionInfo = {
    */
   offered_in: "catalog" | "rows"
   /**
+   * Icon
+   */
+  icon?: string | null
+  /**
    * Applicable
    */
   applicable: boolean
@@ -3123,6 +3127,14 @@ export type FetchResult = {
    * Export Reason
    */
   export_reason?: string | null
+  /**
+   * Record Supported
+   */
+  record_supported?: boolean
+  /**
+   * Record Reason
+   */
+  record_reason?: string | null
   /**
    * Refresh Seconds
    */
@@ -6369,7 +6381,7 @@ export type RevealedCredentials = {
 /**
  * RowCommand
  *
- * One thing a source offers to do to selected rows of one relation.
+ * One thing a source offers to do to a row of one relation.
  */
 export type RowCommand = {
   /**
@@ -6380,6 +6392,10 @@ export type RowCommand = {
    * Title
    */
   title: string
+  /**
+   * Icon
+   */
+  icon: string
   /**
    * Description
    */
@@ -6396,10 +6412,33 @@ export type RowCommand = {
    * Identified By
    */
   identified_by: string
+  applies_when?: RowCommandCondition | null
   /**
    * Changes Structure
    */
   changes_structure?: boolean
+}
+
+/**
+ * RowCommandCondition
+ *
+ * Which rows a command belongs on, when it does not belong on all of them.
+ *
+ * An extension is installed or removed, never both, and the row already says
+ * which: offering the other one is offering something the server refuses.
+ * One column and one value, compared against the cell exactly as this
+ * source's own answer spelled it — the client reads a page of text and knows
+ * nothing about what `installed` means.
+ */
+export type RowCommandCondition = {
+  /**
+   * Column
+   */
+  column: string
+  /**
+   * Equals
+   */
+  equals: string
 }
 
 /**

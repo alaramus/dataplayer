@@ -65,7 +65,7 @@ import {
 import type { RefreshSeconds } from "./autoRefresh"
 import { useSourceChangesStore } from "@/stores/sourceChanges"
 
-import { commandOutcome, commandQuestion, keysOf } from "./rowCommands"
+import { commandOutcome, commandQuestion, commandsForRow, keyOf } from "./rowCommands"
 import CellEditorDialog from "./CellEditorDialog.vue"
 import CreateTableDialog from "./CreateTableDialog.vue"
 import { fromTsv } from "./clipboard"
@@ -1076,8 +1076,30 @@ const selectedRows = ref<number[]>([])
 const runRowCommand = useRunRowCommand(toRef(props, "connectorId"))
 const changes = useSourceChangesStore()
 
-function keysFor(command: RowCommand): string[] {
-  return keysOf(command, result.value?.columns ?? [], rows.value, selectedRows.value)
+/**
+ * Whether a row of this opens on its own, downwards (D111).
+ *
+ * The source's answer: an ordinary relation holds rows, and a report holds a
+ * statement's output — where the row view would be these same values in a
+ * column, with no model and no key to offer beside them. Missing on a page
+ * read before the question existed, which is the ordinary case rather than a
+ * refusal.
+ */
+const canOpenRecord = computed(() => result.value?.record_supported !== false)
+
+/**
+ * What this row offers, which is not the same on every row (D70).
+ *
+ * A command may belong only where the row's own value admits it: an extension
+ * is installed or removed, never both. Which rows, like which column names
+ * one, is the source's answer.
+ */
+function commandsFor(row: GridRow): RowCommand[] {
+  return commandsForRow(
+    result.value?.row_commands ?? [],
+    result.value?.columns ?? [],
+    row
+  )
 }
 
 /**
@@ -1114,12 +1136,12 @@ async function actionDone(outcome: ActionOutcome) {
   await refreshRows()
 }
 
-async function runCommand(command: RowCommand) {
-  const keys = keysFor(command)
-  if (keys.length === 0) return
+async function runCommand(command: RowCommand, row: GridRow) {
+  const key = keyOf(command, result.value?.columns ?? [], row)
+  if (key === null) return
   if (command.destructive) {
     const accepted = await confirm({
-      title: commandQuestion(command, keys),
+      title: commandQuestion(command, key),
       message: command.description,
       confirmLabel: command.title,
       danger: true,
@@ -1131,16 +1153,19 @@ async function runCommand(command: RowCommand) {
       await runRowCommand.mutateAsync({
         node_id: props.nodeId,
         name: command.name,
-        keys,
+        keys: [key],
       })
     )
-    tabularGrid.value?.clearSelection()
     // An extension installed here brings schemas and types with it, and the
     // catalog column holds its rows itself. Which commands leave the source
     // different is the source's own answer, carried on the command (D66).
     if (command.changes_structure) changes.announce(props.connectorId)
     if (outcome.failed) toast.error(outcome.text)
     else toast.success(outcome.text)
+    // The row it was run on is what changed, and the button that ran it is
+    // drawn from that row: an extension that has just been installed must
+    // stop offering to be installed again.
+    await refreshRows()
   } catch (cause) {
     toast.error(messageOf(cause, `${command.title} could not be done`))
   }
@@ -1308,45 +1333,6 @@ defineExpose({
           @click="openInsert"
         />
       </span>
-      <!-- What the source offers to do to this node from here, rather than
-           from behind a tick in the catalog: making a database user belongs
-           over the list of users (D79). Labelled for the reason the row
-           commands below are. -->
-      <span
-        v-for="action in rowActions"
-        :key="action.name"
-        :data-testid="`grid-node-action-${action.name}`"
-      >
-        <AppButton
-          :variant="action.destructive ? 'danger-quiet' : 'quiet'"
-          size="sm"
-          :label="action.label"
-          :data-testid="`grid-node-action-run-${action.name}`"
-          @click="openAction = action"
-        />
-      </span>
-
-      <!-- What the source itself offers to do to the rows that are ticked.
-           Labelled rather than iconed: an icon per command would be a table
-           of names on this side, which is exactly what the source declaring
-           them exists to avoid (D70). -->
-      <span
-        v-for="command in result?.row_commands ?? []"
-        :key="command.name"
-        :data-testid="`grid-row-command-${command.name}`"
-      >
-        <AppButton
-          :variant="command.destructive ? 'danger-quiet' : 'quiet'"
-          size="sm"
-          :label="command.title"
-          :disable="keysFor(command).length === 0 || runRowCommand.isPending.value"
-          :data-testid="`grid-row-command-run-${command.name}`"
-          @click="runCommand(command)"
-        >
-          <AppTooltip>{{ command.description }}</AppTooltip>
-        </AppButton>
-      </span>
-
       <span data-testid="grid-delete-command">
         <AppIconButton
           icon="remove"
@@ -1359,6 +1345,34 @@ defineExpose({
           :disable="deleteReason(selectedRowIndexes) !== null"
           data-testid="grid-delete"
           @click="deleteSelection(selectedRowIndexes)"
+        />
+      </span>
+
+      <!-- Last in the group, after what changes the rows that are here: what
+           the source offers to do to this node from over its own rows, rather
+           than from behind a tick in the catalog (D79). Drawn as the picture
+           the source named, like the row commands in the corner of each row;
+           a source that named none is drawn by its title instead. -->
+      <span
+        v-for="action in rowActions"
+        :key="action.name"
+        :data-testid="`grid-node-action-${action.name}`"
+      >
+        <AppIconButton
+          v-if="action.icon"
+          :icon="action.icon"
+          :variant="action.destructive ? 'danger-quiet' : 'quiet'"
+          :tooltip="action.label"
+          :data-testid="`grid-node-action-run-${action.name}`"
+          @click="openAction = action"
+        />
+        <AppButton
+          v-else
+          :variant="action.destructive ? 'danger-quiet' : 'quiet'"
+          size="sm"
+          :label="action.label"
+          :data-testid="`grid-node-action-run-${action.name}`"
+          @click="openAction = action"
         />
       </span>
     </template>
@@ -1395,7 +1409,24 @@ defineExpose({
     </template>
 
     <template #row-actions="{ row }">
+      <!-- What the source offers to do to this row, in the corner of the row
+           it is about (D70): the pid is on screen already, and a button that
+           needed it ticked first was a button asking for what it can see. The
+           picture is the source's, because a client choosing one would be a
+           table of command names on this side. -->
       <AppIconButton
+        v-for="command in commandsFor(row)"
+        :key="command.name"
+        :icon="command.icon"
+        compact
+        :variant="command.destructive ? 'danger-quiet' : 'quiet'"
+        :tooltip="tipOf(command.title, command.description)"
+        :disable="runRowCommand.isPending.value"
+        :data-testid="`grid-row-command-${command.name}-${row.id}`"
+        @click="runCommand(command, row)"
+      />
+      <AppIconButton
+        v-if="canOpenRecord"
         icon="table_rows"
         compact
         tooltip="Read this row downwards"

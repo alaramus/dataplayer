@@ -50,6 +50,12 @@ export interface ActionCommand {
    * list of users, not behind a tick in the catalog (D79).
    */
   offeredIn: ActionInfo["offered_in"]
+  /**
+   * What to draw for it where it is a picture rather than a line of a menu.
+   * Null everywhere the title is what is read; the source names it, because a
+   * client choosing one would be a table of action names on this side.
+   */
+  icon: string | null
   fields: FieldSpec[]
   /** What each field with a published set of values offers, by field name. */
   choices: Record<string, SchemaChoice[]>
@@ -75,6 +81,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       preparesConnector: action.prepares_connector === true,
       actsOn: action.acts_on,
       offeredIn: action.offered_in,
+      icon: action.icon ?? null,
       fields: schema["x-ui-workflow"] === undefined ? schemaToFields(schema) : [],
       // Read whether or not a form is built: a workflow screen still asks the
       // schema what the source offers, in the source's own words.

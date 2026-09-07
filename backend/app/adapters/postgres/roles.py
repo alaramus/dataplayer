@@ -98,6 +98,7 @@ class CreateRole(JsonAction[CreateRoleParams]):
     # Above the list of roles rather than in the catalog menu: the report this
     # adds a row to is what a person is looking at when they want another user.
     offered_in: ClassVar[OfferedIn] = "rows"
+    icon: ClassVar[str] = "person_add"
     requires: ClassVar[Access] = "own"
     bulk: ClassVar[bool] = False
     params_model = CreateRoleParams

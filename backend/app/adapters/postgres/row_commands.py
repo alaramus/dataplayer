@@ -26,6 +26,7 @@ from app.adapters.postgres.system_reports import (
 )
 from app.adapters.row_commands import (
     RowCommand,
+    RowCommandCondition,
     RowCommandResult,
     UnknownRowCommand,
 )
@@ -34,6 +35,12 @@ from app.adapters.row_commands import (
 # the Extensions report that names an extension.
 PID_COLUMN = "pid"
 NAME_COLUMN = "name"
+# The column of the Extensions report that says whether one is installed, and
+# what its cell holds. The value is this source's own spelling of a boolean,
+# which is what the client compares the cell against.
+INSTALLED_COLUMN = "installed"
+INSTALLED = "true"
+NOT_INSTALLED = "false"
 
 # How many backends one request may act on. A person picks rows out of a page,
 # and a page has a ceiling of its own; this is the same statement made where
@@ -56,6 +63,7 @@ CANCEL = _Runnable(
     command=RowCommand(
         name="cancel_query",
         title="Cancel query",
+        icon="cancel",
         description=(
             "Ask the backend to stop the statement it is running. "
             "The connection stays open."
@@ -74,6 +82,7 @@ TERMINATE = _Runnable(
     command=RowCommand(
         name="terminate_backend",
         title="Terminate",
+        icon="power_settings_new",
         description=(
             "Close the connection, rolling back whatever it was doing. "
             "Use it when cancelling was not enough."
@@ -110,12 +119,16 @@ EXTENSION_REFUSALS = {
 INSTALL_EXTENSION = RowCommand(
     name="install_extension",
     title="Install",
+    icon="add",
     description=(
-        "Install these on this server. Anything one of them is built on is "
-        "installed with it."
+        "Install this on the server. Anything it is built on is installed "
+        "with it."
     ),
     requires="structure",
     identified_by=NAME_COLUMN,
+    # Only where it is not installed: the row already says which of the two
+    # commands is the one that means anything on it.
+    applies_when=RowCommandCondition(column=INSTALLED_COLUMN, equals=NOT_INSTALLED),
     # An extension arrives with schemas, types and functions of its own.
     changes_structure=True,
 )
@@ -123,13 +136,15 @@ INSTALL_EXTENSION = RowCommand(
 DROP_EXTENSION = RowCommand(
     name="drop_extension",
     title="Remove",
+    icon="delete",
     description=(
-        "Remove these from this server. Whatever was built on one is kept and "
+        "Remove this from the server. Whatever was built on it is kept and "
         "the server refuses instead, rather than the removal taking it too."
     ),
     destructive=True,
     requires="structure",
     identified_by=NAME_COLUMN,
+    applies_when=RowCommandCondition(column=INSTALLED_COLUMN, equals=INSTALLED),
     changes_structure=True,
 )
 

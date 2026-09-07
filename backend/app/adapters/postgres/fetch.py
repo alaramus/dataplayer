@@ -152,6 +152,9 @@ class RelationFetchInfo:
     insert_reason: str | None
     delete_supported: bool
     delete_reason: str | None
+    # Whether one of these rows opens on its own (D111).
+    record_supported: bool = True
+    record_reason: str | None = None
     # What the source says about reading this again, when it has an opinion.
     refresh_seconds: int | None = None
     # What the toolbar over this page offers beyond reading it. Everything for
@@ -303,6 +306,8 @@ class PostgresFetch:
             insert_reason=info.insert_reason,
             delete_supported=info.delete_supported,
             delete_reason=info.delete_reason,
+            record_supported=info.record_supported,
+            record_reason=info.record_reason,
             refresh_seconds=info.refresh_seconds,
             page_commands=info.page_commands,
         )
@@ -382,6 +387,11 @@ class PostgresFetch:
             insert_reason=refused,
             delete_supported=False,
             delete_reason=refused,
+            # Nor read downwards: the row view is the relation model and the
+            # ways in and out of a row, and a report has neither (D55). It
+            # would be these values in a column and nothing else.
+            record_supported=False,
+            record_reason=refused,
             refresh_seconds=report.refresh_seconds,
             # A page of a report is still a page: it is downloaded, shared,
             # charted and opened as a query like any other. Only one command

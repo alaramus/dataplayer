@@ -1200,6 +1200,7 @@ describe("the basic data grid", () => {
           downloads: false,
           acts_on: "node",
           offered_in: "rows",
+          icon: "person_add",
           applicable: true,
           params_schema: {
             type: "object",
@@ -1230,12 +1231,107 @@ describe("the basic data grid", () => {
     // the catalog menu stays in the catalog menu.
     expect(wrapper.find('[data-testid="grid-node-action-rename"]').exists()).toBe(false)
     const button = wrapper.get('[data-testid="grid-node-action-run-create_role"]')
-    expect(button.text()).toContain("New role")
+    // The picture the source named, not one chosen here by the action's name.
+    expect(button.text()).toContain("person_add")
 
     await button.trigger("click")
     await flushPromises()
 
     expect(document.body.textContent).toContain("New role")
+  })
+})
+
+describe("what a source offers on one row", () => {
+  const INSTALL = {
+    name: "install_extension",
+    title: "Install",
+    icon: "add",
+    description: "Install this on the server",
+    requires: "structure",
+    identified_by: "name",
+    applies_when: { column: "installed", equals: "false" },
+    changes_structure: true,
+  }
+  const REMOVE = {
+    ...INSTALL,
+    name: "drop_extension",
+    title: "Remove",
+    icon: "delete",
+    destructive: true,
+    applies_when: { column: "installed", equals: "true" },
+  }
+
+  function mockReport() {
+    return vi.spyOn(ConnectorsService, "fetchRows").mockResolvedValue({
+      data: {
+        columns: [
+          { name: "name", type: { sql: "text", category: "string" } },
+          { name: "installed", type: { sql: "boolean", category: "boolean" } },
+        ],
+        rows: [
+          ["citext", "true"],
+          ["bloom", "false"],
+        ],
+        has_more: false,
+        // A report is a statement's answer: no row of one opens on its own.
+        record_supported: false,
+        record_reason: "This is a report and holds no rows of its own",
+        row_commands: [INSTALL, REMOVE],
+      },
+    } as never)
+  }
+
+  it("puts one of the two in the corner of each row, and no way in downwards", async () => {
+    mockReport()
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    // The row's own value decides which of the two means anything on it, and
+    // the source is what said so: nothing here knows what `installed` is.
+    expect(wrapper.find('[data-testid="grid-row-command-drop_extension-0"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="grid-row-command-install_extension-0"]').exists()).toBe(
+      false
+    )
+    expect(wrapper.find('[data-testid="grid-row-command-install_extension-1"]').exists()).toBe(
+      true
+    )
+    expect(wrapper.find('[data-testid="grid-row-command-drop_extension-1"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="grid-open-row-0"]').exists()).toBe(false)
+    // And nothing about them is left in the row of buttons above the page.
+    expect(wrapper.find('[data-testid="grid-row-command-run-install_extension"]').exists()).toBe(
+      false
+    )
+  })
+
+  it("runs it with the key of the row it was pressed on", async () => {
+    mockReport()
+    const run = vi.spyOn(ConnectorsService, "runRowCommand").mockResolvedValue({
+      data: { message: "1 extension installed", done: 1, refused: [] },
+    } as never)
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    await wrapper
+      .get('[data-testid="grid-row-command-install_extension-1"]')
+      .trigger("click")
+    await flushPromises()
+
+    expect(run).toHaveBeenCalledWith({
+      path: { connector_id: "connector-1" },
+      body: {
+        node_id: "public.projects",
+        name: "install_extension",
+        keys: ["bloom"],
+      },
+    })
+  })
+
+  it("keeps the way in downwards where the source did not withdraw it", async () => {
+    mockPages()
+    const wrapper = mountGrid()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="grid-open-row-0"]').exists()).toBe(true)
   })
 })
 

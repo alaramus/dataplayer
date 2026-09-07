@@ -164,6 +164,11 @@ class Action[P: BaseModel](ABC):
     # "rows" is the row of commands above the node's own rows, which is where
     # something that adds a row belongs.
     offered_in: ClassVar[OfferedIn] = "catalog"
+    # What to draw where the action is offered as a picture rather than as a
+    # line of a menu. Only the row of commands over a grid needs one, so only
+    # what is offered there declares one; a client choosing it would be a
+    # table of action names on that side.
+    icon: ClassVar[str | None] = None
     destructive: ClassVar[bool] = False
     # What the confirmation asks, when "are you sure you want to delete this"
     # is not what is about to happen. Every destructive action there was until

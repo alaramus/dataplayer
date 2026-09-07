@@ -66,6 +66,35 @@ def test_they_say_they_change_more_than_the_page() -> None:
     )
 
 
+def test_each_belongs_on_the_rows_the_other_does_not() -> None:
+    """An extension is installed or removed, never both, and the row already
+    says which: the client compares the cell and learns nothing (D70)."""
+    conditions = {
+        command.name: command.applies_when
+        for command in _adapter().row_commands(EXTENSIONS_REPORT_ID)
+    }
+
+    install = conditions["install_extension"]
+    remove = conditions["drop_extension"]
+    assert install is not None and remove is not None
+    assert install.column == "installed" and install.equals == "false"
+    assert remove.column == "installed" and remove.equals == "true"
+
+
+async def test_the_column_the_conditions_name_is_one_the_report_answers_with() -> None:
+    """The declaration and the answer cannot disagree about the cell, and the
+    value compared is the one this source's own encoding produces."""
+    source = _adapter()
+
+    page = await source.fetch(FetchRequest(node_id=EXTENSIONS_REPORT_ID, limit=100))
+
+    at = [column.name for column in page.columns].index("installed")
+    assert {row[at] for row in page.rows} <= {"true", "false"}
+    for command in source.row_commands(EXTENSIONS_REPORT_ID):
+        assert command.applies_when is not None
+        assert command.applies_when.column in {column.name for column in page.columns}
+
+
 def test_no_other_node_offers_them() -> None:
     adapter = _adapter()
 

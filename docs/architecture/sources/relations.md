@@ -404,16 +404,22 @@ belongs to a relation that can be written to, and a report is a subquery with
 no row to write back to (D42), while an action with a `pid` field asks somebody
 to type in a number that is already on their screen.
 
-So a relation may declare commands of its own, and the grid offers them over
-the rows that are ticked.
+So a relation may declare commands of its own, and the grid offers each of them
+in the corner of the row it is about — the place a row's own way in already
+lived ([D111](../grid.md)).
 
 Consequences:
 
 - **A command names the column that names a row.** `identified_by` is one
-  column — `pid` here — and the keys the client sends are the values of that
-  column in the selected rows. One column, because that is what every command
-  that exists needs; a compound key is a different contract and is not invented
-  before somebody has one.
+  column — `pid` here — and the key the client sends is that column's value in
+  the row the button was pressed on. One column, because that is what every
+  command that exists needs; a compound key is a different contract and is not
+  invented before somebody has one.
+- **The row is the subject, so nothing is ticked first.** The buttons stood in
+  the toolbar and were dead until a row was selected, which made every use of
+  them two gestures and put the command a table's width away from the row it
+  was about. The pid is on screen; a button that asks for it to be ticked is a
+  button asking for what it can already see.
 - **Two questions, one driver.** `SupportsRowCommands` answers what a node
   offers and runs one of them, so there is no third place a name could resolve
   differently, and what a client may do is decided by what the node offers
@@ -434,9 +440,18 @@ Consequences:
   that has gone is reported as a refusal with a count, not raised as a failure
   of the server. The connection carrying the request is skipped, so a request
   cannot kill the connection running it.
-- **The client is told what to draw, never what it means.** The buttons carry
-  the source's title and its description; an icon per command would be a table
-  of names on this side, which is what declaring them on the source avoids.
+- **The client is told what to draw, never what it means.** The corner of a row
+  has room for a picture and none for a sentence, so the source names the
+  picture as well: `icon` beside `title` and `description`, which become what
+  the button says on hover. Choosing the picture on the client would be a table
+  of command names on that side — the thing declaring commands on the source
+  exists to avoid.
+- **A command may belong on some rows only.** An extension is installed or
+  removed, never both, and the row already says which; offering the other is
+  offering what the server refuses. `applies_when` is one column and one value,
+  compared against the cell exactly as the source's own answer spelled it, so
+  the client stays ignorant of what `installed` means. A command that says
+  nothing belongs on every row it can name.
 - **A relation may ask to be re-read.** `refresh_seconds` on the fetch result
   is what the source thinks the relation is worth — five seconds for the
   Processes report, nothing for anything else — and the grid takes it as its
@@ -448,11 +463,15 @@ Consequences:
   the same nudge a console gives after running DDL.
 - **Extensions are installed and removed on the rows that list them.** They
   were a pair of actions whose form asked for a name, standing next to a table
-  that already held every name there is: the same value typed a second time,
-  and no way to install two at once. Each row is one DDL statement, so each is
-  refused for its own reason and the refusals come back per key. The name in a
-  ticked row selects a row of `pg_available_extensions` or `pg_extension`, and
-  the identifier that reaches the statement is the one that came back.
+  that already held every name there is: the same value typed a second time.
+  Each row is one DDL statement, so each is refused for its own reason and the
+  refusals come back per key. The name in the row selects a row of
+  `pg_available_extensions` or `pg_extension`, and the identifier that reaches
+  the statement is the one that came back.
+- **The page is read again where a command ran.** The row the button is drawn
+  from is the row that changed, and an extension that has just been installed
+  must stop offering to be installed. The Processes report re-read itself
+  anyway (D67); the others did not.
 
 Known deviations:
 
@@ -468,12 +487,11 @@ Known deviations:
   what installing or removing would do and show the answer before doing it; a
   row command has no form to show it in, and nothing has been designed to
   replace it.
-- **A command acts on a page.** Ticking is per row of what is on screen, so
-  "every backend of this database" means paging through and ticking.
-- **Nothing says what a command did to each row.** The count and the refusals
-  come back; which of the ticked rows the count refers to does not.
-- **A command acts on what is on screen, and nothing says so.** The buttons
-  read the same whether the page holds every process or the first hundred.
+- **One row at a time.** The request carries a list of keys and the source
+  answers per key, so several were once sent together from a selection. The
+  corner of a row can send one, and "every idle backend" is now one press per
+  row. Bringing a set back means a second gesture beside the per-row one, and
+  nothing has been designed for it.
 
 Spec: [Commands over the rows of a relation](../../superpowers/specs/2026-09-02-row-commands-design.md)
 

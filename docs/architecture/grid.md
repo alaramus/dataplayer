@@ -338,6 +338,12 @@ relation, not a second reading of it.
   would fill the strip by reading a table.
 - Both directions of key navigation are offered per column, from the same two
   routes the grid uses ([D110](sources/relations.md)).
+- **A source may withdraw it.** `record_supported` on the fetch result says
+  whether one of these rows opens at all. A report is the answer to a statement
+  rather than a thing that holds rows: it has no relation model, no key and no
+  reference to follow ([D55](sources/actions.md)), so the panel would be these
+  same values in a column and nothing else. The corner of the row then holds
+  what the source does offer on it ([D70](sources/relations.md)).
 
 Known deviations:
 

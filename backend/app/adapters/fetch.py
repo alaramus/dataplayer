@@ -159,6 +159,13 @@ class FetchResult(BaseModel):
     # that produced this page.
     export_supported: bool = False
     export_reason: str | None = None
+    # Whether one of these rows can be opened on its own, read downwards
+    # (D111). True for anything a source holds; false where a "row" is a line
+    # of an answer rather than a thing — a report has no relation model, no
+    # key and no reference to follow (D55), so the panel would be these same
+    # values in a column and nothing else.
+    record_supported: bool = True
+    record_reason: str | None = None
     # How often the source thinks this relation is worth reading again, when
     # it has an opinion. A list of server processes is about what is happening
     # this second; a table of invoices is not, and says nothing (D67).

@@ -27,6 +27,8 @@ const DROP: ActionCommand = {
   defaults: {},
   downloads: false,
   actsOn: "node",
+  offeredIn: "catalog",
+  icon: null,
   fields: [
     {
       name: "cascade",
@@ -53,6 +55,8 @@ const RENAME: ActionCommand = {
   defaults: {},
   downloads: false,
   actsOn: "node",
+  offeredIn: "catalog",
+  icon: null,
   fields: [
     {
       name: "new_name",
@@ -79,6 +83,8 @@ const MOVE: ActionCommand = {
   defaults: {},
   downloads: false,
   actsOn: "node",
+  offeredIn: "catalog",
+  icon: null,
   fields: [
     {
       name: "target_schema",
@@ -105,6 +111,8 @@ const UPLOAD: ActionCommand = {
   defaults: {},
   downloads: false,
   actsOn: "children",
+  offeredIn: "catalog",
+  icon: null,
   fields: [
     {
       name: "conflict",
@@ -640,6 +648,8 @@ describe("an action with nothing to fill in", () => {
     defaults: {},
     downloads: false,
     actsOn: "children",
+    offeredIn: "catalog",
+    icon: null,
     fields: [
       {
         name: "sources",

@@ -442,30 +442,30 @@ test("installs an extension from the report that lists them, and removes it", as
 
   // Offered over the rows of this report and of no other: the source names
   // what may be done to what it lists, and nothing here is a catalog action
-  // over the node itself (D70).
-  const install = page.getByTestId("grid-row-command-run-install_extension")
-  const remove = page.getByTestId("grid-row-command-run-drop_extension")
-  await expect(install).toBeDisabled()
-  await expect(remove).toBeDisabled()
+  // over the node itself (D70). The row of buttons holds neither of them.
+  await expect(page.getByTestId("grid-row-command-run-install_extension")).toHaveCount(0)
 
   // Filtered rather than read off row 0: the report lists every extension the
   // server offers, so the name alone proves nothing — `installed` does.
   await addFilter(page, "name", "equals", "pg_trgm")
   await expect(page.getByTestId("grid-cell-0-installed")).toHaveText("false")
 
-  await page.getByTestId("grid-select-row-0").click()
-  await expect(install).toBeEnabled()
-  await install.click()
+  // One of the two in the corner of a row, never both: an extension is
+  // installed or removed, and the row already says which.
+  await page.getByTestId("grid-row-0").hover()
+  await expect(page.getByTestId("grid-row-command-drop_extension-0")).toHaveCount(0)
+  await page.getByTestId("grid-row-command-install_extension-0").click()
   await expect(
     toast(page, "1 extension installed")
   ).toBeVisible()
   await expect(page.getByTestId("grid-cell-0-installed")).toHaveText("true")
 
-  // Removing says so first: the command declares itself destructive, and the
-  // grid asks before running one that does.
-  await page.getByTestId("grid-select-row-0").click()
-  await expect(remove).toBeEnabled()
-  await remove.click()
+  // And the row now offers the other one, because the page was read again
+  // where the command was run. Removing says so first: the command declares
+  // itself destructive, and the grid asks before running one that does.
+  await page.getByTestId("grid-row-0").hover()
+  await expect(page.getByTestId("grid-row-command-install_extension-0")).toHaveCount(0)
+  await page.getByTestId("grid-row-command-drop_extension-0").click()
   await page.getByTestId("confirm-accept").click()
   await expect(
     toast(page, "1 extension removed")

@@ -1,11 +1,12 @@
 /**
- * Turning a selection of rows into what a source-declared command takes.
+ * Turning one row of a page into what a source-declared command takes.
  *
  * A row command (D70) names one column as the thing that identifies a row —
- * `pid` for a list of server processes. The grid holds a page of text and a
- * set of selected row numbers, and this is the whole of the translation
- * between them. Nothing here is keyed by the name of a command: which column
- * to read comes from the answer that offered it.
+ * `pid` for a list of server processes — and is offered in the corner of the
+ * row it is about. The grid holds a page of text, and this is the whole of the
+ * translation between the two. Nothing here is keyed by the name of a command:
+ * which column names a row, and which rows a command belongs on, both come
+ * from the answer that offered it.
  */
 
 import type { FetchColumn, RowCommand } from "@/client"
@@ -13,36 +14,50 @@ import type { FetchColumn, RowCommand } from "@/client"
 import type { GridRow } from "./types"
 
 /**
- * The keys of the selected rows, in the order they are on screen.
+ * What this row is called, for this command.
  *
- * Empty when the command names a column this page does not have — which is a
- * disagreement between the source's declaration and its own answer, and the
- * honest response to it is to offer nothing rather than to send the wrong
- * column. Blank cells are left out for the same reason.
+ * Null when the command names a column the page does not have — a
+ * disagreement between the source's declaration and its own answer, where the
+ * honest response is to offer nothing rather than to send the wrong column —
+ * and null for a blank cell, which names no row.
  */
-export function keysOf(
+export function keyOf(
   command: RowCommand,
   columns: readonly FetchColumn[],
-  rows: readonly GridRow[],
-  selected: readonly number[]
-): string[] {
+  row: GridRow
+): string | null {
   const at = columns.findIndex((column) => column.name === command.identified_by)
-  if (at < 0) return []
-  const seen = new Set<string>()
-  for (const index of [...selected].sort((left, right) => left - right)) {
-    const value = rows[index]?.values[at]
-    // A row is named once however many of its cells are in the selection.
-    if (typeof value === "string" && value !== "") seen.add(value)
-  }
-  return [...seen]
+  if (at < 0) return null
+  const value = row.values[at]
+  return typeof value === "string" && value !== "" ? value : null
+}
+
+/**
+ * The commands offered on one row, in the order the source listed them.
+ *
+ * A command may say it belongs only on rows whose cell in one column holds one
+ * value: an extension is installed or removed, never both, and the row already
+ * says which. The comparison is against the cell exactly as the source's own
+ * answer spelled it, so nothing here learns what `installed` means.
+ */
+export function commandsForRow(
+  commands: readonly RowCommand[],
+  columns: readonly FetchColumn[],
+  row: GridRow
+): RowCommand[] {
+  return commands.filter((command) => {
+    if (keyOf(command, columns, row) === null) return false
+    const condition = command.applies_when
+    if (condition === undefined || condition === null) return true
+    const at = columns.findIndex((column) => column.name === condition.column)
+    // The same disagreement as a missing key column, answered the same way.
+    return at >= 0 && row.values[at] === condition.equals
+  })
 }
 
 /** What a confirmation asks before a command that says it is destructive. */
-export function commandQuestion(command: RowCommand, keys: readonly string[]): string {
-  const count = keys.length
-  return count === 1
-    ? `${command.title} ${keys[0] ?? ""}?`
-    : `${command.title} ${String(count)} rows?`
+export function commandQuestion(command: RowCommand, key: string): string {
+  return `${command.title} ${key}?`
 }
 
 /**

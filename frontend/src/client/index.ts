@@ -770,6 +770,7 @@ export type {
   RetentionSettings,
   RevealedCredentials,
   RowCommand,
+  RowCommandCondition,
   RowCommandRequest,
   RowCommandResult,
   RowEdit,

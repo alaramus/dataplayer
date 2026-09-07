@@ -76,6 +76,23 @@ def test_a_command_names_the_column_that_identifies_a_row() -> None:
         assert command.requires == "structure"
 
 
+def test_every_command_names_the_picture_it_is_drawn_as() -> None:
+    """The corner of a row has room for a picture and none for a sentence, and
+    choosing one on the client would be a table of names there (D70)."""
+    source = adapter()
+
+    icons = {command.name: command.icon for command in source.row_commands(PROCESSES_REPORT_ID)}
+
+    assert icons == {"cancel_query": "cancel", "terminate_backend": "power_settings_new"}
+
+
+def test_a_process_admits_both_commands_whatever_the_row_says() -> None:
+    """Only a command that belongs on some rows says so, and neither of these
+    does: any backend can be asked to stop and any can be closed."""
+    for command in adapter().row_commands(PROCESSES_REPORT_ID):
+        assert command.applies_when is None
+
+
 async def test_the_column_a_command_names_is_one_the_report_has() -> None:
     """The declaration and the page cannot disagree about the key."""
     source = adapter()

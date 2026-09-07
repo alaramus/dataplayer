@@ -146,9 +146,10 @@ tables.
   ([D70](relations.md)). `Action.offered_in` is `catalog` or `rows`, declared
   by the action and read by the client, which knows no action's name: what
   says `rows` is drawn in the row of commands over the node it acts on and is
-  left out of the menu, so one command is never in two places. Only this
-  action says it; a second one is when the statement earns a decision of its
-  own.
+  left out of the menu, so one command is never in two places. It names the
+  picture it is drawn as, `person_add` here, for the reason a row command
+  names one ([D70](relations.md)). Only this action says any of it; a second
+  one is when the statement earns a decision of its own.
 - **The password cannot be bound: PostgreSQL takes no parameters in DDL.** It
   travels as `psycopg.sql.Literal`, the driver's own quoting of a value — the
   same code that quotes a bound parameter, run before the statement is sent

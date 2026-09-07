@@ -82,6 +82,18 @@ async def test_a_report_is_read_only_and_names_no_row() -> None:
     assert all(handle is None for handle in result.row_handles)
     assert not any(column.editable for column in result.columns)
     assert result.references == []
+    # Nor read downwards: the row view is the relation model and the ways in
+    # and out of a row, and a report has neither (D111).
+    assert result.record_supported is False
+    assert result.record_reason is not None
+
+
+async def test_an_ordinary_relation_still_opens_a_row_downwards() -> None:
+    """The withdrawal belongs to the report, not to the source."""
+    result = await _adapter().fetch(FetchRequest(node_id="public.connector", limit=1))
+
+    assert result.record_supported is True
+    assert result.record_reason is None
 
 
 async def test_a_report_pages_sorts_and_filters_like_a_relation() -> None:

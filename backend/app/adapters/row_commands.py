@@ -21,13 +21,35 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.core.access import Access
 
 
+class RowCommandCondition(BaseModel):
+    """Which rows a command belongs on, when it does not belong on all of them.
+
+    An extension is installed or removed, never both, and the row already says
+    which: offering the other one is offering something the server refuses.
+    One column and one value, compared against the cell exactly as this
+    source's own answer spelled it — the client reads a page of text and knows
+    nothing about what `installed` means.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    column: str = Field(min_length=1)
+    equals: str
+
+
 class RowCommand(BaseModel):
-    """One thing a source offers to do to selected rows of one relation."""
+    """One thing a source offers to do to a row of one relation."""
 
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1)
     title: str = Field(min_length=1)
+    # What to draw, in the client's icon vocabulary. Declared here for the
+    # reason the title is: the command is offered in the corner of its own
+    # row, where there is room for a picture and none for a sentence, and a
+    # client choosing the picture would be a table of command names on that
+    # side — the thing declaring commands on the source exists to avoid.
+    icon: str = Field(min_length=1)
     # What it will do, in the source's words. The client shows it and never
     # writes one of its own: a sentence about terminating a backend belongs
     # with the statement that terminates it.
@@ -40,6 +62,8 @@ class RowCommand(BaseModel):
     # that is what every command that exists needs; a compound key is a
     # different contract and is not invented before somebody has one.
     identified_by: str = Field(min_length=1)
+    # The rows this one is offered on, or every row when it says nothing.
+    applies_when: RowCommandCondition | None = None
     # Whether running it can leave the catalog of this connection different
     # from what is on screen. Installing an extension brings schemas, types and
     # functions with it; cancelling a query brings nothing. Said by the command

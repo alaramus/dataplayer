@@ -387,19 +387,20 @@ test("the processes report is a task manager, not just a table", async ({ page }
   await expect(page.getByTestId("grid-filter")).toBeVisible()
 
   // The commands are the source's own, offered on this report and on no
-  // other, and dead until there is something to act on.
-  const cancel = page.getByTestId("grid-row-command-run-cancel_query")
-  const terminate = page.getByTestId("grid-row-command-run-terminate_backend")
-  await expect(cancel).toBeDisabled()
-  await expect(terminate).toBeDisabled()
+  // other — in the corner of the row each one is about rather than in the row
+  // of buttons, because the pid they act on is on screen already (D70).
+  await expect(page.getByTestId("grid-row-command-run-cancel_query")).toHaveCount(0)
 
   // An idle client backend: cancelling one has nothing to cancel, which is
   // what makes this safe to run against the database the suite is using.
   await addFilter(page, "state", "equals", "idle")
-  await page.getByTestId("grid-select-row-0").click()
-  await expect(cancel).toBeEnabled()
+  await page.getByTestId("grid-row-0").hover()
+  await expect(page.getByTestId("grid-row-command-terminate_backend-0")).toBeVisible()
+  // And the corner holds no way to read the row downwards: a report is a
+  // statement's answer, with no model and no key to show beside it (D111).
+  await expect(page.getByTestId("grid-open-row-0")).toHaveCount(0)
 
-  await cancel.click()
+  await page.getByTestId("grid-row-command-cancel_query-0").click()
   await page.getByTestId("confirm-accept").click()
   await expect(
     toast(page, "asked to stop")
@@ -409,7 +410,9 @@ test("the processes report is a task manager, not just a table", async ({ page }
   // belong to one node, not to the source.
   await catalogRow(page, "Settings").click()
   await expect(page.getByTestId("grid-cell-0-name")).toBeVisible()
-  await expect(page.getByTestId("grid-row-command-run-cancel_query")).toHaveCount(0)
+  await page.getByTestId("grid-row-0").hover()
+  await expect(page.getByTestId("grid-row-command-cancel_query-0")).toHaveCount(0)
+  await expect(page.getByTestId("grid-open-row-0")).toHaveCount(0)
   await expect(page.getByTestId("grid-auto-refresh")).toHaveAttribute(
     "data-refresh",
     "off"
