@@ -32,6 +32,7 @@ test("detaches through the header, keeps the grid page and dark surface and retu
   const firstPage = await page.getByTestId("grid-page-range").innerText()
   await page.getByTestId("grid-next").click()
   await expect(page.getByTestId("grid-page-range")).not.toHaveText(firstPage)
+  await expect(page.getByTestId("grid-page-range")).not.toHaveText("Rows 0")
   const range = await page.getByTestId("grid-page-range").innerText()
   const tab = rowsTabs(page).first()
   const preview = page.getByTestId("workspace-detach-target")
