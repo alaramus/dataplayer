@@ -9,6 +9,7 @@ import { connectorWindow, connectorWindowId, draftWindowId } from "@/features/co
 import { connectorsKey, useConnectors } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
 import ServiceCredentialsDialog from "@/features/services/ServiceCredentialsDialog.vue"
+import ServicesCommand from "@/features/services/ServicesCommand.vue"
 import StartServiceDialog from "@/features/services/StartServiceDialog.vue"
 import { useRequestService, useServices } from "@/features/services/api"
 import type { StartRequest } from "@/features/services/starts"
@@ -783,6 +784,7 @@ provide(workspaceActionsKey, {
       <CommandBar />
     </template>
     <template #status-end>
+      <ServicesCommand />
       <ActivityIndicator
         @answer-access="answerRequestsFor"
         @open-connection="editConnector"

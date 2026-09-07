@@ -148,11 +148,15 @@ async function logout() {
         class="app-layout__status"
       >
         <ServerSwitcher />
+        <slot name="status" />
+        <!-- After the commands: the bar reads as what this screen can do, then
+             what is open on it, the way a desktop puts its taskbar after its
+             start button. It takes the room left over, so a row of windows
+             scrolls rather than pushing the end of the bar off screen. -->
         <WindowTaskbar
           v-if="windows"
           :context="windows.context"
         />
-        <slot name="status" />
         <div
           v-if="$slots['status-end']"
           class="app-layout__status-end"
@@ -213,7 +217,15 @@ async function logout() {
   font-size: 12px;
 }
 
-.app-layout__status-end { margin-left: auto; flex: none; }
+/* margin-left keeps it at the end on a screen with no taskbar to take the
+   space between. */
+.app-layout__status-end {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-2);
+}
 
 /* A filling page hands its whole height to what it holds, and that has to be
    said at every step down from the viewport: Quasar gives the layout and the

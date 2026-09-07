@@ -1,20 +1,18 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed } from "vue"
 
 import { useConnectors } from "@/features/connectors/api"
 import { useQueryProfile } from "@/features/queries/runs"
-import ServicesDialog from "@/features/services/ServicesDialog.vue"
-import { useServices } from "@/features/services/api"
-import { isWorking, progressOf } from "@/features/services/jobs"
-import { queriesCommand, servicesCommand } from "@/features/workspace/commands"
+import { queriesCommand } from "@/features/workspace/commands"
 import type { Support } from "@/features/workspace/commands"
 import { useWorkspaceActions } from "@/features/workspace/state"
 import { AppButton, AppTooltip } from "@/shared/ui"
 
 /**
- * The bar at the foot of the screen: the library of queries and what this
- * server is running. What acts on the open connection is in the connection's
- * own menu, where the rest of what a connection can do already was.
+ * The commands at the foot of the screen, before the open windows: the
+ * library of queries. What acts on the open connection is in the connection's
+ * own menu, where the rest of what a connection can do already was, and what
+ * is about the machine sits at the far end of the bar.
  *
  * Which connection is not written here. It is already said in the column of
  * connections and on the tab of the catalog, and a third copy took the room
@@ -43,40 +41,17 @@ const supportsQueries = computed<Support>(() => {
   return profile.isError.value ? "no" : "asking"
 })
 
-const state = computed(() => ({
-  name: connector.value?.name ?? null,
-  supportsQueries: supportsQueries.value,
-}))
 /**
- * The library, which is the one thing in this row that is not the open
- * connection's: it is always pressable, and what it says depends on whether
- * there is a connection to open it against.
+ * The library, which is not the open connection's: it is always pressable,
+ * and what it says depends on whether there is a connection to open it
+ * against.
  */
-const library = computed(() => queriesCommand(state.value))
-
-/**
- * What this server is running for this person, which is not about a
- * connection at all.
- *
- * So it stands apart from the rest of the bar rather than among them. While a
- * job is working the button says the step it has reached: once the dialog
- * that asked for a service has closed, this is the only place a start is
- * visible (D81).
- */
-const services = useServices()
-const working = computed(() => {
-  const busy = (services.data.value ?? []).find((row) => isWorking(row.job))
-  return busy === undefined ? null : `${busy.connector_name}: ${progressOf(busy.job)}`
-})
-const serviceCommand = computed(() =>
-  servicesCommand({ count: (services.data.value ?? []).length, working: working.value })
+const library = computed(() =>
+  queriesCommand({
+    name: connector.value?.name ?? null,
+    supportsQueries: supportsQueries.value,
+  })
 )
-const servicesOpen = ref(false)
-
-function run(name: string) {
-  if (name === "queries") workspace.openQueries(workspace.activeConnectorId.value)
-  if (name === "services") servicesOpen.value = true
-}
 </script>
 
 <template>
@@ -84,8 +59,9 @@ function run(name: string) {
     class="command-bar"
     data-testid="command-bar"
   >
-    <!-- First, and never greyed out: what a person has written is theirs
-         whether or not a connection is open. -->
+    <!-- Never greyed out: what a person has written is theirs whether or not a
+         connection is open. The tooltip hangs off the wrapper, because a
+         disabled Quasar button takes no pointer events. -->
     <span class="command-bar__slot">
       <AppButton
         variant="quiet"
@@ -93,28 +69,10 @@ function run(name: string) {
         :icon="library.icon"
         :label="library.label"
         data-testid="command-queries"
-        @click="run('queries')"
+        @click="workspace.openQueries(workspace.activeConnectorId.value)"
       />
       <AppTooltip>{{ library.tooltip }}</AppTooltip>
     </span>
-
-    <!-- On the right, away from the commands of the open connection: this one
-         is about the machine, and a button whose subject is different from
-         its neighbours' should not sit in the same row of them. -->
-    <span class="command-bar__slot command-bar__aside">
-      <AppButton
-        variant="quiet"
-        size="sm"
-        :icon="serviceCommand.icon"
-        :label="serviceCommand.label"
-        :disable="!serviceCommand.enabled"
-        data-testid="command-services"
-        @click="run('services')"
-      />
-      <AppTooltip>{{ serviceCommand.tooltip }}</AppTooltip>
-    </span>
-
-    <ServicesDialog v-model="servicesOpen" />
   </div>
 </template>
 
@@ -123,19 +81,11 @@ function run(name: string) {
   display: flex;
   align-items: center;
   gap: var(--dp-space-2);
-  min-width: 0;
-  /* The bar is the whole width of the footer, so that what is about the
-     machine can sit at the far end of it. */
-  flex: 1;
+  /* Only as wide as its commands: the room left over belongs to the taskbar
+     that follows it. */
+  flex: none;
 }
 
-.command-bar__aside {
-  margin-left: auto;
-}
-
-/* The tooltip hangs off this rather than off the button: a disabled Quasar
-   button takes no pointer events, and the reason it is disabled is the one
-   thing worth reading there. */
 .command-bar__slot {
   display: flex;
   align-items: center;
