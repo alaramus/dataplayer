@@ -9,6 +9,7 @@ import { ConnectorsService } from "@/client"
 import type { FetchColumn, FetchResult } from "@/client"
 import { AppSelect } from "@/shared/ui"
 import { AppIconButton, AppInput } from "@/shared/ui"
+import { createOperations, operationsKey } from "@/shared/operations"
 import { withWindowHost } from "@/shared/testing/windows"
 import { notices } from "@/shared/notifications"
 
@@ -80,9 +81,21 @@ function mountGrid(
           // cannot be mounted at all.
           createPinia(),
         ],
+        // What the application provides at its root: an action opened from
+        // over the rows reports itself here while it runs (D113).
+        provide: { [operationsKey as symbol]: createOperations() },
       },
     }
   )
+}
+
+/** One animation frame, which is how often a drag resize is applied. */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => {
+      resolve()
+    })
+  })
 }
 
 beforeEach(() => {
@@ -786,6 +799,10 @@ describe("the basic data grid", () => {
     )
 
     document.dispatchEvent(new MouseEvent("mousemove", { clientX: 220, bubbles: true }))
+    // A second move inside the same frame is held and applied on the next one:
+    // the table throttles a drag to one update per animation frame, so a
+    // microtask is not long enough to see it.
+    await nextFrame()
     await wrapper.vm.$nextTick()
     expect(loadGridState("connector-1", "public.projects")?.columnSizing.name).toBe(280)
     expect(wrapper.get('[data-testid="row-grid"]').attributes("style")).toContain(

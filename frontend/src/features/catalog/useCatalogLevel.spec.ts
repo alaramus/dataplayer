@@ -167,7 +167,11 @@ describe("groupings", () => {
   })
 
   it("goes back to the default when nothing that was chosen is there any more", async () => {
-    answers([schema("public"), schema("sales")], [])
+    // Three answers for three readings, as above: the level, and then the
+    // children of each of the two schemas the default turns back on. A page
+    // short and the spy falls through to a real request, whose network error
+    // would empty the choice rather than leave it at the default.
+    answers([schema("public"), schema("sales")], [], [])
 
     await withLevel(async (level) => {
       await level.load(["gone"])
