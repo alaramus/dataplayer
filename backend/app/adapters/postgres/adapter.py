@@ -23,6 +23,7 @@ from app.adapters.constraints import (
 )
 from app.adapters.content import ContentRequest, ContentResult
 from app.adapters.export import ExportBatch, ExportRequest
+from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.indexes import (
     CreateIndexRequest,
@@ -39,6 +40,7 @@ from app.adapters.postgres.content import PostgresContent
 from app.adapters.postgres.explain import PostgresExplain
 from app.adapters.postgres.export import PostgresExport
 from app.adapters.postgres.fetch import PostgresFetch
+from app.adapters.postgres.features import PostgresFeatures
 from app.adapters.postgres.indexes import PostgresIndexes
 from app.adapters.postgres.metadata import PostgresGeneration, PostgresMetadata
 from app.adapters.postgres.options import PostgresOptions
@@ -142,6 +144,7 @@ class PostgresAdapter:
     ) -> None:
         self._session = PostgresSession(options, pooling)
         self._catalog = PostgresCatalog(self._session)
+        self._features = PostgresFeatures(self._session)
         self._actions = PostgresActions(self._session, self._catalog)
         self._fetch = PostgresFetch(self._session)
         self._export = PostgresExport(self._session, self._fetch)
@@ -284,6 +287,9 @@ class PostgresAdapter:
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
+
+    async def source_features(self) -> SourceFeatures:
+        return await self._features.source_features()
 
     def connection_string(self) -> str:
         return self._session.connection_string()

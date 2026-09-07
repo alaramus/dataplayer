@@ -6,10 +6,11 @@ Read alongside [contract.md](contract.md), [relations.md](relations.md),
 [actions.md](actions.md), [connecting.md](connecting.md) and
 [owned jobs](../jobs.md).
 
-**Implementation status:** these are design decisions for review. No Timescale
-feature is implemented or verified by their publication. T1 in the linked spec
-is the read-only pilot; T2 adds bounded changes and T3 adds owned operations.
-The [roadmap](../../migration-roadmap.md) tracks delivery.
+**Implementation status:** T1 is in progress. The runtime-feature contract and
+read-only PostgreSQL discovery are implemented, with tests written but not yet
+run. Catalog specialisation, reports and operation guards remain. T2 adds
+bounded changes and T3 adds owned operations. The
+[roadmap](../../migration-roadmap.md) tracks delivery.
 
 ## D119. Timescale is composed into PostgreSQL without another source identity
 

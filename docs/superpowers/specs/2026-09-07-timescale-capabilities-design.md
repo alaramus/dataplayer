@@ -1,9 +1,10 @@
 # TimescaleDB through a PostgreSQL connection
 
 Date: 2026-09-07.
-Status: design for review; no Timescale implementation or compatibility checks
-have been performed. T1 below is the first implementation slice. T2 and T3
-define subsequent delivery boundaries, not features claimed by T1.
+Status: accepted for implementation. T1 is in progress; the runtime-feature
+contract and read-only PostgreSQL discovery are written but have not been
+validated. T2 and T3 define subsequent delivery boundaries, not features
+claimed by T1.
 
 Decisions: D119 through D123, in
 [TimescaleDB](../../architecture/sources/timescale.md).
@@ -680,7 +681,8 @@ The architecture statements are explicitly marked unimplemented until their
 slices land. The roadmap promotes T1 ahead of adding another source family;
 completion removes the item only after the approved acceptance checks pass.
 
-No runtime code is changed by this document. Documentation validation is
+The initial design commit changed no runtime code. Implementation progress is
+recorded in the roadmap. Documentation validation is
 `bash scripts/check-docs.sh`, subject to the project's approval rule. Later
 implementation requires the affected backend tests, strict mypy, ruff and
 import checks, generated client after API changes, frontend unit/type/lint/build

@@ -153,6 +153,11 @@ Each slice has its own acceptance criteria there. Exact source-image pins and
 the tested compatibility matrix are recorded with implementation, not inferred
 from a generic Timescale version label.
 
+Progress: the runtime-feature models/protocol/endpoint and generated client are
+committed in `fd79154`. PostgreSQL Timescale discovery is implemented at the
+current branch head; its tests are written but have not been run. Relation
+classification is next.
+
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation
 has verified source semantics and an honest execution outcome. Advanced chunk

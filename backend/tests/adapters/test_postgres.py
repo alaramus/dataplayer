@@ -110,6 +110,12 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
     ]
 
 
+def test_a_postgres_source_reports_runtime_features() -> None:
+    from app.adapters.features import SupportsSourceFeatures
+
+    assert isinstance(PostgresAdapter(_working_options()), SupportsSourceFeatures)
+
+
 def test_connection_string_is_a_url_anyone_can_paste() -> None:
     options = PostgresUserPassword(
         host="db.example", port=6543, database="app", user="ann", password=SecretStr("s")
