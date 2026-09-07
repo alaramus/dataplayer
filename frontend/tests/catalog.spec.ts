@@ -319,6 +319,14 @@ test("opens a report the connection publishes about itself", async ({ page }) =>
   await createPostgresConnector(page, name)
   await openConnector(page, name)
 
+  // The line the source wrote about the section is an aside, so it ends with
+  // the rows' own measurements rather than running on from the name. Not to
+  // the pixel: a measurement sits in a shared column and this row lays itself
+  // out, so the two differ by the empty track between them at most.
+  const section = (await page.getByTestId("catalog-caption-System").boundingBox())!
+  const counted = (await page.getByTestId("catalog-caption-connector").boundingBox())!
+  expect(Math.abs(section.x + section.width - (counted.x + counted.width))).toBeLessThan(8)
+
   // The section sits at the root beside the schemas and is walked into, so
   // eight rows about the server never sit above the reader's own tables.
   await catalogRow(page, "System").click()

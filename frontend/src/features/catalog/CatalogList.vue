@@ -249,6 +249,7 @@ const countLabel = computed(() => {
           v-if="node.caption"
           class="catalog-list__caption"
           :title="node.captionHint"
+          :data-testid="`catalog-caption-${node.label}`"
         >
           {{ node.caption }}
         </span>
@@ -422,7 +423,15 @@ const countLabel = computed(() => {
 .catalog-list__row--sentence {
   display: flex;
 }
+/* At the end of the row, where every other row's measurement is. Drawn right
+   after the name it read as a second half of the name, which a line about
+   what a report answers is not; the auto margin puts it where the counts are
+   without giving it a column they would have to share. */
 .catalog-list__row--sentence .catalog-list__caption {
-  flex: 0 1 auto;
+  /* Shrinks far faster than the name beside it: the name is what the row is
+     about, and a narrow panel should cut the aside rather than the subject. */
+  flex: 0 100 auto;
+  margin-inline-start: auto;
+  padding-inline-start: 12px;
 }
 </style>

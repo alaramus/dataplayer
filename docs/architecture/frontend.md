@@ -374,7 +374,10 @@ takes those columns rather than laying itself out again, so a name stands under
 a name and a count under a count. The exception is a report: its caption is the
 sentence the source wrote about what its statement answers, and in the shared
 column that sentence would set the column's width for every row in the list. So
-a report lays itself out and keeps its sentence beside its name.
+a report lays itself out, and ends its sentence where the other rows end their
+measurements: beside the name it read as a second half of the name, and a line
+about what a report answers is an aside, not part of what the row is called.
+It gives that room up before the name does, so a narrow panel cuts the aside.
 The scrolling list reserves a scrollbar gutter and a small trailing inset so
 its final column stays readable beside classic and overlay scrollbars.
 
