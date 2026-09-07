@@ -71,8 +71,7 @@ const connectorId = computed(() => props.connectorId)
 /** Where the table is going. It starts where the menu was opened. */
 const destination = ref(props.nodeId)
 watch(() => props.nodeId, (id) => { destination.value = id })
-const nodeId = computed(() => destination.value)
-const options = useTableDesignOptions(connectorId, nodeId)
+const options = useTableDesignOptions(connectorId, destination)
 const planTable = usePlanTable()
 
 const draft = reactive<Draft>(emptyDraft("text"))
