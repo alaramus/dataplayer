@@ -11,7 +11,8 @@ read-only PostgreSQL discovery, relation classification and relation-level
 read-only guards and registered relation-action guards are implemented, with
 tests written but not yet run. Rename, move, drop previews/execution and model
 downloads consult the shared classification, including schema model members.
-Reports, extension-internal membership, schema/cascade guards, schema-level
+Internal relation membership and dedicated namespace protection are implemented.
+Reports, schema/cascade guards, schema-level
 action offers and backup/restore admission remain. T2 adds bounded
 changes and T3 adds owned operations. The
 [roadmap](../../migration-roadmap.md) tracks delivery.
@@ -109,6 +110,8 @@ A shared live relation context distinguishes ordinary user relations, Timescale
 relations and extension-owned internals. Dedicated extension schemas are
 protected, and chunk/materialisation membership protects objects wherever they
 live. Merely sharing `public` with extension functions protects no user table.
+Dedicated Timescale namespace names are reserved by structured operations even
+before installation, so new application-created objects cannot occupy them.
 Every structured entry point, including direct mutation requests, imports,
 schema/cascade changes and previews, consults that context. An unknown answer
 cannot silently permit a write to a possibly protected object.

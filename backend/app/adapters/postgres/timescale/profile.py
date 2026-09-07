@@ -34,7 +34,12 @@ WHERE namespace.nspname = 'timescaledb_information'
       AND attribute.attname IN ('hypertable_schema', 'hypertable_name'))
     OR
     (relation.relname = 'continuous_aggregates'
-      AND attribute.attname IN ('view_schema', 'view_name'))
+      AND attribute.attname IN (
+        'view_schema', 'view_name',
+        'materialization_hypertable_schema', 'materialization_hypertable_name'))
+    OR
+    (relation.relname = 'chunks'
+      AND attribute.attname IN ('chunk_schema', 'chunk_name'))
   )
 """
 
@@ -44,6 +49,10 @@ _BASELINE_COLUMNS = frozenset(
         ("hypertables", "hypertable_name"),
         ("continuous_aggregates", "view_schema"),
         ("continuous_aggregates", "view_name"),
+        ("continuous_aggregates", "materialization_hypertable_schema"),
+        ("continuous_aggregates", "materialization_hypertable_name"),
+        ("chunks", "chunk_schema"),
+        ("chunks", "chunk_name"),
     }
 )
 
@@ -54,6 +63,14 @@ WHERE false
 UNION ALL
 SELECT view_schema AS schema_name, view_name AS relation_name
 FROM timescaledb_information.continuous_aggregates
+WHERE false
+UNION ALL
+SELECT materialization_hypertable_schema, materialization_hypertable_name
+FROM timescaledb_information.continuous_aggregates
+WHERE false
+UNION ALL
+SELECT chunk_schema, chunk_name
+FROM timescaledb_information.chunks
 WHERE false
 """
 

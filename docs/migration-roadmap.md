@@ -160,8 +160,9 @@ current slice. Tests are written but have not been run; the shared PostgreSQL
 relation classifier and relation-level row/structure/DDL guards are implemented
 at the current branch head. Registered relation actions now guard rename, move,
 drop (including set execution and previews) and model-code downloads, including
-schema members. Their tests are written but have not been run. Next: protect
-extension-owned schemas and internal relation membership, guard schema changes
+schema members. Dedicated Timescale namespaces and internal relation membership
+(chunks, materialisations and extension-owned relations) are now protected.
+Their tests are written but have not been run. Next: guard schema changes
 and cascade dependencies, and add backup/restore admission before Timescale
 system reports. Schema-level action offers still need to reflect member guards.
 

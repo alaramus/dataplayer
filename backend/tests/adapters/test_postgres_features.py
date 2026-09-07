@@ -12,6 +12,16 @@ BASELINE_COLUMNS = [
     {"view_name": "hypertables", "column_name": "hypertable_name"},
     {"view_name": "continuous_aggregates", "column_name": "view_schema"},
     {"view_name": "continuous_aggregates", "column_name": "view_name"},
+    {
+        "view_name": "continuous_aggregates",
+        "column_name": "materialization_hypertable_schema",
+    },
+    {
+        "view_name": "continuous_aggregates",
+        "column_name": "materialization_hypertable_name",
+    },
+    {"view_name": "chunks", "column_name": "chunk_schema"},
+    {"view_name": "chunks", "column_name": "chunk_name"},
 ]
 
 

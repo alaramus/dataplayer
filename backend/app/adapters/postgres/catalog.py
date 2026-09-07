@@ -15,6 +15,7 @@ from app.adapters.postgres.relation_context import (
     SchemaRelationContext,
 )
 from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.timescale.names import DEDICATED_SCHEMAS
 from app.adapters.postgres.system_reports import (
     REPORTS,
     SECTION_DESCRIPTION,
@@ -42,7 +43,11 @@ def is_system_schema(name: str) -> bool:
     node, the relation model to refuse a structure change, and fetch to
     refuse a write (D54).
     """
-    return name.startswith("pg_") or name in _SYSTEM_SCHEMAS
+    return (
+        name.startswith("pg_")
+        or name in _SYSTEM_SCHEMAS
+        or name in DEDICATED_SCHEMAS
+    )
 
 
 class PostgresCatalog:
@@ -235,7 +240,7 @@ def _relation_of(
     Shared by the listing and by `path_to` so a table cannot be described one
     way when walked into and another way when pointed at.
     """
-    is_system = is_system_schema(schema)
+    is_system = is_system_schema(schema) or name in context.internal_relations
     representations = [TABLE_REPRESENTATION]
     if context.structured_operations_reason(name) is None:
         representations.append(DDL_REPRESENTATION)
