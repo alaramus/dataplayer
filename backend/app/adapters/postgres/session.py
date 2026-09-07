@@ -2,7 +2,7 @@ import asyncio
 import time
 import uuid
 from collections.abc import AsyncIterator, Mapping, Sequence
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, nullcontext
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
@@ -393,6 +393,7 @@ class PostgresSession:
         params: tuple[object, ...] | None = None,
         *,
         refusals: Mapping[str, str] | None = None,
+        inspection: bool = False,
     ) -> list[dict[str, Any]]:
         """Run a read-only query.
 
@@ -409,10 +410,15 @@ class PostgresSession:
         """
         try:
             async with self._connection() as connection:
-                cursor = await connection.cursor(row_factory=dict_row).execute(
-                    sql, params
-                )
-                return await cursor.fetchall()
+                boundary = connection.transaction() if inspection else nullcontext()
+                async with boundary:
+                    if inspection:
+                        await connection.execute("SET TRANSACTION READ ONLY")
+                        await connection.execute("SET LOCAL statement_timeout = '5s'")
+                    cursor = await connection.cursor(row_factory=dict_row).execute(
+                        sql, params
+                    )
+                    return await cursor.fetchall()
         except PoolTimeout:
             error_kind, message = await self._why_no_connection()
             raise AdapterError(error_kind, message) from None

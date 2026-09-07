@@ -85,6 +85,11 @@ async def _schema_target(
     node = (await catalog.path_to(node_id))[-1]
     if not isinstance(node, SchemaNode) or node.is_system:
         raise ActionRefused("not_applicable", f"This schema cannot be {refused_as}")
+    reason = await catalog.schema_action_reason(node.name)
+    if reason is None:
+        reason = await catalog.cascade_reason(node.name)
+    if reason is not None:
+        raise ActionRefused("not_applicable", reason)
     return node
 
 
@@ -314,6 +319,11 @@ class MoveRelation(JsonAction[MoveRelationParams]):
             raise ActionRefused(
                 "not_applicable", "Relations cannot be moved into a system schema"
             )
+        reason = await self._catalog.schema_action_reason(
+            target_name, include_relations=False
+        )
+        if reason is not None:
+            raise ActionRefused("not_applicable", reason)
         siblings = await self._catalog.list_children(target_name)
         if node.name in {sibling.name for sibling in siblings}:
             raise ActionRefused(
@@ -706,6 +716,7 @@ class DropRelation(JsonAction[DropRelationParams]):
         self, node_ids: Sequence[str | None], params: DropRelationParams
     ) -> ActionResult:
         targets = await self._targets(node_ids)
+        await self._guard_cascades(targets, cascade=params.cascade)
         statements = self._statements(targets, cascade=params.cascade)
         subject = _subject(targets)
         # One transaction, so a selection that cannot be dropped whole leaves
@@ -732,6 +743,7 @@ class DropRelation(JsonAction[DropRelationParams]):
         it would drop as it goes.
         """
         targets = await self._targets(node_ids)
+        await self._guard_cascades(targets, cascade=params.cascade)
         subject = _subject(targets)
         rehearsal = await self._session.rehearse(
             *self._statements(targets, cascade=params.cascade),
@@ -750,6 +762,16 @@ class DropRelation(JsonAction[DropRelationParams]):
         return ActionPreview(
             summary=f"What dropping {subject} would do:", items=rehearsal.said
         )
+
+    async def _guard_cascades(
+        self, targets: Sequence[tuple[str, TableNode | ViewNode]], *, cascade: bool
+    ) -> None:
+        if not cascade:
+            return
+        for schema, node in targets:
+            reason = await self._catalog.cascade_reason(schema, node.name)
+            if reason is not None:
+                raise ActionRefused("not_applicable", reason)
 
     async def _targets(
         self, node_ids: Sequence[str | None]
@@ -857,6 +879,7 @@ class DropSchema(JsonAction[DropSchemaParams]):
         node = await _schema_target(
             self._catalog, node_id, action="drop", refused_as="dropped"
         )
+        await self._guard_cascade(node.name, cascade=params.cascade)
         await self._session.schema_change(
             self._statement(node.name, cascade=params.cascade),
             refusals=DROP_SCHEMA_REFUSALS,
@@ -873,6 +896,7 @@ class DropSchema(JsonAction[DropSchemaParams]):
         node = await _schema_target(
             self._catalog, node_id, action="drop", refused_as="dropped"
         )
+        await self._guard_cascade(node.name, cascade=params.cascade)
         rehearsal = await self._session.rehearse(
             self._statement(node.name, cascade=params.cascade),
             refusals=DROP_SCHEMA_REFUSALS,
@@ -886,6 +910,12 @@ class DropSchema(JsonAction[DropSchemaParams]):
         return ActionPreview(
             summary=f"What dropping {node.name} would do:", items=rehearsal.said
         )
+
+    async def _guard_cascade(self, schema: str, *, cascade: bool) -> None:
+        if cascade:
+            reason = await self._catalog.cascade_reason(schema)
+            if reason is not None:
+                raise ActionRefused("not_applicable", reason)
 
     @staticmethod
     def _statement(schema: str, *, cascade: bool) -> str:
@@ -979,12 +1009,10 @@ class DescribeModel(Action[DescribeModelParams]):
             path = await self._catalog.path_to(node_id)
             node = path[-1]
             if isinstance(node, SchemaNode):
+                reason = await self._catalog.schema_action_reason(node.name)
+                if reason is not None:
+                    raise ActionRefused("not_applicable", reason)
                 for model in await self._relation.relation_models(node.name):
-                    reason = await self._catalog.relation_action_reason(
-                        node.name, model.name
-                    )
-                    if reason is not None:
-                        raise ActionRefused("not_applicable", reason)
                     gathered.setdefault(model.node_id, model)
                 continue
             if not isinstance(node, TableNode | ViewNode):
@@ -1061,7 +1089,17 @@ class PostgresActions:
             # Whether a schema will take a new relation is the schema's own
             # answer, asked here so that the rule is not stated a second time.
             options = await self._relations.new_relation_options(node_id)
-            return self._actions.for_kind(node.kind) if options.supported else []
+            if not options.supported:
+                return []
+            actions = self._actions.for_kind(node.kind)
+            reason = await self._catalog.schema_action_reason(node.name)
+            if reason is not None:
+                member_actions = {RenameSchema.name, DropSchema.name, DescribeModel.name}
+                return [action for action in actions if action.name not in member_actions]
+            if await self._catalog.cascade_reason(node.name) is not None:
+                schema_mutations = {RenameSchema.name, DropSchema.name}
+                return [action for action in actions if action.name not in schema_mutations]
+            return actions
         if isinstance(node, (TableNode, ViewNode)) and not node.is_system:
             reason = await self._catalog.relation_action_reason(path[0].name, node.name)
             if reason is not None:

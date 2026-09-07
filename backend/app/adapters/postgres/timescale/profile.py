@@ -112,6 +112,7 @@ async def discover(session: PostgresSession) -> TimescaleProfile:
             _EXTENSION_SQL,
             ("timescaledb",),
             refusals=_INSPECTION_REFUSALS,
+            inspection=True,
         )
     except ValueError:
         return _unavailable("This connection may not inspect installed extensions")
@@ -154,6 +155,7 @@ async def discover(session: PostgresSession) -> TimescaleProfile:
             _BASELINE_API_SQL,
             (extension_oid,),
             refusals=_INSPECTION_REFUSALS,
+            inspection=True,
         )
     except ValueError:
         return _unavailable(
@@ -183,7 +185,9 @@ async def discover(session: PostgresSession) -> TimescaleProfile:
         )
 
     try:
-        await session.query(_BASELINE_ACCESS_SQL, refusals=_INSPECTION_REFUSALS)
+        await session.query(
+            _BASELINE_ACCESS_SQL, refusals=_INSPECTION_REFUSALS, inspection=True
+        )
     except ValueError:
         return _unavailable(
             "This connection may not inspect TimescaleDB metadata", version=version

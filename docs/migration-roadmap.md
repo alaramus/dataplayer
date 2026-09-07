@@ -162,9 +162,10 @@ at the current branch head. Registered relation actions now guard rename, move,
 drop (including set execution and previews) and model-code downloads, including
 schema members. Dedicated Timescale namespaces and internal relation membership
 (chunks, materialisations and extension-owned relations) are now protected.
-Their tests are written but have not been run. Next: guard schema changes
-and cascade dependencies, and add backup/restore admission before Timescale
-system reports. Schema-level action offers still need to reflect member guards.
+Schema changes, destination creation, schema-level action offers and cascade
+dependencies now consult those guards. Cascade scope inspection is bounded and
+read-only. Their tests are written but have not been run. Next: add instance-level
+backup/restore admission and bounded archive inspection before Timescale reports.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -7,11 +7,14 @@ from app.adapters.catalog import SchemaNode, TableNode
 from app.adapters.postgres.actions import (
     DescribeModel,
     DropRelation,
+    DropSchema,
     MoveRelation,
     PostgresActions,
     RenameRelation,
+    RenameSchema,
 )
-from app.adapters.relation import RelationModel
+from app.adapters.postgres.row_commands import PostgresRowCommands
+from app.adapters.postgres.system_reports import EXTENSIONS_REPORT_ID
 
 
 def _catalog(reason: str | None) -> AsyncMock:
@@ -21,6 +24,8 @@ def _catalog(reason: str | None) -> AsyncMock:
         TableNode(id="public.events", name="events", has_children=False),
     ]
     catalog.relation_action_reason.return_value = reason
+    catalog.schema_action_reason.return_value = None
+    catalog.cascade_reason.return_value = None
     return catalog
 
 
@@ -84,17 +89,54 @@ async def test_drop_guard_covers_execution_preview_and_sets(
     session.rehearse.assert_not_awaited()
 
 
+async def test_extension_row_command_cannot_remove_timescale() -> None:
+    session = AsyncMock()
+    session.query.return_value = [{"name": "timescaledb"}]
+    result = await PostgresRowCommands(session).run(
+        EXTENSIONS_REPORT_ID, "drop_extension", ["timescaledb"]
+    )
+    assert result.done == 0
+    assert result.refused == [
+        "TimescaleDB removal is not supported by structured operations"
+    ]
+    session.schema_change.assert_not_awaited()
+
+
 async def test_schema_model_export_refuses_a_protected_member() -> None:
     catalog = _catalog("TimescaleDB relations are read-only in this version")
     catalog.path_to.return_value = catalog.path_to.return_value[:1]
-    with patch("app.adapters.postgres.actions.PostgresRelation") as relation_type:
-        relation_type.return_value.relation_models = AsyncMock(
-            return_value=[
-                RelationModel(
-                    node_id="public.events", name="events", kind="table"
-                )
-            ]
-        )
-        with pytest.raises(ActionRefused, match="TimescaleDB"):
-            await DescribeModel(AsyncMock(), catalog).download(["public"], {})
-    catalog.relation_action_reason.assert_awaited_once_with("public", "events")
+    catalog.schema_action_reason.return_value = "Protected TimescaleDB members"
+    session = AsyncMock()
+    with pytest.raises(ActionRefused, match="TimescaleDB"):
+        await DescribeModel(session, catalog).download(["public"], {})
+    catalog.schema_action_reason.assert_awaited_once_with("public")
+    session.query.assert_not_awaited()
+
+
+async def test_schema_mutations_refuse_before_any_rehearsal_or_ddl() -> None:
+    catalog = _catalog(None)
+    catalog.path_to.return_value = catalog.path_to.return_value[:1]
+    catalog.schema_action_reason.return_value = "Protected TimescaleDB members"
+    session = AsyncMock()
+    with pytest.raises(ActionRefused, match="TimescaleDB"):
+        await RenameSchema(session, catalog).perform("public", {"new_name": "renamed"})
+    with pytest.raises(ActionRefused, match="TimescaleDB"):
+        await DropSchema(session, catalog).perform("public", {"cascade": True})
+    with pytest.raises(ActionRefused, match="TimescaleDB"):
+        await DropSchema(session, catalog).preview("public", {"cascade": True})
+    session.schema_change.assert_not_awaited()
+    session.rehearse.assert_not_awaited()
+
+
+@pytest.mark.parametrize("preview", [False, True])
+async def test_ordinary_relation_cascade_checks_protected_dependencies(preview: bool) -> None:
+    catalog = _catalog(None)
+    catalog.cascade_reason.return_value = "This cascade affects TimescaleDB objects"
+    session = AsyncMock()
+    action = DropRelation(session, catalog)
+    with pytest.raises(ActionRefused, match="TimescaleDB"):
+        operation = action.preview_on_set if preview else action.perform_on_set
+        await operation(["public.events"], {"cascade": True})
+    catalog.cascade_reason.assert_awaited_once_with("public", "events")
+    session.transaction.assert_not_called()
+    session.rehearse.assert_not_awaited()

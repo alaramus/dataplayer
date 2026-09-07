@@ -12,8 +12,9 @@ read-only guards and registered relation-action guards are implemented, with
 tests written but not yet run. Rename, move, drop previews/execution and model
 downloads consult the shared classification, including schema model members.
 Internal relation membership and dedicated namespace protection are implemented.
-Reports, schema/cascade guards, schema-level
-action offers and backup/restore admission remain. T2 adds bounded
+Schema mutation/cascade guards and schema-level action offers are implemented;
+dependency inspection is bounded to 1000 objects and five seconds. Reports and
+backup/restore admission remain. T2 adds bounded
 changes and T3 adds owned operations. The
 [roadmap](../../migration-roadmap.md) tracks delivery.
 
@@ -112,6 +113,13 @@ protected, and chunk/materialisation membership protects objects wherever they
 live. Merely sharing `public` with extension functions protects no user table.
 Dedicated Timescale namespace names are reserved by structured operations even
 before installation, so new application-created objects cannot occupy them.
+Schema mutation and cascade admission conservatively follow PostgreSQL
+dependencies, including ownership edges in both directions and whole relations
+for column dependencies. The scope is a protection check, not a promised drop
+inventory. An incomplete scope refuses before rehearsal; ordinary PostgreSQL
+without Timescale retains its existing cascade behaviour. A schema containing
+extension functions cannot be renamed/dropped through these actions, while its
+ordinary relations remain individually usable.
 Every structured entry point, including direct mutation requests, imports,
 schema/cascade changes and previews, consults that context. An unknown answer
 cannot silently permit a write to a possibly protected object.

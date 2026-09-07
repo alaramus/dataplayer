@@ -76,6 +76,17 @@ class PostgresCatalog:
         context = await self._relation_context.schema(schema, relation)
         return context.structured_operations_reason(relation)
 
+    async def schema_action_reason(
+        self, schema: str, *, include_relations: bool = True
+    ) -> str | None:
+        context = await self._relation_context.schema(
+            schema, None if include_relations else ""
+        )
+        return context.schema_operations_reason(include_relations=include_relations)
+
+    async def cascade_reason(self, schema: str, relation: str | None = None) -> str | None:
+        return await self._relation_context.cascade_reason(schema, relation)
+
     async def _list_schemas(self) -> list[CatalogNode]:
         return [self._schema_of(row) for row in await self._schema_rows(None)]
 

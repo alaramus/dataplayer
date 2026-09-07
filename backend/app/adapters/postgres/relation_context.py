@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 
 from app.adapters.features import FeatureState, SourceFeature
+from app.adapters.postgres.dependencies import dependency_scope
 from app.adapters.postgres.features import PostgresFeatures
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.names import DEDICATED_SCHEMAS
@@ -109,6 +110,15 @@ class SchemaRelationContext:
             return self.reason or "TimescaleDB relation status could not be established"
         return None
 
+    def schema_operations_reason(self, *, include_relations: bool = True) -> str | None:
+        if self.dedicated_schema:
+            return "This schema belongs to TimescaleDB"
+        if not self.known:
+            return self.reason or "TimescaleDB schema status could not be established"
+        if include_relations and (self.specializations or self.internal_relations):
+            return "This schema contains protected TimescaleDB relations"
+        return None
+
 
 class PostgresRelationContext:
     def __init__(
@@ -128,7 +138,9 @@ class PostgresRelationContext:
             return _context(feature, {}, schema=schema)
 
         try:
-            rows = await self._session.query(_CLASSIFY_SQL, (schema, relation))
+            rows = await self._session.query(
+                _CLASSIFY_SQL, (schema, relation), inspection=True
+            )
         except (ValueError, AdapterError) as exc:
             if isinstance(exc, AdapterError) and exc.error_kind in {"auth", "network"}:
                 raise
@@ -166,6 +178,29 @@ class PostgresRelationContext:
         for name in internal:
             found.pop(name, None)
         return _context(feature, found, schema=schema, internal=frozenset(internal))
+
+    async def cascade_reason(self, schema: str, relation: str | None) -> str | None:
+        feature = (await self._features.timescale()).feature
+        if feature.state == "absent":
+            return None
+        if feature.state != "available":
+            return feature.reason or "TimescaleDB dependency status is unknown"
+        try:
+            scope = await dependency_scope(self._session, schema, relation)
+        except (ValueError, AdapterError):
+            return "The cascade dependency scope could not be inspected"
+        if not scope.complete:
+            return "The cascade dependency scope exceeds the inspection limit or is unknown"
+        if scope.extension_owned:
+            return "This cascade affects TimescaleDB extension objects"
+        by_schema: dict[str, set[str]] = {}
+        for namespace, name in scope.relations:
+            by_schema.setdefault(namespace, set()).add(name)
+        for namespace, names in by_schema.items():
+            context = await self.schema(namespace)
+            if any(context.structured_operations_reason(name) for name in names):
+                return "This cascade affects protected or unclassified TimescaleDB relations"
+        return None
 
 
 def _context(

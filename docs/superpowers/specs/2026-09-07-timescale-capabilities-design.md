@@ -369,6 +369,13 @@ bypass it. Schema-level changes and cascading operations must also account for
 affected Timescale objects; if the scope cannot be established safely, refuse
 before executing or rehearsing the mutation.
 
+The T1 protection scope uses a conservative PostgreSQL dependency walk, capped
+at 1000 objects with a five-second read-only inspection timeout. Ownership
+edges are traversed both ways and column references protect whole relations.
+This can refuse more than the exact drop would remove; it never presents the
+walk as a drop preview. A missing or oversized scope is refused. Dedicated
+Timescale namespace names are reserved even before extension installation.
+
 T1's delivery policy is deliberately conservative:
 
 | Target | Read/describe/export | Structured row writes | Structured DDL/actions |

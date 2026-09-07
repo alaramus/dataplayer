@@ -240,6 +240,9 @@ class PostgresRowCommands:
                     else f'"{typed}" is not installed'
                 )
                 continue
+            if not installing and named == "timescaledb":
+                refused.append("TimescaleDB removal is not supported by structured operations")
+                continue
             statement = (
                 # CASCADE here means "install what this one is built on", which
                 # is a different promise from a cascading drop: it adds, and

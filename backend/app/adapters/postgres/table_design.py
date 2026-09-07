@@ -266,6 +266,11 @@ class PostgresTableDesign:
             return TableDesignOptions(
                 supported=False, reason=f'"{node.name}" belongs to the server'
             )
+        reason = await self._catalog.schema_action_reason(
+            node.name, include_relations=False
+        )
+        if reason is not None:
+            return TableDesignOptions(supported=False, reason=reason)
         methods = await self._methods()
         classes = await self._session.query(OPERATOR_CLASSES)
         collations = await self._session.query(COLLATIONS)
@@ -364,6 +369,11 @@ class PostgresTableDesign:
             raise ValueError("A table is created in a schema")
         if node.is_system:
             raise ValueError(f'"{node.name}" belongs to the server')
+        reason = await self._catalog.schema_action_reason(
+            node.name, include_relations=False
+        )
+        if reason is not None:
+            raise ValueError(reason)
         methods = {method.code: method for method in await self._methods()}
         classes: dict[str, set[str]] = {}
         if _names_an_operator_class(definition):

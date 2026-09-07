@@ -65,6 +65,11 @@ class PostgresRelationChanges:
                 supported=False,
                 reason=f'"{node.name}" belongs to the server',
             )
+        reason = await self._catalog.schema_action_reason(
+            node.name, include_relations=False
+        )
+        if reason is not None:
+            return NewRelationOptions(supported=False, reason=reason)
         return NewRelationOptions(
             supported=True, column_type_options=POSTGRES_COLUMN_TYPE_OPTIONS
         )
