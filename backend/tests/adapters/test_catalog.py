@@ -7,6 +7,7 @@ from app.adapters.catalog import (
     FileNode,
     SchemaNode,
     TableNode,
+    ViewNode,
 )
 from app.adapters.protocol import AdapterError
 
@@ -37,6 +38,45 @@ def test_union_discriminates_by_kind() -> None:
     assert isinstance(parsed[0], SchemaNode)
     assert isinstance(parsed[1], TableNode)
     assert parsed[1].row_count_estimate == 42
+
+
+def test_relational_specialization_does_not_change_the_node_kind() -> None:
+    table = TableNode(
+        id="metrics.events",
+        name="events",
+        has_children=False,
+        representations=[],
+        specialization={"kind": "timescale_hypertable"},
+    )
+    view = ViewNode(
+        id="metrics.hourly",
+        name="hourly",
+        has_children=False,
+        representations=[],
+        specialization={"kind": "timescale_continuous_aggregate"},
+    )
+
+    assert table.kind == "table"
+    assert table.specialization is not None
+    assert table.specialization.kind == "timescale_hypertable"
+    assert view.kind == "view"
+    assert view.specialization is not None
+    assert view.specialization.kind == "timescale_continuous_aggregate"
+
+
+def test_a_table_cannot_claim_a_view_specialization() -> None:
+    with pytest.raises(ValidationError):
+        TableNode.model_validate(
+            {
+                "id": "metrics.events",
+                "name": "events",
+                "has_children": False,
+                "representations": [],
+                "specialization": {
+                    "kind": "timescale_continuous_aggregate",
+                },
+            }
+        )
 
 
 def test_unknown_kind_is_rejected() -> None:

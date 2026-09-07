@@ -9,6 +9,7 @@ from app.adapters.relation import (
     PrimaryKey,
     RelationModel,
 )
+from app.adapters.summary import RelationContents
 
 
 def _text() -> ColumnType:
@@ -81,3 +82,37 @@ def test_a_relation_model_holds_columns_constraints_and_indexes() -> None:
 
     assert model.indexes == []
     assert model.partitioning is None
+
+
+def test_a_relation_specialization_is_typed_and_optional() -> None:
+    ordinary = RelationModel(
+        node_id="public.notes",
+        schema_name="public",
+        name="notes",
+        kind="table",
+    )
+    hypertable = RelationModel(
+        node_id="metrics.events",
+        schema_name="metrics",
+        name="events",
+        kind="table",
+        specialization={"kind": "timescale_hypertable"},
+    )
+
+    assert ordinary.specialization is None
+    assert hypertable.specialization is not None
+    assert hypertable.specialization.kind == "timescale_hypertable"
+
+
+def test_relation_summary_uses_the_same_specialization_shape() -> None:
+    contents = RelationContents(
+        relation_kind="view",
+        schema_name="metrics",
+        columns=3,
+        indexes=0,
+        constraints=0,
+        specialization={"kind": "timescale_continuous_aggregate"},
+    )
+
+    assert contents.specialization is not None
+    assert contents.specialization.kind == "timescale_continuous_aggregate"

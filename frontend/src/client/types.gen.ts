@@ -5884,6 +5884,17 @@ export type RelationContents = {
     | "foreign_table"
     | "dataset"
   /**
+   * Specialization
+   */
+  specialization?:
+    | ({
+        kind: "timescale_hypertable"
+      } & TimescaleHypertable)
+    | ({
+        kind: "timescale_continuous_aggregate"
+      } & TimescaleContinuousAggregate)
+    | null
+  /**
    * Schema Name
    */
   schema_name: string
@@ -6001,6 +6012,17 @@ export type RelationModel = {
    * Kind
    */
   kind: "table" | "partitioned_table" | "view" | "materialized_view" | "foreign_table" | "dataset"
+  /**
+   * Specialization
+   */
+  specialization?:
+    | ({
+        kind: "timescale_hypertable"
+      } & TimescaleHypertable)
+    | ({
+        kind: "timescale_continuous_aggregate"
+      } & TimescaleContinuousAggregate)
+    | null
   /**
    * Owner
    */
@@ -7862,6 +7884,7 @@ export type TableNode = {
    * Is System
    */
   is_system?: boolean
+  specialization?: TimescaleHypertable | null
 }
 
 /**
@@ -7963,6 +7986,26 @@ export type TextContents = {
    * Not Counted
    */
   not_counted?: string | null
+}
+
+/**
+ * TimescaleContinuousAggregate
+ */
+export type TimescaleContinuousAggregate = {
+  /**
+   * Kind
+   */
+  kind?: "timescale_continuous_aggregate"
+}
+
+/**
+ * TimescaleHypertable
+ */
+export type TimescaleHypertable = {
+  /**
+   * Kind
+   */
+  kind?: "timescale_hypertable"
 }
 
 /**
@@ -8638,6 +8681,7 @@ export type ViewNode = {
    * Is System
    */
   is_system?: boolean
+  specialization?: TimescaleContinuousAggregate | null
 }
 
 /**

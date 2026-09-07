@@ -5,6 +5,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.content import NodeRepresentation
 from app.adapters.frameworks import DetectedFramework
+from app.adapters.specializations import (
+    TimescaleContinuousAggregate,
+    TimescaleHypertable,
+)
 
 
 class BaseNode(BaseModel):
@@ -54,12 +58,14 @@ class TableNode(BaseNode):
     row_count_estimate: int | None = None
     size_bytes: int | None = None
     is_system: bool = False
+    specialization: TimescaleHypertable | None = None
 
 
 class ViewNode(BaseNode):
     kind: Literal["view"] = "view"
     is_materialized: bool = False
     is_system: bool = False
+    specialization: TimescaleContinuousAggregate | None = None
 
 
 class DirectoryNode(BaseNode):

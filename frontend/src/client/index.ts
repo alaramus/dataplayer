@@ -935,6 +935,8 @@ export type {
   TablePlanRequest,
   TextContent,
   TextContents,
+  TimescaleContinuousAggregate,
+  TimescaleHypertable,
   Token,
   TransactionEnded,
   TransactionPublic,

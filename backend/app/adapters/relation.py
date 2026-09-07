@@ -5,6 +5,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.dataset import DatasetInfo
+from app.adapters.specializations import RelationSpecialization
 
 TypeCategory = Literal[
     "number",
@@ -209,6 +210,7 @@ class RelationModel(BaseModel):
     schema_name: str | None = None
     name: str
     kind: RelationKind
+    specialization: RelationSpecialization | None = None
     owner: str | None = None
     persistence: Persistence | None = None
     comment: str | None = None
