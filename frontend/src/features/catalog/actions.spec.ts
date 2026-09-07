@@ -11,9 +11,26 @@ import {
   reloadedBy,
   summarize,
   toCommands,
-  toMenu,
+  toMenu as resolveMenu,
   withGroupingChoices,
 } from "./actions"
+
+function toMenu(
+  level: ActionInfo[],
+  here: ActionInfo[],
+  picked: ActionInfo[],
+  levelId: string | null,
+  places: (string | null)[],
+  nodeTargets: string[]
+) {
+  return resolveMenu({
+    level: { actions: level, targets: [levelId] },
+    children: { actions: here, targets: places },
+    node: { actions: picked, targets: nodeTargets },
+    group: { actions: [], targets: [] },
+    destination: { actions: [], targets: [] },
+  })
+}
 
 const only = (actions: ActionInfo[]) => first(toCommands(actions))
 
@@ -226,7 +243,7 @@ describe("toMenu", () => {
       Object.fromEntries(commands.map((command) => [command.name, command.reason]))
 
     expect(reasons(nothingTicked).delete).toBe("Tick a row to use this")
-    expect(reasons(refused).delete).toBe("This source does not offer it for what is ticked")
+    expect(reasons(refused).delete).toBe("This source does not offer it for these targets")
     // What is available says nothing: a reason under a line that works is noise.
     expect(reasons(nothingTicked).upload).toBeNull()
   })
@@ -317,6 +334,74 @@ describe("toMenu", () => {
 
     expect(at(commands, 0).enabled).toBe(true)
     expect(at(commands, 0).targets).toEqual([null])
+  })
+
+  it("resolves groupings independently of checked rows and keeps destination workflows singular", () => {
+    const rename: ActionInfo = { ...remove, name: "rename_schema", acts_on: "group" }
+    const load: ActionInfo = { ...upload, name: "load_csv", acts_on: "destination" }
+    const commands = resolveMenu({
+      level: { actions: [rename, load, remove], targets: [null] },
+      children: { actions: [], targets: ["schema"] },
+      node: { actions: [remove], targets: ["schema.a", "schema.b"] },
+      group: { actions: [rename], targets: ["schema"] },
+      destination: {
+        actions: [{ ...load, available_node_ids: ["schema", "other"] }],
+        targets: ["schema", "system", "other"],
+      },
+    })
+    expect(commands.map(({ name, enabled, targets }) => ({ name, enabled, targets }))).toEqual([
+      { name: "rename_schema", enabled: true, targets: ["schema"] },
+      { name: "load_csv", enabled: true, targets: ["schema"] },
+      { name: "delete", enabled: true, targets: ["schema.a", "schema.b"] },
+    ])
+  })
+
+  it("shows the server's cardinality reason without replacing or trimming the selection", () => {
+    const rename: ActionInfo = { ...remove, name: "rename_schema", acts_on: "group" }
+    const commands = resolveMenu({
+      level: { actions: [rename], targets: [null] },
+      children: { actions: [], targets: [] },
+      node: { actions: [], targets: ["table"] },
+      group: {
+        actions: [{ ...rename, applicable: false, unavailable_reason: "Select one grouping to use this" }],
+        targets: ["one", "two"],
+      },
+      destination: { actions: [], targets: [] },
+    })
+    expect(first(commands)).toMatchObject({
+      enabled: false,
+      targets: ["one", "two"],
+      reason: "Select one grouping to use this",
+    })
+  })
+
+  it("does not turn the current folder into an explicit grouping selection", () => {
+    const rename: ActionInfo = { ...remove, acts_on: "group" }
+    const commands = resolveMenu({
+      level: { actions: [rename], targets: ["folder"] },
+      children: { actions: [rename], targets: ["folder"] },
+      node: { actions: [], targets: [] },
+      group: { actions: [rename], targets: [] },
+      destination: { actions: [], targets: [] },
+    })
+    expect(first(commands)).toMatchObject({ enabled: false, targets: [], reason: "Select a grouping to use this" })
+  })
+
+  it("keeps creation available without displayed schemas and refuses missing availability", () => {
+    const load: ActionInfo = { ...upload, name: "load_csv", acts_on: "destination" }
+    const subjects = {
+      level: { actions: [load], targets: [null] },
+      children: { actions: [], targets: [] },
+      node: { actions: [], targets: [] },
+      group: { actions: [], targets: [] },
+      destination: {
+        actions: [{ ...load, available_node_ids: ["writable"] }],
+        targets: ["system", "writable"],
+      },
+    }
+    expect(first(resolveMenu(subjects))).toMatchObject({ enabled: true, targets: ["writable"] })
+    expect(first(resolveMenu({ ...subjects, destination: { actions: [], targets: ["writable"] } })))
+      .toMatchObject({ enabled: false, targets: [] })
   })
 })
 

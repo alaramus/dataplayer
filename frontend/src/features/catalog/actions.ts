@@ -42,7 +42,7 @@ export interface ActionCommand {
   downloads: boolean
   /** Opens the ordinary connector form with values prepared by the source. */
   preparesConnector?: boolean
-  /** Whether it changes selected nodes, their shown place, or the level itself. */
+  /** Which selection subject or destination candidates the action receives. */
   actsOn: ActionInfo["acts_on"]
   /**
    * Where the source wants it offered: this menu, or the row of commands above
@@ -139,96 +139,42 @@ export interface MenuCommand extends ActionCommand {
   /** The nodes the filled form is applied to. `[null]` is the root. */
   targets: (string | null)[]
   enabled: boolean
-  /**
-   * Why it cannot be used, or nothing when it can.
-   *
-   * Said here rather than in the menu, because it is the same three facts the
-   * line above it is enabled by: a reason worked out separately would be a
-   * second rule to keep in step, and the wrong sentence under a greyed line
-   * is worse than no sentence.
-   *
-   * The source is not asked. It answers `applicable` and no more, so the one
-   * case this cannot be specific about is the source's own refusal — where it
-   * says that, and not why. Making it specific means a reason travelling with
-   * `applicable`, which is a change to every adapter.
-   */
+  /** Missing UI selection or the source's reason for refusing these targets. */
   reason: string | null
 }
 
-/** Why a line of the source's own vocabulary is not available. */
-function reasonFor(
-  actsOn: ActionInfo["acts_on"],
-  applicable: boolean,
-  hasTarget: boolean
-): string | null {
-  if (actsOn === "level") {
-    return applicable ? null : "This source does not offer it at this level"
-  }
-  if (actsOn === "children") {
-    if (!hasTarget) return "There is nowhere here to put it"
-    return applicable ? null : "This source does not offer it where you are"
-  }
-  if (!hasTarget) return "Tick a row to use this"
-  return applicable ? null : "This source does not offer it for what is ticked"
+export interface ActionSubject {
+  actions: ActionInfo[]
+  targets: (string | null)[]
 }
 
-/**
- * The menu of what can be done here, in the order the server listed it.
- *
- * Whether a line is enabled follows from `acts_on` and never from its name:
- * `level` for the level, `here` for the places being looked at, `picked` for
- * an explicit selection. Standing in a folder is not choosing it. `places` is
- * where something new would be made — the ticked groupings, or the level.
- */
-export function toMenu(
-  level: ActionInfo[],
-  here: ActionInfo[],
-  picked: ActionInfo[],
-  levelId: string | null,
-  places: (string | null)[],
-  nodeTargets: string[]
-): MenuCommand[] {
-  const admitted = new Set(
-    picked.filter((action) => action.applicable).map((action) => action.name)
-  )
-  const applicableHere = new Set(
-    here.filter((action) => action.applicable).map((action) => action.name)
-  )
-  const applicableLevel = new Set(
-    level.filter((action) => action.applicable).map((action) => action.name)
-  )
-  // What the source wants offered above a node's own rows is drawn there and
-  // not here as well: one command in two places is two places to keep in step,
-  // and the row that lists roles is where a new role is asked for (D79).
-  const offered = level.filter((action) => action.offered_in === "catalog")
+export type ActionSubjects = Record<ActionInfo["acts_on"], ActionSubject>
+
+const NO_TARGET: Record<ActionInfo["acts_on"], string> = {
+  level: "This source does not offer it at this level",
+  children: "There is nowhere here to put it",
+  node: "Tick a row to use this",
+  group: "Select a grouping to use this",
+  destination: "No available destination here",
+}
+
+/** Resolve each action against its own subject, including its form target (D118). */
+export function toMenu(subjects: ActionSubjects): MenuCommand[] {
+  const offered = subjects.level.actions.filter((action) => action.offered_in === "catalog")
   return toCommands(offered).map((command) => {
-    const targets =
-      command.actsOn === "level"
-        ? [levelId]
-        : command.actsOn === "children"
-          ? [...places]
-          : [...nodeTargets]
-    const enabled = (() => {
-      if (command.actsOn === "level") return applicableLevel.has(command.name)
-      if (command.actsOn === "children") {
-        return places.length > 0 && applicableHere.has(command.name)
-      }
-      return nodeTargets.length > 0 && admitted.has(command.name)
-    })()
-    const applicable =
-      command.actsOn === "level"
-        ? applicableLevel.has(command.name)
-        : command.actsOn === "children"
-          ? applicableHere.has(command.name)
-          : admitted.has(command.name)
-    const hasTarget =
-      command.actsOn === "level" ? true : command.actsOn === "children" ? places.length > 0 : nodeTargets.length > 0
-    return {
-      ...command,
-      targets,
-      enabled,
-      reason: reasonFor(command.actsOn, applicable, hasTarget),
-    }
+    const subject = subjects[command.actsOn]
+    const answer = subject.actions.find((action) => action.name === command.name)
+    // A destination workflow chooses one place; candidates must never become a batch.
+    const targets = command.actsOn === "destination"
+      ? (answer?.available_node_ids ?? []).slice(0, 1)
+      : [...subject.targets]
+    const enabled = targets.length > 0 && answer?.applicable === true
+    const reason = enabled
+      ? null
+      : targets.length === 0
+        ? NO_TARGET[command.actsOn]
+        : answer?.unavailable_reason ?? "This source does not offer it for these targets"
+    return { ...command, targets, enabled, reason }
   })
 }
 

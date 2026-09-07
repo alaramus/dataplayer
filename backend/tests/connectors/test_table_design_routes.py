@@ -246,7 +246,7 @@ async def test_the_action_is_offered_on_a_schema_and_carries_its_own_screen(
 
     actions = {action["name"]: action for action in response.json()}
     assert actions["create_table"]["applicable"] is True
-    assert actions["create_table"]["acts_on"] == "children"
+    assert actions["create_table"]["acts_on"] == "destination"
     # The editor is registered against the workflow, not against the name.
     assert (
         actions["create_table"]["params_schema"]["x-ui-workflow"] == "table-designer"

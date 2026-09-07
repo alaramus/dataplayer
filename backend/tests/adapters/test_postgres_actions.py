@@ -1,9 +1,11 @@
 import uuid
 from collections.abc import AsyncGenerator
+from typing import Any
 
 import pytest
 
 from app.adapters.actions import (
+    Action,
     ActionPreview,
     ActionRefused,
     ActionResult,
@@ -12,6 +14,7 @@ from app.adapters.actions import (
     TakesFile,
     TakesNodeSet,
     TakesParams,
+    action_availability,
 )
 from app.adapters.fetch import FetchRequest
 from app.adapters.postgres import actions as postgres_actions
@@ -37,6 +40,54 @@ def test_rename_marks_the_field_as_the_current_node_name() -> None:
 
     assert relation["new_name"]["x-ui-purpose"] == "node-name"
     assert schema["new_name"]["x-ui-purpose"] == "node-name"
+
+
+@pytest.mark.parametrize(
+    ("action_type", "scope", "multiple"),
+    [
+        (postgres_actions.CreateSchema, "level", False),
+        (postgres_actions.RenameSchema, "group", False),
+        (postgres_actions.DropSchema, "group", False),
+        (postgres_actions.RenameRelation, "node", False),
+        (postgres_actions.MoveRelation, "node", True),
+        (postgres_actions.DropRelation, "node", True),
+        (postgres_actions.DescribeModel, "node", True),
+        (postgres_actions.CreateTable, "destination", False),
+        (postgres_actions.LoadCsv, "destination", False),
+    ],
+)
+def test_postgres_action_target_contract(
+    action_type: type[Action[Any]], scope: str, multiple: bool
+) -> None:
+    assert action_type.acts_on == scope
+    assert action_type.bulk is multiple
+
+
+async def test_move_accepts_several_relations_and_reports_each_replacement(
+    schema: str,
+) -> None:
+    source = adapter()
+    target = f"move_batch_{uuid.uuid4().hex}"
+    await run(f'CREATE SCHEMA "{target}"')  # noqa: S608 -- generated test schema.
+    try:
+        nodes = [f"{schema}.customers", f"{schema}.regions"]
+        action = source.action("move_relation")
+        offers = [await source.available(node) for node in nodes]
+        assert action_availability(action, nodes, offers).applicable
+        assert isinstance(action, TakesParams)
+        results = [
+            await action.perform(node, {"target_schema": target}) for node in nodes
+        ]
+        assert [
+            result.replacement.old_node_id
+            for result in results
+            if result.replacement is not None
+        ] == nodes
+        for name in ("customers", "regions"):
+            path = await source.path_to(f"{target}.{name}")
+            assert path[-1].name == name
+    finally:
+        await run(f'DROP SCHEMA "{target}" CASCADE')  # noqa: S608 -- generated test schema.
 
 
 async def test_rename_is_offered_only_for_non_system_relations(schema: str) -> None:

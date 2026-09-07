@@ -77,6 +77,18 @@ export type ActionDownloadReady = {
  */
 export type ActionInfo = {
   /**
+   * Applicable
+   */
+  applicable: boolean
+  /**
+   * Available Node Ids
+   */
+  available_node_ids?: Array<string | null>
+  /**
+   * Unavailable Reason
+   */
+  unavailable_reason?: string | null
+  /**
    * Name
    */
   name: string
@@ -123,7 +135,7 @@ export type ActionInfo = {
   /**
    * Acts On
    */
-  acts_on: "node" | "children" | "level"
+  acts_on: "node" | "children" | "level" | "group" | "destination"
   /**
    * Offered In
    */
@@ -132,10 +144,6 @@ export type ActionInfo = {
    * Icon
    */
   icon?: string | null
-  /**
-   * Applicable
-   */
-  applicable: boolean
   /**
    * Params Schema
    */

@@ -2069,7 +2069,7 @@ export class ConnectorsService {
   /**
    * Read Actions
    *
-   * List everything the source can do, saying which of it every node admits.
+   * List actions with availability for this selection or destination candidates.
    *
    * Applicability is asked per node rather than per source type: whether a node
    * may be renamed depends on its state as well as its kind — the root of a
@@ -2077,7 +2077,8 @@ export class ConnectorsService {
    * flag on the whole vocabulary rather than as the length of the list, so a
    * menu built from this keeps its shape as the user walks the catalog and
    * greys out what does not apply. Nothing is allowed by being listed: running
-   * an action asks `available` again.
+   * an action asks `available` again. Ordinary selections must qualify in full;
+   * destination workflows need one eligible candidate and choose one place.
    *
    * A read expressed as a POST for the same reason `fetch` is one: the input is
    * a list of opaque identifiers with no bound on its length, and selecting a

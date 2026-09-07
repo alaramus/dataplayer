@@ -21,26 +21,19 @@ compose every identifier with `psycopg.sql.Identifier`. PostgreSQL moves owned
 indexes and constraints with the relation; their names are identities of their
 own and are not cosmetically rewritten.
 
-## Three action subjects
+## Action subjects
 
-The catalog has three simultaneous subjects:
+The original three-subject routing is superseded by
+[D118](2026-09-07-action-targets-design.md): schema rename/drop receive an
+independent `group` subject, so checked relations cannot replace their target.
+CSV import and table creation use `destination` and open a form for one chosen
+schema even when multiple schemas are displayed. `level`, `children` and `node`
+keep their original roles for other actions. Standing inside a file directory
+still does not select it for rename or removal.
 
-1. the level being viewed — the database root in this round;
-2. the places whose contents are shown — selected schemas for PostgreSQL and
-   the current directory for files;
-3. nodes explicitly selected for change — ticked rows, or selected grouping
-   nodes when no row is ticked.
-
-`acts_on = level | children | node` names those subjects. Create schema is a
-level action, CSV load remains a children action, and rename/drop schema are
-node actions. A selected schema is an explicit selection because the user
-chose it in the grouping control. A directory merely being open is not, so the
-file source keeps its root safety.
-
-The client asks the same action-applicability route about all three subjects.
-It draws one vocabulary from the level answer and enables each command from
-the answer matching its declared subject. The server asks `available` again
-when the action runs, so the listing grants nothing.
+The client asks the action-applicability route per subject. The source decides
+which target or destination is eligible; the client never infers eligibility
+from action names. Labels and current-name defaults follow that same subject.
 
 ## More than one changed branch
 

@@ -325,7 +325,7 @@ test("creates and renames a schema, moves a relation, then drops the schema", as
   await expect(connectorRow(page, connector)).toHaveCount(0)
 })
 
-test("loads a CSV into the schema being looked at", async ({ page }) => {
+test("loads a CSV into one chosen schema while multiple schemas and rows are selected", async ({ page }) => {
   const name = `e2e-load-csv-${Date.now()}`
   // Unique, because nothing here drops a relation yet: the fixture schema is
   // rebuilt from sql/ on every `docker compose up`, and until then a rerun
@@ -338,6 +338,11 @@ test("loads a CSV into the schema being looked at", async ({ page }) => {
   // One schema on as the workflow's initial destination; the dialog can then
   // choose another existing schema or ask the database to create one.
   await showOnlySchema(page, "demo_lab")
+  await catalogCheck(page, "customers").click()
+  await catalogAction(page, "rename_schema")
+  await expect(page.getByTestId("field-new_name")).toHaveValue("demo_lab")
+  await page.getByTestId("action-dialog").getByRole("button", { name: "Cancel", exact: true }).click()
+  await pickSchema(page, "public")
   // By the grouping rather than by a table in it: the scenario above renames
   // one while this runs, and the schema is what this test is standing in.
   await expect(page.getByTestId("catalog-groups")).toContainText("demo_lab")
@@ -345,6 +350,8 @@ test("loads a CSV into the schema being looked at", async ({ page }) => {
   // The button is in the menu because the source declares the action; nothing
   // in the catalog knows what PostgreSQL is.
   await page.getByTestId("catalog-actions").click()
+  await expect(page.getByTestId("menu-item-rename_schema")).toHaveAttribute("aria-disabled", "true")
+  await expect(page.getByTestId("menu-item-create_table")).not.toHaveAttribute("aria-disabled", "true")
   await expect(page.getByTestId("menu-item-load_csv")).not.toHaveAttribute(
     "aria-disabled",
     "true"
@@ -352,7 +359,8 @@ test("loads a CSV into the schema being looked at", async ({ page }) => {
   await page.keyboard.press("Escape")
 
   await catalogAction(page, "load_csv")
-  await expect(page.getByTestId("file-to-relation-dialog")).toContainText("demo_lab")
+  await page.getByTestId("load-schema").click()
+  await page.getByRole("option", { name: "demo_lab", exact: true }).click()
   await page.getByTestId("load-file").setInputFiles({
     name: "regions.csv",
     mimeType: "text/csv",

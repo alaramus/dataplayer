@@ -90,11 +90,8 @@ class ConnectorDraft(BaseModel):
 # a failure of the file system, and answering 502 for it would be a lie.
 RefusalReason = Literal["conflict", "not_applicable", "too_large"]
 
-# What an action changes: an explicitly selected node, a shown place's
-# children, or the catalog level itself. A client has to tell the three apart
-# to know what to send an action, and reading it off the names would mean
-# teaching the client every action that is ever added (D56).
-ActsOn = Literal["node", "children", "level"]
+# Selection subjects and a workflow's destination candidates stay distinct (D118).
+ActsOn = Literal["node", "children", "level", "group", "destination"]
 
 # Where an action is offered: in the menu over the catalog, or in the row of
 # commands above the rows of the node it acts on. Making a database user was a
@@ -381,25 +378,40 @@ class ActionSet:
         return [action for action in self if kind in action.applies_to]
 
 
-def common_actions(
-    offers: Sequence[Sequence[Action[Any]]], *, bulk_only: bool
-) -> list[Action[Any]]:
-    """What every node in a set admits, in the order the driver gave them.
+class ActionAvailability(BaseModel):
+    applicable: bool
+    available_node_ids: list[str | None] = Field(default_factory=list)
+    unavailable_reason: str | None = None
 
-    A set of nodes is asked about in one call, so the intersection is taken
-    here rather than by the client: which actions a node admits depends on its
-    state, and a client that guessed would offer what the server refuses.
-    """
-    if not offers:
-        return []
-    shared = set[str].intersection(
-        *({action.name for action in group} for group in offers)
-    )
-    return [
-        action
-        for action in offers[0]
-        if action.name in shared and (action.bulk or not bulk_only)
+
+def action_availability(
+    action: Action[Any],
+    targets: Sequence[str | None],
+    offers: Sequence[Sequence[Action[Any]]],
+) -> ActionAvailability:
+    """Distinguish a destination choice from applying a form to every target."""
+    available = [
+        node_id
+        for node_id, offered in zip(targets, offers, strict=True)
+        if any(candidate.name == action.name for candidate in offered)
     ]
+    reason = None
+    if action.acts_on == "destination":
+        if not available:
+            reason = "No available destination here"
+    elif not targets or len(available) != len(targets):
+        reason = "This action is not available for every selected target"
+    elif len(targets) > 1 and not action.bulk:
+        reason = (
+            "Select one grouping to use this"
+            if action.acts_on == "group"
+            else "Select one target to use this"
+        )
+    return ActionAvailability(
+        applicable=reason is None,
+        available_node_ids=available,
+        unavailable_reason=reason,
+    )
 
 
 @runtime_checkable

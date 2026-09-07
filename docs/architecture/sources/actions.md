@@ -15,15 +15,17 @@ guard.
   objects and a route calls them. Nothing that is not in the set resolves.
 - `POST /connectors/{id}/actions` with a list of node ids answers with everything
   the source can do, with `applicable` saying which of it every one of them
-  admits. The same call decides what the client offers and what the server
+  admits, or whether a destination candidate is available (D118). The same
+  source offers decide what the client presents and what the server
   allows, and running an action asks `available` again, so being listed permits
   nothing. Applicability depends on state as well as kind: the root of a
   connector is an ordinary directory that may not be renamed or removed.
-- `acts_on` says what an action changes — see D56 for its three values. Without
+- `acts_on` says what an action changes — see D56 and D118. Without
   it the screen would read the difference off the names of actions.
 - `Action.bulk` says whether one filled form may be applied to many; `Delete`
   says yes, `Rename` cannot. The flag never leaves the server: when more than
-  one node is asked about, the server leaves out what did not declare it.
+  one execution target is asked about, the server disables what did not declare
+  it. Destination candidates are choices, not an execution set (D118).
 - `Action.many_files` says whether it may carry several files; `Upload` says yes,
   loading a table from a CSV cannot, because a second file there would be a
   second table. This one does leave the server as `takes_many_files`, because the
@@ -71,12 +73,13 @@ Known deviations:
   stopping the rest. Nothing is transactional.
 - **Applicability costs a call per node.** Bounded by a ceiling of a thousand node
   ids and by the 2000-entry listing refusal.
-- **The menu of actions costs two calls.** One about the level being looked at,
-  which carries the vocabulary, and one about what is ticked.
+- **The menu asks about distinct subjects.** Level, places, selected nodes,
+  selected groupings and destination candidates use cached queries; identical
+  target lists share an answer.
 
 Spec: [The action registry](../../superpowers/specs/2026-08-21-action-registry-design.md)
 
-## D56. An action names one of three subjects
+## D56. Level, places and node selection are separate subjects
 
 A new schema is made in the database level even while one existing schema is
 selected to show its relations; a table loaded from a CSV is made inside that
@@ -84,13 +87,14 @@ selected schema; renaming the schema acts on the selected grouping itself.
 Treating all three as `children` would make the form's displayed target false for
 one of them.
 
-- `Action.acts_on` has three closed values. `level` receives the exact catalog
+- The original three `Action.acts_on` values remain: `level` receives the exact catalog
   level being viewed, `children` receives the shown places, and `node` receives
   an explicit selection: ticked rows when there are any, otherwise the groupings
   selected in the grouping control.
 - Merely standing in a directory is still not a node selection, so the file root
   and current folder cannot become rename or delete targets by this change.
-- The screen asks applicability for all three subjects and remains ignorant of
+- D118 adds independent grouping and destination subjects. The screen asks
+  applicability per subject and remains ignorant of
   action names and adapter types.
 - `ActionResult.reload_node_ids` is an ordered list naming every changed branch:
   creation and removal of a schema name the root and the schema id, rename names
@@ -123,6 +127,30 @@ Known deviations:
   PostgreSQL then refuses the statement safely; there is no overwrite.
 
 Spec: [PostgreSQL schema actions](../../superpowers/specs/2026-08-31-postgres-schema-actions-design.md)
+
+## D118. Selection scope and destination choice are separate
+
+`group` acts on explicitly selected groupings, unaffected by checked rows.
+Schema rename and drop use it and require one schema. `destination` opens a
+workflow that chooses one destination; CSV import and table creation use it.
+Their candidates are all groupings offered by the level, so displaying several
+schemas or none does not prevent opening the form when a valid destination exists.
+
+The source returns `available_node_ids` and `unavailable_reason` with
+`applicable`. Ordinary subjects require every target to qualify and `bulk` for
+multiple targets; a destination workflow requires at least one eligible
+candidate. The client gives that workflow one eligible initial destination,
+preferring a displayed place, and the form exposes the final choice. Candidate
+lists never become execution batches. Node actions never silently omit an
+ineligible selected node. Move to schema permits repeated independent moves;
+rename and schema drop retain their single-target constraint.
+
+The menu, form caption, current-name default, preview and execution use the same
+resolved targets, captured when the form opens. Existing permission, root,
+system-node and transport guards still run on execution. Actions drawn over a
+node's rows and client-owned commands keep their existing capability rules.
+
+Spec: [Action targets and availability](../../superpowers/specs/2026-09-07-action-targets-design.md)
 
 ## D79. Making a user of the server is the owner's, and its password is a literal
 

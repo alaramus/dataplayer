@@ -146,7 +146,7 @@ class RenameSchema(JsonAction[RenameSchemaParams]):
     name: ClassVar[str] = "rename_schema"
     title: ClassVar[str] = "Rename schema"
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"schema"})
-    acts_on: ClassVar[ActsOn] = "node"
+    acts_on: ClassVar[ActsOn] = "group"
     requires: ClassVar[Access] = "structure"
     params_model = RenameSchemaParams
 
@@ -271,6 +271,7 @@ class MoveRelation(JsonAction[MoveRelationParams]):
     title: ClassVar[str] = "Move to schema"
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"table", "view"})
     acts_on: ClassVar[ActsOn] = "node"
+    bulk: ClassVar[bool] = True
     requires: ClassVar[Access] = "structure"
     params_model = MoveRelationParams
 
@@ -379,7 +380,7 @@ class CreateTable(JsonAction[CreateTableParams]):
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"schema"})
     # It makes something inside the schema rather than changing the schema, as
     # loading a file does.
-    acts_on: ClassVar[ActsOn] = "children"
+    acts_on: ClassVar[ActsOn] = "destination"
     requires: ClassVar[Access] = "structure"
     # One design is one table. Applying a draft to every selected schema would
     # be creating things nobody looked at a plan for.
@@ -473,7 +474,7 @@ class LoadCsv(FileAction[LoadCsvParams]):
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"schema"})
     # It makes something inside the schema rather than changing the schema, so
     # it belongs to the place being looked at rather than to what is ticked.
-    acts_on: ClassVar[ActsOn] = "children"
+    acts_on: ClassVar[ActsOn] = "destination"
     # Creating a relation is DDL: someone who may edit rows may not do it.
     requires: ClassVar[Access] = "structure"
     # One file is one table. Loading it into three schemas at once is not the
@@ -830,7 +831,7 @@ class DropSchema(JsonAction[DropSchemaParams]):
     name: ClassVar[str] = "drop_schema"
     title: ClassVar[str] = "Drop schema"
     applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"schema"})
-    acts_on: ClassVar[ActsOn] = "node"
+    acts_on: ClassVar[ActsOn] = "group"
     destructive: ClassVar[bool] = True
     requires: ClassVar[Access] = "structure"
     params_model = DropSchemaParams

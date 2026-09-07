@@ -22,6 +22,7 @@ from starlette.responses import FileResponse, StreamingResponse
 
 from app.adapters.actions import (
     Action,
+    ActionAvailability,
     ActionDownloadReady,
     ActionPreview,
     ActionRefused,
@@ -39,7 +40,7 @@ from app.adapters.actions import (
     TakesNodeSet,
     TakesParams,
     UnknownAction,
-    common_actions,
+    action_availability,
 )
 from app.adapters.cache import (
     CacheArea,
@@ -2686,7 +2687,7 @@ async def read_node_path(
         ) from exc
 
 
-class ActionInfo(BaseModel):
+class ActionInfo(ActionAvailability):
     """One action, as much as a client needs to offer and perform it."""
 
     name: str
@@ -2717,8 +2718,7 @@ class ActionInfo(BaseModel):
     # download transport. Derived from the callable action capability.
     downloads: bool
     prepares_connector: bool = False
-    # What the action changes, so a client knows what to send it: selected
-    # nodes, the places whose children are shown, or the level itself.
+    # The selection subject, or a workflow's destination candidates (D118).
     acts_on: ActsOn
     # Where the source wants it offered: the catalog menu, or the row of
     # commands above the rows of the node it acts on (D79).
@@ -2726,9 +2726,6 @@ class ActionInfo(BaseModel):
     # What to draw for it where it is drawn as a picture. Null everywhere it
     # is a line of a menu, which is where the title is what is read.
     icon: str | None = None
-    # Whether it can be done to the nodes that were asked about. Every action
-    # the source has is listed; this says which of them apply here.
-    applicable: bool
     params_schema: dict[str, Any]
 
 
@@ -2777,7 +2774,7 @@ REFUSAL_STATUS: dict[RefusalReason, int] = {
 }
 
 
-def _describe(action: Action[Any], *, applicable: bool) -> ActionInfo:
+def _describe(action: Action[Any], availability: ActionAvailability) -> ActionInfo:
     return ActionInfo(
         name=action.name,
         title=action.title,
@@ -2792,7 +2789,9 @@ def _describe(action: Action[Any], *, applicable: bool) -> ActionInfo:
         acts_on=action.acts_on,
         offered_in=action.offered_in,
         icon=action.icon,
-        applicable=applicable,
+        applicable=availability.applicable,
+        available_node_ids=availability.available_node_ids,
+        unavailable_reason=availability.unavailable_reason,
         question=action.question,
         params_schema=action.params_schema(),
     )
@@ -2931,7 +2930,7 @@ async def read_actions(
     body: ActionTargets,
 ) -> Any:
     """
-    List everything the source can do, saying which of it every node admits.
+    List actions with availability for this selection or destination candidates.
 
     Applicability is asked per node rather than per source type: whether a node
     may be renamed depends on its state as well as its kind — the root of a
@@ -2939,7 +2938,8 @@ async def read_actions(
     flag on the whole vocabulary rather than as the length of the list, so a
     menu built from this keeps its shape as the user walks the catalog and
     greys out what does not apply. Nothing is allowed by being listed: running
-    an action asks `available` again.
+    an action asks `available` again. Ordinary selections must qualify in full;
+    destination workflows need one eligible candidate and choose one place.
 
     A read expressed as a POST for the same reason `fetch` is one: the input is
     a list of opaque identifiers with no bound on its length, and selecting a
@@ -2951,14 +2951,11 @@ async def read_actions(
     acting = _acting_or_501(adapter)
     targets: list[str | None] = list(body.node_ids) if body.node_ids else [None]
     offers = [await _available_or_422(acting, node_id) for node_id in targets]
-    admitted = {
-        action.name for action in common_actions(offers, bulk_only=len(targets) > 1)
-    }
     # Filtered rather than greyed out: an action the caller may not run is not
     # inapplicable here, it is not theirs, and saying so per action would put
     # the level rules into the menu as well as into the route.
     return [
-        _describe(action, applicable=action.name in admitted)
+        _describe(action, action_availability(action, targets, offers))
         for action in acting.all_actions()
         if at_least(access, action.requires)
     ]

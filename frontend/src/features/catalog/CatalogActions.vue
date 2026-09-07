@@ -98,24 +98,31 @@ const nodeTargetNodes = computed(() =>
   props.checkedIds.length > 0 ? props.checkedNodes : props.selectedGroups
 )
 const anyChecked = computed(() => nodeTargetIds.value.length > 0)
+const groupIds = computed(() => props.selectedGroups.map((group) => group.id))
+const hasGroups = computed(() => groupIds.value.length > 0)
+const destinationIds = computed(() => [
+  ...props.places.filter((id): id is string =>
+    id !== null && props.groupings.some((group) => group.id === id)
+  ),
+  ...props.groupings.map((group) => group.id).filter((id) => !props.places.includes(id)),
+])
+const hasDestinations = computed(() => destinationIds.value.length > 0)
 
-// Three questions, because a menu line is about one of three subjects: the
-// level itself, the places whose contents are shown, or an explicit node
-// selection. The vocabulary is the same in every answer, so the level answer
-// is enough to draw the stable menu before anything is selected.
+// Equal target lists share a query; row ticks never replace the grouping subject (D118).
 const level = useNodeActions(connectorId, levelIds)
 const here = useNodeActions(connectorId, placeIds)
 const picked = useNodeActions(connectorId, pickedIds, anyChecked)
+const groups = useNodeActions(connectorId, groupIds, hasGroups)
+const destinations = useNodeActions(connectorId, destinationIds, hasDestinations)
 
 const commands = computed(() =>
-  toMenu(
-    level.data.value ?? [],
-    here.data.value ?? [],
-    picked.data.value ?? [],
-    props.levelId,
-    props.places,
-    nodeTargetIds.value
-  )
+  toMenu({
+    level: { actions: level.data.value ?? [], targets: [props.levelId] },
+    children: { actions: here.data.value ?? [], targets: props.places },
+    node: { actions: picked.data.value ?? [], targets: nodeTargetIds.value },
+    group: { actions: groups.data.value ?? [], targets: groupIds.value },
+    destination: { actions: destinations.data.value ?? [], targets: destinationIds.value },
+  })
 )
 
 /**
@@ -224,13 +231,18 @@ let openings = 0
 function labelFor(command: MenuCommand) {
   if (command.actsOn === "level") return props.levelLabel
   if (command.actsOn === "children") return props.placeLabel
+  if (command.actsOn === "group" || command.actsOn === "destination") {
+    return props.groupings.filter((group) => command.targets.includes(group.id))
+      .map((group) => group.label).join(", ")
+  }
   if (props.checkedIds.length > 0) return props.checkedLabel
   return props.selectedGroups.map((group) => group.label).join(", ")
 }
 
 function nodeFor(command: MenuCommand) {
-  return command.actsOn === "node" && nodeTargetNodes.value.length === 1
-    ? nodeTargetNodes.value[0] ?? null
+  const nodes = command.actsOn === "group" ? props.selectedGroups : nodeTargetNodes.value
+  return (command.actsOn === "node" || command.actsOn === "group") && nodes.length === 1
+    ? nodes[0] ?? null
     : null
 }
 

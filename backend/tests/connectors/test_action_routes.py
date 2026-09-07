@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.users import crud, storage
 from tests.utils.database import working_postgres_options
 from tests.utils.files import look
-from tests.utils.relation_fixture import make_schema
+from tests.utils.relation_fixture import make_schema, run
 
 BASE = f"{settings.API_V1_STR}/connectors"
 
@@ -1156,7 +1156,7 @@ async def test_a_schema_offers_loading_a_csv_and_says_it_takes_a_file(
     assert load["takes_file"] is True
     # One file makes one table, so this one is not offered as a set.
     assert load["takes_many_files"] is False
-    assert load["acts_on"] == "children"
+    assert load["acts_on"] == "destination"
     assert list(load["params_schema"]["properties"]) == [
         "name",
         "schema_name",
@@ -1178,6 +1178,44 @@ async def test_a_system_schema_does_not_admit_a_loaded_csv(
     )
 
     assert "load_csv" not in _applicable(offered)
+
+
+async def test_destination_candidates_do_not_become_a_bulk_creation_request(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    relation_schema: str,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    other = f"action_destination_{uuid.uuid4().hex}"
+    await run(f'CREATE SCHEMA "{other}"')  # noqa: S608 -- generated fixture name.
+    try:
+        response = await _offered(
+            client, normal_user_token_headers, connector_id,
+            ["pg_catalog", relation_schema, other],
+        )
+        assert response.status_code == 200
+        offered = {action["name"]: action for action in response.json()}
+        for name in ("load_csv", "create_table"):
+            assert offered[name]["acts_on"] == "destination"
+            assert offered[name]["applicable"] is True
+            assert offered[name]["available_node_ids"] == [relation_schema, other]
+            assert offered[name]["unavailable_reason"] is None
+        assert offered["drop_schema"]["applicable"] is False
+        pair = await _offered(
+            client, normal_user_token_headers, connector_id, [relation_schema, other]
+        )
+        pair_actions = {action["name"]: action for action in pair.json()}
+        for name in ("rename_schema", "drop_schema"):
+            assert pair_actions[name]["acts_on"] == "group"
+            assert pair_actions[name]["applicable"] is False
+            assert pair_actions[name]["unavailable_reason"] == "Select one grouping to use this"
+        refused = await _run_on_set(
+            client, normal_user_token_headers, connector_id,
+            "create_table", [relation_schema, other],
+        )
+        assert refused.status_code == 422
+    finally:
+        await run(f'DROP SCHEMA "{other}" CASCADE')  # noqa: S608 -- generated fixture name.
 
 
 async def test_an_uploaded_csv_becomes_a_table_that_can_be_read(

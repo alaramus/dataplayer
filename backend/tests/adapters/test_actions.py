@@ -15,7 +15,7 @@ from app.adapters.actions import (
     TakesFile,
     TakesParams,
     UnknownAction,
-    common_actions,
+    action_availability,
 )
 
 
@@ -173,35 +173,34 @@ def test_an_action_declares_whether_it_destroys_anything() -> None:
 # --- what a set of nodes has in common ---------------------------------------
 
 
-def test_the_common_actions_are_those_every_node_offers() -> None:
+def test_selection_actions_must_be_shared_and_admit_multiple_targets() -> None:
     create, drop, put = CreateThing(), DropThing(), PutThing()
-
-    common = common_actions([[create, drop, put], [drop, put]], bulk_only=False)
-
-    assert [action.name for action in common] == ["drop_thing", "put_thing"]
-
-
-def test_the_common_actions_keep_the_order_the_driver_gave_them() -> None:
-    create, drop, put = CreateThing(), DropThing(), PutThing()
-
-    common = common_actions([[create, drop, put], [put, drop, create]], bulk_only=False)
-
-    assert [action.name for action in common] == [
-        "create_thing",
-        "drop_thing",
-        "put_thing",
+    offers = [[create, drop, put], [drop, put]]
+    admitted = [
+        action.name
+        for action in (create, drop, put)
+        if action_availability(action, ["one", "two"], offers).applicable
     ]
+    assert admitted == ["drop_thing"]
 
 
-def test_an_action_that_did_not_declare_itself_bulk_is_left_out_of_a_set() -> None:
-    """Renaming five files to one name is not five renames, so it is not offered."""
-    common = common_actions([[CreateThing(), DropThing()]], bulk_only=True)
+def test_available_targets_keep_request_order_despite_offer_order() -> None:
+    create, drop, put = CreateThing(), DropThing(), PutThing()
+    answer = action_availability(
+        drop, ["two", "one"], [[create, drop, put], [put, drop, create]]
+    )
+    assert answer.available_node_ids == ["two", "one"]
 
-    assert [action.name for action in common] == ["drop_thing"]
+
+def test_an_action_that_did_not_declare_bulk_is_refused_for_multiple_targets() -> None:
+    action = CreateThing()
+    answer = action_availability(action, ["one", "two"], [[action], [action]])
+    assert not answer.applicable
+    assert answer.unavailable_reason == "Select one target to use this"
 
 
-def test_nothing_is_common_to_no_nodes_at_all() -> None:
-    assert common_actions([], bulk_only=False) == []
+def test_no_action_is_available_for_an_empty_selection() -> None:
+    assert not action_availability(DropThing(), [], []).applicable
 
 
 def test_an_action_declares_what_it_changes() -> None:
@@ -222,3 +221,51 @@ def test_an_action_declares_whether_it_applies_to_many_at_once() -> None:
 
     assert by_name["drop_thing"].bulk is True
     assert by_name["create_thing"].bulk is False
+
+
+class ChooseDestination(CreateThing):
+    acts_on = "destination"
+
+
+class RenameGrouping(CreateThing):
+    acts_on = "group"
+
+
+def test_a_destination_is_a_choice_even_when_some_candidates_refuse_it() -> None:
+    action = ChooseDestination()
+    answer = action_availability(action, ["system", "one", "two"], [[], [action], [action]])
+    assert answer.applicable
+    assert answer.available_node_ids == ["one", "two"]
+    assert answer.unavailable_reason is None
+
+
+@pytest.mark.parametrize("scope", [ChooseDestination, RenameGrouping, DropThing])
+def test_no_targets_never_enable_an_action(scope: type[JsonAction[Any]]) -> None:
+    assert not action_availability(scope(), [], []).applicable
+
+
+def test_a_grouping_rename_requires_one_target_even_when_both_qualify() -> None:
+    action = RenameGrouping()
+    answer = action_availability(action, ["one", "two"], [[action], [action]])
+    assert not answer.applicable
+    assert answer.unavailable_reason == "Select one grouping to use this"
+    assert action_availability(action, ["one"], [[action]]).applicable
+
+
+def test_bulk_actions_never_silently_drop_an_ineligible_target() -> None:
+    action = DropThing()
+    refused = action_availability(action, ["one", "root"], [[action], []])
+    assert not refused.applicable
+    assert refused.available_node_ids == ["one"]
+    assert refused.unavailable_reason == "This action is not available for every selected target"
+    assert action_availability(action, ["one", "two"], [[action], [action]]).applicable
+
+
+def test_single_target_creation_and_null_root_remain_distinct_from_a_batch() -> None:
+    action = CreateThing()
+    root = action_availability(action, [None], [[action]])
+    assert root.applicable
+    assert root.available_node_ids == [None]
+    batch = action_availability(action, ["one", "two"], [[action], [action]])
+    assert not batch.applicable
+    assert batch.unavailable_reason == "Select one target to use this"

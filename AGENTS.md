@@ -182,6 +182,7 @@ files. IDs are stable because specs and commits refer to them.
 | D115 | [notifications](docs/architecture/notifications.md) |
 | D116 | [grid](docs/architecture/grid.md) |
 | D117 | [sources/ddl](docs/architecture/sources/ddl.md) |
+| D118 | [sources/actions](docs/architecture/sources/actions.md) |
 
 ## Working rules
 
