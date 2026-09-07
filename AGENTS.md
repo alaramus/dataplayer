@@ -34,6 +34,7 @@ legacy notes and stay unchanged.
 | A source type, a capability, a node kind, untrusted input | [sources/contract.md](docs/architecture/sources/contract.md) |
 | Query documents, SQL execution, results, history, transactions | [querying.md](docs/architecture/querying.md) |
 | Connection options, connection strings, pools, read cache | [sources/connecting.md](docs/architecture/sources/connecting.md) |
+| TimescaleDB, extension discovery, hypertables, chunks and policies | [sources/timescale.md](docs/architecture/sources/timescale.md) |
 | Reading a relation, changing rows, export, import | [sources/relations.md](docs/architecture/sources/relations.md) |
 | A reference somebody drew by hand between two columns or two sources | [sources/declared.md](docs/architecture/sources/declared.md) |
 | Columns, indexes, constraints, renaming a node | [sources/ddl.md](docs/architecture/sources/ddl.md) |
@@ -183,6 +184,11 @@ files. IDs are stable because specs and commits refer to them.
 | D116 | [grid](docs/architecture/grid.md) |
 | D117 | [sources/ddl](docs/architecture/sources/ddl.md) |
 | D118 | [sources/actions](docs/architecture/sources/actions.md) |
+| D119 | [sources/timescale](docs/architecture/sources/timescale.md) |
+| D120 | [sources/timescale](docs/architecture/sources/timescale.md) |
+| D121 | [sources/timescale](docs/architecture/sources/timescale.md) |
+| D122 | [sources/timescale](docs/architecture/sources/timescale.md) |
+| D123 | [sources/timescale](docs/architecture/sources/timescale.md) |
 
 ## Working rules
 

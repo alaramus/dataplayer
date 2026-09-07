@@ -97,6 +97,14 @@ relation model.
 
 ### TimescaleDB: one capability family, not part of Phase 1
 
+Update, 2026-09-07: this section records the original deferral. Its adapter and
+node-kind prerequisites are superseded by
+[TimescaleDB through a PostgreSQL connection](2026-09-07-timescale-capabilities-design.md).
+That design retains composition and one source identity, uses typed table/view
+specialisations and paged reports rather than requiring chunk nodes, and builds
+on the row-command and owned-job contracts that have since landed. The original
+assessment below is preserved as history, not current implementation guidance.
+
 The old application has a separate `TIMESCALE` source type extending the
 PostgreSQL adapter, plus a `timescaledb` entry in the extension registry, plus
 TimescaleDB branches inside the PostgreSQL adapter itself (`show_chunks`,

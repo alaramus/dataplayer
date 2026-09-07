@@ -7,6 +7,7 @@ file holds which decision.
 | --- | --- |
 | [contract.md](contract.md) | add or change a source type, a capability, a node kind or the rule about untrusted input |
 | [connecting.md](connecting.md) | change how a connection is described, composed or parsed, or anything pooled or cached between requests |
+| [timescale.md](timescale.md) | implement the designed Timescale feature package, runtime discovery and extension-aware operation restrictions |
 | [relations.md](relations.md) | read a relation or change the rows in it |
 | [declared.md](declared.md) | draw a reference between two columns no source calls related |
 | [ddl.md](ddl.md) | change a column, an index, a constraint, or rename a node |

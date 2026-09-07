@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Last updated: 2026-09-06.
+Last updated: 2026-09-07.
 
 The order for moving useful behaviour from `dbwebtool` and `myquasar` into
 DataPlayer. It is a route, not a promise to reproduce every old screen. The old
@@ -127,9 +127,37 @@ Quasar's grouped notifications had been hiding.
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
+| 1.10 | TimescaleDB through PostgreSQL | Medium pilot; larger follow-ups | Proposed next slice for the requested Timescale design; settle discovery and safe inspection before enabling mutations |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation, saved layouts and a history to draw over require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
+
+## Phase 1.10 — TimescaleDB through PostgreSQL
+
+Proposed next slice, pending review of the design requested on 2026-09-07. The
+[Timescale design](superpowers/specs/2026-09-07-timescale-capabilities-design.md)
+is written for review; implementation has not started. D119–D123 retain one
+PostgreSQL source identity and compose a Timescale feature package.
+
+- [ ] T1: instance feature discovery, typed hypertable/aggregate specialisation,
+  paged public-view reports and Details links; protect extension internals and
+  gate unverified structured writes, DDL generation and backup/restore paths.
+- [ ] T2: typed read-only plans, connection-specific action vocabulary,
+  time-based interval/storage/policy changes and tested empty-table conversion.
+- [ ] T3: owned source operations, fixed chunk selection, durable partial
+  outcomes, cancellation/recovery and cache invalidation after partial effects.
+
+Before implementing, read the legacy Timescale adapter, the PostgreSQL detection
+and extension modules, and the Timescale editor/view helpers named in the spec.
+Each slice has its own acceptance criteria there. Exact source-image pins and
+the tested compatibility matrix are recorded with implementation, not inferred
+from a generic Timescale version label.
+
+Exit condition: a PostgreSQL connection discovers Timescale without changing
+identity, a user can inspect its data and metadata, and each offered mutation
+has verified source semantics and an honest execution outcome. Advanced chunk
+administration, integer policy mutation, Timescale backup/restore and a managed
+service template remain the explicit follow-ups listed in the spec.
 
 ## Phase 6 — add adapter families deliberately
 
@@ -245,7 +273,8 @@ shape to return to are in
 
 Deferred inside PostgreSQL, with the reason in the spec that deferred it:
 monitoring statistics (Phase 7), Grafana (Phase 6), diagram and similarity
-features, and every TimescaleDB operation. Backup and restore, database roles
+features. TimescaleDB has been promoted to Phase 1.10 above; advanced operations
+outside its three slices remain deferred in the new spec. Backup and restore, database roles
 and ORM code generation were on this list and have since landed — as an owned
 job, as an action asked of the owner, and as a download that carries a form. An action over ticked
 rows — cancelling a query is the first one to want it — is a contract gap the
