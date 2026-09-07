@@ -134,9 +134,9 @@ Quasar's grouped notifications had been hiding.
 
 ## Phase 1.10 — TimescaleDB through PostgreSQL
 
-Proposed next slice, pending review of the design requested on 2026-09-07. The
+Implementation is in progress following the design requested on 2026-09-07. The
 [Timescale design](superpowers/specs/2026-09-07-timescale-capabilities-design.md)
-is written for review; implementation has not started. D119–D123 retain one
+defines the three implementation slices. D119–D123 retain one
 PostgreSQL source identity and compose a Timescale feature package.
 
 - [ ] T1: instance feature discovery, typed hypertable/aggregate specialisation,
@@ -158,8 +158,12 @@ committed in `fd79154`. PostgreSQL Timescale discovery is implemented at the
 current branch head. The typed relation-specialization wire contract is the
 current slice. Tests are written but have not been run; the shared PostgreSQL
 relation classifier and relation-level row/structure/DDL guards are implemented
-at the current branch head. Next: guard registered actions, schema cascades and
-backup/restore admission before adding Timescale system reports.
+at the current branch head. Registered relation actions now guard rename, move,
+drop (including set execution and previews) and model-code downloads, including
+schema members. Their tests are written but have not been run. Next: protect
+extension-owned schemas and internal relation membership, guard schema changes
+and cascade dependencies, and add backup/restore admission before Timescale
+system reports. Schema-level action offers still need to reflect member guards.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

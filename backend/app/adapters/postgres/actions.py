@@ -88,6 +88,14 @@ async def _schema_target(
     return node
 
 
+async def _guard_relation_action(
+    catalog: PostgresCatalog, schema: str, node: TableNode | ViewNode
+) -> None:
+    reason = await catalog.relation_action_reason(schema, node.name)
+    if reason is not None:
+        raise ActionRefused("not_applicable", reason)
+
+
 class CreateSchemaParams(BaseModel):
     name: str = Field(title="Name")
 
@@ -222,6 +230,7 @@ class RenameRelation(JsonAction[RenameRelationParams]):
             raise ActionRefused("conflict", "The relation already has that name")
 
         schema = path[0].name
+        await _guard_relation_action(self._catalog, schema, node)
         siblings = await self._catalog.list_children(schema)
         if params.new_name in {sibling.name for sibling in siblings}:
             raise ActionRefused(
@@ -290,6 +299,7 @@ class MoveRelation(JsonAction[MoveRelationParams]):
             raise ActionRefused("not_applicable", "This relation cannot be moved")
 
         source_schema = path[0].name
+        await _guard_relation_action(self._catalog, source_schema, node)
         if params.target_schema == source_schema:
             raise ActionRefused(
                 "conflict", f"The relation is already in {source_schema}"
@@ -757,6 +767,7 @@ class DropRelation(JsonAction[DropRelationParams]):
         node = path[-1]
         if not isinstance(node, TableNode | ViewNode) or node.is_system:
             raise ActionRefused("not_applicable", "This relation cannot be dropped")
+        await _guard_relation_action(self._catalog, path[0].name, node)
         return path[0].name, node
 
     @staticmethod
@@ -969,12 +980,18 @@ class DescribeModel(Action[DescribeModelParams]):
             node = path[-1]
             if isinstance(node, SchemaNode):
                 for model in await self._relation.relation_models(node.name):
+                    reason = await self._catalog.relation_action_reason(
+                        node.name, model.name
+                    )
+                    if reason is not None:
+                        raise ActionRefused("not_applicable", reason)
                     gathered.setdefault(model.node_id, model)
                 continue
             if not isinstance(node, TableNode | ViewNode):
                 raise ActionRefused(
                     "not_applicable", f"{node.name} has no model to write out"
                 )
+            await _guard_relation_action(self._catalog, path[0].name, node)
             model = await self._relation.relation_model(node_id)
             gathered.setdefault(model.node_id, model)
         return list(gathered.values())
@@ -1046,6 +1063,9 @@ class PostgresActions:
             options = await self._relations.new_relation_options(node_id)
             return self._actions.for_kind(node.kind) if options.supported else []
         if isinstance(node, (TableNode, ViewNode)) and not node.is_system:
+            reason = await self._catalog.relation_action_reason(path[0].name, node.name)
+            if reason is not None:
+                return []
             return self._actions.for_kind(node.kind)
         # A report admits a command when the command is about what it reports,
         # which is a question of state and so is answered here rather than by

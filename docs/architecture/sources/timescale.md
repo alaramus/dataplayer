@@ -8,8 +8,11 @@ Read alongside [contract.md](contract.md), [relations.md](relations.md),
 
 **Implementation status:** T1 is in progress. The runtime-feature contract and
 read-only PostgreSQL discovery, relation classification and relation-level
-read-only guards are implemented, with tests written but not yet run. Reports,
-action/cascade guards and backup/restore admission remain. T2 adds bounded
+read-only guards and registered relation-action guards are implemented, with
+tests written but not yet run. Rename, move, drop previews/execution and model
+downloads consult the shared classification, including schema model members.
+Reports, extension-internal membership, schema/cascade guards, schema-level
+action offers and backup/restore admission remain. T2 adds bounded
 changes and T3 adds owned operations. The
 [roadmap](../../migration-roadmap.md) tracks delivery.
 

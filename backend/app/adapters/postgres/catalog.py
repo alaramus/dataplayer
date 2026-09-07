@@ -67,6 +67,10 @@ class PostgresCatalog:
             return [_report_node(report) for report in REPORTS]
         return await self._list_relations(node_id)
 
+    async def relation_action_reason(self, schema: str, relation: str) -> str | None:
+        context = await self._relation_context.schema(schema, relation)
+        return context.structured_operations_reason(relation)
+
     async def _list_schemas(self) -> list[CatalogNode]:
         return [self._schema_of(row) for row in await self._schema_rows(None)]
 
