@@ -30,6 +30,12 @@ Both servers contain `plain_fixture` (hstore, no Timescale) and
 The administrator is `fixture_admin`. All fixture roles use the disposable
 password `fixture-only`. Application credentials and `demo_lab` are not used.
 
+A third database, `lifecycle_fixture`, starts without extensions. The lifecycle
+scenario installs and removes Timescale there, checking fresh-adapter discovery
+and report visibility while the other databases retain their state. Removal is
+in a `finally` block and uses no cascade. Recreate the disposable containers
+after changing initialization SQL; existing containers do not rerun it.
+
 ## Commands requiring approval
 
 From the repository root, after user approval:

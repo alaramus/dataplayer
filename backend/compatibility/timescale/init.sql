@@ -6,6 +6,11 @@ CREATE ROLE fixture_no_metadata LOGIN PASSWORD 'fixture-only';
 
 CREATE DATABASE plain_fixture TEMPLATE template0;
 CREATE DATABASE timescale_fixture TEMPLATE template0;
+CREATE DATABASE lifecycle_fixture TEMPLATE template0;
+
+\connect lifecycle_fixture
+CREATE TABLE public.fixture_marker (ready integer NOT NULL CHECK (ready = 1));
+INSERT INTO public.fixture_marker VALUES (1);
 
 \connect plain_fixture
 CREATE EXTENSION hstore;
