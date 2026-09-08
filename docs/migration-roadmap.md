@@ -163,14 +163,19 @@ scope and remaining acceptance gaps are in the
 [compatibility validation record](../backend/compatibility/timescale/README.md#validation-record-2026-09-08).
 These are recovered results, not fresh checks in the resumed session.
 
-Next: complete the remaining T1 acceptance audit and validate shared protection,
-backup/restore and ordinary PostgreSQL regressions with explicitly approved
-commands. The name-filtered adapter run does not cover every protection test.
-Full backend/frontend suites, frontend lint/build and the complete E2E suite
-were not part of that run. Documentation changed after its successful check
-and requires an approved recheck. T1 stays open until its required evidence is
-complete. T2 API mutation strategies still require their own real-source tests;
-the read-only compatibility matrix does not authorize them.
+Follow-up validation now covers shared guards and backup/restore services:
+57 passed. Ordinary PostgreSQL regressions produced 212 passes and three
+invalid feature fixtures; the corrected dependency file then passed all six
+tests. New real-source direct update/delete, bulk insert and column-DDL refusal
+scenarios passed within a 14-test protection run. These changes are committed;
+the validation record above carries exact commands and limits.
+
+Next: add real-source cross-schema cascade and Timescale reference/saved-view
+acceptance evidence. Then obtain approval for the remaining full required
+backend/frontend validation before closing T1. Full suites and frontend
+lint/build were not included in the targeted runs. T2 API mutation strategies
+still require their own real-source tests; inspection/refusal evidence does
+not certify them.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

@@ -138,6 +138,42 @@ The `-k timescale` selection is not a full protection regression run. Before
 closing T1, explicitly cover shared row/DDL/import/action and cascade guards,
 backup/restore admission and archive inspection, ordinary PostgreSQL workflows,
 and existing reference/saved-view identity behavior against the specification.
-Tests under services were not included in the recorded pytest selections.
+The initial selections omitted services; the follow-up below covers backup/restore services.
 Full backend/frontend suites, full frontend lint/build and full E2E were not
 run. Run additional validation only with user approval.
+
+### Follow-up: shared-operation acceptance
+
+The resumed targeted run completed after user approval:
+
+- Shared classification/action guards, backup programs, archive inventory and
+  backup/restore services: 57 passed without warnings after correcting the
+  backup test's synchronous connection-string mock.
+- Ordinary PostgreSQL dependency, row, relation, reference, index, constraint,
+  column, catalog, fetch and import/reference route regressions: 212 passed and
+  three fixture failures. The failures omitted the required installed version
+  for an available feature. After correction, all six dependency tests passed;
+  the other 209 tests were not rerun.
+- Real-source protection selection: 14 passed across both pinned sources.
+  New scenarios call cell/block updates, delete, bulk insert and column creation
+  directly on populated/empty hypertables and an aggregate, verify Timescale
+  refusal before forged-handle decoding, and compare rows/models after refusal.
+- Ruff passed for all three changed test files.
+
+Exact commands, from backend:
+
+```bash
+uv run pytest tests/adapters/test_postgres_relation_context.py tests/adapters/test_postgres_action_guards.py tests/adapters/test_postgres_backup.py tests/adapters/test_postgres_restore_inventory.py tests/services/test_backups.py tests/services/test_restore_files.py -q --tb=short
+uv run pytest tests/adapters/test_postgres_dependencies.py tests/adapters/test_postgres_update.py tests/adapters/test_postgres_relation_changes.py tests/adapters/test_postgres_relation.py tests/adapters/test_postgres_references.py tests/adapters/test_postgres_indexes.py tests/adapters/test_postgres_constraints.py tests/adapters/test_postgres_column_type.py tests/adapters/test_postgres_column_changes.py tests/adapters/test_postgres_catalog.py tests/adapters/test_postgres_fetch.py tests/connectors/test_import_routes.py tests/connectors/test_reference_routes.py -q --tb=short
+uv run pytest tests/adapters/test_postgres_dependencies.py -q --tb=short
+uv run pytest compatibility/timescale/test_protection.py -q --tb=short
+uv run ruff check tests/adapters/test_postgres_backup.py tests/adapters/test_postgres_dependencies.py compatibility/timescale/test_protection.py
+```
+
+T1 audit: discovery/lifecycle, specialization, rows/export, reports/statistics,
+grant transport and browser navigation have the recorded targeted evidence.
+Shared guards and backup/restore now have the additional evidence above.
+Real-source cross-schema cascade protection and Timescale reference/saved-view
+round trips still need explicit acceptance evidence; ordinary reference
+regressions alone do not prove those Timescale-specific cases. Full required
+backend/frontend validation remains pending and T1 is not marked complete.
