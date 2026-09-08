@@ -192,7 +192,13 @@ API inspection and the targeted read share a five-second deadline; failure leave
 the basic summary and links intact. Chunk counts are lossless decimal strings;
 root analyze/vacuum timestamps are suppressed for specialised relations. The
 client has been regenerated. Backend and component tests remain unrun.
-Next: implement public-function size/compression statistics, the feature UI and isolated
+Public-function size/compression statistics now have a bounded backend reader
+and typed summary transport. Function signatures, extension ownership/schema and
+execution permission are inspected before invocation; a single local result is
+required. Recorded compression bytes stay distinct from current detailed size,
+and partial inspection retains successful measurements. Client generation is
+complete; tests are written but have not been run.
+Next: render public-function statistics in Details, implement the feature UI and isolated
 compatibility fixtures before T1 acceptance. Hypertables and Continuous
 aggregates now include owners, counts and configuration, with explicit
 public-view requirements checked on opening. Missing metadata refuses only its

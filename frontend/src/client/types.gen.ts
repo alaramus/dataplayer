@@ -5991,6 +5991,7 @@ export type RelationContents = {
         kind: "unavailable"
       } & UnavailableTimescaleFacts)
     | null
+  timescale_statistics?: TimescaleStatistics | null
   /**
    * Schema Name
    */
@@ -8086,6 +8087,56 @@ export type TextContents = {
 }
 
 /**
+ * TimescaleCompression
+ */
+export type TimescaleCompression = {
+  /**
+   * Kind
+   */
+  kind?: "compression"
+  /**
+   * Total Chunks
+   */
+  total_chunks: string
+  /**
+   * Number Compressed Chunks
+   */
+  number_compressed_chunks: string
+  /**
+   * Before Compression Table Bytes
+   */
+  before_compression_table_bytes: string | null
+  /**
+   * Before Compression Index Bytes
+   */
+  before_compression_index_bytes: string | null
+  /**
+   * Before Compression Toast Bytes
+   */
+  before_compression_toast_bytes: string | null
+  /**
+   * Before Compression Total Bytes
+   */
+  before_compression_total_bytes: string | null
+  /**
+   * After Compression Table Bytes
+   */
+  after_compression_table_bytes: string | null
+  /**
+   * After Compression Index Bytes
+   */
+  after_compression_index_bytes: string | null
+  /**
+   * After Compression Toast Bytes
+   */
+  after_compression_toast_bytes: string | null
+  /**
+   * After Compression Total Bytes
+   */
+  after_compression_total_bytes: string | null
+}
+
+/**
  * TimescaleContinuousAggregate
  */
 export type TimescaleContinuousAggregate = {
@@ -8103,6 +8154,58 @@ export type TimescaleHypertable = {
    * Kind
    */
   kind?: "timescale_hypertable"
+}
+
+/**
+ * TimescaleSize
+ */
+export type TimescaleSize = {
+  /**
+   * Kind
+   */
+  kind?: "size"
+  /**
+   * Table Bytes
+   */
+  table_bytes: string
+  /**
+   * Index Bytes
+   */
+  index_bytes: string
+  /**
+   * Toast Bytes
+   */
+  toast_bytes: string
+  /**
+   * Total Bytes
+   */
+  total_bytes: string
+}
+
+/**
+ * TimescaleStatistics
+ */
+export type TimescaleStatistics = {
+  /**
+   * Size
+   */
+  size:
+    | ({
+        kind: "size"
+      } & TimescaleSize)
+    | ({
+        kind: "unavailable"
+      } & UnavailableTimescaleFacts)
+  /**
+   * Compression
+   */
+  compression:
+    | ({
+        kind: "compression"
+      } & TimescaleCompression)
+    | ({
+        kind: "unavailable"
+      } & UnavailableTimescaleFacts)
 }
 
 /**

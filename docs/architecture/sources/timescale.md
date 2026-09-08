@@ -27,7 +27,8 @@ Details renders specialization and report links with editable filters, reusing
 the workspace's filtered-row navigation. Optional typed Details metadata now
 reads hypertable counts/configuration and aggregate identities/configuration;
 failures retain the basic summary. Public-function size/compression statistics
-remain. Hypertable and aggregate inventories include owners, configuration,
+have a bounded reader and typed summary transport; rendering remains pending.
+Hypertable and aggregate inventories include owners, configuration,
 hypertable counts and aggregate source identities. Report and Details tests have not
 been run. T2 adds bounded
 changes and T3 adds owned operations. The
@@ -128,7 +129,24 @@ summary and report links intact and gives a safe unavailable reason. Compression
 configuration does not state that every chunk is compressed. Chunk counts cross
 the boundary as decimal strings. Root-table analyze/vacuum timestamps are not
 presented as hypertable-wide statistics. Size and compression-ratio inspection
-remain separate public-function strategies to implement and verify.
+use separate public-function strategies. Optional statistics have their own
+five-second budget for function inspection and reads together, after basic
+metadata. A failed measurement retains earlier facts and measurements. Readers
+verify extension ownership, extension schema, function kind, exact argument and
+result types, and execution permission before calling a schema-qualified API
+with a bound regclass identity. Only a single local result is accepted;
+distributed results are not silently summed or truncated.
+
+Detailed size reports current table/index/TOAST/total bytes, including chunks.
+For an aggregate it describes its materialization, not the real-time source
+portion. Compression statistics prefer the columnstore API when its public
+shape is available and otherwise use the legacy API; an execution failure does
+not trigger a second strategy. They describe recorded before/after compression
+sizes and reported chunk counts, not a current whole-relation compression ratio.
+Null measurements stay null and all counts/bytes cross as decimal strings.
+Aggregate compression statistics target the public metadata's materialization
+identity. Empty, ambiguous, malformed or remote results give a safe unavailable
+reason. No private catalog fallback or per-chunk request loop is used.
 
 The initial job report lists native job identity, target, routine, ownership and
 scheduling settings. Arbitrary job configuration and error text are not selected:

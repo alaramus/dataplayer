@@ -20,6 +20,7 @@ from app.adapters.postgres.catalog import DDL_REPRESENTATION, TABLE_REPRESENTATI
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale.details import inspect_details
+from app.adapters.postgres.timescale.statistics import inspect_statistics
 from app.adapters.postgres.timescale.summary import related_views
 from app.adapters.relation import RelationKind, RelationModel
 from app.adapters.summary import NodeSummary, RelationContents
@@ -63,6 +64,7 @@ class PostgresSummaries:
         model = await self._relation.relation_model(node_id)
         statistics = await self._statistics(model)
         timescale = await inspect_details(self._session, model)
+        timescale_statistics = await inspect_statistics(self._session, model, timescale)
         representations = [TABLE_REPRESENTATION]
         if model.specialization is None:
             representations.append(DDL_REPRESENTATION)
@@ -79,6 +81,7 @@ class PostgresSummaries:
                 relation_kind=model.kind,
                 specialization=model.specialization,
                 timescale=timescale,
+                timescale_statistics=timescale_statistics,
                 schema_name=model.schema_name or "",
                 owner=model.owner,
                 persistence=model.persistence,

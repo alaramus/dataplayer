@@ -9,6 +9,12 @@ from app.adapters.postgres.timescale.summary import related_views
 from app.adapters.relation import RelationModel
 from app.adapters.specializations import TimescaleContinuousAggregate, TimescaleHypertable
 from app.adapters.summary import NodeSummary, RelatedView
+from app.adapters.timescale_metadata import (
+    HypertableFacts,
+    TimescaleSize,
+    TimescaleStatistics,
+    UnavailableTimescaleFacts,
+)
 
 
 def model() -> RelationModel:
@@ -41,6 +47,29 @@ async def test_summary_links_survive_unavailable_optional_metadata() -> None:
     assert summary.contents.timescale is not None
     assert summary.contents.timescale.kind == "unavailable"
     assert summary.contents.analyzed_at is None
+
+
+async def test_summary_includes_optional_statistics_without_replacing_other_facts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    facts = HypertableFacts(num_dimensions=1, num_chunks="2", compression_enabled=True)
+    statistics = TimescaleStatistics(
+        size=TimescaleSize(table_bytes="1024", index_bytes="0", toast_bytes="0", total_bytes="1024"),
+        compression=UnavailableTimescaleFacts(reason="Statistics unavailable"),
+    )
+    monkeypatch.setattr("app.adapters.postgres.summary.inspect_details", AsyncMock(return_value=facts))
+    inspect = AsyncMock(return_value=statistics)
+    monkeypatch.setattr("app.adapters.postgres.summary.inspect_statistics", inspect)
+    relation = AsyncMock()
+    relation.relation_model.return_value = model()
+    session = AsyncMock()
+    summary = await PostgresSummaries(session, relation).node_summary(model().node_id)
+    assert summary.contents is not None and summary.contents.kind == "relation"
+    assert summary.contents.timescale == facts
+    assert summary.contents.timescale_statistics == statistics
+    assert len(summary.related_views) == 3
+    inspect.assert_awaited_once_with(session, model(), facts)
+    session.query.assert_not_awaited()
 
 
 def test_aggregate_link_filters_the_logical_view_not_a_guessed_materialization() -> None:

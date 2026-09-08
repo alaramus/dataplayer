@@ -593,6 +593,22 @@ size and compression statistics require separate public-function strategies.
 
 ### T1 — recognise and inspect safely
 
+Optional size/compression statistics follow successful basic Details inspection
+with a separate five-second budget shared by API discovery and both reads. The
+strategies use `hypertable_detailed_size(regclass)` and prefer
+`hypertable_columnstore_stats(regclass)` over `hypertable_compression_stats(regclass)`
+when its verified public shape exists. Execution failure never retries another
+API. Function inspection checks extension membership/schema, kind, input/output
+types and execution permission; invocation binds a quoted regclass identity.
+Only one local result is accepted. Aggregate size uses the logical view's public
+API, while compression targets its public materialization identity. Earlier
+facts and a successful size survive compression failure or timeout. Null values
+stay absent and bytes/counts stay decimal text. Recorded compression sizes are
+labelled separately from current size and no whole-relation ratio is inferred.
+API evidence is the upstream 2.18.0
+[size functions](https://github.com/timescale/timescaledb/blob/2.18.0/sql/size_utils.sql);
+real compatibility validation remains pending.
+
 Hypertable and aggregate reports project explicit metadata columns from their
 public views: owners, hypertable dimension/chunk counts and tablespaces,
 aggregate source/materialization identities, and compression/materialization
