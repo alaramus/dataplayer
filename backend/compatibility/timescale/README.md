@@ -54,10 +54,11 @@ directory's autouse database fixture initializes and deletes application users.
 The standalone harness must not load that fixture or run an ASGI application
 lifespan. API grant/browser acceptance remains a separate follow-up.
 
-Contract and outstanding acceptance:
 The harness now covers per-database discovery, catalog/path/model/summary
 agreement, mixed-storage reads and exports, exact integers, report paging and
-source permission failures. These scenarios are written but have not been run.
+source permission failures. Direct insert and reconstructed-DDL refusal scenarios
+include hypertables, aggregates, chunks and materializations. These scenarios
+are written but have not been run.
 
 Run only after approval, from `backend/`, with both fixture servers ready:
 

@@ -105,6 +105,16 @@ async def test_all_public_reports_open_and_chunk_pages_keep_schema_scope(source:
     assert first.rows != second.rows
     names = [column.name for column in first.columns]
     assert first.rows[0][names.index("hypertable_schema")] == "lab"
+    other = await adapter.fetch(FetchRequest(
+        node_id=chunks.node_id,
+        filters=[
+            ScalarFilter(column="hypertable_schema", op="eq", value="other"),
+            ScalarFilter(column="hypertable_name", op="eq", value="metrics"),
+        ],
+        limit=100,
+    ))
+    assert len(other.rows) == 2 and not other.has_more
+    assert all(row[names.index("hypertable_schema")] == "other" for row in other.rows)
 
 
 async def test_statistics_use_public_functions_and_preserve_partial_permission_failure(

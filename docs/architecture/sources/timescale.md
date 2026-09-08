@@ -45,6 +45,10 @@ pin 2.17.2/PG16 and 2.18.0/PG16 images for legacy and Hypercore storage. Both
 include a separate plain database, mixed storage, integer precision samples and
 restricted source roles. Neither source has been started or validated. The
 adapter harness lives outside the application's autouse database fixtures.
+Its written scenarios cover discovery, metadata agreement, mixed-storage reads
+and export, report scope/paging, permission failures and direct insert/DDL
+refusals for specialised and internal relations. These remain unrun acceptance
+scenarios, not compatibility evidence.
 
 ## D119. Timescale is composed into PostgreSQL without another source identity
 

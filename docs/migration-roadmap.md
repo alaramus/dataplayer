@@ -209,7 +209,16 @@ Isolated compatibility source definitions now pin legacy 2.17.2/PG16 and
 columnstore 2.18.0/PG16 images, with tmpfs databases, mixed storage and restricted
 roles. See the [fixture README](../backend/compatibility/timescale/README.md).
 No containers have been started and no compatibility is claimed.
-Next: add the isolated adapter integration harness and acceptance scenarios.
+The isolated adapter harness and acceptance scenarios are now written: per-database
+discovery, catalog/path/model/summary agreement, mixed-storage reads/export,
+lossless integers, schema-scoped chunk paging, restricted inspection permissions
+and direct insert/DDL refusals for specialised and internal relations. The harness
+is outside application database fixtures; commands are in its README. Nothing has
+been run, so the candidate matrix remains unverified.
+Next: complete remaining T1 acceptance (real extension-state changes, API grants
+and browser navigation/disabled controls), then implement the remaining typed
+policy parameters and public job statistics. Run the isolated matrix and required
+checks only after explicit approval; do not enable T2 mutations on untested APIs.
 Hypertables and Continuous
 aggregates now include owners, counts and configuration, with explicit
 public-view requirements checked on opening. Missing metadata refuses only its
