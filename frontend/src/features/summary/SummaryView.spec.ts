@@ -54,6 +54,69 @@ beforeEach(() => {
 })
 
 describe("Details report navigation", () => {
+  it("renders exact current sizes and labels recorded compression sizes separately", () => {
+    if (data.value?.contents?.kind !== "relation") throw new Error("The relation is missing")
+    data.value.contents.timescale_statistics = {
+      size: {
+        kind: "size", table_bytes: "9007199254740993", index_bytes: "0",
+        toast_bytes: "0", total_bytes: "9007199254740993",
+      },
+      compression: {
+        kind: "compression", total_chunks: "2", number_compressed_chunks: "1",
+        before_compression_table_bytes: "1000", before_compression_index_bytes: null,
+        before_compression_toast_bytes: "0", before_compression_total_bytes: "1000",
+        after_compression_table_bytes: "100", after_compression_index_bytes: null,
+        after_compression_toast_bytes: "0", after_compression_total_bytes: "100",
+      },
+    }
+    const wrapper = panel()
+    expect(wrapper.get('[data-testid="summary-fact-Total storage (bytes)"]').text())
+      .toBe("9007199254740993")
+    expect(wrapper.get('[data-testid="summary-fact-Size scope"]').text())
+      .toBe("Hypertable including chunks")
+    expect(wrapper.get('[data-testid="summary-fact-Compression measurements"]').text())
+      .toContain("Recorded sizes at compression")
+    expect(wrapper.get('[data-testid="summary-fact-Before compression, indexes (bytes)"]').text())
+      .toBe("Not reported")
+    expect(wrapper.get('[data-testid="summary-fact-After compression, TOAST (bytes)"]').text())
+      .toBe("0")
+    expect(wrapper.get('[data-testid="summary-fact-Compressed chunks"]').text()).toBe("1")
+  })
+
+  it("retains size and navigation when compression statistics time out", async () => {
+    if (data.value?.contents?.kind !== "relation") throw new Error("The relation is missing")
+    data.value.contents.specialization = { kind: "timescale_continuous_aggregate" }
+    data.value.contents.timescale_statistics = {
+      size: {
+        kind: "size", table_bytes: "0", index_bytes: "0", toast_bytes: "0", total_bytes: "0",
+      },
+      compression: { kind: "unavailable", reason: "TimescaleDB compression inspection timed out" },
+    }
+    const wrapper = panel()
+    expect(wrapper.get('[data-testid="summary-fact-Size scope"]').text())
+      .toBe("Aggregate materialization")
+    expect(wrapper.get('[data-testid="summary-fact-Total storage (bytes)"]').text()).toBe("0")
+    expect(wrapper.text()).toContain("TimescaleDB compression inspection timed out")
+    expect(wrapper.get('[data-testid="summary-fact-Columns"]').text()).toBe("2")
+    const button = wrapper.findAll("button").find((button) => button.text() === "Chunks")
+    if (button === undefined) throw new Error("The related report is missing")
+    await button.trigger("click")
+    expect(followReference).toHaveBeenCalledOnce()
+  })
+
+  it("does not invent sizes or compression counters when both readers refuse", () => {
+    if (data.value?.contents?.kind !== "relation") throw new Error("The relation is missing")
+    data.value.contents.timescale_statistics = {
+      size: { kind: "unavailable", reason: "Size unavailable" },
+      compression: { kind: "unavailable", reason: "Compression unavailable" },
+    }
+    const wrapper = panel()
+    expect(wrapper.text()).toContain("Size unavailable")
+    expect(wrapper.text()).toContain("Compression unavailable")
+    expect(wrapper.find('[data-testid="summary-fact-Total storage (bytes)"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="summary-fact-Compressed chunks"]').exists()).toBe(false)
+  })
+
   it("renders exact chunk counts and configuration without claiming all chunks are compressed", () => {
     if (data.value?.contents?.kind !== "relation") throw new Error("The relation is missing")
     data.value.contents.timescale = {

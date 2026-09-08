@@ -2,6 +2,7 @@ import type { NodeSummary, RelationContents } from "@/client"
 import { formatSize } from "@/features/catalog/nodes"
 import { formatDuration, mediaTypeName } from "@/features/content/media"
 import { datasetFacts } from "@/features/structure/model"
+import { statisticsFacts } from "@/features/summary/timescaleStatistics"
 
 /** What a format states about itself, as the source sent it (D75). */
 export type NodeContents = NonNullable<NodeSummary["contents"]>
@@ -234,6 +235,12 @@ function contentsFacts(contents: NodeContents): Fact[] {
         })
       }
       if (contents.timescale) facts.push(...timescaleFacts(contents.timescale))
+      if (contents.timescale_statistics) {
+        facts.push(...statisticsFacts(
+          contents.timescale_statistics,
+          contents.specialization?.kind === "timescale_continuous_aggregate",
+        ))
+      }
       // Only where it says something the "Kind" line above does not: there a
       // table is a table and a materialized view is only a view.
       const stored = STORED_AS[contents.relation_kind]

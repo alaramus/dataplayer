@@ -197,8 +197,10 @@ and typed summary transport. Function signatures, extension ownership/schema and
 execution permission are inspected before invocation; a single local result is
 required. Recorded compression bytes stay distinct from current detailed size,
 and partial inspection retains successful measurements. Client generation is
-complete; tests are written but have not been run.
-Next: render public-function statistics in Details, implement the feature UI and isolated
+complete. Details now renders current storage and recorded compression sizes
+separately, retaining exact byte strings, nulls and partial failure reasons.
+Backend and component tests are written but have not been run.
+Next: implement the feature UI and isolated
 compatibility fixtures before T1 acceptance. Hypertables and Continuous
 aggregates now include owners, counts and configuration, with explicit
 public-view requirements checked on opening. Missing metadata refuses only its

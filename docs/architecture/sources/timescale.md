@@ -27,7 +27,9 @@ Details renders specialization and report links with editable filters, reusing
 the workspace's filtered-row navigation. Optional typed Details metadata now
 reads hypertable counts/configuration and aggregate identities/configuration;
 failures retain the basic summary. Public-function size/compression statistics
-have a bounded reader and typed summary transport; rendering remains pending.
+have a bounded reader, typed summary transport and Details rendering. Current
+storage and recorded compression sizes have distinct labels, exact byte strings
+and unavailable reasons. Component tests are written but have not been run.
 Hypertable and aggregate inventories include owners, configuration,
 hypertable counts and aggregate source identities. Report and Details tests have not
 been run. T2 adds bounded
