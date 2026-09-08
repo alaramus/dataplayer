@@ -24,8 +24,10 @@ uses each report's stable identity. Optional report APIs are checked on opening,
 including extension ownership, projected columns and read access. A missing
 optional view refuses that report without disabling baseline inspection.
 Details renders specialization and report links with editable filters, reusing
-the workspace's filtered-row navigation. Optional detailed statistics and
-additional report metadata remain. Report and Details tests have not
+the workspace's filtered-row navigation. Optional typed Details metadata now
+reads hypertable counts/configuration and aggregate identities/configuration;
+failures retain the basic summary. Public-function size/compression statistics
+and additional report metadata remain. Report and Details tests have not
 been run. T2 adds bounded
 changes and T3 adds owned operations. The
 [roadmap](../../migration-roadmap.md) tracks delivery.
@@ -116,6 +118,16 @@ Unavailable totals stay null; on-demand statistics use public APIs and a
 five-second inspection timeout. Time boundaries and integer boundaries are
 different shapes, with large integers carried losslessly as decimal strings.
 Private Timescale catalogs are not an inaccessible-view fallback.
+
+Optional Details metadata has a five-second budget for API inspection and the
+target read together. A typed answer contains hypertable dimension/chunk counts
+and compression configuration, or aggregate source/materialization identity,
+materialized-only mode and compression configuration. Failure leaves the main
+summary and report links intact and gives a safe unavailable reason. Compression
+configuration does not state that every chunk is compressed. Chunk counts cross
+the boundary as decimal strings. Root-table analyze/vacuum timestamps are not
+presented as hypertable-wide statistics. Size and compression-ratio inspection
+remain separate public-function strategies to implement and verify.
 
 The initial job report lists native job identity, target, routine, ownership and
 scheduling settings. Arbitrary job configuration and error text are not selected:

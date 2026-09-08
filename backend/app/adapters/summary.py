@@ -31,6 +31,7 @@ from app.adapters.delimited import DelimiterName
 from app.adapters.fetch import Filter
 from app.adapters.relation import Persistence, RelationKind
 from app.adapters.specializations import RelationSpecialization
+from app.adapters.timescale_metadata import TimescaleFacts
 
 # What the bytes turned out to be, rather than what the name promised. A file
 # that is not UTF-8 says so instead of being decoded with replacements and
@@ -190,6 +191,7 @@ class RelationContents(BaseModel):
     # how a relation is stored is exactly what somebody opening this is asking.
     relation_kind: RelationKind
     specialization: RelationSpecialization | None = None
+    timescale: TimescaleFacts | None = None
     schema_name: str
     owner: str | None = None
     persistence: Persistence | None = None

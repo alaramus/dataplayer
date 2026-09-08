@@ -1681,6 +1681,40 @@ export type ContentUpdated = {
 }
 
 /**
+ * ContinuousAggregateFacts
+ */
+export type ContinuousAggregateFacts = {
+  /**
+   * Kind
+   */
+  kind?: "continuous_aggregate"
+  /**
+   * Hypertable Schema
+   */
+  hypertable_schema: string
+  /**
+   * Hypertable Name
+   */
+  hypertable_name: string
+  /**
+   * Materialization Hypertable Schema
+   */
+  materialization_hypertable_schema: string
+  /**
+   * Materialization Hypertable Name
+   */
+  materialization_hypertable_name: string
+  /**
+   * Materialized Only
+   */
+  materialized_only: boolean
+  /**
+   * Compression Enabled
+   */
+  compression_enabled: boolean
+}
+
+/**
  * CreateConstraintRequest
  */
 export type CreateConstraintRequest = {
@@ -3506,6 +3540,28 @@ export type HTTPValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>
+}
+
+/**
+ * HypertableFacts
+ */
+export type HypertableFacts = {
+  /**
+   * Kind
+   */
+  kind?: "hypertable"
+  /**
+   * Num Dimensions
+   */
+  num_dimensions: number
+  /**
+   * Num Chunks
+   */
+  num_chunks: string
+  /**
+   * Compression Enabled
+   */
+  compression_enabled: boolean
 }
 
 /**
@@ -5922,6 +5978,20 @@ export type RelationContents = {
       } & TimescaleContinuousAggregate)
     | null
   /**
+   * Timescale
+   */
+  timescale?:
+    | ({
+        kind: "hypertable"
+      } & HypertableFacts)
+    | ({
+        kind: "continuous_aggregate"
+      } & ContinuousAggregateFacts)
+    | ({
+        kind: "unavailable"
+      } & UnavailableTimescaleFacts)
+    | null
+  /**
    * Schema Name
    */
   schema_name: string
@@ -8171,6 +8241,20 @@ export type TransactionState = {
    */
   targets?: Array<string>
   effect?: SchemaEffect
+}
+
+/**
+ * UnavailableTimescaleFacts
+ */
+export type UnavailableTimescaleFacts = {
+  /**
+   * Kind
+   */
+  kind?: "unavailable"
+  /**
+   * Reason
+   */
+  reason: string
 }
 
 /**

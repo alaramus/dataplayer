@@ -18,7 +18,7 @@ def model() -> RelationModel:
     )
 
 
-async def test_summary_links_use_classified_identity_without_optional_view_reads() -> None:
+async def test_summary_links_survive_unavailable_optional_metadata() -> None:
     relation = AsyncMock()
     relation.relation_model.return_value = model()
     session = AsyncMock()
@@ -37,6 +37,10 @@ async def test_summary_links_use_classified_identity_without_optional_view_reads
         ]
     session.query.assert_awaited_once()
     assert summary.size_bytes is None
+    assert summary.contents is not None and summary.contents.kind == "relation"
+    assert summary.contents.timescale is not None
+    assert summary.contents.timescale.kind == "unavailable"
+    assert summary.contents.analyzed_at is None
 
 
 def test_aggregate_link_filters_the_logical_view_not_a_guessed_materialization() -> None:

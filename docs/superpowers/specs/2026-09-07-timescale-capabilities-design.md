@@ -580,6 +580,17 @@ for a job that changed three chunks and failed on the fourth.
 
 ## Delivery and acceptance
 
+The first optional Details reader uses public hypertable dimension/chunk counts
+and compression configuration, and public aggregate source/materialization
+identities, materialized-only mode and compression configuration. Inspection of
+view ownership/columns and the targeted read share a five-second deadline. It
+reads at most two records to detect ambiguous identity. Missing, malformed or
+inaccessible metadata yields a safe typed unavailable answer without discarding
+the basic relation summary or related links. Chunk counts remain decimal text;
+configuration is not presented as measured compressed-chunk coverage. Root
+analyze/vacuum timestamps are suppressed for specialised relations. Whole-source
+size and compression statistics require separate public-function strategies.
+
 ### T1 — recognise and inspect safely
 
 Deliver composition, instance discovery, typed specialisation, public-view

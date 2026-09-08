@@ -19,6 +19,7 @@ from app.adapters.catalog import NodeKind
 from app.adapters.postgres.catalog import DDL_REPRESENTATION, TABLE_REPRESENTATION
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.timescale.details import inspect_details
 from app.adapters.postgres.timescale.summary import related_views
 from app.adapters.relation import RelationKind, RelationModel
 from app.adapters.summary import NodeSummary, RelationContents
@@ -61,6 +62,7 @@ class PostgresSummaries:
         # schema gets: a schema is not marked summarizable, so nothing asks.
         model = await self._relation.relation_model(node_id)
         statistics = await self._statistics(model)
+        timescale = await inspect_details(self._session, model)
         representations = [TABLE_REPRESENTATION]
         if model.specialization is None:
             representations.append(DDL_REPRESENTATION)
@@ -76,6 +78,7 @@ class PostgresSummaries:
             contents=RelationContents(
                 relation_kind=model.kind,
                 specialization=model.specialization,
+                timescale=timescale,
                 schema_name=model.schema_name or "",
                 owner=model.owner,
                 persistence=model.persistence,
@@ -104,6 +107,8 @@ class PostgresSummaries:
         materialized view that was never refreshed. Both leave the two times
         absent rather than filled with a zero that would read as a date.
         """
+        if model.specialization is not None:
+            return {}
         rows = await self._session.query(
             _STATISTICS, (model.schema_name or "", model.name)
         )

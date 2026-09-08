@@ -33,16 +33,7 @@ async def require_report(session: PostgresSession, report: SystemReport) -> None
         return
     refused = f'The "{report.title}" report cannot be inspected by this connection'
     try:
-        columns = await session.query(
-            _COLUMNS,
-            (report.public_view, list(report.required_columns),
-             len(report.required_columns) + 1),
-            inspection=True,
-        )
-        if {row["column_name"] for row in columns} != set(report.required_columns):
-            raise ValueError(
-                f'The installed TimescaleDB lacks the public API for "{report.title}"'
-            )
+        await require_public_view(session, report.public_view, report.required_columns)
         await session.query(
             sql.SQL("SELECT * FROM ({}) AS report LIMIT 0")
             .format(report.statement).as_string(),
@@ -52,3 +43,14 @@ async def require_report(session: PostgresSession, report: SystemReport) -> None
         if exc.error_kind in {"auth", "network", "timeout"}:
             raise
         raise ValueError(refused) from None
+
+
+async def require_public_view(
+    session: PostgresSession, view: str, required_columns: tuple[str, ...]
+) -> None:
+    columns = await session.query(
+        _COLUMNS, (view, list(required_columns), len(required_columns) + 1),
+        inspection=True,
+    )
+    if {row["column_name"] for row in columns} != set(required_columns):
+        raise ValueError("The installed TimescaleDB lacks the public API for this view")
