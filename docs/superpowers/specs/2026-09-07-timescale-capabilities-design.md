@@ -593,6 +593,16 @@ size and compression statistics require separate public-function strategies.
 
 ### T1 — recognise and inspect safely
 
+Hypertable and aggregate reports project explicit metadata columns from their
+public views: owners, hypertable dimension/chunk counts and tablespaces,
+aggregate source/materialization identities, and compression/materialization
+configuration. Each report validates its complete projection on opening;
+missing columns refuse that report without changing baseline discovery. Chunk
+counts remain numeric for sorting and use lossless cell transport. Compression
+configuration is not measured compressed-chunk coverage. The projections were
+compared with the 2.18.0 public view definitions linked below; compatibility
+validation remains pending.
+
 Deliver composition, instance discovery, typed specialisation, public-view
 reports, summary facts/related views and the shared-operation protections.
 The feature endpoint is consumed by the connector UI and reports a detected

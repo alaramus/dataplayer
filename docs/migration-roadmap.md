@@ -194,8 +194,11 @@ root analyze/vacuum timestamps are suppressed for specialised relations. The
 client has been regenerated. Backend and component tests remain unrun.
 Next: implement public-function size/compression statistics, the feature UI and isolated
 compatibility fixtures before T1 acceptance. Hypertables and Continuous
-aggregates currently list identities only; extend their metadata with explicit
-public-view requirements. The job report lists identity and scheduling settings;
+aggregates now include owners, counts and configuration, with explicit
+public-view requirements checked on opening. Missing metadata refuses only its
+report; discovery and other reports remain independent. Numeric chunk counts
+retain source-side sorting and lossless cell transport. Tests are written but
+have not been run. The job report lists identity and scheduling settings;
 typed policy parameters and public job statistics remain. Do not expose arbitrary
 custom-job configuration or error text as policy metadata.
 

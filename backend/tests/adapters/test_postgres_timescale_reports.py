@@ -214,3 +214,42 @@ async def test_chunk_boundaries_keep_integer_precision_and_distinct_time_values(
         prepared.source, prepared.info.columns, prepared.request, prepared.info,
     )
     assert filter_params == [Decimal(exact), 3, 0]
+
+
+async def test_hypertable_counts_sort_numerically_and_cross_the_wire_losslessly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    discovery(monkeypatch, "available")
+    session = AsyncMock()
+    session.describe.return_value = [
+        ("hypertable_schema", 25), ("hypertable_name", 25), ("num_chunks", 20),
+        ("compression_enabled", 16),
+    ]
+    exact = 9007199254740993
+    session.query.side_effect = [
+        [
+            {"oid": 25, "sql_type": "text", "type_name": "text", "type_category": "S"},
+            {"oid": 20, "sql_type": "bigint", "type_name": "int8", "type_category": "N"},
+            {"oid": 16, "sql_type": "boolean", "type_name": "bool", "type_category": "B"},
+        ],
+        [
+            {"hypertable_schema": "a", "hypertable_name": "metrics",
+             "num_chunks": exact, "compression_enabled": True},
+            {"hypertable_schema": "b", "hypertable_name": "metrics",
+             "num_chunks": 0, "compression_enabled": False},
+        ],
+    ]
+    result = await PostgresFetch(session).fetch(FetchRequest(
+        node_id=REPORTS[0].node_id, limit=2,
+        sort=[Sort(column="num_chunks", descending=True)],
+    ))
+    assert result.rows == [
+        ["a", "metrics", str(exact), True], ["b", "metrics", "0", False],
+    ]
+    statement, params = session.query.await_args.args
+    assert '"num_chunks"::text' not in statement
+    assert statement.endswith(
+        'ORDER BY "num_chunks" DESC, "hypertable_schema" ASC, '
+        '"hypertable_name" ASC LIMIT %s OFFSET %s'
+    )
+    assert params == (3, 0)

@@ -75,7 +75,7 @@ async def test_connection_failure_remains_a_connection_failure() -> None:
         await require_report(session, OPTIONAL_REPORTS[0])
 
 
-async def test_baseline_report_remains_readable_when_optional_api_is_missing(
+async def test_other_report_remains_readable_when_one_api_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
@@ -88,7 +88,10 @@ async def test_baseline_report_remains_readable_when_optional_api_is_missing(
     session = AsyncMock()
     session.query.return_value = []
     with pytest.raises(ValueError, match="lacks the public API"):
-        await resolve_report(session, OPTIONAL_REPORTS[0].node_id)
+        await resolve_report(session, REPORTS[2].node_id)
     session.query.reset_mock()
+    session.query.side_effect = [
+        [{"column_name": name} for name in REPORTS[0].required_columns], [],
+    ]
     assert await resolve_report(session, REPORTS[0].node_id) == REPORTS[0]
-    session.query.assert_not_awaited()
+    assert session.query.await_count == 2

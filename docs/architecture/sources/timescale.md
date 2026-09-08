@@ -17,7 +17,7 @@ dependency inspection is bounded to 1000 objects and five seconds. Instance-leve
 backup/restore offers, admission and job execution now refuse Timescale targets.
 Source archive inspection uses a private temporary copy and a complete bounded
 custom-archive inventory; its tests are written but have not been run.
-The discovered System section includes identity reports for Hypertables and
+The discovered System section includes metadata reports for Hypertables and
 Continuous aggregates plus Chunks, Dimensions, and Policies and jobs. Shared
 resolution covers catalog paths, fetch/export and SQL surfaces; outer ordering
 uses each report's stable identity. Optional report APIs are checked on opening,
@@ -27,7 +27,8 @@ Details renders specialization and report links with editable filters, reusing
 the workspace's filtered-row navigation. Optional typed Details metadata now
 reads hypertable counts/configuration and aggregate identities/configuration;
 failures retain the basic summary. Public-function size/compression statistics
-and additional report metadata remain. Report and Details tests have not
+remain. Hypertable and aggregate inventories include owners, configuration,
+hypertable counts and aggregate source identities. Report and Details tests have not
 been run. T2 adds bounded
 changes and T3 adds owned operations. The
 [roadmap](../../migration-roadmap.md) tracks delivery.

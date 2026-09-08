@@ -38,29 +38,27 @@ def _view_report(
 
 
 REPORTS = (
-    SystemReport(
-        key="timescale.v1.hypertables",
-        title="Hypertables",
-        description="Logical hypertables identified by schema and name",
-        statement=sql.SQL("""
-            SELECT hypertable_schema, hypertable_name
-            FROM timescaledb_information.hypertables
-            ORDER BY hypertable_schema, hypertable_name
-        """),
-        stable_order=("hypertable_schema", "hypertable_name"),
+    _view_report(
+        "hypertables", "Hypertables",
+        "Hypertable owners, dimension/chunk counts and compression configuration",
+        "hypertables",
+        (
+            "hypertable_schema", "hypertable_name", "owner", "num_dimensions",
+            "num_chunks", "compression_enabled", "tablespaces",
+        ),
+        ("hypertable_schema", "hypertable_name"),
     ),
-    SystemReport(
-        key="timescale.v1.continuous_aggregates",
-        title="Continuous aggregates",
-        description="Continuous aggregate views and their materialization hypertables",
-        statement=sql.SQL("""
-            SELECT view_schema, view_name,
-                   materialization_hypertable_schema,
-                   materialization_hypertable_name
-            FROM timescaledb_information.continuous_aggregates
-            ORDER BY view_schema, view_name
-        """),
-        stable_order=("view_schema", "view_name"),
+    _view_report(
+        "continuous_aggregates", "Continuous aggregates",
+        "Aggregate owners, source/materialization identities and configuration",
+        "continuous_aggregates",
+        (
+            "view_schema", "view_name", "view_owner", "hypertable_schema",
+            "hypertable_name", "materialization_hypertable_schema",
+            "materialization_hypertable_name", "materialized_only",
+            "compression_enabled", "finalized",
+        ),
+        ("view_schema", "view_name"),
     ),
     _view_report(
         "chunks", "Chunks",
