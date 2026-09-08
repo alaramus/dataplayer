@@ -200,8 +200,13 @@ and partial inspection retains successful measurements. Client generation is
 complete. Details now renders current storage and recorded compression sizes
 separately, retaining exact byte strings, nulls and partial failure reasons.
 Backend and component tests are written but have not been run.
-Next: implement the feature UI and isolated
-compatibility fixtures before T1 acceptance. Hypertables and Continuous
+Connection Options now displays discovered runtime features with version,
+distinct states and safe reasons. The read is per saved enabled connection,
+with explicit Reload and invalidation after catalog reload, connector edits and
+known structure effects. No polling is added. Unit/component tests and a mocked
+feature-response browser scenario are written but have not been run.
+Next: implement isolated compatibility fixtures before T1 acceptance.
+Hypertables and Continuous
 aggregates now include owners, counts and configuration, with explicit
 public-view requirements checked on opening. Missing metadata refuses only its
 report; discovery and other reports remain independent. Numeric chunk counts

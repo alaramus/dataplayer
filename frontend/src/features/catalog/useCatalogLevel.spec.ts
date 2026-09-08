@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { defineComponent, h, ref } from "vue"
 
 import { ConnectorsService } from "@/client"
+import { sourceFeaturesKey } from "@/features/connectors/features"
 import { at, first } from "@/shared/testing/collections"
 import { useCatalogLevel } from "./useCatalogLevel"
 import type { CatalogLevel } from "./useCatalogLevel"
@@ -14,7 +15,7 @@ beforeEach(() => {
   vi.restoreAllMocks()
 })
 
-function withLevel(run: (level: CatalogLevel) => Promise<void>) {
+function withLevel(run: (level: CatalogLevel) => Promise<void>, client = new QueryClient()) {
   return new Promise<void>((resolve, reject) => {
     const Host = defineComponent({
       setup() {
@@ -24,7 +25,7 @@ function withLevel(run: (level: CatalogLevel) => Promise<void>) {
       },
     })
     mount(Host, {
-      global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] },
+      global: { plugins: [[VueQueryPlugin, { queryClient: client }]] },
     })
   })
 }
@@ -73,6 +74,19 @@ function answers(...pages: unknown[][]) {
 }
 
 describe("walking a catalog", () => {
+  it("invalidates this connection's feature answer when reloading the catalog", async () => {
+    const client = new QueryClient()
+    client.setQueryData(sourceFeaturesKey("c1"), { features: [] })
+    client.setQueryData(sourceFeaturesKey("c2"), { features: [] })
+    answers([table("public.orders", "orders")], [table("public.orders", "orders")])
+    await withLevel(async (level) => {
+      await level.load()
+      await level.reload(null)
+      expect(client.getQueryState(sourceFeaturesKey("c1"))?.isInvalidated).toBe(true)
+      expect(client.getQueryState(sourceFeaturesKey("c2"))?.isInvalidated).toBe(false)
+    }, client)
+  })
+
   it("lists the children of the root", async () => {
     answers([table("public.orders", "orders")])
 

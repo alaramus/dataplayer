@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 
 import type { AdapterTypeInfo, ConnectorsPublic } from "@/client"
 import { grantsKey } from "@/features/connectors/grants"
+import { sourceFeaturesKey } from "@/features/connectors/features"
 import { unlockKey } from "@/features/queries/runs"
 
 import {
@@ -57,11 +58,13 @@ describe("what a change to a connection invalidates", () => {
     const client = new QueryClient()
     client.setQueryData(unlockKey("c1"), { unlocked: true })
     client.setQueryData(grantsKey("c1"), { data: [], count: 0 })
+    client.setQueryData(sourceFeaturesKey("c1"), { features: [] })
 
     await client.invalidateQueries({ queryKey: connectorsKey })
 
     expect(client.getQueryState(unlockKey("c1"))?.isInvalidated).toBe(true)
     expect(client.getQueryState(grantsKey("c1"))?.isInvalidated).toBe(true)
+    expect(client.getQueryState(sourceFeaturesKey("c1"))?.isInvalidated).toBe(true)
   })
 })
 

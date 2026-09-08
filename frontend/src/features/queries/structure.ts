@@ -1,4 +1,5 @@
 import type { PreparedScript, QueryRehearsal, SchemaEffect } from "@/client"
+import { sourceFeaturesKey } from "@/features/connectors/features"
 
 /**
  * Structure changes in the console: what to rehearse, what to say, what to
@@ -79,6 +80,7 @@ export function invalidationsFor(
   // wholesale whatever the scope: a changed column changes every page read
   // from that relation, and the key does not name a relation.
   const keys: unknown[][] = [
+    [...sourceFeaturesKey(connectorId)],
     ["rows", connectorId],
     ["content", connectorId],
     ["queries", "metadata", connectorId],

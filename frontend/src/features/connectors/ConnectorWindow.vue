@@ -4,6 +4,7 @@ import { computed, ref, watch } from "vue"
 import type { ConnectionCheckResult, ConnectorDraft, ConnectorPublic } from "@/client"
 import { ACCESS_LABELS } from "@/features/connectors/access"
 import ConnectionCheck from "@/features/connectors/ConnectionCheck.vue"
+import ConnectorFeatures from "@/features/connectors/ConnectorFeatures.vue"
 import AccessRequests from "@/features/shares/AccessRequests.vue"
 import GrantList from "@/features/shares/GrantList.vue"
 import ShareDialog from "@/features/shares/ShareDialog.vue"
@@ -464,7 +465,7 @@ async function apply(): Promise<boolean> {
 
   try {
     if (saved.value) {
-      await updateConnector.mutateAsync({
+      saved.value = await updateConnector.mutateAsync({
         connectorId: saved.value.id,
         body: {
           name: name.value,
@@ -677,6 +678,10 @@ async function parseTyped(text: string) {
             :disable="readOnly || !windowApplies(sourceWindows)"
             data-testid="connector-cache-window"
             @update:model-value="chooseCacheWindow"
+          />
+          <ConnectorFeatures
+            v-if="saved && saved.enabled && onOptions"
+            :connector-id="saved.id"
           />
         </div>
 

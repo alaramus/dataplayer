@@ -36,6 +36,10 @@ been run. T2 adds bounded
 changes and T3 adds owned operations. The
 [roadmap](../../migration-roadmap.md) tracks delivery.
 
+Connection Options displays runtime features for saved enabled connections,
+with installed version, state and safe reason. Component tests and a mocked
+feature-response browser scenario are written but have not been run.
+
 ## D119. Timescale is composed into PostgreSQL without another source identity
 
 The connector stays `adapter_type=postgres`. A feature package under
@@ -78,6 +82,13 @@ catalog and fetch responses keep D31/D105's ordinary cache rules; mutations
 always discover and validate again. Reload and known extension/connector
 changes invalidate the Vue-query feature answer. The endpoint is not cached
 by HTTP, and no new cross-request feature cache or background poller is added.
+
+The Options panel reads features on opening and offers Reload. Vue Query keys
+include the connector ID under the existing connector prefix, so connector
+updates invalidate the answer. Catalog reload and known source structure effects
+also invalidate it. No focus/reconnect refresh or interval polling is added.
+Unsupported capability (501) hides this optional section; request failures show
+an inspection error rather than stale detection or an absent extension.
 
 When Timescale actions arrive, `SupportsActions.all_actions()` becomes async
 and returns this connection's vocabulary. `available(node_id)` supplies

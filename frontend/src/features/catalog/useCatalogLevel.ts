@@ -10,6 +10,7 @@ import { groupsOf, toListNodes } from "@/features/catalog/nodes"
 import type { ListNode } from "@/features/catalog/nodes"
 import { foundNodes } from "@/features/catalog/search"
 import type { FoundNodes } from "@/features/catalog/search"
+import { sourceFeaturesKey } from "@/features/connectors/features"
 import { messageOf } from "@/shared/api/errors"
 import type { CatalogPage } from "@/features/catalog/api"
 import type { Freshness } from "@/shared/freshness/freshness"
@@ -316,6 +317,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
    * asked to replace.
    */
   async function reloadMany(nodeIds: (string | null)[]) {
+    await queryClient.invalidateQueries({ queryKey: sourceFeaturesKey(connectorId.value) })
     const groupsToKeep = [...selectedGroups.value]
     const branches = new Set<string | null>([
       ...nodeIds,

@@ -111,6 +111,7 @@ describe("what a committed change makes untrue", () => {
     expect(keys).toContainEqual(["catalog", "c1", "demo_lab"])
     expect(keys).toContainEqual(["relationModel", "c1", "demo_lab.t"])
     expect(keys).toContainEqual(["rows", "c1"])
+    expect(keys).toContainEqual(["connectors", "c1", "features"])
   })
 
   it("drops the whole connection when the source could not be exact", () => {
@@ -121,6 +122,7 @@ describe("what a committed change makes untrue", () => {
 
     expect(keys).toContainEqual(["catalog", "c1"])
     expect(keys).toContainEqual(["relationModel", "c1"])
+    expect(keys).toContainEqual(["connectors", "c1", "features"])
   })
 
   it("drops nothing when nothing changed", () => {

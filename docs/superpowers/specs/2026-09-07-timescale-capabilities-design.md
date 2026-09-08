@@ -593,6 +593,16 @@ size and compression statistics require separate public-function strategies.
 
 ### T1 — recognise and inspect safely
 
+The runtime-feature UI lives in Options for a saved enabled connection. Its
+Vue Query key includes the connector ID under the connector prefix. Opening
+Options reads live features; explicit Reload, catalog reload, connector changes
+and known structure effects refresh/invalidate that answer. No background
+polling is introduced. Version, absence, unsupported API and unavailable metadata
+are distinct states. A 501 hides the optional section, while request failures
+replace old detection with a safe inspection error. The browser scenario with
+mocked feature responses covers rendering and removal on Reload; real per-source
+discovery evidence still belongs to the isolated compatibility fixtures.
+
 Optional size/compression statistics follow successful basic Details inspection
 with a separate five-second budget shared by API discovery and both reads. The
 strategies use `hypertable_detailed_size(regclass)` and prefer
