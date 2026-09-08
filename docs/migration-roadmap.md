@@ -186,7 +186,13 @@ continuous aggregates link to their own inventory entry. The bounded optional
 `related_views` field carries report nodes and ordinary editable filters; the
 workspace reuses its filtered-row navigation. The client has been regenerated;
 backend and component tests are written but have not been run.
-Next: add bounded optional Timescale Details facts/statistics, the feature UI and isolated
+Optional Details facts now read hypertable dimension/chunk counts and compression
+configuration, or aggregate source/materialization identities and configuration.
+API inspection and the targeted read share a five-second deadline; failure leaves
+the basic summary and links intact. Chunk counts are lossless decimal strings;
+root analyze/vacuum timestamps are suppressed for specialised relations. The
+client has been regenerated. Backend and component tests remain unrun.
+Next: implement public-function size/compression statistics, the feature UI and isolated
 compatibility fixtures before T1 acceptance. Hypertables and Continuous
 aggregates currently list identities only; extend their metadata with explicit
 public-view requirements. The job report lists identity and scheduling settings;

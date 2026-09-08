@@ -1,4 +1,4 @@
-import type { NodeSummary } from "@/client"
+import type { NodeSummary, RelationContents } from "@/client"
 import { formatSize } from "@/features/catalog/nodes"
 import { formatDuration, mediaTypeName } from "@/features/content/media"
 import { datasetFacts } from "@/features/structure/model"
@@ -233,6 +233,7 @@ function contentsFacts(contents: NodeContents): Fact[] {
               : "TimescaleDB continuous aggregate",
         })
       }
+      if (contents.timescale) facts.push(...timescaleFacts(contents.timescale))
       // Only where it says something the "Kind" line above does not: there a
       // table is a table and a materialized view is only a view.
       const stored = STORED_AS[contents.relation_kind]
@@ -300,4 +301,28 @@ function addDuration(facts: Fact[], seconds: number | null | undefined) {
 
 function unknownContents(contents: never): never {
   throw new Error(`Unknown contents: ${JSON.stringify(contents)}`)
+}
+
+function timescaleFacts(details: NonNullable<RelationContents["timescale"]>): Fact[] {
+  switch (details.kind) {
+    case "hypertable":
+      return [
+        { label: "Dimensions", value: String(details.num_dimensions) },
+        { label: "Chunks", value: details.num_chunks },
+        { label: "Compression configured", value: details.compression_enabled ? "Yes" : "No" },
+      ]
+    case "continuous_aggregate":
+      return [
+        { label: "Source schema", value: details.hypertable_schema },
+        { label: "Source hypertable", value: details.hypertable_name },
+        { label: "Materialization schema", value: details.materialization_hypertable_schema },
+        { label: "Materialization hypertable", value: details.materialization_hypertable_name },
+        { label: "Materialized only", value: details.materialized_only ? "Yes" : "No" },
+        { label: "Compression configured", value: details.compression_enabled ? "Yes" : "No" },
+      ]
+    case "unavailable":
+      return [{ label: "TimescaleDB metadata", value: details.reason }]
+    default:
+      return unknownContents(details)
+  }
 }
