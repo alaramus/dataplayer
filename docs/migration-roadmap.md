@@ -215,8 +215,13 @@ lossless integers, schema-scoped chunk paging, restricted inspection permissions
 and direct insert/DDL refusals for specialised and internal relations. The harness
 is outside application database fixtures; commands are in its README. Nothing has
 been run, so the candidate matrix remains unverified.
-Next: complete remaining T1 acceptance (real extension-state changes, API grants
-and browser navigation/disabled controls), then implement the remaining typed
+The lifecycle scenario now installs/removes the extension in its own empty
+fixture database and checks fresh-adapter discovery and report visibility.
+Feature-route scenarios now cover read grants, revocation, disabled connectors,
+administrator non-bypass and fresh answers after feature-state changes. These
+tests are written but have not been run.
+Next: complete remaining T1 acceptance (browser navigation/disabled controls
+and Timescale metadata/row API grant coverage), then implement the remaining typed
 policy parameters and public job statistics. Run the isolated matrix and required
 checks only after explicit approval; do not enable T2 mutations on untested APIs.
 Hypertables and Continuous

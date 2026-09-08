@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
@@ -71,7 +72,8 @@ async def _create_connector(
 
 @pytest.mark.usefixtures("isolated_registry")
 async def test_runtime_features_are_live_and_not_http_cached(
-    client: AsyncClient, normal_user_token_headers: dict[str, str]
+    client: AsyncClient, normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     registry.register(
         name="features",
@@ -103,6 +105,73 @@ async def test_runtime_features_are_live_and_not_http_cached(
             }
         ],
     }
+    absent = SourceFeatures(
+        observed_at=datetime(2026, 9, 7, 12, 31, tzinfo=UTC),
+        features=[SourceFeature(code="timescaledb", title="TimescaleDB", state="absent")],
+    )
+    discovery = AsyncMock(return_value=absent)
+    monkeypatch.setattr(FeatureAdapter, "source_features", discovery)
+    refreshed = await client.get(
+        f"{BASE}/{connector_id}/features", headers=normal_user_token_headers
+    )
+    assert refreshed.status_code == 200
+    assert refreshed.headers["cache-control"] == "no-store"
+    assert refreshed.json() == absent.model_dump(mode="json")
+    discovery.assert_awaited_once()
+
+
+@pytest.mark.usefixtures("isolated_registry")
+async def test_feature_discovery_requires_current_read_access_and_enabled_connector(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    superuser_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry.register(
+        name="features", title="Features", category="sql",
+        description="A source with runtime features.",
+        options_schema=FeatureOptions, adapter_class=FeatureAdapter,
+    )(FeatureAdapter)
+    owner = normal_user_token_headers
+    reader = superuser_token_headers
+    connector_id = await _create_connector(client, owner, adapter_name="features")
+    path = f"{BASE}/{connector_id}/features"
+    discovery = AsyncMock(return_value=SourceFeatures(
+        observed_at=datetime(2026, 9, 7, tzinfo=UTC),
+        features=[SourceFeature(
+            code="timescaledb", title="TimescaleDB", state="available",
+            installed_version="2.18.0",
+        )],
+    ))
+    monkeypatch.setattr(FeatureAdapter, "source_features", discovery)
+    # Administration does not grant access to somebody else's source (D33).
+    assert (await client.get(path, headers=reader)).status_code == 404
+    discovery.assert_not_awaited()
+    me = await client.get(f"{settings.API_V1_STR}/users/me", headers=reader)
+    assert me.status_code == 200
+    reader_id = me.json()["id"]
+    granted = await client.put(
+        f"{BASE}/{connector_id}/grants", headers=owner,
+        json={"user_id": reader_id, "access": "read"},
+    )
+    assert granted.status_code == 200
+    assert (await client.get(path, headers=reader)).status_code == 200
+    discovery.assert_awaited_once()
+    discovery.reset_mock()
+    revoked = await client.delete(
+        f"{BASE}/{connector_id}/grants/{reader_id}", headers=owner,
+    )
+    assert revoked.status_code == 200
+    assert (await client.get(path, headers=reader)).status_code == 404
+    discovery.assert_not_awaited()
+    disabled = await client.patch(
+        f"{BASE}/{connector_id}", headers=owner, json={"enabled": False},
+    )
+    assert disabled.status_code == 200
+    response = await client.get(path, headers=owner)
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Connector is disabled"
+    discovery.assert_not_awaited()
 
 
 @pytest.mark.usefixtures("isolated_registry")
