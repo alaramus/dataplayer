@@ -37,7 +37,7 @@ async def test_internal_chunks_and_materializations_refuse_direct_operations(
     adapter = source.adapter()
     for identity in identities:
         node_id = f"{identity['schema_name']}.{identity['relation_name']}"
-        with pytest.raises(ValueError, match="read-only"):
+        with pytest.raises(ValueError, match='"_timescaledb_internal" belongs to the server'):
             await adapter.insert_row(InsertRowRequest(node_id=node_id))
         with pytest.raises(ValueError, match="reconstructed DDL is unavailable"):
             await adapter.read_content(ContentRequest(node_id=node_id, representation="sql"))

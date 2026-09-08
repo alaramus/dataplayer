@@ -26,7 +26,7 @@ test("Timescale Details opens an editable scoped Chunks report with writes disab
     node_id: table.id, name: table.name, kind: "table",
     contents: {
       kind: "relation", relation_kind: "table", schema_name: "lab",
-      columns: 1, indexes: 0, constraints: 0, specialization: table.specialization,
+      columns: 1, indexes: 0, constraints: 0, specialization: { kind: "timescale_hypertable" },
     },
     related_views: [{ node: chunks, filters }],
   }

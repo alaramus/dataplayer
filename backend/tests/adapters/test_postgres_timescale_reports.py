@@ -152,7 +152,7 @@ async def test_report_page_and_export_keep_outer_identity_order(
     assert not prepared.info.update_supported
     assert not prepared.info.insert_supported
     assert not prepared.info.delete_supported
-    with pytest.raises(ValueError, match="Unknown"):
+    with pytest.raises(ValueError, match='Relation has no column "forged"'):
         await fetch.prepare(FetchRequest(
             node_id=report.node_id, sort=[Sort(column="forged")],
         ))

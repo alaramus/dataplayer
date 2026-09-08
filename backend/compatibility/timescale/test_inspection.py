@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from app.adapters.export import ExportRequest
@@ -145,6 +147,30 @@ async def test_missing_metadata_permission_is_not_absence(source: TimescaleSourc
 
 
 async def test_recorded_policy_run_has_public_statistics(source: TimescaleSource) -> None:
+    session = source.session()
+    jobs = await session.query(
+        "SELECT job_id FROM timescaledb_information.jobs "
+        "WHERE hypertable_schema = 'lab' AND hypertable_name = 'metrics' "
+        "AND proc_name = 'policy_retention'",
+    )
+    assert len(jobs) == 1
+    job_id = jobs[0]["job_id"]
+    try:
+        await session.query(
+            "SELECT alter_job(%s, scheduled => true, next_start => now())", (job_id,),
+        )
+        async with asyncio.timeout(30):
+            for _ in range(120):
+                if await session.query(
+                    "SELECT job_id FROM timescaledb_information.job_stats "
+                    "WHERE job_id = %s AND total_successes > 0", (job_id,),
+                ):
+                    break
+                await asyncio.sleep(0.25)
+            else:
+                pytest.fail("The fixture policy did not record a successful run")
+    finally:
+        await session.query("SELECT alter_job(%s, scheduled => false)", (job_id,))
     report = next(report for report in REPORTS if report.public_view == "job_stats")
     result = await source.adapter(user="fixture_reader").fetch(FetchRequest(
         node_id=report.node_id,

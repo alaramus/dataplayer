@@ -1,5 +1,5 @@
-from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.postgres.system_reports import SECTION_ID
+from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from compatibility.timescale.source import TimescaleSource
 
 

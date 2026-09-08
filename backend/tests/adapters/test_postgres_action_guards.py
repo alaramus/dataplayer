@@ -20,8 +20,8 @@ from app.adapters.postgres.system_reports import EXTENSIONS_REPORT_ID
 def _catalog(reason: str | None) -> AsyncMock:
     catalog = AsyncMock()
     catalog.path_to.return_value = [
-        SchemaNode(id="public", name="public", has_children=True),
-        TableNode(id="public.events", name="events", has_children=False),
+        SchemaNode(id="public", name="public", has_children=True, representations=[]),
+        TableNode(id="public.events", name="events", has_children=False, representations=[]),
     ]
     catalog.relation_action_reason.return_value = reason
     catalog.schema_action_reason.return_value = None
