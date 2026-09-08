@@ -231,7 +231,15 @@ durations and exact counters, with independent API/access checks. The isolated
 fixture records one manual run of its paused ten-year retention policy, and a
 scenario checks its public statistics. Unit and compatibility tests are written
 but have not been run. Recreate fixtures before validation to apply the new seed.
-Next: implement the remaining typed policy parameters.
+Jobs now projects typed retention/compression/refresh parameter columns. Routine
+ownership/signature and value validation guard the projection; custom configuration
+stays hidden. Interval and integer offsets remain separate. The initial reader
+requires PG16+ and uses the report probe to refuse older sources. Unit and isolated
+compatibility scenarios cover malformed input, bigint precision, unrecognised
+routine identity and the seeded retention policy; none has been run.
+Next: request approval for targeted T1 validation, then fix failures and audit
+the T1 acceptance criteria before marking it complete. T2 remains gated on real
+source compatibility evidence.
 Run the isolated matrix and required
 checks only after explicit approval; do not enable T2 mutations on untested APIs.
 Hypertables and Continuous
