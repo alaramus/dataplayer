@@ -142,3 +142,22 @@ async def test_missing_metadata_permission_is_not_absence(source: TimescaleSourc
     assert feature.state == "unavailable"
     assert feature.installed_version == source.version
     assert feature.reason and "fixture-only" not in feature.reason
+
+
+async def test_recorded_policy_run_has_public_statistics(source: TimescaleSource) -> None:
+    report = next(report for report in REPORTS if report.public_view == "job_stats")
+    result = await source.adapter(user="fixture_reader").fetch(FetchRequest(
+        node_id=report.node_id,
+        filters=[
+            ScalarFilter(column="hypertable_schema", op="eq", value="lab"),
+            ScalarFilter(column="hypertable_name", op="eq", value="metrics"),
+        ],
+    ))
+    assert len(result.rows) == 1
+    row = dict(zip((column.name for column in result.columns), result.rows[0], strict=True))
+    assert row["job_status"] == "Paused"
+    assert row["last_run_status"] == "Success"
+    assert row["total_runs"] is not None and int(row["total_runs"]) >= 1
+    assert row["total_successes"] is not None and int(row["total_successes"]) >= 1
+    assert row["total_failures"] == "0"
+    assert row["next_start"] is None

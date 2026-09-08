@@ -226,7 +226,12 @@ carry typed Timescale summary/row payloads through read grants, repeated reads,
 revocation and connector disablement, with a secret sentinel. Adapter responses
 are mocked in these UI/API tests; real-source semantics remain the isolated
 matrix's responsibility. These scenarios have not been run.
-Next: implement the remaining typed policy parameters and public job statistics.
+The separate Job statistics report now projects public run outcomes, timestamps,
+durations and exact counters, with independent API/access checks. The isolated
+fixture records one manual run of its paused ten-year retention policy, and a
+scenario checks its public statistics. Unit and compatibility tests are written
+but have not been run. Recreate fixtures before validation to apply the new seed.
+Next: implement the remaining typed policy parameters.
 Run the isolated matrix and required
 checks only after explicit approval; do not enable T2 mutations on untested APIs.
 Hypertables and Continuous

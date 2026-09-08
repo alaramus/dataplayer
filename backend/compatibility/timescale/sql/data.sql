@@ -30,3 +30,14 @@ SELECT time_bucket(INTERVAL '1 hour', observed_at) AS bucket, count(*) AS readin
 FROM lab.metrics GROUP BY 1 WITH NO DATA;
 CALL refresh_continuous_aggregate('lab.hourly', NULL, NULL);
 SELECT alter_job(add_retention_policy('lab.metrics', INTERVAL '10 years'), scheduled => false);
+DO $fixture$
+DECLARE
+    policy_job integer;
+BEGIN
+    SELECT job_id INTO STRICT policy_job
+    FROM timescaledb_information.jobs
+    WHERE hypertable_schema = 'lab' AND hypertable_name = 'metrics'
+      AND proc_name = 'policy_retention';
+    CALL public.run_job(policy_job);
+END
+$fixture$;

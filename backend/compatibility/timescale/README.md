@@ -23,7 +23,7 @@ Both servers contain `plain_fixture` (hstore, no Timescale) and
 - ordinary data in `public` beside timestamp, integer and empty hypertables;
 - bigint values above 2^53, and both compressed and uncompressed chunks;
 - identically named hypertables in two schemas, a refreshed continuous
-  aggregate, and a paused retention policy;
+  aggregate, and a paused ten-year retention policy with one manually recorded run;
 - `fixture_reader`, `fixture_no_stats` and `fixture_no_metadata`, with different
   source permissions to exercise partial inspection and unavailable discovery.
 
