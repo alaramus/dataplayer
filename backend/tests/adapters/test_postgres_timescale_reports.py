@@ -244,7 +244,7 @@ async def test_hypertable_counts_sort_numerically_and_cross_the_wire_losslessly(
         sort=[Sort(column="num_chunks", descending=True)],
     ))
     assert result.rows == [
-        ["a", "metrics", str(exact), True], ["b", "metrics", "0", False],
+        ["a", "metrics", str(exact), "true"], ["b", "metrics", "0", "false"],
     ]
     statement, params = session.query.await_args.args
     assert '"num_chunks"::text' not in statement
