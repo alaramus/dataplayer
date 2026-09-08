@@ -2,7 +2,6 @@
 
 from psycopg import sql
 
-
 # A routine name alone cannot certify a user job as an extension policy.
 _OWNED = sql.SQL("""EXISTS (
     SELECT 1 FROM pg_catalog.pg_proc AS p
@@ -40,16 +39,16 @@ def policy_columns() -> tuple[sql.Composed, ...]:
             # Canonical interval output never echoes malformed source strings.
             columns.append(sql.SQL("""CASE WHEN {} THEN
                 CASE WHEN {} = 'string' AND length({}) <= 128 THEN
-                    CASE WHEN pg_catalog.pg_input_is_valid({}, 'pg_catalog.interval')
-                         THEN ({})::pg_catalog.interval::text END
+                    (CASE WHEN pg_catalog.pg_input_is_valid({}, 'pg_catalog.interval')
+                         THEN {} END)::pg_catalog.interval::text
                 END END AS {}""").format(
                     guard, json_type, value, value, value, sql.Identifier(f"{key}_interval"),
                 ))
             if not key.endswith("created_before"):
                 columns.append(sql.SQL("""CASE WHEN {} THEN
                     CASE WHEN {} = 'number' AND length({}) <= 20 THEN
-                        CASE WHEN pg_catalog.pg_input_is_valid({}, 'pg_catalog.int8')
-                             THEN ({})::pg_catalog.int8 END
+                        (CASE WHEN pg_catalog.pg_input_is_valid({}, 'pg_catalog.int8')
+                             THEN {} END)::pg_catalog.int8
                     END END AS {}""").format(
                         guard, json_type, value, value, value, sql.Identifier(f"{key}_integer"),
                     ))
