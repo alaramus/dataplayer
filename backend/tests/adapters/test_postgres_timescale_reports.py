@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+from decimal import Decimal
 from unittest.mock import AsyncMock
 
 import pytest
@@ -25,6 +27,9 @@ def discovery(monkeypatch: pytest.MonkeyPatch, state: FeatureState) -> AsyncMock
     )))
     monkeypatch.setattr("app.adapters.postgres.report_registry.discover", probe)
     monkeypatch.setattr("app.adapters.postgres.catalog.discover", probe)
+    monkeypatch.setattr(
+        "app.adapters.postgres.report_registry.require_report", AsyncMock(),
+    )
     return probe
 
 
@@ -99,7 +104,7 @@ async def test_sql_surfaces_use_the_registered_report(
     generated = await PostgresGeneration(session, PostgresMetadata(session)).generate(
         GenerateQueryRequest(node_id=report.node_id, kind="select")
     )
-    assert "timescaledb_information." in generated.text
+    assert "timescaledb_information." in generated.text.replace('"', "")
     assert content.kind == "sql"
     assert content.text == generated.text
     with pytest.raises(ValueError, match="report"):
@@ -125,19 +130,19 @@ async def test_report_page_and_export_keep_outer_identity_order(
     fetch = PostgresFetch(session)
     request = FetchRequest(
         node_id=report.node_id, limit=7, offset=14,
-        sort=[Sort(column=columns[1], descending=True)],
+        sort=[Sort(column=columns[-1], descending=True)],
         filters=[ScalarFilter(column=columns[0], op="eq", value="a'; DROP TABLE x")],
     )
     prepared = await fetch.prepare(request)
     statement, params = fetch._build(
         prepared.source, prepared.info.columns, prepared.request, prepared.info,
     )
-    outer_order = (
-        f'ORDER BY "{columns[1]}" DESC, "{columns[0]}" ASC, "{columns[1]}" ASC'
+    outer_order = f'ORDER BY "{columns[-1]}" DESC, ' + ", ".join(
+        f'"{column}" ASC' for column in columns
     )
     assert statement.as_string().endswith(f"{outer_order} LIMIT %s OFFSET %s")
     assert params == ["a'; DROP TABLE x", 8, 14]
-    exported, export_params, _ = fetch.build_export(prepared, [columns[1]])
+    exported, export_params, _ = fetch.build_export(prepared, [columns[-1]])
     assert exported.as_string().endswith(outer_order)
     assert export_params == ["a'; DROP TABLE x"]
     assert "DROP TABLE" not in statement.as_string()
@@ -151,3 +156,61 @@ async def test_report_page_and_export_keep_outer_identity_order(
         await fetch.prepare(FetchRequest(
             node_id=report.node_id, sort=[Sort(column="forged")],
         ))
+
+
+async def test_chunk_boundaries_keep_integer_precision_and_distinct_time_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    discovery(monkeypatch, "available")
+    report = next(report for report in REPORTS if report.key.endswith(".chunks"))
+    session = AsyncMock()
+    session.describe.return_value = [
+        ("chunk_schema", 25), ("chunk_name", 25),
+        ("range_start_integer", 20), ("range_end_integer", 20),
+        ("range_start", 1184), ("range_end", 1184),
+    ]
+    exact = 9007199254740993
+    start = datetime(2026, 9, 8, tzinfo=UTC)
+    type_rows = [
+            {"oid": 25, "sql_type": "text", "type_name": "text", "type_category": "S"},
+            {"oid": 20, "sql_type": "bigint", "type_name": "int8", "type_category": "N"},
+            {"oid": 1184, "sql_type": "timestamp with time zone",
+             "type_name": "timestamptz", "type_category": "D"},
+    ]
+    session.query.side_effect = [
+        type_rows,
+        [
+            {"chunk_schema": "a", "chunk_name": "same",
+             "range_start_integer": exact, "range_end_integer": exact + 10,
+             "range_start": None, "range_end": None},
+            {"chunk_schema": "b", "chunk_name": "same",
+             "range_start_integer": None, "range_end_integer": None,
+             "range_start": start, "range_end": start},
+        ],
+    ]
+    fetch = PostgresFetch(session)
+    result = await fetch.fetch(FetchRequest(
+        node_id=report.node_id, limit=2,
+        sort=[Sort(column="range_start_integer")],
+    ))
+    assert result.rows == [
+        ["a", "same", str(exact), str(exact + 10), None, None],
+        ["b", "same", None, None, start.isoformat(), start.isoformat()],
+    ]
+    statement, params = session.query.await_args.args
+    assert params == (3, 0)
+    assert '"range_start_integer"::text' not in statement
+    assert statement.endswith(
+        'ORDER BY "range_start_integer" ASC, "chunk_schema" ASC, "chunk_name" ASC '
+        'LIMIT %s OFFSET %s'
+    )
+    assert result.row_handles == [None, None]
+    session.query.side_effect = [type_rows]
+    prepared = await fetch.prepare(FetchRequest(
+        node_id=report.node_id, limit=2,
+        filters=[ScalarFilter(column="range_start_integer", op="gte", value=str(exact))],
+    ))
+    _, filter_params = fetch._build(
+        prepared.source, prepared.info.columns, prepared.request, prepared.info,
+    )
+    assert filter_params == [Decimal(exact), 3, 0]

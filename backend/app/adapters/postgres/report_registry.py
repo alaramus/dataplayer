@@ -3,6 +3,7 @@
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import SystemReport, report_for
 from app.adapters.postgres.timescale.profile import discover
+from app.adapters.postgres.timescale.report_access import require_report
 from app.adapters.postgres.timescale.reports import BY_ID, TIMESCALE_SECTION_ID
 from app.adapters.protocol import NodeNotFound
 
@@ -28,5 +29,6 @@ async def resolve_report(
         if report is None:
             raise NodeNotFound(node_id)
         await require_timescale(session)
+        await require_report(session, report)
         return report
     return None

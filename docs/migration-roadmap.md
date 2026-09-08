@@ -175,11 +175,17 @@ Continuous aggregates using the baseline public-view columns. Catalog paths,
 fetch/export, SQL content and query generation share a live report resolver;
 page/export queries append schema/name ordering at the outer level. Tests are
 written but have not been run.
-Next: extend report-specific public API discovery and add Chunks, Dimensions,
-and Policies and jobs, preserving integer boundaries losslessly. Then add
-bounded Details facts/related views, the feature UI and isolated compatibility
-fixtures before T1 acceptance. The two initial reports currently list identities
-only; additional metadata must be gated by its actual public-view requirements.
+Chunks, Dimensions, and Policies and jobs are now implemented. Their shared
+resolver checks extension-owned public-view columns and read access on opening;
+missing optional APIs refuse only the requested report. Integer boundaries stay
+numeric in SQL and cross the cell boundary losslessly; calendar intervals are
+source text. Tests are written but have not been run.
+Next: add bounded Details facts/related views, the feature UI and isolated
+compatibility fixtures before T1 acceptance. Hypertables and Continuous
+aggregates currently list identities only; extend their metadata with explicit
+public-view requirements. The job report lists identity and scheduling settings;
+typed policy parameters and public job statistics remain. Do not expose arbitrary
+custom-job configuration or error text as policy metadata.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

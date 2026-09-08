@@ -698,6 +698,15 @@ are written with implementation and run only with the user's approval.
 
 ## Upstream references
 
+The initial Chunks, Dimensions and jobs report projections were also compared
+with [the 2.18.0 public view definitions](https://github.com/timescale/timescaledb/blob/2.18.0/sql/views.sql)
+on 2026-09-08. This is API evidence, not a tested compatibility claim. Report
+opening validates extension membership, required columns and read access.
+Intervals remain source text and integer boundaries use the existing lossless
+cell transport. The initial job projection omits arbitrary configuration and
+error text because custom jobs can store secrets there; typed policy parameters
+and public job statistics remain to be delivered.
+
 Read on 2026-09-07. Public APIs are evidence for supported strategies, not a
 substitute for testing the deployment/version combinations advertised here.
 

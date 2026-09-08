@@ -18,9 +18,12 @@ backup/restore offers, admission and job execution now refuse Timescale targets.
 Source archive inspection uses a private temporary copy and a complete bounded
 custom-archive inventory; its tests are written but have not been run.
 The discovered System section includes identity reports for Hypertables and
-Continuous aggregates, with shared resolution for catalog, fetch/export and SQL
-surfaces and outer schema/name ordering. Chunks, Dimensions, Policies and jobs,
-additional report metadata and Details navigation remain. Report tests have not
+Continuous aggregates plus Chunks, Dimensions, and Policies and jobs. Shared
+resolution covers catalog paths, fetch/export and SQL surfaces; outer ordering
+uses each report's stable identity. Optional report APIs are checked on opening,
+including extension ownership, projected columns and read access. A missing
+optional view refuses that report without disabling baseline inspection.
+Additional report metadata and Details navigation remain. Report tests have not
 been run. T2 adds bounded
 changes and T3 adds owned operations. The
 [roadmap](../../migration-roadmap.md) tracks delivery.
@@ -104,6 +107,13 @@ Unavailable totals stay null; on-demand statistics use public APIs and a
 five-second inspection timeout. Time boundaries and integer boundaries are
 different shapes, with large integers carried losslessly as decimal strings.
 Private Timescale catalogs are not an inaccessible-view fallback.
+
+The initial job report lists native job identity, target, routine, ownership and
+scheduling settings. Arbitrary job configuration and error text are not selected:
+custom routines can put secrets in both. Typed policy parameters and public job
+statistics remain follow-ups. Interval fields are selected as source text to
+retain calendar units; integer boundary fields remain numeric for source-side
+ordering and use D23's lossless decimal-string cell transport.
 
 Deliberate limits: no new `hypertable`, `continuous_aggregate` or `chunk` node
 kind; no first-class chunk rows view in T1. Later chunk actions target the
