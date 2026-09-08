@@ -6,49 +6,16 @@ Read alongside [contract.md](contract.md), [relations.md](relations.md),
 [actions.md](actions.md), [connecting.md](connecting.md) and
 [owned jobs](../jobs.md).
 
-**Implementation status:** T1 is in progress. The runtime-feature contract and
-read-only PostgreSQL discovery, relation classification and relation-level
-read-only guards and registered relation-action guards are implemented, with
-tests written but not yet run. Rename, move, drop previews/execution and model
-downloads consult the shared classification, including schema model members.
-Internal relation membership and dedicated namespace protection are implemented.
-Schema mutation/cascade guards and schema-level action offers are implemented;
-dependency inspection is bounded to 1000 objects and five seconds. Instance-level
-backup/restore offers, admission and job execution now refuse Timescale targets.
-Source archive inspection uses a private temporary copy and a complete bounded
-custom-archive inventory; its tests are written but have not been run.
-The discovered System section includes metadata reports for Hypertables and
-Continuous aggregates plus Chunks, Dimensions, and Policies and jobs. Shared
-resolution covers catalog paths, fetch/export and SQL surfaces; outer ordering
-uses each report's stable identity. Optional report APIs are checked on opening,
-including extension ownership, projected columns and read access. A missing
-optional view refuses that report without disabling baseline inspection.
-Details renders specialization and report links with editable filters, reusing
-the workspace's filtered-row navigation. Optional typed Details metadata now
-reads hypertable counts/configuration and aggregate identities/configuration;
-failures retain the basic summary. Public-function size/compression statistics
-have a bounded reader, typed summary transport and Details rendering. Current
-storage and recorded compression sizes have distinct labels, exact byte strings
-and unavailable reasons. Component tests are written but have not been run.
-Hypertable and aggregate inventories include owners, configuration,
-hypertable counts and aggregate source identities. Report and Details tests have not
-been run. T2 adds bounded
-changes and T3 adds owned operations. The
-[roadmap](../../migration-roadmap.md) tracks delivery.
-
-Connection Options displays runtime features for saved enabled connections,
-with installed version, state and safe reason. Component tests and a mocked
-feature-response browser scenario are written but have not been run.
-
-The [isolated compatibility sources](../../../backend/compatibility/timescale/README.md)
-pin 2.17.2/PG16 and 2.18.0/PG16 images for legacy and Hypercore storage. Both
-include a separate plain database, mixed storage, integer precision samples and
-restricted source roles. Neither source has been started or validated. The
-adapter harness lives outside the application's autouse database fixtures.
-Its written scenarios cover discovery, metadata agreement, mixed-storage reads
-and export, report scope/paging, permission failures and direct insert/DDL
-refusals for specialised and internal relations. These remain unrun acceptance
-scenarios, not compatibility evidence.
+**Implementation status:** T1 inspection and protection are implemented; full
+acceptance remains open. Discovery, specialization, paged public reports,
+Details metadata/statistics and navigation, runtime features in Options, and
+structured-operation/backup/restore guards have tests. The isolated T1 matrix
+passed on Timescale 2.17.2 and 2.18.0, both PostgreSQL 16.6. Targeted API, adapter,
+component and browser checks also passed in the interrupted 2026-09-08 session.
+The [validation record](../../../backend/compatibility/timescale/README.md#validation-record-2026-09-08)
+records recovered command results and limits; it does not claim full-suite or
+mutation compatibility. The [roadmap](../../migration-roadmap.md) names the
+remaining acceptance work. T2 bounded changes and T3 owned operations are pending.
 
 ## D119. Timescale is composed into PostgreSQL without another source identity
 

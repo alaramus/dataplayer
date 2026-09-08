@@ -153,103 +153,24 @@ Each slice has its own acceptance criteria there. Exact source-image pins and
 the tested compatibility matrix are recorded with implementation, not inferred
 from a generic Timescale version label.
 
-Progress: the runtime-feature models/protocol/endpoint and generated client are
-committed in `fd79154`. PostgreSQL Timescale discovery is implemented at the
-current branch head. The typed relation-specialization wire contract is the
-current slice. Tests are written but have not been run; the shared PostgreSQL
-relation classifier and relation-level row/structure/DDL guards are implemented
-at the current branch head. Registered relation actions now guard rename, move,
-drop (including set execution and previews) and model-code downloads, including
-schema members. Dedicated Timescale namespaces and internal relation membership
-(chunks, materialisations and extension-owned relations) are now protected.
-Schema changes, destination creation, schema-level action offers and cascade
-dependencies now consult those guards. Cascade scope inspection is bounded and
-read-only. Instance-level backup/restore offers, admission and job execution
-now refuse Timescale targets and unknown extension status. Their tests are
-written but have not been run. Commit `15a2357` adds source archive inspection:
-restore uses a private temporary copy, a complete verbose custom-archive TOC,
-and byte, entry-count and execution-time limits. Timescale-bearing, ambiguous
-or incomplete inventories refuse before restore. Validation remains pending.
-The discovery-gated System/TimescaleDB section now exposes Hypertables and
-Continuous aggregates using the baseline public-view columns. Catalog paths,
-fetch/export, SQL content and query generation share a live report resolver;
-page/export queries append schema/name ordering at the outer level. Tests are
-written but have not been run.
-Chunks, Dimensions, and Policies and jobs are now implemented. Their shared
-resolver checks extension-owned public-view columns and read access on opening;
-missing optional APIs refuse only the requested report. Integer boundaries stay
-numeric in SQL and cross the cell boundary losslessly; calendar intervals are
-source text. Tests are written but have not been run.
-Details now renders relation specialization and source-issued related report
-links: hypertables link to Chunks, Dimensions and Policies and jobs, while
-continuous aggregates link to their own inventory entry. The bounded optional
-`related_views` field carries report nodes and ordinary editable filters; the
-workspace reuses its filtered-row navigation. The client has been regenerated;
-backend and component tests are written but have not been run.
-Optional Details facts now read hypertable dimension/chunk counts and compression
-configuration, or aggregate source/materialization identities and configuration.
-API inspection and the targeted read share a five-second deadline; failure leaves
-the basic summary and links intact. Chunk counts are lossless decimal strings;
-root analyze/vacuum timestamps are suppressed for specialised relations. The
-client has been regenerated. Backend and component tests remain unrun.
-Public-function size/compression statistics now have a bounded backend reader
-and typed summary transport. Function signatures, extension ownership/schema and
-execution permission are inspected before invocation; a single local result is
-required. Recorded compression bytes stay distinct from current detailed size,
-and partial inspection retains successful measurements. Client generation is
-complete. Details now renders current storage and recorded compression sizes
-separately, retaining exact byte strings, nulls and partial failure reasons.
-Backend and component tests are written but have not been run.
-Connection Options now displays discovered runtime features with version,
-distinct states and safe reasons. The read is per saved enabled connection,
-with explicit Reload and invalidation after catalog reload, connector edits and
-known structure effects. No polling is added. Unit/component tests and a mocked
-feature-response browser scenario are written but have not been run.
-Isolated compatibility source definitions now pin legacy 2.17.2/PG16 and
-columnstore 2.18.0/PG16 images, with tmpfs databases, mixed storage and restricted
-roles. See the [fixture README](../backend/compatibility/timescale/README.md).
-No containers have been started and no compatibility is claimed.
-The isolated adapter harness and acceptance scenarios are now written: per-database
-discovery, catalog/path/model/summary agreement, mixed-storage reads/export,
-lossless integers, schema-scoped chunk paging, restricted inspection permissions
-and direct insert/DDL refusals for specialised and internal relations. The harness
-is outside application database fixtures; commands are in its README. Nothing has
-been run, so the candidate matrix remains unverified.
-The lifecycle scenario now installs/removes the extension in its own empty
-fixture database and checks fresh-adapter discovery and report visibility.
-Feature-route scenarios now cover read grants, revocation, disabled connectors,
-administrator non-bypass and fresh answers after feature-state changes. These
-tests are written but have not been run.
-Browser transport scenarios now cover hypertable rows, disabled insert/delete,
-Details to Chunks navigation and removal of an initial report filter. API scenarios
-carry typed Timescale summary/row payloads through read grants, repeated reads,
-revocation and connector disablement, with a secret sentinel. Adapter responses
-are mocked in these UI/API tests; real-source semantics remain the isolated
-matrix's responsibility. These scenarios have not been run.
-The separate Job statistics report now projects public run outcomes, timestamps,
-durations and exact counters, with independent API/access checks. The isolated
-fixture records one manual run of its paused ten-year retention policy, and a
-scenario checks its public statistics. Unit and compatibility tests are written
-but have not been run. Recreate fixtures before validation to apply the new seed.
-Jobs now projects typed retention/compression/refresh parameter columns. Routine
-ownership/signature and value validation guard the projection; custom configuration
-stays hidden. Interval and integer offsets remain separate. The initial reader
-requires PG16+ and uses the report probe to refuse older sources. Unit and isolated
-compatibility scenarios cover malformed input, bigint precision, unrecognised
-routine identity and the seeded retention policy; none has been run.
-Next: request approval for targeted T1 validation, then fix failures and audit
-the T1 acceptance criteria before marking it complete. T2 remains gated on real
-source compatibility evidence.
-Run the isolated matrix and required
-checks only after explicit approval; do not enable T2 mutations on untested APIs.
-Hypertables and Continuous
-aggregates now include owners, counts and configuration, with explicit
-public-view requirements checked on opening. Missing metadata refuses only its
-report; discovery and other reports remain independent. Numeric chunk counts
-retain source-side sorting and lossless cell transport. Tests are written but
-have not been run. The job report lists identity and scheduling settings;
-typed policy parameters and public job statistics remain. Do not expose arbitrary
-custom-job configuration or error text as policy metadata.
+T1 implementation and its acceptance scenarios are written. The interrupted
+2026-09-08 validation session left fixes uncommitted; those fixes are now
+committed. Recovered command output confirms 40 isolated compatibility tests
+on Timescale 2.17.2 and 2.18.0 (both PostgreSQL 16.6), 43 targeted API/report
+tests, 82 selected adapter tests, 32 component tests and two browser scenarios.
+Backend static checks and frontend type-check also passed. The exact commands,
+scope and remaining acceptance gaps are in the
+[compatibility validation record](../backend/compatibility/timescale/README.md#validation-record-2026-09-08).
+These are recovered results, not fresh checks in the resumed session.
+
+Next: complete the remaining T1 acceptance audit and validate shared protection,
+backup/restore and ordinary PostgreSQL regressions with explicitly approved
+commands. The name-filtered adapter run does not cover every protection test.
+Full backend/frontend suites, frontend lint/build and the complete E2E suite
+were not part of that run. Documentation changed after its successful check
+and requires an approved recheck. T1 stays open until its required evidence is
+complete. T2 API mutation strategies still require their own real-source tests;
+the read-only compatibility matrix does not authorize them.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

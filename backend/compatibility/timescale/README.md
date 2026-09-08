@@ -5,17 +5,16 @@ They publish only loopback ports, use disposable public credentials, keep data
 in tmpfs and never mount application storage. Stopping a container discards its
 database; recreating it rebuilds the samples.
 
-## Candidate matrix
+## T1 inspection matrix
 
 | Service | Extension | PostgreSQL | Host port | Compressed storage | Status |
 | --- | --- | --- | --- | --- | --- |
-| `legacy` | 2.17.2 | 16 | 55417 | `compress_chunk` | Not run |
-| `columnstore` | 2.18.0 | 16 | 55418 | `convert_to_columnstore`, Hypercore access method | Not run |
+| `legacy` | 2.17.2 | 16.6 | 55417 | `compress_chunk` | Passed in 40-test combined run |
+| `columnstore` | 2.18.0 | 16.6 | 55418 | `convert_to_columnstore`, Hypercore access method | Passed in 40-test combined run |
 
 The exact image index digests are pinned in [compose.yml](compose.yml), for
 `linux/amd64`. They were resolved from Docker Hub on 2026-09-08. A version tag
-or matching public signature is not evidence of tested compatibility. Record
-the actual PostgreSQL version and test results here after an approved run.
+or matching public signature is not evidence of tested compatibility. The recovered approved run is recorded below.
 
 Both servers contain `plain_fixture` (hstore, no Timescale) and
 `timescale_fixture`. The latter holds:
@@ -61,13 +60,12 @@ The standalone harness must not load that fixture or run an ASGI application
 lifespan. API grant/browser acceptance lives separately in
 `backend/tests/connectors/test_timescale_read_access.py` and
 `frontend/tests/timescale-navigation.spec.ts`: those use mocked source responses
-and provide no real-storage evidence. Both are written but unrun.
+and provide no real-storage evidence. Both passed in the recorded targeted run.
 
 The harness now covers per-database discovery, catalog/path/model/summary
 agreement, mixed-storage reads and exports, exact integers, report paging and
 source permission failures. Direct insert and reconstructed-DDL refusal scenarios
-include hypertables, aggregates, chunks and materializations. These scenarios
-are written but have not been run.
+include hypertables, aggregates, chunks and materializations. These scenarios passed in the recorded isolated run.
 
 Run only after approval, from `backend/`, with both fixture servers ready:
 
@@ -86,3 +84,60 @@ loopback fixture options; no application database query is made by the harness.
 Outstanding acceptance:
 [Timescale architecture](../../../docs/architecture/sources/timescale.md),
 [T1 specification](../../../docs/superpowers/specs/2026-09-07-timescale-capabilities-design.md).
+
+## Validation record: 2026-09-08
+
+Recovered from command outputs in task
+`01a08166-826e-7691-bb55-8bcdea607011`, after the user approved targeted
+validation. No checks were rerun while committing the interrupted work.
+Both pinned services reported PostgreSQL 16.6. The matrix covers T1 inspection
+and refusals, not T2/T3 mutation semantics.
+
+| Working directory | Command / selection | Recovered result |
+| --- | --- | --- |
+| backend | `uv run pytest compatibility/timescale -q --tb=short` | 40 passed |
+| backend | `uv run pytest tests/adapters -q -k timescale --tb=short` | 82 passed, 1325 deselected |
+| backend | Targeted report/API command below | 43 passed |
+| backend | `uv run ruff check app tests compatibility` | Passed |
+| backend | `uv run mypy app` | 217 source files clean |
+| backend | `uv run lint-imports` | 6 contracts kept |
+| frontend | `bun run type-check` | Passed after fixture discriminator fix |
+| frontend | Component command below | 32 passed in 3 files |
+| frontend | `bunx eslint tests/timescale-navigation.spec.ts tests/timescale-features.spec.ts` | Passed |
+| frontend | Browser command below, localhost origin | 2 passed |
+| repository | `bash scripts/check-docs.sh` | Passed before this documentation update; recheck pending |
+
+Exact targeted selections:
+
+```bash
+# backend/
+uv run pytest tests/adapters/test_postgres_timescale_reports.py tests/adapters/test_postgres_timescale_report_access.py tests/adapters/test_postgres_timescale_policy_projection.py tests/adapters/test_postgres_timescale_job_statistics.py tests/connectors/test_feature_routes.py tests/connectors/test_timescale_read_access.py -q
+
+# frontend/
+bun run test:unit -- src/features/summary/SummaryView.spec.ts src/features/summary/facts.spec.ts src/features/connectors/ConnectorFeatures.spec.ts
+PLAYWRIGHT_BASE_URL=http://localhost:5173 bunx playwright test tests/timescale-features.spec.ts tests/timescale-navigation.spec.ts --reporter=line
+```
+
+Initial failures exposed unsafe constant-folded policy casts, missing background
+policy statistics, outdated refusal text, incomplete catalog fixtures and type/
+import errors. The committed fixes retain refusal assertions and validate input
+before casts. The statistics fixture enables its paused policy, waits at most
+30 seconds for a successful background run and pauses it again in cleanup.
+The initial browser run used 127.0.0.1 and could not log in because that origin
+was not allowed; the localhost retry passed.
+
+### Remaining T1 acceptance
+
+The isolated matrix supplies evidence for per-database discovery and lifecycle,
+logical identities, mixed-storage reads/export, bigint precision, report
+scope/paging, optional statistics, restricted roles and direct insert/DDL
+refusals. API and browser scenarios mock source responses and establish
+transport/UI behavior only.
+
+The `-k timescale` selection is not a full protection regression run. Before
+closing T1, explicitly cover shared row/DDL/import/action and cascade guards,
+backup/restore admission and archive inspection, ordinary PostgreSQL workflows,
+and existing reference/saved-view identity behavior against the specification.
+Tests under services were not included in the recorded pytest selections.
+Full backend/frontend suites, full frontend lint/build and full E2E were not
+run. Run additional validation only with user approval.

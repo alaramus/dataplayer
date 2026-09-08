@@ -3,9 +3,9 @@
 For adding a source type, or changing what every source must answer. What the
 two existing types are and where their code sits: [README.md](README.md).
 
-Planned Timescale extension support is in [timescale.md](timescale.md):
+Timescale extension support is in [timescale.md](timescale.md):
 one PostgreSQL identity, an instance-level feature answer alongside D13, and
-typed relation specialisations. Those decisions are not yet implemented.
+typed relation specialisations. T1 inspection is implemented; acceptance and later mutations remain pending.
 
 ## D1. A source type is registered in code
 
