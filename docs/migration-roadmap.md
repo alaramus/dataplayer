@@ -170,9 +170,16 @@ written but have not been run. Commit `15a2357` adds source archive inspection:
 restore uses a private temporary copy, a complete verbose custom-archive TOC,
 and byte, entry-count and execution-time limits. Timescale-bearing, ambiguous
 or incomplete inventories refuse before restore. Validation remains pending.
-Next: implement the Timescale public-view report registry and discovery-gated
-System section, then bounded report fetching and Details navigation. Finish
-the feature UI and isolated compatibility fixtures before T1 acceptance.
+The discovery-gated System/TimescaleDB section now exposes Hypertables and
+Continuous aggregates using the baseline public-view columns. Catalog paths,
+fetch/export, SQL content and query generation share a live report resolver;
+page/export queries append schema/name ordering at the outer level. Tests are
+written but have not been run.
+Next: extend report-specific public API discovery and add Chunks, Dimensions,
+and Policies and jobs, preserving integer boundaries losslessly. Then add
+bounded Details facts/related views, the feature UI and isolated compatibility
+fixtures before T1 acceptance. The two initial reports currently list identities
+only; additional metadata must be gated by its actual public-view requirements.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

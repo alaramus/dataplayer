@@ -15,8 +15,9 @@ from psycopg import sql
 
 from app.adapters.content import ContentRequest, ContentResult, SqlContent
 from app.adapters.postgres.relation_context import PostgresRelationContext
+from app.adapters.postgres.report_registry import resolve_report
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.system_reports import SystemReport, report_for
+from app.adapters.postgres.system_reports import SystemReport
 from app.adapters.protocol import NodeNotFound
 
 MAX_DDL_BYTES = 256 * 1024
@@ -117,7 +118,7 @@ class PostgresContent:
                 f'This PostgreSQL source does not offer the "{request.representation}" '
                 "content representation"
             )
-        report = report_for(request.node_id)
+        report = await resolve_report(self._session, request.node_id)
         if report is not None:
             return _report_statement(report)
 

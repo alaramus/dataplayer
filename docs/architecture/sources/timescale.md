@@ -17,7 +17,11 @@ dependency inspection is bounded to 1000 objects and five seconds. Instance-leve
 backup/restore offers, admission and job execution now refuse Timescale targets.
 Source archive inspection uses a private temporary copy and a complete bounded
 custom-archive inventory; its tests are written but have not been run.
-Reports and Details navigation remain. T2 adds bounded
+The discovered System section includes identity reports for Hypertables and
+Continuous aggregates, with shared resolution for catalog, fetch/export and SQL
+surfaces and outer schema/name ordering. Chunks, Dimensions, Policies and jobs,
+additional report metadata and Details navigation remain. Report tests have not
+been run. T2 adds bounded
 changes and T3 adds owned operations. The
 [roadmap](../../migration-roadmap.md) tracks delivery.
 

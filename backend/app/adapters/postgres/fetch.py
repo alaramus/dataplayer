@@ -22,13 +22,13 @@ from app.adapters.fetch import (
 )
 from app.adapters.postgres.catalog import is_system_schema
 from app.adapters.postgres.column_type import build_column_type
-from app.adapters.postgres.row_handle import encode_row_handle
 from app.adapters.postgres.relation_context import PostgresRelationContext
+from app.adapters.postgres.report_registry import resolve_report
+from app.adapters.postgres.row_handle import encode_row_handle
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import (
     SECTION_ID,
     SystemReport,
-    report_for,
 )
 from app.adapters.protocol import AdapterError
 from app.adapters.relation import ColumnType
@@ -156,6 +156,7 @@ class RelationFetchInfo:
     # Whether one of these rows opens on its own (D111).
     record_supported: bool = True
     record_reason: str | None = None
+    stable_order: tuple[str, ...] = ()
     # What the source says about reading this again, when it has an opinion.
     refresh_seconds: int | None = None
     # What the toolbar over this page offers beyond reading it. Everything for
@@ -334,7 +335,7 @@ class PostgresFetch:
         self, node_id: str
     ) -> tuple[sql.Composable, tuple[str, str] | None, RelationFetchInfo]:
         """What a node id selects from, and what is known about its rows."""
-        report = report_for(node_id)
+        report = await resolve_report(self._session, node_id)
         if report is not None:
             return (
                 sql.SQL("({}) AS report").format(report.statement),
@@ -398,6 +399,7 @@ class PostgresFetch:
             # would be these values in a column and nothing else.
             record_supported=False,
             record_reason=refused,
+            stable_order=report.stable_order,
             refresh_seconds=report.refresh_seconds,
             # A page of a report is still a page: it is downloaded, shared,
             # charted and opened as a query like any other. Only one command
@@ -818,7 +820,10 @@ def _tiebreak(info: RelationFetchInfo) -> list[sql.Composable]:
     """
     if info.row_identity == "physical":
         return [sql.SQL("tableoid"), sql.SQL("ctid")]
-    return [sql.SQL("{} ASC").format(sql.Identifier(name)) for name in info.primary_key]
+    return [
+        sql.SQL("{} ASC").format(sql.Identifier(name))
+        for name in (*info.primary_key, *info.stable_order)
+    ]
 
 
 def select_expression(column: FetchColumn) -> sql.Composed:

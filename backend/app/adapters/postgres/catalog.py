@@ -14,8 +14,8 @@ from app.adapters.postgres.relation_context import (
     PostgresRelationContext,
     SchemaRelationContext,
 )
+from app.adapters.postgres.report_registry import require_timescale, resolve_report
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.timescale.names import DEDICATED_SCHEMAS
 from app.adapters.postgres.system_reports import (
     REPORTS,
     SECTION_DESCRIPTION,
@@ -23,8 +23,11 @@ from app.adapters.postgres.system_reports import (
     SECTION_TITLE,
     SystemReport,
     is_section,
-    report_for,
 )
+from app.adapters.postgres.timescale.names import DEDICATED_SCHEMAS
+from app.adapters.postgres.timescale.profile import discover
+from app.adapters.postgres.timescale.reports import REPORTS as TIMESCALE_REPORTS
+from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 from app.adapters.protocol import AdapterError, NodeNotFound
 
 _SYSTEM_SCHEMAS = ("information_schema",)
@@ -69,7 +72,16 @@ class PostgresCatalog:
         if node_id is None:
             return [*await self._list_schemas(), _section_node()]
         if is_section(node_id):
-            return [_report_node(report) for report in REPORTS]
+            nodes: list[CatalogNode] = [_report_node(report) for report in REPORTS]
+            if (await discover(self._session)).available:
+                nodes.append(_timescale_section_node())
+            return nodes
+        if node_id == TIMESCALE_SECTION_ID:
+            await require_timescale(self._session)
+            return [_report_node(report) for report in TIMESCALE_REPORTS]
+        if node_id.startswith(f"{SECTION_ID}."):
+            await self.path_to(node_id)
+            return []
         return await self._list_relations(node_id)
 
     async def relation_action_reason(self, schema: str, relation: str) -> str | None:
@@ -156,8 +168,13 @@ class PostgresCatalog:
         """
         if is_section(node_id):
             return [_section_node()]
-        report = report_for(node_id)
+        if node_id == TIMESCALE_SECTION_ID:
+            await require_timescale(self._session)
+            return [_section_node(), _timescale_section_node()]
+        report = await resolve_report(self._session, node_id)
         if report is not None:
+            if report in TIMESCALE_REPORTS:
+                return [_section_node(), _timescale_section_node(), _report_node(report)]
             return [_section_node(), _report_node(report)]
         # An id in the reports' namespace naming no report is gone rather than
         # a relation to look for: no schema can be called `pg_dataplayer`,
@@ -225,6 +242,16 @@ def _section_node() -> ReportNode:
         id=SECTION_ID,
         name=SECTION_TITLE,
         description=SECTION_DESCRIPTION,
+        has_children=True,
+        representations=[],
+    )
+
+
+def _timescale_section_node() -> ReportNode:
+    return ReportNode(
+        id=TIMESCALE_SECTION_ID,
+        name="TimescaleDB",
+        description="Public TimescaleDB metadata",
         has_children=True,
         representations=[],
     )

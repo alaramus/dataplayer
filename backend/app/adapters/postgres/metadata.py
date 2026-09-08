@@ -12,8 +12,8 @@ import textwrap
 
 from psycopg import sql
 
+from app.adapters.postgres.report_registry import resolve_report
 from app.adapters.postgres.session import PostgresSession
-from app.adapters.postgres.system_reports import report_for
 from app.adapters.query import (
     ColumnSummary,
     GeneratedQuery,
@@ -182,7 +182,7 @@ class PostgresGeneration:
         self._metadata = metadata
 
     async def generate(self, request: GenerateQueryRequest) -> GeneratedQuery:
-        report = report_for(request.node_id)
+        report = await resolve_report(self._session, request.node_id)
         if report is not None:
             # A report is a statement rather than a relation, so what a console
             # opens on is that statement itself: there is nothing to select

@@ -34,6 +34,7 @@ class SystemReport:
     # How often this answer is worth reading again, when the report has an
     # opinion. Most do not: a list of tablespaces is the same list tomorrow.
     refresh_seconds: int | None = None
+    stable_order: tuple[str, ...] = ()
 
     @property
     def node_id(self) -> str:
