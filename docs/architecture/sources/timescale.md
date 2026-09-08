@@ -179,7 +179,17 @@ Unrun jobs may have no statistics row; absence is not a zero run count. Timestam
 are source text to preserve PostgreSQL infinity values, durations retain source
 interval text, and counters remain numeric for sorting and lossless transport.
 The report independently validates view ownership, columns and read access.
-Typed policy parameters remain a follow-up. Interval fields are selected as source text to
+The jobs report now projects allowlisted retention, compression and refresh
+parameters after verifying the configured routine's extension ownership and
+`(integer, jsonb)` procedure signature. Interval and integer lag columns are
+separate; canonical intervals retain calendar units and integers stay numeric.
+JSON type, length and PostgreSQL input validation precede casts. Null parameter
+cells mean absent, inapplicable or invalid, not zero; the report does not claim
+to validate policy execution semantics. Unknown/custom routines have no policy
+kind or parameter values. Raw config never leaves the source. This projection
+requires PostgreSQL's `pg_input_is_valid` (PG16+); older servers refuse this
+optional report at its normal read probe. Other reports remain independent.
+Interval fields are selected as source text to
 retain calendar units; integer boundary fields remain numeric for source-side
 ordering and use D23's lossless decimal-string cell transport.
 

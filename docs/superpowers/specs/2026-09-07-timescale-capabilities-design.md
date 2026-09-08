@@ -745,6 +745,19 @@ are written with implementation and run only with the user's approval.
 
 ## Upstream references
 
+Policy parameter inspection projects retention/compression lag and creation-age
+intervals, plus continuous-aggregate refresh start/end offsets. Integer and
+interval columns are separate. An extension-owned `(integer, jsonb)` procedure
+must match the configured schema/name and an allowlisted policy name. JSON type,
+bounded length and PG16 input validation guard each conversion. Invalid, absent
+and inapplicable values stay null; no execution validity is inferred. Custom
+job config, extra keys and malformed strings are never returned. This initial
+reader requires PG16+; compatibility scenarios are written but unrun.
+Evidence: the 2.18.0
+[retention implementation](https://github.com/timescale/timescaledb/blob/2.18.0/tsl/src/bgw_policy/retention_api.c),
+[compression implementation](https://github.com/timescale/timescaledb/blob/2.18.0/tsl/src/bgw_policy/compression_api.c)
+and [refresh implementation](https://github.com/timescale/timescaledb/blob/2.18.0/tsl/src/bgw_policy/continuous_aggregate_api.c).
+
 The Job statistics report reads `timescaledb_information.job_stats` separately
 from the jobs inventory: the public view omits jobs without recorded runs.
 This keeps the inventory available when the optional statistics API is missing.

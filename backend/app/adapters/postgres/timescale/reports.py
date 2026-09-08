@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from psycopg import sql
 
 from app.adapters.postgres.system_reports import SECTION_ID, SystemReport
+from app.adapters.postgres.timescale.policy_projection import policy_columns
 
 TIMESCALE_SECTION_ID = f"{SECTION_ID}.timescale.v1"
 
@@ -18,22 +19,22 @@ class TimescaleReport(SystemReport):
 def _view_report(
     key: str, title: str, description: str, view: str,
     columns: tuple[str, ...], stable_order: tuple[str, ...],
-    *, text_columns: frozenset[str] = frozenset(),
+    *, text_columns: frozenset[str] = frozenset(), policies: bool = False,
 ) -> TimescaleReport:
     projections = sql.SQL(", ").join(
         sql.SQL("{}::text AS {}").format(sql.Identifier(name), sql.Identifier(name))
         if name in text_columns else sql.Identifier(name)
         for name in columns
     )
-    statement = sql.SQL("SELECT {} FROM {} ORDER BY {}").format(
-        projections,
+    statement = sql.SQL("SELECT {} FROM {} AS source ORDER BY {}").format(
+        sql.SQL(", ").join((projections, *policy_columns())) if policies else projections,
         sql.Identifier("timescaledb_information", view),
         sql.SQL(", ").join(sql.Identifier(name) for name in stable_order),
     )
     return TimescaleReport(
         key=f"timescale.v1.{key}", title=title, description=description,
         statement=sql.SQL(statement.as_string()), stable_order=stable_order,
-        public_view=view, required_columns=columns,
+        public_view=view, required_columns=(*columns, "config") if policies else columns,
     )
 
 
@@ -96,6 +97,7 @@ REPORTS = (
         ),
         ("job_id",),
         text_columns=frozenset({"schedule_interval", "max_runtime", "retry_period"}),
+        policies=True,
     ),
     _view_report(
         "job_stats", "Job statistics",
