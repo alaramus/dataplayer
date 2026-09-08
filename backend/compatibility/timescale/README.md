@@ -55,5 +55,24 @@ The standalone harness must not load that fixture or run an ASGI application
 lifespan. API grant/browser acceptance remains a separate follow-up.
 
 Contract and outstanding acceptance:
+The harness now covers per-database discovery, catalog/path/model/summary
+agreement, mixed-storage reads and exports, exact integers, report paging and
+source permission failures. These scenarios are written but have not been run.
+
+Run only after approval, from `backend/`, with both fixture servers ready:
+
+```bash
+uv run pytest compatibility/timescale -q
+uv run ruff check compatibility
+```
+
+Use the explicit compatibility path: `tests/` loads the application fixtures.
+The harness reuses the application's Windows-compatible loop factory and
+session loop settings, but starts no application lifespan or database fixtures.
+The adapter imports still load application settings, so the usual local
+backend configuration is required. Every source connection uses the explicit
+loopback fixture options; no application database query is made by the harness.
+
+Outstanding acceptance:
 [Timescale architecture](../../../docs/architecture/sources/timescale.md),
 [T1 specification](../../../docs/superpowers/specs/2026-09-07-timescale-capabilities-design.md).
