@@ -220,9 +220,14 @@ fixture database and checks fresh-adapter discovery and report visibility.
 Feature-route scenarios now cover read grants, revocation, disabled connectors,
 administrator non-bypass and fresh answers after feature-state changes. These
 tests are written but have not been run.
-Next: complete remaining T1 acceptance (browser navigation/disabled controls
-and Timescale metadata/row API grant coverage), then implement the remaining typed
-policy parameters and public job statistics. Run the isolated matrix and required
+Browser transport scenarios now cover hypertable rows, disabled insert/delete,
+Details to Chunks navigation and removal of an initial report filter. API scenarios
+carry typed Timescale summary/row payloads through read grants, repeated reads,
+revocation and connector disablement, with a secret sentinel. Adapter responses
+are mocked in these UI/API tests; real-source semantics remain the isolated
+matrix's responsibility. These scenarios have not been run.
+Next: implement the remaining typed policy parameters and public job statistics.
+Run the isolated matrix and required
 checks only after explicit approval; do not enable T2 mutations on untested APIs.
 Hypertables and Continuous
 aggregates now include owners, counts and configuration, with explicit

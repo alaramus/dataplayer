@@ -58,7 +58,10 @@ docker compose -f backend/compatibility/timescale/compose.yml down
 The adapter integration harness belongs outside `backend/tests/`: that
 directory's autouse database fixture initializes and deletes application users.
 The standalone harness must not load that fixture or run an ASGI application
-lifespan. API grant/browser acceptance remains a separate follow-up.
+lifespan. API grant/browser acceptance lives separately in
+`backend/tests/connectors/test_timescale_read_access.py` and
+`frontend/tests/timescale-navigation.spec.ts`: those use mocked source responses
+and provide no real-storage evidence. Both are written but unrun.
 
 The harness now covers per-database discovery, catalog/path/model/summary
 agreement, mixed-storage reads and exports, exact integers, report paging and
