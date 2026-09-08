@@ -146,7 +146,10 @@ async function putBack(filename: string) {
     @update:model-value="emit('update:connector', null)"
   >
     <div class="backups">
-      <AppBanner v-if="offer.isError.value" tone="warning">
+      <AppBanner
+        v-if="offer.isError.value"
+        tone="warning"
+      >
         {{ messageOf(offer.error.value, "Backup availability could not be checked") }}
       </AppBanner>
       <AppBanner

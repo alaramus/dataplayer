@@ -91,7 +91,9 @@ const errorText = computed(() =>
         divided
         data-testid="summary-related-views"
       >
-        <div class="summary-view__title">Related views</div>
+        <div class="summary-view__title">
+          Related views
+        </div>
         <AppButton
           v-for="view in query.data.value.related_views"
           :key="view.node.id"

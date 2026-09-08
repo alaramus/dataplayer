@@ -40,13 +40,21 @@ const states: Record<SourceFeature["state"], string> = {
     >
       Source features could not be inspected. Reload to try again.
     </AppBanner>
-    <dl v-else class="connector-features__facts">
-      <template v-for="feature in query.data.value?.features" :key="feature.code">
+    <dl
+      v-else
+      class="connector-features__facts"
+    >
+      <template
+        v-for="feature in query.data.value?.features"
+        :key="feature.code"
+      >
         <dt>{{ feature.title }}</dt>
         <dd :data-testid="`source-feature-${feature.code}`">
           <span v-if="feature.installed_version">{{ feature.installed_version }} — </span>
           {{ states[feature.state] }}
-          <div v-if="feature.reason">{{ feature.reason }}</div>
+          <div v-if="feature.reason">
+            {{ feature.reason }}
+          </div>
         </dd>
       </template>
     </dl>
