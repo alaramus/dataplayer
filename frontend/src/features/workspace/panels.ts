@@ -641,6 +641,8 @@ export function componentOf(panel: Panel, key: string): Component {
           connectorId: panel.connectorId,
           nodeId: panel.nodeId,
           title: panel.title,
+          connectorName: panel.connectorName,
+          adapterType: panel.adapterType,
         })
       )
     case "record":

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, toRef } from "vue"
 
+import type { RelatedView } from "@/client"
 import { useNodeSummary } from "@/features/summary/api"
 import { describe } from "@/features/summary/facts"
 import { messageOf } from "@/shared/api/errors"
-import { AppBanner, AppSection, AppSpinner } from "@/shared/ui"
+import { AppBanner, AppButton, AppSection, AppSpinner } from "@/shared/ui"
 
 /**
  * What one node is: its own facts, and what its format states about itself.
@@ -14,6 +15,7 @@ import { AppBanner, AppSection, AppSpinner } from "@/shared/ui"
  * one call to a pure function, tested beside it without mounting anything.
  */
 const props = defineProps<{ connectorId: string; nodeId: string }>()
+const emit = defineEmits<{ openRelated: [view: RelatedView] }>()
 const connectorId = toRef(props, "connectorId")
 const nodeId = toRef(props, "nodeId")
 const query = useNodeSummary(connectorId, nodeId)
@@ -82,6 +84,21 @@ const errorText = computed(() =>
             </dd>
           </template>
         </dl>
+      </AppSection>
+
+      <AppSection
+        v-if="query.data.value.related_views?.length"
+        divided
+        data-testid="summary-related-views"
+      >
+        <div class="summary-view__title">Related views</div>
+        <AppButton
+          v-for="view in query.data.value.related_views"
+          :key="view.node.id"
+          variant="secondary"
+          :label="view.node.name"
+          @click="emit('openRelated', view)"
+        />
       </AppSection>
 
       <!-- What the source could not say, and why: bytes that are not the

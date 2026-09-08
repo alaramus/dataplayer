@@ -762,6 +762,7 @@ export type {
   RehearsalStart,
   RehearsedStatement,
   RejectedCell,
+  RelatedView,
   RelationContents,
   RelationCreated,
   RelationModel,

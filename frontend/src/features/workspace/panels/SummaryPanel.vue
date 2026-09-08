@@ -1,21 +1,39 @@
 <script setup lang="ts">
 import { useTemplateRef } from "vue"
 
+import type { RelatedView } from "@/client"
 import SummaryView from "@/features/summary/SummaryView.vue"
 import PanelCommands from "@/features/workspace/PanelCommands.vue"
 import { useReloadable } from "@/features/workspace/reloadable"
+import { useWorkspaceActions } from "@/features/workspace/state"
 
 const props = defineProps<{
   panelId: string
   connectorId: string
   nodeId: string
   title: string
+  connectorName: string
+  adapterType: string
 }>()
+const workspace = useWorkspaceActions()
 const view = useTemplateRef<{ reload: () => Promise<void> }>("view")
 
 useReloadable(props.panelId, async () => {
   await view.value?.reload()
 })
+
+function openRelated(view: RelatedView) {
+  workspace.followReference({
+    connectorId: props.connectorId,
+    connectorName: props.connectorName,
+    adapterType: props.adapterType,
+    target: {
+      kind: "rows",
+      node: { ...view.node, kind: "report" },
+      filters: view.filters ?? [],
+    },
+  })
+}
 </script>
 
 <template>
@@ -31,6 +49,7 @@ useReloadable(props.panelId, async () => {
       class="summary-panel__view"
       :connector-id="connectorId"
       :node-id="nodeId"
+      @open-related="openRelated"
     />
   </div>
 </template>

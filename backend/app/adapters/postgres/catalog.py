@@ -72,13 +72,13 @@ class PostgresCatalog:
         if node_id is None:
             return [*await self._list_schemas(), _section_node()]
         if is_section(node_id):
-            nodes: list[CatalogNode] = [_report_node(report) for report in REPORTS]
+            nodes: list[CatalogNode] = [report_node(report) for report in REPORTS]
             if (await discover(self._session)).available:
                 nodes.append(_timescale_section_node())
             return nodes
         if node_id == TIMESCALE_SECTION_ID:
             await require_timescale(self._session)
-            return [_report_node(report) for report in TIMESCALE_REPORTS]
+            return [report_node(report) for report in TIMESCALE_REPORTS]
         if node_id.startswith(f"{SECTION_ID}."):
             await self.path_to(node_id)
             return []
@@ -174,8 +174,8 @@ class PostgresCatalog:
         report = await resolve_report(self._session, node_id)
         if report is not None:
             if report in TIMESCALE_REPORTS:
-                return [_section_node(), _timescale_section_node(), _report_node(report)]
-            return [_section_node(), _report_node(report)]
+                return [_section_node(), _timescale_section_node(), report_node(report)]
+            return [_section_node(), report_node(report)]
         # An id in the reports' namespace naming no report is gone rather than
         # a relation to look for: no schema can be called `pg_dataplayer`,
         # because PostgreSQL reserves the prefix.
@@ -257,7 +257,7 @@ def _timescale_section_node() -> ReportNode:
     )
 
 
-def _report_node(report: SystemReport) -> ReportNode:
+def report_node(report: SystemReport) -> ReportNode:
     return ReportNode(
         id=report.node_id,
         name=report.title,

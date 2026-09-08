@@ -23,7 +23,9 @@ resolution covers catalog paths, fetch/export and SQL surfaces; outer ordering
 uses each report's stable identity. Optional report APIs are checked on opening,
 including extension ownership, projected columns and read access. A missing
 optional view refuses that report without disabling baseline inspection.
-Additional report metadata and Details navigation remain. Report tests have not
+Details renders specialization and report links with editable filters, reusing
+the workspace's filtered-row navigation. Optional detailed statistics and
+additional report metadata remain. Report and Details tests have not
 been run. T2 adds bounded
 changes and T3 adds owned operations. The
 [roadmap](../../migration-roadmap.md) tracks delivery.
@@ -101,6 +103,13 @@ Details exposes bounded typed facts and `related_views`: source-issued report
 IDs with initial closed-vocabulary filters. Opening Chunks from a hypertable
 therefore opens the existing report filtered to that relation, with visible,
 editable filters. These defaults are navigation, not access restrictions.
+
+`NodeSummary.related_views` defaults to an empty list, with at most 16 entries.
+Each entry contains a report node and at most 16 ordinary filters. Hypertables
+link to their Chunks, Dimensions and jobs reports using both schema and name;
+continuous aggregates link to their logical view entry. These links reuse the
+classified relation identity without probing optional report APIs during
+summary loading; opening the target repeats the report's own API checks.
 
 Root relation size/row statistics are not presented as whole-hypertable totals.
 Unavailable totals stay null; on-demand statistics use public APIs and a

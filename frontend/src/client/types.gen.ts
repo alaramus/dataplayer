@@ -4762,6 +4762,10 @@ export type NodeSummary = {
    * Notice
    */
   notice?: string | null
+  /**
+   * Related Views
+   */
+  related_views?: Array<RelatedView>
 }
 
 /**
@@ -5853,6 +5857,29 @@ export type RejectedCell = {
    * Column
    */
   column: string
+}
+
+/**
+ * RelatedView
+ *
+ * A source-issued report with editable initial filters (D121).
+ */
+export type RelatedView = {
+  node: ReportNode
+  /**
+   * Filters
+   */
+  filters?: Array<
+    | ({
+        op: "contains" | "eq" | "gt" | "gte" | "lt" | "lte" | "ne" | "starts_with"
+      } & ScalarFilter)
+    | ({
+        op: "in"
+      } & InFilter)
+    | ({
+        op: "is_not_null" | "is_null"
+      } & NullFilter)
+  >
 }
 
 /**

@@ -19,7 +19,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.adapters.catalog import NodeKind
+from app.adapters.catalog import NodeKind, ReportNode
 from app.adapters.content import (
     AudioMediaType,
     ImageMediaType,
@@ -28,6 +28,7 @@ from app.adapters.content import (
 )
 from app.adapters.dataset import ParquetDataset, WorksheetDataset
 from app.adapters.delimited import DelimiterName
+from app.adapters.fetch import Filter
 from app.adapters.relation import Persistence, RelationKind
 from app.adapters.specializations import RelationSpecialization
 
@@ -233,6 +234,15 @@ NodeContents = Annotated[
 ]
 
 
+class RelatedView(BaseModel):
+    """A source-issued report with editable initial filters (D121)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    node: ReportNode
+    filters: list[Filter] = Field(default_factory=list, max_length=16)
+
+
 class NodeSummary(BaseModel):
     """One node described by the source that holds it.
 
@@ -262,3 +272,4 @@ class NodeSummary(BaseModel):
     permissions: str | None = None
     contents: NodeContents | None = None
     notice: str | None = None
+    related_views: list[RelatedView] = Field(default_factory=list, max_length=16)

@@ -19,6 +19,7 @@ from app.adapters.catalog import NodeKind
 from app.adapters.postgres.catalog import DDL_REPRESENTATION, TABLE_REPRESENTATION
 from app.adapters.postgres.relation import PostgresRelation
 from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.timescale.summary import related_views
 from app.adapters.relation import RelationKind, RelationModel
 from app.adapters.summary import NodeSummary, RelationContents
 
@@ -71,6 +72,7 @@ class PostgresSummaries:
             # opened as" is answered once and in one place (D47).
             representations=representations,
             size_bytes=model.size_bytes,
+            related_views=related_views(model),
             contents=RelationContents(
                 relation_kind=model.kind,
                 specialization=model.specialization,

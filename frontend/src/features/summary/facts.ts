@@ -224,6 +224,15 @@ function contentsFacts(contents: NodeContents): Fact[] {
     }
     case "relation": {
       const facts: Fact[] = []
+      if (contents.specialization) {
+        facts.push({
+          label: "Specialization",
+          value:
+            contents.specialization.kind === "timescale_hypertable"
+              ? "TimescaleDB hypertable"
+              : "TimescaleDB continuous aggregate",
+        })
+      }
       // Only where it says something the "Kind" line above does not: there a
       // table is a table and a materialized view is only a view.
       const stored = STORED_AS[contents.relation_kind]
