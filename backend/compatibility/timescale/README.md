@@ -9,8 +9,8 @@ database; recreating it rebuilds the samples.
 
 | Service | Extension | PostgreSQL | Host port | Compressed storage | Status |
 | --- | --- | --- | --- | --- | --- |
-| `legacy` | 2.17.2 | 16.6 | 55417 | `compress_chunk` | Passed in 40-test combined run |
-| `columnstore` | 2.18.0 | 16.6 | 55418 | `convert_to_columnstore`, Hypercore access method | Passed in 40-test combined run |
+| `legacy` | 2.17.2 | 16.6 | 55417 | `compress_chunk` | Passed in 50-test combined run |
+| `columnstore` | 2.18.0 | 16.6 | 55418 | `convert_to_columnstore`, Hypercore access method | Passed in 50-test combined run |
 
 The exact image index digests are pinned in [compose.yml](compose.yml), for
 `linux/amd64`. They were resolved from Docker Hub on 2026-09-08. A version tag
@@ -134,13 +134,10 @@ scope/paging, optional statistics, restricted roles and direct insert/DDL
 refusals. API and browser scenarios mock source responses and establish
 transport/UI behavior only.
 
-The `-k timescale` selection is not a full protection regression run. Before
-closing T1, explicitly cover shared row/DDL/import/action and cascade guards,
-backup/restore admission and archive inspection, ordinary PostgreSQL workflows,
-and existing reference/saved-view identity behavior against the specification.
-The initial selections omitted services; the follow-up below covers backup/restore services.
-Full backend/frontend suites, full frontend lint/build and full E2E were not
-run. Run additional validation only with user approval.
+The follow-up runs below cover shared guards, backup/restore, ordinary
+PostgreSQL workflows and Timescale reference/workspace round trips.
+Full backend/frontend suites, full frontend lint/build and full E2E remain
+pending. Run additional validation only with user approval.
 
 ### Follow-up: shared-operation acceptance
 
@@ -173,7 +170,48 @@ uv run ruff check tests/adapters/test_postgres_backup.py tests/adapters/test_pos
 T1 audit: discovery/lifecycle, specialization, rows/export, reports/statistics,
 grant transport and browser navigation have the recorded targeted evidence.
 Shared guards and backup/restore now have the additional evidence above.
-Real-source cross-schema cascade protection and Timescale reference/saved-view
-round trips still need explicit acceptance evidence; ordinary reference
-regressions alone do not prove those Timescale-specific cases. Full required
-backend/frontend validation remains pending and T1 is not marked complete.
+The relationship/workspace follow-up below supplies cross-schema cascade and
+Timescale navigation evidence. Full required backend/frontend validation
+remains pending and T1 is not marked complete.
+
+### Follow-up: cross-schema relationships and workspace restoration
+
+The isolated relationship fixture creates two uniquely named schemas with an
+ordinary referenced table and a populated hypertable carrying a foreign key.
+Cleanup removes only those fixture schemas, including on failure.
+
+- Dropping the ordinary parent relation or schema with cascade refuses in both
+  preview and execution, because the dependency scope reaches the hypertable
+  in the other schema. Source rows and the foreign key remain unchanged.
+- Outgoing and incoming references round-trip through source-issued filters.
+  Reopening a serialized fetch request with a fresh adapter retains the logical
+  hypertable ID, specialization, matching rows and read-only flags.
+- The browser scenario now reloads after editing the Chunks filter and again
+  after returning to the hypertable tab. It verifies restored filters, one tab
+  for the original logical relation, exact bigint text and disabled writes.
+  Browser transport remains mocked; real reference semantics are exercised by
+  the isolated fixture.
+
+The first fixture attempt incorrectly used the row-query helper for statements
+without result sets; switching setup/cleanup to schema_change fixed it.
+The four relationship cases then passed on both pinned versions. The extended
+browser scenario passed on localhost. Targeted Ruff, frontend type-check and
+ESLint passed.
+
+Commands:
+
+```bash
+# backend/
+uv run pytest compatibility/timescale/test_relationships.py -q --tb=short
+uv run ruff check compatibility/timescale/test_relationships.py
+
+# frontend/
+bun run type-check
+bunx eslint tests/timescale-navigation.spec.ts
+PLAYWRIGHT_BASE_URL=http://localhost:5173 bunx playwright test tests/timescale-navigation.spec.ts --reporter=line
+```
+
+The complete isolated matrix was rerun after adding these fixtures:
+`uv run pytest compatibility/timescale -q --tb=short` — 50 passed in 46.04s.
+This supersedes the initial 40-case matrix; it still certifies inspection and
+refusals, not T2/T3 mutation strategies.

@@ -170,12 +170,19 @@ tests. New real-source direct update/delete, bulk insert and column-DDL refusal
 scenarios passed within a 14-test protection run. These changes are committed;
 the validation record above carries exact commands and limits.
 
-Next: add real-source cross-schema cascade and Timescale reference/saved-view
-acceptance evidence. Then obtain approval for the remaining full required
-backend/frontend validation before closing T1. Full suites and frontend
-lint/build were not included in the targeted runs. T2 API mutation strategies
-still require their own real-source tests; inspection/refusal evidence does
-not certify them.
+Cross-schema cascade and reference acceptance is now implemented and tested
+on both pinned sources: four cases pass. Preview/execution refuse a cascade
+from an ordinary parent that reaches a hypertable; references and serialized
+fetch requests retain logical identities and filtered rows. The browser
+scenario also passes after reloading edited Chunks filters and the hypertable
+tab. The complete isolated matrix then passed all 50 cases. Targeted Ruff,
+frontend type-check and ESLint are clean.
+
+Next: obtain approval for the remaining full required backend/frontend
+validation, resolve any failures and close T1 only when those checks are clean.
+Full suites and frontend lint/build were not included in the targeted runs.
+T2 API mutation strategies still require their own real-source tests;
+inspection/refusal evidence does not certify them.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation
