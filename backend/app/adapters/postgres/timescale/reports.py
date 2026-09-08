@@ -97,6 +97,22 @@ REPORTS = (
         ("job_id",),
         text_columns=frozenset({"schedule_interval", "max_runtime", "retry_period"}),
     ),
+    _view_report(
+        "job_stats", "Job statistics",
+        "Recorded native job runs, outcomes and counters; unrun jobs may be absent",
+        "job_stats",
+        (
+            "hypertable_schema", "hypertable_name", "job_id",
+            "last_run_started_at", "last_successful_finish", "last_run_status",
+            "job_status", "last_run_duration", "next_start",
+            "total_runs", "total_successes", "total_failures",
+        ),
+        ("job_id",),
+        text_columns=frozenset({
+            "last_run_started_at", "last_successful_finish", "last_run_duration",
+            "next_start",
+        }),
+    ),
 )
 
 BY_ID = {report.node_id: report for report in REPORTS}

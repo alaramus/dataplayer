@@ -745,6 +745,15 @@ are written with implementation and run only with the user's approval.
 
 ## Upstream references
 
+The Job statistics report reads `timescaledb_information.job_stats` separately
+from the jobs inventory: the public view omits jobs without recorded runs.
+This keeps the inventory available when the optional statistics API is missing.
+Timestamps use source text, including infinity, and duration uses interval text;
+counters retain numeric source sorting and lossless cell encoding. No config,
+job error messages or private-catalog fallback is exposed. The projection was
+compared with the 2.18.0 public view definition on 2026-09-08; compatibility tests
+remain unrun.
+
 The initial Chunks, Dimensions and jobs report projections were also compared
 with [the 2.18.0 public view definitions](https://github.com/timescale/timescaledb/blob/2.18.0/sql/views.sql)
 on 2026-09-08. This is API evidence, not a tested compatibility claim. Report

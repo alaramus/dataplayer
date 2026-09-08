@@ -173,8 +173,13 @@ reason. No private catalog fallback or per-chunk request loop is used.
 
 The initial job report lists native job identity, target, routine, ownership and
 scheduling settings. Arbitrary job configuration and error text are not selected:
-custom routines can put secrets in both. Typed policy parameters and public job
-statistics remain follow-ups. Interval fields are selected as source text to
+custom routines can put secrets in both. A separate Job statistics report reads
+the public `job_stats` view, so missing statistics never hide the job inventory.
+Unrun jobs may have no statistics row; absence is not a zero run count. Timestamps
+are source text to preserve PostgreSQL infinity values, durations retain source
+interval text, and counters remain numeric for sorting and lossless transport.
+The report independently validates view ownership, columns and read access.
+Typed policy parameters remain a follow-up. Interval fields are selected as source text to
 retain calendar units; integer boundary fields remain numeric for source-side
 ordering and use D23's lossless decimal-string cell transport.
 
