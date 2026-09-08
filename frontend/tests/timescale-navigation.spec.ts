@@ -6,7 +6,7 @@ import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { deleteConnector, openConnector } from "./utils/workspace"
 
-test("Timescale Details opens an editable scoped Chunks report with writes disabled", async ({ page }) => {
+test("Timescale Details navigation and edited report filters survive workspace reload", async ({ page }) => {
   const name = `e2e-timescale-navigation-${Date.now()}`
   const table: TableNode = {
     id: "lab.metrics", name: "metrics", kind: "table", has_children: false,
@@ -79,6 +79,23 @@ test("Timescale Details opens an editable scoped Chunks report with writes disab
     await page.getByTestId("grid-filter-delete-0").click()
     await expect.poll(() => requests.filter((request) => request.node_id === chunks.id).at(-1)?.filters)
       .toEqual([filters[1]])
+    requests.length = 0
+    await page.reload()
+    await expect.poll(() => requests.filter((request) => request.node_id === chunks.id).at(-1)?.filters)
+      .toEqual([filters[1]])
+    await expect(page.getByTestId("grid-row-0")).toContainText("metrics")
+    const hypertableTab = page.getByTestId(/^workspace-tab-rows:.*:lab\.metrics$/)
+    await expect(hypertableTab).toHaveCount(1)
+    await hypertableTab.click()
+    await expect(page.getByTestId("grid-row-0")).toContainText("9007199254740993")
+    await expect(page.getByTestId("grid-insert")).toBeDisabled()
+    requests.length = 0
+    await page.reload()
+    await expect.poll(() => requests.some((request) => request.node_id === table.id)).toBe(true)
+    await expect(hypertableTab).toHaveCount(1)
+    await expect(page.getByTestId("grid-row-0")).toContainText("9007199254740993")
+    await expect(page.getByTestId("grid-insert")).toBeDisabled()
+    await expect(page.getByTestId("grid-delete")).toBeDisabled()
   } finally {
     await deleteConnector(page, name)
   }
