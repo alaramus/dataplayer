@@ -81,7 +81,7 @@ The adapter imports still load application settings, so the usual local
 backend configuration is required. Every source connection uses the explicit
 loopback fixture options; no application database query is made by the harness.
 
-Outstanding acceptance:
+Acceptance specification:
 [Timescale architecture](../../../docs/architecture/sources/timescale.md),
 [T1 specification](../../../docs/superpowers/specs/2026-09-07-timescale-capabilities-design.md).
 
@@ -126,7 +126,7 @@ before casts. The statistics fixture enables its paused policy, waits at most
 The initial browser run used 127.0.0.1 and could not log in because that origin
 was not allowed; the localhost retry passed.
 
-### Remaining T1 acceptance
+### T1 acceptance evidence
 
 The isolated matrix supplies evidence for per-database discovery and lifecycle,
 logical identities, mixed-storage reads/export, bigint precision, report
@@ -136,8 +136,9 @@ transport/UI behavior only.
 
 The follow-up runs below cover shared guards, backup/restore, ordinary
 PostgreSQL workflows and Timescale reference/workspace round trips.
-Full backend/frontend suites, full frontend lint/build and full E2E remain
-pending. Run additional validation only with user approval.
+At this stage, full backend/frontend suites, full frontend lint/build and full
+E2E were still pending. The final completion confirmation below supersedes
+that status.
 
 ### Follow-up: shared-operation acceptance
 
@@ -171,8 +172,9 @@ T1 audit: discovery/lifecycle, specialization, rows/export, reports/statistics,
 grant transport and browser navigation have the recorded targeted evidence.
 Shared guards and backup/restore now have the additional evidence above.
 The relationship/workspace follow-up below supplies cross-schema cascade and
-Timescale navigation evidence. Full required backend/frontend validation
-remains pending and T1 is not marked complete.
+Timescale navigation evidence. At this stage, full required backend/frontend
+validation was still pending; the final completion confirmation below
+supersedes that status.
 
 ### Follow-up: cross-schema relationships and workspace restoration
 
@@ -215,3 +217,14 @@ The complete isolated matrix was rerun after adding these fixtures:
 `uv run pytest compatibility/timescale -q --tb=short` — 50 passed in 46.04s.
 This supersedes the initial 40-case matrix; it still certifies inspection and
 refusals, not T2/T3 mutation strategies.
+
+### T1 completion: 2026-09-08
+
+The user confirmed that all tests passed and T1 is fully complete. This closes
+the remaining T1 validation status above. T2 bounded metadata changes are the
+next roadmap item, followed by T3 owned operations.
+
+This final status is based on the user's confirmation; no additional command
+outputs or counts were supplied, and no checks were rerun for this documentation
+update. The recorded targeted results above remain the detailed command evidence.
+T2/T3 mutation strategies still require their own real-source validation.

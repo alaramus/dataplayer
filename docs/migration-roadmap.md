@@ -127,21 +127,19 @@ Quasar's grouped notifications had been hiding.
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 1.10 | TimescaleDB through PostgreSQL | Medium pilot; larger follow-ups | Proposed next slice for the requested Timescale design; settle discovery and safe inspection before enabling mutations |
+| 1.10 | TimescaleDB through PostgreSQL | Medium pilot; larger follow-ups | T1 is complete; T2 bounded metadata changes are next |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation, saved layouts and a history to draw over require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
 
 ## Phase 1.10 — TimescaleDB through PostgreSQL
 
-Implementation is in progress following the design requested on 2026-09-07. The
+T1 is complete as of 2026-09-08; the user confirmed that all tests passed.
+T2 is the next implementation slice. The
 [Timescale design](superpowers/specs/2026-09-07-timescale-capabilities-design.md)
 defines the three implementation slices. D119–D123 retain one
 PostgreSQL source identity and compose a Timescale feature package.
 
-- [ ] T1: instance feature discovery, typed hypertable/aggregate specialisation,
-  paged public-view reports and Details links; protect extension internals and
-  gate unverified structured writes, DDL generation and backup/restore paths.
 - [ ] T2: typed read-only plans, connection-specific action vocabulary,
   time-based interval/storage/policy changes and tested empty-table conversion.
 - [ ] T3: owned source operations, fixed chunk selection, durable partial
@@ -153,36 +151,12 @@ Each slice has its own acceptance criteria there. Exact source-image pins and
 the tested compatibility matrix are recorded with implementation, not inferred
 from a generic Timescale version label.
 
-T1 implementation and its acceptance scenarios are written. The interrupted
-2026-09-08 validation session left fixes uncommitted; those fixes are now
-committed. Recovered command output confirms 40 isolated compatibility tests
-on Timescale 2.17.2 and 2.18.0 (both PostgreSQL 16.6), 43 targeted API/report
-tests, 82 selected adapter tests, 32 component tests and two browser scenarios.
-Backend static checks and frontend type-check also passed. The exact commands,
-scope and remaining acceptance gaps are in the
-[compatibility validation record](../backend/compatibility/timescale/README.md#validation-record-2026-09-08).
-These are recovered results, not fresh checks in the resumed session.
-
-Follow-up validation now covers shared guards and backup/restore services:
-57 passed. Ordinary PostgreSQL regressions produced 212 passes and three
-invalid feature fixtures; the corrected dependency file then passed all six
-tests. New real-source direct update/delete, bulk insert and column-DDL refusal
-scenarios passed within a 14-test protection run. These changes are committed;
-the validation record above carries exact commands and limits.
-
-Cross-schema cascade and reference acceptance is now implemented and tested
-on both pinned sources: four cases pass. Preview/execution refuse a cascade
-from an ordinary parent that reaches a hypertable; references and serialized
-fetch requests retain logical identities and filtered rows. The browser
-scenario also passes after reloading edited Chunks filters and the hypertable
-tab. The complete isolated matrix then passed all 50 cases. Targeted Ruff,
-frontend type-check and ESLint are clean.
-
-Next: obtain approval for the remaining full required backend/frontend
-validation, resolve any failures and close T1 only when those checks are clean.
-Full suites and frontend lint/build were not included in the targeted runs.
-T2 API mutation strategies still require their own real-source tests;
-inspection/refusal evidence does not certify them.
+T1 completion is recorded in the
+[spec index](superpowers/specs/README.md) and the
+[compatibility validation record](../backend/compatibility/timescale/README.md#t1-completion-2026-09-08).
+Next: implement T2 against its acceptance criteria in the Timescale design.
+T2 API mutation strategies require their own real-source tests;
+T1 inspection/refusal evidence does not certify them.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

@@ -6,16 +6,14 @@ Read alongside [contract.md](contract.md), [relations.md](relations.md),
 [actions.md](actions.md), [connecting.md](connecting.md) and
 [owned jobs](../jobs.md).
 
-**Implementation status:** T1 inspection and protection are implemented; full
-acceptance remains open. Discovery, specialization, paged public reports,
-Details metadata/statistics and navigation, runtime features in Options, and
-structured-operation/backup/restore guards have tests. The isolated T1 matrix
-passed on Timescale 2.17.2 and 2.18.0, both PostgreSQL 16.6. Targeted API, adapter,
-component and browser checks also passed in the interrupted 2026-09-08 session.
-The [validation record](../../../backend/compatibility/timescale/README.md#validation-record-2026-09-08)
-records recovered command results and limits; it does not claim full-suite or
-mutation compatibility. The [roadmap](../../migration-roadmap.md) names the
-remaining acceptance work. T2 bounded changes and T3 owned operations are pending.
+**Implementation status:** T1 inspection and protection are complete as of
+2026-09-08; the user confirmed that all tests passed. The isolated T1 matrix
+passed on Timescale 2.17.2 and 2.18.0, both PostgreSQL 16.6.
+The [validation record](../../../backend/compatibility/timescale/README.md#t1-completion-2026-09-08)
+distinguishes recorded command results from the user's final completion
+confirmation. The [roadmap](../../migration-roadmap.md) names T2 bounded
+metadata changes as the next slice, followed by T3 owned operations.
+T1 inspection/refusal evidence does not certify T2/T3 mutation semantics.
 
 ## D119. Timescale is composed into PostgreSQL without another source identity
 

@@ -1,9 +1,8 @@
 # TimescaleDB through a PostgreSQL connection
 
 Date: 2026-09-07.
-Status: accepted for implementation. T1 is in progress; the runtime-feature
-contract and read-only PostgreSQL discovery are written but have not been
-validated. T2 and T3 define subsequent delivery boundaries, not features
+Status: T1 is complete as of 2026-09-08; the user confirmed that all tests
+passed. T2 is next, followed by T3. Their mutation capabilities are not
 claimed by T1.
 
 Decisions: D119 through D123, in
@@ -617,7 +616,8 @@ stay absent and bytes/counts stay decimal text. Recorded compression sizes are
 labelled separately from current size and no whole-relation ratio is inferred.
 API evidence is the upstream 2.18.0
 [size functions](https://github.com/timescale/timescaledb/blob/2.18.0/sql/size_utils.sql);
-real compatibility validation remains pending.
+real compatibility validation passed on both pinned sources; see the
+[validation record](../../../backend/compatibility/timescale/README.md#t1-completion-2026-09-08).
 
 Hypertable and aggregate reports project explicit metadata columns from their
 public views: owners, hypertable dimension/chunk counts and tablespaces,
@@ -627,7 +627,7 @@ missing columns refuse that report without changing baseline discovery. Chunk
 counts remain numeric for sorting and use lossless cell transport. Compression
 configuration is not measured compressed-chunk coverage. The projections were
 compared with the 2.18.0 public view definitions linked below; compatibility
-validation remains pending.
+validation passed on both pinned sources.
 
 Deliver composition, instance discovery, typed specialisation, public-view
 reports, summary facts/related views and the shared-operation protections.
