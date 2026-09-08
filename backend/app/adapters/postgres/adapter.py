@@ -39,8 +39,8 @@ from app.adapters.postgres.constraints import PostgresConstraints
 from app.adapters.postgres.content import PostgresContent
 from app.adapters.postgres.explain import PostgresExplain
 from app.adapters.postgres.export import PostgresExport
-from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.features import PostgresFeatures
+from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.indexes import PostgresIndexes
 from app.adapters.postgres.metadata import PostgresGeneration, PostgresMetadata
 from app.adapters.postgres.options import PostgresOptions
@@ -65,7 +65,11 @@ from app.adapters.postgres.statements import format_text
 from app.adapters.postgres.summary import PostgresSummaries
 from app.adapters.postgres.table_design import PostgresTableDesign
 from app.adapters.postgres.update import PostgresUpdate
-from app.adapters.protocol import BackupAvailability, BackupProgram, ConnectionCheckResult
+from app.adapters.protocol import (
+    BackupAvailability,
+    BackupProgram,
+    ConnectionCheckResult,
+)
 from app.adapters.query import (
     ExplainRequest,
     ExplainResult,

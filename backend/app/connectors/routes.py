@@ -83,13 +83,13 @@ from app.adapters.content import (
     UpdateContentRequest,
 )
 from app.adapters.export import ExportRequest
+from app.adapters.features import SourceFeatures, SupportsSourceFeatures
 from app.adapters.fetch import (
     DownloadPageRequest,
     FetchRequest,
     FetchResult,
     as_read_only,
 )
-from app.adapters.features import SourceFeatures, SupportsSourceFeatures
 from app.adapters.indexes import (
     CreateIndexRequest,
     CreateIndexResult,

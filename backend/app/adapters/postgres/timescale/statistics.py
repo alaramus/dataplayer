@@ -47,10 +47,10 @@ LIMIT 2
 """
 
 
-async def _read[_Facts: BaseModel](
-    session: PostgresSession, names: tuple[str, ...], facts_type: type[_Facts],
+async def _read[Facts: BaseModel](
+    session: PostgresSession, names: tuple[str, ...], facts_type: type[Facts],
     target: str,
-) -> _Facts:
+) -> Facts:
     fields = tuple(name for name in facts_type.model_fields if name != "kind")
     for name in names:
         functions = await session.query(

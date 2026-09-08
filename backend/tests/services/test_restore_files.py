@@ -5,7 +5,11 @@ import pytest
 
 from app.core.config import settings
 from app.jobs.runner import JobFailed
-from app.services.restore_files import RESTORE_PREFIX, remove_stranded_snapshots, snapshot
+from app.services.restore_files import (
+    RESTORE_PREFIX,
+    remove_stranded_snapshots,
+    snapshot,
+)
 
 
 def test_restore_snapshot_is_private_and_survives_source_replacement(

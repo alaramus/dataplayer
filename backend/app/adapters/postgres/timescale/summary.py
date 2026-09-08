@@ -12,7 +12,7 @@ def related_views(model: RelationModel) -> list[RelatedView]:
     if specialization is None or model.schema_name is None:
         return []
     if specialization.kind == "timescale_hypertable":
-        keys = ("chunks", "dimensions", "jobs")
+        keys: tuple[str, ...] = ("chunks", "dimensions", "jobs")
         schema_column, name_column = "hypertable_schema", "hypertable_name"
     else:
         keys = ("continuous_aggregates",)

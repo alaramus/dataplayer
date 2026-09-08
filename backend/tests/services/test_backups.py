@@ -11,8 +11,8 @@ from httpx import AsyncClient
 from sqlmodel import delete
 
 from app.adapters import registry
-from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.backup import PostgresBackup
+from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import BackupAvailability
 from app.core.config import settings
 from app.core.db import async_session_maker
@@ -133,7 +133,7 @@ async def test_the_program_is_given_the_password_apart_from_its_arguments(
     password = "backup-only-secret-4c7d94a"
     # Extension and version probes need a live source. Keep command construction
     # real while letting this connector carry a password chosen by the test.
-    async def probe(statement: str, *args: object, **kwargs: object) -> list[dict[str, str]]:
+    async def probe(statement: str, *_args: object, **_kwargs: object) -> list[dict[str, str]]:
         return [{"server_version_num": "180000"}] if statement == "SHOW server_version_num" else []
 
     query = AsyncMock(side_effect=probe)

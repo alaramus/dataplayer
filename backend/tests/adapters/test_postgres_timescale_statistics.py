@@ -6,7 +6,10 @@ import pytest
 from app.adapters.postgres.timescale.statistics import inspect_statistics
 from app.adapters.protocol import AdapterError
 from app.adapters.relation import RelationModel
-from app.adapters.specializations import TimescaleContinuousAggregate, TimescaleHypertable
+from app.adapters.specializations import (
+    TimescaleContinuousAggregate,
+    TimescaleHypertable,
+)
 from app.adapters.timescale_metadata import (
     ContinuousAggregateFacts,
     HypertableFacts,

@@ -7,7 +7,10 @@ from app.adapters.postgres.summary import PostgresSummaries
 from app.adapters.postgres.timescale.reports import BY_ID, TIMESCALE_SECTION_ID
 from app.adapters.postgres.timescale.summary import related_views
 from app.adapters.relation import RelationModel
-from app.adapters.specializations import TimescaleContinuousAggregate, TimescaleHypertable
+from app.adapters.specializations import (
+    TimescaleContinuousAggregate,
+    TimescaleHypertable,
+)
 from app.adapters.summary import NodeSummary, RelatedView
 from app.adapters.timescale_metadata import (
     HypertableFacts,
