@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Last updated: 2026-09-07.
+Last updated: 2026-09-08.
 
 The order for moving useful behaviour from `dbwebtool` and `myquasar` into
 DataPlayer. It is a route, not a promise to reproduce every old screen. The old
@@ -166,8 +166,13 @@ Schema changes, destination creation, schema-level action offers and cascade
 dependencies now consult those guards. Cascade scope inspection is bounded and
 read-only. Instance-level backup/restore offers, admission and job execution
 now refuse Timescale targets and unknown extension status. Their tests are
-written but have not been run. Next: bounded source archive inspection before
-Timescale reports.
+written but have not been run. Commit `15a2357` adds source archive inspection:
+restore uses a private temporary copy, a complete verbose custom-archive TOC,
+and byte, entry-count and execution-time limits. Timescale-bearing, ambiguous
+or incomplete inventories refuse before restore. Validation remains pending.
+Next: implement the Timescale public-view report registry and discovery-gated
+System section, then bounded report fetching and Details navigation. Finish
+the feature UI and isolated compatibility fixtures before T1 acceptance.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

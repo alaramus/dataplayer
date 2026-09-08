@@ -15,7 +15,9 @@ Internal relation membership and dedicated namespace protection are implemented.
 Schema mutation/cascade guards and schema-level action offers are implemented;
 dependency inspection is bounded to 1000 objects and five seconds. Instance-level
 backup/restore offers, admission and job execution now refuse Timescale targets.
-Reports and source archive inspection remain. T2 adds bounded
+Source archive inspection uses a private temporary copy and a complete bounded
+custom-archive inventory; its tests are written but have not been run.
+Reports and Details navigation remain. T2 adds bounded
 changes and T3 adds owned operations. The
 [roadmap](../../migration-roadmap.md) tracks delivery.
 
