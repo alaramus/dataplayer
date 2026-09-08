@@ -41,7 +41,10 @@ async def test_cascade_classifies_relations_reached_in_another_schema(protected:
     ]
     features = AsyncMock()
     features.timescale.return_value = TimescaleProfile(
-        SourceFeature(code="timescaledb", title="TimescaleDB", state="available")
+        SourceFeature(
+            code="timescaledb", title="TimescaleDB", state="available",
+            installed_version="2.18.0",
+        )
     )
     context = PostgresRelationContext(session, features)
     reason = await context.cascade_reason("ordinary", "source")
@@ -56,7 +59,10 @@ async def test_extension_owned_function_blocks_schema_cascade() -> None:
     ]
     features = AsyncMock()
     features.timescale.return_value = TimescaleProfile(
-        SourceFeature(code="timescaledb", title="TimescaleDB", state="available")
+        SourceFeature(
+            code="timescaledb", title="TimescaleDB", state="available",
+            installed_version="2.18.0",
+        )
     )
     reason = await PostgresRelationContext(session, features).cascade_reason("public", None)
     assert reason == "This cascade affects TimescaleDB extension objects"
