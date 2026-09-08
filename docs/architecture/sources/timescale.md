@@ -40,6 +40,12 @@ Connection Options displays runtime features for saved enabled connections,
 with installed version, state and safe reason. Component tests and a mocked
 feature-response browser scenario are written but have not been run.
 
+The [isolated compatibility sources](../../../backend/compatibility/timescale/README.md)
+pin 2.17.2/PG16 and 2.18.0/PG16 images for legacy and Hypercore storage. Both
+include a separate plain database, mixed storage, integer precision samples and
+restricted source roles. Neither source has been started or validated. The
+adapter harness lives outside the application's autouse database fixtures.
+
 ## D119. Timescale is composed into PostgreSQL without another source identity
 
 The connector stays `adapter_type=postgres`. A feature package under

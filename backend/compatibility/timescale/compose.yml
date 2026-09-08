@@ -1,0 +1,32 @@
+name: dataplayer-timescale-compat
+
+x-fixture: &fixture
+  platform: linux/amd64
+  environment:
+    POSTGRES_USER: fixture_admin
+    POSTGRES_PASSWORD: fixture-only
+    POSTGRES_DB: postgres
+    TIMESCALEDB_TELEMETRY: "off"
+  tmpfs:
+    - /var/lib/postgresql/data
+  volumes:
+    - ./init.sql:/docker-entrypoint-initdb.d/999_fixture.sql:ro
+    - ./sql:/fixtures:ro
+  healthcheck:
+    test: ["CMD-SHELL", "psql -U fixture_admin -d timescale_fixture -tAc 'SELECT ready FROM public.fixture_marker' | grep -qx 1"]
+    interval: 3s
+    timeout: 3s
+    retries: 30
+    start_period: 20s
+
+services:
+  legacy:
+    <<: *fixture
+    image: timescale/timescaledb:2.17.2-pg16@sha256:4e459e217f00cbb09920c34d245501e63427e6767a495de57ce76823ff280f12
+    ports:
+      - "127.0.0.1:55417:5432"
+  columnstore:
+    <<: *fixture
+    image: timescale/timescaledb:2.18.0-pg16@sha256:b347ff2a35bd94d82dc1c297223be228386507b680fc8711aee7be9650407bed
+    ports:
+      - "127.0.0.1:55418:5432"

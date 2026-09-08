@@ -205,7 +205,11 @@ distinct states and safe reasons. The read is per saved enabled connection,
 with explicit Reload and invalidation after catalog reload, connector edits and
 known structure effects. No polling is added. Unit/component tests and a mocked
 feature-response browser scenario are written but have not been run.
-Next: implement isolated compatibility fixtures before T1 acceptance.
+Isolated compatibility source definitions now pin legacy 2.17.2/PG16 and
+columnstore 2.18.0/PG16 images, with tmpfs databases, mixed storage and restricted
+roles. See the [fixture README](../backend/compatibility/timescale/README.md).
+No containers have been started and no compatibility is claimed.
+Next: add the isolated adapter integration harness and acceptance scenarios.
 Hypertables and Continuous
 aggregates now include owners, counts and configuration, with explicit
 public-view requirements checked on opening. Missing metadata refuses only its
