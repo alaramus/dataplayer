@@ -268,7 +268,17 @@ malformed fingerprints and changes to any field require renewed review.
 It carries no credential, connector authority or execution admission. Duration
 amounts are strict positive integers with a closed unit vocabulary; calendar
 units remain calendar units. Models and staleness tests are written but unrun.
-This internal model is not yet an HTTP preview or an executable action.
+The interval model is not yet registered as an executable action.
+
+The shared single-action transport now accepts an optional `reviewed_fingerprint`
+separately from form parameters. `ActionPreview.fingerprint` carries the review
+value; `ActionInfo.requires_plan_review` is derived from `RequiresReviewedPlan`.
+Execution routes these actions only to `perform_reviewed`, after the ordinary
+availability and grant checks, and refuses a missing fingerprint. The action
+must re-plan and compare under its source execution boundary; the route never
+treats the fingerprint as authority or checks staleness outside that boundary.
+Existing actions keep their normal parameter transport. Backend transport tests
+are written but unrun; the client was regenerated after this schema change.
 
 The interval inspector has a five-second total budget and read-only statements.
 It verifies public-view ownership/columns, resolves one owned
@@ -280,6 +290,7 @@ Integer dimensions, multiple dimensions, calendar intervals and subday intervals
 for date columns are refused. Shared duration models preserve calendar units,
 but this strategy does not offer them. There is no private catalog fallback.
 Unit and isolated real-source planning scenarios are written but unrun. Preview
-transport, execution under locks and mutation compatibility remain outstanding.
+integration for the interval action, execution under locks and mutation
+compatibility remain outstanding.
 
 Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)

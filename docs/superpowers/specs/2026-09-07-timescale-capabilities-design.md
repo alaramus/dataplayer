@@ -505,6 +505,14 @@ The fingerprint is SHA-256 over sorted compact JSON of the full plan, including
 its fixed impact statement. It is a staleness comparison, not a signed grant.
 The model is internal until preview transport and execution admission land.
 
+The shared single-node action HTTP transport carries `ActionPreview.fingerprint`
+back as `ActionRequest.reviewed_fingerprint`, outside the parameter schema.
+`RequiresReviewedPlan.perform_reviewed` owns fresh planning and comparison at
+execution; the route preserves action lookup, availability, grants and cache
+invalidation, and refuses a missing review fingerprint before calling it.
+`ActionInfo.requires_plan_review` is derived from that protocol. This transport
+does not register or certify any Timescale mutator.
+
 The first source inspector reads the pinned 2.17.2/2.18.0 public shapes within
 five seconds, with every statement marked read-only. It accepts one time
 dimension on an owned hypertable and excludes aggregate materializations.

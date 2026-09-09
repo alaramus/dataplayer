@@ -169,7 +169,9 @@ implemented with unrun regression coverage; existing actions default to no
 feature requirement. The first internal chunk-interval plan model and its
 staleness/duration tests are written but unrun. Its bounded read-only source
 inspector and isolated compatibility scenarios are also written, with no checks
-run. Next implement preview transport and execution with fresh locked validation,
+run. The shared backend preview/review fingerprint transport is implemented;
+the generated client is updated and transport tests are written but unrun.
+Next connect the form to reviewed plans and implement execution with fresh locked validation,
 then validate the mutation strategy before registration. No Timescale mutation
 action is registered yet; T2 remains queued until its implementation is complete.
 

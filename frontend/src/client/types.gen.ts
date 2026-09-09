@@ -117,6 +117,10 @@ export type ActionInfo = {
    */
   previews: boolean
   /**
+   * Requires Plan Review
+   */
+  requires_plan_review?: boolean
+  /**
    * Takes Set
    */
   takes_set: boolean
@@ -179,6 +183,10 @@ export type ActionPreview = {
    * Blocked
    */
   blocked?: boolean
+  /**
+   * Fingerprint
+   */
+  fingerprint?: string | null
 }
 
 /**
@@ -195,6 +203,10 @@ export type ActionRequest = {
   params?: {
     [key: string]: unknown
   }
+  /**
+   * Reviewed Fingerprint
+   */
+  reviewed_fingerprint?: string | null
 }
 
 /**

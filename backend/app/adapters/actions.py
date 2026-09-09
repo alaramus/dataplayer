@@ -325,6 +325,14 @@ class ActionPreview(BaseModel):
     # statement rather than an error: the request to look was answered, and
     # what it says is that the other request would not be.
     blocked: bool = False
+    fingerprint: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+
+@runtime_checkable
+class RequiresReviewedPlan(Protocol):
+    async def perform_reviewed(
+        self, node_id: str | None, raw: Mapping[str, Any], fingerprint: str,
+    ) -> ActionResult: ...
 
 
 @runtime_checkable

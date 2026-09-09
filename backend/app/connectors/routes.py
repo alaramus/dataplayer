@@ -37,6 +37,7 @@ from app.adapters.actions import (
     PreviewsSet,
     ProducesDownload,
     RefusalReason,
+    RequiresReviewedPlan,
     SupportsActions,
     TakesFile,
     TakesNodeSet,
@@ -2741,6 +2742,7 @@ class ActionInfo(ActionAvailability):
     # Whether it can be asked what it would do before it is done. Derived the
     # same way, and for the same reason.
     previews: bool
+    requires_plan_review: bool = False
     # Whether a selection is carried out in one request rather than repeated
     # per node, and whether that one request can be previewed. Derived from
     # the capabilities, so what the API says cannot drift from what the action
@@ -2783,6 +2785,7 @@ class DownloadActionTargets(BaseModel):
 class ActionRequest(BaseModel):
     node_id: str | None = None
     params: dict[str, Any] = {}
+    reviewed_fingerprint: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
 
 class ActionSetRequest(BaseModel):
@@ -2815,6 +2818,7 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
         takes_file=isinstance(action, TakesFile),
         takes_many_files=action.many_files,
         previews=isinstance(action, Previews),
+        requires_plan_review=isinstance(action, RequiresReviewedPlan),
         takes_set=isinstance(action, TakesNodeSet),
         previews_set=isinstance(action, PreviewsSet),
         downloads=isinstance(action, ProducesDownload),
@@ -3053,6 +3057,15 @@ async def run_action(
         _acting_or_501(adapter), action_name, body.node_id
     )
     _allowed_or_403(action, access)
+    if isinstance(action, RequiresReviewedPlan):
+        fingerprint = body.reviewed_fingerprint
+        if fingerprint is None:
+            raise HTTPException(status_code=422, detail={"message": "Review the operation plan before running it"})
+        return await _invalidate_after(
+            lambda: _perform(lambda: action.perform_reviewed(body.node_id, body.params, fingerprint)),
+            data_cache,
+            connector_id,
+        )
     if not isinstance(action, TakesParams):
         raise HTTPException(
             status_code=415,

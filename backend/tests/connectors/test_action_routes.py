@@ -13,7 +13,9 @@ from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import registry
-from app.adapters.actions import Action, ActionOffers, ActionUnavailability
+from app.adapters.actions import (
+    Action, ActionOffers, ActionPreview, ActionRefused, ActionResult, ActionUnavailability,
+)
 from app.adapters.file.adapter import FileAdapter
 from app.adapters.postgres.actions import CreateSchema
 from app.adapters.postgres.adapter import PostgresAdapter
@@ -97,12 +99,12 @@ async def test_action_menu_awaits_the_connection_vocabulary_on_every_request(
     monkeypatch.setattr(FileAdapter, "all_actions", vocabulary)
     path = f"{BASE}/{connector_id}/actions"
     first = await client.post(
-        path, headers=normal_user_token_headers, json={"node_ids": []}
+        path, headers=normal_user_token_headers, json={"node_ids": None}
     )
     assert first.status_code == 200
     assert "create_folder" in {item["name"] for item in first.json()}
     second = await client.post(
-        path, headers=normal_user_token_headers, json={"node_ids": []}
+        path, headers=normal_user_token_headers, json={"node_ids": None}
     )
     assert second.status_code == 200
     assert second.json() == []
@@ -124,7 +126,7 @@ async def test_source_action_reason_is_shared_by_menu_and_execution(
     monkeypatch.setattr(CreateSchema, "run", run_action)
     menu = await client.post(
         f"{BASE}/{connector_id}/actions",
-        headers=normal_user_token_headers, json={"node_ids": []},
+        headers=normal_user_token_headers, json={"node_ids": None},
     )
     assert menu.status_code == 200
     action = next(item for item in menu.json() if item["name"] == "create_schema")
@@ -137,6 +139,53 @@ async def test_source_action_reason_is_shared_by_menu_and_execution(
     assert refused.json()["detail"]["message"] == reason
     assert offers.await_count == 2
     run_action.assert_not_awaited()
+
+
+@pytest.mark.parametrize("fingerprint,status", [(None, 422), ("invalid", 422), ("a" * 64, 200)])
+async def test_reviewed_action_transport_requires_and_forwards_fingerprint(
+    client: AsyncClient, normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch, fingerprint: str | None, status: int,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    reviewed = AsyncMock(return_value=ActionResult(message="done", reload_node_ids=[]))
+    plain = AsyncMock()
+    monkeypatch.setattr(CreateSchema, "perform_reviewed", reviewed, raising=False)
+    monkeypatch.setattr(CreateSchema, "perform", plain)
+    response = await client.post(
+        f"{BASE}/{connector_id}/actions/create_schema", headers=normal_user_token_headers,
+        json={"node_id": None, "params": {"name": "lab"}, "reviewed_fingerprint": fingerprint},
+    )
+    assert response.status_code == status
+    plain.assert_not_awaited()
+    if status == 200:
+        reviewed.assert_awaited_once_with(None, {"name": "lab"}, fingerprint)
+    else:
+        reviewed.assert_not_awaited()
+
+
+async def test_preview_fingerprint_and_stale_plan_conflict_cross_the_transport(
+    client: AsyncClient, normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    fingerprint = "b" * 64
+    preview = AsyncMock(return_value=ActionPreview(summary="Future chunks only", fingerprint=fingerprint))
+    reviewed = AsyncMock(side_effect=ActionRefused("conflict", "The operation plan changed; review it again"))
+    monkeypatch.setattr(CreateSchema, "preview", preview, raising=False)
+    monkeypatch.setattr(CreateSchema, "perform_reviewed", reviewed, raising=False)
+    menu = await client.post(f"{BASE}/{connector_id}/actions", headers=normal_user_token_headers, json={})
+    assert menu.status_code == 200
+    action = next(item for item in menu.json() if item["name"] == "create_schema")
+    assert action["requires_plan_review"] and action["previews"]
+    path = f"{BASE}/{connector_id}/actions/create_schema"
+    answer = await client.post(f"{path}/preview", headers=normal_user_token_headers, json={"params": {"name": "lab"}})
+    assert answer.status_code == 200
+    assert answer.json()["fingerprint"] == fingerprint
+    refused = await client.post(path, headers=normal_user_token_headers, json={
+        "params": {"name": "lab"}, "reviewed_fingerprint": fingerprint,
+    })
+    assert refused.status_code == 409
+    assert refused.json()["detail"]["message"] == "The operation plan changed; review it again"
 
 
 class NoActionOptions(BaseModel):
