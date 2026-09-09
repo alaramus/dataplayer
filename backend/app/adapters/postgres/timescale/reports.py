@@ -57,7 +57,7 @@ REPORTS = (
             "view_schema", "view_name", "view_owner", "hypertable_schema",
             "hypertable_name", "materialization_hypertable_schema",
             "materialization_hypertable_name", "materialized_only",
-            "compression_enabled", "finalized",
+            "compression_enabled",
         ),
         ("view_schema", "view_name"),
     ),

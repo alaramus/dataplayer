@@ -116,6 +116,13 @@ continuous aggregates link to their logical view entry. These links reuse the
 classified relation identity without probing optional report APIs during
 summary loading; opening the target repeats the report's own API checks.
 
+The Continuous aggregates report projects fields shared by the inspected
+2.17.2/2.18.0 and 2.29.2 public APIs. It omits the legacy `finalized` column,
+which is absent in 2.29.2, instead of requiring it or inventing a replacement
+value. Other projected columns and extension ownership remain mandatory.
+Regression coverage for both view shapes is written but unrun; this fix does
+not certify the complete Timescale 2.29.2/PostgreSQL 17 combination.
+
 Root relation size/row statistics are not presented as whole-hypertable totals.
 Unavailable totals stay null; on-demand statistics use public APIs and a
 five-second inspection timeout. Time boundaries and integer boundaries are

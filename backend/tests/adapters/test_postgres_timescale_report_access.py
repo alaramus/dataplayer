@@ -11,6 +11,42 @@ from app.adapters.protocol import AdapterError
 
 OPTIONAL_REPORTS = [report for report in REPORTS if isinstance(report, TimescaleReport)]
 
+# Public view projection in the upstream 2.29.2 sql/views.sql; older versions also have finalized.
+AGGREGATE_COLUMNS = {
+    "hypertable_schema", "hypertable_name", "view_schema", "view_name", "view_owner",
+    "materialized_only", "compression_enabled", "materialization_hypertable_schema",
+    "materialization_hypertable_name", "view_definition",
+}
+
+
+@pytest.mark.parametrize("version,extra_columns", [
+    ("2.17.2", {"finalized"}), ("2.18.0", {"finalized"}), ("2.29.2", set()),
+])
+async def test_aggregate_report_opens_with_old_and_new_public_view_shapes(
+    monkeypatch: pytest.MonkeyPatch, version: str, extra_columns: set[str],
+) -> None:
+    monkeypatch.setattr(
+        "app.adapters.postgres.report_registry.discover",
+        AsyncMock(return_value=TimescaleProfile(SourceFeature(
+            code="timescaledb", title="TimescaleDB", state="available", installed_version=version,
+        ))),
+    )
+    report = next(item for item in REPORTS if item.public_view == "continuous_aggregates")
+    available = AGGREGATE_COLUMNS | extra_columns
+    session = AsyncMock()
+    session.query.side_effect = [
+        [{"column_name": name} for name in report.required_columns if name in available],
+        [],
+    ]
+
+    assert await resolve_report(session, report.node_id) == report
+    assert session.query.await_count == 2
+    probe = session.query.await_args.args[0]
+    assert '"finalized"' not in probe
+    assert '"view_owner"' in probe
+    assert '"compression_enabled"' in probe
+    assert '"materialization_hypertable_name"' in probe
+
 
 @pytest.mark.parametrize("report", OPTIONAL_REPORTS, ids=lambda report: report.key)
 async def test_optional_view_requires_extension_membership_and_every_used_column(

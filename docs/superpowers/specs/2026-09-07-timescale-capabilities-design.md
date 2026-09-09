@@ -834,6 +834,16 @@ are written with implementation and run only with the user's approval.
 
 ## Upstream references
 
+The Continuous aggregates report no longer projects the legacy `finalized`
+column. It is absent from the public view in
+[2.29.2](https://github.com/timescale/timescaledb/blob/2.29.2/sql/views.sql),
+while the source/view identities, owner, materialized-only mode and compression
+configuration used by the report remain present. Keeping the shared projection
+allows both API shapes to pass the same strict ownership/column checks, without
+fabricating a boolean or introducing a separate version-based report definition.
+The version-shaped regression tests are written but unrun. This is a targeted
+compatibility fix, not certification of 2.29.2 or PostgreSQL 17.
+
 Policy parameter inspection projects retention/compression lag and creation-age
 intervals, plus continuous-aggregate refresh start/end offsets. Integer and
 interval columns are separate. An extension-owned `(integer, jsonb)` procedure
