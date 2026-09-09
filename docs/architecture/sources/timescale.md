@@ -68,8 +68,14 @@ an inspection error rather than stale detection or an absent extension.
 `SupportsActions.all_actions()` is async across all three adapters, allowing
 live discovery to supply this connection's vocabulary. This T2 foundation is
 implemented with regression coverage written; validation is pending. No
-Timescale mutation actions are registered yet. `available(node_id)` supplies
-per-node applicability and its reason; lookup stays a registered action set.
+Timescale mutation actions are registered yet. PostgreSQL implements the optional
+`ExplainsActionAvailability.action_offers(node_id)` protocol: one read returns
+eligible actions and typed named refusals. Its ordinary `available(node_id)`
+delegates to that same answer. The menu and execution use the source reason;
+sources without this protocol retain the generic refusal. For multiple targets,
+the first explicit refusal in request order explains a blocked selection; an
+eligible destination still admits a destination workflow. Lookup stays a
+registered action set. This reason transport is implemented but unvalidated.
 No Timescale commands appear on a database without the extension. Static
 action declarations carry typed feature requirements so the type catalog can
 word conditional capabilities honestly. D118 target resolution and application

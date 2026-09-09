@@ -13,8 +13,10 @@ from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import registry
-from app.adapters.actions import Action
+from app.adapters.actions import Action, ActionOffers, ActionUnavailability
 from app.adapters.file.adapter import FileAdapter
+from app.adapters.postgres.actions import CreateSchema
+from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.protocol import ConnectionCheckResult
 from app.core.config import settings
 from app.users import crud, storage
@@ -105,6 +107,36 @@ async def test_action_menu_awaits_the_connection_vocabulary_on_every_request(
     assert second.status_code == 200
     assert second.json() == []
     assert calls.await_count == 2
+
+
+async def test_source_action_reason_is_shared_by_menu_and_execution(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    reason = "Timescale metadata is unavailable; structure changes are disabled"
+    offers = AsyncMock(return_value=ActionOffers(
+        actions=(), refusals=(ActionUnavailability(name="create_schema", reason=reason),),
+    ))
+    run_action = AsyncMock()
+    monkeypatch.setattr(PostgresAdapter, "action_offers", offers)
+    monkeypatch.setattr(CreateSchema, "run", run_action)
+    menu = await client.post(
+        f"{BASE}/{connector_id}/actions",
+        headers=normal_user_token_headers, json={"node_ids": []},
+    )
+    assert menu.status_code == 200
+    action = next(item for item in menu.json() if item["name"] == "create_schema")
+    assert not action["applicable"]
+    assert action["unavailable_reason"] == reason
+    refused = await _run(
+        client, normal_user_token_headers, connector_id, "create_schema", name="lab",
+    )
+    assert refused.status_code == 422
+    assert refused.json()["detail"]["message"] == reason
+    assert offers.await_count == 2
+    run_action.assert_not_awaited()
 
 
 class NoActionOptions(BaseModel):

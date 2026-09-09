@@ -1,7 +1,7 @@
 from collections.abc import AsyncIterator, Mapping, Sequence
 from typing import Any
 
-from app.adapters.actions import Action, ActionType
+from app.adapters.actions import Action, ActionOffers, ActionType
 from app.adapters.cache import CacheArea
 from app.adapters.catalog import CatalogNode
 from app.adapters.column_changes import (
@@ -247,6 +247,9 @@ class PostgresAdapter:
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         return await self._actions.available(node_id)
+
+    async def action_offers(self, node_id: str | None) -> ActionOffers:
+        return await self._actions.action_offers(node_id)
 
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)

@@ -384,10 +384,32 @@ class ActionAvailability(BaseModel):
     unavailable_reason: str | None = None
 
 
+class ActionUnavailability(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    name: str = Field(min_length=1)
+    reason: str = Field(min_length=1, max_length=500)
+
+
+@dataclass(frozen=True)
+class ActionOffers:
+    actions: Sequence[Action[Any]]
+    refusals: Sequence[ActionUnavailability] = ()
+
+    def reason_for(self, name: str) -> str | None:
+        return next((item.reason for item in self.refusals if item.name == name), None)
+
+
+@runtime_checkable
+class ExplainsActionAvailability(Protocol):
+    async def action_offers(self, node_id: str | None) -> ActionOffers: ...
+
+
 def action_availability(
     action: Action[Any],
     targets: Sequence[str | None],
     offers: Sequence[Sequence[Action[Any]]],
+    refusals: Sequence[Sequence[ActionUnavailability]] | None = None,
 ) -> ActionAvailability:
     """Distinguish a destination choice from applying a form to every target."""
     available = [
@@ -407,6 +429,16 @@ def action_availability(
             if action.acts_on == "group"
             else "Select one target to use this"
         )
+    if reason is not None and refusals is not None:
+        for offered, rejected in zip(offers, refusals, strict=True):
+            if any(candidate.name == action.name for candidate in offered):
+                continue
+            source_reason = next(
+                (item.reason for item in rejected if item.name == action.name), None
+            )
+            if source_reason is not None:
+                reason = source_reason
+                break
     return ActionAvailability(
         applicable=reason is None,
         available_node_ids=available,

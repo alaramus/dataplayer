@@ -24,11 +24,13 @@ from app.adapters.actions import (
     Action,
     ActionAvailability,
     ActionDownloadReady,
+    ActionOffers,
     ActionPreview,
     ActionRefused,
     ActionResult,
     ActsOn,
     ConnectorDraft,
+    ExplainsActionAvailability,
     OfferedIn,
     PreparesConnector,
     Previews,
@@ -2842,9 +2844,11 @@ def _acting_or_501(adapter: DataAdapter) -> SupportsActions:
 
 async def _available_or_422(
     adapter: SupportsActions, node_id: str | None
-) -> list[Action[Any]]:
+) -> ActionOffers:
     try:
-        return await adapter.available(node_id)
+        if isinstance(adapter, ExplainsActionAvailability):
+            return await adapter.action_offers(node_id)
+        return ActionOffers(await adapter.available(node_id))
     except NodeNotFound as exc:
         raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
     except ValueError as exc:
@@ -2872,10 +2876,13 @@ async def _action_for_node(
         ) from exc
 
     available = await _available_or_422(adapter, node_id)
-    if action.name not in {offered.name for offered in available}:
+    if action.name not in {offered.name for offered in available.actions}:
         raise HTTPException(
             status_code=422,
-            detail={"message": f"{action.title} cannot be done to this node"},
+            detail={
+                "message": available.reason_for(action.name)
+                or f"{action.title} cannot be done to this node"
+            },
         )
     return action
 
@@ -2986,7 +2993,13 @@ async def read_actions(
     # inapplicable here, it is not theirs, and saying so per action would put
     # the level rules into the menu as well as into the route.
     return [
-        _describe(action, action_availability(action, targets, offers))
+        _describe(
+            action,
+            action_availability(
+                action, targets, [offer.actions for offer in offers],
+                [offer.refusals for offer in offers],
+            ),
+        )
         for action in await acting.all_actions()
         if at_least(access, action.requires)
     ]

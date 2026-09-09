@@ -161,7 +161,10 @@ T1 inspection/refusal evidence does not certify them.
 T2 resume point (2026-09-09): the async `all_actions()` contract is implemented
 across PostgreSQL, files and Redis, and the menu route awaits it on each request.
 Regression coverage is written; no validation commands have been run.
-Next implement typed feature requirements and reasoned applicability, then
+PostgreSQL now returns typed named action refusals alongside eligible actions;
+the menu and execution share those reasons without another discovery query.
+Target-selection and route regression tests are written but unrun.
+Next implement typed feature requirements, then
 read-only plans and the bounded mutation strategies. No Timescale mutation
 action is registered yet; T2 remains queued until its implementation is complete.
 

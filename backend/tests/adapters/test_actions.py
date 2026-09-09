@@ -9,6 +9,7 @@ from app.adapters.actions import (
     ActionRefused,
     ActionResult,
     ActionSet,
+    ActionUnavailability,
     FileAction,
     FilePayload,
     JsonAction,
@@ -269,3 +270,34 @@ def test_single_target_creation_and_null_root_remain_distinct_from_a_batch() -> 
     batch = action_availability(action, ["one", "two"], [[action], [action]])
     assert not batch.applicable
     assert batch.unavailable_reason == "Select one target to use this"
+
+
+def test_source_refusal_explains_the_first_rejected_target() -> None:
+    action = DropThing()
+    answer = action_availability(
+        action, ["ordinary", "hypertable", "internal"], [[action], [], []],
+        [[], [ActionUnavailability(name=action.name, reason="Hypertable is protected")],
+         [ActionUnavailability(name=action.name, reason="Internal relation is protected")]],
+    )
+    assert not answer.applicable
+    assert answer.available_node_ids == ["ordinary"]
+    assert answer.unavailable_reason == "Hypertable is protected"
+
+
+def test_a_rejected_destination_does_not_disable_an_eligible_choice() -> None:
+    action = ChooseDestination()
+    answer = action_availability(
+        action, ["protected", "ordinary"], [[], [action]],
+        [[ActionUnavailability(name=action.name, reason="Protected schema")], []],
+    )
+    assert answer.applicable
+    assert answer.unavailable_reason is None
+    assert answer.available_node_ids == ["ordinary"]
+
+
+def test_a_reason_for_another_action_cannot_replace_the_default() -> None:
+    answer = action_availability(
+        DropThing(), ["one"], [[]],
+        [[ActionUnavailability(name="create_thing", reason="Cannot create here")]],
+    )
+    assert answer.unavailable_reason == "This action is not available for every selected target"

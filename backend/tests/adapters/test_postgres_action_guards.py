@@ -53,6 +53,19 @@ async def test_ordinary_relation_keeps_registered_actions() -> None:
     }
 
 
+async def test_action_offers_keep_the_guard_reason_without_repeating_discovery() -> None:
+    reason = "TimescaleDB relation status could not be established"
+    catalog = _catalog(reason)
+    offers = await PostgresActions(AsyncMock(), catalog).action_offers("public.events")
+    assert not offers.actions
+    assert {item.name for item in offers.refusals} == {
+        "rename_relation", "move_relation", "drop_relation", "describe_model",
+    }
+    assert all(item.reason == reason for item in offers.refusals)
+    catalog.relation_action_reason.assert_awaited_once_with("public", "events")
+    assert offers.reason_for("create_schema") is None
+
+
 async def test_direct_relation_actions_refuse_before_sql_or_model_reads() -> None:
     session = AsyncMock()
     catalog = _catalog("TimescaleDB relations are read-only in this version")

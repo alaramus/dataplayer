@@ -14,11 +14,13 @@ from app.adapters.actions import (
     Action,
     ActionDownload,
     ActionDownloadMetadata,
+    ActionOffers,
     ActionPreview,
     ActionRefused,
     ActionResult,
     ActionSet,
     ActionType,
+    ActionUnavailability,
     ActsOn,
     FileAction,
     FilePayload,
@@ -1081,8 +1083,28 @@ class PostgresActions:
         return list(self._actions)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
+        return list((await self.action_offers(node_id)).actions)
+
+    def _offers(
+        self,
+        actions: Sequence[Action[Any]],
+        reason: str | None = None,
+        refused: Sequence[Action[Any]] = (),
+    ) -> ActionOffers:
+        return ActionOffers(
+            actions=actions,
+            refusals=(
+                tuple(
+                    ActionUnavailability(name=action.name, reason=reason)
+                    for action in refused
+                )
+                if reason is not None else ()
+            ),
+        )
+
+    async def action_offers(self, node_id: str | None) -> ActionOffers:
         if node_id is None:
-            return [self._actions.get(CreateSchema.name)]
+            return ActionOffers([self._actions.get(CreateSchema.name)])
         path = await self._catalog.path_to(node_id)
         node = path[-1]
         if isinstance(node, SchemaNode):
@@ -1090,24 +1112,33 @@ class PostgresActions:
             # answer, asked here so that the rule is not stated a second time.
             options = await self._relations.new_relation_options(node_id)
             if not options.supported:
-                return []
+                return self._offers([], options.reason, self._actions.for_kind(node.kind))
             actions = self._actions.for_kind(node.kind)
             reason = await self._catalog.schema_action_reason(node.name)
             if reason is not None:
                 member_actions = {RenameSchema.name, DropSchema.name, DescribeModel.name}
-                return [action for action in actions if action.name not in member_actions]
-            if await self._catalog.cascade_reason(node.name) is not None:
+                return self._offers(
+                    [action for action in actions if action.name not in member_actions],
+                    reason, [action for action in actions if action.name in member_actions],
+                )
+            reason = await self._catalog.cascade_reason(node.name)
+            if reason is not None:
                 schema_mutations = {RenameSchema.name, DropSchema.name}
-                return [action for action in actions if action.name not in schema_mutations]
-            return actions
+                return self._offers(
+                    [action for action in actions if action.name not in schema_mutations],
+                    reason, [action for action in actions if action.name in schema_mutations],
+                )
+            return ActionOffers(actions)
         if isinstance(node, (TableNode, ViewNode)) and not node.is_system:
             reason = await self._catalog.relation_action_reason(path[0].name, node.name)
             if reason is not None:
-                return []
-            return self._actions.for_kind(node.kind)
+                return self._offers([], reason, self._actions.for_kind(node.kind))
+            return ActionOffers(self._actions.for_kind(node.kind))
         # A report admits a command when the command is about what it reports,
         # which is a question of state and so is answered here rather than by
         # `applies_to`.
         if isinstance(node, ReportNode):
-            return [self._actions.get(name) for name in REPORT_COMMANDS.get(node_id, ())]
-        return []
+            return ActionOffers([
+                self._actions.get(name) for name in REPORT_COMMANDS.get(node_id, ())
+            ])
+        return ActionOffers([])
