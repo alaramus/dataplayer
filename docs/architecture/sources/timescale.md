@@ -301,4 +301,12 @@ Unit and isolated real-source planning scenarios are written but unrun. Preview
 integration for the interval action, execution under locks and mutation
 compatibility remain outstanding.
 
+Multi-query preview inspection now has a PostgreSQL read collaborator bound to
+one repeatable-read, read-only transaction. Acquisition, reads and cleanup share
+a five-second budget; each statement also has a source timeout. This keeps a
+plan from combining committed metadata versions across separate connections.
+The collaborator does not expose mutation methods. It is snapshot consistency,
+not execution locking or mutation certification. Unit coverage is written but
+unrun.
+
 Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)

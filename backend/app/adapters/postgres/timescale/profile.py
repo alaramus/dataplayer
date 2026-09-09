@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 from app.adapters.features import FEATURE_TITLES, SourceFeature
-from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.protocol import AdapterError
 
 _EXTENSION_SQL = """
@@ -105,7 +105,7 @@ def _raise_connection_failure(exc: AdapterError) -> None:
         raise exc
 
 
-async def discover(session: PostgresSession) -> TimescaleProfile:
+async def discover(session: PostgresReader) -> TimescaleProfile:
     """Describe Timescale without calling an extension function as a probe."""
     try:
         installed = await session.query(

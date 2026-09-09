@@ -13,6 +13,7 @@ from psycopg import sql
 from psycopg.rows import dict_row
 from psycopg_pool import PoolTimeout
 
+from app.adapters.postgres.inspection import InspectionReader
 from app.adapters.postgres.options import PostgresOptions, PostgresUserPassword
 from app.adapters.postgres.pool import pool_for
 from app.adapters.protocol import AdapterError, ConnectionCheckResult, ErrorKind
@@ -427,6 +428,25 @@ class PostgresSession:
             if named is not None:
                 raise ValueError(named) from None
             error_kind, message = classify(exc, fallback_message="Query failed")
+            raise AdapterError(error_kind, message) from None
+
+    @asynccontextmanager
+    async def inspection(self) -> AsyncIterator[InspectionReader]:
+        """Keep a multi-query plan on one bounded, read-only snapshot."""
+        try:
+            async with asyncio.timeout(5):
+                async with self._connection() as connection:
+                    async with connection.transaction():
+                        await connection.execute(
+                            "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"
+                        )
+                        await connection.execute("SET LOCAL statement_timeout = '5s'")
+                        yield InspectionReader(connection)
+        except PoolTimeout:
+            error_kind, message = await self._why_no_connection()
+            raise AdapterError(error_kind, message) from None
+        except psycopg.Error as exc:
+            error_kind, message = classify(exc, fallback_message="Source inspection failed")
             raise AdapterError(error_kind, message) from None
 
     async def describe(self, sql: str) -> list[tuple[str, int]]:

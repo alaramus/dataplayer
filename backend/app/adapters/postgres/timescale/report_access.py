@@ -2,6 +2,7 @@
 
 from psycopg import sql
 
+from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import SystemReport
 from app.adapters.postgres.timescale.reports import TimescaleReport
@@ -46,7 +47,7 @@ async def require_report(session: PostgresSession, report: SystemReport) -> None
 
 
 async def require_public_view(
-    session: PostgresSession, view: str, required_columns: tuple[str, ...]
+    session: PostgresReader, view: str, required_columns: tuple[str, ...]
 ) -> None:
     columns = await session.query(
         _COLUMNS, (view, list(required_columns), len(required_columns) + 1),

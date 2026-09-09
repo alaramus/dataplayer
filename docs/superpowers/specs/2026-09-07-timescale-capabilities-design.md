@@ -707,6 +707,13 @@ they create their own schema/data rather than assume prestart seeded them.
 
 ### T2 — bounded metadata changes
 
+Preview inspection uses one repeatable-read, read-only PostgreSQL transaction
+with a five-second total budget and source statement timeout. A small read
+protocol lets the existing Timescale discovery and interval planner share that
+connection without adding mutation methods to the inspection collaborator.
+This does not establish the execution boundary: a source snapshot can become
+stale immediately, so execution still needs its own concurrency strategy.
+
 Deliver async connection-specific action vocabulary, reasoned applicability,
 typed planning, interval/storage configuration, time-based policies and
 empty-table conversion for the tested API strategies. Each action includes

@@ -3,7 +3,7 @@
 import asyncio
 
 from app.adapters.actions import ActionRefused
-from app.adapters.postgres.session import PostgresSession
+from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.timescale.plans import (
     ChunkIntervalPlan,
     IntervalStrategy,
@@ -76,7 +76,7 @@ LIMIT 2
 
 
 async def plan_chunk_interval(
-    session: PostgresSession, schema_name: str, table_name: str, interval: TimeDuration,
+    session: PostgresReader, schema_name: str, table_name: str, interval: TimeDuration,
 ) -> ChunkIntervalPlan:
     if interval.unit in {"month", "year"}:
         raise ActionRefused("not_applicable", "Calendar chunk intervals are not supported by this strategy")
