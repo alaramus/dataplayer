@@ -51,8 +51,9 @@ async def test_interval_plan_only_reads_and_binds_target_names(discovery: AsyncM
 
 
 @pytest.mark.parametrize("rows", [[], [TARGET, TARGET], [{**TARGET, "column_type": "bigint"}]])
+@pytest.mark.usefixtures("discovery")
 async def test_missing_ambiguous_or_integer_dimension_refuses_before_api_read(
-    discovery: AsyncMock, rows: list[dict[str, object]],
+    rows: list[dict[str, object]],
 ) -> None:
     session = AsyncMock()
     session.query.return_value = rows
@@ -65,8 +66,9 @@ async def test_missing_ambiguous_or_integer_dimension_refuses_before_api_read(
     [], [API, API], [{**API, "extension_version": "2.19.0"}],
     [{**API, "extension_version": "2.17.2"}],
 ])
+@pytest.mark.usefixtures("discovery")
 async def test_missing_ambiguous_or_changed_api_refuses(
-    discovery: AsyncMock, functions: list[dict[str, object]],
+    functions: list[dict[str, object]],
 ) -> None:
     session = AsyncMock()
     session.query.side_effect = [[TARGET], functions]
@@ -85,7 +87,8 @@ async def test_unknown_version_refuses_before_target_reads(discovery: AsyncMock)
 
 
 @pytest.mark.parametrize("error", [AdapterError("unknown", "secret password"), ValueError("secret password"), TimeoutError()])
-async def test_inspection_failure_is_safe(discovery: AsyncMock, error: Exception) -> None:
+@pytest.mark.usefixtures("discovery")
+async def test_inspection_failure_is_safe(error: Exception) -> None:
     session = AsyncMock()
     session.query.side_effect = error
     with pytest.raises(ActionRefused) as caught:
@@ -99,7 +102,8 @@ async def test_calendar_duration_refuses_before_discovery(discovery: AsyncMock) 
     discovery.assert_not_called()
 
 
-async def test_date_dimension_refuses_subday_interval(discovery: AsyncMock) -> None:
+@pytest.mark.usefixtures("discovery")
+async def test_date_dimension_refuses_subday_interval() -> None:
     session = AsyncMock()
     session.query.return_value = [{**TARGET, "column_type": "date"}]
     with pytest.raises(ActionRefused, match="whole days"):

@@ -255,3 +255,15 @@ It supplies interval mutation evidence independently of T1; it does not certify
 storage/policy changes, conversion or other version combinations. Backend unit,
 transport, static and frontend review checks remain pending. No other checks
 were run in this session, including the documentation check.
+
+### T2 follow-up: user-run checks, 2026-09-09
+
+The user reported running all tests and finding errors only in
+`uv run ruff check app tests compatibility`; everything else was reported clean.
+No additional command outputs or test counts were supplied. Ruff reported five
+unused fixture arguments and one import-formatting error in the interval-plan
+and action-route tests. The fixtures are now requested with `usefixtures` where
+their return values are unused, preserving setup and teardown; the import block
+is expanded. These edits have not been revalidated. This report supersedes the
+earlier pending status for the user's completed checks, but does not establish
+a clean Ruff result after the fix or complete T2 implementation.

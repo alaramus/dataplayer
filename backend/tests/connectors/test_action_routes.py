@@ -14,7 +14,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import registry
 from app.adapters.actions import (
-    Action, ActionOffers, ActionPreview, ActionRefused, ActionResult, ActionUnavailability,
+    Action,
+    ActionOffers,
+    ActionPreview,
+    ActionRefused,
+    ActionResult,
+    ActionUnavailability,
 )
 from app.adapters.file.adapter import FileAdapter
 from app.adapters.postgres.actions import CreateSchema
@@ -82,10 +87,10 @@ async def _postgres_connector(client: AsyncClient, headers: dict[str, str]) -> s
     return str(response.json()["id"])
 
 
+@pytest.mark.usefixtures("home")
 async def test_action_menu_awaits_the_connection_vocabulary_on_every_request(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],
-    home: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     connector_id = await _file_connector(client, normal_user_token_headers)

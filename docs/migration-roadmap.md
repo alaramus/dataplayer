@@ -197,6 +197,11 @@ This supersedes the isolated interval planning/preview/execution pending statuse
 above, but not the unit, transport, static or frontend checks. Next obtain
 approval for those targeted checks, resolve their findings and register the
 interval action with connection-specific offers and regression coverage.
+Follow-up on 2026-09-09: the user reported all tests and other checks clean,
+with only six Ruff findings. Those fixture-argument/import findings are fixed;
+the edits have not been revalidated. See the compatibility record for the
+user-reported evidence. Next confirm Ruff is clean, then register the interval
+action with connection-specific offers and regression coverage.
 Storage/policy changes and empty-table
 conversion remain after that. No Timescale mutation action is registered yet;
 T2 remains queued until its implementation is complete.
