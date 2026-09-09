@@ -164,8 +164,10 @@ Regression coverage is written; no validation commands have been run.
 PostgreSQL now returns typed named action refusals alongside eligible actions;
 the menu and execution share those reasons without another discovery query.
 Target-selection and route regression tests are written but unrun.
-Next implement typed feature requirements, then
-read-only plans and the bounded mutation strategies. No Timescale mutation
+Typed action feature requirements and conditional capability titles are also
+implemented with unrun regression coverage; existing actions default to no
+feature requirement. Next implement read-only plans and the bounded mutation
+strategies. No Timescale mutation
 action is registered yet; T2 remains queued until its implementation is complete.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing

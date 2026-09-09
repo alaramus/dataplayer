@@ -19,6 +19,7 @@ from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.adapters.catalog import NodeKind
+from app.adapters.features import FeatureCode
 from app.core.access import Access
 
 
@@ -179,6 +180,7 @@ class Action[P: BaseModel](ABC):
     # defaulting to `write` so that an action which says nothing about itself
     # is not thereby free to anyone who can read.
     requires: ClassVar[Access] = "write"
+    feature_requirements: ClassVar[tuple[FeatureCode, ...]] = ()
     # Whether one filled form may be applied to a set of nodes at all.
     # Renaming five files to one name is not five renames, and nothing in the
     # shape of an action says so — only the action itself knows. How a set is
@@ -475,6 +477,7 @@ class ActionType(Protocol):
     name: str
     title: str
     requires: Access
+    feature_requirements: tuple[FeatureCode, ...]
 
 
 @runtime_checkable

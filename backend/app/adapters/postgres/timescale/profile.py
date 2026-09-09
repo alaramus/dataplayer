@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from app.adapters.features import SourceFeature
+from app.adapters.features import FEATURE_TITLES, SourceFeature
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.protocol import AdapterError
 
@@ -92,7 +92,7 @@ def _unavailable(reason: str, *, version: str | None = None) -> TimescaleProfile
     return TimescaleProfile(
         SourceFeature(
             code="timescaledb",
-            title="TimescaleDB",
+            title=FEATURE_TITLES["timescaledb"],
             installed_version=version,
             state="unavailable",
             reason=reason,
@@ -124,7 +124,7 @@ async def discover(session: PostgresSession) -> TimescaleProfile:
         return TimescaleProfile(
             SourceFeature(
                 code="timescaledb",
-                title="TimescaleDB",
+                title=FEATURE_TITLES["timescaledb"],
                 state="absent",
             )
         )
@@ -143,7 +143,7 @@ async def discover(session: PostgresSession) -> TimescaleProfile:
         return TimescaleProfile(
             SourceFeature(
                 code="timescaledb",
-                title="TimescaleDB",
+                title=FEATURE_TITLES["timescaledb"],
                 installed_version=version,
                 state="unsupported",
                 reason="This TimescaleDB major version is not supported",
@@ -177,7 +177,7 @@ async def discover(session: PostgresSession) -> TimescaleProfile:
         return TimescaleProfile(
             SourceFeature(
                 code="timescaledb",
-                title="TimescaleDB",
+                title=FEATURE_TITLES["timescaledb"],
                 installed_version=version,
                 state="unsupported",
                 reason="The installed version lacks the supported inspection API",
@@ -201,7 +201,7 @@ async def discover(session: PostgresSession) -> TimescaleProfile:
     return TimescaleProfile(
         SourceFeature(
             code="timescaledb",
-            title="TimescaleDB",
+            title=FEATURE_TITLES["timescaledb"],
             installed_version=version,
             state="available",
         )

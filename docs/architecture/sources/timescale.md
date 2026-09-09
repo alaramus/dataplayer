@@ -78,7 +78,12 @@ eligible destination still admits a destination workflow. Lookup stays a
 registered action set. This reason transport is implemented but unvalidated.
 No Timescale commands appear on a database without the extension. Static
 action declarations carry typed feature requirements so the type catalog can
-word conditional capabilities honestly. D118 target resolution and application
+word conditional capabilities honestly. The default-empty tuple uses the closed
+`FeatureCode` vocabulary. The server appends the installation condition to the
+derived capability title, so the existing type catalog and search receive the
+same wording without a second frontend feature-name table. This describes an
+installation prerequisite, not verified mutation support or permission.
+D118 target resolution and application
 grants remain independent, and execution also faces PostgreSQL permissions.
 
 Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)

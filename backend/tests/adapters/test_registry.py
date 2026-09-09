@@ -202,3 +202,25 @@ def test_exploring_is_grouped_apart_from_changing() -> None:
 
     assert groups["Browse the catalog"] == "explore"
     assert groups["Sweep the floor"] == "manage"
+
+
+def test_conditional_action_capabilities_describe_the_feature_without_a_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(Polish, "feature_requirements", ("timescaledb",))
+    register_fake(adapter_class=FullAdapter)
+
+    capabilities = registry.capabilities_of(registry.get("fake"))
+
+    titles = {capability.title for capability in capabilities}
+    assert "Polish it (when TimescaleDB is installed)" in titles
+    assert "Sweep the floor" in titles
+    assert "Polish it" not in titles
+    conditional = next(item for item in capabilities if item.title.startswith("Polish"))
+    assert conditional.group == "manage"
+    assert Polish.requires == "write"
+
+
+def test_action_feature_requirements_default_to_empty() -> None:
+    assert Sweep.feature_requirements == ()
+    assert Polish.feature_requirements == ()

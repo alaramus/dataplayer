@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from app.adapters.actions import DeclaresActions
 from app.adapters.cache import SourceCacheWindows, SupportsReadCache
+from app.adapters.features import FEATURE_TITLES
 from app.adapters.options import OptionsSchema
 from app.adapters.protocol import (
     DataAdapter,
@@ -255,13 +256,20 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
             )
         )
     if issubclass(driver, DeclaresActions):
-        found.extend(
-            Capability(
-                group="explore" if action_type.requires == "read" else "manage",
-                title=action_type.title,
+        for action_type in driver.action_types():
+            title = action_type.title
+            if action_type.feature_requirements:
+                features = " and ".join(
+                    FEATURE_TITLES[code] for code in action_type.feature_requirements
+                )
+                verb = "is" if len(action_type.feature_requirements) == 1 else "are"
+                title += f" (when {features} {verb} installed)"
+            found.append(
+                Capability(
+                    group="explore" if action_type.requires == "read" else "manage",
+                    title=title,
+                )
             )
-            for action_type in driver.action_types()
-        )
 
     return found
 

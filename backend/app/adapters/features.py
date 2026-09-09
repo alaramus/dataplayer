@@ -6,6 +6,7 @@ from typing import Literal, Protocol, Self, runtime_checkable
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 FeatureCode = Literal["timescaledb"]
+FEATURE_TITLES: dict[FeatureCode, str] = {"timescaledb": "TimescaleDB"}
 FeatureState = Literal["absent", "available", "unsupported", "unavailable"]
 MAX_SOURCE_FEATURES = 32
 
