@@ -37,6 +37,11 @@ after changing initialization SQL; existing containers do not rerun it.
 
 ## Commands requiring approval
 
+T2 interval-planning scenarios in `test_interval_planning.py` are written but
+unrun. They check unchanged source intervals, schema-specific identities and
+refusal of ordinary/integer/aggregate targets, read-only source roles and plain
+databases. They certify no mutation semantics, even when later run successfully.
+
 From the repository root, after user approval:
 
 ```bash

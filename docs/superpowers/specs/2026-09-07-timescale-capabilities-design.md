@@ -505,6 +505,18 @@ The fingerprint is SHA-256 over sorted compact JSON of the full plan, including
 its fixed impact statement. It is a staleness comparison, not a signed grant.
 The model is internal until preview transport and execution admission land.
 
+The first source inspector reads the pinned 2.17.2/2.18.0 public shapes within
+five seconds, with every statement marked read-only. It accepts one time
+dimension on an owned hypertable and excludes aggregate materializations.
+It records function ownership, schema/OID, exact argument/result kinds and
+execution permission without invoking the mutator. Calendar chunk intervals
+are refused rather than silently converted to fixed durations; date dimensions
+initially require day/week units. These are initial planning limits, not a
+claim of completed T2 or validated mutations. Unit and isolated source scenarios
+are written and unrun. API evidence: the 2.18.0
+[DDL declarations](https://github.com/timescale/timescaledb/blob/2.18.0/sql/ddl_api.sql)
+and [public views](https://github.com/timescale/timescaledb/blob/2.18.0/sql/views.sql).
+
 Chunk selection always has a parent hypertable. Empty selection means no work,
 never all chunks. Schema/name identities are re-resolved against that parent's
 live chunk membership, and bound as qualified regclass values where the API

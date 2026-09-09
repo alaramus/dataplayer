@@ -270,4 +270,16 @@ amounts are strict positive integers with a closed unit vocabulary; calendar
 units remain calendar units. Models and staleness tests are written but unrun.
 This internal model is not yet an HTTP preview or an executable action.
 
+The interval inspector has a five-second total budget and read-only statements.
+It verifies public-view ownership/columns, resolves one owned
+hypertable with one time dimension, excludes aggregate materializations, and
+checks the exact extension-owned `set_chunk_time_interval(regclass, anyelement,
+name)` function shape and execution privilege without calling it. Planning is
+limited to the pinned 2.17.2/2.18.0 versions; this is not mutation certification.
+Integer dimensions, multiple dimensions, calendar intervals and subday intervals
+for date columns are refused. Shared duration models preserve calendar units,
+but this strategy does not offer them. There is no private catalog fallback.
+Unit and isolated real-source planning scenarios are written but unrun. Preview
+transport, execution under locks and mutation compatibility remain outstanding.
+
 Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)

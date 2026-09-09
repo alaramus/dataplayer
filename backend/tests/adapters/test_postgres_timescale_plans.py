@@ -67,3 +67,9 @@ def test_round_trip_preserves_fingerprint_and_impact() -> None:
     reread = ChunkIntervalPlan.model_validate_json(reviewed.model_dump_json())
     reread.require_unchanged(reviewed.fingerprint())
     assert "existing chunks are not repartitioned" in reread.impact
+
+
+@pytest.mark.parametrize("fingerprint", ["", "f" * 63, "f" * 65, "я" * 64])
+def test_malformed_fingerprints_are_safe_conflicts(fingerprint: str) -> None:
+    with pytest.raises(ActionRefused):
+        plan().require_unchanged(fingerprint)
