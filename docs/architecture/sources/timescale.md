@@ -327,4 +327,13 @@ also refuses same-named overloads and PostgreSQL majors other than 16.
 This is an unvalidated strategy and cannot be registered before real-source
 permission, concurrent-change and rollback checks pass.
 
+The unregistered SetChunkInterval action now connects the preview and execution
+primitives to the existing reviewed transport, requires structure access and
+resolves its target through the catalog. Plain execution refuses a missing
+review; its parameter schema excludes calendar units. Source planning remains
+the authoritative hypertable/ownership check. Unit coverage and isolated
+mutation scenarios (future versus existing chunks, an external native setter,
+stale review, source refusal, cancellation cleanup, lock permission and an
+overload) are written but unrun on both pinned fixtures.
+
 Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)

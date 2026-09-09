@@ -183,10 +183,13 @@ but unrun. The candidate execution strategy now locks the public dimensions view
 and ONLY the root, replans at READ COMMITTED and compares the fingerprint before
 the native call. Planning requires metadata lock permission and rejects overloads;
 preview discloses the database-wide metadata lock. Execution and failure/staleness
-unit coverage are written but unrun. Next add real-source concurrency and
-mutation scenarios and the unregistered action integration. Validate the strategy
-before registration. No Timescale mutation action is registered yet; T2 remains
-queued until its implementation is complete.
+unit coverage are written but unrun. The unregistered SetChunkInterval action
+now connects preview/reviewed execution, with structure access and catalog target
+resolution. Disposable real-source scenarios cover native setter concurrency,
+stale review, chunk boundaries, refusal, cancellation, permissions and overloads;
+none have run. Next finish reviewed-attempt cache invalidation, then validate the
+strategy before registration. No Timescale mutation action is registered yet;
+T2 remains queued until its implementation is complete.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

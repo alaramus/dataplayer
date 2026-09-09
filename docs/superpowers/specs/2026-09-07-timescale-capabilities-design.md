@@ -750,6 +750,16 @@ Timescale 2.18.0 [dimension updates](https://github.com/timescale/timescaledb/bl
 and [public views](https://github.com/timescale/timescaledb/blob/2.18.0/sql/views.sql).
 These describe the candidate strategy, not completed compatibility validation.
 
+SetChunkInterval implements the existing preview and reviewed-action protocols,
+requires structure access, resolves catalog identities server-side and rejects
+plain execution without a reviewed fingerprint. Its form exposes only fixed
+duration units. It remains absent from the action registry. The disposable
+interval execution fixtures cover retained existing chunks and new chunk size,
+an external native setter blocked by the metadata view lock alone, a change
+between preflight and locking, source rejection, cancellation releasing locks,
+an owner without metadata lock permission and a concrete overload. These tests
+have not been run; the source images retain their T1-only certification.
+
 Deliver async connection-specific action vocabulary, reasoned applicability,
 typed planning, interval/storage configuration, time-based policies and
 empty-table conversion for the tested API strategies. Each action includes

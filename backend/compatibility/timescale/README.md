@@ -233,3 +233,14 @@ This final status is based on the user's confirmation; no additional command
 outputs or counts were supplied, and no checks were rerun for this documentation
 update. The recorded targeted results above remain the detailed command evidence.
 T2/T3 mutation strategies still require their own real-source validation.
+
+### T2 interval execution: validation pending, 2026-09-09
+
+`test_interval_execution.py` uses disposable hypertables on both pinned sources.
+It covers existing/future chunk boundaries, native setter exclusion by the
+public metadata view lock, stale review after an external change, source
+refusal, cancellation cleanup, missing lock permission and a concrete overload.
+The implementation uses a database-wide Timescale metadata lock and is not
+registered. These scenarios, the extended interval planning/preview scenarios
+and their unit tests have not been run. No T2 compatibility claim follows from
+the T1 record above.
