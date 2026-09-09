@@ -42,6 +42,7 @@ export interface ActionCommand {
   downloads: boolean
   /** Opens the ordinary connector form with values prepared by the source. */
   preparesConnector?: boolean
+  requiresPlanReview?: boolean
   /** Which selection subject or destination candidates the action receives. */
   actsOn: ActionInfo["acts_on"]
   /**
@@ -79,6 +80,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       previewsSet: action.previews_set,
       downloads: action.downloads,
       preparesConnector: action.prepares_connector === true,
+      requiresPlanReview: action.requires_plan_review === true,
       actsOn: action.acts_on,
       offeredIn: action.offered_in,
       icon: action.icon ?? null,

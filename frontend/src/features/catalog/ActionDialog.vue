@@ -118,6 +118,9 @@ const PREVIEW_DELAY_MS = 250
 const previewAction = usePreviewAction()
 const previewSet = usePreviewActionOnSet()
 const preview = ref<ActionPreview | null>(null)
+const reviewMissing = computed(() => props.command?.requiresPlanReview === true && (
+  props.nodeIds.length !== 1 || !preview.value?.fingerprint || preview.value.blocked === true
+))
 const previewFailed = ref("")
 /** The number of the last question asked, so a late answer is ignored. */
 let asked = 0
@@ -168,14 +171,15 @@ async function askPreview() {
   } catch (cause) {
     if (mine !== asked) return
     preview.value = null
-    // Said rather than swallowed, and it does not stop the action: not knowing
-    // what would happen is a reason to be careful, not a refusal.
+    // Optional previews remain advisory; reviewed plans require a fresh fingerprint.
     previewFailed.value = messageOf(cause, "Could not read what this would do")
   }
 }
 
 function schedulePreview() {
   if (timer !== undefined) clearTimeout(timer)
+  asked += 1
+  if (props.command?.requiresPlanReview) preview.value = null
   if (!previewable.value) return
   timer = setTimeout(() => void askPreview(), PREVIEW_DELAY_MS)
 }
@@ -250,7 +254,14 @@ watch(failure, (message) => {
 
 // The answer is about the parameters, so it is asked again when they change.
 // Deeply, because the form holds one object for every field it has.
-watch(values, schedulePreview, { deep: true })
+watch(values, schedulePreview, { deep: true, flush: "sync" })
+watch(
+  () => [props.connectorId, props.nodeIds],
+  () => {
+    if (props.command?.requiresPlanReview) schedulePreview()
+  },
+  { deep: true, flush: "sync" }
+)
 
 onBeforeUnmount(forgetPreview)
 
@@ -289,6 +300,10 @@ async function submit() {
   failure.value = ""
   const params = await normalizedParams()
   if (params === null) return
+  if (reviewMissing.value) {
+    failure.value = "Review the operation plan before running it"
+    return
+  }
   if (command.downloads) {
     await download(command, params)
     return
@@ -302,11 +317,19 @@ async function submit() {
       params,
       files: files.value,
       asSet: command.takesSet,
+      ...(command.requiresPlanReview && preview.value?.fingerprint
+        ? { reviewedFingerprint: preview.value.fingerprint } : {}),
     })
     // A file that was refused keeps the dialog open, because the answer to
     // it is here: take that file off the list, or say what to do about the
     // name. What did land is reported all the same.
     const unfinished = [...outcome.failures, ...(outcome.skipped ?? [])]
+    if (unfinished.length > 0 && command.requiresPlanReview) {
+      report(unfinished)
+      forgetPreview()
+      schedulePreview()
+      return
+    }
     if (unfinished.length > 0 && command.takesFile) {
       emit("done", outcome)
       report(unfinished)
@@ -326,6 +349,10 @@ async function submit() {
   } catch (cause) {
     // One request was sent, so its refusal arrives as an exception rather
     // than in the outcome. It says the same thing and is read the same way.
+    if (command.requiresPlanReview) {
+      forgetPreview()
+      schedulePreview()
+    }
     const fieldErrors = fieldErrorsFrom(cause)
     if (fieldErrors) {
       applyServerErrors(fieldErrors)
@@ -698,7 +725,7 @@ async function runDesign(value: {
         :variant="command.destructive ? 'danger' : 'primary'"
         :label="command.label"
         :loading="runAction.isPending.value || downloadAction.isPending.value"
-        :disable="preview?.blocked === true"
+        :disable="preview?.blocked === true || reviewMissing"
         data-testid="action-submit"
         @click="submit"
       />

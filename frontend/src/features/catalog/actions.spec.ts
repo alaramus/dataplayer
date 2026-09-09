@@ -34,6 +34,11 @@ function toMenu(
 
 const only = (actions: ActionInfo[]) => first(toCommands(actions))
 
+it("derives mandatory plan review while older action payloads stay optional", () => {
+  expect(only([createFolder]).requiresPlanReview).toBe(false)
+  expect(only([{ ...createFolder, requires_plan_review: true }]).requiresPlanReview).toBe(true)
+})
+
 const createFolder: ActionInfo = {
   name: "create_folder",
   title: "New folder",

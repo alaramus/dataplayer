@@ -280,6 +280,14 @@ treats the fingerprint as authority or checks staleness outside that boundary.
 Existing actions keep their normal parameter transport. Backend transport tests
 are written but unrun; the client was regenerated after this schema change.
 
+The action form requires a successful unblocked fingerprint before submitting
+an action marked for review, and sends it outside the form parameters. Parameter
+changes immediately invalidate the displayed plan and in-flight replies; stale
+replies cannot enable the button during the debounce. A refused execution keeps
+the form open, clears its review and asks for a new plan without retrying the
+mutation. Optional previews preserve their advisory behaviour. Component and
+mapping tests are written but unrun; browser validation is still outstanding.
+
 The interval inspector has a five-second total budget and read-only statements.
 It verifies public-view ownership/columns, resolves one owned
 hypertable with one time dimension, excludes aggregate materializations, and

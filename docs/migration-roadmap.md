@@ -171,7 +171,10 @@ staleness/duration tests are written but unrun. Its bounded read-only source
 inspector and isolated compatibility scenarios are also written, with no checks
 run. The shared backend preview/review fingerprint transport is implemented;
 the generated client is updated and transport tests are written but unrun.
-Next connect the form to reviewed plans and implement execution with fresh locked validation,
+The action form now requires and forwards a current review fingerprint, clears
+it immediately on parameter changes and retains failed reviewed actions for
+renewed review. Component tests are written but unrun; browser validation is pending.
+Next implement interval-action integration and execution with fresh locked validation,
 then validate the mutation strategy before registration. No Timescale mutation
 action is registered yet; T2 remains queued until its implementation is complete.
 

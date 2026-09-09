@@ -221,6 +221,7 @@ export interface ActionInput {
   /** The nodes to act on. One filled form, applied to each in turn. */
   nodeIds: (string | null)[]
   params: Record<string, unknown>
+  reviewedFingerprint?: string
   /**
    * The files to carry, one request each.
    *
@@ -262,7 +263,12 @@ async function performOne(
   return (
     await ConnectorsService.runAction({
       path,
-      body: { node_id: nodeId, params: input.params },
+      body: {
+        node_id: nodeId,
+        params: input.params,
+        ...(input.reviewedFingerprint === undefined
+          ? {} : { reviewed_fingerprint: input.reviewedFingerprint }),
+      },
     })
   ).data
 }

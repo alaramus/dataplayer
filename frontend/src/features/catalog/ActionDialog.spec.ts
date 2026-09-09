@@ -208,6 +208,84 @@ afterEach(() => {
 })
 
 describe("what an action would do", () => {
+  it("keeps reviewed actions disabled until a fingerprint arrives and after edits", async () => {
+    vi.spyOn(ConnectorsService, "previewAction").mockResolvedValue({
+      data: { summary: "Future chunks only", blocked: false, fingerprint: "a".repeat(64) },
+    } as never)
+    const wrapper = mountDialog({ ...DROP, requiresPlanReview: true })
+    await flushPromises()
+    const button = () => document.body.querySelector<HTMLButtonElement>('[data-testid="action-submit"]')
+    expect(button()?.disabled).toBe(true)
+    await settle()
+    expect(button()?.disabled).toBe(false)
+    wrapper.findComponent(AppToggle).vm.$emit("update:modelValue", true)
+    await flushPromises()
+    expect(button()?.disabled).toBe(true)
+    await settle()
+    expect(button()?.disabled).toBe(false)
+    wrapper.unmount()
+  })
+
+  it("never enables a reviewed action after a failed preview", async () => {
+    vi.spyOn(ConnectorsService, "previewAction").mockRejectedValue(new Error("offline"))
+    const wrapper = mountDialog({ ...DROP, requiresPlanReview: true })
+    await settle()
+    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="action-submit"]')?.disabled).toBe(true)
+    wrapper.unmount()
+  })
+
+  it("ignores an old in-flight plan after the parameters change", async () => {
+    let finish: ((value: never) => void) | undefined
+    vi.spyOn(ConnectorsService, "previewAction")
+      .mockReturnValueOnce(new Promise<never>((resolve) => { finish = resolve }))
+      .mockResolvedValue({ data: { summary: "New plan", blocked: false, fingerprint: "c".repeat(64) } } as never)
+    const wrapper = mountDialog({ ...DROP, requiresPlanReview: true })
+    await settle()
+    wrapper.findComponent(AppToggle).vm.$emit("update:modelValue", true)
+    finish?.({ data: { summary: "Old plan", blocked: false, fingerprint: "a".repeat(64) } } as never)
+    await flushPromises()
+    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="action-submit"]')?.disabled).toBe(true)
+    expect(text("action-preview")).not.toContain("Old plan")
+    await settle()
+    expect(text("action-preview")).toContain("New plan")
+    wrapper.unmount()
+  })
+
+  it("sends the reviewed fingerprint separately from form parameters", async () => {
+    const fingerprint = "b".repeat(64)
+    vi.spyOn(ConnectorsService, "previewAction").mockResolvedValue({
+      data: { summary: "Future chunks only", blocked: false, fingerprint },
+    } as never)
+    const run = vi.spyOn(ConnectorsService, "runAction").mockResolvedValue({
+      data: { message: "done", reload_node_ids: [] },
+    } as never)
+    const wrapper = mountDialog({ ...DROP, requiresPlanReview: true })
+    await settle()
+    click("action-submit")
+    await flushPromises()
+    expect(run).toHaveBeenCalledWith({
+      path: { connector_id: "c-1", action_name: "drop_relation" },
+      body: { node_id: "demo.customers", params: { cascade: false }, reviewed_fingerprint: fingerprint },
+    })
+    wrapper.unmount()
+  })
+
+  it("refreshes a refused plan without automatically retrying the mutation", async () => {
+    const preview = vi.spyOn(ConnectorsService, "previewAction").mockResolvedValue({
+      data: { summary: "Review again", blocked: false, fingerprint: "a".repeat(64) },
+    } as never)
+    const run = vi.spyOn(ConnectorsService, "runAction").mockRejectedValue(refused(409))
+    const wrapper = mountDialog({ ...DROP, requiresPlanReview: true })
+    await settle()
+    click("action-submit")
+    await flushPromises()
+    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="action-submit"]')?.disabled).toBe(true)
+    await settle()
+    expect(preview).toHaveBeenCalledTimes(2)
+    expect(run).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
   it("asks a plain destructive question that names the target", async () => {
     const wrapper = mountDialog(DROP, ["demo.customers"], {
       label: "customers",
