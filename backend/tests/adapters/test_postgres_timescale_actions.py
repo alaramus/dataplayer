@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.adapters.actions import ActionPreview
-from app.adapters.catalog import SchemaNode, TableNode
+from app.adapters.catalog import ReportNode, SchemaNode, TableNode, ViewNode
 from app.adapters.features import SourceFeature
 from app.adapters.postgres.actions import PostgresActions
 from app.adapters.postgres.adapter import PostgresAdapter
@@ -12,7 +12,10 @@ from app.adapters.postgres.timescale.interval_action import SetChunkInterval
 from app.adapters.postgres.timescale.plans import TimeDuration
 from app.adapters.postgres.timescale.profile import TimescaleProfile
 from app.adapters.protocol import AdapterError
-from app.adapters.specializations import TimescaleHypertable
+from app.adapters.specializations import (
+    TimescaleContinuousAggregate,
+    TimescaleHypertable,
+)
 
 
 async def test_vocabulary_tracks_live_installation(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -21,15 +24,19 @@ async def test_vocabulary_tracks_live_installation(monkeypatch: pytest.MonkeyPat
         TimescaleProfile(SourceFeature(
             code="timescaledb", title="TimescaleDB", state="available", installed_version="2.18.0",
         )),
+        TimescaleProfile(SourceFeature(
+            code="timescaledb", title="TimescaleDB", state="unsupported",
+            reason="Public TimescaleDB views are incomplete",
+        )),
         TimescaleProfile(SourceFeature(code="timescaledb", title="TimescaleDB", state="absent")),
     ])
     monkeypatch.setattr(actions, "discover", probe)
     registry = PostgresActions(AsyncMock(), AsyncMock())
-    for expected in (False, True, False):
+    for expected in (False, True, True, False):
         vocabulary = await registry.all_actions()
         assert (SetChunkInterval.name in {item.name for item in vocabulary}) is expected
         assert "create_schema" in {item.name for item in vocabulary}
-    assert probe.await_count == 3
+    assert probe.await_count == 4
     assert SetChunkInterval in PostgresAdapter.action_types()
 
 
@@ -88,4 +95,31 @@ async def test_ordinary_and_internal_tables_never_offer_interval(
     monkeypatch.setattr(actions, "preview_chunk_interval", preview)
     offers = await PostgresActions(AsyncMock(), catalog).action_offers("lab.events")
     assert SetChunkInterval.name not in {item.name for item in offers.actions}
+    preview.assert_not_awaited()
+
+
+@pytest.mark.parametrize("path", [
+    [SchemaNode(id="lab", name="lab", has_children=True, representations=[])],
+    [
+        SchemaNode(id="lab", name="lab", has_children=True, representations=[]),
+        ViewNode(
+            id="lab.events_hourly", name="events_hourly", has_children=False,
+            representations=[], specialization=TimescaleContinuousAggregate(),
+        ),
+    ],
+    [ReportNode(id="timescale.v1.chunks", name="Chunks", has_children=False, representations=[])],
+])
+async def test_non_hypertables_never_probe_interval_admission(
+    monkeypatch: pytest.MonkeyPatch, path: list[object],
+) -> None:
+    catalog = AsyncMock()
+    catalog.path_to.return_value = path
+    catalog.schema_action_reason.return_value = None
+    catalog.cascade_reason.return_value = None
+    catalog.relation_action_reason.return_value = None
+    preview = AsyncMock()
+    monkeypatch.setattr(actions, "preview_chunk_interval", preview)
+    offers = await PostgresActions(AsyncMock(), catalog).action_offers(path[-1].id)
+    assert SetChunkInterval.name not in {item.name for item in offers.actions}
+    assert offers.reason_for(SetChunkInterval.name) is None
     preview.assert_not_awaited()

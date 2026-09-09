@@ -199,8 +199,9 @@ The interval action is now registered with live connection vocabulary and
 source-planned availability, separately from ordinary relation guards. A
 one-day read-only plan checks admission; the user's actual parameters are
 reviewed separately and execution still replans under locks. Unit registration,
-discovery and refusal coverage is written, and the real-source chunk-boundary
-scenario now exercises registered offers, preview and reviewed execution.
+discovery, unsupported-install, hypertable-offer and non-hypertable refusal
+coverage is written, and the real-source chunk-boundary scenario now exercises
+registered offers, preview and reviewed execution.
 These registration changes have not been checked. Next validate this small
 registration slice after approval, including the shared form in the browser.
 Storage/policy changes and empty-table conversion remain after that;

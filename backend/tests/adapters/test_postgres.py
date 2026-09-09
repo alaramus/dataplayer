@@ -107,7 +107,10 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
         "drop_schema",
         "create_role",
         "describe_model",
+        "timescale_set_chunk_interval",
     ]
+    titles = {capability.title for capability in registry.capabilities_of(registry.get("postgres"))}
+    assert "Change chunk interval (when TimescaleDB is installed)" in titles
 
 
 def test_a_postgres_source_reports_runtime_features() -> None:

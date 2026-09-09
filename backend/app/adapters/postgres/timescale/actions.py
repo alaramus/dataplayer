@@ -11,6 +11,7 @@ from app.adapters.postgres.timescale.interval_preview import preview_chunk_inter
 from app.adapters.postgres.timescale.plans import TimeDuration
 from app.adapters.postgres.timescale.profile import discover
 from app.adapters.protocol import AdapterError
+from app.adapters.specializations import TimescaleHypertable
 
 TIMESCALE_ACTION_TYPES = (SetChunkInterval,)
 
@@ -35,7 +36,7 @@ class TimescaleActions:
         if not (
             isinstance(schema, SchemaNode) and not schema.is_system
             and isinstance(node, TableNode) and not node.is_system
-            and node.specialization is not None
+            and isinstance(node.specialization, TimescaleHypertable)
         ):
             return ActionOffers([])
         # One day admits date and timestamp dimensions without choosing the user's interval.

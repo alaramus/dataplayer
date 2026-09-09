@@ -775,7 +775,8 @@ compatibility scope.
 SetChunkInterval implements the existing preview and reviewed-action protocols,
 requires structure access, resolves catalog identities server-side and rejects
 plain execution without a reviewed fingerprint. Its form exposes only fixed
-duration units. It remains absent from the action registry. The disposable
+duration units. It is in the static PostgreSQL action-type list and in the
+live connection vocabulary when Timescale is discovered. The disposable
 interval execution fixtures cover retained existing chunks and new chunk size,
 an external native setter blocked by the metadata view lock alone, a change
 between preflight and locking, source rejection, cancellation releasing locks,
