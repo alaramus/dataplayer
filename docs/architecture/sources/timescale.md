@@ -312,4 +312,19 @@ The collaborator does not expose mutation methods. It is snapshot consistency,
 not execution locking or mutation certification. Unit coverage is written but
 unrun.
 
+The candidate interval execution strategy coordinates through a SHARE ROW
+EXCLUSIVE lock on the public dimensions view, followed by SHARE UPDATE EXCLUSIVE
+on ONLY the target root. PostgreSQL recursively locks the view's base relations;
+on the pinned versions these are Timescale's hypertable and dimension catalogs.
+This briefly blocks database-wide Timescale metadata changes, including chunk
+creation, and requires lock permission on the public view. No privilege is
+granted by DataPlayer and no private catalog is directly queried or modified.
+The preview discloses the scope; the fingerprint includes the view OID.
+Execution replans under those locks at READ COMMITTED before comparing the
+fingerprint and calling the qualified API with bound values. It has a two-second
+lock timeout and five-second total budget, with no automatic retry. Planning
+also refuses same-named overloads and PostgreSQL majors other than 16.
+This is an unvalidated strategy and cannot be registered before real-source
+permission, concurrent-change and rollback checks pass.
+
 Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)

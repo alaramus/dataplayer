@@ -20,6 +20,7 @@ def plan() -> ChunkIntervalPlan:
         interval=TimeDuration(amount=2, unit="day"),
         strategy=IntervalStrategy(
             extension_version="2.18.0", function_oid="456", function_schema="public",
+            dimensions_view_oid="789",
         ),
     )
 
@@ -55,6 +56,7 @@ def test_changed_parameters_or_api_invalidate_review() -> None:
     for section, field, value in [
         ("interval", "amount", 3), ("strategy", "extension_version", "2.17.2"),
         ("strategy", "function_oid", "457"), ("strategy", "function_schema", "extensions"),
+        ("strategy", "dimensions_view_oid", "790"),
     ]:
         raw = reviewed.model_dump()
         raw[section][field] = value

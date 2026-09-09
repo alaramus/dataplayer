@@ -36,10 +36,11 @@ class IntervalTarget(BaseModel):
 class IntervalStrategy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    name: Literal["set_chunk_time_interval_v1"] = "set_chunk_time_interval_v1"
+    name: Literal["set_chunk_time_interval_public_view_lock_v1"] = "set_chunk_time_interval_public_view_lock_v1"
     extension_version: Literal["2.17.2", "2.18.0"]
     function_oid: str = Field(pattern=r"^[1-9][0-9]{0,9}$")
     function_schema: str = Field(min_length=1, max_length=63)
+    dimensions_view_oid: str = Field(pattern=r"^[1-9][0-9]{0,9}$")
 
 
 class ChunkIntervalPlan(BaseModel):
@@ -52,6 +53,9 @@ class ChunkIntervalPlan(BaseModel):
     impact: Literal["Only future chunks use the new interval; existing chunks are not repartitioned"] = (
         "Only future chunks use the new interval; existing chunks are not repartitioned"
     )
+    coordination: Literal[
+        "Briefly locks TimescaleDB metadata across this database; new chunk creation may wait"
+    ] = "Briefly locks TimescaleDB metadata across this database; new chunk creation may wait"
 
     def fingerprint(self) -> str:
         payload = json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))

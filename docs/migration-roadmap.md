@@ -179,11 +179,14 @@ snapshot for multi-query previews; its unit coverage is written but unrun.
 The interval preview renderer uses that snapshot and emits ActionPreview with
 the current/requested interval, existing-chunk warning and review fingerprint.
 Failed inspection blocks review. Unit and isolated preview scenarios are written
-but unrun. Next establish the native interval setter's concurrency boundary,
-then implement reviewed execution and integrate the action. A root relation lock
-alone must not be assumed to serialize external native API calls. Validate the
-mutation strategy before registration. No Timescale mutation action is
-registered yet; T2 remains queued until its implementation is complete.
+but unrun. The candidate execution strategy now locks the public dimensions view
+and ONLY the root, replans at READ COMMITTED and compares the fingerprint before
+the native call. Planning requires metadata lock permission and rejects overloads;
+preview discloses the database-wide metadata lock. Execution and failure/staleness
+unit coverage are written but unrun. Next add real-source concurrency and
+mutation scenarios and the unregistered action integration. Validate the strategy
+before registration. No Timescale mutation action is registered yet; T2 remains
+queued until its implementation is complete.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

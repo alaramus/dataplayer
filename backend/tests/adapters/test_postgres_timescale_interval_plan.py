@@ -14,7 +14,10 @@ TARGET = {
     "table_name": "events", "dimension_number": 1, "column_name": "time",
     "column_type": "timestamp with time zone", "current_interval": "7 days",
 }
-API = {"extension_version": "2.18.0", "function_oid": "456", "function_schema": "public"}
+API = {
+    "extension_version": "2.18.0", "function_oid": "456", "function_schema": "public",
+    "dimensions_view_oid": "789",
+}
 
 
 @pytest.fixture

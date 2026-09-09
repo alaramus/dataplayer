@@ -24,6 +24,7 @@ def plan() -> ChunkIntervalPlan:
         interval=TimeDuration(amount=2, unit="day"),
         strategy=IntervalStrategy(
             extension_version="2.18.0", function_oid="456", function_schema="public",
+            dimensions_view_oid="789",
         ),
     )
 
@@ -43,6 +44,7 @@ async def test_preview_uses_snapshot_and_returns_reviewed_impact(
     assert result.items == [
         'Time dimension: "time"', "Current interval: 7 days", "Requested interval: 2 day",
         "Only future chunks use the new interval; existing chunks are not repartitioned",
+        "Briefly locks TimescaleDB metadata across this database; new chunk creation may wait",
     ]
     assert result.fingerprint == plan.fingerprint()
     assert not result.blocked

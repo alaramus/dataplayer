@@ -720,6 +720,36 @@ timeout and connection failure block review without returning driver text.
 Its unit and isolated source scenarios are written but unrun; it is not yet
 registered as an action.
 
+The proposed interval execution strategy locks the extension-owned public
+`timescaledb_information.dimensions` view in SHARE ROW EXCLUSIVE mode, then
+locks ONLY the resolved root relation in SHARE UPDATE EXCLUSIVE mode. PostgreSQL
+recursively locks the view's underlying relations; in both pinned definitions
+these are the hypertable and dimension catalogs. This serializes native
+dimension updates without reading or writing private catalogs directly. It is
+deliberately coarse: Timescale metadata changes across the database may wait,
+including new chunk creation. Ordinary reads remain possible. The preview must
+state that scope, and the plan fingerprints the view OID and strategy.
+
+The source role needs UPDATE, DELETE or TRUNCATE permission on the public view
+(ownership/superuser also suffices). DataPlayer grants nothing. Inspection
+refuses a source lacking that permission. Execution uses READ COMMITTED, repeats
+all planning after acquiring locks, compares the reviewed fingerprint and only
+then calls the qualified API with bound relation OID, interval and dimension.
+No automatic retry or mutating rehearsal is used. Lock waits have a two-second
+timeout and the operation a five-second budget. Source refusal rolls back.
+This strategy is limited to PostgreSQL 16 and Timescale 2.17.2/2.18.0 pending
+real-source concurrency, permission and rollback evidence; it is not registered.
+
+The API shape check also refuses any same-named overload in its schema: a
+concrete interval overload could otherwise win over the verified polymorphic
+function during invocation. Source administrators remain responsible for
+extension integrity; fingerprint review is not a sandbox against them.
+
+Evidence: PostgreSQL 16 [LOCK](https://www.postgresql.org/docs/16/sql-lock.html),
+Timescale 2.18.0 [dimension updates](https://github.com/timescale/timescaledb/blob/2.18.0/src/dimension.c)
+and [public views](https://github.com/timescale/timescaledb/blob/2.18.0/sql/views.sql).
+These describe the candidate strategy, not completed compatibility validation.
+
 Deliver async connection-specific action vocabulary, reasoned applicability,
 typed planning, interval/storage configuration, time-based policies and
 empty-table conversion for the tested API strategies. Each action includes

@@ -31,6 +31,7 @@ async def preview_chunk_interval(
             f"Current interval: {plan.target.current_interval}",
             f"Requested interval: {plan.interval.interval_value()}",
             plan.impact,
+            plan.coordination,
         ],
         fingerprint=plan.fingerprint(),
     )

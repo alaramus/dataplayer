@@ -52,7 +52,8 @@ LIMIT 2
 
 _API = """
 SELECT routine.oid::text AS function_oid, namespace.nspname AS function_schema,
-       extension.extversion AS extension_version
+       extension.extversion AS extension_version,
+       dimensions.oid::text AS dimensions_view_oid
 FROM pg_catalog.pg_proc AS routine
 JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
 JOIN pg_catalog.pg_depend AS dependency
@@ -61,7 +62,17 @@ JOIN pg_catalog.pg_depend AS dependency
  AND dependency.refclassid = 'pg_catalog.pg_extension'::pg_catalog.regclass
  AND dependency.deptype = 'e'
 JOIN pg_catalog.pg_extension AS extension ON extension.oid = dependency.refobjid
+JOIN pg_catalog.pg_depend AS view_dependency
+  ON view_dependency.refclassid = 'pg_catalog.pg_extension'::pg_catalog.regclass
+ AND view_dependency.refobjid = extension.oid AND view_dependency.deptype = 'e'
+ AND view_dependency.classid = 'pg_catalog.pg_class'::pg_catalog.regclass
+JOIN pg_catalog.pg_class AS dimensions ON dimensions.oid = view_dependency.objid
+JOIN pg_catalog.pg_namespace AS view_namespace ON view_namespace.oid = dimensions.relnamespace
 WHERE extension.extname = 'timescaledb' AND extension.extversion = %s
+  AND pg_catalog.current_setting('server_version_num')::integer BETWEEN 160000 AND 169999
+  AND view_namespace.nspname = 'timescaledb_information'
+  AND dimensions.relname = 'dimensions' AND dimensions.relkind = 'v'
+  AND pg_catalog.has_table_privilege(dimensions.oid, 'UPDATE,DELETE,TRUNCATE')
   AND routine.pronamespace = extension.extnamespace
   AND routine.proname = 'set_chunk_time_interval' AND routine.prokind = 'f'
   AND NOT routine.proretset AND routine.prorettype = 'pg_catalog.void'::pg_catalog.regtype
@@ -71,6 +82,11 @@ WHERE extension.extname = 'timescaledb' AND extension.extversion = %s
   AND routine.proargtypes[2] = 'pg_catalog.name'::pg_catalog.regtype
   AND pg_catalog.has_schema_privilege(namespace.oid, 'USAGE')
   AND pg_catalog.has_function_privilege(routine.oid, 'EXECUTE')
+  AND NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_proc AS overload
+      WHERE overload.pronamespace = routine.pronamespace
+        AND overload.proname = routine.proname AND overload.oid <> routine.oid
+  )
 LIMIT 2
 """
 
@@ -98,7 +114,9 @@ async def plan_chunk_interval(
                 raise ActionRefused("not_applicable", "Date dimensions require whole days or weeks")
             functions = await session.query(_API, (version,), inspection=True)
             if len(functions) != 1:
-                raise ActionRefused("not_applicable", "The interval API is unavailable or ambiguous")
+                raise ActionRefused(
+                    "not_applicable", "The interval API or public metadata lock permission is unavailable",
+                )
             strategy = IntervalStrategy.model_validate(functions[0])
             if strategy.extension_version != version:
                 raise ActionRefused("conflict", "TimescaleDB changed during planning; try again")
