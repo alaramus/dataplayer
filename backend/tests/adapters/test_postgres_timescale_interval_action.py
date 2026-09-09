@@ -3,11 +3,21 @@ from unittest.mock import AsyncMock
 import pytest
 from pydantic import ValidationError
 
-from app.adapters.actions import ActionPreview, ActionRefused, Previews, RequiresReviewedPlan, TakesParams, UnknownAction
+from app.adapters.actions import (
+    ActionPreview,
+    ActionRefused,
+    Previews,
+    RequiresReviewedPlan,
+    TakesParams,
+    UnknownAction,
+)
 from app.adapters.catalog import ReportNode, SchemaNode, TableNode
 from app.adapters.postgres.actions import PostgresActions
 from app.adapters.postgres.timescale import interval_action
-from app.adapters.postgres.timescale.interval_action import ChunkIntervalParams, SetChunkInterval
+from app.adapters.postgres.timescale.interval_action import (
+    ChunkIntervalParams,
+    SetChunkInterval,
+)
 from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
 
 

@@ -187,8 +187,12 @@ unit coverage are written but unrun. The unregistered SetChunkInterval action
 now connects preview/reviewed execution, with structure access and catalog target
 resolution. Disposable real-source scenarios cover native setter concurrency,
 stale review, chunk boundaries, refusal, cancellation, permissions and overloads;
-none have run. Next finish reviewed-attempt cache invalidation, then validate the
-strategy before registration. No Timescale mutation action is registered yet;
+none have run. Reviewed execution now invalidates connector reads after any
+dispatched attempt, including failure/cancellation and an uncertain commit;
+route/helper tests are written but unrun. Next obtain approval for the targeted
+backend and isolated-source checks, resolve their findings and validate the
+interval strategy before registration. Storage/policy changes and empty-table
+conversion remain after that. No Timescale mutation action is registered yet;
 T2 remains queued until its implementation is complete.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing

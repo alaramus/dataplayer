@@ -239,11 +239,17 @@ def _cache_key(
 
 
 async def _invalidate_after[T](
-    run: Callable[[], Awaitable[T]], data_cache: DataCache, connector_id: uuid.UUID
+    run: Callable[[], Awaitable[T]], data_cache: DataCache, connector_id: uuid.UUID,
+    *, even_on_failure: bool = False,
 ) -> T:
-    result = await run()
-    await data_cache.invalidate_connector(connector_id)
-    return result
+    succeeded = False
+    try:
+        result = await run()
+        succeeded = True
+        return result
+    finally:
+        if succeeded or even_on_failure:
+            await data_cache.invalidate_connector(connector_id)
 
 
 def _split_or_422(
@@ -3065,6 +3071,7 @@ async def run_action(
             lambda: _perform(lambda: action.perform_reviewed(body.node_id, body.params, fingerprint)),
             data_cache,
             connector_id,
+            even_on_failure=True,
         )
     if not isinstance(action, TakesParams):
         raise HTTPException(

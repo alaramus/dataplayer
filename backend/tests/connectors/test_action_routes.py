@@ -21,6 +21,7 @@ from app.adapters.postgres.actions import CreateSchema
 from app.adapters.postgres.adapter import PostgresAdapter
 from app.adapters.protocol import ConnectionCheckResult
 from app.core.config import settings
+from app.main import app
 from app.users import crud, storage
 from tests.utils.database import working_postgres_options
 from tests.utils.files import look
@@ -169,6 +170,8 @@ async def test_preview_fingerprint_and_stale_plan_conflict_cross_the_transport(
 ) -> None:
     connector_id = await _postgres_connector(client, normal_user_token_headers)
     fingerprint = "b" * 64
+    invalidate = AsyncMock()
+    monkeypatch.setattr(app.state.data_cache, "invalidate_connector", invalidate)
     preview = AsyncMock(return_value=ActionPreview(summary="Future chunks only", fingerprint=fingerprint))
     reviewed = AsyncMock(side_effect=ActionRefused("conflict", "The operation plan changed; review it again"))
     monkeypatch.setattr(CreateSchema, "preview", preview, raising=False)
@@ -181,11 +184,13 @@ async def test_preview_fingerprint_and_stale_plan_conflict_cross_the_transport(
     answer = await client.post(f"{path}/preview", headers=normal_user_token_headers, json={"params": {"name": "lab"}})
     assert answer.status_code == 200
     assert answer.json()["fingerprint"] == fingerprint
+    invalidate.assert_not_awaited()
     refused = await client.post(path, headers=normal_user_token_headers, json={
         "params": {"name": "lab"}, "reviewed_fingerprint": fingerprint,
     })
     assert refused.status_code == 409
     assert refused.json()["detail"]["message"] == "The operation plan changed; review it again"
+    invalidate.assert_awaited_once_with(uuid.UUID(connector_id))
 
 
 class NoActionOptions(BaseModel):

@@ -6,7 +6,12 @@ import pytest
 
 from app.adapters.actions import ActionRefused
 from app.adapters.postgres.timescale import interval_execution
-from app.adapters.postgres.timescale.plans import ChunkIntervalPlan, IntervalStrategy, IntervalTarget, TimeDuration
+from app.adapters.postgres.timescale.plans import (
+    ChunkIntervalPlan,
+    IntervalStrategy,
+    IntervalTarget,
+    TimeDuration,
+)
 from app.adapters.protocol import AdapterError
 
 

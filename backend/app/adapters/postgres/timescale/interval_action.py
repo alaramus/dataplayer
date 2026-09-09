@@ -3,7 +3,13 @@
 from collections.abc import Mapping
 from typing import Any, ClassVar, Literal
 
-from app.adapters.actions import Action, ActionPreview, ActionRefused, ActionResult, ActsOn
+from app.adapters.actions import (
+    Action,
+    ActionPreview,
+    ActionRefused,
+    ActionResult,
+    ActsOn,
+)
 from app.adapters.catalog import NodeKind, SchemaNode, TableNode
 from app.adapters.features import FeatureCode
 from app.adapters.postgres.catalog import PostgresCatalog

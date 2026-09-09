@@ -760,6 +760,13 @@ between preflight and locking, source rejection, cancellation releasing locks,
 an owner without metadata lock permission and a concrete overload. These tests
 have not been run; the source images retain their T1-only certification.
 
+The reviewed-action route invalidates the connector's read cache after any
+dispatched attempt, including failure or cancellation, because a transport error
+can leave the commit outcome unknown. It does not automatically retry. Preview
+and refusal before dispatch do not invalidate, and ordinary actions keep their
+success-only behavior. This conservative invalidation also covers a definite
+stale-plan refusal; correctness is preferred to retaining that cache entry.
+
 Deliver async connection-specific action vocabulary, reasoned applicability,
 typed planning, interval/storage configuration, time-based policies and
 empty-table conversion for the tested API strategies. Each action includes

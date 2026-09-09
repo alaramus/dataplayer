@@ -336,4 +336,11 @@ mutation scenarios (future versus existing chunks, an external native setter,
 stale review, source refusal, cancellation cleanup, lock permission and an
 overload) are written but unrun on both pinned fixtures.
 
+Once reviewed execution has been dispatched, its route invalidates connector
+reads on success, refusal, failure or cancellation. This conservatively covers
+an uncertain commit without inferring source effects from error text. Preview,
+missing-review and access refusal do not dispatch execution. Ordinary actions
+retain their existing success-only invalidation. Route/helper tests are written
+but unrun.
+
 Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)
