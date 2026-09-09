@@ -37,8 +37,8 @@ after changing initialization SQL; existing containers do not rerun it.
 
 ## Commands requiring approval
 
-T2 interval-planning scenarios in `test_interval_planning.py` are written but
-unrun. They check unchanged source intervals, schema-specific identities and
+T2 interval-planning scenarios in `test_interval_planning.py` passed in the
+2026-09-09 targeted run below. They check unchanged source intervals, schema-specific identities and
 refusal of ordinary/integer/aggregate targets, read-only source roles and plain
 databases. They certify no mutation semantics, even when later run successfully.
 
@@ -234,13 +234,24 @@ outputs or counts were supplied, and no checks were rerun for this documentation
 update. The recorded targeted results above remain the detailed command evidence.
 T2/T3 mutation strategies still require their own real-source validation.
 
-### T2 interval execution: validation pending, 2026-09-09
+### T2 interval execution: isolated validation, 2026-09-09
 
 `test_interval_execution.py` uses disposable hypertables on both pinned sources.
 It covers existing/future chunk boundaries, native setter exclusion by the
 public metadata view lock, stale review after an external change, source
 refusal, cancellation cleanup, missing lock permission and a concrete overload.
 The implementation uses a database-wide Timescale metadata lock and is not
-registered. These scenarios, the extended interval planning/preview scenarios
-and their unit tests have not been run. No T2 compatibility claim follows from
-the T1 record above.
+registered. After explicit user approval, both pinned containers became healthy
+and the following command passed from `backend/`:
+
+```bash
+uv run pytest compatibility/timescale/test_interval_planning.py compatibility/timescale/test_interval_execution.py -q --tb=short
+```
+
+Result: **36 passed in 15.62s**, exit code 0. This covers planning, read-only
+snapshot/preview and interval execution on Timescale 2.17.2 and 2.18.0 with
+PostgreSQL 16. The fixture verifies each extension version and PostgreSQL major.
+It supplies interval mutation evidence independently of T1; it does not certify
+storage/policy changes, conversion or other version combinations. Backend unit,
+transport, static and frontend review checks remain pending. No other checks
+were run in this session, including the documentation check.

@@ -187,11 +187,17 @@ unit coverage are written but unrun. The unregistered SetChunkInterval action
 now connects preview/reviewed execution, with structure access and catalog target
 resolution. Disposable real-source scenarios cover native setter concurrency,
 stale review, chunk boundaries, refusal, cancellation, permissions and overloads;
-none have run. Reviewed execution now invalidates connector reads after any
+these passed in the isolated run recorded below. Reviewed execution now
+invalidates connector reads after any
 dispatched attempt, including failure/cancellation and an uncertain commit;
-route/helper tests are written but unrun. Next obtain approval for the targeted
-backend and isolated-source checks, resolve their findings and validate the
-interval strategy before registration. Storage/policy changes and empty-table
+route/helper tests are written but unrun. On 2026-09-09 the approved isolated
+planning/execution selection passed: 36 tests across both pinned sources; see
+the [validation record](../backend/compatibility/timescale/README.md#t2-interval-execution-isolated-validation-2026-09-09).
+This supersedes the isolated interval planning/preview/execution pending statuses
+above, but not the unit, transport, static or frontend checks. Next obtain
+approval for those targeted checks, resolve their findings and register the
+interval action with connection-specific offers and regression coverage.
+Storage/policy changes and empty-table
 conversion remain after that. No Timescale mutation action is registered yet;
 T2 remains queued until its implementation is complete.
 

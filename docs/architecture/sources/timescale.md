@@ -304,12 +304,13 @@ limited to the pinned 2.17.2/2.18.0 versions; this is not mutation certification
 Integer dimensions, multiple dimensions, calendar intervals and subday intervals
 for date columns are refused. Shared duration models preserve calendar units,
 but this strategy does not offer them. There is no private catalog fallback.
-Unit and isolated real-source planning scenarios are written but unrun. The
+Unit scenarios remain unrun; isolated real-source planning scenarios passed
+in the 2026-09-09 interval validation run. The
 interval preview renderer now uses the shared ActionPreview transport with the
 plan fingerprint, source-resolved quoted target, old/new interval and the
 existing-chunk warning. Refused or failed inspection returns a blocked preview
 without a fingerprint. The renderer is internal; action registration and
-execution under a validated concurrency strategy remain outstanding.
+transport validation remain outstanding.
 
 Multi-query preview inspection now has a PostgreSQL read collaborator bound to
 one repeatable-read, read-only transaction. Acquisition, reads and cleanup share
@@ -331,17 +332,20 @@ Execution replans under those locks at READ COMMITTED before comparing the
 fingerprint and calling the qualified API with bound values. It has a two-second
 lock timeout and five-second total budget, with no automatic retry. Planning
 also refuses same-named overloads and PostgreSQL majors other than 16.
-This is an unvalidated strategy and cannot be registered before real-source
-permission, concurrent-change and rollback checks pass.
+Real-source permission, concurrent-change, refusal and cancellation checks
+passed on both pinned fixtures on 2026-09-09. Registration and remaining
+backend/frontend validation are still pending.
 
 The unregistered SetChunkInterval action now connects the preview and execution
 primitives to the existing reviewed transport, requires structure access and
 resolves its target through the catalog. Plain execution refuses a missing
 review; its parameter schema excludes calendar units. Source planning remains
-the authoritative hypertable/ownership check. Unit coverage and isolated
+the authoritative hypertable/ownership check. Isolated
 mutation scenarios (future versus existing chunks, an external native setter,
 stale review, source refusal, cancellation cleanup, lock permission and an
-overload) are written but unrun on both pinned fixtures.
+overload) passed on both pinned fixtures in the 36-test isolated interval run.
+Unit coverage remains unrun. The exact command and scope are recorded in the
+[compatibility record](../../../backend/compatibility/timescale/README.md#t2-interval-execution-isolated-validation-2026-09-09).
 
 Once reviewed execution has been dispatched, its route invalidates connector
 reads on success, refusal, failure or cancellation. This conservatively covers

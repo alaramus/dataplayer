@@ -717,8 +717,16 @@ The internal interval preview renders this snapshot as ActionPreview and
 includes its fingerprint only on success. It states the current/requested
 interval and that existing chunks are not repartitioned. Metadata refusal,
 timeout and connection failure block review without returning driver text.
-Its unit and isolated source scenarios are written but unrun; it is not yet
-registered as an action.
+Its isolated source scenarios passed in the 2026-09-09 interval run; unit
+scenarios remain unrun and it is not yet registered as an action.
+
+The approved isolated planning/execution selection passed all 36 tests on both
+pinned sources on 2026-09-09, including native setter exclusion, stale review,
+future/existing chunk boundaries, refusal and cancellation cleanup. This is
+interval-specific evidence; backend unit/transport/static and frontend review
+validation remain pending. See the
+[compatibility record](../../../backend/compatibility/timescale/README.md#t2-interval-execution-isolated-validation-2026-09-09)
+for the exact command and limits.
 
 The proposed interval execution strategy locks the extension-owned public
 `timescaledb_information.dimensions` view in SHARE ROW EXCLUSIVE mode, then
@@ -737,8 +745,8 @@ all planning after acquiring locks, compares the reviewed fingerprint and only
 then calls the qualified API with bound relation OID, interval and dimension.
 No automatic retry or mutating rehearsal is used. Lock waits have a two-second
 timeout and the operation a five-second budget. Source refusal rolls back.
-This strategy is limited to PostgreSQL 16 and Timescale 2.17.2/2.18.0 pending
-real-source concurrency, permission and rollback evidence; it is not registered.
+This strategy is limited to PostgreSQL 16 and Timescale 2.17.2/2.18.0, with
+real-source interval evidence recorded above; it is not registered.
 
 The API shape check also refuses any same-named overload in its schema: a
 concrete interval overload could otherwise win over the verified polymorphic
@@ -748,7 +756,8 @@ extension integrity; fingerprint review is not a sandbox against them.
 Evidence: PostgreSQL 16 [LOCK](https://www.postgresql.org/docs/16/sql-lock.html),
 Timescale 2.18.0 [dimension updates](https://github.com/timescale/timescaledb/blob/2.18.0/src/dimension.c)
 and [public views](https://github.com/timescale/timescaledb/blob/2.18.0/sql/views.sql).
-These describe the candidate strategy, not completed compatibility validation.
+These explain the strategy; the isolated validation record supplies its tested
+compatibility scope.
 
 SetChunkInterval implements the existing preview and reviewed-action protocols,
 requires structure access, resolves catalog identities server-side and rejects
