@@ -67,8 +67,8 @@ an inspection error rather than stale detection or an absent extension.
 
 `SupportsActions.all_actions()` is async across all three adapters, allowing
 live discovery to supply this connection's vocabulary. This T2 foundation is
-implemented with regression coverage written; validation is pending. No
-Timescale mutation actions are registered yet. PostgreSQL implements the optional
+implemented; the user confirmed green checks after `482a537`. The interval
+action is now registered, with its registration checks pending. PostgreSQL implements the optional
 `ExplainsActionAvailability.action_offers(node_id)` protocol: one read returns
 eligible actions and typed named refusals. Its ordinary `available(node_id)`
 delegates to that same answer. The menu and execution use the source reason;
@@ -77,6 +77,11 @@ the first explicit refusal in request order explains a blocked selection; an
 eligible destination still admits a destination workflow. Lookup stays a
 registered action set. This reason transport is implemented but unvalidated.
 No Timescale commands appear on a database without the extension. Static
+vocabulary discovery raises an inspection error when extension status is
+unavailable. Installed unsupported versions keep the interval command but its
+live plan refuses execution. Interval admission uses a one-day read-only plan
+for a user hypertable; actual preview validates the chosen duration separately.
+The ordinary relation guards remain independent of management admission. Static
 action declarations carry typed feature requirements so the type catalog can
 word conditional capabilities honestly. The default-empty tuple uses the closed
 `FeatureCode` vocabulary. The server appends the installation condition to the
@@ -275,7 +280,7 @@ malformed fingerprints and changes to any field require renewed review.
 It carries no credential, connector authority or execution admission. Duration
 amounts are strict positive integers with a closed unit vocabulary; calendar
 units remain calendar units. Models and staleness tests are written but unrun.
-The interval model is not yet registered as an executable action.
+The interval model is used by the registered reviewed interval action.
 
 The shared single-action transport now accepts an optional `reviewed_fingerprint`
 separately from form parameters. `ActionPreview.fingerprint` carries the review
@@ -309,8 +314,7 @@ in the 2026-09-09 interval validation run. The
 interval preview renderer now uses the shared ActionPreview transport with the
 plan fingerprint, source-resolved quoted target, old/new interval and the
 existing-chunk warning. Refused or failed inspection returns a blocked preview
-without a fingerprint. The renderer is internal; action registration and
-transport validation remain outstanding.
+without a fingerprint. The registered action uses this renderer.
 
 Multi-query preview inspection now has a PostgreSQL read collaborator bound to
 one repeatable-read, read-only transaction. Acquisition, reads and cleanup share
@@ -333,10 +337,10 @@ fingerprint and calling the qualified API with bound values. It has a two-second
 lock timeout and five-second total budget, with no automatic retry. Planning
 also refuses same-named overloads and PostgreSQL majors other than 16.
 Real-source permission, concurrent-change, refusal and cancellation checks
-passed on both pinned fixtures on 2026-09-09. Registration and remaining
-backend/frontend validation are still pending.
+passed on both pinned fixtures on 2026-09-09. The user subsequently confirmed
+green checks after `482a537`; registration changes made afterwards remain unvalidated.
 
-The unregistered SetChunkInterval action now connects the preview and execution
+The registered SetChunkInterval action connects the preview and execution
 primitives to the existing reviewed transport, requires structure access and
 resolves its target through the catalog. Plain execution refuses a missing
 review; its parameter schema excludes calendar units. Source planning remains

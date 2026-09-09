@@ -64,6 +64,7 @@ from app.adapters.postgres.session import (
 from app.adapters.postgres.statements import format_text
 from app.adapters.postgres.summary import PostgresSummaries
 from app.adapters.postgres.table_design import PostgresTableDesign
+from app.adapters.postgres.timescale.actions import TIMESCALE_ACTION_TYPES
 from app.adapters.postgres.update import PostgresUpdate
 from app.adapters.protocol import (
     BackupAvailability,
@@ -243,7 +244,7 @@ class PostgresAdapter:
     @classmethod
     def action_types(cls) -> tuple[ActionType, ...]:
         """The same declarations used to build the callable action set."""
-        return POSTGRES_ACTION_TYPES
+        return (*POSTGRES_ACTION_TYPES, *TIMESCALE_ACTION_TYPES)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         return await self._actions.available(node_id)

@@ -87,8 +87,8 @@ def test_action_form_does_not_offer_calendar_intervals() -> None:
     ]
 
 
-async def test_strategy_remains_unregistered_until_compatibility_validation() -> None:
+def test_interval_lookup_is_registered_and_unknown_names_stay_closed() -> None:
     registry = PostgresActions(AsyncMock(), AsyncMock())
-    assert SetChunkInterval.name not in {item.name for item in await registry.all_actions()}
+    assert isinstance(registry.action(SetChunkInterval.name), SetChunkInterval)
     with pytest.raises(UnknownAction):
-        registry.action(SetChunkInterval.name)
+        registry.action("set_chunk_time_interval")

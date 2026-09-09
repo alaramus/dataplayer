@@ -1,4 +1,4 @@
-"""Reviewed interval action, intentionally absent from the published registry."""
+"""Reviewed interval action with live source planning at execution boundaries."""
 
 from collections.abc import Mapping
 from typing import Any, ClassVar, Literal

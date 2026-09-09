@@ -267,3 +267,10 @@ their return values are unused, preserving setup and teardown; the import block
 is expanded. These edits have not been revalidated. This report supersedes the
 earlier pending status for the user's completed checks, but does not establish
 a clean Ruff result after the fix or complete T2 implementation.
+
+The user subsequently confirmed that the repeat run after `482a537` was entirely
+green. No counts or further outputs were supplied. This closes the pending
+checks for that commit. The later registration slice adds unit coverage and
+extends the chunk-boundary scenario through the registered action's offers,
+preview and reviewed execution. Those new changes have not been run and do not
+inherit a passing result from the earlier direct-execution scenario.

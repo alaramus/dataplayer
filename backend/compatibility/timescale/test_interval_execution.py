@@ -10,9 +10,12 @@ import pytest
 from psycopg import sql
 
 from app.adapters.actions import ActionRefused
+from app.adapters.postgres.actions import PostgresActions
+from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.timescale import interval_execution
+from app.adapters.postgres.timescale.interval_action import SetChunkInterval
 from app.adapters.postgres.timescale.interval_plan import plan_chunk_interval
 from app.adapters.postgres.timescale.plans import ChunkIntervalPlan, TimeDuration
 from compatibility.timescale.source import TimescaleSource
@@ -78,8 +81,16 @@ async def test_interval_change_preserves_existing_chunks_and_changes_future_chun
     before = await session.query(chunks, (target.schema, target.table))
     assert len(before) == 2
     plan = await planned(source, target)
-    await interval_execution.execute_chunk_interval(
-        session, target.schema, target.table, plan.interval, plan.fingerprint(),
+    registry = PostgresActions(session, PostgresCatalog(session))
+    node_id = f"{target.schema}.{target.table}"
+    assert SetChunkInterval.name in {item.name for item in await registry.all_actions()}
+    assert SetChunkInterval.name in {item.name for item in await registry.available(node_id)}
+    action = registry.action(SetChunkInterval.name)
+    assert isinstance(action, SetChunkInterval)
+    preview = await action.preview(node_id, plan.interval.model_dump())
+    assert preview.fingerprint == plan.fingerprint()
+    await action.perform_reviewed(
+        node_id, plan.interval.model_dump(), plan.fingerprint(),
     )
     assert await session.query(chunks, (target.schema, target.table)) == before
     assert (await planned(source, target)).target.current_interval == "2 days"

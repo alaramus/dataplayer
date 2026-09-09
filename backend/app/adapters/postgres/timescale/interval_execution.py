@@ -1,4 +1,4 @@
-"""Unregistered interval strategy; compatibility evidence is required (D123)."""
+"""Interval strategy validated on the pinned PostgreSQL 16 sources (D123)."""
 
 import asyncio
 

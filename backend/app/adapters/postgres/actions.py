@@ -28,6 +28,7 @@ from app.adapters.actions import (
     NodeReplacement,
 )
 from app.adapters.catalog import (
+    CatalogNode,
     NodeKind,
     ReportNode,
     SchemaNode,
@@ -49,6 +50,7 @@ from app.adapters.postgres.roles import CreateRole
 from app.adapters.postgres.session import PostgresSession
 from app.adapters.postgres.system_reports import ROLES_REPORT_ID
 from app.adapters.postgres.table_design import PostgresTableDesign
+from app.adapters.postgres.timescale.actions import TimescaleActions
 from app.adapters.relation import RelationModel
 from app.adapters.relation_changes import (
     CreateRelationRequest,
@@ -1072,15 +1074,17 @@ class PostgresActions:
     def __init__(self, session: PostgresSession, catalog: PostgresCatalog) -> None:
         self._catalog = catalog
         self._relations = PostgresRelationChanges(session, catalog)
+        self._timescale = TimescaleActions(session, catalog)
         self._actions = ActionSet(
             [action_type(session, catalog) for action_type in POSTGRES_ACTION_TYPES]
         )
+        self._registered = ActionSet([*self._actions, self._timescale.interval])
 
     def action(self, name: str) -> Action[Any]:
-        return self._actions.get(name)
+        return self._registered.get(name)
 
     async def all_actions(self) -> list[Action[Any]]:
-        return list(self._actions)
+        return [*self._actions, *(await self._timescale.all_actions())]
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:
         return list((await self.action_offers(node_id)).actions)
@@ -1106,6 +1110,14 @@ class PostgresActions:
         if node_id is None:
             return ActionOffers([self._actions.get(CreateSchema.name)])
         path = await self._catalog.path_to(node_id)
+        ordinary = await self._ordinary_offers(node_id, path)
+        extension = await self._timescale.offers(path)
+        return ActionOffers(
+            [*ordinary.actions, *extension.actions],
+            (*ordinary.refusals, *extension.refusals),
+        )
+
+    async def _ordinary_offers(self, node_id: str, path: list[CatalogNode]) -> ActionOffers:
         node = path[-1]
         if isinstance(node, SchemaNode):
             # Whether a schema will take a new relation is the schema's own

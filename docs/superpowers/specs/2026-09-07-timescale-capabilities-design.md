@@ -718,7 +718,8 @@ includes its fingerprint only on success. It states the current/requested
 interval and that existing chunks are not repartitioned. Metadata refusal,
 timeout and connection failure block review without returning driver text.
 Its isolated source scenarios passed in the 2026-09-09 interval run; unit
-scenarios remain unrun and it is not yet registered as an action.
+scenarios were subsequently confirmed green by the user after `482a537`.
+Registration was implemented afterwards and remains unvalidated.
 
 The approved isolated planning/execution selection passed all 36 tests on both
 pinned sources on 2026-09-09, including native setter exclusion, stale review,
@@ -746,7 +747,19 @@ then calls the qualified API with bound relation OID, interval and dimension.
 No automatic retry or mutating rehearsal is used. Lock waits have a two-second
 timeout and the operation a five-second budget. Source refusal rolls back.
 This strategy is limited to PostgreSQL 16 and Timescale 2.17.2/2.18.0, with
-real-source interval evidence recorded above; it is not registered.
+real-source interval evidence recorded above.
+
+The registered action's connection vocabulary performs fresh extension discovery:
+absence hides the command, unavailable discovery raises an inspection error,
+and installed unsupported versions retain a command whose live plan refuses.
+Admission requires a user hypertable and a successful read-only one-day interval
+plan, allowing the same check for date and timestamp dimensions. This probe does
+not choose or approve the user's duration. Actual preview and locked execution
+repeat the existing parameter-specific checks. Ordinary relation action guards
+remain independent; admitting interval management does not admit row or DDL
+mutation. The type catalog derives the installation condition from the action's
+feature requirement. Registration unit and real-source scenarios are written
+but unrun; shared-form browser acceptance is also pending.
 
 The API shape check also refuses any same-named overload in its schema: a
 concrete interval overload could otherwise win over the verified polymorphic

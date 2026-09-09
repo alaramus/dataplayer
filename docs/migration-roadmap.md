@@ -193,17 +193,17 @@ dispatched attempt, including failure/cancellation and an uncertain commit;
 route/helper tests are written but unrun. On 2026-09-09 the approved isolated
 planning/execution selection passed: 36 tests across both pinned sources; see
 the [validation record](../backend/compatibility/timescale/README.md#t2-interval-execution-isolated-validation-2026-09-09).
-This supersedes the isolated interval planning/preview/execution pending statuses
-above, but not the unit, transport, static or frontend checks. Next obtain
-approval for those targeted checks, resolve their findings and register the
-interval action with connection-specific offers and regression coverage.
-Follow-up on 2026-09-09: the user reported all tests and other checks clean,
-with only six Ruff findings. Those fixture-argument/import findings are fixed;
-the edits have not been revalidated. See the compatibility record for the
-user-reported evidence. Next confirm Ruff is clean, then register the interval
-action with connection-specific offers and regression coverage.
-Storage/policy changes and empty-table
-conversion remain after that. No Timescale mutation action is registered yet;
+The user subsequently confirmed that all checks were green after the six Ruff
+fixes in `482a537`; this supersedes the earlier pending validation statuses.
+The interval action is now registered with live connection vocabulary and
+source-planned availability, separately from ordinary relation guards. A
+one-day read-only plan checks admission; the user's actual parameters are
+reviewed separately and execution still replans under locks. Unit registration,
+discovery and refusal coverage is written, and the real-source chunk-boundary
+scenario now exercises registered offers, preview and reviewed execution.
+These registration changes have not been checked. Next validate this small
+registration slice after approval, including the shared form in the browser.
+Storage/policy changes and empty-table conversion remain after that;
 T2 remains queued until its implementation is complete.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
