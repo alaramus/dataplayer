@@ -713,6 +713,12 @@ protocol lets the existing Timescale discovery and interval planner share that
 connection without adding mutation methods to the inspection collaborator.
 This does not establish the execution boundary: a source snapshot can become
 stale immediately, so execution still needs its own concurrency strategy.
+The internal interval preview renders this snapshot as ActionPreview and
+includes its fingerprint only on success. It states the current/requested
+interval and that existing chunks are not repartitioned. Metadata refusal,
+timeout and connection failure block review without returning driver text.
+Its unit and isolated source scenarios are written but unrun; it is not yet
+registered as an action.
 
 Deliver async connection-specific action vocabulary, reasoned applicability,
 typed planning, interval/storage configuration, time-based policies and

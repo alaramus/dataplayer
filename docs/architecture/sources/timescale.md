@@ -297,9 +297,12 @@ limited to the pinned 2.17.2/2.18.0 versions; this is not mutation certification
 Integer dimensions, multiple dimensions, calendar intervals and subday intervals
 for date columns are refused. Shared duration models preserve calendar units,
 but this strategy does not offer them. There is no private catalog fallback.
-Unit and isolated real-source planning scenarios are written but unrun. Preview
-integration for the interval action, execution under locks and mutation
-compatibility remain outstanding.
+Unit and isolated real-source planning scenarios are written but unrun. The
+interval preview renderer now uses the shared ActionPreview transport with the
+plan fingerprint, source-resolved quoted target, old/new interval and the
+existing-chunk warning. Refused or failed inspection returns a blocked preview
+without a fingerprint. The renderer is internal; action registration and
+execution under a validated concurrency strategy remain outstanding.
 
 Multi-query preview inspection now has a PostgreSQL read collaborator bound to
 one repeatable-read, read-only transaction. Acquisition, reads and cleanup share

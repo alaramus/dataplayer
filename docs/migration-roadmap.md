@@ -174,11 +174,16 @@ the generated client is updated and transport tests are written but unrun.
 The action form now requires and forwards a current review fingerprint, clears
 it immediately on parameter changes and retains failed reviewed actions for
 renewed review. Component tests are written but unrun; browser validation is pending.
-Next implement interval-action integration and execution with fresh locked validation,
-then validate the mutation strategy before registration. No Timescale mutation
-action is registered yet; T2 remains queued until its implementation is complete.
 The PostgreSQL inspection collaborator now supports a single bounded read-only
 snapshot for multi-query previews; its unit coverage is written but unrun.
+The interval preview renderer uses that snapshot and emits ActionPreview with
+the current/requested interval, existing-chunk warning and review fingerprint.
+Failed inspection blocks review. Unit and isolated preview scenarios are written
+but unrun. Next establish the native interval setter's concurrency boundary,
+then implement reviewed execution and integrate the action. A root relation lock
+alone must not be assumed to serialize external native API calls. Validate the
+mutation strategy before registration. No Timescale mutation action is
+registered yet; T2 remains queued until its implementation is complete.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation
