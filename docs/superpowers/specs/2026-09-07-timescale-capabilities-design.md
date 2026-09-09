@@ -496,6 +496,15 @@ identity, strategy or relevant preconditions. A fingerprint detects staleness;
 it grants no authority. Empty conversion takes an appropriate relation lock
 and rechecks emptiness before the transaction changes it.
 
+The initial typed plan is `ChunkIntervalPlan`: database and relation OIDs,
+schema/table, time dimension number/name/type and current interval, requested
+`TimeDuration`, and the exact extension version and function schema/OID for
+`set_chunk_time_interval_v1`. The duration has a strict positive integer amount
+bounded to 2,147,483,647 and a closed unit; no SQL fragment is a parameter.
+The fingerprint is SHA-256 over sorted compact JSON of the full plan, including
+its fixed impact statement. It is a staleness comparison, not a signed grant.
+The model is internal until preview transport and execution admission land.
+
 Chunk selection always has a parent hypertable. Empty selection means no work,
 never all chunks. Schema/name identities are re-resolved against that parent's
 live chunk membership, and bound as qualified regclass values where the API

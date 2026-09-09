@@ -166,8 +166,9 @@ the menu and execution share those reasons without another discovery query.
 Target-selection and route regression tests are written but unrun.
 Typed action feature requirements and conditional capability titles are also
 implemented with unrun regression coverage; existing actions default to no
-feature requirement. Next implement read-only plans and the bounded mutation
-strategies. No Timescale mutation
+feature requirement. The first internal chunk-interval plan model and its
+staleness/duration tests are written but unrun. Next implement its read-only
+source inspector, preview transport and bounded mutation strategy. No Timescale mutation
 action is registered yet; T2 remains queued until its implementation is complete.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing

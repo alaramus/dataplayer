@@ -260,4 +260,14 @@ surface reads the durable job; accepting it creates no second local running
 operation. Later policy actions require structure access, and retention-policy
 confirmation describes future automatic deletion by the source.
 
+The first T2 plan model covers a future-chunk interval change. It records the
+database/relation OIDs as decimal text, schema/name, time dimension and its
+current interval, typed requested duration, extension version and exact API
+identity. Its SHA-256 fingerprint covers the complete canonical JSON plan;
+malformed fingerprints and changes to any field require renewed review.
+It carries no credential, connector authority or execution admission. Duration
+amounts are strict positive integers with a closed unit vocabulary; calendar
+units remain calendar units. Models and staleness tests are written but unrun.
+This internal model is not yet an HTTP preview or an executable action.
+
 Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)
