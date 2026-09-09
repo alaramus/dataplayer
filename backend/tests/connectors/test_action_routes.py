@@ -3,6 +3,8 @@ import json
 import uuid
 from collections.abc import AsyncGenerator
 from pathlib import Path
+from typing import Any
+from unittest.mock import AsyncMock
 from zipfile import ZipFile
 
 import pytest
@@ -11,6 +13,8 @@ from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.adapters import registry
+from app.adapters.actions import Action
+from app.adapters.file.adapter import FileAdapter
 from app.adapters.protocol import ConnectionCheckResult
 from app.core.config import settings
 from app.users import crud, storage
@@ -71,6 +75,36 @@ async def _postgres_connector(client: AsyncClient, headers: dict[str, str]) -> s
     )
     assert response.status_code == 200
     return str(response.json()["id"])
+
+
+async def test_action_menu_awaits_the_connection_vocabulary_on_every_request(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    home: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    connector_id = await _file_connector(client, normal_user_token_headers)
+    original = FileAdapter.all_actions
+    calls = AsyncMock()
+
+    async def vocabulary(adapter: FileAdapter) -> list[Action[Any]]:
+        await calls()
+        actions = await original(adapter)
+        return actions if calls.await_count == 1 else []
+
+    monkeypatch.setattr(FileAdapter, "all_actions", vocabulary)
+    path = f"{BASE}/{connector_id}/actions"
+    first = await client.post(
+        path, headers=normal_user_token_headers, json={"node_ids": []}
+    )
+    assert first.status_code == 200
+    assert "create_folder" in {item["name"] for item in first.json()}
+    second = await client.post(
+        path, headers=normal_user_token_headers, json={"node_ids": []}
+    )
+    assert second.status_code == 200
+    assert second.json() == []
+    assert calls.await_count == 2
 
 
 class NoActionOptions(BaseModel):

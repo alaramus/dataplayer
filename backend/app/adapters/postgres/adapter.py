@@ -251,8 +251,8 @@ class PostgresAdapter:
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
 
-    def all_actions(self) -> list[Action[Any]]:
-        return self._actions.all_actions()
+    async def all_actions(self) -> list[Action[Any]]:
+        return await self._actions.all_actions()
 
     @classmethod
     def options_from_url(cls, url: str) -> dict[str, Any]:

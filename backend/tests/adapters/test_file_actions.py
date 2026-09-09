@@ -94,7 +94,7 @@ async def test_the_whole_vocabulary_is_offered_whatever_the_node(
     The vocabulary and applicability remain separate source statements; the
     client may then omit commands that do not apply to the current selection.
     """
-    names = {action.name for action in actions.all_actions()}
+    names = {action.name for action in await actions.all_actions()}
 
     assert names == {
         "create_folder",
@@ -112,7 +112,7 @@ async def test_the_whole_vocabulary_is_offered_whatever_the_node(
 async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
     actions: FileActions,
 ) -> None:
-    by_name = {action.name: action.acts_on for action in actions.all_actions()}
+    by_name = {action.name: action.acts_on for action in await actions.all_actions()}
 
     assert by_name == {
         "create_folder": "children",

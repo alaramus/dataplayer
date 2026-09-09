@@ -65,8 +65,10 @@ also invalidate it. No focus/reconnect refresh or interval polling is added.
 Unsupported capability (501) hides this optional section; request failures show
 an inspection error rather than stale detection or an absent extension.
 
-When Timescale actions arrive, `SupportsActions.all_actions()` becomes async
-and returns this connection's vocabulary. `available(node_id)` supplies
+`SupportsActions.all_actions()` is async across all three adapters, allowing
+live discovery to supply this connection's vocabulary. This T2 foundation is
+implemented with regression coverage written; validation is pending. No
+Timescale mutation actions are registered yet. `available(node_id)` supplies
 per-node applicability and its reason; lookup stays a registered action set.
 No Timescale commands appear on a database without the extension. Static
 action declarations carry typed feature requirements so the type catalog can

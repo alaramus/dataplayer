@@ -1077,7 +1077,7 @@ class PostgresActions:
     def action(self, name: str) -> Action[Any]:
         return self._actions.get(name)
 
-    def all_actions(self) -> list[Action[Any]]:
+    async def all_actions(self) -> list[Action[Any]]:
         return list(self._actions)
 
     async def available(self, node_id: str | None) -> list[Action[Any]]:

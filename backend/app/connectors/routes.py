@@ -2987,7 +2987,7 @@ async def read_actions(
     # the level rules into the menu as well as into the route.
     return [
         _describe(action, action_availability(action, targets, offers))
-        for action in acting.all_actions()
+        for action in await acting.all_actions()
         if at_least(access, action.requires)
     ]
 

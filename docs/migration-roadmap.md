@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Last updated: 2026-09-08.
+Last updated: 2026-09-09.
 
 The order for moving useful behaviour from `dbwebtool` and `myquasar` into
 DataPlayer. It is a route, not a promise to reproduce every old screen. The old
@@ -157,6 +157,13 @@ T1 completion is recorded in the
 Next: implement T2 against its acceptance criteria in the Timescale design.
 T2 API mutation strategies require their own real-source tests;
 T1 inspection/refusal evidence does not certify them.
+
+T2 resume point (2026-09-09): the async `all_actions()` contract is implemented
+across PostgreSQL, files and Redis, and the menu route awaits it on each request.
+Regression coverage is written; no validation commands have been run.
+Next implement typed feature requirements and reasoned applicability, then
+read-only plans and the bounded mutation strategies. No Timescale mutation
+action is registered yet; T2 remains queued until its implementation is complete.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

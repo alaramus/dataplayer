@@ -191,8 +191,8 @@ class FileAdapter:
     def action(self, name: str) -> Action[Any]:
         return self._actions.action(name)
 
-    def all_actions(self) -> list[Action[Any]]:
-        return self._actions.all_actions()
+    async def all_actions(self) -> list[Action[Any]]:
+        return await self._actions.all_actions()
 
     @classmethod
     def action_types(cls) -> tuple[ActionType, ...]:
