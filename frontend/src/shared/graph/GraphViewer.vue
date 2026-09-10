@@ -188,6 +188,10 @@ onBeforeUnmount(stopLayout)
           <span v-if="!matches.length">No matching nodes</span>
         </div>
       </div>
+      <!-- What the panel showing this graph offers about itself (D112): drawn
+           by the panel, at the end of this row rather than in a bar of its
+           own above it. -->
+      <slot name="toolbar-end" />
     </div>
     <div
       v-if="loading"

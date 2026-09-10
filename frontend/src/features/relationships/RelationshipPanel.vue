@@ -95,13 +95,10 @@ function openStructure(id: string) {
     <!-- Still no line naming the scope and none explaining the arrows: the tab
          already says which connection this is and how many tables were asked
          for, and a placeholder card says on its own face whether it is outside
-         the selection or unreadable. What this row holds is what the panel
-         offers about itself and nothing else (D112) — and no way back to a
-         catalog, because a diagram is drawn from several nodes at once and
+         the selection or unreadable. What the panel offers about itself lives
+         at the end of the graph toolbar's own row (D112) — and no way back to
+         a catalog, because a diagram is drawn from several nodes at once and
          every node card carries its own way there. -->
-    <div class="relationship-panel__bar">
-      <PanelCommands :panel-id="panelId" />
-    </div>
 
     <div
       v-if="source.isFetching.value"
@@ -144,6 +141,9 @@ function openStructure(id: string) {
       class="relationship-panel__viewer"
       @activate="openTable"
     >
+      <template #toolbar-end>
+        <PanelCommands :panel-id="panelId" />
+      </template>
       <template #node-actions="{ node }">
         <template v-if="modelOf(node.id)">
           <AppButton
@@ -179,6 +179,5 @@ function openStructure(id: string) {
 .relationship-panel { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .relationship-panel__loading { display: flex; align-items: center; gap: 12px; padding: 3px 8px; font-size: 12px; border-bottom: 1px solid var(--dp-border); }
 .relationship-panel__loading > span { white-space: nowrap; }
-.relationship-panel__bar { display: flex; align-items: center; justify-content: flex-end; flex: none; gap: 2px; }
 .relationship-panel__viewer { flex: 1; min-height: 0; }
 </style>

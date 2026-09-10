@@ -82,6 +82,17 @@ test("draws the checked tables, the keys between them and what they point at", a
   const name = `e2e-graph-${Date.now()}`
   await openDiagram(page, name)
 
+  // The panel's own reload joins the graph toolbar's row (D112) rather than
+  // a bar of its own above it: same vertical middle as the toolbar's buttons.
+  const reload = page.getByTestId("relationship-panel").getByTestId("panel-reload")
+  await expect(reload).toBeVisible()
+  const middleY = async (target: Locator) => {
+    const box = await target.boundingBox()
+    if (box === null) throw new Error("the element has no rectangle")
+    return box.y + box.height / 2
+  }
+  expect(Math.abs((await middleY(reload)) - (await middleY(page.getByTestId("graph-mode-2d"))))).toBeLessThan(4)
+
   // Three cards for two tables: the table the selection points at is drawn as
   // a placeholder rather than left out, and both declared keys are drawn.
   await expect(page.locator('[data-testid^="graph-node-"]')).toHaveCount(3)
