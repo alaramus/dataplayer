@@ -100,33 +100,52 @@ watch(
 .window-taskbar {
   display: flex;
   align-items: center;
+  align-self: center;
   gap: var(--dp-space-1);
   min-width: 0;
+  max-height: 100%;
   overflow-x: auto;
+  overflow-y: hidden;
   font-size: 12px;
 }
 .window-taskbar__item {
   flex: none;
   display: flex;
   align-items: center;
-  max-width: 240px;
-  border: 1px solid transparent;
+  min-width: 0;
+  max-width: 150px;
+  max-height: 100%;
+  overflow: hidden;
+  /* Outline rather than border: a border takes room in the layout, so the
+     first tab added two pixels to the footer the moment it appeared. */
+  outline: 1px solid transparent;
+  outline-offset: -1px;
   border-radius: 4px;
   background: var(--dp-panel-background, var(--dp-hover));
   color: var(--dp-panel-foreground, inherit);
 }
 /* The window one is actually looking at, marked the way a desktop marks it. */
 .window-taskbar__item--front {
-  border-color: var(--dp-focus-border);
+  outline-color: var(--dp-focus-border);
   background: var(--dp-panel-background, var(--dp-active));
 }
 /* Put aside: still on the bar, and visibly not on screen. */
 .window-taskbar__item--aside {
   opacity: 0.65;
 }
+.window-taskbar__open {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
 .window-taskbar__open :deep(.q-btn__content) {
   flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
   gap: var(--dp-space-1);
+}
+.window-taskbar__close {
+  flex: none;
 }
 .window-taskbar__title {
   min-width: 0;

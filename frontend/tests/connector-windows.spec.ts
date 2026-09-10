@@ -45,6 +45,21 @@ test("keeps two connection windows open side by side", async ({ page }) => {
   await deleteConnector(page, existing)
 })
 
+test("keeps the footer height when the first window tab appears", async ({ page }) => {
+  await login(page)
+  const footer = page.getByTestId("app-footer")
+  await expect(footer).toBeVisible()
+  const before = (await footer.boundingBox())?.height
+  if (before === undefined) throw new Error("The footer has no rectangle")
+
+  await pickAdapterType(page, "postgres")
+  await expect(page.getByTestId("window-taskbar")).toBeVisible()
+  await expect
+    .poll(async () => (await footer.boundingBox())?.height)
+    .toBeCloseTo(before, 0)
+  await page.getByTestId("cancel-connector").click()
+})
+
 test("brings the window already open forward instead of opening a second", async ({
   page,
 }) => {
