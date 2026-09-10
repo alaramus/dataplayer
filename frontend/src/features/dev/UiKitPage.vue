@@ -10,6 +10,7 @@ import {
   AppColorPicker,
   AppEmptyState,
   AppFileInput,
+  AppFullscreenToggle,
   AppIconButton,
   AppInput,
   AppLayout,
@@ -234,9 +235,10 @@ function removeSavedEntry(name: string) {
             hover for tooltips
             <AppTooltip>A tooltip attaches to whatever contains it.</AppTooltip>
           </span>
-          <!-- The real one, so this page turns over with the rest of the
-               application when it is pressed. -->
+          <!-- The real ones, so this page turns over with the rest of the
+               application when the theme is pressed. -->
           <AppThemeToggle />
+          <AppFullscreenToggle />
         </div>
       </AppSection>
     </AppCard>

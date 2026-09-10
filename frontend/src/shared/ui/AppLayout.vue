@@ -14,6 +14,7 @@ import { useAuthStore } from "@/stores/auth"
 import { useThemeStore } from "@/stores/theme"
 
 import AppButton from "./AppButton.vue"
+import AppFullscreenToggle from "./AppFullscreenToggle.vue"
 import AppMenu from "./AppMenu.vue"
 import type { MenuItem } from "./AppMenu.vue"
 import AppThemeToggle from "./AppThemeToggle.vue"
@@ -102,8 +103,9 @@ async function logout() {
           <span>DataPlayer</span>
         </q-toolbar-title>
         <slot name="workspace-tools" />
-        <!-- Page actions precede the theme control and the account menu. -->
+        <!-- Page actions precede the view controls and the account menu. -->
         <slot name="actions" />
+        <AppFullscreenToggle />
         <AppThemeToggle />
         <AppButton
           variant="quiet"
