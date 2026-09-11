@@ -28,7 +28,7 @@ the state the search was launched from.
 
 **D76. A search is a read of the catalog, and the words are the filter's.** The
 statement, its consequences and the known deviations are in
-[the source contract](../../architecture/sources/contract.md).
+[the source contract](../architecture/sources/contract.md).
 
 The result is `CatalogNode`s — the same ones the listing gives, from the same
 builder, which was extracted from the file catalog for exactly this. So a found

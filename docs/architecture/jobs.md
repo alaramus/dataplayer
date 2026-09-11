@@ -93,7 +93,7 @@ Known deviations:
   one step for four minutes: there are no bytes, no layers and no percentage,
   because the engine's own progress stream is not read yet.
 
-Spec: [Owned asynchronous jobs](../superpowers/specs/2026-09-02-owned-jobs-design.md)
+Spec: [Owned asynchronous jobs](../decisions/2026-09-02-owned-jobs-design.md)
 
 ## D95. Progress is visible in the footer and controls follow execution boundaries
 
@@ -126,4 +126,4 @@ Known deviations:
 - Server jobs cannot pause. An upload has transport progress, not resumable
   transfer. Native browser downloads remain in the browser's download manager.
 
-Spec: [Operation progress in the footer](../superpowers/specs/2026-09-04-operation-progress-design.md)
+Spec: [Operation progress in the footer](../decisions/2026-09-04-operation-progress-design.md)

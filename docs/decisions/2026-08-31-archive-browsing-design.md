@@ -14,7 +14,7 @@ implement before they were answered: containment, decompression limits and
 symbolic links.
 
 They are the right three. An entry name is text written by whoever built the
-archive — the classic zip-slip is an entry called `../../etc/passwd`. A
+archive — the classic zip-slip is an entry called `../etc/passwd`. A
 declared size is text too, and a zip bomb is nothing but a small file that
 claims to be small and is not. And a symbolic link inside an archive points
 wherever its author wrote, which is not a place this source has agreed to look.

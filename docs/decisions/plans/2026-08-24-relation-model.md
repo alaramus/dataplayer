@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.14, FastAPI, psycopg 3 (async) с `psycopg.sql`, Pydantic v2, pytest + pytest-asyncio, uv. Фронт: Vue 3, TypeScript, Quasar, `@tanstack/vue-query`, Vitest, Playwright, bun.
 
-Спека: [2026-08-24-relation-model-design.md](../specs/2026-08-24-relation-model-design.md)
+Спека: [2026-08-24-relation-model-design.md](../2026-08-24-relation-model-design.md)
 
 ## Global Constraints
 

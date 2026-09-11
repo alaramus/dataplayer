@@ -6,11 +6,11 @@
 
 ## Для того, кто начинает с чистой сессии
 
-Читать в этом порядке: [AGENTS.md](../../../AGENTS.md), решения Р12
+Читать в этом порядке: [AGENTS.md](../../AGENTS.md), решения Р12
 (рабочее пространство) и Р11 (набор компонентов);
 [2026-08-22-workspace-design.md](2026-08-22-workspace-design.md) — движок;
 [2026-08-22-three-column-workspace-design.md](2026-08-22-three-column-workspace-design.md)
-— роли и три колонки; [ENGINEERING.md](../../../ENGINEERING.md), разделы
+— роли и три колонки; [ENGINEERING.md](../../ENGINEERING.md), разделы
 «Frontend» и «Тесты».
 
 Здесь нет ни одной строки бэкенда. Всё меняется во `frontend/src`, контракт

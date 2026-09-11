@@ -131,7 +131,7 @@ Known deviations:
 - **Clipboard and selection stop at the current page.** Exporting rows that are
   not loaded needs a server-side export capability, not a larger client page.
 
-Spec: [The data exploration grid](../superpowers/specs/2026-08-27-data-grid-design.md)
+Spec: [The data exploration grid](../decisions/2026-08-27-data-grid-design.md)
 
 ## D67. A grid re-reads itself on a timer it wears, and a pause is a rule
 
@@ -184,7 +184,7 @@ Known deviations:
   bear that.** A relation that takes four seconds to read simply never finishes
   before the next tick is skipped.
 
-Spec: [A grid that re-reads itself](../superpowers/specs/2026-09-02-auto-refresh-design.md)
+Spec: [A grid that re-reads itself](../decisions/2026-09-02-auto-refresh-design.md)
 
 ## D28. A download is a fresh copy of the bounded visible page, and where it goes is asked
 
@@ -257,7 +257,7 @@ Known deviations:
   but a ticket nobody redeems leaves it in the system's temporary directory
   until that directory is cleared.
 
-Spec: [Downloading the visible page, and the commands of an open table](../superpowers/specs/2026-08-28-page-download-design.md)
+Spec: [Downloading the visible page, and the commands of an open table](../decisions/2026-08-28-page-download-design.md)
 
 ## D35. A chart is a closed view over one bounded fetch, not another query language
 
@@ -308,7 +308,7 @@ pictures drawn inside documents. The two registrations are deliberately
 separate: this panel can draw what it offers to build, and a document can draw
 what documents contain.
 
-Spec: [Charts over a bounded page](../superpowers/specs/2026-08-30-bounded-page-charts-design.md)
+Spec: [Charts over a bounded page](../decisions/2026-08-30-bounded-page-charts-design.md)
 
 ## D111. One row is read downwards over the page the grid is on
 
@@ -357,7 +357,7 @@ Known deviations:
   froze itself, and the freezing is the tell: the useful state was the frozen
   one, on the row somebody chose to look at.
 
-Spec: [One row, read downwards](../superpowers/specs/2026-09-05-row-view-design.md)
+Spec: [One row, read downwards](../decisions/2026-09-05-row-view-design.md)
 
 ## D116. The row of commands keeps its shape, and says why a command is off
 
@@ -413,4 +413,4 @@ Consequences:
   one that could. A source-declared command that only reads would land in the
   wrong group; the fix then is for the declaration to say which it is.
 
-Spec: [The row of commands above a table](../superpowers/specs/2026-09-06-grid-toolbar-design.md)
+Spec: [The row of commands above a table](../decisions/2026-09-06-grid-toolbar-design.md)

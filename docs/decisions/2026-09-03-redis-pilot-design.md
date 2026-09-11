@@ -66,7 +66,7 @@ catalog saying it cannot be browsed, which is the honest answer.
 
 **D85. The second service is what proves the first one was not a shape.** The
 statement, its consequences and the known deviations are in
-[managed services](../../architecture/services.md).
+[managed services](../architecture/services.md).
 
 ## What is not here
 

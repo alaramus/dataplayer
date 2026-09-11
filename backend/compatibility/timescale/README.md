@@ -88,7 +88,7 @@ loopback fixture options; no application database query is made by the harness.
 
 Acceptance specification:
 [Timescale architecture](../../../docs/architecture/sources/timescale.md),
-[T1 specification](../../../docs/superpowers/specs/2026-09-07-timescale-capabilities-design.md).
+[T1 specification](../../../docs/decisions/2026-09-07-timescale-capabilities-design.md).
 
 ## Validation record: 2026-09-08
 

@@ -215,7 +215,7 @@ host, the port, the database and the password.
 
 **D91. A key space is a catalog, grouped by the separator its names already
 use.** The statement, its consequences and the known deviations are in
-[the source contract](../../architecture/sources/contract.md).
+[the source contract](../architecture/sources/contract.md).
 
 ## What is not here
 

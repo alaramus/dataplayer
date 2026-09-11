@@ -98,7 +98,7 @@ without the mount the same route answers with the reason.
 
 **D82. A runtime is asked, never assumed, and the offer says so.** The
 statement, its consequences and the known deviations are in
-[managed services](../../architecture/services.md).
+[managed services](../architecture/services.md).
 
 ## What is not here
 

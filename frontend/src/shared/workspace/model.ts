@@ -3,7 +3,7 @@
  * they show.
  *
  * A panel is referred to by id only. What a panel is belongs to the feature
- * that uses the engine — see docs/superpowers/specs/2026-08-22-workspace-design.md.
+ * that uses the engine — see docs/decisions/2026-08-22-workspace-design.md.
  */
 
 export type PanelId = string

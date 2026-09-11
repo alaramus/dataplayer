@@ -123,7 +123,7 @@ left nothing behind.
 
 **D84. What goes wrong is a state somebody can act on.** The statement, its
 consequences and the known deviations are in
-[managed services](../../architecture/services.md).
+[managed services](../architecture/services.md).
 
 ## What is not here
 

@@ -39,7 +39,7 @@ that four questions about a node is the honest number:
 
 **D75. A node describes itself, and that is neither a viewer nor an action.**
 The statement, its consequences and the known deviations are in
-[the source contract](../../architecture/sources/contract.md).
+[the source contract](../architecture/sources/contract.md).
 
 `CatalogNode.summarizable` says which nodes answer it, exactly as `describable`
 says which answer a relation model. The alternative — the client deciding from

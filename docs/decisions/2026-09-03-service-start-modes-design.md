@@ -123,7 +123,7 @@ window showed.
 **D89. A generated password is shown once, where it becomes useful.**
 **D90. An empty database demonstrates nothing, so an automatic start fills
 one.** The statements, their consequences and the known deviations are in
-[managed services](../../architecture/services.md).
+[managed services](../architecture/services.md).
 
 ## What is not here
 

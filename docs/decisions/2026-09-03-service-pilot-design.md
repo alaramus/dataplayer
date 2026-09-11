@@ -101,7 +101,7 @@ lives in. The service row is the only place its life can be ended.
 
 **D83. A ready service is an ordinary connection, and its credentials live
 there.** The statement, its consequences and the known deviations are in
-[managed services](../../architecture/services.md).
+[managed services](../architecture/services.md).
 
 ## What is not here
 

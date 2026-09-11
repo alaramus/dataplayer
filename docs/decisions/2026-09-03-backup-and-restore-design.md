@@ -113,7 +113,7 @@ dump of the application's own database taken with one press.
 
 **D87. A program that is not a statement runs in a container of its own.** The
 statement, its consequences and the known deviations are in
-[managed services](../../architecture/services.md).
+[managed services](../architecture/services.md).
 
 ## What the screen offers it for
 

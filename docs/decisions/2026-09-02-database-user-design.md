@@ -129,7 +129,7 @@ signs in on a server configured each way.
 
 **D79. Making a user of the server is the owner's, and its password is a
 literal.** The statement, its consequences and the known deviations are in
-[the actions contract](../../architecture/sources/actions.md).
+[the actions contract](../architecture/sources/actions.md).
 
 ## What it took
 

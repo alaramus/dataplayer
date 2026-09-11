@@ -127,4 +127,4 @@ The refusal names the number and says to remove one.
 
 **D86. Running containers is the machine's power, bounded by what this
 application will ask for.** The statement, its consequences and the known
-deviations are in [managed services](../../architecture/services.md).
+deviations are in [managed services](../architecture/services.md).

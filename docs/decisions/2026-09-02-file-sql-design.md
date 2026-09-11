@@ -183,4 +183,4 @@ this needs no saying anywhere else.
 
 **D77. A file source's SQL names its own nodes, and nothing else.**
 **D78. The engine is a disposable sandbox rather than a database the source
-keeps.** Both are stated in [querying](../../architecture/querying.md).
+keeps.** Both are stated in [querying](../architecture/querying.md).

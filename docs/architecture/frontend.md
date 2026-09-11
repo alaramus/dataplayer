@@ -135,7 +135,7 @@ its server; unsaved editor changes and transactions are handled before leaving.
 The server must allow the frontend origin through CORS and support the browser's
 HTTP(S)/WebSocket transport requirements.
 
-Spec: [Choosing a DataPlayer server](../superpowers/specs/2026-09-04-server-profiles-design.md)
+Spec: [Choosing a DataPlayer server](../decisions/2026-09-04-server-profiles-design.md)
 
 ## D6. Server state lives in vue-query; Pinia holds only client state
 
@@ -153,7 +153,7 @@ something about the request, and it will say it again. Opening a `.dump` in a
 file source waited about five seconds to say it is binary, and every second of
 it was this.
 
-Spec: [The connector registry and the adapter contract](../superpowers/specs/2026-08-15-connector-registry-design.md)
+Spec: [The connector registry and the adapter contract](../decisions/2026-08-15-connector-registry-design.md)
 
 ## D7. The frontend is Vue 3 with Quasar
 
@@ -161,7 +161,7 @@ The value of the rewrite is backend architecture and end-to-end typing; the UI
 kit was never the problem. The typed client generated from OpenAPI is kept — it
 does not depend on the framework.
 
-Spec: [The connector registry and the adapter contract](../superpowers/specs/2026-08-15-connector-registry-design.md)
+Spec: [The connector registry and the adapter contract](../decisions/2026-08-15-connector-registry-design.md)
 
 ## D11. A screen asks the kit for meaning, not Quasar for a look
 
@@ -241,7 +241,7 @@ Known deviations:
   `body.body--dark` were chosen by eye against Quasar's own dark colours; nothing
   measures contrast against WCAG.
 
-Spec: [The shared UI kit](../superpowers/specs/2026-08-22-shared-ui-kit-design.md)
+Spec: [The shared UI kit](../decisions/2026-08-22-shared-ui-kit-design.md)
 
 ## Checking the types at all
 
@@ -350,7 +350,7 @@ Progressive rendering by token batch and embeds remain out. The 1 MB document
 ceiling bounds parsing for now, and an explicitly allowed remote image remains
 an external reference in an export rather than being fetched a second time.
 
-Spec: [Markdown as a rendered document representation](../superpowers/specs/2026-08-31-markdown-document-representation-design.md)
+Spec: [Markdown as a rendered document representation](../decisions/2026-08-31-markdown-document-representation-design.md)
 
 ## Screens
 
@@ -576,7 +576,7 @@ Known deviations:
   persisted: a dot restored from yesterday would claim more than it knows.
 
 The table designer follows the
-[Variant B reference](../superpowers/specs/assets/2026-09-06-table-designer/variant-b.html)
+[Variant B reference](../decisions/assets/2026-09-06-table-designer/variant-b.html)
 for its arrangement: a narrow object navigation, an inspector, and an SQL
 preview beside them, with creation review replacing the definition. The
 breakpoints follow the floating window's width through a container query. Its

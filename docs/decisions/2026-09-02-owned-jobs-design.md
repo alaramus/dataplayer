@@ -125,7 +125,7 @@ makes either possible.
 
 **D81. Long work is a row the server owns, not a request that waits.** The
 statement, its consequences and the known deviations are in
-[owned jobs](../../architecture/jobs.md).
+[owned jobs](../architecture/jobs.md).
 
 ## What is not here
 

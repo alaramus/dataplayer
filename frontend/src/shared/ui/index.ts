@@ -3,7 +3,7 @@
  *
  * What belongs here is anything with a choice of appearance. Layout primitives
  * with a single consumer, and elements with nothing to decide, stay as Quasar
- * components — see docs/superpowers/specs/2026-08-22-shared-ui-kit-design.md.
+ * components — see docs/decisions/2026-08-22-shared-ui-kit-design.md.
  */
 export { default as AppActions } from "./AppActions.vue"
 export { default as AppBadge } from "./AppBadge.vue"

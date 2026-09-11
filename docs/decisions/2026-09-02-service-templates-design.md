@@ -118,7 +118,7 @@ publishing it would invite the belief that it can.
 
 **D80. An approved service is written in code, and a client names one.** The
 statement, its consequences and the known deviations are in
-[managed services](../../architecture/services.md).
+[managed services](../architecture/services.md).
 
 ## What is not here
 

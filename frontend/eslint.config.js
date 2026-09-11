@@ -39,7 +39,7 @@ export default defineConfigWithVueTs(
     // asks for meaning ("danger") rather than for a look ("flat color=negative").
     // Only components the kit replaces are listed: forbidding every q-* would
     // make the kit a full facade over Quasar, which it deliberately is not.
-    // Reasoning: docs/superpowers/specs/2026-08-22-shared-ui-kit-design.md
+    // Reasoning: docs/decisions/2026-08-22-shared-ui-kit-design.md
     files: ["src/**/*.vue", "src/**/*.ts"],
     ignores: ["src/shared/ui/**", "src/client/**"],
     rules: {

@@ -16,7 +16,7 @@ application with no typing and a 3685-line options file.
 - There is no `adapter` table; `Connector.adapter_type` is a plain string key.
 - Adding a source type needs no migration.
 
-Spec: [The connector registry and the adapter contract](../../superpowers/specs/2026-08-15-connector-registry-design.md)
+Spec: [The connector registry and the adapter contract](../../decisions/2026-08-15-connector-registry-design.md)
 
 ## D13. A source type describes itself
 
@@ -54,7 +54,7 @@ Known deviations:
 - **Three categories, and three types.** Built for the registry D1
   anticipates.
 
-Spec: [The catalog of source types, and creating a connection](../../superpowers/specs/2026-08-23-adapter-catalog-design.md)
+Spec: [The catalog of source types, and creating a connection](../../decisions/2026-08-23-adapter-catalog-design.md)
 
 ## D2. Capabilities are optional protocols
 
@@ -79,7 +79,7 @@ Known deviations:
   The mechanism does not stand in the way, but the branch is untested and there
   is no wording for it.
 
-Spec: [The connector registry and the adapter contract](../../superpowers/specs/2026-08-15-connector-registry-design.md)
+Spec: [The connector registry and the adapter contract](../../decisions/2026-08-15-connector-registry-design.md)
 
 ## D2b. A driver is composed of capability modules
 
@@ -98,7 +98,7 @@ Known deviations:
 - **It rests on review.** Nothing checks that a capability module keeps out of
   connection handling.
 
-Spec: [The connector registry and the adapter contract](../../superpowers/specs/2026-08-15-connector-registry-design.md)
+Spec: [The connector registry and the adapter contract](../../decisions/2026-08-15-connector-registry-design.md)
 
 ## D2a. Nodes differ by kind, not by source family
 
@@ -121,7 +121,7 @@ Known deviations:
   rather than truncating silently. Adding a cursor changes the contract for
   every adapter.
 
-Spec: [The catalog of a data source](../../superpowers/specs/2026-08-15-catalog-design.md)
+Spec: [The catalog of a data source](../../decisions/2026-08-15-catalog-design.md)
 
 ## D98. Framework detection belongs to the schema's catalog metadata
 
@@ -143,7 +143,7 @@ Known deviations:
   recognized; a coincidentally named table may match. The filter shows matching
   table names, not every application model belonging to a framework.
 
-Spec: [Framework detection in the catalog](../../superpowers/specs/2026-09-04-framework-detection-design.md)
+Spec: [Framework detection in the catalog](../../decisions/2026-09-04-framework-detection-design.md)
 
 ## D21. The source answers where a node lives
 
@@ -173,7 +173,7 @@ Known deviations:
   step. Two round trips for a relation is nothing next to being told a table
   exists when it does not, but a source with deep trees would want one query.
 
-Spec: [A source says for itself where a node lives](../../superpowers/specs/2026-08-24-node-path-design.md)
+Spec: [A source says for itself where a node lives](../../decisions/2026-08-24-node-path-design.md)
 
 ## D2c. A query is never built from client strings
 
@@ -189,7 +189,7 @@ fragment guarded only by a blacklist, and defaulted to `limit=-1`.
   application smuggled an exact count in as a pseudo-column named
   `____total_count____` that clients had to know to discard.
 
-Spec: [Reading data](../../superpowers/specs/2026-08-15-fetch-design.md)
+Spec: [Reading data](../../decisions/2026-08-15-fetch-design.md)
 
 ## D8. One directory per user, and no way out of it
 
@@ -217,7 +217,7 @@ Known deviations:
 - **Personal storage has no quota.** Nothing counts what a user has stored; only
   a single upload is bounded, by `MAX_UPLOAD_BYTES`.
 
-Spec: [The file source](../../superpowers/specs/2026-08-21-file-explorer-design.md)
+Spec: [The file source](../../decisions/2026-08-21-file-explorer-design.md)
 
 ## D2d. A source states what it cannot do
 
@@ -241,7 +241,7 @@ Known deviations:
   `offset` lines every time. Bounded by the limit ceiling, acceptable while
   pages are read in order.
 
-Spec: [The file source](../../superpowers/specs/2026-08-21-file-explorer-design.md)
+Spec: [The file source](../../decisions/2026-08-21-file-explorer-design.md)
 
 ## D20. A switched-off connection is not a source
 
@@ -259,7 +259,7 @@ editable, but the application will not connect to it.
 - `enabled` is one field of a connector, edited where the others are, rather
   than a `/{id}/disable` route.
 
-Spec: [The socket, health and a switched-off connector](../../superpowers/specs/2026-08-24-realtime-and-connector-health-design.md)
+Spec: [The socket, health and a switched-off connector](../../decisions/2026-08-24-realtime-and-connector-health-design.md)
 
 ## D75. A node describes itself, and that is neither a viewer nor an action
 
@@ -338,7 +338,7 @@ Known deviations:
   rows are. It is a line of the catalog's one menu, beside Copy and Cut
   ([D74](actions.md)).
 
-Spec: [A node describes itself](../../superpowers/specs/2026-09-02-node-summary-design.md)
+Spec: [A node describes itself](../../decisions/2026-09-02-node-summary-design.md)
 
 ## D76. A search is a read of the catalog, and the words are the filter's
 
@@ -426,7 +426,7 @@ Known deviations:
   results came from a walk that is now stale, and re-running it silently would
   be inventing a second reload nobody asked for.
 
-Spec: [Searching the catalog by name](../../superpowers/specs/2026-09-02-catalog-search-design.md)
+Spec: [Searching the catalog by name](../../decisions/2026-09-02-catalog-search-design.md)
 
 ## D91. A key space is a catalog, grouped by the separator its names already use
 
@@ -592,4 +592,4 @@ Known deviations:
   fails on connect, rather than being checked against a count this application
   holds.
 
-Spec: [A key space, walked and written](../../superpowers/specs/2026-09-03-redis-keyspace-design.md)
+Spec: [A key space, walked and written](../../decisions/2026-09-03-redis-keyspace-design.md)

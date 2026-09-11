@@ -236,7 +236,7 @@ earns its place at all rests on review.
 - A decision that shaped the code is written down three times over, each shorter
   than the last: one line in the table in [AGENTS.md](AGENTS.md), the statement
   and its reasoning in `docs/architecture/`, the full argument in
-  `docs/superpowers/specs/`.
+  `docs/decisions/`.
 - **When a plan turns out to be wrong during execution, the plan is corrected
   too**, not just the code.
 - Where the code knowingly differs from these documents, it is listed as a known

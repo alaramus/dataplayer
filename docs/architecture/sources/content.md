@@ -79,7 +79,7 @@ Known deviations:
   A file whose format changes half way through — a service restarted with
   different logging — is read in the shape its beginning was in.
 
-Spec: [Native file representations](../../superpowers/specs/2026-08-30-file-representations-design.md)
+Spec: [Native file representations](../../decisions/2026-08-30-file-representations-design.md)
 
 ## D48. Editing a document is its own capability
 
@@ -121,7 +121,7 @@ Known deviations:
 - **The document is held whole on both sides.** Above 4 MB the editor is
   read-only; there is no partial or streaming edit.
 
-Spec: [Editing a file in place](../../superpowers/specs/2026-08-30-content-editing-design.md)
+Spec: [Editing a file in place](../../decisions/2026-08-30-content-editing-design.md)
 
 ## D52. Seekable bytes are a ranged stream
 
@@ -170,7 +170,7 @@ Known deviations:
 - **A PDF shows no annotations, links or forms.** They are the active part of the
   format.
 
-Spec: [Playing media, and reading a PDF](../../superpowers/specs/2026-08-31-media-and-pdf-viewers-design.md)
+Spec: [Playing media, and reading a PDF](../../decisions/2026-08-31-media-and-pdf-viewers-design.md)
 
 ## D51. A file that states its schema is a dataset
 
@@ -259,7 +259,7 @@ Known deviations:
 - **The page reads every column.** Parquet can prune columns, but the grid's
   visible-column choice does not yet reach the reader.
 
-Spec: [Parquet files and workbook sheets as declared datasets](../../superpowers/specs/2026-08-31-parquet-and-workbook-datasets-design.md)
+Spec: [Parquet files and workbook sheets as declared datasets](../../decisions/2026-08-31-parquet-and-workbook-datasets-design.md)
 
 ## D53. An archive is a container of entries
 
@@ -315,7 +315,7 @@ Known deviations:
   a `.zip` name are found when the node is walked into, as D47 says of every
   misleading suffix.
 
-Spec: [Walking into an archive](../../superpowers/specs/2026-08-31-archive-browsing-design.md)
+Spec: [Walking into an archive](../../decisions/2026-08-31-archive-browsing-design.md)
 
 ## D71. An archive is made and taken apart by the same containment rule
 
@@ -360,7 +360,7 @@ Known deviations:
   it holds one stream. Two answers about one name, which agree today because
   they answer different questions.
 
-Spec: [Making an archive, and taking one apart](../../superpowers/specs/2026-09-02-archive-packing-design.md)
+Spec: [Making an archive, and taking one apart](../../decisions/2026-09-02-archive-packing-design.md)
 
 ## D57. Source-issued SQL is read-only content
 
@@ -405,4 +405,4 @@ Known deviations:
   declares several, choosing among them needs a source-worded menu rather than
   silently picking the first forever.
 
-Spec: [PostgreSQL relation DDL](../../superpowers/specs/2026-08-31-postgres-relation-ddl-design.md)
+Spec: [PostgreSQL relation DDL](../../decisions/2026-08-31-postgres-relation-ddl-design.md)

@@ -62,7 +62,7 @@ usually connects:
     -- UPDATE 1
 
 D54 settles it, and is written up in
-[relations.md](../../architecture/sources/relations.md). The rule is not new — creating a
+[relations.md](../architecture/sources/relations.md). The rule is not new — creating a
 table in `pg_catalog` has been refused since D45 with the words `"pg_catalog"
 belongs to the server` — it was simply stated in one place out of four. It is
 now one predicate, `is_system_schema`, read by the catalog, by fetch and by the
@@ -186,7 +186,7 @@ is what a shortcut is. The alternative — six reports the reader cannot find an
 two they can — was worse for no gain in code.
 
 D55 states the contract, and
-[actions.md](../../architecture/sources/actions.md) carries the reasoning. The parts
+[actions.md](../architecture/sources/actions.md) carries the reasoning. The parts
 worth restating here, because they are where the design could have gone wrong:
 
 - **Columns are described, not declared.** The registry could have listed each

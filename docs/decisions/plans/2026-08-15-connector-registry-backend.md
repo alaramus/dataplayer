@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.14, FastAPI, SQLModel поверх SQLAlchemy 2 в асинхронном режиме, psycopg 3 (async), Alembic, PostgreSQL, pytest + pytest-asyncio, cryptography (AES-GCM), uv.
 
-Спек: [2026-08-15-connector-registry-design.md](../specs/2026-08-15-connector-registry-design.md)
+Спек: [2026-08-15-connector-registry-design.md](../2026-08-15-connector-registry-design.md)
 
 ## Global Constraints
 

@@ -8,7 +8,7 @@ projects are evidence about workflows and edge cases; their files are never
 copied into the rewrite.
 
 This file answers one question: what to do next. What is already done is
-recorded by [the spec index](superpowers/specs/README.md) and by git, and is not
+recorded by [the spec index](decisions/README.md) and by git, and is not
 inventoried again here.
 
 ## How to use this file
@@ -38,8 +38,8 @@ Legend:
 
 | Phase | Closed | What settled it |
 | --- | --- | --- |
-| 0 — stabilise the bounded chart slice | 2026-08-30 | [D35](superpowers/specs/2026-08-30-bounded-page-charts-design.md) |
-| 1.1 — relationship navigation | 2026-08-30 | [D36](superpowers/specs/2026-08-30-reference-navigation-design.md) |
+| 0 — stabilise the bounded chart slice | 2026-08-30 | [D35](decisions/2026-08-30-bounded-page-charts-design.md) |
+| 1.1 — relationship navigation | 2026-08-30 | [D36](decisions/2026-08-30-reference-navigation-design.md) |
 | 1.2 — safe PostgreSQL structure editing | 2026-08-30 | D27, D29, D30, D37, D38, D39, D40 |
 | 1.3 — bulk data movement through the grid | 2026-08-30 | D41, D42, D43, D44, D45, D46 |
 | 1.4 — file-source depth | 2026-08-31 | D47, D48, D49, D51, D52, D53 |
@@ -49,12 +49,12 @@ Legend:
 | 3.5 — the rest of the old application's daily operations | 2026-09-02 | D67 through D79 |
 | 4 — server-owned jobs: Docker services, backup and restore | 2026-09-03 | D80 through D87 |
 | 5 — optional Redis infrastructure | 2026-09-05 | D100 through D104 |
-| 1.6 — a reference the person draws | 2026-09-05 | [D106](superpowers/specs/2026-09-05-declared-references-design.md) through D109 |
-| 1.7 — the way back along a key | 2026-09-05 | [D110](superpowers/specs/2026-09-05-arriving-references-design.md) |
-| 1.8 — one row, read downwards | 2026-09-05 | [D111](superpowers/specs/2026-09-05-row-view-design.md) |
-| 1.9 — everything that needs a person | 2026-09-06 | [D113](superpowers/specs/2026-09-06-activity-centre-design.md) through D115 |
+| 1.6 — a reference the person draws | 2026-09-05 | [D106](decisions/2026-09-05-declared-references-design.md) through D109 |
+| 1.7 — the way back along a key | 2026-09-05 | [D110](decisions/2026-09-05-arriving-references-design.md) |
+| 1.8 — one row, read downwards | 2026-09-05 | [D111](decisions/2026-09-05-row-view-design.md) |
+| 1.9 — everything that needs a person | 2026-09-06 | [D113](decisions/2026-09-06-activity-centre-design.md) through D115 |
 
-Each of those has a spec in [the index](superpowers/specs/README.md), dated the
+Each of those has a spec in [the index](decisions/README.md), dated the
 day it closed, and a home in `docs/architecture/`. With 1.5 validated, phase 1
 is closed: PostgreSQL covers the common daily table workflow, files open in a
 representation appropriate to their content, and what remains of the old
@@ -136,7 +136,7 @@ Quasar's grouped notifications had been hiding.
 
 T1 is complete as of 2026-09-08; the user confirmed that all tests passed.
 T2 is the next implementation slice. The
-[Timescale design](superpowers/specs/2026-09-07-timescale-capabilities-design.md)
+[Timescale design](decisions/2026-09-07-timescale-capabilities-design.md)
 defines the three implementation slices. D119–D123 retain one
 PostgreSQL source identity and compose a Timescale feature package.
 
@@ -152,7 +152,7 @@ the tested compatibility matrix are recorded with implementation, not inferred
 from a generic Timescale version label.
 
 T1 completion is recorded in the
-[spec index](superpowers/specs/README.md) and the
+[spec index](decisions/README.md) and the
 [compatibility validation record](../backend/compatibility/timescale/README.md#t1-completion-2026-09-08).
 Next: implement T2 against its acceptance criteria in the Timescale design.
 T2 API mutation strategies require their own real-source tests;
@@ -323,7 +323,7 @@ with its reason rather than dropped. It answers "the recipient must not be
 given the connection", and every recipient today is a colleague who can hold a
 grant; a frozen copy would only go stale in their hands. The argument and the
 shape to return to are in
-[the sharing spec](superpowers/specs/2026-09-01-shared-view-links-design.md).
+[the sharing spec](decisions/2026-09-01-shared-view-links-design.md).
 
 Deferred inside PostgreSQL, with the reason in the spec that deferred it:
 monitoring statistics (Phase 7), Grafana (Phase 6), diagram and similarity

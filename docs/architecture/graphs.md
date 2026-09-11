@@ -40,4 +40,4 @@ stored locally, per user, connection and explicit node set. Refresh preserves
 positions of surviving nodes. Source changes never become layout edits, and
 layouts never become schema changes.
 
-Spec: [A graph viewer with 2D and 3D presentations](../superpowers/specs/2026-09-04-graph-viewer-design.md)
+Spec: [A graph viewer with 2D and 3D presentations](../decisions/2026-09-04-graph-viewer-design.md)

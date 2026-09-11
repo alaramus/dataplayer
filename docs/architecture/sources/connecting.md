@@ -43,7 +43,7 @@ Known deviations:
 - **The mechanism has been exercised on the narrowest union.** Two variants, one
   source type.
 
-Spec: [Ways of connecting](../../superpowers/specs/2026-08-23-connection-variants-design.md)
+Spec: [Ways of connecting](../../decisions/2026-08-23-connection-variants-design.md)
 
 ## D15. The connection string is composed by the driver
 
@@ -85,7 +85,7 @@ Known deviations:
   has no TLS options, and a scheme quietly read as plaintext would be worse
   than a sentence saying it is not supported yet.
 
-Spec: [Ways of connecting](../../superpowers/specs/2026-08-23-connection-variants-design.md)
+Spec: [Ways of connecting](../../decisions/2026-08-23-connection-variants-design.md)
 
 ## D17. The driver takes a pasted address apart
 
@@ -119,7 +119,7 @@ Known deviations:
   through a request body and comes back in a response, and no check keeps it out
   of a log.
 
-Spec: [Ways of connecting](../../superpowers/specs/2026-08-23-connection-variants-design.md)
+Spec: [Ways of connecting](../../decisions/2026-08-23-connection-variants-design.md)
 
 ## D10. What outlives a request belongs to the application
 
@@ -157,7 +157,7 @@ Known deviations:
   was evicted is invisible; `application_name` in `pg_stat_activity` is the only
   way to see them from outside.
 
-Spec: [The connection pool](../../superpowers/specs/2026-08-21-connection-pool-design.md)
+Spec: [The connection pool](../../decisions/2026-08-21-connection-pool-design.md)
 
 ## D31. A source opts into bounded read caching
 
@@ -199,7 +199,7 @@ Known deviations:
 - **Entries are bounded by count, not bytes.** Fetch itself is bounded to 1000
   rows, but wide values make entry sizes unequal.
 
-Spec: [The catalog and fetch read cache](../../superpowers/specs/2026-08-29-read-cache-design.md)
+Spec: [The catalog and fetch read cache](../../decisions/2026-08-29-read-cache-design.md)
 
 ## D100. Read-cache behaviour is independent of its backend
 
@@ -216,7 +216,7 @@ of values. If callers performed `get`, `load` and `set` themselves, every
 backend would expose the race D31 already closed and every route would have to
 remember the same invalidation rules.
 
-Spec: [A replaceable read-cache backend](../../superpowers/specs/2026-09-04-cache-backend-contract-design.md)
+Spec: [A replaceable read-cache backend](../../decisions/2026-09-04-cache-backend-contract-design.md)
 
 ## D101. Shared cache values have one encrypted, versioned wire format
 
@@ -236,7 +236,7 @@ AES-GCM under a cache-only key. Catalog names and arbitrary fetched cells can
 both be sensitive, and no reliable field-level classifier exists; TLS and Redis
 authentication control access but do not replace encryption at rest.
 
-Spec: [The shared-cache wire format](../../superpowers/specs/2026-09-04-shared-cache-wire-design.md)
+Spec: [The shared-cache wire format](../../decisions/2026-09-04-shared-cache-wire-design.md)
 
 ## D102. Redis accelerates reads but never carries their correctness
 
@@ -261,7 +261,7 @@ cache misses: reads call the source directly, mutations keep their successful
 answer, and the cache reports itself unavailable. Redis therefore changes
 latency and upstream load, not whether source data can be accessed.
 
-Spec: [An optional shared Redis cache](../../superpowers/specs/2026-09-04-redis-cache-design.md)
+Spec: [An optional shared Redis cache](../../decisions/2026-09-04-redis-cache-design.md)
 
 ## D103. Shared caching is configured explicitly and reports degradation
 
@@ -292,7 +292,7 @@ is a local example, not a production TLS terminator. `.env.example` ships
 URL. The code default stays `memory`, and a deployment that removes the service
 changes one line rather than failing to start.
 
-Spec: [Selecting and observing the cache backend](../../superpowers/specs/2026-09-04-cache-configuration-design.md)
+Spec: [Selecting and observing the cache backend](../../decisions/2026-09-04-cache-configuration-design.md)
 
 ## D104. Infrastructure Redis remains a measured read accelerator
 
@@ -310,7 +310,7 @@ concrete implementation. Job state, share records and access requests remain
 PostgreSQL rows; cached reads remain disposable answers rather than snapshots
 any durable workflow may cite as truth.
 
-Spec: [Redis stops at measured read caching](../../superpowers/specs/2026-09-04-cache-scope-design.md)
+Spec: [Redis stops at measured read caching](../../decisions/2026-09-04-cache-scope-design.md)
 
 ## D105. A connection chooses how long its answers are kept, and says how old they are
 
@@ -384,7 +384,7 @@ Known deviations:
   from a replica is reported as old as the read, not as old as the replication
   lag behind it.
 
-Spec: [The freshness window a connection chooses](../../superpowers/specs/2026-09-05-connector-cache-window-design.md)
+Spec: [The freshness window a connection chooses](../../decisions/2026-09-05-connector-cache-window-design.md)
 
 
 ## A file connection stores its folder as a path

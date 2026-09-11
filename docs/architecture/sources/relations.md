@@ -40,7 +40,7 @@ Known deviations:
   already accepts no relation predicate, but no public schema-wide response or
   cache uses that form yet.
 
-Spec: [The relation model](../../superpowers/specs/2026-08-24-relation-model-design.md)
+Spec: [The relation model](../../decisions/2026-08-24-relation-model-design.md)
 
 ## D23. A cell crosses the boundary as lossless text
 
@@ -82,7 +82,7 @@ Known deviations:
 - **Filtering has no `OR` or grouping.** The flat request means `AND`; adding
   parentheses needs a recursive expression contract and a matching editor.
 
-Spec: [The data exploration grid](../../superpowers/specs/2026-08-27-data-grid-design.md)
+Spec: [The data exploration grid](../../decisions/2026-08-27-data-grid-design.md)
 
 ## D42. Row identity and page order are stated
 
@@ -111,7 +111,7 @@ Known deviations:
 - **`ctid` never leaves the handle.** It is not offered as a column to filter or
   sort by.
 
-Spec: [What identifies a row, and what order rows arrive in](../../superpowers/specs/2026-08-30-row-identity-and-order-design.md)
+Spec: [What identifies a row, and what order rows arrive in](../../decisions/2026-08-30-row-identity-and-order-design.md)
 
 ## D25. A source issues a versioned row handle
 
@@ -142,7 +142,7 @@ Known deviations:
   handle and is sufficient for the interval between reading and saving; an
   adapter with an explicit revision column can issue a different handle.
 
-Spec: [Editing data](../../superpowers/specs/2026-08-27-data-editing-design.md)
+Spec: [Editing data](../../decisions/2026-08-27-data-editing-design.md)
 
 ## D26. Insert names columns, and bulk delete is atomic
 
@@ -175,7 +175,7 @@ Known deviations:
 - **Delete is limited to loaded rows.** Selection stops at the current page;
   deleting a server-side filter needs a separate previewable command.
 
-Spec: [Inserting and deleting rows](../../superpowers/specs/2026-08-27-row-insert-delete-design.md)
+Spec: [Inserting and deleting rows](../../decisions/2026-08-27-row-insert-delete-design.md)
 
 ## D41. A pasted block is one atomic edit
 
@@ -214,7 +214,7 @@ Known deviations:
 - **The single-cell route stays separate.** It shares the type check, so its
   refusal names the type, but merging the two paths is a tidy-up.
 
-Spec: [Pasting a block of cells](../../superpowers/specs/2026-08-30-cell-paste-design.md)
+Spec: [Pasting a block of cells](../../decisions/2026-08-30-cell-paste-design.md)
 
 ## D36. The source issues a reference's target
 
@@ -251,7 +251,7 @@ Known deviations:
 
 The forward direction was the whole of it until [D110](#d110-a-source-says-what-points-at-a-relation-and-following-it-is-the-same-call).
 
-Spec: [Navigating by a foreign key](../../superpowers/specs/2026-08-30-reference-navigation-design.md)
+Spec: [Navigating by a foreign key](../../decisions/2026-08-30-reference-navigation-design.md)
 
 ## D43. Rows move between sources through the platform
 
@@ -292,7 +292,7 @@ Known deviations:
   target receives plain columns and rows, with constraints left to
   [D40](ddl.md).
 
-Spec: [Bringing rows from one source into another](../../superpowers/specs/2026-08-30-row-import-design.md)
+Spec: [Bringing rows from one source into another](../../decisions/2026-08-30-row-import-design.md)
 
 ## D45. A file becomes a table in one transaction
 
@@ -359,7 +359,7 @@ Known deviations:
 - **The file is held whole in memory** while it is parsed, which is what the
   16 MB ceiling is for.
 
-Spec: [Loading a CSV as a new table](../../superpowers/specs/2026-08-30-relation-create-design.md)
+Spec: [Loading a CSV as a new table](../../decisions/2026-08-30-relation-create-design.md)
 
 ## D44. An export is a source-owned row stream
 
@@ -393,7 +393,7 @@ Known deviations:
   already-created file. One-time redemption would require shared state across
   backend processes.
 
-Spec: [Exporting every matching row](../../superpowers/specs/2026-08-30-streaming-export-design.md)
+Spec: [Exporting every matching row](../../decisions/2026-08-30-streaming-export-design.md)
 
 ## D70. A relation may declare commands over its own rows
 
@@ -493,7 +493,7 @@ Known deviations:
   row. Bringing a set back means a second gesture beside the per-row one, and
   nothing has been designed for it.
 
-Spec: [Commands over the rows of a relation](../../superpowers/specs/2026-09-02-row-commands-design.md)
+Spec: [Commands over the rows of a relation](../../decisions/2026-09-02-row-commands-design.md)
 
 ## D72. What a page is for is the source's statement, not the grid's guess
 
@@ -540,7 +540,7 @@ Known deviations:
   same one; there is no way to say that one particular table should not be
   charted.
 
-Spec: [What a page is for, said by the source](../../superpowers/specs/2026-09-02-page-commands-design.md)
+Spec: [What a page is for, said by the source](../../decisions/2026-09-02-page-commands-design.md)
 
 ## D54. A server-owned relation is read, never changed
 
@@ -574,7 +574,7 @@ Known deviations:
 - **`pg_temp` and `pg_toast` are not listed at all**, so the rule never reaches
   them.
 
-Spec: [What the old PostgreSQL adapter does beyond the table rounds](../../superpowers/specs/2026-08-31-postgres-system-operations-design.md)
+Spec: [What the old PostgreSQL adapter does beyond the table rounds](../../decisions/2026-08-31-postgres-system-operations-design.md)
 
 ## D109. The file source looks a value up, by equality and nothing else
 
@@ -604,7 +604,7 @@ Known deviations:
   a null test would be answering it a second time for this source alone.
 - **Sorting is still refused**, unchanged.
 
-Spec: [A reference the person draws](../../superpowers/specs/2026-09-05-declared-references-design.md)
+Spec: [A reference the person draws](../../decisions/2026-09-05-declared-references-design.md)
 
 ## D110. A source says what points at a relation, and following it is the same call
 
@@ -651,4 +651,4 @@ Known deviations:
   the screen learns that from the 501 rather than from anything it holds. The
   answer is cached for as long as the relation's tab lives.
 
-Spec: [The way back along a key](../../superpowers/specs/2026-09-05-arriving-references-design.md)
+Spec: [The way back along a key](../../decisions/2026-09-05-arriving-references-design.md)

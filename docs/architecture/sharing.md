@@ -84,7 +84,7 @@ connection, not only the table, before the owner presses anything. Node-scoped
 access is a different contract — the catalog would have to be filtered, and a
 node id belongs to the source — and a button is not the place to introduce it.
 
-Spec: [Sharing a view](../superpowers/specs/2026-09-01-shared-view-links-design.md)
+Spec: [Sharing a view](../decisions/2026-09-01-shared-view-links-design.md)
 
 ## D59. A shared view is a stored record with a typed body
 
@@ -125,7 +125,7 @@ author's own opens are not recorded, because the question the log answers is
 the connection; the record survives, the window into who reads the connection
 does not.
 
-Spec: [Sharing a view](../superpowers/specs/2026-09-01-shared-view-links-design.md)
+Spec: [Sharing a view](../decisions/2026-09-01-shared-view-links-design.md)
 
 ## D60. Opening a link answers with a state, not a status
 
@@ -160,7 +160,7 @@ What the client does with a resolved link:
   explained on the landing screen instead of failing inside a fresh tab, where
   the error would look like a broken link rather than a changed source.
 
-Spec: [Sharing a view](../superpowers/specs/2026-09-01-shared-view-links-design.md)
+Spec: [Sharing a view](../decisions/2026-09-01-shared-view-links-design.md)
 
 ## D61. Access is asked for as a durable request, answered by an ordinary grant
 
@@ -194,7 +194,7 @@ A connection is invisible without a grant, so a request can only ever arrive
 through a link. That is the whole discovery mechanism, and it is why the link
 and the request are one feature.
 
-Spec: [Sharing a view](../superpowers/specs/2026-09-01-shared-view-links-design.md)
+Spec: [Sharing a view](../decisions/2026-09-01-shared-view-links-design.md)
 
 ## What the dialog has to say out loud
 

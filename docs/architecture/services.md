@@ -117,7 +117,7 @@ Known deviations:
   them ([D88](#d88-two-ways-to-ask-for-a-service-and-neither-of-them-names-a-container));
   everything about what runs stays the template's.
 
-Spec: [Approved service templates](../superpowers/specs/2026-09-02-service-templates-design.md)
+Spec: [Approved service templates](../decisions/2026-09-02-service-templates-design.md)
 
 ## D82. A runtime is asked, never assumed, and the offer says so
 
@@ -175,7 +175,7 @@ Known deviations:
 - **Only Docker is tested.** Podman's socket serves the same API and would
   probably work; nothing here has tried it.
 
-Spec: [Detecting a container runtime](../superpowers/specs/2026-09-02-runtime-detection-design.md)
+Spec: [Detecting a container runtime](../decisions/2026-09-02-runtime-detection-design.md)
 
 ## D83. A ready service is an ordinary connection, and its credentials live there
 
@@ -231,7 +231,7 @@ Known deviations:
 - **A service is reachable from this server only.** A person cannot point
   `psql` at it from their own machine.
 
-Spec: [Starting a PostgreSQL and receiving a connection](../superpowers/specs/2026-09-03-service-pilot-design.md)
+Spec: [Starting a PostgreSQL and receiving a connection](../decisions/2026-09-03-service-pilot-design.md)
 
 ## D84. What goes wrong is a state somebody can act on
 
@@ -313,7 +313,7 @@ Known deviations:
 - **A removed service's connection is not marked broken.** It fails its next
   health check like any other connection that stopped answering.
 
-Spec: [When starting one goes wrong](../superpowers/specs/2026-09-03-service-recovery-design.md)
+Spec: [When starting one goes wrong](../decisions/2026-09-03-service-recovery-design.md)
 
 ## D85. The second service is what proves the first one was not a shape
 
@@ -356,7 +356,7 @@ Known deviations:
   dumps a source, and this one names none: what Redis writes is a snapshot in
   a volume that goes with the service.
 
-Spec: [A second service, and the first source that only connects](../superpowers/specs/2026-09-03-redis-pilot-design.md)
+Spec: [A second service, and the first source that only connects](../decisions/2026-09-03-redis-pilot-design.md)
 
 ## D86. Running containers is the machine's power, bounded by what this application will ask for
 
@@ -407,7 +407,7 @@ Known deviations:
 - **Nothing is audited.** Who started what, and when, is not recorded beyond
   the job rows.
 
-Spec: [What running services on the machine costs](../superpowers/specs/2026-09-03-service-threat-model-design.md)
+Spec: [What running services on the machine costs](../decisions/2026-09-03-service-threat-model-design.md)
 
 ## D87. A program that is not a statement runs in a container of its own
 
@@ -473,7 +473,7 @@ Known deviations:
   program's words about a database rather than the daemon's about the machine,
   and it may still name a host or a database.
 
-Spec: [Copying a database out, and putting it back](../superpowers/specs/2026-09-03-backup-and-restore-design.md)
+Spec: [Copying a database out, and putting it back](../decisions/2026-09-03-backup-and-restore-design.md)
 \n
 ## D88. Two ways to ask for a service, and neither of them names a container
 
@@ -551,7 +551,7 @@ Known deviations:
 - **Sample data is all or nothing.** One schema, the project's own, and no
   choice of what goes in.
 
-Spec: [Choosing what a started service is made with](../superpowers/specs/2026-09-03-service-start-choices-design.md)
+Spec: [Choosing what a started service is made with](../decisions/2026-09-03-service-start-choices-design.md)
 
 ## D89. The password is handed over once, where a service listens is told always
 
@@ -612,7 +612,7 @@ Known deviations:
   the machine this server runs on. Reaching it from another machine is that
   machine's tunnel to arrange.
 
-Spec: [Choosing what a started service is made with](../superpowers/specs/2026-09-03-service-start-choices-design.md)
+Spec: [Choosing what a started service is made with](../decisions/2026-09-03-service-start-choices-design.md)
 
 ## D90. An empty database demonstrates nothing, so an automatic start fills one
 
@@ -655,4 +655,4 @@ Known deviations:
   development prestart container; it is part of the application now, because
   starting a filled database is something the application does.
 
-Spec: [Two ways to start a service, and what comes back](../superpowers/specs/2026-09-03-service-start-modes-design.md)
+Spec: [Two ways to start a service, and what comes back](../decisions/2026-09-03-service-start-modes-design.md)

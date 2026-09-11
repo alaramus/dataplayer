@@ -8,7 +8,7 @@ before the task is known; details belong in the linked documentation.
   next migration slice.
 - [docs/architecture/](docs/architecture/) — contracts, decisions and known
   deviations.
-- [docs/superpowers/specs/README.md](docs/superpowers/specs/README.md) — design
+- [docs/decisions/README.md](docs/decisions/README.md) — design
   history and specification index.
 
 ## Project

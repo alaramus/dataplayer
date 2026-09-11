@@ -1,8 +1,14 @@
-# Specifications, in order
+# Decision history, in order
 
 The full argument behind each decision. The decision's line is in the table in
-[AGENTS.md](../../../AGENTS.md), its statement is in `docs/architecture/`, and
+[AGENTS.md](../../AGENTS.md), its statement is in `docs/architecture/`, and
 the argument is here.
+
+These files are frozen history, not live documentation. `docs/architecture/` is
+what the project does today; a spec below is why it was decided that way. Do
+not update a spec to match later code — record the new reasoning in the
+architecture file, and add a new dated entry here only when the decision
+itself is revisited.
 
 Language: this index, and every spec from 2026-08-28 onwards, is in English.
 The specs dated up to 2026-08-27 and the plans beside them are working notes
@@ -116,6 +122,7 @@ translations; those files are not.
 | 2026-09-06 | [The row of commands above a table](2026-09-06-grid-toolbar-design.md) | D116: five named groups in the order of a working session, and a command greyed with its reason rather than hidden |
 | 2026-09-06 | [Designing a table](2026-09-06-table-designer-design.md) | D117: a whole table is a typed definition the source plans, reviewed as a step of its own before anything is created |
 
-Implementation plans are in [../plans/](../plans/). There are five: two for the
+Implementation plans are in [plans/](plans/). There are five: two for the
 connector registry, and one each for the workspace, the relation model and the
 grid; the other sub-projects followed their spec without a separate plan.
+The plans are frozen legacy notes and stay unchanged.

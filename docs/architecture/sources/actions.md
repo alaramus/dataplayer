@@ -77,7 +77,7 @@ Known deviations:
   selected groupings and destination candidates use cached queries; identical
   target lists share an answer.
 
-Spec: [The action registry](../../superpowers/specs/2026-08-21-action-registry-design.md)
+Spec: [The action registry](../../decisions/2026-08-21-action-registry-design.md)
 
 ## D56. Level, places and node selection are separate subjects
 
@@ -126,7 +126,7 @@ Known deviations:
   useful conflict answer, but another session can take the name before the DDL.
   PostgreSQL then refuses the statement safely; there is no overwrite.
 
-Spec: [PostgreSQL schema actions](../../superpowers/specs/2026-08-31-postgres-schema-actions-design.md)
+Spec: [PostgreSQL schema actions](../../decisions/2026-08-31-postgres-schema-actions-design.md)
 
 ## D118. Selection scope and destination choice are separate
 
@@ -150,7 +150,7 @@ resolved targets, captured when the form opens. Existing permission, root,
 system-node and transport guards still run on execution. Actions drawn over a
 node's rows and client-owned commands keep their existing capability rules.
 
-Spec: [Action targets and availability](../../superpowers/specs/2026-09-07-action-targets-design.md)
+Spec: [Action targets and availability](../../decisions/2026-09-07-action-targets-design.md)
 
 ## D79. Making a user of the server is the owner's, and its password is a literal
 
@@ -220,7 +220,7 @@ Known deviations:
 - **A name can race another creator.** The check is fresh, and the server
   refuses a duplicate safely; nothing is overwritten.
 
-Spec: [A database user](../../superpowers/specs/2026-09-02-database-user-design.md)
+Spec: [A database user](../../decisions/2026-09-02-database-user-design.md)
 
 ## D46. An action answers what it would do
 
@@ -268,7 +268,7 @@ Known deviations:
   in place, to fail on its next read; the workspace can follow a renamed node
   ([D32](ddl.md)) and has no word yet for one that is not there at all.
 
-Spec: [Dropping a relation, and seeing what goes with it](../../superpowers/specs/2026-08-30-relation-drop-design.md)
+Spec: [Dropping a relation, and seeing what goes with it](../../decisions/2026-08-30-relation-drop-design.md)
 
 ## D68. A set of nodes is a subject an action may have
 
@@ -327,7 +327,7 @@ Known deviations:
 - **Only the drop takes a set today.** Moving several relations into one schema
   would be the next one, and keeps the repeated transport until somebody asks.
 
-Spec: [Dropping several relations at once](../../superpowers/specs/2026-09-02-action-node-set-design.md)
+Spec: [Dropping several relations at once](../../decisions/2026-09-02-action-node-set-design.md)
 
 ## D74. Copy and Cut are the client's, and Paste is the source's
 
@@ -386,7 +386,7 @@ Known deviations:
 - **There is no undo.** A move is a move.
 - **The clipboard does not survive a reload**, and says so by being empty.
 
-Spec: [Copying and moving files](../../superpowers/specs/2026-09-02-file-clipboard-design.md)
+Spec: [Copying and moving files](../../decisions/2026-09-02-file-clipboard-design.md)
 
 ## D49. Download is a source-declared action
 
@@ -435,7 +435,7 @@ Known deviations:
   fallback still needs a screen that does not imply a partial document is
   editable.
 
-Spec: [Download actions and bounded image content](../../superpowers/specs/2026-08-31-original-file-and-image-content-design.md)
+Spec: [Download actions and bounded image content](../../decisions/2026-08-31-original-file-and-image-content-design.md)
 
 ## D73. A download may ask something first, and the model is written as code
 
@@ -503,7 +503,7 @@ Known deviations:
 - **There is a ceiling of two hundred relations** in one document, and a schema
   above it is refused rather than partly written.
 
-Spec: [The model a source published, written as code](../../superpowers/specs/2026-09-02-model-as-code-design.md)
+Spec: [The model a source published, written as code](../../decisions/2026-09-02-model-as-code-design.md)
 
 ## D55. A source may publish reports of its own
 
@@ -566,4 +566,4 @@ Known deviations:
   `ctid`, which is why every registered statement ends in an `ORDER BY` of its
   own.
 
-Spec: [What the old PostgreSQL adapter does beyond the table rounds](../../superpowers/specs/2026-08-31-postgres-system-operations-design.md)
+Spec: [What the old PostgreSQL adapter does beyond the table rounds](../../decisions/2026-08-31-postgres-system-operations-design.md)

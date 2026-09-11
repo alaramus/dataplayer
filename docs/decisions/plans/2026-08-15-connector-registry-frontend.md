@@ -8,7 +8,7 @@
 
 **Tech Stack:** Vue 3, TypeScript, Vite, Quasar (через `@quasar/vite-plugin`), Vue Router, Pinia, `@tanstack/vue-query`, zod, `@hey-api/openapi-ts` с клиентом на axios, Vitest + `@vue/test-utils`, Playwright, ESLint + Prettier, bun как раннер.
 
-Спек: [2026-08-15-connector-registry-design.md](../specs/2026-08-15-connector-registry-design.md)
+Спек: [2026-08-15-connector-registry-design.md](../2026-08-15-connector-registry-design.md)
 Бэкенд: [2026-08-15-connector-registry-backend.md](2026-08-15-connector-registry-backend.md) — должен быть выполнен полностью до начала этого плана.
 
 ## Global Constraints

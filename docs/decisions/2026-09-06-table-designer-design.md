@@ -15,7 +15,7 @@ what the database should refuse. That is a screen, not a form of fields, and it
 is the one thing a person opening a database expects to be able to do.
 
 The awkward part is that nearly every one of those answers is a piece of SQL
-syntax, and [D2c](../../architecture/sources/contract.md) refuses SQL typed into
+syntax, and [D2c](../architecture/sources/contract.md) refuses SQL typed into
 a field. A column default is a literal because of it (D30); an index has no
 predicate and no expression because of it (D39). A table designer that took the
 same shortcut would hand the browser a text box for `total >= 0` and compose the

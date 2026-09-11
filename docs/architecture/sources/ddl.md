@@ -43,7 +43,7 @@ Known deviations:
   where existing rows permit it. A literal default is assigned afterwards
   through D30.
 
-Spec: [Adding and dropping columns](../../superpowers/specs/2026-08-27-column-add-drop-design.md)
+Spec: [Adding and dropping columns](../../decisions/2026-08-27-column-add-drop-design.md)
 
 ## D29. A renamed column keeps its identity
 
@@ -61,7 +61,7 @@ its data and PostgreSQL keeps its dependencies.
 - Structure and rows are both invalidated: both cached projections name the old
   column.
 
-Spec: [Column rename](../../superpowers/specs/2026-08-28-column-rename-design.md)
+Spec: [Column rename](../../decisions/2026-08-28-column-rename-design.md)
 
 ## D30. An entered default is a literal, never an expression
 
@@ -83,7 +83,7 @@ Known deviations:
   `now()` where the column type accepts text. Expressions need a separate,
   source-owned vocabulary rather than a raw SQL field.
 
-Spec: [Column default](../../superpowers/specs/2026-08-28-column-default-design.md)
+Spec: [Column default](../../decisions/2026-08-28-column-default-design.md)
 
 ## D37. Nullability counts the rows in the way
 
@@ -118,7 +118,7 @@ Known deviations:
 - **One column at a time.** A relation-wide edit would need a partial-failure
   answer, and there is no shape for one.
 
-Spec: [Changing whether a column may be empty](../../superpowers/specs/2026-08-30-column-nullability-design.md)
+Spec: [Changing whether a column may be empty](../../decisions/2026-08-30-column-nullability-design.md)
 
 ## D38. The source composes a type change
 
@@ -157,7 +157,7 @@ Known deviations:
 - **The target vocabulary carries no parameters.** No `varchar(n)`,
   `numeric(p,s)`, arrays, enums or domains.
 
-Spec: [Changing a column's type](../../superpowers/specs/2026-08-30-column-type-change-design.md)
+Spec: [Changing a column's type](../../decisions/2026-08-30-column-type-change-design.md)
 
 ## D39. The source names an index
 
@@ -194,7 +194,7 @@ Known deviations:
 - **A unique index is not a unique constraint.** They are different objects.
 - **No reindex or rebuild**, and no storage parameters or tablespace.
 
-Spec: [Creating and dropping an index](../../superpowers/specs/2026-08-30-index-create-drop-design.md)
+Spec: [Creating and dropping an index](../../decisions/2026-08-30-index-create-drop-design.md)
 
 ## D40. A relation publishes what may point at it
 
@@ -238,7 +238,7 @@ Known deviations:
 - **The request waits for the scan**, as it waits for an index build in D39.
 - **No cross-connector references.** The target is a node of the same source.
 
-Spec: [Promising uniqueness, and pointing at another relation](../../superpowers/specs/2026-08-30-constraint-create-drop-design.md)
+Spec: [Promising uniqueness, and pointing at another relation](../../decisions/2026-08-30-constraint-create-drop-design.md)
 
 ## D32. A rename returns its replacement identity
 
@@ -271,7 +271,7 @@ Known deviations:
   to the relation identity keep working; text outside PostgreSQL's dependency
   graph is not searched or rewritten.
 
-Spec: [Renaming a table and a view](../../superpowers/specs/2026-08-29-relation-rename-design.md)
+Spec: [Renaming a table and a view](../../decisions/2026-08-29-relation-rename-design.md)
 
 ## D117. A designed table is planned, reviewed, then created
 
@@ -337,4 +337,4 @@ Known deviations:
   id and the catalog branch reloads, so it is there to click; the offer itself
   is not built.
 
-Spec: [Creating a table with an object editor](../../superpowers/specs/2026-09-06-table-designer-design.md)
+Spec: [Creating a table with an object editor](../../decisions/2026-09-06-table-designer-design.md)

@@ -88,7 +88,7 @@ Known deviations:
   The server probes on subscription (D18), so this source reports what is
   already known and starts no probe of its own.
 
-Spec: [Everything that needs a person](../superpowers/specs/2026-09-06-activity-centre-design.md)
+Spec: [Everything that needs a person](../decisions/2026-09-06-activity-centre-design.md)
 
 ## D114. A message is recorded first and shown second
 
@@ -125,7 +125,7 @@ the same four functions, and roughly a hundred calls stayed as they were.
   notifications were drawn. `layers.css` says so rather than a number saying
   it in one component.
 
-Spec: [Everything that needs a person](../superpowers/specs/2026-09-06-activity-centre-design.md)
+Spec: [Everything that needs a person](../decisions/2026-09-06-activity-centre-design.md)
 
 ## D115. What needs an answer comes from a list of sources, not a list of ifs
 
@@ -149,4 +149,4 @@ for its panels (D12).
   section is empty when nothing is waiting, and an empty section is the goal
   rather than a state to apologise for.
 
-Spec: [Everything that needs a person](../superpowers/specs/2026-09-06-activity-centre-design.md)
+Spec: [Everything that needs a person](../decisions/2026-09-06-activity-centre-design.md)

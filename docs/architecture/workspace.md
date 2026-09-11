@@ -236,7 +236,7 @@ Known deviations:
   components in `features/workspace/panels.ts` keeps definitions for the page's
   lifetime; the workspace releases the actual component instance on close.
 
-Spec: [The workspace and the panel engine](../superpowers/specs/2026-08-22-workspace-design.md)
+Spec: [The workspace and the panel engine](../decisions/2026-08-22-workspace-design.md)
 
 ## D69. The bar at the foot of the screen holds what hangs off nothing else
 
@@ -308,7 +308,7 @@ Known deviations:
   the slot around the button, because a disabled Quasar button takes no pointer
   events; on a touch screen there is no hover and therefore no reason.
 
-Spec: [The bar at the foot of the screen](../superpowers/specs/2026-09-02-connection-command-bar-design.md)
+Spec: [The bar at the foot of the screen](../decisions/2026-09-02-connection-command-bar-design.md)
 
 ## D14. Work opens in floating windows, and there may be several
 
@@ -381,7 +381,7 @@ Known deviations:
 - **A window reopened does not return to where it was.** It joins the cascade
   again.
 
-Spec: [The connection window: floating windows and form layout](../superpowers/specs/2026-08-23-connector-window-design.md)
+Spec: [The connection window: floating windows and form layout](../decisions/2026-08-23-connector-window-design.md)
 
 ## D92. A window can be put aside without losing its contents
 
@@ -414,7 +414,7 @@ viewport. Maximized geometry follows browser and footer resizing without
 overwriting that saved rectangle. All of this is held only in memory until the
 window closes or the page reloads; the existing close confirmation still applies.
 
-Spec: [Minimizing and maximizing floating windows](../superpowers/specs/2026-09-04-window-states-design.md)
+Spec: [Minimizing and maximizing floating windows](../decisions/2026-09-04-window-states-design.md)
 
 ## D93. Detaching moves the live panel into an application window
 
@@ -441,7 +441,7 @@ contains the detached panels docked back into their return destinations, so
 reloading preserves open tabs without restoring transient windows. No panel
 contents or new storage format are introduced.
 
-Spec: [Detaching a tab into a floating window](../superpowers/specs/2026-09-04-detached-tabs-design.md)
+Spec: [Detaching a tab into a floating window](../decisions/2026-09-04-detached-tabs-design.md)
 
 ## D94. Named tab groups restore a saved workspace layout
 
@@ -467,7 +467,7 @@ Unrelated floating forms stay open. Saved data is versioned and validated
 before use, including unique section/panel identities and role compatibility.
 Storage failures are reported without pretending a group was saved.
 
-Spec: [Saved tab groups](../superpowers/specs/2026-09-04-tab-groups-design.md)
+Spec: [Saved tab groups](../decisions/2026-09-04-tab-groups-design.md)
 
 ## D112. What a panel offers about itself lives in the panel's row of commands
 
@@ -514,4 +514,4 @@ the reload they had always claimed. A tab restored from storage and never shown
 has no reload button at all — the button is inside the panel, and showing the
 tab is what reads it.
 
-Spec: [The commands of a panel belong to the panel](../superpowers/specs/2026-09-05-panel-commands-design.md)
+Spec: [The commands of a panel belong to the panel](../decisions/2026-09-05-panel-commands-design.md)

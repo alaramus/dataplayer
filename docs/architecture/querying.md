@@ -179,7 +179,7 @@ the protocol portable once it could state which of its own nodes SQL may see
 reads, no transactions, no formatter. The frontend never branches on the
 adapter type.
 
-Spec: [The query editor](../superpowers/specs/2026-09-01-query-editor-design.md)
+Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
 ## D63. A document changes; an execution does not
 
@@ -270,7 +270,7 @@ Known deviations:
 - **Remember has no undo of its own.** What it makes is an ordinary document,
   so the way back is Trash.
 
-Spec: [The query editor](../superpowers/specs/2026-09-01-query-editor-design.md)
+Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
 ## D64. A run is asynchronous; its result is a bounded snapshot
 
@@ -348,7 +348,7 @@ values do not cross. Notices are length-bounded and stripped of control
 characters. Operational telemetry names ids, status, timings, rows and bytes,
 not query content.
 
-Spec: [The query editor](../superpowers/specs/2026-09-01-query-editor-design.md)
+Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
 ## D65. The editor and its results are one workspace panel
 
@@ -403,7 +403,7 @@ column list. The browser does not build SQL identifiers. Explain is a separate
 result type with synchronised operation tree, table and raw plan; Explain
 Analyze is deferred.
 
-Spec: [The query editor](../superpowers/specs/2026-09-01-query-editor-design.md)
+Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
 ## D66. Writes require an explicit mode and the UI owns the transaction
 
@@ -457,7 +457,7 @@ disables execution. After commit the adapter returns exact node invalidations,
 replacements or an explicit schema/database scope; the client never
 reconstructs affected ids from SQL. Rollback invalidates nothing.
 
-Spec: [The query editor](../superpowers/specs/2026-09-01-query-editor-design.md)
+Spec: [The query editor](../decisions/2026-09-01-query-editor-design.md)
 
 ## D77. A file source's SQL names its own nodes, and nothing else
 
@@ -513,7 +513,7 @@ Known deviations:
   disk are refused with the rest. Separating them would mean a list of names,
   which is the blacklist this rule exists to avoid.
 
-Spec: [SQL over tabular files](../superpowers/specs/2026-09-02-file-sql-design.md)
+Spec: [SQL over tabular files](../decisions/2026-09-02-file-sql-design.md)
 
 ## D78. The engine is a disposable sandbox, not a database the source keeps
 
@@ -546,7 +546,7 @@ the server, and this source's whole promise is that a person sees node ids. A
 diagnostic carries the exception's class as its code, a category, and one
 bounded line with the root redacted out of it.
 
-Spec: [SQL over tabular files](../superpowers/specs/2026-09-02-file-sql-design.md)
+Spec: [SQL over tabular files](../decisions/2026-09-02-file-sql-design.md)
 
 ## D96. SQL over a log reuses its table projection
 
@@ -566,7 +566,7 @@ a truncated prefix or the visible grid page. Preparation checks cancellation
 and a deadline and always closes its engine, including on failure. Result
 bounds, read-only execution and path containment remain D64, D77 and D78's.
 
-Spec: [SQL over log files](../superpowers/specs/2026-09-04-log-sql-design.md)
+Spec: [SQL over log files](../decisions/2026-09-04-log-sql-design.md)
 
 ## Verification boundary
 

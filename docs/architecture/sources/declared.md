@@ -50,7 +50,7 @@ Known deviations:
   produced is the same page for everyone, and which lines this person has drawn
   over it is not.
 
-Spec: [A reference the person draws](../../superpowers/specs/2026-09-05-declared-references-design.md)
+Spec: [A reference the person draws](../../decisions/2026-09-05-declared-references-design.md)
 
 ## D107. A declared reference is checked against both sources, when it is made and when it is followed
 
@@ -81,7 +81,7 @@ Known deviations:
   source states its filterable columns through. The read cache absorbs the
   repetition, and nothing measures it yet.
 
-Spec: [A reference the person draws](../../superpowers/specs/2026-09-05-declared-references-design.md)
+Spec: [A reference the person draws](../../decisions/2026-09-05-declared-references-design.md)
 
 ## D108. A followed reference names the connection it lands in
 
@@ -95,7 +95,7 @@ to be always the connection that was asked.
   connection it just asked. For a key inside one source it is that same
   connection.
 
-Spec: [A reference the person draws](../../superpowers/specs/2026-09-05-declared-references-design.md)
+Spec: [A reference the person draws](../../decisions/2026-09-05-declared-references-design.md)
 
 ## Where the code is
 

@@ -35,7 +35,7 @@ external plugin loader. A future Timescale-branded connection preset or managed
 service template may produce an ordinary PostgreSQL connector; neither is part
 of the pilot.
 
-Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)
+Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-timescale-capabilities-design.md)
 
 ## D120. Runtime features complement static capabilities and grant no permission
 
@@ -91,7 +91,7 @@ installation prerequisite, not verified mutation support or permission.
 D118 target resolution and application
 grants remain independent, and execution also faces PostgreSQL permissions.
 
-Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)
+Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-timescale-capabilities-design.md)
 
 ## D121. Timescale specialises relations and exposes inventories as paged reports
 
@@ -188,7 +188,7 @@ kind; no first-class chunk rows view in T1. Later chunk actions target the
 hypertable and validate selected chunk membership. First-class chunk navigation
 requires a separate demonstrated need.
 
-Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)
+Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-timescale-capabilities-design.md)
 
 ## D122. Extension compatibility constrains ordinary PostgreSQL operations
 
@@ -235,7 +235,7 @@ Support is declared against tested public API strategies and pinned source
 fixtures, including legacy and columnstore APIs. Installed does not mean every
 operation is supported, and a signature match alone never enables a mutation.
 
-Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)
+Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-timescale-capabilities-design.md)
 
 ## D123. Long source actions are owned jobs with fixed targets and partial outcomes
 
@@ -358,4 +358,4 @@ missing-review and access refusal do not dispatch execution. Ordinary actions
 retain their existing success-only invalidation. Route/helper tests are written
 but unrun.
 
-Spec: [TimescaleDB through a PostgreSQL connection](../../superpowers/specs/2026-09-07-timescale-capabilities-design.md)
+Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-timescale-capabilities-design.md)
