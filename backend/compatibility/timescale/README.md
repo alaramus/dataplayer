@@ -342,5 +342,7 @@ interval one that registration had added earlier. The E2E failure depended on
 a connection nothing creates — the backend suite deletes the users who owned
 them — and the scenario now brings its own.
 
-No browser scenario exercises the shared reviewed form yet, so its browser
-acceptance remains open.
+The shared reviewed form then gained a browser scenario,
+`frontend/tests/reviewed-actions.spec.ts`, which mocks the source's responses.
+It failed with the form's review gate deliberately removed and passed with it
+restored; ESLint and the frontend type-check passed for it.

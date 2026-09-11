@@ -11,9 +11,8 @@ Read alongside [contract.md](contract.md), [relations.md](relations.md),
 passed on Timescale 2.17.2 and 2.18.0, both PostgreSQL 16.6.
 The [validation record](../../../backend/compatibility/timescale/README.md#t1-completion-2026-09-08)
 distinguishes recorded command results from the user's final completion
-confirmation. T2 bounded metadata changes passed validation on 2026-09-11,
-with one open acceptance item the [roadmap](../../migration-roadmap.md) names.
-T3 owned operations follow.
+confirmation. T2 bounded metadata changes are complete as of 2026-09-11; T3
+owned operations follow, as the [roadmap](../../migration-roadmap.md) says.
 T1 inspection/refusal evidence does not certify T2/T3 mutation semantics.
 
 ## D119. Timescale is composed into PostgreSQL without another source identity
@@ -305,7 +304,7 @@ changes immediately invalidate the displayed plan and in-flight replies; stale
 replies cannot enable the button during the debounce. A refused execution keeps
 the form open, clears its review and asks for a new plan without retrying the
 mutation. Optional previews preserve their advisory behaviour. Component and
-mapping tests pass; no browser scenario exercises a reviewed action yet.
+mapping tests pass, and a browser scenario covers the form's review contract.
 
 The interval inspector has a five-second total budget and read-only statements.
 It verifies public-view ownership/columns, resolves one owned

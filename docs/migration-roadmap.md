@@ -127,21 +127,18 @@ Quasar's grouped notifications had been hiding.
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 1.10 | TimescaleDB through PostgreSQL | Medium pilot; larger follow-ups | T1 is complete; T2 is validated except a browser scenario for the reviewed form |
+| 1.10 | TimescaleDB through PostgreSQL | Medium pilot; larger follow-ups | T1 and T2 are complete; T3 owned operations are next |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation, saved layouts and a history to draw over require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
 
 ## Phase 1.10 — TimescaleDB through PostgreSQL
 
-T1 is complete as of 2026-09-08; the user confirmed that all tests passed.
-T2 passed validation on 2026-09-11. The
+T1 is complete as of 2026-09-08 and T2 as of 2026-09-11. The
 [Timescale design](decisions/2026-09-07-timescale-capabilities-design.md)
 defines the three implementation slices. D119–D123 retain one
 PostgreSQL source identity and compose a Timescale feature package.
 
-- [ ] T2: typed read-only plans, connection-specific action vocabulary,
-  time-based interval/storage/policy changes and tested empty-table conversion.
 - [ ] T3: owned source operations, fixed chunk selection, durable partial
   outcomes, cancellation/recovery and cache invalidation after partial effects.
 
@@ -151,39 +148,13 @@ Each slice has its own acceptance criteria there. Exact source-image pins and
 the tested compatibility matrix are recorded with implementation, not inferred
 from a generic Timescale version label.
 
-T1 completion is recorded in the
+What T1 and T2 delivered, and how each was checked, is recorded in the
 [spec index](decisions/README.md) and the
-[compatibility validation record](../backend/compatibility/timescale/README.md#t1-completion-2026-09-08).
-Next: add a browser scenario for the shared reviewed form, which closes T2.
-T2 API mutation strategies require their own real-source tests;
-T1 inspection/refusal evidence does not certify them.
-
-T2 resume point (2026-09-11). Validated: the async action vocabulary, typed
-refusal reasons, feature requirements, the reviewed-plan transport and form,
-the snapshot inspector and the interval plan, preview and execution. The user
-confirmed all checks green after `482a537`; the isolated interval run is in the
-[validation record](../backend/compatibility/timescale/README.md#t2-interval-execution-isolated-validation-2026-09-09).
-
-Validated on 2026-09-11, with every backend, compatibility, frontend and E2E
-check green (see the
-[validation record](../backend/compatibility/timescale/README.md#validation-record-2026-09-11)):
-
-- registration of the interval action with live admission;
-- retention, compression and refresh policies — set, replace and remove
-  through six reviewed actions under the public jobs metadata lock — with unit
-  coverage and isolated scenarios in
-  `compatibility/timescale/test_retention_policy.py`,
-  `test_compression_policy.py` and `test_refresh_policy.py`;
-- compression settings — enabling and changing segment-by and order-by through
-  one reviewed action — with unit coverage and the isolated scenarios in
-  `compatibility/timescale/test_compression_settings.py`;
-- empty-table conversion into a hypertable, keeping the node ID, with unit
-  coverage and the isolated scenarios in
-  `compatibility/timescale/test_conversion.py`.
-
-That completes the T2 implementation. One acceptance item remains: no browser
-scenario yet exercises the shared reviewed form, whose component tests pass.
-T2 closes when one does; T3 follows.
+[compatibility validation record](../backend/compatibility/timescale/README.md#validation-record-2026-09-11).
+Next: implement T3 against its acceptance criteria in the Timescale design. Its
+job-producing operations need their own real-source tests; T1 and T2 evidence
+does not certify them. Populated-table conversion joins T3 only with a tested
+plan and locking strategy.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

@@ -2,9 +2,8 @@
 
 Date: 2026-09-07.
 Status: T1 is complete as of 2026-09-08; the user confirmed that all tests
-passed. T2 passed validation on 2026-09-11, apart from browser acceptance of
-the shared reviewed form; T3 follows. Their mutation capabilities are not
-claimed by T1.
+passed. T2 is complete as of 2026-09-11; T3 follows. Their mutation
+capabilities are not claimed by T1.
 
 Decisions: D119 through D123, in
 [TimescaleDB](../architecture/sources/timescale.md).
@@ -759,8 +758,12 @@ not choose or approve the user's duration. Actual preview and locked execution
 repeat the existing parameter-specific checks. Ordinary relation action guards
 remain independent; admitting interval management does not admit row or DDL
 mutation. The type catalog derives the installation condition from the action's
-feature requirement. Registration unit and real-source scenarios pass; no
-browser scenario exercises the shared reviewed form yet.
+feature requirement. Registration unit and real-source scenarios pass. The
+browser scenario `frontend/tests/reviewed-actions.spec.ts` covers the shared
+reviewed form with mocked source responses: no Apply before a fingerprint, a
+changed field voiding the plan while its reply is still held, a blocked plan,
+the fingerprint sent beside the parameters, and a refused run that keeps the
+form, draws a new plan and retries nothing.
 
 The API shape check also refuses any same-named overload in its schema: a
 concrete interval overload could otherwise win over the verified polymorphic
