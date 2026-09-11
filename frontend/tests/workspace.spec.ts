@@ -208,7 +208,11 @@ async function freshLayout(page: Page) {
 }
 
 test("a signed in user lands on the columns that have something in them", async ({ page }) => {
+  // The list is drawn only when it holds something, and no setup step creates a
+  // connection: the scenario brings its own instead of relying on one left behind.
+  const name = `e2e-landing-${Date.now()}`
   await login(page)
+  await createFileConnector(page, name)
   await freshLayout(page)
 
   // Two columns, not three: the middle one appears together with a catalog,
@@ -245,6 +249,7 @@ test("a signed in user lands on the columns that have something in them", async 
   expect(
     await workspace.evaluate((node) => getComputedStyle(node).borderRadius)
   ).not.toBe("0px")
+  await deleteConnector(page, name)
 })
 
 test("catalogs stand beside each other, and each connection opens once", async ({ page }) => {
