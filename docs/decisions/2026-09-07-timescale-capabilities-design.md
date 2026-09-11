@@ -2,7 +2,8 @@
 
 Date: 2026-09-07.
 Status: T1 is complete as of 2026-09-08; the user confirmed that all tests
-passed. T2 is next, followed by T3. Their mutation capabilities are not
+passed. T2 passed validation on 2026-09-11, apart from browser acceptance of
+the shared reviewed form; T3 follows. Their mutation capabilities are not
 claimed by T1.
 
 Decisions: D119 through D123, in
@@ -521,7 +522,7 @@ execution permission without invoking the mutator. Calendar chunk intervals
 are refused rather than silently converted to fixed durations; date dimensions
 initially require day/week units. These are initial planning limits, not a
 claim of completed T2 or validated mutations. Unit and isolated source scenarios
-are written and unrun. API evidence: the 2.18.0
+pass. API evidence: the 2.18.0
 [DDL declarations](https://github.com/timescale/timescaledb/blob/2.18.0/sql/ddl_api.sql)
 and [public views](https://github.com/timescale/timescaledb/blob/2.18.0/sql/views.sql).
 
@@ -719,13 +720,13 @@ interval and that existing chunks are not repartitioned. Metadata refusal,
 timeout and connection failure block review without returning driver text.
 Its isolated source scenarios passed in the 2026-09-09 interval run; unit
 scenarios were subsequently confirmed green by the user after `482a537`.
-Registration was implemented afterwards and remains unvalidated.
+Registration was implemented afterwards and passed on 2026-09-11.
 
 The approved isolated planning/execution selection passed all 36 tests on both
 pinned sources on 2026-09-09, including native setter exclusion, stale review,
 future/existing chunk boundaries, refusal and cancellation cleanup. This is
 interval-specific evidence; backend unit/transport/static and frontend review
-validation remain pending. See the
+checks passed afterwards. See the
 [compatibility record](../../backend/compatibility/timescale/README.md#t2-interval-execution-isolated-validation-2026-09-09)
 for the exact command and limits.
 
@@ -758,8 +759,8 @@ not choose or approve the user's duration. Actual preview and locked execution
 repeat the existing parameter-specific checks. Ordinary relation action guards
 remain independent; admitting interval management does not admit row or DDL
 mutation. The type catalog derives the installation condition from the action's
-feature requirement. Registration unit and real-source scenarios are written
-but unrun; shared-form browser acceptance is also pending.
+feature requirement. Registration unit and real-source scenarios pass; no
+browser scenario exercises the shared reviewed form yet.
 
 The API shape check also refuses any same-named overload in its schema: a
 concrete interval overload could otherwise win over the verified polymorphic
@@ -781,7 +782,7 @@ interval execution fixtures cover retained existing chunks and new chunk size,
 an external native setter blocked by the metadata view lock alone, a change
 between preflight and locking, source rejection, cancellation releasing locks,
 an owner without metadata lock permission and a concrete overload. These tests
-have not been run; the source images retain their T1-only certification.
+pass on both pinned sources.
 
 The reviewed-action route invalidates the connector's read cache after any
 dispatched attempt, including failure or cancellation, because a transport error
@@ -789,6 +790,105 @@ can leave the commit outcome unknown. It does not automatically retry. Preview
 and refusal before dispatch do not invalidate, and ordinary actions keep their
 success-only behavior. This conservative invalidation also covers a definite
 stale-plan refusal; correctness is preferred to retaining that cache entry.
+
+Retention and compression strategies (passed 2026-09-11) share one
+plan and execution shape. `add_retention_policy(regclass, "any", boolean,
+interval, timestamptz, text, interval)` returning integer and
+`remove_retention_policy(regclass, boolean)` returning void are identical in
+[2.17.2](https://github.com/timescale/timescaledb/blob/2.17.2/sql/policy_api.sql)
+and [2.18.0](https://github.com/timescale/timescaledb/blob/2.18.0/sql/policy_api.sql).
+`add_compression_policy` has the same seven arguments in 2.17.2 and appends
+`hypercore_use_access_method boolean DEFAULT NULL` in 2.18.0, which is left
+unset; `remove_compression_policy(regclass, boolean)` returns boolean in both.
+The 2.18.0 columnstore procedures call the same implementation and are not
+used. Each routine is verified by extension ownership, schema, exact argument
+and result types, default count, absence of same-named overloads and execute
+privilege. The target is an owned hypertable with one timestamp or date
+dimension, and a compression policy also requires `compression_enabled`. The
+existing job is read from the public jobs view only when its routine is the
+extension-owned `(integer, jsonb)` procedure, with thresholds validated before
+any cast; several jobs of a kind, or an unreadable one, refuse. The upstream
+[compression policy code](https://github.com/timescale/timescaledb/blob/2.18.0/tsl/src/bgw_policy/compression_api.c)
+refuses a disabled hypertable and a duplicate policy, and writes only the
+hypertable identity and the threshold into the job configuration.
+
+The jobs view reads `_timescaledb_config.bgw_job`, the hypertable catalog and
+job statistics in the 2.18.0 [public views](https://github.com/timescale/timescaledb/blob/2.18.0/sql/views.sql).
+Locking it serializes policy API writes the way the dimensions view serializes
+interval changes, and briefly delays job starts and chunk creation; the preview
+discloses that. Replacement is a removal and an addition in one transaction, so
+a refused addition leaves the old job. The preview names the replaced job and
+states that its replacement uses the default schedule. A paused policy refuses
+replacement rather than being resumed by it. Isolated scenarios cover, for both
+kinds, set, replace and remove through the registered actions, an external
+policy after review and a refused replacement keeping the old job. Retention
+also covers the pause refusal, lock exclusion of an external policy call,
+cancellation and ineligible targets; compression covers a hypertable without
+compression and the add shape of the installed version.
+
+The refresh strategy (passed 2026-09-11) uses
+`add_continuous_aggregate_policy(regclass, "any", "any", interval, boolean,
+timestamptz, text)` returning integer in 2.17.2, with `include_tiered_data
+boolean DEFAULT NULL` appended in 2.18.0 and left unset, and
+`remove_continuous_aggregate_policy(regclass, boolean, boolean)` returning void
+in both. The upstream
+[refresh policy code](https://github.com/timescale/timescaledb/blob/2.18.0/tsl/src/bgw_policy/continuous_aggregate_api.c)
+attaches the job to the materialization hypertable, stores nullable start and
+end offsets and refuses a window smaller than two buckets, but does not compare
+the window with retention on the raw hypertable. The plan therefore reads the
+source's retention job and refuses a start offset at or beyond an age-based
+`drop_after`, compared by PostgreSQL with months counted as thirty days; a
+creation-time threshold it cannot compare is disclosed. Offsets are bounded to
+100,000 units so no comparison overflows. An unbounded edge is read and
+described but not offered. Isolated scenarios cover set, replace and remove, a
+window that ends before it starts, a retention conflict, an external policy
+after review, a window the source rejects keeping the existing job, the fixture
+aggregate planned read-only and the version-specific add shape.
+
+The compression settings strategy (passed 2026-09-11) follows the
+2.17.2 and 2.18.0 code, identical where it matters.
+[`tsl_process_compress_table`](https://github.com/timescale/timescaledb/blob/2.18.0/tsl/src/compression/create.c)
+locks the root in ACCESS EXCLUSIVE mode, and only disabling refuses existing
+compressed chunks. `compression_settings_update` keeps a list that is not
+given, derives a default when none exists, and appends the time column
+`DESC NULLS FIRST` to an explicit order unless either list names it. The
+[option parser](https://github.com/timescale/timescaledb/blob/2.18.0/src/compression_with_clause.c)
+reads each list through the PostgreSQL raw parser as a GROUP BY or ORDER BY
+clause of plain column references and accepts an empty list. Upstream's
+[settings regression output](https://github.com/timescale/timescaledb/blob/2.18.0/tsl/test/expected/compression_settings.out)
+records that a change updates the hypertable but not existing compressed
+chunks. The unique-key check is a WARNING raised only on first enabling.
+DataPlayer therefore always passes `timescaledb.compress` with both lists
+explicit and the time column already appended, never
+`compress_chunk_time_interval`, and states that effective order in the preview.
+The isolated scenarios compare it with what the public settings view then
+reports, and also cover a change after a chunk was compressed, refused lines,
+an external change after review, an open reader making execution refuse, the
+unique-key disclosure and the fixture planned read-only.
+
+The empty-table conversion (passed 2026-09-11) calls
+`create_hypertable(regclass, _timescaledb_internal.dimension_info, boolean,
+boolean, boolean)` with `by_range(name, anyelement, regproc)`, declared
+identically in the 2.17.2 and 2.18.0
+[DDL API](https://github.com/timescale/timescaledb/blob/2.18.0/sql/ddl_api.sql).
+The legacy fourteen-argument overload stays beside it. A call whose arguments
+are all cast to concrete types resolves to the verified signature, so that
+routine is verified without the overload exclusion `by_range`, being
+polymorphic, keeps. The
+[create path](https://github.com/timescale/timescaledb/blob/2.18.0/src/hypertable.c)
+refuses partitioned tables, unsupported constraints including foreign keys
+between hypertables, rows without `migrate_data`, inheritance, unlogged or
+temporary tables and rules, in that order; the plan checks the same facts first
+and names them. The
+[index checks](https://github.com/timescale/timescaledb/blob/2.18.0/src/indexing.c)
+require every unique or exclusion index to name the time column, and create a
+default time index unless a one-column index on it exists; the dimension code
+adds NOT NULL to a nullable time column. Trigger restrictions differ between
+the versions and are left to the source, whose refusal rolls back. Isolated
+scenarios cover conversion through the registered action with the unchanged
+node ID, a reused time index, rows before and after review, unique indexes,
+unlogged, rule, inheritance and column-less tables, a referencing hypertable,
+the owner boundary, a populated fixture table and a plain database.
 
 Deliver async connection-specific action vocabulary, reasoned applicability,
 typed planning, interval/storage configuration, time-based policies and
@@ -864,7 +964,7 @@ while the source/view identities, owner, materialized-only mode and compression
 configuration used by the report remain present. Keeping the shared projection
 allows both API shapes to pass the same strict ownership/column checks, without
 fabricating a boolean or introducing a separate version-based report definition.
-The version-shaped regression tests are written but unrun. This is a targeted
+The version-shaped regression tests pass. This is a targeted
 compatibility fix, not certification of 2.29.2 or PostgreSQL 17.
 
 Policy parameter inspection projects retention/compression lag and creation-age
@@ -874,7 +974,7 @@ must match the configured schema/name and an allowlisted policy name. JSON type,
 bounded length and PG16 input validation guard each conversion. Invalid, absent
 and inapplicable values stay null; no execution validity is inferred. Custom
 job config, extra keys and malformed strings are never returned. This initial
-reader requires PG16+; compatibility scenarios are written but unrun.
+reader requires PG16+; compatibility scenarios pass.
 Evidence: the 2.18.0
 [retention implementation](https://github.com/timescale/timescaledb/blob/2.18.0/tsl/src/bgw_policy/retention_api.c),
 [compression implementation](https://github.com/timescale/timescaledb/blob/2.18.0/tsl/src/bgw_policy/compression_api.c)
@@ -887,7 +987,7 @@ Timestamps use source text, including infinity, and duration uses interval text;
 counters retain numeric source sorting and lossless cell encoding. No config,
 job error messages or private-catalog fallback is exposed. The projection was
 compared with the 2.18.0 public view definition on 2026-09-08; compatibility tests
-remain unrun.
+pass.
 
 The initial Chunks, Dimensions and jobs report projections were also compared
 with [the 2.18.0 public view definitions](https://github.com/timescale/timescaledb/blob/2.18.0/sql/views.sql)

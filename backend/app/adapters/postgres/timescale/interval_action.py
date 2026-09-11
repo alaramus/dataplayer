@@ -10,7 +10,7 @@ from app.adapters.actions import (
     ActionResult,
     ActsOn,
 )
-from app.adapters.catalog import NodeKind, SchemaNode, TableNode
+from app.adapters.catalog import NodeKind
 from app.adapters.features import FeatureCode
 from app.adapters.postgres.catalog import PostgresCatalog
 from app.adapters.postgres.session import PostgresSession
@@ -18,6 +18,7 @@ from app.adapters.postgres.timescale.interval_execution import execute_chunk_int
 from app.adapters.postgres.timescale.interval_preview import preview_chunk_interval
 from app.adapters.postgres.timescale.plans import TimeDuration
 from app.adapters.postgres.timescale.reports import TIMESCALE_SECTION_ID
+from app.adapters.postgres.timescale.targets import user_table
 from app.core.access import Access
 
 
@@ -38,21 +39,9 @@ class SetChunkInterval(Action[ChunkIntervalParams]):
         self._session = session
         self._catalog = catalog
 
-    async def _target(self, node_id: str | None) -> tuple[SchemaNode, TableNode]:
-        if node_id is not None:
-            path = await self._catalog.path_to(node_id)
-            if len(path) == 2:
-                schema, node = path
-                if (
-                    isinstance(schema, SchemaNode) and not schema.is_system
-                    and isinstance(node, TableNode) and not node.is_system
-                ):
-                    return schema, node
-        raise ActionRefused("not_applicable", "Choose one user hypertable")
-
     async def preview(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionPreview:
         interval = self._validated(raw)
-        schema, node = await self._target(node_id)
+        schema, node = await user_table(self._catalog, node_id)
         return await preview_chunk_interval(self._session, schema.name, node.name, interval)
 
     async def perform(self, node_id: str | None, raw: Mapping[str, Any]) -> ActionResult:
@@ -62,7 +51,7 @@ class SetChunkInterval(Action[ChunkIntervalParams]):
         self, node_id: str | None, raw: Mapping[str, Any], fingerprint: str,
     ) -> ActionResult:
         interval = self._validated(raw)
-        schema, node = await self._target(node_id)
+        schema, node = await user_table(self._catalog, node_id)
         await execute_chunk_interval(self._session, schema.name, node.name, interval, fingerprint)
         return ActionResult(
             message="Future chunk interval changed; existing chunks were not repartitioned",

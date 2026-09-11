@@ -129,6 +129,15 @@ async def test_reports_what_a_type_can_do(
         # Not an action: a capability read off `SupportsBackup`, which is what
         # greys the Backups button out on a source that has no such program.
         "Copy the whole database out",
+        # Declared with their installation condition (D120), never offered without it.
+        *(
+            f"{title} (when TimescaleDB is installed)" for title in (
+                "Change chunk interval", "Configure compression",
+                "Set retention policy", "Remove retention policy",
+                "Set compression policy", "Remove compression policy",
+                "Set refresh policy", "Remove refresh policy", "Convert to hypertable",
+            )
+        ),
     }
     assert "Upload files" in files
     assert "Delete" in files

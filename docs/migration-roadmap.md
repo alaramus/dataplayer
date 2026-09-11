@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Last updated: 2026-09-09.
+Last updated: 2026-09-11.
 
 The order for moving useful behaviour from `dbwebtool` and `myquasar` into
 DataPlayer. It is a route, not a promise to reproduce every old screen. The old
@@ -127,7 +127,7 @@ Quasar's grouped notifications had been hiding.
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 1.10 | TimescaleDB through PostgreSQL | Medium pilot; larger follow-ups | T1 is complete; T2 bounded metadata changes are next |
+| 1.10 | TimescaleDB through PostgreSQL | Medium pilot; larger follow-ups | T1 is complete; T2 is validated except a browser scenario for the reviewed form |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation, saved layouts and a history to draw over require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
@@ -135,7 +135,7 @@ Quasar's grouped notifications had been hiding.
 ## Phase 1.10 — TimescaleDB through PostgreSQL
 
 T1 is complete as of 2026-09-08; the user confirmed that all tests passed.
-T2 is the next implementation slice. The
+T2 passed validation on 2026-09-11. The
 [Timescale design](decisions/2026-09-07-timescale-capabilities-design.md)
 defines the three implementation slices. D119–D123 retain one
 PostgreSQL source identity and compose a Timescale feature package.
@@ -154,58 +154,36 @@ from a generic Timescale version label.
 T1 completion is recorded in the
 [spec index](decisions/README.md) and the
 [compatibility validation record](../backend/compatibility/timescale/README.md#t1-completion-2026-09-08).
-Next: implement T2 against its acceptance criteria in the Timescale design.
+Next: add a browser scenario for the shared reviewed form, which closes T2.
 T2 API mutation strategies require their own real-source tests;
 T1 inspection/refusal evidence does not certify them.
 
-T2 resume point (2026-09-09): the async `all_actions()` contract is implemented
-across PostgreSQL, files and Redis, and the menu route awaits it on each request.
-Regression coverage is written; no validation commands have been run.
-PostgreSQL now returns typed named action refusals alongside eligible actions;
-the menu and execution share those reasons without another discovery query.
-Target-selection and route regression tests are written but unrun.
-Typed action feature requirements and conditional capability titles are also
-implemented with unrun regression coverage; existing actions default to no
-feature requirement. The first internal chunk-interval plan model and its
-staleness/duration tests are written but unrun. Its bounded read-only source
-inspector and isolated compatibility scenarios are also written, with no checks
-run. The shared backend preview/review fingerprint transport is implemented;
-the generated client is updated and transport tests are written but unrun.
-The action form now requires and forwards a current review fingerprint, clears
-it immediately on parameter changes and retains failed reviewed actions for
-renewed review. Component tests are written but unrun; browser validation is pending.
-The PostgreSQL inspection collaborator now supports a single bounded read-only
-snapshot for multi-query previews; its unit coverage is written but unrun.
-The interval preview renderer uses that snapshot and emits ActionPreview with
-the current/requested interval, existing-chunk warning and review fingerprint.
-Failed inspection blocks review. Unit and isolated preview scenarios are written
-but unrun. The candidate execution strategy now locks the public dimensions view
-and ONLY the root, replans at READ COMMITTED and compares the fingerprint before
-the native call. Planning requires metadata lock permission and rejects overloads;
-preview discloses the database-wide metadata lock. Execution and failure/staleness
-unit coverage are written but unrun. The unregistered SetChunkInterval action
-now connects preview/reviewed execution, with structure access and catalog target
-resolution. Disposable real-source scenarios cover native setter concurrency,
-stale review, chunk boundaries, refusal, cancellation, permissions and overloads;
-these passed in the isolated run recorded below. Reviewed execution now
-invalidates connector reads after any
-dispatched attempt, including failure/cancellation and an uncertain commit;
-route/helper tests are written but unrun. On 2026-09-09 the approved isolated
-planning/execution selection passed: 36 tests across both pinned sources; see
-the [validation record](../backend/compatibility/timescale/README.md#t2-interval-execution-isolated-validation-2026-09-09).
-The user subsequently confirmed that all checks were green after the six Ruff
-fixes in `482a537`; this supersedes the earlier pending validation statuses.
-The interval action is now registered with live connection vocabulary and
-source-planned availability, separately from ordinary relation guards. A
-one-day read-only plan checks admission; the user's actual parameters are
-reviewed separately and execution still replans under locks. Unit registration,
-discovery, unsupported-install, hypertable-offer and non-hypertable refusal
-coverage is written, and the real-source chunk-boundary scenario now exercises
-registered offers, preview and reviewed execution.
-These registration changes have not been checked. Next validate this small
-registration slice after approval, including the shared form in the browser.
-Storage/policy changes and empty-table conversion remain after that;
-T2 remains queued until its implementation is complete.
+T2 resume point (2026-09-11). Validated: the async action vocabulary, typed
+refusal reasons, feature requirements, the reviewed-plan transport and form,
+the snapshot inspector and the interval plan, preview and execution. The user
+confirmed all checks green after `482a537`; the isolated interval run is in the
+[validation record](../backend/compatibility/timescale/README.md#t2-interval-execution-isolated-validation-2026-09-09).
+
+Validated on 2026-09-11, with every backend, compatibility, frontend and E2E
+check green (see the
+[validation record](../backend/compatibility/timescale/README.md#validation-record-2026-09-11)):
+
+- registration of the interval action with live admission;
+- retention, compression and refresh policies — set, replace and remove
+  through six reviewed actions under the public jobs metadata lock — with unit
+  coverage and isolated scenarios in
+  `compatibility/timescale/test_retention_policy.py`,
+  `test_compression_policy.py` and `test_refresh_policy.py`;
+- compression settings — enabling and changing segment-by and order-by through
+  one reviewed action — with unit coverage and the isolated scenarios in
+  `compatibility/timescale/test_compression_settings.py`;
+- empty-table conversion into a hypertable, keeping the node ID, with unit
+  coverage and the isolated scenarios in
+  `compatibility/timescale/test_conversion.py`.
+
+That completes the T2 implementation. One acceptance item remains: no browser
+scenario yet exercises the shared reviewed form, whose component tests pass.
+T2 closes when one does; T3 follows.
 
 Exit condition: a PostgreSQL connection discovers Timescale without changing
 identity, a user can inspect its data and metadata, and each offered mutation

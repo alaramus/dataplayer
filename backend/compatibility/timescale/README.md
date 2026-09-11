@@ -274,3 +274,73 @@ checks for that commit. The later registration slice adds unit coverage and
 extends the chunk-boundary scenario through the registered action's offers,
 preview and reviewed execution. Those new changes have not been run and do not
 inherit a passing result from the earlier direct-execution scenario.
+
+### T2 policies, compression settings and conversion (2026-09-11)
+
+`test_retention_policy.py` and `test_compression_policy.py` create a
+disposable hypertable per scenario through `policy_tables.py` and drop its
+schema afterwards, which removes its policy jobs too. Both cover set, replace
+and remove through the registered actions, an external policy added after
+review and a refused replacement keeping the existing job. Retention also
+covers the pause refusal, reading the fixture's paused policy without change,
+the jobs-view lock excluding an external `add_retention_policy`, cancellation
+releasing locks, ineligible targets, a read-only role and a plain database;
+compression covers a hypertable without compression and the add shape of the
+installed version. Thresholds are ten and twenty years, so a background run
+drops or compresses none of the 2026 fixture rows.
+
+`test_refresh_policy.py` adds a continuous aggregate over the disposable
+hypertable and covers set, replace and remove, a window that ends before it
+starts, a conflict with a paused source retention policy, an external policy
+after review, a window the source rejects keeping the existing job and the add
+shape of the installed version. It plans against the fixture's `lab.hourly`
+read-only.
+
+`test_compression_settings.py` enables compression on a disposable hypertable
+and compares the public settings view with the reviewed lists. It also changes
+the settings after compressing one chunk with the version's own API and checks
+that chunk's settings stay put, and covers lines that name no column, an
+external change after review, an open reader making execution refuse within
+the lock timeout, the unique-key disclosure and `lab.metrics` planned
+read-only.
+
+`test_conversion.py` creates tables in a disposable schema and converts them
+through the registered action. It checks the unchanged node ID and hypertable
+specialization, the dimension and interval, and the NOT NULL and time index the
+preview promised; a reused one-column time index; rows arriving before and
+after review; unique indexes with and without the time column; unlogged, rule,
+inheritance and column-less tables; a hypertable referencing the table; the
+owner boundary, a populated fixture table and a plain database. All of these
+scenarios passed in the run recorded below.
+
+### Validation record: 2026-09-11
+
+The user approved running every check. Results on this branch:
+
+| Working directory | Command | Result |
+| --- | --- | --- |
+| backend | `uv run ruff check app tests compatibility` | Passed after nine import-layout fixes |
+| backend | `uv run mypy app` | 239 source files clean |
+| backend | `uv run lint-imports` | 6 contracts kept |
+| backend | `uv run pytest tests/ -q` | 2773 passed, 13 skipped |
+| backend | `uv run pytest compatibility/timescale -q --tb=short` | 192 passed |
+| frontend | `bun run test:unit` | 1554 passed in 172 files |
+| frontend | `bun run type-check` | Passed |
+| frontend | `bun run lint` | 0 errors, 20 existing warnings |
+| frontend | `bun run build` | Passed |
+| frontend | `PLAYWRIGHT_BASE_URL=http://localhost:5173 bunx playwright test --reporter=line` | 185 passed, 1 failed; that scenario passed alone after its fix |
+| repository | `bash scripts/check-docs.sh` | Passed |
+
+The first matrix run failed six conversion scenarios on both versions. Primary
+keys and unique constraints were read as NO INHERIT constraints, because
+PostgreSQL marks every index-backed constraint `connoinherit`; the source
+refuses only NO INHERIT checks, so the plan now reads `contype = 'c'` and a
+scenario covers both. One scenario expected the populated fixture table to be
+refused as not empty, but it has no time column, which the plan names first.
+The backend capability test gained the nine Timescale titles, including the
+interval one that registration had added earlier. The E2E failure depended on
+a connection nothing creates — the backend suite deletes the users who owned
+them — and the scenario now brings its own.
+
+No browser scenario exercises the shared reviewed form yet, so its browser
+acceptance remains open.

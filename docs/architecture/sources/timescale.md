@@ -11,8 +11,9 @@ Read alongside [contract.md](contract.md), [relations.md](relations.md),
 passed on Timescale 2.17.2 and 2.18.0, both PostgreSQL 16.6.
 The [validation record](../../../backend/compatibility/timescale/README.md#t1-completion-2026-09-08)
 distinguishes recorded command results from the user's final completion
-confirmation. The [roadmap](../../migration-roadmap.md) names T2 bounded
-metadata changes as the next slice, followed by T3 owned operations.
+confirmation. T2 bounded metadata changes passed validation on 2026-09-11,
+with one open acceptance item the [roadmap](../../migration-roadmap.md) names.
+T3 owned operations follow.
 T1 inspection/refusal evidence does not certify T2/T3 mutation semantics.
 
 ## D119. Timescale is composed into PostgreSQL without another source identity
@@ -68,19 +69,25 @@ an inspection error rather than stale detection or an absent extension.
 `SupportsActions.all_actions()` is async across all three adapters, allowing
 live discovery to supply this connection's vocabulary. This T2 foundation is
 implemented; the user confirmed green checks after `482a537`. The interval
-action is now registered, with its registration checks pending. PostgreSQL implements the optional
+action is now registered, and its registration checks passed on 2026-09-11. PostgreSQL implements the optional
 `ExplainsActionAvailability.action_offers(node_id)` protocol: one read returns
 eligible actions and typed named refusals. Its ordinary `available(node_id)`
 delegates to that same answer. The menu and execution use the source reason;
 sources without this protocol retain the generic refusal. For multiple targets,
 the first explicit refusal in request order explains a blocked selection; an
 eligible destination still admits a destination workflow. Lookup stays a
-registered action set. This reason transport is implemented but unvalidated.
+registered action set.
 No Timescale commands appear on a database without the extension. Static
 vocabulary discovery raises an inspection error when extension status is
 unavailable. Installed unsupported versions keep the interval command but its
 live plan refuses execution. Interval admission uses a one-day read-only plan
 for a user hypertable; actual preview validates the chosen duration separately.
+Retention and compression policy commands are each admitted from one read-only
+snapshot per hypertable; removal carries a reason when no policy exists, and
+compression commands when compression is not enabled. A continuous aggregate
+offers only refresh policy commands, admitted the same way. An ordinary user
+table in a Timescale database is admitted for conversion behind the ordinary
+relation guard; without Timescale, one catalog read settles it.
 The ordinary relation guards remain independent of management admission. Static
 action declarations carry typed feature requirements so the type catalog can
 word conditional capabilities honestly. The default-empty tuple uses the closed
@@ -125,7 +132,7 @@ The Continuous aggregates report projects fields shared by the inspected
 2.17.2/2.18.0 and 2.29.2 public APIs. It omits the legacy `finalized` column,
 which is absent in 2.29.2, instead of requiring it or inventing a replacement
 value. Other projected columns and extension ownership remain mandatory.
-Regression coverage for both view shapes is written but unrun; this fix does
+Regression coverage for both view shapes passes; this fix does
 not certify the complete Timescale 2.29.2/PostgreSQL 17 combination.
 
 Root relation size/row statistics are not presented as whole-hypertable totals.
@@ -279,7 +286,7 @@ identity. Its SHA-256 fingerprint covers the complete canonical JSON plan;
 malformed fingerprints and changes to any field require renewed review.
 It carries no credential, connector authority or execution admission. Duration
 amounts are strict positive integers with a closed unit vocabulary; calendar
-units remain calendar units. Models and staleness tests are written but unrun.
+units remain calendar units. Models and staleness tests pass.
 The interval model is used by the registered reviewed interval action.
 
 The shared single-action transport now accepts an optional `reviewed_fingerprint`
@@ -290,7 +297,7 @@ availability and grant checks, and refuses a missing fingerprint. The action
 must re-plan and compare under its source execution boundary; the route never
 treats the fingerprint as authority or checks staleness outside that boundary.
 Existing actions keep their normal parameter transport. Backend transport tests
-are written but unrun; the client was regenerated after this schema change.
+pass; the client was regenerated after this schema change.
 
 The action form requires a successful unblocked fingerprint before submitting
 an action marked for review, and sends it outside the form parameters. Parameter
@@ -298,7 +305,7 @@ changes immediately invalidate the displayed plan and in-flight replies; stale
 replies cannot enable the button during the debounce. A refused execution keeps
 the form open, clears its review and asks for a new plan without retrying the
 mutation. Optional previews preserve their advisory behaviour. Component and
-mapping tests are written but unrun; browser validation is still outstanding.
+mapping tests pass; no browser scenario exercises a reviewed action yet.
 
 The interval inspector has a five-second total budget and read-only statements.
 It verifies public-view ownership/columns, resolves one owned
@@ -309,8 +316,8 @@ limited to the pinned 2.17.2/2.18.0 versions; this is not mutation certification
 Integer dimensions, multiple dimensions, calendar intervals and subday intervals
 for date columns are refused. Shared duration models preserve calendar units,
 but this strategy does not offer them. There is no private catalog fallback.
-Unit scenarios remain unrun; isolated real-source planning scenarios passed
-in the 2026-09-09 interval validation run. The
+Unit scenarios pass; isolated real-source planning scenarios passed
+in the 2026-09-09 interval validation run and again on 2026-09-11. The
 interval preview renderer now uses the shared ActionPreview transport with the
 plan fingerprint, source-resolved quoted target, old/new interval and the
 existing-chunk warning. Refused or failed inspection returns a blocked preview
@@ -321,8 +328,7 @@ one repeatable-read, read-only transaction. Acquisition, reads and cleanup share
 a five-second budget; each statement also has a source timeout. This keeps a
 plan from combining committed metadata versions across separate connections.
 The collaborator does not expose mutation methods. It is snapshot consistency,
-not execution locking or mutation certification. Unit coverage is written but
-unrun.
+not execution locking or mutation certification. Unit coverage passes.
 
 The candidate interval execution strategy coordinates through a SHARE ROW
 EXCLUSIVE lock on the public dimensions view, followed by SHARE UPDATE EXCLUSIVE
@@ -338,7 +344,7 @@ lock timeout and five-second total budget, with no automatic retry. Planning
 also refuses same-named overloads and PostgreSQL majors other than 16.
 Real-source permission, concurrent-change, refusal and cancellation checks
 passed on both pinned fixtures on 2026-09-09. The user subsequently confirmed
-green checks after `482a537`; registration changes made afterwards remain unvalidated.
+green checks after `482a537`; registration changes made afterwards passed on 2026-09-11.
 
 The registered SetChunkInterval action connects the preview and execution
 primitives to the existing reviewed transport, requires structure access and
@@ -348,14 +354,74 @@ the authoritative hypertable/ownership check. Isolated
 mutation scenarios (future versus existing chunks, an external native setter,
 stale review, source refusal, cancellation cleanup, lock permission and an
 overload) passed on both pinned fixtures in the 36-test isolated interval run.
-Unit coverage remains unrun. The exact command and scope are recorded in the
+Unit coverage passes. The exact command and scope are recorded in the
 [compatibility record](../../../backend/compatibility/timescale/README.md#t2-interval-execution-isolated-validation-2026-09-09).
 
 Once reviewed execution has been dispatched, its route invalidates connector
 reads on success, refusal, failure or cancellation. This conservatively covers
 an uncertain commit without inferring source effects from error text. Preview,
 missing-review and access refusal do not dispatch execution. Ordinary actions
-retain their existing success-only invalidation. Route/helper tests are written
-but unrun.
+retain their existing success-only invalidation. Route/helper tests pass.
+
+Retention and compression policies are one family of reviewed actions over a
+time hypertable: set (first or replacement) and remove, for each kind. The plan
+fingerprints the kind, the extension-owned policy job (identity, schedule, pause
+state and validated threshold), the exact add/remove API shapes of the
+installed version and the public jobs view. Execution locks that view in SHARE
+ROW EXCLUSIVE mode, which PostgreSQL extends to the job, job-statistics and
+hypertable catalogs it reads, then ONLY the root; it replans, compares, and
+removes and adds in one transaction, so a refused addition keeps the old
+policy. A paused policy is never replaced, because its replacement would be
+scheduled by default and resume it; it is removed first. Setting a retention
+policy is destructive and its question names future automatic deletion;
+compression and removals are not. A compression policy requires compression
+already enabled on the hypertable. Thresholds run from hours to years, calendar
+units kept; date dimensions take whole days. Integer dimensions, created-before
+thresholds, custom schedules and aggregate targets are not offered. Unit and
+isolated scenarios passed on 2026-09-11.
+
+Refresh policies are set, replaced and removed on an existing continuous
+aggregate by two more reviewed actions; there is no aggregate editor. The job
+belongs to the materialization hypertable, so the plan reads it there and
+execution locks the jobs view and ONLY that materialization before the same
+replan, compare, remove and add transaction. The window is a start offset, an
+end offset and a schedule, each a positive bounded duration. PostgreSQL
+compares them: the window must start further back than it ends, and must start
+more recently than the source hypertable's age-based retention threshold,
+because refreshing where raw data was dropped removes aggregated rows. A
+creation-time retention threshold cannot be compared and is disclosed instead.
+The source's retention job is part of the fingerprint. The source still
+refuses a window smaller than two buckets at execution. Unit and isolated
+scenarios passed on 2026-09-11.
+
+Compression settings on a time hypertable are one reviewed action that enables
+compression or changes its segment-by and order-by lists; it compresses
+nothing, and disabling is not offered. The form takes one column per line, with
+an optional ASC or DESC and NULLS FIRST or LAST for ordering. Each name must be
+a live column of the table; a column listed twice, or in both lists, is
+refused. Execution first locks ONLY the root in ACCESS EXCLUSIVE mode — the lock
+ALTER TABLE takes anyway — under the two-second lock timeout, replans, compares
+and issues one ALTER TABLE with both lists explicit, composed from quoted
+identifiers and fixed keywords, so the source neither keeps an old list nor
+derives a default. The plan appends the time column descending, nulls first,
+when neither list names it, as the source would. Already compressed chunks keep
+their own settings, which the preview says; unique-key columns in neither list
+are disclosed on first enabling, where the source only warns. Unit and isolated
+scenarios passed on 2026-09-11.
+
+Converting an ordinary table into a hypertable is offered for an empty, logged
+user table the connection owns, and keeps its node ID. Admission and the plan
+name the source's own refusals first — partitioning, NO INHERIT check constraints,
+inheritance, persistence, rules, an existing hypertable, foreign keys to or
+from a hypertable, no timestamp or date column, rows. The plan then checks the
+chosen column: every unique or exclusion index must include it, date columns
+take whole days and calendar intervals are refused. Execution first locks ONLY
+the table in ACCESS EXCLUSIVE mode, replans so emptiness is read under the
+lock, compares and calls the dimension-based `create_hypertable` with
+`by_range`, default indexes on and data migration off. The preview says that a
+nullable time column becomes NOT NULL and whether the source adds its time
+index, by the source's rule that only a one-column index on the time column
+counts. Populated tables wait for T3's owned jobs. Unit and isolated scenarios
+passed on 2026-09-11.
 
 Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-timescale-capabilities-design.md)

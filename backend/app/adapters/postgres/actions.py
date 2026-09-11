@@ -1078,7 +1078,7 @@ class PostgresActions:
         self._actions = ActionSet(
             [action_type(session, catalog) for action_type in POSTGRES_ACTION_TYPES]
         )
-        self._registered = ActionSet([*self._actions, self._timescale.interval])
+        self._registered = ActionSet([*self._actions, *self._timescale.registered])
 
     def action(self, name: str) -> Action[Any]:
         return self._registered.get(name)

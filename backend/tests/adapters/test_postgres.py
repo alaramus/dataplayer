@@ -108,9 +108,24 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
         "create_role",
         "describe_model",
         "timescale_set_chunk_interval",
+        "timescale_configure_compression",
+        "timescale_set_retention_policy",
+        "timescale_remove_retention_policy",
+        "timescale_set_compression_policy",
+        "timescale_remove_compression_policy",
+        "timescale_set_refresh_policy",
+        "timescale_remove_refresh_policy",
+        "timescale_convert_to_hypertable",
     ]
     titles = {capability.title for capability in registry.capabilities_of(registry.get("postgres"))}
-    assert "Change chunk interval (when TimescaleDB is installed)" in titles
+    assert {
+        f"{title} (when TimescaleDB is installed)" for title in (
+            "Change chunk interval", "Configure compression",
+            "Set retention policy", "Remove retention policy",
+            "Set compression policy", "Remove compression policy",
+            "Set refresh policy", "Remove refresh policy", "Convert to hypertable",
+        )
+    } <= titles
 
 
 def test_a_postgres_source_reports_runtime_features() -> None:
