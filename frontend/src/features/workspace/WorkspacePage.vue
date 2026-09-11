@@ -781,10 +781,10 @@ provide(workspaceActionsKey, {
       />
     </template>
     <template #status>
+      <ServicesCommand />
       <CommandBar />
     </template>
     <template #status-end>
-      <ServicesCommand />
       <ActivityIndicator
         @answer-access="answerRequestsFor"
         @open-connection="editConnector"
