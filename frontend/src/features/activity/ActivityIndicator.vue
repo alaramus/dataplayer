@@ -145,6 +145,7 @@ function clearFinished() {
       </span>
       <AppProgress
         v-if="current"
+        class="activity-indicator__progress"
         :label="current.label"
         :value="current.progress"
         :paused="current.paused"
@@ -173,10 +174,12 @@ function clearFinished() {
 </template>
 
 <style scoped>
-.activity-indicator { min-width: 110px; max-width: min(320px, 35vw); }
-.activity-indicator__content { display: flex; flex-direction: column; gap: 3px; min-width: 0; width: 100%; }
+.activity-indicator { position: relative; min-width: 110px; max-width: min(320px, 35vw); }
+.activity-indicator__content { display: flex; flex-direction: column; min-width: 0; width: 100%; }
 .activity-indicator__caption { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .activity-indicator__caption > span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Overlaid: in flow it adds its height to the button and the footer grows (D113). */
+.activity-indicator__progress { position: absolute; left: 8px; right: 8px; bottom: 3px; width: auto; }
 .activity-indicator__count {
   flex: none;
   min-width: 16px;
