@@ -105,7 +105,7 @@ function remove(profile: ServerProfile) {
   <AppButton
     variant="quiet"
     size="sm"
-    icon="dns"
+    icon="vpn_lock"
     class="server-switcher"
     aria-label="Choose server"
     data-testid="server-switcher"
