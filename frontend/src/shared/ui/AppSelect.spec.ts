@@ -49,15 +49,29 @@ describe("AppSelect", () => {
 
   // Seven schemas ticked in the catalog's toolbar grew the field into four
   // rows of chips, which pushed out of the panel and over the tabs above it.
-  it("says several choices in one line while it stands in a toolbar", () => {
+  it("counts several choices in one line while it stands in a toolbar", () => {
     const wrapper = mountSelect({
       modelValue: ["public", "sales", "pg_catalog"],
       options: ["public", "sales", "pg_catalog"],
       multiple: true,
       compact: true,
+      summaryNoun: "Schemas",
     })
 
-    expect(wrapper.get(".app-select__summary").text()).toBe("public +2")
+    // Not "public +2": naming one of them makes it look chosen in a way the
+    // others are not, and which one leads is the order they were ticked in.
+    expect(wrapper.get(".app-select__summary").text()).toBe("3 schemas selected")
+  })
+
+  it("counts without a noun where the caller has not given one", () => {
+    const wrapper = mountSelect({
+      modelValue: ["a", "b"],
+      options: ["a", "b"],
+      multiple: true,
+      compact: true,
+    })
+
+    expect(wrapper.get(".app-select__summary").text()).toBe("2 selected")
   })
 
   it("names the one choice there is, with nothing to count", () => {

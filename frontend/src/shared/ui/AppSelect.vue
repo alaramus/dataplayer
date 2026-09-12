@@ -25,6 +25,12 @@ const props = withDefaults(
     /** Several at once, reported as an array. */
     multiple?: boolean
     /**
+     * What several of these are called, for the line that says how many are
+     * chosen: "4 schemas selected". Without it the count stands alone, which
+     * is all a field can honestly say about values it does not name.
+     */
+    summaryNoun?: string
+    /**
      * A field in a toolbar rather than in a form: tighter, no underline, and
      * no room kept below for a message. Quasar reserves that room whether or
      * not there is anything to put in it, which made a one-line bar 20px
@@ -38,6 +44,7 @@ const props = withDefaults(
     label: undefined,
     error: "",
     hint: undefined,
+    summaryNoun: undefined,
     loading: false,
     disable: false,
     multiple: false,
@@ -67,19 +74,25 @@ const chosen = computed(() =>
 )
 
 /**
- * What a field in a toolbar says it holds: the first choice and how many
- * others there are.
+ * What a field in a toolbar says it holds: the one choice, or how many.
  *
  * Chips wrap, and a toolbar is one line. Seven schemas ticked in the catalog
  * grew the field into four rows of chips that pushed out of the panel and over
  * the tabs above it. The menu is where the whole list is, and it says which
- * ones are on; this line only has to say that several are, without costing the
- * bar its height.
+ * ones are on; this line only has to say how much is.
+ *
+ * A count and not a name with a count after it: "public +3" reads as a fact
+ * about `public` — that it is somehow first, or the one being looked at — and
+ * it is not one. Which schema happens to lead the list is an accident of the
+ * order they were ticked in.
  */
 const summary = computed(() => {
   const [first, ...rest] = chosen.value
   if (first === undefined) return undefined
-  return rest.length === 0 ? first : `${first} +${String(rest.length)}`
+  if (rest.length === 0) return first
+  const noun = props.summaryNoun?.trim().toLowerCase()
+  const count = String(chosen.value.length)
+  return noun ? `${count} ${noun} selected` : `${count} selected`
 })
 </script>
 

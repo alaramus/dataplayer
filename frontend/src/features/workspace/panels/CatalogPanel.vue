@@ -727,6 +727,7 @@ async function afterAction(outcome: ActionOutcome) {
           :options="groupOptions"
           :label="level.selectedGroups.value.length ? undefined : groupsLabel"
           :aria-label="groupsLabel"
+          :summary-noun="groupsLabel"
           :multiple="!oneGroupOnly"
           compact
           data-testid="catalog-groups"

@@ -359,6 +359,7 @@ function removeSavedEntry(name: string) {
         <AppSelect
           v-model="several"
           label="Schemas"
+          summary-noun="Schemas"
           multiple
           compact
           :options="['public', 'sales', 'pg_catalog']"
