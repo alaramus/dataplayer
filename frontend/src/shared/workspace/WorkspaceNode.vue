@@ -72,30 +72,58 @@ function styleFor(child: LayoutNode, share: number) {
   return { flex: `${String(share)} 1 0%` }
 }
 
+function lengthOf(index: number): number {
+  const found = element.value?.querySelector(`:scope > [data-section="${String(index)}"]`)
+  if (!(found instanceof HTMLElement)) return 0
+  const box = found.getBoundingClientRect()
+  return props.node.kind === "split" && props.node.direction === "row" ? box.width : box.height
+}
+
 /**
- * The length of this split along its own direction, measured now.
+ * How much of this split one pixel of the screen is worth right now, read off
+ * the two sections the border is between.
+ *
+ * Measured rather than computed from the whole split: sections that are off
+ * the screen leave their room to the ones that stay, so the sizes of the
+ * sections showing no longer add up to a hundred, and a percentage taken
+ * against the whole would move the border at the wrong speed. These two are
+ * enough, because resizing trades room between them and leaves every other
+ * section where it is.
  *
  * Deliberately not a computed: getBoundingClientRect is not reactive, so a
- * memoised value would keep answering with the size the container had when it
- * first mounted, and every drag after a window resize would convert pixels at
- * the wrong scale.
+ * memoised value would keep answering with the size the sections had when
+ * they first mounted, and every drag after a window resize would convert
+ * pixels at the wrong scale.
+ *
+ * Nothing at all when either side is collapsed: a collapsed section keeps its
+ * strip whatever its size says, so there is no room to trade across that
+ * border, and dragging it used to move a border further along the row instead.
+ * Pressing it still brings the section back.
  */
-function lengthPx(): number {
-  if (element.value === null) return 0
-  const box = element.value.getBoundingClientRect()
-  return props.node.kind === "split" && props.node.direction === "row" ? box.width : box.height
+function percentPerPx(indexes: number[]): number {
+  if (props.node.kind !== "split") return 0
+  let sizes = 0
+  let pixels = 0
+  for (const index of indexes) {
+    const child = props.node.children[index]
+    if (child === undefined) return 0
+    if (child.kind === "leaf" && child.collapsed) return 0
+    sizes += props.node.sizes[index] ?? 0
+    pixels += lengthOf(index)
+  }
+  return pixels > 0 ? sizes / pixels : 0
 }
 
 function onMove(beforeIndex: number, afterIndex: number, deltaPx: number) {
   if (props.node.kind !== "split") return
-  const total = lengthPx()
-  if (total <= 0) return
+  const percent = percentPerPx([beforeIndex, afterIndex])
+  if (percent <= 0) return
   workspace.resize(
     props.node.id,
     beforeIndex,
     afterIndex,
-    (deltaPx / total) * 100,
-    (MIN_PANEL_PX / total) * 100
+    deltaPx * percent,
+    MIN_PANEL_PX * percent
   )
 }
 
@@ -138,11 +166,13 @@ function onToggle(beforeIndex: number, afterIndex: number) {
         v-if="slot.child.kind === 'leaf'"
         :leaf="slot.child"
         :collapsible="true"
+        :data-section="slot.index"
         :style="styleFor(slot.child, slot.share)"
       />
       <WorkspaceNode
         v-else
         :node="slot.child"
+        :data-section="slot.index"
         :style="styleFor(slot.child, slot.share)"
       />
     </template>

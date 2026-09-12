@@ -104,8 +104,12 @@ Consequences:
   nothing is highlighted.
 - **A column appears together with what goes in it.** A pinned section holding
   nothing, for which the feature has no empty view, is not rendered, and its share
-  of the row goes whole to the next column that is — `sizes` in the tree are
-  untouched, so the width comes back exactly as the user left it. `pinned` keeps a
+  of the row is left to the columns that are, in proportion to what each already
+  has — `sizes` in the tree are untouched, so the width comes back exactly as the
+  user left it. Given whole to the next column along, the room was glued to
+  whichever section happened to be next in a row where splits running the same
+  way are flattened into one, and that section could then never be dragged
+  narrower than it. `pinned` keeps a
   role on the screen rather than one particular section, so a column left empty
   while the section split off it holds the work goes too. The head of a column is
   one height whatever it holds, or the line under two columns reads as a broken
@@ -220,9 +224,10 @@ Known deviations:
 - **A hidden column is still in the tree.** It shows in localStorage and in a
   layout test although it is not on the screen. That is what brings its width
   back, but "what I see" and "what is written" differ here.
-- **The freed share goes to the neighbour on one side, not by meaning.** Right for
-  a row of three columns, arbitrary for a split from top to bottom, where "the
-  next one along" means "the one below".
+- **The room a column off the screen leaves widens every column that stays**,
+  including a narrow one that gains nothing by being wider: the list of
+  connections grows when the catalog is put aside, unless it is narrowed to its
+  icons, where it keeps its strip.
 - **The connection named on a data tab is written when it is opened.** Rename the
   connection and the tab lags until it is opened again — already true of the title
   of a catalog tab.

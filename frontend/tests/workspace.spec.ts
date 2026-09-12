@@ -128,6 +128,45 @@ test("resizes, collapses and remembers the layout", async ({ page }) => {
   expect((await alpha.boundingBox())?.width ?? 0).toBeGreaterThan(50)
 })
 
+test("keeps a border under the pointer when a column is on the bar", async ({ page }) => {
+  await page.goto("/workspace-demo")
+  await page.getByTestId("reset-workspace").click()
+
+  // The column in the middle has nothing worth forty pixels, so it goes to the
+  // bar whole and leaves its room to the two that stay.
+  await page.getByTestId("workspace-aside-main").click()
+  await expect(page.getByTestId("workspace-leaf-main")).toHaveCount(0)
+
+  const notes = page.getByTestId("workspace-leaf-notes")
+  const before = (await notes.boundingBox())?.width ?? 0
+  expect(before).toBeGreaterThan(0)
+
+  const edge = (page.viewportSize()?.width ?? 0) - 20
+
+  async function dragBy(delta: number) {
+    const box = await page.getByTestId("workspace-separator").first().boundingBox()
+    if (box === null) throw new Error("the separator has no box")
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(Math.min(x + delta, edge), y, { steps: 10 })
+    await page.mouse.up()
+  }
+
+  // A percentage of the row is worth more pixels while a column is off the
+  // screen, which is why the drag is converted from the two sections the
+  // border is between and not from the row.
+  await dragBy(150)
+  expect(Math.abs(((await notes.boundingBox())?.width ?? 0) - (before - 150))).toBeLessThan(16)
+
+  // And the room the column on the bar left behind can be dragged away again.
+  // Given whole to the column beside it, it was a floor that column could not
+  // be pulled below: a card that would not get any narrower.
+  await dragBy(edge)
+  expect((await notes.boundingBox())?.width ?? 0).toBeLessThan(160)
+})
+
 test("opens a panel as a tab and closes it again", async ({ page }) => {
   await page.goto("/workspace-demo")
   await page.getByTestId("reset-workspace").click()

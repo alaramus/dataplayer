@@ -7,24 +7,27 @@ describe("the share each section of a split takes", () => {
     expect(sharesOf([20, 28, 52], [false, false, false])).toEqual([20, 28, 52])
   })
 
-  it("gives a hidden section's share whole to the next one along", () => {
-    // Whole, and not spread over the rest: shared out proportionally, the
-    // column of connections would swell from a fifth of the screen to more
-    // than a quarter on the first run, which is not what was freed and not
-    // what the room was freed for. See P4.
-    expect(sharesOf([20, 28, 52], [false, true, false])).toEqual([20, 0, 80])
+  it("leaves a hidden section's room to the rest, in proportion to what they have", () => {
+    // The two that stay keep the ratio they had - 20 to 52 - and the 28 that
+    // was freed is spread over them by it. Given whole to the one beside it,
+    // that section could then never be dragged below 28 again. See P4.
+    expect(sharesOf([20, 28, 52], [false, true, false])).toEqual([
+      (20 * 100) / 72,
+      0,
+      (52 * 100) / 72,
+    ])
   })
 
-  it("gives it to the one before when it is the last", () => {
-    expect(sharesOf([20, 28, 52], [false, false, true])).toEqual([20, 80, 0])
-  })
-
-  it("carries the share of the first section on to the second", () => {
-    expect(sharesOf([20, 28, 52], [true, false, false])).toEqual([0, 48, 52])
-  })
-
-  it("carries several hidden sections in a row to the same neighbour", () => {
-    expect(sharesOf([20, 28, 52], [true, true, false])).toEqual([0, 0, 100])
+  it("adds up to the whole split whichever sections are hidden", () => {
+    for (const hidden of [
+      [false, false, true],
+      [true, false, false],
+      [true, true, false],
+      [false, true, true],
+    ]) {
+      const total = sharesOf([20, 28, 52], hidden).reduce((sum, share) => sum + share, 0)
+      expect(total).toBeCloseTo(100)
+    }
   })
 
   it("leaves nothing to anybody when nothing is on screen", () => {

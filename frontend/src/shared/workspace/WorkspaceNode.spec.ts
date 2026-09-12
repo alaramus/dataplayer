@@ -82,13 +82,14 @@ describe("a split with a column that has nothing to show", () => {
     expect(wrapper.find('[data-testid="workspace-leaf-work"]').exists()).toBe(true)
   })
 
-  it("gives its share to the next column along", () => {
+  it("leaves its share to the columns that are there, in proportion", () => {
+    // 20 and 52 of the row, so 28 freed makes them 27.8 and 72.2 of it.
     const wrapper = mountColumns()
     expect(wrapper.get('[data-testid="workspace-leaf-work"]').attributes("style")).toContain(
-      "flex: 80"
+      "flex: 72.2"
     )
     expect(wrapper.get('[data-testid="workspace-leaf-sources"]').attributes("style")).toContain(
-      "flex: 20"
+      "flex: 27.7"
     )
   })
 
