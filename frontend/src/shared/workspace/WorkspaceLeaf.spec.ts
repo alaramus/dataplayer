@@ -115,6 +115,36 @@ describe("a section", () => {
     expect(seen).toEqual(["p2"])
   })
 
+  it.each(["Enter", " "])("requests closing only the named tab with %s", async (key) => {
+    const closed: string[] = []
+    const activated: string[] = []
+    const pressed: string[] = []
+    const wrapper = mountLeaf(contextFor({
+      requestClose: async (id) => { closed.push(id); return false },
+      activate: (id) => activated.push(id),
+      press: () => pressed.push("drag"),
+    }))
+    const close = wrapper.get('[data-testid="workspace-close-p2"]')
+    expect(close.attributes("role")).toBe("button")
+    expect(close.attributes("tabindex")).toBe("0")
+    expect(close.attributes("aria-label")).toBe("Close title p2")
+    await close.trigger("pointerdown", { button: 0 })
+    await close.trigger("keydown", { key })
+    expect(closed).toEqual(["p2"])
+    expect(activated).toEqual([])
+    expect(pressed).toEqual([])
+    expect(wrapper.find('[data-testid="workspace-tab-p2"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it.each(["Enter", " "])("activates a tab itself with %s", async (key) => {
+    const activated: string[] = []
+    const wrapper = mountLeaf(contextFor({ activate: (id) => activated.push(id) }))
+    await wrapper.get('[data-testid="workspace-tab-p2"]').trigger("keydown", { key })
+    expect(activated).toEqual(["p2"])
+    wrapper.unmount()
+  })
+
   it("opens the window when the icon of a catalog tab is clicked", async () => {
     const iconSeen: string[] = []
     const activated: string[] = []

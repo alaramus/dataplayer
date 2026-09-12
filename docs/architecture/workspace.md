@@ -39,6 +39,10 @@ connection**, and confirmations. Nothing in the application is modal any more,
 and the modal dialog has been removed from the component kit rather than left
 in it — a rule nobody can reach for is one that holds itself up.
 
+Each closable workspace tab exposes a separately named close control in the
+Tab sequence. Enter and Space request closing through the panel's existing
+close guard without activating or dragging that tab.
+
 On opening, the front window receives keyboard focus on its named frame unless
 its content has already focused a field. Background and minimized windows do
 not take focus during mounting. This starts keyboard navigation inside the new

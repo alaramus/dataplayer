@@ -247,15 +247,19 @@ const overlayStyle = computed((): CSSProperties => {
             class="workspace-leaf__insertion"
             data-testid="workspace-tab-insertion"
           />
-          <button
+          <div
             ref="tabElements"
-            type="button"
+            role="button"
+            tabindex="0"
+            :aria-label="workspace.lookOf(panelId).title"
             class="workspace-leaf__tab"
             :class="{ 'workspace-leaf__tab--active': panelId === active }"
             :style="panelColorStyle(workspace.lookOf(panelId).color)"
             :data-testid="`workspace-tab-${panelId}`"
             @pointerdown="onTabPointerDown($event, panelId)"
             @click="workspace.activate(panelId)"
+            @keydown.enter.self.prevent="workspace.activate(panelId)"
+            @keydown.space.self.prevent="workspace.activate(panelId)"
           >
             <!-- A button only where pressing it reaches something the panel's
                  own row of commands cannot — the connection behind a catalog.
@@ -301,14 +305,20 @@ const overlayStyle = computed((): CSSProperties => {
               v-if="workspace.lookOf(panelId).closable !== false"
               class="workspace-leaf__close"
               :data-testid="`workspace-close-${panelId}`"
+              role="button"
+              tabindex="0"
+              :aria-label="`Close ${workspace.lookOf(panelId).title}`"
               @click.stop="workspace.requestClose(panelId)"
+              @keydown.enter.stop.prevent="workspace.requestClose(panelId)"
+              @keydown.space.stop.prevent="workspace.requestClose(panelId)"
+              @pointerdown.stop
             >
               <q-icon
                 name="close"
                 size="14px"
               />
             </span>
-          </button>
+          </div>
         </template>
         <!-- And the last place of all, which no tab comes before. -->
         <span
@@ -485,6 +495,11 @@ const overlayStyle = computed((): CSSProperties => {
 }
 .workspace-leaf__tab--active {
   box-shadow: inset 0 -3px currentColor;
+}
+.workspace-leaf__tab:focus-visible,
+.workspace-leaf__close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 .workspace-leaf__icon {
   display: inline-flex;
