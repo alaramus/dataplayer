@@ -953,10 +953,26 @@ defineExpose({
   pointer-events: none;
 }
 
+/**
+ * The borders belong to the cells, and the cells are not spaced apart.
+ *
+ * The trap: with `border-collapse: collapse` they belong to the table
+ * instead, so they stay where the table is while a stuck cell travels and the
+ * cell's own opaque background covers the ones painted under it — a pinned
+ * column had no edge at all, and the heading lost the line under it as soon as
+ * the rows were scrolled. Painted back on as inset shadows, every one of those
+ * lines was then drawn twice: a collapsed border sits astride the line between
+ * two cells and an inset shadow sits inside one of them, half a pixel apart.
+ * Separated, each cell draws its own edges once and carries them where it
+ * goes; only the right and the bottom, so two neighbours still show one line.
+ */
 .data-grid__table {
   /* Intrinsic table sizing otherwise overrides a dragged width with its content. */
   table-layout: fixed;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  /* What a column stuck to the left is lifted over the rest by. */
+  --grid-pinned-lift: 2px 0 3px var(--dp-shadow-soft);
 }
 
 .data-grid__table th,
@@ -982,7 +998,6 @@ defineExpose({
   position: sticky;
   inset-block-start: 0;
   z-index: var(--dp-layer-sticky-heading);
-  box-shadow: var(--grid-edge-bottom);
 }
 
 .data-grid__table th {
@@ -996,30 +1011,11 @@ defineExpose({
   --grid-header-actions-width: 96px;
 }
 
-/**
- * A stuck cell draws its own edges.
- *
- * The trap: with `border-collapse: collapse` the borders belong to the table
- * and not to the cells, so they stay where the table is while a sticky cell
- * travels — and the cell's own opaque background then covers the ones painted
- * underneath it. A pinned column had no edge at all and the rows sliding under
- * it read as one smear; the header loses the line under it the same way as
- * soon as the rows are scrolled. An inset shadow is painted by the cell, so it
- * goes where the cell goes.
- */
-.data-grid__table {
-  --grid-edge-right: inset -1px 0 var(--dp-border-faint);
-  --grid-edge-left: inset 1px 0 var(--dp-border-faint);
-  --grid-edge-bottom: inset 0 -1px var(--dp-border-faint);
-  /* What a column stuck to the left is lifted over the rest by. */
-  --grid-pinned-lift: 2px 0 3px var(--dp-shadow-soft);
-}
-
 .data-grid__pinned {
   position: sticky !important;
   z-index: var(--dp-layer-sticky);
   background: var(--dp-surface);
-  box-shadow: var(--grid-edge-right), var(--grid-edge-bottom), var(--grid-pinned-lift);
+  box-shadow: var(--grid-pinned-lift);
 }
 
 .data-grid__resize {
@@ -1060,20 +1056,16 @@ defineExpose({
   position: sticky !important;
   inset-inline-start: 0;
   z-index: var(--dp-layer-sticky);
-  box-shadow: var(--grid-edge-left), var(--grid-edge-right), var(--grid-edge-bottom);
+  /* The one cell with a line on its left: nothing is drawn to the left of it
+     to own that edge. */
+  border-left: 1px solid var(--dp-border-faint);
 }
 
 /* The two corners: the selector and any pinned column's name are stuck in
-   both directions at once, and belong over everything that is stuck in one.
-   Their edges are restated here because the rule about a heading above has
-   the same weight as the rule about a pinned cell, and the last one wins. */
-.data-grid__table thead .data-grid__selector {
-  z-index: var(--dp-layer-sticky-corner);
-  box-shadow: var(--grid-edge-left), var(--grid-edge-right), var(--grid-edge-bottom);
-}
+   both directions at once, and belong over everything that is stuck in one. */
+.data-grid__table thead .data-grid__selector,
 .data-grid__table thead .data-grid__pinned {
   z-index: var(--dp-layer-sticky-corner);
-  box-shadow: var(--grid-edge-right), var(--grid-edge-bottom), var(--grid-pinned-lift);
 }
 
 .data-grid__column-name {

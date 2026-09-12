@@ -230,12 +230,16 @@ test("explores a relation and restores its view", async ({ page, context }) => {
   await page.reload()
   const pinned = page.getByTestId("grid-column-name")
   await expect(pinned).toHaveCSS("position", "sticky")
-  // And it draws its own edges. A stuck cell cannot use the table's borders —
-  // they belong to the table with `border-collapse: collapse`, so they stay
-  // behind while the cell travels, and its own background covers them — which
+  // And it draws its own edges. A stuck cell cannot use the table's borders -
+  // with `border-collapse: collapse` they belong to the table, so they stay
+  // behind while the cell travels and its own background covers them, which
   // left the rows sliding under a pinned column with nothing between them.
-  const edges = await pinned.evaluate((node) => getComputedStyle(node).boxShadow)
-  expect(edges).toContain("inset")
+  // The borders are the cells' now, which is also why each line is drawn once.
+  await expect(pinned).toHaveCSS("border-right-width", "1px")
+  await expect(page.getByTestId("row-grid").locator("table")).toHaveCSS(
+    "border-collapse",
+    "separate"
+  )
   await expect(page.getByTestId("grid-page-range")).toContainText("Rows 1")
   await page.screenshot({ path: "test-results/grid-desktop.png", fullPage: true })
 
