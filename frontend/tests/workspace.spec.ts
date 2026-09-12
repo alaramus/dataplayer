@@ -144,8 +144,10 @@ test("drags a tab to an edge and gets a new section", async ({ page }) => {
   await page.goto("/workspace-demo")
   await page.getByTestId("reset-workspace").click()
 
+  // Three: two with panels in them and the one that is there before anything
+  // is opened in it.
   const sections = page.locator('[data-testid^="workspace-leaf-"]')
-  await expect(sections).toHaveCount(2)
+  await expect(sections).toHaveCount(3)
 
   // Gamma shares a section with beta, so the section it leaves survives and
   // the one it lands in is new. Nothing here is provable in jsdom: the drop
@@ -163,7 +165,7 @@ test("drags a tab to an edge and gets a new section", async ({ page }) => {
   await page.mouse.move(onto.x + onto.width * 0.1, onto.y + onto.height * 0.6, { steps: 12 })
   await page.mouse.up()
 
-  await expect(sections).toHaveCount(3)
+  await expect(sections).toHaveCount(4)
   await expect(main.getByTestId("workspace-tab-gamma")).toHaveCount(0)
   await expect(page.getByTestId("workspace-tab-gamma")).toBeVisible()
   await expect(main.getByTestId("workspace-tab-beta")).toBeVisible()
@@ -246,8 +248,12 @@ test("a signed in user lands on the columns that have something in them", async 
   expect(box.x).toBeGreaterThan(0)
   expect(box.width).toBeLessThan(viewport.width)
   expect(box.height).toBeGreaterThan(viewport.height - 100)
+  // The corners belong to each section now: the workspace is the ground they
+  // stand on rather than a frame drawn around all of them.
   expect(
-    await workspace.evaluate((node) => getComputedStyle(node).borderRadius)
+    await page
+      .getByTestId("workspace-leaf-sources")
+      .evaluate((node) => getComputedStyle(node).borderRadius)
   ).not.toBe("0px")
   await deleteConnector(page, name)
 })

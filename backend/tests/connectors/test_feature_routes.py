@@ -95,6 +95,9 @@ async def test_runtime_features_are_live_and_not_http_cached(
     assert response.headers["cache-control"] == "no-store"
     assert response.json() == {
         "observed_at": "2026-09-07T12:30:00Z",
+        # A source that says what it is running fills this in; this one does
+        # not, and the field is there either way.
+        "server_version": None,
         "features": [
             {
                 "code": "timescaledb",

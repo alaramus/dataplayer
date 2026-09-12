@@ -41,8 +41,11 @@ test("a check says what the server is and what is installed in it", async ({ pag
     await page.getByTestId("check-draft").click()
 
     // The server first: which TimescaleDB is installed says nothing until it
-    // is known which server it is installed in.
-    await expect(page.getByTestId("source-fact-server")).toContainText("PostgreSQL")
+    // is known which server it is installed in. The name of the source is the
+    // label of the line and the version is its value, so the panel is what
+    // holds both.
+    const facts = page.getByTestId("check-source-facts")
+    await expect(facts).toContainText("PostgreSQL")
     await expect(page.getByTestId("source-fact-server")).toContainText("17.6")
     const feature = page.getByTestId("source-fact-timescaledb")
     await expect(feature).toContainText("2.18.0")

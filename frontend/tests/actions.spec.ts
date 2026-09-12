@@ -9,6 +9,7 @@ import {
   openNode,
   pickSchema,
   showOnlySchema,
+  shownSchemas,
 } from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
@@ -247,7 +248,7 @@ test("renames a relation without leaving its schema", async ({ page }) => {
   // Reloading the root must keep the grouping that contained the relation;
   // otherwise the catalog silently falls back to `public` after the rename.
   await expect(catalogRow(page, renamed)).toBeVisible()
-  await expect(page.getByTestId("catalog-groups")).toContainText("demo_lab")
+  expect(await shownSchemas(page)).toContain("demo_lab")
   await expect(page.getByTestId("catalog-error")).toHaveCount(0)
 
   // Leave the shared fixture exactly as the next scenario expects it.
@@ -319,7 +320,11 @@ test("creates and renames a schema, moves a relation, then drops the schema", as
   await catalogAction(page, "drop_schema")
   await expect(page.getByTestId("action-preview")).toContainText("is empty")
   await page.getByTestId("action-submit").click()
-  await expect(page.getByTestId("catalog-groups")).toContainText("public")
+  // The schema it was standing in is gone, so the level falls back to the
+  // others. Polled: the drop and the re-read of the level are one gesture
+  // from here, and the names are read from the menu rather than off the
+  // field, which says how many are on rather than which.
+  await expect.poll(async () => await shownSchemas(page)).toContain("public")
 
   await deleteConnector(page, connector)
   await expect(connectorRow(page, connector)).toHaveCount(0)
@@ -348,7 +353,7 @@ test("loads a CSV into one chosen schema while multiple schemas and rows are sel
   await pickSchema(page, "public")
   // By the grouping rather than by a table in it: the scenario above renames
   // one while this runs, and the schema is what this test is standing in.
-  await expect(page.getByTestId("catalog-groups")).toContainText("demo_lab")
+  expect(await shownSchemas(page)).toContain("demo_lab")
 
   // The button is in the menu because the source declares the action; nothing
   // in the catalog knows what PostgreSQL is.

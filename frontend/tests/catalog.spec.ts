@@ -9,6 +9,7 @@ import {
   catalogRow,
   hideSchema,
   pickSchema,
+  shownSchemas,
 } from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
@@ -32,7 +33,7 @@ test("browses a database as a list filtered by schema", async ({ page }) => {
   // first real schema straight away, without a step through `public`.
   const list = page.getByTestId("catalog-list")
   await expect(list).toContainText("connector")
-  await expect(page.getByTestId("catalog-groups")).toContainText("public")
+  expect(await shownSchemas(page)).toContain("public")
 
   // A database is one level deep — schemas are a grouping, not a place — so
   // there is no path, and a pill holding nothing but a home button would be
@@ -66,15 +67,15 @@ test("opens on the schemas chosen last time, not on the default set", async ({
   await createPostgresConnector(page, name)
   await openConnector(page, name)
 
-  const groups = page.getByTestId("catalog-groups")
-  await expect(groups).toContainText("demo_lab")
+  expect(await shownSchemas(page)).toContain("demo_lab")
   await hideSchema(page, "demo_lab")
-  await expect(groups).not.toContainText("demo_lab")
+  expect(await shownSchemas(page)).not.toContain("demo_lab")
 
   await page.reload()
   await expect(page.getByTestId("catalog-list")).toContainText("connector")
-  await expect(groups).toContainText("public")
-  await expect(groups).not.toContainText("demo_lab")
+  const afterReload = await shownSchemas(page)
+  expect(afterReload).toContain("public")
+  expect(afterReload).not.toContain("demo_lab")
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
