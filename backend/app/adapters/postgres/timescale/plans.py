@@ -3,7 +3,7 @@
 import hashlib
 import hmac
 import json
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
@@ -11,6 +11,14 @@ from app.adapters.actions import ActionRefused
 from app.adapters.operations import MAX_OPERATION_TARGETS
 
 _OID = r"^[1-9][0-9]{0,9}$"
+
+# pg_extension.extversion as the installed release writes it. A strategy records
+# it so that upgrading the extension between review and execution changes the
+# fingerprint; which releases a strategy works on is decided by discovering the
+# routines it calls, not by listing versions here (D123).
+ExtensionVersion = Annotated[
+    str, Field(pattern=r"^2\.[0-9]{1,3}\.[0-9]{1,3}([-+][0-9A-Za-z.]{1,20})?$")
+]
 
 
 class TimeDuration(BaseModel):
@@ -40,7 +48,7 @@ class IntervalStrategy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: Literal["set_chunk_time_interval_public_view_lock_v1"] = "set_chunk_time_interval_public_view_lock_v1"
-    extension_version: Literal["2.17.2", "2.18.0"]
+    extension_version: ExtensionVersion
     function_oid: str = Field(pattern=r"^[1-9][0-9]{0,9}$")
     function_schema: str = Field(min_length=1, max_length=63)
     dimensions_view_oid: str = Field(pattern=r"^[1-9][0-9]{0,9}$")
@@ -119,7 +127,7 @@ class AgePolicyStrategy(BaseModel):
 
     name: Literal["age_policy_public_jobs_lock_v1"] = "age_policy_public_jobs_lock_v1"
     kind: AgePolicyKind
-    extension_version: Literal["2.17.2", "2.18.0"]
+    extension_version: ExtensionVersion
     function_schema: str = Field(min_length=1, max_length=63)
     add_function_oid: str = Field(pattern=_OID)
     remove_function_oid: str = Field(pattern=_OID)
@@ -217,7 +225,7 @@ class RefreshStrategy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: Literal["refresh_policy_public_jobs_lock_v1"] = "refresh_policy_public_jobs_lock_v1"
-    extension_version: Literal["2.17.2", "2.18.0"]
+    extension_version: ExtensionVersion
     function_schema: str = Field(min_length=1, max_length=63)
     add_function_oid: str = Field(pattern=_OID)
     remove_function_oid: str = Field(pattern=_OID)
@@ -269,7 +277,7 @@ class CompressionSettingsStrategy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: Literal["compression_settings_alter_table_v1"] = "compression_settings_alter_table_v1"
-    extension_version: Literal["2.17.2", "2.18.0"]
+    extension_version: ExtensionVersion
 
 
 class CompressionSettingsPlan(ReviewedPlan):
@@ -318,7 +326,7 @@ class ConversionStrategy(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: Literal["create_hypertable_by_range_empty_v1"] = "create_hypertable_by_range_empty_v1"
-    extension_version: Literal["2.17.2", "2.18.0"]
+    extension_version: ExtensionVersion
     function_schema: str = Field(min_length=1, max_length=63)
     create_function_oid: str = Field(pattern=_OID)
     by_range_function_oid: str = Field(pattern=_OID)
@@ -353,7 +361,7 @@ class ChunkStorageStrategy(BaseModel):
 
     name: Literal["chunk_storage_per_chunk_v1"] = "chunk_storage_per_chunk_v1"
     storage: ChunkStorage
-    extension_version: Literal["2.17.2", "2.18.0"]
+    extension_version: ExtensionVersion
     function_schema: str = Field(min_length=1, max_length=63)
     function_oid: str = Field(pattern=_OID)
 

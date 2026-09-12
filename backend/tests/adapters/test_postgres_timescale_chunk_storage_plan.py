@@ -171,7 +171,7 @@ def profile(version: str) -> TimescaleProfile:
 
 
 @pytest.mark.parametrize("storage", ["columnstore", "rowstore"])
-@pytest.mark.parametrize("version", ["2.17.2", "2.18.0"])
+@pytest.mark.parametrize("version", ["2.14.2", "2.18.0", "2.30.0"])
 async def test_the_unit_verifies_the_installed_versions_own_routine(
     monkeypatch: pytest.MonkeyPatch, storage: ChunkStorage, version: str,
 ) -> None:
@@ -179,7 +179,6 @@ async def test_the_unit_verifies_the_installed_versions_own_routine(
     compression = AsyncMock()
     view = AsyncMock()
     monkeypatch.setattr(chunk_storage_plan, "discover", AsyncMock(return_value=profile(version)))
-    monkeypatch.setattr(chunk_storage_plan, "require_tested_server", AsyncMock())
     monkeypatch.setattr(chunk_storage_plan, "time_hypertable", AsyncMock(return_value=TARGET))
     monkeypatch.setattr(chunk_storage_plan, "require_compression", compression)
     monkeypatch.setattr(chunk_storage_plan, "require_public_view", view)
@@ -189,32 +188,35 @@ async def test_the_unit_verifies_the_installed_versions_own_routine(
     assert found.target == TARGET
     assert (found.strategy.storage, found.strategy.extension_version) == (storage, version)
     assert (found.strategy.function_schema, found.strategy.function_oid) == ("public", "901")
-    routine.assert_awaited_once_with(reader, version, ROUTINES[storage][version])
+    routine.assert_awaited_once_with(reader, version, ROUTINES[storage])
     compression.assert_awaited_once_with(reader, TARGET)
     view.assert_awaited_once_with(reader, "chunks", CHUNK_COLUMNS)
 
 
-async def test_an_untested_version_refuses_before_reading_the_hypertable(
+async def test_an_unavailable_extension_refuses_before_reading_the_hypertable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     target = AsyncMock()
-    monkeypatch.setattr(chunk_storage_plan, "discover", AsyncMock(return_value=profile("2.19.0")))
+    unavailable = TimescaleProfile(SourceFeature(
+        code="timescaledb", title="TimescaleDB", state="unsupported",
+        installed_version="2.18.0", reason="Incomplete",
+    ))
+    monkeypatch.setattr(chunk_storage_plan, "discover", AsyncMock(return_value=unavailable))
     monkeypatch.setattr(chunk_storage_plan, "time_hypertable", target)
-    with pytest.raises(ActionRefused, match="No supported TimescaleDB chunk compression API"):
+    with pytest.raises(ActionRefused, match="Incomplete"):
         await inspect_chunk_unit(AsyncMock(), "lab", "events", "columnstore")
     target.assert_not_awaited()
 
 
-def test_routine_shapes_follow_each_versions_declaration() -> None:
-    legacy, columnstore = ROUTINES["columnstore"]["2.17.2"], ROUTINES["columnstore"]["2.18.0"]
-    assert (legacy.name, legacy.argument_types, legacy.defaults) == ("compress_chunk", "2205 16 16", 2)
-    assert (columnstore.argument_types, columnstore.defaults) == ("2205 16 16 16", 3)
-    assert {(shape.name, shape.argument_types, shape.defaults) for shape in ROUTINES["rowstore"].values()} == {
-        ("decompress_chunk", "2205 16", 1),
-    }
+def test_routine_shapes_ask_only_for_the_chunk_and_one_flag() -> None:
+    # compress_chunk gained hypercore_use_access_method in 2.18 and lost it again,
+    # so neither direction names more than the two arguments execution passes.
+    assert ROUTINES["columnstore"].name == "compress_chunk"
+    assert ROUTINES["rowstore"].name == "decompress_chunk"
     assert all(
-        shape.kind == "f" and shape.result_type == 2205 and shape.exclusive
-        for shapes in ROUTINES.values() for shape in shapes.values()
+        shape.argument_types == "2205 16" and shape.kind == "f"
+        and shape.result_type == 2205 and shape.exclusive
+        for shape in ROUTINES.values()
     )
 
 

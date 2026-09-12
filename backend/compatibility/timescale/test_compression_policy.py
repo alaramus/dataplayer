@@ -19,6 +19,7 @@ from app.adapters.postgres.timescale.age_policy_plan import (
 )
 from app.adapters.postgres.timescale.plans import TimeDuration
 from compatibility.timescale.policy_tables import (
+    DISCOVERED,
     PolicyTable,
     create_hypertable,
     disposable_hypertable,
@@ -149,11 +150,13 @@ async def test_strategy_verifies_the_installed_versions_add_shape(
         source.session(), COMPRESSION, target.schema, target.table, TimeDuration(amount=10, unit="year"),
     )
     assert plan.strategy.extension_version == source.version
-    found = await source.session().query(
-        "SELECT pronargs FROM pg_catalog.pg_proc WHERE oid = %s::pg_catalog.oid",
-        (plan.strategy.add_function_oid,),
-    )
-    assert found == [{"pronargs": 8 if source.version == "2.18.0" else 7}]
+    # 2.18 and 2.19 append hypercore_use_access_method and later releases drop it
+    # again, so only the three leading arguments the strategy passes are fixed.
+    found = await source.session().query(DISCOVERED, (plan.strategy.add_function_oid,))
+    assert len(found) == 1
+    assert found[0]["proname"] == "add_compression_policy"
+    assert str(found[0]["arguments"]).startswith("2205 2276 16")
+    assert found[0]["required"] <= 3
 
 
 async def test_fixture_compressed_hypertable_is_read_without_change(source: TimescaleSource) -> None:

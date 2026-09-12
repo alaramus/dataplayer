@@ -77,7 +77,7 @@ async def convert_chunk(
                 )
                 if compressed is (storage == "columnstore"):
                     return "already"
-                routine = ROUTINES[storage][unit.strategy.extension_version].name
+                routine = ROUTINES[storage].name
                 dispatched = True
                 await connection.execute(
                     sql.SQL("SELECT {}(%s::pg_catalog.regclass, true)").format(

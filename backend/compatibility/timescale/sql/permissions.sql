@@ -3,16 +3,21 @@ GRANT SELECT ON ALL TABLES IN SCHEMA lab, other TO fixture_reader, fixture_no_st
 REVOKE USAGE ON SCHEMA timescaledb_information FROM PUBLIC;
 GRANT USAGE ON SCHEMA timescaledb_information TO fixture_reader, fixture_no_stats;
 
-REVOKE EXECUTE ON FUNCTION public.hypertable_detailed_size(regclass) FROM PUBLIC;
-REVOKE EXECUTE ON FUNCTION public.hypertable_compression_stats(regclass) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.hypertable_detailed_size(regclass) TO fixture_reader;
-GRANT EXECUTE ON FUNCTION public.hypertable_compression_stats(regclass) TO fixture_reader;
-
+-- Size and compression statistics are renamed between releases, so each name is
+-- restricted only where the installed version has it.
 DO $fixture$
+DECLARE
+    routine text;
 BEGIN
-    IF to_regprocedure('public.hypertable_columnstore_stats(regclass)') IS NOT NULL THEN
-        EXECUTE 'REVOKE EXECUTE ON FUNCTION public.hypertable_columnstore_stats(regclass) FROM PUBLIC';
-        EXECUTE 'GRANT EXECUTE ON FUNCTION public.hypertable_columnstore_stats(regclass) TO fixture_reader';
-    END IF;
+    FOREACH routine IN ARRAY ARRAY[
+        'public.hypertable_detailed_size(regclass)',
+        'public.hypertable_compression_stats(regclass)',
+        'public.hypertable_columnstore_stats(regclass)'
+    ] LOOP
+        IF to_regprocedure(routine) IS NOT NULL THEN
+            EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC', routine);
+            EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO fixture_reader', routine);
+        END IF;
+    END LOOP;
 END
 $fixture$;

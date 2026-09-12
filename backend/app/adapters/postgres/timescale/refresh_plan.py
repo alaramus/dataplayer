@@ -13,14 +13,12 @@ from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.postgres.timescale.age_policy_plan import (
     JOBS_COLUMNS,
     RETENTION,
-    TESTED_VERSIONS,
     read_age_policy,
 )
 from app.adapters.postgres.timescale.api import (
     RoutineShape,
     extension_routine,
     lockable_view,
-    require_tested_server,
 )
 from app.adapters.postgres.timescale.plans import (
     AgePolicy,
@@ -34,22 +32,18 @@ from app.adapters.postgres.timescale.policy_projection import (
     OWNED_POLICY_ROUTINE,
     validated_interval,
 )
-from app.adapters.postgres.timescale.profile import discover
+from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.postgres.timescale.targets import continuous_aggregate
 from app.adapters.protocol import AdapterError
 
-# sql/policy_api.sql: regclass, "any", "any", interval, boolean, timestamptz, text returning
-# integer; 2.18.0 appends include_tiered_data boolean DEFAULT NULL, left unset. Removal takes
-# regclass, if_not_exists and if_exists booleans and returns void in both.
-_ADD_ARGUMENTS = "2205 2276 2276 1186 16 1184 25"
-ADD_REFRESH = {
-    "2.17.2": RoutineShape("add_continuous_aggregate_policy", "f", _ADD_ARGUMENTS, 23, 3),
-    "2.18.0": RoutineShape("add_continuous_aggregate_policy", "f", f"{_ADD_ARGUMENTS} 16", 23, 4),
-}
-REMOVE_REFRESH = dict.fromkeys(
-    TESTED_VERSIONS, RoutineShape("remove_continuous_aggregate_policy", "f", "2205 16 16", 2278, 2),
+# sql/policy_api.sql: the aggregate, both offsets, the schedule and if_not_exists.
+# Releases append further optional arguments (include_tiered_data, buckets_per_batch,
+# max_batches_per_execution, refresh_newest_first), all left at their defaults.
+ADD_REFRESH = RoutineShape(
+    "add_continuous_aggregate_policy", "f", "2205 2276 2276 1186 16", 23,
 )
+REMOVE_REFRESH = RoutineShape("remove_continuous_aggregate_policy", "f", "2205 16 16", 2278)
 
 _SUBDAY = frozenset({"second", "minute", "hour"})
 
@@ -61,7 +55,7 @@ SELECT source.job_id::text AS job_id, source.scheduled,
        {end} AS end_offset,
        pg_catalog.jsonb_typeof(source.config -> 'end_offset') AS end_offset_type
 FROM timescaledb_information.jobs AS source
-WHERE source.hypertable_schema = %s AND source.hypertable_name = %s
+WHERE (source.hypertable_schema, source.hypertable_name) IN ((%s, %s), (%s, %s))
   AND source.proc_name = 'policy_refresh_continuous_aggregate' AND {owned}
 ORDER BY source.job_id
 LIMIT 2
@@ -116,17 +110,13 @@ async def _guarded[T](work: Awaitable[T]) -> T:
 
 
 async def _inspect(reader: PostgresReader, schema_name: str, view_name: str) -> RefreshState:
-    profile = await discover(reader)
-    version = profile.feature.installed_version
-    if not profile.available or version is None or version not in TESTED_VERSIONS:
-        raise ActionRefused("not_applicable", "No supported TimescaleDB refresh policy API")
-    await require_tested_server(reader)
+    version = require_available(await discover(reader))
     target = await continuous_aggregate(reader, schema_name, view_name)
     await require_public_view(reader, "jobs", JOBS_COLUMNS)
     existing = await _read_refresh(reader, target)
     source_retention = await read_age_policy(reader, RETENTION, target.source_schema, target.source_name)
-    add = await extension_routine(reader, version, ADD_REFRESH[version])
-    remove = await extension_routine(reader, version, REMOVE_REFRESH[version])
+    add = await extension_routine(reader, version, ADD_REFRESH)
+    remove = await extension_routine(reader, version, REMOVE_REFRESH)
     strategy = RefreshStrategy.model_validate({
         "extension_version": version,
         "function_schema": add.schema_name,
@@ -138,10 +128,12 @@ async def _inspect(reader: PostgresReader, schema_name: str, view_name: str) -> 
 
 
 async def _read_refresh(reader: PostgresReader, target: ContinuousAggregateTarget) -> RefreshPolicy | None:
-    # The job belongs to the materialization hypertable, not to the view.
-    rows = await reader.query(
-        _EXISTING, (target.materialization_schema, target.materialization_name), inspection=True,
-    )
+    # The job belongs to the materialization hypertable, but the jobs view names
+    # the user view for it from a later release on, so either identity finds the one job.
+    rows = await reader.query(_EXISTING, (
+        target.materialization_schema, target.materialization_name,
+        target.view_schema, target.view_name,
+    ), inspection=True)
     if len(rows) > 1:
         raise ActionRefused(
             "not_applicable", "This continuous aggregate has several refresh policy jobs; manage them with SQL",

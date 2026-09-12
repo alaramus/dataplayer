@@ -9,12 +9,10 @@ from psycopg import sql
 
 from app.adapters.actions import ActionRefused
 from app.adapters.postgres.inspection import PostgresReader
-from app.adapters.postgres.timescale.age_policy_plan import TESTED_VERSIONS
 from app.adapters.postgres.timescale.api import (
     RoutineShape,
     extension_routine,
     extension_type,
-    require_tested_server,
 )
 from app.adapters.postgres.timescale.plans import (
     ConversionColumn,
@@ -23,7 +21,7 @@ from app.adapters.postgres.timescale.plans import (
     ConversionTarget,
     TimeDuration,
 )
-from app.adapters.postgres.timescale.profile import discover
+from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.protocol import AdapterError
 
@@ -126,29 +124,25 @@ class ConversionState:
 
 
 def _create_shape(dimension_info: str) -> RoutineShape:
-    # sql/ddl_api.sql of both tested versions: regclass, dimension_info, three booleans,
-    # returning a record set. The legacy overload beside it cannot win a call whose
-    # arguments are all concrete.
+    # sql/ddl_api.sql: regclass, dimension_info, three booleans, returning a record
+    # set. The legacy overload beside it cannot win a call whose arguments are all
+    # concrete, and its own leading arguments differ.
     return RoutineShape(
-        "create_hypertable", "f", f"2205 {dimension_info} 16 16 16", 2249, 3,
+        "create_hypertable", "f", f"2205 {dimension_info} 16 16 16", 2249,
         returns_set=True, exclusive=False,
     )
 
 
 def _by_range_shape(dimension_info: str) -> RoutineShape:
-    # name, anyelement, regproc returning dimension_info; polymorphic, so it must be alone.
-    return RoutineShape("by_range", "f", "19 2283 24", int(dimension_info), 2)
+    # name and anyelement returning dimension_info; polymorphic, so it must be alone.
+    return RoutineShape("by_range", "f", "19 2283", int(dimension_info))
 
 
 async def inspect_conversion(reader: PostgresReader, schema_name: str, table_name: str) -> ConversionState:
     """Everything that refuses a conversion whatever column and interval are chosen."""
     try:
         async with asyncio.timeout(5):
-            profile = await discover(reader)
-            version = profile.feature.installed_version
-            if not profile.available or version is None or version not in TESTED_VERSIONS:
-                raise ActionRefused("not_applicable", "No supported TimescaleDB hypertable conversion API")
-            await require_tested_server(reader)
+            version = require_available(await discover(reader))
             await require_public_view(reader, "hypertables", ("hypertable_schema", "hypertable_name"))
             relations = await reader.query(_RELATION, (schema_name, table_name), inspection=True)
             if len(relations) != 1:

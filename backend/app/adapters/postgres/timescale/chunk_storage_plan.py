@@ -7,40 +7,28 @@ from psycopg import sql
 from app.adapters.actions import ActionRefused
 from app.adapters.operations import MAX_OPERATION_TARGETS
 from app.adapters.postgres.inspection import PostgresReader
-from app.adapters.postgres.timescale.age_policy_plan import (
-    TESTED_VERSIONS,
-    require_compression,
-)
-from app.adapters.postgres.timescale.api import (
-    RoutineShape,
-    extension_routine,
-    require_tested_server,
-)
+from app.adapters.postgres.timescale.age_policy_plan import require_compression
+from app.adapters.postgres.timescale.api import RoutineShape, extension_routine
 from app.adapters.postgres.timescale.plans import (
     ChunkStorage,
     ChunkStoragePlan,
     ChunkStorageUnit,
     ChunkWindow,
 )
-from app.adapters.postgres.timescale.profile import discover
+from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.postgres.timescale.targets import time_hypertable
 from app.adapters.protocol import AdapterError
 
 STORAGES: tuple[ChunkStorage, ...] = ("columnstore", "rowstore")
 
-# sql/maintenance_utils.sql of each tested version: regclass 2205, boolean 16, both
-# returning the chunk. 2.18.0 appends hypercore_use_access_method boolean DEFAULT NULL
-# to compress_chunk, left unset; its convert_to_* procedures call the same C
-# functions and are not used.
-ROUTINES: dict[ChunkStorage, dict[str, RoutineShape]] = {
-    "columnstore": {
-        "2.17.2": RoutineShape("compress_chunk", "f", "2205 16 16", 2205, 2),
-        "2.18.0": RoutineShape("compress_chunk", "f", "2205 16 16 16", 2205, 3),
-    },
-    "rowstore": dict.fromkeys(
-        TESTED_VERSIONS, RoutineShape("decompress_chunk", "f", "2205 16", 2205, 1),
-    ),
+# sql/maintenance_utils.sql: the chunk and one boolean, returning the chunk.
+# regclass 2205, boolean 16. 2.18 and 2.19 append hypercore_use_access_method to
+# compress_chunk and later releases drop it again, so it is left at its default;
+# the convert_to_* procedures call the same C functions and are not used.
+ROUTINES: dict[ChunkStorage, RoutineShape] = {
+    "columnstore": RoutineShape("compress_chunk", "f", "2205 16", 2205),
+    "rowstore": RoutineShape("decompress_chunk", "f", "2205 16", 2205),
 }
 
 CHUNK_COLUMNS = (
@@ -81,15 +69,11 @@ async def inspect_chunk_unit(
     reader: PostgresReader, schema_name: str, table_name: str, storage: ChunkStorage,
 ) -> ChunkStorageUnit:
     """The hypertable and the storage API a unit uses; the caller bounds the time."""
-    profile = await discover(reader)
-    version = profile.feature.installed_version
-    if not profile.available or version is None or version not in TESTED_VERSIONS:
-        raise ActionRefused("not_applicable", "No supported TimescaleDB chunk compression API")
-    await require_tested_server(reader)
+    version = require_available(await discover(reader))
     target = await time_hypertable(reader, schema_name, table_name)
     await require_compression(reader, target)
     await require_public_view(reader, "chunks", CHUNK_COLUMNS)
-    routine = await extension_routine(reader, version, ROUTINES[storage][version])
+    routine = await extension_routine(reader, version, ROUTINES[storage])
     return ChunkStorageUnit.model_validate({
         "target": target,
         "strategy": {

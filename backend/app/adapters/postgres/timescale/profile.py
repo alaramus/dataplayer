@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from app.adapters.actions import ActionRefused
 from app.adapters.features import FEATURE_TITLES, SourceFeature
 from app.adapters.postgres.inspection import PostgresReader
 from app.adapters.protocol import AdapterError
@@ -86,6 +87,25 @@ class TimescaleProfile:
     @property
     def available(self) -> bool:
         return self.feature.state == "available"
+
+
+def require_available(profile: TimescaleProfile) -> str:
+    """The installed version, or a refusal saying what this source lacks.
+
+    Discovery already knows why a source cannot be worked with, so that reason
+    is repeated rather than replaced by a blanket one: a reader told the version
+    lacks the inspection API can act on it, where "unsupported" ends the matter
+    (D120). Every strategy refuses here, so the wording is written once.
+    """
+    version = profile.feature.installed_version
+    if profile.available and version is not None:
+        return version
+    if profile.feature.state == "absent":
+        raise ActionRefused("not_applicable", "TimescaleDB is not installed on this database")
+    # A state that is neither available nor absent always carries a reason.
+    raise ActionRefused(
+        "not_applicable", profile.feature.reason or "This source has no usable TimescaleDB API",
+    )
 
 
 def _unavailable(reason: str, *, version: str | None = None) -> TimescaleProfile:

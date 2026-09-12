@@ -18,6 +18,7 @@ from app.adapters.postgres.timescale.refresh_plan import (
     plan_refresh,
 )
 from compatibility.timescale.policy_tables import (
+    DISCOVERED,
     PolicyTable,
     disposable_hypertable,
     registry,
@@ -164,12 +165,14 @@ async def test_window_the_source_rejects_keeps_the_existing_policy(
 async def test_strategy_verifies_the_installed_versions_add_shape(
     source: TimescaleSource, aggregate: Aggregate,
 ) -> None:
+    # Releases have given this routine seven to eleven arguments; the five the
+    # strategy passes must lead, and everything the release adds must default.
     plan = await plan_refresh(source.session(), aggregate.source.schema, aggregate.view, window(7))
-    found = await source.session().query(
-        "SELECT pronargs FROM pg_catalog.pg_proc WHERE oid = %s::pg_catalog.oid",
-        (plan.strategy.add_function_oid,),
-    )
-    assert found == [{"pronargs": 8 if source.version == "2.18.0" else 7}]
+    found = await source.session().query(DISCOVERED, (plan.strategy.add_function_oid,))
+    assert len(found) == 1
+    assert found[0]["proname"] == "add_continuous_aggregate_policy"
+    assert str(found[0]["arguments"]).startswith("2205 2276 2276 1186 16")
+    assert found[0]["required"] <= 5
 
 
 async def test_fixture_aggregate_is_planned_against_its_sources_retention_without_change(

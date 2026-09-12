@@ -130,10 +130,13 @@ chunks, policies and jobs; bounded metadata changes are reviewed plans that are
 drawn again under locks before one transaction; and work too long for a request
 is an owned job over a fixed set of chunks, where every chunk has a durable
 outcome, the first refusal stops the rest, cancellation keeps what committed,
-and a restart leaves nothing claiming to be running. Each slice was checked
-against the two pinned sources; what remains — advanced chunk administration,
-integer policies, populated-table conversion, Timescale-aware backup and a
-managed service template — is deferred with its reason in the spec.
+and a restart leaves nothing claiming to be running. Each slice is checked
+against every source of the compatibility matrix, which now spans Timescale
+2.14 to 2.30 on PostgreSQL 14 to 18: no release is named in the adapter, and
+what a strategy can do on one is discovered. What remains — advanced chunk
+administration, integer policies, populated-table conversion, Timescale-aware
+backup and a managed service template — is deferred with its reason in the
+spec.
 
 ## Priority order at a glance
 

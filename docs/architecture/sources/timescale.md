@@ -6,15 +6,14 @@ Read alongside [contract.md](contract.md), [relations.md](relations.md),
 [actions.md](actions.md), [connecting.md](connecting.md) and
 [owned jobs](../jobs.md).
 
-**Implementation status:** T1 inspection and protection are complete as of
-2026-09-08; the user confirmed that all tests passed. The isolated T1 matrix
-passed on Timescale 2.17.2 and 2.18.0, both PostgreSQL 16.6.
-The [validation record](../../../backend/compatibility/timescale/README.md#t1-completion-2026-09-08)
-distinguishes recorded command results from the user's final completion
-confirmation. T2 bounded metadata changes are complete as of 2026-09-11 and T3
-owned chunk operations as of 2026-09-12, both with every check green on the two
-pinned sources; the [roadmap](../../migration-roadmap.md) closed the phase.
-T1 inspection/refusal evidence does not certify T2/T3 mutation semantics.
+**Implementation status:** T1 inspection and protection, T2 bounded metadata
+changes and T3 owned chunk operations are implemented; the
+[roadmap](../../migration-roadmap.md) closed the phase. Every scenario runs
+against each source of the matrix in
+[compatibility/timescale](../../../backend/compatibility/timescale/README.md),
+which pins Timescale 2.14 to 2.30 across PostgreSQL 14 to 18 and holds the
+validation record. A release outside that matrix is neither certified nor
+blocked: what a strategy can do there is decided by discovery (D120).
 
 ## D119. Timescale is composed into PostgreSQL without another source identity
 
@@ -52,6 +51,25 @@ verified public API shapes: schema, signature, function/procedure kind and
 extension ownership where available. It neither calls mutating functions as
 probes nor trusts a name found through `search_path`. Each implementation owns
 its requirements, so support declarations cannot grow independently of code.
+
+**A strategy asks for the arguments it passes, not for a release.** A shape
+declares the leading arguments of one call; the routine must be owned by the
+extension, live in its schema, return what the caller expects, take no variadic
+argument, begin with exactly those argument types and give every further
+argument a default. Nothing else is asked, and no list of tested version
+strings is kept anywhere, so a release that appends an optional argument is
+still recognised: `add_compression_policy` gained `hypercore_use_access_method`
+in 2.18 and lost it again by 2.23, and `add_continuous_aggregate_policy` has had
+seven, eight, ten and eleven arguments. Pinning whole signatures made every
+unlisted release refuse with a reason that named no cause, which is worse than
+a plain failure.
+
+A routine no release of the installed version provides, or one this role may
+not execute, refuses by name — "the TimescaleDB add_retention_policy API is not
+usable by this connection". Where discovery itself already knows why a source
+cannot be worked with, every strategy repeats that reason rather than replacing
+it with a blanket one. The PostgreSQL major is not gated: the extension's own
+public API is what the strategies call, and the matrix covers 14 to 18.
 
 Initially discovery is shared only within one adapter/request. Persisted
 catalog and fetch responses keep D31/D105's ordinary cache rules; mutations
@@ -130,12 +148,10 @@ continuous aggregates link to their logical view entry. These links reuse the
 classified relation identity without probing optional report APIs during
 summary loading; opening the target repeats the report's own API checks.
 
-The Continuous aggregates report projects fields shared by the inspected
-2.17.2/2.18.0 and 2.29.2 public APIs. It omits the legacy `finalized` column,
-which is absent in 2.29.2, instead of requiring it or inventing a replacement
-value. Other projected columns and extension ownership remain mandatory.
-Regression coverage for both view shapes passes; this fix does
-not certify the complete Timescale 2.29.2/PostgreSQL 17 combination.
+The Continuous aggregates report projects the fields every release in the
+matrix shares. It omits the legacy `finalized` column, which 2.30 no longer
+has, instead of requiring it or inventing a replacement value. Other projected
+columns and extension ownership remain mandatory.
 
 Root relation size/row statistics are not presented as whole-hypertable totals.
 Unavailable totals stay null; on-demand statistics use public APIs and a
@@ -240,9 +256,10 @@ inventory before effects and refuses Timescale-bearing archives even into a
 plain PostgreSQL target. A future restore strategy must handle compatible
 extensions, pre/post-restore lifecycle, failures and recovery.
 
-Support is declared against tested public API strategies and pinned source
-fixtures, including legacy and columnstore APIs. Installed does not mean every
-operation is supported, and a signature match alone never enables a mutation.
+Support is declared against public API strategies exercised on the pinned
+matrix, which spans the rowstore, Hypercore and columnstore eras. Installed does
+not mean every operation is supported, and a signature match alone never enables
+a mutation.
 
 Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-timescale-capabilities-design.md)
 
@@ -307,8 +324,8 @@ title, the counted targets with an outcome and those that need a look, and
 re-reads a connection's data whenever a polled operation moves.
 
 Chunk conversion is two such actions, Compress chunks and Decompress chunks,
-on a time hypertable with compression enabled, for the pinned 2.17.2/2.18.0
-sources on PostgreSQL 16. The form is a window of instants with time zones; the
+on a time hypertable with compression enabled and a discovered `compress_chunk`
+or `decompress_chunk`. The form is a window of instants with time zones; the
 plan fixes the whole chunks inside it not yet stored as requested, in time
 order, refuses more than 1000 and an empty selection, and counts those already
 stored as requested. Its fingerprint covers the chunk list; a separate unit
@@ -362,9 +379,9 @@ mapping tests pass, and a browser scenario covers the form's review contract.
 The interval inspector has a five-second total budget and read-only statements.
 It verifies public-view ownership/columns, resolves one owned
 hypertable with one time dimension, excludes aggregate materializations, and
-checks the exact extension-owned `set_chunk_time_interval(regclass, anyelement,
-name)` function shape and execution privilege without calling it. Planning is
-limited to the pinned 2.17.2/2.18.0 versions; this is not mutation certification.
+checks the extension-owned `set_chunk_time_interval(regclass, anyelement, name)`
+function and execution privilege through the shared discovery above, without
+calling it. Availability, not a version list, decides where it plans.
 Integer dimensions, multiple dimensions, calendar intervals and subday intervals
 for date columns are refused. Shared duration models preserve calendar units,
 but this strategy does not offer them. There is no private catalog fallback.
@@ -434,9 +451,12 @@ isolated scenarios passed on 2026-09-11.
 
 Refresh policies are set, replaced and removed on an existing continuous
 aggregate by two more reviewed actions; there is no aggregate editor. The job
-belongs to the materialization hypertable, so the plan reads it there and
-execution locks the jobs view and ONLY that materialization before the same
-replan, compare, remove and add transaction. The window is a start offset, an
+belongs to the materialization hypertable and execution locks the jobs view and
+ONLY that materialization before the same replan, compare, remove and add
+transaction. The public jobs view, though, names the materialization only up to
+2.19 and the user view from a later release on, so the plan looks for the job
+under either identity; reading it under one alone made a newly added policy
+invisible on the newer releases and the next set refuse as a duplicate. The window is a start offset, an
 end offset and a schedule, each a positive bounded duration. PostgreSQL
 compares them: the window must start further back than it ends, and must start
 more recently than the source hypertable's age-based retention threshold,

@@ -88,7 +88,6 @@ def test_options_are_quoted_identifiers_and_fixed_keywords() -> None:
 @dataclass
 class Sources:
     discover: AsyncMock
-    server: AsyncMock
     target: AsyncMock
     views: AsyncMock
 
@@ -99,10 +98,9 @@ def sources(monkeypatch: pytest.MonkeyPatch) -> Sources:
         discover=AsyncMock(return_value=TimescaleProfile(SourceFeature(
             code="timescaledb", title="TimescaleDB", state="available", installed_version="2.18.0",
         ))),
-        server=AsyncMock(), target=AsyncMock(return_value=TARGET), views=AsyncMock(),
+        target=AsyncMock(return_value=TARGET), views=AsyncMock(),
     )
     monkeypatch.setattr(compression_settings_plan, "discover", mocks.discover)
-    monkeypatch.setattr(compression_settings_plan, "require_tested_server", mocks.server)
     monkeypatch.setattr(compression_settings_plan, "time_hypertable", mocks.target)
     monkeypatch.setattr(compression_settings_plan, "require_public_view", mocks.views)
     return mocks
@@ -186,12 +184,13 @@ async def test_unreadable_state_refuses(change: dict[str, object]) -> None:
         await plan(reader)
 
 
-async def test_untested_extension_refuses_before_reads(sources: Sources) -> None:
+async def test_unavailable_extension_refuses_before_reads(sources: Sources) -> None:
     sources.discover.return_value = TimescaleProfile(SourceFeature(
-        code="timescaledb", title="TimescaleDB", state="available", installed_version="2.19.0",
+        code="timescaledb", title="TimescaleDB", state="unsupported", installed_version="2.18.0",
+        reason="The installed version lacks the supported inspection API",
     ))
     reader = AsyncMock()
-    with pytest.raises(ActionRefused, match="No supported"):
+    with pytest.raises(ActionRefused, match="lacks the supported inspection API"):
         await plan(reader)
     reader.query.assert_not_called()
     sources.target.assert_not_awaited()

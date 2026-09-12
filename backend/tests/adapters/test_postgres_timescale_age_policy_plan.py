@@ -60,7 +60,6 @@ def reads(spec: AgePolicySpec, existing: list[dict[str, object]]) -> list[list[d
 @dataclass
 class Sources:
     discover: AsyncMock
-    server: AsyncMock
     target: AsyncMock
     views: AsyncMock
     routine: AsyncMock
@@ -77,11 +76,10 @@ def sources(monkeypatch: pytest.MonkeyPatch) -> Sources:
         discover=AsyncMock(return_value=TimescaleProfile(SourceFeature(
             code="timescaledb", title="TimescaleDB", state="available", installed_version="2.18.0",
         ))),
-        server=AsyncMock(), target=AsyncMock(return_value=TARGET), views=AsyncMock(),
+        target=AsyncMock(return_value=TARGET), views=AsyncMock(),
         routine=AsyncMock(side_effect=routine), view_lock=AsyncMock(return_value="789"),
     )
     monkeypatch.setattr(age_policy_plan, "discover", mocks.discover)
-    monkeypatch.setattr(age_policy_plan, "require_tested_server", mocks.server)
     monkeypatch.setattr(age_policy_plan, "time_hypertable", mocks.target)
     monkeypatch.setattr(age_policy_plan, "require_public_view", mocks.views)
     monkeypatch.setattr(age_policy_plan, "extension_routine", mocks.routine)
@@ -100,9 +98,7 @@ async def test_inspection_reads_the_owned_policy_by_bound_identity(sources: Sour
     assert params == ("lab", "events")
     assert all(call.kwargs == {"inspection": True} for call in reader.query.await_args_list)
     sources.target.assert_awaited_once_with(reader, "lab", "events")
-    assert [call.args[2] for call in sources.routine.await_args_list] == [
-        spec.add["2.18.0"], spec.remove["2.18.0"],
-    ]
+    assert [call.args[2] for call in sources.routine.await_args_list] == [spec.add, spec.remove]
     sources.view_lock.assert_awaited_once_with(reader, "2.18.0", "jobs")
     assert "jobs" in {call.args[1] for call in sources.views.await_args_list}
 
@@ -114,15 +110,15 @@ def test_each_kind_reads_only_its_own_owned_job_with_validated_thresholds() -> N
     assert "'policy_compression'" in compression and "'compress_after'" in compression
     assert "drop_" not in compression
     for statement in (retention, compression):
-        assert statement.count("pg_input_is_valid") == 2
+        assert statement.count("OPERATOR(pg_catalog.~)") == 2
         assert "deptype = 'e'" in statement
         assert "source.config AS" not in statement and "source.config," not in statement
 
 
-@pytest.mark.parametrize("version,arguments,defaults", [("2.17.2", 7, 6), ("2.18.0", 8, 7)])
-async def test_compression_verifies_the_installed_versions_add_shape(
-    sources: Sources, version: str, arguments: int, defaults: int,
-) -> None:
+@pytest.mark.parametrize("version", ["2.14.2", "2.17.2", "2.18.0", "2.30.0"])
+async def test_every_version_asks_for_the_arguments_it_passes(sources: Sources, version: str) -> None:
+    # add_compression_policy has gained and lost a trailing argument between releases,
+    # so only the three the execution passes are asked for, whatever the version.
     sources.discover.return_value = TimescaleProfile(SourceFeature(
         code="timescaledb", title="TimescaleDB", state="available", installed_version=version,
     ))
@@ -130,9 +126,7 @@ async def test_compression_verifies_the_installed_versions_add_shape(
     reader.query.side_effect = reads(COMPRESSION, [])
     inspected = await age_policy_plan.inspect_age_policy(reader, COMPRESSION, "lab", "events")
     added = sources.routine.await_args_list[0].args[2]
-    assert (added.name, len(added.argument_types.split()), added.defaults) == (
-        "add_compression_policy", arguments, defaults,
-    )
+    assert (added.name, added.argument_types) == ("add_compression_policy", "2205 2276 16")
     assert inspected.strategy.extension_version == version
 
 
@@ -179,18 +173,21 @@ async def test_unreadable_policy_refuses(row: dict[str, object]) -> None:
         await age_policy_plan.inspect_age_policy(reader, RETENTION, "lab", "events")
 
 
-@pytest.mark.parametrize("feature", [
-    SourceFeature(code="timescaledb", title="TimescaleDB", state="available", installed_version="2.19.0"),
-    SourceFeature(code="timescaledb", title="TimescaleDB", state="unsupported", installed_version="2.18.0",
-                  reason="Incomplete"),
-    SourceFeature(code="timescaledb", title="TimescaleDB", state="absent"),
+@pytest.mark.parametrize("feature,message", [
+    (SourceFeature(code="timescaledb", title="TimescaleDB", state="unsupported", installed_version="2.18.0",
+                   reason="Incomplete"), "Incomplete"),
+    (SourceFeature(code="timescaledb", title="TimescaleDB", state="unsupported", installed_version="3.0.0",
+                   reason="This TimescaleDB major version is not supported"), "major version"),
+    (SourceFeature(code="timescaledb", title="TimescaleDB", state="absent"), "is not installed"),
+    (SourceFeature(code="timescaledb", title="TimescaleDB", state="unavailable",
+                   reason="This connection may not inspect installed extensions"), "may not inspect"),
 ])
-async def test_untested_or_missing_extension_refuses_before_reads(
-    sources: Sources, feature: SourceFeature,
+async def test_unavailable_or_missing_extension_refuses_before_reads(
+    sources: Sources, feature: SourceFeature, message: str,
 ) -> None:
     sources.discover.return_value = TimescaleProfile(feature)
     reader = AsyncMock()
-    with pytest.raises(ActionRefused, match="No supported TimescaleDB retention policy API"):
+    with pytest.raises(ActionRefused, match=message):
         await age_policy_plan.inspect_age_policy(reader, RETENTION, "lab", "events")
     reader.query.assert_not_called()
     sources.target.assert_not_awaited()

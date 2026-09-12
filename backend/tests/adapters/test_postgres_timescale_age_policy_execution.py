@@ -44,11 +44,11 @@ def make_plan(
 
 
 def removal(spec: AgePolicySpec) -> str:
-    return f'SELECT "ext""schema"."{spec.remove["2.18.0"].name}"(%s::pg_catalog.regclass, false)'
+    return f'SELECT "ext""schema"."{spec.remove.name}"(%s::pg_catalog.regclass, false)'
 
 
 def addition(spec: AgePolicySpec) -> str:
-    routine = spec.add["2.18.0"].name
+    routine = spec.add.name
     return f'SELECT "ext""schema"."{routine}"(%s::pg_catalog.regclass, %s::pg_catalog.interval, false)'
 
 

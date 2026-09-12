@@ -20,13 +20,42 @@ x-fixture: &fixture
     start_period: 20s
 
 services:
-  legacy:
+  v2_14_pg14:
+    <<: *fixture
+    image: timescale/timescaledb:2.14.2-pg14@sha256:ac7d202c770babca3a0c2604aa58f211c54f9bec50bdc852ac861faf8810626e
+    ports:
+      - "127.0.0.1:55414:5432"
+  v2_17_pg16:
     <<: *fixture
     image: timescale/timescaledb:2.17.2-pg16@sha256:4e459e217f00cbb09920c34d245501e63427e6767a495de57ce76823ff280f12
     ports:
       - "127.0.0.1:55417:5432"
-  columnstore:
+  v2_18_pg16:
     <<: *fixture
     image: timescale/timescaledb:2.18.0-pg16@sha256:b347ff2a35bd94d82dc1c297223be228386507b680fc8711aee7be9650407bed
     ports:
       - "127.0.0.1:55418:5432"
+  v2_19_pg15:
+    <<: *fixture
+    image: timescale/timescaledb:2.19.3-pg15@sha256:12d8f8ee714b8d20d91ea5380a40b39df4f95b41cf7f516d25de791bf2f7e1f8
+    ports:
+      - "127.0.0.1:55419:5432"
+  v2_23_pg16:
+    <<: *fixture
+    image: timescale/timescaledb:2.23.1-pg16@sha256:c4508d191ac152faf7f58e4c4aa781282a0c80fa0466a41379af945576899231
+    ports:
+      - "127.0.0.1:55423:5432"
+  v2_30_pg17:
+    <<: *fixture
+    image: timescale/timescaledb:2.30.0-pg17@sha256:3113d12b78392c064aa7475caf7a52b447b29ddd4f9bfd23526733fcb03e3459
+    ports:
+      - "127.0.0.1:55430:5432"
+  v2_30_pg18:
+    <<: *fixture
+    image: timescale/timescaledb:2.30.0-pg18@sha256:69114a6774869b115bd2eb594f749416c8e34be07ceaaf327ed152426485390a
+    # PostgreSQL 18 images keep the cluster in a major-version subdirectory and
+    # refuse to start when only /var/lib/postgresql/data is a mount.
+    tmpfs:
+      - /var/lib/postgresql
+    ports:
+      - "127.0.0.1:55431:5432"

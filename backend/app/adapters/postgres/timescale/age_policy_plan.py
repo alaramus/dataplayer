@@ -1,7 +1,6 @@
 """Inspect a time hypertable's retention or compression policy without invoking its API."""
 
 import asyncio
-from collections.abc import Mapping
 from dataclasses import dataclass
 
 from psycopg import sql
@@ -13,7 +12,6 @@ from app.adapters.postgres.timescale.api import (
     RoutineShape,
     extension_routine,
     lockable_view,
-    require_tested_server,
 )
 from app.adapters.postgres.timescale.plans import (
     AgePolicy,
@@ -27,12 +25,10 @@ from app.adapters.postgres.timescale.policy_projection import (
     OWNED_POLICY_ROUTINE,
     validated_interval,
 )
-from app.adapters.postgres.timescale.profile import discover
+from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.postgres.timescale.targets import time_hypertable
 from app.adapters.protocol import AdapterError
-
-TESTED_VERSIONS = frozenset({"2.17.2", "2.18.0"})
 
 
 @dataclass(frozen=True)
@@ -42,31 +38,27 @@ class AgePolicySpec:
     routine: str
     older_than_key: str
     created_before_key: str
-    # By tested extension version; the routine names do not vary between them.
-    add: Mapping[str, RoutineShape]
-    remove: Mapping[str, RoutineShape]
+    add: RoutineShape
+    remove: RoutineShape
     requires_compression: bool = False
 
 
-# sql/policy_api.sql of each tested version. regclass 2205, "any" 2276, boolean 16,
-# interval 1186, timestamptz 1184, text 25; results integer 23, void 2278.
-_ADD_ARGUMENTS = "2205 2276 16 1186 1184 25 1186"
+# sql/policy_api.sql. Both routines are called with the relation, the threshold
+# and if_not_exists; what a release appends after those is left at its default.
+# regclass 2205, "any" 2276, boolean 16; results integer 23, void 2278.
+_ADD_ARGUMENTS = "2205 2276 16"
 
 RETENTION = AgePolicySpec(
     kind="retention", noun="retention policy", routine="policy_retention",
     older_than_key="drop_after", created_before_key="drop_created_before",
-    add=dict.fromkeys(TESTED_VERSIONS, RoutineShape("add_retention_policy", "f", _ADD_ARGUMENTS, 23, 6)),
-    remove=dict.fromkeys(TESTED_VERSIONS, RoutineShape("remove_retention_policy", "f", "2205 16", 2278, 1)),
+    add=RoutineShape("add_retention_policy", "f", _ADD_ARGUMENTS, 23),
+    remove=RoutineShape("remove_retention_policy", "f", "2205 16", 2278),
 )
 COMPRESSION = AgePolicySpec(
     kind="compression", noun="compression policy", routine="policy_compression",
     older_than_key="compress_after", created_before_key="compress_created_before",
-    add={
-        "2.17.2": RoutineShape("add_compression_policy", "f", _ADD_ARGUMENTS, 23, 6),
-        # 2.18.0 appends hypercore_use_access_method boolean DEFAULT NULL, left unset.
-        "2.18.0": RoutineShape("add_compression_policy", "f", f"{_ADD_ARGUMENTS} 16", 23, 7),
-    },
-    remove=dict.fromkeys(TESTED_VERSIONS, RoutineShape("remove_compression_policy", "f", "2205 16", 16, 1)),
+    add=RoutineShape("add_compression_policy", "f", _ADD_ARGUMENTS, 23),
+    remove=RoutineShape("remove_compression_policy", "f", "2205 16", 16),
     requires_compression=True,
 )
 
@@ -132,18 +124,14 @@ async def inspect_age_policy(
 ) -> AgePolicyState:
     try:
         async with asyncio.timeout(5):
-            profile = await discover(reader)
-            version = profile.feature.installed_version
-            if not profile.available or version is None or version not in TESTED_VERSIONS:
-                raise ActionRefused("not_applicable", f"No supported TimescaleDB {spec.noun} API")
-            await require_tested_server(reader)
+            version = require_available(await discover(reader))
             target = await time_hypertable(reader, schema_name, table_name)
             if spec.requires_compression:
                 await require_compression(reader, target)
             await require_public_view(reader, "jobs", JOBS_COLUMNS)
             existing = await read_age_policy(reader, spec, target.schema_name, target.table_name)
-            add = await extension_routine(reader, version, spec.add[version])
-            remove = await extension_routine(reader, version, spec.remove[version])
+            add = await extension_routine(reader, version, spec.add)
+            remove = await extension_routine(reader, version, spec.remove)
             strategy = AgePolicyStrategy.model_validate({
                 "kind": spec.kind,
                 "extension_version": version,

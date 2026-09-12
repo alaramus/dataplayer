@@ -8,14 +8,12 @@ from psycopg import sql
 
 from app.adapters.actions import ActionRefused
 from app.adapters.postgres.inspection import PostgresReader
-from app.adapters.postgres.timescale.age_policy_plan import TESTED_VERSIONS
-from app.adapters.postgres.timescale.api import require_tested_server
 from app.adapters.postgres.timescale.plans import (
     CompressionSettingsPlan,
     OrderColumn,
     TimeHypertable,
 )
-from app.adapters.postgres.timescale.profile import discover
+from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.postgres.timescale.targets import time_hypertable
 from app.adapters.protocol import AdapterError
@@ -115,8 +113,9 @@ def _order_column(line: str, known: set[str]) -> OrderColumn:
 def effective_order_by(
     target: TimeHypertable, segment_by: Sequence[str], order_by: Sequence[OrderColumn],
 ) -> tuple[OrderColumn, ...]:
-    # The rule of add_time_to_order_by_if_not_included (tsl/src/compression/create.c, 2.17.2 and
-    # 2.18.0). Execution passes the result, so the source never has to apply it.
+    # The rule of add_time_to_order_by_if_not_included (tsl/src/compression/create.c),
+    # unchanged across the matrix in compatibility/timescale. Execution passes the
+    # result, so the source never has to apply it.
     if target.column_name in segment_by or any(item.column == target.column_name for item in order_by):
         return tuple(order_by)
     return (*order_by, OrderColumn(column=target.column_name, descending=True, nulls_first=True))
@@ -140,11 +139,7 @@ async def plan_compression_settings(
 ) -> CompressionSettingsPlan:
     try:
         async with asyncio.timeout(5):
-            profile = await discover(reader)
-            version = profile.feature.installed_version
-            if not profile.available or version is None or version not in TESTED_VERSIONS:
-                raise ActionRefused("not_applicable", "No supported TimescaleDB compression settings API")
-            await require_tested_server(reader)
+            version = require_available(await discover(reader))
             target = await time_hypertable(reader, schema_name, table_name)
             for view, columns in _VIEWS.items():
                 await require_public_view(reader, view, columns)

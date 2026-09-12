@@ -1,9 +1,15 @@
 """Verified extension routines, types and lockable public views (D120, D123).
 
 A routine is used only when the extension owns it, it lives in the extension's
-schema with the exact shape declared by its caller and this role may execute
-it. The interval strategy verifies its setter with a query of its own, left in
-place because its real-source evidence covers that exact query.
+schema, its leading arguments are the ones the caller passes and this role may
+execute it.
+
+Releases append optional arguments to these routines and later drop them again:
+`add_compression_policy` grew `hypercore_use_access_method` in 2.18 and lost it
+again by 2.23, `add_continuous_aggregate_policy` has had seven, eight, ten and
+eleven arguments. A shape declared argument-for-argument therefore matches one
+release and refuses every other, so a shape declares only what the call
+supplies, and every argument beyond it must carry a default (D123).
 """
 
 from dataclasses import dataclass
@@ -19,14 +25,18 @@ from app.adapters.postgres.inspection import PostgresReader
 class RoutineShape:
     name: str
     kind: Literal["f", "p"]
-    # Type OIDs as pg_proc.proargtypes prints them; built-in ones do not vary by major.
+    # The leading arguments the caller passes, as OIDs in pg_proc.proargtypes order;
+    # built-in type OIDs do not vary by PostgreSQL major.
     argument_types: str
     result_type: int
-    defaults: int
     returns_set: bool = False
     # A polymorphic routine can lose resolution to a concrete same-named overload, so it must
     # be alone. A caller that casts every argument to a concrete type may set this False.
     exclusive: bool = True
+
+    @property
+    def leading(self) -> list[int]:
+        return [int(oid) for oid in self.argument_types.split()]
 
 
 class ExtensionObject(BaseModel):
@@ -54,8 +64,12 @@ WHERE extension.extname = 'timescaledb' AND extension.extversion = %s
   AND routine.proname = %s AND routine.prokind = %s::pg_catalog."char"
   AND routine.proretset = %s
   AND routine.prorettype = %s::pg_catalog.oid
-  AND routine.proargtypes = %s::pg_catalog.oidvector
-  AND routine.pronargdefaults = %s
+  AND routine.provariadic = 0
+  -- The call is positional, so the declared leading arguments must be these and
+  -- every further argument must have a default of its own.
+  AND routine.pronargs >= %s
+  AND routine.proargtypes[0:%s]::pg_catalog.oid[] = %s::pg_catalog.oid[]
+  AND routine.pronargs - routine.pronargdefaults <= %s
   AND pg_catalog.has_schema_privilege(namespace.oid, 'USAGE')
   AND pg_catalog.has_function_privilege(routine.oid, 'EXECUTE')
   AND (NOT %s OR NOT EXISTS (
@@ -99,15 +113,14 @@ WHERE extension.extname = 'timescaledb' AND extension.extversion = %s
 LIMIT 2
 """
 
-_SERVER = "SELECT pg_catalog.current_setting('server_version_num')::integer AS version"
-
 
 async def extension_routine(
     reader: PostgresReader, version: str, shape: RoutineShape,
 ) -> ExtensionRoutine:
+    leading = shape.leading
     rows = await reader.query(_ROUTINE, (
         version, shape.name, shape.kind, shape.returns_set, str(shape.result_type),
-        shape.argument_types, shape.defaults, shape.exclusive,
+        len(leading), len(leading) - 1, leading, len(leading), shape.exclusive,
     ), inspection=True)
     if len(rows) != 1:
         raise ActionRefused(
@@ -130,12 +143,3 @@ async def lockable_view(reader: PostgresReader, version: str, view: str) -> str:
     if len(rows) != 1:
         raise ActionRefused("not_applicable", "This connection may not lock TimescaleDB public metadata")
     return ExtensionObject.model_validate(rows[0]).oid
-
-
-async def require_tested_server(reader: PostgresReader) -> None:
-    rows = await reader.query(_SERVER, inspection=True)
-    version = rows[0].get("version") if len(rows) == 1 else None
-    if not isinstance(version, int) or not 160000 <= version < 170000:
-        raise ActionRefused(
-            "not_applicable", "TimescaleDB metadata changes are tested only on PostgreSQL 16",
-        )

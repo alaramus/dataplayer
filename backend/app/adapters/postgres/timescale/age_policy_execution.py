@@ -27,19 +27,18 @@ async def execute_age_policy(
         return await plan_age_policy(reader, spec, schema_name, table_name, older_than)
 
     async def apply(connection: psycopg.AsyncConnection[Any], plan: AgePolicyPlan) -> None:
-        version = plan.strategy.extension_version
         # Removal and addition share the transaction: a refused addition keeps the old policy.
         if plan.existing is not None:
             await connection.execute(
                 sql.SQL("SELECT {}(%s::pg_catalog.regclass, false)").format(
-                    sql.Identifier(plan.strategy.function_schema, spec.remove[version].name),
+                    sql.Identifier(plan.strategy.function_schema, spec.remove.name),
                 ),
                 (plan.target.relation_oid,),
             )
         if plan.older_than is not None:
             await connection.execute(
                 sql.SQL("SELECT {}(%s::pg_catalog.regclass, %s::pg_catalog.interval, false)").format(
-                    sql.Identifier(plan.strategy.function_schema, spec.add[version].name),
+                    sql.Identifier(plan.strategy.function_schema, spec.add.name),
                 ),
                 (plan.target.relation_oid, plan.older_than.interval_value()),
             )

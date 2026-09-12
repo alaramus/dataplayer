@@ -8,11 +8,20 @@ from app.adapters.postgres.options import PostgresUserPassword
 from app.adapters.postgres.session import PostgresSession
 
 
+def release(version: str) -> tuple[int, ...]:
+    """A Timescale version as comparable numbers; "2.18.0" sorts before "2.19.3"."""
+    return tuple(int(part) for part in version.split("."))
+
+
 @dataclass(frozen=True)
 class TimescaleSource:
     port: int
     version: str
+    postgres_major: int
     storage: Literal["heap", "hypercore"]
+
+    def at_least(self, version: str) -> bool:
+        return release(self.version) >= release(version)
 
     def options(
         self, *, database: str = "timescale_fixture", user: str = "fixture_admin",

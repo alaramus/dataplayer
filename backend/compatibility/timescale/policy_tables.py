@@ -13,6 +13,13 @@ from app.adapters.postgres.actions import PostgresActions
 from app.adapters.postgres.catalog import PostgresCatalog
 from compatibility.timescale.source import TimescaleSource
 
+# What discovery settled on for one routine OID, so a scenario can check the
+# leading arguments without naming the release's own total.
+DISCOVERED = """
+SELECT proname, proargtypes::text AS arguments, pronargs - pronargdefaults AS required
+FROM pg_catalog.pg_proc WHERE oid = %s::pg_catalog.oid
+"""
+
 _JOBS = """
     SELECT job_id, scheduled FROM timescaledb_information.jobs
     WHERE hypertable_schema = %s AND hypertable_name = %s AND proc_name = %s

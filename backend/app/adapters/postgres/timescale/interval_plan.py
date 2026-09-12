@@ -4,13 +4,18 @@ import asyncio
 
 from app.adapters.actions import ActionRefused
 from app.adapters.postgres.inspection import PostgresReader
+from app.adapters.postgres.timescale.api import (
+    RoutineShape,
+    extension_routine,
+    lockable_view,
+)
 from app.adapters.postgres.timescale.plans import (
     ChunkIntervalPlan,
     IntervalStrategy,
     IntervalTarget,
     TimeDuration,
 )
-from app.adapters.postgres.timescale.profile import discover
+from app.adapters.postgres.timescale.profile import discover, require_available
 from app.adapters.postgres.timescale.report_access import require_public_view
 from app.adapters.protocol import AdapterError
 
@@ -50,45 +55,10 @@ WHERE hypertable.hypertable_schema = %s AND hypertable.hypertable_name = %s
 LIMIT 2
 """
 
-_API = """
-SELECT routine.oid::text AS function_oid, namespace.nspname AS function_schema,
-       extension.extversion AS extension_version,
-       dimensions.oid::text AS dimensions_view_oid
-FROM pg_catalog.pg_proc AS routine
-JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace
-JOIN pg_catalog.pg_depend AS dependency
-  ON dependency.classid = 'pg_catalog.pg_proc'::pg_catalog.regclass
- AND dependency.objid = routine.oid
- AND dependency.refclassid = 'pg_catalog.pg_extension'::pg_catalog.regclass
- AND dependency.deptype = 'e'
-JOIN pg_catalog.pg_extension AS extension ON extension.oid = dependency.refobjid
-JOIN pg_catalog.pg_depend AS view_dependency
-  ON view_dependency.refclassid = 'pg_catalog.pg_extension'::pg_catalog.regclass
- AND view_dependency.refobjid = extension.oid AND view_dependency.deptype = 'e'
- AND view_dependency.classid = 'pg_catalog.pg_class'::pg_catalog.regclass
-JOIN pg_catalog.pg_class AS dimensions ON dimensions.oid = view_dependency.objid
-JOIN pg_catalog.pg_namespace AS view_namespace ON view_namespace.oid = dimensions.relnamespace
-WHERE extension.extname = 'timescaledb' AND extension.extversion = %s
-  AND pg_catalog.current_setting('server_version_num')::integer BETWEEN 160000 AND 169999
-  AND view_namespace.nspname = 'timescaledb_information'
-  AND dimensions.relname = 'dimensions' AND dimensions.relkind = 'v'
-  AND pg_catalog.has_table_privilege(dimensions.oid, 'UPDATE,DELETE,TRUNCATE')
-  AND routine.pronamespace = extension.extnamespace
-  AND routine.proname = 'set_chunk_time_interval' AND routine.prokind = 'f'
-  AND NOT routine.proretset AND routine.prorettype = 'pg_catalog.void'::pg_catalog.regtype
-  AND routine.pronargs = 3 AND routine.pronargdefaults = 1
-  AND routine.proargtypes[0] = 'pg_catalog.regclass'::pg_catalog.regtype
-  AND routine.proargtypes[1] = 'pg_catalog.anyelement'::pg_catalog.regtype
-  AND routine.proargtypes[2] = 'pg_catalog.name'::pg_catalog.regtype
-  AND pg_catalog.has_schema_privilege(namespace.oid, 'USAGE')
-  AND pg_catalog.has_function_privilege(routine.oid, 'EXECUTE')
-  AND NOT EXISTS (
-      SELECT 1 FROM pg_catalog.pg_proc AS overload
-      WHERE overload.pronamespace = routine.pronamespace
-        AND overload.proname = routine.proname AND overload.oid <> routine.oid
-  )
-LIMIT 2
-"""
+# sql/size_utils.sql: the hypertable, the interval and the dimension name.
+# regclass 2205, anyelement 2283, name 19, returning void 2278. Polymorphic, so
+# the routine must be the only one of its name in the extension's schema.
+SET_INTERVAL = RoutineShape("set_chunk_time_interval", "f", "2205 2283 19", 2278)
 
 
 async def plan_chunk_interval(
@@ -98,10 +68,7 @@ async def plan_chunk_interval(
         raise ActionRefused("not_applicable", "Calendar chunk intervals are not supported by this strategy")
     try:
         async with asyncio.timeout(5):
-            profile = await discover(session)
-            version = profile.feature.installed_version
-            if not profile.available or version not in {"2.17.2", "2.18.0"}:
-                raise ActionRefused("not_applicable", "No supported TimescaleDB interval planning API")
+            version = require_available(await discover(session))
             for view, columns in _VIEWS.items():
                 await require_public_view(session, view, columns)
             rows = await session.query(_TARGET, (schema_name, table_name), inspection=True)
@@ -112,14 +79,13 @@ async def plan_chunk_interval(
             target = IntervalTarget.model_validate(rows[0])
             if target.column_type == "date" and interval.unit not in {"day", "week"}:
                 raise ActionRefused("not_applicable", "Date dimensions require whole days or weeks")
-            functions = await session.query(_API, (version,), inspection=True)
-            if len(functions) != 1:
-                raise ActionRefused(
-                    "not_applicable", "The interval API or public metadata lock permission is unavailable",
-                )
-            strategy = IntervalStrategy.model_validate(functions[0])
-            if strategy.extension_version != version:
-                raise ActionRefused("conflict", "TimescaleDB changed during planning; try again")
+            setter = await extension_routine(session, version, SET_INTERVAL)
+            strategy = IntervalStrategy.model_validate({
+                "extension_version": version,
+                "function_oid": setter.oid,
+                "function_schema": setter.schema_name,
+                "dimensions_view_oid": await lockable_view(session, version, "dimensions"),
+            })
             return ChunkIntervalPlan(target=target, interval=interval, strategy=strategy)
     except TimeoutError:
         raise ActionRefused("not_applicable", "TimescaleDB interval planning timed out") from None

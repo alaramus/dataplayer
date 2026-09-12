@@ -81,8 +81,14 @@ async def compress_first_chunk(source: TimescaleSource, target: PolicyTable) -> 
         (target.schema, target.table),
     ))[0]
     identity = sql.Identifier(chunk["chunk_schema"], chunk["chunk_name"]).as_string()
+    # Whatever the installed release calls it: convert_to_columnstore arrived in 2.18.
+    columnstore = await source.session().query(
+        "SELECT 1 AS present FROM pg_catalog.pg_proc AS routine "
+        "JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = routine.pronamespace "
+        "WHERE namespace.nspname = 'public' AND routine.proname = 'convert_to_columnstore' LIMIT 1",
+    )
     statement = (
-        "CALL public.convert_to_columnstore({})" if source.version == "2.18.0" else "SELECT public.compress_chunk({})"
+        "CALL public.convert_to_columnstore({})" if columnstore else "SELECT public.compress_chunk({})"
     )
     await source.session().schema_change(sql.SQL(statement).format(sql.Literal(identity)).as_string())
     return await source.session().query(_CHUNK_SETTINGS, (target.identifier.as_string(),))

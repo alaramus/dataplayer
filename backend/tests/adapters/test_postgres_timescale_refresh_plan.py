@@ -50,7 +50,6 @@ DROP_AFTER = AgePolicy(job_id="900", scheduled=True, schedule_interval="1 day", 
 @dataclass
 class Sources:
     discover: AsyncMock
-    server: AsyncMock
     target: AsyncMock
     views: AsyncMock
     retention: AsyncMock
@@ -68,12 +67,11 @@ def sources(monkeypatch: pytest.MonkeyPatch) -> Sources:
         discover=AsyncMock(return_value=TimescaleProfile(SourceFeature(
             code="timescaledb", title="TimescaleDB", state="available", installed_version="2.18.0",
         ))),
-        server=AsyncMock(), target=AsyncMock(return_value=TARGET), views=AsyncMock(),
+        target=AsyncMock(return_value=TARGET), views=AsyncMock(),
         retention=AsyncMock(return_value=None), routine=AsyncMock(side_effect=routine),
         view_lock=AsyncMock(return_value="789"),
     )
     monkeypatch.setattr(refresh_plan, "discover", mocks.discover)
-    monkeypatch.setattr(refresh_plan, "require_tested_server", mocks.server)
     monkeypatch.setattr(refresh_plan, "continuous_aggregate", mocks.target)
     monkeypatch.setattr(refresh_plan, "require_public_view", mocks.views)
     monkeypatch.setattr(refresh_plan, "read_age_policy", mocks.retention)
@@ -98,7 +96,7 @@ def comparing(*answers: bool) -> AsyncMock:
     return reader
 
 
-async def test_inspection_reads_the_job_of_the_materialization(sources: Sources) -> None:
+async def test_inspection_reads_the_job_by_either_identity(sources: Sources) -> None:
     reader = AsyncMock()
     reader.query.return_value = [POLICY_ROW]
     sources.retention.return_value = DROP_AFTER
@@ -108,11 +106,12 @@ async def test_inspection_reads_the_job_of_the_materialization(sources: Sources)
     )
     statement, params = reader.query.await_args.args
     assert statement == refresh_plan._EXISTING
-    assert params == ("_timescaledb_internal", "_materialized_hypertable_3")
+    # Releases up to 2.19 name the materialization in the jobs view, later ones the view.
+    assert params == ("_timescaledb_internal", "_materialized_hypertable_3", "lab", "hourly")
     sources.target.assert_awaited_once_with(reader, "lab", "hourly")
     sources.retention.assert_awaited_once_with(reader, RETENTION, "lab", "metrics")
     assert [call.args[2] for call in sources.routine.await_args_list] == [
-        refresh_plan.ADD_REFRESH["2.18.0"], refresh_plan.REMOVE_REFRESH["2.18.0"],
+        refresh_plan.ADD_REFRESH, refresh_plan.REMOVE_REFRESH,
     ]
     sources.view_lock.assert_awaited_once_with(reader, "2.18.0", "jobs")
 
@@ -120,15 +119,15 @@ async def test_inspection_reads_the_job_of_the_materialization(sources: Sources)
 def test_existing_statement_projects_validated_offsets_only() -> None:
     statement = refresh_plan._EXISTING
     assert "'policy_refresh_continuous_aggregate'" in statement
-    assert statement.count("pg_input_is_valid") == 2
+    assert statement.count("OPERATOR(pg_catalog.~)") == 2
     assert "deptype = 'e'" in statement
     assert "source.config AS" not in statement and "source.config," not in statement
 
 
-@pytest.mark.parametrize("version,arguments,defaults", [("2.17.2", 7, 3), ("2.18.0", 8, 4)])
-async def test_each_version_verifies_its_own_add_shape(
-    sources: Sources, version: str, arguments: int, defaults: int,
-) -> None:
+@pytest.mark.parametrize("version", ["2.14.2", "2.18.0", "2.19.3", "2.30.0"])
+async def test_every_version_asks_for_the_arguments_it_passes(sources: Sources, version: str) -> None:
+    # This routine has had seven to eleven arguments; only the five execution
+    # passes are asked for, so no release is refused for growing another.
     sources.discover.return_value = TimescaleProfile(SourceFeature(
         code="timescaledb", title="TimescaleDB", state="available", installed_version=version,
     ))
@@ -136,10 +135,10 @@ async def test_each_version_verifies_its_own_add_shape(
     reader.query.return_value = []
     await refresh_plan.inspect_refresh(reader, "lab", "hourly")
     added, removed = (call.args[2] for call in sources.routine.await_args_list)
-    assert (added.name, len(added.argument_types.split()), added.defaults) == (
-        "add_continuous_aggregate_policy", arguments, defaults,
+    assert (added.name, added.argument_types) == (
+        "add_continuous_aggregate_policy", "2205 2276 2276 1186 16",
     )
-    assert (removed.argument_types, removed.defaults) == ("2205 16 16", 2)
+    assert removed.argument_types == "2205 16 16"
 
 
 @pytest.mark.parametrize("start_type,expected", [(None, "from the earliest data"), ("null", "from the earliest data")])
@@ -174,12 +173,13 @@ async def test_several_policies_refuse() -> None:
         await refresh_plan.inspect_refresh(reader, "lab", "hourly")
 
 
-async def test_untested_extension_refuses_before_reads(sources: Sources) -> None:
+async def test_unavailable_extension_refuses_before_reads(sources: Sources) -> None:
     sources.discover.return_value = TimescaleProfile(SourceFeature(
-        code="timescaledb", title="TimescaleDB", state="available", installed_version="2.19.0",
+        code="timescaledb", title="TimescaleDB", state="unsupported", installed_version="2.18.0",
+        reason="The installed version lacks the supported inspection API",
     ))
     reader = AsyncMock()
-    with pytest.raises(ActionRefused, match="No supported TimescaleDB refresh policy API"):
+    with pytest.raises(ActionRefused, match="lacks the supported inspection API"):
         await refresh_plan.inspect_refresh(reader, "lab", "hourly")
     reader.query.assert_not_called()
     sources.target.assert_not_awaited()

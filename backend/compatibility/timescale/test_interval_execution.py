@@ -152,6 +152,10 @@ async def test_external_change_before_lock_acquisition_requires_new_review(
 async def test_native_refusal_leaves_interval_unchanged(
     source: TimescaleSource, interval_table: IntervalTable,
 ) -> None:
+    if source.postgres_major < 15:
+        # PostgreSQL began range-checking interval fields in 15; 14 folds this
+        # into a representable number of days, so nothing refuses it there.
+        pytest.skip("PostgreSQL 14 accepts an out-of-range interval field")
     target = interval_table
     duration = TimeDuration(amount=2_147_483_647, unit="week")
     plan = await plan_chunk_interval(source.session(), target.schema, target.table, duration)
@@ -212,7 +216,7 @@ async def test_hypertable_owner_without_metadata_lock_permission_cannot_plan(
         target.identifier,
     ).as_string())
     restricted = PostgresSession(source.options(user="fixture_no_stats"))
-    with pytest.raises(ActionRefused, match="metadata lock permission"):
+    with pytest.raises(ActionRefused, match="may not lock TimescaleDB public metadata"):
         await plan_chunk_interval(restricted, target.schema, target.table, TimeDuration(amount=2, unit="day"))
 
 

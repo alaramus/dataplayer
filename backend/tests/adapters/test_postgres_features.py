@@ -3,8 +3,14 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.adapters.actions import ActionRefused
+from app.adapters.features import SourceFeature
 from app.adapters.postgres.features import PostgresFeatures
-from app.adapters.postgres.timescale.profile import discover
+from app.adapters.postgres.timescale.profile import (
+    TimescaleProfile,
+    discover,
+    require_available,
+)
 from app.adapters.protocol import AdapterError
 
 BASELINE_COLUMNS = [
@@ -120,3 +126,28 @@ async def test_one_adapter_shares_an_in_flight_profile() -> None:
 
     assert first is second
     session.query.assert_awaited_once()
+
+
+def test_an_available_profile_yields_the_installed_version() -> None:
+    profile = TimescaleProfile(SourceFeature(
+        code="timescaledb", title="TimescaleDB", state="available", installed_version="2.30.0",
+    ))
+
+    assert require_available(profile) == "2.30.0"
+
+
+@pytest.mark.parametrize("feature,message", [
+    (SourceFeature(code="timescaledb", title="TimescaleDB", state="absent"), "is not installed"),
+    (SourceFeature(code="timescaledb", title="TimescaleDB", state="unsupported",
+                   installed_version="3.0.0", reason="This TimescaleDB major version is not supported"),
+     "major version is not supported"),
+    (SourceFeature(code="timescaledb", title="TimescaleDB", state="unavailable",
+                   reason="This connection may not inspect TimescaleDB metadata"), "may not inspect"),
+])
+def test_an_unusable_profile_refuses_with_the_reason_discovery_found(
+    feature: SourceFeature, message: str,
+) -> None:
+    with pytest.raises(ActionRefused, match=message) as caught:
+        require_available(TimescaleProfile(feature))
+
+    assert caught.value.reason == "not_applicable"

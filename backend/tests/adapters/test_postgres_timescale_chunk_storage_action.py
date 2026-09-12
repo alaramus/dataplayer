@@ -165,13 +165,13 @@ async def test_reading_back_uses_the_same_hypertable(monkeypatch: pytest.MonkeyP
 async def test_both_directions_are_admitted_from_one_snapshot(monkeypatch: pytest.MonkeyPatch) -> None:
     async def inspect(_reader: object, _schema: str, _table: str, storage: ChunkStorage) -> None:
         if storage == "rowstore":
-            raise ActionRefused("not_applicable", "No supported TimescaleDB chunk compression API")
+            raise ActionRefused("not_applicable", "TimescaleDB is not installed on this database")
 
     probe = AsyncMock(side_effect=inspect)
     monkeypatch.setattr(chunk_storage_action, "inspect_chunk_unit", probe)
     source = session()
     assert await chunk_storage_admission(source, "lab", "events") == {
-        "columnstore": None, "rowstore": "No supported TimescaleDB chunk compression API",
+        "columnstore": None, "rowstore": "TimescaleDB is not installed on this database",
     }
     source.inspection.assert_called_once_with()
     assert [call.args[3] for call in probe.await_args_list] == ["columnstore", "rowstore"]

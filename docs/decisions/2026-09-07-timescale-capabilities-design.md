@@ -350,6 +350,30 @@ range. A signature match alone does not prove semantics. Unsupported operations
 remain disabled with their reason. Legacy and columnstore implementations are
 strategies behind one user intention, not two sets of frontend controls.
 
+**Correction, 2026-09-12.** "Enable a strategy only for tested version/API
+combinations" was implemented as a list of exact version strings beside a
+per-version signature of every routine, and that turned out to be the wrong
+rule. Timescale appends optional arguments to these routines and removes them
+again — `add_compression_policy` gained `hypercore_use_access_method` in 2.18
+and lost it by 2.23; `add_continuous_aggregate_policy` has had seven, eight,
+ten and eleven arguments — so a pinned signature matched one release and
+refused every other. A person on any other release saw commands that could not
+be used, and a message that named no cause. That is worse than a plain error,
+and it does not become safer for being cautious.
+
+The rule is now: a strategy declares the leading arguments of the call it
+makes; a routine matches when the extension owns it, it lives in the
+extension's schema, it returns what the caller expects, it takes no variadic
+argument, its leading argument types are exactly those, and every further
+argument has a default. Nothing else is asked, so a release that appends an
+optional argument keeps working, and a release that removes or renames the
+routine refuses by name rather than by version. The PostgreSQL major is not
+gated at all: what the strategies call is the extension's own public API.
+Extending the tested range now means adding a service to the matrix in
+`backend/compatibility/timescale`, where every scenario runs against every
+source; the matrix spans 2.14 to 2.30 across PostgreSQL 14 to 18. A signature
+match still does not prove semantics — that is what the matrix is for.
+
 ### A shared classification, enforced by every structured entry point
 
 `relation_context` distinguishes ordinary relations, hypertables, continuous

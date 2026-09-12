@@ -2,6 +2,29 @@
 
 from psycopg import sql
 
+# `pg_input_is_valid` would say whether a cast succeeds, but it arrived in
+# PostgreSQL 16 and these settings are read on 14 and 15 too, so the shape is
+# matched instead. Both patterns stay inside what the target type can hold, so a
+# matching value always casts: eight digits a field for an interval (99 million
+# years still fits its int32 month count) and eighteen for a bigint.
+_COUNT = "[0-9]{1,8}"
+_UNITS = (
+    "year|years|mon|mons|day|days|hour|hours"
+    "|min|mins|minute|minutes|sec|secs|second|seconds"
+)
+_FIELD = f"-?{_COUNT} ({_UNITS})"
+_CLOCK = "-?[0-9]{1,8}:[0-9]{2}:[0-9]{2}([.][0-9]{1,6})?"
+# What PostgreSQL itself writes: counted fields, an optional clock part, or one
+# clock part alone. A setting written under another IntervalStyle reads as
+# unreadable, and the action says so rather than echoing it.
+INTERVAL_TEXT = f"^({_FIELD}( {_FIELD})*( {_CLOCK})?|{_CLOCK})$"
+INTEGER_TEXT = "^-?[0-9]{1,18}$"
+
+
+def _matches(value: sql.Composable, pattern: str) -> sql.Composed:
+    return sql.SQL("{} OPERATOR(pg_catalog.~) {}").format(value, sql.Literal(pattern))
+
+
 # A routine name alone cannot certify a user job as an extension policy. Reads the
 # jobs view under the alias `source`.
 OWNED_POLICY_ROUTINE = sql.SQL("""EXISTS (
@@ -23,9 +46,9 @@ def validated_interval(key: str) -> sql.Composed:
     return sql.SQL(
         "(CASE WHEN pg_catalog.jsonb_typeof(source.config -> {key}) = 'string' "
         "AND pg_catalog.length({value}) <= 128 "
-        "AND pg_catalog.pg_input_is_valid({value}, 'pg_catalog.interval') "
+        "AND {valid} "
         "THEN {value} END)::pg_catalog.interval::text"
-    ).format(key=sql.Literal(key), value=value)
+    ).format(key=sql.Literal(key), value=value, valid=_matches(value, INTERVAL_TEXT))
 
 
 _POLICIES = (
@@ -52,17 +75,17 @@ def policy_columns() -> tuple[sql.Composed, ...]:
             # Canonical interval output never echoes malformed source strings.
             columns.append(sql.SQL("""CASE WHEN {} THEN
                 CASE WHEN {} = 'string' AND length({}) <= 128 THEN
-                    (CASE WHEN pg_catalog.pg_input_is_valid({}, 'pg_catalog.interval')
-                         THEN {} END)::pg_catalog.interval::text
+                    (CASE WHEN {} THEN {} END)::pg_catalog.interval::text
                 END END AS {}""").format(
-                    guard, json_type, value, value, value, sql.Identifier(f"{key}_interval"),
+                    guard, json_type, value, _matches(value, INTERVAL_TEXT), value,
+                    sql.Identifier(f"{key}_interval"),
                 ))
             if not key.endswith("created_before"):
                 columns.append(sql.SQL("""CASE WHEN {} THEN
                     CASE WHEN {} = 'number' AND length({}) <= 20 THEN
-                        (CASE WHEN pg_catalog.pg_input_is_valid({}, 'pg_catalog.int8')
-                             THEN {} END)::pg_catalog.int8
+                        (CASE WHEN {} THEN {} END)::pg_catalog.int8
                     END END AS {}""").format(
-                        guard, json_type, value, value, value, sql.Identifier(f"{key}_integer"),
+                        guard, json_type, value, _matches(value, INTEGER_TEXT), value,
+                        sql.Identifier(f"{key}_integer"),
                     ))
     return tuple(columns)

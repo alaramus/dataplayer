@@ -36,7 +36,6 @@ WEEK = TimeDuration(amount=7, unit="day")
 @dataclass
 class Sources:
     discover: AsyncMock
-    server: AsyncMock
     views: AsyncMock
     type_lookup: AsyncMock
     routine: AsyncMock
@@ -52,11 +51,10 @@ def sources(monkeypatch: pytest.MonkeyPatch) -> Sources:
         discover=AsyncMock(return_value=TimescaleProfile(SourceFeature(
             code="timescaledb", title="TimescaleDB", state="available", installed_version="2.18.0",
         ))),
-        server=AsyncMock(), views=AsyncMock(), type_lookup=AsyncMock(return_value="99999"),
+        views=AsyncMock(), type_lookup=AsyncMock(return_value="99999"),
         routine=AsyncMock(side_effect=routine),
     )
     monkeypatch.setattr(conversion_plan, "discover", mocks.discover)
-    monkeypatch.setattr(conversion_plan, "require_tested_server", mocks.server)
     monkeypatch.setattr(conversion_plan, "require_public_view", mocks.views)
     monkeypatch.setattr(conversion_plan, "extension_type", mocks.type_lookup)
     monkeypatch.setattr(conversion_plan, "extension_routine", mocks.routine)
@@ -93,7 +91,7 @@ async def test_inspection_reads_bound_identities_and_verifies_both_routines(sour
     sources.type_lookup.assert_awaited_once_with(reader, "2.18.0", "_timescaledb_internal", "dimension_info")
     created, ranged = (call.args[2] for call in sources.routine.await_args_list)
     assert (created.argument_types, created.returns_set, created.exclusive) == ("2205 99999 16 16 16", True, False)
-    assert (ranged.argument_types, ranged.result_type, ranged.exclusive) == ("19 2283 24", 99999, True)
+    assert (ranged.argument_types, ranged.result_type, ranged.exclusive) == ("19 2283", 99999, True)
 
 
 @pytest.mark.parametrize("change,message", [
@@ -136,12 +134,13 @@ def test_only_no_inherit_checks_count_as_no_inherit_constraints() -> None:
     assert "table_constraint.contype = 'c'" in conversion_plan._RELATION
 
 
-async def test_untested_extension_refuses_before_reads(sources: Sources) -> None:
+async def test_unavailable_extension_refuses_before_reads(sources: Sources) -> None:
     sources.discover.return_value = TimescaleProfile(SourceFeature(
-        code="timescaledb", title="TimescaleDB", state="available", installed_version="2.19.0",
+        code="timescaledb", title="TimescaleDB", state="unsupported", installed_version="2.18.0",
+        reason="The installed version lacks the supported inspection API",
     ))
     reader = AsyncMock()
-    with pytest.raises(ActionRefused, match="No supported"):
+    with pytest.raises(ActionRefused, match="lacks the supported inspection API"):
         await conversion_plan.inspect_conversion(reader, "lab", "events")
     reader.query.assert_not_called()
 

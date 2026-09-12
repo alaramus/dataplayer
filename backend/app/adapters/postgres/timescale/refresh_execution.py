@@ -37,13 +37,12 @@ def _locks(plan: RefreshPlan) -> list[sql.SQL | sql.Composed]:
 
 
 async def _apply(connection: psycopg.AsyncConnection[Any], plan: RefreshPlan) -> None:
-    version = plan.strategy.extension_version
     schema = plan.strategy.function_schema
     # Removal and addition share the transaction: a refused addition keeps the old policy.
     if plan.existing is not None:
         await connection.execute(
             sql.SQL("SELECT {}(%s::pg_catalog.regclass, false, false)").format(
-                sql.Identifier(schema, REMOVE_REFRESH[version].name),
+                sql.Identifier(schema, REMOVE_REFRESH.name),
             ),
             (plan.target.view_oid,),
         )
@@ -52,7 +51,7 @@ async def _apply(connection: psycopg.AsyncConnection[Any], plan: RefreshPlan) ->
             sql.SQL(
                 "SELECT {}(%s::pg_catalog.regclass, %s::pg_catalog.interval, "
                 "%s::pg_catalog.interval, %s::pg_catalog.interval, false)"
-            ).format(sql.Identifier(schema, ADD_REFRESH[version].name)),
+            ).format(sql.Identifier(schema, ADD_REFRESH.name)),
             (
                 plan.target.view_oid, plan.window.start_offset.interval_value(),
                 plan.window.end_offset.interval_value(), plan.window.schedule_interval.interval_value(),
