@@ -131,6 +131,20 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
     } <= titles
 
 
+def test_describing_a_relation_is_published_as_a_code() -> None:
+    """A promise the catalog's menu asks the type about.
+
+    Whether the Relationships line is drawn at all is a fact about the source,
+    and it used to be read off whatever the level happened to be listing — so
+    a database with no schema ticked lost the line instead of disabling it.
+    """
+    codes = {
+        capability.code for capability in registry.capabilities_of(registry.get("postgres"))
+    }
+
+    assert "relation_model" in codes
+
+
 def test_a_postgres_source_reports_runtime_features() -> None:
     from app.adapters.features import SupportsSourceFeatures
 

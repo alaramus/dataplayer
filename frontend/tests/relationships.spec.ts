@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 import type { Locator, Page } from "@playwright/test"
 
-import { catalogAction, catalogCheck, pickSchema } from "./utils/catalog"
+import { catalogAction, catalogCheck, pickSchema, showNoSchemas } from "./utils/catalog"
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { deleteConnector, openConnector, rowsTabs } from "./utils/workspace"
@@ -242,6 +242,25 @@ test("carries one selection into 3D, into a window and through a reload", async 
   const restored = await centre(canvas)
   await page.mouse.click(restored.x + 90, restored.y + 60)
   await expect(page.getByTestId("graph-inspector")).toContainText("projects")
+
+  await deleteConnector(page, name)
+})
+
+test("offers the diagram while the level lists nothing, disabled", async ({ page }) => {
+  const name = `e2e-graph-empty-${Date.now()}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await showNoSchemas(page)
+
+  // Disabled and not gone: whether a source draws structures is a fact about
+  // the source, and it used to be read off whatever the level happened to be
+  // listing — so a database with no schema ticked lost the line entirely.
+  await page.getByTestId("catalog-actions").click()
+  const line = page.getByTestId("menu-item-client:relationships")
+  await expect(line).toBeVisible()
+  await expect(line).toHaveAttribute("aria-disabled", "true")
+  await page.keyboard.press("Escape")
 
   await deleteConnector(page, name)
 })

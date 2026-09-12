@@ -97,7 +97,13 @@ CapabilityGroup = Literal["explore", "manage"]
 # reworded tomorrow; a code is a promise. Only what a screen has actually had
 # to ask about carries one, so this grows when a question is asked rather than
 # in advance — and everything else stays what it is, something to read.
-CapabilityCode = Literal["search", "content_search", "create_relation", "backup"]
+CapabilityCode = Literal[
+    "search",
+    "content_search",
+    "relation_model",
+    "create_relation",
+    "backup",
+]
 
 
 class Capability(BaseModel):
@@ -224,7 +230,13 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
     if issubclass(driver, SupportsExport):
         found.append(Capability(group="explore", title="Export all matching rows"))
     if issubclass(driver, SupportsRelationModel):
-        found.append(Capability(group="explore", title="Describe a relation"))
+        found.append(
+            Capability(
+                group="explore",
+                title="Describe a relation",
+                code="relation_model",
+            )
+        )
     if issubclass(driver, SupportsReferences):
         found.append(Capability(group="explore", title="Follow references"))
     if issubclass(driver, SupportsArrivingReferences):

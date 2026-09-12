@@ -56,7 +56,7 @@ const props = defineProps<{
   describesNodes: boolean
   /** The one ticked node it will describe, or nothing. */
   describedNode: { id: string; label: string } | null
-  /** Whether anything on this level has a structure to draw as a diagram (D97). */
+  /** Whether this source draws the structure of what it holds as a diagram (D97). */
   drawsNodes: boolean
   /** Whether what would be drawn — the ticks, or the list — is a set a diagram can hold. */
   drawableNodes: boolean

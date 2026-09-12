@@ -20,7 +20,10 @@ view-state type leave that possible without introducing a second graph model.
 
 The catalog's actions menu opens a diagram for checked describable nodes, or
 for the current filtered list if none are checked; the line is disabled, not
-hidden, while that set is empty or larger than one diagram holds. The panel's
+hidden, while that set is empty or larger than one diagram holds. Whether the
+line is there at all is read off the source type's `relation_model` capability
+code and never off the rows on screen: a level listing nothing — no schema
+ticked, or an empty one — is not evidence about what the source describes. The panel's
 tab names the connection and the size of the set, so the view itself carries no
 standing bar of its own. The explicit set lives in its workspace descriptor. Loading is limited to 100 relations and four concurrent reads.
 Failed reads and references outside the set appear as distinct placeholders.

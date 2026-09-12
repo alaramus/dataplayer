@@ -236,7 +236,7 @@ export interface ClientMenuState {
   describes: boolean
   /** Whether exactly one ticked node is one it describes. */
   describable: boolean
-  /** Whether anything on this level has a structure to draw (D97). */
+  /** Whether this source draws the structure of what it holds at all (D97). */
   diagrams: boolean
   /** Whether the set that would be drawn is one a diagram can hold. */
   diagrammable: boolean

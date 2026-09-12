@@ -125,7 +125,6 @@ function selectHistory(query: string) {
  * set is empty or larger than one diagram holds (D97).
  */
 const diagramSelection = computed(() => diagramNodes(level.checkedNodes.value, level.items.value))
-const drawsNodes = computed(() => level.items.value.some((node) => node.describable))
 const drawableNodes = computed(() =>
   !level.loading.value &&
   diagramSelection.value.length > 0 &&
@@ -421,6 +420,19 @@ const sourceType = computed(() =>
 )
 const canSearch = computed(
   () => sourceType.value?.capabilities.some((one) => one.code === "search") === true
+)
+
+/**
+ * Whether this source draws the structure of what it holds at all.
+ *
+ * The same promise, asked of the type and not of the rows in front of us. The
+ * question used to be put to the level — does anything listed here describe
+ * itself — and a level with nothing on it answered no: with no schema ticked,
+ * or one that is empty, the line left the menu altogether instead of standing
+ * there disabled with the rest of them (D97).
+ */
+const drawsNodes = computed(
+  () => sourceType.value?.capabilities.some((one) => one.code === "relation_model") === true
 )
 
 /**

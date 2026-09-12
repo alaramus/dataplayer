@@ -81,6 +81,19 @@ export async function showOnlySchema(page: Page, schema: string) {
   await page.keyboard.press("Escape")
 }
 
+/**
+ * Show none of them, so the level lists nothing at all.
+ *
+ * The state a menu has to survive: what a source can do is a fact about the
+ * source, and a list with nothing on it is not evidence about it.
+ */
+export async function showNoSchemas(page: Page) {
+  await page.getByTestId("catalog-groups").click()
+  const offered = (await page.getByRole("option").allInnerTexts()).map((text) => text.trim())
+  for (const name of offered) await setSchema(page, name, false)
+  await page.keyboard.press("Escape")
+}
+
 /** Add one server-side filter entirely through the visible grid controls. */
 export async function addFilter(
   page: Page,
