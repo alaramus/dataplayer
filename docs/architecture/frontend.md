@@ -218,6 +218,10 @@ Consequences:
   both spellings Vue accepts — matching only `q-btn` would let `<QBtn>` walk
   past. `useQuasar` is forbidden in screens too, now that `useToast` and
   `useConfirm` exist.
+- **An icon button is named before its tooltip appears.** `AppIconButton` uses
+  its tooltip as the button's accessible name in enabled, disabled and loading
+  states. A caller's explicit `aria-label` takes precedence when the action
+  needs a name different from its hover explanation.
 - **The kit documents itself at `/ui-kit`**, a route registered only under
   `import.meta.env.DEV`. It renders the real components, so it breaks when one of
   them does; a test compares the page against the files in `shared/ui` so a

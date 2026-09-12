@@ -49,6 +49,7 @@ defineOptions({ inheritAttrs: false })
     class="app-icon-button"
   >
     <q-btn
+      :aria-label="tooltip"
       v-bind="$attrs"
       dense
       flat
@@ -62,6 +63,7 @@ defineOptions({ inheritAttrs: false })
   </span>
   <q-btn
     v-else
+    :aria-label="tooltip"
     v-bind="$attrs"
     dense
     flat

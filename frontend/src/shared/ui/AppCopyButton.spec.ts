@@ -12,6 +12,7 @@ describe("AppCopyButton", () => {
     })
 
     expect(wrapper.get("button").attributes("data-testid")).toBe("copy-value")
+    expect(wrapper.get("button").attributes("aria-label")).toBe("Copy")
     expect(wrapper.get(".q-icon").text()).toBe("content_copy")
   })
 })
