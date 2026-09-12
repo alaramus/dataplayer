@@ -104,12 +104,13 @@ Consequences:
   nothing is highlighted.
 - **A column appears together with what goes in it.** A pinned section holding
   nothing, for which the feature has no empty view, is not rendered, and its share
-  of the row is left to the columns that are, in proportion to what each already
+  of the row is left to the columns after it, in proportion to what each already
   has — `sizes` in the tree are untouched, so the width comes back exactly as the
-  user left it. Given whole to the next column along, the room was glued to
-  whichever section happened to be next in a row where splits running the same
-  way are flattened into one, and that section could then never be dragged
-  narrower than it. `pinned` keeps a
+  user left it. Forward, so that the narrow list of connections keeps the width it
+  was given when the catalog beside it goes; in proportion rather than whole to
+  the first column along, because splits running the same way are flattened into
+  one, so that column is one work card out of several, and a card holding room
+  freed by somebody else could never be dragged narrower than it. `pinned` keeps a
   role on the screen rather than one particular section, so a column left empty
   while the section split off it holds the work goes too. The head of a column is
   one height whatever it holds, or the line under two columns reads as a broken
@@ -144,7 +145,7 @@ Consequences:
   and gain nothing. A section on the bar keeps its panels, its active tab and
   its share of the row; the engine reads it as holding nothing, so the column
   of work is drawn as what can be opened in it while the catalog's room goes
-  to the columns that are left. Anything opened into a section brings it back,
+  to the columns after it. Anything opened into a section brings it back,
   or opening a table into a column that is on the bar would do nothing anybody
   could see.
 - **Every section is a card.** Its own ground, its own edge, its own corners,
@@ -224,10 +225,11 @@ Known deviations:
 - **A hidden column is still in the tree.** It shows in localStorage and in a
   layout test although it is not on the screen. That is what brings its width
   back, but "what I see" and "what is written" differ here.
-- **The room a column off the screen leaves widens every column that stays**,
-  including a narrow one that gains nothing by being wider: the list of
-  connections grows when the catalog is put aside, unless it is narrowed to its
-  icons, where it keeps its strip.
+- **A column off the screen with nothing after it leaves its room whole**, to
+  the one section before it, which then cannot be dragged narrower than that
+  room. The floor is out of reach in practice — it takes dragging the last
+  border nearly across the screen — but it is the same defect the rule above
+  exists to avoid.
 - **The connection named on a data tab is written when it is opened.** Rename the
   connection and the tab lags until it is opened again — already true of the title
   of a catalog tab.

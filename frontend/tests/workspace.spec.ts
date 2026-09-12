@@ -128,43 +128,63 @@ test("resizes, collapses and remembers the layout", async ({ page }) => {
   expect((await alpha.boundingBox())?.width ?? 0).toBeGreaterThan(50)
 })
 
-test("keeps a border under the pointer when a column is on the bar", async ({ page }) => {
+test("leaves the room of a column on the bar to the cards after it", async ({ page }) => {
   await page.goto("/workspace-demo")
   await page.getByTestId("reset-workspace").click()
 
-  // The column in the middle has nothing worth forty pixels, so it goes to the
-  // bar whole and leaves its room to the two that stay.
+  // Gamma to the right edge of the section it shares with beta: two cards of
+  // work side by side, which is what a row of open tables is.
+  const tab = page.getByTestId("workspace-tab-gamma")
+  const main = page.getByTestId("workspace-leaf-main")
+  const from = await tab.boundingBox()
+  const onto = await main.boundingBox()
+  if (from === null || onto === null) throw new Error("the tab or the section has no box")
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(onto.x + onto.width * 0.9, onto.y + onto.height * 0.6, { steps: 12 })
+  await page.mouse.up()
+
+  const sections = page.locator('[data-testid^="workspace-leaf-"]')
+  await expect(sections).toHaveCount(4)
+
+  const left = page.getByTestId("workspace-leaf-left")
+  const narrow = (await left.boundingBox())?.width ?? 0
+  expect(narrow).toBeGreaterThan(0)
+
   await page.getByTestId("workspace-aside-main").click()
-  await expect(page.getByTestId("workspace-leaf-main")).toHaveCount(0)
+  await expect(main).toHaveCount(0)
 
-  const notes = page.getByTestId("workspace-leaf-notes")
-  const before = (await notes.boundingBox())?.width ?? 0
-  expect(before).toBeGreaterThan(0)
+  // The column before it is exactly where it was: what was freed went to the
+  // sections after it, and a narrow column keeps the width it was given.
+  expect(Math.abs(((await left.boundingBox())?.width ?? 0) - narrow)).toBeLessThan(2)
 
+  // The card that came out of the drag is now between the list and the notes.
+  const card = sections.nth(1)
+  const before = (await card.boundingBox())?.width ?? 0
   const edge = (page.viewportSize()?.width ?? 0) - 20
 
   async function dragBy(delta: number) {
-    const box = await page.getByTestId("workspace-separator").first().boundingBox()
+    const box = await page.getByTestId("workspace-separator").last().boundingBox()
     if (box === null) throw new Error("the separator has no box")
     const x = box.x + box.width / 2
     const y = box.y + box.height / 2
     await page.mouse.move(x, y)
     await page.mouse.down()
-    await page.mouse.move(Math.min(x + delta, edge), y, { steps: 10 })
+    await page.mouse.move(Math.max(20, Math.min(x + delta, edge)), y, { steps: 10 })
     await page.mouse.up()
   }
 
   // A percentage of the row is worth more pixels while a column is off the
   // screen, which is why the drag is converted from the two sections the
   // border is between and not from the row.
-  await dragBy(150)
-  expect(Math.abs(((await notes.boundingBox())?.width ?? 0) - (before - 150))).toBeLessThan(16)
+  await dragBy(-150)
+  expect(Math.abs(((await card.boundingBox())?.width ?? 0) - (before - 150))).toBeLessThan(16)
 
   // And the room the column on the bar left behind can be dragged away again.
-  // Given whole to the column beside it, it was a floor that column could not
-  // be pulled below: a card that would not get any narrower.
-  await dragBy(edge)
-  expect((await notes.boundingBox())?.width ?? 0).toBeLessThan(160)
+  // Given whole to the card beside it, it was a floor that card could not be
+  // pulled below: a card that would not get any narrower.
+  await dragBy(-edge)
+  expect((await card.boundingBox())?.width ?? 0).toBeLessThan(160)
 })
 
 test("opens a panel as a tab and closes it again", async ({ page }) => {

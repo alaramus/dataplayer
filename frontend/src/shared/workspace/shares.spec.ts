@@ -7,27 +7,25 @@ describe("the share each section of a split takes", () => {
     expect(sharesOf([20, 28, 52], [false, false, false])).toEqual([20, 28, 52])
   })
 
-  it("leaves a hidden section's room to the rest, in proportion to what they have", () => {
-    // The two that stay keep the ratio they had - 20 to 52 - and the 28 that
-    // was freed is spread over them by it. Given whole to the one beside it,
-    // that section could then never be dragged below 28 again. See P4.
-    expect(sharesOf([20, 28, 52], [false, true, false])).toEqual([
-      (20 * 100) / 72,
-      0,
-      (52 * 100) / 72,
-    ])
+  it("leaves a hidden section's room to the sections after it", () => {
+    // Forward and not over the whole row: the narrow column of connections
+    // stays the width the user made it when the catalog goes. See P4.
+    expect(sharesOf([20, 28, 52], [false, true, false])).toEqual([20, 0, 80])
   })
 
-  it("adds up to the whole split whichever sections are hidden", () => {
-    for (const hidden of [
-      [false, false, true],
-      [true, false, false],
-      [true, true, false],
-      [false, true, true],
-    ]) {
-      const total = sharesOf([20, 28, 52], hidden).reduce((sum, share) => sum + share, 0)
-      expect(total).toBeCloseTo(100)
-    }
+  it("shares that room out between them in proportion", () => {
+    // Two cards of work, 30 and 20 of the row, take 24 and 16 of the 40 freed.
+    // Given whole to the first of them, that card could then never be dragged
+    // below 40 again.
+    expect(sharesOf([10, 40, 30, 20], [false, true, false, false])).toEqual([10, 0, 54, 36])
+  })
+
+  it("leaves it to the section before when there is none after", () => {
+    expect(sharesOf([20, 28, 52], [false, false, true])).toEqual([20, 80, 0])
+  })
+
+  it("carries several hidden sections in a row to the same place", () => {
+    expect(sharesOf([20, 28, 52], [true, true, false])).toEqual([0, 0, 100])
   })
 
   it("leaves nothing to anybody when nothing is on screen", () => {
