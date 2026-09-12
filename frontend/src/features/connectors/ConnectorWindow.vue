@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
-import type { ConnectionCheckResult, ConnectorDraft, ConnectorPublic } from "@/client"
+import type { ConnectionCheckReport, ConnectorDraft, ConnectorPublic } from "@/client"
 import { ACCESS_LABELS } from "@/features/connectors/access"
 import ConnectionCheck from "@/features/connectors/ConnectionCheck.vue"
-import ConnectorFeatures from "@/features/connectors/ConnectorFeatures.vue"
 import AccessRequests from "@/features/shares/AccessRequests.vue"
 import GrantList from "@/features/shares/GrantList.vue"
 import ShareDialog from "@/features/shares/ShareDialog.vue"
@@ -144,7 +143,7 @@ function choosePolicy(value: unknown) {
   }
 }
 const nameError = ref("")
-const checkResult = ref<ConnectionCheckResult | null>(null)
+const checkResult = ref<ConnectionCheckReport | null>(null)
 const connectionString = ref("")
 // What is in the URL box. Held apart from the composed string because the box
 // is typed into as well as read: a pasted address is taken apart into the
@@ -679,10 +678,6 @@ async function parseTyped(text: string) {
             data-testid="connector-cache-window"
             @update:model-value="chooseCacheWindow"
           />
-          <ConnectorFeatures
-            v-if="saved && saved.enabled && onOptions"
-            :connector-id="saved.id"
-          />
         </div>
 
         <!-- Who may reach this connection and what may be done through it,
@@ -800,6 +795,7 @@ async function parseTyped(text: string) {
       <div class="connector-window__foot-area">
         <ConnectionCheck
           :result="checkResult"
+          :source-title="selectedType?.title ?? 'Server'"
           @close="checkResult = null"
         />
 

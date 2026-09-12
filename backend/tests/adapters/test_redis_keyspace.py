@@ -313,3 +313,11 @@ async def test_a_string_this_source_did_not_issue_is_not_a_node(
 
     with pytest.raises(NodeNotFound):
         await adapter.list_children(written)
+
+
+async def test_a_reachable_server_says_which_redis_it_is(adapter: RedisAdapter) -> None:
+    """The answer beside a check: what am I about to work on."""
+    said = await adapter.source_features()
+
+    assert said.server_version is not None
+    assert said.server_version[0].isdigit()

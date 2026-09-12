@@ -1401,6 +1401,36 @@ export type Comparison = {
 }
 
 /**
+ * ConnectionCheckReport
+ *
+ * A check somebody pressed for, with what the source says it is.
+ *
+ * The result itself is what the monitor's rounds produce for a coloured dot
+ * (D19), and they stay exactly that: nothing behind a dot reads a version,
+ * and a second query per connection per round is a cost with no reader. This
+ * is the answer to a button, which has one.
+ */
+export type ConnectionCheckReport = {
+  /**
+   * Ok
+   */
+  ok: boolean
+  /**
+   * Message
+   */
+  message: string
+  /**
+   * Latency Ms
+   */
+  latency_ms?: number | null
+  /**
+   * Error Kind
+   */
+  error_kind?: "auth" | "network" | "timeout" | "config" | "unknown" | null
+  features?: SourceFeatures | null
+}
+
+/**
  * ConnectionCheckRequest
  */
 export type ConnectionCheckRequest = {
@@ -1418,33 +1448,6 @@ export type ConnectionCheckRequest = {
    * Connector Id
    */
   connector_id?: string | null
-}
-
-/**
- * ConnectionCheckResult
- *
- * Outcome of a connection check.
- *
- * Drivers never let their own exceptions escape: the text of those regularly
- * contains the connection string together with the password.
- */
-export type ConnectionCheckResult = {
-  /**
-   * Ok
-   */
-  ok: boolean
-  /**
-   * Message
-   */
-  message: string
-  /**
-   * Latency Ms
-   */
-  latency_ms?: number | null
-  /**
-   * Error Kind
-   */
-  error_kind?: "auth" | "network" | "timeout" | "config" | "unknown" | null
 }
 
 /**
@@ -7733,6 +7736,10 @@ export type SourceFeatures = {
    */
   observed_at: string
   /**
+   * Server Version
+   */
+  server_version?: string | null
+  /**
    * Features
    */
   features: Array<SourceFeature>
@@ -9851,7 +9858,7 @@ export type connectorsCheckDraftResponses = {
   /**
    * Successful Response
    */
-  200: ConnectionCheckResult
+  200: ConnectionCheckReport
 }
 
 export type connectorsCheckDraftResponse =
@@ -9936,7 +9943,7 @@ export type connectorsCheckConnectorResponses = {
   /**
    * Successful Response
    */
-  200: ConnectionCheckResult
+  200: ConnectionCheckReport
 }
 
 export type connectorsCheckConnectorResponse =

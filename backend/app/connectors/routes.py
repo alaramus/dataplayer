@@ -672,7 +672,38 @@ async def _draft_adapter(
         )
 
 
-@router.post("/check-draft", response_model=ConnectionCheckResult)
+class ConnectionCheckReport(ConnectionCheckResult):
+    """A check somebody pressed for, with what the source says it is.
+
+    The result itself is what the monitor's rounds produce for a coloured dot
+    (D19), and they stay exactly that: nothing behind a dot reads a version,
+    and a second query per connection per round is a cost with no reader. This
+    is the answer to a button, which has one.
+    """
+
+    features: SourceFeatures | None = None
+
+
+async def _reported(
+    adapter: DataAdapter, result: ConnectionCheckResult
+) -> ConnectionCheckReport:
+    """The check, plus what the source will say about itself.
+
+    Only after a working check, and never at its expense: whether the
+    connection works is what was asked, and a source that will not say what it
+    is running has still answered that.
+    """
+    report = ConnectionCheckReport.model_validate(result.model_dump())
+    if not result.ok or not isinstance(adapter, SupportsSourceFeatures):
+        return report
+    try:
+        report.features = await adapter.source_features()
+    except (AdapterError, ValueError):
+        report.features = None
+    return report
+
+
+@router.post("/check-draft", response_model=ConnectionCheckReport)
 async def check_draft(
     session: SessionDep, current_user: CurrentUser, body: ConnectionCheckRequest
 ) -> Any:
@@ -684,7 +715,7 @@ async def check_draft(
     password.
     """
     adapter = await _draft_adapter(session, current_user, body)
-    return await adapter.check_connection()
+    return await _reported(adapter, await adapter.check_connection())
 
 
 class ConnectionDescription(BaseModel):
@@ -792,7 +823,7 @@ async def parse_url(body: ConnectionStringRequest) -> Any:
         ) from None
 
 
-@router.post("/{connector_id}/check", response_model=ConnectionCheckResult)
+@router.post("/{connector_id}/check", response_model=ConnectionCheckReport)
 async def check_connector(
     session: SessionDep,
     current_user: CurrentUser,
@@ -807,9 +838,11 @@ async def check_connector(
     )
     result = await adapter.check_connection()
     # Told to whoever is watching, so that pressing the button and the dot on
-    # the same connection cannot end up saying different things.
+    # the same connection cannot end up saying different things. The dot is
+    # told the result and not the report: what the source is running is for
+    # the person who pressed the button.
     await health.announce_check(topics, current_user.id, connector_id, result)
-    return result
+    return await _reported(adapter, result)
 
 
 @router.post("/{connector_id}/fetch", response_model=FetchResult)

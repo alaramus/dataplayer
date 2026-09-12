@@ -131,3 +131,13 @@ def test_a_database_outside_the_sixteen_is_refused() -> None:
             registry.get("redis").options_schema,
             {"auth_method": "no_auth", "host": "cache", "database": 99},
         )
+
+
+async def test_a_server_that_is_not_there_says_nothing_about_its_version() -> None:
+    """What it is running is a line on a panel, never a reason to fail."""
+    said = await _unreachable().source_features()
+
+    assert said.server_version is None
+    # It has none to declare, and answering that is not the same as refusing
+    # to answer: a plain server still has a version worth showing.
+    assert said.features == []

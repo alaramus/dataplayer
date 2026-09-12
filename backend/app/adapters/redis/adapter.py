@@ -20,6 +20,7 @@ from typing import Any
 
 from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
+from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.redis.actions import REDIS_ACTION_TYPES
@@ -47,6 +48,7 @@ from app.adapters.update import (
     UpdateCellsRequest,
     UpdateCellsResult,
 )
+from app.core.schemas import get_datetime_utc
 
 
 class RedisAdapter:
@@ -115,6 +117,19 @@ class RedisAdapter:
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
+
+    async def source_features(self) -> SourceFeatures:
+        """What this server is. It has no optional features to declare (D120).
+
+        Answered anyway rather than left to 501: "which Redis am I working
+        on" is the same question a PostgreSQL connection answers, and a source
+        with nothing installed still has a version.
+        """
+        return SourceFeatures(
+            observed_at=get_datetime_utc(),
+            server_version=await self._session.server_version(),
+            features=[],
+        )
 
     async def install_sample_data(self) -> str:
         """Fill an empty key space with one worth walking through."""

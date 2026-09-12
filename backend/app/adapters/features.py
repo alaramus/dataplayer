@@ -1,4 +1,10 @@
-"""Runtime features exposed by one connected source (D120)."""
+"""What one connected source says about itself at runtime (D120).
+
+Two things, because they are read from the same connection and answered to the
+same reader: what the server is running, and which optional features of it are
+there. A person about to work through a connection wants both, and the second
+one is meaningless without the first.
+"""
 
 from datetime import datetime
 from typing import Literal, Protocol, Self, runtime_checkable
@@ -35,6 +41,10 @@ class SourceFeatures(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     observed_at: datetime
+    # What the server says it is running, in its own numbering and without the
+    # rest of the sentence a driver would hand over: "17.6", not the build,
+    # the distribution and the compiler. Absent where the source does not say.
+    server_version: str | None = Field(default=None, max_length=100)
     features: list[SourceFeature] = Field(max_length=MAX_SOURCE_FEATURES)
 
     @model_validator(mode="after")
@@ -47,4 +57,6 @@ class SourceFeatures(BaseModel):
 
 @runtime_checkable
 class SupportsSourceFeatures(Protocol):
+    """A source that will say what it is running, and what it has installed."""
+
     async def source_features(self) -> SourceFeatures: ...

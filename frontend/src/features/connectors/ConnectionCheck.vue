@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import type { ConnectionCheckResult } from "@/client"
+import type { ConnectionCheckReport } from "@/client"
+import { sourceFacts } from "@/features/connectors/sourceFacts"
 import { copyText } from "@/shared/clipboard"
 import { AppCopyButton, AppIconButton, useToast } from "@/shared/ui"
 
@@ -12,9 +13,17 @@ import { AppCopyButton, AppIconButton, useToast } from "@/shared/ui"
  * and dismissed, and a line in the body pushed the fields about every time a
  * check was run. It sits above the button because that is where the eye is
  * when the answer arrives.
+ *
+ * What the source says it is goes here too, rather than in the connection's
+ * Options where it used to live: "which server am I about to work on, and is
+ * the extension there" is asked at the moment this button is pressed and at
+ * no other. A draft nobody has saved answers it as well, because the check is
+ * what asked.
  */
 const props = defineProps<{
-  result: ConnectionCheckResult | null
+  result: ConnectionCheckReport | null
+  /** What this kind of source is called, for the line naming its version. */
+  sourceTitle: string
 }>()
 
 const emit = defineEmits<{ close: [] }>()
@@ -47,8 +56,12 @@ const lines = computed(() => {
   return collected
 })
 
+/** What the source said about itself, where it said anything. */
+const facts = computed(() => sourceFacts(props.result?.features, props.sourceTitle))
+
 async function copy() {
-  await copyText([heading.value, ...lines.value].join("\n"))
+  const said = facts.value.map((fact) => `${fact.label}: ${fact.value}`)
+  await copyText([heading.value, ...lines.value, ...said].join("\n"))
   toast.success("Result copied")
 }
 </script>
@@ -86,6 +99,28 @@ async function copy() {
     >
       {{ line }}
     </p>
+    <!-- What answered, under whether it answered at all. -->
+    <dl
+      v-if="facts.length"
+      class="check-popover__facts"
+      data-testid="check-source-facts"
+    >
+      <template
+        v-for="fact in facts"
+        :key="fact.code"
+      >
+        <dt>{{ fact.label }}</dt>
+        <dd :data-testid="`source-fact-${fact.code}`">
+          {{ fact.value }}
+          <div
+            v-if="fact.note"
+            class="check-popover__note"
+          >
+            {{ fact.note }}
+          </div>
+        </dd>
+      </template>
+    </dl>
     <!-- The tail that points at the button below, as in a speech bubble: what
          makes the panel belong to that button rather than float over the
          form. -->
@@ -126,6 +161,25 @@ async function copy() {
   margin: 0;
   font-size: 13px;
   overflow-wrap: anywhere;
+}
+.check-popover__facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--dp-border);
+  font-size: 12px;
+}
+.check-popover__facts dt {
+  color: var(--dp-text-muted);
+}
+.check-popover__facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.check-popover__note {
+  color: var(--dp-text-muted);
 }
 /* Two triangles, the back one a pixel lower, so the border of the panel
    appears to continue around the tail. */

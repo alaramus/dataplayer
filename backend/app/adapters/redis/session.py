@@ -102,6 +102,24 @@ class RedisSession:
         finally:
             await client.aclose()
 
+    async def server_version(self) -> str | None:
+        """What the server says it is running, or nothing when it will not say.
+
+        One field of `INFO server` and no more: the rest of that answer is the
+        machine, the process and the uptime of somebody else's server, none of
+        which was asked for. Never worth failing over — whether the connection
+        works is what the caller asked, and this is a line beside the answer.
+        """
+        client = self._client()
+        try:
+            info: dict[str, object] = await client.info("server")
+        except RedisError:
+            return None
+        finally:
+            await client.aclose()
+        version = info.get("redis_version")
+        return version if isinstance(version, str) and version else None
+
     async def check(self) -> ConnectionCheckResult:
         """Say hello, and say what happened in words that name no address."""
         client = self._client()

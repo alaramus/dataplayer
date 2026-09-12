@@ -45,6 +45,16 @@ typed answer distinguishes `absent`, `available`, `unsupported` and `unavailable
 with installed version and safe reasons. Unknown is not absent. An unavailable
 optional view is not a failed PostgreSQL connection check.
 
+The same answer carries what the server itself is running — the number and not
+the sentence a driver hands over, which names the build, the distribution and
+the compiler. A source with no optional features still has one, so Redis
+answers too: "which server am I about to work on" is the same question
+whatever the type, and it is asked at the moment a connection is checked.
+That is where it is answered: a pressed check replies with the result and what
+the source says about itself, while the monitor's rounds behind a coloured dot
+stay exactly what they were (D19) — nothing there reads a version, and a second
+query per connection per round would be a cost with no reader.
+
 Detection selects implemented readers/actions from installed version and
 verified public API shapes: schema, signature, function/procedure kind and
 extension ownership where available. It neither calls mutating functions as

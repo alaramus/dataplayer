@@ -134,3 +134,40 @@ async def test_check_unknown_connector_returns_404(
     )
 
     assert response.status_code == 404
+
+
+async def test_a_pressed_check_says_what_the_server_is(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """The answer to "what am I about to work on", beside whether it answered.
+
+    A version and not a sentence: what PostgreSQL calls itself in full carries
+    the build, the distribution and the compiler, none of which was asked.
+    """
+    response = await client.post(
+        f"{BASE}/check-draft",
+        headers=normal_user_token_headers,
+        json={"adapter_type": "postgres", "options": working_postgres_options()},
+    )
+
+    said = response.json()["features"]
+    assert said is not None
+    assert said["server_version"]
+    assert " " not in said["server_version"]
+    assert [feature["code"] for feature in said["features"]] == ["timescaledb"]
+
+
+async def test_a_check_that_failed_says_nothing_about_the_server(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Nothing answered, so there is nothing it could have said about itself."""
+    options = working_postgres_options() | {"password": WRONG_PASSWORD}
+
+    response = await client.post(
+        f"{BASE}/check-draft",
+        headers=normal_user_token_headers,
+        json={"adapter_type": "postgres", "options": options},
+    )
+
+    assert response.json()["ok"] is False
+    assert response.json()["features"] is None

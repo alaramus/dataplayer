@@ -22,6 +22,12 @@ requested. PostgreSQL relations keep that grid as preferred and expose their
 source-issued DDL in a bounded read-only SQL panel. Download is a
 source-declared catalog action over the checked nodes; there is no
 adapter-specific button in a row or an open content panel.
+Checking a connection answers in a panel over the button that ran it: whether
+it worked, how long it took, and what the source says it is — its version, and
+the state of every optional feature it reports. It is the moment somebody asks
+what they are about to work on, and it answers for a draft nobody has saved as
+well, because the check is what asked.
+
 A connection can be shared with a colleague at a level, and an administrator
 manages accounts on a page of their own. The user icon at the right of the
 header opens an account menu with Preferences, Sign out and, for
