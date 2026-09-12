@@ -30,7 +30,7 @@ const props = defineProps<{
 const workspace = useWorkspaceActions()
 const view = useTemplateRef<{ reload: () => Promise<void> }>("view")
 
-useReloadable(props.panelId, async () => {
+useReloadable(() => props.panelId, async () => {
   await view.value?.reload()
 })
 

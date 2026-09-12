@@ -48,7 +48,7 @@ async function reload() {
   await content.refetch()
 }
 
-useReloadable(props.panelId, reload)
+useReloadable(() => props.panelId, reload)
 </script>
 
 <template>

@@ -469,7 +469,7 @@ function chooseExport(name: string): void {
   if (name === "html" || name === "pdf") void exportDocument(name)
 }
 
-useReloadable(props.panelId, async () => {
+useReloadable(() => props.panelId, async () => {
   await content.refetch()
 })
 

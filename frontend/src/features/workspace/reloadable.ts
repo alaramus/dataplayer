@@ -1,5 +1,5 @@
-import { inject, onUnmounted, provide } from "vue"
-import type { InjectionKey } from "vue"
+import { inject, onUnmounted, provide, toValue, watch } from "vue"
+import type { InjectionKey, MaybeRefOrGetter } from "vue"
 
 /**
  * Who knows how to re-read a panel: the panel, which registers here by id.
@@ -53,10 +53,23 @@ export function useReloadRegistry(): ReloadRegistry | null {
 /**
  * Called from the panel's own setup. A panel is kept alive while its tab is
  * not showing, so the registration survives switching away and back.
+ *
+ * Read rather than taken once, because a panel is named by what it holds and
+ * is renamed in place when that changes — a console put into the library, a
+ * workbook switched to another sheet. The component is deliberately not built
+ * again for that (D65), so a registration left under the old name is a button
+ * the engine can no longer find: it went quiet instead of failing.
  */
-export function useReloadable(panelId: string, reload: Reload) {
+export function useReloadable(panelId: MaybeRefOrGetter<string>, reload: Reload) {
   const registry = inject(reloadRegistryKey, null)
   if (registry === null) return
-  const forget = registry.register(panelId, reload)
-  onUnmounted(forget)
+  let forget = registry.register(toValue(panelId), reload)
+  watch(
+    () => toValue(panelId),
+    (renamed) => {
+      forget()
+      forget = registry.register(renamed, reload)
+    }
+  )
+  onUnmounted(() => forget())
 }

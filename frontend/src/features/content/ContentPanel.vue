@@ -73,7 +73,7 @@ async function reload() {
 
 // Re-reading would discard an edit that only exists here, so an unsaved
 // document is left alone and the reason is said rather than guessed at.
-useReloadable(props.panelId, async () => {
+useReloadable(() => props.panelId, async () => {
   if (dirty.value) {
     toast.info("This file has unsaved changes; save or undo them before reloading")
     return

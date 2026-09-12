@@ -141,7 +141,7 @@ async function openAsQuery() {
   }
 }
 
-useReloadable(props.panelId, async () => {
+useReloadable(() => props.panelId, async () => {
   await grid.value?.reload()
 })
 

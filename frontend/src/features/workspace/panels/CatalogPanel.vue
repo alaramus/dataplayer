@@ -154,7 +154,7 @@ async function reloadHere() {
   await level.reload(level.path.value[level.path.value.length - 1]?.id ?? null)
 }
 
-useReloadable(props.panelId, reloadHere)
+useReloadable(() => props.panelId, reloadHere)
 
 // Whether this connection keeps anything at all, and for how long: the badge
 // is about data that may be older than the read, so a source that is always

@@ -71,7 +71,7 @@ onBeforeUnmount(() => {
   if (saveTimer !== undefined) clearTimeout(saveTimer)
   save()
 })
-useReloadable(props.panelId, async () => { await source.refetch() })
+useReloadable(() => props.panelId, async () => { await source.refetch() })
 const changes = useSourceChangesStore()
 watch(() => changes.lastChange(props.connectorId), (at, before) => { if (at && at !== before) void source.refetch() })
 

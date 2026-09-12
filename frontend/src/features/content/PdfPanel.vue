@@ -211,7 +211,7 @@ async function reload() {
   if (url) await open(client.buildUrl({ url }))
 }
 
-useReloadable(props.panelId, reload)
+useReloadable(() => props.panelId, reload)
 onBeforeUnmount(() => {
   resizes?.disconnect()
   resizes = null

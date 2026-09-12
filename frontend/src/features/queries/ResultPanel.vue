@@ -16,7 +16,7 @@ import { useReloadable } from "@/features/workspace/reloadable"
 const props = defineProps<{ panelId: string; resultId: string; title: string }>()
 const table = useTemplateRef<{ reload: () => Promise<void> }>("table")
 
-useReloadable(props.panelId, async () => {
+useReloadable(() => props.panelId, async () => {
   await table.value?.reload()
 })
 </script>

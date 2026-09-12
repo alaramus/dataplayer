@@ -1,6 +1,12 @@
+import { mount } from "@vue/test-utils"
+import { defineComponent, h, nextTick, ref } from "vue"
 import { describe, expect, it, vi } from "vitest"
 
-import { createReloadRegistry } from "@/features/workspace/reloadable"
+import {
+  createReloadRegistry,
+  provideReloadRegistry,
+  useReloadable,
+} from "@/features/workspace/reloadable"
 
 describe("who knows how to re-read a panel", () => {
   it("calls what the panel registered", async () => {
@@ -82,5 +88,38 @@ describe("who knows how to re-read a panel", () => {
     await registry.reload("catalog:c1")
 
     expect(newer).toHaveBeenCalledOnce()
+  })
+
+  // A panel is named by what it holds, and a console put into the library is
+  // renamed where it stands without being built again (D65). Registered under
+  // the name it had at setup, it answered to nothing afterwards: the button
+  // was drawn, was pressed, and did nothing at all.
+  it("follows a panel that is renamed where it stands", async () => {
+    const registry = createReloadRegistry()
+    const reload = vi.fn()
+    const panelId = ref("query:draft:d9")
+
+    const Panel = defineComponent({
+      props: { panelId: { type: String, required: true } },
+      setup(props) {
+        useReloadable(() => props.panelId, reload)
+        return () => h("div")
+      },
+    })
+    const Host = defineComponent({
+      setup() {
+        provideReloadRegistry(registry)
+        return () => h(Panel, { panelId: panelId.value })
+      },
+    })
+    mount(Host)
+
+    panelId.value = "query:doc-9"
+    await nextTick()
+
+    await expect(registry.reload("query:doc-9")).resolves.toBe(true)
+    expect(reload).toHaveBeenCalledOnce()
+    // And only under the name it has now: the old one is nobody's.
+    await expect(registry.reload("query:draft:d9")).resolves.toBe(false)
   })
 })

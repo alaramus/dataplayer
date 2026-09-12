@@ -89,7 +89,7 @@ const trash = useTrashQueryDocument()
 const restore = useRestoreQueryDocument()
 const purge = usePurgeQueryDocument()
 
-useReloadable(props.panelId, async () => {
+useReloadable(() => props.panelId, async () => {
   await documents.refetch()
   await history.refetch()
 })

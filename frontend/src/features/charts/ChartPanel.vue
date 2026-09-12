@@ -34,7 +34,7 @@ const rowsQuery = useRowsPage(toRef(props, "connectorId"), request, () => {
   return wanted
 })
 
-useReloadable(props.panelId, async () => {
+useReloadable(() => props.panelId, async () => {
   refreshNext.value = true
   try {
     await rowsQuery.refetch()

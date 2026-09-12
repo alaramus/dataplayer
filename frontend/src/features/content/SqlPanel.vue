@@ -32,7 +32,7 @@ const error = computed(() =>
   content.isError.value ? messageOf(content.error.value, "Could not read this DDL") : ""
 )
 
-useReloadable(props.panelId, async () => {
+useReloadable(() => props.panelId, async () => {
   await content.refetch()
 })
 
