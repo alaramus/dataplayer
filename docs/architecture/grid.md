@@ -384,6 +384,10 @@ than the data. `features/grid/toolbar.ts` holds the names and the order;
 `GridHeader.vue` draws them and the lines between them, and offers a slot per
 group so the grid that owns a command decides which group it belongs in.
 
+Group captions use the shared UI font size and strong text token in sentence
+case. Their names are navigation aids, not faint micro-labels; the toolbar
+retains its horizontal scrolling when the captions need more room.
+
 Consequences:
 
 - **Everything that writes is together and apart.** That is half of why the

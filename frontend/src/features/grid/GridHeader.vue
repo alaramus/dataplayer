@@ -183,16 +183,12 @@ const groups = TOOLBAR_GROUPS
   background: var(--dp-border);
 }
 
-/* Read on the first visit and ignored ever after, so it takes the least room
-   a legible line can and never competes with the icons under it. */
 .grid-header__label {
   padding-left: 6px;
-  font-size: 9px;
+  font-size: var(--dp-font-size);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  line-height: 12px;
-  color: var(--dp-text-faint);
+  line-height: 1.4;
+  color: var(--dp-text-strong);
   white-space: nowrap;
   user-select: none;
 }

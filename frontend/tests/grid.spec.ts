@@ -36,6 +36,14 @@ test("groups the commands, keeps them all, and says why a greyed one is off", as
     ["tab", "This tab"],
   ]) {
     await expect(page.getByTestId(`grid-group-${group}`)).toContainText(label)
+    const caption = page.getByTestId(`grid-group-${group}`).getByText(label, { exact: true })
+    await expect(caption).toHaveCSS("text-transform", "none")
+    const typography = await caption.evaluate((node) => {
+      const style = getComputedStyle(node)
+      return { size: parseFloat(style.fontSize), line: parseFloat(style.lineHeight) }
+    })
+    expect(typography.size).toBeGreaterThanOrEqual(12)
+    expect(typography.line).toBeGreaterThan(typography.size)
   }
 
   // Greyed for want of a selection, and the sentence names what to do about
