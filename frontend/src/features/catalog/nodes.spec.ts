@@ -4,6 +4,7 @@ import { at, first } from "@/shared/testing/collections"
 import bundledIcons from "@quasar/extras/material-icons/icons.json"
 
 import {
+  HYPERTABLE_ICON,
   ICONS,
   MATERIALIZED_VIEW_ICON,
   REPORT_SECTION_ICON,
@@ -380,6 +381,29 @@ describe("toListNodes", () => {
     // nobody filled in, and "no answer" must not look like "no rows".
     expect(node.caption).toBe("N/A")
     expect(node.captionHint).toContain("analysed")
+  })
+
+  it("draws a hypertable as Timescale and a plain table as a table", () => {
+    const [plain, hyper] = toListNodes([
+      {
+        kind: "table",
+        id: "public.events",
+        name: "events",
+        has_children: true,
+        representations: [{ kind: "table", title: "View as table" }],
+      },
+      {
+        kind: "table",
+        id: "public.metrics",
+        name: "metrics",
+        has_children: true,
+        representations: [{ kind: "table", title: "View as table" }],
+        specialization: { kind: "timescale_hypertable" },
+      },
+    ])
+
+    expect(plain?.icon).toBe(ICONS.table)
+    expect(hyper?.icon).toBe(HYPERTABLE_ICON)
   })
 
   it("distinguishes a materialized view from a plain one", () => {

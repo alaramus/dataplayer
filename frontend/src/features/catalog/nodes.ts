@@ -142,6 +142,17 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
 export const REPORT_SECTION_ICON = "dns"
 
 /**
+ * A hypertable, drawn as the extension that made it one.
+ *
+ * A file rather than a glyph, for the same reason a source type's logo is one:
+ * no icon font has a product's mark. It says the thing the reader needs before
+ * they open it — this relation is partitioned by Timescale and has chunks,
+ * policies and a compression state behind it — which a generic table glyph
+ * cannot.
+ */
+export const HYPERTABLE_ICON = "img:/icons/services/timescale.svg"
+
+/**
  * A view whose rows are stored, drawn as the table it keeps rather than as the
  * window it is.
  *
@@ -229,6 +240,9 @@ export function roleOf(node: CatalogNode): NodeRole {
 function iconOf(node: CatalogNode): string {
   if (node.kind === "report") {
     return node.has_children ? REPORT_SECTION_ICON : ICONS.report
+  }
+  if (node.kind === "table" && node.specialization?.kind === "timescale_hypertable") {
+    return HYPERTABLE_ICON
   }
   if (node.kind === "view") {
     return node.is_materialized === true ? MATERIALIZED_VIEW_ICON : ICONS.view
