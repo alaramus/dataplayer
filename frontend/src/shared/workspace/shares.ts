@@ -46,21 +46,27 @@ export function sharesOf(sizes: number[], hidden: boolean[]): Share[] {
   const showing = sizes.flatMap((_, index) => (hidden[index] === true ? [] : [index]))
   const shares = sizes.map((size, index) => (hidden[index] === true ? 0 : size))
   const gaps = sizes.map(() => 0)
+  // Every index here comes from `sizes` itself, so nothing is out of bounds -
+  // which the compiler cannot see through an index, hence the one place the
+  // fallback is written.
+  const add = (into: number[], index: number, amount: number) => {
+    into[index] = (into[index] ?? 0) + amount
+  }
 
   for (const [index, size] of sizes.entries()) {
     if (hidden[index] !== true) continue
     const after = showing.filter((other) => other > index)
     const room = after.reduce((sum, other) => sum + (sizes[other] ?? 0), 0)
     if (room > 0) {
-      for (const other of after) shares[other] += (size * (sizes[other] ?? 0)) / room
+      for (const other of after) add(shares, other, (size * (sizes[other] ?? 0)) / room)
       const first = after[0]
-      if (first !== undefined) gaps[first] += 1
+      if (first !== undefined) add(gaps, first, 1)
       continue
     }
     const previous = showing.filter((other) => other < index).at(-1)
     if (previous !== undefined) {
-      shares[previous] += size
-      gaps[previous] += 1
+      add(shares, previous, size)
+      add(gaps, previous, 1)
     }
   }
 
