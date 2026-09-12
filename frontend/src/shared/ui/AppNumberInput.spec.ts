@@ -17,6 +17,13 @@ describe("AppNumberInput", () => {
     expect(mountInput().get("input").attributes("data-testid")).toBe("field-port")
   })
 
+  it("says a field is wrong to a screen reader and not only in colour", () => {
+    expect(mountInput({ error: "Too low" }).get("input").attributes("aria-invalid")).toBe(
+      "true"
+    )
+    expect(mountInput().get("input").attributes("aria-invalid")).toBeUndefined()
+  })
+
   it("reports a number, not the text that was typed", async () => {
     const wrapper = mountInput()
 

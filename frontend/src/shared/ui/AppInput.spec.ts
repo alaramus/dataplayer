@@ -64,6 +64,15 @@ describe("AppInput", () => {
     expect(mountInput({ error: "Required" }).text()).toContain("Required")
   })
 
+  it("says a field is wrong to a screen reader and not only in colour", () => {
+    expect(mountInput({ error: "Required" }).get("input").attributes("aria-invalid")).toBe(
+      "true"
+    )
+    // Absent rather than "false": a field nobody has objected to is not a
+    // field announcing that it is fine.
+    expect(mountInput().get("input").attributes("aria-invalid")).toBeUndefined()
+  })
+
   it("keeps a companion action in the field's marginal area", () => {
     const wrapper = mount(AppInput, {
       global: { plugins: [Quasar] },

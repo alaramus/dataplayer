@@ -49,6 +49,7 @@ function report(value: string | number | null) {
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"
+    :aria-invalid="error ? 'true' : undefined"
     @update:model-value="report"
   >
     <template

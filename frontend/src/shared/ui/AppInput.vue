@@ -7,7 +7,13 @@ withDefaults(
     persistentLabel?: boolean
     /** `textarea` is a box of several lines rather than a longer line. */
     type?: "text" | "password" | "email" | "textarea"
-    /** The message, not a boolean: an empty string means no error. */
+    /**
+     * The message, not a boolean: an empty string means no error.
+     *
+     * A field carrying one also says so to a screen reader. Quasar colours it
+     * and prints the message and stops there — `aria-invalid` appears nowhere
+     * in the library — so the kit binds it, once, for every field.
+     */
     error?: string
     /**
      * The line under the field, in the source's own words: what to write, or
@@ -83,6 +89,7 @@ function report(value: string | number | null) {
     :clearable="clearable"
     :error="Boolean(error)"
     :error-message="error"
+    :aria-invalid="error ? 'true' : undefined"
     @update:model-value="report"
     @focus="emit('focus')"
     @blur="emit('blur')"
