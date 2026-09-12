@@ -599,7 +599,7 @@ at a CSV ([D106](declared.md)).
 Known deviations:
 
 - **No `contains` and no null tests.** Searching the text inside files is a
-  different request with a different answer shape, and the roadmap says so. An
+  different request with a different answer shape. An
   empty cell in a delimited file is the ambiguity D45 already decided once, and
   a null test would be answering it a second time for this source alone.
 - **Sorting is still refused**, unchanged.

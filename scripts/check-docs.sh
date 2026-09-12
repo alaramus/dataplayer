@@ -18,7 +18,7 @@
 #      way only, from the spec index, and finding the argument meant guessing
 #      a filename;
 #   5. no documentation file that a session loads exceeds the per-file budget:
-#      every file under docs/architecture/ and the roadmap. This is the ceiling
+#      every file under docs/architecture/. This is the ceiling
 #      adapters.md never had, and it reached 114 KB;
 #   6. no file under docs/architecture/ is an orphan — something in AGENTS.md
 #      or in another architecture file links to it;
@@ -181,7 +181,7 @@ while IFS= read -r file; do
     if [ "$bytes" -gt "$FILE_BUDGET" ]; then
         note "$file is $bytes bytes, over the $FILE_BUDGET per-file budget; split it by the work it serves"
     fi
-done < <(architecture_files; echo docs/migration-roadmap.md)
+done < <(architecture_files)
 
 # 6. No orphan architecture file ---------------------------------------------
 

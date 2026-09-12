@@ -4,8 +4,6 @@ Entry point for coding agents and humans. Keep this file limited to facts needed
 before the task is known; details belong in the linked documentation.
 
 - [ENGINEERING.md](ENGINEERING.md) — normative whenever code is touched.
-- [docs/migration-roadmap.md](docs/migration-roadmap.md) — current state and the
-  next migration slice.
 - [docs/architecture/](docs/architecture/) — contracts, decisions and known
   deviations.
 - [docs/decisions/README.md](docs/decisions/README.md) — design
@@ -52,7 +50,7 @@ legacy notes and stay unchanged.
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | Any code | [ENGINEERING.md](ENGINEERING.md) |
 
-The roadmap says what comes next. What is already done is recorded by the spec
+What is already done is recorded by the spec
 index and by git; do not inventory it here or there.
 
 ## Decision registry
@@ -299,10 +297,3 @@ a warmed dev server together.
   supplied. A query with no bindings must pass no parameters, not `()`.
 - Blocking work inside an async handler must go through a thread pool.
 - Quasar forwards `data-testid` on fields to the `<input>` itself.
-
-## Resume point
-
-Continue the first unfinished item in
-[docs/migration-roadmap.md](docs/migration-roadmap.md). Read the named legacy
-sources before designing it, and do not ask what comes next unless an external
-decision genuinely blocks progress.

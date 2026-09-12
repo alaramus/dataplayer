@@ -7,8 +7,7 @@ Read alongside [contract.md](contract.md), [relations.md](relations.md),
 [owned jobs](../jobs.md).
 
 **Implementation status:** T1 inspection and protection, T2 bounded metadata
-changes and T3 owned chunk operations are implemented; the
-[roadmap](../../migration-roadmap.md) closed the phase. Every scenario runs
+changes and T3 owned chunk operations are implemented. Every scenario runs
 against each source of the matrix in
 [compatibility/timescale](../../../backend/compatibility/timescale/README.md),
 which pins Timescale 2.14 to 2.30 across PostgreSQL 14 to 18 and holds the

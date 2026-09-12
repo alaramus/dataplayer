@@ -249,7 +249,7 @@ earns its place at all rests on review.
 resolves; every decision lives in exactly the file the `AGENTS.md` table names,
 and none lives in `docs/architecture/` unlisted; `AGENTS.md` stays under 24 KB;
 every decision carries exactly one `Spec:` line, so the argument is reachable
-from the statement; no architecture file and not the roadmap exceeds 40 KB —
+from the statement; no architecture file exceeds 40 KB —
 the ceiling `adapters.md` never had, which is how it reached 114 KB; and no
 architecture file is an orphan. Each was checked by breaking it. That a
 deviation is recorded at all rests on review.

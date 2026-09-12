@@ -281,8 +281,8 @@ person's behalf, and nothing is quietly undone.
   business, and what turns up may be anybody's.
 - **Deleting a connection never touches a container or a volume.** It deletes
   a row of this application, and the service it was made by keeps running with
-  its data — which the confirmation says in so many words. That is the rule
-  the roadmap asked for: a volume is not deleted by anything but an explicit
+  its data — which the confirmation says in so many words. That is the rule:
+  a volume is not deleted by anything but an explicit
   removal of the service that owns it.
 - **Removing a service asks about the connection rather than deciding.** It
   may be shared and it may be named in somebody's query history, so it is not
@@ -318,7 +318,7 @@ Spec: [When starting one goes wrong](../decisions/2026-09-03-service-recovery-de
 ## D85. The second service is what proves the first one was not a shape
 
 A registry with one entry is a class with extra steps. Redis is the second,
-and it was chosen by the roadmap because it is unlike PostgreSQL in exactly
+and it was chosen because it is unlike PostgreSQL in exactly
 the ways that matter: it takes its password on the command line, it has no
 data directory to build, and this application cannot read what is in it.
 
