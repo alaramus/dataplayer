@@ -47,6 +47,41 @@ describe("AppSelect", () => {
     expect(mountSelect({ modelValue: "file", options: LABELLED }).text()).toContain("Files")
   })
 
+  // Seven schemas ticked in the catalog's toolbar grew the field into four
+  // rows of chips, which pushed out of the panel and over the tabs above it.
+  it("says several choices in one line while it stands in a toolbar", () => {
+    const wrapper = mountSelect({
+      modelValue: ["public", "sales", "pg_catalog"],
+      options: ["public", "sales", "pg_catalog"],
+      multiple: true,
+      compact: true,
+    })
+
+    expect(wrapper.get(".app-select__summary").text()).toBe("public +2")
+  })
+
+  it("names the one choice there is, with nothing to count", () => {
+    const wrapper = mountSelect({
+      modelValue: ["file"],
+      options: LABELLED,
+      multiple: true,
+      compact: true,
+    })
+
+    expect(wrapper.get(".app-select__summary").text()).toBe("Files")
+  })
+
+  it("leaves a field in a form its chips, where the height is not spoken for", () => {
+    const wrapper = mountSelect({
+      modelValue: ["public", "sales"],
+      options: ["public", "sales"],
+      multiple: true,
+    })
+
+    expect(wrapper.find(".app-select__summary").exists()).toBe(false)
+    expect(wrapper.text()).toContain("sales")
+  })
+
   it("marks the field when it carries an error", () => {
     expect(mountSelect({ options: ["a"], error: "Pick one" }).find(".q-field--error").exists()).toBe(
       true

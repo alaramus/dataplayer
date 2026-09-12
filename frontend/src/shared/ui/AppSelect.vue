@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
+import AppTooltip from "./AppTooltip.vue"
+
 export interface SelectOption {
   label: string
   value: string | number
@@ -49,11 +51,42 @@ const emit = defineEmits<{ "update:modelValue": [value: unknown] }>()
 // Quasar props that distinguish them are derived here rather than repeated at
 // every call site.
 const labelled = computed(() => props.options.some((option) => typeof option === "object"))
+
+function labelOf(value: unknown): string {
+  for (const option of props.options) {
+    if (typeof option === "object") {
+      if (option.value === value) return option.label
+    } else if (option === value) return option
+  }
+  return String(value)
+}
+
+/** What is ticked, in the words the field would have drawn on its chips. */
+const chosen = computed(() =>
+  Array.isArray(props.modelValue) ? props.modelValue.map(labelOf) : []
+)
+
+/**
+ * What a field in a toolbar says it holds: the first choice and how many
+ * others there are.
+ *
+ * Chips wrap, and a toolbar is one line. Seven schemas ticked in the catalog
+ * grew the field into four rows of chips that pushed out of the panel and over
+ * the tabs above it. The menu is where the whole list is, and it says which
+ * ones are on; this line only has to say that several are, without costing the
+ * bar its height.
+ */
+const summary = computed(() => {
+  const [first, ...rest] = chosen.value
+  if (first === undefined) return undefined
+  return rest.length === 0 ? first : `${first} +${String(rest.length)}`
+})
 </script>
 
 <template>
   <q-select
     class="app-select"
+    :class="{ 'app-select--compact': compact }"
     :model-value="modelValue"
     :options="options"
     :label="label"
@@ -73,6 +106,21 @@ const labelled = computed(() => props.options.some((option) => typeof option ===
     :error-message="error"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <!-- One line for several choices, where the field stands in a toolbar.
+         See `summary` above. -->
+    <template
+      v-if="compact && multiple"
+      #selected
+    >
+      <span
+        v-if="summary !== undefined"
+        class="app-select__summary"
+      >
+        {{ summary }}
+        <AppTooltip v-if="chosen.length > 1">{{ chosen.join(", ") }}</AppTooltip>
+      </span>
+    </template>
+
     <!-- Keep companion actions in the field's 56px marginal area, above the
          separately reserved error-message line. AppInput exposes the same
          contract, so screens never compensate for QField geometry themselves. -->
@@ -86,6 +134,18 @@ const labelled = computed(() => props.options.some((option) => typeof option ===
 </template>
 
 <style scoped>
+/* The one line a toolbar field is: whatever it was given to say, it says it
+   in the room the bar has, cut off rather than taken out of. */
+.app-select__summary {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-select--compact :deep(.q-field__native) {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
 .app-select :deep(.q-field__append) {
   /* The dropdown arrow rotates on opening. Its intermediate transformed box
      is wider than the icon and can give a scrollable toolbar a scrollbar.
