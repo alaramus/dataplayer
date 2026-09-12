@@ -7,6 +7,7 @@ from app.adapters import registry
 from app.services.templates import (
     CREDENTIAL_SLOTS,
     SERVICE_TEMPLATES,
+    Fixed,
     Generated,
     UnknownServiceTemplate,
     all_templates,
@@ -121,3 +122,34 @@ def test_the_postgres_template_generates_its_password_and_nothing_else() -> None
         "POSTGRES_PASSWORD",
         "POSTGRES_DB",
     }
+
+
+def test_the_timescale_template_is_a_postgresql_source_from_the_extension_image() -> None:
+    """A database holding an extension is not another kind of database: what
+    it holds is discovered while it is open (D119), so the service becomes an
+    ordinary PostgreSQL connector.
+
+    And the extension comes with the image rather than being installed into
+    PostgreSQL afterwards: its files have to be on the server and its library
+    has to be preloaded, neither of which a connection can arrange for itself.
+    """
+    timescale = template_for("timescaledb")
+
+    assert timescale.adapter_type == "postgres"
+    assert timescale.image.startswith("timescale/timescaledb:")
+    assert generated_slots(timescale) == ("password",)
+    assert timescale.environment["TIMESCALEDB_TELEMETRY"] == Fixed("off")
+
+
+def test_two_templates_of_one_source_type_settle_the_same_credentials() -> None:
+    """Two ways to a PostgreSQL, and a connector filled the same way by both:
+    a template that filled fewer fields would be a connection somebody has to
+    finish by hand."""
+    postgres = template_for("postgres")
+    timescale = template_for("timescaledb")
+
+    assert slots_of(shape_of(timescale, protected=True)) == slots_of(
+        shape_of(postgres, protected=True)
+    )
+    assert timescale.connector_options == postgres.connector_options
+    assert timescale.choosable == postgres.choosable

@@ -198,6 +198,62 @@ POSTGRES = ServiceTemplate(
 )
 
 
+TIMESCALE = ServiceTemplate(
+    key="timescaledb",
+    title="TimescaleDB",
+    description=(
+        "A PostgreSQL server with TimescaleDB already installed in its "
+        "database, started on this machine with credentials nobody has to "
+        "choose."
+    ),
+    # The extension's own image rather than PostgreSQL plus a step: the files
+    # have to be on the server and the library has to be preloaded before
+    # anything can install the extension, and neither is something a
+    # connection to a plain PostgreSQL can arrange for itself. The image
+    # settles both and creates the extension in the database it makes.
+    #
+    # The newest pair the compatibility matrix certifies, whose major is the
+    # one the ordinary PostgreSQL template runs.
+    image="timescale/timescaledb:2.30.0-pg18",
+    container_port=5432,
+    # As for postgres:18, and for the same reason: the cluster lives in a
+    # major-version subdirectory of this, so this is where the volume goes.
+    data_path="/var/lib/postgresql",
+    credentials={
+        USER: Fixed("dataplayer"),
+        DATABASE: Fixed("dataplayer"),
+        PASSWORD: Generated(),
+    },
+    choosable=frozenset({USER, DATABASE, PASSWORD}),
+    environment={
+        "POSTGRES_USER": USER,
+        "POSTGRES_PASSWORD": PASSWORD,
+        "POSTGRES_DB": DATABASE,
+        # The image reports what it is running to the extension's authors
+        # unless it is told not to. A database started for somebody on their
+        # own machine is not the place to leave that on.
+        "TIMESCALEDB_TELEMETRY": Fixed("off"),
+    },
+    command=(),
+    # An ordinary PostgreSQL connector. Which extensions a database holds is
+    # discovered while it is open rather than declared by the type of the
+    # connection, so a service that starts with Timescale in it and a database
+    # that gains it later are the same thing to everything downstream (D119).
+    adapter_type="postgres",
+    connector_options={
+        "auth_method": Fixed("user_password"),
+        "host": HOST,
+        "port": PORT,
+        "database": DATABASE,
+        "user": USER,
+        "password": PASSWORD,
+    },
+    # It tunes itself to the machine on first start, on top of initialising a
+    # data directory.
+    startup_timeout_seconds=120,
+)
+
+
 # Everything this server may be asked to start. A tuple rather than a registry
 # with a `register` decorator: an adapter type is registered by the module that
 # implements a driver, and there is nothing to implement here. A template is
@@ -246,7 +302,7 @@ REDIS = ServiceTemplate(
 )
 
 
-SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (POSTGRES, REDIS)
+SERVICE_TEMPLATES: tuple[ServiceTemplate, ...] = (POSTGRES, TIMESCALE, REDIS)
 
 _BY_KEY = {template.key: template for template in SERVICE_TEMPLATES}
 

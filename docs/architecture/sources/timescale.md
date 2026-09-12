@@ -30,9 +30,12 @@ The facade composes feature providers through explicit collaborators; their
 restrictions combine rather than one extension overriding another's answer.
 
 No new credentials, pool, connector migration, dynamic method dispatch or
-external plugin loader. A future Timescale-branded connection preset or managed
-service template may produce an ordinary PostgreSQL connector; neither is part
-of the pilot.
+external plugin loader. The managed service template that starts the
+extension's own image is exactly this: it produces an ordinary PostgreSQL
+connector, and what that database holds is discovered while it is open, the
+same as for a database that gains the extension later
+([services](../services.md)). A Timescale-branded connection preset is not
+part of the pilot.
 
 Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-timescale-capabilities-design.md)
 

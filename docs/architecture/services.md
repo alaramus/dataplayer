@@ -110,8 +110,11 @@ Known deviations:
   target within its major version. A digest would be exact; keeping digests
   current is its own maintenance, and the tag is what the project's own
   `compose.yml` uses.
-- **There are two templates.** PostgreSQL and Redis, which is what proves
-  the registry is not one image with steps around it ([D85](#d85-the-second-service-is-what-proves-the-first-one-was-not-a-shape)).
+- **There are three templates.** PostgreSQL and Redis, which is what proves
+  the registry is not one image with steps around it ([D85](#d85-the-second-service-is-what-proves-the-first-one-was-not-a-shape)),
+  and TimescaleDB — the extension's own image, because its files and its
+  preloaded library are not something a connection can install, and an
+  ordinary PostgreSQL connector all the same ([D119](sources/timescale.md#d119-timescale-is-composed-into-postgresql-without-another-source-identity)).
 - **What a person may name is a short list.** The role, the database, the
   password and the port on this machine, and only where the template opens
   them ([D88](#d88-two-ways-to-ask-for-a-service-and-neither-of-them-names-a-container));
