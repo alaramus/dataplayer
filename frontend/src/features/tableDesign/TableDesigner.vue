@@ -615,9 +615,16 @@ function moveColumn(by: number): void {
   margin-left: auto;
   color: var(--dp-link);
 }
+/* A floating window follows the size of what it holds, and what this one holds
+   until the destination has answered is a spinner: fitted to that, it shrank to
+   an empty strip and sprang back to an editor the moment the answer arrived.
+   The wait keeps roughly the room the editor takes, so the window is opened
+   once at the size it stays. */
 .designer__waiting {
   display: flex;
+  align-items: center;
   justify-content: center;
+  min-height: 460px;
   padding: 24px;
 }
 .designer__identity {
