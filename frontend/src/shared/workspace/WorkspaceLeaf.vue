@@ -412,6 +412,7 @@ const overlayStyle = computed((): CSSProperties => {
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
+  /* Changing this changes --dp-workspace-card-edges, which counts it. */
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-panel);
   background: var(--dp-surface);

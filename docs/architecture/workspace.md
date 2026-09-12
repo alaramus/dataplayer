@@ -110,7 +110,11 @@ Consequences:
   was given when the catalog beside it goes; in proportion rather than whole to
   the first column along, because splits running the same way are flattened into
   one, so that column is one work card out of several, and a card holding room
-  freed by somebody else could never be dragged narrower than it. `pinned` keeps a
+  freed by somebody else could never be dragged narrower than it. What the row
+  stops spending on it — the gap in front of it and the two edges of its card —
+  is not a share but a handful of pixels, and goes to the first section that
+  takes its room as a fixed part of that section's width: what is left to divide
+  is then the same either way, and the columns in front do not move at all. `pinned` keeps a
   role on the screen rather than one particular section, so a column left empty
   while the section split off it holds the work goes too. The head of a column is
   one height whatever it holds, or the line under two columns reads as a broken

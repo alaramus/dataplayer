@@ -20,6 +20,12 @@
   --dp-tab-strip-height: 32px;
   --dp-toolbar-height: 40px;
   --dp-workspace-inset: 6px;
+  /* Both edges of a workspace card together. They are laid out like anything
+     else in the row, so a section that is not drawn stops costing them, and
+     the sections that take its room have to spend them instead - or every
+     column in front of the one that went moves by a pixel when it comes back.
+     The border they measure is in WorkspaceLeaf. */
+  --dp-workspace-card-edges: 2px;
 
   --dp-radius-control: 4px;
   --dp-radius-panel: 8px;

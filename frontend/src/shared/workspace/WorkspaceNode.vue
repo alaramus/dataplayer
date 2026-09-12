@@ -6,6 +6,7 @@ import type { WorkspaceContext } from "./context"
 import { COLLAPSED_PX, MIN_PANEL_PX } from "./model"
 import type { LayoutNode } from "./model"
 import { sharesOf } from "./shares"
+import type { Share } from "./shares"
 import { isSectionHidden } from "./visibility"
 import WorkspaceLeaf from "./WorkspaceLeaf.vue"
 import WorkspaceSeparator from "./WorkspaceSeparator.vue"
@@ -54,7 +55,7 @@ const slots = computed(() => {
   let previous: number | null = null
   return children.flatMap((child, index) => {
     if (isHidden(child)) return []
-    const slot = { child, index, share: shares[index] ?? 0, after: previous }
+    const slot = { child, index, share: shares[index] ?? { share: 0, gaps: 0 }, after: previous }
     previous = index
     return [slot]
   })
@@ -64,19 +65,46 @@ const slots = computed(() => {
  * A collapsed child takes a fixed strip and the rest divide what is left in
  * proportion to their shares. That is why neither collapsing nor hiding ever
  * touches `sizes`: the size a section had is still written where it belongs.
+ *
+ * The room of a section that is not drawn is a share of the row, but the gap
+ * in front of it and its own two edges are pixels the row simply stops
+ * spending. They go back as the basis of the first section that takes that
+ * room, so that what is left to divide is the same whether a column is on the
+ * screen or on the bar, and the columns in front of it do not move by a pixel
+ * when it comes back. A card counts its own edges in the basis as well, which is what
+ * they cost already: a basis below them is raised to them.
+ *
+ * Written as three properties and not as `flex`, because a shorthand holding a
+ * `calc` is thrown away whole where it is not understood.
  */
-function styleFor(child: LayoutNode, share: number) {
+function styleFor(child: LayoutNode, share: Share) {
   if (child.kind === "leaf" && child.collapsed) {
-    return { flex: `0 0 ${String(COLLAPSED_PX)}px` }
+    return { flexGrow: "0", flexShrink: "0", flexBasis: `${String(COLLAPSED_PX)}px` }
   }
-  return { flex: `${String(share)} 1 0%` }
+  const cards = String((child.kind === "leaf" ? 1 : 0) + share.gaps)
+  const gaps = String(share.gaps)
+  return {
+    flexGrow: String(share.share),
+    flexShrink: "1",
+    flexBasis: `calc(var(--dp-workspace-card-edges) * ${cards} + var(--dp-workspace-inset) * ${gaps})`,
+  }
 }
 
-function lengthOf(index: number): number {
+/**
+ * How much of a section answers to the border beside it: what it is on the
+ * screen, less the basis it holds whatever the row does — its own edges and
+ * the gaps of the sections that are not drawn.
+ */
+function stretchOf(index: number): number {
   const found = element.value?.querySelector(`:scope > [data-section="${String(index)}"]`)
   if (!(found instanceof HTMLElement)) return 0
   const box = found.getBoundingClientRect()
-  return props.node.kind === "split" && props.node.direction === "row" ? box.width : box.height
+  const length =
+    props.node.kind === "split" && props.node.direction === "row" ? box.width : box.height
+  // Computed rather than read back from the style: a `calc` of two variables
+  // arrives here as the pixels it came to.
+  const basis = Number.parseFloat(getComputedStyle(found).flexBasis)
+  return length - (Number.isFinite(basis) ? basis : 0)
 }
 
 /**
@@ -109,7 +137,7 @@ function percentPerPx(indexes: number[]): number {
     if (child === undefined) return 0
     if (child.kind === "leaf" && child.collapsed) return 0
     sizes += props.node.sizes[index] ?? 0
-    pixels += lengthOf(index)
+    pixels += stretchOf(index)
   }
   return pixels > 0 ? sizes / pixels : 0
 }

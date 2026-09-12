@@ -22,9 +22,30 @@
  * a column is collapsed, so bringing the panel back brings the width back.
  * See P4.
  */
-export function sharesOf(sizes: number[], hidden: boolean[]): number[] {
+
+export interface Share {
+  /** Its part of the room the sections that are showing divide between them. */
+  share: number
+  /**
+   * How many sections that are not drawn it stands in for.
+   *
+   * One of them takes a border and its own two edges off the row, so the row
+   * spends that many pixels less. They are given back as a fixed part of a
+   * section's width rather than as a share of the row, which is what keeps the
+   * columns in front of it exactly as wide as they were rather than a pixel or
+   * two wider until it comes back.
+   *
+   * Whole to the first section that takes its room, and not shared out as the
+   * room itself is: a basis that moved with the sizes would move while a
+   * border is dragged, and the border would run ahead of the pointer.
+   */
+  gaps: number
+}
+
+export function sharesOf(sizes: number[], hidden: boolean[]): Share[] {
   const showing = sizes.flatMap((_, index) => (hidden[index] === true ? [] : [index]))
   const shares = sizes.map((size, index) => (hidden[index] === true ? 0 : size))
+  const gaps = sizes.map(() => 0)
 
   for (const [index, size] of sizes.entries()) {
     if (hidden[index] !== true) continue
@@ -32,11 +53,16 @@ export function sharesOf(sizes: number[], hidden: boolean[]): number[] {
     const room = after.reduce((sum, other) => sum + (sizes[other] ?? 0), 0)
     if (room > 0) {
       for (const other of after) shares[other] += (size * (sizes[other] ?? 0)) / room
+      const first = after[0]
+      if (first !== undefined) gaps[first] += 1
       continue
     }
     const previous = showing.filter((other) => other < index).at(-1)
-    if (previous !== undefined) shares[previous] += size
+    if (previous !== undefined) {
+      shares[previous] += size
+      gaps[previous] += 1
+    }
   }
 
-  return shares
+  return sizes.map((_, index) => ({ share: shares[index] ?? 0, gaps: gaps[index] ?? 0 }))
 }

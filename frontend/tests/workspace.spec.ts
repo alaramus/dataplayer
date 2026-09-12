@@ -154,9 +154,11 @@ test("leaves the room of a column on the bar to the cards after it", async ({ pa
   await page.getByTestId("workspace-aside-main").click()
   await expect(main).toHaveCount(0)
 
-  // The column before it is exactly where it was: what was freed went to the
-  // sections after it, and a narrow column keeps the width it was given.
-  expect(Math.abs(((await left.boundingBox())?.width ?? 0) - narrow)).toBeLessThan(2)
+  // The column in front of it has not moved at all: its room went to the
+  // sections after it, and the pixels the row stops spending - the gap that is
+  // not drawn and the two edges of the card that is not there - went with it,
+  // as a fixed part of a section's width rather than as a share of the row.
+  expect(Math.abs(((await left.boundingBox())?.width ?? 0) - narrow)).toBeLessThan(0.5)
 
   // The card that came out of the drag is now between the list and the notes.
   const card = sections.nth(1)
@@ -178,7 +180,7 @@ test("leaves the room of a column on the bar to the cards after it", async ({ pa
   // screen, which is why the drag is converted from the two sections the
   // border is between and not from the row.
   await dragBy(-150)
-  expect(Math.abs(((await card.boundingBox())?.width ?? 0) - (before - 150))).toBeLessThan(16)
+  expect(Math.abs(((await card.boundingBox())?.width ?? 0) - (before - 150))).toBeLessThan(4)
 
   // And the room the column on the bar left behind can be dragged away again.
   // Given whole to the card beside it, it was a floor that card could not be

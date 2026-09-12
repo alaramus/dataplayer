@@ -85,10 +85,20 @@ describe("a split with a column that has nothing to show", () => {
   it("leaves its share to the columns after it, and the one before alone", () => {
     const wrapper = mountColumns()
     expect(wrapper.get('[data-testid="workspace-leaf-work"]').attributes("style")).toContain(
-      "flex: 80"
+      "flex-grow: 80"
     )
     expect(wrapper.get('[data-testid="workspace-leaf-sources"]').attributes("style")).toContain(
-      "flex: 20"
+      "flex-grow: 20"
+    )
+  })
+
+  it("leaves it the gap and the edges that are no longer drawn as well", () => {
+    // The column in front keeps the width it had down to the pixel: what the
+    // row saves by drawing one card and one border less is spent where the
+    // room is spent. Two cards' worth of edges: its own and the missing one's.
+    const wrapper = mountColumns()
+    expect(wrapper.get('[data-testid="workspace-leaf-work"]').attributes("style")).toContain(
+      "calc(var(--dp-workspace-card-edges) * 2 + var(--dp-workspace-inset) * 1)"
     )
   })
 
