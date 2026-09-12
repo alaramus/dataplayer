@@ -18,7 +18,17 @@
  * and #1d1d1d for what is raised off it.
  */
 
+/* Quasar resolves custom button colours through text-<name> classes. */
+.text-dp-action-secondary {
+  color: var(--dp-action-secondary) !important;
+}
+.text-dp-action-danger {
+  color: var(--dp-action-danger) !important;
+}
+
 :root {
+  --dp-action-secondary: #1976d2;
+  --dp-action-danger: #c10015;
   --dp-graph-edge: #73869e;
   --dp-graph-label: #172435;
   /* The ground a panel stands on, and what floats above it. */
@@ -130,6 +140,8 @@
 }
 
 body.body--dark {
+  --dp-action-secondary: #90caf9;
+  --dp-action-danger: #ef9a9a;
   /* What the browser draws itself, and CSS cannot reach: scrollbars, the
      checkboxes in the editor's search bar, an autofilled field. Without this
      they are drawn by the light scheme, because a scheme is not inherited

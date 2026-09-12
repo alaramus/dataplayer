@@ -58,9 +58,9 @@ export interface ButtonLook {
 
 const BUTTON_LOOKS: Record<ButtonVariant, ButtonLook> = {
   primary: { color: "primary", flat: false },
-  secondary: { color: "primary", flat: true },
+  secondary: { color: "dp-action-secondary", flat: true },
   danger: { color: "negative", flat: false },
-  "danger-quiet": { color: "negative", flat: true },
+  "danger-quiet": { color: "dp-action-danger", flat: true },
   // Cancel and Close sit next to the action they cancel; a colour here would
   // compete with it.
   quiet: { flat: true },

@@ -31,9 +31,10 @@ describe("buttonLook", () => {
     expect(buttonLook("quiet").flat).toBe(true)
   })
 
-  it("carries the destructive colour in both destructive variants", () => {
+  it("separates filled colours from theme-aware action text", () => {
     expect(buttonLook("danger").color).toBe("negative")
-    expect(buttonLook("danger-quiet").color).toBe("negative")
+    expect(buttonLook("danger-quiet").color).toBe("dp-action-danger")
+    expect(buttonLook("secondary").color).toBe("dp-action-secondary")
   })
 
   // Cancel and Close must not compete with the action next to them.

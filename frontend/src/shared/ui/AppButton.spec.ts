@@ -25,9 +25,9 @@ describe("AppButton", () => {
     expect(mountButton("quiet").get("button").classes()).not.toContain("bg-primary")
   })
 
-  it("colours both destructive variants as negative", () => {
+  it("uses separate colours for filled danger and danger text", () => {
     expect(mountButton("danger").get("button").classes()).toContain("bg-negative")
-    expect(mountButton("danger-quiet").get("button").classes()).toContain("text-negative")
+    expect(mountButton("danger-quiet").get("button").classes()).toContain("text-dp-action-danger")
   })
 
   // Action labels arrive from the server as sentences.

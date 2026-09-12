@@ -218,6 +218,10 @@ Consequences:
   both spellings Vue accepts — matching only `q-btn` would let `<QBtn>` walk
   past. `useQuasar` is forbidden in screens too, now that `useToast` and
   `useConfirm` exist.
+- **Flat action text has its own theme colours.** `secondary` and
+  `danger-quiet` use `--dp-action-secondary` and `--dp-action-danger` from
+  `theme.css`, including icon buttons. Their dark values are lighter than the
+  filled button colours; `primary` and `danger` retain their filled palette.
 - **An icon button is named before its tooltip appears.** `AppIconButton` uses
   its tooltip as the button's accessible name in enabled, disabled and loading
   states. A caller's explicit `aria-label` takes precedence when the action
