@@ -4,10 +4,10 @@ import { at, first } from "@/shared/testing/collections"
 import bundledIcons from "@quasar/extras/material-icons/icons.json"
 
 import {
-  HYPERTABLE_ICON,
   ICONS,
   MATERIALIZED_VIEW_ICON,
   REPORT_SECTION_ICON,
+  TIMESCALE_ICON,
   groupTitle,
   groupsOf,
   levelPath,
@@ -403,7 +403,32 @@ describe("toListNodes", () => {
     ])
 
     expect(plain?.icon).toBe(ICONS.table)
-    expect(hyper?.icon).toBe(HYPERTABLE_ICON)
+    expect(hyper?.icon).toBe(TIMESCALE_ICON)
+  })
+
+  it("draws a continuous aggregate as Timescale, not as a stored view", () => {
+    const [plain, aggregate] = toListNodes([
+      {
+        kind: "view",
+        id: "public.daily",
+        name: "daily",
+        has_children: true,
+        is_materialized: true,
+        representations: [{ kind: "table", title: "View as table" }],
+      },
+      {
+        kind: "view",
+        id: "public.hourly",
+        name: "hourly",
+        has_children: true,
+        is_materialized: true,
+        representations: [{ kind: "table", title: "View as table" }],
+        specialization: { kind: "timescale_continuous_aggregate" },
+      },
+    ])
+
+    expect(plain?.icon).toBe(MATERIALIZED_VIEW_ICON)
+    expect(aggregate?.icon).toBe(TIMESCALE_ICON)
   })
 
   it("distinguishes a materialized view from a plain one", () => {

@@ -397,7 +397,10 @@ A gesture wanted only on the row being looked at costs no column, and nothing
 on the line moves when the pointer arrives.
 
 A kind is said by the icon and never also in words, so a materialized view is
-drawn as the table it keeps rather than labelled. What a relation measures is
+drawn as the table it keeps rather than labelled. A relation Timescale made —
+a hypertable, or a continuous aggregate — carries the extension's own mark
+instead: what is behind it is chunks, policies and a compression state, and the
+table and view glyphs say none of that before it is opened. What a relation measures is
 always said: a table with an estimate says it, and a table nobody has analysed
 and a view, which stores no rows to count, both say `N/A` with a hint saying
 which of the two reasons applies. A column filled on some rows and blank on

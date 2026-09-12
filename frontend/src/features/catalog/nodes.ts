@@ -142,15 +142,18 @@ export const ICONS: Record<CatalogNode["kind"], string> = {
 export const REPORT_SECTION_ICON = "dns"
 
 /**
- * A hypertable, drawn as the extension that made it one.
+ * A relation Timescale made, drawn as the extension that made it.
+ *
+ * A hypertable and a continuous aggregate both: a table with chunks, policies
+ * and a compression state behind it is not the table glyph it was drawn as,
+ * and neither is a view whose rows Timescale keeps and refreshes. What kind of
+ * relation each one is, the list still says the way it says it for every other
+ * row — a hypertable is a table and an aggregate is a view.
  *
  * A file rather than a glyph, for the same reason a source type's logo is one:
- * no icon font has a product's mark. It says the thing the reader needs before
- * they open it — this relation is partitioned by Timescale and has chunks,
- * policies and a compression state behind it — which a generic table glyph
- * cannot.
+ * no icon font has a product's mark.
  */
-export const HYPERTABLE_ICON = "img:/icons/services/timescale.svg"
+export const TIMESCALE_ICON = "img:/icons/services/timescale.svg"
 
 /**
  * A view whose rows are stored, drawn as the table it keeps rather than as the
@@ -242,9 +245,12 @@ function iconOf(node: CatalogNode): string {
     return node.has_children ? REPORT_SECTION_ICON : ICONS.report
   }
   if (node.kind === "table" && node.specialization?.kind === "timescale_hypertable") {
-    return HYPERTABLE_ICON
+    return TIMESCALE_ICON
   }
   if (node.kind === "view") {
+    if (node.specialization?.kind === "timescale_continuous_aggregate") {
+      return TIMESCALE_ICON
+    }
     return node.is_materialized === true ? MATERIALIZED_VIEW_ICON : ICONS.view
   }
   // A file and a member of one are drawn the same way: by what opening them
