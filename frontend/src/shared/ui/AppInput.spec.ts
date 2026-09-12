@@ -13,9 +13,14 @@ function mountInput(props: Record<string, unknown> = {}) {
 }
 
 describe("AppInput", () => {
+  // Asked of the field and not of the wrapper. A comment beside the root
+  // element of a template makes the component a fragment in a development
+  // build, and the wrapper then answers for the comment: every class it has
+  // is gone, and the failure reads as the field having lost the class rather
+  // than as the test having lost the field.
   it("keeps an empty autofill field's label above its value area", () => {
     const wrapper = mountInput({ modelValue: "", persistentLabel: true })
-    expect(wrapper.classes()).toContain("q-field--float")
+    expect(wrapper.get(".q-field").classes()).toContain("q-field--float")
     expect(wrapper.get("input").element.value).toBe("")
     wrapper.unmount()
   })

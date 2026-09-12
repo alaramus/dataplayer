@@ -15,6 +15,13 @@ withDefaults(
      * there whether or not the field is filled.
      */
     hint?: string
+    /**
+     * An example inside the empty box, gone the moment anything is typed.
+     *
+     * A field carrying one keeps its label above the box whether or not it was
+     * asked to: Quasar hides a placeholder until the label floats, and a
+     * floating label sits exactly where the example would be.
+     */
     placeholder?: string
     disable?: boolean
     /**
@@ -62,9 +69,6 @@ function report(value: string | number | null) {
 </script>
 
 <template>
-  <!-- A field with an example keeps its label above the box: Quasar hides a
-         placeholder until the label floats, and a floating label is exactly
-         what sits where the example would be. -->
   <q-input
     :model-value="modelValue"
     :label="label"
