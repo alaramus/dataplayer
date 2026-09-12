@@ -109,6 +109,33 @@ beforeEach(() => {
 })
 
 describe("an action the source refuses", () => {
+  it("renders read-only type and nullability as ordinary text with an explanation", async () => {
+    vi.spyOn(ConnectorsService, "readRelationModel").mockResolvedValue({
+      data: {
+        ...MODEL,
+        column_changes_supported: false,
+        column_changes_reason: "This relation is read-only",
+      },
+    } as never)
+    const wrapper = mountView()
+    await flushPromises()
+    for (const [id, value] of [
+      ["structure-type-name", "text"],
+      ["structure-nullability-name", "no"],
+      ["structure-nullability-note", "yes"],
+    ]) {
+      const fact = wrapper.get(`[data-testid="${id}"]`)
+      expect(fact.element.tagName).toBe("SPAN")
+      expect(fact.text()).toBe(value)
+      expect(fact.attributes("disabled")).toBeUndefined()
+      expect(fact.findComponent(AppTooltip).exists()).toBe(true)
+      await fact.trigger("click")
+    }
+    await flushPromises()
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull()
+    wrapper.unmount()
+  })
+
   it("gives the reason once rather than twice", async () => {
     vi.spyOn(ConnectorsService, "readRelationModel").mockResolvedValue({
       data: {

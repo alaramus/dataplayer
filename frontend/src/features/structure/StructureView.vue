@@ -511,11 +511,22 @@ async function changeDefault(action: "set" | "drop", value?: string) {
                in a tooltip which of a column's facts it changes. -->
           <template #body-cell-type="cellProps">
             <q-td :props="cellProps">
+              <span
+                v-if="!supportsColumn('type') || cellProps.row.generated"
+                :data-testid="`structure-type-${cellProps.row.name}`"
+              >
+                {{ cellProps.row.type }}
+                <AppTooltip>
+                  {{ cellProps.row.generated
+                    ? 'A generated column takes its type from its expression'
+                    : changeTooltip('type', `Change the type of ${cellProps.row.name}`) }}
+                </AppTooltip>
+              </span>
               <AppButton
+                v-else
                 :label="String(cellProps.row.type)"
                 variant="quiet"
                 size="sm"
-                :disable="!supportsColumn('type') || cellProps.row.generated"
                 :data-testid="`structure-type-${cellProps.row.name}`"
                 @click="openType(String(cellProps.row.name), String(cellProps.row.type))"
               >
@@ -529,11 +540,18 @@ async function changeDefault(action: "set" | "drop", value?: string) {
           </template>
           <template #body-cell-nullable="cellProps">
             <q-td :props="cellProps">
+              <span
+                v-if="!supportsColumn('nullability')"
+                :data-testid="`structure-nullability-${cellProps.row.name}`"
+              >
+                {{ cellProps.row.nullable ? 'yes' : 'no' }}
+                <AppTooltip>{{ nullabilityTooltip(cellProps.row.nullable) }}</AppTooltip>
+              </span>
               <AppButton
+                v-else
                 :label="cellProps.row.nullable ? 'yes' : 'no'"
                 variant="quiet"
                 size="sm"
-                :disable="!supportsColumn('nullability')"
                 :data-testid="`structure-nullability-${cellProps.row.name}`"
                 @click="openNullability(String(cellProps.row.name), cellProps.row.nullable)"
               >

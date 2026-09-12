@@ -375,6 +375,11 @@ Spec: [Markdown as a rendered document representation](../decisions/2026-08-31-m
 
 ## Screens
 
+In the structure panel, Type and Null remain ordinary readable text when the
+source does not allow changing them; a generated column's type is also text.
+The reason remains available in a tooltip. Editable values retain their action
+buttons, so disabling a capability does not dim the schema information itself.
+
 Sign-in reports missing Email and Password beside their fields before sending
 credentials. Required-field messages clear as the values are supplied; a failed
 sign-in message clears when either credential is edited. Password whitespace is
