@@ -502,7 +502,10 @@ function baseLookOf(panel: Panel): PanelLook {
           panel.connectorName === null
             ? "This connection is no longer available"
             : panel.connectorName,
-        reloadTooltip: "Re-read this query",
+        // A console nobody kept holds its text in this browser tab and has no
+        // document behind it, so there is nothing to read again: no button
+        // rather than one that does nothing (D65).
+        reloadTooltip: panel.documentId === undefined ? undefined : "Re-read this query",
       }
     case "result":
       return {

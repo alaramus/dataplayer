@@ -59,6 +59,10 @@ test("writes a query document, names it, and finds it again after a reload", asy
   await page.getByTestId("new-query").click()
   await expect(page.getByTestId("query-state")).toHaveText("Not kept")
   await expect(page.getByTestId("query-context")).toContainText(name)
+  // Nothing on the server to read again, so nothing offers to: the press used
+  // to ask for the document that does not exist yet and be told the id it
+  // sent is not a UUID.
+  await expect(page.getByTestId("query-bar").getByTestId("panel-reload")).toHaveCount(0)
 
   await typeQuery(page, "select 1 as answer")
   // Still nothing in the library: what a person opened and closed leaves no
@@ -70,6 +74,16 @@ test("writes a query document, names it, and finds it again after a reload", asy
   await page.getByTestId("query-remember").click()
   await expect(page.getByTestId("query-state")).toHaveText("Saved")
   await expect(page.getByTestId("query-remember")).toHaveCount(0)
+  // And now that there is a document behind it, re-reading it is offered and
+  // asks for that document rather than failing on the way out.
+  const reread = page.waitForRequest(
+    (request) =>
+      /\/api\/v1\/queries\/documents\/[0-9a-f-]{36}$/.test(request.url()) &&
+      request.method() === "GET"
+  )
+  await page.getByTestId("query-bar").getByTestId("panel-reload").click()
+  await reread
+  await expect(page.getByTestId("query-error")).toHaveCount(0)
   // The tab takes the name, because a tab is what a person looks for.
   await expect(page.locator('[data-testid^="workspace-tab-query:"]')).toContainText(title)
 
@@ -416,6 +430,51 @@ test("the source writes the first query, completes the next and formats both", a
   await deleteConnector(page, name)
 })
 
+test("keeps the row of commands still while the connection is being read", async ({
+  page,
+}) => {
+  const name = `e2e-query-bar-${Date.now()}`
+  await login(page)
+  // Narrow enough that the row has no room to spare, which is where a note
+  // taking its own width was paid for by the buttons rather than by the text.
+  await page.setViewportSize({ width: 1024, height: 720 })
+  await createPostgresConnector(page, name)
+  await openConnector(page, name)
+  await pickSchema(page, "demo_lab")
+  await openNode(page, "projects")
+
+  // Hold the read of what the connection holds open, so the note the console
+  // shows while it waits is on screen long enough to measure. Nothing else
+  // waits on it: it is about what completion knows, not about the document.
+  await page.route("**/api/v1/queries/connectors/*/metadata", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 4000))
+    await route.continue()
+  })
+
+  await page.getByTestId("grid-query").click()
+
+  // Measured with every command drawn: the source is asked what it offers, and
+  // a row missing Explain and Format is a row with room the real one lacks.
+  await expect(page.getByTestId("query-explain")).toBeVisible()
+  await expect(page.getByTestId("query-format")).toBeVisible()
+  await expect(page.getByTestId("query-knowledge")).toBeVisible()
+  const waiting = await page.getByTestId("query-bar").boundingBox()
+  const runWaiting = await page.getByTestId("query-run").boundingBox()
+
+  await expect(page.getByTestId("query-knowledge")).toHaveCount(0)
+  const read = await page.getByTestId("query-bar").boundingBox()
+  const runRead = await page.getByTestId("query-run").boundingBox()
+
+  // The row keeps its height, which is what somebody watching it sees. What
+  // says why is the button: the note gave way instead of being paid for out of
+  // the commands, which used to slide and then wrap their labels onto a second
+  // line for as long as the first read lasted.
+  expect(waiting?.height).toBe(read?.height)
+  expect(runWaiting?.x).toBe(runRead?.x)
+  expect(runWaiting?.width).toBe(runRead?.width)
+
+  await deleteConnector(page, name)
+})
 
 test("plans a statement without running it, in three views of one selection", async ({
   page,

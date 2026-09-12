@@ -334,7 +334,12 @@ watch(
   }
 )
 
+// `enabled` stops a query reading by itself; it does not stop a refetch asked
+// for by hand. A console with no document behind it would send the literal
+// `{document_id}` — the client drops a null path parameter and leaves the
+// placeholder in the URL — and be told it is not a UUID.
 useReloadable(() => props.panelId, async () => {
+  if (!remembered.value) return
   await document.refetch()
 })
 
@@ -917,7 +922,10 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="query-panel">
-    <div class="query-panel__bar">
+    <div
+      class="query-panel__bar"
+      data-testid="query-bar"
+    >
       <AppInput
         :model-value="draft.title ?? ''"
         placeholder="Untitled query"
@@ -949,82 +957,88 @@ onBeforeUnmount(() => {
         class="query-panel__elapsed"
         data-testid="query-elapsed"
       >{{ running }}</span>
-      <AppButton
-        v-if="going"
-        variant="secondary"
-        size="sm"
-        label="Cancel"
-        data-testid="query-cancel"
-        @click="stop"
-      />
-      <template v-else>
+      <!-- The commands keep the size they asked for. The status beside them
+           is on screen only while the first read of the connection lasts, and
+           a row that gave it room out of the buttons wrapped their labels onto
+           two lines for as long as it was there. -->
+      <div class="query-panel__actions">
         <AppButton
-          variant="primary"
-          size="sm"
-          label="Run"
-          :disable="!canRun"
-          data-testid="query-run"
-          @click="runHere"
-        />
-        <AppButton
-          v-if="profile.data.value?.supports_explain === true"
+          v-if="going"
           variant="secondary"
           size="sm"
-          label="Explain"
-          :disable="!canRun || explaining.isPending.value"
-          data-testid="query-explain"
-          @click="explain"
+          label="Cancel"
+          data-testid="query-cancel"
+          @click="stop"
         />
-        <AppButton
-          variant="secondary"
-          size="sm"
-          label="Run script"
-          :disable="!canRun"
-          data-testid="query-run-script"
-          @click="runEverything"
-        />
-      </template>
+        <template v-else>
+          <AppButton
+            variant="primary"
+            size="sm"
+            label="Run"
+            :disable="!canRun"
+            data-testid="query-run"
+            @click="runHere"
+          />
+          <AppButton
+            v-if="profile.data.value?.supports_explain === true"
+            variant="secondary"
+            size="sm"
+            label="Explain"
+            :disable="!canRun || explaining.isPending.value"
+            data-testid="query-explain"
+            @click="explain"
+          />
+          <AppButton
+            variant="secondary"
+            size="sm"
+            label="Run script"
+            :disable="!canRun"
+            data-testid="query-run-script"
+            @click="runEverything"
+          />
+        </template>
 
-      <AppIconButton
-        v-if="profile.data.value?.supports_formatting === true"
-        icon="format_align_left"
-        :tooltip="
-          selection.to > selection.from ? 'Format the selection' : 'Format the document'
-        "
-        :disable="formatting.isPending.value"
-        data-testid="query-format"
-        @click="format(selection.to > selection.from ? 'selection' : 'document')"
-      />
-      <AppIconButton
-        icon="wrap_text"
-        tooltip="Wrap long lines"
-        :aria-pressed="draft.wrap"
-        data-testid="query-wrap"
-        @click="draft.wrap = !draft.wrap"
-      />
-      <!-- The one command that puts this console into the library. Until it
-           is pressed the text is in this tab and nowhere else, which is why
-           the button says what it does rather than "Save". -->
-      <AppButton
-        v-if="!remembered"
-        variant="quiet"
-        size="sm"
-        icon="bookmark_add"
-        label="Remember"
-        :disable="connectorId === null || create.isPending.value"
-        data-testid="query-remember"
-        @click="remember"
-      />
-      <AppIconButton
-        v-else
-        icon="delete"
-        tooltip="Move to Trash"
-        data-testid="query-trash"
-        @click="moveToTrash"
-      />
-      <!-- A console is written against a connection rather than opened on a
-           node, so there is nowhere in a catalog to be shown (D112). -->
-      <PanelCommands :panel-id="panelId" />
+        <AppIconButton
+          v-if="profile.data.value?.supports_formatting === true"
+          icon="format_align_left"
+          :tooltip="
+            selection.to > selection.from ? 'Format the selection' : 'Format the document'
+          "
+          :disable="formatting.isPending.value"
+          data-testid="query-format"
+          @click="format(selection.to > selection.from ? 'selection' : 'document')"
+        />
+        <AppIconButton
+          icon="wrap_text"
+          tooltip="Wrap long lines"
+          :aria-pressed="draft.wrap"
+          data-testid="query-wrap"
+          @click="draft.wrap = !draft.wrap"
+        />
+        <!-- The one command that puts this console into the library. Until it
+             is pressed the text is in this tab and nowhere else, which is why
+             the button says what it does rather than "Save". -->
+        <AppButton
+          v-if="!remembered"
+          variant="quiet"
+          size="sm"
+          icon="bookmark_add"
+          label="Remember"
+          :disable="connectorId === null || create.isPending.value"
+          data-testid="query-remember"
+          @click="remember"
+        />
+        <AppIconButton
+          v-else
+          icon="delete"
+          tooltip="Move to Trash"
+          data-testid="query-trash"
+          @click="moveToTrash"
+        />
+        <!-- A console is written against a connection rather than opened on a
+             node, so there is nowhere in a catalog to be shown (D112). -->
+        <PanelCommands :panel-id="panelId" />
+      </div>
     </div>
 
     <AppBanner
@@ -1212,6 +1226,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Scrolls sideways rather than folding anything away once even the commands
+     no longer fit, as the grid's own row does. */
+  overflow-x: auto;
+}
+.query-panel__actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  /* The same gap the bar sets, so the join is invisible. */
+  gap: 8px;
 }
 .query-panel__title {
   flex: 0 1 200px;
@@ -1228,10 +1252,18 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 .query-panel__context {
-  flex: 1;
+  flex: 1 1 auto;
+  min-width: 0;
 }
+/* Gives way rather than taking room from the commands: what this one says is
+   worth reading and is not worth the row moving for. */
 .query-panel__knowledge,
-.query-panel__state,
+.query-panel__state {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+/* Outside the group of commands, and so does not carry them along as the
+   count of digits in it changes. */
 .query-panel__elapsed {
   flex: none;
 }

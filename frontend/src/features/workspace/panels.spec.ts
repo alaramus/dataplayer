@@ -167,6 +167,26 @@ describe("the panel registry", () => {
     expect(componentOf(kept, "other-key")).not.toBe(componentOf(kept, "same-key"))
   })
 
+  it("offers to re-read a console only once it is a document", () => {
+    // A console nobody kept holds its text in the browser tab, so there is
+    // nothing on the server to ask for again. Pressing the button asked for
+    // the document all the same, and was told `{document_id}` is not a UUID.
+    const draft: Panel = {
+      id: queryDraftPanelId("d9"),
+      kind: "query",
+      draftId: "d9",
+      connectorId: "c1",
+      title: null,
+      connectorName: "local pg",
+    }
+
+    expect(lookOf(draft).reloadTooltip).toBeUndefined()
+    expect(
+      lookOf({ ...draft, id: queryPanelId("doc-9"), documentId: "doc-9", draftId: undefined })
+        .reloadTooltip
+    ).toBe("Re-read this query")
+  })
+
   it.each(KINDS)("has a title and an icon for %s", (kind) => {
     const look = lookOf(samples[kind])
     expect(look.title.length).toBeGreaterThan(0)
