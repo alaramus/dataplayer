@@ -68,6 +68,10 @@ function measure() {
 
 onMounted(async () => {
   await nextTick()
+  // A form may already have focused one of its fields while mounting.
+  if (props.front && !props.window.minimized && !frame.value?.contains(document.activeElement)) {
+    frame.value?.focus({ preventScroll: true })
+  }
   window.requestAnimationFrame(measure)
   if (typeof ResizeObserver !== "undefined" && body.value !== null) {
     observer = new ResizeObserver(measure)

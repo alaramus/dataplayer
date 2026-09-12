@@ -1,6 +1,6 @@
 import { DOMWrapper, flushPromises, mount } from "@vue/test-utils"
 import { Quasar } from "quasar"
-import { defineComponent, h, ref } from "vue"
+import { defineComponent, h, onMounted, ref } from "vue"
 import { describe, expect, it, vi } from "vitest"
 
 import { first } from "@/shared/testing/collections"
@@ -11,6 +11,45 @@ import { useWindows } from "./useWindows"
 import type { WindowsApi } from "./useWindows"
 
 describe("the window frame and footer manager", () => {
+  it.each([false, true])("moves focus into a newly opened window, preserving field focus: %s", async (focusField) => {
+    const Draft = defineComponent({
+      setup() {
+        const input = ref<HTMLInputElement | null>(null)
+        onMounted(() => {
+          if (focusField) input.value?.focus()
+        })
+        return () => h("input", { ref: input, "aria-label": "Draft" })
+      },
+    })
+    const Root = defineComponent({
+      setup() {
+        const windows = useWindows()
+        return () => h("main", [
+          h("button", {
+            onClick: () => windows.open({
+              id: "draft", look: { title: "New connection" },
+              size: { width: 400, height: 300 }, component: Draft, autoFit: false,
+            }),
+          }, "Open window"),
+          h(WindowHost, { context: windows.context }),
+        ])
+      },
+    })
+    const wrapper = mount(Root, { attachTo: document.body, global: { plugins: [Quasar] } })
+    try {
+      const opener = wrapper.get("button")
+      opener.element.focus()
+      await opener.trigger("click")
+      await flushPromises()
+      const frame = document.body.querySelector<HTMLElement>('[data-testid="window-draft"]')!
+      expect(document.activeElement).toBe(focusField ? frame.querySelector("input") : frame)
+      expect(frame.getAttribute("aria-label")).toBe("New connection")
+      expect(frame.getAttribute("aria-modal")).not.toBe("true")
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it("restores the same live draft through the footer and preserves its size mode", async () => {
     const mounted = vi.fn()
     const Draft = defineComponent({
