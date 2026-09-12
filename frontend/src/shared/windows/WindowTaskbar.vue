@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue"
 
+import AppTaskbar from "@/shared/ui/AppTaskbar.vue"
 import AppTaskbarItem from "@/shared/ui/AppTaskbarItem.vue"
 
 import type { WindowState, WindowsContext } from "./useWindows"
@@ -16,7 +17,8 @@ import type { WindowState, WindowsContext } from "./useWindows"
  * after another cannot be aimed at.
  */
 const props = defineProps<{ context: WindowsContext }>()
-const bar = ref<HTMLElement | null>(null)
+/** The kit's row, which hands out the element it drew — see its `row`. */
+const bar = ref<{ row: HTMLElement | null } | null>(null)
 
 const items = computed(() =>
   [...props.context.windows.value].sort((one, other) => one.key - other.key)
@@ -43,17 +45,16 @@ watch(
     const added = keys.find((key) => !previous.includes(key))
     if (added === undefined) return
     await nextTick()
-    bar.value?.querySelector<HTMLElement>(`[data-window-key="${added}"]`)?.focus()
+    bar.value?.row?.querySelector<HTMLElement>(`[data-window-key="${added}"]`)?.focus()
   }
 )
 </script>
 
 <template>
-  <nav
+  <AppTaskbar
     v-if="items.length"
     ref="bar"
-    class="window-taskbar"
-    aria-label="Open windows"
+    label="Open windows"
     data-testid="window-taskbar"
   >
     <AppTaskbarItem
@@ -71,19 +72,5 @@ watch(
       @open="toggle(entry)"
       @close="context.requestClose(entry.id)"
     />
-  </nav>
+  </AppTaskbar>
 </template>
-
-<style scoped>
-.window-taskbar {
-  display: flex;
-  align-items: center;
-  align-self: center;
-  gap: var(--dp-space-1);
-  min-width: 0;
-  max-height: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  font-size: 12px;
-}
-</style>

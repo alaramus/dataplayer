@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppTaskbar from "@/shared/ui/AppTaskbar.vue"
 import AppTaskbarItem from "@/shared/ui/AppTaskbarItem.vue"
 
 import type { WorkspaceContext } from "./context"
@@ -19,10 +20,9 @@ defineProps<{ context: WorkspaceContext }>()
 </script>
 
 <template>
-  <nav
+  <AppTaskbar
     v-if="context.aside.value.length"
-    class="workspace-taskbar"
-    aria-label="Sections put aside"
+    label="Sections put aside"
     data-testid="workspace-taskbar"
   >
     <AppTaskbarItem
@@ -35,20 +35,5 @@ defineProps<{ context: WorkspaceContext }>()
       :data-testid="`workspace-aside-${section.id}`"
       @open="context.bringBack(section.id)"
     />
-  </nav>
+  </AppTaskbar>
 </template>
-
-<style scoped>
-/* The same row the windows are in, so the two read as one bar. */
-.workspace-taskbar {
-  display: flex;
-  align-items: center;
-  align-self: center;
-  gap: var(--dp-space-1);
-  min-width: 0;
-  max-height: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  font-size: 12px;
-}
-</style>

@@ -24,6 +24,8 @@ import {
   AppSelect,
   AppSpinner,
   AppTable,
+  AppTaskbar,
+  AppTaskbarItem,
   AppThemeToggle,
   AppToggle,
   AppTooltip,
@@ -398,7 +400,7 @@ function removeSavedEntry(name: string) {
       <AppSection>
         <!-- What the bar at the foot of the screen is made of: a window, and a
              section of the workspace put aside. -->
-        <div class="kit-row">
+        <AppTaskbar label="What is open and not in front of you">
           <AppTaskbarItem
             title="Connection"
             icon="web_asset"
@@ -410,7 +412,7 @@ function removeSavedEntry(name: string) {
             icon="account_tree"
             aside
           />
-        </div>
+        </AppTaskbar>
       </AppSection>
 
       <AppSection>

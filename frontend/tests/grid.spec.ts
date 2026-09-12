@@ -228,7 +228,14 @@ test("explores a relation and restores its view", async ({ page, context }) => {
   await resizeColumn(page, "name", 60)
   await pinColumn(page, "name")
   await page.reload()
-  await expect(page.getByTestId("grid-column-name")).toHaveCSS("position", "sticky")
+  const pinned = page.getByTestId("grid-column-name")
+  await expect(pinned).toHaveCSS("position", "sticky")
+  // And it draws its own edges. A stuck cell cannot use the table's borders —
+  // they belong to the table with `border-collapse: collapse`, so they stay
+  // behind while the cell travels, and its own background covers them — which
+  // left the rows sliding under a pinned column with nothing between them.
+  const edges = await pinned.evaluate((node) => getComputedStyle(node).boxShadow)
+  expect(edges).toContain("inset")
   await expect(page.getByTestId("grid-page-range")).toContainText("Rows 1")
   await page.screenshot({ path: "test-results/grid-desktop.png", fullPage: true })
 

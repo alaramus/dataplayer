@@ -88,10 +88,13 @@ defineOptions({ inheritAttrs: false })
 
 <style scoped>
 .taskbar-item {
-  flex: none;
+  /* Gives room up before the row runs out of it: nine windows shrink to their
+     icons and a word rather than pushing the ninth off the end, where the only
+     way to it is a wheel nobody knows to use. */
+  flex: 0 1 auto;
   display: flex;
   align-items: center;
-  min-width: 0;
+  min-width: 44px;
   max-width: 150px;
   max-height: 100%;
   overflow: hidden;
