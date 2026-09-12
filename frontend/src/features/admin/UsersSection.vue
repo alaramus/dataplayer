@@ -193,17 +193,24 @@ async function remove(user: UserPublic) {
         <AppInput
           v-model="form.email"
           label="Email"
+          type="email"
+          autocomplete="off"
+          persistent-label
           data-testid="user-email"
           :error="errors.email"
         />
         <AppInput
           v-model="form.fullName"
           label="Name"
+          autocomplete="off"
+          persistent-label
           data-testid="user-name"
         />
         <AppInput
           v-model="form.password"
           type="password"
+          autocomplete="new-password"
+          persistent-label
           :label="isNew ? 'Password' : 'New password — leave empty to keep the current one'"
           data-testid="user-password"
           :error="errors.password"

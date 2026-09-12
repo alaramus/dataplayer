@@ -13,6 +13,23 @@ function mountInput(props: Record<string, unknown> = {}) {
 }
 
 describe("AppInput", () => {
+  it("keeps an empty autofill field's label above its value area", () => {
+    const wrapper = mountInput({ modelValue: "", persistentLabel: true })
+    expect(wrapper.classes()).toContain("q-field--float")
+    expect(wrapper.get("input").element.value).toBe("")
+    wrapper.unmount()
+  })
+
+  it("forwards the new-password autocomplete hint to the password input", () => {
+    const wrapper = mount(AppInput, {
+      global: { plugins: [Quasar] },
+      props: { modelValue: "", type: "password", label: "Password", persistentLabel: true },
+      attrs: { autocomplete: "new-password" },
+    })
+    expect(wrapper.get("input").attributes("autocomplete")).toBe("new-password")
+    wrapper.unmount()
+  })
+
   // Quasar forwards an undeclared attribute onto the <input> rather than the
   // field root, and every existing test selector depends on that. Declaring
   // data-testid as a prop would have moved it.

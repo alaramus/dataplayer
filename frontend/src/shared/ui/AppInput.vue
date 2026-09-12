@@ -3,6 +3,8 @@ withDefaults(
   defineProps<{
     modelValue: string
     label?: string
+    /** Keep the label clear of values supplied by browser autofill. */
+    persistentLabel?: boolean
     /** `textarea` is a box of several lines rather than a longer line. */
     type?: "text" | "password" | "email" | "textarea"
     /** The message, not a boolean: an empty string means no error. */
@@ -31,6 +33,7 @@ withDefaults(
   }>(),
   {
     label: undefined,
+    persistentLabel: false,
     type: "text",
     error: "",
     hint: undefined,
@@ -68,7 +71,7 @@ function report(value: string | number | null) {
     :type="type"
     :hint="hint"
     :placeholder="placeholder"
-    :stack-label="Boolean(placeholder)"
+    :stack-label="persistentLabel || Boolean(placeholder)"
     :dense="compact"
     :borderless="compact"
     :hide-bottom-space="compact"

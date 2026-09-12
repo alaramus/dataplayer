@@ -540,6 +540,12 @@ The choices are the server's closed set, and `features/preferences/checks.ts`
 holds only their wording — a complete record, so a choice the server gains and
 the screen forgets to name is a type error rather than a blank line in a menu.
 
+The account form requests no autofill for Email and Name and marks Password as
+`new-password`, including when editing an existing account. Its fields use the
+kit's `persistentLabel` option so browser-filled values cannot overlap their
+labels. These are browser hints, not a guarantee that every password manager
+will leave the fields empty.
+
 The accounts section creates people, switches them off and removes them, and
 it decides nothing about data (D34). The form rules — a password required when
 there is no account and optional when there is — are plain functions in
