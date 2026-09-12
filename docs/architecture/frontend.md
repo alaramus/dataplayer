@@ -24,7 +24,8 @@ source-declared catalog action over the checked nodes; there is no
 adapter-specific button in a row or an open content panel.
 A connection can be shared with a colleague at a level, and an administrator
 manages accounts on a page of their own. The user icon at the right of the
-header opens an account menu with Sign out and, for administrators, Admin.
+header opens an account menu with Preferences, Sign out and, for
+administrators, Admin.
 Light and dark themes are switched by the adjacent button and remembered.
 
 The application uses the legacy cube artwork: blue for the browser favicon
@@ -82,6 +83,8 @@ frontend/src/
     ├── admin/           the accounts page; users.ts is the form, as plain
     │                    functions
     ├── auth/
+    ├── preferences/     what an account chose for itself; checks.ts is the
+    │                    wording of a closed set the server owns
     ├── catalog/         the list of one level and the menu of what the ticked
     │                    nodes admit, including source-owned download;
     │                    nodes.ts and actions.ts are pure mappers,
@@ -506,6 +509,19 @@ entry in `features/admin/sections.ts` and a line in the page's table, rather
 than as a rearrangement of a screen built around exactly one thing. The
 section is in the address, so a link into one is a link; an address naming
 none opens the first, and `/users` still redirects to where accounts moved.
+
+What an account chose for itself is a page of its own at `/preferences`, opened
+from the same menu and reachable by everybody. One row per preference: what is
+being decided, what it costs, and the control that answers it, saved as it is
+changed — there is no draft to lose and nothing to validate against anything
+else, so a Save button would ask the same question twice. No rail of sections
+as Administration has: a rail for one entry is a second thing to read before
+the only setting on the page, and the next preference is another row.
+
+The first of them is how often connections are checked, including never (D19).
+The choices are the server's closed set, and `features/preferences/checks.ts`
+holds only their wording — a complete record, so a choice the server gains and
+the screen forgets to name is a type error rather than a blank line in a menu.
 
 The accounts section creates people, switches them off and removes them, and
 it decides nothing about data (D34). The form rules — a password required when

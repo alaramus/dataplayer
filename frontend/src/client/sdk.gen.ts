@@ -411,6 +411,8 @@ import type {
   usersDeleteUserResponses,
   usersReadDirectoryData,
   usersReadDirectoryResponses,
+  usersReadMyPreferencesData,
+  usersReadMyPreferencesResponses,
   usersReadUserByIdData,
   usersReadUserByIdErrors,
   usersReadUserByIdResponses,
@@ -422,6 +424,9 @@ import type {
   usersRegisterUserData,
   usersRegisterUserErrors,
   usersRegisterUserResponses,
+  usersUpdateMyPreferencesData,
+  usersUpdateMyPreferencesErrors,
+  usersUpdateMyPreferencesResponses,
   usersUpdatePasswordMeData,
   usersUpdatePasswordMeErrors,
   usersUpdatePasswordMeResponses,
@@ -705,6 +710,46 @@ export class UsersService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/users/me/password",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read My Preferences
+   *
+   * What this user chose, or the defaults they have not changed.
+   */
+  public static readMyPreferences<ThrowOnError extends boolean = true>(
+    options?: Options<usersReadMyPreferencesData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<usersReadMyPreferencesResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/users/me/preferences",
+      ...options,
+    })
+  }
+
+  /**
+   * Update My Preferences
+   *
+   * Change some of them. Only a user's own: there is no route to anyone else's.
+   */
+  public static updateMyPreferences<ThrowOnError extends boolean = true>(
+    options: Options<usersUpdateMyPreferencesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      usersUpdateMyPreferencesResponses,
+      usersUpdateMyPreferencesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/users/me/preferences",
       ...options,
       headers: {
         "Content-Type": "application/json",

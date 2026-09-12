@@ -56,6 +56,15 @@ export const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      // What this account chose for itself, which every signed-in user has.
+      // Its own address rather than a dialog off the menu: a preference is
+      // something to come back to and to link somebody to.
+      path: "/preferences",
+      name: "preferences",
+      component: () => import("@/features/preferences/PreferencesPage.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
       // Whether the signed-in user is an administrator is not known here: it
       // is server state, and a guard that waited for it would hold every
       // navigation. The page says so instead, and the routes behind it answer

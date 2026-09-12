@@ -36,7 +36,9 @@ const userMenuOpen = ref(false)
 let footerObserver: ResizeObserver | null = null
 
 const userMenuItems = computed<MenuItem[]>(() => {
-  const items: MenuItem[] = []
+  const items: MenuItem[] = [
+    { name: "preferences", label: "Preferences", icon: "tune" },
+  ]
   if (me.data.value?.is_superuser === true) {
     items.push({ name: "admin", label: "Admin", icon: "admin_panel_settings" })
   }
@@ -45,7 +47,9 @@ const userMenuItems = computed<MenuItem[]>(() => {
 })
 
 async function selectUserAction(name: string) {
-  if (name === "admin") {
+  if (name === "preferences") {
+    await router.push({ name: "preferences" })
+  } else if (name === "admin") {
     await router.push({ name: "admin" })
   } else if (name === "logout") {
     await logout()

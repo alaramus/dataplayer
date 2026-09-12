@@ -10,7 +10,7 @@ from app.core.db import SessionDep
 from app.core.email import generate_new_account_email, send_email
 from app.core.schemas import Message
 from app.core.security import get_password_hash, verify_password
-from app.users import crud
+from app.users import crud, preferences
 from app.users.deps import CurrentUser, get_current_active_superuser
 from app.users.models import (
     UpdatePassword,
@@ -152,6 +152,24 @@ async def read_user_me(current_user: CurrentUser) -> Any:
     Get current user.
     """
     return current_user
+
+
+@router.get("/me/preferences", response_model=preferences.PreferencesPublic)
+async def read_my_preferences(
+    session: SessionDep, current_user: CurrentUser
+) -> Any:
+    """What this user chose, or the defaults they have not changed."""
+    return await preferences.of(session, current_user.id)
+
+
+@router.patch("/me/preferences", response_model=preferences.PreferencesPublic)
+async def update_my_preferences(
+    session: SessionDep,
+    current_user: CurrentUser,
+    update: preferences.PreferencesUpdate,
+) -> Any:
+    """Change some of them. Only a user's own: there is no route to anyone else's."""
+    return await preferences.set_for(session, current_user.id, update)
 
 
 @router.delete("/me", response_model=Message)

@@ -27,7 +27,7 @@ from app.core.config import settings
 from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
 from app.realtime.topics import Subscriber, TopicSet, UnknownTopic, register
-from app.users import storage
+from app.users import preferences, storage
 
 NAME = "connector.health"
 
@@ -174,21 +174,39 @@ class HealthTopic:
         probes: dict[uuid.UUID, _Probe] = {}
         loop = asyncio.get_running_loop()
         while True:
-            base = settings.HEALTH_INTERVAL_SECONDS
             cap = settings.HEALTH_BACKOFF_CAP_SECONDS
             async with async_session_maker() as session:
+                chosen = await preferences.of(session, user_id)
                 connectors = await crud.visible_enabled_of(session, user_id=user_id)
+
+            # Read every round rather than when the watch opened: somebody
+            # changing how often their connections are probed is looking at
+            # the dots while they do it.
+            base = preferences.check_seconds(chosen.connector_checks)
 
             live = {connector.id for connector in connectors}
             for gone in set(probes) - live:
                 del probes[gone]
                 await self._forget(user_id, gone)
 
+            if base is None:
+                # Asked for no rounds at all. Nothing is probed, and what was
+                # probed before is dropped so that switching back on starts
+                # with a round rather than with a stale answer.
+                for known in list(probes):
+                    del probes[known]
+                    await self._forget(user_id, known)
+                await asyncio.sleep(settings.HEALTH_INTERVAL_SECONDS)
+                continue
+
             now = loop.time()
             due = [c for c in connectors if probes.get(c.id, _Probe()).due_at <= now]
             await self._probe_all(user_id, due, probes, base=base, cap=cap)
 
-            await asyncio.sleep(base)
+            # The round is the server's tick and the choice is what falls due
+            # inside it, so a long interval does not also make a change of
+            # mind take that long to notice.
+            await asyncio.sleep(min(base, settings.HEALTH_INTERVAL_SECONDS))
 
     async def _forget(self, user_id: uuid.UUID, connector_id: uuid.UUID) -> None:
         """Drop what is known about a connection that left the round.

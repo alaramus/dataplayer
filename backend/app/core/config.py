@@ -157,6 +157,10 @@ class Settings(BaseSettings):
 
     # Watching a user's connections. The monitor reads these every round, so
     # they can be changed under a running one.
+    #
+    # How often the monitor comes round, which is not how often a connection
+    # is probed: that is the user's own choice, and this is the shortest one
+    # offered — the tick a change of mind is noticed on.
     HEALTH_INTERVAL_SECONDS: float = 15.0
     HEALTH_BACKOFF_CAP_SECONDS: float = 120.0
     HEALTH_PROBE_TIMEOUT_SECONDS: float = 5.0

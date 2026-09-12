@@ -294,3 +294,25 @@ async def test_a_connection_switched_back_on_is_reported_again(
         health = await _health_after(ws, connector_id, switched_on_at)
 
     assert health["result"]["ok"] is True
+
+
+async def test_a_user_who_turned_checks_off_is_not_probed(
+    client: AsyncClient, fresh_user_headers: dict[str, str]
+) -> None:
+    """Off is the absence of a round rather than a very long one.
+
+    Rounds are a third of a second here, so the wait below covers several of
+    them: anything being probed at all would have announced itself.
+    """
+    await _create_connector(client, fresh_user_headers, f"health off {uuid.uuid4()}")
+    saved = await client.patch(
+        f"{settings.API_V1_STR}/users/me/preferences",
+        headers=fresh_user_headers,
+        json={"connector_checks": "off"},
+    )
+    assert saved.status_code == 200
+
+    async with authenticated_socket(fresh_user_headers) as ws:
+        await _watch(ws)
+        with pytest.raises(TimeoutError):
+            await ws.receive_json(timeout=2)

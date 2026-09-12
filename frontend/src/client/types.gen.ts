@@ -5180,6 +5180,32 @@ export type PlannedStatement = {
 }
 
 /**
+ * PreferencesPublic
+ */
+export type PreferencesPublic = {
+  /**
+   * Connector Checks
+   */
+  connector_checks: "off" | "15s" | "30s" | "1m" | "5m" | "15m"
+}
+
+/**
+ * PreferencesUpdate
+ *
+ * What is being changed, and nothing about the rest.
+ *
+ * Every field is optional for the reason `UserUpdateMe` has them optional: a
+ * screen that changes one preference must not have to restate the others, or
+ * two tabs open on it would undo each other.
+ */
+export type PreferencesUpdate = {
+  /**
+   * Connector Checks
+   */
+  connector_checks?: "off" | "15s" | "30s" | "1m" | "5m" | "15m" | null
+}
+
+/**
  * PrepareRequest
  *
  * Text to be read by the source, and nothing to be done with it.
@@ -9377,6 +9403,50 @@ export type usersUpdatePasswordMeResponses = {
 
 export type usersUpdatePasswordMeResponse =
   usersUpdatePasswordMeResponses[keyof usersUpdatePasswordMeResponses]
+
+export type usersReadMyPreferencesData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/users/me/preferences"
+}
+
+export type usersReadMyPreferencesResponses = {
+  /**
+   * Successful Response
+   */
+  200: PreferencesPublic
+}
+
+export type usersReadMyPreferencesResponse =
+  usersReadMyPreferencesResponses[keyof usersReadMyPreferencesResponses]
+
+export type usersUpdateMyPreferencesData = {
+  body: PreferencesUpdate
+  path?: never
+  query?: never
+  url: "/api/v1/users/me/preferences"
+}
+
+export type usersUpdateMyPreferencesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type usersUpdateMyPreferencesError =
+  usersUpdateMyPreferencesErrors[keyof usersUpdateMyPreferencesErrors]
+
+export type usersUpdateMyPreferencesResponses = {
+  /**
+   * Successful Response
+   */
+  200: PreferencesPublic
+}
+
+export type usersUpdateMyPreferencesResponse =
+  usersUpdateMyPreferencesResponses[keyof usersUpdateMyPreferencesResponses]
 
 export type usersRegisterUserData = {
   body: UserRegister

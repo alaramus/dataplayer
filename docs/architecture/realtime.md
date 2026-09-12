@@ -86,6 +86,17 @@ failure doubles that connection's interval up to a cap: a dead host answers by
 timing out, so probing it as often as a live one makes every round as slow as
 its worst member.
 
+How often a connection falls due is the user's own choice, read from their
+preferences at the start of every round so that changing it takes effect under
+a monitor that is already running. The choices are a closed set — a free
+interval is a field somebody puts one second into, and the cost of that lands
+on the server being probed. "Never" is one of them: nothing is probed, the
+monitor drops what it knew, and the screen clears its dots so that none of them
+keeps claiming something nobody is checking. `HEALTH_INTERVAL_SECONDS` stays
+what it always was in code but not in meaning: it is how often the monitor comes
+round, which is also the shortest choice offered and the tick a change of mind
+is noticed on.
+
 A probe does not borrow from the pool. This matches what the manual check
 already does and it is deliberate — a check is meant to exercise the
 credentials, and a pooled connection would go on reporting a source as up after

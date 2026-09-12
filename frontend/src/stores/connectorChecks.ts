@@ -42,5 +42,10 @@ export const useConnectorChecksStore = defineStore("connector-checks", () => {
     )
   }
 
-  return { results, record, reportOf, stateOf, forget }
+  /** Forget the lot: nothing is being probed any more, so nothing is known. */
+  function clear() {
+    results.value = {}
+  }
+
+  return { results, record, reportOf, stateOf, forget, clear }
 })

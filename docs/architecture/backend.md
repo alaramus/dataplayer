@@ -38,6 +38,8 @@ backend/app/
 │   ├── deps.py          CurrentUser, get_current_active_superuser
 │   ├── tokens.py        password reset tokens
 │   ├── storage.py       personal directory of a user
+│   ├── preferences.py   what a user chose for themselves, and the defaults
+│   │                    everyone who never chose gets
 │   ├── bootstrap.py     init_db: creates the first superuser
 │   ├── routes.py        /users
 │   ├── auth_routes.py   /login, /password-recovery, /reset-password
@@ -75,6 +77,8 @@ GET    /api/v1/utils/health-check/
 GET    /api/v1/utils/cache-health/
 GET    /api/v1/utils/server-info
 GET    /api/v1/users/directory
+GET    /api/v1/users/me/preferences
+PATCH  /api/v1/users/me/preferences
 GET    /api/v1/adapter-types/
 POST   /api/v1/connectors/
 GET    /api/v1/connectors/

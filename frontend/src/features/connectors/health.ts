@@ -1,6 +1,8 @@
 import { getCurrentScope, onScopeDispose, watch } from "vue"
 
 import { useConnectors } from "@/features/connectors/api"
+import { usePreferences } from "@/features/preferences/api"
+import { checksAreOff } from "@/features/preferences/checks"
 import { realtime } from "@/shared/realtime/client"
 import { useConnectorChecksStore } from "@/stores/connectorChecks"
 
@@ -62,6 +64,19 @@ function isHealthEvent(payload: unknown): payload is ConnectorHealthEvent {
 export function useConnectorHealth() {
   const checks = useConnectorChecksStore()
   const connectors = useConnectors()
+  const preferences = usePreferences()
+
+  // Nothing is probed while the checks are off, so what was last said about a
+  // connection is only getting older: the dots go back to saying nothing
+  // until somebody presses check. The server has already stopped; this is the
+  // half of it that is on screen.
+  watch(
+    () => preferences.data.value?.connector_checks,
+    (interval) => {
+      if (checksAreOff(interval)) checks.clear()
+    },
+    { immediate: true }
+  )
 
   const stop = realtime().subscribe(HEALTH_TOPIC, (payload) => {
     if (!isHealthEvent(payload)) return
