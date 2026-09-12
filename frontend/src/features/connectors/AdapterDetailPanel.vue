@@ -15,17 +15,25 @@ import { AppBadge, AppButton, AppEmptyState, AppTooltip } from "@/shared/ui"
 const props = defineProps<{
   type: AdapterTypeInfo | null
   /**
-   * The service of this kind this server could start, when there is one.
+   * The services of this kind this server could start, if any.
    *
    * A source type does not know whether a container of it can be started
    * here: that is a question about this machine, and the answer arrives with
    * the templates (D82). The panel is told rather than asking, so nothing
    * here decides what may be offered.
+   *
+   * Several, because one source type can be started in more than one way: a
+   * PostgreSQL and a PostgreSQL with TimescaleDB in it are the same kind of
+   * connection and different things to run (D119). Offered as one button each
+   * rather than a choice inside the dialog, so that what this machine can
+   * start is visible before anything is pressed.
    */
-  template?: ServiceTemplateInfo | null
+  templates?: ServiceTemplateInfo[]
 }>()
 
-const emit = defineEmits<{ create: []; start: [] }>()
+const emit = defineEmits<{ create: []; start: [template: ServiceTemplateInfo] }>()
+
+const offers = computed(() => props.templates ?? [])
 
 /**
  * The two things a capability can be a statement about.
@@ -109,33 +117,34 @@ const groups = computed(() =>
            disabled with the server's own reason where it has one and cannot
            use it: a button that would be refused is worse than no button. -->
       <div
-        v-if="template"
+        v-for="offer in offers"
+        :key="offer.key"
         class="adapter-panel__start"
       >
         <AppButton
           variant="secondary"
-          label="Start one here"
-          :disable="!template.available"
-          data-testid="start-service"
-          @click="emit('start')"
+          :label="`Start ${offer.title} here`"
+          :disable="!offer.available"
+          :data-testid="`start-service-${offer.key}`"
+          @click="emit('start', offer)"
         />
         <AppTooltip
-          v-if="template.unavailable_reason"
-          :text="template.unavailable_reason"
+          v-if="offer.unavailable_reason"
+          :text="offer.unavailable_reason"
         />
         <span
-          v-if="template.available"
+          v-if="offer.available"
           class="adapter-panel__hint"
         >
-          Runs {{ template.image }} on this server and saves the connection
+          Runs {{ offer.image }} on this server and saves the connection
           for you.
         </span>
         <span
           v-else
           class="adapter-panel__hint"
-          data-testid="start-service-reason"
+          :data-testid="`start-service-reason-${offer.key}`"
         >
-          {{ template.unavailable_reason }}
+          {{ offer.unavailable_reason }}
         </span>
       </div>
       <AppButton

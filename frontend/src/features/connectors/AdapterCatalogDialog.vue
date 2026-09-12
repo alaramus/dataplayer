@@ -48,7 +48,7 @@ const searching = computed(() => query.value.trim() !== "")
  * give wrongly.
  */
 const visible = computed<AdapterTypeInfo[]>(() => {
-  if (searching.value) return searchAdapters(types.value, query.value)
+  if (searching.value) return searchAdapters(types.value, query.value, startable.value)
   if (category.value === ALL_CATEGORIES) return types.value
   return types.value.filter((type) => type.category === category.value)
 })
@@ -57,12 +57,16 @@ const selected = computed(
   () => visible.value.find((type) => type.name === selectedName.value) ?? null
 )
 
-/** The service of the selected kind this server offers, if it offers one. */
-const template = computed(
-  () =>
-    (serviceTemplates.data.value ?? []).find(
-      (offered) => offered.adapter_type === selected.value?.name
-    ) ?? null
+/** Everything this server offers to start, of any kind. */
+const startable = computed<ServiceTemplateInfo[]>(() => serviceTemplates.data.value ?? [])
+
+/**
+ * The services of the selected kind, of which there may be more than one: a
+ * PostgreSQL and a PostgreSQL with TimescaleDB in it are one source type and
+ * two things to run (D119).
+ */
+const templates = computed(() =>
+  startable.value.filter((offered) => offered.adapter_type === selected.value?.name)
 )
 
 // Reopened, the catalog starts where it started last time: a query left over
@@ -86,8 +90,8 @@ function pick(type: AdapterTypeInfo) {
   emit("pick", type.name)
 }
 
-function start() {
-  if (template.value) emit("start", template.value)
+function start(template: ServiceTemplateInfo) {
+  emit("start", template)
 }
 </script>
 
@@ -168,7 +172,7 @@ function start() {
 
       <AdapterDetailPanel
         :type="selected"
-        :template="template"
+        :templates="templates"
         @create="selected && pick(selected)"
         @start="start"
       />

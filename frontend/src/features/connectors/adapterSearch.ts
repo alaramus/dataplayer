@@ -1,4 +1,4 @@
-import type { AdapterTypeInfo } from "@/client"
+import type { AdapterTypeInfo, ServiceTemplateInfo } from "@/client"
 
 /**
  * Finding a source type in the catalog. Plain functions, tested without
@@ -30,7 +30,11 @@ const RANK_NAME = 0
 const RANK_BODY = 1
 const NO_MATCH = 2
 
-function rankOf(type: AdapterTypeInfo, query: string): number {
+function rankOf(
+  type: AdapterTypeInfo,
+  query: string,
+  startable: ServiceTemplateInfo[]
+): number {
   if (type.title.toLowerCase().includes(query)) return RANK_NAME
   if (type.name.toLowerCase().includes(query)) return RANK_NAME
 
@@ -38,6 +42,12 @@ function rankOf(type: AdapterTypeInfo, query: string): number {
     type.category_title,
     type.description,
     ...type.capabilities.map((capability) => capability.title),
+    // What this server can start of this type is something it says about
+    // itself too. TimescaleDB is a PostgreSQL here (D119), so somebody who
+    // looks for it by name would otherwise be told that no source type
+    // matches - and the one place it can be started from is the panel of a
+    // type they were given no reason to open.
+    ...startable.flatMap((template) => [template.title, template.description]),
   ]
   if (body.some((text) => text.toLowerCase().includes(query))) return RANK_BODY
 
@@ -50,12 +60,24 @@ function rankOf(type: AdapterTypeInfo, query: string): number {
  * An empty query is not a search: the caller shows everything, or whatever
  * category is selected, rather than a list ordered by nothing.
  */
-export function searchAdapters(types: AdapterTypeInfo[], query: string): AdapterTypeInfo[] {
+export function searchAdapters(
+  types: AdapterTypeInfo[],
+  query: string,
+  startable: ServiceTemplateInfo[] = []
+): AdapterTypeInfo[] {
   const needle = query.trim().toLowerCase()
   if (needle === "") return [...types]
 
   return types
-    .map((type, index) => ({ type, index, rank: rankOf(type, needle) }))
+    .map((type, index) => ({
+      type,
+      index,
+      rank: rankOf(
+        type,
+        needle,
+        startable.filter((template) => template.adapter_type === type.name)
+      ),
+    }))
     .filter((row) => row.rank !== NO_MATCH)
     // The index keeps the server's order — by title — among equal ranks, so
     // the list does not reshuffle for reasons a reader cannot see.

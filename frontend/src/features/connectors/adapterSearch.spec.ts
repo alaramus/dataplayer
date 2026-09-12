@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import type { AdapterTypeInfo } from "@/client"
+import type { AdapterTypeInfo, ServiceTemplateInfo } from "@/client"
 
 import { ALL_CATEGORIES, categoryCounts, searchAdapters } from "./adapterSearch"
 
@@ -34,6 +34,21 @@ const FILES = adapterType({
 
 const TYPES = [POSTGRES, FILES]
 
+const TIMESCALE_TEMPLATE: ServiceTemplateInfo = {
+  key: "timescaledb",
+  title: "TimescaleDB",
+  description: "A PostgreSQL server with TimescaleDB already installed in its database.",
+  image: "timescale/timescaledb:2.30.0-pg18",
+  container_port: 5432,
+  adapter_type: "postgres",
+  adapter_title: "PostgreSQL",
+  generated: ["password"],
+  choosable: ["user", "password", "database"],
+  optional_password: false,
+  offers_sample_data: true,
+  available: true,
+}
+
 describe("searching the adapter catalog", () => {
   it("returns everything for an empty query", () => {
     expect(searchAdapters(TYPES, "")).toEqual(TYPES)
@@ -65,6 +80,20 @@ describe("searching the adapter catalog", () => {
 
   it("answers with nothing when nothing matches", () => {
     expect(searchAdapters(TYPES, "kafka")).toEqual([])
+  })
+
+  it("finds a type by what this server can start of it", () => {
+    // TimescaleDB is a PostgreSQL to everything here (D119), so the only way
+    // to start one is from PostgreSQL's own panel - and a search that did not
+    // know the name would send somebody looking for it away from the one
+    // place it is offered.
+    expect(searchAdapters(TYPES, "timescale", [TIMESCALE_TEMPLATE])).toEqual([POSTGRES])
+  })
+
+  it("does not offer a type a template of another kind names", () => {
+    expect(
+      searchAdapters(TYPES, "timescale", [{ ...TIMESCALE_TEMPLATE, adapter_type: "file" }])
+    ).toEqual([FILES])
   })
 })
 

@@ -38,7 +38,7 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
 
   // The offer names the exact image, so a person can see what would be pulled
   // onto the machine before pressing anything (D80).
-  const start = page.getByTestId("start-service")
+  const start = page.getByTestId("start-service-postgres")
   await expect(start).toBeEnabled()
   await start.click()
 
