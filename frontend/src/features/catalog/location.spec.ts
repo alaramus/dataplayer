@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { locationOf } from "@/features/catalog/location"
+import { isPathTrail, locationOf } from "@/features/catalog/location"
 import type { CatalogNode } from "@/features/catalog/nodes"
 
 /**
@@ -62,8 +62,8 @@ describe("locationOf", () => {
 
     expect(location.parentId).toBe("reports/2026")
     expect(location.crumbs).toEqual([
-      { id: "reports", label: "reports" },
-      { id: "reports/2026", label: "2026" },
+      { id: "reports", label: "reports", kind: "directory" },
+      { id: "reports/2026", label: "2026", kind: "directory" },
     ])
     expect(location.groups).toEqual([])
   })
@@ -87,7 +87,7 @@ describe("locationOf", () => {
     ])
 
     expect(location.parentId).toBe("sales")
-    expect(location.crumbs).toEqual([{ id: "sales", label: "sales" }])
+    expect(location.crumbs).toEqual([{ id: "sales", label: "sales", kind: "directory" }])
     expect(location.groups).toEqual(["public"])
   })
 
@@ -97,5 +97,36 @@ describe("locationOf", () => {
     expect(location.parentId).toBe(null)
     expect(location.crumbs).toEqual([])
     expect(location.groups).toEqual([])
+  })
+})
+
+describe("a trail that is a path", () => {
+  const root = { id: null, label: "mydb" }
+
+  it("is the root of a connection, whose path is the root itself", () => {
+    expect(isPathTrail([root])).toBe(true)
+  })
+
+  it("is folders walked into", () => {
+    expect(
+      isPathTrail([root, { id: "reports", label: "reports", kind: "directory" }])
+    ).toBe(true)
+  })
+
+  it("is not a section of reports, whose id is an id and not a path", () => {
+    // `/pg_dataplayer.timescale.v1` was offered for copying out of the system
+    // reports of a database. A node id is opaque outside its adapter.
+    expect(
+      isPathTrail([root, { id: "pg_dataplayer", label: "System", kind: "report" }])
+    ).toBe(false)
+  })
+
+  it("is not an archive, whose members are not on disk", () => {
+    expect(
+      isPathTrail([
+        root,
+        { id: "backup.zip", label: "backup.zip", kind: "file" },
+      ])
+    ).toBe(false)
   })
 })

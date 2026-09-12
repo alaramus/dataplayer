@@ -273,7 +273,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
 
   async function enter(node: ListNode) {
     if (node.role !== "container") return
-    path.value = [...path.value, { id: node.id, label: node.label }]
+    path.value = [...path.value, { id: node.id, label: node.label, kind: node.kind }]
     await show(node.id)
   }
 
@@ -342,7 +342,7 @@ export function useCatalogLevel(connectorId: Ref<string>, rootLabel: Ref<string>
 
     path.value = path.value.map((crumb) =>
       crumb.id === replacement.old_node_id
-        ? { id: replacement.new_node_id, label: replacement.title }
+        ? { ...crumb, id: replacement.new_node_id, label: replacement.title }
         : crumb
     )
     groups.value = groups.value.map(replaceListNode)

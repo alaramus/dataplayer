@@ -13,7 +13,7 @@ import { rememberAnswer, shouldAsk } from "@/features/catalog/contentSearch"
 import { useFadingMark } from "@/features/catalog/fadingMark"
 import { frameworksOf, toggleFrameworkFilter } from "@/features/catalog/frameworks"
 import { rememberGroups, rememberedGroups } from "@/features/catalog/groupsMemory"
-import { locationOf } from "@/features/catalog/location"
+import { isPathTrail, locationOf } from "@/features/catalog/location"
 import { searchSummary } from "@/features/catalog/search"
 import { useSearchHistory } from "@/features/catalog/useSearchHistory"
 import {
@@ -299,6 +299,9 @@ const groupOptions = computed(() =>
 const showPath = computed(
   () => answered.value && showsPath(level.path.value.length, level.groups.value)
 )
+
+/** Whether this level has a path to copy at all: see `isPathTrail`. */
+const pathIsCopyable = computed(() => isPathTrail(level.path.value))
 
 /** What the level is called, for a form that acts on the level itself. */
 const levelLabel = computed(
@@ -687,6 +690,7 @@ async function afterAction(outcome: ActionOutcome) {
                reason: a path deep enough to scroll must not carry away the
                one control that takes it somewhere. -->
           <AppCopyButton
+            v-if="pathIsCopyable"
             class="catalog-panel__copy-path"
             compact
             tooltip="Copy the path of this level"

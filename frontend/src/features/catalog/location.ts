@@ -5,6 +5,23 @@ import type { CatalogNode } from "@/features/catalog/nodes"
 export interface Crumb {
   id: string | null
   label: string
+  /** What was walked into here. The root of a connection is no kind of node. */
+  kind?: CatalogNode["kind"]
+}
+
+/**
+ * Whether the trail of a level is a path, and not merely a trail.
+ *
+ * A node id is opaque outside the adapter that made it, so an id is not a path
+ * because it is drawn as one: the section of system reports under a database
+ * is `pg_dataplayer`, and copying `/pg_dataplayer.timescale.v1` out of it hands
+ * the reader a string with nowhere to paste it. A folder is the one step whose
+ * id the source also writes as the path from the root of the connection — the
+ * string the owner of that root types elsewhere — so a trail made of folders is
+ * a path and any other trail is not.
+ */
+export function isPathTrail(crumbs: Crumb[]): boolean {
+  return crumbs.every((crumb) => crumb.id === null || crumb.kind === "directory")
 }
 
 /** Where a node lives, said in the terms a catalog level is set from. */
@@ -33,7 +50,7 @@ export function locationOf(path: CatalogNode[]): Location {
 
   for (const node of ancestors) {
     if (roleOf(node) === "group") groups.push(node.id)
-    else crumbs.push({ id: node.id, label: node.name })
+    else crumbs.push({ id: node.id, label: node.name, kind: node.kind })
   }
 
   return { crumbs, groups, parentId: crumbs[crumbs.length - 1]?.id ?? null }
