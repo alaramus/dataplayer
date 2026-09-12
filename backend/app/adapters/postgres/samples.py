@@ -11,6 +11,13 @@ partitions, foreign keys and a few hundred rows — and it is the same two files
 rather than a second copy of them. They ship inside this package, next to the
 driver that runs them, because the same script is now both a development
 fixture and something the application does at a user's request.
+
+A database with TimescaleDB in it gets two more, into the same schema: a
+hypertable with a fortnight of readings in it, chunks of a day, compression
+with a policy behind it, a continuous aggregate and a retention policy. Which
+two run is asked of the database rather than of the template that started it —
+a source is what it holds, discovered while it is open (D119, D120) — so a
+PostgreSQL that gains the extension later is filled the same way.
 """
 
 from pathlib import Path
@@ -27,6 +34,16 @@ SCRIPT_NAMES = (
     "postgres_complex_data.sql",
 )
 
+# And what a database holding the extension gets on top of them. Two files
+# rather than one because the second holds what cannot run inside a
+# transaction: a refresh and a conversion to the columnstore are procedures
+# that commit, and a script of several statements is one transaction to the
+# driver whatever autocommit says.
+TIMESCALE_SCRIPT_NAMES = (
+    "timescale_schema.sql",
+    "timescale_settle.sql",
+)
+
 # The schema the scripts own, and the only thing they touch. They drop it
 # first, so running them twice is running them once.
 SAMPLE_SCHEMA = "demo_lab"
@@ -36,6 +53,10 @@ SCRIPT_DIRECTORY = Path(__file__).parent / "sample_data"
 
 def script_paths(directory: Path = SCRIPT_DIRECTORY) -> tuple[Path, ...]:
     return tuple(directory / name for name in SCRIPT_NAMES)
+
+
+def timescale_script_paths(directory: Path = SCRIPT_DIRECTORY) -> tuple[Path, ...]:
+    return tuple(directory / name for name in TIMESCALE_SCRIPT_NAMES)
 
 
 class PostgresSamples:
@@ -60,6 +81,9 @@ class PostgresSamples:
         scripts = [
             await to_thread.run_sync(_read, path) for path in script_paths()
         ]
+        timescale = [
+            await to_thread.run_sync(_read, path) for path in timescale_script_paths()
+        ]
         async with self._session.acquire() as connection:
             await connection.set_autocommit(True)
             for script in scripts:
@@ -67,8 +91,38 @@ class PostgresSamples:
                 # `%` as a placeholder the moment any are supplied, and these
                 # scripts contain them.
                 await connection.execute(script)
+            hypertables = 0
+            if await self._has_timescale(connection):
+                for script in timescale:
+                    await connection.execute(script)
+                hypertables = await self._count_hypertables(connection)
             tables = await self._count_tables(connection)
-        return f"{SAMPLE_SCHEMA}: {tables} tables"
+        counted = f"{SAMPLE_SCHEMA}: {tables} tables"
+        if hypertables == 0:
+            return counted
+        subject = "hypertable" if hypertables == 1 else "hypertables"
+        return f"{counted}, including {hypertables} {subject}"
+
+    async def _has_timescale(self, connection: psycopg.AsyncConnection[Any]) -> bool:
+        """Whether this database holds the extension, asked of the database.
+
+        Not of the service template that started it and not of the image: a
+        connection is opened to databases nobody here started, and one of them
+        can gain the extension after it was made (D120).
+        """
+        cursor = await connection.execute(
+            "SELECT 1 FROM pg_extension WHERE extname = %s", ("timescaledb",)
+        )
+        return await cursor.fetchone() is not None
+
+    async def _count_hypertables(self, connection: psycopg.AsyncConnection[Any]) -> int:
+        cursor = await connection.execute(
+            "SELECT count(*) FROM timescaledb_information.hypertables "
+            "WHERE hypertable_schema = %s",
+            (SAMPLE_SCHEMA,),
+        )
+        row = await cursor.fetchone()
+        return int(row[0]) if row else 0
 
     async def _count_tables(self, connection: psycopg.AsyncConnection[Any]) -> int:
         cursor = await connection.execute(

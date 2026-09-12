@@ -1,7 +1,11 @@
 import re
 from pathlib import Path
 
-from app.adapters.postgres.samples import SCRIPT_DIRECTORY, script_paths
+from app.adapters.postgres.samples import (
+    SCRIPT_DIRECTORY,
+    script_paths,
+    timescale_script_paths,
+)
 from app.core.db import engine
 from app.seed_database import main
 
@@ -43,6 +47,41 @@ def test_the_scripts_ship_with_the_driver_that_runs_them() -> None:
     repository = Path(__file__).parents[2]
     override = (repository / "compose.override.yml").read_text(encoding="utf-8")
     assert "/app/sql" not in override
+
+
+def test_the_timescale_scripts_ship_beside_them() -> None:
+    """A database holding the extension is filled with two more files.
+
+    They are not a separate demonstration: they add to the schema the first
+    script created, so they come after it and ship in the same directory.
+    """
+    schema, settle = timescale_script_paths()
+
+    assert schema.name == "timescale_schema.sql"
+    assert settle.name == "timescale_settle.sql"
+    for path in timescale_script_paths():
+        assert path.is_file(), path
+
+
+def test_what_cannot_run_inside_a_transaction_is_not_in_the_transaction() -> None:
+    """The trap this pair of files exists to avoid.
+
+    A script of several statements is one transaction to the driver whatever
+    autocommit says, and refreshing a continuous aggregate or converting a
+    chunk to the columnstore is a procedure that commits. Put in the first
+    file, the refusal took the whole demonstration with it and the database
+    was left with nothing.
+    """
+    schema, settle = (path.read_text(encoding="utf-8") for path in timescale_script_paths())
+
+    assert "BEGIN;" in schema and "COMMIT;" in schema
+    assert "BEGIN;" not in settle
+
+    for procedure in ("refresh_continuous_aggregate", "convert_to_columnstore"):
+        assert procedure in settle, procedure
+        assert procedure not in schema, procedure
+    # And the view is created empty, because creating it full refreshes it.
+    assert "WITH NO DATA" in schema
 
 
 def test_demo_project_codes_fit_the_schema_column() -> None:
