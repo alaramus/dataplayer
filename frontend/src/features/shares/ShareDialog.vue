@@ -15,11 +15,13 @@ import GrantList from "@/features/shares/GrantList.vue"
 import { useCreateShare, useDeleteShare, useShares } from "@/features/shares/api"
 import AccessRequests from "@/features/shares/AccessRequests.vue"
 import { linkFor } from "@/features/shares/sharedView"
+import { emptyRecipientsMessage } from "./recipients"
 import { serverContext } from "@/shared/servers/context"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import {
   AppButton,
+  AppBanner,
   AppCopyButton,
   AppIconButton,
   AppInput,
@@ -123,6 +125,17 @@ const candidates = computed(() =>
   }))
 )
 
+const recipientsFailed = computed(() => directory.isError.value || grants.isError.value)
+const recipientsReady = computed(() => directory.isSuccess.value && grants.isSuccess.value)
+const recipientsMessage = computed(() => recipientsReady.value && !recipientsFailed.value
+  ? emptyRecipientsMessage(directory.data.value?.data.length ?? 0, candidates.value.length)
+  : ""
+)
+
+async function retryRecipients() {
+  await Promise.all([directory.refetch(), grants.refetch()])
+}
+
 /** Every other link to this connection: the one just made has its own place. */
 const otherLinks = computed(() =>
   (shares.data.value?.data ?? []).filter((share) => share.token !== token.value)
@@ -223,6 +236,27 @@ async function forget(shareId: string) {
         </section>
 
         <template v-if="isOwner">
+          <AppBanner
+            v-if="recipientsFailed"
+            tone="error"
+            data-testid="share-recipients-error"
+          >
+            Could not load recipients and their access. Try again.
+            <AppButton
+              label="Retry"
+              variant="quiet"
+              :loading="directory.isFetching.value || grants.isFetching.value"
+              @click="retryRecipients"
+            />
+          </AppBanner>
+          <p
+            v-else-if="recipientsMessage"
+            class="share__note"
+            role="status"
+            data-testid="share-recipients-empty"
+          >
+            {{ recipientsMessage }}
+          </p>
           <div class="share__add">
             <AppSelect
               v-model="pickedUser"
@@ -230,7 +264,7 @@ async function forget(shareId: string) {
               label="Person"
               data-testid="share-user"
               :options="candidates"
-              :disable="candidates.length === 0"
+              :disable="!recipientsReady || recipientsFailed || candidates.length === 0"
             />
             <AppSelect
               v-model="pickedLevel"
@@ -243,7 +277,7 @@ async function forget(shareId: string) {
                 <AppButton
                   label="Give access"
                   data-testid="share-submit"
-                  :disable="pickedUser === null"
+                  :disable="!recipientsReady || recipientsFailed || !candidates.some((candidate) => candidate.value === pickedUser)"
                   :loading="writeGrant.isPending.value"
                   @click="share"
                 />

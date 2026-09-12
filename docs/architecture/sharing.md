@@ -23,6 +23,13 @@ A connection's own window answers the same questions on its Permissions
 page — who holds a level, who is waiting — and the dialog opens from there
 with the adding half alone, so the two are never on screen at once.
 
+An empty recipient picker distinguishes no other active accounts from all
+available accounts already holding grants. The first points to an administrator
+and reopening Share; the second points to the connection's Permissions tab.
+These explanations appear only after the directory and grants load successfully.
+A failed read instead offers Retry and disables giving access until both reads
+are available again.
+
 Opening a link signs the reader in if needed, then reveals the node in the
 catalog and opens the tab with the filters, sorting, column layout and page
 size the sender saw. A reader without a grant gets a card naming who shared
