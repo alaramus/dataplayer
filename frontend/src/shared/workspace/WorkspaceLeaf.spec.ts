@@ -39,6 +39,8 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
     emptyOf: () => Hint,
     admissionOf: () => ({ accepts: true, remaining: 1 }),
     collapsedOf: () => null,
+    sectionLookOf: () => ({ title: "Section", icon: "square" }),
+    aside: ref([]),
     activate: () => undefined,
     canDetach: () => true,
     detach: () => undefined,
@@ -48,6 +50,8 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
     closeOthers: async () => undefined,
     focus: () => undefined,
     toggleCollapse: () => undefined,
+    putAside: () => undefined,
+    bringBack: () => undefined,
     resize: () => undefined,
     press: () => undefined,
     pointerMoved: () => undefined,
@@ -196,15 +200,47 @@ describe("a section", () => {
     expect(activated).toEqual([])
   })
 
-  it("offers no collapse handle when it is the only section", () => {
+  it("offers no handle at all when it is the only section", () => {
     const wrapper = mountLeaf(contextFor(), false)
     expect(wrapper.find('[data-testid="workspace-collapse-a"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="workspace-aside-a"]').exists()).toBe(false)
+  })
+
+  // Which of the two gestures a section offers follows from what the feature
+  // would draw at forty pixels: something worth that width narrows to it, and
+  // nothing worth it goes to the bar whole rather than leaving an empty strip.
+  it("narrows a section whose panel has something to show at that width", async () => {
+    const collapsed: string[] = []
+    const wrapper = mountLeaf(
+      contextFor({ collapsedOf: () => Rail, toggleCollapse: (id) => collapsed.push(id) })
+    )
+    expect(wrapper.find('[data-testid="workspace-aside-a"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="workspace-collapse-a"]').trigger("click")
+    expect(collapsed).toEqual(["a"])
+  })
+
+  it("puts a section with nothing to show at that width on the bar", async () => {
+    const asided: string[] = []
+    const wrapper = mountLeaf(contextFor({ putAside: (id) => asided.push(id) }))
+    expect(wrapper.find('[data-testid="workspace-collapse-a"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="workspace-aside-a"]').trigger("click")
+    expect(asided).toEqual(["a"])
+  })
+
+  it("keeps a section on the screen while the feature cannot name it", () => {
+    // Nothing could draw a way back to it, so it must not be able to leave.
+    const wrapper = mountLeaf(contextFor({ sectionLookOf: () => null }))
+    expect(wrapper.find('[data-testid="workspace-aside-a"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="workspace-collapse-a"]').exists()).toBe(true)
   })
 
   it("hides the body of a collapsed section but keeps the strip", () => {
     const wrapper = mount(LeafWithPanels, {
       props: { leaf: { ...makeLeaf("a", ["p1"]), collapsed: true }, collapsible: true },
-      global: { plugins: [Quasar], provide: { [workspaceKey as symbol]: contextFor() } },
+      global: {
+        plugins: [Quasar],
+        provide: { [workspaceKey as symbol]: contextFor({ collapsedOf: () => Rail }) },
+      },
     })
     expect(wrapper.findAll(".stub")).toHaveLength(0)
     expect(wrapper.find('[data-testid="workspace-collapse-a"]').exists()).toBe(true)
@@ -348,7 +384,11 @@ describe("an empty pinned section", () => {
     expect(wrapper.findAll('[data-testid^="workspace-tab-"]')).toHaveLength(0)
   })
 
-  it("keeps its collapse handle, so a column can still be pushed aside", () => {
-    expect(mountEmpty().find('[data-testid="workspace-collapse-navigate"]').exists()).toBe(true)
+  it("offers no handle, because a column saying what goes in it is all there is", () => {
+    // Putting this aside would take the one line that says what could be
+    // opened here off the screen and leave nothing in its place.
+    const wrapper = mountEmpty()
+    expect(wrapper.find('[data-testid="workspace-collapse-navigate"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="workspace-aside-navigate"]').exists()).toBe(false)
   })
 })

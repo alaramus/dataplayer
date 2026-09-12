@@ -721,7 +721,7 @@ test("clears a strip of tabs down to the one being looked at", async ({ page }) 
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
-test("every column collapses and comes back, and none of them scrolls the page", async ({
+test("every column goes away and comes back, and none of them scrolls the page", async ({
   page,
 }) => {
   const name = `e2e-collapse-${Date.now()}`
@@ -746,18 +746,56 @@ test("every column collapses and comes back, and none of them scrolls the page",
   const inner = await rows.evaluate((el) => el.scrollHeight > el.clientHeight)
   expect(inner).toBe(true)
 
-  // The handle that brings a section back is never pushed off the end of a
-  // strip twenty-eight pixels wide.
-  for (const id of ["sources", "navigate", "work"]) {
-    const handle = page.getByTestId(`workspace-collapse-${id}`)
-    await handle.click()
-    const leaf = await page.getByTestId(`workspace-leaf-${id}`).boundingBox()
-    expect(leaf?.width ?? 0).toBeLessThan(48)
-    await expect(handle).toBeVisible()
-    await handle.click()
-    expect((await page.getByTestId(`workspace-leaf-${id}`).boundingBox())?.width ?? 0)
-      .toBeGreaterThan(50)
+  // The connections narrow to a strip of their own icons, and the handle that
+  // brings them back is never pushed off the end of it.
+  const narrow = page.getByTestId("workspace-collapse-sources")
+  await narrow.click()
+  expect((await page.getByTestId("workspace-leaf-sources").boundingBox())?.width ?? 0)
+    .toBeLessThan(48)
+  await expect(narrow).toBeVisible()
+  await narrow.click()
+  expect((await page.getByTestId("workspace-leaf-sources").boundingBox())?.width ?? 0)
+    .toBeGreaterThan(50)
+
+  // The other two have nothing to show at that width, so they leave the screen
+  // for the bar at the foot of it and come back from there with what was in
+  // them. The column of work leaves what can be opened in it standing in its
+  // place; the catalog gives its room to the columns that are left.
+  for (const id of ["navigate", "work"]) {
+    const leaf = page.getByTestId(`workspace-leaf-${id}`)
+    const wide = (await leaf.boundingBox())?.width ?? 0
+    await page.getByTestId(`workspace-aside-${id}`).click()
+
+    const onTheBar = page.getByTestId("workspace-taskbar").getByTestId(`workspace-aside-${id}`)
+    await expect(onTheBar).toBeVisible()
+    if (id === "navigate") await expect(leaf).toHaveCount(0)
+    else await expect(page.getByTestId("workspace-scene")).toBeVisible()
+
+    await onTheBar.click()
+    await expect(onTheBar).toHaveCount(0)
+    expect((await leaf.boundingBox())?.width ?? 0).toBeGreaterThan(wide - 40)
   }
+
+  // And what was in them is still in them.
+  await expect(page.getByTestId("catalog-list")).toContainText("pg_class")
+  await expect(rowsTabs(page)).toContainText("pg_class")
+
+  // Asking for something that is already in a column on the bar brings the
+  // column back: the press used to mark a tab active inside a column nobody
+  // could see, and nothing happened at all.
+  await page.getByTestId("workspace-aside-navigate").click()
+  await expect(page.getByTestId("workspace-leaf-navigate")).toHaveCount(0)
+  await openConnector(page, name)
+  await expect(page.getByTestId("catalog-list")).toContainText("pg_class")
+  await expect(
+    page.getByTestId("workspace-taskbar").getByTestId("workspace-aside-navigate")
+  ).toHaveCount(0)
+
+  // The same for the way back from a table to where it lives.
+  await page.getByTestId("workspace-aside-navigate").click()
+  await expect(page.getByTestId("workspace-leaf-navigate")).toHaveCount(0)
+  await page.getByTestId("panel-reveal").click()
+  await expect(page.getByTestId("catalog-list")).toContainText("pg_class")
 
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)

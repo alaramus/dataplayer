@@ -40,6 +40,17 @@ export interface LeafNode {
    * other rule would let the last panel take its section with it.
    */
   pinned?: boolean
+  /**
+   * A section put aside into the bar at the foot of the screen.
+   *
+   * Not `collapsed` narrowed to nothing: a collapsed column is still a column
+   * — forty pixels of handle, and whatever the feature draws in them — while
+   * a section put aside is off the screen altogether and reachable only from
+   * the bar, the way a window put aside is (D92). A column with nothing to
+   * show at that width was drawn as an empty strip, which is a column that
+   * costs room and says nothing.
+   */
+  minimized?: boolean
 }
 
 export interface SplitNode {

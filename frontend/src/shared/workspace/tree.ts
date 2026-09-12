@@ -180,12 +180,32 @@ function withLeaf(
 }
 
 /**
+ * A section that is given something to show comes back from the bar.
+ *
+ * Every way a panel comes to the front goes through here: opening one into a
+ * column that is on the bar, pressing a connection whose catalog is already
+ * open in it, dropping a tab onto it. Without this the tab becomes the active
+ * one inside a column nobody can see, and the press does nothing at all.
+ *
+ * Written only where it was set, so a section that was never put aside is the
+ * same object it was: a field appearing on every leaf would change every
+ * stored tree and every comparison of one.
+ */
+function shown(leaf: LeafNode): LeafNode {
+  return leaf.minimized === true ? { ...leaf, minimized: false } : leaf
+}
+
+/**
  * Put a panel into a section, at a place in its strip or at the end of it.
  *
  * `at` is where a dragged tab was released — the whole point of dragging one
  * within its own strip, which used to land at the end however carefully it was
  * aimed. Absent for a panel that is merely opened: nobody aimed at anything,
  * and the end is where a new tab belongs.
+ *
+ * A section put aside comes back here, and that is the whole rule: opening a
+ * table into a column that is on the bar would otherwise do nothing anybody
+ * could see, and the same is true of a tab dragged onto one.
  */
 export function addPanel(
   root: LayoutNode,
@@ -194,10 +214,11 @@ export function addPanel(
   at?: number
 ): LayoutNode {
   return withLeaf(root, leafId, (leaf) => {
-    if (leaf.panels.includes(panelId)) return { ...leaf, activePanel: panelId }
-    const panels = [...leaf.panels]
+    const back = shown(leaf)
+    if (back.panels.includes(panelId)) return { ...back, activePanel: panelId }
+    const panels = [...back.panels]
     panels.splice(at ?? panels.length, 0, panelId)
-    return { ...leaf, panels, activePanel: panelId }
+    return { ...back, panels, activePanel: panelId }
   })
 }
 
@@ -230,11 +251,22 @@ export function activatePanel(root: LayoutNode, panelId: PanelId): LayoutNode {
   if (path === null) return root
   const leaf = nodeAt(root, path)
   if (leaf === null || leaf.kind !== "leaf") return root
-  return settle(replaceAt(root, path, { ...leaf, activePanel: panelId }) ?? root, root)
+  return settle(replaceAt(root, path, { ...shown(leaf), activePanel: panelId }) ?? root, root)
 }
 
 export function setCollapsed(root: LayoutNode, leafId: NodeId, collapsed: boolean): LayoutNode {
   return withLeaf(root, leafId, (leaf) => ({ ...leaf, collapsed }))
+}
+
+/**
+ * Put a section aside, or bring it back.
+ *
+ * What it holds is untouched: a section on the bar keeps its panels, its
+ * active tab and its share of the row, so bringing it back is the state it
+ * was left in rather than a new column beside the others.
+ */
+export function setMinimized(root: LayoutNode, leafId: NodeId, minimized: boolean): LayoutNode {
+  return withLeaf(root, leafId, (leaf) => ({ ...leaf, minimized }))
 }
 
 /**
@@ -304,7 +336,10 @@ export function splitLeaf(
     // corner of the screen; a section that may stay empty would leave a trace
     // behind every split. See P2.
     const arrival = makeLeaf(newLeafId, [panelId], { accepts: leaf.accepts })
-    const children = FIRST.includes(zone) ? [arrival, leaf] : [leaf, arrival]
+    // The section that was dropped on comes back with the one that arrived:
+    // half a split on the bar and half of it on the screen is neither.
+    const stays = shown(leaf)
+    const children = FIRST.includes(zone) ? [arrival, stays] : [stays, arrival]
     return makeSplit(`split-${newLeafId}`, DIRECTION_OF[zone], children, [50, 50])
   })
 }

@@ -3,7 +3,13 @@ import { defineComponent, h } from "vue"
 import type { Component } from "vue"
 import { z } from "zod"
 
-import { makeLeaf, makeSplit, useWorkspace, WorkspaceRoot } from "@/shared/workspace"
+import {
+  makeLeaf,
+  makeSplit,
+  useWorkspace,
+  WorkspaceRoot,
+  WorkspaceTaskbar,
+} from "@/shared/workspace"
 import { AppButton } from "@/shared/ui"
 
 /**
@@ -34,6 +40,22 @@ const Placeholder = (id: string, title: string) => {
   return made
 }
 
+/** What a column of this demo keeps on screen at forty pixels. */
+const Rail = defineComponent({
+  setup: () => () =>
+    h("div", { style: "padding: 8px 0; text-align: center; font-size: 11px;" }, "A"),
+})
+
+/** And what a column with nothing in it says instead. */
+const Hint = defineComponent({
+  setup: () => () =>
+    h(
+      "div",
+      { style: "padding: 12px; font-size: 13px; color: var(--dp-text-muted);" },
+      "Nothing is open here yet"
+    ),
+})
+
 const workspace = useWorkspace<DemoPanel>({
   storageKey: "dataplayer-workspace-demo",
   panelSchema,
@@ -47,8 +69,12 @@ const workspace = useWorkspace<DemoPanel>({
         // the application uses it. See P1.
         makeLeaf("left", ["alpha"], { accepts: "alpha" }),
         makeLeaf("main", ["beta", "gamma"], { accepts: "beta" }),
+        // A column that exists before anything is opened in it, so the three
+        // states of a head are all on this page: narrow it, put it aside, and
+        // neither.
+        makeLeaf("notes", [], { accepts: "note", pinned: true }),
       ],
-      [30, 70]
+      [24, 50, 26]
     ),
     panels: [
       { id: "alpha", kind: "alpha", title: "Alpha" },
@@ -59,6 +85,12 @@ const workspace = useWorkspace<DemoPanel>({
   kindOf: (panel) => panel.kind,
   look: (panel) => ({ title: panel.title, icon: "widgets" }),
   component: (panel) => Placeholder(panel.id, panel.title),
+  // One column has something worth forty pixels and narrows to them; the other
+  // has not, is named, and goes to the bar whole.
+  collapsed: (panel) => (panel.kind === "alpha" ? Rail : null),
+  empty: (accepts) => (accepts === "note" ? Hint : null),
+  sectionLook: (accepts) =>
+    accepts === "beta" ? { title: "Data", icon: "table_chart" } : null,
 })
 
 let opened = 0
@@ -86,6 +118,9 @@ function openOne() {
         data-testid="reset-workspace"
         @click="workspace.reset()"
       />
+      <!-- Where the application puts it is the bar at the foot of the screen;
+           here it stands beside the buttons, which is the same bar's job. -->
+      <WorkspaceTaskbar :context="workspace.context" />
     </div>
     <div class="demo__area">
       <WorkspaceRoot :context="workspace.context" />
@@ -104,9 +139,13 @@ function openOne() {
   gap: 8px;
   padding: 8px;
 }
+/* The ground the application stands the workspace on, so this page shows the
+   cards against what they are actually drawn against. */
 .demo__area {
   flex: 1;
   min-height: 0;
   border-top: 1px solid var(--dp-border);
+  padding: var(--dp-workspace-inset);
+  background: var(--dp-chrome);
 }
 </style>

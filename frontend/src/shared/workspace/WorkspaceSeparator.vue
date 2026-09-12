@@ -49,21 +49,27 @@ function onPointerUp(event: PointerEvent) {
 </template>
 
 <style scoped>
+/* The space between two cards, and the handle that resizes them: the same
+   thing, as wide as the inset around the workspace so that the gaps inside it
+   and the margin around it are one distance. Drawn as nothing until the
+   pointer is on it — a line down the gap would be the frame the cards were
+   made to replace. */
 .workspace-separator {
   position: relative;
-  flex: 0 0 5px;
+  flex: 0 0 var(--dp-workspace-inset);
   background: transparent;
 }
 .workspace-separator::after {
   content: "";
   position: absolute;
-  background: var(--dp-separator);
+  border-radius: 999px;
+  background: transparent;
 }
 .workspace-separator--row::after {
-  inset: 0 2px;
+  inset: 8px 2px;
 }
 .workspace-separator--column::after {
-  inset: 2px 0;
+  inset: 2px 8px;
 }
 .workspace-separator--row {
   cursor: col-resize;
@@ -71,7 +77,8 @@ function onPointerUp(event: PointerEvent) {
 .workspace-separator--column {
   cursor: row-resize;
 }
-.workspace-separator:hover::after {
+.workspace-separator:hover::after,
+.workspace-separator:active::after {
   background: var(--dp-separator-active);
 }
 </style>

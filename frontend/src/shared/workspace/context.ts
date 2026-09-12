@@ -29,6 +29,22 @@ export interface PanelLook {
 }
 
 /**
+ * A section on the bar at the foot of the screen: what it is called, and how
+ * much is waiting in it.
+ *
+ * Named by its role rather than by its active tab: a column is a part of the
+ * window, not a document, and a button whose word changed as the tab behind it
+ * changed could not be aimed at twice.
+ */
+export interface AsideSection {
+  id: NodeId
+  title: string
+  icon: string
+  /** How many panels it holds, for the count beside the name. */
+  panels: number
+}
+
+/**
  * The one thing the components of the engine are given.
  *
  * A panel is an id; what it looks like and what renders it are answered by
@@ -54,6 +70,16 @@ export interface WorkspaceContext {
   emptyOf: (accepts: string | null) => Component | null
   /** What a collapsed section shows instead of its panel. Null: just a handle. */
   collapsedOf: (panelId: PanelId) => Component | null
+  /**
+   * What a whole section is called, keyed by the role it accepts.
+   *
+   * Only needed once a section can be off the screen: something has to name it
+   * on the bar. Null where the feature has no name for that role, and a
+   * section with no name cannot be put aside — there would be no way back.
+   */
+  sectionLookOf: (accepts: string | null) => { title: string; icon: string } | null
+  /** The sections that are off the screen, in the order they were put aside. */
+  aside: Ref<AsideSection[]>
   /**
    * What this section will take from the drag now in progress.
    *
@@ -81,6 +107,10 @@ export interface WorkspaceContext {
   closeOthers: (leafId: NodeId) => Promise<void>
   focus: (leafId: NodeId) => void
   toggleCollapse: (leafId: NodeId) => void
+  /** Put a section on the bar, keeping everything in it. */
+  putAside: (leafId: NodeId) => void
+  /** Bring one back, into the column it was in. */
+  bringBack: (leafId: NodeId) => void
   resize: (
     splitId: NodeId,
     beforeIndex: number,

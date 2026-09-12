@@ -21,10 +21,18 @@ export function isSectionHidden(
   if (node.kind === "split") {
     return node.children.every((child) => isSectionHidden(root, child, hasEmptyView))
   }
-  if (node.activePanel !== null) return false
+  // A section put aside is not on the screen, so what it holds is not on the
+  // screen either: it counts as holding nothing, and the rules below then say
+  // what stands in its place — the feature's empty view where there is one,
+  // and otherwise the room it was taking, given to the columns that are left.
+  if (node.minimized !== true && node.activePanel !== null) return false
   if (!hasEmptyView(node.accepts ?? null)) return true
   // Its role is already being done elsewhere on the screen.
   return leavesOf(root).some(
-    (other) => other.id !== node.id && other.accepts === node.accepts && other.activePanel !== null
+    (other) =>
+      other.id !== node.id &&
+      other.accepts === node.accepts &&
+      other.minimized !== true &&
+      other.activePanel !== null
   )
 }

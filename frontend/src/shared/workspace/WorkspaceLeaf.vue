@@ -38,7 +38,16 @@ const tabElements = ref<HTMLElement[]>([])
 /** Measured while the pointer is over the section, and only used to draw. */
 const stripHeight = ref(0)
 
-const active = computed(() => props.leaf.activePanel)
+/**
+ * What this section is showing, which is nothing while it is on the bar.
+ *
+ * A section put aside keeps its panels and its active tab — that is what
+ * bringing it back restores — so the whole of "it is not on the screen" lives
+ * here: no tabs, no body, and whatever the feature stands in an empty column
+ * takes its place (the column of work says what can be opened in it; a column
+ * with nothing to say is not drawn at all, see `visibility.ts`).
+ */
+const active = computed(() => (props.leaf.minimized === true ? null : props.leaf.activePanel))
 
 /**
  * The tabs that are drawn. The one being dragged is in the user's hand, and
@@ -46,7 +55,9 @@ const active = computed(() => props.leaf.activePanel)
  * See G2.
  */
 const shownTabs = computed(() =>
-  props.leaf.panels.filter((panelId) => panelId !== workspace.dragging.value)
+  props.leaf.minimized === true
+    ? []
+    : props.leaf.panels.filter((panelId) => panelId !== workspace.dragging.value)
 )
 
 /** A pinned section with nothing in it: the feature says what stands there. */
@@ -66,7 +77,7 @@ const collapsedBody = computed(() =>
 /** A cross closes one tab; this closes the rest. */
 const closableOthers = computed(
   () =>
-    props.leaf.panels.filter(
+    shownTabs.value.filter(
       (panelId) => panelId !== active.value && workspace.lookOf(panelId).closable !== false
     ).length
 )
@@ -149,6 +160,31 @@ const collapsedTitle = computed(() => {
   const title = first === null ? null : workspace.lookOf(first).title
   return props.leaf.collapsed ? `Show ${title ?? "this section"}` : "Hide"
 })
+
+/**
+ * What the head of this section offers: to narrow it, to put it aside, or
+ * nothing at all.
+ *
+ * Read off what is already known rather than off the role, which the engine
+ * does not read (D12). A section holding nothing is a column that exists to
+ * say what could be opened in it — pushing that aside leaves the screen
+ * saying less and nothing gained, so it offers neither gesture. A section
+ * whose panel has something worth forty pixels narrows to those forty; one
+ * that has not is put on the bar whole, because forty pixels of empty strip
+ * is room spent on a handle.
+ */
+const handle = computed<"collapse" | "aside" | "none">(() => {
+  if (!props.collapsible) return "none"
+  const panel = active.value
+  if (panel === null) return "none"
+  if (workspace.collapsedOf(panel) !== null) return "collapse"
+  return workspace.sectionLookOf(props.leaf.accepts ?? null) === null ? "collapse" : "aside"
+})
+
+/** What the bar will call this section once it is on it. */
+const asideTitle = computed(
+  () => workspace.sectionLookOf(props.leaf.accepts ?? null)?.title ?? "this section"
+)
 
 /** What will be lit: where the panel ends up, not which zone the pointer is in. */
 const shape = computed(() => dropShape(zone.value, props.leaf.panels.length === 0))
@@ -297,7 +333,7 @@ const overlayStyle = computed((): CSSProperties => {
       </button>
 
       <button
-        v-if="collapsible"
+        v-if="handle === 'collapse'"
         type="button"
         class="workspace-leaf__collapse"
         :data-testid="`workspace-collapse-${leaf.id}`"
@@ -308,6 +344,22 @@ const overlayStyle = computed((): CSSProperties => {
           size="16px"
         />
         <AppTooltip>{{ collapsedTitle }}</AppTooltip>
+      </button>
+
+      <!-- Off the screen and onto the bar, the gesture a window has. -->
+      <button
+        v-else-if="handle === 'aside'"
+        type="button"
+        class="workspace-leaf__collapse"
+        :data-testid="`workspace-aside-${leaf.id}`"
+        :aria-label="`Put ${asideTitle} aside`"
+        @click="workspace.putAside(leaf.id)"
+      >
+        <q-icon
+          name="minimize"
+          size="16px"
+        />
+        <AppTooltip>Put {{ asideTitle }} aside</AppTooltip>
       </button>
     </div>
 
@@ -349,6 +401,9 @@ const overlayStyle = computed((): CSSProperties => {
 </template>
 
 <style scoped>
+/* A card: its own ground, its own edge, its own corners. What separates two
+   of them is the space between, which is also what is dragged to resize
+   them — see WorkspaceSeparator. */
 .workspace-leaf {
   position: relative;
   display: flex;
@@ -356,7 +411,11 @@ const overlayStyle = computed((): CSSProperties => {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius-panel);
   background: var(--dp-surface);
+  box-shadow: 0 1px 4px var(--dp-shadow-soft);
 }
 .workspace-leaf__strip {
   display: flex;

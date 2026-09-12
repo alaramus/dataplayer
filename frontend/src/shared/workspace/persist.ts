@@ -30,6 +30,10 @@ const leafSchema = z.object({
   collapsed: z.boolean(),
   accepts: z.string().optional(),
   pinned: z.boolean().optional(),
+  // Optional, so a layout written before sections could be put aside is still
+  // a layout: every field added to a stored section is optional, or the next
+  // one refuses every tree anybody already has.
+  minimized: z.boolean().optional(),
 })
 
 const nodeSchema: ZodType<LayoutNode> = z.lazy(() =>

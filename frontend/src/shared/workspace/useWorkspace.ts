@@ -3,7 +3,7 @@ import type { Component, Ref } from "vue"
 import type { ZodType } from "zod"
 
 import { workspaceKey } from "./context"
-import type { PanelLook, WorkspaceContext } from "./context"
+import type { AsideSection, PanelLook, WorkspaceContext } from "./context"
 import { dockedLayout, returnPanel } from "./detached"
 import type { DetachedPanel } from "./detached"
 import { admittedZone } from "./dropZone"
@@ -21,6 +21,7 @@ import {
   renamePanel,
   resizeSplit,
   setCollapsed,
+  setMinimized,
 } from "./tree"
 
 export { workspaceKey }
@@ -51,6 +52,14 @@ export interface WorkspaceOptions<P extends { id: string }> {
    * or every render replaces it.
    */
   collapsed?: (panel: P) => Component | null
+  /**
+   * What a whole section is called, by the role it accepts.
+   *
+   * The one thing the engine needs in words about a role, and only because a
+   * section put aside has to be named on the bar at the foot of the screen. A
+   * role with no name here is a section that cannot be put aside.
+   */
+  sectionLook?: (accepts: string | null) => { title: string; icon: string } | null
   /**
    * What a click on the icon of a tab does, if anything.
    *
@@ -306,6 +315,28 @@ export function useWorkspace<P extends { id: string }>(
     }
   }
 
+  /**
+   * The sections that are off the screen.
+   *
+   * Read off the tree rather than kept beside it, for the reason everything
+   * else about where the user is is read off it: a second list could disagree
+   * with the layout, and the layout cannot disagree with itself (P7). A
+   * section whose role the feature does not name is left out — nothing could
+   * draw a way back to it.
+   */
+  const aside = computed<AsideSection[]>(() =>
+    leavesOf(tree.value).flatMap((leaf) => {
+      // Nothing is waiting in a section that holds nothing, whatever its flag
+      // says: the last tab of a column that was put aside left with it, and a
+      // button that brought back an empty column would be a button that makes
+      // it disappear again. Opening anything into it brings it back on its own.
+      if (leaf.minimized !== true || leaf.panels.length === 0) return []
+      const look = options.sectionLook?.(leaf.accepts ?? null) ?? null
+      if (look === null) return []
+      return [{ id: leaf.id, title: look.title, icon: look.icon, panels: leaf.panels.length }]
+    })
+  )
+
   const context: WorkspaceContext = {
     tree,
     panelIds: computed(() => panels.value.map((panel) => panel.id)),
@@ -322,6 +353,8 @@ export function useWorkspace<P extends { id: string }>(
     },
     emptyOf: (accepts) => options.empty?.(accepts) ?? null,
     admissionOf: (leafId) => admissionFor(leafId, dragging.value),
+    sectionLookOf: (accepts) => options.sectionLook?.(accepts) ?? null,
+    aside,
     collapsedOf: (panelId) => {
       const panel = panelOf(panelId)
       return panel === undefined ? null : (options.collapsed?.(panel) ?? null)
@@ -353,6 +386,15 @@ export function useWorkspace<P extends { id: string }>(
       // WorkspaceNode does not offer the handle there either.
       if (tree.value.kind === "leaf") return
       tree.value = setCollapsed(tree.value, leafId, !isCollapsed(tree.value, leafId))
+    },
+    putAside: (leafId) => {
+      // The same guard the handle has: the only section on the screen has
+      // nowhere to go, and putting it aside would leave an empty workspace.
+      if (tree.value.kind === "leaf") return
+      tree.value = setMinimized(tree.value, leafId, true)
+    },
+    bringBack: (leafId) => {
+      tree.value = setMinimized(tree.value, leafId, false)
     },
     resize: (splitId, beforeIndex, afterIndex, delta, minPercent) => {
       tree.value = resizeSplit(tree.value, splitId, beforeIndex, afterIndex, delta, minPercent)

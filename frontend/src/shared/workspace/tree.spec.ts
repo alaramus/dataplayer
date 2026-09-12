@@ -10,6 +10,7 @@ import {
   removePanel,
   resizeSplit,
   setCollapsed,
+  setMinimized,
   splitLeaf,
 } from "./tree"
 
@@ -239,6 +240,58 @@ describe("collapsing a section", () => {
     const next = setCollapsed(sample(), "a", true) as SplitNode
     expect((next.children[0] as LeafNode).collapsed).toBe(true)
     expect(next.sizes).toEqual([30, 70])
+  })
+})
+
+describe("putting a section aside", () => {
+  it("marks the leaf, keeps what is in it and touches no size", () => {
+    const next = setMinimized(sample(), "a", true) as SplitNode
+    const put = next.children[0] as LeafNode
+
+    expect(put.minimized).toBe(true)
+    expect(put.panels).toEqual(["p1"])
+    expect(put.activePanel).toBe("p1")
+    expect(next.sizes).toEqual([30, 70])
+  })
+
+  it("brings it back when something is opened into it", () => {
+    // Otherwise opening a table into a column that is on the bar would do
+    // nothing anybody could see.
+    const aside = setMinimized(sample(), "a", true)
+    const next = addPanel(aside, "a", "p9") as SplitNode
+    const back = next.children[0] as LeafNode
+
+    expect(back.minimized).toBe(false)
+    expect(back.activePanel).toBe("p9")
+  })
+
+  it("brings it back when one of the tabs already in it is asked for", () => {
+    // The bug: pressing a connection whose catalog was already open in a
+    // column that is on the bar marked the tab active inside a column nobody
+    // could see, so the press did nothing at all.
+    const aside = setMinimized(sample(), "a", true)
+    const next = activatePanel(aside, "p1") as SplitNode
+    const back = next.children[0] as LeafNode
+
+    expect(back.minimized).toBe(false)
+    expect(back.activePanel).toBe("p1")
+  })
+
+  it("brings it back when a tab is dropped beside what is in it", () => {
+    const aside = setMinimized(sample(), "a", true)
+    const next = splitLeaf(aside, "a", "p2", "bottom", "new") as SplitNode
+    const split = next.children[0] as SplitNode
+    const stayed = split.children[0] as LeafNode
+
+    expect(stayed.minimized).toBe(false)
+  })
+
+  it("leaves a section that was never put aside exactly as it was", () => {
+    // A field on every leaf would change every stored tree and every
+    // comparison of one.
+    const next = addPanel(sample(), "a", "p9") as SplitNode
+
+    expect(next.children[0]).not.toHaveProperty("minimized")
   })
 })
 

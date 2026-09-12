@@ -1,10 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue"
 
-import AppButton from "@/shared/ui/AppButton.vue"
-import AppIconButton from "@/shared/ui/AppIconButton.vue"
-import AppTooltip from "@/shared/ui/AppTooltip.vue"
-import { panelColorStyle } from "@/shared/ui/panelColor"
+import AppTaskbarItem from "@/shared/ui/AppTaskbarItem.vue"
 
 import type { WindowState, WindowsContext } from "./useWindows"
 
@@ -59,40 +56,21 @@ watch(
     aria-label="Open windows"
     data-testid="window-taskbar"
   >
-    <div
+    <AppTaskbarItem
       v-for="entry in items"
       :key="entry.key"
-      class="window-taskbar__item"
-      :class="{
-        'window-taskbar__item--front': isFront(entry),
-        'window-taskbar__item--aside': entry.minimized,
-      }"
-      :style="panelColorStyle(entry.look.color)"
-    >
-      <AppButton
-        class="window-taskbar__open"
-        variant="quiet"
-        size="sm"
-        :icon="entry.look.icon ?? 'web_asset'"
-        :aria-label="entry.look.title"
-        :aria-pressed="isFront(entry)"
-        :data-testid="`window-tab-${entry.id}`"
-        :data-window-key="entry.key"
-        @click="toggle(entry)"
-      >
-        <span class="window-taskbar__title">{{ entry.look.title }}</span>
-        <AppTooltip>{{ entry.look.title }}</AppTooltip>
-      </AppButton>
-      <AppIconButton
-        class="window-taskbar__close"
-        icon="close"
-        compact
-        :tooltip="`Close ${entry.look.title}`"
-        :aria-label="`Close ${entry.look.title}`"
-        :data-testid="`window-tab-close-${entry.id}`"
-        @click="context.requestClose(entry.id)"
-      />
-    </div>
+      :title="entry.look.title"
+      :icon="entry.look.icon ?? 'web_asset'"
+      :color="entry.look.color"
+      :front="isFront(entry)"
+      :aside="entry.minimized"
+      :close-label="`Close ${entry.look.title}`"
+      :close-test-id="`window-tab-close-${entry.id}`"
+      :data-testid="`window-tab-${entry.id}`"
+      :data-window-key="entry.key"
+      @open="toggle(entry)"
+      @close="context.requestClose(entry.id)"
+    />
   </nav>
 </template>
 
@@ -107,50 +85,5 @@ watch(
   overflow-x: auto;
   overflow-y: hidden;
   font-size: 12px;
-}
-.window-taskbar__item {
-  flex: none;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  max-width: 150px;
-  max-height: 100%;
-  overflow: hidden;
-  /* Outline rather than border: a border takes room in the layout, so the
-     first tab added two pixels to the footer the moment it appeared. */
-  outline: 1px solid transparent;
-  outline-offset: -1px;
-  border-radius: 4px;
-  background: var(--dp-panel-background, var(--dp-hover));
-  color: var(--dp-panel-foreground, inherit);
-}
-/* The window one is actually looking at, marked the way a desktop marks it. */
-.window-taskbar__item--front {
-  outline-color: var(--dp-focus-border);
-  background: var(--dp-panel-background, var(--dp-active));
-}
-/* Put aside: still on the bar, and visibly not on screen. */
-.window-taskbar__item--aside {
-  opacity: 0.65;
-}
-.window-taskbar__open {
-  flex: 1 1 auto;
-  min-width: 0;
-  max-width: 100%;
-}
-.window-taskbar__open :deep(.q-btn__content) {
-  flex-wrap: nowrap;
-  min-width: 0;
-  overflow: hidden;
-  gap: var(--dp-space-1);
-}
-.window-taskbar__close {
-  flex: none;
-}
-.window-taskbar__title {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 </style>

@@ -38,6 +38,7 @@ import {
   panelSchema,
   QUERIES_PANEL_ID,
   queryDraftPanelId,
+  sectionLook,
   queryPanelId,
   resultPanelId,
   roleOf,
@@ -73,7 +74,14 @@ import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import { AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
-import { makeLeaf, makeSplit, useWorkspace, WorkspaceDetachTarget, WorkspaceRoot } from "@/shared/workspace"
+import {
+  makeLeaf,
+  makeSplit,
+  useWorkspace,
+  WorkspaceDetachTarget,
+  WorkspaceRoot,
+  WorkspaceTaskbar,
+} from "@/shared/workspace"
 
 /**
  * The workspace: connections, catalogs and node-specific work, side by side.
@@ -109,6 +117,7 @@ const workspace = useWorkspace<Panel>({
   component: componentOf,
   empty: emptyOf,
   collapsed: collapsedOf,
+  sectionLook,
   // The one thing a tab's icon still does, and the only kind that offers it:
   // the connection behind a catalog is not reachable from the catalog's own
   // row of commands, while everything a panel offers about the node it shows
@@ -783,6 +792,9 @@ provide(workspaceActionsKey, {
     <template #status>
       <ServicesCommand />
       <CommandBar />
+      <!-- Beside the windows on the same bar: a column put aside and a window
+           put aside are the same fact about the screen (D69). -->
+      <WorkspaceTaskbar :context="workspace.context" />
     </template>
     <template #status-end>
       <ActivityIndicator

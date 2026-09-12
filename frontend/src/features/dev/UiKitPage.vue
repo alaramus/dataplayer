@@ -396,6 +396,24 @@ function removeSavedEntry(name: string) {
       class="q-mb-md"
     >
       <AppSection>
+        <!-- What the bar at the foot of the screen is made of: a window, and a
+             section of the workspace put aside. -->
+        <div class="kit-row">
+          <AppTaskbarItem
+            title="Connection"
+            icon="web_asset"
+            front
+            close-label="Close Connection"
+          />
+          <AppTaskbarItem
+            title="Navigation · 2"
+            icon="account_tree"
+            aside
+          />
+        </div>
+      </AppSection>
+
+      <AppSection>
         <AppTable
           :rows="ROWS"
           :columns="COLUMNS"

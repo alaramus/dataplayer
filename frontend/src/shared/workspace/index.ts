@@ -7,6 +7,7 @@
  */
 export { default as WorkspaceRoot } from "./WorkspaceRoot.vue"
 export { default as WorkspaceDetachTarget } from "./WorkspaceDetachTarget.vue"
+export { default as WorkspaceTaskbar } from "./WorkspaceTaskbar.vue"
 export { useWorkspace, workspaceKey } from "./useWorkspace"
 export type {
   OpenOptions,

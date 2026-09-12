@@ -352,6 +352,26 @@ export function emptyOf(accepts: string | null): Component | null {
 }
 
 /**
+ * What a whole column is called once it is off the screen.
+ *
+ * The role and not the tab inside it: a column is a part of the window rather
+ * than a document, and a button on the bar whose word changed as the active
+ * tab changed could not be aimed at twice. The connections have no name here
+ * on purpose — that column narrows to a strip of its own icons instead of
+ * leaving the screen, which is worth the forty pixels.
+ */
+export function sectionLook(accepts: string | null): { title: string; icon: string } | null {
+  switch (accepts) {
+    case "navigate":
+      return { title: "Navigation", icon: "account_tree" }
+    case "work":
+      return { title: "Data", icon: "table_chart" }
+    default:
+      return null
+  }
+}
+
+/**
  * What a panel leaves on screen when its column is pushed aside.
  *
  * Only the connections have anything to say at that width: which sources exist

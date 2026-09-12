@@ -157,6 +157,108 @@ describe("restoring a saved layout", () => {
   })
 })
 
+describe("a section put aside", () => {
+  /** The feature names two of the three roles; the third cannot leave. */
+  function named() {
+    return useWorkspace<DemoPanel>({
+      storageKey: "test-workspace",
+      panelSchema,
+      defaults: dragging,
+      kindOf: (panel) => panel.kind,
+      look: (panel) => ({ title: panel.id, icon: "square" }),
+      component: () => Stub,
+      sectionLook: (accepts) =>
+        accepts === "rows" ? { title: "Data", icon: "table_chart" } : null,
+    })
+  }
+
+  it("keeps everything in it, and comes back the way it was left", () => {
+    const workspace = named()
+    workspace.context.activate("p3")
+
+    workspace.context.putAside("main")
+    expect(leafNamed(workspace, "main").minimized).toBe(true)
+    expect(leafNamed(workspace, "main").panels).toEqual(["p2", "p3"])
+    expect(leafNamed(workspace, "main").activePanel).toBe("p3")
+
+    workspace.context.bringBack("main")
+    expect(leafNamed(workspace, "main").minimized).toBe(false)
+    expect(leafNamed(workspace, "main").activePanel).toBe("p3")
+  })
+
+  it("is on the bar under the name of its role, with what is waiting in it", () => {
+    const workspace = named()
+    workspace.context.putAside("main")
+
+    expect(workspace.context.aside.value).toEqual([
+      { id: "main", title: "Data", icon: "table_chart", panels: 2 },
+    ])
+  })
+
+  it("leaves the bar when it comes back", () => {
+    const workspace = named()
+    workspace.context.putAside("main")
+    workspace.context.bringBack("main")
+
+    expect(workspace.context.aside.value).toEqual([])
+  })
+
+  it("comes back when what is already in it is opened again", () => {
+    // What a user does: the catalog of a connection is open in the column on
+    // the bar, and they press that connection in the list of sources. It used
+    // to activate a tab inside a column nobody could see.
+    const workspace = named()
+    workspace.context.putAside("main")
+
+    workspace.open({ id: "p2", kind: "rows" })
+
+    expect(leafNamed(workspace, "main").minimized).toBe(false)
+    expect(leafNamed(workspace, "main").activePanel).toBe("p2")
+    expect(workspace.context.aside.value).toEqual([])
+  })
+
+  it("comes back when something new is opened into it", () => {
+    const workspace = named()
+    workspace.context.putAside("main")
+
+    workspace.open({ id: "fresh", kind: "rows" })
+
+    expect(leafNamed(workspace, "main").minimized).toBe(false)
+    expect(leafNamed(workspace, "main").activePanel).toBe("fresh")
+  })
+
+  it("leaves the bar when the last thing in it is closed", () => {
+    // The column is still marked, and still off the screen; what it would
+    // bring back is nothing. Opening something into it brings it back itself.
+    const workspace = named()
+    workspace.context.putAside("main")
+    workspace.context.close("p2")
+    workspace.context.close("p3")
+
+    expect(workspace.context.aside.value).toEqual([])
+  })
+
+  it("is left off the bar while the feature has no name for its role", () => {
+    // Nothing could draw a way back to it, so nothing may send it there.
+    const workspace = named()
+    workspace.context.putAside("left")
+
+    expect(workspace.context.aside.value).toEqual([])
+  })
+
+  it("is remembered, the way the width of a column is", async () => {
+    const workspace = named()
+    workspace.context.putAside("main")
+    await nextTick()
+
+    const stored = localStorage.getItem("test-workspace")
+    expect(stored).not.toBeNull()
+    expect(JSON.parse(stored ?? "{}")).toMatchObject({
+      tree: { children: [{}, { id: "main", minimized: true }, {}] },
+    })
+  })
+})
+
 describe("detached workspace panels", () => {
   it("removes only the layout reference and raises the existing detached panel on open", () => {
     const workspace = buildDragging()

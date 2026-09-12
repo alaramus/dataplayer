@@ -130,6 +130,25 @@ Consequences:
   what stands in an empty one; only the connections answer, with their icons and
   their state dots. Closing every tab but the active one is the engine's too — it
   is a layout operation — and it leaves a panel the feature says has no cross.
+- **A column with nothing worth that width leaves the screen instead.** The
+  answer to the question above is also which of two gestures the head of a
+  section offers: something worth forty pixels narrows to them, and nothing
+  worth them goes whole to the bar at the foot of the screen (D69), where the
+  feature's name for its role is what stands for it and what leads back. A
+  column holding nothing offers neither — it is on the screen to say what can
+  be opened in it, and putting that aside would leave the screen saying less
+  and gain nothing. A section on the bar keeps its panels, its active tab and
+  its share of the row; the engine reads it as holding nothing, so the column
+  of work is drawn as what can be opened in it while the catalog's room goes
+  to the columns that are left. Anything opened into a section brings it back,
+  or opening a table into a column that is on the bar would do nothing anybody
+  could see.
+- **Every section is a card.** Its own ground, its own edge, its own corners,
+  and between two of them the space that is also the handle that resizes them.
+  One frame around the lot with hairlines inside it made three columns read as
+  one table; the gap is the width of the inset the workspace already sits in,
+  so the distance between the cards and the distance around them are one
+  number.
 - **A tab that is not showing is kept, not destroyed.** Switching away and back is
   no reason to re-read a catalog or to lose the page a grid was on, so the workspace
   keeps each panel in its own `<KeepAlive>` and moves its rendered contents between
@@ -269,6 +288,16 @@ Consequences:
   which answers the doubt at the moment a button is being aimed at. Which
   connection is read is still `activeConnectorId`, derived from the layout tree
   rather than kept beside it; nothing is stored.
+- **What is open and not on the screen is on this bar too.** A window put
+  aside (D92) and a column put aside are the same fact about the screen, so
+  they are drawn as one shape — `AppTaskbarItem` — in one row. A column is
+  named by its role rather than by its active tab: it is a part of the window
+  and not a document, and a button whose word changed as the tab behind it
+  changed could not be aimed at twice. The words themselves — "Navigation",
+  "Data" — and the icon beside each are `sectionLook` in
+  `features/workspace/panels.ts`, the one table to edit to rename a column;
+  the engine only asks it, and a role it does not name is a column that cannot
+  be put aside at all.
 - **Whether a command applies is the source's own answer**, never a branch on
   the adapter type (D62). Copying a database out is the example: a driver that
   can name a program to dump it declares the capability, and one that cannot

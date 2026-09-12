@@ -77,6 +77,9 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* No frame of its own: every section is its own card, and the ground between
+   them is the chrome the page is painted with. One box around the lot, with
+   hairlines inside it, made three columns read as one table. */
 .workspace {
   display: flex;
   width: 100%;
@@ -84,9 +87,6 @@ onBeforeUnmount(() => {
   min-height: 0;
   overflow: hidden;
   box-sizing: border-box;
-  border: 1px solid var(--dp-border-strong);
-  border-radius: var(--dp-radius-panel);
-  background: var(--dp-surface);
-  box-shadow: 0 1px 4px var(--dp-shadow-soft);
+  background: transparent;
 }
 </style>

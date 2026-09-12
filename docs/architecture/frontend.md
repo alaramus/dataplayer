@@ -116,7 +116,11 @@ frontend/src/
     │                    scale of what a caller may do
     ├── shares/          a link to a view, who may follow it and who is waiting
     │                    to — see sharing.md
-    ├── workspace/       the panels and their roles — see workspace.md
+    ├── workspace/       the panels and their roles — see workspace.md.
+    │                    panels.ts is that table: what renders a panel, what a
+    │                    column shows while empty, and what a whole column is
+    │                    called on the bar at the foot of the screen
+    │                    (sectionLook — "Navigation", "Data")
     └── dev/             /ui-kit and /workspace-demo, dev builds only
 ```
 
