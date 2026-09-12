@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from "vue"
+import { computed, ref, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
 import { useLogin } from "@/features/auth/api"
+import { requiredCredentialErrors } from "./validation"
 import { useActiveServerCheck } from "@/features/servers/api"
 import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
 import { safeLocalPath } from "@/shared/servers/profiles"
@@ -30,10 +31,19 @@ function afterSignIn(): string | null {
 const username = ref("")
 const password = ref("")
 const failed = ref(false)
+const submitted = ref(false)
+const errors = computed(() => submitted.value
+  ? requiredCredentialErrors(username.value, password.value)
+  : { username: "", password: "" }
+)
+
+watch([username, password], () => { failed.value = false })
 
 async function submit() {
   if (!serverStatus.isSuccess.value) return
   failed.value = false
+  submitted.value = true
+  if (errors.value.username || errors.value.password) return
   try {
     await login.mutateAsync({ username: username.value, password: password.value })
     const next = afterSignIn()
@@ -81,6 +91,8 @@ async function submit() {
                 label="Email"
                 type="email"
                 autocomplete="username"
+                aria-required="true"
+                :error="errors.username"
                 data-testid="login-email"
               />
               <AppInput
@@ -88,6 +100,8 @@ async function submit() {
                 label="Password"
                 type="password"
                 autocomplete="current-password"
+                aria-required="true"
+                :error="errors.password"
                 data-testid="login-password"
               />
               <AppBanner

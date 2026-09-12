@@ -375,6 +375,11 @@ Spec: [Markdown as a rendered document representation](../decisions/2026-08-31-m
 
 ## Screens
 
+Sign-in reports missing Email and Password beside their fields before sending
+credentials. Required-field messages clear as the values are supplied; a failed
+sign-in message clears when either credential is edited. Password whitespace is
+preserved rather than trimmed.
+
 The catalog is a list of one level: a click opens what can be read and walks into
 what cannot, a tick box picks a node out without opening it, the way back is the
 first row, and the path above it starts at a home button and ends at a compact
