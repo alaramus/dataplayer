@@ -43,6 +43,11 @@ export interface ActionCommand {
   /** Opens the ordinary connector form with values prepared by the source. */
   preparesConnector?: boolean
   requiresPlanReview?: boolean
+  /**
+   * Whether the server carries it out as an owned job: the request is
+   * accepted and the work is followed in Activity, never awaited here (D123).
+   */
+  producesJob?: boolean
   /** Which selection subject or destination candidates the action receives. */
   actsOn: ActionInfo["acts_on"]
   /**
@@ -81,6 +86,7 @@ export function toCommands(actions: ActionInfo[]): ActionCommand[] {
       downloads: action.downloads,
       preparesConnector: action.prepares_connector === true,
       requiresPlanReview: action.requires_plan_review === true,
+      producesJob: action.produces_job === true,
       actsOn: action.acts_on,
       offeredIn: action.offered_in,
       icon: action.icon ?? null,

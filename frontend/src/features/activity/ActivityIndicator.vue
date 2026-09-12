@@ -11,9 +11,10 @@ import { AppButton, AppProgress, AppTooltip, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
 import ActivityPanel from "./ActivityPanel.vue"
 import { useJobs } from "./api"
-import { foreground, JOB_LABELS, localRow, serverRow } from "./presentation"
+import { foreground, jobTitle, localRow, serverRow } from "./presentation"
 import type { ProcessRow } from "./presentation"
 import { useAttention } from "./sources"
+import { sourceDataKeys, touchedSources } from "./sourceOperations"
 
 /**
  * The one control at the end of the status bar, and the sheet it opens (D113).
@@ -55,6 +56,19 @@ watch(() => serverJobs.value.map((job) => `${job.id}:${job.state}`).join(","), (
   }))
 })
 
+// Every settled target of a source operation may have changed what its
+// connection reads, so each one re-reads that connection's data (D123).
+let sourceSignatures = new Map<string, string>()
+watch(serverJobs, (listed) => {
+  const { seen, connectorIds } = touchedSources(sourceSignatures, listed)
+  sourceSignatures = seen
+  for (const connectorId of connectorIds) {
+    for (const queryKey of sourceDataKeys(connectorId)) {
+      void queryClient.invalidateQueries({ queryKey })
+    }
+  }
+})
+
 function subjectOf(kind: string, subjectId: string | null): string | undefined {
   if (subjectId === null) return undefined
   return kind.startsWith("service.")
@@ -78,7 +92,7 @@ const attention = useAttention(
   serverJobs,
   (job) => {
     const subject = subjectOf(job.kind, job.subject_id)
-    return `${JOB_LABELS[job.kind]}${subject ? ` · ${subject}` : ""}`
+    return `${jobTitle(job)}${subject ? ` · ${subject}` : ""}`
   }
 )
 

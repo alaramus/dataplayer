@@ -286,6 +286,52 @@ describe("what an action would do", () => {
     wrapper.unmount()
   })
 
+  it("hands a reviewed job to the server and records no local operation", async () => {
+    const fingerprint = "d".repeat(64)
+    vi.spyOn(ConnectorsService, "previewAction").mockResolvedValue({
+      data: { summary: "Compress 2 chunks", blocked: false, fingerprint },
+    } as never)
+    const run = vi.spyOn(ConnectorsService, "runAction")
+    const start = vi.spyOn(ConnectorsService, "startActionJob").mockResolvedValue({
+      data: { id: "job-1", kind: "source.operation", state: "queued" },
+    } as never)
+    const operations = createOperations()
+    const wrapper = mountDialog(
+      { ...DROP, requiresPlanReview: true, producesJob: true },
+      ["demo.customers"], undefined, [], operations
+    )
+    await settle()
+    click("action-submit")
+    await flushPromises()
+    expect(start).toHaveBeenCalledWith({
+      path: { connector_id: "c-1", action_name: "drop_relation" },
+      body: { node_id: "demo.customers", params: { cascade: false }, reviewed_fingerprint: fingerprint },
+    })
+    expect(run).not.toHaveBeenCalled()
+    // The job is the record of the work; a second, local one would count it twice.
+    expect(operations.items.value).toHaveLength(0)
+    expect(wrapper.findComponent(ActionDialog).emitted("update:command")?.at(-1)).toEqual([null])
+    wrapper.unmount()
+  })
+
+  it("keeps a refused job's form and draws a new plan without sending it again", async () => {
+    const preview = vi.spyOn(ConnectorsService, "previewAction").mockResolvedValue({
+      data: { summary: "Compress 2 chunks", blocked: false, fingerprint: "a".repeat(64) },
+    } as never)
+    const start = vi.spyOn(ConnectorsService, "startActionJob").mockRejectedValue(refused(409))
+    const wrapper = mountDialog({ ...DROP, requiresPlanReview: true, producesJob: true })
+    await settle()
+    click("action-submit")
+    await flushPromises()
+    expect(document.body.querySelector('[data-testid="action-error"]')).not.toBeNull()
+    expect(wrapper.findComponent(ActionDialog).emitted("update:command")).toBeUndefined()
+    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="action-submit"]')?.disabled).toBe(true)
+    await settle()
+    expect(preview).toHaveBeenCalledTimes(2)
+    expect(start).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
   it("asks a plain destructive question that names the target", async () => {
     const wrapper = mountDialog(DROP, ["demo.customers"], {
       label: "customers",

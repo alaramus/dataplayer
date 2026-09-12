@@ -1,6 +1,7 @@
 """Database access for jobs, and nothing else."""
 
 import uuid
+from collections.abc import Collection
 from typing import Any
 
 from sqlalchemy import func
@@ -8,6 +9,14 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.jobs.models import TERMINAL, Job, JobKind, JobsPublic, public
+
+
+class SubjectBusy(Exception):
+    """A job this one may not run beside is unfinished for the same subject."""
+
+    def __init__(self, job_id: uuid.UUID) -> None:
+        super().__init__(f"Job {job_id} is unfinished for this subject")
+        self.job_id = job_id
 
 
 async def for_owner(
@@ -53,6 +62,44 @@ async def create(
     await session.commit()
     await session.refresh(job)
     return job
+
+
+async def admit_exclusive(
+    session: AsyncSession,
+    *,
+    owner_id: uuid.UUID,
+    kind: JobKind,
+    subject_id: uuid.UUID,
+    excluding: Collection[JobKind],
+    step_count: int,
+    parameters: dict[str, Any] | None = None,
+) -> Job:
+    """Record a job unless one of `excluding` is unfinished for the same subject.
+
+    Checking and then creating lets two processes both see nothing and both
+    create. A transaction-scoped advisory lock on the subject serialises the
+    check and the insert across processes, and the commit releases it.
+    """
+    await session.exec(select(func.pg_advisory_xact_lock(
+        func.hashtextextended(f"job-subject:{subject_id}", 0)
+    )))
+    busy = (await session.exec(
+        select(Job)
+        .where(Job.subject_id == subject_id)
+        .where(col(Job.kind).in_(list(excluding)))
+        .where(col(Job.state).not_in(TERMINAL))
+        .order_by(col(Job.created_at).desc())
+        .limit(1)
+    )).first()
+    if busy is not None:
+        # Read before the rollback, which expires every loaded row.
+        busy_id = busy.id
+        await session.rollback()
+        raise SubjectBusy(busy_id)
+    return await create(
+        session, owner_id=owner_id, kind=kind, subject_id=subject_id,
+        step_count=step_count, parameters=parameters,
+    )
 
 
 async def get_for_owner(

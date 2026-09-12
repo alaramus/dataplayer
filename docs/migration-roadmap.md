@@ -1,6 +1,6 @@
 # Migration roadmap
 
-Last updated: 2026-09-11.
+Last updated: 2026-09-12.
 
 The order for moving useful behaviour from `dbwebtool` and `myquasar` into
 DataPlayer. It is a route, not a promise to reproduce every old screen. The old
@@ -53,6 +53,7 @@ Legend:
 | 1.7 — the way back along a key | 2026-09-05 | [D110](decisions/2026-09-05-arriving-references-design.md) |
 | 1.8 — one row, read downwards | 2026-09-05 | [D111](decisions/2026-09-05-row-view-design.md) |
 | 1.9 — everything that needs a person | 2026-09-06 | [D113](decisions/2026-09-06-activity-centre-design.md) through D115 |
+| 1.10 — TimescaleDB through PostgreSQL | 2026-09-12 | [D119](decisions/2026-09-07-timescale-capabilities-design.md) through D123 |
 
 Each of those has a spec in [the index](decisions/README.md), dated the
 day it closed, and a home in `docs/architecture/`. With 1.5 validated, phase 1
@@ -123,44 +124,24 @@ the count on the button deliberately ignores the log. It also settled a leak it
 uncovered — a socket subscription outliving the screen that made it, which
 Quasar's grouped notifications had been hiding.
 
+Phase 1.10 closed on 2026-09-12 with its three slices. A PostgreSQL connection
+recognises TimescaleDB without changing identity and describes its relations,
+chunks, policies and jobs; bounded metadata changes are reviewed plans that are
+drawn again under locks before one transaction; and work too long for a request
+is an owned job over a fixed set of chunks, where every chunk has a durable
+outcome, the first refusal stops the rest, cancellation keeps what committed,
+and a restart leaves nothing claiming to be running. Each slice was checked
+against the two pinned sources; what remains — advanced chunk administration,
+integer policies, populated-table conversion, Timescale-aware backup and a
+managed service template — is deferred with its reason in the spec.
+
 ## Priority order at a glance
 
 | Order | Phase | Relative size | Why it is here |
 | --- | --- | --- | --- |
-| 1.10 | TimescaleDB through PostgreSQL | Medium pilot; larger follow-ups | T1 and T2 are complete; T3 owned operations are next |
 | 6 | Add adapter families deliberately | Ongoing | Breadth is useful only after one complete adapter can exercise each contract family |
 | 7 | Charts and dashboards, second slice | Large | Whole-source aggregation, saved layouts and a history to draw over require contracts absent from the bounded chart |
 | 8 | User-configured AI agent | Very large | Must reuse safe tools, permissions, confirmations and disclosure rules built earlier |
-
-## Phase 1.10 — TimescaleDB through PostgreSQL
-
-T1 is complete as of 2026-09-08 and T2 as of 2026-09-11. The
-[Timescale design](decisions/2026-09-07-timescale-capabilities-design.md)
-defines the three implementation slices. D119–D123 retain one
-PostgreSQL source identity and compose a Timescale feature package.
-
-- [ ] T3: owned source operations, fixed chunk selection, durable partial
-  outcomes, cancellation/recovery and cache invalidation after partial effects.
-
-Before implementing, read the legacy Timescale adapter, the PostgreSQL detection
-and extension modules, and the Timescale editor/view helpers named in the spec.
-Each slice has its own acceptance criteria there. Exact source-image pins and
-the tested compatibility matrix are recorded with implementation, not inferred
-from a generic Timescale version label.
-
-What T1 and T2 delivered, and how each was checked, is recorded in the
-[spec index](decisions/README.md) and the
-[compatibility validation record](../backend/compatibility/timescale/README.md#validation-record-2026-09-11).
-Next: implement T3 against its acceptance criteria in the Timescale design. Its
-job-producing operations need their own real-source tests; T1 and T2 evidence
-does not certify them. Populated-table conversion joins T3 only with a tested
-plan and locking strategy.
-
-Exit condition: a PostgreSQL connection discovers Timescale without changing
-identity, a user can inspect its data and metadata, and each offered mutation
-has verified source semantics and an honest execution outcome. Advanced chunk
-administration, integer policy mutation, Timescale backup/restore and a managed
-service template remain the explicit follow-ups listed in the spec.
 
 ## Phase 6 — add adapter families deliberately
 
@@ -276,8 +257,8 @@ shape to return to are in
 
 Deferred inside PostgreSQL, with the reason in the spec that deferred it:
 monitoring statistics (Phase 7), Grafana (Phase 6), diagram and similarity
-features. TimescaleDB has been promoted to Phase 1.10 above; advanced operations
-outside its three slices remain deferred in the new spec. Backup and restore, database roles
+features. TimescaleDB closed as phase 1.10; advanced operations outside its
+three slices remain deferred in the new spec. Backup and restore, database roles
 and ORM code generation were on this list and have since landed — as an owned
 job, as an action asked of the owner, and as a download that carries a form. An action over ticked
 rows — cancelling a query is the first one to want it — is a contract gap the

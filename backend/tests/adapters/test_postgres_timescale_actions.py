@@ -19,6 +19,10 @@ from app.adapters.postgres.timescale.age_policy_plan import (
     RETENTION,
     AgePolicySpec,
 )
+from app.adapters.postgres.timescale.chunk_storage_action import (
+    CompressChunks,
+    DecompressChunks,
+)
 from app.adapters.postgres.timescale.compression_settings_action import (
     ConfigureCompression,
 )
@@ -41,9 +45,10 @@ POLICY_ACTIONS = {
     SetCompressionPolicy.name, RemoveCompressionPolicy.name,
 }
 REFRESH_ACTIONS = {SetRefreshPolicy.name, RemoveRefreshPolicy.name}
+STORAGE_ACTIONS = {CompressChunks.name, DecompressChunks.name}
 MANAGEMENT = {
     SetChunkInterval.name, ConfigureCompression.name, ConvertToHypertable.name,
-    *POLICY_ACTIONS, *REFRESH_ACTIONS,
+    *POLICY_ACTIONS, *REFRESH_ACTIONS, *STORAGE_ACTIONS,
 }
 NO_RETENTION = "This hypertable has no retention policy"
 NOT_COMPRESSED = "Enable compression on this hypertable first"
@@ -95,6 +100,13 @@ def conversion(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
     return admit
 
 
+@pytest.fixture(autouse=True)
+def storage(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    admit = AsyncMock(return_value={"columnstore": None, "rowstore": None})
+    monkeypatch.setattr(actions, "chunk_storage_admission", admit)
+    return admit
+
+
 SCHEMA = SchemaNode(id="lab", name="lab", has_children=True, representations=[])
 
 
@@ -124,7 +136,7 @@ async def test_vocabulary_tracks_live_installation(monkeypatch: pytest.MonkeyPat
     assert {
         SetChunkInterval, ConfigureCompression, SetRetentionPolicy, RemoveRetentionPolicy,
         SetCompressionPolicy, RemoveCompressionPolicy, SetRefreshPolicy, RemoveRefreshPolicy,
-        ConvertToHypertable,
+        ConvertToHypertable, CompressChunks, DecompressChunks,
     } <= set(PostgresAdapter.action_types())
 
 
@@ -138,7 +150,7 @@ async def test_unknown_discovery_is_not_an_absent_extension(monkeypatch: pytest.
 @pytest.mark.usefixtures("conversion")
 async def test_interval_offer_uses_live_plan_and_preserves_ordinary_guards(
     monkeypatch: pytest.MonkeyPatch, policies: AsyncMock, settings: AsyncMock, refresh: AsyncMock,
-    blocked: bool,
+    storage: AsyncMock, blocked: bool,
 ) -> None:
     catalog = AsyncMock()
     catalog.path_to.return_value = hypertable_path()
@@ -151,8 +163,9 @@ async def test_interval_offer_uses_live_plan_and_preserves_ordinary_guards(
     session = AsyncMock()
     registry = PostgresActions(session, catalog)
     offers = await registry.action_offers("lab.events")
-    expected = {ConfigureCompression.name, SetRetentionPolicy.name}
+    expected = {ConfigureCompression.name, SetRetentionPolicy.name, *STORAGE_ACTIONS}
     assert {item.name for item in offers.actions} == (expected if blocked else {SetChunkInterval.name, *expected})
+    storage.assert_awaited_once_with(session, "lab", "events")
     assert offers.reason_for("drop_relation") == "Structured Timescale writes are disabled"
     assert offers.reason_for(SetChunkInterval.name) == (
         "Metadata lock permission unavailable" if blocked else None
@@ -290,7 +303,7 @@ async def test_ordinary_table_offers_conversion_behind_its_ordinary_guard(
 ])
 async def test_other_nodes_never_probe_management_admission(
     monkeypatch: pytest.MonkeyPatch, policies: AsyncMock, settings: AsyncMock, refresh: AsyncMock,
-    conversion: AsyncMock, path: list[object],
+    conversion: AsyncMock, storage: AsyncMock, path: list[object],
 ) -> None:
     catalog = AsyncMock()
     catalog.path_to.return_value = path
@@ -304,5 +317,5 @@ async def test_other_nodes_never_probe_management_admission(
     offers = await PostgresActions(AsyncMock(), catalog).action_offers(path[-1].id)
     assert not MANAGEMENT & {item.name for item in offers.actions}
     assert all(offers.reason_for(name) is None for name in MANAGEMENT)
-    for admission_mock in (preview, policies, settings, refresh, conversion, probe):
+    for admission_mock in (preview, policies, settings, refresh, conversion, storage, probe):
         admission_mock.assert_not_awaited()

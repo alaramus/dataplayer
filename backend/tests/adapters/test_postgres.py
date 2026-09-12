@@ -116,6 +116,8 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
         "timescale_set_refresh_policy",
         "timescale_remove_refresh_policy",
         "timescale_convert_to_hypertable",
+        "timescale_compress_chunks",
+        "timescale_decompress_chunks",
     ]
     titles = {capability.title for capability in registry.capabilities_of(registry.get("postgres"))}
     assert {
@@ -124,6 +126,7 @@ def test_a_postgres_source_exposes_its_registered_actions() -> None:
             "Set retention policy", "Remove retention policy",
             "Set compression policy", "Remove compression policy",
             "Set refresh policy", "Remove refresh policy", "Convert to hypertable",
+            "Compress chunks", "Decompress chunks",
         )
     } <= titles
 

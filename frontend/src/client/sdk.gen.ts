@@ -184,6 +184,9 @@ import type {
   connectorsSearchCatalogData,
   connectorsSearchCatalogErrors,
   connectorsSearchCatalogResponses,
+  connectorsStartActionJobData,
+  connectorsStartActionJobErrors,
+  connectorsStartActionJobResponses,
   connectorsTableDesignOptionsData,
   connectorsTableDesignOptionsErrors,
   connectorsTableDesignOptionsResponses,
@@ -2389,6 +2392,36 @@ export class ConnectorsService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/connectors/{connector_id}/grants/{user_id}",
       ...options,
+    })
+  }
+
+  /**
+   * Start Action Job
+   *
+   * Carry out a reviewed action as an owned job over the targets its plan fixes.
+   *
+   * The same lookup, availability and grant checks as running an action. The
+   * plan is drawn again and compared with the reviewed fingerprint before the
+   * job is written down, and the job is bound to the connection as it was read
+   * here. One such job at a time per connection, and none beside a restore
+   * (D123).
+   */
+  public static startActionJob<ThrowOnError extends boolean = true>(
+    options: Options<connectorsStartActionJobData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      connectorsStartActionJobResponses,
+      connectorsStartActionJobErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/connectors/{connector_id}/actions/{action_name}/jobs",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 }

@@ -2,8 +2,8 @@
 
 Date: 2026-09-07.
 Status: T1 is complete as of 2026-09-08; the user confirmed that all tests
-passed. T2 is complete as of 2026-09-11; T3 follows. Their mutation
-capabilities are not claimed by T1.
+passed. T2 is complete as of 2026-09-11 and T3 as of 2026-09-12, each with
+every check green. Their mutation capabilities are not claimed by T1.
 
 Decisions: D119 through D123, in
 [TimescaleDB](../architecture/sources/timescale.md).
@@ -914,6 +914,45 @@ strategy. Include cancellation during SQL, failure after a committed chunk,
 restart between source commit and progress persistence, revoked access, edited
 connector, concurrent admission and cache invalidation race tests. UI reload
 must recover the same job and explain its completed and unattempted work.
+
+Implementation, 2026-09-11, validation pending. The transport, admission,
+handler and recovery of D123 are in `app/source_operations/`, with `ProducesJob`
+and its plan in `app/adapters/operations.py`; the action lookup both routes
+share moved to `app/connectors/action_lookup.py`. Chunk conversion calls
+`compress_chunk(regclass, boolean, boolean)` in 2.17.2 and
+`compress_chunk(regclass, boolean, boolean, boolean)` in 2.18.0, whose last
+argument `hypercore_use_access_method` is left unset, and
+`decompress_chunk(regclass, boolean)` in both, each returning regclass, as the
+[2.17.2](https://github.com/timescale/timescaledb/blob/2.17.2/sql/maintenance_utils.sql)
+and [2.18.0](https://github.com/timescale/timescaledb/blob/2.18.0/sql/maintenance_utils.sql)
+maintenance API declares them. The 2.18.0 `convert_to_columnstore` and
+`convert_to_rowstore` procedures call the same C functions and are not used.
+Each routine is verified as the T2 routines are. Selection answers the
+whole-versus-overlapping question above: only whole chunks inside a window of
+instants, fixed by the plan.
+
+Tests written with it: unit scenarios for the plan, per-chunk execution and
+its refused/unknown mapping, the actions and their admission, atomic
+admission, the handler (order, the first refusal stopping, an unknown outcome,
+disabled and edited connections, revoked and insufficient grants, a cancelled
+unit read back, an unreadable payload), restart recovery, the route (415, a
+missing review, 202 then success, 409 naming the running job, a stale review
+recording nothing, the menu flags) and Activity; isolated real-source
+scenarios in `test_chunk_storage.py` for both pinned versions, including
+cancellation while `compress_chunk` waits on a lock; and the mocked browser
+scenario `frontend/tests/timescale-chunk-jobs.spec.ts`. The cache invalidation
+race is D31's own protection and is not tested again here. Every one of them
+was run on 2026-09-12 and passed, together with the full backend, frontend and
+end-to-end suites; the two failures the first compatibility run found, and the
+fix for them, are in the
+[validation record](../../backend/compatibility/timescale/README.md#validation-record-2026-09-12).
+
+Not in this implementation: populated-table conversion, which still needs a
+tested plan and locking strategy; a retry command, so reviewing the same window
+again is a new, visible plan that may include chunks created since; and
+reconciliation at restart, so targets left running stay unknown until the
+Chunks report is read. A restore and a source operation exclude each other on
+one connection; two restores still do not.
 
 ### Explicitly outside T1-T3
 

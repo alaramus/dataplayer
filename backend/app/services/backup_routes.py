@@ -12,7 +12,7 @@ from app.connectors.models import Connector
 from app.core.db import SessionDep
 from app.core.schemas import Message
 from app.jobs import crud as job_crud
-from app.jobs.models import JobPublic
+from app.jobs.models import JobKind, JobPublic
 from app.jobs.models import public as job_public
 from app.jobs.runner import JobRunnerDep
 from app.realtime.topics import TopicsDep
@@ -28,6 +28,10 @@ from app.users import storage
 from app.users.deps import CurrentUser
 
 router = APIRouter(prefix="/backups", tags=["backups"])
+
+# What a restore may not run beside on the same connection: a source operation
+# is working through targets a restore would write over (D123).
+RESTORE_EXCLUDES: tuple[JobKind, ...] = ("source.operation",)
 
 
 class BackupRequest(BaseModel):
@@ -195,14 +199,24 @@ async def restore(
     name = await to_thread.run_sync(
         _one_of_their_own, current_user.id, body.filename
     )
-    job = await job_crud.create(
-        session,
-        owner_id=current_user.id,
-        kind="backup.restore",
-        subject_id=body.connector_id,
-        step_count=len(runner.steps_of("backup.restore")),
-        parameters={"filename": name},
-    )
+    try:
+        job = await job_crud.admit_exclusive(
+            session,
+            owner_id=current_user.id,
+            kind="backup.restore",
+            subject_id=body.connector_id,
+            excluding=RESTORE_EXCLUDES,
+            step_count=len(runner.steps_of("backup.restore")),
+            parameters={"filename": name},
+        )
+    except job_crud.SubjectBusy as busy:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "A source operation is running on this connection",
+                "job_id": str(busy.job_id),
+            },
+        )
     await runner.launch(job, topics)
     return job_public(job)
 

@@ -39,6 +39,11 @@ it("derives mandatory plan review while older action payloads stay optional", ()
   expect(only([{ ...createFolder, requires_plan_review: true }]).requiresPlanReview).toBe(true)
 })
 
+it("reads the job transport off the answer, and an older answer as none", () => {
+  expect(only([createFolder]).producesJob).toBe(false)
+  expect(only([{ ...createFolder, produces_job: true }]).producesJob).toBe(true)
+})
+
 const createFolder: ActionInfo = {
   name: "create_folder",
   title: "New folder",

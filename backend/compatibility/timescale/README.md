@@ -346,3 +346,74 @@ The shared reviewed form then gained a browser scenario,
 `frontend/tests/reviewed-actions.spec.ts`, which mocks the source's responses.
 It failed with the form's review gate deliberately removed and passed with it
 restored; ESLint and the frontend type-check passed for it.
+
+### T3 chunk storage
+
+`test_chunk_storage.py` creates disposable hypertables with compression enabled
+and two seven-day chunks, and drives the registered Compress chunks and
+Decompress chunks actions the way the owned job does: review, admission, one
+unit per chunk and reading back. It covers both directions with the rows
+unchanged; a window selecting whole chunks only, with bounds read from the
+source; a chunk compressed natively after review making admission refuse; a
+unit finding its chunk already compressed; a chunk of another hypertable and a
+changed unit fingerprint refused; compression disabled after admission; a
+chunk locked by another session refused within the five-second lock timeout;
+cancellation while `compress_chunk` waits on that lock, leaving the chunk
+unchanged and convertible; the installed version's routine; and a plain
+database offering no chunk commands. The job, its admission and its recovery
+need the application's database, so `backend/tests/source_operations` covers
+them instead.
+
+### Validation record: 2026-09-12
+
+The user approved running every check. Results on this branch:
+
+| Working directory | Command | Result |
+| --- | --- | --- |
+| backend | `uv run ruff check app tests compatibility` | Passed |
+| backend | `uv run mypy app` | 249 source files clean, after the fix below |
+| backend | `uv run lint-imports` | 6 contracts kept, `app.source_operations` among them |
+| backend | `uv run pytest tests/ -q` | 2859 passed, 13 skipped |
+| backend | `uv run pytest compatibility/timescale -q --tb=short` | 208 passed, 2 failed; 41 passed after the fix below |
+| frontend | `bun run test:unit` | 1568 passed in 173 files |
+| frontend | `bun run type-check` | Passed |
+| frontend | `bun run lint` | 0 errors, 20 existing warnings |
+| frontend | `bun run build` | Passed |
+| frontend | `PLAYWRIGHT_BASE_URL=http://localhost:5173 bunx playwright test --reporter=line` | 188 passed in 9.6 minutes |
+| repository | `bash scripts/check-docs.sh` | Passed |
+
+Both scenarios that read chunk states back failed on both sources:
+`pg_catalog.unnest(text[], text[])` does not exist, because the multi-argument
+form of `unnest` is a parser construct that cannot be schema-qualified. The
+statement now pairs the arrays with
+`ROWS FROM (pg_catalog.unnest(…), pg_catalog.unnest(…))`, which keeps every
+function qualified, and
+`uv run pytest compatibility/timescale/test_chunk_storage.py tests/adapters/test_postgres_timescale_chunk_storage_execution.py -q`
+then passed 41 tests on both pinned sources. Strict mypy separately caught a
+tuple of plain strings where the restore route needs `JobKind`.
+
+The first end-to-end attempt was void rather than failing: a re-run that mixed
+`tests/` with the compatibility path emptied the development database's users,
+so all 86 scenarios attempted timed out at sign-in. `docker compose up -d db
+backend` restored them through prestart and the suite then passed whole. A
+backend test run and an end-to-end run cannot share a database state.
+
+The commands, to run again:
+
+```bash
+# backend/, with both fixture servers ready
+uv run pytest compatibility/timescale/test_chunk_storage.py -q --tb=short
+uv run pytest tests/adapters/test_postgres_timescale_chunk_storage_plan.py tests/adapters/test_postgres_timescale_chunk_storage_execution.py tests/adapters/test_postgres_timescale_chunk_storage_action.py tests/adapters/test_postgres_timescale_actions.py tests/adapters/test_postgres.py tests/adapters/test_routes.py tests/jobs tests/source_operations tests/connectors/test_action_routes.py tests/services/test_backups.py -q
+uv run ruff check app tests compatibility
+uv run mypy app
+uv run lint-imports
+
+# frontend/
+bun run test:unit -- src/features/activity src/features/catalog/ActionDialog.spec.ts src/features/catalog/actions.spec.ts
+bun run type-check
+bunx eslint tests/timescale-chunk-jobs.spec.ts
+PLAYWRIGHT_BASE_URL=http://localhost:5173 bunx playwright test tests/timescale-chunk-jobs.spec.ts --reporter=line
+
+# repository
+bash scripts/check-docs.sh
+```

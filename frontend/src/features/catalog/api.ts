@@ -4,6 +4,7 @@ import type { ComputedRef, Ref } from "vue"
 
 import { ConnectorsService } from "@/client"
 import type { ActionPreview, ActionResult, NodeSearchResult } from "@/client"
+import { jobsKey } from "@/features/activity/api"
 import { messageOf, statusOf } from "@/shared/api/errors"
 import { freshnessOf } from "@/shared/freshness/freshness"
 import type { Freshness } from "@/shared/freshness/freshness"
@@ -376,6 +377,38 @@ function togetherIn(input: ActionInput): string[] | null {
   if (input.asSet !== true) return null
   if (input.files !== undefined && input.files.length > 0) return null
   return nodeSetOf(input.nodeIds)
+}
+
+/**
+ * Hand a reviewed action to the server as an owned job (D123).
+ *
+ * No local operation is started: the job is the record of the work, and the
+ * activity sheet reads it from the server like any other job (D95).
+ */
+export function useStartActionJob() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: {
+      connectorId: string
+      name: string
+      nodeId: string | null
+      params: Record<string, unknown>
+      reviewedFingerprint: string
+    }) =>
+      (
+        await ConnectorsService.startActionJob({
+          path: { connector_id: input.connectorId, action_name: input.name },
+          body: {
+            node_id: input.nodeId,
+            params: input.params,
+            reviewed_fingerprint: input.reviewedFingerprint,
+          },
+        })
+      ).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: jobsKey })
+    },
+  })
 }
 
 /**

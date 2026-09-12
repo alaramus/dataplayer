@@ -15,6 +15,11 @@ from app.adapters.postgres.timescale.age_policy_action import (
     SetRetentionPolicy,
     age_policy_admission,
 )
+from app.adapters.postgres.timescale.chunk_storage_action import (
+    CompressChunks,
+    DecompressChunks,
+    chunk_storage_admission,
+)
 from app.adapters.postgres.timescale.compression_settings_action import (
     ConfigureCompression,
     compression_settings_admission,
@@ -41,7 +46,7 @@ from app.adapters.specializations import (
 TIMESCALE_ACTION_TYPES = (
     SetChunkInterval, ConfigureCompression, SetRetentionPolicy, RemoveRetentionPolicy,
     SetCompressionPolicy, RemoveCompressionPolicy, SetRefreshPolicy, RemoveRefreshPolicy,
-    ConvertToHypertable,
+    ConvertToHypertable, CompressChunks, DecompressChunks,
 )
 
 
@@ -58,10 +63,13 @@ class TimescaleActions:
         self.set_refresh = SetRefreshPolicy(session, catalog)
         self.remove_refresh = RemoveRefreshPolicy(session, catalog)
         self.convert = ConvertToHypertable(session, catalog)
+        self.compress_chunks = CompressChunks(session, catalog)
+        self.decompress_chunks = DecompressChunks(session, catalog)
         self.registered: tuple[Action[Any], ...] = (
             self.interval, self.compression_settings,
             *(action for pair in self._policies for action in pair),
             self.set_refresh, self.remove_refresh, self.convert,
+            self.compress_chunks, self.decompress_chunks,
         )
 
     async def all_actions(self) -> list[Action[Any]]:
@@ -106,6 +114,9 @@ class TimescaleActions:
             reasons[setter.name], reasons[remover.name] = await age_policy_admission(
                 self._session, setter.spec, schema, table,
             )
+        storage = await chunk_storage_admission(self._session, schema, table)
+        reasons[self.compress_chunks.name] = storage["columnstore"]
+        reasons[self.decompress_chunks.name] = storage["rowstore"]
         return reasons
 
     async def _conversion_reasons(self, schema: str, table: str) -> dict[str, str | None]:

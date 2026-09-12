@@ -7,6 +7,7 @@ import {
   usePreviewAction,
   usePreviewActionOnSet,
   useRunAction,
+  useStartActionJob,
 } from "@/features/catalog/api"
 import {
   groupingChoices,
@@ -65,6 +66,7 @@ const toast = useToast()
 const confirm = useConfirm()
 const runAction = useRunAction()
 const downloadAction = useDownloadAction()
+const startJob = useStartActionJob()
 const { values, errors, reset, applyServerErrors } = useSchemaForm()
 
 /**
@@ -304,6 +306,10 @@ async function submit() {
     failure.value = "Review the operation plan before running it"
     return
   }
+  if (command.producesJob) {
+    await start(command, params)
+    return
+  }
   if (command.downloads) {
     await download(command, params)
     return
@@ -368,6 +374,41 @@ async function submit() {
         conflict: statusOf(cause) === 409,
       },
     ])
+  }
+}
+
+/**
+ * Work the server carries out as a job: accepted here, followed in Activity.
+ *
+ * Nothing is said on acceptance, because the footer names the running job
+ * (D95). A refusal keeps the form and asks for a new plan without sending it
+ * again, exactly as a refused reviewed run does.
+ */
+async function start(command: ActionCommand, params: Record<string, unknown>) {
+  const fingerprint = preview.value?.fingerprint
+  if (fingerprint === undefined || fingerprint === null) {
+    failure.value = "Review the operation plan before running it"
+    return
+  }
+  try {
+    await startJob.mutateAsync({
+      connectorId: props.connectorId,
+      name: command.name,
+      nodeId: props.nodeIds[0] ?? null,
+      params,
+      reviewedFingerprint: fingerprint,
+    })
+    close()
+  } catch (cause) {
+    forgetPreview()
+    schedulePreview()
+    const fieldErrors = fieldErrorsFrom(cause)
+    if (fieldErrors) {
+      applyServerErrors(fieldErrors)
+      answering.value = true
+      return
+    }
+    failure.value = messageOf(cause, "The job could not be started")
   }
 }
 
@@ -724,7 +765,7 @@ async function runDesign(value: {
         v-else
         :variant="command.destructive ? 'danger' : 'primary'"
         :label="command.label"
-        :loading="runAction.isPending.value || downloadAction.isPending.value"
+        :loading="runAction.isPending.value || downloadAction.isPending.value || startJob.isPending.value"
         :disable="preview?.blocked === true || reviewMissing"
         data-testid="action-submit"
         @click="submit"

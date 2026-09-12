@@ -11,6 +11,7 @@ from app.realtime.routes import router as realtime_router
 from app.services.backup_routes import router as backups_router
 from app.services.routes import router as services_router
 from app.shares.routes import router as shares_router
+from app.source_operations.routes import router as source_operations_router
 from app.system.routes import router as utils_router
 from app.users.auth_routes import router as auth_router
 from app.users.private_routes import router as private_router
@@ -28,6 +29,7 @@ api_router.include_router(adapter_types_router)
 api_router.include_router(services_router)
 api_router.include_router(backups_router)
 api_router.include_router(jobs_router)
+api_router.include_router(source_operations_router)
 api_router.include_router(shares_router)
 api_router.include_router(queries_router)
 api_router.include_router(realtime_router)

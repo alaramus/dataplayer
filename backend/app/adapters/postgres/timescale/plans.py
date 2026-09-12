@@ -5,9 +5,10 @@ import hmac
 import json
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from app.adapters.actions import ActionRefused
+from app.adapters.operations import MAX_OPERATION_TARGETS
 
 _OID = r"^[1-9][0-9]{0,9}$"
 
@@ -342,3 +343,69 @@ class ConversionPlan(ReviewedPlan):
     coordination: Literal[
         "Locks this table exclusively for the conversion; its reads and writes wait until it commits"
     ] = "Locks this table exclusively for the conversion; its reads and writes wait until it commits"
+
+
+ChunkStorage = Literal["columnstore", "rowstore"]
+
+
+class ChunkStorageStrategy(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    name: Literal["chunk_storage_per_chunk_v1"] = "chunk_storage_per_chunk_v1"
+    storage: ChunkStorage
+    extension_version: Literal["2.17.2", "2.18.0"]
+    function_schema: str = Field(min_length=1, max_length=63)
+    function_oid: str = Field(pattern=_OID)
+
+
+class ChunkStorageUnit(ReviewedPlan):
+    """What every chunk of an admitted job is checked against before it is converted."""
+
+    operation: Literal["convert_chunks"] = "convert_chunks"
+    target: TimeHypertable
+    strategy: ChunkStorageStrategy
+
+
+class ChunkWindow(BaseModel):
+    """Whole chunks ending by one instant, optionally starting from another."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    ends_by: AwareDatetime
+    starts_from: AwareDatetime | None = None
+
+
+class PlannedChunk(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    schema_name: str = Field(min_length=1, max_length=63)
+    name: str = Field(min_length=1, max_length=63)
+    # Source text in the session's time zone, shown in the preview and nowhere else.
+    range_start: str = Field(min_length=1, max_length=100)
+    range_end: str = Field(min_length=1, max_length=100)
+
+
+_STORAGE_IMPACT: dict[ChunkStorage, str] = {
+    "columnstore": (
+        "Compressed chunks stay readable; queries and writes touching a chunk may wait while it is rewritten"
+    ),
+    "rowstore": (
+        "Decompressed chunks take more space; a compression policy may compress them again on its own schedule"
+    ),
+}
+
+
+class ChunkStoragePlan(ReviewedPlan):
+    unit: ChunkStorageUnit
+    window: ChunkWindow
+    # Whole chunks inside the window not yet stored as requested, in time order.
+    chunks: tuple[PlannedChunk, ...] = Field(min_length=1, max_length=MAX_OPERATION_TARGETS)
+    # Chunks inside the window already stored as requested, left as they are.
+    already: int = Field(strict=True, ge=0)
+    coordination: Literal[
+        "Each chunk is converted in its own transaction; cancelling keeps the chunks already converted"
+    ] = "Each chunk is converted in its own transaction; cancelling keeps the chunks already converted"
+
+    @property
+    def impact(self) -> str:
+        return _STORAGE_IMPACT[self.unit.strategy.storage]

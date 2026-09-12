@@ -4,6 +4,7 @@ import { isWorking, progressOf } from "@/features/services/jobs"
 import { isActive } from "@/shared/operations"
 import type { Operation } from "@/shared/operations"
 import type { Tone } from "@/shared/ui"
+import { operationLines, settledCount, sourceOperationOf } from "./sourceOperations"
 
 export interface ProcessRow {
   id: string
@@ -31,6 +32,12 @@ export const JOB_LABELS: Record<JobPublic["kind"], string> = {
   "service.delete": "Delete service",
   "backup.create": "Create backup",
   "backup.restore": "Restore backup",
+  "source.operation": "Source operation",
+}
+
+/** What a job is called: a source operation by its action's title, any other by its kind. */
+export function jobTitle(job: JobPublic): string {
+  return sourceOperationOf(job)?.title ?? JOB_LABELS[job.kind]
 }
 
 const STATUS: Record<JobPublic["state"] | Operation["state"], string> = {
@@ -71,14 +78,24 @@ export function localRow(item: Operation): ProcessRow {
 
 export function serverRow(job: JobPublic, subject: string | undefined): ProcessRow {
   const active = isWorking(job)
+  const operation = sourceOperationOf(job)
+  const settled = operation === null ? 0 : settledCount(operation)
+  const total = operation?.targets.length ?? 0
   return {
     id: job.id, source: "server",
-    label: `${JOB_LABELS[job.kind]}${subject ? ` · ${subject}` : ` · ${job.id.slice(0, 8)}`}`,
-    detail: progressOf(job), status: STATUS[job.state], tone: toneOf(job.state),
-    active, paused: false, progress: job.state === "succeeded" ? 1 : null,
-    measurement: "", createdAt: Date.parse(job.created_at),
+    label: `${jobTitle(job)}${subject ? ` · ${subject}` : ` · ${job.id.slice(0, 8)}`}`,
+    detail: [progressOf(job), ...(operation === null ? [] : operationLines(operation, active))].join("\n"),
+    status: STATUS[job.state], tone: toneOf(job.state),
+    active, paused: false,
+    // A source operation counts the targets that have an outcome; anything
+    // else has no measure and stays indeterminate.
+    progress: job.state === "succeeded" ? 1 : active && operation !== null ? settled / total : null,
+    measurement: operation === null ? "" : `${String(settled)} of ${String(total)} processed`,
+    createdAt: Date.parse(job.created_at),
     canPause: false, canResume: false, canStop: active,
-    controlsHint: active ? "Cancellation keeps completed changes. This job does not support pause." : "",
+    controlsHint: !active ? "" : operation !== null
+      ? "Cancelling stops before the next target; what is already done stays done."
+      : "Cancellation keeps completed changes. This job does not support pause.",
   }
 }
 

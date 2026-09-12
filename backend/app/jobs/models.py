@@ -36,6 +36,8 @@ JobKind = Literal[
     "service.delete",
     "backup.create",
     "backup.restore",
+    # A reviewed action over a fixed set of source targets (D123).
+    "source.operation",
 ]
 
 # The lifecycle, and no state outside it.

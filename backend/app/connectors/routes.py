@@ -24,25 +24,20 @@ from app.adapters.actions import (
     Action,
     ActionAvailability,
     ActionDownloadReady,
-    ActionOffers,
     ActionPreview,
-    ActionRefused,
     ActionResult,
     ActsOn,
     ConnectorDraft,
-    ExplainsActionAvailability,
     OfferedIn,
     PreparesConnector,
     Previews,
     PreviewsSet,
     ProducesDownload,
-    RefusalReason,
     RequiresReviewedPlan,
     SupportsActions,
     TakesFile,
     TakesNodeSet,
     TakesParams,
-    UnknownAction,
     action_availability,
 )
 from app.adapters.cache import (
@@ -100,6 +95,7 @@ from app.adapters.indexes import (
     IndexCreated,
     IndexDropped,
 )
+from app.adapters.operations import ProducesJob
 from app.adapters.protocol import (
     AdapterError,
     ConnectionCheckResult,
@@ -204,6 +200,14 @@ from app.connectors.access import (
     resolve,
     resolve_adapter,
     resolve_source,
+)
+from app.connectors.action_lookup import (
+    ActionRequest,
+    acting_or_501,
+    action_for_node,
+    allowed_or_403,
+    available_or_422,
+    perform,
 )
 from app.connectors.models import (
     Connector,
@@ -439,15 +443,15 @@ async def download_action_result(
         session, claims.connector_id, user, resources, requires="read"
     )
     action = await _action_for_nodes(
-        _acting_or_501(adapter), claims.action_name, claims.node_ids
+        acting_or_501(adapter), claims.action_name, claims.node_ids
     )
-    _allowed_or_403(action, access)
+    allowed_or_403(action, access)
     if not isinstance(action, ProducesDownload):
         raise HTTPException(
             status_code=415,
             detail={"message": f"{action.title} does not produce a download"},
         )
-    prepared = await _perform(
+    prepared = await perform(
         lambda: action.download(claims.node_ids, claims.params)
     )
     return StreamingResponse(
@@ -2749,6 +2753,9 @@ class ActionInfo(ActionAvailability):
     # same way, and for the same reason.
     previews: bool
     requires_plan_review: bool = False
+    # Carried out as an owned job through its own route rather than awaited
+    # (D123). Derived like the rest; such an action always requires review.
+    produces_job: bool = False
     # Whether a selection is carried out in one request rather than repeated
     # per node, and whether that one request can be previewed. Derived from
     # the capabilities, so what the API says cannot drift from what the action
@@ -2788,12 +2795,6 @@ class DownloadActionTargets(BaseModel):
     params: dict[str, Any] = {}
 
 
-class ActionRequest(BaseModel):
-    node_id: str | None = None
-    params: dict[str, Any] = {}
-    reviewed_fingerprint: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
-
-
 class ActionSetRequest(BaseModel):
     """One filled form and the whole selection it is about.
 
@@ -2807,15 +2808,6 @@ class ActionSetRequest(BaseModel):
     params: dict[str, Any] = {}
 
 
-# One status per reason for refusing, in one place. A conflict is not a failure
-# of the source, so none of these is a 502.
-REFUSAL_STATUS: dict[RefusalReason, int] = {
-    "conflict": 409,
-    "not_applicable": 422,
-    "too_large": 413,
-}
-
-
 def _describe(action: Action[Any], availability: ActionAvailability) -> ActionInfo:
     return ActionInfo(
         name=action.name,
@@ -2824,7 +2816,8 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
         takes_file=isinstance(action, TakesFile),
         takes_many_files=action.many_files,
         previews=isinstance(action, Previews),
-        requires_plan_review=isinstance(action, RequiresReviewedPlan),
+        requires_plan_review=isinstance(action, RequiresReviewedPlan | ProducesJob),
+        produces_job=isinstance(action, ProducesJob),
         takes_set=isinstance(action, TakesNodeSet),
         previews_set=isinstance(action, PreviewsSet),
         downloads=isinstance(action, ProducesDownload),
@@ -2840,63 +2833,6 @@ def _describe(action: Action[Any], availability: ActionAvailability) -> ActionIn
     )
 
 
-def _acting_or_501(adapter: DataAdapter) -> SupportsActions:
-    if not isinstance(adapter, SupportsActions):
-        raise HTTPException(
-            status_code=501,
-            detail={
-                "message": "This source does not support actions",
-                "error_kind": "config",
-            },
-        )
-    return adapter
-
-
-async def _available_or_422(
-    adapter: SupportsActions, node_id: str | None
-) -> ActionOffers:
-    try:
-        if isinstance(adapter, ExplainsActionAvailability):
-            return await adapter.action_offers(node_id)
-        return ActionOffers(await adapter.available(node_id))
-    except NodeNotFound as exc:
-        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail={"message": str(exc)}) from exc
-    except AdapterError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail={"message": exc.message, "error_kind": exc.error_kind},
-        ) from exc
-
-
-async def _action_for_node(
-    adapter: SupportsActions, action_name: str, node_id: str | None
-) -> Action[Any]:
-    """The action to perform, or the reason it may not be performed here.
-
-    Applicability is decided by the same call that lists what a node offers,
-    so what the client is shown and what the server allows cannot drift apart.
-    """
-    try:
-        action = adapter.action(action_name)
-    except UnknownAction as exc:
-        raise HTTPException(
-            status_code=404, detail={"message": f"Unknown action: {action_name}"}
-        ) from exc
-
-    available = await _available_or_422(adapter, node_id)
-    if action.name not in {offered.name for offered in available.actions}:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "message": available.reason_for(action.name)
-                or f"{action.title} cannot be done to this node"
-            },
-        )
-    return action
-
-
 async def _action_for_nodes(
     adapter: SupportsActions, action_name: str, node_ids: list[str]
 ) -> Action[Any]:
@@ -2907,7 +2843,7 @@ async def _action_for_nodes(
         )
     action: Action[Any] | None = None
     for node_id in node_ids:
-        action = await _action_for_node(adapter, action_name, node_id)
+        action = await action_for_node(adapter, action_name, node_id)
     if action is None:
         raise HTTPException(status_code=422, detail={"message": "Choose a node"})
     if len(node_ids) > 1 and not action.bulk:
@@ -2916,57 +2852,6 @@ async def _action_for_nodes(
             detail={"message": f"{action.title} cannot be done in bulk"},
         )
     return action
-
-
-def _allowed_or_403(action: Action[Any], access: Access) -> None:
-    """Whether this caller may run this action, asked after it resolved.
-
-    A level cannot be checked at the door, because which one is needed is the
-    action's own statement and the name has not been resolved yet. Answering
-    404 for the name would be a different lie: the action exists.
-    """
-    if not at_least(access, action.requires):
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "message": f"{action.title} needs {action.requires} access",
-                "required": action.requires,
-                "held": access,
-            },
-        )
-
-
-async def _perform[T](run: Callable[[], Awaitable[T]]) -> T:
-    try:
-        return await run()
-    except NodeNotFound as exc:
-        raise HTTPException(status_code=404, detail={"message": str(exc)}) from exc
-    except ValidationError as exc:
-        # ValidationError before ValueError on purpose: it is one of those, and
-        # only it can say which field was wrong.
-        raise HTTPException(
-            status_code=422,
-            detail=[
-                {
-                    "loc": ["body", "params", *error["loc"]],
-                    "msg": error["msg"],
-                    "type": error["type"],
-                }
-                for error in exc.errors()
-            ],
-        ) from exc
-    except ActionRefused as exc:
-        raise HTTPException(
-            status_code=REFUSAL_STATUS[exc.reason],
-            detail={"message": exc.message, "reason": exc.reason},
-        ) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail={"message": str(exc)}) from exc
-    except AdapterError as exc:
-        raise HTTPException(
-            status_code=502,
-            detail={"message": exc.message, "error_kind": exc.error_kind},
-        ) from exc
 
 
 @router.post("/{connector_id}/actions", response_model=list[ActionInfo])
@@ -2996,9 +2881,9 @@ async def read_actions(
     adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
-    acting = _acting_or_501(adapter)
+    acting = acting_or_501(adapter)
     targets: list[str | None] = list(body.node_ids) if body.node_ids else [None]
-    offers = [await _available_or_422(acting, node_id) for node_id in targets]
+    offers = [await available_or_422(acting, node_id) for node_id in targets]
     # Filtered rather than greyed out: an action the caller may not run is not
     # inapplicable here, it is not theirs, and saying so per action would put
     # the level rules into the menu as well as into the route.
@@ -3031,16 +2916,16 @@ async def prepare_connector_action(
     adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
-    action = await _action_for_node(
-        _acting_or_501(adapter), action_name, body.node_id
+    action = await action_for_node(
+        acting_or_501(adapter), action_name, body.node_id
     )
-    _allowed_or_403(action, access)
+    allowed_or_403(action, access)
     if not isinstance(action, PreparesConnector):
         raise HTTPException(
             status_code=415,
             detail={"message": f"{action.title} does not prepare a connector"},
         )
-    return await _perform(lambda: action.prepare_connector(body.node_id, body.params))
+    return await perform(lambda: action.prepare_connector(body.node_id, body.params))
 
 
 @router.post("/{connector_id}/actions/{action_name}", response_model=ActionResult)
@@ -3059,16 +2944,16 @@ async def run_action(
     adapter, access = await resolve_adapter(
         session, connector_id, current_user, resources, requires="read"
     )
-    action = await _action_for_node(
-        _acting_or_501(adapter), action_name, body.node_id
+    action = await action_for_node(
+        acting_or_501(adapter), action_name, body.node_id
     )
-    _allowed_or_403(action, access)
+    allowed_or_403(action, access)
     if isinstance(action, RequiresReviewedPlan):
         fingerprint = body.reviewed_fingerprint
         if fingerprint is None:
             raise HTTPException(status_code=422, detail={"message": "Review the operation plan before running it"})
         return await _invalidate_after(
-            lambda: _perform(lambda: action.perform_reviewed(body.node_id, body.params, fingerprint)),
+            lambda: perform(lambda: action.perform_reviewed(body.node_id, body.params, fingerprint)),
             data_cache,
             connector_id,
             even_on_failure=True,
@@ -3079,7 +2964,7 @@ async def run_action(
             detail={"message": f"{action.title} uses a different request transport"},
         )
     return await _invalidate_after(
-        lambda: _perform(lambda: action.perform(body.node_id, body.params)),
+        lambda: perform(lambda: action.perform(body.node_id, body.params)),
         data_cache,
         connector_id,
     )
@@ -3112,8 +2997,8 @@ async def preview_action(
         session, connector_id, current_user, resources, requires="read"
     )
     target = body.node_id or None
-    action = await _action_for_node(_acting_or_501(adapter), action_name, target)
-    _allowed_or_403(action, access)
+    action = await action_for_node(acting_or_501(adapter), action_name, target)
+    allowed_or_403(action, access)
     if not isinstance(action, Previews):
         raise HTTPException(
             status_code=501,
@@ -3122,7 +3007,7 @@ async def preview_action(
                 "error_kind": "config",
             },
         )
-    return await _perform(lambda: action.preview(target, body.params))
+    return await perform(lambda: action.preview(target, body.params))
 
 
 @router.post("/{connector_id}/actions/{action_name}/set", response_model=ActionResult)
@@ -3148,16 +3033,16 @@ async def run_action_on_set(
         session, connector_id, current_user, resources, requires="read"
     )
     action = await _action_for_nodes(
-        _acting_or_501(adapter), action_name, body.node_ids
+        acting_or_501(adapter), action_name, body.node_ids
     )
-    _allowed_or_403(action, access)
+    allowed_or_403(action, access)
     if not isinstance(action, TakesNodeSet):
         raise HTTPException(
             status_code=415,
             detail={"message": f"{action.title} is done to one node at a time"},
         )
     return await _invalidate_after(
-        lambda: _perform(lambda: action.perform_on_set(body.node_ids, body.params)),
+        lambda: perform(lambda: action.perform_on_set(body.node_ids, body.params)),
         data_cache,
         connector_id,
     )
@@ -3181,15 +3066,15 @@ async def preview_action_on_set(
         session, connector_id, current_user, resources, requires="read"
     )
     action = await _action_for_nodes(
-        _acting_or_501(adapter), action_name, body.node_ids
+        acting_or_501(adapter), action_name, body.node_ids
     )
-    _allowed_or_403(action, access)
+    allowed_or_403(action, access)
     if not isinstance(action, PreviewsSet):
         raise HTTPException(
             status_code=415,
             detail={"message": f"{action.title} cannot say what it would do"},
         )
-    return await _perform(lambda: action.preview_on_set(body.node_ids, body.params))
+    return await perform(lambda: action.preview_on_set(body.node_ids, body.params))
 
 
 @router.post(
@@ -3209,9 +3094,9 @@ async def prepare_action_download(
         session, connector_id, current_user, resources, requires="read"
     )
     action = await _action_for_nodes(
-        _acting_or_501(adapter), action_name, body.node_ids
+        acting_or_501(adapter), action_name, body.node_ids
     )
-    _allowed_or_403(action, access)
+    allowed_or_403(action, access)
     if not isinstance(action, ProducesDownload):
         raise HTTPException(
             status_code=415,
@@ -3253,8 +3138,8 @@ async def run_action_with_file(
         session, connector_id, current_user, resources, requires="read"
     )
     target = node_id or None
-    action = await _action_for_node(_acting_or_501(adapter), action_name, target)
-    _allowed_or_403(action, access)
+    action = await action_for_node(acting_or_501(adapter), action_name, target)
+    allowed_or_403(action, access)
     if not isinstance(action, TakesFile):
         raise HTTPException(
             status_code=415,
@@ -3274,7 +3159,7 @@ async def run_action_with_file(
         )
 
     return await _invalidate_after(
-        lambda: _perform(lambda: action.perform_with_file(target, given, file)),
+        lambda: perform(lambda: action.perform_with_file(target, given, file)),
         data_cache,
         connector_id,
     )

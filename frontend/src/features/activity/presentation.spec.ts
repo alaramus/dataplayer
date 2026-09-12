@@ -45,4 +45,37 @@ describe("process presentation", () => {
     registry.stop(task.id)
     expect(await waiting).toBe(false)
   })
+
+  it("counts a source operation's settled targets and names what needs a look", () => {
+    const target = (name: string, outcome: string, message: string | null = null) => ({
+      target: { schema_name: "_timescaledb_internal", name }, outcome, message, observed: null,
+    })
+    const record = { title: "Compress chunks", summary: 'Compress 3 chunks of "lab"."metrics" as a job' }
+    const running: JobPublic = {
+      ...job, kind: "source.operation", subject_id: "connector-one",
+      step: "carrying out the reviewed plan", step_index: 2, step_count: 3,
+      parameters: { ...record, targets: [target("a", "completed"), target("b", "running"), target("c", "pending")] },
+    }
+    const row = serverRow(running, "Lab")
+    expect(row).toMatchObject({
+      label: "Compress chunks · Lab", measurement: "1 of 3 processed", progress: 1 / 3, canStop: true,
+    })
+    expect(row.detail).toContain("Now: _timescaledb_internal.b")
+    expect(row.controlsHint).toContain("stops before the next target")
+
+    const failed = serverRow({
+      ...running, state: "failed", message: "Compress 3 chunks: 1 done, 1 refused, 1 not attempted",
+      parameters: {
+        ...record,
+        targets: [
+          target("a", "completed"),
+          target("b", "refused", "This chunk is in use; nothing was converted"),
+          target("c", "pending"),
+        ],
+      },
+    }, "Lab")
+    expect(failed).toMatchObject({ measurement: "2 of 3 processed", progress: null, active: false })
+    expect(failed.detail).toContain("1 done, 1 refused, 1 not attempted")
+    expect(failed.detail).toContain("_timescaledb_internal.b: This chunk is in use; nothing was converted")
+  })
 })

@@ -11,7 +11,9 @@ Decisions here: D81, D95.
 
 One table, one runner, one topic, owner-scoped reads and cancellation. Its first user is the
 lifecycle of a [managed service](services.md); the phase that introduced it
-names backup and restore as the second.
+names backup and restore as the second. The third is a source operation
+(D123, `app/source_operations/`): a reviewed action over a fixed set of source
+targets, whose typed payload in `parameters` holds each target's outcome.
 
 ```
 backend/app/jobs/
@@ -73,7 +75,11 @@ up.
 - **One job at a time per subject.** A second command about the same thing is
   refused with 409 and the id of the job already running, because two jobs at
   once are two processes telling one container what to do and the second would
-  report the outcome of a race.
+  report the outcome of a race. `admit_exclusive` makes that hold across
+  processes: a transaction-scoped advisory lock on the subject in the
+  application database serialises the check and the insert. Source operations
+  and restores admit this way and exclude each other on one connection;
+  services still check, then create.
 - **A job is its owner's.** Somebody else's is not found rather than refused,
   the rule connections already follow (D33).
 

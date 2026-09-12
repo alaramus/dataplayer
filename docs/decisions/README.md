@@ -17,7 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
-| 2026-09-07 | [TimescaleDB through a PostgreSQL connection](2026-09-07-timescale-capabilities-design.md) | T1 completed on 2026-09-08, as confirmed by the user, and T2 on 2026-09-11 with all checks green. T3 is next. D119–D123: composed extension support, runtime discovery, typed relational specialisation, paged reports and guarded source operations |
+| 2026-09-07 | [TimescaleDB through a PostgreSQL connection](2026-09-07-timescale-capabilities-design.md) | T1 completed on 2026-09-08, as confirmed by the user, T2 on 2026-09-11 and T3 on 2026-09-12, each with all checks green. D119–D123: composed extension support, runtime discovery, typed relational specialisation, paged reports and guarded source operations |
 | 2026-09-07 | [Action targets and availability](2026-09-07-action-targets-design.md) | D118: independent grouping actions, destination workflows and explicit availability reasons |
 | 2026-08-15 | [The connector registry and the adapter contract](2026-08-15-connector-registry-design.md) | D1, D2, D2b: a source type is a class in code, the contract is a Protocol. D3, D4, D6, D7: async throughout, secrets split by schema, Vue with Quasar, server state in vue-query |
 | 2026-08-15 | [Breaking the flat layer up into a users module](2026-08-15-users-module-design.md) | D5: modules by area, dependencies pointing one way |

@@ -11,8 +11,9 @@ Read alongside [contract.md](contract.md), [relations.md](relations.md),
 passed on Timescale 2.17.2 and 2.18.0, both PostgreSQL 16.6.
 The [validation record](../../../backend/compatibility/timescale/README.md#t1-completion-2026-09-08)
 distinguishes recorded command results from the user's final completion
-confirmation. T2 bounded metadata changes are complete as of 2026-09-11; T3
-owned operations follow, as the [roadmap](../../migration-roadmap.md) says.
+confirmation. T2 bounded metadata changes are complete as of 2026-09-11 and T3
+owned chunk operations as of 2026-09-12, both with every check green on the two
+pinned sources; the [roadmap](../../migration-roadmap.md) closed the phase.
 T1 inspection/refusal evidence does not certify T2/T3 mutation semantics.
 
 ## D119. Timescale is composed into PostgreSQL without another source identity
@@ -83,8 +84,10 @@ live plan refuses execution. Interval admission uses a one-day read-only plan
 for a user hypertable; actual preview validates the chosen duration separately.
 Retention and compression policy commands are each admitted from one read-only
 snapshot per hypertable; removal carries a reason when no policy exists, and
-compression commands when compression is not enabled. A continuous aggregate
-offers only refresh policy commands, admitted the same way. An ordinary user
+compression commands when compression is not enabled. Compressing and
+decompressing chunks are admitted together from one more snapshot that
+verifies the hypertable, enabled compression and both routines. A continuous
+aggregate offers only refresh policy commands, admitted the same way. An ordinary user
 table in a Timescale database is admitted for conversion behind the ordinary
 relation guard; without Timescale, one catalog read settles it.
 The ordinary relation guards remain independent of management admission. Static
@@ -245,11 +248,16 @@ Spec: [TimescaleDB through a PostgreSQL connection](../../decisions/2026-09-07-t
 
 ## D123. Long source actions are owned jobs with fixed targets and partial outcomes
 
-In T3, job-producing actions return typed plans through a dedicated transport
-that reuses action/grant checks and returns a job ID. A feature module above
-`jobs` and `connectors` owns admission and execution lifecycle; adapters own
-source operation primitives and never import the job runner. Register the new
-module in the enforced layer/SDK contracts and its handler in assembly.
+A job-producing action implements `ProducesJob` (`adapters/operations.py`): it
+plans a fixed `OperationPlan` of at most 1000 targets against a reviewed
+fingerprint, carries out one target per source transaction and reads targets
+back. `POST /connectors/{id}/actions/{name}/jobs` reuses the lookup,
+availability and grant checks of an ordinary action (`connectors/action_lookup.py`),
+draws the plan again, compares it with the review and answers 202 with the
+job. `app.source_operations`, a layer above `jobs` and `connectors`, owns
+admission, the typed durable payload, execution and restart recovery; adapters
+never import it, and the import contracts say so. `ActionInfo.produces_job` is
+derived from the protocol, and such an action always requires review.
 
 Costly conversion/storage work is previewed with read-only planning, not an
 execution rolled back. Plans carry exact target identities, normalised
@@ -277,6 +285,51 @@ including failure, cancellation and restart recovery. The existing activity
 surface reads the durable job; accepting it creates no second local running
 operation. Later policy actions require structure access, and retention-policy
 confirmation describes future automatic deletion by the source.
+
+Admission takes a transaction-scoped advisory
+lock on the connector in the application database and refuses, with 409 and
+the job's ID, while another source operation or a restore is unfinished there;
+a restore is refused the same way while a source operation runs. The job
+records the initiator, the required access, the action's form, the
+connection's server-maintained `updated_at` as its revision, the plan's unit
+fingerprint and every target as pending. Before the first unit and each later
+one the handler reads the connection, its enabled state, that revision and the
+owner's grant from a fresh session; a change stops the job before the next
+target, says that committed work stays, and reads nothing more back. Target
+outcomes are pending, running, completed, already, refused, rolled back and
+unknown. Each is written to the row before the same named step is announced
+again, and the read cache is invalidated after every unit whatever its outcome.
+The first refusal or unknown outcome stops dispatch. A cancelled unit is read
+back: unchanged is rolled back, as requested is completed, anything else stays
+unknown. At startup, before D81's sweep, targets left running become unknown
+and their connections' cached answers are dropped. Activity shows the action's
+title, the counted targets with an outcome and those that need a look, and
+re-reads a connection's data whenever a polled operation moves.
+
+Chunk conversion is two such actions, Compress chunks and Decompress chunks,
+on a time hypertable with compression enabled, for the pinned 2.17.2/2.18.0
+sources on PostgreSQL 16. The form is a window of instants with time zones; the
+plan fixes the whole chunks inside it not yet stored as requested, in time
+order, refuses more than 1000 and an empty selection, and counts those already
+stored as requested. Its fingerprint covers the chunk list; a separate unit
+fingerprint covers only the hypertable identity and the verified
+`compress_chunk` or `decompress_chunk` of the installed version, so a unit can
+tell that nothing but chunk states changed. Each unit runs at READ COMMITTED
+with a five-second lock timeout and a fifteen-minute statement timeout,
+re-resolves the chunk's membership in its parent by name, answers already when
+it is stored as requested, and otherwise calls the routine with the bound chunk
+OID and the if-not flag set. Lock waits and the statement timeout refuse; a
+connection lost after the call was sent is unknown. A partially compressed
+chunk counts as compressed.
+
+Reading chunk states back pairs its two arrays with `ROWS FROM`: the
+multi-argument form of `unnest` is a parser construct that cannot be
+schema-qualified, and every function these statements name is qualified.
+
+Known deviations: there is no retry command, so reviewing the same window
+again is a new plan the person sees, which may include chunks created since.
+Access revoked while a chunk converts does not stop that chunk. Populated-table
+conversion is not part of T3 until it has a tested plan and locking strategy.
 
 The first T2 plan model covers a future-chunk interval change. It records the
 database/relation OIDs as decimal text, schema/name, time dimension and its

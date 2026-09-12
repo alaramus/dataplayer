@@ -25,6 +25,8 @@ from app.services.docker import DockerEngine
 from app.services.engine import SWITCHED_OFF_MESSAGE, NoEngine, ServiceEngine
 from app.services.jobs import handlers as service_handlers
 from app.services.restore_files import remove_stranded_snapshots
+from app.source_operations.handler import handlers as source_operation_handlers
+from app.source_operations.recovery import settle_interrupted_operations
 
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
@@ -89,10 +91,15 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         else NoEngine(SWITCHED_OFF_MESSAGE)
     )
     application.state.service_engine = engine
-    application.state.job_runner = JobRunner(
-        {**service_handlers(engine), **backup_handlers(engine)}
-    )
+    application.state.job_runner = JobRunner({
+        **service_handlers(engine),
+        **backup_handlers(engine),
+        **source_operation_handlers(application.state.data_cache),
+    })
     # What the last stop left mid-flight is ended before anything new starts.
+    # Source operations first: their targets say what became unknown before
+    # the generic sweep ends the jobs (D123).
+    await settle_interrupted_operations(application.state.data_cache)
     await settle_stranded()
     await to_thread.run_sync(remove_stranded_snapshots)
     # Transactions held open for somebody: a connection each, so the lease is

@@ -136,6 +136,7 @@ async def test_reports_what_a_type_can_do(
                 "Set retention policy", "Remove retention policy",
                 "Set compression policy", "Remove compression policy",
                 "Set refresh policy", "Remove refresh policy", "Convert to hypertable",
+                "Compress chunks", "Decompress chunks",
             )
         ),
     }

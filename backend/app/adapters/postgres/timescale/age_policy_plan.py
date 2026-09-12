@@ -139,7 +139,7 @@ async def inspect_age_policy(
             await require_tested_server(reader)
             target = await time_hypertable(reader, schema_name, table_name)
             if spec.requires_compression:
-                await _require_compression(reader, target)
+                await require_compression(reader, target)
             await require_public_view(reader, "jobs", JOBS_COLUMNS)
             existing = await read_age_policy(reader, spec, target.schema_name, target.table_name)
             add = await extension_routine(reader, version, spec.add[version])
@@ -161,7 +161,7 @@ async def inspect_age_policy(
         ) from None
 
 
-async def _require_compression(reader: PostgresReader, target: TimeHypertable) -> None:
+async def require_compression(reader: PostgresReader, target: TimeHypertable) -> None:
     await require_public_view(
         reader, "hypertables", ("hypertable_schema", "hypertable_name", "compression_enabled"),
     )

@@ -121,6 +121,10 @@ export type ActionInfo = {
    */
   requires_plan_review?: boolean
   /**
+   * Produces Job
+   */
+  produces_job?: boolean
+  /**
    * Takes Set
    */
   takes_set: boolean
@@ -3988,6 +3992,7 @@ export type JobPublic = {
     | "service.delete"
     | "backup.create"
     | "backup.restore"
+    | "source.operation"
   /**
    * Subject Id
    */
@@ -12410,6 +12415,42 @@ export type jobsCancelJobResponses = {
 }
 
 export type jobsCancelJobResponse = jobsCancelJobResponses[keyof jobsCancelJobResponses]
+
+export type connectorsStartActionJobData = {
+  body: ActionRequest
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+    /**
+     * Action Name
+     */
+    action_name: string
+  }
+  query?: never
+  url: "/api/v1/connectors/{connector_id}/actions/{action_name}/jobs"
+}
+
+export type connectorsStartActionJobErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type connectorsStartActionJobError =
+  connectorsStartActionJobErrors[keyof connectorsStartActionJobErrors]
+
+export type connectorsStartActionJobResponses = {
+  /**
+   * Successful Response
+   */
+  202: JobPublic
+}
+
+export type connectorsStartActionJobResponse =
+  connectorsStartActionJobResponses[keyof connectorsStartActionJobResponses]
 
 export type sharesListSharesData = {
   body?: never
