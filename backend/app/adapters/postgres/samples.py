@@ -12,12 +12,17 @@ rather than a second copy of them. They ship inside this package, next to the
 driver that runs them, because the same script is now both a development
 fixture and something the application does at a user's request.
 
-A database with TimescaleDB in it gets two more, into the same schema: a
-hypertable with a fortnight of readings in it, chunks of a day, compression
-with a policy behind it, a continuous aggregate and a retention policy. Which
-two run is asked of the database rather than of the template that started it —
-a source is what it holds, discovered while it is open (D119, D120) — so a
-PostgreSQL that gains the extension later is filled the same way.
+A database with TimescaleDB in it is filled with a different schema instead of
+that one: the same kind of story — sites, meters, sensors and what they read —
+told in hypertables, chunks, compression, continuous aggregates and policies,
+with a few empty tables left with a time column in them, which is what the
+conversion action turns into hypertables. A server somebody started for the
+extension opening on a schema that says nothing about it demonstrates the
+wrong thing.
+
+Which schema it is, is asked of the database rather than of the template that
+started it — a source is what it holds, discovered while it is open (D119,
+D120) — so a PostgreSQL that gains the extension later is filled the same way.
 """
 
 from pathlib import Path
@@ -34,7 +39,7 @@ SCRIPT_NAMES = (
     "postgres_complex_data.sql",
 )
 
-# And what a database holding the extension gets on top of them. Two files
+# And what a database holding the extension gets instead of them. Two files
 # rather than one because the second holds what cannot run inside a
 # transaction: a refresh and a conversion to the columnstore are procedures
 # that commit, and a script of several statements is one transaction to the
@@ -78,25 +83,19 @@ class PostgresSamples:
         with their own `BEGIN`/`COMMIT` — so nothing here splits SQL, and the
         text is this repository's own rather than anything a client sent.
         """
-        scripts = [
-            await to_thread.run_sync(_read, path) for path in script_paths()
-        ]
-        timescale = [
-            await to_thread.run_sync(_read, path) for path in timescale_script_paths()
-        ]
         async with self._session.acquire() as connection:
             await connection.set_autocommit(True)
-            for script in scripts:
+            # Asked before anything is read, because the answer says which
+            # schema this database is getting.
+            holds_timescale = await self._has_timescale(connection)
+            for path in timescale_script_paths() if holds_timescale else script_paths():
+                script = await to_thread.run_sync(_read, path)
                 # No parameters at all, deliberately: psycopg treats a literal
                 # `%` as a placeholder the moment any are supplied, and these
                 # scripts contain them.
                 await connection.execute(script)
-            hypertables = 0
-            if await self._has_timescale(connection):
-                for script in timescale:
-                    await connection.execute(script)
-                hypertables = await self._count_hypertables(connection)
             tables = await self._count_tables(connection)
+            hypertables = await self._count_hypertables(connection) if holds_timescale else 0
         counted = f"{SAMPLE_SCHEMA}: {tables} tables"
         if hypertables == 0:
             return counted

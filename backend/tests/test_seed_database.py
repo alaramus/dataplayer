@@ -50,10 +50,11 @@ def test_the_scripts_ship_with_the_driver_that_runs_them() -> None:
 
 
 def test_the_timescale_scripts_ship_beside_them() -> None:
-    """A database holding the extension is filled with two more files.
+    """A database holding the extension is filled with these two instead.
 
-    They are not a separate demonstration: they add to the schema the first
-    script created, so they come after it and ship in the same directory.
+    They are a demonstration of their own rather than an addition to the
+    ordinary one, so the first of them owns the schema: it drops and creates
+    `demo_lab` itself, the way the ordinary schema does.
     """
     schema, settle = timescale_script_paths()
 
@@ -61,6 +62,37 @@ def test_the_timescale_scripts_ship_beside_them() -> None:
     assert settle.name == "timescale_settle.sql"
     for path in timescale_script_paths():
         assert path.is_file(), path
+
+    written = schema.read_text(encoding="utf-8")
+    assert "DROP SCHEMA IF EXISTS demo_lab CASCADE;" in written
+    assert "CREATE SCHEMA demo_lab;" in written
+
+
+def test_the_tables_offered_for_conversion_are_left_empty() -> None:
+    """The conversion turns an ordinary table into a hypertable, and only
+    while there is nothing in it: a row in any of these makes the one thing
+    they are there for impossible."""
+    schema = timescale_script_paths()[0].read_text(encoding="utf-8")
+
+    for table in ("energy_meter_ticks", "weather_observations", "trade_ticks", "daily_totals"):
+        assert f"CREATE TABLE {table} (" in schema, table
+        assert f"INSERT INTO {table}" not in schema, table
+
+
+def test_every_job_is_attached_after_the_demonstration_is_built() -> None:
+    """A policy added beside the table it acts on starts running while the
+    schema is still being written: a refresh policy took the aggregate's window
+    a moment before the second file asked for it, and the refusal left the
+    whole demonstration half built."""
+    schema, settle = (path.read_text(encoding="utf-8") for path in timescale_script_paths())
+
+    for policy in (
+        "add_compression_policy",
+        "add_retention_policy",
+        "add_continuous_aggregate_policy",
+    ):
+        assert policy in settle, policy
+        assert policy not in schema, policy
 
 
 def test_what_cannot_run_inside_a_transaction_is_not_in_the_transaction() -> None:

@@ -634,12 +634,12 @@ few hundred rows — so that is what goes in.
   makes the offer appear on a template; a source that cannot be filled is
   skipped rather than refused, because the person asked for a database and
   this is the part of the answer that source cannot give.
-- **What the database holds decides what else goes in.** A server with
-  TimescaleDB gets two more files into the same schema — a hypertable, a chunk
-  per day, compression, an aggregate, a retention policy — and it is the
-  database that is asked, not the template ([D119](sources/timescale.md)). Two
-  files because a refresh and a conversion commit, and a script of several
-  statements is one transaction whatever autocommit says.
+- **What the database holds decides which schema goes in.** A server with
+  TimescaleDB gets a different one: sites, meters and sensors told in
+  hypertables, chunks, compression, aggregates and policies, with four tables
+  left empty and dated, which is the only state a conversion accepts. It is
+  the database that is asked, not the template ([D119](sources/timescale.md)),
+  and it takes two files because a refresh and a conversion commit.
 - **Nothing a client sends reaches a statement.** The script is this
   repository's own text, run against a server this application has just
   started. Running somebody's script against somebody's server is what the
