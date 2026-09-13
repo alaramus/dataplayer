@@ -26,6 +26,7 @@ frontend/src/features/activity/
 └── api.ts                  the jobs listing
 frontend/src/features/shares/attention.ts       who is waiting for access
 frontend/src/features/connectors/attention.ts   what stopped answering
+frontend/src/features/dashboards/attention.ts   a host that keeps restarting
 ```
 
 ## D113. What needs a person is one place, with three kinds in it

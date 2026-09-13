@@ -159,6 +159,47 @@ class StoreStatus(BaseModel):
     message: str | None = None
 
 
+class TierInfo(BaseModel):
+    # "raw", "5m" or "1h": samples as they came, or averages of that width.
+    name: str
+    width_seconds: int
+    kept_seconds: int
+
+
+class StoreUsage(BaseModel):
+    """What a superuser is told about the store before removing it."""
+
+    # Started on this server as a service, or an existing database connected.
+    origin: Literal["started", "connected"]
+    # Host, port and database; never the credentials.
+    address: str
+    # Null when the store does not answer.
+    bytes: int | None = None
+    series: int | None = None
+    tiers: list[TierInfo]
+
+
+class HostRestarts(BaseModel):
+    agent_id: uuid.UUID
+    agent_name: str
+    host: str
+    count: int
+    first_at: datetime
+    last_at: datetime
+    # "uptime": the host itself restarted. "agent": the agent's own process
+    # started again.
+    cause: Literal["uptime", "agent"]
+    # Whether the agent was told to run iftop, which 1.14.0 crashes on.
+    runs_iftop: bool
+
+
+class RestartsAnswer(BaseModel):
+    """Hosts of the caller's agents that keep restarting (D130)."""
+
+    window_seconds: int
+    hosts: list[HostRestarts]
+
+
 class StoreConnect(BaseModel):
     """An existing TimescaleDB, in the PostgreSQL adapter's options."""
 

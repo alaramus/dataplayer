@@ -315,3 +315,38 @@ export function useDeleteDashboard() {
     },
   })
 }
+
+/** Where the store is and what it holds; a superuser's, before removing it. */
+export function useStoreUsage(enabled: MaybeRefOrGetter<boolean>) {
+  return useQuery({
+    queryKey: ["metrics-store-usage"] as const,
+    queryFn: async () => (await MetricsService.readStoreUsage()).data,
+    enabled: computed(() => toValue(enabled)),
+  })
+}
+
+export function useRemoveStore() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () => (await MetricsService.removeStore()).data,
+    // Every answer about metrics came from the store that is gone.
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        predicate: (query) => String(query.queryKey[0]).startsWith("metrics-"),
+      })
+    },
+  })
+}
+
+/**
+ * Hosts of the person's agents that keep restarting (D130). Read by the
+ * activity sheet on every screen, so slowly: restarts that need a person are
+ * counted over a quarter of an hour.
+ */
+export function useRestarts() {
+  return useQuery({
+    queryKey: ["metrics-restarts"] as const,
+    queryFn: async () => (await MetricsService.readRestarts()).data,
+    refetchInterval: 60_000,
+  })
+}

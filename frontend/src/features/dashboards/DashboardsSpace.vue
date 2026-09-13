@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
-import { AppButton, AppEmptyState, AppSpinner, AppTree, useToast } from "@/shared/ui"
+import { AppButton, AppEmptyState, AppIconButton, AppSpinner, AppTree, useToast } from "@/shared/ui"
 
 import AgentsDialog from "./AgentsDialog.vue"
 import {
@@ -16,6 +16,7 @@ import {
 } from "./api"
 import { catalogTree, indexCatalog } from "./catalog"
 import DashboardView from "./DashboardView.vue"
+import StoreDialog from "./StoreDialog.vue"
 import StoreSetup from "./StoreSetup.vue"
 
 /**
@@ -36,6 +37,7 @@ const index = computed(() => indexCatalog(catalog.data.value))
 const sources = computed(() => catalogTree(catalog.data.value))
 const sourcesExpanded = ref<string[]>([])
 const agentsOpen = ref(false)
+const storeOpen = ref(false)
 
 const SELECTED_KEY = "dataplayer-dashboard"
 
@@ -141,14 +143,23 @@ function afterDelete() {
 
         <div class="dashboards__heading dashboards__heading--divided">
           <span>Sources</span>
-          <AppButton
-            variant="quiet"
-            size="sm"
-            icon="sensors"
-            label="Sources"
-            data-testid="agents-open"
-            @click="agentsOpen = true"
-          />
+          <span>
+            <AppIconButton
+              v-if="status.data.value?.may_set_up"
+              icon="storage"
+              tooltip="The metrics store"
+              data-testid="store-open"
+              @click="storeOpen = true"
+            />
+            <AppButton
+              variant="quiet"
+              size="sm"
+              icon="sensors"
+              label="Sources"
+              data-testid="agents-open"
+              @click="agentsOpen = true"
+            />
+          </span>
         </div>
         <div class="dashboards__sources">
           <AppEmptyState
@@ -201,6 +212,10 @@ function afterDelete() {
     </template>
 
     <AgentsDialog v-model="agentsOpen" />
+    <StoreDialog
+      v-if="status.data.value?.may_set_up"
+      v-model="storeOpen"
+    />
   </div>
 </template>
 

@@ -15,6 +15,7 @@ import { WindowDialog } from "@/shared/windows"
 
 import { useConnectStore, useStartStore } from "./api"
 import { setupStage } from "./setupStage"
+import StoreDialog from "./StoreDialog.vue"
 
 /**
  * What the dashboards say before there is a store to draw from (D126): a
@@ -36,6 +37,8 @@ async function start() {
     toast.error(messageOf(cause, "TimescaleDB could not be started"))
   }
 }
+
+const storeOpen = ref(false)
 
 // Connecting: the PostgreSQL adapter's own fields, the user-and-password way.
 const connectOpen = ref(false)
@@ -143,7 +146,16 @@ async function connect() {
           label="Ask again"
           @click="emit('retry')"
         />
+        <AppButton
+          v-if="stage.canRemove"
+          variant="danger-quiet"
+          icon="delete_forever"
+          label="Remove the store"
+          data-testid="store-open-removal"
+          @click="storeOpen = true"
+        />
       </div>
+      <StoreDialog v-model="storeOpen" />
     </template>
 
     <WindowDialog

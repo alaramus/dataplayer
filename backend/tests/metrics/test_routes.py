@@ -1,5 +1,6 @@
 """The metrics routes: agents, the store, the catalog and history."""
 
+import time
 import uuid
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
@@ -7,24 +8,28 @@ from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import text
 from sqlmodel import delete
 
 from app.core.config import settings
 from app.core.db import async_session_maker
 from app.main import app
 from app.metrics import crud
+from app.metrics.dashboards import Dashboard
 from app.metrics.models import MetricsAgent, MetricsStoreSetting
 from app.metrics.packets import ProcessRow, ProcessSnapshot
-from app.metrics.store import MetricsStore, PointRow, SeriesKey, Source
+from app.metrics.store import MetricsStore, PointRow, RestartRow, SeriesKey, Source
 from app.users import crud as user_crud
-from tests.metrics.conftest import needs_store
+from tests.metrics.conftest import needs_store, refresh_rollups
 from tests.utils.database import working_postgres_options
 from tests.utils.service_engine import FakeEngine, engine_of
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
 
 BASE = f"{settings.API_V1_STR}/metrics"
-START = 1_789_000_000
+# Days ago rather than a fixed moment: which table history reads depends on
+# how old a range is (raw samples are kept a week).
+START = (int(time.time()) - 3 * 86400) // 3600 * 3600
 
 
 @pytest.fixture(autouse=True)
@@ -234,6 +239,7 @@ async def test_history_is_read_through_the_owner_of_the_agent(
     await store.write_points(
         [PointRow(series_id, START + i * 30, float(i)) for series_id in ids.values() for i in range(20)]
     )
+    await refresh_rollups(store)
 
     catalog = await client.get(f"{BASE}/catalog", headers=normal_user_token_headers)
     (agent,) = catalog.json()["agents"]
@@ -250,8 +256,10 @@ async def test_history_is_read_through_the_owner_of_the_agent(
     bucketed = await client.post(
         f"{BASE}/history", headers=normal_user_token_headers, json={**body, "max_points": 10, "end": START + 86400}
     )
-    assert bucketed.json()["bucket_seconds"] is not None
-    assert all(len(point) == 4 for s in bucketed.json()["series"] for point in s["points"])
+    # Ten points of a day: three-hour buckets, read from the hourly rollups.
+    assert bucketed.json()["bucket_seconds"] == 10800
+    assert [len(s["points"]) for s in bucketed.json()["series"]] == [1, 1]
+    assert bucketed.json()["series"][0]["points"][0][1:] == [9.5, 0.0, 19.0]
 
     foreign = await client.post(f"{BASE}/history", headers=stranger_headers, json=body)
     assert foreign.status_code == 404
@@ -421,3 +429,103 @@ async def test_a_source_that_does_not_report_metrics_cannot_be_switched_on(
     assert refused.status_code == 501
     assert all(row["connector_id"] != connector_id for row in listed)
 
+
+
+@needs_store
+async def test_hosts_that_keep_restarting_are_told_to_their_agent_s_owner_only(
+    client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    normal_user_token_headers: dict[str, str],
+    stranger_headers: dict[str, str],
+    store_options: dict[str, Any],
+    store: MetricsStore,
+) -> None:
+    before = await client.get(f"{BASE}/restarts", headers=normal_user_token_headers)
+    assert before.status_code == 200
+    assert before.json()["hosts"] == []
+
+    await _connect(client, superuser_token_headers, store_options)
+    agent_id = uuid.UUID((await _agent(client, normal_user_token_headers, "crashing"))["agent"]["id"])
+    await _agent(client, stranger_headers, "theirs")
+    now = int(datetime.now(UTC).timestamp())
+    for i in range(4):
+        await store.write_restart(RestartRow(agent_id, "crash-probe", now - 33 * i, "agent", ("ps", "iftop")))
+    await store.write_restart(RestartRow(agent_id, "rebooted-once", now - 10, "uptime"))
+
+    answer = await client.get(f"{BASE}/restarts", headers=normal_user_token_headers)
+    theirs = await client.get(f"{BASE}/restarts", headers=stranger_headers)
+
+    assert answer.status_code == 200, answer.text
+    (host,) = answer.json()["hosts"]
+    assert host["host"] == "crash-probe"
+    assert host["agent_name"] == "crashing"
+    assert host["count"] == 4
+    assert host["cause"] == "agent"
+    assert host["runs_iftop"] is True
+    assert answer.json()["window_seconds"] > 0
+    assert theirs.json()["hosts"] == []
+
+
+@needs_store
+async def test_removing_a_connected_store_drops_its_tables_and_takes_series_off_dashboards(
+    client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    normal_user_token_headers: dict[str, str],
+    store_options: dict[str, Any],
+    store: MetricsStore,
+) -> None:
+    await _connect(client, superuser_token_headers, store_options)
+    agent_id = (await _agent(client, normal_user_token_headers))["agent"]["id"]
+    source = Source(kind="agent", id=uuid.UUID(agent_id))
+    key = SeriesKey("web-01", "cpu", "uptime", "")
+    series_id = (await store.series_ids(source, [(key, "s", START)]))[key]
+    created = (
+        await client.post(f"{BASE}/dashboards", headers=normal_user_token_headers, json={"name": "Hosts"})
+    ).json()
+    layout = {"x": 0, "y": 0, "w": 6, "h": 5}
+    widgets = [
+        {"type": "stat", "id": str(uuid.uuid4()), "title": "Uptime", "layout": layout, "series_id": series_id},
+        {
+            "type": "processes",
+            "id": str(uuid.uuid4()),
+            "title": "Processes",
+            "layout": layout,
+            "agent_id": agent_id,
+            "host": "web-01",
+        },
+    ]
+    saved = await client.put(
+        f"{BASE}/dashboards/{created['id']}",
+        headers=normal_user_token_headers,
+        json={"name": "Hosts", "version": created["version"], "widgets": widgets},
+    )
+    assert saved.status_code == 200, saved.text
+
+    usage = await client.get(f"{BASE}/store/usage", headers=superuser_token_headers)
+    assert usage.status_code == 200, usage.text
+    assert usage.json()["origin"] == "connected"
+    assert usage.json()["series"] == 1
+    assert store_options["password"] not in usage.text
+    assert [tier["name"] for tier in usage.json()["tiers"]] == ["raw", "5m", "1h"]
+    assert (await client.get(f"{BASE}/store/usage", headers=normal_user_token_headers)).status_code == 403
+    assert (await client.delete(f"{BASE}/store", headers=normal_user_token_headers)).status_code == 403
+
+    removed = await client.delete(f"{BASE}/store", headers=superuser_token_headers)
+
+    assert removed.status_code == 200, removed.text
+    assert "dropped" in removed.json()["message"]
+    status = await client.get(f"{BASE}/store", headers=superuser_token_headers)
+    assert status.json()["state"] == "not_configured"
+    async with store._engine.connect() as connection:
+        gone = (await connection.execute(text("SELECT to_regclass('metric_series') IS NULL"))).scalar_one()
+    assert gone
+    dashboard = (
+        await client.get(f"{BASE}/dashboards/{created['id']}", headers=normal_user_token_headers)
+    ).json()
+    assert [widget["type"] for widget in dashboard["widgets"]] == ["processes"]
+    assert dashboard["version"] == saved.json()["version"] + 1
+    again = await client.delete(f"{BASE}/store", headers=superuser_token_headers)
+    assert again.status_code == 409
+    async with async_session_maker() as session:
+        await session.exec(delete(Dashboard))
+        await session.commit()

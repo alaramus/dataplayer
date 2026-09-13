@@ -9,7 +9,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.connectors.models import Connector
 from app.metrics import keys
-from app.metrics.dashboards import Dashboard
+from app.metrics.dashboards import (
+    AnyWidget,
+    Dashboard,
+    DashboardContent,
+    ProcessesWidget,
+)
 from app.metrics.models import MetricsAgent, MetricsConnector, MetricsStoreSetting
 
 
@@ -102,6 +107,28 @@ async def dashboards_of(session: AsyncSession, owner_id: uuid.UUID) -> list[Dash
         .order_by(col(Dashboard.created_at))
     )
     return list((await session.exec(statement)).all())
+
+
+async def forget_series(session: AsyncSession) -> None:
+    """Take every widget naming a series off every dashboard. Not committed.
+
+    What a widget names is an id in one store; a process table names an agent
+    and a host, and stays. A dashboard that cannot be read is left as it is.
+    """
+    for dashboard in (await session.exec(select(Dashboard))).all():
+        try:
+            content = DashboardContent.model_validate(dashboard.content)
+        except ValueError:
+            continue
+        kept: list[AnyWidget] = [
+            widget for widget in content.widgets if isinstance(widget, ProcessesWidget)
+        ]
+        if len(kept) == len(content.widgets):
+            continue
+        dashboard.content = DashboardContent(options=content.options, widgets=kept).model_dump(mode="json")
+        dashboard.version += 1
+        dashboard.updated_at = datetime.now(UTC)
+        session.add(dashboard)
 
 
 async def reporting_of(

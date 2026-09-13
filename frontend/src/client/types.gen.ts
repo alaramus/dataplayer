@@ -3870,6 +3870,44 @@ export type HostInfo = {
 }
 
 /**
+ * HostRestarts
+ */
+export type HostRestarts = {
+  /**
+   * Agent Id
+   */
+  agent_id: string
+  /**
+   * Agent Name
+   */
+  agent_name: string
+  /**
+   * Host
+   */
+  host: string
+  /**
+   * Count
+   */
+  count: number
+  /**
+   * First At
+   */
+  first_at: string
+  /**
+   * Last At
+   */
+  last_at: string
+  /**
+   * Cause
+   */
+  cause: "uptime" | "agent"
+  /**
+   * Runs Iftop
+   */
+  runs_iftop: boolean
+}
+
+/**
  * HypertableFacts
  */
 export type HypertableFacts = {
@@ -6855,6 +6893,22 @@ export type ResolvedPreset = {
 }
 
 /**
+ * RestartsAnswer
+ *
+ * Hosts of the caller's agents that keep restarting (D130).
+ */
+export type RestartsAnswer = {
+  /**
+   * Window Seconds
+   */
+  window_seconds: number
+  /**
+   * Hosts
+   */
+  hosts: Array<HostRestarts>
+}
+
+/**
  * RestoreRequest
  *
  * Which backup to write back into which connection, and that it is meant.
@@ -8400,6 +8454,34 @@ export type StoreStatus = {
 }
 
 /**
+ * StoreUsage
+ *
+ * What a superuser is told about the store before removing it.
+ */
+export type StoreUsage = {
+  /**
+   * Origin
+   */
+  origin: "started" | "connected"
+  /**
+   * Address
+   */
+  address: string
+  /**
+   * Bytes
+   */
+  bytes?: number | null
+  /**
+   * Series
+   */
+  series?: number | null
+  /**
+   * Tiers
+   */
+  tiers: Array<TierInfo>
+}
+
+/**
  * StoredGeneration
  *
  * A value computed from the row and stored with it.
@@ -8711,6 +8793,24 @@ export type TextContents = {
    * Not Counted
    */
   not_counted?: string | null
+}
+
+/**
+ * TierInfo
+ */
+export type TierInfo = {
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Width Seconds
+   */
+  width_seconds: number
+  /**
+   * Kept Seconds
+   */
+  kept_seconds: number
 }
 
 /**
@@ -14434,6 +14534,23 @@ export type queriesRollbackTransactionResponses = {
 export type queriesRollbackTransactionResponse =
   queriesRollbackTransactionResponses[keyof queriesRollbackTransactionResponses]
 
+export type metricsRemoveStoreData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/store"
+}
+
+export type metricsRemoveStoreResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type metricsRemoveStoreResponse =
+  metricsRemoveStoreResponses[keyof metricsRemoveStoreResponses]
+
 export type metricsReadStoreStatusData = {
   body?: never
   path?: never
@@ -14492,6 +14609,40 @@ export type metricsConnectStoreResponses = {
 
 export type metricsConnectStoreResponse =
   metricsConnectStoreResponses[keyof metricsConnectStoreResponses]
+
+export type metricsReadStoreUsageData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/store/usage"
+}
+
+export type metricsReadStoreUsageResponses = {
+  /**
+   * Successful Response
+   */
+  200: StoreUsage
+}
+
+export type metricsReadStoreUsageResponse =
+  metricsReadStoreUsageResponses[keyof metricsReadStoreUsageResponses]
+
+export type metricsReadRestartsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/restarts"
+}
+
+export type metricsReadRestartsResponses = {
+  /**
+   * Successful Response
+   */
+  200: RestartsAnswer
+}
+
+export type metricsReadRestartsResponse =
+  metricsReadRestartsResponses[keyof metricsReadRestartsResponses]
 
 export type metricsReadAgentsData = {
   body?: never

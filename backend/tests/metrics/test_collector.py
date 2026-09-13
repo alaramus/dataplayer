@@ -90,6 +90,29 @@ async def test_a_counter_is_stored_as_its_increment(store: MetricsStore) -> None
 
 
 @needs_store
+async def test_an_agent_whose_process_started_again_is_written_down_as_a_restart(store: MetricsStore) -> None:
+    counts = Counts()
+    collector = Collector(store, _agent_for, counts)
+
+    def table(elapsed: str) -> list[dict[str, str]]:
+        return [
+            {"PCPU": "%CPU", "PMEM": "%MEM", "PID": "PID", "PPID": "PPID", "USER": "USER", "ELAPSED": "ELAPSED"},
+            {
+                "PCPU": "0.0", "PMEM": "0.0", "PID": "1", "PPID": "0", "USER": "root", "ELAPSED": elapsed,
+                "COMMAND": "./sys_monitor_agent 192.168.65.254 9999 30 --actions=ps:30,iftop:30",
+            },
+        ]
+
+    await collector.handle(_packet("ps", table("00:32"), ts=1_789_000_032))
+    await collector.handle(_packet("ps", table("00:32"), ts=1_789_000_066))
+
+    assert counts.restarts == 1
+    (restart,) = await store.restarts_since([AGENT], 1_789_000_000)
+    assert (restart.host, restart.ts, restart.cause) == ("dev-agent", 1_789_000_034, "agent")
+    assert restart.actions == ("ps", "iftop")
+
+
+@needs_store
 async def test_a_process_table_is_a_snapshot_not_series(store: MetricsStore) -> None:
     counts = Counts()
     collector = Collector(store, _agent_for, counts)

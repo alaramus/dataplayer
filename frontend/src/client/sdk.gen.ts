@@ -278,8 +278,14 @@ import type {
   metricsReadProcessesResponses,
   metricsReadReportingData,
   metricsReadReportingResponses,
+  metricsReadRestartsData,
+  metricsReadRestartsResponses,
   metricsReadStoreStatusData,
   metricsReadStoreStatusResponses,
+  metricsReadStoreUsageData,
+  metricsReadStoreUsageResponses,
+  metricsRemoveStoreData,
+  metricsRemoveStoreResponses,
   metricsRenameAgentData,
   metricsRenameAgentErrors,
   metricsRenameAgentResponses,
@@ -4195,6 +4201,22 @@ export class QueriesService {
 
 export class MetricsService {
   /**
+   * Remove Store
+   *
+   * Stop using the metrics store and take every person's samples with it (D126).
+   */
+  public static removeStore<ThrowOnError extends boolean = true>(
+    options?: Options<metricsRemoveStoreData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).delete<metricsRemoveStoreResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/store",
+      ...options,
+    })
+  }
+
+  /**
    * Read Store Status
    *
    * Whether the store is there, and for a superuser how it could be.
@@ -4247,6 +4269,41 @@ export class MetricsService {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Read Store Usage
+   *
+   * Where the store is, what it takes, and how long it keeps what.
+   */
+  public static readStoreUsage<ThrowOnError extends boolean = true>(
+    options?: Options<metricsReadStoreUsageData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<metricsReadStoreUsageResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/store/usage",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Restarts
+   *
+   * Hosts of the caller's agents that restarted again and again lately.
+   *
+   * Nothing rather than a refusal when there is no store to ask: this feeds a
+   * list of what needs a person, and a store not set up is not such a thing.
+   */
+  public static readRestarts<ThrowOnError extends boolean = true>(
+    options?: Options<metricsReadRestartsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<metricsReadRestartsResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/restarts",
+      ...options,
     })
   }
 

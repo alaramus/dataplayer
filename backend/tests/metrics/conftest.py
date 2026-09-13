@@ -5,6 +5,7 @@ session gets a fresh database there and drops it afterwards. Without the
 variable the tests that need a store are skipped, as the Redis ones are.
 """
 
+import asyncio
 import os
 import uuid
 from collections.abc import AsyncIterator
@@ -14,12 +15,13 @@ from urllib.parse import urlsplit
 import pytest
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import delete
 
 from app.core.db import async_session_maker
 from app.metrics.models import MetricsStoreSetting
-from app.metrics.store import MetricsStore, store_url
+from app.metrics.store import ROLLUP_VIEWS, MetricsStore, store_url
 from app.services.models import ManagedService
 
 TEST_METRICS_STORE_URL = os.environ.get("TEST_METRICS_STORE_URL")
@@ -85,14 +87,43 @@ async def store_options() -> AsyncIterator[dict[str, Any]]:
         await admin.dispose()
 
 
+async def refresh_rollups(store: MetricsStore) -> None:
+    """Materialise every rollup over all time, as the policies would over theirs.
+
+    Tests write points days in the past, outside a policy's window, so nothing
+    else would put them in a rollup.
+    """
+    for view in ROLLUP_VIEWS:
+        # The store's own policy may be refreshing the same rollup, and
+        # Timescale refuses a second refresh rather than waiting for it.
+        for attempt in range(50):
+            try:
+                async with store._engine.connect() as raw:
+                    connection = await raw.execution_options(isolation_level="AUTOCOMMIT")
+                    await connection.execute(
+                        text("CALL refresh_continuous_aggregate(CAST(:view AS regclass), NULL, NULL)"),
+                        {"view": view},
+                    )
+                break
+            except OperationalError as refusal:
+                if "concurrent refresh" not in str(refusal) or attempt == 49:
+                    raise
+                await asyncio.sleep(0.2)
+
+
 @pytest.fixture
 async def store(store_options: dict[str, Any]) -> AsyncIterator[MetricsStore]:
     opened = MetricsStore(store_url(store_options))
     await opened.migrate()
     async with opened._engine.begin() as connection:
         await connection.execute(
-            text("TRUNCATE metric_point, metric_process, metric_series RESTART IDENTITY")
+            text(
+                "TRUNCATE metric_point, metric_process, metric_restart, metric_series "
+                "RESTART IDENTITY"
+            )
         )
+    # Series ids start from one again, so what an earlier test rolled up must go.
+    await refresh_rollups(opened)
     try:
         yield opened
     finally:

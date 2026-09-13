@@ -288,3 +288,87 @@ test("an agent's packets become a dashboard of widgets", async ({ page }) => {
   await page.getByTestId("confirm-accept").click()
   await expect(page.getByTestId("agents-table").getByText(agentName)).toHaveCount(0)
 })
+
+test("a host whose agent keeps restarting needs its owner, and the sheet names the iftop crash", async ({ page }) => {
+  test.setTimeout(90_000)
+  await login(page)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  const stamp = Date.now()
+  const agentName = `e2e-restarting-${stamp}`
+  const host = `e2e-crashing-${stamp}`
+
+  await page.getByTestId("agents-open").click()
+  await page.getByTestId("agent-name").fill(agentName)
+  await page.getByTestId("agent-register").click()
+  const key = (await page.getByTestId("agent-key").innerText()).trim()
+  await page.getByTestId("agents-dialog").getByRole("button", { name: "Close", exact: true }).click()
+  await page.waitForTimeout(1500)
+
+  // What the crashing agent sent on 2026-09-13: every table says it has run
+  // 32 seconds, 34 seconds after the one before.
+  const now = Math.floor(Date.now() / 1000)
+  for (const ago of [102, 68, 34, 0]) {
+    await send({
+      action: "monitor-ps", appkey: key, host, time: String(now - ago),
+      data: [
+        { PCPU: "%CPU", PMEM: "%MEM", PID: "PID", PPID: "PPID", USER: "USER", ELAPSED: "ELAPSED", COMMAND: "COMMAND" },
+        {
+          PCPU: "0.0", PMEM: "0.0", PID: "1", PPID: "0", USER: "root", ELAPSED: "00:32",
+          COMMAND: "./sys_monitor_agent 192.168.65.254 9999 30 --actions=ps:30,cpu:30,iftop:30 --apikey=",
+        },
+      ],
+    })
+  }
+
+  const item = page.getByTestId("attention-section").getByText(`${host} keeps restarting`)
+  await expect(async () => {
+    await page.reload()
+    await page.getByTestId("activity-indicator").click()
+    await expect(item).toBeVisible({ timeout: 2000 })
+  }).toPass({ timeout: 30_000 })
+  const row = page.locator("[data-testid^='attention-restarts:']").filter({ hasText: host })
+  await expect(row).toContainText(`The agent ${agentName} restarted 3 times in the last 15 minutes`)
+  await expect(row).toContainText("take it out of ACTIONS")
+
+  // From the data workspace, where the sheet is opened most of the time.
+  await page.keyboard.press("Escape")
+  await expect(page.getByTestId("activity-panel")).toHaveCount(0)
+  await page.getByTestId("space-data").click()
+  await expect(page.getByTestId("dashboards-space")).toHaveCount(0)
+  await page.getByTestId("activity-indicator").click()
+  await row.getByRole("button", { name: "Open Dashboards" }).click()
+  await expect(page.getByTestId("dashboards-space")).toBeVisible()
+
+  // An agent that is gone is nobody's to look after.
+  await page.getByTestId("agents-open").click()
+  const agent = page.getByTestId("agents-table").getByRole("row", { name: new RegExp(agentName) })
+  await agent.getByRole("button", { name: "Remove this agent" }).click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(async () => {
+    await page.reload()
+    await page.getByTestId("activity-indicator").click()
+    await expect(page.getByTestId("activity-panel")).toBeVisible()
+    await expect(item).toHaveCount(0, { timeout: 1000 })
+  }).toPass({ timeout: 20_000 })
+})
+
+test("a superuser reads what the metrics store keeps, and is warned before removing it", async ({ page }) => {
+  await login(page)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+
+  await page.getByTestId("store-open").click()
+  const dialog = page.getByTestId("store-dialog")
+  await expect(dialog.getByTestId("store-size")).toContainText("series")
+  await expect(dialog).toContainText("Samples as they came: kept 7 d")
+  await expect(dialog).toContainText("Averages over 5 min: kept 35 d")
+  await expect(dialog).toContainText("Averages over 1 h: kept 400 d")
+
+  // Not taken further: removing the store takes every sample of the stack the
+  // suite runs on. What removal does is the backend suite's to prove.
+  await dialog.getByTestId("store-remove").click()
+  await expect(page.getByTestId("confirm-message")).toContainText("every sample of every person")
+  await page.getByTestId("confirm-cancel").click()
+  await expect(dialog.getByTestId("store-origin")).toBeVisible()
+  await dialog.getByRole("button", { name: "Close", exact: true }).click()
+  await expect(page.getByTestId("dashboards-rail")).toBeVisible()
+})

@@ -21,9 +21,11 @@ from app.metrics.counters import CounterState
 from app.metrics.holder import options_of
 from app.metrics.packets import process_snapshot_of, read_envelope, samples_of
 from app.metrics.poller import ConnectionPoller, poll_forever
+from app.metrics.restarts import Restart, RestartWatch
 from app.metrics.store import (
     MetricsStore,
     PointRow,
+    RestartRow,
     SeriesKey,
     Source,
     StoreUnavailable,
@@ -57,6 +59,7 @@ class Counts:
     snapshots: int = 0
     failed_writes: int = 0
     no_store: int = 0
+    restarts: int = 0
 
     def line(self) -> str:
         return " ".join(f"{item.name}={getattr(self, item.name)}" for item in fields(self))
@@ -107,6 +110,7 @@ class Collector:
         self._agent_for = agent_for
         self._counts = counts
         self._counters = CounterState()
+        self._restarts = RestartWatch()
         self._series: dict[tuple[uuid.UUID, SeriesKey], int] = {}
         self._pending: list[PointRow] = []
 
@@ -128,8 +132,13 @@ class Collector:
         if snapshot is not None:
             await self._store.write_processes(source, snapshot)
             self._counts.snapshots += 1
+            await self._restarted(
+                agent_id, envelope.host, self._restarts.observe_processes((agent_id, envelope.host), snapshot)
+            )
             return
-        samples = self._counters.expand((agent_id, envelope.host), samples_of(envelope))
+        measured = samples_of(envelope)
+        await self._restarted(agent_id, envelope.host, self._restarts.observe((agent_id, envelope.host), measured))
+        samples = self._counters.expand((agent_id, envelope.host), measured)
         keyed = [
             (SeriesKey(envelope.host, sample.metric, sample.field, sample.label), sample)
             for sample in samples
@@ -148,6 +157,13 @@ class Collector:
                     series_id=self._series[(agent_id, key)], ts=sample.ts, value=sample.value
                 )
             )
+
+    async def _restarted(self, agent_id: uuid.UUID, host: str, restart: Restart | None) -> None:
+        if restart is None:
+            return
+        await self._store.write_restart(RestartRow(agent_id, host, restart.ts, restart.cause, restart.actions))
+        self._counts.restarts += 1
+        logger.info("Host %s of agent %s restarted (%s)", host, agent_id, restart.cause)
 
     def forget_series(self) -> None:
         """Resolve every series again. A purge in the web process deletes rows

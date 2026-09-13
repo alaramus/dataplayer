@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.schemas import Message
 from app.jobs.runner import JobRunnerDep
-from app.metrics import access, crud, history, keys, setup
+from app.metrics import access, crud, history, keys, restarts, setup
 from app.metrics.dashboards import (
     Dashboard,
     DashboardContent,
@@ -39,6 +39,7 @@ from app.metrics.models import (
     HistoryAnswer,
     HistoryRequest,
     HostInfo,
+    HostRestarts,
     MetricInfo,
     MetricsAgent,
     MetricsCatalog,
@@ -46,10 +47,12 @@ from app.metrics.models import (
     ProcessInfo,
     ProcessTable,
     ReportingUpdate,
+    RestartsAnswer,
     SeriesHistory,
     SeriesInfo,
     StoreConnect,
     StoreStatus,
+    StoreUsage,
 )
 from app.metrics.presets import AGENT_PRESETS, Preset, ResolvedPreset, resolve
 from app.metrics.store import (
@@ -68,7 +71,6 @@ router = APIRouter(
 )
 
 MAX_PROCESS_ROWS = 200
-NOT_SET_UP = "Dashboards are not set up yet"
 
 
 @router.get("/store", response_model=StoreStatus)
@@ -133,6 +135,76 @@ async def connect_store(
     except setup.SetupRefused as refusal:
         raise HTTPException(refusal.status_code, detail={"message": refusal.message}) from None
     return await setup.status(session, holder, current_user, engine)
+
+
+@router.get(
+    "/store/usage",
+    response_model=StoreUsage,
+    dependencies=[Depends(get_current_active_superuser)],
+)
+async def read_store_usage(session: SessionDep, holder: StoreHolderDep) -> Any:
+    """Where the store is, what it takes, and how long it keeps what."""
+    try:
+        return await setup.usage(session, holder)
+    except setup.SetupRefused as refusal:
+        raise HTTPException(refusal.status_code, detail={"message": refusal.message}) from None
+
+
+@router.delete(
+    "/store",
+    response_model=Message,
+    dependencies=[Depends(get_current_active_superuser)],
+)
+async def remove_store(
+    session: SessionDep,
+    current_user: CurrentUser,
+    holder: StoreHolderDep,
+    runner: JobRunnerDep,
+    topics: TopicsDep,
+) -> Any:
+    """Stop using the metrics store and take every person's samples with it (D126)."""
+    try:
+        message = await setup.remove(session, holder, runner, topics, current_user)
+    except setup.SetupRefused as refusal:
+        raise HTTPException(refusal.status_code, detail={"message": refusal.message}) from None
+    return Message(message=message)
+
+
+@router.get("/restarts", response_model=RestartsAnswer)
+async def read_restarts(
+    session: SessionDep, current_user: CurrentUser, holder: StoreHolderDep
+) -> Any:
+    """Hosts of the caller's agents that restarted again and again lately.
+
+    Nothing rather than a refusal when there is no store to ask: this feeds a
+    list of what needs a person, and a store not set up is not such a thing.
+    """
+    answer = RestartsAnswer(window_seconds=restarts.WINDOW_SECONDS, hosts=[])
+    agents = {agent.id: agent for agent in await crud.agents_of(session, current_user.id)}
+    if not agents:
+        return answer
+    now = int(datetime.now(UTC).timestamp())
+    try:
+        store = await holder.get(session)
+        if store is None:
+            return answer
+        found = await store.restarts_since(list(agents), now - restarts.WINDOW_SECONDS)
+    except StoreUnavailable:
+        return answer
+    answer.hosts = [
+        HostRestarts(
+            agent_id=one.source_id,
+            agent_name=agents[one.source_id].name,
+            host=one.host,
+            count=one.count,
+            first_at=datetime.fromtimestamp(one.first, UTC),
+            last_at=datetime.fromtimestamp(one.last, UTC),
+            cause=one.cause,
+            runs_iftop="iftop" in one.actions,
+        )
+        for one in restarts.repeated(found, now)
+    ]
+    return answer
 
 
 @router.get("/agents", response_model=list[AgentPublic])
@@ -388,12 +460,18 @@ async def read_history(
     ids = sorted(set(body.series_ids))
     try:
         await access.require_readable(session, store, current_user, ids)
-        densest = await store.densest(ids, body.start, body.end)
-        width = history.bucket_seconds(body.start, body.end, body.max_points, densest)
+        now = int(datetime.now(UTC).timestamp())
+        densest = (
+            await store.densest(ids, body.start, body.end, cap=body.max_points + 1)
+            if history.raw_reaches(body.start, now)
+            else None
+        )
+        density = history.density(body.start, body.end, body.max_points, densest, now)
+        width = density.bucket_seconds
         points = (
             await store.raw_points(ids, body.start, body.end)
             if width is None
-            else await store.bucketed_points(ids, body.start, body.end, width)
+            else await store.bucketed_points(ids, body.start, body.end, width, density.tier)
         )
     except access.SeriesNotReadable:
         raise HTTPException(404, detail={"message": "No such series"}) from None
@@ -503,7 +581,7 @@ async def _store(session: AsyncSession, holder: StoreHolder) -> MetricsStore:
     except StoreUnavailable:
         raise _unavailable() from None
     if store is None:
-        raise HTTPException(409, detail={"message": NOT_SET_UP})
+        raise HTTPException(409, detail={"message": setup.NOT_SET_UP})
     return store
 
 

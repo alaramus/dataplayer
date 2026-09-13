@@ -9,6 +9,7 @@ from sqlmodel import col, delete, select
 
 from app.core.config import settings
 from app.core.db import async_session_maker
+from app.jobs import crud as job_crud
 from app.jobs.runner import JobRunner
 from app.main import app
 from app.metrics import crud
@@ -143,4 +144,30 @@ async def test_without_a_runtime_nothing_is_started(
         response = await client.post(f"{BASE}/store/start", headers=superuser_token_headers)
 
     assert response.status_code == 503
+    assert await _store_services() == []
+
+
+async def test_removing_a_started_store_removes_its_service_and_its_data(
+    client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    normal_user_token_headers: dict[str, str],
+    engine: FakeEngine,
+) -> None:
+    started = await client.post(f"{BASE}/store/start", headers=superuser_token_headers)
+    await _wait(started.json()["job"]["id"])
+    (service,) = await _store_services()
+
+    refused = await client.delete(f"{BASE}/store", headers=normal_user_token_headers)
+    removed = await client.delete(f"{BASE}/store", headers=superuser_token_headers)
+
+    assert refused.status_code == 403
+    assert removed.status_code == 200, removed.text
+    status = await client.get(f"{BASE}/store", headers=superuser_token_headers)
+    assert status.json()["state"] == "not_configured"
+    async with async_session_maker() as session:
+        assert await crud.store_setting(session) is None
+        jobs = await job_crud.for_subject(session, service.id, limit=5)
+    (job,) = [one for one in jobs if one.kind == "service.delete"]
+    await _wait(str(job.id))
+    assert engine.removed == [(service.container_name, service.volume_name)]
     assert await _store_services() == []

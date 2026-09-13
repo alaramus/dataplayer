@@ -44,11 +44,21 @@ describe("what the card says before there is a store", () => {
   it("says a failure and offers to start again only to a superuser who can", () => {
     expect(
       setupStage(status({ state: "failed", may_set_up: true, start: { available: true }, message: "pull failed" }))
-    ).toEqual({ kind: "trouble", message: "The metrics store could not be started: pull failed", canStart: true })
+    ).toEqual({
+      kind: "trouble",
+      message: "The metrics store could not be started: pull failed",
+      canStart: true,
+      canRemove: false,
+    })
     expect(setupStage(status({ state: "unreachable", may_set_up: true, start: { available: true } }))).toMatchObject({
       kind: "trouble",
       canStart: false,
     })
+  })
+
+  it("offers a superuser to remove a store that does not answer, and nobody else", () => {
+    expect(setupStage(status({ state: "unreachable", may_set_up: true }))).toMatchObject({ canRemove: true })
+    expect(setupStage(status({ state: "unreachable", may_set_up: false }))).toMatchObject({ canRemove: false })
   })
 })
 

@@ -177,6 +177,58 @@ def process_snapshot_of(envelope: Envelope) -> ProcessSnapshot | None:
     )
 
 
+AGENT_BINARY = "sys_monitor_agent"
+
+
+@dataclass(frozen=True, slots=True)
+class AgentProcess:
+    """The agent's own row of a process table: when it started, and what it runs."""
+
+    started: int
+    actions: tuple[str, ...]
+
+
+def elapsed_seconds(text: str) -> int | None:
+    """`ps -o etime`: `[[dd-]hh:]mm:ss`, as seconds."""
+    days, _, clock = text.strip().rpartition("-")
+    parts = clock.split(":")
+    if not 2 <= len(parts) <= 3 or not all(part.isdigit() for part in parts):
+        return None
+    if days and not days.isdigit():
+        return None
+    seconds = 0
+    for part in parts:
+        seconds = seconds * 60 + int(part)
+    return seconds + int(days or 0) * 86400
+
+
+def agent_process_of(snapshot: ProcessSnapshot) -> AgentProcess | None:
+    """The oldest process running the agent's binary, or None when the table
+    does not show one.
+
+    Its command line carries `--actions=tcp:30,ps:30,…`, which is the only place
+    a packet says what the agent was told to run.
+    """
+    found: AgentProcess | None = None
+    for row in snapshot.rows:
+        words = row.command.split()
+        if not words or words[0].rsplit("/", 1)[-1] != AGENT_BINARY:
+            continue
+        elapsed = elapsed_seconds(row.elapsed)
+        if elapsed is None:
+            continue
+        actions = next(
+            (word.removeprefix("--actions=") for word in words if word.startswith("--actions=")), ""
+        )
+        candidate = AgentProcess(
+            started=snapshot.ts - elapsed,
+            actions=tuple(name.split(":", 1)[0] for name in actions.split(",") if name),
+        )
+        if found is None or candidate.started < found.started:
+            found = candidate
+    return found
+
+
 def is_header_row(item: dict[object, object]) -> bool:
     """Whether a row is the command's header line, echoed as values.
 

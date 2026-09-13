@@ -3,6 +3,7 @@ import type { ComputedRef, Ref } from "vue"
 
 import type { JobPublic } from "@/client"
 import { useHealthAttention } from "@/features/connectors/attention"
+import { useRestartAttention } from "@/features/dashboards/attention"
 import { useAccessAttention } from "@/features/shares/attention"
 import { ranked } from "@/shared/notifications"
 import type { AttentionItem } from "@/shared/notifications"
@@ -37,6 +38,7 @@ export function useAttention(
       waved.value = new Set([...waved.value, id])
     }),
     useHealthAttention(handlers.openConnection),
+    useRestartAttention(),
   ]
   return computed(() => ranked(sources.flatMap((source) => source.value)))
 }

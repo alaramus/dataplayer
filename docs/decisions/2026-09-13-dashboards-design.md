@@ -1,7 +1,7 @@
 # Dashboards: metric collection, storage and display
 
 Date: 2026-09-13.
-Status: DB1–DB4 implemented. DB5 and DB6 designed. Slices below.
+Status: DB1–DB5 implemented. DB6 designed. Slices below.
 
 Decisions: D125 through D130, in [dashboards](../architecture/dashboards.md).
 
@@ -225,6 +225,11 @@ schema is applied and the card opens.
 - DB5 adds continuous aggregates at 1 min, 5 min and 1 h, compression, and
   shorter raw retention, chosen from measured volume. The read API does not
   change: it already answers with a bucket size.
+- Corrected in DB5, from the measurement: an agent reporting 62 series every
+  30 s writes 114 thousand points a day, 12 MB raw and 0.8 MB compressed. A
+  one-minute aggregate of it has half as many rows as its samples, so there is
+  none; raw points are kept 7 days, five-minute aggregates 35 days, hourly ones
+  400 days.
 
 ### When the store is gone
 
@@ -348,6 +353,16 @@ counts restarts per agent host. From DB5, repeated restarts within a window
 become an attention item (D115) naming the host and pointing at the known
 `iftop` crash when the agent sends that action. The crash found on 2026-09-13
 would have been reported by the application.
+
+Corrected in DB5, from runs of the crashing agent beside a steady one: its
+`uptime` kept growing (2949, 2982, 3015), because a container reads the Docker
+VM's, so uptime alone misses the crash. Interface values could not stand in:
+they are bytes divided by an interval of 30 or 31 seconds, so an idle one goes
+down between two packets of an agent that never restarted. What does show it
+is the agent's own row in its `ps` table: every table the crashing agent sent
+said it had run 32 seconds, 34 seconds after the one before. That row's command
+line also carries `--actions=`, so the `iftop` hint is given exactly when the
+agent runs it.
 
 ## Slices
 

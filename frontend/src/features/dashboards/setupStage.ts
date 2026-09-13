@@ -9,7 +9,7 @@ export type SetupStage =
   | { kind: "offer"; canStart: boolean; startReason: string | null }
   | { kind: "wait" }
   | { kind: "starting"; step: string; progress: number | null }
-  | { kind: "trouble"; message: string; canStart: boolean }
+  | { kind: "trouble"; message: string; canStart: boolean; canRemove: boolean }
 
 export function setupStage(status: StoreStatus): SetupStage {
   const canStart = status.may_set_up && status.start?.available === true
@@ -27,6 +27,7 @@ export function setupStage(status: StoreStatus): SetupStage {
       kind: "trouble",
       message: `The metrics store could not be started: ${status.message ?? "the job failed"}`,
       canStart,
+      canRemove: false,
     }
   }
   if (status.state === "unreachable") {
@@ -34,6 +35,8 @@ export function setupStage(status: StoreStatus): SetupStage {
       kind: "trouble",
       message: status.message ?? "The metrics store is not answering",
       canStart: false,
+      // A store gone for good is taken away the way a working one is.
+      canRemove: status.may_set_up,
     }
   }
   if (!status.may_set_up) return { kind: "wait" }

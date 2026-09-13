@@ -9,7 +9,11 @@ import json
 from app.metrics.packets import (
     MAX_PACKET_BYTES,
     Envelope,
+    ProcessRow,
+    ProcessSnapshot,
     Sample,
+    agent_process_of,
+    elapsed_seconds,
     is_header_row,
     process_snapshot_of,
     read_envelope,
@@ -230,3 +234,49 @@ def test_a_header_needs_two_echoes() -> None:
     assert is_header_row({"A": "A", "B": "B"})
     assert not is_header_row({"A": "A", "B": "x"})
     assert not is_header_row({"A": "A", "B": 1})
+
+
+def test_elapsed_time_is_read_the_way_ps_prints_it() -> None:
+    assert elapsed_seconds("00:32") == 32
+    assert elapsed_seconds("05:11") == 311
+    assert elapsed_seconds("01:02:03") == 3723
+    assert elapsed_seconds("2-01:02:03") == 2 * 86400 + 3723
+    assert elapsed_seconds("ELAPSED") is None
+    assert elapsed_seconds("1:2:3:4") is None
+    assert elapsed_seconds("x-00:10") is None
+
+
+def test_the_agent_s_own_row_says_when_it_started_and_what_it_runs() -> None:
+    # The command line as the agent ran on 2026-09-13, crashing every 33 s.
+    command = (
+        "./sys_monitor_agent 192.168.65.254 9998 30 "
+        "--actions=tcp:30,disk:30[/],ps:30,df:30[/],net:30,memory:30,cpu:30,iftop:30 "
+        "--sysroot= --apikey=SINKKEY --securekey= --slackpath="
+    )
+    snapshot = ProcessSnapshot(
+        host="crash-sink",
+        ts=1_789_301_589,
+        rows=[
+            ProcessRow(1, 0, "root", command, 0.0, 0.0, "00:32"),
+            ProcessRow(12, 1, "root", "/bin/sh ./run-iftop.sh", 0.0, 0.0, "00:32"),
+        ],
+        skipped=0,
+        truncated=0,
+    )
+
+    agent = agent_process_of(snapshot)
+
+    assert agent is not None
+    assert agent.started == 1_789_301_557
+    assert agent.actions == ("tcp", "disk", "ps", "df", "net", "memory", "cpu", "iftop")
+
+
+def test_a_table_without_the_agent_says_nothing_of_it() -> None:
+    snapshot = process_snapshot_of(_envelope(PS))
+    assert snapshot is not None
+    without = ProcessSnapshot("h", 1, [row for row in snapshot.rows if row.pid != 1], 0, 0)
+
+    assert agent_process_of(without) is None
+    found = agent_process_of(snapshot)
+    assert found is not None
+    assert found.actions == ()

@@ -9,8 +9,9 @@ Decisions here: D125, D126, D127, D128, D129, D130.
 **Implementation status:** DB1 — the store, its setup, collection, agents,
 catalog and history —, DB2 — the screen, dashboards, widgets, the agents window
 —, DB3 — live points, process tables, ready-made layouts, a widget in a window
-— and DB4 — connections reporting about themselves — are implemented. DB5 and
-DB6 are in the spec; rollups, restart notices and sharing are not there yet.
+—, DB4 — connections reporting about themselves — and DB5 — rollups,
+compression, removing the store, restart notices — are implemented. DB6 is in
+the spec; sharing is not there yet.
 
 ## What exists today
 
@@ -39,6 +40,13 @@ shared with can draw them, and selecting it offers the layout its type declares:
 *PostgreSQL database* or *Redis server*. Counters of a connection are drawn as
 rates per second.
 
+The store keeps raw samples for a week, compressed after a day, and averages
+over five minutes and over an hour for longer; a long range is read from them
+without the screen knowing. A superuser sees where the store is, what it takes
+and how long it keeps what in the *Metrics store* window, opened from the rail
+or from a store that stopped answering, and removes it from there. A host of
+one's agents that keeps restarting is an item in the activity sheet.
+
 A person registers agents and receives the key each reports under. The `metrics` process receives their
 packets and writes samples and process snapshots; the web process answers the
 catalog of what a person's agents reported and the history of chosen series,
@@ -57,7 +65,7 @@ backend/app/metrics/
 ├── migrations.py   the store's numbered schema
 ├── store.py        the store: series ids, writes, catalog, history, purge
 ├── holder.py       the web process's handle on the store
-├── history.py      raw or which bucket width; pure
+├── history.py      raw or which bucket width, from which table; pure
 ├── access.py       who may read a series
 ├── setup.py        store status, starting it, connecting one
 ├── jobs.py         the service create job, delivering a store setting
@@ -66,6 +74,7 @@ backend/app/metrics/
 ├── presets.py      ready-made layouts and resolving them against a host
 ├── live.py         the `metrics.points` topic
 ├── poller.py       connections polled for metrics, in the metrics process
+├── restarts.py     a restart read from the data, and when restarts need a person; pure
 └── routes.py       /metrics
 
 backend/app/adapters/
@@ -86,7 +95,9 @@ frontend/src/
     │                             ticked series into widgets; the catalog as
     │                             index and tree; pure
     ├── seriesFormat.ts, chartOption.ts, statReading.ts, setupStage.ts,
-    │   agentSnippet.ts           what is drawn and said; pure
+    │   agentSnippet.ts, storeFacts.ts
+    │                             what is drawn and said; pure
+    ├── attention.ts              a host that keeps restarting, for the sheet
     ├── livePoints.ts             socket points onto a history; pure
     ├── DashboardsSpace.vue       the card
     ├── StoreSetup.vue            before there is a store
@@ -94,7 +105,7 @@ frontend/src/
     ├── WidgetBody.vue            the widget of a type, on the grid or in a window
     ├── TimeseriesWidget.vue, StatWidget.vue, ProcessesWidget.vue, SeriesChart.vue
     ├── WidgetWindow.vue          one widget in a floating window
-    ├── AddWidgetsDialog.vue, AgentsDialog.vue
+    ├── AddWidgetsDialog.vue, AgentsDialog.vue, StoreDialog.vue
     └── SpaceSwitch.vue
 ```
 
@@ -102,6 +113,9 @@ frontend/src/
 GET    /api/v1/metrics/store
 POST   /api/v1/metrics/store/start          superuser
 POST   /api/v1/metrics/store/connect        superuser
+GET    /api/v1/metrics/store/usage          superuser
+DELETE /api/v1/metrics/store                superuser
+GET    /api/v1/metrics/restarts
 GET    /api/v1/metrics/agents
 POST   /api/v1/metrics/agents
 PATCH  /api/v1/metrics/agents/{agent_id}
@@ -130,6 +144,11 @@ suite shares the development database; the metrics tests put back the store
 setting they found, while agents and dashboards go the way users do. The
 `dashboards.spec.ts` scenarios start the store when the stack has none, and send
 agent packets to `METRICS_UDP_PORT` themselves.
+
+Tests write points days in the past, outside every refresh policy's window, so
+a test that reads a rollup refreshes it first (`refresh_rollups` in the
+metrics conftest). Their moments are counted back from now rather than fixed:
+which table history reads depends on how old a range is.
 
 ## D125. Dashboards are a space of their own
 
@@ -186,9 +205,29 @@ Chunking, retention, compression and continuous aggregates are the extension's.
   version table in the store, applied on connect and on start of the metrics
   process under an advisory lock. Continuous aggregates are created outside a
   transaction.
-- **Retention is a policy.** Raw points 30 days and process snapshots 14 days
-  until continuous aggregates arrive; history is bucketed on read to the number
-  of points asked for, raw as `[ts, value]`, aggregated as `[ts, avg, min, max]`.
+- **Retention is a policy, and a long range is read from rollups.** Raw points
+  are kept 7 days and compressed after one; continuous aggregates hold a sum, a
+  count, a minimum and a maximum per series over 5 minutes (35 days) and over an
+  hour (400 days); process snapshots and restarts are kept 14 days. History
+  answers raw `[ts, value]` when the densest series fits and raw samples reach
+  the start, and `[ts, avg, min, max]` otherwise, from the coarsest table that
+  holds the start and divides the width. `history.py` holds the tiers and a
+  test holds them to the store's policies.
+- **Chosen from measured volume.** An agent reporting 62 series every 30 s
+  writes 114 thousand points a day: 12 MB raw, 0.8 MB compressed. A one-minute
+  rollup of such an agent has half as many rows as its samples, so there is
+  none.
+- **A refresh reaching back past raw retention deletes the rollup of that
+  time.** Policy windows are hours to three days, under raw retention, and raw
+  retention is shortened by a migration of its own, after the backfill.
+- **Removing the store** is a superuser's command with a warning that every
+  person's samples go. A store started here is removed with its volume by the
+  job that removes any service; a store somebody connected keeps its database,
+  and the tables the migrations made in it are dropped. The setting goes first,
+  so nothing prepares the schema again in between, and every widget naming a
+  series is taken off its dashboard: a new store numbers series from one again,
+  and an old id would draw another host. Process tables name an agent and a
+  host, and stay.
 - Agents and dashboards stay in the application database with their owners.
 
 Known deviations:
@@ -199,9 +238,21 @@ Known deviations:
 - **The store's service row belongs to the superuser who started it.** Deleting
   that account deletes the row; the container keeps running and serving, but
   shows among the containers no row claims, where an administrator could
-  remove it.
+  remove it. Such a store is described and removed as a connected one: its
+  tables are dropped and the container stays. The backend suite deletes every
+  service row, so a development store is one of these after a test run.
 - **A store that stops answering is found out when somebody asks.** The status
   says `unreachable`; nothing watches it in between.
+- **A purge deletes from the rollups' own tables**, found through Timescale's
+  catalog, because a view cannot be deleted from and a refresh does not reach
+  that far back.
+- **The rollups are built on raw points, not one on another**, so they work on
+  releases older than hierarchical aggregates; the hourly policy reads three
+  days of raw points every hour.
+- **The first start after an upgrade backfills both rollups** while holding the
+  migration lock; on a large store the first request waits for it.
+- **A connected store that does not answer is removed all the same**: the
+  setting goes, and the answer says its tables stayed in that database.
 
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
@@ -337,11 +388,32 @@ Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
 One module turns a packet into points and process snapshots: text numbers,
 echoed header rows, label fields, positional arrays, tables summarised, growing
-counters stored as increments. A host whose `uptime` goes down has restarted;
-repeated restarts become an attention item (D115).
+counters stored as increments.
+
+- **A restart is read from the data, two ways.** A host's `uptime` going down
+  is the host restarting, at the packet's time less the uptime. The agent's own
+  row in its `ps` table starting later than before is the agent restarting, at
+  the table's time less the row's elapsed time; that row's command line carries
+  `--actions=`, the only place a packet says what the agent runs. The metrics
+  process writes each restart to the store, and a reboot seen both ways is one.
+- **Three restarts of one host within fifteen minutes are an attention item**
+  (D115) for the agent's owner, counted by the server. It cannot be waved away
+  and goes once the host stops restarting. When the agent's actions include
+  `iftop` it names the crash.
 
 Known trap: `sys_monitor_agent` 1.14.0 with the `iftop` action crashes with
 SIGSEGV in a container without traffic and restarts about every 33 seconds,
-sending one set of samples per restart.
+sending one set of samples per restart. The uptime a container reads is the
+Docker VM's and keeps growing through it; every `ps` table it sends says the
+agent has run 32 seconds.
+
+Known deviations:
+
+- **An agent that does not send `ps` restarts unnoticed** unless its host does.
+- **Its interface values are not read as counters for this.** A value is bytes
+  divided by an interval of 30 or 31 seconds, so an idle one goes down between
+  two packets; the first packet after a start is not divided at all.
+- **Only agents are watched.** A database restarting behind a connection is not
+  an item.
 
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)

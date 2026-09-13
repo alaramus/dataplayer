@@ -14,8 +14,9 @@ from typing import Any, Literal
 
 from sqlalchemy import URL, text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_engine
 
+from app.metrics.history import TierName
 from app.metrics.migrations import ADVISORY_LOCK_KEY, MIGRATIONS, VERSION_TABLE
 from app.metrics.packets import ProcessRow, ProcessSnapshot, Sample
 
@@ -34,6 +35,48 @@ _PROCESS_QUERIES: dict[ProcessSort, str] = {
     "pmem": _PROCESS_SELECT + " ORDER BY pmem DESC, pid LIMIT :limit",
     "pid": _PROCESS_SELECT + " ORDER BY pid LIMIT :limit",
 }
+
+
+_RAW_BUCKETS = """
+    SELECT series_id,
+           time_bucket(make_interval(secs => CAST(:width AS double precision)), ts) AS bucket,
+           avg(value) AS mean, min(value) AS low, max(value) AS high
+    FROM metric_point
+    WHERE series_id = ANY(CAST(:ids AS bigint[]))
+      AND ts >= :start AND ts <= :end
+    GROUP BY series_id, bucket
+    ORDER BY series_id, bucket
+"""
+
+
+def _rollup_buckets(view: str) -> str:
+    # A rollup's buckets start inside the range; its own width is no wider
+    # than the width asked, so at most one partial bucket is left at the start.
+    # Grouped by position: `bucket` there would name the view's column, not
+    # the wider one computed from it.
+    return f"""
+        SELECT series_id,
+               time_bucket(make_interval(secs => CAST(:width AS double precision)), bucket)
+                   AS bucket,
+               sum(total) / sum(samples) AS mean, min(low) AS low, max(high) AS high
+        FROM {view}
+        WHERE series_id = ANY(CAST(:ids AS bigint[]))
+          AND bucket >= :start AND bucket <= :end
+        GROUP BY series_id, 2
+        ORDER BY series_id, 2
+    """  # noqa: S608  # the view is one of two names written below, never a request's
+
+
+# One fixed statement per table: which one is read is never assembled from a request.
+_BUCKET_QUERIES: dict[TierName, str] = {
+    "raw": _RAW_BUCKETS,
+    "5m": _rollup_buckets("metric_point_5m"),
+    "1h": _rollup_buckets("metric_point_1h"),
+}
+
+ROLLUP_VIEWS: tuple[str, ...] = ("metric_point_5m", "metric_point_1h")
+
+RestartCause = Literal["uptime", "agent"]
 
 
 class StoreUnavailable(Exception):
@@ -72,6 +115,23 @@ class PointRow:
     series_id: int
     ts: int
     value: float
+
+
+@dataclass(frozen=True, slots=True)
+class RestartRow:
+    source_id: uuid.UUID
+    host: str
+    # When it restarted, not when that was noticed.
+    ts: int
+    cause: RestartCause
+    # What the agent was running, from its command line; empty when unknown.
+    actions: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class Usage:
+    bytes: int
+    series: int
 
 
 def store_url(options: Mapping[str, Any]) -> URL:
@@ -309,17 +369,30 @@ class MetricsStore:
         )
         return {row["source_id"]: row["heard"] for row in rows}
 
-    async def densest(self, series_ids: Sequence[int], start: int, end: int) -> int:
+    async def densest(
+        self, series_ids: Sequence[int], start: int, end: int, *, cap: int
+    ) -> int:
+        """Points of the densest series in the range, counted no further than
+        `cap`: past the budget the exact number changes nothing, and a week of
+        a busy series is a long count."""
         rows = await self._fetch(
             """
-            SELECT coalesce(max(n), 0) AS densest FROM (
-                SELECT count(*) AS n FROM metric_point
-                WHERE series_id = ANY(CAST(:ids AS bigint[]))
-                  AND ts >= :start AND ts <= :end
-                GROUP BY series_id
-            ) AS counts
+            SELECT coalesce(max(counted.n), 0) AS densest
+            FROM unnest(CAST(:ids AS bigint[])) AS asked(id)
+            CROSS JOIN LATERAL (
+                SELECT count(*) AS n FROM (
+                    SELECT 1 FROM metric_point
+                    WHERE series_id = asked.id AND ts >= :start AND ts <= :end
+                    LIMIT :cap
+                ) AS limited
+            ) AS counted
             """,
-            {"ids": list(series_ids), "start": _moment(start), "end": _moment(end)},
+            {
+                "ids": list(series_ids),
+                "start": _moment(start),
+                "end": _moment(end),
+                "cap": cap,
+            },
         )
         return int(rows[0]["densest"])
 
@@ -343,20 +416,17 @@ class MetricsStore:
         return points
 
     async def bucketed_points(
-        self, series_ids: Sequence[int], start: int, end: int, width: int
+        self,
+        series_ids: Sequence[int],
+        start: int,
+        end: int,
+        width: int,
+        tier: TierName = "raw",
     ) -> dict[int, list[list[float]]]:
+        """Buckets of `width`, read from the table `tier` names: raw samples or
+        a rollup whose width divides it."""
         rows = await self._fetch(
-            """
-            SELECT series_id,
-                   time_bucket(make_interval(secs => CAST(:width AS double precision)), ts)
-                       AS bucket,
-                   avg(value) AS mean, min(value) AS low, max(value) AS high
-            FROM metric_point
-            WHERE series_id = ANY(CAST(:ids AS bigint[]))
-              AND ts >= :start AND ts <= :end
-            GROUP BY series_id, bucket
-            ORDER BY series_id, bucket
-            """,
+            _BUCKET_QUERIES[tier],
             {
                 "ids": list(series_ids),
                 "start": _moment(start),
@@ -458,7 +528,8 @@ class MetricsStore:
         ]
 
     async def purge(self, source: Source) -> None:
-        """Every sample and snapshot of a source. Its series go with them."""
+        """Every sample, rollup, snapshot and restart of a source. Its series go
+        with them."""
         try:
             async with self._engine.begin() as connection:
                 ids = {"kind": source.kind, "source": source.id}
@@ -472,6 +543,19 @@ class MetricsStore:
                         """
                     ),
                     ids,
+                )
+                for table in await _materialized(connection):
+                    await connection.execute(
+                        text(
+                            f"DELETE FROM {table} WHERE series_id IN ("  # noqa: S608  # a name the store's catalog gave, quoted
+                            "SELECT id FROM metric_series "
+                            "WHERE source_kind = :kind AND source_id = :source)"
+                        ),
+                        ids,
+                    )
+                await connection.execute(
+                    text("DELETE FROM metric_restart WHERE source_id = :source"),
+                    {"source": source.id},
                 )
                 await connection.execute(
                     text("DELETE FROM metric_process WHERE source_id = :source"),
@@ -487,6 +571,99 @@ class MetricsStore:
         except (SQLAlchemyError, OSError) as failure:
             raise StoreUnavailable("The metrics store did not answer") from failure
 
+    async def write_restart(self, restart: RestartRow) -> None:
+        try:
+            async with self._engine.begin() as connection:
+                await connection.execute(
+                    text(
+                        "INSERT INTO metric_restart (source_id, host, ts, cause, actions) "
+                        "VALUES (:source, :host, :ts, :cause, :actions)"
+                    ),
+                    {
+                        "source": restart.source_id,
+                        "host": restart.host,
+                        "ts": _moment(restart.ts),
+                        "cause": restart.cause,
+                        "actions": ",".join(restart.actions),
+                    },
+                )
+        except (SQLAlchemyError, OSError) as failure:
+            raise StoreUnavailable("The metrics store did not answer") from failure
+
+    async def restarts_since(
+        self, sources: Sequence[uuid.UUID], since: int
+    ) -> list[RestartRow]:
+        """Restarts of these sources after a moment, oldest first."""
+        if not sources:
+            return []
+        rows = await self._fetch(
+            """
+            SELECT source_id, host, ts, cause, actions FROM metric_restart
+            WHERE source_id = ANY(CAST(:sources AS uuid[])) AND ts > :since
+            ORDER BY ts
+            """,
+            {"sources": list(sources), "since": _moment(since)},
+        )
+        return [
+            RestartRow(
+                source_id=row["source_id"],
+                host=str(row["host"]),
+                ts=_seconds(row["ts"]),
+                cause="uptime" if row["cause"] == "uptime" else "agent",
+                actions=tuple(name for name in str(row["actions"]).split(",") if name),
+            )
+            for row in rows
+        ]
+
+    async def usage(self) -> Usage:
+        """What the samples take on disk, rollups and snapshots included."""
+        rows = await self._fetch(
+            """
+            SELECT
+                (SELECT coalesce(sum(hypertable_size(format('%I.%I',
+                        hypertable_schema, hypertable_name)::regclass)), 0)
+                 FROM timescaledb_information.hypertables
+                 WHERE hypertable_name IN ('metric_point', 'metric_process', 'metric_restart'))
+                + (SELECT coalesce(sum(hypertable_size(format('%I.%I',
+                        view_schema, view_name)::regclass)), 0)
+                   FROM timescaledb_information.continuous_aggregates
+                   WHERE view_name IN ('metric_point_5m', 'metric_point_1h'))
+                    AS bytes,
+                (SELECT count(*) FROM metric_series) AS series
+            """,
+            {},
+        )
+        return Usage(bytes=int(rows[0]["bytes"]), series=int(rows[0]["series"]))
+
+    async def drop_schema(self) -> None:
+        """Take away everything the migrations made, and leave the database.
+
+        For a store somebody connected: the database is theirs, what is in it
+        of the metrics is not.
+        """
+        statements = (
+            "DROP MATERIALIZED VIEW IF EXISTS metric_point_1h CASCADE",
+            "DROP MATERIALIZED VIEW IF EXISTS metric_point_5m CASCADE",
+            "DROP TABLE IF EXISTS metric_restart, metric_process, metric_point, "
+            "metric_series, metrics_schema_version CASCADE",
+        )
+        try:
+            async with self._engine.connect() as raw:
+                connection = await raw.execution_options(isolation_level="AUTOCOMMIT")
+                await connection.execute(
+                    text("SELECT pg_advisory_lock(:key)"), {"key": ADVISORY_LOCK_KEY}
+                )
+                try:
+                    for statement in statements:
+                        await connection.execute(text(statement))
+                finally:
+                    await connection.execute(
+                        text("SELECT pg_advisory_unlock(:key)"),
+                        {"key": ADVISORY_LOCK_KEY},
+                    )
+        except (SQLAlchemyError, OSError) as failure:
+            raise StoreUnavailable("The metrics store did not answer") from failure
+
     async def _fetch(self, sql: str, parameters: Mapping[str, Any]) -> list[Mapping[str, Any]]:
         try:
             async with self._engine.connect() as connection:
@@ -494,6 +671,26 @@ class MetricsStore:
                 return [dict(row) for row in result.mappings().all()]
         except (SQLAlchemyError, OSError) as failure:
             raise StoreUnavailable("The metrics store did not answer") from failure
+
+
+async def _materialized(connection: AsyncConnection) -> list[str]:
+    """The tables the rollups keep their rows in, quoted.
+
+    A rollup cannot be deleted from through its view, and a refresh does not
+    reach back past its window, so a purge deletes from these directly.
+    """
+    rows = await connection.execute(
+        text(
+            """
+            SELECT format('%I.%I', materialization_hypertable_schema,
+                          materialization_hypertable_name) AS name
+            FROM timescaledb_information.continuous_aggregates
+            WHERE view_name = ANY(CAST(:views AS text[]))
+            """
+        ),
+        {"views": list(ROLLUP_VIEWS)},
+    )
+    return [str(name) for name in rows.scalars()]
 
 
 def _stored(row: Mapping[str, Any]) -> StoredSeries:
