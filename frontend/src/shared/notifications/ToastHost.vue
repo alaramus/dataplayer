@@ -97,7 +97,7 @@ const offset = computed(() => `${(props.bottom ?? 0) + 12}px`)
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-panel);
   background: var(--dp-surface-raised);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 6px 20px var(--dp-shadow-soft);
   pointer-events: auto;
 }
 

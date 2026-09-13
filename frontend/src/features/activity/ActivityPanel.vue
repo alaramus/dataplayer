@@ -258,7 +258,7 @@ function follow(run: () => void) {
   flex-direction: column;
   background: var(--dp-surface-raised);
   border-left: 1px solid var(--dp-border);
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.18);
+  box-shadow: -8px 0 24px var(--dp-shadow-soft);
 }
 
 .sheet__bar {

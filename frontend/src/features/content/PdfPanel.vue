@@ -294,8 +294,8 @@ onBeforeUnmount(() => {
 .pdf-panel__stage :deep(.pdf-panel__page) {
   position: relative;
   flex: none;
-  background: #fff;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 40%);
+  background: var(--dp-document-paper);
+  box-shadow: 0 1px 4px var(--dp-shadow-strong);
 }
 .pdf-panel__stage :deep(.textLayer) {
   position: absolute;
@@ -315,6 +315,6 @@ onBeforeUnmount(() => {
   transform-origin: 0 0;
 }
 .pdf-panel__stage :deep(.textLayer ::selection) {
-  background: rgb(0 100 255 / 30%);
+  background: var(--dp-document-selection);
 }
 </style>

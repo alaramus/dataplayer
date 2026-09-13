@@ -375,6 +375,11 @@ Spec: [Markdown as a rendered document representation](../decisions/2026-08-31-m
 
 ## Screens
 
+Activity sheets and notification cards use the theme's soft shadow; PDF pages
+use its strong shadow. PDF paper and text-selection colours are also owned by
+`theme.css`, with the same values in both themes because the rendered document
+does not change palette with the application surface.
+
 Floating window frames use the kit's panel radius and spacing scale. Filter
 and sort editors derive their minimum height from the shared toolbar height
 plus vertical padding, and use control radii for conditions. Markdown chrome

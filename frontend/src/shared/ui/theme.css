@@ -117,6 +117,11 @@
      anything that would swallow the letters under it. */
   --dp-text-selection: rgba(25, 118, 210, 0.25);
 
+  /* PDF pages keep their paper in both themes. Their selection overlays
+     document pixels, so it follows the paper rather than the app surface. */
+  --dp-document-paper: #fff;
+  --dp-document-selection: rgb(0 100 255 / 30%);
+
   /* A literal match in a document, and content that could not be resolved. */
   --dp-find: #f59e0b;
   --dp-content-error: #c62828;
