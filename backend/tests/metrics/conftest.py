@@ -15,8 +15,12 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
+from sqlmodel import delete
 
+from app.core.db import async_session_maker
+from app.metrics.models import MetricsStoreSetting
 from app.metrics.store import MetricsStore, store_url
+from app.services.models import ManagedService
 
 TEST_METRICS_STORE_URL = os.environ.get("TEST_METRICS_STORE_URL")
 
@@ -36,6 +40,28 @@ def _server_options() -> dict[str, Any]:
         "user": parts.username or "postgres",
         "password": parts.password or "",
     }
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def keep_development_store() -> AsyncIterator[None]:
+    """Put back the store setting the development stack had.
+
+    The suite shares the development database, and these tests need a stack
+    with no store and remove whatever store they set up. Unlike the superuser,
+    nothing recreates a store on the next start, so it is saved here first.
+    """
+    async with async_session_maker() as session:
+        saved = await session.get(MetricsStoreSetting, 1)
+        kept = None if saved is None else saved.model_dump()
+    yield
+    if kept is None:
+        return
+    async with async_session_maker() as session:
+        await session.exec(delete(MetricsStoreSetting))
+        if kept["service_id"] is not None and await session.get(ManagedService, kept["service_id"]) is None:
+            kept["service_id"] = None
+        session.add(MetricsStoreSetting(**kept))
+        await session.commit()
 
 
 @pytest.fixture(scope="session")

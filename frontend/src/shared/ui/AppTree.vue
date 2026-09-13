@@ -21,11 +21,18 @@ export type TreeNodes = QTreeProps["nodes"]
  */
 export type TreeLazyLoad = Parameters<NonNullable<QTreeProps["onLazyLoad"]>>[0]
 
-defineProps<{
+withDefaults(defineProps<{
   nodes: TreeNodes
   nodeKey: string
   expanded: string[]
   selected: string | null
+  /**
+   * Tick boxes, and which leaves are ticked. A tick on a branch ticks every
+   * leaf under it; what comes back is always leaves, so a caller never has to
+   * walk the tree to learn what a branch meant.
+   */
+  ticked?: string[]
+  tickable?: boolean
   /**
    * Whether clicking the selected row leaves it selected.
    *
@@ -34,11 +41,12 @@ defineProps<{
    * opposite — the menu would empty itself under the pointer.
    */
   keepSelection?: boolean
-}>()
+}>(), { ticked: () => [], tickable: false, keepSelection: false })
 
 defineEmits<{
   "update:expanded": [value: string[]]
   "update:selected": [value: string | null]
+  "update:ticked": [value: string[]]
   lazyLoad: [payload: TreeLazyLoad]
 }>()
 
@@ -71,8 +79,11 @@ defineExpose({ setExpanded, isExpanded })
     :expanded="expanded"
     :selected="selected"
     :no-selection-unset="keepSelection"
+    :ticked="ticked"
+    :tick-strategy="tickable ? 'leaf' : 'none'"
     @update:expanded="$emit('update:expanded', [...$event])"
     @update:selected="$emit('update:selected', $event)"
+    @update:ticked="$emit('update:ticked', [...$event])"
     @lazy-load="$emit('lazyLoad', $event)"
   >
     <template #default-header="scope">

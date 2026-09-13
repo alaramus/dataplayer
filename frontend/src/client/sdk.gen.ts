@@ -243,9 +243,15 @@ import type {
   metricsCreateAgentData,
   metricsCreateAgentErrors,
   metricsCreateAgentResponses,
+  metricsCreateDashboardData,
+  metricsCreateDashboardErrors,
+  metricsCreateDashboardResponses,
   metricsDeleteAgentData,
   metricsDeleteAgentErrors,
   metricsDeleteAgentResponses,
+  metricsDeleteDashboardData,
+  metricsDeleteDashboardErrors,
+  metricsDeleteDashboardResponses,
   metricsPurgeAgentData,
   metricsPurgeAgentErrors,
   metricsPurgeAgentResponses,
@@ -256,6 +262,11 @@ import type {
   metricsReadAgentsResponses,
   metricsReadCatalogData,
   metricsReadCatalogResponses,
+  metricsReadDashboardData,
+  metricsReadDashboardErrors,
+  metricsReadDashboardResponses,
+  metricsReadDashboardsData,
+  metricsReadDashboardsResponses,
   metricsReadHistoryData,
   metricsReadHistoryErrors,
   metricsReadHistoryResponses,
@@ -267,6 +278,9 @@ import type {
   metricsRotateAgentKeyData,
   metricsRotateAgentKeyErrors,
   metricsRotateAgentKeyResponses,
+  metricsSaveDashboardData,
+  metricsSaveDashboardErrors,
+  metricsSaveDashboardResponses,
   metricsStartStoreData,
   metricsStartStoreResponses,
   privateCreateUserData,
@@ -4397,6 +4411,105 @@ export class MetricsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/history",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Dashboards
+   */
+  public static readDashboards<ThrowOnError extends boolean = true>(
+    options?: Options<metricsReadDashboardsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<metricsReadDashboardsResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/dashboards",
+      ...options,
+    })
+  }
+
+  /**
+   * Create Dashboard
+   */
+  public static createDashboard<ThrowOnError extends boolean = true>(
+    options: Options<metricsCreateDashboardData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      metricsCreateDashboardResponses,
+      metricsCreateDashboardErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/dashboards",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete Dashboard
+   */
+  public static deleteDashboard<ThrowOnError extends boolean = true>(
+    options: Options<metricsDeleteDashboardData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      metricsDeleteDashboardResponses,
+      metricsDeleteDashboardErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/dashboards/{dashboard_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Dashboard
+   */
+  public static readDashboard<ThrowOnError extends boolean = true>(
+    options: Options<metricsReadDashboardData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      metricsReadDashboardResponses,
+      metricsReadDashboardErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/dashboards/{dashboard_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Save Dashboard
+   *
+   * Replace the name, options and widgets, if nobody saved in between.
+   *
+   * A widget naming a series the saver cannot read is refused: a stored
+   * dashboard must not become a way of reading somebody else's data (D129).
+   */
+  public static saveDashboard<ThrowOnError extends boolean = true>(
+    options: Options<metricsSaveDashboardData, ThrowOnError>
+  ) {
+    return (options.client ?? client).put<
+      metricsSaveDashboardResponses,
+      metricsSaveDashboardErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/dashboards/{dashboard_id}",
       ...options,
       headers: {
         "Content-Type": "application/json",

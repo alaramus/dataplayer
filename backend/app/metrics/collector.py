@@ -36,8 +36,10 @@ BATCH_POINTS = 200
 BATCH_SECONDS = 1.0
 KEYS_REFRESH_SECONDS = 15.0
 # A packet under a key not known yet reads the keys again, at most this often:
-# an agent registered a moment ago should not wait a whole refresh.
-MISS_REFRESH_SECONDS = 5.0
+# an agent registered a moment ago should not wait a whole refresh. Short, or
+# the first packets of an agent registered just after a read are dropped; a
+# flood of unknown keys costs one small query a second at most.
+MISS_REFRESH_SECONDS = 1.0
 SETTING_POLL_SECONDS = 5.0
 REPORT_SECONDS = 60.0
 
@@ -53,6 +55,7 @@ class Counts:
     points: int = 0
     snapshots: int = 0
     failed_writes: int = 0
+    no_store: int = 0
 
     def line(self) -> str:
         return " ".join(f"{item.name}={getattr(self, item.name)}" for item in fields(self))
@@ -204,69 +207,93 @@ async def _setting_changed(configured_at: object) -> None:
             return
 
 
-async def _prepared_store() -> tuple[MetricsStore, object]:
-    waiting_said = False
+async def _discard(queue: asyncio.Queue[bytes], counts: Counts) -> None:
+    """Take packets while there is no store to write them to, and count them."""
     while True:
-        async with async_session_maker() as session:
-            setting = await crud.store_setting(session)
-        if setting is None:
-            if not waiting_said:
-                logger.info("No metrics store is set up yet; waiting")
-                waiting_said = True
-            await asyncio.sleep(SETTING_POLL_SECONDS)
-            continue
-        store = MetricsStore(store_url(options_of(setting)))
-        try:
-            await store.migrate()
-        except StoreUnavailable:
-            await store.aclose()
-            logger.warning("The metrics store is not answering; trying again")
-            await asyncio.sleep(SETTING_POLL_SECONDS)
-            continue
-        return store, setting.configured_at
+        await queue.get()
+        counts.no_store += 1
+
+
+async def _prepared_store(queue: asyncio.Queue[bytes], counts: Counts) -> tuple[MetricsStore, object]:
+    waiting_said = False
+    discarding = asyncio.create_task(_discard(queue, counts))
+    try:
+        while True:
+            async with async_session_maker() as session:
+                setting = await crud.store_setting(session)
+            if setting is None:
+                if not waiting_said:
+                    logger.info("No metrics store is set up yet; waiting")
+                    waiting_said = True
+                await asyncio.sleep(SETTING_POLL_SECONDS)
+                continue
+            store = MetricsStore(store_url(options_of(setting)))
+            try:
+                await store.migrate()
+            except StoreUnavailable:
+                await store.aclose()
+                logger.warning("The metrics store is not answering; trying again")
+                await asyncio.sleep(SETTING_POLL_SECONDS)
+                continue
+            return store, setting.configured_at
+    finally:
+        discarding.cancel()
+        await asyncio.gather(discarding, return_exceptions=True)
 
 
 async def serve() -> None:
+    """Bind the port first and keep it for the life of the process.
+
+    A published port nobody is listening on is not harmless: Docker Desktop
+    stopped forwarding an agent's packets to a container that bound its port
+    only minutes later, and started again only when the container was
+    recreated. So the socket is there from the start, and what arrives before
+    a store exists is counted and dropped.
+    """
     loop = asyncio.get_running_loop()
-    while True:
-        store, configured_at = await _prepared_store()
-        counts = Counts()
-        agent_keys = AgentKeys()
-        await agent_keys.refresh()
-        queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=QUEUE_SIZE)
-        receiver = Receiver(queue, counts)
+    counts = Counts()
+    queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=QUEUE_SIZE)
+    receiver = Receiver(queue, counts)
 
-        def protocol(receiver: Receiver = receiver) -> Receiver:
-            return receiver
+    def protocol(receiver: Receiver = receiver) -> Receiver:
+        return receiver
 
-        transport, _ = await loop.create_datagram_endpoint(
-            protocol,
-            local_addr=(settings.METRICS_UDP_HOST, settings.METRICS_UDP_PORT),
-        )
-        logger.info(
-            "Receiving agent packets on %s:%s/udp",
-            settings.METRICS_UDP_HOST,
-            settings.METRICS_UDP_PORT,
-        )
-        collector = Collector(store, agent_keys.agent_for, counts)
-        tasks = [
-            asyncio.create_task(_work(queue, collector, counts)),
-            asyncio.create_task(_refresh(agent_keys, collector)),
-            asyncio.create_task(_report(counts)),
-        ]
-        try:
-            await _setting_changed(configured_at)
-            logger.info("The metrics store setting changed; starting over")
-        finally:
-            transport.close()
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
+    transport, _ = await loop.create_datagram_endpoint(
+        protocol,
+        local_addr=(settings.METRICS_UDP_HOST, settings.METRICS_UDP_PORT),
+    )
+    logger.info(
+        "Receiving agent packets on %s:%s/udp",
+        settings.METRICS_UDP_HOST,
+        settings.METRICS_UDP_PORT,
+    )
+    reporting = asyncio.create_task(_report(counts))
+    try:
+        while True:
+            store, configured_at = await _prepared_store(queue, counts)
+            agent_keys = AgentKeys()
+            await agent_keys.refresh()
+            collector = Collector(store, agent_keys.agent_for, counts)
+            tasks = [
+                asyncio.create_task(_work(queue, collector, counts)),
+                asyncio.create_task(_refresh(agent_keys, collector)),
+            ]
+            logger.info("Writing to the metrics store")
             try:
-                await collector.flush()
-            except (SQLAlchemyError, OSError):
-                logger.exception("The last batch of points could not be stored")
-            await store.aclose()
+                await _setting_changed(configured_at)
+                logger.info("The metrics store setting changed; starting over")
+            finally:
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                try:
+                    await collector.flush()
+                except (SQLAlchemyError, OSError):
+                    logger.exception("The last batch of points could not be stored")
+                await store.aclose()
+    finally:
+        reporting.cancel()
+        transport.close()
 
 
 def main() -> None:

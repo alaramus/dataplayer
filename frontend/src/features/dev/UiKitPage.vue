@@ -92,6 +92,7 @@ const loading = ref(false)
 const treeNodes = [{ id: "public", label: "public", children: [{ id: "orders", label: "orders" }] }]
 const treeExpanded = ref<string[]>(["public"])
 const treeSelected = ref<string | null>(null)
+const treeTicked = ref<string[]>(["orders"])
 
 function openDialog(size: DialogSize) {
   dialogSize.value = size
@@ -476,6 +477,17 @@ function removeSavedEntry(name: string) {
             <span>{{ node.label }}</span>
           </template>
         </AppTree>
+      </AppSection>
+      <AppSection divided>
+        <AppTree
+          v-model:expanded="treeExpanded"
+          v-model:ticked="treeTicked"
+          :nodes="treeNodes"
+          :selected="null"
+          node-key="id"
+          tickable
+        />
+        <span>Ticked: {{ treeTicked.join(", ") || "nothing" }}</span>
       </AppSection>
     </AppCard>
 

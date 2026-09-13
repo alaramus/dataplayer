@@ -7,15 +7,23 @@ anything that ingests, stores or shows a metric.
 Decisions here: D125, D126, D127, D128, D129, D130.
 
 **Implementation status:** DB1 — the store, its setup, collection, agents,
-catalog and history — is implemented, without a screen. DB2–DB6 are in the
-spec; D125 and the dashboard half of D129 state what those slices must meet,
-not what the application does.
+catalog and history — and DB2 — the screen, dashboards, widgets, the agents
+window — are implemented. DB3–DB6 are in the spec; live points, the process
+table, presets, connection metrics and sharing are not there yet.
 
 ## What exists today
 
-A superuser sets the store up through the API: starts the `timescaledb`
-template or connects an existing database. A person registers agents and
-receives the key each reports under. The `metrics` process receives their
+**Data | Dashboards** at the foot of the screen covers the workspace with the
+dashboards card. Before a store exists the card offers a superuser to start
+TimescaleDB or connect an existing one, and tells anybody else that an
+administrator sets it up. With a store it lists the person's dashboards and the
+sources their agents reported; a dashboard is a 12-column grid of charts and
+tiles, widgets are added by ticking series, moved by their header, resized by
+their corner, renamed in place and expanded to fill the grid, and the whole is
+saved a moment after the last change. The agents window registers an agent and
+shows its key and the Compose file to start it with.
+
+A person registers agents and receives the key each reports under. The `metrics` process receives their
 packets and writes samples and process snapshots; the web process answers the
 catalog of what a person's agents reported and the history of chosen series,
 raw or bucketed. Development starts an agent in the `monitor-agent` Compose
@@ -38,7 +46,29 @@ backend/app/metrics/
 ├── setup.py        store status, starting it, connecting one
 ├── jobs.py         the service create job, delivering a store setting
 ├── collector.py    the metrics process
+├── dashboards.py   Dashboard, its widget union and limits
 └── routes.py       /metrics
+
+frontend/src/
+├── stores/space.ts               which space fills the screen
+├── shared/workspace/WorkspaceRoot.vue
+│                                 `covered` and the `cover` slot: sections
+│                                 not drawn, panels parked alive
+└── features/dashboards/
+    ├── api.ts                    vue-query for everything above
+    ├── gridLayout.ts             grid arithmetic; pure
+    ├── dashboardModel.ts         changes to a dashboard's content; pure
+    ├── widgetSpecs.ts, catalog.ts
+    │                             ticked series into widgets; the catalog as
+    │                             index and tree; pure
+    ├── seriesFormat.ts, chartOption.ts, statReading.ts, setupStage.ts,
+    │   agentSnippet.ts           what is drawn and said; pure
+    ├── DashboardsSpace.vue       the card
+    ├── StoreSetup.vue            before there is a store
+    ├── DashboardView.vue, DashboardGrid.vue, WidgetFrame.vue
+    ├── TimeseriesWidget.vue, StatWidget.vue, SeriesChart.vue
+    ├── AddWidgetsDialog.vue, AgentsDialog.vue
+    └── SpaceSwitch.vue
 ```
 
 ```
@@ -54,12 +84,21 @@ POST   /api/v1/metrics/agents/{agent_id}/key
 POST   /api/v1/metrics/agents/{agent_id}/purge
 GET    /api/v1/metrics/catalog
 POST   /api/v1/metrics/history
+GET    /api/v1/metrics/dashboards
+POST   /api/v1/metrics/dashboards
+GET    /api/v1/metrics/dashboards/{dashboard_id}
+PUT    /api/v1/metrics/dashboards/{dashboard_id}
+DELETE /api/v1/metrics/dashboards/{dashboard_id}
 ```
 
 The store tests need a TimescaleDB whose role may create databases, named by
 `TEST_METRICS_STORE_URL`; without it they are skipped. The compatibility source
 `v2_30_pg18` serves locally — at `127.0.0.1`, because `localhost` on Windows
-tries IPv6 first and waits out the connect timeout on every connection.
+tries IPv6 first and waits out the connect timeout on every connection. The
+suite shares the development database; the metrics tests put back the store
+setting they found, while agents and dashboards go the way users do. The
+`dashboards.spec.ts` scenarios start the store when the stack has none, and send
+agent packets to `METRICS_UDP_PORT` themselves.
 
 ## D125. Dashboards are a space of their own
 
@@ -78,6 +117,19 @@ sources on the left, a 12-column grid of widgets on the right.
 
 Rejected: a route of its own, which unmounts the panels; a panel in the work
 column, which keeps the columns the user wants gone.
+
+The engine learns nothing about dashboards: `WorkspaceRoot` takes `covered`
+and draws a `cover` slot instead of the sections. Panels lose their targets,
+park and deactivate, which is what a grid's pause rule already reads as not on
+screen. The page switches back to Data on anything it opens, and on any change
+to the tree or the panel set while covered — a tab group restored from the
+header, a column brought back from the bar.
+
+Known deviations:
+
+- **The rail is a fixed 260 pixels** and cannot be resized or put aside.
+- **Nothing is live yet**: widgets re-read their history on the dashboard's
+  interval, and the socket carries no points (DB3).
 
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
@@ -136,6 +188,10 @@ sample. The web process reads the store and never writes points.
 - The receive loop never awaits; a bounded queue drops and counts. Points are
   written in batches.
 - A packet whose key no agent holds is dropped before any write.
+- **It binds the port as it starts**, before any store exists, and keeps it
+  when the store changes. A published UDP port nobody listened on for minutes
+  left Docker Desktop forwarding an agent's packets nowhere until the container
+  was recreated; what arrives without a store is counted and dropped.
 - Live display reads newer points from the store on a short interval; no
   channel between processes.
 
@@ -180,6 +236,12 @@ names. Limits: 12 columns, 20 widgets, 200 series per history request, titles of
 - Every read of points — history and live — asks one question: may this user
   read these series, directly or through this dashboard.
 - Saving refuses a widget naming a series the saver cannot read.
+- A save names the version it was read at; a second tab saving in between is
+  refused with 409, and the screen reads the dashboard again rather than
+  overwriting it.
+- Widget types today: `timeseries`, one chart per (metric, unit) of the ticked
+  series, and `stat`, a tile for a state such as uptime. There is no widget type
+  to choose.
 - A grant on a dashboard (D33's levels) will let its holder read exactly the
   series on it; until sharing lands the answer is the owner alone.
 

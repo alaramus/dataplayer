@@ -1,0 +1,56 @@
+<script setup lang="ts">
+import { AppButton, AppTooltip } from "@/shared/ui"
+import { useSpaceStore } from "@/stores/space"
+import type { Space } from "@/stores/space"
+
+/**
+ * Data or Dashboards, at the foot of the screen (D125). Two buttons rather than
+ * one that changes its word: the way back is where the way there was.
+ */
+const space = useSpaceStore()
+
+const choices: { value: Space; label: string; icon: string; tooltip: string }[] = [
+  { value: "data", label: "Data", icon: "table_chart", tooltip: "Connections, catalogs and the work opened from them" },
+  { value: "dashboards", label: "Dashboards", icon: "dashboard", tooltip: "Metrics your agents report, drawn over time" },
+]
+</script>
+
+<template>
+  <div
+    class="space-switch"
+    role="group"
+    aria-label="Space"
+  >
+    <span
+      v-for="choice in choices"
+      :key="choice.value"
+      class="space-switch__slot"
+    >
+      <AppButton
+        :variant="space.current === choice.value ? 'secondary' : 'quiet'"
+        size="sm"
+        :icon="choice.icon"
+        :label="choice.label"
+        :aria-pressed="space.current === choice.value"
+        :data-testid="`space-${choice.value}`"
+        @click="space.show(choice.value)"
+      />
+      <AppTooltip>{{ choice.tooltip }}</AppTooltip>
+    </span>
+  </div>
+</template>
+
+<style scoped>
+.space-switch {
+  display: flex;
+  align-items: center;
+  flex: none;
+  padding-right: var(--dp-space-2);
+  border-right: 1px solid var(--dp-separator);
+}
+
+.space-switch__slot {
+  display: flex;
+  align-items: center;
+}
+</style>

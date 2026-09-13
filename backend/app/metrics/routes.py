@@ -1,5 +1,6 @@
 import uuid
 from collections import defaultdict
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +12,15 @@ from app.core.db import SessionDep
 from app.core.schemas import Message
 from app.jobs.runner import JobRunnerDep
 from app.metrics import access, crud, history, keys, setup
+from app.metrics.dashboards import (
+    Dashboard,
+    DashboardContent,
+    DashboardCreate,
+    DashboardPublic,
+    DashboardSave,
+    series_of,
+)
+from app.metrics.dashboards import public as dashboard_public
 from app.metrics.holder import StoreHolder, StoreHolderDep
 from app.metrics.models import (
     AgentCreate,
@@ -233,6 +243,91 @@ async def read_history(
         bucket_seconds=width,
         series=[SeriesHistory(series_id=i, points=points.get(i, [])) for i in ids],
     )
+
+
+@router.get("/dashboards", response_model=list[DashboardPublic])
+async def read_dashboards(session: SessionDep, current_user: CurrentUser) -> Any:
+    return [dashboard_public(one) for one in await crud.dashboards_of(session, current_user.id)]
+
+
+@router.post("/dashboards", response_model=DashboardPublic)
+async def create_dashboard(
+    session: SessionDep, current_user: CurrentUser, body: DashboardCreate
+) -> Any:
+    dashboard = Dashboard(
+        owner_id=current_user.id,
+        name=body.name,
+        content=DashboardContent().model_dump(mode="json"),
+    )
+    session.add(dashboard)
+    await session.commit()
+    await session.refresh(dashboard)
+    return dashboard_public(dashboard)
+
+
+@router.get("/dashboards/{dashboard_id}", response_model=DashboardPublic)
+async def read_dashboard(
+    session: SessionDep, current_user: CurrentUser, dashboard_id: uuid.UUID
+) -> Any:
+    return dashboard_public(await _own_dashboard(session, dashboard_id, current_user.id))
+
+
+@router.put("/dashboards/{dashboard_id}", response_model=DashboardPublic)
+async def save_dashboard(
+    session: SessionDep,
+    current_user: CurrentUser,
+    holder: StoreHolderDep,
+    dashboard_id: uuid.UUID,
+    body: DashboardSave,
+) -> Any:
+    """Replace the name, options and widgets, if nobody saved in between.
+
+    A widget naming a series the saver cannot read is refused: a stored
+    dashboard must not become a way of reading somebody else's data (D129).
+    """
+    dashboard = await _own_dashboard(session, dashboard_id, current_user.id)
+    if body.version != dashboard.version:
+        raise HTTPException(
+            409,
+            detail={"message": "This dashboard was changed somewhere else; reload it"},
+        )
+    wanted = sorted({series for widget in body.widgets for series in series_of(widget)})
+    if wanted:
+        store = await _store(session, holder)
+        try:
+            await access.require_readable(session, store, current_user, wanted)
+        except access.SeriesNotReadable:
+            raise HTTPException(422, detail={"message": "A widget names a series you cannot read"}) from None
+        except StoreUnavailable:
+            raise _unavailable() from None
+    content = DashboardContent(options=body.options, widgets=body.widgets)
+    dashboard.name = body.name
+    dashboard.content = content.model_dump(mode="json")
+    dashboard.version += 1
+    dashboard.updated_at = datetime.now(UTC)
+    session.add(dashboard)
+    await session.commit()
+    await session.refresh(dashboard)
+    return dashboard_public(dashboard)
+
+
+@router.delete("/dashboards/{dashboard_id}", response_model=Message)
+async def delete_dashboard(
+    session: SessionDep, current_user: CurrentUser, dashboard_id: uuid.UUID
+) -> Any:
+    dashboard = await _own_dashboard(session, dashboard_id, current_user.id)
+    await session.delete(dashboard)
+    await session.commit()
+    return Message(message=f"{dashboard.name} was removed")
+
+
+async def _own_dashboard(
+    session: AsyncSession, dashboard_id: uuid.UUID, owner_id: uuid.UUID
+) -> Dashboard:
+    dashboard = await session.get(Dashboard, dashboard_id)
+    if dashboard is None or dashboard.owner_id != owner_id:
+        raise HTTPException(404, detail={"message": "No such dashboard"})
+    return dashboard
 
 
 async def _store(session: AsyncSession, holder: StoreHolder) -> MetricsStore:

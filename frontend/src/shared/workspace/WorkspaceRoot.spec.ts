@@ -30,6 +30,7 @@ async function fixture() {
   const deactivated = vi.fn()
   const mayClose = vi.fn(() => true)
   const components = new Map<string, Component>()
+  const covered = ref(false)
   let api: { workspace: WorkspaceApi<Panel>; windows: WindowsApi } | null = null
   const Root = defineComponent({
     setup() {
@@ -80,7 +81,9 @@ async function fixture() {
       api = { workspace, windows }
       return () => h("div", [
         h("header", [h(WorkspaceDetachTarget, { context: workspace.context })]),
-        h(WorkspaceRoot, { context: workspace.context }),
+        h(WorkspaceRoot, { context: workspace.context, covered: covered.value }, {
+          cover: () => h("div", { "data-testid": "cover" }, "Something else"),
+        }),
         h(WindowHost, { context: windows.context }),
         h(WindowTaskbar, { context: windows.context }),
       ])
@@ -93,10 +96,33 @@ async function fixture() {
   await flushPromises()
   if (api === null) throw new Error("The workspace did not mount")
   return { ...(api as { workspace: WorkspaceApi<Panel>; windows: WindowsApi }),
-    body: new DOMWrapper(document.body), mounted, disposed, deactivated, mayClose }
+    body: new DOMWrapper(document.body), mounted, disposed, deactivated, mayClose, covered }
 }
 
 describe("moving a live panel between the workspace and a window", () => {
+  it("parks every panel alive while something else covers the sections", async () => {
+    // D125: the dashboards take the room of the sections, and a draft, a grid
+    // page or a transaction in the workspace must still be there afterwards.
+    const { body, covered, disposed, deactivated } = await fixture()
+    const input = body.get('input[aria-label="Draft p2"]')
+    await input.setValue("still here")
+
+    covered.value = true
+    await flushPromises()
+
+    expect(body.find('[data-testid="cover"]').exists()).toBe(true)
+    expect(body.find('[data-testid="workspace-leaf-work"]').exists()).toBe(false)
+    expect(deactivated).toHaveBeenCalledWith("p2")
+    expect(disposed).not.toHaveBeenCalled()
+
+    covered.value = false
+    await flushPromises()
+
+    const back = body.get('[data-testid="workspace-leaf-work"] input')
+    expect(back.element).toBe(input.element)
+    expect((back.element as HTMLInputElement).value).toBe("still here")
+  })
+
   it("restores a saved layout with common drafts alive and unrelated windows still open", async () => {
     const { workspace, windows, body, disposed, mayClose } = await fixture()
     const saved = workspace.snapshot()

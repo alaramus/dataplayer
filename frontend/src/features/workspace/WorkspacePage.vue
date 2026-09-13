@@ -25,6 +25,8 @@ import { relationshipPanelId } from "@/features/relationships/model"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import CommandBar from "@/features/workspace/CommandBar.vue"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
+import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
+import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
 import WorkspaceGroups from "@/features/workspace/WorkspaceGroups.vue"
 import {
   catalogPanelId,
@@ -72,6 +74,7 @@ import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { useCurrentUser } from "@/shared/auth/currentUser"
+import { useSpaceStore } from "@/stores/space"
 import { AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
 import {
@@ -138,6 +141,28 @@ const workspace = useWorkspace<Panel>({
  * user is could disagree with the tree, and the tree cannot disagree with
  * itself. See P7.
  */
+/**
+ * Data or Dashboards (D125). Anything opened into the data workspace brings it
+ * back, or opening a table while the dashboards cover it would do nothing
+ * anybody could see.
+ */
+const space = useSpaceStore()
+const dashboardsShown = computed(() => space.current === "dashboards")
+
+function openPanel(panel: Panel) {
+  space.show("data")
+  workspace.open(panel)
+}
+
+// The same rule for what reaches the layout by another way: a saved tab group
+// restored from the header, a column brought back from the bar.
+watch(
+  () => [workspace.context.tree.value, workspace.panels.value.map((one) => one.id).join("\u0000")] as const,
+  () => {
+    if (dashboardsShown.value) space.show("data")
+  }
+)
+
 const activeConnectorId = computed(() => {
   const floating = workspace.panels.value.find((one) => one.id === workspace.context.focusedDetached.value)
   if (floating?.kind === "catalog") return floating.connectorId
@@ -396,7 +421,7 @@ function openCatalog(connector: ConnectorPublic) {
   // As many catalogs as were opened: a panel is identified by what it shows,
   // so pressing the same connection again brings its tab forward rather than
   // opening a second one. See P6.
-  workspace.open({
+  openPanel({
     id: catalogPanelId(connector.id),
     kind: "catalog",
     connectorId: connector.id,
@@ -436,7 +461,7 @@ function openShared(request: OpenSharedRequest) {
       label: request.title,
     }
   }
-  workspace.open({
+  openPanel({
     id: rowsPanelId(request.connector.id, request.nodeId),
     kind: "rows",
     connectorId: request.connector.id,
@@ -544,7 +569,7 @@ provide(workspaceActionsKey, {
     return target
   },
   openRows: (request: OpenRowsRequest) => {
-    workspace.open({
+    openPanel({
       id: rowsPanelId(request.connectorId, request.nodeId),
       kind: "rows",
       ...request,
@@ -570,7 +595,7 @@ provide(workspaceActionsKey, {
       }
     }
     if (preferred.kind === "table") {
-      workspace.open({
+      openPanel({
         id: rowsPanelId(request.connectorId, request.nodeId),
         kind: "rows",
         connectorId: request.connectorId,
@@ -588,7 +613,7 @@ provide(workspaceActionsKey, {
     const source = request.representations.find(
       (representation) => representation.kind === "text" && preferred.kind !== "text"
     )
-    workspace.open({
+    openPanel({
       id: contentPanelId(request.connectorId, request.nodeId, preferred.kind),
       kind: "content",
       connectorId: request.connectorId,
@@ -625,7 +650,7 @@ provide(workspaceActionsKey, {
       connectorName: request.connectorName,
       adapterType: request.adapterType,
     })
-    workspace.open({
+    openPanel({
       id: rowsPanelId(opened.connectorId, opened.nodeId),
       kind: "rows",
       ...opened,
@@ -654,7 +679,7 @@ provide(workspaceActionsKey, {
     return target
   },
   openStructure: (request: OpenStructureRequest) => {
-    workspace.open({
+    openPanel({
       id: structurePanelId(request.connectorId, request.nodeId),
       kind: "structure",
       ...request,
@@ -673,17 +698,18 @@ provide(workspaceActionsKey, {
       ...request,
     }
     if (workspace.panels.value.some((open) => open.id === panel.id)) {
+      space.show("data")
       workspace.replace(panel.id, panel)
       workspace.context.activate(panel.id)
       return
     }
-    workspace.open(panel)
+    openPanel(panel)
   },
   openRelationships: (request: OpenRelationshipsRequest) => {
-    workspace.open({ id: relationshipPanelId(request.connectorId, request.nodes), kind: "relationships", ...request })
+    openPanel({ id: relationshipPanelId(request.connectorId, request.nodes), kind: "relationships", ...request })
   },
   openSummary: (request: OpenSummaryRequest) => {
-    workspace.open({
+    openPanel({
       id: summaryPanelId(request.connectorId, request.nodeId),
       kind: "summary",
       ...request,
@@ -695,7 +721,7 @@ provide(workspaceActionsKey, {
     // reason is the one `revealTarget` has: a call does not survive a panel
     // that is not mounted yet.
     queriesTarget.value = connectorId
-    workspace.open({ id: QUERIES_PANEL_ID, kind: "queries" })
+    openPanel({ id: QUERIES_PANEL_ID, kind: "queries" })
   },
   queriesTarget,
   takeQueriesTarget: () => {
@@ -704,7 +730,7 @@ provide(workspaceActionsKey, {
     return target
   },
   openQueryDocument: (request: OpenQueryDocumentRequest) => {
-    workspace.open({
+    openPanel({
       id: queryPanelId(request.documentId),
       kind: "query",
       documentId: request.documentId,
@@ -714,7 +740,7 @@ provide(workspaceActionsKey, {
     })
   },
   openQueryDraft: (request: OpenQueryDraftRequest) => {
-    workspace.open({
+    openPanel({
       id: queryDraftPanelId(request.draftId),
       kind: "query",
       draftId: request.draftId,
@@ -724,7 +750,7 @@ provide(workspaceActionsKey, {
     })
   },
   openQueryResult: (request: { resultId: string; title: string; connectorId?: string }) => {
-    workspace.open({
+    openPanel({
       id: resultPanelId(request.resultId),
       kind: "result",
       resultId: request.resultId,
@@ -761,7 +787,7 @@ provide(workspaceActionsKey, {
   },
   openChart: (request: OpenChartRequest) => {
     const viewKey = chartViewKey(request.connectorId, request.request, request.columns)
-    workspace.open({
+    openPanel({
       id: chartPanelId(viewKey),
       kind: "chart",
       viewKey,
@@ -790,6 +816,7 @@ provide(workspaceActionsKey, {
       />
     </template>
     <template #status>
+      <SpaceSwitch />
       <ServicesCommand />
       <CommandBar />
       <!-- Beside the windows on the same bar: a column put aside and a window
@@ -803,7 +830,14 @@ provide(workspaceActionsKey, {
       />
     </template>
 
-    <WorkspaceRoot :context="workspace.context" />
+    <WorkspaceRoot
+      :context="workspace.context"
+      :covered="dashboardsShown"
+    >
+      <template #cover>
+        <DashboardsSpace />
+      </template>
+    </WorkspaceRoot>
 
     <AdapterCatalogDialog
       v-model="catalogOpen"

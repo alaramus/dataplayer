@@ -8,6 +8,7 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.metrics import keys
+from app.metrics.dashboards import Dashboard
 from app.metrics.models import MetricsAgent, MetricsStoreSetting
 
 
@@ -91,3 +92,12 @@ async def rotate_key(session: AsyncSession, agent: MetricsAgent, key: str) -> Me
     await session.commit()
     await session.refresh(agent)
     return agent
+
+
+async def dashboards_of(session: AsyncSession, owner_id: uuid.UUID) -> list[Dashboard]:
+    statement = (
+        select(Dashboard)
+        .where(Dashboard.owner_id == owner_id)
+        .order_by(col(Dashboard.created_at))
+    )
+    return list((await session.exec(statement)).all())

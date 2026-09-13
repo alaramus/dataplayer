@@ -42,6 +42,7 @@ frontend/src/
     ├── connectors/      the list of sources, source types, the connection window
     ├── shares/          links and access requests — see sharing.md
     ├── workspace/       panels and their roles; panels.ts is that table
+    ├── dashboards/      the space that covers the workspace — see dashboards.md
     └── dev/             /ui-kit and /workspace-demo, dev builds only
 ```
 

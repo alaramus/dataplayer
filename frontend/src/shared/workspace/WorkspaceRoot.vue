@@ -7,7 +7,11 @@ import WorkspacePanels from "./WorkspacePanels.vue"
 import WorkspaceDragGhost from "./WorkspaceDragGhost.vue"
 import WorkspaceNode from "./WorkspaceNode.vue"
 
-const props = defineProps<{ context: WorkspaceContext }>()
+const props = defineProps<{
+  context: WorkspaceContext
+  /** Something else takes the room of the sections: the `cover` slot. */
+  covered?: boolean
+}>()
 
 /** Where the hand is, so that what it carries can be drawn there. */
 const pointer = ref<{ x: number; y: number } | null>(null)
@@ -63,7 +67,17 @@ onBeforeUnmount(() => {
     data-testid="workspace"
   >
     <WorkspacePanels :context="context">
-      <WorkspaceNode :node="context.tree.value" />
+      <!-- Covered, the sections are not drawn and every panel in them parks:
+           kept alive and deactivated, so nothing is lost and nothing counts as
+           on screen. Floating windows stay (D125). -->
+      <slot
+        v-if="covered"
+        name="cover"
+      />
+      <WorkspaceNode
+        v-else
+        :node="context.tree.value"
+      />
       <WorkspaceFloatingWindows :context="context" />
     </WorkspacePanels>
 

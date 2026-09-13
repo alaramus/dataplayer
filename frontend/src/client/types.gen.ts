@@ -1890,6 +1890,94 @@ export type CreateRelationFromSourceRequest = {
 }
 
 /**
+ * DashboardCreate
+ */
+export type DashboardCreate = {
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * DashboardOptions
+ */
+export type DashboardOptions = {
+  /**
+   * Range Seconds
+   */
+  range_seconds?: 300 | 900 | 3600 | 21600 | 86400 | 604800 | 2592000
+  /**
+   * Refresh Seconds
+   */
+  refresh_seconds?: 0 | 10 | 30 | 60 | 300
+}
+
+/**
+ * DashboardPublic
+ */
+export type DashboardPublic = {
+  options?: DashboardOptions
+  /**
+   * Widgets
+   */
+  widgets?: Array<
+    | ({
+        type: "timeseries"
+      } & TimeseriesWidget)
+    | ({
+        type: "stat"
+      } & StatWidget)
+  >
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Version
+   */
+  version: number
+  /**
+   * Updated At
+   */
+  updated_at: string
+  /**
+   * Broken
+   */
+  broken?: boolean
+}
+
+/**
+ * DashboardSave
+ */
+export type DashboardSave = {
+  options?: DashboardOptions
+  /**
+   * Widgets
+   */
+  widgets?: Array<
+    | ({
+        type: "timeseries"
+      } & TimeseriesWidget)
+    | ({
+        type: "stat"
+      } & StatWidget)
+  >
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Version
+   */
+  version: number
+}
+
+/**
  * DatabaseNode
  *
  * One numbered key space of a key-value server.
@@ -8000,6 +8088,29 @@ export type StartOffer = {
 }
 
 /**
+ * StatWidget
+ */
+export type StatWidget = {
+  /**
+   * Type
+   */
+  type: "stat"
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Title
+   */
+  title: string
+  layout: WidgetLayout
+  /**
+   * Series Id
+   */
+  series_id: number
+}
+
+/**
  * StatementPublic
  *
  * One statement of a run, as the console reads it.
@@ -8516,6 +8627,29 @@ export type TimescaleStatistics = {
     | ({
         kind: "unavailable"
       } & UnavailableTimescaleFacts)
+}
+
+/**
+ * TimeseriesWidget
+ */
+export type TimeseriesWidget = {
+  /**
+   * Type
+   */
+  type: "timeseries"
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Title
+   */
+  title: string
+  layout: WidgetLayout
+  /**
+   * Series Ids
+   */
+  series_ids: Array<number>
 }
 
 /**
@@ -9206,6 +9340,28 @@ export type ViewNode = {
    */
   is_system?: boolean
   specialization?: TimescaleContinuousAggregate | null
+}
+
+/**
+ * WidgetLayout
+ */
+export type WidgetLayout = {
+  /**
+   * X
+   */
+  x: number
+  /**
+   * Y
+   */
+  y: number
+  /**
+   * W
+   */
+  w: number
+  /**
+   * H
+   */
+  h: number
 }
 
 /**
@@ -14372,6 +14528,146 @@ export type metricsReadHistoryResponses = {
 
 export type metricsReadHistoryResponse =
   metricsReadHistoryResponses[keyof metricsReadHistoryResponses]
+
+export type metricsReadDashboardsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/dashboards"
+}
+
+export type metricsReadDashboardsResponses = {
+  /**
+   * Response Metrics-Read Dashboards
+   *
+   * Successful Response
+   */
+  200: Array<DashboardPublic>
+}
+
+export type metricsReadDashboardsResponse =
+  metricsReadDashboardsResponses[keyof metricsReadDashboardsResponses]
+
+export type metricsCreateDashboardData = {
+  body: DashboardCreate
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/dashboards"
+}
+
+export type metricsCreateDashboardErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsCreateDashboardError =
+  metricsCreateDashboardErrors[keyof metricsCreateDashboardErrors]
+
+export type metricsCreateDashboardResponses = {
+  /**
+   * Successful Response
+   */
+  200: DashboardPublic
+}
+
+export type metricsCreateDashboardResponse =
+  metricsCreateDashboardResponses[keyof metricsCreateDashboardResponses]
+
+export type metricsDeleteDashboardData = {
+  body?: never
+  path: {
+    /**
+     * Dashboard Id
+     */
+    dashboard_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/dashboards/{dashboard_id}"
+}
+
+export type metricsDeleteDashboardErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsDeleteDashboardError =
+  metricsDeleteDashboardErrors[keyof metricsDeleteDashboardErrors]
+
+export type metricsDeleteDashboardResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type metricsDeleteDashboardResponse =
+  metricsDeleteDashboardResponses[keyof metricsDeleteDashboardResponses]
+
+export type metricsReadDashboardData = {
+  body?: never
+  path: {
+    /**
+     * Dashboard Id
+     */
+    dashboard_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/dashboards/{dashboard_id}"
+}
+
+export type metricsReadDashboardErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsReadDashboardError = metricsReadDashboardErrors[keyof metricsReadDashboardErrors]
+
+export type metricsReadDashboardResponses = {
+  /**
+   * Successful Response
+   */
+  200: DashboardPublic
+}
+
+export type metricsReadDashboardResponse =
+  metricsReadDashboardResponses[keyof metricsReadDashboardResponses]
+
+export type metricsSaveDashboardData = {
+  body: DashboardSave
+  path: {
+    /**
+     * Dashboard Id
+     */
+    dashboard_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/dashboards/{dashboard_id}"
+}
+
+export type metricsSaveDashboardErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsSaveDashboardError = metricsSaveDashboardErrors[keyof metricsSaveDashboardErrors]
+
+export type metricsSaveDashboardResponses = {
+  /**
+   * Successful Response
+   */
+  200: DashboardPublic
+}
+
+export type metricsSaveDashboardResponse =
+  metricsSaveDashboardResponses[keyof metricsSaveDashboardResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate
