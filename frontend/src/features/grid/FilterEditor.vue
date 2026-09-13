@@ -159,8 +159,8 @@ function removeFilter(index: number) {
 
       <template v-if="draft.op === 'in'">
         <AppInput
-          class="filter-editor__field"
           v-model="pendingItem"
+          class="filter-editor__field"
           label="Value"
           :error="error"
           compact
@@ -182,8 +182,8 @@ function removeFilter(index: number) {
         </q-chip>
       </template>
       <AppSelect
-        class="filter-editor__field"
         v-else-if="!isNullary && explicitValues !== null"
+        class="filter-editor__field"
         :model-value="draft.value"
         :options="explicitValueOptions"
         label="Value"
@@ -192,8 +192,8 @@ function removeFilter(index: number) {
         @update:model-value="setValue"
       />
       <AppInput
-        class="filter-editor__field"
         v-else-if="!isNullary"
+        class="filter-editor__field"
         :model-value="draft.value"
         label="Value"
         :error="error"

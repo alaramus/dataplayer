@@ -90,8 +90,8 @@ function remove(index: number) {
 
     <div class="sort-editor__add">
       <AppSelect
-        class="sort-editor__field"
         v-model="selectedColumn"
+        class="sort-editor__field"
         :options="addOptions"
         label="Column"
         compact
