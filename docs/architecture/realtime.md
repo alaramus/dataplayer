@@ -30,8 +30,9 @@ frontend/src/
     └── connectorState.ts  what state a connection is in, in one place
 ```
 
-Three more topics followed, each beside what it announces: `queries/topic.py`
-(D64), `jobs/topic.py` (D81) and `shares/topic.py` (D61).
+More topics followed, each beside what it announces: `queries/topic.py`
+(D64), `jobs/topic.py` (D81), `shares/topic.py` (D61) and `metrics/live.py`
+(D127).
 
 The frames are written out twice — Pydantic models on one side, a TypeScript
 union on the other — because OpenAPI 3.1 has no WebSocket channel, so

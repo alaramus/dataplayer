@@ -10,16 +10,30 @@ import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import URL, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from app.metrics.migrations import ADVISORY_LOCK_KEY, MIGRATIONS, VERSION_TABLE
-from app.metrics.packets import ProcessSnapshot, Sample
+from app.metrics.packets import ProcessRow, ProcessSnapshot, Sample
 
 CONNECT_TIMEOUT_SECONDS = 5
+
+ProcessSort = Literal["pcpu", "pmem", "pid"]
+
+_PROCESS_SELECT = """
+    SELECT pid, ppid, username, command, pcpu, pmem, elapsed FROM metric_process
+    WHERE source_id = :source AND host = :host AND ts = :at
+"""
+
+# One fixed statement per sort: the order is never assembled from a request.
+_PROCESS_QUERIES: dict[ProcessSort, str] = {
+    "pcpu": _PROCESS_SELECT + " ORDER BY pcpu DESC, pid LIMIT :limit",
+    "pmem": _PROCESS_SELECT + " ORDER BY pmem DESC, pid LIMIT :limit",
+    "pid": _PROCESS_SELECT + " ORDER BY pid LIMIT :limit",
+}
 
 
 class StoreUnavailable(Exception):
@@ -360,6 +374,87 @@ class MetricsStore:
                 ]
             )
         return points
+
+    async def seen(self, sources: Sequence[uuid.UUID]) -> dict[int, int]:
+        """When each series of these agents was last written, in seconds."""
+        if not sources:
+            return {}
+        rows = await self._fetch(
+            """
+            SELECT id, last_seen FROM metric_series
+            WHERE source_kind = 'agent' AND source_id = ANY(CAST(:sources AS uuid[]))
+            """,
+            {"sources": list(sources)},
+        )
+        return {int(row["id"]): _seconds(row["last_seen"]) for row in rows}
+
+    async def points_after(
+        self, series_ids: Sequence[int], after: int, limit: int
+    ) -> list[PointRow]:
+        """Points newer than a moment, oldest first, at most `limit` of them."""
+        if not series_ids:
+            return []
+        rows = await self._fetch(
+            """
+            SELECT series_id, ts, value FROM metric_point
+            WHERE series_id = ANY(CAST(:ids AS bigint[])) AND ts > :after
+            ORDER BY ts
+            LIMIT :limit
+            """,
+            {"ids": list(series_ids), "after": _moment(after), "limit": limit},
+        )
+        return [
+            PointRow(series_id=int(row["series_id"]), ts=_seconds(row["ts"]), value=float(row["value"]))
+            for row in rows
+        ]
+
+    async def process_hosts(self, sources: Sequence[uuid.UUID]) -> dict[tuple[uuid.UUID, str], datetime]:
+        """Hosts of these agents that sent a process table in the last day."""
+        if not sources:
+            return {}
+        rows = await self._fetch(
+            """
+            SELECT source_id, host, max(ts) AS latest FROM metric_process
+            WHERE source_id = ANY(CAST(:sources AS uuid[]))
+              AND ts > now() - INTERVAL '1 day'
+            GROUP BY source_id, host
+            """,
+            {"sources": list(sources)},
+        )
+        return {(row["source_id"], str(row["host"])): row["latest"] for row in rows}
+
+    async def latest_processes(
+        self, source_id: uuid.UUID, host: str, sort: ProcessSort, limit: int
+    ) -> tuple[int | None, list[ProcessRow]]:
+        """The newest process table of a host within the last hour."""
+        parameters = {"source": source_id, "host": host}
+        newest = await self._fetch(
+            """
+            SELECT max(ts) AS latest FROM metric_process
+            WHERE source_id = :source AND host = :host
+              AND ts > now() - INTERVAL '1 hour'
+            """,
+            parameters,
+        )
+        latest = newest[0]["latest"] if newest else None
+        if latest is None:
+            return None, []
+        rows = await self._fetch(
+            _PROCESS_QUERIES[sort],
+            {**parameters, "at": latest, "limit": limit},
+        )
+        return _seconds(latest), [
+            ProcessRow(
+                pid=int(row["pid"]),
+                ppid=int(row["ppid"]),
+                user=str(row["username"]),
+                command=str(row["command"]),
+                pcpu=float(row["pcpu"]),
+                pmem=float(row["pmem"]),
+                elapsed=str(row["elapsed"]),
+            )
+            for row in rows
+        ]
 
     async def purge(self, source: Source) -> None:
         """Every sample and snapshot of a source. Its series go with them."""

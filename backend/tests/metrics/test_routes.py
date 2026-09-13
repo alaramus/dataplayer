@@ -2,6 +2,7 @@
 
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -13,6 +14,7 @@ from app.core.db import async_session_maker
 from app.main import app
 from app.metrics import crud
 from app.metrics.models import MetricsAgent, MetricsStoreSetting
+from app.metrics.packets import ProcessRow, ProcessSnapshot
 from app.metrics.store import MetricsStore, PointRow, SeriesKey, Source
 from tests.metrics.conftest import needs_store
 from tests.utils.service_engine import FakeEngine, engine_of
@@ -267,3 +269,54 @@ async def test_history_is_read_through_the_owner_of_the_agent(
     assert purged.status_code == 200
     after = await client.get(f"{BASE}/catalog", headers=normal_user_token_headers)
     assert after.json()["agents"][0]["hosts"] == []
+
+
+@needs_store
+async def test_process_tables_and_presets_are_read_through_the_owner_of_the_agent(
+    client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    normal_user_token_headers: dict[str, str],
+    stranger_headers: dict[str, str],
+    store_options: dict[str, Any],
+    store: MetricsStore,
+) -> None:
+    await _connect(client, superuser_token_headers, store_options)
+    agent_id = uuid.UUID((await _agent(client, normal_user_token_headers))["agent"]["id"])
+    source = Source(kind="agent", id=agent_id)
+    now = int(datetime.now(UTC).timestamp())
+    rows = [
+        ProcessRow(pid=pid, ppid=1, user="root", command=f"worker {pid}", pcpu=float(cpu), pmem=float(10 - cpu), elapsed="01:00")
+        for pid, cpu in ((10, 1), (11, 5), (12, 3))
+    ]
+    await store.write_processes(source, ProcessSnapshot(host="only-ps", ts=now - 120, rows=rows[:1], skipped=0, truncated=0))
+    await store.write_processes(source, ProcessSnapshot(host="only-ps", ts=now - 30, rows=rows, skipped=0, truncated=0))
+    key = SeriesKey("web-01", "cpu", "uptime", "")
+    await store.series_ids(source, [(key, "s", now)])
+
+    catalog = (await client.get(f"{BASE}/catalog", headers=normal_user_token_headers)).json()
+    hosts = {host["host"]: host for host in catalog["agents"][0]["hosts"]}
+    assert hosts["only-ps"]["processes"] is True
+    assert hosts["only-ps"]["metrics"] == []
+    assert hosts["web-01"]["processes"] is False
+
+    query = {"agent_id": str(agent_id), "host": "only-ps", "sort": "pmem", "limit": 10}
+    table = await client.get(f"{BASE}/processes", headers=normal_user_token_headers, params=query)
+    assert table.status_code == 200, table.text
+    assert table.json()["ts"] == now - 30
+    assert [row["pid"] for row in table.json()["rows"]] == [10, 12, 11]
+    odd = await client.get(f"{BASE}/processes", headers=normal_user_token_headers, params={**query, "sort": "command"})
+    assert odd.status_code == 422
+    foreign = await client.get(f"{BASE}/processes", headers=stranger_headers, params=query)
+    assert foreign.status_code == 404
+
+    presets = await client.get(
+        f"{BASE}/presets", headers=normal_user_token_headers, params={"agent_id": str(agent_id), "host": "web-01"}
+    )
+    assert presets.status_code == 200, presets.text
+    (linux,) = presets.json()
+    assert linux["key"] == "linux-host"
+    assert [widget["title"] for widget in linux["widgets"]] == ["Uptime"]
+    refused = await client.get(
+        f"{BASE}/presets", headers=stranger_headers, params={"agent_id": str(agent_id), "host": "web-01"}
+    )
+    assert refused.status_code == 404

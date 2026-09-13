@@ -4,11 +4,13 @@ import type { MaybeRefOrGetter } from "vue"
 import { toValue } from "vue"
 
 import { MetricsService } from "@/client"
-import type { DashboardPublic, DashboardSave, StoreStatus } from "@/client"
+import type { DashboardPublic, DashboardSave, HistoryAnswer, StoreStatus } from "@/client"
 import { isJobEvent, JOBS_TOPIC } from "@/features/services/jobs"
 import { realtime } from "@/shared/realtime/client"
 
 import { windowOf } from "./dashboardModel"
+import type { ProcessLimit, ProcessSort } from "./dashboardModel"
+import { isLivePoints, LIVE_TOPIC, mergeLive } from "./livePoints"
 
 /**
  * Metrics are server state, so they live in vue-query (D6). The draft of the
@@ -19,6 +21,7 @@ export const storeStatusKey = ["metrics-store"] as const
 export const agentsKey = ["metrics-agents"] as const
 export const metricsCatalogKey = ["metrics-catalog"] as const
 export const dashboardsKey = ["metrics-dashboards"] as const
+const HISTORY_KEY = "metrics-history"
 
 export function useStoreStatus() {
   return useQuery({
@@ -135,7 +138,7 @@ export function useHistory(
 ) {
   return useQuery({
     queryKey: computed(() => [
-      "metrics-history",
+      HISTORY_KEY,
       [...toValue(seriesIds)].sort((a, b) => a - b).join(","),
       toValue(rangeSeconds),
       toValue(maxPoints),
@@ -160,6 +163,64 @@ export function useHistory(
       const seconds = toValue(refreshSeconds)
       return seconds > 0 ? seconds * 1000 : false
     }),
+  })
+}
+
+/**
+ * Lay the points the socket pushes onto every history already read, for as
+ * long as the caller lives. Several callers are harmless: merging is
+ * idempotent.
+ */
+export function useLivePoints() {
+  const queryClient = useQueryClient()
+  const stop = realtime().subscribe(LIVE_TOPIC, (payload) => {
+    if (!isLivePoints(payload)) return
+    const now = Math.floor(Date.now() / 1000)
+    for (const [key, answer] of queryClient.getQueriesData<HistoryAnswer>({ queryKey: [HISTORY_KEY] })) {
+      if (answer === undefined) continue
+      const range = Number(key[2])
+      const merged = mergeLive(answer, payload, range, now)
+      if (merged !== null) queryClient.setQueryData(key, merged)
+    }
+  })
+  onScopeDispose(stop)
+}
+
+export function useProcesses(
+  agentId: MaybeRefOrGetter<string>,
+  host: MaybeRefOrGetter<string>,
+  sort: MaybeRefOrGetter<ProcessSort>,
+  limit: MaybeRefOrGetter<ProcessLimit>,
+  refreshSeconds: MaybeRefOrGetter<number>
+) {
+  return useQuery({
+    queryKey: computed(() => ["metrics-processes", toValue(agentId), toValue(host), toValue(sort), toValue(limit)] as const),
+    queryFn: async ({ signal }) =>
+      (
+        await MetricsService.readProcesses({
+          query: { agent_id: toValue(agentId), host: toValue(host), sort: toValue(sort), limit: toValue(limit) },
+          signal,
+        })
+      ).data,
+    placeholderData: keepPreviousData,
+    // A table arrives at the agent's pace, so without an interval of the
+    // dashboard's it is still read every half minute.
+    refetchInterval: computed(() => {
+      const seconds = toValue(refreshSeconds)
+      return (seconds > 0 ? seconds : 30) * 1000
+    }),
+  })
+}
+
+export function usePresets(ref: MaybeRefOrGetter<{ agentId: string; host: string } | null>) {
+  return useQuery({
+    queryKey: computed(() => ["metrics-presets", toValue(ref)?.agentId ?? "", toValue(ref)?.host ?? ""] as const),
+    queryFn: async () => {
+      const chosen = toValue(ref)
+      if (chosen === null) return []
+      return (await MetricsService.readPresets({ query: { agent_id: chosen.agentId, host: chosen.host } })).data
+    },
+    enabled: computed(() => toValue(ref) !== null),
   })
 }
 

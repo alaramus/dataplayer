@@ -7,9 +7,10 @@ anything that ingests, stores or shows a metric.
 Decisions here: D125, D126, D127, D128, D129, D130.
 
 **Implementation status:** DB1 — the store, its setup, collection, agents,
-catalog and history — and DB2 — the screen, dashboards, widgets, the agents
-window — are implemented. DB3–DB6 are in the spec; live points, the process
-table, presets, connection metrics and sharing are not there yet.
+catalog and history —, DB2 — the screen, dashboards, widgets, the agents window
+— and DB3 — live points, process tables, ready-made layouts, a widget in a
+window — are implemented. DB4–DB6 are in the spec; connection metrics, rollups
+and sharing are not there yet.
 
 ## What exists today
 
@@ -22,6 +23,14 @@ tiles, widgets are added by ticking series, moved by their header, resized by
 their corner, renamed in place and expanded to fill the grid, and the whole is
 saved a moment after the last change. The agents window registers an agent and
 shows its key and the Compose file to start it with.
+
+Points an agent sends appear on open charts and tiles within a couple of
+seconds, without the dashboard re-reading anything. A host that sends its
+process table has a `processes` leaf in the tree, which becomes a table sorted
+by CPU, memory or PID. Selecting a host in the Add window offers its ready-made
+layouts — today one, *Linux host* — filled with what that host reports, and
+placed under what the dashboard already holds. Any widget opens in a floating
+window, which stays when the screen is switched back to Data.
 
 A person registers agents and receives the key each reports under. The `metrics` process receives their
 packets and writes samples and process snapshots; the web process answers the
@@ -47,6 +56,8 @@ backend/app/metrics/
 ├── jobs.py         the service create job, delivering a store setting
 ├── collector.py    the metrics process
 ├── dashboards.py   Dashboard, its widget union and limits
+├── presets.py      ready-made layouts and resolving them against a host
+├── live.py         the `metrics.points` topic
 └── routes.py       /metrics
 
 frontend/src/
@@ -63,10 +74,13 @@ frontend/src/
     │                             index and tree; pure
     ├── seriesFormat.ts, chartOption.ts, statReading.ts, setupStage.ts,
     │   agentSnippet.ts           what is drawn and said; pure
+    ├── livePoints.ts             socket points onto a history; pure
     ├── DashboardsSpace.vue       the card
     ├── StoreSetup.vue            before there is a store
     ├── DashboardView.vue, DashboardGrid.vue, WidgetFrame.vue
-    ├── TimeseriesWidget.vue, StatWidget.vue, SeriesChart.vue
+    ├── WidgetBody.vue            the widget of a type, on the grid or in a window
+    ├── TimeseriesWidget.vue, StatWidget.vue, ProcessesWidget.vue, SeriesChart.vue
+    ├── WidgetWindow.vue          one widget in a floating window
     ├── AddWidgetsDialog.vue, AgentsDialog.vue
     └── SpaceSwitch.vue
 ```
@@ -84,6 +98,8 @@ POST   /api/v1/metrics/agents/{agent_id}/key
 POST   /api/v1/metrics/agents/{agent_id}/purge
 GET    /api/v1/metrics/catalog
 POST   /api/v1/metrics/history
+GET    /api/v1/metrics/processes?agent_id=&host=&sort=&limit=
+GET    /api/v1/metrics/presets?agent_id=&host=
 GET    /api/v1/metrics/dashboards
 POST   /api/v1/metrics/dashboards
 GET    /api/v1/metrics/dashboards/{dashboard_id}
@@ -128,8 +144,10 @@ header, a column brought back from the bar.
 Known deviations:
 
 - **The rail is a fixed 260 pixels** and cannot be resized or put aside.
-- **Nothing is live yet**: widgets re-read their history on the dashboard's
-  interval, and the socket carries no points (DB3).
+- **A widget in a window is a copy** taken when it was opened, with the range
+  and interval of that moment. Moving or removing it on the dashboard does not
+  reach the window, a sort chosen in the window is not saved, and like every
+  window it does not survive a reload (D14).
 
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
@@ -192,8 +210,26 @@ sample. The web process reads the store and never writes points.
   when the store changes. A published UDP port nobody listened on for minutes
   left Docker Desktop forwarding an agent's packets nowhere until the container
   was recreated; what arrives without a store is counted and dropped.
-- Live display reads newer points from the store on a short interval; no
-  channel between processes.
+- **Live points come from the store, not from this process.** A subscription
+  to `metrics.points` names nothing: one monitor per watching user reads, every
+  two seconds, the points written since the last round for every series that
+  user may read, and the screen lays them onto the raw histories it holds.
+  Arguments on the subscribe frame were the alternative, and would have changed
+  the transport every topic shares (D18) for a stream an agent sends a few dozen
+  series of every half minute. The collector marks a series seen a moment before
+  its batch is written, so a series seen without a newer point is asked again
+  until ten seconds have passed.
+
+Known deviations of the live points:
+
+- **Points of series nobody is looking at are pushed too**, bounded by what the
+  person's agents report.
+- **A reconnect loses the points in between** until the widget reads its
+  history again: on its interval, or on a reload when the interval is Off.
+- **A bucketed history takes no live points**: a sample is not an average over
+  a width. It is read again on the dashboard's interval.
+- **The topic has a store handle of its own**, a second small pool in the web
+  process, because topics are built before the lifespan builds anything else.
 
 Known deviations:
 
@@ -240,8 +276,17 @@ names. Limits: 12 columns, 20 widgets, 200 series per history request, titles of
   refused with 409, and the screen reads the dashboard again rather than
   overwriting it.
 - Widget types today: `timeseries`, one chart per (metric, unit) of the ticked
-  series, and `stat`, a tile for a state such as uptime. There is no widget type
-  to choose.
+  series; `stat`, a tile for a state such as uptime; and `processes`, the newest
+  process table of one host of one agent within the last hour, which reads the
+  agent rather than a series and so is checked against the agent's owner. There
+  is no widget type to choose.
+- **A ready-made layout is recipes, resolved on the server.** A recipe names a
+  metric and fields, never series ids, which differ on every install; the
+  server fills it from one host's catalog and leaves out what that host does not
+  report. The gaps are closed on the screen by the grid arithmetic every move
+  uses, so the layout is not compacted in two places. Layouts are declared per
+  kind of source; agents have *Linux host*, and connections declare theirs in
+  DB4.
 - A grant on a dashboard (D33's levels) will let its holder read exactly the
   series on it; until sharing lands the answer is the owner alone.
 

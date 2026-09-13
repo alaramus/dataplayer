@@ -65,16 +65,48 @@ export function tickedSeries(ticked: readonly string[]): number[] {
     .filter((id) => Number.isInteger(id))
 }
 
+const PROCESSES_PREFIX = "processes:"
+const HOST_PREFIX = "host:"
+/** An agent id is a uuid: fixed length, no colon, so what follows it is the host. */
+const AGENT_ID_LENGTH = 36
+
+export interface HostRef {
+  agentId: string
+  host: string
+}
+
+function refAfter(key: string, prefix: string): HostRef | null {
+  if (!key.startsWith(prefix)) return null
+  const rest = key.slice(prefix.length)
+  if (rest.charAt(AGENT_ID_LENGTH) !== ":") return null
+  return { agentId: rest.slice(0, AGENT_ID_LENGTH), host: rest.slice(AGENT_ID_LENGTH + 1) }
+}
+
+export function processesKey(ref: HostRef): string {
+  return `${PROCESSES_PREFIX}${ref.agentId}:${ref.host}`
+}
+
+/** The hosts whose process table is ticked. */
+export function tickedProcesses(ticked: readonly string[]): HostRef[] {
+  return ticked.map((key) => refAfter(key, PROCESSES_PREFIX)).filter((ref): ref is HostRef => ref !== null)
+}
+
+/** The host a tree key names, when it names a host. */
+export function hostOfKey(key: string | null): HostRef | null {
+  return key === null ? null : refAfter(key, HOST_PREFIX)
+}
+
 export function catalogTree(catalog: MetricsCatalog | undefined): TreeNodes {
   return (catalog?.agents ?? []).map((agent) => ({
     key: `agent:${agent.agent_id}`,
     label: agent.name,
     icon: "sensors",
     children: agent.hosts.map((host) => ({
-      key: `host:${agent.agent_id}:${host.host}`,
+      key: `${HOST_PREFIX}${agent.agent_id}:${host.host}`,
       label: host.host,
       icon: "dns",
-      children: host.metrics.map((metric) => ({
+      children: [
+        ...host.metrics.map((metric) => ({
         key: `metric:${agent.agent_id}:${host.host}:${metric.metric}`,
         label: metric.metric,
         icon: "show_chart",
@@ -84,6 +116,10 @@ export function catalogTree(catalog: MetricsCatalog | undefined): TreeNodes {
           caption: series.unit,
         })),
       })),
+        ...(host.processes
+          ? [{ key: processesKey({ agentId: agent.agent_id, host: host.host }), label: "processes", icon: "list" }]
+          : []),
+      ],
     })),
   }))
 }

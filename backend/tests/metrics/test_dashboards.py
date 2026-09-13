@@ -189,3 +189,44 @@ async def test_a_widget_may_name_only_series_its_saver_can_read(
         json={"name": "x", "version": 1, "widgets": [_widget([series_id])]},
     )
     assert refused.status_code == 422
+
+
+async def test_a_process_table_may_name_only_an_agent_its_saver_owns(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    stranger_headers: dict[str, str],
+) -> None:
+    agent = await client.post(f"{BASE}/agents", headers=normal_user_token_headers, json={"name": "web"})
+    table = {
+        "type": "processes",
+        "id": str(uuid.uuid4()),
+        "title": "Top processes",
+        "layout": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "agent_id": agent.json()["agent"]["id"],
+        "host": "web-01",
+        "sort": "pmem",
+        "limit": 50,
+    }
+
+    mine = await _create(client, normal_user_token_headers)
+    saved = await client.put(
+        f"{BASE}/dashboards/{mine['id']}",
+        headers=normal_user_token_headers,
+        json={"name": "x", "version": 1, "widgets": [table]},
+    )
+    theirs = await _create(client, stranger_headers)
+    refused = await client.put(
+        f"{BASE}/dashboards/{theirs['id']}",
+        headers=stranger_headers,
+        json={"name": "x", "version": 1, "widgets": [table]},
+    )
+    odd = await client.put(
+        f"{BASE}/dashboards/{mine['id']}",
+        headers=normal_user_token_headers,
+        json={"name": "x", "version": 2, "widgets": [{**table, "limit": 7}]},
+    )
+
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["widgets"][0]["sort"] == "pmem"
+    assert refused.status_code == 422
+    assert odd.status_code == 422

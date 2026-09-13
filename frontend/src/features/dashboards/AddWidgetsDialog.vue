@@ -2,11 +2,14 @@
 import { computed, ref, watch } from "vue"
 
 import type { MetricsCatalog } from "@/client"
-import { AppButton, AppEmptyState, AppTree } from "@/shared/ui"
+import { messageOf } from "@/shared/api/errors"
+import { AppButton, AppEmptyState, AppSpinner, AppTree } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
-import { catalogTree, tickedSeries } from "./catalog"
+import { usePresets } from "./api"
+import { catalogTree, hostOfKey, tickedProcesses, tickedSeries } from "./catalog"
 import type { SeriesEntry } from "./catalog"
+import type { Widget } from "./dashboardModel"
 import { draftsFor } from "./widgetSpecs"
 import type { WidgetDraft } from "./widgetSpecs"
 
@@ -22,9 +25,14 @@ const props = defineProps<{
   room: number
 }>()
 
-const emit = defineEmits<{ add: [drafts: WidgetDraft[]]; agents: [] }>()
+const emit = defineEmits<{ add: [drafts: WidgetDraft[]]; addPreset: [widgets: Widget[]]; agents: [] }>()
 
 const ticked = ref<string[]>([])
+// Ticks say what to draw; the row selected says which host's ready-made
+// layouts to offer. Two questions asked of one tree.
+const selected = ref<string | null>(null)
+const host = computed(() => hostOfKey(selected.value))
+const presets = usePresets(host)
 const expanded = ref<string[]>([])
 const nodes = computed(() => catalogTree(props.catalog))
 
@@ -44,6 +52,7 @@ function openBranches() {
 watch(open, (isOpen) => {
   if (!isOpen) return
   ticked.value = []
+  selected.value = null
   expanded.value = []
   opened.clear()
   openBranches()
@@ -57,9 +66,15 @@ const drafts = computed(() =>
   draftsFor(
     tickedSeries(ticked.value)
       .map((id) => props.index.get(id))
-      .filter((entry): entry is SeriesEntry => entry !== undefined)
+      .filter((entry): entry is SeriesEntry => entry !== undefined),
+    tickedProcesses(ticked.value)
   )
 )
+
+function addPreset(widgets: Widget[]) {
+  emit("addPreset", widgets)
+  open.value = false
+}
 
 const summary = computed(() => {
   const count = drafts.value.length
@@ -86,12 +101,48 @@ function add() {
       icon="sensors_off"
       text="No agent has reported anything yet. Register one and start it with the key it is given."
     />
-    <AppTree
+    <div
       v-else
+      class="add-widgets__presets"
+      data-testid="add-widgets-presets"
+    >
+      <span
+        v-if="host === null"
+        class="add-widgets__hint"
+      >Select a host to see its ready-made layouts, or tick what to draw.</span>
+      <AppSpinner v-else-if="presets.isPending.value" />
+      <span
+        v-else-if="presets.isError.value"
+        class="add-widgets__hint"
+      >{{ messageOf(presets.error.value, "The layouts could not be read") }}</span>
+      <template v-else>
+        <div
+          v-for="preset in presets.data.value ?? []"
+          :key="preset.key"
+          class="add-widgets__preset"
+        >
+          <div class="add-widgets__preset-text">
+            <span>{{ preset.name }} for {{ host.host }}</span>
+            <span class="add-widgets__hint">{{ preset.description }} {{ preset.widgets.length }} of {{ preset.total }} widgets.</span>
+          </div>
+          <AppButton
+            variant="secondary"
+            size="sm"
+            icon="dashboard_customize"
+            label="Add layout"
+            :disable="preset.widgets.length === 0 || room === 0"
+            :data-testid="`add-preset-${preset.key}`"
+            @click="addPreset(preset.widgets)"
+          />
+        </div>
+      </template>
+    </div>
+    <AppTree
+      v-if="nodes.length > 0"
       v-model:expanded="expanded"
       v-model:ticked="ticked"
+      v-model:selected="selected"
       :nodes="nodes"
-      :selected="null"
       node-key="key"
       tickable
       data-testid="add-widgets-tree"
@@ -129,6 +180,31 @@ function add() {
 </template>
 
 <style scoped>
+.add-widgets__presets {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dp-space-2);
+  padding-bottom: var(--dp-space-2);
+  margin-bottom: var(--dp-space-2);
+  border-bottom: 1px solid var(--dp-border-faint);
+}
+
+.add-widgets__preset {
+  display: flex;
+  align-items: center;
+  gap: var(--dp-space-3);
+}
+
+.add-widgets__preset-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.add-widgets__hint {
+  color: var(--dp-text-muted);
+}
+
 .add-widgets__unit {
   margin-left: var(--dp-space-2);
   color: var(--dp-text-muted);

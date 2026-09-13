@@ -6,6 +6,7 @@ from app.connectors.declared_routes import router as declared_references_router
 from app.connectors.routes import router as connectors_router
 from app.core.config import settings
 from app.jobs.routes import router as jobs_router
+from app.metrics import live as metrics_live
 from app.metrics.routes import router as metrics_router
 from app.queries.routes import router as queries_router
 from app.realtime.routes import router as realtime_router
@@ -39,6 +40,7 @@ api_router.include_router(realtime_router)
 # Imported for its registration: the health topic is about connectors, so it
 # lives with them, and the socket learns of it here rather than knowing it.
 _ = connector_health.NAME
+_ = metrics_live.NAME
 
 
 if settings.FASTAPI_ENV == "development":

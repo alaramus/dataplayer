@@ -1928,6 +1928,9 @@ export type DashboardPublic = {
     | ({
         type: "stat"
       } & StatWidget)
+    | ({
+        type: "processes"
+      } & ProcessesWidget)
   >
   /**
    * Id
@@ -1966,6 +1969,9 @@ export type DashboardSave = {
     | ({
         type: "stat"
       } & StatWidget)
+    | ({
+        type: "processes"
+      } & ProcessesWidget)
   >
   /**
    * Name
@@ -3790,6 +3796,10 @@ export type HostInfo = {
    * Metrics
    */
   metrics: Array<MetricInfo>
+  /**
+   * Processes
+   */
+  processes?: boolean
 }
 
 /**
@@ -5588,6 +5598,91 @@ export type PrivateUserCreate = {
 }
 
 /**
+ * ProcessInfo
+ */
+export type ProcessInfo = {
+  /**
+   * Pid
+   */
+  pid: number
+  /**
+   * Ppid
+   */
+  ppid: number
+  /**
+   * User
+   */
+  user: string
+  /**
+   * Command
+   */
+  command: string
+  /**
+   * Pcpu
+   */
+  pcpu: number
+  /**
+   * Pmem
+   */
+  pmem: number
+  /**
+   * Elapsed
+   */
+  elapsed: string
+}
+
+/**
+ * ProcessTable
+ */
+export type ProcessTable = {
+  /**
+   * Ts
+   */
+  ts: number | null
+  /**
+   * Rows
+   */
+  rows: Array<ProcessInfo>
+}
+
+/**
+ * ProcessesWidget
+ *
+ * The newest process table of one host of one agent.
+ */
+export type ProcessesWidget = {
+  /**
+   * Type
+   */
+  type: "processes"
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Title
+   */
+  title: string
+  layout: WidgetLayout
+  /**
+   * Agent Id
+   */
+  agent_id: string
+  /**
+   * Host
+   */
+  host: string
+  /**
+   * Sort
+   */
+  sort?: "pcpu" | "pmem" | "pid"
+  /**
+   * Limit
+   */
+  limit?: 10 | 20 | 50 | 100 | 200
+}
+
+/**
  * QueryDiagnostic
  *
  * Why a statement failed, reduced to what is safe to show.
@@ -6646,6 +6741,32 @@ export type RequestApproval = {
    * Access
    */
   access?: "read" | "write" | "structure"
+}
+
+/**
+ * ResolvedPreset
+ */
+export type ResolvedPreset = {
+  /**
+   * Key
+   */
+  key: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Description
+   */
+  description: string
+  /**
+   * Total
+   */
+  total: number
+  /**
+   * Widgets
+   */
+  widgets: Array<TimeseriesWidget | StatWidget | ProcessesWidget>
 }
 
 /**
@@ -14502,6 +14623,86 @@ export type metricsReadCatalogResponses = {
 
 export type metricsReadCatalogResponse =
   metricsReadCatalogResponses[keyof metricsReadCatalogResponses]
+
+export type metricsReadProcessesData = {
+  body?: never
+  path?: never
+  query: {
+    /**
+     * Agent Id
+     */
+    agent_id: string
+    /**
+     * Host
+     */
+    host: string
+    /**
+     * Sort
+     */
+    sort?: "pcpu" | "pmem" | "pid"
+    /**
+     * Limit
+     */
+    limit?: number
+  }
+  url: "/api/v1/metrics/processes"
+}
+
+export type metricsReadProcessesErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsReadProcessesError = metricsReadProcessesErrors[keyof metricsReadProcessesErrors]
+
+export type metricsReadProcessesResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProcessTable
+}
+
+export type metricsReadProcessesResponse =
+  metricsReadProcessesResponses[keyof metricsReadProcessesResponses]
+
+export type metricsReadPresetsData = {
+  body?: never
+  path?: never
+  query: {
+    /**
+     * Agent Id
+     */
+    agent_id: string
+    /**
+     * Host
+     */
+    host: string
+  }
+  url: "/api/v1/metrics/presets"
+}
+
+export type metricsReadPresetsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsReadPresetsError = metricsReadPresetsErrors[keyof metricsReadPresetsErrors]
+
+export type metricsReadPresetsResponses = {
+  /**
+   * Response Metrics-Read Presets
+   *
+   * Successful Response
+   */
+  200: Array<ResolvedPreset>
+}
+
+export type metricsReadPresetsResponse =
+  metricsReadPresetsResponses[keyof metricsReadPresetsResponses]
 
 export type metricsReadHistoryData = {
   body: HistoryRequest

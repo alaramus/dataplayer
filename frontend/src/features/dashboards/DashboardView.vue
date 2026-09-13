@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
 import { AxiosError } from "axios"
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
+import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import type { DashboardPublic, MetricsCatalog } from "@/client"
 import { messageOf } from "@/shared/api/errors"
 import { AppButton, AppIconButton, AppInput, AppSelect, useConfirm, useToast } from "@/shared/ui"
-import { WindowDialog } from "@/shared/windows"
+import { useWindowManager, WindowDialog } from "@/shared/windows"
 
 import AddWidgetsDialog from "./AddWidgetsDialog.vue"
 import { dashboardsKey, useDeleteDashboard, useSaveDashboard } from "./api"
@@ -20,13 +20,15 @@ import {
   renamed,
   withDrafts,
   withLayout,
+  withOptions,
   withoutWidget,
+  withPreset,
 } from "./dashboardModel"
-import type { RangeSeconds, RefreshSeconds, Widget } from "./dashboardModel"
+import type { ProcessLimit, ProcessSort, RangeSeconds, RefreshSeconds, Widget } from "./dashboardModel"
 import type { Placed } from "./gridLayout"
-import StatWidget from "./StatWidget.vue"
-import TimeseriesWidget from "./TimeseriesWidget.vue"
+import WidgetBody from "./WidgetBody.vue"
 import WidgetFrame from "./WidgetFrame.vue"
+import WidgetWindow from "./WidgetWindow.vue"
 import type { WidgetDraft } from "./widgetSpecs"
 
 /**
@@ -49,6 +51,7 @@ const confirm = useConfirm()
 const queryClient = useQueryClient()
 const saving = useSaveDashboard()
 const deleting = useDeleteDashboard()
+const windows = useWindowManager()
 
 const name = ref(props.dashboard.name)
 const version = ref(props.dashboard.version)
@@ -121,6 +124,40 @@ function addDrafts(drafts: WidgetDraft[]) {
     toast.info(`${String(result.left)} of ${String(drafts.length)} did not fit: a dashboard holds ${String(MAX_WIDGETS)} widgets`)
   }
   schedule()
+}
+
+function addPreset(preset: Widget[]) {
+  const result = withPreset(widgets.value, preset, () => crypto.randomUUID())
+  widgets.value = result.widgets
+  if (result.left > 0) {
+    toast.info(`${String(result.left)} of ${String(preset.length)} did not fit: a dashboard holds ${String(MAX_WIDGETS)} widgets`)
+  }
+  schedule()
+}
+
+function setOptions(id: string, patch: { sort?: ProcessSort; limit?: ProcessLimit }) {
+  widgets.value = withOptions(widgets.value, id, patch)
+  schedule()
+}
+
+/**
+ * The widget in a floating window, which belongs to both spaces (D125). A
+ * window is identified by what it shows, so opening it twice brings it forward.
+ */
+function detach(widget: Widget) {
+  const snapshot = { widget: { ...widget }, rangeSeconds: range.value, refreshSeconds: refresh.value }
+  windows.open({
+    id: `metrics-widget:${props.dashboard.id}:${widget.id}`,
+    look: { title: widget.title, icon: "dashboard" },
+    size: widget.type === "stat" ? { width: 360, height: 240 } : { width: 760, height: 440 },
+    // A chart takes the room it is given; fitting the frame to it would leave
+    // a frame with no height.
+    autoFit: false,
+    component: defineComponent({
+      name: "MetricsWidgetWindow",
+      setup: () => () => h(WidgetWindow, snapshot),
+    }),
+  })
 }
 
 function removeWidget(id: string) {
@@ -264,20 +301,14 @@ onBeforeUnmount(() => {
             @rename="(title) => renameWidget(id, title)"
             @remove="removeWidget(id)"
             @toggle-expand="expandedId = expandedId === id ? null : id"
+            @detach="detach(byId.get(id) as Widget)"
           >
-            <StatWidget
-              v-if="byId.get(id)?.type === 'stat'"
-              :series-id="(byId.get(id) as Extract<Widget, { type: 'stat' }>).series_id"
+            <WidgetBody
+              :widget="byId.get(id) as Widget"
               :index="index"
               :range-seconds="range"
               :refresh-seconds="refresh"
-            />
-            <TimeseriesWidget
-              v-else
-              :series-ids="(byId.get(id) as Extract<Widget, { type: 'timeseries' }>).series_ids"
-              :index="index"
-              :range-seconds="range"
-              :refresh-seconds="refresh"
+              @options="(patch) => setOptions(id, patch)"
             />
           </WidgetFrame>
         </template>
@@ -290,6 +321,7 @@ onBeforeUnmount(() => {
       :index="index"
       :room="MAX_WIDGETS - widgets.length"
       @add="addDrafts"
+      @add-preset="addPreset"
       @agents="emit('agents')"
     />
 

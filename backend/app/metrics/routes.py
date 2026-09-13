@@ -1,9 +1,9 @@
 import uuid
 from collections import defaultdict
 from datetime import UTC, datetime
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -18,6 +18,7 @@ from app.metrics.dashboards import (
     DashboardCreate,
     DashboardPublic,
     DashboardSave,
+    agents_of,
     series_of,
 )
 from app.metrics.dashboards import public as dashboard_public
@@ -34,12 +35,21 @@ from app.metrics.models import (
     MetricInfo,
     MetricsAgent,
     MetricsCatalog,
+    ProcessInfo,
+    ProcessTable,
     SeriesHistory,
     SeriesInfo,
     StoreConnect,
     StoreStatus,
 )
-from app.metrics.store import MetricsStore, Source, StoredSeries, StoreUnavailable
+from app.metrics.presets import AGENT_PRESETS, ResolvedPreset, resolve
+from app.metrics.store import (
+    MetricsStore,
+    ProcessSort,
+    Source,
+    StoredSeries,
+    StoreUnavailable,
+)
 from app.realtime.topics import TopicsDep
 from app.services.engine import ServiceEngineDep
 from app.users.deps import CurrentUser, get_current_active_superuser, get_current_user
@@ -48,6 +58,7 @@ router = APIRouter(
     prefix="/metrics", tags=["metrics"], dependencies=[Depends(get_current_user)]
 )
 
+MAX_PROCESS_ROWS = 200
 NOT_SET_UP = "Dashboards are not set up yet"
 
 
@@ -203,11 +214,83 @@ async def read_catalog(
     """Agents, the hosts they reported, their metrics and series."""
     store = await _store(session, holder)
     agents = await crud.agents_of(session, current_user.id)
+    ids = [agent.id for agent in agents]
     try:
-        stored = await store.catalog([agent.id for agent in agents])
+        stored = await store.catalog(ids)
+        processes = await store.process_hosts(ids)
     except StoreUnavailable:
         raise _unavailable() from None
-    return MetricsCatalog(agents=[_sources_of(agent, stored) for agent in agents])
+    return MetricsCatalog(agents=[_sources_of(agent, stored, processes) for agent in agents])
+
+
+@router.get("/processes", response_model=ProcessTable)
+async def read_processes(
+    session: SessionDep,
+    current_user: CurrentUser,
+    holder: StoreHolderDep,
+    agent_id: uuid.UUID,
+    host: str,
+    sort: ProcessSort = "pcpu",
+    # A number rather than the widget's closed set: a query string is text,
+    # and a Literal of integers does not read one.
+    limit: Annotated[int, Query(ge=1, le=MAX_PROCESS_ROWS)] = 20,
+) -> Any:
+    """The newest process table one host sent in the last hour."""
+    try:
+        await access.require_agent(session, current_user, agent_id)
+    except access.AgentNotReadable:
+        raise HTTPException(404, detail={"message": "No such agent"}) from None
+    store = await _store(session, holder)
+    try:
+        ts, rows = await store.latest_processes(agent_id, host, sort, limit)
+    except StoreUnavailable:
+        raise _unavailable() from None
+    return ProcessTable(
+        ts=ts,
+        rows=[
+            ProcessInfo(
+                pid=row.pid,
+                ppid=row.ppid,
+                user=row.user,
+                command=row.command,
+                pcpu=row.pcpu,
+                pmem=row.pmem,
+                elapsed=row.elapsed,
+            )
+            for row in rows
+        ],
+    )
+
+
+@router.get("/presets", response_model=list[ResolvedPreset])
+async def read_presets(
+    session: SessionDep,
+    current_user: CurrentUser,
+    holder: StoreHolderDep,
+    agent_id: uuid.UUID,
+    host: str,
+) -> Any:
+    """The ready-made dashboards for one host, as that host can fill them."""
+    try:
+        await access.require_agent(session, current_user, agent_id)
+    except access.AgentNotReadable:
+        raise HTTPException(404, detail={"message": "No such agent"}) from None
+    store = await _store(session, holder)
+    try:
+        stored = await store.catalog([agent_id])
+        processes = await store.process_hosts([agent_id])
+    except StoreUnavailable:
+        raise _unavailable() from None
+    return [
+        resolve(
+            preset,
+            agent_id=agent_id,
+            host=host,
+            series=stored,
+            reports_processes=(agent_id, host) in processes,
+        )
+        for preset in AGENT_PRESETS
+    ]
 
 
 @router.post("/history", response_model=HistoryAnswer)
@@ -291,6 +374,11 @@ async def save_dashboard(
             409,
             detail={"message": "This dashboard was changed somewhere else; reload it"},
         )
+    for agent_id in {agent for widget in body.widgets for agent in agents_of(widget)}:
+        try:
+            await access.require_agent(session, current_user, agent_id)
+        except access.AgentNotReadable:
+            raise HTTPException(422, detail={"message": "A widget names an agent you cannot read"}) from None
     wanted = sorted({series for widget in body.widgets for series in series_of(widget)})
     if wanted:
         store = await _store(session, holder)
@@ -405,15 +493,27 @@ def _natural(text: str) -> tuple[tuple[int, int | str], ...]:
     return tuple(parts)
 
 
-def _sources_of(agent: MetricsAgent, stored: list[StoredSeries]) -> AgentSources:
+def _sources_of(
+    agent: MetricsAgent,
+    stored: list[StoredSeries],
+    processes: dict[tuple[uuid.UUID, str], datetime],
+) -> AgentSources:
     by_host: dict[str, dict[str, list[StoredSeries]]] = defaultdict(lambda: defaultdict(list))
     for series in stored:
         if series.source.id == agent.id:
             by_host[series.host][series.metric].append(series)
+    # A host that sends only its process table is a host all the same.
+    for source_id, host in processes:
+        if source_id == agent.id:
+            by_host.setdefault(host, defaultdict(list))
     hosts = [
         HostInfo(
             host=host,
-            last_seen=max(s.last_seen for group in metrics.values() for s in group),
+            last_seen=max(
+                [s.last_seen for group in metrics.values() for s in group]
+                + ([processes[(agent.id, host)]] if (agent.id, host) in processes else [])
+            ),
+            processes=(agent.id, host) in processes,
             metrics=[
                 MetricInfo(
                     metric=metric,

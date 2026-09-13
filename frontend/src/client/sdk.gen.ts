@@ -270,6 +270,12 @@ import type {
   metricsReadHistoryData,
   metricsReadHistoryErrors,
   metricsReadHistoryResponses,
+  metricsReadPresetsData,
+  metricsReadPresetsErrors,
+  metricsReadPresetsResponses,
+  metricsReadProcessesData,
+  metricsReadProcessesErrors,
+  metricsReadProcessesResponses,
   metricsReadStoreStatusData,
   metricsReadStoreStatusResponses,
   metricsRenameAgentData,
@@ -4391,6 +4397,46 @@ export class MetricsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/catalog",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Processes
+   *
+   * The newest process table one host sent in the last hour.
+   */
+  public static readProcesses<ThrowOnError extends boolean = true>(
+    options: Options<metricsReadProcessesData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      metricsReadProcessesResponses,
+      metricsReadProcessesErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/processes",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Presets
+   *
+   * The ready-made dashboards for one host, as that host can fill them.
+   */
+  public static readPresets<ThrowOnError extends boolean = true>(
+    options: Options<metricsReadPresetsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      metricsReadPresetsResponses,
+      metricsReadPresetsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/presets",
       ...options,
     })
   }

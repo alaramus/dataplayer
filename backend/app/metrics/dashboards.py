@@ -16,6 +16,8 @@ from sqlalchemy import JSON, Column, DateTime
 from sqlmodel import Field, SQLModel
 
 from app.core.schemas import get_datetime_utc
+from app.metrics.models import ProcessLimit
+from app.metrics.store import ProcessSort
 
 GRID_COLUMNS = 12
 MAX_WIDGETS = 20
@@ -26,6 +28,7 @@ MIN_WIDGET_H = 2
 MAX_WIDGET_H = 40
 MAX_GRID_Y = 400
 MAX_SERIES_PER_WIDGET = 50
+MAX_HOST = 128
 
 # Closed sets: a free range or interval is a field somebody puts one second into.
 RangeSeconds = Literal[300, 900, 3600, 21600, 86400, 604800, 2592000]
@@ -65,13 +68,34 @@ class StatWidget(_Strict):
     series_id: int
 
 
-Widget = Annotated[TimeseriesWidget | StatWidget, PydanticField(discriminator="type")]
+class ProcessesWidget(_Strict):
+    """The newest process table of one host of one agent."""
+
+    type: Literal["processes"]
+    id: uuid.UUID
+    title: str = PydanticField(max_length=MAX_TITLE)
+    layout: WidgetLayout
+    agent_id: uuid.UUID
+    host: str = PydanticField(min_length=1, max_length=MAX_HOST)
+    sort: ProcessSort = "pcpu"
+    limit: ProcessLimit = 20
 
 
-def series_of(widget: TimeseriesWidget | StatWidget) -> list[int]:
+AnyWidget = TimeseriesWidget | StatWidget | ProcessesWidget
+Widget = Annotated[AnyWidget, PydanticField(discriminator="type")]
+
+
+def series_of(widget: AnyWidget) -> list[int]:
     if isinstance(widget, StatWidget):
         return [widget.series_id]
-    return list(widget.series_ids)
+    if isinstance(widget, TimeseriesWidget):
+        return list(widget.series_ids)
+    return []
+
+
+def agents_of(widget: AnyWidget) -> list[uuid.UUID]:
+    """Agents a widget reads beyond its series."""
+    return [widget.agent_id] if isinstance(widget, ProcessesWidget) else []
 
 
 class DashboardOptions(_Strict):

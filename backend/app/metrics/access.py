@@ -18,6 +18,17 @@ class SeriesNotReadable(Exception):
     """Some series does not exist or is not the caller's. The two look alike."""
 
 
+class AgentNotReadable(Exception):
+    """The agent does not exist or is not the caller's. The two look alike."""
+
+
+async def require_agent(session: AsyncSession, user: User, agent_id: uuid.UUID) -> None:
+    """Whether this user may read what an agent reported beyond its series:
+    its process tables."""
+    if agent_id not in await readable_agents(session, user):
+        raise AgentNotReadable
+
+
 async def readable_agents(session: AsyncSession, user: User) -> list[uuid.UUID]:
     return [agent.id for agent in await crud.agents_of(session, user.id)]
 

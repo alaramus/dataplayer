@@ -9,6 +9,7 @@ import AgentsDialog from "./AgentsDialog.vue"
 import {
   useCreateDashboard,
   useDashboards,
+  useLivePoints,
   useMetricsCatalog,
   useStoreJobEvents,
   useStoreStatus,
@@ -25,6 +26,7 @@ import StoreSetup from "./StoreSetup.vue"
 const toast = useToast()
 const status = useStoreStatus()
 useStoreJobEvents()
+useLivePoints()
 
 const ready = computed(() => status.data.value?.state === "ready")
 const dashboards = useDashboards(ready)

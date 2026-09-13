@@ -5,20 +5,31 @@
  * one of these, so what a change does can be read and tested without mounting.
  */
 
-import type { DashboardOptions, StatWidget, TimeseriesWidget } from "@/client"
+import type { DashboardOptions, ProcessesWidget, StatWidget, TimeseriesWidget } from "@/client"
 
-import { compact, findFreeSpot } from "./gridLayout"
+import { compact, findFreeSpot, gridRows } from "./gridLayout"
 import type { Placed } from "./gridLayout"
 import type { WidgetDraft } from "./widgetSpecs"
 
-export type Widget = TimeseriesWidget | StatWidget
+export type Widget = TimeseriesWidget | StatWidget | ProcessesWidget
+export type ProcessSort = NonNullable<ProcessesWidget["sort"]>
+export type ProcessLimit = NonNullable<ProcessesWidget["limit"]>
+
+export const PROCESS_SORTS: { value: ProcessSort; label: string }[] = [
+  { value: "pcpu", label: "By CPU" },
+  { value: "pmem", label: "By memory" },
+  { value: "pid", label: "By PID" },
+]
+export const PROCESS_LIMITS: { value: ProcessLimit; label: string }[] = [10, 20, 50, 100, 200].map(
+  (value) => ({ value: value as ProcessLimit, label: `${String(value)} rows` })
+)
 
 /** Mirrors MAX_WIDGETS in app/metrics/dashboards.py. */
 export const MAX_WIDGETS = 20
 export const MAX_TITLE = 120
 
 /** A tile needs room to be large, not room to be long. */
-const SIZE = { timeseries: { w: 6, h: 5 }, stat: { w: 3, h: 5 } } as const
+const SIZE = { timeseries: { w: 6, h: 5 }, stat: { w: 3, h: 5 }, processes: { w: 12, h: 8 } } as const
 
 export type RangeSeconds = NonNullable<DashboardOptions["range_seconds"]>
 export type RefreshSeconds = NonNullable<DashboardOptions["refresh_seconds"]>
@@ -42,7 +53,9 @@ export const REFRESHES: { value: RefreshSeconds; label: string }[] = [
 ]
 
 export function seriesOfWidget(widget: Widget): number[] {
-  return widget.type === "stat" ? [widget.series_id] : widget.series_ids
+  if (widget.type === "stat") return [widget.series_id]
+  if (widget.type === "timeseries") return widget.series_ids
+  return []
 }
 
 export function placedOf(widgets: readonly Widget[]): Placed[] {
@@ -78,13 +91,44 @@ export function withDrafts(
     const spot = findFreeSpot(placedOf(result), size.w, size.h)
     const layout = { ...spot, ...size }
     const title = draft.title.slice(0, MAX_TITLE)
-    result.push(
-      draft.type === "stat"
-        ? { type: "stat", id: newId(), title, layout, series_id: draft.seriesId }
-        : { type: "timeseries", id: newId(), title, layout, series_ids: draft.seriesIds }
-    )
+    if (draft.type === "stat") {
+      result.push({ type: "stat", id: newId(), title, layout, series_id: draft.seriesId })
+    } else if (draft.type === "timeseries") {
+      result.push({ type: "timeseries", id: newId(), title, layout, series_ids: draft.seriesIds })
+    } else {
+      result.push({ type: "processes", id: newId(), title, layout, agent_id: draft.agentId, host: draft.host })
+    }
   }
   return { widgets: result, left }
+}
+
+/**
+ * A ready-made layout placed under what is there, its widgets keeping their
+ * places relative to each other; the grid then settles the lot, which also
+ * closes the gaps of recipes the host could not fill.
+ */
+export function withPreset(
+  widgets: readonly Widget[],
+  preset: readonly Widget[],
+  newId: () => string
+): { widgets: Widget[]; left: number } {
+  const room = Math.max(0, MAX_WIDGETS - widgets.length)
+  const below = gridRows(placedOf(widgets))
+  const taken = preset.slice(0, room).map((widget) => ({
+    ...widget,
+    id: newId(),
+    layout: { ...widget.layout, y: widget.layout.y + below },
+  }))
+  const all = [...widgets, ...taken]
+  return { widgets: withLayout(all, compact(placedOf(all))), left: preset.length - taken.length }
+}
+
+export function withOptions(
+  widgets: readonly Widget[],
+  id: string,
+  patch: { sort?: ProcessSort; limit?: ProcessLimit }
+): Widget[] {
+  return widgets.map((widget) => (widget.id === id && widget.type === "processes" ? { ...widget, ...patch } : widget))
 }
 
 export function withoutWidget(widgets: readonly Widget[], id: string): Widget[] {

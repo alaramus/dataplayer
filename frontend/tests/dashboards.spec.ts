@@ -85,6 +85,85 @@ test("a superuser starts the metrics store from the dashboards", async ({ page }
   await expect(page.getByTestId("dashboards-rail")).toBeVisible({ timeout: 200_000 })
 })
 
+test("a host's ready-made layout shows its processes, takes live points and opens a widget in a window", async ({ page }) => {
+  test.setTimeout(90_000)
+  await login(page)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  const stamp = Date.now()
+  const agentName = `e2e-agent-${stamp}`
+  const host = `e2e-host-${stamp}`
+  const dashboardName = `e2e-dashboard-${stamp}`
+
+  await page.getByTestId("agents-open").click()
+  await page.getByTestId("agent-name").fill(agentName)
+  await page.getByTestId("agent-register").click()
+  const key = (await page.getByTestId("agent-key").innerText()).trim()
+  await page.getByTestId("agents-dialog").getByRole("button", { name: "Close", exact: true }).click()
+  await page.waitForTimeout(1500)
+
+  const cpu = (ts: number, uptime: number) => ({
+    action: "monitor-cpu", appkey: key, host, time: String(ts),
+    data: { cpu: [10, 5, 15], uptime, loadavg: [0.1, 0.2, 0.3] },
+  })
+  const now = Math.floor(Date.now() / 1000)
+  for (const offset of [90, 60, 30]) await send(cpu(now - offset, 5000 - offset))
+  await send({
+    action: "monitor-ps", appkey: key, host, time: String(now),
+    data: [
+      { PCPU: "%CPU", PMEM: "%MEM", PID: "PID", PPID: "PPID", USER: "USER", ELAPSED: "ELAPSED", COMMAND: "COMMAND" },
+      { PCPU: "7.5", PMEM: "1.0", PID: "4242", PPID: "1", USER: "root", ELAPSED: "00:10", COMMAND: "e2e-worker" },
+    ],
+  })
+
+  await page.getByTestId("dashboard-new").click()
+  await page.getByRole("button", { name: "Rename this dashboard" }).click()
+  await page.getByTestId("dashboard-rename-input").fill(dashboardName)
+  await page.getByTestId("dashboard-rename-input").press("Enter")
+  await expect(page.getByTestId(`dashboard-${dashboardName}`)).toBeVisible()
+  // Off, so what changes on screen below can only have come through the socket.
+  await page.getByTestId("dashboard-refresh").click()
+  await page.getByRole("option", { name: "Off", exact: true }).click()
+
+  await expect(async () => {
+    await page.reload()
+    await page.getByTestId("dashboard-add").click()
+    await expect(page.getByTestId("add-widgets-tree").getByText(host, { exact: true })).toBeVisible({ timeout: 2000 })
+  }).toPass({ timeout: 30_000 })
+
+  await page.getByTestId("add-widgets-tree").getByText(host, { exact: true }).click()
+  await expect(page.getByTestId("add-widgets-presets")).toContainText("Linux host for")
+  // A host that reports cpu and its processes fills four of the nine recipes.
+  await expect(page.getByTestId("add-widgets-presets")).toContainText("4 of 9 widgets")
+  await page.getByTestId("add-preset-linux-host").click()
+
+  await expect(page.getByTestId("widget")).toHaveCount(4)
+  await expect(page.getByTestId("processes-widget")).toContainText("e2e-worker")
+  const uptime = page.getByTestId("stat-value")
+  await expect(uptime).toHaveText("1 h 22 min")
+
+  await send(cpu(Math.floor(Date.now() / 1000), 5000 + 180))
+  await expect(uptime).toHaveText("1 h 26 min", { timeout: 15_000 })
+
+  const tile = page.getByTestId("widget").filter({ has: page.getByTestId("stat-value") })
+  await tile.getByTestId("widget-detach").click()
+  const floating = page.getByRole("dialog", { name: "Uptime", exact: true })
+  await expect(floating.getByTestId("stat-value")).toHaveText("1 h 26 min")
+  await page.getByTestId("space-data").click()
+  await expect(floating).toBeVisible()
+  await floating.getByRole("button", { name: "Close window" }).click()
+  await expect(floating).toHaveCount(0)
+
+  await page.getByTestId("space-dashboards").click()
+  await page.getByTestId(`dashboard-${dashboardName}`).click()
+  await page.getByRole("button", { name: "Delete this dashboard" }).click()
+  await page.getByTestId("confirm-accept").click()
+  await page.getByTestId("agents-open").click()
+  const row = page.getByTestId("agents-table").getByRole("row", { name: new RegExp(agentName) })
+  await row.getByRole("button", { name: "Remove this agent" }).click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId("agents-table").getByText(agentName)).toHaveCount(0)
+})
+
 test("an agent's packets become a dashboard of widgets", async ({ page }) => {
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")

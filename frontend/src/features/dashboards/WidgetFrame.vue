@@ -21,6 +21,7 @@ const emit = defineEmits<{
   rename: [title: string]
   remove: []
   toggleExpand: []
+  detach: []
   grab: [event: PointerEvent]
   grabResize: [event: PointerEvent]
 }>()
@@ -78,6 +79,13 @@ function onHeaderPointerDown(event: PointerEvent) {
         class="widget-frame__title"
         :title="`${title} — double-click to rename`"
       >{{ title }}</span>
+      <AppIconButton
+        icon="open_in_new"
+        tooltip="Open in a window, over the data as well"
+        compact
+        data-testid="widget-detach"
+        @click="emit('detach')"
+      />
       <AppIconButton
         :icon="expanded ? 'close_fullscreen' : 'open_in_full'"
         :tooltip="expanded ? 'Back to the dashboard' : 'Fill the dashboard with this widget'"

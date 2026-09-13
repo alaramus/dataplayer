@@ -146,6 +146,8 @@ class HostInfo(BaseModel):
     host: str
     last_seen: datetime
     metrics: list[MetricInfo]
+    # Whether it sent a process table in the last day.
+    processes: bool = False
 
 
 class AgentSources(BaseModel):
@@ -156,6 +158,25 @@ class AgentSources(BaseModel):
 
 class MetricsCatalog(BaseModel):
     agents: list[AgentSources]
+
+
+ProcessLimit = Literal[10, 20, 50, 100, 200]
+
+
+class ProcessInfo(BaseModel):
+    pid: int
+    ppid: int
+    user: str
+    command: str
+    pcpu: float
+    pmem: float
+    elapsed: str
+
+
+class ProcessTable(BaseModel):
+    # Seconds; null when the host sent no table in the last hour.
+    ts: int | None
+    rows: list[ProcessInfo]
 
 
 class HistoryRequest(BaseModel):
