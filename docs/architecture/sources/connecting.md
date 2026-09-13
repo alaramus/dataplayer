@@ -150,9 +150,10 @@ Known deviations:
   deleting the connector leaves the old pool holding open connections until it
   ages out, up to `POOL_MAX_IDLE_SECONDS`. Nothing can be read through it,
   because reaching it needs a key nobody composes any more.
-- **Pools are per process and per connector.** Four workers may hold four times
-  `POOL_MAX_SIZE` connections to the same database, and nothing coordinates
-  them. There is no limit on how many requests one user may have in flight.
+- **Pools are per process and per connector.** The backend is one process
+  (D124); a deployment running several would multiply `POOL_MAX_SIZE` by their
+  number, and nothing coordinates them. There is no limit on how many requests
+  one user may have in flight.
 - **Nothing reports on the pools.** How many exist, how busy they are and what
   was evicted is invisible; `application_name` in `pg_stat_activity` is the only
   way to see them from outside.
@@ -189,10 +190,9 @@ read directly rather than cached on a guess.
 
 Known deviations:
 
-- **The default cache is process-local.** Multiple backend workers using the
-  memory default do not share entries or invalidation. A deployment that needs
-  them may explicitly select D102's Redis backend; Redis is not required for a
-  single worker to be correct.
+- **The default cache is process-local.** That is sufficient because the backend
+  is one process (D124). Several processes on the memory default would not share
+  entries or invalidation; D102's Redis backend shares both.
 - **Invalidation knows connector identity, not upstream identity.** Two saved
   connectors pointing at the same database do not invalidate one another, and
   changes made outside DataPlayer are visible after TTL or explicit Reload.

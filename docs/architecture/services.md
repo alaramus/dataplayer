@@ -301,9 +301,9 @@ person's behalf, and nothing is quietly undone.
 
 Known deviations:
 
-- **Cancellation reaches only the process that accepted the job.** Another
-  process's job is refused with 409 rather than stopped, which is the same
-  boundary D81 already records.
+- **Cancellation reaches only the process that accepted the job.** Under
+  several processes (D124 allows one) another's job would be refused with 409
+  rather than stopped, the boundary D81 records.
 - **Retry is the only repair.** A container that exists and works but whose
   connector was never saved cannot be adopted — its password is gone — so it
   is taken away and made again.

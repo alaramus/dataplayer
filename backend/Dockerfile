@@ -62,4 +62,6 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 WORKDIR /app/backend/
 
-CMD ["fastapi", "run", "--workers", "4"]
+# One process: everything the lifespan builds is correct in one only (D124).
+# Named rather than left to the default, which uvicorn reads from WEB_CONCURRENCY.
+CMD ["fastapi", "run", "--workers", "1"]

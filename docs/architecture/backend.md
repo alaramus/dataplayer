@@ -4,7 +4,7 @@ How the application is divided, how it talks to the database, how secrets are
 handled, and what the API is. Read this before adding a module, a route or a
 migration.
 
-Decisions here: D3, D4, D5, D33, D34.
+Decisions here: D3, D4, D5, D33, D34, D124.
 
 ## What exists today
 
@@ -281,3 +281,48 @@ knows nothing about the flag, and the connector list is what the caller owns
 plus what has been granted to them, for everyone alike.
 
 Spec: [Sharing a connection](../decisions/2026-08-29-connector-sharing-design.md)
+
+## D124. The backend runs as one process
+
+The image starts `fastapi run --workers 1`; development runs `fastapi dev`, one
+reloading process. The count is written out because uvicorn takes it from
+`WEB_CONCURRENCY` whenever the flag is absent.
+
+Everything the lifespan builds belongs to the process that built it, and this is
+what goes wrong the moment there is a second one:
+
+| What | Decision | Under several processes |
+| --- | --- | --- |
+| Open transactions | D66 | a statement, Commit or Rollback reaching another process is answered 404 |
+| Captured results | D64 | a page, a filter or a download reaching another process is "no longer available" |
+| Runs being carried out | D64 | a cancel marks the run `cancelling` without reaching its task, and a query that ran to the end is recorded `cancelled` |
+| Jobs being carried out | D81 | a cancel reaching another process is refused with 409 |
+| Topics and health monitors | D18, D19 | probing is multiplied; a socket hears only what its own process found out or was told |
+| Startup sweeps | D64, D81, D123 | a worker its supervisor restarts ends the live runs and jobs of the others as `interrupted`, marks their source-operation targets unknown and deletes the snapshot a running restore reads |
+| Pools and the memory cache | D10, D31 | connections to a source multiply; entries and invalidation are not shared |
+
+The first two rows fail at random, by whichever process a request happens to
+reach, and development — one process — never shows them. One process is
+enough for what the application is: network-I/O bound and asynchronous
+throughout (D3), with blocking work on threads.
+
+Rejected: keeping four workers and recording the table as deviations. A
+transaction that forgets itself depending on which process a statement reaches
+is not a limitation to document, it is a broken feature. Rejected for now: making every row
+multi-process — a shared channel for topics, routing a transaction or a result
+to the process holding it, cancellation carried by the row, recovery run once
+per deployment. Each is a design of its own, and D104 asks for a measured need
+before Redis carries more than the read cache. Scaling out is therefore a design
+change and not a setting: every row above is answered first.
+
+**Enforced:** `tests/test_deployment.py` fails when the image names any count
+but one, or a compose file names a count at all. Both were checked by putting
+`--workers 4` back in the image and `WEB_CONCURRENCY` into a compose file.
+
+Known deviation:
+
+- **Nothing checks at runtime.** A deployment that replaces the command, or
+  runs two containers behind one balancer, starts several processes and nothing
+  notices. The test holds the files in this repository, not what somebody runs.
+
+Spec: [The backend runs as one process](../decisions/2026-09-13-one-backend-process-design.md)

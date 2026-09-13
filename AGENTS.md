@@ -187,6 +187,7 @@ files. IDs are stable because specs and commits refer to them.
 | D121 | [sources/timescale](docs/architecture/sources/timescale.md) |
 | D122 | [sources/timescale](docs/architecture/sources/timescale.md) |
 | D123 | [sources/timescale](docs/architecture/sources/timescale.md) |
+| D124 | [backend](docs/architecture/backend.md) |
 
 ## Working rules
 
@@ -276,6 +277,9 @@ a warmed dev server together.
   seeded; if it needs anything the seed does not create, it fails only in CI.
 - `docker compose up -d` does not include backend source changes. Rebuild with
   `docker compose up -d --build backend`.
+- The backend is one process (D124). Development's `fastapi dev` is one too, so
+  a second worker breaks transactions, result pages and topics where nobody
+  working on the code can see it.
 - Backend tests wipe users in the development database. Running
   `docker compose up -d db backend` afterwards restores the superuser and
   development samples through prestart.

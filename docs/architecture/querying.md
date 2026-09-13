@@ -111,12 +111,14 @@ and the write mode is not offered at all. Explain, metadata and a generated
 SELECT are there; formatting and transactions are not, and the profile says so
 because it is derived from what the adapter implements.
 
-Two things are process-local and stated as such: captured results and the runs
-being carried out. Both hold what cannot cross a process — memory and a
-connection. A run recorded elsewhere is still readable, because it is a row,
-and a restart marks whatever was left non-terminal as interrupted. Cancelling a
-run this process is not carrying out marks it `cancelling`; the process that
-holds it, or the next restart, settles it.
+Three things are process-local and stated as such: captured results, the runs
+being carried out and open transactions (D66). They hold what cannot cross a
+process — memory and a connection — and are correct only because the backend
+runs as one process (D124). Under several, a result page or the next statement
+of a transaction reaching another process would be answered 404, and a cancel
+there would mark the run `cancelling` without reaching its task. A run from
+before a restart is still readable, because it is a row, and the restart marks
+whatever was left non-terminal as interrupted.
 
 The application module sits above connectors and adapters:
 

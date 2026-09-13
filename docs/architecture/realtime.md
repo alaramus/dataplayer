@@ -30,6 +30,9 @@ frontend/src/
     └── connectorState.ts  what state a connection is in, in one place
 ```
 
+Three more topics followed, each beside what it announces: `queries/topic.py`
+(D64), `jobs/topic.py` (D81) and `shares/topic.py` (D61).
+
 The frames are written out twice — Pydantic models on one side, a TypeScript
 union on the other — because OpenAPI 3.1 has no WebSocket channel, so
 `frontend/src/client` cannot carry them. The two are held together by the
@@ -105,11 +108,13 @@ its password stopped working.
 The manual check announces its result through the same topic, so pressing the
 button and the dot beside the connection cannot end up saying different things.
 
-**Known deviation.** The monitor lives in the process. With several workers
-each would have its own, the probing would be multiplied by their number, and a
-socket would only ever hear what its own process found out. Today there is one
-process. The honest fix is a shared channel — Redis pub/sub — and it is written
-down here rather than left to be discovered.
+**Known deviation.** Every topic lives in the process — the monitors and each
+topic's list of sockets — which is correct only because the backend runs as one
+process (D124). Under several, the probing would be multiplied by their number,
+and a socket would hear only what its own process found out or was told: a
+manual check, a run, a job, an access request. The fix is a shared channel
+such as Redis pub/sub, and D104 asks for a measured need before Redis carries
+anything but the read cache.
 
 Spec: [The socket, health and a switched-off connector](../decisions/2026-08-24-realtime-and-connector-health-design.md)
 

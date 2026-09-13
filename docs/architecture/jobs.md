@@ -87,9 +87,12 @@ Known deviations:
 
 - **No generic retry.** Services implement retry and idempotency under D84;
   the runner never replays a job on its own.
-- **A job is carried out by the process that accepted it.** Another process
-  can read the row but will not pick up work left `queued` by a process that
-  died before starting it — that row is settled as `interrupted` instead.
+- **A job is carried out by the process that accepted it, and there is one
+  (D124).** The startup sweep ends every non-terminal row, which is honest only
+  because no other process can be running one; under several, a worker
+  restarted by its supervisor would end its neighbours' live jobs. Work left
+  `queued` by a process that died before starting it is settled as
+  `interrupted`, never picked up.
 - **Nothing bounds how many jobs one user may have.** Runs have an admission
   limit; jobs do not yet.
 - **Jobs are not fanned out through infrastructure Redis.** The database row

@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-13 | [The backend runs as one process](2026-09-13-one-backend-process-design.md) | D124: the image names one worker, because everything the lifespan builds is correct in one process only |
 | 2026-09-07 | [TimescaleDB through a PostgreSQL connection](2026-09-07-timescale-capabilities-design.md) | T1 completed on 2026-09-08, as confirmed by the user, T2 on 2026-09-11 and T3 on 2026-09-12, each with all checks green. D119–D123: composed extension support, runtime discovery, typed relational specialisation, paged reports and guarded source operations |
 | 2026-09-07 | [Action targets and availability](2026-09-07-action-targets-design.md) | D118: independent grouping actions, destination workflows and explicit availability reasons |
 | 2026-08-15 | [The connector registry and the adapter contract](2026-08-15-connector-registry-design.md) | D1, D2, D2b: a source type is a class in code, the contract is a Protocol. D3, D4, D6, D7: async throughout, secrets split by schema, Vue with Quasar, server state in vue-query |
