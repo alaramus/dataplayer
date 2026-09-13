@@ -152,10 +152,12 @@ PUT    /api/v1/metrics/dashboards/{dashboard_id}/grants     owner
 DELETE /api/v1/metrics/dashboards/{dashboard_id}/grants/{user_id}  owner
 ```
 
-The store tests need a TimescaleDB whose role may create databases, named by
-`TEST_METRICS_STORE_URL`; without it they are skipped. The compatibility source
-`v2_30_pg18` serves locally — at `127.0.0.1`, because `localhost` on Windows
-tries IPv6 first and waits out the connect timeout on every connection. The
+The store tests need a TimescaleDB whose role may create databases. By default
+it is the compatibility source `v2_30_pg18` — at `127.0.0.1`, because
+`localhost` on Windows tries IPv6 first and waits out the connect timeout on
+every connection — and `TEST_METRICS_STORE_URL` names another. Without one
+answering the store tests are skipped
+([backend.md](backend.md#tests-and-the-servers-they-need)). The
 suite shares the development database; the metrics tests put back the store
 setting they found, while agents and dashboards go the way users do. The
 `dashboards.spec.ts` scenarios start the store when the stack has none, and send

@@ -14,8 +14,23 @@ from app.core.db import async_session_maker, loop_factory
 from app.main import app
 from app.users.bootstrap import init_db
 from app.users.models import User
+from tests.utils import services
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import get_superuser_token_headers
+
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--require-services",
+        action="store_true",
+        help="Stop the run when a server the suite uses does not answer, "
+        "instead of skipping its tests. CI passes it.",
+    )
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    if session.config.getoption("--require-services"):
+        services.require_all()
 
 
 @pytest.fixture
@@ -53,7 +68,14 @@ def _user_storage_root(tmp_path_factory: pytest.TempPathFactory) -> Generator[Pa
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def db(_user_storage_root: Path) -> AsyncGenerator[AsyncSession]:
+def _application_database() -> None:
+    services.POSTGRES.require()
+
+
+@pytest.fixture(scope="session", autouse=True)
+async def db(
+    _user_storage_root: Path, _application_database: None
+) -> AsyncGenerator[AsyncSession]:
     async with async_session_maker() as session:
         await init_db(session)
         yield session

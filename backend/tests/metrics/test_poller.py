@@ -17,7 +17,6 @@ from app.metrics.counters import RateState
 from app.metrics.models import MetricsConnector
 from app.metrics.poller import ConnectionPoller
 from app.metrics.store import MetricsStore
-from tests.metrics.conftest import needs_store
 from tests.utils.database import working_postgres_options
 from tests.utils.user import create_random_user
 
@@ -70,7 +69,6 @@ async def reporting_connector(db: AsyncSession) -> AsyncIterator[Connector]:
         await session.commit()
 
 
-@needs_store
 async def test_a_reporting_connection_is_polled_on_its_interval(
     store: MetricsStore, reporting_connector: Connector
 ) -> None:
@@ -98,7 +96,6 @@ async def test_a_reporting_connection_is_polled_on_its_interval(
     assert list(points.values()) == [[[START + 15.0, 2.0]]]
 
 
-@needs_store
 async def test_a_connection_that_cannot_be_read_is_asked_again_later(
     store: MetricsStore, reporting_connector: Connector
 ) -> None:
@@ -125,7 +122,6 @@ async def test_a_connection_that_cannot_be_read_is_asked_again_later(
     assert await store.catalog([reporting_connector.id]) == []
 
 
-@needs_store
 async def test_a_connection_whose_reporting_is_off_is_not_polled(
     store: MetricsStore, reporting_connector: Connector
 ) -> None:

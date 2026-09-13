@@ -13,7 +13,6 @@ from app.core.db import async_session_maker
 from app.metrics.dashboards import Dashboard, DashboardContent, public
 from app.metrics.models import MetricsAgent, MetricsStoreSetting
 from app.metrics.store import MetricsStore, SeriesKey, Source
-from tests.metrics.conftest import needs_store
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
 
@@ -155,7 +154,6 @@ def test_content_that_no_longer_reads_is_shown_empty_and_marked() -> None:
     assert public(Dashboard(owner_id=uuid.uuid4(), name="new", content=DashboardContent().model_dump(mode="json"))).broken is False
 
 
-@needs_store
 async def test_a_widget_may_name_only_series_its_saver_can_read(
     client: AsyncClient,
     superuser_token_headers: dict[str, str],

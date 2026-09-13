@@ -123,6 +123,36 @@ two ends and belongs to neither of them ([D106](sources/declared.md)).
 After changing a route or a schema, regenerate the typed client:
 `bash scripts/generate-client.sh`.
 
+## Tests and the servers they need
+
+The suite talks to real servers, and each one is named once, in
+`tests/utils/services.py`: where its address comes from and the command that
+starts it.
+
+- **The application database is the base.** Without it nothing runs, so a run
+  stops at once with one line saying how to start it.
+- **Every other server belongs to the tests of one piece** — Redis to the redis
+  adapter and the shared cache, a TimescaleDB to the metrics store. A test gets
+  the address from `require()`, and when nothing answers there it is skipped
+  with the start command. Working on one piece never needs another piece's
+  server, and `pytest tests/metrics` runs what it can with what is up.
+- **CI passes `--require-services`.** A missing server then stops the run
+  before any test: the full suite is the gate, and a pipeline green over
+  skipped tests would pass a server it never had.
+- A server's address has a default that works on a developer machine, and an
+  environment variable CI sets (`TEST_REDIS_URL`, `TEST_METRICS_STORE_URL`).
+
+A piece that needs a server of its own — MySQL for an adapter, say — adds an
+entry to `SERVERS`, a service to `compose.override.yml` or its own compose file,
+and the same service with its variable to the backend job of `.gitlab-ci.yml`.
+Forgetting the last one is what `--require-services` catches.
+
+**Enforced:** `tests/test_services.py` fails when any test module other than the
+registry reads the environment, so an address cannot be found around it; and it
+checks the skip, the stopped run and the required mode against a real socket.
+That a test reaches a server only through an address it got that way — rather
+than a literal `localhost` — rests on review.
+
 ## Rehearsing the pipeline locally
 
 Settings name `../.env`, so a run started from `backend/` reads whatever the

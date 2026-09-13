@@ -1,12 +1,11 @@
-"""A metrics store of the tests' own, in a TimescaleDB named by the environment.
+"""A metrics store of the tests' own, in the TimescaleDB of `services.TIMESCALE`.
 
-TEST_METRICS_STORE_URL names a server whose role may create databases; each
-session gets a fresh database there and drops it afterwards. Without the
-variable the tests that need a store are skipped, as the Redis ones are.
+Its role may create databases; each session gets a fresh database there and
+drops it afterwards. Without the server answering, the tests that ask for a
+store are skipped.
 """
 
 import asyncio
-import os
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -23,17 +22,11 @@ from app.core.db import async_session_maker
 from app.metrics.models import MetricsStoreSetting
 from app.metrics.store import ROLLUP_VIEWS, MetricsStore, store_url
 from app.services.models import ManagedService
-
-TEST_METRICS_STORE_URL = os.environ.get("TEST_METRICS_STORE_URL")
-
-needs_store = pytest.mark.skipif(
-    TEST_METRICS_STORE_URL is None, reason="TEST_METRICS_STORE_URL not configured"
-)
+from tests.utils import services
 
 
-def _server_options() -> dict[str, Any]:
-    assert TEST_METRICS_STORE_URL is not None
-    parts = urlsplit(TEST_METRICS_STORE_URL)
+def _server_options(url: str) -> dict[str, Any]:
+    parts = urlsplit(url)
     return {
         "auth_method": "user_password",
         "host": parts.hostname or "localhost",
@@ -69,9 +62,7 @@ async def keep_development_store() -> AsyncIterator[None]:
 @pytest.fixture(scope="session")
 async def store_options() -> AsyncIterator[dict[str, Any]]:
     """Options of a fresh, empty database, in the PostgreSQL adapter's shape."""
-    if TEST_METRICS_STORE_URL is None:
-        pytest.skip("TEST_METRICS_STORE_URL not configured")
-    server = _server_options()
+    server = _server_options(services.TIMESCALE.require())
     name = f"metrics_test_{uuid.uuid4().hex[:12]}"
     admin = create_async_engine(
         make_url(store_url(server)), isolation_level="AUTOCOMMIT"

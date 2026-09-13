@@ -8,7 +8,6 @@ from sqlalchemy import text
 
 from app.metrics.collector import Collector, Counts, Receiver
 from app.metrics.store import MetricsStore
-from tests.metrics.conftest import needs_store
 
 AGENT = uuid.uuid4()
 KEY = "known-key"
@@ -34,7 +33,6 @@ async def _count(store: MetricsStore, table: str) -> int:
         return int((await connection.execute(text(queries[table]))).scalar_one())
 
 
-@needs_store
 async def test_a_packet_under_a_key_no_agent_holds_writes_nothing(store: MetricsStore) -> None:
     counts = Counts()
     collector = Collector(store, _agent_for, counts)
@@ -47,7 +45,6 @@ async def test_a_packet_under_a_key_no_agent_holds_writes_nothing(store: Metrics
     assert await _count(store, "metric_point") == 0
 
 
-@needs_store
 async def test_a_packet_becomes_series_and_points(store: MetricsStore) -> None:
     counts = Counts()
     collector = Collector(store, _agent_for, counts)
@@ -71,7 +68,6 @@ async def test_a_packet_becomes_series_and_points(store: MetricsStore) -> None:
     }
 
 
-@needs_store
 async def test_a_counter_is_stored_as_its_increment(store: MetricsStore) -> None:
     collector = Collector(store, _agent_for, Counts())
     net = [{"name": "eth0:", "read": 100, "transfer": 1000}]
@@ -89,7 +85,6 @@ async def test_a_counter_is_stored_as_its_increment(store: MetricsStore) -> None
     assert points[catalog["read_delta"].id] == [[1_789_000_030.0, 30.0]]
 
 
-@needs_store
 async def test_an_agent_whose_process_started_again_is_written_down_as_a_restart(store: MetricsStore) -> None:
     counts = Counts()
     collector = Collector(store, _agent_for, counts)
@@ -112,7 +107,6 @@ async def test_an_agent_whose_process_started_again_is_written_down_as_a_restart
     assert restart.actions == ("ps", "iftop")
 
 
-@needs_store
 async def test_a_process_table_is_a_snapshot_not_series(store: MetricsStore) -> None:
     counts = Counts()
     collector = Collector(store, _agent_for, counts)
@@ -128,7 +122,6 @@ async def test_a_process_table_is_a_snapshot_not_series(store: MetricsStore) -> 
     assert await _count(store, "metric_series") == 0
 
 
-@needs_store
 async def test_series_forgotten_by_the_collector_are_found_again(store: MetricsStore) -> None:
     collector = Collector(store, _agent_for, Counts())
     await collector.handle(_packet("cpu", {"uptime": 1}, ts=1_789_000_000))

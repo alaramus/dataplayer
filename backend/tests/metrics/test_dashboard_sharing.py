@@ -18,7 +18,6 @@ from app.metrics.models import MetricsAgent, MetricsStoreSetting
 from app.metrics.packets import ProcessRow, ProcessSnapshot
 from app.metrics.store import MetricsStore, PointRow, SeriesKey, Source
 from app.users import crud as user_crud
-from tests.metrics.conftest import needs_store
 from tests.utils.database import working_postgres_options
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
@@ -157,7 +156,6 @@ async def test_a_reader_sees_it_an_editor_changes_it_and_only_the_owner_deletes_
     assert (await client.delete(url, headers=owner.headers)).status_code == 200
 
 
-@needs_store
 async def test_a_series_is_read_through_the_dashboard_it_is_on_and_no_other_way(
     client: AsyncClient,
     db: Any,
@@ -209,7 +207,6 @@ async def test_a_series_is_read_through_the_dashboard_it_is_on_and_no_other_way(
         assert await live_series(session, store, reader.id, set()) == set()
 
 
-@needs_store
 async def test_an_editor_keeps_what_is_there_and_adds_only_what_they_read_themselves(
     client: AsyncClient,
     db: Any,
@@ -253,7 +250,6 @@ async def test_an_editor_keeps_what_is_there_and_adds_only_what_they_read_themse
     assert lowered.status_code == 404
 
 
-@needs_store
 async def test_a_connection_taken_from_the_owner_is_taken_from_everybody_reading_through_them(
     client: AsyncClient,
     db: Any,

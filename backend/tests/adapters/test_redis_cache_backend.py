@@ -1,9 +1,6 @@
 import asyncio
-import os
 import uuid
 from dataclasses import dataclass, field
-
-import pytest
 
 from app.adapters.cache import CacheKey, DataCache
 from app.adapters.cache_serialization import CacheCipher, CacheFormat, CacheNamespace
@@ -17,9 +14,9 @@ from app.adapters.redis.cache_connection import (
     StoredEntry,
 )
 from app.adapters.relation import ColumnType
+from tests.utils import services
 
 TEXT_FORMAT: CacheFormat[str] = CacheFormat(str)
-TEST_REDIS_URL = os.environ.get("TEST_REDIS_URL")
 
 
 @dataclass
@@ -316,23 +313,22 @@ async def test_redis_failure_bypasses_cache_and_never_fails_data_access() -> Non
         await cache.aclose()
 
 
-@pytest.mark.skipif(TEST_REDIS_URL is None, reason="TEST_REDIS_URL not configured")
 async def test_two_cache_instances_observe_real_redis_invalidation() -> None:
     """The phase exit condition against the Redis service used by CI."""
-    assert TEST_REDIS_URL is not None
+    redis_url = services.REDIS.require()
     deployment = f"phase5-{uuid.uuid4().hex}"
     namespace = CacheNamespace(deployment)
     connector_id = uuid.uuid4()
     cache_key = key(connector_id)
     first = RedisDataCache.from_url(
-        TEST_REDIS_URL,
+        redis_url,
         deployment=deployment,
         encryption_key=b"r" * 32,
         timeout_seconds=1,
         max_entries=8,
     )
     second = RedisDataCache.from_url(
-        TEST_REDIS_URL,
+        redis_url,
         deployment=deployment,
         encryption_key=b"r" * 32,
         timeout_seconds=1,
@@ -366,7 +362,7 @@ async def test_two_cache_instances_observe_real_redis_invalidation() -> None:
     finally:
         await first.aclose()
         await second.aclose()
-        cleanup = RedisCacheConnection(TEST_REDIS_URL, timeout_seconds=1)
+        cleanup = RedisCacheConnection(redis_url, timeout_seconds=1)
         try:
             await cleanup.delete(namespace.generation_key(connector_id))
         except CacheConnectionError:
@@ -375,7 +371,6 @@ async def test_two_cache_instances_observe_real_redis_invalidation() -> None:
             await cleanup.aclose()
 
 
-@pytest.mark.skipif(TEST_REDIS_URL is None, reason="TEST_REDIS_URL not configured")
 async def test_a_real_page_of_rows_comes_back_from_real_redis_unchanged() -> None:
     """The value the fetch route caches, over the storage that rebuilds it.
 
@@ -383,7 +378,7 @@ async def test_a_real_page_of_rows_comes_back_from_real_redis_unchanged() -> Non
     encrypted, written to Redis and read back by another worker is still the
     page the source produced, and that is the promise D100 makes.
     """
-    assert TEST_REDIS_URL is not None
+    redis_url = services.REDIS.require()
     deployment = f"page-{uuid.uuid4().hex}"
     namespace = CacheNamespace(deployment)
     connector_id = uuid.uuid4()
@@ -405,14 +400,14 @@ async def test_a_real_page_of_rows_comes_back_from_real_redis_unchanged() -> Non
     )
     page_format: CacheFormat[FetchResult] = CacheFormat(FetchResult)
     writer = RedisDataCache.from_url(
-        TEST_REDIS_URL,
+        redis_url,
         deployment=deployment,
         encryption_key=b"p" * 32,
         timeout_seconds=1,
         max_entries=8,
     )
     reader = RedisDataCache.from_url(
-        TEST_REDIS_URL,
+        redis_url,
         deployment=deployment,
         encryption_key=b"p" * 32,
         timeout_seconds=1,
@@ -442,7 +437,7 @@ async def test_a_real_page_of_rows_comes_back_from_real_redis_unchanged() -> Non
     finally:
         await writer.aclose()
         await reader.aclose()
-        cleanup = RedisCacheConnection(TEST_REDIS_URL, timeout_seconds=1)
+        cleanup = RedisCacheConnection(redis_url, timeout_seconds=1)
         try:
             await cleanup.delete(namespace.generation_key(connector_id))
         except CacheConnectionError:

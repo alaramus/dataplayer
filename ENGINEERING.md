@@ -192,9 +192,14 @@ pure-logic split rests on review.
   catalog tree were computed, unit-tested and never rendered, because QTree has
   no `caption` prop. Anything user-visible is confirmed in the browser or by a
   Playwright scenario.
+- **A test without its server is skipped, not errored.** A server other than the
+  application database is reached through the address `tests/utils/services.py`
+  gives, which skips the test when nothing answers; CI runs with
+  `--require-services`, where the same absence stops the run.
 
 **Enforced:** `uv run pytest tests/ -q`, `bun run test:unit`,
-`bunx playwright test`.
+`bunx playwright test`. `tests/test_services.py` fails when a test reads an
+address from the environment around the registry, verified by adding one.
 
 ## Comments
 

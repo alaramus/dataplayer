@@ -19,9 +19,7 @@ from app.metrics.store import (
     StoreUnavailable,
     store_url,
 )
-from tests.metrics.conftest import needs_store, refresh_rollups
-
-pytestmark = needs_store
+from tests.metrics.conftest import refresh_rollups
 
 AGENT = Source(kind="agent", id=uuid.uuid4())
 START = 1_789_000_000

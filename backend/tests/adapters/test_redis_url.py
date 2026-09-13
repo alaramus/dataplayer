@@ -6,6 +6,7 @@ drifts, and it drifts in the quoting first.
 """
 
 import pytest
+from pydantic import SecretStr
 
 from app.adapters import registry
 from app.adapters.protocol import (
@@ -15,17 +16,19 @@ from app.adapters.protocol import (
     SupportsConnectionString,
 )
 from app.adapters.redis.adapter import RedisAdapter
+from app.adapters.redis.options import RedisNoAuth, RedisPassword
 from app.adapters.redis.url import (
     compose_url,
     compose_url_with_password,
     options_from_url,
 )
-from tests.utils.keyspace import redis_options
 
 
 def test_the_type_says_it_can_write_and_read_an_address() -> None:
     """Read off the driver, so a screen cannot offer a field nothing fills."""
-    adapter = RedisAdapter(redis_options())
+    adapter = RedisAdapter(
+        RedisNoAuth(auth_method="no_auth", host="cache", port=6379, database=0)
+    )
 
     assert isinstance(adapter, SupportsConnectionString)
     assert issubclass(RedisAdapter, ParsesConnectionString)
@@ -44,7 +47,15 @@ def test_an_address_is_written_with_as_much_as_there_is() -> None:
 
 def test_the_address_shown_never_carries_the_password() -> None:
     """It is on a screen and pasted into other tools."""
-    adapter = RedisAdapter(redis_options())
+    adapter = RedisAdapter(
+        RedisPassword(
+            auth_method="password",
+            host="cache",
+            port=6379,
+            database=0,
+            password=SecretStr("s3cret"),
+        )
+    )
 
     assert "@" not in adapter.connection_string()
 

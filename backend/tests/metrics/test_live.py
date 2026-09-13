@@ -4,7 +4,6 @@ import uuid
 
 from app.metrics.live import Watermarks, read_round
 from app.metrics.store import MetricsStore, PointRow, SeriesKey, Source
-from tests.metrics.conftest import needs_store
 
 AGENT = uuid.uuid4()
 START = 1_789_000_000
@@ -33,7 +32,6 @@ def test_what_was_pushed_is_not_pushed_again() -> None:
     assert marks.changed({1: START + 30}) == {}
 
 
-@needs_store
 async def test_a_round_carries_only_new_points_of_readable_series(store: MetricsStore) -> None:
     other = uuid.uuid4()
     key = SeriesKey("web-01", "cpu", "uptime", "")
@@ -54,7 +52,6 @@ async def test_a_round_carries_only_new_points_of_readable_series(store: Metrics
     assert await read_round(store, [AGENT], marks, now=START + 1000) is None
 
 
-@needs_store
 async def test_a_series_seen_before_its_points_are_written_is_asked_again(store: MetricsStore) -> None:
     key = SeriesKey("web-01", "cpu", "uptime", "")
     series_id = (await store.series_ids(Source("agent", AGENT), [(key, "s", START)]))[key]

@@ -20,7 +20,7 @@ from app.metrics.models import MetricsAgent, MetricsStoreSetting
 from app.metrics.packets import ProcessRow, ProcessSnapshot
 from app.metrics.store import MetricsStore, PointRow, RestartRow, SeriesKey, Source
 from app.users import crud as user_crud
-from tests.metrics.conftest import needs_store, refresh_rollups
+from tests.metrics.conftest import refresh_rollups
 from tests.utils.database import working_postgres_options
 from tests.utils.service_engine import FakeEngine, engine_of
 from tests.utils.user import authentication_token_from_email
@@ -198,7 +198,6 @@ async def test_a_database_that_does_not_answer_is_not_accepted(
     assert status.json()["state"] == "not_configured"
 
 
-@needs_store
 async def test_an_existing_timescale_becomes_the_store_and_answers(
     client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -221,7 +220,6 @@ async def test_an_existing_timescale_becomes_the_store_and_answers(
         assert store_options["password"].encode() not in setting.secrets
 
 
-@needs_store
 async def test_history_is_read_through_the_owner_of_the_agent(
     client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -281,7 +279,6 @@ async def test_history_is_read_through_the_owner_of_the_agent(
     assert after.json()["agents"][0]["hosts"] == []
 
 
-@needs_store
 async def test_process_tables_and_presets_are_read_through_the_owner_of_the_agent(
     client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -342,7 +339,6 @@ async def _postgres_connector(client: AsyncClient, headers: dict[str, str]) -> s
     return str(response.json()["id"])
 
 
-@needs_store
 async def test_a_connection_reports_by_its_owner_s_choice_and_is_read_through_its_grants(
     client: AsyncClient,
     db: Any,
@@ -431,7 +427,6 @@ async def test_a_source_that_does_not_report_metrics_cannot_be_switched_on(
 
 
 
-@needs_store
 async def test_hosts_that_keep_restarting_are_told_to_their_agent_s_owner_only(
     client: AsyncClient,
     superuser_token_headers: dict[str, str],
@@ -466,7 +461,6 @@ async def test_hosts_that_keep_restarting_are_told_to_their_agent_s_owner_only(
     assert theirs.json()["hosts"] == []
 
 
-@needs_store
 async def test_removing_a_connected_store_drops_its_tables_and_takes_series_off_dashboards(
     client: AsyncClient,
     superuser_token_headers: dict[str, str],

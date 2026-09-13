@@ -90,7 +90,10 @@ backend:
     - uv run python -m app.seed_database
     # A failure prints one line per test rather than a full traceback: 419
     # errors at once overran GitLab's 4 MB log limit and hid the cause.
-    - uv run pytest tests/ -q --tb=short
+    # --require-services: a developer's run skips the tests of a server that is
+    # not up, and here that would be a pipeline green over tests that never
+    # ran. A server the suite knows and this job lacks stops the run instead.
+    - uv run pytest tests/ -q --tb=short --require-services
 
 frontend:
   stage: check

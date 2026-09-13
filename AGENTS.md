@@ -242,13 +242,11 @@ uv run ruff check app tests
 uv run lint-imports
 ```
 
-The suite needs one container more than the stack above: `docker compose up -d
-redis`, from the repository root. `redis` is not `redis-cache` — the
-application's cache publishes no port, and the redis adapter's tests talk to
-`localhost:6379`. Nothing else starts it, and without it 64 tests error on a
-refused connection rather than failing on anything they are about.
-The metrics store tests are skipped unless `TEST_METRICS_STORE_URL` names a
-TimescaleDB; see [dashboards.md](docs/architecture/dashboards.md).
+The suite needs the database; every other server belongs to the tests of one
+piece, and a test whose server does not answer is skipped with the command that
+starts it. `pytest --require-services` stops the run instead, as CI does. Redis
+is `docker compose up -d redis` — not `redis-cache`, which publishes no port.
+See [backend.md](docs/architecture/backend.md#tests-and-the-servers-they-need).
 
 Frontend checks, from `frontend/`:
 
