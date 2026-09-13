@@ -3,124 +3,45 @@
 How a screen is built, where state lives, and what the component kit is. The
 panel engine, the layout and floating windows are in
 [workspace.md](workspace.md); the grid, its downloads and its charts are in
-[grid.md](grid.md). Domain-independent 2D and 3D graph viewers are described in
-[graphs.md](graphs.md).
+[grid.md](grid.md); 2D and 3D graph viewers are in [graphs.md](graphs.md).
 
 Decisions here: D6, D7, D11, D50, D99.
 
 ## What exists today
 
-Vue 3, TypeScript, Quasar, Vite, TanStack Query, Pinia. Sign in, a catalog of
-source types, a form generated from the adapter's own schema, the list of
-connections, the catalog of a connection as a list of one level, and a typed
-data grid with server paging, filters, ordered sorting and guarded cell editing;
-the structure tab adds and drops columns through source-declared capabilities.
-Catalog leaves open through the source's preferred representation: editable
-text, JSON and JSONL open as source, PNG and JPEG open in a bounded verified
-image viewer, and a declared table alternative opens the grid only when
-requested. PostgreSQL relations keep that grid as preferred and expose their
-source-issued DDL in a bounded read-only SQL panel. Download is a
-source-declared catalog action over the checked nodes; there is no
-adapter-specific button in a row or an open content panel.
-Checking a connection answers in a panel over the button that ran it: whether
-it worked, how long it took, and what the source says it is — its version, and
-the state of every optional feature it reports. It is the moment somebody asks
-what they are about to work on, and it answers for a draft nobody has saved as
-well, because the check is what asked.
-
-A connection can be shared with a colleague at a level, and an administrator
-manages accounts on a page of their own. The user icon at the right of the
-header opens an account menu with Preferences, Sign out and, for
-administrators, Admin.
-Light and dark themes are switched by the adjacent button and remembered.
-
-The application uses the legacy cube artwork: blue for the browser favicon
-and the light header, white for the dark header.
-
-Detected frameworks appear below the catalog filter for the selected schemas.
-Every match is shown once; clicking its label fills the filter with the
-source-issued table pattern, and clicking the active label clears it. The
-labels come from schema metadata, so filtering the rows does not hide them
-([D98](sources/contract.md#d98-framework-detection-belongs-to-the-schemas-catalog-metadata)).
-
-The visible page of any tabular source can open as a chart beside its rows.
-The chart keeps that page's request and visible columns, offers line, bar and
-pie views, and derives a deterministic first choice without sending samples
-outside the browser.
-
-File upload presents its file field without opening the native picker on its
-own, and choosing stages files instead of sending them: the dialog lists what
-was chosen, any row can be taken out again, and the action's own button starts
-the upload. Several files at once where the action says it takes them, one
-request each; what arrives leaves the list and what is refused stays in it.
-Only after a file is chosen can a name conflict be meaningful, so that refusal
-offers Replace and Keep both; the latter uses the source-issued numbered name. Rename starts from the existing node name, omits a file
-extension while editing, keeps the old extension when none is typed and
-confirms an explicit extension change. Renaming a database relation starts
-from its current name as well. A destructive catalog action asks one plain
-question that names its target; it carries no separate warning banner.
+Vue 3, TypeScript, Quasar, Vite, TanStack Query, Pinia. What the application
+already does is recorded by the spec index and by git; this file keeps what
+shapes the code of a screen.
 
 ```
-frontend/public/
-└── icons/services/      the logo of a source type, one SVG per type
+frontend/public/icons/services/   the logo of a source type, one SVG per type
 
 frontend/src/
 ├── client/              generated from OpenAPI, never edited by hand
 ├── shared/
-│   ├── ui/              the component kit every screen is built from;
-│   │                    tokens.ts turns meaning into Quasar props,
-│   │                    theme.css turns meaning into colours in both themes,
-│   │                    metrics.css names shared density and geometry,
-│   │                    layers.css turns meaning into stacking order,
-│   │                    useToast and useConfirm replace $q,
-│   │                    index.ts is the one import path
+│   ├── ui/              the component kit; tokens.ts, theme.css, metrics.css
+│   │                    and layers.css turn meaning into props, colours,
+│   │                    geometry and stacking; index.ts is the one import path
 │   ├── api/             client setup, and one reading of an API error
 │   ├── auth/            the current account and session, watched across tabs
-│   ├── SchemaForm/      JSON Schema to form, framework-independent core;
-│   │                    a field says which tab and which row it belongs to,
-│   │                    and readSchema tells a plain schema from a union
-│   ├── windows/         floating windows and shared question/delete presets
-│   │                    — see workspace.md
+│   ├── SchemaForm/      JSON Schema to form, framework-independent core
+│   ├── windows/         floating windows — see workspace.md
 │   ├── workspace/       the panel engine — see workspace.md
 │   └── testing/         helpers for tests, not shipped by any screen
-├── stores/              Pinia: client-side state only — the session, the theme,
-│                        and what the last connection check said
+├── stores/              Pinia: client-side state only
 └── features/
-    ├── admin/           the accounts page; users.ts is the form, as plain
-    │                    functions
+    ├── admin/           the administration page; users.ts is the account form
     ├── auth/
-    ├── preferences/     what an account chose for itself; checks.ts is the
-    │                    wording of a closed set the server owns
-    ├── catalog/         the list of one level and the menu of what the ticked
-    │                    nodes admit, including source-owned download;
-    │                    nodes.ts and actions.ts are pure mappers,
-    │                    and nodes.ts holds the
-    │                    table that says what a kind of node does;
-    │                    useCatalogLevel.ts walks a catalog outside any component
-    ├── charts/          closed line, bar and pie views over one bounded page;
-    │                    pure builders and suggestions stay outside components
-    ├── content/         source editing, bounded native content and read-only SQL,
-    │                    the rendered document, and the verified binary viewers:
-    │                    an image,
-    │                    a player over the ranged stream, and a PDF the
-    │                    application draws itself
-    ├── grid/            the controlled data explorer: query state, filter and
-    │                    sort editors, column layout, selection, clipboard,
-    │                    typed renderers and the full-value viewer
-    ├── structure/       a relation model in its own tab: columns, ordered
-    │                    constraints and indexes; model.ts maps them to badges,
-    │                    and source-owned type choices drive column DDL
-    ├── connectors/      the list of sources, the catalog of source types that
-    │                    starts a new one, and the window that registers one;
-    │                    adapterSearch.ts is a pure mapper and access.ts is the
-    │                    scale of what a caller may do
-    ├── shares/          a link to a view, who may follow it and who is waiting
-    │                    to — see sharing.md
-    ├── workspace/       the panels and their roles — see workspace.md.
-    │                    panels.ts is that table: what renders a panel, what a
-    │                    column shows while empty, and what a whole column is
-    │                    called on the bar at the foot of the screen
-    │                    (sectionLook — "Navigation", "Data")
+    ├── preferences/     what an account chose; checks.ts words a server-owned set
+    ├── catalog/         the list of one level and the menu of what ticked nodes
+    │                    admit; nodes.ts says what a kind of node does
+    ├── charts/          line, bar and pie views over one bounded page
+    ├── content/         source editing, rendered documents, verified viewers
+    ├── grid/            the data explorer — see grid.md
+    ├── structure/       a relation's columns, constraints and indexes
+    ├── connectors/      the list of sources, source types, the connection window
+    ├── shares/          links and access requests — see sharing.md
+    ├── workspace/       panels and their roles; panels.ts is that table
     └── dev/             /ui-kit and /workspace-demo, dev builds only
 ```
 
@@ -145,26 +66,22 @@ explicit selection. Old links belong to the configured default server.
 
 Panel and window close guards run before switching. Server-owned work stays on
 its server; unsaved editor changes and transactions are handled before leaving.
-The server must allow the frontend origin through CORS and support the browser's
-HTTP(S)/WebSocket transport requirements.
+The server must allow the frontend origin through CORS.
 
 Spec: [Choosing a DataPlayer server](../decisions/2026-09-04-server-profiles-design.md)
 
 ## D6. Server state lives in vue-query; Pinia holds only client state
 
 The old frontend spread server data across Pinia stores, each with its own cache
-and its own invalidation, and that is where its desynchronisation bugs come from.
+and its own invalidation, and that is where its desynchronisation bugs came from.
 
 Enforced by ESLint: `src/stores/**` may not import the generated client or any
 feature.
 
 A failed query is asked again only when asking again could answer differently.
-vue-query retries everything three times with a growing gap, which is right for
-a request that never arrived and wrong for one the server read and refused:
-4xx, minus the two codes that are about the moment, is the server saying
-something about the request, and it will say it again. Opening a `.dump` in a
-file source waited about five seconds to say it is binary, and every second of
-it was this.
+vue-query's three growing retries suit a request that never arrived, not a 4xx
+the server read and will refuse again — minus the two codes that are about the
+moment. Opening a `.dump` in a file source once waited five seconds for that.
 
 Spec: [The connector registry and the adapter contract](../decisions/2026-08-15-connector-registry-design.md)
 
@@ -190,470 +107,251 @@ a change to the kit, and `data-testid` keeps landing where Quasar puts it.
 
 Consequences:
 
-- **A colour is a meaning too, and `theme.css` is where it is spent.** A screen
-  carries `var(--dp-hover)`, never `rgba(0, 0, 0, 0.04)`. That file declares the
-  light values on `:root` and redeclares them under `body.body--dark`, which is
-  what makes a theme switchable at all — a Sass variable is settled at build
-  time. `stores/theme.ts` is the only caller of Quasar's Dark plugin.
-- **A layer is a meaning too, and `layers.css` is where it is spent.** A screen
-  carries `var(--dp-layer-overlay)`, never `2`. A number decided alone cannot be
-  compared with another without opening both files, which is how a floating
-  window came to be painted over by a sticky table heading that declared `1`, and
-  how the drop zone of the workspace lost to the same heading afterwards. Two of
-  the values are Quasar's: its header and footer sit at 2000 and its menus and
-  dialogs at 6000, so anything of ours that must clear the first and stay under
-  the second is placed between them.
-- **Density and geometry are shared too.** `metrics.css` names the application
-  header, status line, tab strip, workspace inset, spacing and radii. A feature
-  may arrange its own content, but it does not invent another height for the
-  same kind of toolbar or another almost-equal panel corner. A button belonging
-  beside one of the kit's fields goes through its `after` slot: the field kit
-  then aligns it with the control rather than with the extra line reserved
-  underneath for a validation message.
-  `AppSelect` clips its append area so the rotating dropdown arrow cannot
-  temporarily widen a scrollable toolbar. The teleported options remain outside
-  that clipping boundary.
+- **A colour is spent in `theme.css`.** A screen carries `var(--dp-hover)`,
+  never `rgba(0, 0, 0, 0.04)`. Light values sit on `:root` and are redeclared
+  under `body.body--dark`, which a Sass variable, settled at build time, could
+  not do. `stores/theme.ts` is the only caller of Quasar's Dark plugin.
+- **A layer is spent in `layers.css`.** A screen carries
+  `var(--dp-layer-overlay)`, never `2`: two numbers decided alone cannot be
+  compared, which is how a sticky table heading declaring `1` painted over a
+  floating window and then over the workspace drop zone. Quasar's header and
+  footer sit at 2000 and its menus and dialogs at 6000, so anything that must
+  clear the first and stay under the second is placed between them.
+- **Density and geometry are spent in `metrics.css`**: header, status line, tab
+  strip, insets, spacing and radii. A feature arranges its own content but does
+  not invent another toolbar height or panel corner. A button beside a kit field
+  goes in its `after` slot, which aligns it with the control rather than with the
+  line reserved for a validation message. `AppSelect` clips its append area so
+  the rotating arrow cannot widen a scrollable toolbar; its teleported options
+  stay outside the clip.
+- **Button layout belongs to the kit.** `toolbar` keeps an icon and label on one
+  line, `navigation` aligns an entry to the left, and `AppTree` owns the full-row
+  selection mark. Screens size fields through their own classes on kit
+  components, never by selecting Quasar internals.
+- **Flat action text has theme colours of its own.** `secondary` and
+  `danger-quiet`, icon buttons included, use `--dp-action-secondary` and
+  `--dp-action-danger`, lighter in the dark theme than the filled `primary` and
+  `danger`.
+- **Shadows and paper are theme tokens too.** Activity sheets and notification
+  cards use the soft shadow, PDF pages the strong one; PDF paper and selection
+  colours are the same in both themes, because the document does not change
+  palette with the application.
 - **The rule is a lint rule, not a habit.** `vue/no-restricted-html-elements`
   forbids, outside `shared/ui`, exactly those `q-*` that have a replacement, in
   both spellings Vue accepts — matching only `q-btn` would let `<QBtn>` walk
-  past. `useQuasar` is forbidden in screens too, now that `useToast` and
-  `useConfirm` exist.
-- **Flat action text has its own theme colours.** `secondary` and
-  `danger-quiet` use `--dp-action-secondary` and `--dp-action-danger` from
-  `theme.css`, including icon buttons. Their dark values are lighter than the
-  filled button colours; `primary` and `danger` retain their filled palette.
-- **An icon button is named before its tooltip appears.** `AppIconButton` uses
-  its tooltip as the button's accessible name in enabled, disabled and loading
-  states. A caller's explicit `aria-label` takes precedence when the action
-  needs a name different from its hover explanation.
+  past. `useQuasar` is forbidden in screens; `useToast` and `useConfirm` replace
+  it.
+- **An icon button's tooltip is its accessible name** in every state, unless the
+  caller passes its own `aria-label`.
 - **The kit documents itself at `/ui-kit`**, a route registered only under
-  `import.meta.env.DEV`. It renders the real components, so it breaks when one of
-  them does; a test compares the page against the files in `shared/ui` so a
-  component cannot be added without a demonstration.
-- **Reading an API error is one function.** `shared/api/errors.ts` — three
-  screens had their own copy, and they had already drifted: only the grid
-  understood a validation list.
+  `import.meta.env.DEV`. It renders the real components, and a test compares the
+  page against the files in `shared/ui`, so a component cannot be added without
+  a demonstration.
+- **Reading an API error is one function**, `shared/api/errors.ts`.
 
 A test reads every `.vue` under `src` and fails on a `z-index` that is not a
-`--dp-layer-…` name. A `.css` file cannot be read from a unit test at all — Vite
-hands back its name and an empty string — so the scale's own order is checked in
-the browser by a Playwright scenario.
+`--dp-layer-…` name. A `.css` file cannot be read from a unit test — Vite hands
+back its name and an empty string — so the scale's own order is checked by a
+Playwright scenario.
 
 Known deviations:
 
-- **Part of the kit has one consumer** (`AppBadge`, `AppFileInput`, `AppSpinner`,
-  `AppTooltip`). A knowing departure from "generalise on the second or third
-  use": the point of the kit is predictability as the number of screens grows.
+- **Part of the kit has one consumer or none** (`AppBadge`, `AppFileInput`,
+  `AppSpinner`, `AppTooltip`; `AppTree` since the catalog became a list). A
+  knowing departure from "generalise on the second use": the kit is built as an
+  alphabet, for predictability as screens grow.
 - **Attribute fall-through is a way around the kit.** Nothing stops a screen
-  passing `color="purple"` straight to the Quasar component underneath. Only
-  review catches it.
-- **`AppTree` is a wrapper over `q-tree`, not a tree of its own.** The types of
-  its nodes and of a lazy load are read off Quasar's props, so replacing the tree
-  would change what a screen passes it.
-- **`AppTree` is in the kit and nothing uses it.** The catalog was its only
-  consumer and is now a list. It stays because the kit is built as an alphabet,
-  and it is still demonstrated at `/ui-kit`.
-- **The theme does not follow the system.** The browser is asked once, when
-  nothing has been chosen; after that the choice stands, and there is no way back
-  to "as the system says" but clearing the stored value.
-- **The theme is one per browser.** `localStorage`: it does not follow a user to
-  another machine and is not shared between two windows.
-- **The dark palette was picked, not derived.** The values under
-  `body.body--dark` were chosen by eye against Quasar's own dark colours; nothing
+  passing `color="purple"` to the Quasar component underneath; only review does.
+- **`AppTree` wraps `q-tree`.** Its node and lazy-load types are read off
+  Quasar's props, so replacing the tree would change what a screen passes it.
+- **The theme is chosen once per browser.** The system preference is read only
+  while nothing is stored, and the choice does not follow a user elsewhere.
+- **The dark palette was picked by eye**, against Quasar's dark colours; nothing
   measures contrast against WCAG.
 
 Spec: [The shared UI kit](../decisions/2026-08-22-shared-ui-kit-design.md)
 
 ## Checking the types at all
 
-`vue-tsc` has two ways of checking nothing while looking clean, and this project
-has been bitten by both. Under the bun runtime it fails to register the `.vue`
-extension, so every component drops out of the compiler program — measured: 4
-files under Node, 0 under bun. On Windows the `.cmd` shim invokes Node, which
-hides that half. The other half is configuration: `vue-tsc --noEmit` against
-`tsconfig.json`, which lists project references and `"files": []`, reads no file
-at all and exits 0. `type-check` therefore runs `vue-tsc -b --force`, under Node.
+`vue-tsc` has two ways of checking nothing while looking clean. Under the bun
+runtime it fails to register the `.vue` extension, so every component drops out
+of the program (4 files under Node, 0 under bun); on Windows the `.cmd` shim
+invokes Node and hides it. And `vue-tsc --noEmit` against `tsconfig.json`, which
+lists project references and `"files": []`, reads no file and exits 0.
+`type-check` therefore runs `vue-tsc -b --force`, under Node.
 
 ## D50. Markdown is rendered in the browser, and everything that becomes DOM is sanitised twice
 
 `.md` and `.markdown` declare two representations under D47 — `markdown` first,
-`text` second — so a document opens rendered and its source is one click away in
-the editor D48 already provides. The server sends the document's text and
-nothing else: no HTML crosses the API boundary and nothing is stored rendered.
-The ceiling is 1 MB, between the 256 KB text preview and the 4 MB editor,
-because a rendered document is parsed, tokenised and turned into DOM in the
-browser. Above it the panel says it is showing the first megabyte.
+`text` second — so a document opens rendered and its source is one click away.
+The server sends the text and nothing else: no HTML crosses the API boundary and
+nothing is stored rendered. The ceiling is 1 MB, because a rendered document is
+parsed and turned into DOM in the browser; above it the panel says it shows the
+first megabyte.
 
-The document is split at fence boundaries before it is parsed, so a `mermaid`,
-`echarts` or `svg` fence never reaches the Markdown parser. Prose is rendered by
-`markdown-it` with KaTeX and task lists, and sanitised at two levels that are
-not duplicates: author-written raw HTML goes through DOMPurify at token level
-with `style` forbidden, and the assembled result goes through it again keeping
-inline `style` only inside `.katex`, whose layout depends on generated styles.
-Links and images are then hardened. An `http(s)`, `mailto` or `tel` link opens
-in a new window with `rel="noopener noreferrer"`, because a document lives
-inside a panel and following a link in place would take the application with it;
-an anchor is left alone; anything else — including every relative path — loses
-its browser `href` or `src` and is marked for source-aware resolution after the
-DOM is mounted. Images are lazy and send no referrer, and `iframe`, `object`, `embed`, `form`
-and `button` cannot appear at all. SVG, including everything Mermaid draws under `securityLevel: "strict"`,
-goes through the SVG profile with `script` and `foreignObject` forbidden.
+The document is split at fence boundaries first, so a `mermaid`, `echarts` or
+`svg` fence never reaches the Markdown parser. Prose is rendered by
+`markdown-it` with KaTeX and task lists and sanitised at two levels that are not
+duplicates: author-written raw HTML goes through DOMPurify at token level with
+`style` forbidden, and the assembled result goes through it again, keeping
+inline `style` only inside `.katex`. An `http(s)`, `mailto` or `tel` link opens
+in a new window with `rel="noopener noreferrer"`, because following it in place
+would take the application with it; an anchor is left alone; anything else
+loses its `href` or `src` and is resolved against the source after mounting.
+Images are lazy and send no referrer; `iframe`, `object`, `embed`, `form` and
+`button` cannot appear. SVG, including Mermaid's under `securityLevel:
+"strict"`, goes through the SVG profile with `script` and `foreignObject`
+forbidden.
 
 **Remote resources are blocked by default and the block is visible.** A document
 can arrive from somebody else's connection through a read grant (D33), and a
-remote image in it is a read receipt for whoever hosts it. The reader did not
-ask to send one.
+remote image in it is a read receipt for whoever hosts it.
 
-Rich blocks are bounded and lazy: a fence over 250 000 characters is refused by
-the block itself, and Mermaid, ECharts, SVG and code blocks mount through an
-`IntersectionObserver` when they scroll into view, so a document of forty
-diagrams costs one to open. Code fences reuse the CodeMirror of the editor in
-read-only mode and resolve their language through the same `language.ts`, so
-there is no second syntax highlighter in the bundle. Both take their colours
-from `highlight.ts`, whose palette is theme tokens rather than CodeMirror's
-built-in one — that default is a light-theme palette, and it was putting dark
-purple keywords on a near-black ground in both places.
+Rich blocks are bounded and lazy: a fence over 250 000 characters is refused, and
+diagrams, charts, SVG and code mount through an `IntersectionObserver`. Code
+fences reuse the editor's CodeMirror read-only and its `language.ts`, and both
+take colours from `highlight.ts`, whose palette is theme tokens — CodeMirror's
+default put dark purple keywords on a near-black ground. A fence named
+`summary`, `warning`, `decision`, `risk`, `file`, `verification`, `command`,
+`result` or `question` (optionally prefixed `callout:`) is a card with its kind,
+an icon and a field list from leading `Key: value` lines; anywhere else it stays
+an ordinary code block. `BlockChrome` gives every rich block one header: what it
+is on the left, copy and save on the right, through `shared/clipboard.ts` and
+`shared/download.ts`.
 
-**A callout an agent wrote is a card.** A fence named `summary`, `warning`,
-`decision`, `risk`, `file`, `verification`, `command`, `result` or `question`
-— with or without a `callout:` prefix — is shown with that kind named, an icon,
-and a colour that is the meaning rather than decoration; the leading run of
-`Key: value` lines becomes a field list and the rest is Markdown. The convention
-costs the document nothing: in any other tool the same fence is an ordinary code
-block, which is why it is worth reading here.
+Traps found by reading real documents:
 
-**Every rich block wears the same frame.** `BlockChrome` gives a diagram, a
-chart, a drawing and a listing one header: what the block is on the left, what
-can be done with it on the right. The source of any of them goes to the
-clipboard, anything drawn as SVG can be saved as a file, and an `svg` fence can
-be read as its own source instead of its picture. Copying and saving go through
-`shared/clipboard.ts` and `shared/download.ts`, the boundaries the application
-already has.
+- **Mermaid is not re-entrant.** It renders through one shared element and
+  re-reads global configuration on every call, so ids and a queue live in module
+  scope in `mermaid.ts`.
+- **Mermaid writes labels into a `foreignObject`** unless `htmlLabels` is off,
+  and that element is forbidden here. Without HTML labels it boxes every edge
+  label in `rect.background`, which CSS scoped to the diagram hides.
+- **ECharts draws an empty box for a series this bundle lacks**, so the option is
+  asked first and the series is named in the block. Title and legend both default
+  to the top; `normalizeLayout` stacks them and fills in only what was unsaid.
 
-Three things about drawing that were found by reading a real document rather
-than by any test. **Mermaid is not re-entrant**: it renders through one shared
-element and re-reads global configuration on every call, so diagrams drawn at
-once take each other's output — ids and a queue therefore live in module scope,
-in `mermaid.ts`. **Mermaid writes labels into a `foreignObject` of HTML** unless
-told not to, and that element is forbidden for content nobody here wrote, so
-`htmlLabels` is off and labels come back as native SVG text. **An ECharts option
-naming a series this bundle does not carry is reported to the console and then
-drawn as an empty box**, so the option is asked first and the series is named in
-the block.
-
-Two further corrections come from the same reading. Without HTML labels Mermaid
-draws an opaque `rect.background` behind every edge label, so `yes` and `no` on
-a flowchart arrived boxed; CSS scoped to the diagram's own id hides it, and
-gives a subgraph frame this application's colours. And a document names a
-chart's parts but rarely their geometry, while ECharts places each part
-independently: a title and a legend both default to the top and overlap.
-`normalizeLayout` stacks title, legend and plot in order and fills in only what
-the document left unsaid.
-
-The renderer is ported from `rich-md-viewer`, a standalone application by the
-same author, on this repository's usual terms: its two-stage sanitisation,
-fence splitting, remote-resource gating and block ceilings are the ideas worth
-having. Its tabs, share links and i18n are not ported — the workspace and file
-source already own those concerns. Its table of contents, visible-text search
-and inert rendered export are now adapted to a panel rather than a page.
+The renderer takes its ideas — two-stage sanitisation, fence splitting,
+remote-resource gating, block ceilings — from `rich-md-viewer`, a standalone
+application by the same author; its tabs, share links and i18n are not ported.
 
 Relative document references do not weaken D21. The client never joins a path
-to an id: it starts from the source-issued path of the open node, walks every
-segment through the existing one-level catalog read and copies the node it
-finds. A link opens that node's preferred declared representation, while an
-image additionally has to declare `image` and then travels through D49's
-verified preview ticket. Resolution is lazy near the viewport; HTML/PDF export
-resolves every local image, embeds its bytes, removes viewer controls and
-search marks, and exports no script. A cross-document fragment is a one-shot
-workspace target consumed after the destination document renders.
-
-Progressive rendering by token batch and embeds remain out. The 1 MB document
-ceiling bounds parsing for now, and an explicitly allowed remote image remains
-an external reference in an export rather than being fetched a second time.
+to an id: it walks every segment from the open node's source-issued path through
+the one-level catalog read and copies the node it finds. A link opens that
+node's preferred representation; an image must also declare `image` and travels
+through D49's verified preview ticket. HTML/PDF export embeds every local image,
+removes viewer controls and exports no script. Progressive rendering and embeds
+remain out, and an allowed remote image stays an external reference in an
+export.
 
 Spec: [Markdown as a rendered document representation](../decisions/2026-08-31-markdown-document-representation-design.md)
 
 ## Screens
 
-Button layout belongs to the kit: `toolbar` keeps an icon and label on one
-line, while `navigation` aligns an entry's content to the left. `AppTree` owns
-the full-row selection mark and selected text colour. Screens size fields
-through their own classes on kit components, without selecting Quasar internals.
+Behaviour a screen owns and a later change could quietly undo.
 
-Activity sheets and notification cards use the theme's soft shadow; PDF pages
-use its strong shadow. PDF paper and text-selection colours are also owned by
-`theme.css`, with the same values in both themes because the rendered document
-does not change palette with the application surface.
+**Catalog.** A list of one level: a click opens what can be read and walks into
+what cannot, a tick box picks a node without opening it, the first row goes back,
+and the path above starts at a home button. The path's copy button copies the
+level's own id from the root (`/reports/2026`; the root is `/`), never the
+server. One menu in the head carries everything the source can do, live for what
+is ticked and greyed for the rest; see D9 in [sources/actions.md](sources/actions.md).
+Download and every other action come from there — no screen has an
+adapter-specific button. A destructive action asks one plain question naming its
+target.
 
-Floating window frames use the kit's panel radius and spacing scale. Filter
-and sort editors derive their minimum height from the shared toolbar height
-plus vertical padding, and use control radii for conditions. Markdown chrome
-uses the same toolbar and spacing tokens, including its outline; document
-typography and reading geometry remain owned by the representation.
+Rows share one set of columns — tick box, icon, name, grouping, search location,
+measurement — so a name stands under a name. A report is the exception: its
+caption would set the column width for every row, so it lays itself out and
+gives its room up before the name does. A row's icon turns into a copy button of
+the same size under the pointer or focus. A kind is said by the icon and never in
+words; a Timescale hypertable or continuous aggregate carries the extension's
+mark. What a relation measures is always said: an estimate, or `N/A` with a hint
+saying whether nobody analysed the table or it is a view.
 
-In the structure panel, Type and Null remain ordinary readable text when the
-source does not allow changing them; a generated column's type is also text.
-The reason remains available in a tooltip. Editable values retain their action
-buttons, so disabling a capability does not dim the schema information itself.
+The catalog opens on the grouping the source named; otherwise on all of the
+source's own groupings while there are few, and on the first while there are
+many (`DEFAULT_GROUP_CEILING` in `useCatalogLevel.ts`). What groupings are called
+is a table keyed by node kind in `nodes.ts`, so no screen asks which source type
+it is looking at. Detected frameworks appear below the filter as labels from
+schema metadata, so filtering rows does not hide them
+([D98](sources/contract.md#d98-framework-detection-belongs-to-the-schemas-catalog-metadata)).
 
-Sign-in reports missing Email and Password beside their fields before sending
-credentials. Required-field messages clear as the values are supplied; a failed
-sign-in message clears when either credential is edited. Password whitespace is
-preserved rather than trimmed.
+The filter keeps the ten most recent distinct queries per account and connector
+in local storage, remembered on Enter, search or leaving an edited field, never
+while typing. Focus opens them under the field without taking focus from it;
+choosing one returns to the current level and filters; removing one leaves the
+current filter alone.
 
-The catalog is a list of one level: a click opens what can be read and walks into
-what cannot, a tick box picks a node out without opening it, the way back is the
-first row, and the path above it starts at a home button and ends at a compact
-copy button at the right edge. The copy button appears while the path is hovered
-or contains keyboard focus; its space stays reserved so the path does not move.
-What it copies is the level's own id written from the
-root — for a file source, `/reports/2026`: the trail is labels for a reader,
-and the id is the string that names the place. The root itself is `/` and is
-copied like any other level; the server is never named, because what is copied
-begins where the connection does, and `/` is also what its owner would type
-into the folder of a connection. One menu in the head
-carries everything the source can do, live for what is ticked and greyed out for
-the rest — standing in a folder is not choosing it. What that menu offers comes
-from the server; see D9 in [sources/actions.md](sources/actions.md).
+**Files.** Upload stages what was chosen and sends it only from the action's own
+button, one request per file; a name conflict offers Replace and Keep both, the
+latter under the source-issued numbered name. Rename hides a file extension while
+editing, keeps it when none is typed and confirms a change. **Connect folder**
+opens the connection form with editable values the source supplied.
 
-A level's rows share one set of columns: the tick box, the icon, the name, the
-grouping a row came from, where a search found it, and what it measures. A row
-takes those columns rather than laying itself out again, so a name stands under
-a name and a count under a count. The exception is a report: its caption is the
-sentence the source wrote about what its statement answers, and in the shared
-column that sentence would set the column's width for every row in the list. So
-a report lays itself out, and ends its sentence where the other rows end their
-measurements: beside the name it read as a second half of the name, and a line
-about what a report answers is an aside, not part of what the row is called.
-It gives that room up before the name does, so a narrow panel cuts the aside.
-The scrolling list reserves a scrollbar gutter and a small trailing inset so
-its final column stays readable beside classic and overlay scrollbars.
+**Connections.** A connection is a row of its type's icon, carrying the dot of
+the last check, and its name; everything else lives in the window the icon opens.
+A connection that belongs to somebody else arrives with `access`, so its window
+shows options disabled, names who shared it and drops Apply, Delete and Share.
+The one comparison the client makes is `atLeast` in `features/connectors/access.ts`,
+whose scale is read off the generated client (D33 in [backend.md](backend.md)).
 
-The icon of a row is also where its name is copied from: under the pointer, or
-while the button has focus, it gives way to a copy button of exactly its size.
-A gesture wanted only on the row being looked at costs no column, and nothing
-on the line moves when the pointer arrives.
+A connection's optional tab colour is saved by its owner. Every tab of that
+connection is filled with it, text in whichever of black or white contrasts more;
+a connection without one uses `--dp-panel-plain`, so a tab's shape never says
+whether a colour was chosen. The connections column marks the row being read in
+that colour whole and an open one in a wash of it; the hover wash is laid over
+the fill, not instead of it. In a catalog the colour marks only the outline
+pointing at a row after a table tab's icon was pressed. `connectorColorOf` reads
+the colour from the connector list, and `shared/ui/panelColor.ts` is the only
+place a colour becomes a fill, text and wash. Everything beyond the tabs is one
+commit, "Mark a connection in its own colour where it is listed", so reverting it
+takes the marks away and leaves tabs and the picker alone.
 
-A kind is said by the icon and never also in words, so a materialized view is
-drawn as the table it keeps rather than labelled. A relation Timescale made —
-a hypertable, or a continuous aggregate — carries the extension's own mark
-instead: what is behind it is chunks, policies and a compression state, and the
-table and view glyphs say none of that before it is opened. What a relation measures is
-always said: a table with an estimate says it, and a table nobody has analysed
-and a view, which stores no rows to count, both say `N/A` with a hint saying
-which of the two reasons applies. A column filled on some rows and blank on
-others reads as one somebody forgot rather than as a count nobody has.
+**Accounts and preferences.** Administration is `/admin/<section>`, from the user
+menu and only for an administrator; sections are entries in
+`features/admin/sections.ts`, and `/users` redirects to accounts. Accounts are
+created, switched off and removed, and nothing about data is decided there (D34).
+The account form asks for no autofill and marks Password `new-password`, with
+persistent labels so filled values cannot overlap them. Sign-in reports missing
+fields before sending and never trims a password. `/preferences` is for everybody:
+one row per preference, saved as it changes. Connection check frequency is the
+first (D19); `features/preferences/checks.ts` holds only the wording of the
+server's closed set, as a complete record, so a new choice is a type error.
 
-The catalog's filter and search field keeps the ten most recent distinct,
-non-empty queries per account and connector in this browser's local storage.
-Enter, a search, or leaving an edited field remembers its trimmed text; merely
-typing does not add partial queries. Reusing a query moves it to the front.
-Focusing or clicking the field opens the saved text directly below it, with a
-removal cross beside each entry. The popup leaves keyboard focus in the field
-so typing can continue; Escape, Tab, or clicking outside closes it. An empty
-history shows no popup. Selecting one returns to the current level and applies
-the text as a filter; recursive and content searches still require their usual explicit
-gesture. Removing an entry leaves the current filter alone and does not
-restore it on blur unless the text is edited again. History stays local to
-the session if browser storage cannot be written.
+**Forms.** A field is drawn from what its schema says: `x-ui-multiline` asks for a
+box, `description` is the sentence under it, and `examples` is shown inside the
+empty control. A field with an example keeps its label above the box, because
+Quasar hides a placeholder until the label floats, exactly where the example
+would be.
 
-A connection is a row of two things: the icon of its type, with the dot of the
-last check standing on it, and its name. Everything else about it lives in the
-window that icon opens.
+**Structure.** A value the source does not allow changing stays readable text
+with its reason in a tooltip, so a missing capability does not dim the schema.
 
-The catalog's **Connect folder** action opens that same form for a new
-connection, with the folder name and path supplied by the source. These are
-editable initial values, not a saved connector or unsaved user changes.
-Cancel leaves the connector list and files alone; Save or Apply follows the
-ordinary creation flow, including the tab color and access settings.
-
-The name field in the connection window has a rainbow color picker. Its
-optional tab color is connector metadata, saved by the owner with Apply or OK;
-Reset color clears it. A draft choice stays in the form until saved. Every
-workspace tab belonging to that connection reads the current saved color,
-including catalogs, data, query consoles and captured results. Text uses
-whichever of black or white has higher contrast. A tab is the same shape either
-way: filled, one font weight, and a line under the one being read. A connection
-with no color of its own is filled with `--dp-panel-plain`, so whether somebody
-chose a color is not something the size or form of a tab says.
-
-The connections column carries the same color. A row whose catalog is being
-read is marked in it whole, and one merely open somewhere in a wash of it. A
-connection with no color is marked just the same, in `--dp-panel-plain` — the
-same fill its tabs carry, so the default is a color rather than the absence of
-one — and in `--dp-panel-plain-quiet`, which is half a step from that fill
-towards the surface rather than a wash of it, because the plain fill is already
-close to the surface it is laid on. The pointer over a row lays the hover wash
-on top of whatever fills it instead of replacing it, so arriving at a row does
-not take its color away. The strip a collapsed column leaves behind marks its
-icons the same way.
-
-The catalog carries the color for one mark only: the outline that points at a
-row after the icon of a table's tab was pressed. That mark is the far end of a
-gesture whose near end is a tab, so it is drawn in whatever that tab is drawn
-in — the connection's color, or `--dp-panel-plain` where none was chosen.
-Everything else in a catalog — a ticked row, a row under the pointer — keeps
-the theme's, because a tick is about an action and not about which connection
-this is. `connectorColorOf` reads the color out of the list of connections by
-id, so saving or resetting one reaches a catalog already open.
-
-Known deviation: with no color chosen the outline is that plain fill, which is
-a step from the surface it is drawn on and so barely visible — asked for
-deliberately, so that the mark says nothing the tab does not.
-`shared/ui/panelColor.ts` turns one chosen color into the fill, the text color
-that stays readable on it, and the wash, so nothing mixes a color of its own.
-
-### Taking the connection colors back out
-
-Everything above that carries a connection's color beyond its own tabs — the
-marked rows in the connections column and in the strip a collapsed column
-leaves behind, the plain fill that stands in where nobody chose a color, and
-the outline that points at a row in a catalog — is one commit, "Mark a
-connection in its own colour where it is listed" (`git log --grep "in its own
-colour"`). Reverting it puts the screens back and leaves the tabs and the color
-picker untouched. It is one commit for that reason and not because it was
-written in one sitting.
-
-By hand, if only part of it is to go, each place falls back to what the theme
-already had:
-
-| Place | What to take out | What it falls back to |
-| --- | --- | --- |
-| `shared/ui/theme.css` | `--dp-panel-plain` and `--dp-panel-plain-quiet`, from both the light and the dark block | — |
-| `shared/workspace/WorkspaceLeaf.vue` | the plain fill in `.workspace-leaf__tab` | `var(--dp-surface)`, which is what it was |
-| `features/connectors/ConnectorList.vue` | the `panelColorStyle` binding on the row, and the color in the two marks | `var(--dp-selected-quiet)` and `var(--dp-selected)` |
-| `features/workspace/panels/ConnectorRail.vue` | the same two | the same two |
-| `features/catalog/CatalogList.vue` | the color in `.catalog-list__row--revealed` | `var(--dp-focus-border)` |
-| `features/workspace/panels/CatalogPanel.vue` | `color`, its query and the style it binds | nothing; the list stops carrying a color |
-| `features/connectors/api.ts` | `connectorColorOf`, and its case in the spec | — |
-| `shared/ui/panelColor.ts` | `--dp-panel-quiet`, and its column in the spec | — |
-
-Two things are deliberately not on that list, because they are not about color.
-The hover wash in the connections column is laid over the row as an inset
-shadow rather than as a background; a row is filled by whichever mark it
-carries, so that stays whatever the row is filled with. And a tab is filled
-whether or not a color was chosen, one weight, marked by a line under it — that
-is the shape of a tab (in the commit before this one), not the color of one.
-
-Tests to drop with it: the color assertions in `frontend/tests/connectors.spec.ts`
-and the cases named above in the two unit specs.
-
-**What a screen may offer, it is told.** A connection carries `access`, so the
-window of one that belongs to somebody else shows its options disabled, names
-who shared it, and drops Apply, Delete and Share; sharing is offered only to
-the owner. Nothing below that is decided here — a page that may not be edited
-arrives with its columns marked uneditable, and a relation whose shape is not
-the caller's arrives saying so, both through the fields those screens already
-read. The one comparison the client makes is `atLeast` in
-`features/connectors/access.ts`, and its scale is read off the generated client
-rather than written out again. See D33 in [backend.md](backend.md).
-
-Administering the installation is a page of its own at `/admin/<section>`,
-opened from the header's user menu, where Admin appears only for an
-administrator. It is a list of sections beside what one of them shows, and
-there is one section today: accounts. The shape says so honestly — what comes next arrives as an
-entry in `features/admin/sections.ts` and a line in the page's table, rather
-than as a rearrangement of a screen built around exactly one thing. The
-section is in the address, so a link into one is a link; an address naming
-none opens the first, and `/users` still redirects to where accounts moved.
-
-What an account chose for itself is a page of its own at `/preferences`, opened
-from the same menu and reachable by everybody. One row per preference: what is
-being decided, what it costs, and the control that answers it, saved as it is
-changed — there is no draft to lose and nothing to validate against anything
-else, so a Save button would ask the same question twice. No rail of sections
-as Administration has: a rail for one entry is a second thing to read before
-the only setting on the page, and the next preference is another row.
-
-The first of them is how often connections are checked, including never (D19).
-The choices are the server's closed set, and `features/preferences/checks.ts`
-holds only their wording — a complete record, so a choice the server gains and
-the screen forgets to name is a type error rather than a blank line in a menu.
-
-The account form requests no autofill for Email and Name and marks Password as
-`new-password`, including when editing an existing account. Its fields use the
-kit's `persistentLabel` option so browser-filled values cannot overlap their
-labels. These are browser hints, not a guarantee that every password manager
-will leave the fields empty.
-
-The accounts section creates people, switches them off and removes them, and
-it decides nothing about data (D34). The form rules — a password required when
-there is no account and optional when there is — are plain functions in
-`features/admin/users.ts`.
-
-The catalog opens on the grouping the source named, if it named one: a Redis
-connection is written with a database number in it, and only the source has
-read it. Otherwise on every grouping the source calls its own while there are
-few of them, and on the first while there are many. A database with two or
-three schemas is one where a person wants to see what is in it — a server this
-application started has `public` and the demonstration schema, and opening
-only the empty one of the two shows nothing — while a database with forty is
-one where opening them all is a page nobody asked for. The ceiling is
-`DEFAULT_GROUP_CEILING` in `useCatalogLevel.ts`.
-
-What the groupings are called above that control — Schemas, Databases — is a
-table keyed by the kind of the node, in `nodes.ts` beside the roles and the
-icons. A screen that asked which type of source it was looking at is the thing
-that table exists to prevent.
-
-A form field is drawn from what the schema says about it and nothing else: a
-value written on several lines asks for a box rather than a line
-(`x-ui-multiline`, set by `layout()` where the field is declared), the
-sentence under a field is the source's own `description`, and the shape of a
-filled field is its `examples` — JSON Schema's own keyword — shown inside the
-empty control and gone the moment anything is typed. All three are statements
-only the model can make: the type is `string` either way, and "one per line,
-as field=value" is a fact about a Redis hash. A field carrying an example
-keeps its label above the box, because Quasar hides a placeholder until the
-label floats and a floating label sits exactly where the example would be. A
-toggle has no line under it, its label being the whole statement, and a select
-shows no example, its list being one.
+**Table designer.** Arranged after the
+[Variant B reference](../decisions/assets/2026-09-06-table-designer/variant-b.html):
+object navigation, inspector and SQL preview, with creation review replacing the
+definition and breakpoints from a container query. Conditions expand into the
+typed editor on click or Enter; tablespace and owner are shown disabled because
+the creation API accepts neither.
 
 Known deviations:
 
-- **The ceiling on opened groupings is a number, not a measurement.** Five was
-  chosen for the shape of the two cases; nobody has looked at what a database
-  with six schemas feels like.
-- **Where one was in a catalog is not remembered.** The layout survives a reload;
-  the path inside a catalog does not, so a reloaded page is back at the root.
-- **The name of a row loses to the columns beside it in a narrow panel.** The
-  grouping and the measurement each take the width of the widest of them in the
-  level, and the name is what shrinks, down to five characters. With
-  `information_schema` among the groupings on, that costs a name a third of the
-  column. Resizable columns are the only answer today.
-- **Every row carries the copy button, drawn or not.** The list is not
-  virtualised, so a schema of five thousand tables mounts five thousand
-  buttons and their tooltips beside the five thousand tick boxes it already
-  mounted. Drawing one button and moving it to the row under the pointer would
-  cost the keyboard its way to the gesture; virtualising the list would cost
-  neither, and is the answer when the list gets one.
-- **A row of the list carries four marks.** The icon, the name, the state dot on
-  that icon and the highlight that says it is open. On a long list with several
-  catalogs open the column becomes busy, and nobody has measured that.
-- **The two states of the connections column agree by arithmetic, not by
-  construction.** The wide list pads by four pixels because that is where a
-  forty-pixel strip centres a thirty-two pixel button. Change the size of the
-  button and the two drift apart; a scenario measures both and fails when they
-  do.
-- **A revoked grant is noticed when something is asked.** The connection stays
-  on the colleague's screen until the list is read again; the socket says
-  nothing about a level being taken away. Every route refuses in the meantime,
-  so nothing is reachable — only the row is stale.
-- **The state dot only knows about this session.** A connection shows grey until
-  the user checks it; nothing checks in the background, because that would mean
-  opening a connection to every source on every load. The record is not
-  persisted: a dot restored from yesterday would claim more than it knows.
-
-The table designer follows the
-[Variant B reference](../decisions/assets/2026-09-06-table-designer/variant-b.html)
-for its arrangement: a narrow object navigation, an inspector, and an SQL
-preview beside them, with creation review replacing the definition. The
-breakpoints follow the floating window's width through a container query. Its
-appearance is the application's own — the kit's controls as they come, colours
-from the theme tokens, no type sizes of its own — because a visual pass over
-the whole application comes after its behaviour is finished.
-
-Conditions appear as read-only fields and expand into the typed editor on click
-or Enter. The labels are presentation only and are never submitted as SQL.
-Tablespace and owner retain their places from the reference but are disabled:
-the creation API currently accepts neither option.
+- **The ceiling on opened groupings is a number, not a measurement.** Nobody has
+  looked at a database with six schemas.
+- **Where one was in a catalog is not remembered.** A reload is back at the root.
+- **The name of a row loses to the columns beside it in a narrow panel**, down to
+  five characters; resizable columns are the only answer today.
+- **Every row mounts its copy button.** The list is not virtualised, so five
+  thousand tables mount five thousand buttons and tooltips; virtualising is the
+  answer when the list gets it.
+- **The two states of the connections column agree by arithmetic.** The wide list
+  pads four pixels because that centres a 32-pixel button in a 40-pixel strip; a
+  scenario measures both and fails when they drift.
+- **A row of the connections list carries four marks**: the icon, the name, the
+  state dot and the open highlight. With several catalogs open the column gets
+  busy, and nobody has measured it.
+- **A revoked grant is noticed when something is asked.** The row stays until the
+  list is read again; every route refuses in the meantime.
+- **With no colour chosen the catalog outline barely shows**, deliberately: the
+  mark says nothing the tab does not.
