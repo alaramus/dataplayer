@@ -1,0 +1,70 @@
+<div id="dp-connection-design" aria-label="DataPlayer connection window">
+<style>
+#dp-connection-design{--dp-bg:light-dark(#ffffff,#202124);--dp-chrome:light-dark(#f3f4f6,#292b2f);--dp-input:light-dark(#ffffff,#24262a);--dp-line:light-dark(#dcdfe5,#41444b);--dp-text:light-dark(#242831,#e6e8ed);--dp-muted:light-dark(#626b7a,#a4abb8);--dp-accent:light-dark(#315fcc,#80a7ff);--dp-on-accent:light-dark(#ffffff,#111c36);--dp-wash:light-dark(#eaf0ff,#303f5c);--dp-good:light-dark(#257144,#8ad9a4);--dp-radius:6px;--dp-gap:16px;font:13px/1.5 Inter,"Segoe UI",sans-serif;color:var(--dp-text);padding:12px 0}
+#dp-connection-design *{box-sizing:border-box}#dp-connection-design .window{background:var(--dp-bg);border:1px solid var(--dp-line);border-radius:12px;overflow:hidden;max-width:700px;margin:auto}#dp-connection-design header{display:flex;align-items:center;gap:10px;background:var(--dp-chrome);padding:12px 18px;border-bottom:1px solid var(--dp-line)}#dp-connection-design .title{font-weight:500;flex:1}#dp-connection-design .demo{font-size:11px;color:var(--dp-muted);letter-spacing:.08em}#dp-connection-design button,#dp-connection-design input,#dp-connection-design select{font:inherit;color:inherit}#dp-connection-design button{cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;background:var(--dp-input);border:1px solid var(--dp-line);border-radius:var(--dp-radius);padding:6px 12px;min-height:32px}#dp-connection-design button:hover{background:var(--dp-chrome)}#dp-connection-design button:focus-visible,#dp-connection-design input:focus-visible,#dp-connection-design select:focus-visible{outline:2px solid var(--dp-accent);outline-offset:2px}#dp-connection-design .quiet{background:transparent;border-color:transparent}#dp-connection-design .primary{background:var(--dp-accent);color:var(--dp-on-accent);border-color:transparent}#dp-connection-design .primary:hover{filter:brightness(1.08)}#dp-connection-design .identity{padding:18px 22px;display:flex;align-items:center;gap:12px}#dp-connection-design .source-icon{display:grid;place-items:center;width:38px;height:38px;background:var(--dp-wash);color:var(--dp-accent);border-radius:9px}#dp-connection-design .identity-text{flex:1}#dp-connection-design .muted{color:var(--dp-muted);font-size:12px}#dp-connection-design .body{display:grid;grid-template-columns:1fr}#dp-connection-design nav{display:flex;gap:18px;margin:0 22px;border-bottom:1px solid var(--dp-line)}#dp-connection-design nav button{background:transparent;border:0;border-radius:0;padding:8px 0;border-bottom:2px solid transparent;color:var(--dp-muted)}#dp-connection-design nav button[aria-pressed=true]{color:var(--dp-text);border-bottom-color:var(--dp-accent)}#dp-connection-design .fields{padding:22px;display:grid;gap:var(--dp-gap)}#dp-connection-design label{display:grid;gap:6px;font-weight:500;min-width:0}#dp-connection-design input,#dp-connection-design select{width:100%;min-width:0;padding:8px 10px;border:1px solid var(--dp-line);border-radius:var(--dp-radius);background:var(--dp-input);font-weight:400}#dp-connection-design .row{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:12px}#dp-connection-design .equal{grid-template-columns:1fr 1fr}#dp-connection-design .password{display:flex;gap:6px}#dp-connection-design .password button{flex:none}#dp-connection-design .panel[hidden]{display:none}#dp-connection-design .summary{margin:0 22px;padding:12px 0;border-top:1px solid var(--dp-line);display:flex;gap:8px;align-items:center;color:var(--dp-muted);font-size:12px}#dp-connection-design .summary code{overflow-wrap:anywhere;font-size:12px}#dp-connection-design .result{min-height:43px;padding:10px 22px;color:var(--dp-muted);background:var(--dp-chrome);border-top:1px solid var(--dp-line);font-size:12px}#dp-connection-design footer{display:flex;gap:8px;align-items:center;padding:12px 18px;background:var(--dp-chrome)}#dp-connection-design .spacer{flex:1}#dp-connection-design[data-style=soft] .window{border-radius:18px}#dp-connection-design[data-style=soft] .fields{padding:26px}#dp-connection-design[data-style=soft] input,#dp-connection-design[data-style=soft] select{background:var(--dp-chrome);border-color:transparent}#dp-connection-design[data-style=inspector] .body{grid-template-columns:148px minmax(0,1fr)}#dp-connection-design[data-style=inspector] nav{margin:0;padding:16px 10px;display:flex;flex-direction:column;gap:4px;border-bottom:0;border-right:1px solid var(--dp-line);background:var(--dp-chrome)}#dp-connection-design[data-style=inspector] nav button{justify-content:flex-start;padding:8px 10px;border:0;border-radius:var(--dp-radius)}#dp-connection-design[data-style=inspector] nav button[aria-pressed=true]{background:var(--dp-wash);color:var(--dp-accent)}
+@media(max-width:480px){#dp-connection-design .row,#dp-connection-design .equal{grid-template-columns:1fr}#dp-connection-design[data-style=inspector] .body{grid-template-columns:1fr}#dp-connection-design[data-style=inspector] nav{flex-direction:row;flex-wrap:wrap;border-right:0}#dp-connection-design footer{flex-wrap:wrap}#dp-connection-design .identity{flex-wrap:wrap}#dp-connection-design input,#dp-connection-design select{font-size:16px}}
+@media(pointer:coarse){#dp-connection-design button{min-height:44px}}
+</style>
+<style>
+#dp-connection-design{--dp-bg:light-dark(#fafafa,#191a1b);--dp-chrome:light-dark(#eeeeee,#222325);--dp-input:light-dark(#ffffff,#191a1b);--dp-line:light-dark(#cecece,#414448);--dp-text:light-dark(#292929,#d5d7dc);--dp-muted:light-dark(#696969,#91959c);--dp-accent:light-dark(#343434,#d4d6db);--dp-on-accent:light-dark(#ffffff,#191a1b);--dp-wash:light-dark(#e4e4e4,#303236);--dp-good:light-dark(#277243,#91c9a2)}
+#dp-connection-design .window{border-radius:8px}
+#dp-connection-design header{padding:9px 14px}
+#dp-connection-design .identity{padding:14px 18px 8px}
+#dp-connection-design .source-icon{width:24px;height:24px;background:transparent;border-radius:0;color:var(--dp-text)}
+#dp-connection-design nav{margin:0 18px;gap:8px;padding:4px 0 8px}
+#dp-connection-design nav button{padding:4px 9px;border:0;border-radius:4px;min-height:28px}
+#dp-connection-design nav button[aria-pressed=true]{background:var(--dp-wash);color:var(--dp-text)}
+#dp-connection-design .fields{padding:20px 18px 24px;gap:18px}
+#dp-connection-design label{grid-template-columns:106px minmax(0,1fr);align-items:center;gap:12px;font-weight:400}
+#dp-connection-design input,#dp-connection-design select{padding:4px 8px;border-radius:3px;min-height:28px}
+#dp-connection-design .row{grid-template-columns:minmax(0,1fr) 140px;gap:20px}
+#dp-connection-design .row>label:last-child{grid-template-columns:auto minmax(0,1fr)}
+#dp-connection-design .equal{grid-template-columns:1fr;gap:18px}
+#dp-connection-design .equal>label:last-child{grid-template-columns:106px minmax(0,1fr)}
+#dp-connection-design button{border-radius:3px;min-height:28px;padding:4px 12px}
+#dp-connection-design .summary{margin:0 18px;padding:14px 0 18px;border:0;align-items:baseline}
+#dp-connection-design .summary>svg{display:none}
+#dp-connection-design .summary::before{content:'URL:';flex:0 0 110px;color:var(--dp-text);font-size:13px}
+#dp-connection-design .summary code{color:var(--dp-muted)}
+#dp-connection-design .result{background:var(--dp-bg);padding:9px 18px;min-height:36px}
+#dp-connection-design footer{background:var(--dp-bg);padding:10px 14px;border-top:1px solid var(--dp-line)}
+#dp-connection-design #dp-test{border-color:transparent;background:transparent;padding-left:4px}
+@media(max-width:480px){#dp-connection-design .row{grid-template-columns:1fr;gap:18px}#dp-connection-design label,#dp-connection-design .row>label:last-child,#dp-connection-design .equal>label:last-child{grid-template-columns:1fr;gap:5px}#dp-connection-design .summary::before{flex-basis:auto}#dp-connection-design input,#dp-connection-design select{font-size:16px}}
+@media(pointer:coarse){#dp-connection-design button{min-height:44px}}
+</style>
+<section class="window" aria-label="New connection">
+<header><i data-lucide="plug" aria-hidden="true"></i><span class="title">New connection</span><span class="demo">DESIGN PREVIEW</span></header>
+<div class="identity"><span class="source-icon"><i data-lucide="database" aria-hidden="true"></i></span><div class="identity-text"><div>PostgreSQL</div><div class="muted">Database connection</div></div></div>
+<div class="body">
+<nav aria-label="Connection settings"><button type="button" data-panel="general" aria-pressed="true">General</button><button type="button" data-panel="security" aria-pressed="false">Security</button><button type="button" data-panel="advanced" aria-pressed="false">Advanced</button></nav>
+<div>
+<div class="fields panel" data-name="general">
+<label>Connection name<input name="connection-name" value="Analytics" autocomplete="off"></label>
+<div class="row"><label>Host<input name="host" value="localhost" autocomplete="off" spellcheck="false"></label><label>Port<input name="port" value="5432" inputmode="numeric"></label></div>
+<label>Database<input name="database" value="analytics" autocomplete="off"></label>
+<div class="row equal"><label>Username<input name="username" value="analyst" autocomplete="off"></label><label>Password<span class="password"><input name="password" type="password" value="example-only" autocomplete="new-password"><button type="button" class="quiet" aria-label="Show password" id="dp-show-password"><i data-lucide="eye" aria-hidden="true"></i></button></span></label></div>
+</div>
+<div class="fields panel" data-name="security" hidden><label>SSL mode<select><option>Prefer</option><option>Require</option><option>Verify full</option><option>Disable</option></select></label><label>Root certificate<input placeholder="Path to certificate on the server" autocomplete="off"></label></div>
+<div class="fields panel" data-name="advanced" hidden><label>Connection timeout (seconds)<input type="number" min="1" value="10"></label><label>Application name<input value="DataPlayer"></label></div>
+</div></div>
+<div class="summary"><i data-lucide="link" aria-hidden="true"></i><code id="dp-uri">postgresql://analyst@localhost:5432/analytics</code></div>
+<div class="result" role="status" aria-live="polite">Preview only · No connection will be made</div>
+<footer><button type="button" id="dp-test"><i data-lucide="zap" aria-hidden="true"></i>Test connection</button><span class="spacer"></span><button type="button" class="quiet" id="dp-cancel">Cancel</button><button type="button" class="primary" id="dp-create">Create connection</button></footer>
+</section>
+<script>
+(()=>{
+const root=document.getElementById('dp-connection-design');
+const state={style:'compact',density:16};
+const result=root.querySelector('.result');
+function render(){root.dataset.style=state.style;root.style.setProperty('--dp-radius',state.style==='soft'?'10px':'6px');root.style.setProperty('--dp-gap',state.density+'px');}
+render();
+root.querySelectorAll('[data-panel]').forEach(button=>button.addEventListener('click',()=>{root.querySelectorAll('[data-panel]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));root.querySelectorAll('.panel').forEach(p=>p.hidden=p.dataset.name!==button.dataset.panel);}));
+root.querySelector('#dp-show-password').addEventListener('click',event=>{const field=root.querySelector('[name=password]');field.type=field.type==='password'?'text':'password';event.currentTarget.setAttribute('aria-label',field.type==='password'?'Show password':'Hide password');});
+function update(){const value=name=>root.querySelector('[name='+name+']').value;root.querySelector('#dp-uri').textContent='postgresql://'+value('username')+'@'+value('host')+':'+value('port')+'/'+value('database');result.textContent='Preview only · No connection will be made';result.style.color='';}
+root.querySelectorAll('input,select').forEach(field=>field.addEventListener('input',update));
+root.querySelector('#dp-test').addEventListener('click',()=>{result.textContent='Demo result · Connection successful · PostgreSQL 17 · 24 ms';result.style.color='var(--dp-good)';});
+root.querySelector('#dp-create').addEventListener('click',()=>{result.textContent='Preview only · Connection has not been saved';result.style.color='';});
+root.querySelector('#dp-cancel').addEventListener('click',()=>{result.textContent='Preview only · Nothing has been changed';result.style.color='';});
+})();
+</script>
+</div>

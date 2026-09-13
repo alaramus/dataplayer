@@ -4,7 +4,23 @@ The panel engine, the three columns built on it, the drag gesture that moves a
 tab, and the floating windows that edit a connection. The component kit and the
 screens themselves are in [frontend.md](frontend.md).
 
-Decisions here: D12, D14, D69, D92, D93, D94.
+Decisions here: D12, D14, D69, D92, D93, D94, D132.
+
+## D132. Changing content does not resize a stable window
+
+Agreed direction; implementation pending. The shared frame will distinguish
+content-sized simple forms from stable windows for tabs and changing content.
+A stable window starts at a suitable preferred size bounded by the viewport.
+Tab changes, loaded data and validation do not resize or recenter it; excess
+content scrolls inside the body while title, tabs and footer remain available.
+Manual geometry survives tab changes and maximize/restore. Viewport changes
+may constrain it. No cross-session geometry persistence is introduced.
+
+Current deviation: D14's automatic fitting still follows changing content;
+the stable policy has not been implemented. The saved example demonstrates
+appearance, not stable geometry.
+
+Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
 
 ## What exists today
 

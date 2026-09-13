@@ -195,6 +195,8 @@ files. IDs are stable because specs and commits refer to them.
 | D128 | [dashboards](docs/architecture/dashboards.md) |
 | D129 | [dashboards](docs/architecture/dashboards.md) |
 | D130 | [dashboards](docs/architecture/dashboards.md) |
+| D131 | [frontend](docs/architecture/frontend.md) |
+| D132 | [workspace](docs/architecture/workspace.md) |
 
 ## Working rules
 

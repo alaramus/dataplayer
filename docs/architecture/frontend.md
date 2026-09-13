@@ -5,7 +5,19 @@ panel engine, the layout and floating windows are in
 [workspace.md](workspace.md); the grid, its downloads and its charts are in
 [grid.md](grid.md); 2D and 3D graph viewers are in [graphs.md](graphs.md).
 
-Decisions here: D6, D7, D11, D50, D99.
+Decisions here: D6, D7, D11, D50, D99, D131.
+
+## D131. Window forms use neutral surfaces and restrained borders
+
+Agreed direction; implementation pending. Use grey surfaces, a distinct title
+bar, compact fields with persistent left-aligned labels, and spacing rather
+than nested cards to group content. Borders belong mainly to inputs and the
+window; quiet separators distinguish major regions. Avoid blue-tinted chrome
+and decorative accent stripes. Reflow labels above fields at narrow widths.
+Shared UI tokens and components own the appearance; Quasar remains the base.
+The spec includes the accepted visual example and rejected directions.
+
+Spec: [Neutral window design and stable sizing](../decisions/2026-09-13-window-design-and-sizing.md)
 
 ## What exists today
 

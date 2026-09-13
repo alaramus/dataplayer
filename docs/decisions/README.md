@@ -17,6 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
+| 2026-09-13 | [Neutral window design and stable sizing](2026-09-13-window-design-and-sizing.md) | D131–D132: agreed, implementation pending; neutral compact forms with minimal borders, a saved visual example, and stable geometry for tabbed or changing content |
 | 2026-09-13 | [Dashboards: metric collection, storage and display](2026-09-13-dashboards-design.md) | DB1–DB5 implemented. D125–D130: a space of its own, an installation-owned TimescaleDB store set up on first entry, one collecting process, typed sources, dashboards read through one access check, agent packets interpreted in one place |
 | 2026-09-13 | [The backend runs as one process](2026-09-13-one-backend-process-design.md) | D124: the image names one worker, because everything the lifespan builds is correct in one process only |
 | 2026-09-07 | [TimescaleDB through a PostgreSQL connection](2026-09-07-timescale-capabilities-design.md) | T1 completed on 2026-09-08, as confirmed by the user, T2 on 2026-09-11 and T3 on 2026-09-12, each with all checks green. D119–D123: composed extension support, runtime discovery, typed relational specialisation, paged reports and guarded source operations |
