@@ -92,7 +92,10 @@ async function logout() {
     class="app-layout"
     :class="fill ? 'app-layout--fill' : undefined"
   >
-    <q-header class="app-layout__header" data-testid="app-header">
+    <q-header
+      class="app-layout__header"
+      data-testid="app-header"
+    >
       <q-toolbar class="app-layout__toolbar">
         <q-toolbar-title
           class="app-layout__title"
