@@ -122,20 +122,20 @@ function remove(index: number) {
 .sort-editor__add {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--dp-space-2);
 }
 
 .sort-editor {
   flex-wrap: wrap;
-  min-height: 48px;
-  padding: 4px 8px;
+  min-height: calc(var(--dp-toolbar-height) + 2 * var(--dp-space-1));
+  padding: var(--dp-space-1) var(--dp-space-2);
   border-top: 1px solid var(--dp-border-faint);
 }
 
 .sort-editor__item {
-  padding-left: 8px;
+  padding-left: var(--dp-space-2);
   border: 1px solid var(--dp-border);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
 }
 
 .sort-editor__priority {

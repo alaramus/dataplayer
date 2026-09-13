@@ -726,8 +726,8 @@ onBeforeUnmount(() => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 4px;
-  gap: 4px;
+  padding: var(--dp-space-1);
+  gap: var(--dp-space-1);
 }
 .markdown-panel__head,
 .markdown-panel__tools,
@@ -737,21 +737,21 @@ onBeforeUnmount(() => {
 }
 .markdown-panel__head {
   justify-content: space-between;
-  gap: 8px;
-  min-height: 40px;
-  padding: 2px 8px;
+  gap: var(--dp-space-2);
+  min-height: var(--dp-toolbar-height);
+  padding: var(--dp-space-1) var(--dp-space-2);
   border-bottom: 1px solid var(--dp-border-faint);
 }
 .markdown-panel__tools,
 .markdown-panel__actions {
-  gap: 2px;
+  gap: var(--dp-space-1);
 }
 .markdown-panel__tools {
   min-width: 0;
 }
 .markdown-panel__search {
   width: min(220px, 30vw);
-  margin-left: 4px;
+  margin-left: var(--dp-space-1);
 }
 .markdown-panel__search-position {
   min-width: 36px;
@@ -762,8 +762,8 @@ onBeforeUnmount(() => {
 .markdown-panel__remote {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 4px 8px;
+  gap: var(--dp-space-3);
+  padding: var(--dp-space-1) var(--dp-space-2);
   color: var(--dp-text-muted);
   font-size: 11px;
 }
@@ -778,11 +778,11 @@ onBeforeUnmount(() => {
 .markdown-panel__outline {
   flex: 0 0 210px;
   overflow: auto;
-  padding: 12px 8px;
+  padding: var(--dp-space-3) var(--dp-space-2);
   border-right: 1px solid var(--dp-border-faint);
 }
 .markdown-panel__outline-title {
-  padding: 0 8px 6px;
+  padding: 0 var(--dp-space-2) var(--dp-space-1);
   color: var(--dp-text-muted);
   font-size: 10px;
   letter-spacing: 0.05em;
@@ -801,10 +801,10 @@ onBeforeUnmount(() => {
   text-align: left;
 }
 .markdown-panel__outline-entry--2 {
-  padding-left: 12px;
+  padding-left: var(--dp-space-3);
 }
 .markdown-panel__outline-entry--3 {
-  padding-left: 24px;
+  padding-left: calc(2 * var(--dp-space-3));
   font-size: 11px;
 }
 .markdown-panel__outline-entry--active {

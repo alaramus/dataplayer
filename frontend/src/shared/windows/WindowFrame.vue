@@ -236,7 +236,7 @@ const resizeEdges: ResizeEdge[] = [
   min-height: 0;
   background: var(--dp-surface-raised);
   border: 1px solid var(--dp-border-strong);
-  border-radius: 6px;
+  border-radius: var(--dp-radius-panel);
   box-shadow: 0 6px 24px var(--dp-shadow);
   overflow: hidden;
 }
@@ -258,8 +258,8 @@ const resizeEdges: ResizeEdge[] = [
   flex: none;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 4px 4px 10px;
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-1) var(--dp-space-1) var(--dp-space-1) var(--dp-space-3);
   background: var(--dp-panel-background, var(--dp-active));
   color: var(--dp-panel-foreground, inherit);
   cursor: grab;

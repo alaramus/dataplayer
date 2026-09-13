@@ -375,6 +375,12 @@ Spec: [Markdown as a rendered document representation](../decisions/2026-08-31-m
 
 ## Screens
 
+Floating window frames use the kit's panel radius and spacing scale. Filter
+and sort editors derive their minimum height from the shared toolbar height
+plus vertical padding, and use control radii for conditions. Markdown chrome
+uses the same toolbar and spacing tokens, including its outline; document
+typography and reading geometry remain owned by the representation.
+
 In the structure panel, Type and Null remain ordinary readable text when the
 source does not allow changing them; a generated column's type is also text.
 The reason remains available in a tooltip. Editable values retain their action

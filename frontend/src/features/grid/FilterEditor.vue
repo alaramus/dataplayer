@@ -213,9 +213,9 @@ function removeFilter(index: number) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  min-height: 48px;
-  gap: 8px;
-  padding: 4px 8px;
+  min-height: calc(var(--dp-toolbar-height) + 2 * var(--dp-space-1));
+  gap: var(--dp-space-2);
+  padding: var(--dp-space-1) var(--dp-space-2);
   border-top: 1px solid var(--dp-border-faint);
 }
 
@@ -224,7 +224,7 @@ function removeFilter(index: number) {
 .filter-editor__condition {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--dp-space-2);
 }
 
 .filter-editor__active,
@@ -233,9 +233,9 @@ function removeFilter(index: number) {
 }
 
 .filter-editor__condition {
-  padding-left: 8px;
+  padding-left: var(--dp-space-2);
   border: 1px solid var(--dp-border);
-  border-radius: 4px;
+  border-radius: var(--dp-radius-control);
 }
 
 .filter-editor__draft :deep(.q-field) {
