@@ -47,6 +47,7 @@ legacy notes and stay unchanged.
 | Layout, tabs, dragging, floating windows | [workspace.md](docs/architecture/workspace.md) |
 | A notification, something waiting for an answer, running work on screen | [notifications.md](docs/architecture/notifications.md) |
 | A diagram of nodes and connections, in 2D or 3D | [graphs.md](docs/architecture/graphs.md) |
+| Metrics from agents and connections, their store, dashboards | [dashboards.md](docs/architecture/dashboards.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
 | Any code | [ENGINEERING.md](ENGINEERING.md) |
 
@@ -188,6 +189,12 @@ files. IDs are stable because specs and commits refer to them.
 | D122 | [sources/timescale](docs/architecture/sources/timescale.md) |
 | D123 | [sources/timescale](docs/architecture/sources/timescale.md) |
 | D124 | [backend](docs/architecture/backend.md) |
+| D125 | [dashboards](docs/architecture/dashboards.md) |
+| D126 | [dashboards](docs/architecture/dashboards.md) |
+| D127 | [dashboards](docs/architecture/dashboards.md) |
+| D128 | [dashboards](docs/architecture/dashboards.md) |
+| D129 | [dashboards](docs/architecture/dashboards.md) |
+| D130 | [dashboards](docs/architecture/dashboards.md) |
 
 ## Working rules
 
