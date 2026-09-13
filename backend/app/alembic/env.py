@@ -36,7 +36,7 @@ from app.queries.history import QueryRetention  # noqa
 from app.queries.unlocks import WriteUnlock  # noqa
 from app.jobs.models import Job  # noqa
 from app.services.models import ManagedService  # noqa
-from app.metrics.models import MetricsAgent, MetricsStoreSetting  # noqa
+from app.metrics.models import MetricsAgent, MetricsConnector, MetricsStoreSetting  # noqa
 from app.metrics.dashboards import Dashboard  # noqa
 
 target_metadata = SQLModel.metadata

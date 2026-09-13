@@ -145,7 +145,7 @@ function afterDelete() {
             variant="quiet"
             size="sm"
             icon="sensors"
-            label="Agents"
+            label="Sources"
             data-testid="agents-open"
             @click="agentsOpen = true"
           />
@@ -153,7 +153,7 @@ function afterDelete() {
         <div class="dashboards__sources">
           <AppEmptyState
             v-if="sources.length === 0"
-            text="No agents yet"
+            text="Nothing reports yet"
           />
           <AppTree
             v-else

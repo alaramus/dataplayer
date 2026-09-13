@@ -218,7 +218,8 @@ class MetricsStore:
                 {
                     "ids": [point.series_id for point in points],
                     "moments": [_moment(point.ts) for point in points],
-                    "values": [point.value for point in points],
+                    # One type for the array: psycopg refuses a list mixing int and float.
+                    "values": [float(point.value) for point in points],
                 },
             )
             await connection.execute(
@@ -269,7 +270,7 @@ class MetricsStore:
             )
 
     async def catalog(self, sources: Sequence[uuid.UUID]) -> list[StoredSeries]:
-        """Every series of the given agents."""
+        """Every series of the given sources, agents and connections alike."""
         if not sources:
             return []
         rows = await self._fetch(
@@ -277,7 +278,7 @@ class MetricsStore:
             SELECT id, source_kind, source_id, host, metric, field, label, unit,
                    first_seen, last_seen
             FROM metric_series
-            WHERE source_kind = 'agent' AND source_id = ANY(CAST(:sources AS uuid[]))
+            WHERE source_id = ANY(CAST(:sources AS uuid[]))
             ORDER BY host, metric, field, label
             """,
             {"sources": list(sources)},
@@ -301,7 +302,7 @@ class MetricsStore:
         rows = await self._fetch(
             """
             SELECT source_id, max(last_seen) AS heard FROM metric_series
-            WHERE source_kind = 'agent' AND source_id = ANY(CAST(:sources AS uuid[]))
+            WHERE source_id = ANY(CAST(:sources AS uuid[]))
             GROUP BY source_id
             """,
             {"sources": list(sources)},
@@ -376,13 +377,13 @@ class MetricsStore:
         return points
 
     async def seen(self, sources: Sequence[uuid.UUID]) -> dict[int, int]:
-        """When each series of these agents was last written, in seconds."""
+        """When each series of these sources was last written, in seconds."""
         if not sources:
             return {}
         rows = await self._fetch(
             """
             SELECT id, last_seen FROM metric_series
-            WHERE source_kind = 'agent' AND source_id = ANY(CAST(:sources AS uuid[]))
+            WHERE source_id = ANY(CAST(:sources AS uuid[]))
             """,
             {"sources": list(sources)},
         )

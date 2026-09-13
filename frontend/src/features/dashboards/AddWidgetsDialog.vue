@@ -7,7 +7,8 @@ import { AppButton, AppEmptyState, AppSpinner, AppTree } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 import { usePresets } from "./api"
-import { catalogTree, hostOfKey, tickedProcesses, tickedSeries } from "./catalog"
+import type { PresetTarget } from "./api"
+import { catalogTree, connectorOfKey, hostOfKey, tickedProcesses, tickedSeries } from "./catalog"
 import type { SeriesEntry } from "./catalog"
 import type { Widget } from "./dashboardModel"
 import { draftsFor } from "./widgetSpecs"
@@ -31,8 +32,15 @@ const ticked = ref<string[]>([])
 // Ticks say what to draw; the row selected says which host's ready-made
 // layouts to offer. Two questions asked of one tree.
 const selected = ref<string | null>(null)
-const host = computed(() => hostOfKey(selected.value))
-const presets = usePresets(host)
+const target = computed<PresetTarget | null>(() => {
+  const host = hostOfKey(selected.value)
+  if (host !== null) return { kind: "host", ...host, label: host.host }
+  const connectorId = connectorOfKey(selected.value)
+  if (connectorId === null) return null
+  const connector = props.catalog?.connectors?.find((one) => one.connector_id === connectorId)
+  return connector === undefined ? null : { kind: "connector", connectorId, label: connector.name }
+})
+const presets = usePresets(target)
 const expanded = ref<string[]>([])
 const nodes = computed(() => catalogTree(props.catalog))
 
@@ -97,9 +105,9 @@ function add() {
     data-testid="add-widgets"
   >
     <AppEmptyState
-      v-if="nodes.length === 0 || nodes.every((agent) => (agent.children ?? []).length === 0)"
+      v-if="nodes.length === 0 || nodes.every((source) => (source.children ?? []).length === 0)"
       icon="sensors_off"
-      text="No agent has reported anything yet. Register one and start it with the key it is given."
+      text="Nothing has reported anything yet. Register an agent, or switch a connection's reporting on, in Sources."
     />
     <div
       v-else
@@ -107,9 +115,9 @@ function add() {
       data-testid="add-widgets-presets"
     >
       <span
-        v-if="host === null"
+        v-if="target === null"
         class="add-widgets__hint"
-      >Select a host to see its ready-made layouts, or tick what to draw.</span>
+      >Select a host or a connection to see its ready-made layouts, or tick what to draw.</span>
       <AppSpinner v-else-if="presets.isPending.value" />
       <span
         v-else-if="presets.isError.value"
@@ -122,7 +130,7 @@ function add() {
           class="add-widgets__preset"
         >
           <div class="add-widgets__preset-text">
-            <span>{{ preset.name }} for {{ host.host }}</span>
+            <span>{{ preset.name }} for {{ target.label }}</span>
             <span class="add-widgets__hint">{{ preset.description }} {{ preset.widgets.length }} of {{ preset.total }} widgets.</span>
           </div>
           <AppButton
@@ -160,7 +168,7 @@ function add() {
       <span class="add-widgets__summary">{{ summary }}</span>
       <AppButton
         variant="quiet"
-        label="Agents"
+        label="Sources"
         icon="sensors"
         @click="emit('agents')"
       />

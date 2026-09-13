@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.adapters.actions import DeclaresActions
 from app.adapters.cache import SourceCacheWindows, SupportsReadCache
 from app.adapters.features import FEATURE_TITLES
+from app.adapters.metrics import SupportsMetrics
 from app.adapters.options import OptionsSchema
 from app.adapters.protocol import (
     DataAdapter,
@@ -103,6 +104,7 @@ CapabilityCode = Literal[
     "relation_model",
     "create_relation",
     "backup",
+    "metrics",
 ]
 
 
@@ -257,6 +259,14 @@ def capabilities_of(adapter_type: AdapterType) -> list[Capability]:
                 group="manage",
                 title="Create a relation from rows",
                 code="create_relation",
+            )
+        )
+    if issubclass(driver, SupportsMetrics):
+        found.append(
+            Capability(
+                group="explore",
+                title="Report its own metrics to dashboards",
+                code="metrics",
             )
         )
     if issubclass(driver, SupportsBackup):

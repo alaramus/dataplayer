@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.db import async_session_maker
-from app.metrics import crud
+from app.metrics.access import readable_sources
 from app.metrics.holder import StoreHolder
 from app.metrics.store import MetricsStore, StoreUnavailable
 from app.realtime.topics import Subscriber, register
@@ -148,10 +148,10 @@ class LiveTopic:
     async def _round(self, user_id: uuid.UUID, marks: Watermarks) -> None:
         async with async_session_maker() as session:
             store = await self._stores.get(session)
-            agents = [agent.id for agent in await crud.agents_of(session, user_id)]
+            sources = sorted(await readable_sources(session, user_id))
         if store is None:
             return
-        payload = await read_round(store, agents, marks, now=int(time.time()))
+        payload = await read_round(store, sources, marks, now=int(time.time()))
         if payload is None:
             return
         async with self._lock:
@@ -163,10 +163,10 @@ class LiveTopic:
 
 
 async def read_round(
-    store: MetricsStore, agents: list[uuid.UUID], marks: Watermarks, *, now: int
+    store: MetricsStore, sources: list[uuid.UUID], marks: Watermarks, *, now: int
 ) -> LivePoints | None:
     """One round: the points written since the last one, or None."""
-    seen = await store.seen(agents)
+    seen = await store.seen(sources)
     changed = marks.changed(seen)
     if not changed:
         return None

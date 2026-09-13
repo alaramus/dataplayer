@@ -8,9 +8,9 @@ Decisions here: D125, D126, D127, D128, D129, D130.
 
 **Implementation status:** DB1 — the store, its setup, collection, agents,
 catalog and history —, DB2 — the screen, dashboards, widgets, the agents window
-— and DB3 — live points, process tables, ready-made layouts, a widget in a
-window — are implemented. DB4–DB6 are in the spec; connection metrics, rollups
-and sharing are not there yet.
+—, DB3 — live points, process tables, ready-made layouts, a widget in a window
+— and DB4 — connections reporting about themselves — are implemented. DB5 and
+DB6 are in the spec; rollups, restart notices and sharing are not there yet.
 
 ## What exists today
 
@@ -31,6 +31,13 @@ by CPU, memory or PID. Selecting a host in the Add window offers its ready-made
 layouts — today one, *Linux host* — filled with what that host reports, and
 placed under what the dashboard already holds. Any widget opens in a floating
 window, which stays when the screen is switched back to Data.
+
+A PostgreSQL or Redis connection reports about itself once its owner switches
+reporting on in the Sources window, choosing how often. Its series sit beside the
+agents in the tree under the connection's own name, anybody the connection is
+shared with can draw them, and selecting it offers the layout its type declares:
+*PostgreSQL database* or *Redis server*. Counters of a connection are drawn as
+rates per second.
 
 A person registers agents and receives the key each reports under. The `metrics` process receives their
 packets and writes samples and process snapshots; the web process answers the
@@ -58,7 +65,13 @@ backend/app/metrics/
 ├── dashboards.py   Dashboard, its widget union and limits
 ├── presets.py      ready-made layouts and resolving them against a host
 ├── live.py         the `metrics.points` topic
+├── poller.py       connections polled for metrics, in the metrics process
 └── routes.py       /metrics
+
+backend/app/adapters/
+├── metrics.py            SupportsMetrics, a sample, a recipe and a layout
+├── postgres/metrics.py   pg_stat_database and pg_stat_activity; its layout
+└── redis/metrics.py      INFO; its layout
 
 frontend/src/
 ├── stores/space.ts               which space fills the screen
@@ -99,7 +112,9 @@ POST   /api/v1/metrics/agents/{agent_id}/purge
 GET    /api/v1/metrics/catalog
 POST   /api/v1/metrics/history
 GET    /api/v1/metrics/processes?agent_id=&host=&sort=&limit=
-GET    /api/v1/metrics/presets?agent_id=&host=
+GET    /api/v1/metrics/presets?agent_id=&host=  |  ?connector_id=
+GET    /api/v1/metrics/connectors
+PUT    /api/v1/metrics/connectors/{connector_id}      owner
 GET    /api/v1/metrics/dashboards
 POST   /api/v1/metrics/dashboards
 GET    /api/v1/metrics/dashboards/{dashboard_id}
@@ -220,6 +235,14 @@ sample. The web process reads the store and never writes points.
   its batch is written, so a series seen without a newer point is asked again
   until ten seconds have passed.
 
+- **Connections are polled here too**, and only here: every connection whose
+  owner switched reporting on and which is itself switched on, on the interval
+  the owner chose (15 s to 5 min), with the owner's stored credentials and no
+  pool, at most four at once and ten seconds each. A connection that cannot be
+  read backs off the way health does (D19). A counter becomes a rate per second
+  over the time between two polls, so its meaning does not change with the
+  interval; the first poll after a start draws no rate.
+
 Known deviations of the live points:
 
 - **Points of series nobody is looking at are pushed too**, bounded by what the
@@ -246,7 +269,18 @@ Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
 A source is an agent plus the host its packet named, or a connection. The
 identity of a series is `(source, metric, field, label)`. No host name is
-invented for a connection.
+invented for a connection: its series carry an empty host, and a screen names
+them after the connection.
+
+- **Whether a connection reports is its own capability**, `SupportsMetrics`,
+  read off the driver like every other (D2, D13), with the layouts it declares.
+  PostgreSQL and Redis implement it; the file source does not, and switching it
+  on answers 501.
+- **Switching reporting on is the owner's decision alone**: it is this server
+  polling their database. Anybody the connection is shared with sees whether it
+  reports and reads its series.
+- **Reporting is a row of the metrics module**, not a field of the connector:
+  the connector knows nothing of dashboards.
 
 - An agent's series are its owner's; a connection's series follow D33; a
   superuser is not special (D34).
@@ -256,9 +290,16 @@ invented for a connection.
 - The agents window gives a Compose snippet with the address, the key, a fixed
   `hostname` and no `iftop` action.
 
-Known deviation: **deleting an agent keeps its samples** until retention
-removes them; purging is a separate command. Its series stay in the store,
-readable by nobody, because nobody owns the agent any more.
+Known deviations:
+
+- **Deleting an agent keeps its samples** until retention removes them; purging
+  is a separate command. Its series stay in the store, readable by nobody,
+  because nobody owns the agent any more. The same holds for a deleted
+  connection.
+- **A connection's series stay readable after its reporting is switched off**,
+  and after the connection itself is: they are history, not a source.
+- **A grant taken away is noticed at the next read**, the way D33's is; points
+  already on screen stay there until then.
 
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
@@ -285,8 +326,8 @@ names. Limits: 12 columns, 20 widgets, 200 series per history request, titles of
   server fills it from one host's catalog and leaves out what that host does not
   report. The gaps are closed on the screen by the grid arithmetic every move
   uses, so the layout is not compacted in two places. Layouts are declared per
-  kind of source; agents have *Linux host*, and connections declare theirs in
-  DB4.
+  kind of source: agents have *Linux host*, and a connection's type declares
+  its own through `SupportsMetrics`.
 - A grant on a dashboard (D33's levels) will let its holder read exactly the
   series on it; until sharing lands the answer is the owner alone.
 

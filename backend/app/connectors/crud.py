@@ -142,6 +142,12 @@ async def list_for(
     return listed, count
 
 
+async def visible_of(session: AsyncSession, *, user_id: uuid.UUID) -> list[Connector]:
+    """Every connection one user may see, owned or granted, switched on or not."""
+    statement = select(Connector).where(_visible_to(user_id))
+    return list((await session.exec(statement)).all())
+
+
 async def visible_enabled_of(
     session: AsyncSession, *, user_id: uuid.UUID
 ) -> list[Connector]:

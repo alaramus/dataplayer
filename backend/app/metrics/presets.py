@@ -9,11 +9,10 @@ placed on a dashboard, by the same grid arithmetic every other move uses.
 
 import uuid
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import Literal
 
 from pydantic import BaseModel
 
+from app.adapters.metrics import MetricPreset, MetricRecipe
 from app.metrics.dashboards import (
     AnyWidget,
     ProcessesWidget,
@@ -23,23 +22,8 @@ from app.metrics.dashboards import (
 )
 from app.metrics.store import StoredSeries
 
-
-@dataclass(frozen=True)
-class Recipe:
-    type: Literal["timeseries", "stat", "processes"]
-    title: str
-    layout: tuple[int, int, int, int]
-    metric: str = ""
-    # None: every field of the metric.
-    fields: tuple[str, ...] | None = None
-
-
-@dataclass(frozen=True)
-class Preset:
-    key: str
-    name: str
-    description: str
-    recipes: tuple[Recipe, ...]
+Recipe = MetricRecipe
+Preset = MetricPreset
 
 
 # A host `sys_monitor_agent` reports. No recipe spans units, so `cpu` is three
@@ -85,13 +69,17 @@ class ResolvedPreset(BaseModel):
 def resolve(
     preset: Preset,
     *,
-    agent_id: uuid.UUID,
+    source_id: uuid.UUID,
     host: str,
     series: Sequence[StoredSeries],
     reports_processes: bool,
 ) -> ResolvedPreset:
-    """The preset as this host can fill it."""
-    mine = [one for one in series if one.source.id == agent_id and one.host == host]
+    """The preset as one host of an agent, or one connection, can fill it.
+
+    A connection's series carry an empty host; a process table is only ever an
+    agent's.
+    """
+    mine = [one for one in series if one.source.id == source_id and one.host == host]
     widgets: list[AnyWidget] = []
     for recipe in preset.recipes:
         x, y, w, h = recipe.layout
@@ -104,7 +92,7 @@ def resolve(
                         id=uuid.uuid4(),
                         title=recipe.title,
                         layout=layout,
-                        agent_id=agent_id,
+                        agent_id=source_id,
                         host=host,
                     )
                 )

@@ -40,7 +40,7 @@ def test_a_host_that_reports_everything_fills_every_recipe() -> None:
         _series(10, "df", "Used", "/"),
     ]
 
-    preset = resolve(LINUX_HOST, agent_id=AGENT, host="web-01", series=series, reports_processes=True)
+    preset = resolve(LINUX_HOST, source_id=AGENT, host="web-01", series=series, reports_processes=True)
 
     assert preset.total == len(preset.widgets) == 9
     by_title = {widget.title: widget for widget in preset.widgets}
@@ -58,7 +58,7 @@ def test_a_host_that_reports_everything_fills_every_recipe() -> None:
 def test_a_recipe_that_matches_nothing_is_left_out() -> None:
     series = [_series(1, "cpu", "uptime"), _series(2, "cpu", "cpu", "total", host="db-01")]
 
-    preset = resolve(LINUX_HOST, agent_id=AGENT, host="web-01", series=series, reports_processes=False)
+    preset = resolve(LINUX_HOST, source_id=AGENT, host="web-01", series=series, reports_processes=False)
 
     assert [widget.title for widget in preset.widgets] == ["Uptime"]
     assert preset.total == 9
@@ -67,7 +67,7 @@ def test_a_recipe_that_matches_nothing_is_left_out() -> None:
 def test_another_agent_s_series_of_the_same_host_name_are_not_taken() -> None:
     series = [_series(1, "cpu", "uptime", agent=uuid.uuid4())]
 
-    preset = resolve(LINUX_HOST, agent_id=AGENT, host="web-01", series=series, reports_processes=False)
+    preset = resolve(LINUX_HOST, source_id=AGENT, host="web-01", series=series, reports_processes=False)
 
     assert preset.widgets == []
 

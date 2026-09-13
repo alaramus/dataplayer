@@ -16,7 +16,9 @@ from app.metrics import crud
 from app.metrics.models import MetricsAgent, MetricsStoreSetting
 from app.metrics.packets import ProcessRow, ProcessSnapshot
 from app.metrics.store import MetricsStore, PointRow, SeriesKey, Source
+from app.users import crud as user_crud
 from tests.metrics.conftest import needs_store
+from tests.utils.database import working_postgres_options
 from tests.utils.service_engine import FakeEngine, engine_of
 from tests.utils.user import authentication_token_from_email
 from tests.utils.utils import random_email
@@ -320,3 +322,102 @@ async def test_process_tables_and_presets_are_read_through_the_owner_of_the_agen
         f"{BASE}/presets", headers=stranger_headers, params={"agent_id": str(agent_id), "host": "web-01"}
     )
     assert refused.status_code == 404
+
+
+async def _postgres_connector(client: AsyncClient, headers: dict[str, str]) -> str:
+    response = await client.post(
+        f"{settings.API_V1_STR}/connectors/",
+        headers=headers,
+        json={"name": f"reporting {uuid.uuid4()}", "adapter_type": "postgres", "options": working_postgres_options()},
+    )
+    assert response.status_code == 200, response.text
+    return str(response.json()["id"])
+
+
+@needs_store
+async def test_a_connection_reports_by_its_owner_s_choice_and_is_read_through_its_grants(
+    client: AsyncClient,
+    db: Any,
+    superuser_token_headers: dict[str, str],
+    normal_user_token_headers: dict[str, str],
+    stranger_headers: dict[str, str],
+    store_options: dict[str, Any],
+    store: MetricsStore,
+) -> None:
+    await _connect(client, superuser_token_headers, store_options)
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    email = random_email()
+    colleague_headers = await authentication_token_from_email(client=client, email=email, db=db)
+    colleague = await user_crud.get_user_by_email(session=db, email=email)
+    assert colleague is not None
+    granted = await client.put(
+        f"{settings.API_V1_STR}/connectors/{connector_id}/grants",
+        headers=normal_user_token_headers,
+        json={"user_id": str(colleague.id), "access": "read"},
+    )
+    assert granted.status_code == 200, granted.text
+
+    owned = (await client.get(f"{BASE}/connectors", headers=normal_user_token_headers)).json()
+    shared = (await client.get(f"{BASE}/connectors", headers=colleague_headers)).json()
+    unseen = (await client.get(f"{BASE}/connectors", headers=stranger_headers)).json()
+    mine = next(row for row in owned if row["connector_id"] == connector_id)
+    assert mine["enabled"] is False and mine["may_change"] is True
+    assert next(row for row in shared if row["connector_id"] == connector_id)["may_change"] is False
+    assert all(row["connector_id"] != connector_id for row in unseen)
+
+    body = {"enabled": True, "interval_seconds": 15}
+    by_colleague = await client.put(f"{BASE}/connectors/{connector_id}", headers=colleague_headers, json=body)
+    by_stranger = await client.put(f"{BASE}/connectors/{connector_id}", headers=stranger_headers, json=body)
+    by_owner = await client.put(f"{BASE}/connectors/{connector_id}", headers=normal_user_token_headers, json=body)
+    odd = await client.put(f"{BASE}/connectors/{connector_id}", headers=normal_user_token_headers, json={"enabled": True, "interval_seconds": 1})
+    assert by_colleague.status_code == 403
+    assert by_stranger.status_code == 404
+    assert by_owner.status_code == 200, by_owner.text
+    assert by_owner.json()["enabled"] is True and by_owner.json()["interval_seconds"] == 15
+    assert odd.status_code == 422
+
+    source = Source(kind="connector", id=uuid.UUID(connector_id))
+    key = SeriesKey("", "sessions", "count", "total")
+    series_id = (await store.series_ids(source, [(key, "", START)]))[key]
+    await store.write_points([PointRow(series_id, START, 3.0)])
+
+    catalog = (await client.get(f"{BASE}/catalog", headers=colleague_headers)).json()
+    (reported,) = [one for one in catalog["connectors"] if one["connector_id"] == connector_id]
+    assert reported["adapter_type"] == "postgres"
+    assert reported["metrics"][0]["series"][0]["id"] == series_id
+    stranger_catalog = (await client.get(f"{BASE}/catalog", headers=stranger_headers)).json()
+    assert all(one["connector_id"] != connector_id for one in stranger_catalog["connectors"])
+
+    body = {"series_ids": [series_id], "start": START - 60, "end": START + 60}
+    assert (await client.post(f"{BASE}/history", headers=colleague_headers, json=body)).status_code == 200
+    assert (await client.post(f"{BASE}/history", headers=stranger_headers, json=body)).status_code == 404
+
+    presets = await client.get(f"{BASE}/presets", headers=colleague_headers, params={"connector_id": connector_id})
+    assert presets.status_code == 200, presets.text
+    (database,) = presets.json()
+    assert database["key"] == "postgres-database"
+    assert [widget["title"] for widget in database["widgets"]] == ["Sessions by state"]
+    both = await client.get(
+        f"{BASE}/presets", headers=colleague_headers, params={"connector_id": connector_id, "host": "x"}
+    )
+    assert both.status_code == 422
+
+
+async def test_a_source_that_does_not_report_metrics_cannot_be_switched_on(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    response = await client.post(
+        f"{settings.API_V1_STR}/connectors/",
+        headers=normal_user_token_headers,
+        json={"name": f"files {uuid.uuid4()}", "adapter_type": "file", "options": {"path": "/"}},
+    )
+    connector_id = response.json()["id"]
+
+    refused = await client.put(
+        f"{BASE}/connectors/{connector_id}", headers=normal_user_token_headers, json={"enabled": True}
+    )
+    listed = (await client.get(f"{BASE}/connectors", headers=normal_user_token_headers)).json()
+
+    assert refused.status_code == 501
+    assert all(row["connector_id"] != connector_id for row in listed)
+

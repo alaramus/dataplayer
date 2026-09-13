@@ -10,7 +10,7 @@ let nextId = 1
 
 function entry(host: string, metric: string, field: string, label: string, unit: string): SeriesEntry {
   nextId += 1
-  return { id: nextId, agentId: "a", agentName: "agent", host, metric, field, label, unit, lastSeen: "" }
+  return { id: nextId, sourceId: "a", sourceName: "agent", host, metric, field, label, unit, lastSeen: "" }
 }
 
 const CATALOG: MetricsCatalog = {

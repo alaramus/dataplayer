@@ -69,6 +69,45 @@ class MetricsStoreSetting(SQLModel, table=True):
     )
 
 
+ReportingInterval = Literal[15, 30, 60, 300]
+
+
+class MetricsConnector(SQLModel, table=True):
+    """Whether a connection reports its own metrics, and how often (D128).
+
+    A row of its own rather than a column of the connector: reporting is about
+    dashboards, and a connector knows nothing of them.
+    """
+
+    connector_id: uuid.UUID = Field(
+        foreign_key="connector.id", primary_key=True, ondelete="CASCADE"
+    )
+    enabled: bool = Field(default=False)
+    interval_seconds: int = Field(default=30)
+    changed_at: datetime = Field(
+        default_factory=get_datetime_utc,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
+class ConnectorReporting(BaseModel):
+    connector_id: uuid.UUID
+    name: str
+    adapter_type: str
+    enabled: bool
+    interval_seconds: ReportingInterval
+    # Only the owner decides whether their database is polled.
+    may_change: bool
+    last_heard_at: datetime | None = None
+
+
+class ReportingUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool
+    interval_seconds: ReportingInterval = 30
+
+
 class AgentCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -156,8 +195,17 @@ class AgentSources(BaseModel):
     hosts: list[HostInfo]
 
 
+class ConnectorSources(BaseModel):
+    connector_id: uuid.UUID
+    name: str
+    adapter_type: str
+    last_seen: datetime
+    metrics: list[MetricInfo]
+
+
 class MetricsCatalog(BaseModel):
     agents: list[AgentSources]
+    connectors: list[ConnectorSources] = PydanticField(default_factory=list)
 
 
 ProcessLimit = Literal[10, 20, 50, 100, 200]

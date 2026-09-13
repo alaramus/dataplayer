@@ -39,6 +39,12 @@ export function duration(seconds: number): string {
 }
 
 export function formatValue(value: number, unit: string): string {
+  if (unit.endsWith("/s") && unit !== "b/s") {
+    // A connection's counter, read as a rate: bytes step like bytes, a count
+    // keeps a short number.
+    const base = unit.slice(0, -2)
+    return base === "" ? `${short(value)} /s` : `${formatValue(value, base)}/s`
+  }
   const bytes = BYTES_PER[unit]
   if (bytes !== undefined) return stepped(value * bytes, BYTE_STEPS)
   if (unit === "b/s") return stepped(value, BIT_STEPS)

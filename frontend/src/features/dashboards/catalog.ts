@@ -7,12 +7,15 @@
  */
 
 import type { MetricsCatalog } from "@/client"
+import { adapterIcon } from "@/features/connectors/adapters"
 import type { TreeNodes } from "@/shared/ui"
 
 export interface SeriesEntry {
   id: number
-  agentId: string
-  agentName: string
+  /** The agent or the connection that reported it. */
+  sourceId: string
+  sourceName: string
+  /** What the series is shown under: the agent's host, or the connection's name. */
   host: string
   metric: string
   field: string
@@ -29,8 +32,8 @@ export function indexCatalog(catalog: MetricsCatalog | undefined): Map<number, S
         for (const series of metric.series) {
           index.set(series.id, {
             id: series.id,
-            agentId: agent.agent_id,
-            agentName: agent.name,
+            sourceId: agent.agent_id,
+            sourceName: agent.name,
             host: host.host,
             metric: metric.metric,
             field: series.field,
@@ -39,6 +42,23 @@ export function indexCatalog(catalog: MetricsCatalog | undefined): Map<number, S
             lastSeen: series.last_seen,
           })
         }
+      }
+    }
+  }
+  for (const connector of catalog?.connectors ?? []) {
+    for (const metric of connector.metrics) {
+      for (const series of metric.series) {
+        index.set(series.id, {
+          id: series.id,
+          sourceId: connector.connector_id,
+          sourceName: connector.name,
+          host: connector.name,
+          metric: metric.metric,
+          field: series.field,
+          label: series.label,
+          unit: series.unit,
+          lastSeen: series.last_seen,
+        })
       }
     }
   }
@@ -91,12 +111,42 @@ export function tickedProcesses(ticked: readonly string[]): HostRef[] {
   return ticked.map((key) => refAfter(key, PROCESSES_PREFIX)).filter((ref): ref is HostRef => ref !== null)
 }
 
+const CONNECTOR_PREFIX = "connector:"
+
+/** The connection a tree key names, when it names one. */
+export function connectorOfKey(key: string | null): string | null {
+  return key !== null && key.startsWith(CONNECTOR_PREFIX) ? key.slice(CONNECTOR_PREFIX.length) : null
+}
+
 /** The host a tree key names, when it names a host. */
 export function hostOfKey(key: string | null): HostRef | null {
   return key === null ? null : refAfter(key, HOST_PREFIX)
 }
 
+function seriesNodes(series: MetricsCatalog["agents"][number]["hosts"][number]["metrics"][number]["series"]) {
+  return series.map((one) => ({
+    key: seriesKey(one.id),
+    label: one.label ? `${one.field} ${one.label}` : one.field,
+    caption: one.unit,
+  }))
+}
+
 export function catalogTree(catalog: MetricsCatalog | undefined): TreeNodes {
+  const connectors = (catalog?.connectors ?? []).map((connector) => ({
+    key: `${CONNECTOR_PREFIX}${connector.connector_id}`,
+    label: connector.name,
+    icon: adapterIcon(connector.adapter_type),
+    children: connector.metrics.map((metric) => ({
+      key: `metric:${connector.connector_id}:${metric.metric}`,
+      label: metric.metric,
+      icon: "show_chart",
+      children: seriesNodes(metric.series),
+    })),
+  }))
+  return [...agentNodes(catalog), ...connectors]
+}
+
+function agentNodes(catalog: MetricsCatalog | undefined): TreeNodes {
   return (catalog?.agents ?? []).map((agent) => ({
     key: `agent:${agent.agent_id}`,
     label: agent.name,
@@ -110,11 +160,7 @@ export function catalogTree(catalog: MetricsCatalog | undefined): TreeNodes {
         key: `metric:${agent.agent_id}:${host.host}:${metric.metric}`,
         label: metric.metric,
         icon: "show_chart",
-        children: metric.series.map((series) => ({
-          key: seriesKey(series.id),
-          label: series.label ? `${series.field} ${series.label}` : series.field,
-          caption: series.unit,
-        })),
+        children: seriesNodes(metric.series),
       })),
         ...(host.processes
           ? [{ key: processesKey({ agentId: agent.agent_id, host: host.host }), label: "processes", icon: "list" }]

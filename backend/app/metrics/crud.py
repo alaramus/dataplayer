@@ -7,9 +7,10 @@ from typing import Any
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.connectors.models import Connector
 from app.metrics import keys
 from app.metrics.dashboards import Dashboard
-from app.metrics.models import MetricsAgent, MetricsStoreSetting
+from app.metrics.models import MetricsAgent, MetricsConnector, MetricsStoreSetting
 
 
 async def store_setting(session: AsyncSession) -> MetricsStoreSetting | None:
@@ -101,3 +102,22 @@ async def dashboards_of(session: AsyncSession, owner_id: uuid.UUID) -> list[Dash
         .order_by(col(Dashboard.created_at))
     )
     return list((await session.exec(statement)).all())
+
+
+async def reporting_of(
+    session: AsyncSession, connector_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, MetricsConnector]:
+    if not connector_ids:
+        return {}
+    statement = select(MetricsConnector).where(col(MetricsConnector.connector_id).in_(connector_ids))
+    return {row.connector_id: row for row in (await session.exec(statement)).all()}
+
+
+async def reporting_connectors(session: AsyncSession) -> list[tuple[Connector, MetricsConnector]]:
+    """Every switched-on connection whose owner switched reporting on."""
+    statement = (
+        select(Connector, MetricsConnector)
+        .join(MetricsConnector, col(MetricsConnector.connector_id) == col(Connector.id))
+        .where(col(MetricsConnector.enabled).is_(True), col(Connector.enabled).is_(True))
+    )
+    return [(connector, row) for connector, row in (await session.exec(statement)).all()]

@@ -4,7 +4,7 @@ import type { MaybeRefOrGetter } from "vue"
 import { toValue } from "vue"
 
 import { MetricsService } from "@/client"
-import type { DashboardPublic, DashboardSave, HistoryAnswer, StoreStatus } from "@/client"
+import type { DashboardPublic, DashboardSave, HistoryAnswer, ReportingUpdate, StoreStatus } from "@/client"
 import { isJobEvent, JOBS_TOPIC } from "@/features/services/jobs"
 import { realtime } from "@/shared/realtime/client"
 
@@ -212,15 +212,52 @@ export function useProcesses(
   })
 }
 
-export function usePresets(ref: MaybeRefOrGetter<{ agentId: string; host: string } | null>) {
+/** What a ready-made layout is asked for: one host of an agent, or one connection. */
+export type PresetTarget =
+  | { kind: "host"; agentId: string; host: string; label: string }
+  | { kind: "connector"; connectorId: string; label: string }
+
+export function usePresets(target: MaybeRefOrGetter<PresetTarget | null>) {
   return useQuery({
-    queryKey: computed(() => ["metrics-presets", toValue(ref)?.agentId ?? "", toValue(ref)?.host ?? ""] as const),
+    queryKey: computed(() => {
+      const chosen = toValue(target)
+      if (chosen === null) return ["metrics-presets", "none"] as const
+      return chosen.kind === "host"
+        ? (["metrics-presets", chosen.agentId, chosen.host] as const)
+        : (["metrics-presets", chosen.connectorId] as const)
+    }),
     queryFn: async () => {
-      const chosen = toValue(ref)
+      const chosen = toValue(target)
       if (chosen === null) return []
-      return (await MetricsService.readPresets({ query: { agent_id: chosen.agentId, host: chosen.host } })).data
+      const query = chosen.kind === "host"
+        ? { agent_id: chosen.agentId, host: chosen.host }
+        : { connector_id: chosen.connectorId }
+      return (await MetricsService.readPresets({ query })).data
     },
-    enabled: computed(() => toValue(ref) !== null),
+    enabled: computed(() => toValue(target) !== null),
+  })
+}
+
+export const reportingKey = ["metrics-reporting"] as const
+
+export function useReporting(enabled: MaybeRefOrGetter<boolean>) {
+  return useQuery({
+    queryKey: reportingKey,
+    queryFn: async () => (await MetricsService.readReporting()).data,
+    enabled: computed(() => toValue(enabled)),
+    refetchInterval: 30_000,
+  })
+}
+
+export function useUpdateReporting() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { connectorId: string; body: ReportingUpdate }) =>
+      (await MetricsService.updateReporting({ path: { connector_id: input.connectorId }, body: input.body })).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: reportingKey })
+      await queryClient.invalidateQueries({ queryKey: metricsCatalogKey })
+    },
   })
 }
 

@@ -914,7 +914,14 @@ export type Capability = {
   /**
    * Code
    */
-  code?: "search" | "content_search" | "relation_model" | "create_relation" | "backup" | null
+  code?:
+    | "search"
+    | "content_search"
+    | "relation_model"
+    | "create_relation"
+    | "backup"
+    | "metrics"
+    | null
 }
 
 /**
@@ -1663,6 +1670,66 @@ export type ConnectorPublic = {
    * Updated At
    */
   updated_at?: string | null
+}
+
+/**
+ * ConnectorReporting
+ */
+export type ConnectorReporting = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Adapter Type
+   */
+  adapter_type: string
+  /**
+   * Enabled
+   */
+  enabled: boolean
+  /**
+   * Interval Seconds
+   */
+  interval_seconds: 15 | 30 | 60 | 300
+  /**
+   * May Change
+   */
+  may_change: boolean
+  /**
+   * Last Heard At
+   */
+  last_heard_at?: string | null
+}
+
+/**
+ * ConnectorSources
+ */
+export type ConnectorSources = {
+  /**
+   * Connector Id
+   */
+  connector_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Adapter Type
+   */
+  adapter_type: string
+  /**
+   * Last Seen
+   */
+  last_seen: string
+  /**
+   * Metrics
+   */
+  metrics: Array<MetricInfo>
 }
 
 /**
@@ -4705,6 +4772,10 @@ export type MetricsCatalog = {
    * Agents
    */
   agents: Array<AgentSources>
+  /**
+   * Connectors
+   */
+  connectors?: Array<ConnectorSources>
 }
 
 /**
@@ -6726,6 +6797,20 @@ export type ReportNode = {
    * Description
    */
   description?: string | null
+}
+
+/**
+ * ReportingUpdate
+ */
+export type ReportingUpdate = {
+  /**
+   * Enabled
+   */
+  enabled: boolean
+  /**
+   * Interval Seconds
+   */
+  interval_seconds?: 15 | 30 | 60 | 300
 }
 
 /**
@@ -14624,6 +14709,57 @@ export type metricsReadCatalogResponses = {
 export type metricsReadCatalogResponse =
   metricsReadCatalogResponses[keyof metricsReadCatalogResponses]
 
+export type metricsReadReportingData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/connectors"
+}
+
+export type metricsReadReportingResponses = {
+  /**
+   * Response Metrics-Read Reporting
+   *
+   * Successful Response
+   */
+  200: Array<ConnectorReporting>
+}
+
+export type metricsReadReportingResponse =
+  metricsReadReportingResponses[keyof metricsReadReportingResponses]
+
+export type metricsUpdateReportingData = {
+  body: ReportingUpdate
+  path: {
+    /**
+     * Connector Id
+     */
+    connector_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/connectors/{connector_id}"
+}
+
+export type metricsUpdateReportingErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsUpdateReportingError =
+  metricsUpdateReportingErrors[keyof metricsUpdateReportingErrors]
+
+export type metricsUpdateReportingResponses = {
+  /**
+   * Successful Response
+   */
+  200: ConnectorReporting
+}
+
+export type metricsUpdateReportingResponse =
+  metricsUpdateReportingResponses[keyof metricsUpdateReportingResponses]
+
 export type metricsReadProcessesData = {
   body?: never
   path?: never
@@ -14670,15 +14806,19 @@ export type metricsReadProcessesResponse =
 export type metricsReadPresetsData = {
   body?: never
   path?: never
-  query: {
+  query?: {
     /**
      * Agent Id
      */
-    agent_id: string
+    agent_id?: string | null
     /**
      * Host
      */
-    host: string
+    host?: string | null
+    /**
+     * Connector Id
+     */
+    connector_id?: string | null
   }
   url: "/api/v1/metrics/presets"
 }

@@ -1,4 +1,4 @@
-"""The metrics process: agent packets in, samples into the store (D127).
+"""The metrics process: agent packets in, connections polled, samples into the store (D127).
 
 Run as `python -m app.metrics.collector`. One process: it holds the UDP port
 and the previous sample of every counter. It waits while no store is set up and
@@ -20,6 +20,7 @@ from app.metrics import crud, keys
 from app.metrics.counters import CounterState
 from app.metrics.holder import options_of
 from app.metrics.packets import process_snapshot_of, read_envelope, samples_of
+from app.metrics.poller import ConnectionPoller, poll_forever
 from app.metrics.store import (
     MetricsStore,
     PointRow,
@@ -274,9 +275,11 @@ async def serve() -> None:
             agent_keys = AgentKeys()
             await agent_keys.refresh()
             collector = Collector(store, agent_keys.agent_for, counts)
+            poller = ConnectionPoller(store)
             tasks = [
                 asyncio.create_task(_work(queue, collector, counts)),
                 asyncio.create_task(_refresh(agent_keys, collector)),
+                asyncio.create_task(poll_forever(poller)),
             ]
             logger.info("Writing to the metrics store")
             try:

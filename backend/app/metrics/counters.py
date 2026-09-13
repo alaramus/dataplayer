@@ -6,9 +6,10 @@ here. The previous sample lives in memory, so the first packet after a restart
 yields nothing for a counter.
 """
 
-from collections.abc import Hashable
+from collections.abc import Hashable, Sequence
 from dataclasses import replace
 
+from app.adapters.metrics import MetricSample
 from app.metrics.packets import Sample
 
 INCREMENT_SUFFIX = "_delta"
@@ -46,4 +47,36 @@ class CounterState:
                     value=sample.value - previous_value,
                 )
             )
+        return result
+
+
+class RateState:
+    """Counters a connection reports, turned into rates per second.
+
+    A connection is polled on an interval its owner chose, so an increment per
+    poll would change its meaning with the interval; a rate does not.
+    """
+
+    def __init__(self) -> None:
+        self._previous: dict[tuple[Hashable, str, str, str], tuple[int, float]] = {}
+
+    def expand(self, source: Hashable, ts: int, readings: Sequence[MetricSample]) -> list[Sample]:
+        result: list[Sample] = []
+        for reading in readings:
+            if not reading.counter:
+                result.append(
+                    Sample(reading.metric, reading.field, reading.label, reading.unit, ts, reading.value)
+                )
+                continue
+            key = (source, reading.metric, reading.field, reading.label)
+            previous = self._previous.get(key)
+            self._previous[key] = (ts, reading.value)
+            if previous is None:
+                continue
+            previous_ts, previous_value = previous
+            if ts <= previous_ts or reading.value < previous_value:
+                continue
+            unit = f"{reading.unit}/s" if reading.unit else "/s"
+            rate = (reading.value - previous_value) / (ts - previous_ts)
+            result.append(Sample(reading.metric, reading.field, reading.label, unit, ts, rate))
         return result

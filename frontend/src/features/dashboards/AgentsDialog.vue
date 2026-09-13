@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
-import type { AgentKey, AgentPublic } from "@/client"
+import type { AgentKey, AgentPublic, ConnectorReporting } from "@/client"
+import { adapterIcon } from "@/features/connectors/adapters"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
 import { serverUrl } from "@/shared/servers/context"
@@ -11,7 +12,10 @@ import {
   AppIconButton,
   AppInput,
   AppSection,
+  AppSelect,
   AppTable,
+  AppToggle,
+  AppTooltip,
   useConfirm,
   useToast,
 } from "@/shared/ui"
@@ -25,12 +29,16 @@ import {
   useCreateAgent,
   useDeleteAgent,
   usePurgeAgent,
+  useReporting,
   useRotateAgentKey,
+  useUpdateReporting,
 } from "./api"
 
 /**
- * The agents of the person looking: registering one hands out the key it
- * reports under, and the Compose file to start it with (D128).
+ * What reports metrics: the agents of the person looking — registering one
+ * hands out the key it reports under, and the Compose file to start it with —
+ * and the connections they may see whose type reports about itself, switched on
+ * by their owners (D128).
  */
 const open = defineModel<boolean>({ required: true })
 
@@ -41,6 +49,34 @@ const creating = useCreateAgent()
 const rotating = useRotateAgentKey()
 const deleting = useDeleteAgent()
 const purging = usePurgeAgent()
+
+const reporting = useReporting(open)
+const updating = useUpdateReporting()
+
+const INTERVALS: { value: ConnectorReporting["interval_seconds"]; label: string }[] = [
+  { value: 15, label: "Every 15 s" },
+  { value: 30, label: "Every 30 s" },
+  { value: 60, label: "Every minute" },
+  { value: 300, label: "Every 5 minutes" },
+]
+
+const connectionColumns: TableColumns = [
+  { name: "name", label: "Connection", field: "name", align: "left" },
+  { name: "reports", label: "Reports", field: "enabled", align: "left" },
+  { name: "interval", label: "How often", field: "interval_seconds", align: "left" },
+  { name: "heard", label: "Last reported", field: "last_heard_at", align: "left" },
+]
+
+async function report(row: ConnectorReporting, patch: Partial<Pick<ConnectorReporting, "enabled" | "interval_seconds">>) {
+  try {
+    await updating.mutateAsync({
+      connectorId: row.connector_id,
+      body: { enabled: patch.enabled ?? row.enabled, interval_seconds: patch.interval_seconds ?? row.interval_seconds },
+    })
+  } catch (cause) {
+    toast.error(messageOf(cause, "Reporting could not be changed"))
+  }
+}
 
 const newName = ref("")
 const shown = ref<AgentKey | null>(null)
@@ -152,8 +188,8 @@ async function copy(text: string, what: string) {
 <template>
   <WindowDialog
     v-model="open"
-    title="Agents"
-    subtitle="Programs that report a host's metrics to this server"
+    title="Sources"
+    subtitle="Agents that report a host, and connections that report about themselves"
     size="lg"
     data-testid="agents-dialog"
   >
@@ -222,6 +258,64 @@ async function copy(text: string, what: string) {
     </AppSection>
 
     <AppSection
+      divided
+      gutter
+    >
+      <span>Connections</span>
+      <AppTable
+        :rows="reporting.data.value ?? []"
+        :columns="connectionColumns"
+        row-key="connector_id"
+        :loading="reporting.isLoading.value"
+        empty-text="No connection you can see reports metrics"
+        compact
+        :paged="false"
+        data-testid="reporting-table"
+      >
+        <template #body-cell-name="cellProps">
+          <q-td :props="cellProps">
+            <q-icon
+              :name="adapterIcon(cellProps.row.adapter_type)"
+              size="16px"
+            />
+            {{ cellProps.row.name }}
+          </q-td>
+        </template>
+        <template #body-cell-reports="cellProps">
+          <q-td :props="cellProps">
+            <span class="agents__slot">
+              <AppToggle
+                :model-value="cellProps.row.enabled"
+                :disable="!cellProps.row.may_change || updating.isPending.value"
+                :aria-label="`Report metrics of ${cellProps.row.name}`"
+                :data-testid="`reporting-${cellProps.row.name}`"
+                @update:model-value="(value) => report(cellProps.row, { enabled: value })"
+              />
+              <AppTooltip v-if="!cellProps.row.may_change">Only the owner of this connection switches its reporting on</AppTooltip>
+            </span>
+          </q-td>
+        </template>
+        <template #body-cell-interval="cellProps">
+          <q-td :props="cellProps">
+            <AppSelect
+              :model-value="cellProps.row.interval_seconds"
+              :options="INTERVALS"
+              :disable="!cellProps.row.may_change"
+              compact
+              aria-label="How often"
+              @update:model-value="(value) => report(cellProps.row, { interval_seconds: value as ConnectorReporting['interval_seconds'] })"
+            />
+          </q-td>
+        </template>
+        <template #body-cell-heard="cellProps">
+          <q-td :props="cellProps">
+            {{ lastHeardWording(cellProps.row.last_heard_at, now) }}
+          </q-td>
+        </template>
+      </AppTable>
+    </AppSection>
+
+    <AppSection
       v-if="shown"
       divided
       gutter
@@ -261,6 +355,10 @@ async function copy(text: string, what: string) {
 </template>
 
 <style scoped>
+.agents__slot {
+  display: inline-flex;
+}
+
 .agents__register,
 .agents__key {
   display: flex;

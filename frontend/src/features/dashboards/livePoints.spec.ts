@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { HistoryAnswer, MetricsCatalog, TimeseriesWidget } from "@/client"
 
-import { catalogTree, hostOfKey, processesKey, tickedProcesses } from "./catalog"
+import { catalogTree, connectorOfKey, hostOfKey, indexCatalog, processesKey, tickedProcesses } from "./catalog"
 import { MAX_WIDGETS, withOptions, withPreset } from "./dashboardModel"
 import type { Widget } from "./dashboardModel"
 import { isLivePoints, mergeLive } from "./livePoints"
@@ -108,3 +108,37 @@ describe("a ready-made layout on a dashboard", () => {
     expect(withOptions([chart("c", 0, 0)], "c", { limit: 50 })[0]).not.toHaveProperty("limit")
   })
 })
+
+describe("connections in the catalog", () => {
+  const catalog: MetricsCatalog = {
+    agents: [],
+    connectors: [
+      {
+        connector_id: "c1",
+        name: "orders db",
+        adapter_type: "postgres",
+        last_seen: "",
+        metrics: [
+          { metric: "sessions", series: [{ id: 7, field: "count", label: "active", unit: "", first_seen: "", last_seen: "" }] },
+        ],
+      },
+    ],
+  }
+
+  it("is a branch of its own, named and drawn by its type, and read back", () => {
+    const [node] = catalogTree(catalog)
+
+    expect(node?.label).toBe("orders db")
+    expect(node?.icon).toBe("img:/icons/services/postgresql.svg")
+    expect(connectorOfKey(String(node?.key))).toBe("c1")
+    expect(connectorOfKey("host:x")).toBeNull()
+  })
+
+  it("names its series after the connection", () => {
+    const entry = indexCatalog(catalog).get(7)
+
+    expect(entry).toMatchObject({ sourceId: "c1", host: "orders db", metric: "sessions" })
+    expect(draftsFor(entry === undefined ? [] : [entry])[0]?.title).toBe("sessions · orders db")
+  })
+})
+

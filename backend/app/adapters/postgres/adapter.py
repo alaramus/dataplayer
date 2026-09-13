@@ -31,6 +31,7 @@ from app.adapters.indexes import (
     DropIndexRequest,
     IndexDropped,
 )
+from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.postgres.actions import POSTGRES_ACTION_TYPES, PostgresActions
 from app.adapters.postgres.backup import PostgresBackup
 from app.adapters.postgres.catalog import PostgresCatalog
@@ -43,6 +44,8 @@ from app.adapters.postgres.features import PostgresFeatures
 from app.adapters.postgres.fetch import PostgresFetch
 from app.adapters.postgres.indexes import PostgresIndexes
 from app.adapters.postgres.metadata import PostgresGeneration, PostgresMetadata
+from app.adapters.postgres.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.postgres.metrics import PostgresMetrics
 from app.adapters.postgres.options import PostgresOptions
 from app.adapters.postgres.query import (
     PostgresExecution,
@@ -150,6 +153,7 @@ class PostgresAdapter:
     ) -> None:
         self._session = PostgresSession(options, pooling)
         self._features = PostgresFeatures(self._session)
+        self._metrics = PostgresMetrics(self._session)
         self._relation_context = PostgresRelationContext(
             self._session, self._features
         )
@@ -308,6 +312,13 @@ class PostgresAdapter:
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
+
+    async def metric_samples(self) -> list[MetricSample]:
+        return await self._metrics.metric_samples()
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
 
     async def source_features(self) -> SourceFeatures:
         return await self._features.source_features()

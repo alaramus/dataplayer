@@ -7,6 +7,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters import registry
+from app.adapters.metrics import SupportsMetrics
+from app.adapters.registry import UnknownAdapterType
+from app.connectors.access import get_or_404
+from app.connectors.models import Connector
 from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.schemas import Message
@@ -29,20 +34,24 @@ from app.metrics.models import (
     AgentPublic,
     AgentSources,
     AgentUpdate,
+    ConnectorReporting,
+    ConnectorSources,
     HistoryAnswer,
     HistoryRequest,
     HostInfo,
     MetricInfo,
     MetricsAgent,
     MetricsCatalog,
+    MetricsConnector,
     ProcessInfo,
     ProcessTable,
+    ReportingUpdate,
     SeriesHistory,
     SeriesInfo,
     StoreConnect,
     StoreStatus,
 )
-from app.metrics.presets import AGENT_PRESETS, ResolvedPreset, resolve
+from app.metrics.presets import AGENT_PRESETS, Preset, ResolvedPreset, resolve
 from app.metrics.store import (
     MetricsStore,
     ProcessSort,
@@ -211,16 +220,73 @@ async def purge_agent(
 async def read_catalog(
     session: SessionDep, current_user: CurrentUser, holder: StoreHolderDep
 ) -> Any:
-    """Agents, the hosts they reported, their metrics and series."""
+    """Agents and the hosts they reported, and connections that reported about
+    themselves, each with their metrics and series."""
     store = await _store(session, holder)
     agents = await crud.agents_of(session, current_user.id)
+    connectors = await access.readable_connectors(session, current_user.id)
     ids = [agent.id for agent in agents]
     try:
-        stored = await store.catalog(ids)
+        stored = await store.catalog([*ids, *(connector.id for connector in connectors)])
         processes = await store.process_hosts(ids)
     except StoreUnavailable:
         raise _unavailable() from None
-    return MetricsCatalog(agents=[_sources_of(agent, stored, processes) for agent in agents])
+    return MetricsCatalog(
+        agents=[_sources_of(agent, stored, processes) for agent in agents],
+        connectors=[
+            reported
+            for connector in sorted(connectors, key=lambda one: one.name.lower())
+            if (reported := _connector_sources(connector, stored)) is not None
+        ],
+    )
+
+
+@router.get("/connectors", response_model=list[ConnectorReporting])
+async def read_reporting(
+    session: SessionDep, current_user: CurrentUser, holder: StoreHolderDep
+) -> Any:
+    """Connections this user may see whose type reports metrics, and whether each does."""
+    connectors = [
+        connector
+        for connector in await access.readable_connectors(session, current_user.id)
+        if _reports_metrics(connector)
+    ]
+    settings_by_id = await crud.reporting_of(session, [connector.id for connector in connectors])
+    heard: dict[uuid.UUID, datetime] = {}
+    try:
+        store = await holder.get(session)
+        if store is not None:
+            heard = await store.last_heard([connector.id for connector in connectors])
+    except StoreUnavailable:
+        heard = {}
+    return [
+        _reporting(connector, settings_by_id.get(connector.id), current_user.id, heard)
+        for connector in sorted(connectors, key=lambda one: one.name.lower())
+    ]
+
+
+@router.put("/connectors/{connector_id}", response_model=ConnectorReporting)
+async def update_reporting(
+    session: SessionDep,
+    current_user: CurrentUser,
+    connector_id: uuid.UUID,
+    body: ReportingUpdate,
+) -> Any:
+    """Switch a connection's reporting on or off. Its owner's decision alone:
+    reporting is this server polling their database."""
+    connector = await get_or_404(session, connector_id, current_user, requires="own")
+    if not _reports_metrics(connector):
+        raise HTTPException(
+            501, detail={"message": "This kind of source does not report metrics"}
+        )
+    row = await session.get(MetricsConnector, connector.id) or MetricsConnector(connector_id=connector.id)
+    row.enabled = body.enabled
+    row.interval_seconds = body.interval_seconds
+    row.changed_at = datetime.now(UTC)
+    session.add(row)
+    await session.commit()
+    await session.refresh(row)
+    return _reporting(connector, row, current_user.id, {})
 
 
 @router.get("/processes", response_model=ProcessTable)
@@ -267,29 +333,42 @@ async def read_presets(
     session: SessionDep,
     current_user: CurrentUser,
     holder: StoreHolderDep,
-    agent_id: uuid.UUID,
-    host: str,
+    agent_id: uuid.UUID | None = None,
+    host: str | None = None,
+    connector_id: uuid.UUID | None = None,
 ) -> Any:
-    """The ready-made dashboards for one host, as that host can fill them."""
-    try:
-        await access.require_agent(session, current_user, agent_id)
-    except access.AgentNotReadable:
-        raise HTTPException(404, detail={"message": "No such agent"}) from None
+    """The ready-made dashboards for one host of an agent, or for one
+    connection, as it can fill them. A connection's type declares its own."""
+    if connector_id is not None and agent_id is None and host is None:
+        connector = await get_or_404(session, connector_id, current_user, requires="read")
+        presets = _presets_of(connector)
+        source_id, source_host, processes_known = connector.id, "", False
+    elif agent_id is not None and host is not None and connector_id is None:
+        try:
+            await access.require_agent(session, current_user, agent_id)
+        except access.AgentNotReadable:
+            raise HTTPException(404, detail={"message": "No such agent"}) from None
+        presets = AGENT_PRESETS
+        source_id, source_host, processes_known = agent_id, host, True
+    else:
+        raise HTTPException(
+            422, detail={"message": "Name an agent and a host, or a connection"}
+        )
     store = await _store(session, holder)
     try:
-        stored = await store.catalog([agent_id])
-        processes = await store.process_hosts([agent_id])
+        stored = await store.catalog([source_id])
+        processes = await store.process_hosts([source_id]) if processes_known else {}
     except StoreUnavailable:
         raise _unavailable() from None
     return [
         resolve(
             preset,
-            agent_id=agent_id,
-            host=host,
+            source_id=source_id,
+            host=source_host,
             series=stored,
-            reports_processes=(agent_id, host) in processes,
+            reports_processes=(source_id, source_host) in processes,
         )
-        for preset in AGENT_PRESETS
+        for preset in presets
     ]
 
 
@@ -493,6 +572,76 @@ def _natural(text: str) -> tuple[tuple[int, int | str], ...]:
     return tuple(parts)
 
 
+def _reports_metrics(connector: Connector) -> bool:
+    try:
+        return issubclass(registry.get(connector.adapter_type).adapter_class, SupportsMetrics)
+    except UnknownAdapterType:
+        return False
+
+
+def _presets_of(connector: Connector) -> tuple[Preset, ...]:
+    try:
+        driver = registry.get(connector.adapter_type).adapter_class
+    except UnknownAdapterType:
+        return ()
+    return driver.metric_presets() if issubclass(driver, SupportsMetrics) else ()
+
+
+def _reporting(
+    connector: Connector,
+    row: MetricsConnector | None,
+    user_id: uuid.UUID,
+    heard: dict[uuid.UUID, datetime],
+) -> ConnectorReporting:
+    interval = row.interval_seconds if row is not None else 30
+    return ConnectorReporting(
+        connector_id=connector.id,
+        name=connector.name,
+        adapter_type=connector.adapter_type,
+        enabled=row.enabled if row is not None else False,
+        interval_seconds=interval if interval in (15, 30, 60, 300) else 30,  # type: ignore[arg-type]  # a stored number outside the set reads as the default
+        may_change=connector.owner_id == user_id,
+        last_heard_at=heard.get(connector.id),
+    )
+
+
+def _connector_sources(connector: Connector, stored: list[StoredSeries]) -> ConnectorSources | None:
+    """What one connection reported, or None when it never reported anything."""
+    mine: dict[str, list[StoredSeries]] = defaultdict(list)
+    for series in stored:
+        if series.source.id == connector.id:
+            mine[series.metric].append(series)
+    if not mine:
+        return None
+    return ConnectorSources(
+        connector_id=connector.id,
+        name=connector.name,
+        adapter_type=connector.adapter_type,
+        last_seen=max(s.last_seen for group in mine.values() for s in group),
+        metrics=_metric_infos(mine),
+    )
+
+
+def _metric_infos(metrics: dict[str, list[StoredSeries]]) -> list[MetricInfo]:
+    return [
+        MetricInfo(
+            metric=metric,
+            series=[
+                SeriesInfo(
+                    id=s.id,
+                    field=s.field,
+                    label=s.label,
+                    unit=s.unit,
+                    first_seen=s.first_seen,
+                    last_seen=s.last_seen,
+                )
+                for s in sorted(group, key=lambda s: (_natural(s.field), _natural(s.label)))
+            ],
+        )
+        for metric, group in sorted(metrics.items())
+    ]
+
+
 def _sources_of(
     agent: MetricsAgent,
     stored: list[StoredSeries],
@@ -514,25 +663,7 @@ def _sources_of(
                 + ([processes[(agent.id, host)]] if (agent.id, host) in processes else [])
             ),
             processes=(agent.id, host) in processes,
-            metrics=[
-                MetricInfo(
-                    metric=metric,
-                    series=[
-                        SeriesInfo(
-                            id=s.id,
-                            field=s.field,
-                            label=s.label,
-                            unit=s.unit,
-                            first_seen=s.first_seen,
-                            last_seen=s.last_seen,
-                        )
-                        for s in sorted(
-                            group, key=lambda s: (_natural(s.field), _natural(s.label))
-                        )
-                    ],
-                )
-                for metric, group in sorted(metrics.items())
-            ],
+            metrics=_metric_infos(metrics),
         )
         for host, metrics in sorted(by_host.items())
     ]

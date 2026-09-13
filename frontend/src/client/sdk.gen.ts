@@ -276,6 +276,8 @@ import type {
   metricsReadProcessesData,
   metricsReadProcessesErrors,
   metricsReadProcessesResponses,
+  metricsReadReportingData,
+  metricsReadReportingResponses,
   metricsReadStoreStatusData,
   metricsReadStoreStatusResponses,
   metricsRenameAgentData,
@@ -289,6 +291,9 @@ import type {
   metricsSaveDashboardResponses,
   metricsStartStoreData,
   metricsStartStoreResponses,
+  metricsUpdateReportingData,
+  metricsUpdateReportingErrors,
+  metricsUpdateReportingResponses,
   privateCreateUserData,
   privateCreateUserErrors,
   privateCreateUserResponses,
@@ -4388,7 +4393,8 @@ export class MetricsService {
   /**
    * Read Catalog
    *
-   * Agents, the hosts they reported, their metrics and series.
+   * Agents and the hosts they reported, and connections that reported about
+   * themselves, each with their metrics and series.
    */
   public static readCatalog<ThrowOnError extends boolean = true>(
     options?: Options<metricsReadCatalogData, ThrowOnError>
@@ -4398,6 +4404,47 @@ export class MetricsService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/catalog",
       ...options,
+    })
+  }
+
+  /**
+   * Read Reporting
+   *
+   * Connections this user may see whose type reports metrics, and whether each does.
+   */
+  public static readReporting<ThrowOnError extends boolean = true>(
+    options?: Options<metricsReadReportingData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<metricsReadReportingResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/connectors",
+      ...options,
+    })
+  }
+
+  /**
+   * Update Reporting
+   *
+   * Switch a connection's reporting on or off. Its owner's decision alone:
+   * reporting is this server polling their database.
+   */
+  public static updateReporting<ThrowOnError extends boolean = true>(
+    options: Options<metricsUpdateReportingData, ThrowOnError>
+  ) {
+    return (options.client ?? client).put<
+      metricsUpdateReportingResponses,
+      metricsUpdateReportingErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/connectors/{connector_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 
@@ -4424,12 +4471,13 @@ export class MetricsService {
   /**
    * Read Presets
    *
-   * The ready-made dashboards for one host, as that host can fill them.
+   * The ready-made dashboards for one host of an agent, or for one
+   * connection, as it can fill them. A connection's type declares its own.
    */
   public static readPresets<ThrowOnError extends boolean = true>(
-    options: Options<metricsReadPresetsData, ThrowOnError>
+    options?: Options<metricsReadPresetsData, ThrowOnError>
   ) {
-    return (options.client ?? client).get<
+    return (options?.client ?? client).get<
       metricsReadPresetsResponses,
       metricsReadPresetsErrors,
       ThrowOnError

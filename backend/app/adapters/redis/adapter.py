@@ -22,10 +22,13 @@ from app.adapters.actions import Action, ActionSet, ActionType
 from app.adapters.catalog import CatalogNode
 from app.adapters.features import SourceFeatures
 from app.adapters.fetch import FetchRequest, FetchResult
+from app.adapters.metrics import MetricPreset, MetricSample
 from app.adapters.protocol import ConnectionCheckResult
 from app.adapters.redis.actions import REDIS_ACTION_TYPES
 from app.adapters.redis.fetch import RedisFetch
 from app.adapters.redis.keyspace import RedisKeyspace, is_database, is_key
+from app.adapters.redis.metrics import PRESETS as METRIC_PRESETS
+from app.adapters.redis.metrics import RedisMetrics
 from app.adapters.redis.options import RedisOptions
 from app.adapters.redis.samples import RedisSamples
 from app.adapters.redis.session import RedisSession
@@ -65,6 +68,7 @@ class RedisAdapter:
         self._fetch = RedisFetch(self._session, self._keyspace)
         self._update = RedisUpdate(self._session, self._keyspace)
         self._samples = RedisSamples(self._session)
+        self._metrics = RedisMetrics(self._session)
         self._actions = ActionSet(
             [action_type(self._session, self._keyspace) for action_type in REDIS_ACTION_TYPES]
         )
@@ -117,6 +121,13 @@ class RedisAdapter:
 
     async def check_connection(self) -> ConnectionCheckResult:
         return await self._session.check()
+
+    async def metric_samples(self) -> list[MetricSample]:
+        return await self._metrics.metric_samples()
+
+    @classmethod
+    def metric_presets(cls) -> tuple[MetricPreset, ...]:
+        return METRIC_PRESETS
 
     async def source_features(self) -> SourceFeatures:
         """What this server is. It has no optional features to declare (D120).

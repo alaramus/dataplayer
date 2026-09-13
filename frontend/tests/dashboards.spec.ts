@@ -164,6 +164,54 @@ test("a host's ready-made layout shows its processes, takes live points and open
   await expect(page.getByTestId("agents-table").getByText(agentName)).toHaveCount(0)
 })
 
+test("a connection's owner switches its reporting on and its layout is drawn from what it reports", async ({ page }) => {
+  test.setTimeout(120_000)
+  const stamp = Date.now()
+  const name = `e2e-reporting-${stamp}`
+  const dashboardName = `e2e-dashboard-${stamp}`
+  await login(page)
+  await createPostgresConnector(page, name)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+
+  await page.getByTestId("agents-open").click()
+  const sources = page.getByTestId("agents-dialog")
+  const row = sources.getByTestId("reporting-table").getByRole("row", { name: new RegExp(name) })
+  await expect(row).toBeVisible()
+  await row.getByTestId(`reporting-${name}`).click()
+  await row.getByRole("combobox", { name: "How often" }).click()
+  await page.getByRole("option", { name: "Every 15 s", exact: true }).click()
+  await expect(row.getByTestId(`reporting-${name}`)).toHaveAttribute("aria-checked", "true")
+  await sources.getByRole("button", { name: "Close", exact: true }).click()
+
+  await page.getByTestId("dashboard-new").click()
+  await page.getByRole("button", { name: "Rename this dashboard" }).click()
+  await page.getByTestId("dashboard-rename-input").fill(dashboardName)
+  await page.getByTestId("dashboard-rename-input").press("Enter")
+  await expect(page.getByTestId(`dashboard-${dashboardName}`)).toBeVisible()
+
+  // Polled within a few seconds; the rates need a second poll, fifteen later.
+  await page.waitForTimeout(20_000)
+  await expect(async () => {
+    await page.reload()
+    await page.getByTestId("dashboard-add").click()
+    await expect(page.getByTestId("add-widgets-tree").getByText(name, { exact: true })).toBeVisible({ timeout: 2000 })
+  }).toPass({ timeout: 45_000 })
+
+  await page.getByTestId("add-widgets-tree").getByText(name, { exact: true }).click()
+  await expect(page.getByTestId("add-widgets-presets")).toContainText(`PostgreSQL database for ${name}`)
+  await page.getByTestId("add-preset-postgres-database").click()
+
+  await expect(page.getByTestId("widget").filter({ hasText: "Sessions by state" })).toBeVisible()
+  await expect(page.getByTestId("widget").filter({ hasText: "Database size" }).getByTestId("stat-value")).toHaveText(/\d+(\.\d+)? (KB|MB|GB)/)
+  await expect(page.getByTestId("widget").filter({ hasText: "Transactions per second" }).getByTestId("series-chart")).toBeVisible()
+
+  await page.getByRole("button", { name: "Delete this dashboard" }).click()
+  await page.getByTestId("confirm-accept").click()
+  await page.getByTestId("space-data").click()
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
 test("an agent's packets become a dashboard of widgets", async ({ page }) => {
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
