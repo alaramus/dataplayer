@@ -426,7 +426,6 @@ const overlayStyle = computed((): CSSProperties => {
   border: 1px solid var(--dp-border);
   border-radius: var(--dp-radius-panel);
   background: var(--dp-surface);
-  box-shadow: 0 1px 4px var(--dp-shadow-soft);
 }
 .workspace-leaf__strip {
   display: flex;

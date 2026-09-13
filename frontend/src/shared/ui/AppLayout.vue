@@ -89,9 +89,10 @@ async function logout() {
 <template>
   <q-layout
     view="hHh lpR fFf"
+    class="app-layout"
     :class="fill ? 'app-layout--fill' : undefined"
   >
-    <q-header class="app-layout__header">
+    <q-header class="app-layout__header" data-testid="app-header">
       <q-toolbar class="app-layout__toolbar">
         <q-toolbar-title
           class="app-layout__title"
@@ -132,9 +133,11 @@ async function logout() {
       </q-toolbar>
       <slot name="header-overlay" />
     </q-header>
-    <q-page-container>
+    <q-page-container class="app-layout__body">
       <q-page
         :padding="!fill"
+        class="app-layout__page"
+        data-testid="app-page"
         :class="fill ? 'app-layout__page--fill' : undefined"
       >
         <div :class="fill ? 'app-layout__content app-layout__content--fill' : 'app-layout__content'">
@@ -177,15 +180,26 @@ async function logout() {
 </template>
 
 <style scoped>
+.app-layout {
+  background: var(--dp-chrome-raised);
+}
+
+.app-layout__body {
+  margin-inline: var(--dp-shell-side-width);
+}
+
+.app-layout__page {
+  background: var(--dp-surface);
+  border: 1px solid var(--dp-border);
+  border-radius: var(--dp-radius-shell);
+  overflow: clip;
+}
+
 .app-layout__header,
 .app-layout__footer {
   background: var(--dp-chrome-raised);
   color: var(--dp-text-strong);
   box-shadow: none;
-}
-
-.app-layout__header {
-  border-bottom: 1px solid var(--dp-border);
 }
 
 .app-layout__toolbar {
@@ -219,7 +233,6 @@ async function logout() {
   min-width: 0;
   min-height: var(--dp-status-height);
   padding: 0 var(--dp-space-3);
-  border-top: 1px solid var(--dp-border);
   font-size: 12px;
 }
 
@@ -243,7 +256,6 @@ async function logout() {
    keeps for the header comes out of the 100% rather than adding to it. */
 .app-layout--fill {
   height: 100vh;
-  background: var(--dp-chrome);
 }
 
 .app-layout--fill :deep(.q-page-container) {
@@ -257,14 +269,16 @@ async function logout() {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  border: none;
+  border-radius: 0;
+  background: var(--dp-chrome-raised);
 }
 
 .app-layout__content--fill {
   flex: 1;
   min-height: 0;
   display: flex;
-  padding: var(--dp-workspace-inset);
-  background: var(--dp-chrome);
+  background: var(--dp-chrome-raised);
 }
 
 .app-layout__content--fill > * {

@@ -20,6 +20,7 @@
   --dp-tab-strip-height: 32px;
   --dp-toolbar-height: 40px;
   --dp-workspace-inset: 6px;
+  --dp-shell-side-width: clamp(8px, 1vw, 16px);
   /* Both edges of a workspace card together. They are laid out like anything
      else in the row, so a section that is not drawn stops costing them, and
      the sections that take its room have to spend them instead - or every
@@ -29,6 +30,7 @@
 
   --dp-radius-control: 4px;
   --dp-radius-panel: 8px;
+  --dp-radius-shell: 16px;
 }
 
 body {

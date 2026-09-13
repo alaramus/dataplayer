@@ -251,6 +251,13 @@ Spec: [Markdown as a rendered document representation](../decisions/2026-08-31-m
 
 Behaviour a screen owns and a later change could quietly undo.
 
+**Application shell.** The header, footer and narrow side rails share one
+chrome background, including the gaps between workspace panels. Workspace
+panels meet the shell directly with their own rounded corners: no enclosing
+border or outer padding surrounds the collection. Ordinary pages retain a
+rounded surface and document scrolling; filling workspaces scroll internally.
+Rail width and corner radii live in `metrics.css`; the rails contain no commands.
+
 **Catalog.** A list of one level: a click opens what can be read and walks into
 what cannot, a tick box picks a node without opening it, the first row goes back,
 and the path above starts at a home button. The path's copy button copies the
