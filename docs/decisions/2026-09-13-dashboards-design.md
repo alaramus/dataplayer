@@ -1,7 +1,7 @@
 # Dashboards: metric collection, storage and display
 
 Date: 2026-09-13.
-Status: designed; nothing implemented. Slices DB1–DB6 below.
+Status: DB1 implemented on 2026-09-13. DB2–DB6 designed. Slices below.
 
 Decisions: D125 through D130, in [dashboards](../architecture/dashboards.md).
 

@@ -6,6 +6,7 @@ from app.connectors.declared_routes import router as declared_references_router
 from app.connectors.routes import router as connectors_router
 from app.core.config import settings
 from app.jobs.routes import router as jobs_router
+from app.metrics.routes import router as metrics_router
 from app.queries.routes import router as queries_router
 from app.realtime.routes import router as realtime_router
 from app.services.backup_routes import router as backups_router
@@ -32,6 +33,7 @@ api_router.include_router(jobs_router)
 api_router.include_router(source_operations_router)
 api_router.include_router(shares_router)
 api_router.include_router(queries_router)
+api_router.include_router(metrics_router)
 api_router.include_router(realtime_router)
 
 # Imported for its registration: the health topic is about connectors, so it

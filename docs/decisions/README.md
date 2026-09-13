@@ -17,7 +17,7 @@ translations; those files are not.
 
 | Date | Spec | What it settled |
 | --- | --- | --- |
-| 2026-09-13 | [Dashboards: metric collection, storage and display](2026-09-13-dashboards-design.md) | D125–D130: a space of its own, an installation-owned TimescaleDB store set up on first entry, one collecting process, typed sources, dashboards read through one access check, agent packets interpreted in one place |
+| 2026-09-13 | [Dashboards: metric collection, storage and display](2026-09-13-dashboards-design.md) | DB1 implemented on 2026-09-13. D125–D130: a space of its own, an installation-owned TimescaleDB store set up on first entry, one collecting process, typed sources, dashboards read through one access check, agent packets interpreted in one place |
 | 2026-09-13 | [The backend runs as one process](2026-09-13-one-backend-process-design.md) | D124: the image names one worker, because everything the lifespan builds is correct in one process only |
 | 2026-09-07 | [TimescaleDB through a PostgreSQL connection](2026-09-07-timescale-capabilities-design.md) | T1 completed on 2026-09-08, as confirmed by the user, T2 on 2026-09-11 and T3 on 2026-09-12, each with all checks green. D119–D123: composed extension support, runtime discovery, typed relational specialisation, paged reports and guarded source operations |
 | 2026-09-07 | [Action targets and availability](2026-09-07-action-targets-design.md) | D118: independent grouping actions, destination workflows and explicit availability reasons |

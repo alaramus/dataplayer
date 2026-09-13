@@ -245,6 +245,8 @@ redis`, from the repository root. `redis` is not `redis-cache` — the
 application's cache publishes no port, and the redis adapter's tests talk to
 `localhost:6379`. Nothing else starts it, and without it 64 tests error on a
 refused connection rather than failing on anything they are about.
+The metrics store tests are skipped unless `TEST_METRICS_STORE_URL` names a
+TimescaleDB; see [dashboards.md](docs/architecture/dashboards.md).
 
 Frontend checks, from `frontend/`:
 
@@ -283,7 +285,7 @@ a warmed dev server together.
   A test that reads or writes inside `demo_lab` passes locally on what prestart
   seeded; if it needs anything the seed does not create, it fails only in CI.
 - `docker compose up -d` does not include backend source changes. Rebuild with
-  `docker compose up -d --build backend`.
+  `docker compose up -d --build backend`, and `metrics` when collection changed.
 - The backend is one process (D124). Development's `fastapi dev` is one too, so
   a second worker breaks transactions, result pages and topics where nobody
   working on the code can see it.

@@ -25,6 +25,9 @@ x-backend-environment: &backend-environment
   SERVICE_PIDS_LIMIT: ${SERVICE_PIDS_LIMIT:-512}
   SERVICE_MAX_PER_USER: ${SERVICE_MAX_PER_USER:-5}
   SERVICE_STORAGE_VOLUME: ${SERVICE_STORAGE_VOLUME:-}
+  METRICS_UDP_HOST: ${METRICS_UDP_HOST:-0.0.0.0}
+  METRICS_UDP_PORT: ${METRICS_UDP_PORT:-9999}
+  METRICS_DEV_AGENT_KEY: ${METRICS_DEV_AGENT_KEY:-}
   DATA_CACHE_BACKEND: ${DATA_CACHE_BACKEND:-memory}
   DATA_CACHE_DEPLOYMENT: ${DATA_CACHE_DEPLOYMENT:-development}
   DATA_CACHE_REDIS_URL: ${DATA_CACHE_REDIS_URL:-}
@@ -124,6 +127,26 @@ services:
       timeout: 5s
       retries: 5
 
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+
+  # The one process that receives agent packets and writes samples to the
+  # metrics store (D127). The same image as the backend; it waits while no
+  # store is set up. Source changes need `docker compose up -d --build metrics`.
+  metrics:
+    image: backend:latest
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+      prestart:
+        condition: service_completed_successfully
+    command: ["python", "-m", "app.metrics.collector"]
+    environment: *backend-environment
+    ports:
+      - "${METRICS_UDP_PORT:-9999}:${METRICS_UDP_PORT:-9999}/udp"
+    restart: unless-stopped
     build:
       context: .
       dockerfile: backend/Dockerfile

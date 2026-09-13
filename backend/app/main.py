@@ -15,6 +15,8 @@ from app.api.main import api_router
 from app.core.config import settings
 from app.jobs.recovery import settle_stranded
 from app.jobs.runner import JobRunner
+from app.metrics.holder import StoreHolder
+from app.metrics.jobs import handlers as metrics_handlers
 from app.queries.cleanup import sweeping
 from app.queries.execution import QueryRunner
 from app.queries.results import QueryResults
@@ -95,7 +97,10 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         **service_handlers(engine),
         **backup_handlers(engine),
         **source_operation_handlers(application.state.data_cache),
+        **metrics_handlers(engine),
     })
+    # The web process reads the metrics store and never writes points (D127).
+    application.state.metrics_stores = StoreHolder()
     # What the last stop left mid-flight is ended before anything new starts.
     # Source operations first: their targets say what became unknown before
     # the generic sweep ends the jobs (D123).
@@ -115,6 +120,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             yield
     finally:
         await application.state.query_sessions.aclose()
+        await application.state.metrics_stores.aclose()
         await application.state.job_runner.aclose()
         await application.state.query_runner.aclose()
         await application.state.query_results.aclose()

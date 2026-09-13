@@ -33,6 +33,7 @@ export const JOB_LABELS: Record<JobPublic["kind"], string> = {
   "backup.create": "Create backup",
   "backup.restore": "Restore backup",
   "source.operation": "Source operation",
+  "metrics.store.create": "Start metrics store",
 }
 
 /** What a job is called: a source operation by its action's title, any other by its kind. */

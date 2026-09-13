@@ -341,6 +341,87 @@ export type AddColumnRequest = {
 }
 
 /**
+ * AgentCreate
+ */
+export type AgentCreate = {
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * AgentKey
+ *
+ * The key, for the agent's owner to put into the agent's configuration.
+ */
+export type AgentKey = {
+  agent: AgentPublic
+  /**
+   * Key
+   */
+  key: string
+  /**
+   * Udp Port
+   */
+  udp_port: number
+}
+
+/**
+ * AgentPublic
+ */
+export type AgentPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Key Issued At
+   */
+  key_issued_at: string
+  /**
+   * Last Heard At
+   */
+  last_heard_at?: string | null
+}
+
+/**
+ * AgentSources
+ */
+export type AgentSources = {
+  /**
+   * Agent Id
+   */
+  agent_id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Hosts
+   */
+  hosts: Array<HostInfo>
+}
+
+/**
+ * AgentUpdate
+ */
+export type AgentUpdate = {
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
  * ArchiveContents
  *
  * An archive as its central directory declares it, inflating nothing.
@@ -3562,6 +3643,68 @@ export type HTTPValidationError = {
 }
 
 /**
+ * HistoryAnswer
+ */
+export type HistoryAnswer = {
+  /**
+   * Start
+   */
+  start: number
+  /**
+   * End
+   */
+  end: number
+  /**
+   * Bucket Seconds
+   */
+  bucket_seconds: number | null
+  /**
+   * Series
+   */
+  series: Array<SeriesHistory>
+}
+
+/**
+ * HistoryRequest
+ */
+export type HistoryRequest = {
+  /**
+   * Series Ids
+   */
+  series_ids: Array<number>
+  /**
+   * Start
+   */
+  start: number
+  /**
+   * End
+   */
+  end: number
+  /**
+   * Max Points
+   */
+  max_points?: number
+}
+
+/**
+ * HostInfo
+ */
+export type HostInfo = {
+  /**
+   * Host
+   */
+  host: string
+  /**
+   * Last Seen
+   */
+  last_seen: string
+  /**
+   * Metrics
+   */
+  metrics: Array<MetricInfo>
+}
+
+/**
  * HypertableFacts
  */
 export type HypertableFacts = {
@@ -3996,6 +4139,7 @@ export type JobPublic = {
     | "backup.create"
     | "backup.restore"
     | "source.operation"
+    | "metrics.store.create"
   /**
    * Subject Id
    */
@@ -4439,6 +4583,30 @@ export type Message = {
    * Message
    */
   message: string
+}
+
+/**
+ * MetricInfo
+ */
+export type MetricInfo = {
+  /**
+   * Metric
+   */
+  metric: string
+  /**
+   * Series
+   */
+  series: Array<SeriesInfo>
+}
+
+/**
+ * MetricsCatalog
+ */
+export type MetricsCatalog = {
+  /**
+   * Agents
+   */
+  agents: Array<AgentSources>
 }
 
 /**
@@ -7103,6 +7271,50 @@ export type SchemaNode = {
 }
 
 /**
+ * SeriesHistory
+ */
+export type SeriesHistory = {
+  /**
+   * Series Id
+   */
+  series_id: number
+  /**
+   * Points
+   */
+  points: Array<Array<number>>
+}
+
+/**
+ * SeriesInfo
+ */
+export type SeriesInfo = {
+  /**
+   * Id
+   */
+  id: number
+  /**
+   * Field
+   */
+  field: string
+  /**
+   * Label
+   */
+  label: string
+  /**
+   * Unit
+   */
+  unit: string
+  /**
+   * First Seen
+   */
+  first_seen: string
+  /**
+   * Last Seen
+   */
+  last_seen: string
+}
+
+/**
  * ServerInfo
  */
 export type ServerInfo = {
@@ -7774,6 +7986,20 @@ export type SqlContent = {
 }
 
 /**
+ * StartOffer
+ */
+export type StartOffer = {
+  /**
+   * Available
+   */
+  available: boolean
+  /**
+   * Reason
+   */
+  reason?: string | null
+}
+
+/**
  * StatementPublic
  *
  * One statement of a run, as the console reads it.
@@ -7820,6 +8046,40 @@ export type StatementPublic = {
    * Notices
    */
   notices?: Array<QueryNotice>
+}
+
+/**
+ * StoreConnect
+ *
+ * An existing TimescaleDB, in the PostgreSQL adapter's options.
+ */
+export type StoreConnect = {
+  /**
+   * Options
+   */
+  options: {
+    [key: string]: unknown
+  }
+}
+
+/**
+ * StoreStatus
+ */
+export type StoreStatus = {
+  /**
+   * State
+   */
+  state: "not_configured" | "starting" | "failed" | "ready" | "unreachable"
+  /**
+   * May Set Up
+   */
+  may_set_up: boolean
+  start?: StartOffer | null
+  job?: JobPublic | null
+  /**
+   * Message
+   */
+  message?: string | null
 }
 
 /**
@@ -13811,6 +14071,307 @@ export type queriesRollbackTransactionResponses = {
 
 export type queriesRollbackTransactionResponse =
   queriesRollbackTransactionResponses[keyof queriesRollbackTransactionResponses]
+
+export type metricsReadStoreStatusData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/store"
+}
+
+export type metricsReadStoreStatusResponses = {
+  /**
+   * Successful Response
+   */
+  200: StoreStatus
+}
+
+export type metricsReadStoreStatusResponse =
+  metricsReadStoreStatusResponses[keyof metricsReadStoreStatusResponses]
+
+export type metricsStartStoreData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/store/start"
+}
+
+export type metricsStartStoreResponses = {
+  /**
+   * Successful Response
+   */
+  200: StoreStatus
+}
+
+export type metricsStartStoreResponse = metricsStartStoreResponses[keyof metricsStartStoreResponses]
+
+export type metricsConnectStoreData = {
+  body: StoreConnect
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/store/connect"
+}
+
+export type metricsConnectStoreErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsConnectStoreError = metricsConnectStoreErrors[keyof metricsConnectStoreErrors]
+
+export type metricsConnectStoreResponses = {
+  /**
+   * Successful Response
+   */
+  200: StoreStatus
+}
+
+export type metricsConnectStoreResponse =
+  metricsConnectStoreResponses[keyof metricsConnectStoreResponses]
+
+export type metricsReadAgentsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/agents"
+}
+
+export type metricsReadAgentsResponses = {
+  /**
+   * Response Metrics-Read Agents
+   *
+   * Successful Response
+   */
+  200: Array<AgentPublic>
+}
+
+export type metricsReadAgentsResponse = metricsReadAgentsResponses[keyof metricsReadAgentsResponses]
+
+export type metricsCreateAgentData = {
+  body: AgentCreate
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/agents"
+}
+
+export type metricsCreateAgentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsCreateAgentError = metricsCreateAgentErrors[keyof metricsCreateAgentErrors]
+
+export type metricsCreateAgentResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentKey
+}
+
+export type metricsCreateAgentResponse =
+  metricsCreateAgentResponses[keyof metricsCreateAgentResponses]
+
+export type metricsDeleteAgentData = {
+  body?: never
+  path: {
+    /**
+     * Agent Id
+     */
+    agent_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/agents/{agent_id}"
+}
+
+export type metricsDeleteAgentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsDeleteAgentError = metricsDeleteAgentErrors[keyof metricsDeleteAgentErrors]
+
+export type metricsDeleteAgentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type metricsDeleteAgentResponse =
+  metricsDeleteAgentResponses[keyof metricsDeleteAgentResponses]
+
+export type metricsRenameAgentData = {
+  body: AgentUpdate
+  path: {
+    /**
+     * Agent Id
+     */
+    agent_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/agents/{agent_id}"
+}
+
+export type metricsRenameAgentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsRenameAgentError = metricsRenameAgentErrors[keyof metricsRenameAgentErrors]
+
+export type metricsRenameAgentResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentPublic
+}
+
+export type metricsRenameAgentResponse =
+  metricsRenameAgentResponses[keyof metricsRenameAgentResponses]
+
+export type metricsReadAgentKeyData = {
+  body?: never
+  path: {
+    /**
+     * Agent Id
+     */
+    agent_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/agents/{agent_id}/key"
+}
+
+export type metricsReadAgentKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsReadAgentKeyError = metricsReadAgentKeyErrors[keyof metricsReadAgentKeyErrors]
+
+export type metricsReadAgentKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentKey
+}
+
+export type metricsReadAgentKeyResponse =
+  metricsReadAgentKeyResponses[keyof metricsReadAgentKeyResponses]
+
+export type metricsRotateAgentKeyData = {
+  body?: never
+  path: {
+    /**
+     * Agent Id
+     */
+    agent_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/agents/{agent_id}/key"
+}
+
+export type metricsRotateAgentKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsRotateAgentKeyError =
+  metricsRotateAgentKeyErrors[keyof metricsRotateAgentKeyErrors]
+
+export type metricsRotateAgentKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentKey
+}
+
+export type metricsRotateAgentKeyResponse =
+  metricsRotateAgentKeyResponses[keyof metricsRotateAgentKeyResponses]
+
+export type metricsPurgeAgentData = {
+  body?: never
+  path: {
+    /**
+     * Agent Id
+     */
+    agent_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/agents/{agent_id}/purge"
+}
+
+export type metricsPurgeAgentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsPurgeAgentError = metricsPurgeAgentErrors[keyof metricsPurgeAgentErrors]
+
+export type metricsPurgeAgentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type metricsPurgeAgentResponse = metricsPurgeAgentResponses[keyof metricsPurgeAgentResponses]
+
+export type metricsReadCatalogData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/catalog"
+}
+
+export type metricsReadCatalogResponses = {
+  /**
+   * Successful Response
+   */
+  200: MetricsCatalog
+}
+
+export type metricsReadCatalogResponse =
+  metricsReadCatalogResponses[keyof metricsReadCatalogResponses]
+
+export type metricsReadHistoryData = {
+  body: HistoryRequest
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/history"
+}
+
+export type metricsReadHistoryErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsReadHistoryError = metricsReadHistoryErrors[keyof metricsReadHistoryErrors]
+
+export type metricsReadHistoryResponses = {
+  /**
+   * Successful Response
+   */
+  200: HistoryAnswer
+}
+
+export type metricsReadHistoryResponse =
+  metricsReadHistoryResponses[keyof metricsReadHistoryResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

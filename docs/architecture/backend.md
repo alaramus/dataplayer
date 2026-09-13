@@ -55,6 +55,8 @@ backend/app/
 │   ├── cleanup.py       the lifespan timer that empties Trash
 │   └── routes.py        the library, one document, Trash, runs, results
 ├── system/              operational routes: readiness, cache health, test email
+├── metrics/             agents, the metrics store, collection and history —
+│                        see dashboards.md
 ├── seed_database.py     dev tool: rebuilds the demo_lab PostgreSQL fixtures
 ├── seed_storage.py      dev tool: sample files into a personal directory
 ├── core/                depends on nothing else in the app

@@ -7,9 +7,13 @@ from datetime import UTC, datetime
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.services.models import ManagedService
+from app.services.models import ManagedService, ServicePurpose
 from app.services.plan import Placement, container_name, volume_name
 from app.services.templates import ServiceTemplate
+
+# Every question of a person about their services is about connections: the
+# metrics store is the installation's (D126).
+_A_CONNECTION = col(ManagedService.purpose) == "connection"
 
 
 async def create(
@@ -24,6 +28,7 @@ async def create(
     sample_data: bool = False,
     password_mode: str = "generated",
     chosen_password: bytes | None = None,
+    purpose: ServicePurpose = "connection",
 ) -> ManagedService:
     """Write down a service before anything is started.
 
@@ -40,6 +45,7 @@ async def create(
         id=service_id,
         owner_id=owner_id,
         template_key=template.key,
+        purpose=purpose,
         request_id=request_id,
         connector_name=connector_name,
         container_name=container_name(service_id, template),
@@ -64,7 +70,11 @@ async def get_for_owner(
 ) -> ManagedService | None:
     """One service of this owner. Somebody else's is not found, not refused."""
     service = await session.get(ManagedService, service_id)
-    if service is None or service.owner_id != owner_id:
+    if (
+        service is None
+        or service.owner_id != owner_id
+        or service.purpose != "connection"
+    ):
         return None
     return service
 
@@ -75,6 +85,7 @@ async def list_for_owner(
     statement = (
         select(ManagedService)
         .where(ManagedService.owner_id == owner_id)
+        .where(_A_CONNECTION)
         .order_by(col(ManagedService.created_at).desc())
     )
     return list((await session.exec(statement)).all())
@@ -103,6 +114,7 @@ async def by_request(
         select(ManagedService)
         .where(ManagedService.owner_id == owner_id)
         .where(ManagedService.request_id == request_id)
+        .where(_A_CONNECTION)
         .limit(1)
     )
     return (await session.exec(statement)).first()
@@ -126,8 +138,10 @@ async def names_taken(session: AsyncSession, owner_id: uuid.UUID) -> set[str]:
     chose earlier: two connections called "PostgreSQL 1" are two rows nobody
     can tell apart.
     """
-    statement = select(ManagedService.connector_name).where(
-        ManagedService.owner_id == owner_id
+    statement = (
+        select(ManagedService.connector_name)
+        .where(ManagedService.owner_id == owner_id)
+        .where(_A_CONNECTION)
     )
     return set((await session.exec(statement)).all())
 
@@ -138,5 +152,20 @@ async def count_for_owner(session: AsyncSession, owner_id: uuid.UUID) -> int:
     Everything counts, including one that failed: a failed service still holds
     a name, and may still hold a container somebody has not looked at yet.
     """
-    statement = select(ManagedService.id).where(ManagedService.owner_id == owner_id)
+    statement = (
+        select(ManagedService.id)
+        .where(ManagedService.owner_id == owner_id)
+        .where(_A_CONNECTION)
+    )
     return len(list((await session.exec(statement)).all()))
+
+
+async def metrics_store_service(session: AsyncSession) -> ManagedService | None:
+    """The service started to be the metrics store, if one ever was (D126)."""
+    statement = (
+        select(ManagedService)
+        .where(col(ManagedService.purpose) == "metrics_store")
+        .order_by(col(ManagedService.created_at).desc())
+        .limit(1)
+    )
+    return (await session.exec(statement)).first()

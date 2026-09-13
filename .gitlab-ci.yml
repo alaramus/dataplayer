@@ -23,6 +23,10 @@ backend:
     # than a fake: what those tests are about is what the driver does to one.
     - name: redis:8
       alias: redis
+    # The metrics store the metrics tests prepare and write (D126): the image
+    # the store's service template starts.
+    - name: timescale/timescaledb:2.30.0-pg18
+      alias: timescale
   variables:
     POSTGRES_DB: app
     POSTGRES_PASSWORD: postgres
@@ -44,6 +48,9 @@ backend:
     # Where the Redis tests find their server. Database 15 so they never meet
     # anything else that might be in it, and they empty that one as they go.
     TEST_REDIS_URL: redis://redis:6379/15
+    # The Timescale service reads POSTGRES_PASSWORD and POSTGRES_DB like the
+    # database service; the tests make a database of their own in it.
+    TEST_METRICS_STORE_URL: postgresql://postgres:postgres@timescale:5432/app
     # backend/scripts/test.sh runs the suite this way, and the private routes
     # exist only in development: without it their tests get a 404.
     FASTAPI_ENV: development

@@ -35,6 +35,11 @@ ServiceState = Literal["creating", "running", "stopped", "failed", "removing"]
 # one is being taken away, and a second command about either would be a race.
 BUSY_STATES: frozenset[str] = frozenset({"creating", "removing"})
 
+# What a service is for. A connection is a person's (D83); the metrics store
+# belongs to the installation (D126), so it is in no person's list, counts
+# against no person's ceiling and is reachable by no route of this module.
+ServicePurpose = Literal["connection", "metrics_store"]
+
 
 class ManagedService(SQLModel, table=True):
     """One container this installation is responsible for."""
@@ -46,6 +51,7 @@ class ManagedService(SQLModel, table=True):
     # The key of the template it was made from. Not a foreign key: templates
     # are code, and the row records which one rather than pointing at a table.
     template_key: str = Field(max_length=32)
+    purpose: str = Field(default="connection", max_length=16, index=True)
     # What the request that made it called itself, when it called itself
     # anything. A second request with the same id is the same request — a
     # double press, a retried POST — and answers with this row rather than

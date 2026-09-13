@@ -237,6 +237,38 @@ import type {
   loginResetPasswordResponses,
   loginTestTokenData,
   loginTestTokenResponses,
+  metricsConnectStoreData,
+  metricsConnectStoreErrors,
+  metricsConnectStoreResponses,
+  metricsCreateAgentData,
+  metricsCreateAgentErrors,
+  metricsCreateAgentResponses,
+  metricsDeleteAgentData,
+  metricsDeleteAgentErrors,
+  metricsDeleteAgentResponses,
+  metricsPurgeAgentData,
+  metricsPurgeAgentErrors,
+  metricsPurgeAgentResponses,
+  metricsReadAgentKeyData,
+  metricsReadAgentKeyErrors,
+  metricsReadAgentKeyResponses,
+  metricsReadAgentsData,
+  metricsReadAgentsResponses,
+  metricsReadCatalogData,
+  metricsReadCatalogResponses,
+  metricsReadHistoryData,
+  metricsReadHistoryErrors,
+  metricsReadHistoryResponses,
+  metricsReadStoreStatusData,
+  metricsReadStoreStatusResponses,
+  metricsRenameAgentData,
+  metricsRenameAgentErrors,
+  metricsRenameAgentResponses,
+  metricsRotateAgentKeyData,
+  metricsRotateAgentKeyErrors,
+  metricsRotateAgentKeyResponses,
+  metricsStartStoreData,
+  metricsStartStoreResponses,
   privateCreateUserData,
   privateCreateUserErrors,
   privateCreateUserResponses,
@@ -4132,6 +4164,244 @@ export class QueriesService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/queries/transactions/{transaction_id}/rollback",
       ...options,
+    })
+  }
+}
+
+export class MetricsService {
+  /**
+   * Read Store Status
+   *
+   * Whether the store is there, and for a superuser how it could be.
+   */
+  public static readStoreStatus<ThrowOnError extends boolean = true>(
+    options?: Options<metricsReadStoreStatusData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<metricsReadStoreStatusResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/store",
+      ...options,
+    })
+  }
+
+  /**
+   * Start Store
+   *
+   * Start TimescaleDB on this server as the metrics store (D126).
+   */
+  public static startStore<ThrowOnError extends boolean = true>(
+    options?: Options<metricsStartStoreData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).post<metricsStartStoreResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/store/start",
+      ...options,
+    })
+  }
+
+  /**
+   * Connect Store
+   *
+   * Use an existing TimescaleDB as the metrics store (D126).
+   */
+  public static connectStore<ThrowOnError extends boolean = true>(
+    options: Options<metricsConnectStoreData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      metricsConnectStoreResponses,
+      metricsConnectStoreErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/store/connect",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Agents
+   */
+  public static readAgents<ThrowOnError extends boolean = true>(
+    options?: Options<metricsReadAgentsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<metricsReadAgentsResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/agents",
+      ...options,
+    })
+  }
+
+  /**
+   * Create Agent
+   *
+   * Register an agent. The answer carries the key it reports under.
+   */
+  public static createAgent<ThrowOnError extends boolean = true>(
+    options: Options<metricsCreateAgentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      metricsCreateAgentResponses,
+      metricsCreateAgentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/agents",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete Agent
+   *
+   * Forget the agent. Its samples stay until retention removes them.
+   */
+  public static deleteAgent<ThrowOnError extends boolean = true>(
+    options: Options<metricsDeleteAgentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      metricsDeleteAgentResponses,
+      metricsDeleteAgentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/agents/{agent_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Rename Agent
+   */
+  public static renameAgent<ThrowOnError extends boolean = true>(
+    options: Options<metricsRenameAgentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      metricsRenameAgentResponses,
+      metricsRenameAgentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/agents/{agent_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Agent Key
+   *
+   * The key again, for its owner to configure another agent with it.
+   */
+  public static readAgentKey<ThrowOnError extends boolean = true>(
+    options: Options<metricsReadAgentKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      metricsReadAgentKeyResponses,
+      metricsReadAgentKeyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/agents/{agent_id}/key",
+      ...options,
+    })
+  }
+
+  /**
+   * Rotate Agent Key
+   *
+   * Issue a new key. Packets under the old one are dropped from now on.
+   */
+  public static rotateAgentKey<ThrowOnError extends boolean = true>(
+    options: Options<metricsRotateAgentKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      metricsRotateAgentKeyResponses,
+      metricsRotateAgentKeyErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/agents/{agent_id}/key",
+      ...options,
+    })
+  }
+
+  /**
+   * Purge Agent
+   *
+   * Delete every sample the agent sent, and keep the agent.
+   */
+  public static purgeAgent<ThrowOnError extends boolean = true>(
+    options: Options<metricsPurgeAgentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      metricsPurgeAgentResponses,
+      metricsPurgeAgentErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/agents/{agent_id}/purge",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Catalog
+   *
+   * Agents, the hosts they reported, their metrics and series.
+   */
+  public static readCatalog<ThrowOnError extends boolean = true>(
+    options?: Options<metricsReadCatalogData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<metricsReadCatalogResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/catalog",
+      ...options,
+    })
+  }
+
+  /**
+   * Read History
+   *
+   * Points of the asked series over a range, raw or bucketed to fit.
+   */
+  public static readHistory<ThrowOnError extends boolean = true>(
+    options: Options<metricsReadHistoryData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      metricsReadHistoryResponses,
+      metricsReadHistoryErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/history",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 }

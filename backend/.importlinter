@@ -11,6 +11,7 @@ type = layers
 layers =
     app.api
     app.system
+    app.metrics
     app.shares
     app.queries
     app.services
@@ -39,6 +40,7 @@ forbidden_modules =
     app.jobs
     app.shares
     app.system
+    app.metrics
     app.api
 
 # psycopg_pool is named separately from psycopg: it is a different
@@ -61,6 +63,7 @@ source_modules =
     app.jobs
     app.shares
     app.system
+    app.metrics
     app.api
     app.adapters.registry
     app.adapters.protocol
@@ -97,6 +100,7 @@ source_modules =
     app.jobs
     app.shares
     app.system
+    app.metrics
     app.api
     app.adapters.registry
     app.adapters.protocol
@@ -132,6 +136,7 @@ source_modules =
     app.jobs
     app.shares
     app.system
+    app.metrics
     app.api
     app.adapters.registry
     app.adapters.protocol
@@ -151,9 +156,10 @@ forbidden_modules =
 # cache contract where D31 calls for invalidation, but may not depend on its
 # concrete Redis implementation or driver surface (D104).
 [importlinter:contract:redis-cache-is-not-coordination]
-name = jobs, queries, services, source operations and shares do not use infrastructure Redis
+name = jobs, queries, services, source operations, shares and metrics do not use infrastructure Redis
 type = forbidden
 source_modules =
+    app.metrics
     app.jobs
     app.queries
     app.services

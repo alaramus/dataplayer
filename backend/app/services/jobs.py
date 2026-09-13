@@ -144,12 +144,29 @@ class CreateService(_ServiceJob):
                     f"{template.title} started but did not answer in time"
                 )
             await self._fill_it(service, template, options, progress)
-            await progress.reached("saving the connection")
-            connector_id = await self._save_connector(session, service, plan, options)
+            await progress.reached(self.steps[-1])
+            await self._deliver(session, service, plan, options)
         except JobFailed:
             await self._settle(session, service, "failed")
             raise
-        service.connector_id = connector_id
+        await self._settle(session, service, "running")
+        return f"{template.title} is ready"
+
+    async def _deliver(
+        self,
+        session: AsyncSession,
+        service: ManagedService,
+        plan: ServicePlan,
+        options: dict[str, str | int],
+    ) -> None:
+        """Hand the ready service to whoever it was made for: a connection.
+
+        The last step, and the one a service made for another purpose replaces
+        (D126). Changes to the row are committed by the settling that follows.
+        """
+        service.connector_id = await self._save_connector(
+            session, service, plan, options
+        )
         # Stamped rather than derived from `connector_id`, which goes null
         # again if somebody deletes the connection: this is what tells a
         # service that never got this far from one whose connection is gone
@@ -159,8 +176,6 @@ class CreateService(_ServiceJob):
         # carried it from the request to here has nothing left to do. One home
         # again (D4).
         service.chosen_password = None
-        await self._settle(session, service, "running")
-        return f"{template.title} is ready"
 
     async def _start_it(self, service: ManagedService, container: str) -> None:
         """Start it, and name the likeliest reason when it will not.

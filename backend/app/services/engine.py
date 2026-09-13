@@ -17,6 +17,7 @@ from typing import Annotated, Literal, Protocol, runtime_checkable
 
 from fastapi import Depends, Request
 
+from app.core.config import settings
 from app.jobs.runner import JobFailed
 from app.services.plan import ContainerSpec
 from app.services.tools import ToolResult, ToolRun
@@ -185,3 +186,24 @@ def get_engine(request: Request) -> ServiceEngine:
 
 
 ServiceEngineDep = Annotated[ServiceEngine, Depends(get_engine)]
+
+
+# What a server without a network can say. Reaching a service is reaching a
+# container by name, and a name resolves only on a network they share, so a
+# service that could be started and not reached is not offered at all.
+NO_NETWORK_MESSAGE = "This server has no network to put a service on"
+
+
+async def service_offer(engine: ServiceEngine) -> Availability:
+    """Whether a service could be started here and then used.
+
+    The runtime first, because it is the more fundamental answer, and the
+    network second: a server that cannot reach what it starts is offering
+    something nobody could open.
+    """
+    runtime = await engine.availability()
+    if not runtime.available:
+        return runtime
+    if not settings.SERVICE_NETWORK:
+        return Availability(available=False, reason=NO_NETWORK_MESSAGE)
+    return runtime

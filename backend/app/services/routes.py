@@ -35,6 +35,7 @@ from app.services.engine import (
     EngineError,
     ServiceEngine,
     ServiceEngineDep,
+    service_offer,
 )
 from app.services.models import (
     BUSY_STATES,
@@ -150,7 +151,7 @@ async def read_service_templates(engine: ServiceEngineDep) -> Any:
     whether it could be started now, because the runtime is a property of the
     server rather than of the template and can be gone while the server runs.
     """
-    runtime = await _offer(engine)
+    runtime = await service_offer(engine)
     return [
         ServiceTemplateInfo(
             key=template.key,
@@ -205,7 +206,7 @@ async def request_service(
             # The same request, asked again: a double press, or a POST the
             # network retried. One service, and the job that is making it.
             return await _already(session, already)
-    _refuse_without_a_runtime(await _offer(engine))
+    _refuse_without_a_runtime(await service_offer(engine))
     await _refuse_if_at_the_ceiling(session, current_user.id)
     chosen = _chosen_credentials(template, body.start)
     password_mode, chosen_password = _password_choice(template, body.start)
@@ -451,7 +452,7 @@ async def retry_service(
             detail={"message": "This service is already made; remove it instead"},
         )
     await _refuse_if_working(session, service)
-    _refuse_without_a_runtime(await _offer(engine))
+    _refuse_without_a_runtime(await service_offer(engine))
     await crud.set_state(session, service, "creating")
     job = await _accept(session, runner, topics, service, "service.create")
     return ServiceAccepted(service=_public(service, job, "unknown"), job=job_public(job))
@@ -616,10 +617,6 @@ async def _own_or_404(
     return service
 
 
-# What a server without a network can say. Reaching a service is reaching a
-# container by name, and a name resolves only on a network they share, so a
-# service that could be started and not reached is not offered at all.
-NO_NETWORK_MESSAGE = "This server has no network to put a service on"
 
 
 def _placement(start: StartRequest) -> Placement:
@@ -740,21 +737,6 @@ async def _name_for(
     while f"{template.title} {number}" in taken:
         number += 1
     return f"{template.title} {number}"
-
-
-async def _offer(engine: ServiceEngine) -> Availability:
-    """Whether a service could be started here and then used.
-
-    The runtime first, because it is the more fundamental answer, and the
-    network second: a server that cannot reach what it starts is offering
-    something nobody could open.
-    """
-    runtime = await engine.availability()
-    if not runtime.available:
-        return runtime
-    if not settings.SERVICE_NETWORK:
-        return Availability(available=False, reason=NO_NETWORK_MESSAGE)
-    return runtime
 
 
 def _refuse_without_a_runtime(runtime: Availability) -> None:

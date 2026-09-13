@@ -1,0 +1,73 @@
+"""A metrics store of the tests' own, in a TimescaleDB named by the environment.
+
+TEST_METRICS_STORE_URL names a server whose role may create databases; each
+session gets a fresh database there and drops it afterwards. Without the
+variable the tests that need a store are skipped, as the Redis ones are.
+"""
+
+import os
+import uuid
+from collections.abc import AsyncIterator
+from typing import Any
+from urllib.parse import urlsplit
+
+import pytest
+from sqlalchemy import text
+from sqlalchemy.engine import make_url
+from sqlalchemy.ext.asyncio import create_async_engine
+
+from app.metrics.store import MetricsStore, store_url
+
+TEST_METRICS_STORE_URL = os.environ.get("TEST_METRICS_STORE_URL")
+
+needs_store = pytest.mark.skipif(
+    TEST_METRICS_STORE_URL is None, reason="TEST_METRICS_STORE_URL not configured"
+)
+
+
+def _server_options() -> dict[str, Any]:
+    assert TEST_METRICS_STORE_URL is not None
+    parts = urlsplit(TEST_METRICS_STORE_URL)
+    return {
+        "auth_method": "user_password",
+        "host": parts.hostname or "localhost",
+        "port": parts.port or 5432,
+        "database": parts.path.lstrip("/") or "postgres",
+        "user": parts.username or "postgres",
+        "password": parts.password or "",
+    }
+
+
+@pytest.fixture(scope="session")
+async def store_options() -> AsyncIterator[dict[str, Any]]:
+    """Options of a fresh, empty database, in the PostgreSQL adapter's shape."""
+    if TEST_METRICS_STORE_URL is None:
+        pytest.skip("TEST_METRICS_STORE_URL not configured")
+    server = _server_options()
+    name = f"metrics_test_{uuid.uuid4().hex[:12]}"
+    admin = create_async_engine(
+        make_url(store_url(server)), isolation_level="AUTOCOMMIT"
+    )
+    try:
+        async with admin.connect() as connection:
+            # A fixed prefix and a hex suffix this fixture made: nothing to quote.
+            await connection.execute(text(f'CREATE DATABASE "{name}"'))
+        yield {**server, "database": name}
+        async with admin.connect() as connection:
+            await connection.execute(text(f'DROP DATABASE "{name}" WITH (FORCE)'))
+    finally:
+        await admin.dispose()
+
+
+@pytest.fixture
+async def store(store_options: dict[str, Any]) -> AsyncIterator[MetricsStore]:
+    opened = MetricsStore(store_url(store_options))
+    await opened.migrate()
+    async with opened._engine.begin() as connection:
+        await connection.execute(
+            text("TRUNCATE metric_point, metric_process, metric_series RESTART IDENTITY")
+        )
+    try:
+        yield opened
+    finally:
+        await opened.aclose()

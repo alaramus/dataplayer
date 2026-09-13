@@ -20,6 +20,7 @@ from app.core.config import settings
 from app.core.db import async_session_maker
 from app.jobs.models import Job
 from app.jobs.runner import JobRunner
+from app.metrics.jobs import handlers as metrics_handlers
 from app.services.backups import handlers as backup_handlers
 from app.services.engine import (
     Availability,
@@ -211,6 +212,7 @@ def engine_of(
         {
             **handlers(engine, probe_answering(ready), filler or FakeFiller()),
             **backup_handlers(engine),
+            **metrics_handlers(engine, probe_answering(ready)),
         }
     )
     settings.SERVICE_NETWORK = network

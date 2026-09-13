@@ -151,6 +151,14 @@ class Settings(BaseSettings):
     # container that is then thrown away is worse than a refusal (D87).
     SERVICE_STORAGE_VOLUME: str = ""
 
+    # Where the metrics process listens for agent packets (D127). The web
+    # process never binds it.
+    METRICS_UDP_HOST: str = "0.0.0.0"
+    METRICS_UDP_PORT: int = 9999
+    # Development only: the key of an agent seeded for the first superuser, so
+    # the agent in the Compose profile can report without a screen to issue one.
+    METRICS_DEV_AGENT_KEY: SecretStr | None = None
+
     # How long a socket may stay open without saying who it is. A socket that
     # says nothing still holds a connection.
     WS_AUTH_TIMEOUT_SECONDS: float = 5.0

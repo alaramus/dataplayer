@@ -14,9 +14,8 @@ from app.core.config import settings
 from app.core.db import async_session_maker
 from app.jobs.runner import JobRunner
 from app.main import app
-from app.services.engine import SWITCHED_OFF_MESSAGE
+from app.services.engine import NO_NETWORK_MESSAGE, SWITCHED_OFF_MESSAGE
 from app.services.models import ManagedService
-from app.services.routes import NO_NETWORK_MESSAGE
 from tests.utils.service_engine import FakeEngine, engine_of, forget_services
 
 BASE = f"{settings.API_V1_STR}/services"

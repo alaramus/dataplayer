@@ -19,3 +19,5 @@ python -m app.seed_storage
 # It makes none of its own, so a stack with no connections yet simply logs
 # what it skipped and gets them on the next start.
 python -m app.seed_references
+# The agent of the monitor-agent profile, when METRICS_DEV_AGENT_KEY is set.
+python -m app.seed_metrics_agent

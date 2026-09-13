@@ -73,6 +73,23 @@ services:
     ports:
       - "6379:6379"
 
+  # An agent reporting this machine to the metrics process, started with
+  # `docker compose --profile monitor-agent up -d monitor-agent`. It reports
+  # under METRICS_DEV_AGENT_KEY, which prestart registers for the first
+  # superuser. Without `iftop` among the actions: version 1.14.0 crashes on it
+  # in a container without traffic and restarts every half minute (D130). A
+  # fixed hostname, because the container id would be a new host on every
+  # recreation.
+  monitor-agent:
+    image: daniylx/sys_monitor_agent:latest
+    profiles: ["monitor-agent"]
+    hostname: dev-agent
+    environment:
+      API_KEY: ${METRICS_DEV_AGENT_KEY:-}
+      PORT: ${METRICS_UDP_PORT:-9999}
+      ACTIONS: "tcp:30,disk:30[/],ps:30,df:30[/],net:30,memory:30,cpu:30"
+    restart: unless-stopped
+
   mailcatcher:
     image: schickling/mailcatcher
     ports:

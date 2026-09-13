@@ -6,9 +6,60 @@ anything that ingests, stores or shows a metric.
 
 Decisions here: D125, D126, D127, D128, D129, D130.
 
-**Implementation status:** designed on 2026-09-13; nothing is implemented.
-Slices DB1–DB6 are in the spec. Until a slice lands, a decision below states
-the contract that slice must meet, not what the application does.
+**Implementation status:** DB1 — the store, its setup, collection, agents,
+catalog and history — is implemented, without a screen. DB2–DB6 are in the
+spec; D125 and the dashboard half of D129 state what those slices must meet,
+not what the application does.
+
+## What exists today
+
+A superuser sets the store up through the API: starts the `timescaledb`
+template or connects an existing database. A person registers agents and
+receives the key each reports under. The `metrics` process receives their
+packets and writes samples and process snapshots; the web process answers the
+catalog of what a person's agents reported and the history of chosen series,
+raw or bucketed. Development starts an agent in the `monitor-agent` Compose
+profile under `METRICS_DEV_AGENT_KEY`, which prestart registers for the first
+superuser.
+
+```
+backend/app/metrics/
+├── packets.py      an agent packet as samples and a process snapshot; pure
+├── units.py        the unit of a field
+├── counters.py     growing counters as increments
+├── keys.py         issuing, fingerprinting and sealing agent keys
+├── models.py       MetricsAgent, MetricsStoreSetting, and the API models
+├── crud.py         application-database access
+├── migrations.py   the store's numbered schema
+├── store.py        the store: series ids, writes, catalog, history, purge
+├── holder.py       the web process's handle on the store
+├── history.py      raw or which bucket width; pure
+├── access.py       who may read a series
+├── setup.py        store status, starting it, connecting one
+├── jobs.py         the service create job, delivering a store setting
+├── collector.py    the metrics process
+└── routes.py       /metrics
+```
+
+```
+GET    /api/v1/metrics/store
+POST   /api/v1/metrics/store/start          superuser
+POST   /api/v1/metrics/store/connect        superuser
+GET    /api/v1/metrics/agents
+POST   /api/v1/metrics/agents
+PATCH  /api/v1/metrics/agents/{agent_id}
+DELETE /api/v1/metrics/agents/{agent_id}
+GET    /api/v1/metrics/agents/{agent_id}/key
+POST   /api/v1/metrics/agents/{agent_id}/key
+POST   /api/v1/metrics/agents/{agent_id}/purge
+GET    /api/v1/metrics/catalog
+POST   /api/v1/metrics/history
+```
+
+The store tests need a TimescaleDB whose role may create databases, named by
+`TEST_METRICS_STORE_URL`; without it they are skipped. The compatibility source
+`v2_30_pg18` serves locally — at `127.0.0.1`, because `localhost` on Windows
+tries IPv6 first and waits out the connect timeout on every connection.
 
 ## D125. Dashboards are a space of their own
 
@@ -57,8 +108,15 @@ Chunking, retention, compression and continuous aggregates are the extension's.
 
 Known deviations:
 
-- D83 does not hold for this one service.
+- D83 does not hold for this one service. `ManagedService.purpose` says so,
+  and every person-scoped query of the services module reads connections only.
 - There is one store per installation.
+- **The store's service row belongs to the superuser who started it.** Deleting
+  that account deletes the row; the container keeps running and serving, but
+  shows among the containers no row claims, where an administrator could
+  remove it.
+- **A store that stops answering is found out when somebody asks.** The status
+  says `unreachable`; nothing watches it in between.
 
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
@@ -81,6 +139,15 @@ sample. The web process reads the store and never writes points.
 - Live display reads newer points from the store on a short interval; no
   channel between processes.
 
+Known deviations:
+
+- **The process re-resolves every series every fifteen seconds.** A purge in
+  the web process deletes series rows the process still holds ids of; points
+  written under such an id in that window are lost. Re-resolving is an upsert
+  per series per interval.
+- **A batch that fails to write is dropped**, and counted in the log line the
+  process writes every minute.
+
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
 ## D128. A series belongs to a typed source, and access follows its owner
@@ -96,6 +163,10 @@ invented for a connection.
   carries.
 - The agents window gives a Compose snippet with the address, the key, a fixed
   `hostname` and no `iftop` action.
+
+Known deviation: **deleting an agent keeps its samples** until retention
+removes them; purging is a separate command. Its series stay in the store,
+readable by nobody, because nobody owns the agent any more.
 
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 

@@ -38,6 +38,8 @@ JobKind = Literal[
     "backup.restore",
     # A reviewed action over a fixed set of source targets (D123).
     "source.operation",
+    # The installation's TimescaleDB, started as a service (D126).
+    "metrics.store.create",
 ]
 
 # The lifecycle, and no state outside it.
