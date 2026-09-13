@@ -50,6 +50,13 @@ export const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      // A link to a dashboard: its address, carrying no right (D129).
+      path: "/dashboards/:dashboardId",
+      name: "dashboard-link",
+      component: () => import("@/features/dashboards/DashboardLinkPage.vue"),
+      meta: { requiresAuth: true },
+    },
+    {
       path: "/",
       name: "workspace",
       component: () => import("@/features/workspace/WorkspacePage.vue"),

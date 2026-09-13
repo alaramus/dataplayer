@@ -16,6 +16,7 @@ const props = defineProps<{
   sort: ProcessSort
   limit: ProcessLimit
   refreshSeconds: number
+  dashboardId: string | null
 }>()
 
 const emit = defineEmits<{ options: [patch: { sort?: ProcessSort; limit?: ProcessLimit }] }>()
@@ -25,7 +26,8 @@ const table = useProcesses(
   () => props.host,
   () => props.sort,
   () => props.limit,
-  () => props.refreshSeconds
+  () => props.refreshSeconds,
+  () => props.dashboardId
 )
 
 const columns: TableColumns = [

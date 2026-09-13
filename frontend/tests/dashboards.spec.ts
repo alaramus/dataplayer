@@ -5,6 +5,7 @@ import type { Page } from "@playwright/test"
 
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { COLLEAGUE_PASSWORD, colleagueEmail, createColleague, removeColleague, signInAs } from "./utils/people"
 import { openNode, pickSchema } from "./utils/catalog"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
 
@@ -371,4 +372,104 @@ test("a superuser reads what the metrics store keeps, and is warned before remov
   await expect(dialog.getByTestId("store-origin")).toBeVisible()
   await dialog.getByRole("button", { name: "Close", exact: true }).click()
   await expect(page.getByTestId("dashboards-rail")).toBeVisible()
+})
+
+test("a dashboard shared with a colleague opens from its link, is edited once allowed, and goes when taken back", async ({ page, browser }) => {
+  test.setTimeout(150_000)
+  await login(page)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  const stamp = Date.now()
+  const email = colleagueEmail()
+  const agentName = `e2e-shared-agent-${stamp}`
+  const host = `e2e-shared-host-${stamp}`
+  const dashboardName = `e2e-shared-${stamp}`
+
+  await createColleague(page, email)
+  await page.getByTestId("space-dashboards").click()
+  await page.getByTestId("agents-open").click()
+  await page.getByTestId("agent-name").fill(agentName)
+  await page.getByTestId("agent-register").click()
+  const key = (await page.getByTestId("agent-key").innerText()).trim()
+  await page.getByTestId("agents-dialog").getByRole("button", { name: "Close", exact: true }).click()
+  await page.waitForTimeout(1500)
+  const now = Math.floor(Date.now() / 1000)
+  for (const offset of [90, 60, 30, 0]) {
+    await send({
+      action: "monitor-cpu", appkey: key, host, time: String(now - offset),
+      data: { cpu: [10, 5, 15], uptime: 5000 - offset, loadavg: [0.1, 0.2, 0.3] },
+    })
+  }
+
+  await page.getByTestId("dashboard-new").click()
+  await page.getByRole("button", { name: "Rename this dashboard" }).click()
+  await page.getByTestId("dashboard-rename-input").fill(dashboardName)
+  await page.getByTestId("dashboard-rename-input").press("Enter")
+  await expect(page.getByTestId(`dashboard-${dashboardName}`)).toBeVisible()
+  await expect(async () => {
+    await page.reload()
+    await page.getByTestId(`dashboard-${dashboardName}`).click()
+    await page.getByTestId("dashboard-add").click()
+    await expect(page.getByTestId("add-widgets-tree").getByText(host, { exact: true })).toBeVisible({ timeout: 2000 })
+  }).toPass({ timeout: 30_000 })
+  await page.getByTestId("add-widgets-tree").getByText(host, { exact: true }).locator("xpath=../..").getByRole("checkbox").click()
+  await page.getByTestId("add-widgets-confirm").click()
+  await expect(page.getByTestId("widget")).toHaveCount(3)
+  await page.waitForTimeout(1500)
+
+  // --- the owner gives a colleague a look, and says what that includes -----
+  await page.getByTestId("dashboard-share").click()
+  const dialog = page.getByTestId("dashboard-share-dialog")
+  await expect(dialog.getByTestId("dashboard-share-warning")).toContainText("your agents' hosts included")
+  const link = await dialog.getByTestId("dashboard-share-link").inputValue()
+  expect(link).toContain("/dashboards/")
+  await dialog.getByTestId("dashboard-share-user").click()
+  await page.getByRole("option", { name: email }).click()
+  await dialog.getByTestId("dashboard-share-submit").click()
+  await expect(dialog.getByTestId(`dashboard-grant-${email}`)).toContainText("Can view")
+  await dialog.getByRole("button", { name: "Close", exact: true }).click()
+
+  const url = new URL(link)
+  const theirs = await browser.newContext({ baseURL: url.origin })
+  const colleague = await theirs.newPage()
+  try {
+    await signInAs(colleague, email, COLLEAGUE_PASSWORD)
+    await colleague.goto(url.pathname)
+    await expect(colleague.getByTestId("dashboard-name")).toHaveText(dashboardName)
+    await expect(colleague.getByTestId("dashboard-shared-by")).toContainText("View only")
+    // The agent is not theirs: the tile reads it through the dashboard.
+    await expect(colleague.getByTestId("stat-value")).toHaveText("1 h 23 min")
+    await expect(colleague.getByTestId("dashboard-add")).toHaveCount(0)
+    await expect(colleague.getByTestId("widget-remove")).toHaveCount(0)
+    await expect(colleague.getByTestId("dashboards-shared")).toContainText(dashboardName)
+
+    // --- allowed to edit, the colleague can add ----------------------------
+    await page.getByTestId("dashboard-share").click()
+    await dialog.getByTestId(`dashboard-grant-level-${email}`).click()
+    await page.getByRole("option", { name: "Can edit", exact: true }).click()
+    await expect(dialog.getByTestId(`dashboard-grant-${email}`)).toContainText("Can edit")
+    await colleague.reload()
+    await colleague.getByTestId(`dashboard-${dashboardName}`).click()
+    await expect(colleague.getByTestId("dashboard-add")).toBeVisible()
+    await expect(colleague.getByTestId("dashboard-shared-by")).toContainText("You can edit")
+
+    // --- taken back, it is gone, and its link says only that --------------
+    await dialog.getByTestId(`dashboard-grant-revoke-${email}`).click()
+    await expect(dialog.getByTestId(`dashboard-grant-${email}`)).toHaveCount(0)
+    await dialog.getByRole("button", { name: "Close", exact: true }).click()
+    await colleague.reload()
+    await expect(colleague.getByTestId(`dashboard-${dashboardName}`)).toHaveCount(0)
+    await colleague.goto(url.pathname)
+    await expect(colleague.getByText("That dashboard does not exist, or it has not been shared with you")).toBeVisible()
+  } finally {
+    await theirs.close()
+  }
+
+  await page.getByRole("button", { name: "Delete this dashboard" }).click()
+  await page.getByTestId("confirm-accept").click()
+  await page.getByTestId("agents-open").click()
+  const row = page.getByTestId("agents-table").getByRole("row", { name: new RegExp(agentName) })
+  await row.getByRole("button", { name: "Remove this agent" }).click()
+  await page.getByTestId("confirm-accept").click()
+  await page.getByTestId("agents-dialog").getByRole("button", { name: "Close", exact: true }).click()
+  await removeColleague(page, email)
 })

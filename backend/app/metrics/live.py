@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.db import async_session_maker
-from app.metrics.access import readable_sources
+from app.metrics.access import live_series, readable_sources
 from app.metrics.holder import StoreHolder
 from app.metrics.store import MetricsStore, StoreUnavailable
 from app.realtime.topics import Subscriber, register
@@ -40,6 +40,10 @@ MAX_POINTS_PER_ROUND = 2000
 # to a second later. A series seen longer ago than this with no newer point has
 # none coming, and is not asked about again.
 SETTLED_SECONDS = 10
+# How often who may read what is asked again. A grant taken away stops the
+# points within this; asking every round would cost a walk over every
+# dashboard shared with the watcher every two seconds.
+SCOPE_SECONDS = 10.0
 
 
 class SeriesPoints(BaseModel):
@@ -85,6 +89,15 @@ class Watermarks:
 
     def advance(self, series_id: int, ts: int) -> None:
         self._pushed[series_id] = max(ts, self._pushed.get(series_id, self._started))
+
+
+@dataclass
+class _Scope:
+    """What one watcher may read: sources directly, series through dashboards."""
+
+    sources: list[uuid.UUID] = field(default_factory=list)
+    series: list[int] = field(default_factory=list)
+    read_at: float = float("-inf")
 
 
 class LiveTopic:
@@ -138,20 +151,25 @@ class LiveTopic:
 
     async def _monitor(self, user_id: uuid.UUID) -> None:
         marks = Watermarks(started=int(time.time()))
+        scope = _Scope()
         while True:
             try:
-                await self._round(user_id, marks)
+                await self._round(user_id, marks, scope)
             except (StoreUnavailable, SQLAlchemyError, OSError):
                 logger.info("A round of live points was skipped", exc_info=True)
             await asyncio.sleep(INTERVAL_SECONDS)
 
-    async def _round(self, user_id: uuid.UUID, marks: Watermarks) -> None:
+    async def _round(self, user_id: uuid.UUID, marks: Watermarks, scope: _Scope) -> None:
         async with async_session_maker() as session:
             store = await self._stores.get(session)
-            sources = sorted(await readable_sources(session, user_id))
-        if store is None:
-            return
-        payload = await read_round(store, sources, marks, now=int(time.time()))
+            if store is None:
+                return
+            if time.monotonic() - scope.read_at > SCOPE_SECONDS:
+                direct = await readable_sources(session, user_id)
+                scope.sources = sorted(direct)
+                scope.series = sorted(await live_series(session, store, user_id, direct))
+                scope.read_at = time.monotonic()
+        payload = await read_round(store, scope.sources, marks, now=int(time.time()), series=scope.series)
         if payload is None:
             return
         async with self._lock:
@@ -163,10 +181,16 @@ class LiveTopic:
 
 
 async def read_round(
-    store: MetricsStore, sources: list[uuid.UUID], marks: Watermarks, *, now: int
+    store: MetricsStore,
+    sources: list[uuid.UUID],
+    marks: Watermarks,
+    *,
+    now: int,
+    series: list[int] | None = None,
 ) -> LivePoints | None:
-    """One round: the points written since the last one, or None."""
-    seen = await store.seen(sources)
+    """One round: the points written since the last one, or None. `series` are
+    read by id, beside every series of `sources`."""
+    seen = {**await store.seen_series(series or []), **await store.seen(sources)}
     changed = marks.changed(seen)
     if not changed:
         return None

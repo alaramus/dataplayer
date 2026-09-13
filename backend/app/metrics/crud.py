@@ -8,14 +8,18 @@ from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.connectors.models import Connector
+from app.core.access import Access
 from app.metrics import keys
 from app.metrics.dashboards import (
     AnyWidget,
     Dashboard,
     DashboardContent,
+    DashboardGrant,
+    DashboardGrantLevel,
     ProcessesWidget,
 )
 from app.metrics.models import MetricsAgent, MetricsConnector, MetricsStoreSetting
+from app.users.models import User
 
 
 async def store_setting(session: AsyncSession) -> MetricsStoreSetting | None:
@@ -107,6 +111,81 @@ async def dashboards_of(session: AsyncSession, owner_id: uuid.UUID) -> list[Dash
         .order_by(col(Dashboard.created_at))
     )
     return list((await session.exec(statement)).all())
+
+
+async def visible_dashboards(
+    session: AsyncSession, user_id: uuid.UUID
+) -> list[tuple[Dashboard, Access, User | None]]:
+    """The user's own dashboards, then those shared with them, each with the
+    caller's standing and, for a shared one, its owner."""
+    own: list[tuple[Dashboard, Access, User | None]] = [
+        (dashboard, "own", None) for dashboard in await dashboards_of(session, user_id)
+    ]
+    statement = (
+        select(Dashboard, DashboardGrant, User)
+        .join(DashboardGrant, col(DashboardGrant.dashboard_id) == col(Dashboard.id))
+        .join(User, col(User.id) == col(Dashboard.owner_id))
+        .where(DashboardGrant.user_id == user_id)
+        .order_by(col(Dashboard.name))
+    )
+    shared: list[tuple[Dashboard, Access, User | None]] = [
+        (dashboard, grant.access, owner)
+        for dashboard, grant, owner in (await session.exec(statement)).all()
+    ]
+    return own + shared
+
+
+async def dashboard_standing(
+    session: AsyncSession, dashboard: Dashboard, user_id: uuid.UUID
+) -> Access | None:
+    if dashboard.owner_id == user_id:
+        return "own"
+    grant = await session.get(DashboardGrant, (dashboard.id, user_id))
+    return grant.access if grant is not None else None
+
+
+async def dashboard_grants(
+    session: AsyncSession, dashboard_id: uuid.UUID
+) -> list[tuple[DashboardGrant, User]]:
+    statement = (
+        select(DashboardGrant, User)
+        .join(User, col(User.id) == col(DashboardGrant.user_id))
+        .where(DashboardGrant.dashboard_id == dashboard_id)
+        .order_by(col(User.email))
+    )
+    return [(grant, user) for grant, user in (await session.exec(statement)).all()]
+
+
+async def set_dashboard_grant(
+    session: AsyncSession, dashboard_id: uuid.UUID, user_id: uuid.UUID, access: DashboardGrantLevel
+) -> DashboardGrant:
+    grant = await session.get(DashboardGrant, (dashboard_id, user_id))
+    if grant is None:
+        grant = DashboardGrant(dashboard_id=dashboard_id, user_id=user_id, access=access)
+    grant.access = access
+    session.add(grant)
+    await session.commit()
+    await session.refresh(grant)
+    return grant
+
+
+async def remove_dashboard_grant(
+    session: AsyncSession, dashboard_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    grant = await session.get(DashboardGrant, (dashboard_id, user_id))
+    if grant is None:
+        return False
+    await session.delete(grant)
+    await session.commit()
+    return True
+
+
+async def writers_of(session: AsyncSession, dashboard: Dashboard) -> list[uuid.UUID]:
+    """Everybody who may put a series on a dashboard: its owner and its editors."""
+    statement = select(DashboardGrant.user_id).where(
+        DashboardGrant.dashboard_id == dashboard.id, DashboardGrant.access == "write"
+    )
+    return [dashboard.owner_id, *(await session.exec(statement)).all()]
 
 
 async def forget_series(session: AsyncSession) -> None:

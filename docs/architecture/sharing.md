@@ -5,7 +5,8 @@ access asks for it. Read this before changing the share record, the link route
 or the access request.
 
 Grants on a connection are D33 in [backend.md](backend.md); this file never
-redefines them. The tab whose address is shared is in
+redefines them. A dashboard is shared by grants of its own and linked by its
+address, D129 in [dashboards.md](dashboards.md). The tab whose address is shared is in
 [workspace.md](workspace.md), and the grid state that travels in the link is
 D24 in [grid.md](grid.md).
 

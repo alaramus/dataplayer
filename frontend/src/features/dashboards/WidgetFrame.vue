@@ -15,6 +15,8 @@ const props = defineProps<{
   expanded: boolean
   /** A read that failed, said inside the frame rather than instead of it. */
   error?: string | null
+  /** Whether it may be moved, resized, renamed and removed: not on a dashboard one may only view. */
+  editable?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -31,6 +33,7 @@ const draft = ref("")
 const field = ref<InstanceType<typeof AppInput> | null>(null)
 
 async function startRename() {
+  if (props.editable === false) return
   draft.value = props.title
   editing.value = true
   await nextTick()
@@ -47,7 +50,7 @@ function commit() {
 }
 
 function onHeaderPointerDown(event: PointerEvent) {
-  if (editing.value || props.expanded) return
+  if (editing.value || props.expanded || props.editable === false) return
   if ((event.target as HTMLElement).closest("button, input") !== null) return
   emit("grab", event)
 }
@@ -77,7 +80,7 @@ function onHeaderPointerDown(event: PointerEvent) {
       <span
         v-else
         class="widget-frame__title"
-        :title="`${title} — double-click to rename`"
+        :title="editable === false ? title : `${title} — double-click to rename`"
       >{{ title }}</span>
       <AppIconButton
         icon="open_in_new"
@@ -93,6 +96,7 @@ function onHeaderPointerDown(event: PointerEvent) {
         @click="emit('toggleExpand')"
       />
       <AppIconButton
+        v-if="editable !== false"
         icon="close"
         tooltip="Remove this widget"
         compact
@@ -110,7 +114,7 @@ function onHeaderPointerDown(event: PointerEvent) {
       <slot v-else />
     </div>
     <div
-      v-if="!expanded"
+      v-if="!expanded && editable !== false"
       class="widget-frame__resize"
       title="Drag to resize"
       @pointerdown.stop="emit('grabResize', $event)"

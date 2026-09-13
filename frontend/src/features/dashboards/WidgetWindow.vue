@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
-import { useLivePoints, useMetricsCatalog } from "./api"
+import { useDashboardCatalog, useLivePoints, useMetricsCatalog } from "./api"
 import { indexCatalog } from "./catalog"
+import { mergedIndex } from "./sharing"
 import type { ProcessLimit, ProcessSort, RangeSeconds, RefreshSeconds, Widget } from "./dashboardModel"
 import { withOptions } from "./dashboardModel"
 import WidgetBody from "./WidgetBody.vue"
@@ -17,11 +18,15 @@ const props = defineProps<{
   widget: Widget
   rangeSeconds: RangeSeconds
   refreshSeconds: RefreshSeconds
+  dashboardId: string
 }>()
 
 useLivePoints()
 const catalog = useMetricsCatalog(true)
-const index = computed(() => indexCatalog(catalog.data.value))
+const throughDashboard = useDashboardCatalog(() => props.dashboardId)
+const index = computed(() =>
+  mergedIndex(indexCatalog(catalog.data.value), indexCatalog(throughDashboard.data.value))
+)
 const shown = ref<Widget>(props.widget)
 
 function applyOptions(patch: { sort?: ProcessSort; limit?: ProcessLimit }) {
@@ -39,6 +44,7 @@ function applyOptions(patch: { sort?: ProcessSort; limit?: ProcessLimit }) {
       :index="index"
       :range-seconds="rangeSeconds"
       :refresh-seconds="refreshSeconds"
+      :dashboard-id="dashboardId"
       @options="applyOptions"
     />
   </div>

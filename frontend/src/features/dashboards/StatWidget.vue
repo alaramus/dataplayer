@@ -14,11 +14,18 @@ const props = defineProps<{
   index: Map<number, SeriesEntry>
   rangeSeconds: number
   refreshSeconds: number
+  dashboardId: string | null
 }>()
 
 // Raw points, as many as the range holds: a fall inside the range is what a
 // restart looks like, and a bucket's average would hide it.
-const history = useHistory(() => [props.seriesId], () => props.rangeSeconds, () => props.refreshSeconds, 5000)
+const history = useHistory(
+  () => [props.seriesId],
+  () => props.rangeSeconds,
+  () => props.refreshSeconds,
+  5000,
+  () => props.dashboardId
+)
 
 const unit = computed(() => props.index.get(props.seriesId)?.unit ?? "")
 const reading = computed(() => {

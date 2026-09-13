@@ -15,10 +15,16 @@ const props = defineProps<{
   index: Map<number, SeriesEntry>
   rangeSeconds: number
   refreshSeconds: number
+  dashboardId: string | null
 }>()
 
-
-const history = useHistory(() => props.seriesIds, () => props.rangeSeconds, () => props.refreshSeconds)
+const history = useHistory(
+  () => props.seriesIds,
+  () => props.rangeSeconds,
+  () => props.refreshSeconds,
+  600,
+  () => props.dashboardId
+)
 
 const series = computed<ChartSeries[]>(() => {
   const entries = props.seriesIds.map((id) => props.index.get(id))

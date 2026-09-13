@@ -262,8 +262,14 @@ import type {
   metricsReadAgentsResponses,
   metricsReadCatalogData,
   metricsReadCatalogResponses,
+  metricsReadDashboardCatalogData,
+  metricsReadDashboardCatalogErrors,
+  metricsReadDashboardCatalogResponses,
   metricsReadDashboardData,
   metricsReadDashboardErrors,
+  metricsReadDashboardGrantsData,
+  metricsReadDashboardGrantsErrors,
+  metricsReadDashboardGrantsResponses,
   metricsReadDashboardResponses,
   metricsReadDashboardsData,
   metricsReadDashboardsResponses,
@@ -289,6 +295,9 @@ import type {
   metricsRenameAgentData,
   metricsRenameAgentErrors,
   metricsRenameAgentResponses,
+  metricsRevokeDashboardGrantData,
+  metricsRevokeDashboardGrantErrors,
+  metricsRevokeDashboardGrantResponses,
   metricsRotateAgentKeyData,
   metricsRotateAgentKeyErrors,
   metricsRotateAgentKeyResponses,
@@ -300,6 +309,9 @@ import type {
   metricsUpdateReportingData,
   metricsUpdateReportingErrors,
   metricsUpdateReportingResponses,
+  metricsWriteDashboardGrantData,
+  metricsWriteDashboardGrantErrors,
+  metricsWriteDashboardGrantResponses,
   privateCreateUserData,
   privateCreateUserErrors,
   privateCreateUserResponses,
@@ -4508,7 +4520,8 @@ export class MetricsService {
   /**
    * Read Processes
    *
-   * The newest process table one host sent in the last hour.
+   * The newest process table one host sent in the last hour, of an agent
+   * of the caller's or of a host on a dashboard they may read.
    */
   public static readProcesses<ThrowOnError extends boolean = true>(
     options: Options<metricsReadProcessesData, ThrowOnError>
@@ -4549,7 +4562,8 @@ export class MetricsService {
   /**
    * Read History
    *
-   * Points of the asked series over a range, raw or bucketed to fit.
+   * Points of the asked series over a range, raw or bucketed to fit. Series
+   * on a dashboard the caller may read are asked through it.
    */
   public static readHistory<ThrowOnError extends boolean = true>(
     options: Options<metricsReadHistoryData, ThrowOnError>
@@ -4572,6 +4586,8 @@ export class MetricsService {
 
   /**
    * Read Dashboards
+   *
+   * The caller's own dashboards, then those shared with them.
    */
   public static readDashboards<ThrowOnError extends boolean = true>(
     options?: Options<metricsReadDashboardsData, ThrowOnError>
@@ -4626,6 +4642,9 @@ export class MetricsService {
 
   /**
    * Read Dashboard
+   *
+   * One dashboard. Its address is its link: somebody without standing on it
+   * is told it does not exist (D33).
    */
   public static readDashboard<ThrowOnError extends boolean = true>(
     options: Options<metricsReadDashboardData, ThrowOnError>
@@ -4647,8 +4666,10 @@ export class MetricsService {
    *
    * Replace the name, options and widgets, if nobody saved in between.
    *
-   * A widget naming a series the saver cannot read is refused: a stored
-   * dashboard must not become a way of reading somebody else's data (D129).
+   * What was already on the dashboard stays. What is added must be readable by
+   * whoever adds it, directly: a stored dashboard must not become a way of
+   * reading somebody else's data, and an editor is not given the owner's
+   * agents by being given the dashboard (D129).
    */
   public static saveDashboard<ThrowOnError extends boolean = true>(
     options: Options<metricsSaveDashboardData, ThrowOnError>
@@ -4666,6 +4687,93 @@ export class MetricsService {
         "Content-Type": "application/json",
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Read Dashboard Catalog
+   *
+   * What the series and process tables on one dashboard are, as far as the
+   * caller may read them through it: the names its widgets are drawn with.
+   */
+  public static readDashboardCatalog<ThrowOnError extends boolean = true>(
+    options: Options<metricsReadDashboardCatalogData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      metricsReadDashboardCatalogResponses,
+      metricsReadDashboardCatalogErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/dashboards/{dashboard_id}/catalog",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Dashboard Grants
+   *
+   * Who else may see this dashboard, and whether they may change it. The
+   * owner's business alone, as a connection's grants are.
+   */
+  public static readDashboardGrants<ThrowOnError extends boolean = true>(
+    options: Options<metricsReadDashboardGrantsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      metricsReadDashboardGrantsResponses,
+      metricsReadDashboardGrantsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/dashboards/{dashboard_id}/grants",
+      ...options,
+    })
+  }
+
+  /**
+   * Write Dashboard Grant
+   *
+   * Give somebody a level on this dashboard, or change the one they have.
+   */
+  public static writeDashboardGrant<ThrowOnError extends boolean = true>(
+    options: Options<metricsWriteDashboardGrantData, ThrowOnError>
+  ) {
+    return (options.client ?? client).put<
+      metricsWriteDashboardGrantResponses,
+      metricsWriteDashboardGrantErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/dashboards/{dashboard_id}/grants",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Revoke Dashboard Grant
+   *
+   * Take a level away. What the person already has on screen goes at their
+   * next read.
+   */
+  public static revokeDashboardGrant<ThrowOnError extends boolean = true>(
+    options: Options<metricsRevokeDashboardGrantData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      metricsRevokeDashboardGrantResponses,
+      metricsRevokeDashboardGrantErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/dashboards/{dashboard_id}/grants/{user_id}",
+      ...options,
     })
   }
 }

@@ -1967,6 +1967,42 @@ export type DashboardCreate = {
 }
 
 /**
+ * DashboardGrantPublic
+ */
+export type DashboardGrantPublic = {
+  /**
+   * User Id
+   */
+  user_id: string
+  /**
+   * Email
+   */
+  email: string
+  /**
+   * Full Name
+   */
+  full_name?: string | null
+  /**
+   * Access
+   */
+  access: "read" | "write"
+}
+
+/**
+ * DashboardGrantWrite
+ */
+export type DashboardGrantWrite = {
+  /**
+   * User Id
+   */
+  user_id: string
+  /**
+   * Access
+   */
+  access: "read" | "write"
+}
+
+/**
  * DashboardOptions
  */
 export type DashboardOptions = {
@@ -2019,6 +2055,14 @@ export type DashboardPublic = {
    * Broken
    */
   broken?: boolean
+  /**
+   * Access
+   */
+  access?: "read" | "write" | "structure" | "own"
+  /**
+   * Owner
+   */
+  owner?: string | null
 }
 
 /**
@@ -3845,6 +3889,10 @@ export type HistoryRequest = {
    * Max Points
    */
   max_points?: number
+  /**
+   * Dashboard Id
+   */
+  dashboard_id?: string | null
 }
 
 /**
@@ -14931,6 +14979,10 @@ export type metricsReadProcessesData = {
      * Limit
      */
     limit?: number
+    /**
+     * Dashboard Id
+     */
+    dashboard_id?: string | null
   }
   url: "/api/v1/metrics/processes"
 }
@@ -15160,6 +15212,140 @@ export type metricsSaveDashboardResponses = {
 
 export type metricsSaveDashboardResponse =
   metricsSaveDashboardResponses[keyof metricsSaveDashboardResponses]
+
+export type metricsReadDashboardCatalogData = {
+  body?: never
+  path: {
+    /**
+     * Dashboard Id
+     */
+    dashboard_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/dashboards/{dashboard_id}/catalog"
+}
+
+export type metricsReadDashboardCatalogErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsReadDashboardCatalogError =
+  metricsReadDashboardCatalogErrors[keyof metricsReadDashboardCatalogErrors]
+
+export type metricsReadDashboardCatalogResponses = {
+  /**
+   * Successful Response
+   */
+  200: MetricsCatalog
+}
+
+export type metricsReadDashboardCatalogResponse =
+  metricsReadDashboardCatalogResponses[keyof metricsReadDashboardCatalogResponses]
+
+export type metricsReadDashboardGrantsData = {
+  body?: never
+  path: {
+    /**
+     * Dashboard Id
+     */
+    dashboard_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/dashboards/{dashboard_id}/grants"
+}
+
+export type metricsReadDashboardGrantsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsReadDashboardGrantsError =
+  metricsReadDashboardGrantsErrors[keyof metricsReadDashboardGrantsErrors]
+
+export type metricsReadDashboardGrantsResponses = {
+  /**
+   * Response Metrics-Read Dashboard Grants
+   *
+   * Successful Response
+   */
+  200: Array<DashboardGrantPublic>
+}
+
+export type metricsReadDashboardGrantsResponse =
+  metricsReadDashboardGrantsResponses[keyof metricsReadDashboardGrantsResponses]
+
+export type metricsWriteDashboardGrantData = {
+  body: DashboardGrantWrite
+  path: {
+    /**
+     * Dashboard Id
+     */
+    dashboard_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/dashboards/{dashboard_id}/grants"
+}
+
+export type metricsWriteDashboardGrantErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsWriteDashboardGrantError =
+  metricsWriteDashboardGrantErrors[keyof metricsWriteDashboardGrantErrors]
+
+export type metricsWriteDashboardGrantResponses = {
+  /**
+   * Successful Response
+   */
+  200: DashboardGrantPublic
+}
+
+export type metricsWriteDashboardGrantResponse =
+  metricsWriteDashboardGrantResponses[keyof metricsWriteDashboardGrantResponses]
+
+export type metricsRevokeDashboardGrantData = {
+  body?: never
+  path: {
+    /**
+     * Dashboard Id
+     */
+    dashboard_id: string
+    /**
+     * User Id
+     */
+    user_id: string
+  }
+  query?: never
+  url: "/api/v1/metrics/dashboards/{dashboard_id}/grants/{user_id}"
+}
+
+export type metricsRevokeDashboardGrantErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type metricsRevokeDashboardGrantError =
+  metricsRevokeDashboardGrantErrors[keyof metricsRevokeDashboardGrantErrors]
+
+export type metricsRevokeDashboardGrantResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type metricsRevokeDashboardGrantResponse =
+  metricsRevokeDashboardGrantResponses[keyof metricsRevokeDashboardGrantResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

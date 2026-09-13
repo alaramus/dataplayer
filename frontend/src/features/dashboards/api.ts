@@ -4,7 +4,14 @@ import type { MaybeRefOrGetter } from "vue"
 import { toValue } from "vue"
 
 import { MetricsService } from "@/client"
-import type { DashboardPublic, DashboardSave, HistoryAnswer, ReportingUpdate, StoreStatus } from "@/client"
+import type {
+  DashboardGrantWrite,
+  DashboardPublic,
+  DashboardSave,
+  HistoryAnswer,
+  ReportingUpdate,
+  StoreStatus,
+} from "@/client"
 import { isJobEvent, JOBS_TOPIC } from "@/features/services/jobs"
 import { realtime } from "@/shared/realtime/client"
 
@@ -134,7 +141,9 @@ export function useHistory(
   seriesIds: MaybeRefOrGetter<readonly number[]>,
   rangeSeconds: MaybeRefOrGetter<number>,
   refreshSeconds: MaybeRefOrGetter<number>,
-  maxPoints: MaybeRefOrGetter<number> = 600
+  maxPoints: MaybeRefOrGetter<number> = 600,
+  /** The dashboard the series are drawn on, which may be how they are readable (D129). */
+  dashboardId: MaybeRefOrGetter<string | null> = null
 ) {
   return useQuery({
     queryKey: computed(() => [
@@ -142,6 +151,7 @@ export function useHistory(
       [...toValue(seriesIds)].sort((a, b) => a - b).join(","),
       toValue(rangeSeconds),
       toValue(maxPoints),
+      toValue(dashboardId),
     ] as const),
     queryFn: async ({ signal }) => {
       const { start, end } = windowOf(toValue(rangeSeconds), Date.now())
@@ -152,6 +162,7 @@ export function useHistory(
             start,
             end,
             max_points: toValue(maxPoints),
+            dashboard_id: toValue(dashboardId),
           },
           signal,
         })
@@ -191,14 +202,23 @@ export function useProcesses(
   host: MaybeRefOrGetter<string>,
   sort: MaybeRefOrGetter<ProcessSort>,
   limit: MaybeRefOrGetter<ProcessLimit>,
-  refreshSeconds: MaybeRefOrGetter<number>
+  refreshSeconds: MaybeRefOrGetter<number>,
+  dashboardId: MaybeRefOrGetter<string | null> = null
 ) {
   return useQuery({
-    queryKey: computed(() => ["metrics-processes", toValue(agentId), toValue(host), toValue(sort), toValue(limit)] as const),
+    queryKey: computed(() => [
+      "metrics-processes", toValue(agentId), toValue(host), toValue(sort), toValue(limit), toValue(dashboardId),
+    ] as const),
     queryFn: async ({ signal }) =>
       (
         await MetricsService.readProcesses({
-          query: { agent_id: toValue(agentId), host: toValue(host), sort: toValue(sort), limit: toValue(limit) },
+          query: {
+            agent_id: toValue(agentId),
+            host: toValue(host),
+            sort: toValue(sort),
+            limit: toValue(limit),
+            dashboard_id: toValue(dashboardId),
+          },
           signal,
         })
       ).data,
@@ -348,5 +368,46 @@ export function useRestarts() {
     queryKey: ["metrics-restarts"] as const,
     queryFn: async () => (await MetricsService.readRestarts()).data,
     refetchInterval: 60_000,
+  })
+}
+
+/** The names of what is on one dashboard, as the caller may read it through the dashboard. */
+export function useDashboardCatalog(dashboardId: MaybeRefOrGetter<string | null>) {
+  return useQuery({
+    queryKey: computed(() => ["metrics-dashboard-catalog", toValue(dashboardId)] as const),
+    queryFn: async () =>
+      (await MetricsService.readDashboardCatalog({ path: { dashboard_id: toValue(dashboardId) as string } })).data,
+    enabled: computed(() => toValue(dashboardId) !== null),
+    refetchInterval: 60_000,
+  })
+}
+
+const dashboardGrantsKey = (dashboardId: string) => ["metrics-dashboard-grants", dashboardId] as const
+
+/** Who else may see a dashboard. The owner's list; anybody else is refused it. */
+export function useDashboardGrants(dashboardId: MaybeRefOrGetter<string | null>) {
+  return useQuery({
+    queryKey: computed(() => dashboardGrantsKey(toValue(dashboardId) ?? "none")),
+    queryFn: async () =>
+      (await MetricsService.readDashboardGrants({ path: { dashboard_id: toValue(dashboardId) as string } })).data,
+    enabled: computed(() => toValue(dashboardId) !== null),
+  })
+}
+
+export function useWriteDashboardGrant(dashboardId: MaybeRefOrGetter<string>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: DashboardGrantWrite) =>
+      (await MetricsService.writeDashboardGrant({ path: { dashboard_id: toValue(dashboardId) }, body })).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: dashboardGrantsKey(toValue(dashboardId)) }),
+  })
+}
+
+export function useRevokeDashboardGrant(dashboardId: MaybeRefOrGetter<string>) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (userId: string) =>
+      (await MetricsService.revokeDashboardGrant({ path: { dashboard_id: toValue(dashboardId), user_id: userId } })).data,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: dashboardGrantsKey(toValue(dashboardId)) }),
   })
 }

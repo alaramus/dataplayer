@@ -11,6 +11,7 @@ defineProps<{
   index: Map<number, SeriesEntry>
   rangeSeconds: number
   refreshSeconds: number
+  dashboardId: string | null
 }>()
 
 const emit = defineEmits<{ options: [patch: { sort?: ProcessSort; limit?: ProcessLimit }] }>()
@@ -23,6 +24,7 @@ const emit = defineEmits<{ options: [patch: { sort?: ProcessSort; limit?: Proces
     :index="index"
     :range-seconds="rangeSeconds"
     :refresh-seconds="refreshSeconds"
+    :dashboard-id="dashboardId"
   />
   <ProcessesWidget
     v-else-if="widget.type === 'processes'"
@@ -31,6 +33,7 @@ const emit = defineEmits<{ options: [patch: { sort?: ProcessSort; limit?: Proces
     :sort="widget.sort ?? 'pcpu'"
     :limit="widget.limit ?? 20"
     :refresh-seconds="refreshSeconds"
+    :dashboard-id="dashboardId"
     @options="(patch) => emit('options', patch)"
   />
   <TimeseriesWidget
@@ -39,5 +42,6 @@ const emit = defineEmits<{ options: [patch: { sort?: ProcessSort; limit?: Proces
     :index="index"
     :range-seconds="rangeSeconds"
     :refresh-seconds="refreshSeconds"
+    :dashboard-id="dashboardId"
   />
 </template>

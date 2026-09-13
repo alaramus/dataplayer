@@ -9,9 +9,9 @@ Decisions here: D125, D126, D127, D128, D129, D130.
 **Implementation status:** DB1 — the store, its setup, collection, agents,
 catalog and history —, DB2 — the screen, dashboards, widgets, the agents window
 —, DB3 — live points, process tables, ready-made layouts, a widget in a window
-—, DB4 — connections reporting about themselves — and DB5 — rollups,
-compression, removing the store, restart notices — are implemented. DB6 is in
-the spec; sharing is not there yet.
+—, DB4 — connections reporting about themselves —, DB5 — rollups,
+compression, removing the store, restart notices — and DB6 — dashboards shared
+with people — are implemented.
 
 ## What exists today
 
@@ -47,6 +47,14 @@ and how long it keeps what in the *Metrics store* window, opened from the rail
 or from a store that stopped answering, and removes it from there. A host of
 one's agents that keeps restarting is an item in the activity sheet.
 
+The owner of a dashboard shares it from its Share window, with a person, to view
+or to edit, and the window says that this shows them the owner's agents' hosts
+on it. The person finds it under *Shared with you* in the rail and draws it
+from series they could not read otherwise. Somebody who may only view can pick
+another range for themselves, and nothing they do is saved. The window also
+carries the dashboard's link, which opens it for anybody holding access and
+tells anybody else that it does not exist or was not shared with them.
+
 A person registers agents and receives the key each reports under. The `metrics` process receives their
 packets and writes samples and process snapshots; the web process answers the
 catalog of what a person's agents reported and the history of chosen series,
@@ -66,11 +74,11 @@ backend/app/metrics/
 ├── store.py        the store: series ids, writes, catalog, history, purge
 ├── holder.py       the web process's handle on the store
 ├── history.py      raw or which bucket width, from which table; pure
-├── access.py       who may read a series
+├── access.py       who may read a series and a dashboard
 ├── setup.py        store status, starting it, connecting one
 ├── jobs.py         the service create job, delivering a store setting
 ├── collector.py    the metrics process
-├── dashboards.py   Dashboard, its widget union and limits
+├── dashboards.py   Dashboard, its widget union and limits, its grants
 ├── presets.py      ready-made layouts and resolving them against a host
 ├── live.py         the `metrics.points` topic
 ├── poller.py       connections polled for metrics, in the metrics process
@@ -98,6 +106,8 @@ frontend/src/
     │   agentSnippet.ts, storeFacts.ts
     │                             what is drawn and said; pure
     ├── attention.ts              a host that keeps restarting, for the sheet
+    ├── sharing.ts                what a standing allows, a dashboard's link; pure
+    ├── intent.ts                 a followed link waiting for the dashboards
     ├── livePoints.ts             socket points onto a history; pure
     ├── DashboardsSpace.vue       the card
     ├── StoreSetup.vue            before there is a store
@@ -106,6 +116,8 @@ frontend/src/
     ├── TimeseriesWidget.vue, StatWidget.vue, ProcessesWidget.vue, SeriesChart.vue
     ├── WidgetWindow.vue          one widget in a floating window
     ├── AddWidgetsDialog.vue, AgentsDialog.vue, StoreDialog.vue
+    ├── DashboardShareDialog.vue  who may see a dashboard, and its link
+    ├── DashboardLinkPage.vue     the /dashboards/:id address
     └── SpaceSwitch.vue
 ```
 
@@ -124,16 +136,20 @@ GET    /api/v1/metrics/agents/{agent_id}/key
 POST   /api/v1/metrics/agents/{agent_id}/key
 POST   /api/v1/metrics/agents/{agent_id}/purge
 GET    /api/v1/metrics/catalog
-POST   /api/v1/metrics/history
-GET    /api/v1/metrics/processes?agent_id=&host=&sort=&limit=
+POST   /api/v1/metrics/history                   a dashboard_id reads through it
+GET    /api/v1/metrics/processes?agent_id=&host=&sort=&limit=&dashboard_id=
 GET    /api/v1/metrics/presets?agent_id=&host=  |  ?connector_id=
 GET    /api/v1/metrics/connectors
 PUT    /api/v1/metrics/connectors/{connector_id}      owner
 GET    /api/v1/metrics/dashboards
 POST   /api/v1/metrics/dashboards
-GET    /api/v1/metrics/dashboards/{dashboard_id}
-PUT    /api/v1/metrics/dashboards/{dashboard_id}
-DELETE /api/v1/metrics/dashboards/{dashboard_id}
+GET    /api/v1/metrics/dashboards/{dashboard_id}            read
+GET    /api/v1/metrics/dashboards/{dashboard_id}/catalog    read
+PUT    /api/v1/metrics/dashboards/{dashboard_id}            write
+DELETE /api/v1/metrics/dashboards/{dashboard_id}            owner
+GET    /api/v1/metrics/dashboards/{dashboard_id}/grants     owner
+PUT    /api/v1/metrics/dashboards/{dashboard_id}/grants     owner
+DELETE /api/v1/metrics/dashboards/{dashboard_id}/grants/{user_id}  owner
 ```
 
 The store tests need a TimescaleDB whose role may create databases, named by
@@ -363,7 +379,8 @@ names. Limits: 12 columns, 20 widgets, 200 series per history request, titles of
 
 - Every read of points — history and live — asks one question: may this user
   read these series, directly or through this dashboard.
-- Saving refuses a widget naming a series the saver cannot read.
+- Saving keeps what the dashboard already held and refuses a widget adding a
+  series or a process table its saver cannot read directly.
 - A save names the version it was read at; a second tab saving in between is
   refused with 409, and the screen reads the dashboard again rather than
   overwriting it.
@@ -379,8 +396,37 @@ names. Limits: 12 columns, 20 widgets, 200 series per history request, titles of
   uses, so the layout is not compacted in two places. Layouts are declared per
   kind of source: agents have *Linux host*, and a connection's type declares
   its own through `SupportsMetrics`.
-- A grant on a dashboard (D33's levels) will let its holder read exactly the
-  series on it; until sharing lands the answer is the owner alone.
+- **A dashboard is shared by a grant**, a row per person, on D33's scale:
+  `read` sees it, `write` changes what is on it, its name and options; ownership
+  is a column, and grants, deleting and sharing are the owner's. No standing
+  answers 404 and too little 403, as a connection's do. The listing sends the
+  caller's standing and, for a shared dashboard, who shared it, so the screen
+  hides what the server would refuse.
+- **A grant lets its holder read the series on that dashboard and nothing
+  else**: not the agents or connections they came from, not the other series
+  of those hosts. There is no grant on an agent, so this is how one person's
+  agent metrics are shown to another, and the Share window says it in words.
+- **Reading through a dashboard is lent by the people who may fill it.** A
+  series on it is read through it while its owner or one of its editors can
+  still read that series directly. A connection grant taken from the owner, or
+  an editor lowered to `read`, takes those series from everybody reading
+  through them at their next read.
+- The names a shared dashboard's widgets are drawn with come from a catalog of
+  that dashboard alone, merged under what the person reads directly.
+
+Known deviations:
+
+- **The link is the dashboard's address, not a share record.** D58 holds: it
+  carries no right. D59–D61 do not: there is no token, no log of who opened it,
+  no screen naming what it is to somebody without access, and no request for
+  access through it; such a reader is told it does not exist or was not shared
+  with them. Links and requests belong to one feature (D61) whose records name a
+  connection, and a second copy of that machinery for dashboards is what the
+  shares module being made to take either subject should replace.
+- **Live points learn a new grant, or a lost one, within ten seconds**: who may
+  read what is asked again at that interval rather than every round.
+- **A viewer's choice of range and interval is not kept** past the dashboard
+  being closed.
 
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 

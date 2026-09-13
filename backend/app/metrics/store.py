@@ -459,6 +459,16 @@ class MetricsStore:
         )
         return {int(row["id"]): _seconds(row["last_seen"]) for row in rows}
 
+    async def seen_series(self, series_ids: Sequence[int]) -> dict[int, int]:
+        """When each of these series was last written, in seconds."""
+        if not series_ids:
+            return {}
+        rows = await self._fetch(
+            "SELECT id, last_seen FROM metric_series WHERE id = ANY(CAST(:ids AS bigint[]))",
+            {"ids": list(series_ids)},
+        )
+        return {int(row["id"]): _seconds(row["last_seen"]) for row in rows}
+
     async def points_after(
         self, series_ids: Sequence[int], after: int, limit: int
     ) -> list[PointRow]:

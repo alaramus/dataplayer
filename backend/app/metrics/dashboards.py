@@ -12,9 +12,10 @@ from typing import Annotated, Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 from pydantic import Field as PydanticField
-from sqlalchemy import JSON, Column, DateTime
+from sqlalchemy import JSON, Column, DateTime, Index, String
 from sqlmodel import Field, SQLModel
 
+from app.core.access import Access
 from app.core.schemas import get_datetime_utc
 from app.metrics.models import ProcessLimit
 from app.metrics.store import ProcessSort
@@ -98,6 +99,11 @@ def agents_of(widget: AnyWidget) -> list[uuid.UUID]:
     return [widget.agent_id] if isinstance(widget, ProcessesWidget) else []
 
 
+def hosts_of(widget: AnyWidget) -> list[tuple[uuid.UUID, str]]:
+    """The agent hosts whose process tables a widget reads."""
+    return [(widget.agent_id, widget.host)] if isinstance(widget, ProcessesWidget) else []
+
+
 class DashboardOptions(_Strict):
     range_seconds: RangeSeconds = 900
     refresh_seconds: RefreshSeconds = 30
@@ -135,6 +141,44 @@ class Dashboard(SQLModel, table=True):
     )
 
 
+# D33's scale, the part of it a dashboard has: `read` sees it, `write` changes
+# what is on it. Structure means nothing here, and ownership is a column.
+DashboardGrantLevel = Literal["read", "write"]
+
+
+class DashboardGrant(SQLModel, table=True):
+    """Somebody else's standing on a dashboard (D129).
+
+    A row, like a grant on a connection: the question is a primary key lookup.
+    It admits exactly the dashboard and the series on it, never the agents or
+    connections they came from.
+    """
+
+    __table_args__ = (Index("ix_dashboardgrant_user_id", "user_id"),)
+
+    dashboard_id: uuid.UUID = Field(
+        foreign_key="dashboard.id", primary_key=True, ondelete="CASCADE"
+    )
+    user_id: uuid.UUID = Field(foreign_key="user.id", primary_key=True, ondelete="CASCADE")
+    access: DashboardGrantLevel = Field(sa_column=Column(String(16), nullable=False))
+    created_at: datetime = Field(
+        default_factory=get_datetime_utc,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+    )
+
+
+class DashboardGrantPublic(BaseModel):
+    user_id: uuid.UUID
+    email: str
+    full_name: str | None = None
+    access: DashboardGrantLevel
+
+
+class DashboardGrantWrite(_Strict):
+    user_id: uuid.UUID
+    access: DashboardGrantLevel
+
+
 class DashboardCreate(_Strict):
     name: str = PydanticField(min_length=1, max_length=MAX_NAME)
 
@@ -151,9 +195,14 @@ class DashboardPublic(DashboardContent):
     updated_at: datetime
     # The stored content could not be read and is shown empty.
     broken: bool = False
+    # What the caller may do with it, sent rather than derived on the screen,
+    # the way a connection's is (D33).
+    access: Access = "own"
+    # Who shared it, when it is not the caller's own.
+    owner: str | None = None
 
 
-def public(dashboard: Dashboard) -> DashboardPublic:
+def public(dashboard: Dashboard, access: Access = "own", owner: str | None = None) -> DashboardPublic:
     try:
         content = DashboardContent.model_validate(dashboard.content)
         broken = False
@@ -168,4 +217,6 @@ def public(dashboard: Dashboard) -> DashboardPublic:
         options=content.options,
         widgets=content.widgets,
         broken=broken,
+        access=access,
+        owner=owner,
     )

@@ -276,6 +276,8 @@ class HistoryRequest(BaseModel):
     start: int = PydanticField(ge=0)
     end: int = PydanticField(ge=0)
     max_points: int = PydanticField(default=DEFAULT_MAX_POINTS, ge=10, le=MAX_POINTS)
+    # The dashboard the series are drawn on, when they are read through it.
+    dashboard_id: uuid.UUID | None = None
 
 
 class SeriesHistory(BaseModel):

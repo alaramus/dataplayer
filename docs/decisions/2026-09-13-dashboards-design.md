@@ -1,7 +1,7 @@
 # Dashboards: metric collection, storage and display
 
 Date: 2026-09-13.
-Status: DB1–DB5 implemented. DB6 designed. Slices below.
+Status: DB1–DB6 implemented. Slices below.
 
 Decisions: D125 through D130, in [dashboards](../architecture/dashboards.md).
 
@@ -342,6 +342,20 @@ Sharing (DB6):
 
 Until DB6 the check answers "owner" and nothing else. The funnel exists from
 DB1 so that DB6 adds rows, not a second path.
+
+Corrected in DB6:
+
+- Levels are D33's `read` and `write`, the part of that scale a dashboard has.
+- Reading through a dashboard is lent by its owner and editors: a series on it
+  is read through it while one of them can still read it directly, so taking a
+  connection away from the owner takes it from everybody reading through them.
+- What a save keeps is what the dashboard already held; only what it adds must
+  be readable by the saver directly, or an editor could not save a change to a
+  dashboard holding the owner's agents.
+- The link is the dashboard's own address. It carries no right (D58), but it is
+  not a share record: no token, open log or request for access. The shares
+  module's records name a connection, and making them take a second subject is
+  a change to that module of its own.
 
 ## D130. What an agent sends is interpreted in one place, and a restart is read from the data
 

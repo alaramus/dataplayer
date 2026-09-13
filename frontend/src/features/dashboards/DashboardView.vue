@@ -9,9 +9,11 @@ import { AppButton, AppIconButton, AppInput, AppSelect, useConfirm, useToast } f
 import { useWindowManager, WindowDialog } from "@/shared/windows"
 
 import AddWidgetsDialog from "./AddWidgetsDialog.vue"
-import { dashboardsKey, useDeleteDashboard, useSaveDashboard } from "./api"
+import { dashboardsKey, useDashboardCatalog, useDeleteDashboard, useSaveDashboard } from "./api"
+import { indexCatalog } from "./catalog"
 import type { SeriesEntry } from "./catalog"
 import DashboardGrid from "./DashboardGrid.vue"
+import DashboardShareDialog from "./DashboardShareDialog.vue"
 import {
   MAX_WIDGETS,
   placedOf,
@@ -26,6 +28,7 @@ import {
 } from "./dashboardModel"
 import type { ProcessLimit, ProcessSort, RangeSeconds, RefreshSeconds, Widget } from "./dashboardModel"
 import type { Placed } from "./gridLayout"
+import { mayEdit, mayManage, mergedIndex } from "./sharing"
 import WidgetBody from "./WidgetBody.vue"
 import WidgetFrame from "./WidgetFrame.vue"
 import WidgetWindow from "./WidgetWindow.vue"
@@ -35,6 +38,9 @@ import type { WidgetDraft } from "./widgetSpecs"
  * One dashboard. What is on it is held here as a draft and saved whole, a
  * moment after the last change, with the version it was read at: a save from
  * a second tab in between is refused rather than silently undone (D129).
+ *
+ * On a dashboard somebody may only view, nothing is saved: the range and the
+ * interval they choose are theirs for as long as it is open.
  */
 const props = defineProps<{
   dashboard: DashboardPublic
@@ -62,11 +68,18 @@ const expandedId = ref<string | null>(null)
 const addOpen = ref(false)
 const renameOpen = ref(false)
 const renameDraft = ref("")
+const shareOpen = ref(false)
+
+const editable = computed(() => mayEdit(props.dashboard))
+const manageable = computed(() => mayManage(props.dashboard))
+const throughDashboard = useDashboardCatalog(() => props.dashboard.id)
+const shownIndex = computed(() => mergedIndex(props.index, indexCatalog(throughDashboard.data.value)))
 
 let timer: ReturnType<typeof setTimeout> | undefined
 let pending = false
 
 function schedule() {
+  if (!editable.value) return
   pending = true
   clearTimeout(timer)
   timer = setTimeout(() => void save(), SAVE_DELAY_MS)
@@ -145,7 +158,12 @@ function setOptions(id: string, patch: { sort?: ProcessSort; limit?: ProcessLimi
  * window is identified by what it shows, so opening it twice brings it forward.
  */
 function detach(widget: Widget) {
-  const snapshot = { widget: { ...widget }, rangeSeconds: range.value, refreshSeconds: refresh.value }
+  const snapshot = {
+    widget: { ...widget },
+    rangeSeconds: range.value,
+    refreshSeconds: refresh.value,
+    dashboardId: props.dashboard.id,
+  }
   windows.open({
     id: `metrics-widget:${props.dashboard.id}:${widget.id}`,
     look: { title: widget.title, icon: "dashboard" },
@@ -234,12 +252,25 @@ onBeforeUnmount(() => {
         class="dashboard-view__name"
         data-testid="dashboard-name"
       >{{ name }}</span>
+      <span
+        v-if="!manageable"
+        class="dashboard-view__shared"
+        data-testid="dashboard-shared-by"
+      >{{ editable ? "You can edit" : "View only" }} · shared by {{ dashboard.owner ?? "somebody" }}</span>
       <AppIconButton
+        v-if="editable"
         icon="edit"
         tooltip="Rename this dashboard"
         @click="startRename"
       />
       <AppIconButton
+        icon="share"
+        tooltip="Share this dashboard"
+        data-testid="dashboard-share"
+        @click="shareOpen = true"
+      />
+      <AppIconButton
+        v-if="manageable"
         icon="delete"
         tooltip="Delete this dashboard"
         variant="danger-quiet"
@@ -263,6 +294,7 @@ onBeforeUnmount(() => {
         @update:model-value="chooseRefresh"
       />
       <AppButton
+        v-if="editable"
         variant="secondary"
         size="sm"
         icon="add_chart"
@@ -280,6 +312,7 @@ onBeforeUnmount(() => {
       >
         <span>Nothing on this dashboard yet.</span>
         <AppButton
+          v-if="editable"
           icon="add_chart"
           label="Add widgets"
           @click="addOpen = true"
@@ -296,6 +329,7 @@ onBeforeUnmount(() => {
             v-if="byId.get(id)"
             :title="byId.get(id)?.title ?? ''"
             :expanded="expandedId === id"
+            :editable="editable"
             @grab="grab"
             @grab-resize="grabResize"
             @rename="(title) => renameWidget(id, title)"
@@ -305,15 +339,21 @@ onBeforeUnmount(() => {
           >
             <WidgetBody
               :widget="byId.get(id) as Widget"
-              :index="index"
+              :index="shownIndex"
               :range-seconds="range"
               :refresh-seconds="refresh"
+              :dashboard-id="dashboard.id"
               @options="(patch) => setOptions(id, patch)"
             />
           </WidgetFrame>
         </template>
       </DashboardGrid>
     </div>
+
+    <DashboardShareDialog
+      v-model="shareOpen"
+      :dashboard="dashboard"
+    />
 
     <AddWidgetsDialog
       v-model="addOpen"
@@ -374,6 +414,11 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.dashboard-view__shared {
+  color: var(--dp-text-muted);
+  white-space: nowrap;
 }
 
 .dashboard-view__spacer {

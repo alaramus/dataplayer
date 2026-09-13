@@ -3,7 +3,7 @@ import { computed, ref, watch } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
-import { AppButton, AppEmptyState, AppIconButton, AppSpinner, AppTree, useToast } from "@/shared/ui"
+import { AppButton, AppEmptyState, AppIconButton, AppSpinner, AppTooltip, AppTree, useToast } from "@/shared/ui"
 
 import AgentsDialog from "./AgentsDialog.vue"
 import {
@@ -16,6 +16,8 @@ import {
 } from "./api"
 import { catalogTree, indexCatalog } from "./catalog"
 import DashboardView from "./DashboardView.vue"
+import { takeDashboardIntent } from "./intent"
+import { splitByOwner } from "./sharing"
 import StoreDialog from "./StoreDialog.vue"
 import StoreSetup from "./StoreSetup.vue"
 
@@ -49,11 +51,30 @@ function storedSelection(): string | null {
   }
 }
 
-const selectedId = ref<string | null>(storedSelection())
+// A link followed here names the dashboard to open, over the one last open.
+const asked = takeDashboardIntent()
+const selectedId = ref<string | null>(asked ?? storedSelection())
 const current = computed(() => {
   const list = dashboards.data.value ?? []
   return list.find((one) => one.id === selectedId.value) ?? list[0] ?? null
 })
+const listed = computed(() => splitByOwner(dashboards.data.value ?? []))
+
+// Said once, when the list first arrives: the same words for a dashboard that
+// is gone and one nobody shared, as the server gives (D33).
+if (asked !== null) {
+  const stop = watch(
+    () => dashboards.data.value,
+    (list) => {
+      if (list === undefined) return
+      if (!list.some((one) => one.id === asked)) {
+        toast.error("That dashboard does not exist, or it has not been shared with you")
+      }
+      stop()
+    },
+    { immediate: true }
+  )
+}
 
 watch(current, (dashboard) => {
   try {
@@ -129,7 +150,7 @@ function afterDelete() {
         </div>
         <div class="dashboards__list">
           <AppButton
-            v-for="dashboard in dashboards.data.value ?? []"
+            v-for="dashboard in listed.own"
             :key="dashboard.id"
             :variant="dashboard.id === current?.id ? 'secondary' : 'quiet'"
             layout="navigation"
@@ -140,6 +161,30 @@ function afterDelete() {
             @click="selectedId = dashboard.id"
           />
         </div>
+
+        <template v-if="listed.shared.length > 0">
+          <div class="dashboards__heading dashboards__heading--divided">
+            <span>Shared with you</span>
+          </div>
+          <div
+            class="dashboards__list"
+            data-testid="dashboards-shared"
+          >
+            <AppButton
+              v-for="dashboard in listed.shared"
+              :key="dashboard.id"
+              :variant="dashboard.id === current?.id ? 'secondary' : 'quiet'"
+              layout="navigation"
+              size="sm"
+              icon="group"
+              :label="dashboard.name"
+              :data-testid="`dashboard-${dashboard.name}`"
+              @click="selectedId = dashboard.id"
+            >
+              <AppTooltip>Shared by {{ dashboard.owner ?? "somebody" }}</AppTooltip>
+            </AppButton>
+          </div>
+        </template>
 
         <div class="dashboards__heading dashboards__heading--divided">
           <span>Sources</span>

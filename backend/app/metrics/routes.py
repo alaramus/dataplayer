@@ -12,6 +12,7 @@ from app.adapters.metrics import SupportsMetrics
 from app.adapters.registry import UnknownAdapterType
 from app.connectors.access import get_or_404
 from app.connectors.models import Connector
+from app.core.access import Access
 from app.core.config import settings
 from app.core.db import SessionDep
 from app.core.schemas import Message
@@ -21,9 +22,11 @@ from app.metrics.dashboards import (
     Dashboard,
     DashboardContent,
     DashboardCreate,
+    DashboardGrantPublic,
+    DashboardGrantWrite,
     DashboardPublic,
     DashboardSave,
-    agents_of,
+    hosts_of,
     series_of,
 )
 from app.metrics.dashboards import public as dashboard_public
@@ -65,6 +68,7 @@ from app.metrics.store import (
 from app.realtime.topics import TopicsDep
 from app.services.engine import ServiceEngineDep
 from app.users.deps import CurrentUser, get_current_active_superuser, get_current_user
+from app.users.models import User
 
 router = APIRouter(
     prefix="/metrics", tags=["metrics"], dependencies=[Depends(get_current_user)]
@@ -372,10 +376,16 @@ async def read_processes(
     # A number rather than the widget's closed set: a query string is text,
     # and a Literal of integers does not read one.
     limit: Annotated[int, Query(ge=1, le=MAX_PROCESS_ROWS)] = 20,
+    dashboard_id: uuid.UUID | None = None,
 ) -> Any:
-    """The newest process table one host sent in the last hour."""
+    """The newest process table one host sent in the last hour, of an agent
+    of the caller's or of a host on a dashboard they may read."""
+    through = (
+        None if dashboard_id is None
+        else (await _dashboard(session, current_user, dashboard_id, requires="read"))[0]
+    )
     try:
-        await access.require_agent(session, current_user, agent_id)
+        await access.require_agent(session, current_user, agent_id, host, through=through)
     except access.AgentNotReadable:
         raise HTTPException(404, detail={"message": "No such agent"}) from None
     store = await _store(session, holder)
@@ -451,15 +461,20 @@ async def read_history(
     holder: StoreHolderDep,
     body: HistoryRequest,
 ) -> Any:
-    """Points of the asked series over a range, raw or bucketed to fit."""
+    """Points of the asked series over a range, raw or bucketed to fit. Series
+    on a dashboard the caller may read are asked through it."""
     try:
         history.check_range(body.start, body.end)
     except history.RangeRefused as refusal:
         raise HTTPException(422, detail={"message": str(refusal)}) from None
+    through = (
+        None if body.dashboard_id is None
+        else (await _dashboard(session, current_user, body.dashboard_id, requires="read"))[0]
+    )
     store = await _store(session, holder)
     ids = sorted(set(body.series_ids))
     try:
-        await access.require_readable(session, store, current_user, ids)
+        await access.require_readable(session, store, current_user, ids, through=through)
         now = int(datetime.now(UTC).timestamp())
         densest = (
             await store.densest(ids, body.start, body.end, cap=body.max_points + 1)
@@ -487,7 +502,11 @@ async def read_history(
 
 @router.get("/dashboards", response_model=list[DashboardPublic])
 async def read_dashboards(session: SessionDep, current_user: CurrentUser) -> Any:
-    return [dashboard_public(one) for one in await crud.dashboards_of(session, current_user.id)]
+    """The caller's own dashboards, then those shared with them."""
+    return [
+        dashboard_public(dashboard, held, None if owner is None else _display(owner))
+        for dashboard, held, owner in await crud.visible_dashboards(session, current_user.id)
+    ]
 
 
 @router.post("/dashboards", response_model=DashboardPublic)
@@ -509,7 +528,50 @@ async def create_dashboard(
 async def read_dashboard(
     session: SessionDep, current_user: CurrentUser, dashboard_id: uuid.UUID
 ) -> Any:
-    return dashboard_public(await _own_dashboard(session, dashboard_id, current_user.id))
+    """One dashboard. Its address is its link: somebody without standing on it
+    is told it does not exist (D33)."""
+    dashboard, held = await _dashboard(session, current_user, dashboard_id, requires="read")
+    return await _public_dashboard(session, dashboard, held)
+
+
+@router.get("/dashboards/{dashboard_id}/catalog", response_model=MetricsCatalog)
+async def read_dashboard_catalog(
+    session: SessionDep,
+    current_user: CurrentUser,
+    holder: StoreHolderDep,
+    dashboard_id: uuid.UUID,
+) -> Any:
+    """What the series and process tables on one dashboard are, as far as the
+    caller may read them through it: the names its widgets are drawn with."""
+    dashboard, _ = await _dashboard(session, current_user, dashboard_id, requires="read")
+    wanted = sorted(access.series_on(dashboard))
+    hosts = access.hosts_on(dashboard)
+    store = await _store(session, holder)
+    try:
+        found = await store.series(wanted)
+        processes = await store.process_hosts(sorted({agent for agent, _ in hosts}))
+    except StoreUnavailable:
+        raise _unavailable() from None
+    direct = await access.readable_sources(session, current_user.id)
+    via = await access.sources_through(session, dashboard)
+    readable = [series for series in found if series.source.id in direct or series.source.id in via]
+    agent_ids = {series.source.id for series in readable if series.source.kind == "agent"}
+    agent_ids |= {agent for agent, _ in hosts if agent in direct or agent in via}
+    agents = [agent for agent_id in sorted(agent_ids) if (agent := await session.get(MetricsAgent, agent_id))]
+    connectors = [
+        connector
+        for connector_id in sorted({s.source.id for s in readable if s.source.kind == "connector"})
+        if (connector := await session.get(Connector, connector_id)) is not None
+    ]
+    shown_processes = {key: seen for key, seen in processes.items() if key in hosts}
+    return MetricsCatalog(
+        agents=[_sources_of(agent, readable, shown_processes) for agent in agents],
+        connectors=[
+            reported
+            for connector in connectors
+            if (reported := _connector_sources(connector, readable)) is not None
+        ],
+    )
 
 
 @router.put("/dashboards/{dashboard_id}", response_model=DashboardPublic)
@@ -522,25 +584,28 @@ async def save_dashboard(
 ) -> Any:
     """Replace the name, options and widgets, if nobody saved in between.
 
-    A widget naming a series the saver cannot read is refused: a stored
-    dashboard must not become a way of reading somebody else's data (D129).
+    What was already on the dashboard stays. What is added must be readable by
+    whoever adds it, directly: a stored dashboard must not become a way of
+    reading somebody else's data, and an editor is not given the owner's
+    agents by being given the dashboard (D129).
     """
-    dashboard = await _own_dashboard(session, dashboard_id, current_user.id)
+    dashboard, held = await _dashboard(session, current_user, dashboard_id, requires="write")
     if body.version != dashboard.version:
         raise HTTPException(
             409,
             detail={"message": "This dashboard was changed somewhere else; reload it"},
         )
-    for agent_id in {agent for widget in body.widgets for agent in agents_of(widget)}:
+    known_hosts = access.hosts_on(dashboard)
+    for agent_id, host in {h for widget in body.widgets for h in hosts_of(widget)} - known_hosts:
         try:
-            await access.require_agent(session, current_user, agent_id)
+            await access.require_agent(session, current_user, agent_id, host)
         except access.AgentNotReadable:
             raise HTTPException(422, detail={"message": "A widget names an agent you cannot read"}) from None
-    wanted = sorted({series for widget in body.widgets for series in series_of(widget)})
-    if wanted:
+    added = sorted({s for widget in body.widgets for s in series_of(widget)} - access.series_on(dashboard))
+    if added:
         store = await _store(session, holder)
         try:
-            await access.require_readable(session, store, current_user, wanted)
+            await access.require_readable(session, store, current_user, added)
         except access.SeriesNotReadable:
             raise HTTPException(422, detail={"message": "A widget names a series you cannot read"}) from None
         except StoreUnavailable:
@@ -553,26 +618,88 @@ async def save_dashboard(
     session.add(dashboard)
     await session.commit()
     await session.refresh(dashboard)
-    return dashboard_public(dashboard)
+    return await _public_dashboard(session, dashboard, held)
 
 
 @router.delete("/dashboards/{dashboard_id}", response_model=Message)
 async def delete_dashboard(
     session: SessionDep, current_user: CurrentUser, dashboard_id: uuid.UUID
 ) -> Any:
-    dashboard = await _own_dashboard(session, dashboard_id, current_user.id)
+    dashboard, _ = await _dashboard(session, current_user, dashboard_id, requires="own")
     await session.delete(dashboard)
     await session.commit()
     return Message(message=f"{dashboard.name} was removed")
 
 
-async def _own_dashboard(
-    session: AsyncSession, dashboard_id: uuid.UUID, owner_id: uuid.UUID
-) -> Dashboard:
-    dashboard = await session.get(Dashboard, dashboard_id)
-    if dashboard is None or dashboard.owner_id != owner_id:
-        raise HTTPException(404, detail={"message": "No such dashboard"})
-    return dashboard
+@router.get("/dashboards/{dashboard_id}/grants", response_model=list[DashboardGrantPublic])
+async def read_dashboard_grants(
+    session: SessionDep, current_user: CurrentUser, dashboard_id: uuid.UUID
+) -> Any:
+    """Who else may see this dashboard, and whether they may change it. The
+    owner's business alone, as a connection's grants are."""
+    await _dashboard(session, current_user, dashboard_id, requires="own")
+    return [
+        DashboardGrantPublic(user_id=user.id, email=user.email, full_name=user.full_name, access=grant.access)
+        for grant, user in await crud.dashboard_grants(session, dashboard_id)
+    ]
+
+
+@router.put("/dashboards/{dashboard_id}/grants", response_model=DashboardGrantPublic)
+async def write_dashboard_grant(
+    session: SessionDep,
+    current_user: CurrentUser,
+    dashboard_id: uuid.UUID,
+    body: DashboardGrantWrite,
+) -> Any:
+    """Give somebody a level on this dashboard, or change the one they have."""
+    await _dashboard(session, current_user, dashboard_id, requires="own")
+    if body.user_id == current_user.id:
+        raise HTTPException(
+            422,
+            detail=[{"loc": ["body", "user_id"], "msg": "You already own this dashboard", "type": "value_error"}],
+        )
+    user = await session.get(User, body.user_id)
+    if user is None or not user.is_active:
+        raise HTTPException(
+            422, detail=[{"loc": ["body", "user_id"], "msg": "No such user", "type": "value_error"}]
+        )
+    grant = await crud.set_dashboard_grant(session, dashboard_id, user.id, body.access)
+    return DashboardGrantPublic(user_id=user.id, email=user.email, full_name=user.full_name, access=grant.access)
+
+
+@router.delete("/dashboards/{dashboard_id}/grants/{user_id}", response_model=Message)
+async def revoke_dashboard_grant(
+    session: SessionDep, current_user: CurrentUser, dashboard_id: uuid.UUID, user_id: uuid.UUID
+) -> Any:
+    """Take a level away. What the person already has on screen goes at their
+    next read."""
+    await _dashboard(session, current_user, dashboard_id, requires="own")
+    if not await crud.remove_dashboard_grant(session, dashboard_id, user_id):
+        raise HTTPException(404, detail={"message": "No such grant"})
+    return Message(message="Access revoked")
+
+
+async def _dashboard(
+    session: AsyncSession, user: User, dashboard_id: uuid.UUID, *, requires: Access
+) -> tuple[Dashboard, Access]:
+    try:
+        return await access.resolve_dashboard(session, user, dashboard_id, requires=requires)
+    except access.DashboardNotFound:
+        raise HTTPException(404, detail={"message": "No such dashboard"}) from None
+    except access.DashboardRefused as refusal:
+        raise HTTPException(
+            403,
+            detail={"message": str(refusal), "required": refusal.required, "held": refusal.held},
+        ) from None
+
+
+async def _public_dashboard(session: AsyncSession, dashboard: Dashboard, held: Access) -> DashboardPublic:
+    owner = None if held == "own" else await session.get(User, dashboard.owner_id)
+    return dashboard_public(dashboard, held, None if owner is None else _display(owner))
+
+
+def _display(user: User) -> str:
+    return user.full_name or user.email
 
 
 async def _store(session: AsyncSession, holder: StoreHolder) -> MetricsStore:
