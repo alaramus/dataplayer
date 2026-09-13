@@ -55,6 +55,7 @@ test("detaches through the header, keeps the grid page and dark surface and retu
   await page.keyboard.press("Escape")
   await page.mouse.up()
   await expect(preview).toHaveCount(0)
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toBe("")
   await expect(tab).toBeVisible()
   await expect(page.getByRole("dialog", { name: "pg_class", exact: true })).toHaveCount(0)
 
@@ -244,7 +245,7 @@ test("drops a tab where it is aimed in a strip, not at the end of it", async ({
   // from measured tab rectangles under a captured pointer.
   const main = page.getByTestId("workspace-leaf-main")
   const order = () =>
-    main.locator('button[data-testid^="workspace-tab-"]').evaluateAll((tabs) =>
+    main.locator('[role="button"][data-testid^="workspace-tab-"]').evaluateAll((tabs) =>
       tabs.map((tab) => (tab as HTMLElement).dataset.testid ?? "")
     )
   expect(await order()).toEqual(["workspace-tab-beta", "workspace-tab-gamma"])

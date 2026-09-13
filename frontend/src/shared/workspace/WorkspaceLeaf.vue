@@ -492,6 +492,8 @@ const overlayStyle = computed((): CSSProperties => {
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
+  /* A tab drag must not select text and turn the next drag into a native one. */
+  user-select: none;
 }
 .workspace-leaf__tab--active {
   box-shadow: inset 0 -3px currentColor;
