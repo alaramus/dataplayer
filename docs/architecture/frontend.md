@@ -375,6 +375,11 @@ Spec: [Markdown as a rendered document representation](../decisions/2026-08-31-m
 
 ## Screens
 
+Button layout belongs to the kit: `toolbar` keeps an icon and label on one
+line, while `navigation` aligns an entry's content to the left. `AppTree` owns
+the full-row selection mark and selected text colour. Screens size fields
+through their own classes on kit components, without selecting Quasar internals.
+
 Activity sheets and notification cards use the theme's soft shadow; PDF pages
 use its strong shadow. PDF paper and text-selection colours are also owned by
 `theme.css`, with the same values in both themes because the rendered document

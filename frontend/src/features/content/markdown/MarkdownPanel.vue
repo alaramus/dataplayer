@@ -647,6 +647,7 @@ onBeforeUnmount(() => {
             variant="quiet"
             size="sm"
             :label="heading.title"
+            layout="navigation"
             :class="[
               'markdown-panel__outline-entry',
               `markdown-panel__outline-entry--${String(Math.min(heading.level, 3))}`,
@@ -793,11 +794,6 @@ onBeforeUnmount(() => {
   width: 100%;
   justify-content: flex-start;
   color: var(--dp-text-muted);
-  text-align: left;
-}
-.markdown-panel__outline-entry :deep(.q-btn__content) {
-  width: 100%;
-  justify-content: flex-start;
   text-align: left;
 }
 .markdown-panel__outline-entry--2 {

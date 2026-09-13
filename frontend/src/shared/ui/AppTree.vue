@@ -65,6 +65,7 @@ defineExpose({ setExpanded, isExpanded })
 <template>
   <q-tree
     ref="tree"
+    class="app-tree"
     :nodes="nodes"
     :node-key="nodeKey"
     :expanded="expanded"
@@ -82,3 +83,13 @@ defineExpose({ setExpanded, isExpanded })
     </template>
   </q-tree>
 </template>
+
+<style scoped>
+.app-tree :deep(.q-tree__node--selected) {
+  background: var(--dp-selected);
+  border-radius: var(--dp-radius-control);
+}
+.app-tree :deep(.q-tree__node--selected .q-tree__node-header-content) {
+  color: var(--dp-text-strong);
+}
+</style>

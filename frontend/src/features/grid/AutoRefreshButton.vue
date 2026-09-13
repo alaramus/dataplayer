@@ -61,7 +61,7 @@ function pick(name: string) {
     size="sm"
     icon="autorenew"
     :label="seconds === null ? undefined : refreshLabel(seconds)"
-    class="auto-refresh"
+    layout="toolbar"
     :disable="disable"
     data-testid="grid-auto-refresh"
     :data-refresh="seconds === null ? 'off' : String(seconds)"
@@ -74,12 +74,3 @@ function pick(name: string) {
   </AppButton>
 </template>
 
-<style scoped>
-/* The icon and the interval on one line. A button's content wraps by default,
-   and in a toolbar of icon buttons this one is the only thing with a label —
-   stacked, it reads as two controls rather than one. */
-.auto-refresh :deep(.q-btn__content) {
-  flex-wrap: nowrap;
-  gap: 4px;
-}
-</style>

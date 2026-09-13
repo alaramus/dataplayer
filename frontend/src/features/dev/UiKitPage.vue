@@ -183,6 +183,17 @@ function removeSavedEntry(name: string) {
             label="with icon"
             icon="add"
           />
+          <AppButton
+            variant="quiet"
+            layout="toolbar"
+            icon="autorenew"
+            label="30 s"
+          />
+          <AppButton
+            variant="quiet"
+            layout="navigation"
+            label="On this page"
+          />
           <!-- Which side the icon is on is part of what the button says: one
                before the label names the action, one after it points where
                the action goes. -->

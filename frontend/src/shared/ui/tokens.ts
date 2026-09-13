@@ -51,6 +51,12 @@ export const SCROLL_MAX_HEIGHT = "60vh"
  */
 export type ButtonVariant = "primary" | "secondary" | "danger" | "danger-quiet" | "quiet"
 
+export type ButtonLayout = "default" | "toolbar" | "navigation"
+
+export function buttonLayout(layout: ButtonLayout): { align: "left" | "center"; noWrap: boolean } {
+  return { align: layout === "navigation" ? "left" : "center", noWrap: layout === "toolbar" }
+}
+
 export interface ButtonLook {
   color?: string
   flat: boolean

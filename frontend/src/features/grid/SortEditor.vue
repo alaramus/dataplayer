@@ -90,6 +90,7 @@ function remove(index: number) {
 
     <div class="sort-editor__add">
       <AppSelect
+        class="sort-editor__field"
         v-model="selectedColumn"
         :options="addOptions"
         label="Column"
@@ -142,7 +143,7 @@ function remove(index: number) {
   color: var(--dp-text-muted);
 }
 
-.sort-editor__add :deep(.q-field) {
+.sort-editor__field {
   min-width: 140px;
 }
 </style>

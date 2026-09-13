@@ -141,6 +141,7 @@ function removeFilter(index: number) {
 
     <div class="filter-editor__draft">
       <AppSelect
+        class="filter-editor__field"
         :model-value="draft.column"
         :options="columnOptions"
         label="Column"
@@ -148,6 +149,7 @@ function removeFilter(index: number) {
         @update:model-value="selectColumn"
       />
       <AppSelect
+        class="filter-editor__field"
         :model-value="draft.op"
         :options="operatorSelectOptions"
         label="Operator"
@@ -157,6 +159,7 @@ function removeFilter(index: number) {
 
       <template v-if="draft.op === 'in'">
         <AppInput
+          class="filter-editor__field"
           v-model="pendingItem"
           label="Value"
           :error="error"
@@ -179,6 +182,7 @@ function removeFilter(index: number) {
         </q-chip>
       </template>
       <AppSelect
+        class="filter-editor__field"
         v-else-if="!isNullary && explicitValues !== null"
         :model-value="draft.value"
         :options="explicitValueOptions"
@@ -188,6 +192,7 @@ function removeFilter(index: number) {
         @update:model-value="setValue"
       />
       <AppInput
+        class="filter-editor__field"
         v-else-if="!isNullary"
         :model-value="draft.value"
         label="Value"
@@ -238,7 +243,7 @@ function removeFilter(index: number) {
   border-radius: var(--dp-radius-control);
 }
 
-.filter-editor__draft :deep(.q-field) {
+.filter-editor__field {
   min-width: 140px;
 }
 </style>

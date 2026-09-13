@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import { buttonLook } from "./tokens"
-import type { ButtonVariant } from "./tokens"
+import { buttonLayout, buttonLook } from "./tokens"
+import type { ButtonLayout, ButtonVariant } from "./tokens"
 
 const props = withDefaults(
   defineProps<{
     /** What the button means. The look follows from it. */
     variant?: ButtonVariant
+    /** Toolbar commands stay on one line; navigation entries start at the left. */
+    layout?: ButtonLayout
     label?: string
     icon?: string
     /**
@@ -26,6 +28,7 @@ const props = withDefaults(
   }>(),
   {
     variant: "primary",
+    layout: "default",
     label: undefined,
     icon: undefined,
     iconRight: undefined,
@@ -37,6 +40,7 @@ const props = withDefaults(
 )
 
 const look = computed(() => buttonLook(props.variant))
+const contentLayout = computed(() => buttonLayout(props.layout))
 </script>
 
 <template>
@@ -44,6 +48,9 @@ const look = computed(() => buttonLook(props.variant))
        written as sentences, and shouting them back is worse than a default. -->
   <q-btn
     no-caps
+    :align="contentLayout.align"
+    :no-wrap="contentLayout.noWrap"
+    :class="{ 'app-button--toolbar': layout === 'toolbar' }"
     :color="look.color"
     :flat="look.flat"
     :dense="size === 'sm'"
@@ -57,3 +64,9 @@ const look = computed(() => buttonLook(props.variant))
     <slot />
   </q-btn>
 </template>
+
+<style scoped>
+.app-button--toolbar :deep(.q-btn__content) {
+  gap: var(--dp-space-1);
+}
+</style>

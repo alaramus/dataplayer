@@ -178,19 +178,6 @@ defineExpose({ reload: () => load(true) })
   min-width: 0;
   flex: 1;
 }
-/* What the actions menu is about, marked across the whole row rather than
-   around the words in it: a band inside a band is two things where there is
-   one. The tree's own row is what carries it, so the mark reaches the arrow
-   and the indent as well. */
-.keyspace :deep(.q-tree__node--selected) {
-  background: var(--dp-selected);
-  border-radius: var(--dp-radius-control);
-}
-/* Quasar dims the words of the selected row, which is the opposite of a
-   mark: this is the row somebody is about to act on. */
-.keyspace :deep(.q-tree__node--selected .q-tree__node-header-content) {
-  color: var(--dp-text-strong);
-}
 .keyspace__label {
   font-size: 13px;
   overflow: hidden;
