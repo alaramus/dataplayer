@@ -64,6 +64,11 @@ rejected query cannot become the view restored on the next open. The error state
 also offers a query reset that clears both without depending on column metadata
 from the failed response.
 
+The filter editor reports a missing value through the Value field's kit error
+state. Text inputs associate the message with their accessible description;
+correcting a scalar value clears the error before another Apply. A list filter
+keeps its error until a value is added, not merely typed into the pending field.
+
 A column renamed or dropped while the tab is open leaves a live query naming
 something the relation no longer has, and the source refuses it every time. The
 grid recovers by itself: it forgets the cleared page in the client cache, asks

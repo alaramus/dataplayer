@@ -67,7 +67,9 @@ function selectOperator(value: unknown) {
 }
 
 function setValue(value: unknown) {
-  if (typeof value === "string") draft.value.value = value
+  if (typeof value !== "string") return
+  draft.value.value = value
+  if (error.value) error.value = validateDraft(draft.value) ?? ""
 }
 
 function addItem() {
@@ -157,6 +159,7 @@ function removeFilter(index: number) {
         <AppInput
           v-model="pendingItem"
           label="Value"
+          :error="error"
           compact
           @keyup.enter="addItemAndApply"
         />
@@ -180,6 +183,7 @@ function removeFilter(index: number) {
         :model-value="draft.value"
         :options="explicitValueOptions"
         label="Value"
+        :error="error"
         compact
         @update:model-value="setValue"
       />
@@ -187,6 +191,7 @@ function removeFilter(index: number) {
         v-else-if="!isNullary"
         :model-value="draft.value"
         label="Value"
+        :error="error"
         compact
         data-testid="grid-filter-value"
         @update:model-value="setValue"
@@ -199,12 +204,6 @@ function removeFilter(index: number) {
         data-testid="grid-filter-apply"
         @click="applyDraft"
       />
-      <span
-        v-if="error"
-        class="filter-editor__error"
-      >
-        {{ error }}
-      </span>
     </div>
   </div>
 </template>
@@ -241,10 +240,5 @@ function removeFilter(index: number) {
 
 .filter-editor__draft :deep(.q-field) {
   min-width: 140px;
-}
-
-.filter-editor__error {
-  color: var(--q-negative);
-  white-space: nowrap;
 }
 </style>

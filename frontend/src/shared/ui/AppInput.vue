@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import { useAttrs, useId } from "vue"
+
+defineOptions({ inheritAttrs: false })
+
+const errorId = `${useId()}-error`
+const attrs = useAttrs()
+
 withDefaults(
   defineProps<{
     modelValue: string
@@ -34,9 +41,8 @@ withDefaults(
      * A field in a toolbar rather than in a form: tighter, no underline, and
      * no room kept below for a message. Quasar reserves that room whether or
      * not there is anything to put in it, which made a one-line bar 20px
-     * taller than the line it holds. An error still colours the field; only
-     * its wording has nowhere to go, so a compact field is for a toolbar
-     * where nothing is validated.
+     * taller than the line it holds. An error reserves its message space
+     * until corrected, including in a compact toolbar.
      */
     compact?: boolean
     /** Offer a cross that empties the field. A search is the reason it exists:
@@ -76,6 +82,7 @@ function report(value: string | number | null) {
 
 <template>
   <q-input
+    v-bind="attrs"
     :model-value="modelValue"
     :label="label"
     :type="type"
@@ -84,16 +91,24 @@ function report(value: string | number | null) {
     :stack-label="persistentLabel || Boolean(placeholder)"
     :dense="compact"
     :borderless="compact"
-    :hide-bottom-space="compact"
+    :hide-bottom-space="compact && !error"
     :disable="disable"
     :clearable="clearable"
     :error="Boolean(error)"
-    :error-message="error"
     :aria-invalid="error ? 'true' : undefined"
+    :aria-describedby="
+      [attrs['aria-describedby'], error ? errorId : undefined].filter(Boolean).join(' ') || undefined
+    "
     @update:model-value="report"
     @focus="emit('focus')"
     @blur="emit('blur')"
   >
+    <template #error>
+      <span
+        :id="errorId"
+        role="alert"
+      >{{ error }}</span>
+    </template>
     <!-- Popups belong to the whole field, not to its trailing action area. -->
     <slot />
     <!-- Forwarded rather than left to fall through: a slot does not fall

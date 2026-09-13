@@ -64,6 +64,31 @@ describe("AppInput", () => {
     expect(mountInput({ error: "Required" }).text()).toContain("Required")
   })
 
+  it("links a compact field to its error until corrected", async () => {
+    const wrapper = mountInput({ compact: true, error: "Enter a value" })
+    const input = wrapper.get("input")
+    const message = wrapper.get('[role="alert"]')
+    expect(input.attributes("aria-describedby")).toBe(message.attributes("id"))
+    expect(message.text()).toBe("Enter a value")
+
+    await wrapper.setProps({ error: "" })
+    expect(input.attributes("aria-describedby")).toBeUndefined()
+    expect(input.attributes("aria-invalid")).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it("preserves an existing description alongside the error", () => {
+    const wrapper = mount(AppInput, {
+      global: { plugins: [Quasar] },
+      props: { modelValue: "", error: "Required" },
+      attrs: { "aria-describedby": "value-help" },
+    })
+    expect(wrapper.get("input").attributes("aria-describedby")).toBe(
+      `value-help ${wrapper.get('[role="alert"]').attributes("id")}`
+    )
+    wrapper.unmount()
+  })
+
   it("says a field is wrong to a screen reader and not only in colour", () => {
     expect(mountInput({ error: "Required" }).get("input").attributes("aria-invalid")).toBe(
       "true"

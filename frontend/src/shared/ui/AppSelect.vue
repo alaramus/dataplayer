@@ -44,9 +44,8 @@ const props = withDefaults(
      * A field in a toolbar rather than in a form: tighter, no underline, and
      * no room kept below for a message. Quasar reserves that room whether or
      * not there is anything to put in it, which made a one-line bar 20px
-     * taller than the line it holds. An error still colours the field; only
-     * its wording has nowhere to go, so a compact field is for a toolbar
-     * where nothing is validated.
+     * taller than the line it holds. An error reserves its message space
+     * until corrected, including in a compact toolbar.
      */
     compact?: boolean
   }>(),
@@ -123,7 +122,7 @@ const summary = computed(() => {
     :use-chips="multiple"
     :dense="compact"
     :borderless="compact"
-    :hide-bottom-space="compact"
+    :hide-bottom-space="compact && !error"
     :disable="disable"
     :error="Boolean(error)"
     :error-message="error"
