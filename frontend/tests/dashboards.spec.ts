@@ -459,12 +459,17 @@ test("the rail is pushed aside to its icons and brought back by its chevron or i
   await page.getByTestId("dashboard-rename-input").fill(dashboardName)
   await page.getByTestId("dashboard-rename-input").press("Enter")
   await expect(page.getByTestId(`dashboard-${dashboardName}`)).toBeVisible()
+  const colorOf = (testId: string) => page.getByTestId(testId).evaluate((element) => getComputedStyle(element).color)
+  const openColor = await colorOf(`dashboard-${dashboardName}`)
 
   await page.getByTestId("dashboards-collapse").click()
   await expect(page.getByTestId("dashboards-rail-narrow")).toBeVisible()
   expect(Math.round((await rail.boundingBox())?.width ?? 0)).toBe(40)
-  // What the wide rail offers is still there, as icons.
+  // What the wide rail offers is still there, as icons, and the open
+  // dashboard is marked in the same blue.
   await expect(page.getByTestId(`dashboard-narrow-${dashboardName}`)).toBeVisible()
+  expect(await colorOf(`dashboard-narrow-${dashboardName}`)).toBe(openColor)
+  expect(await colorOf("agents-open")).not.toBe(openColor)
   await expect(page.getByTestId("agents-open")).toBeVisible()
   await page.reload()
   await expect(page.getByTestId("dashboards-rail-narrow")).toBeVisible()

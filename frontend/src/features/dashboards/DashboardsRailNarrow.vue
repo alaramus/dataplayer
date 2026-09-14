@@ -116,8 +116,10 @@ const emit = defineEmits<{
   border-radius: 4px;
 }
 
-/* The same mark the column of connections gives the one being read. */
+/* The blue the wide rail writes the open dashboard in: the icon is what is
+   left of that entry, so it carries the mark. A plain fill, as the column of
+   connections draws, is the colour of the card itself in the dark theme. */
 .rail-narrow__slot--selected {
-  background: var(--dp-panel-plain);
+  color: var(--dp-action-secondary);
 }
 </style>
