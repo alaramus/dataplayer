@@ -2,8 +2,8 @@
 
 Date: 2026-09-14. Decisions: D133 through D141, in [ai](../architecture/ai.md).
 
-Status: agreed in discussion with the user on 2026-09-14. AI1, AI2 and AI3a
-implemented; AI3b and AI4–AI6 pending. Slices below.
+Status: agreed in discussion with the user on 2026-09-14. AI1, AI2 and AI3
+implemented; AI4–AI6 pending. AI3b validation is pending. Slices below.
 
 ## Outcome
 

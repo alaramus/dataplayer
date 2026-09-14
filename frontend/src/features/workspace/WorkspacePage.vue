@@ -25,6 +25,8 @@ import { relationshipPanelId } from "@/features/relationships/model"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import CommandBar from "@/features/workspace/CommandBar.vue"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
+import AiWindow from "@/features/ai/AiWindow.vue"
+import { rememberAiOpen, rememberedAiOpen } from "@/features/ai/state"
 import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
 import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
 import WorkspaceGroups from "@/features/workspace/WorkspaceGroups.vue"
@@ -75,7 +77,7 @@ import { serverStorageKey } from "@/shared/servers/context"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import { useSpaceStore } from "@/stores/space"
-import { AppLayout, useConfirm, useToast } from "@/shared/ui"
+import { AppIconButton, AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
 import {
   makeLeaf,
@@ -187,6 +189,21 @@ const openConnectors = computed(() => openConnectorIds(workspace.panels.value))
 const me = useCurrentUser()
 const windows = useWindowManager()
 const confirm = useConfirm()
+
+const AI_WINDOW_ID = "application-agent"
+
+function openAgent() {
+  rememberAiOpen(true)
+  windows.open({
+    id: AI_WINDOW_ID,
+    look: { title: "AI", icon: "auto_awesome" },
+    size: { width: 960, height: 680 },
+    minSize: { width: 520, height: 420 },
+    autoFit: false,
+    component: AiWindow,
+    onClosed: () => rememberAiOpen(false),
+  })
+}
 
 // Panels say how they are re-read, and the button that asks stands in the
 // panel's own row of commands (D112). Provided here so that every panel of
@@ -482,6 +499,7 @@ function openShared(request: OpenSharedRequest) {
 // A link the landing screen has already resolved. Taken once, on the way in:
 // the workspace is where tabs live, and the landing screen has none.
 onMounted(() => {
+  if (rememberedAiOpen()) openAgent()
   const intent = takeShareIntent()
   if (intent === null) return
   openShared({
@@ -804,6 +822,14 @@ provide(workspaceActionsKey, {
 
 <template>
   <AppLayout fill>
+    <template #actions>
+      <AppIconButton
+        icon="auto_awesome"
+        tooltip="Open AI"
+        data-testid="open-ai"
+        @click="openAgent"
+      />
+    </template>
     <template #header-overlay>
       <WorkspaceDetachTarget :context="workspace.context" />
     </template>

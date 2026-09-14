@@ -8,8 +8,8 @@ model provider, and before changing the chat window.
 Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141.
 
 **Implementation status:** agreed on 2026-09-14. AI1 — the third-party transfer
-flag —, AI2 — a new file by name — and the backend half of AI3 are implemented;
-the chat window (the rest of AI3) and AI4–AI6 are pending.
+flag —, AI2 — a new file by name — and AI3 are implemented; validation of the
+chat window and AI4–AI6 are pending.
 
 ## What exists today
 
@@ -25,8 +25,8 @@ an empty file, the first capability added for the agent's sake and offered to
 people as well (D133). What goes into the file is written by in-place editing
 (D48).
 
-The agent answers without tools, and only through the API so far: there is no
-window yet. A person stores a key per provider and chooses a model from
+The agent answers without tools in one floating chat window. A person stores a
+key per provider and chooses a model from
 `app/ai/models.json`; a message starts a run, whose Thinking step, reasoning and
 answer stream on the `ai.runs` topic and are written to the transcript when the
 answer ends. Stop keeps what was written, an answer is stopped after
@@ -50,6 +50,17 @@ backend/app/ai/
 └── routes.py        /ai
 backend/app/adapters/postgres/checkpoint_pool.py   the saver's psycopg pool
 backend/app/prepare_checkpoints.py                 LangGraph's tables, at prestart
+```
+
+```
+frontend/src/features/ai/
+├── AiWindow.vue        the two columns, history and settings
+├── AiConversation.vue  transcript, steps, Stop, copy and listen
+├── AiSettings.vue      provider keys, model and confirmations
+├── ChatMarkdown.vue    the D50 renderer in streaming mode
+├── api.ts              vue-query ownership of server state
+├── streaming.ts        open-fence protection and speech text
+└── state.ts            the window and selected-chat restoration
 ```
 
 ```
