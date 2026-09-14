@@ -10,8 +10,9 @@ Decisions here: D125, D126, D127, D128, D129, D130.
 catalog and history —, DB2 — the screen, dashboards, widgets, the agents window
 —, DB3 — live points, process tables, ready-made layouts, a widget in a window
 —, DB4 — connections reporting about themselves —, DB5 — rollups,
-compression, removing the store, restart notices — and DB6 — dashboards shared
-with people — are implemented.
+compression, removing the store, restart notices —, DB6 — dashboards shared
+with people — and MA1 — what `dataplayer-monitor-agent` sends — are
+implemented.
 
 ## What exists today
 
@@ -22,13 +23,17 @@ administrator sets it up. With a store it lists the person's dashboards and the
 sources their agents reported; a dashboard is a 12-column grid of charts and
 tiles, widgets are added by ticking series, moved by their header, resized by
 their corner, renamed in place and expanded to fill the grid, and the whole is
-saved a moment after the last change. The agents window registers an agent and
-shows its key and the Compose file to start it with.
+saved a moment after the last change. The Sources window registers an agent and
+shows its key and the Compose file that starts `dataplayer-monitor-agent` with
+it, and lists the hosts the person's agents report: the system, processors and
+memory, the agent's version, how long each has been up and when it was last
+heard.
 
 Points an agent sends appear on open charts and tiles within a couple of
 seconds, without the dashboard re-reading anything. A host that sends its
 process table has a `processes` leaf in the tree, which becomes a table sorted
-by CPU, memory or PID. Selecting a host in the Add window offers its ready-made
+by CPU, memory or PID, with each process's state, resident size and how long
+it has run, and how many processes the host has. Selecting a host in the Add window offers its ready-made
 layouts — today one, *Linux host* — filled with what that host reports, and
 placed under what the dashboard already holds. Any widget opens in a floating
 window, which stays when the screen is switched back to Data.
@@ -55,8 +60,9 @@ another range for themselves, and nothing they do is saved. The window also
 carries the dashboard's link, which opens it for anybody holding access and
 tells anybody else that it does not exist or was not shared with them.
 
-A person registers agents and receives the key each reports under. The `metrics` process receives their
-packets and writes samples and process snapshots; the web process answers the
+A person registers agents and receives the key each signs with. The `metrics`
+process receives their datagrams, checks them and writes samples, process
+tables, restarts and what each host is; the web process answers the
 catalog of what a person's agents reported and the history of chosen series,
 raw or bucketed. Development starts an agent in the `monitor-agent` Compose
 profile under `METRICS_DEV_AGENT_KEY`, which prestart registers for the first
@@ -64,9 +70,8 @@ superuser.
 
 ```
 backend/app/metrics/
-├── packets.py      an agent packet as samples and a process snapshot; pure
-├── units.py        the unit of a field
-├── counters.py     growing counters as increments
+├── protocol.py     DPMA/1: a datagram, its signature, its body, its freshness; pure
+├── counters.py     a connection's counters as rates
 ├── keys.py         issuing, fingerprinting and sealing agent keys
 ├── models.py       MetricsAgent, MetricsStoreSetting, and the API models
 ├── crud.py         application-database access
@@ -82,7 +87,7 @@ backend/app/metrics/
 ├── presets.py      ready-made layouts and resolving them against a host
 ├── live.py         the `metrics.points` topic
 ├── poller.py       connections polled for metrics, in the metrics process
-├── restarts.py     a restart read from the data, and when restarts need a person; pure
+├── restarts.py     a restart from a new agent process, and when restarts need a person; pure
 └── routes.py       /metrics
 
 backend/app/adapters/
@@ -103,7 +108,7 @@ frontend/src/
     │                             ticked series into widgets; the catalog as
     │                             index and tree; pure
     ├── seriesFormat.ts, chartOption.ts, statReading.ts, setupStage.ts,
-    │   agentSnippet.ts, storeFacts.ts
+    │   agentSnippet.ts, storeFacts.ts, hostFacts.ts
     │                             what is drawn and said; pure
     ├── attention.ts              a host that keeps restarting, for the sheet
     ├── sharing.ts                what a standing allows, a dashboard's link; pure
@@ -128,6 +133,7 @@ POST   /api/v1/metrics/store/connect        superuser
 GET    /api/v1/metrics/store/usage          superuser
 DELETE /api/v1/metrics/store                superuser
 GET    /api/v1/metrics/restarts
+GET    /api/v1/metrics/hosts
 GET    /api/v1/metrics/agents
 POST   /api/v1/metrics/agents
 PATCH  /api/v1/metrics/agents/{agent_id}
@@ -161,7 +167,7 @@ answering the store tests are skipped
 suite shares the development database; the metrics tests put back the store
 setting they found, while agents and dashboards go the way users do. The
 `dashboards.spec.ts` scenarios start the store when the stack has none, and send
-agent packets to `METRICS_UDP_PORT` themselves.
+signed DPMA/1 datagrams to `METRICS_UDP_PORT` themselves.
 
 Tests write points days in the past, outside every refresh policy's window, so
 a test that reads a rollup refreshes it first (`refresh_rollups` in the
@@ -226,7 +232,9 @@ Chunking, retention, compression and continuous aggregates are the extension's.
 - **Retention is a policy, and a long range is read from rollups.** Raw points
   are kept 7 days and compressed after one; continuous aggregates hold a sum, a
   count, a minimum and a maximum per series over 5 minutes (35 days) and over an
-  hour (400 days); process snapshots and restarts are kept 14 days. History
+  hour (400 days); process tables and restarts are kept 14 days, and what a
+  host is — one row per agent and host, replaced as the agent sends it — until
+  its agent's data is purged. History
   answers raw `[ts, value]` when the densest series fits and raw samples reach
   the start, and `[ts, avg, min, max]` otherwise, from the coarsest table that
   holds the start and divides the width. `history.py` holds the tiers and a
@@ -271,17 +279,22 @@ Known deviations:
   migration lock; on a large store the first request waits for it.
 - **A connected store that does not answer is removed all the same**: the
   setting goes, and the answer says its tables stayed in that database.
+- **Migration 4 took out everything agents had written** when the format of
+  `sys_monitor_agent` was dropped (D130), connections' series kept. A widget
+  naming such a series says the series does not exist, and its owner removes
+  it: the store's migration cannot reach the application database.
 
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
 ## D127. Metrics are collected by one process of their own
 
-A `metrics` service from the backend image receives UDP and, later, polls
-connections. It is one process, holding the port and every counter's previous
-sample. The web process reads the store and never writes points.
+A `metrics` service from the backend image receives UDP and polls connections.
+It is one process, holding the port, the keys agents sign with, what it
+accepted from each agent instance and the previous reading of every connection
+counter. The web process reads the store and never writes points.
 
 - Not inside the web application, although that is one process too (D124): its
-  reloads and deploys would drop packets and counter state, the stream would
+  reloads and deploys would drop datagrams and counter state, the stream would
   share the event loop with every request, and a port bound in the lifespan
   would be one more thing scaling the web process out has to answer.
 - It reads the store setting from the application database and waits while
@@ -289,10 +302,12 @@ sample. The web process reads the store and never writes points.
 - It publishes `METRICS_UDP_PORT` (9999/udp) and joins `SERVICE_NETWORK`.
 - The receive loop never awaits; a bounded queue drops and counts. Points are
   written in batches.
-- A packet whose key no agent holds is dropped before any write.
+- A datagram is checked before anything is written, and each refusal counted
+  apart: its frame, its key id, its signature, its body and its freshness
+  (D130).
 - **It binds the port as it starts**, before any store exists, and keeps it
   when the store changes. A published UDP port nobody listened on for minutes
-  left Docker Desktop forwarding an agent's packets nowhere until the container
+  left Docker Desktop forwarding an agent's datagrams nowhere until the container
   was recreated; what arrives without a store is counted and dropped.
 - **Live points come from the store, not from this process.** A subscription
   to `metrics.points` names nothing: one monitor per watching user reads, every
@@ -325,6 +340,10 @@ Known deviations of the live points:
 
 Known deviations:
 
+- **Agent keys are held unsealed** in the process for the life of a store: a
+  signature is checked with the key itself.
+- **What was accepted is remembered in memory**, so a datagram sent again
+  within ten minutes of being sent before the process started is written twice.
 - **The process re-resolves every series every fifteen seconds.** A purge in
   the web process deletes series rows the process still holds ids of; points
   written under such an id in that window are lost. Re-resolving is an upsert
@@ -336,7 +355,7 @@ Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
 ## D128. A series belongs to a typed source, and access follows its owner
 
-A source is an agent plus the host its packet named, or a connection. The
+A source is an agent plus the host its datagram named, or a connection. The
 identity of a series is `(source, metric, field, label)`. No host name is
 invented for a connection: its series carry an empty host, and a screen names
 them after the connection.
@@ -354,10 +373,13 @@ them after the connection.
 - An agent's series are its owner's; a connection's series follow D33; a
   superuser is not special (D34).
 - The agent key is issued by the server, stored hashed for lookup and encrypted
-  for showing to the owner, and rotatable. It is the only proof a UDP packet
-  carries.
-- The agents window gives a Compose snippet with the address, the key, a fixed
-  `hostname` and no `iftop` action.
+  for checking signatures and showing to the owner, and rotatable. It signs
+  every datagram and never travels; a datagram names it by the first sixteen
+  characters of its hash.
+- The Sources window gives a Compose file for `alaramus/dataplayer-monitor-agent`
+  with the server's address and the key, the host's `/proc`, `/sys` and `/`
+  mounted read-only, its process and network namespaces and the Docker socket
+  read-only. The host name is the host's own unless one is typed.
 
 Known deviations:
 
@@ -432,36 +454,45 @@ Known deviations:
 
 Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
 
-## D130. What an agent sends is interpreted in one place, and a restart is read from the data
+## D130. What an agent sends is DPMA/1, checked before it is read, and a restart is a new agent process
 
-One module turns a packet into points and process snapshots: text numbers,
-echoed header rows, label fields, positional arrays, tables summarised, growing
-counters stored as increments.
+Agents are `dataplayer-monitor-agent`, and the contract is its `PROTOCOL.md`: a
+UDP datagram `DPMA/1 <kid> <signature>\n<body>`, standing alone under 1400
+bytes, whose body names the agent process, the host and its boot, a sequence
+number and the moment it measured. `protocol.py` is the receiving half.
 
-- **A restart is read from the data, two ways.** A host's `uptime` going down
-  is the host restarting, at the packet's time less the uptime. The agent's own
-  row in its `ps` table starting later than before is the agent restarting, at
-  the table's time less the row's elapsed time; that row's command line carries
-  `--actions=`, the only place a packet says what the agent runs. The metrics
-  process writes each restart to the store, and a reboot seen both ways is one.
+- **Checked in order before anything is written:** a DPMA/1 frame; a key id
+  some agent holds; an HMAC-SHA256 over the body's bytes as received, compared
+  in constant time and tried with every key the id names; a body that is the
+  protocol; a time no more than ten minutes old or two ahead; a sequence number
+  not yet accepted for that agent instance, remembered 1024 below the highest.
+- **A body is refused whole** when one sample or row breaks the protocol. The
+  agent checks each sample before it packs it; one that still arrives is a
+  defect to see, not data to salvage.
+- **Samples are written as they come.** Units, rates and labels are the
+  agent's: rates are computed between its own readings on a monotonic clock, so
+  the process keeps no counter state for agents. A process table sent in parts
+  is the rows of every part at one moment; a `host` body is what the host is.
+- **A restart is a new `agent.instance`**, at its `agent.started`, caused by
+  the host when `host.boot` changed with it and by the agent otherwise. An
+  instance that started earlier than the one known is an older process still
+  sending, or a second agent under the same host name, and is not a restart. The
+  newest instance of each host is kept in the store, so the process starting
+  again does not take every agent for restarted.
 - **Three restarts of one host within fifteen minutes are an attention item**
   (D115) for the agent's owner, counted by the server. It cannot be waved away
-  and goes once the host stops restarting. When the agent's actions include
-  `iftop` it names the crash.
+  and goes once the host stops restarting.
 
-Known trap: `sys_monitor_agent` 1.14.0 with the `iftop` action crashes with
-SIGSEGV in a container without traffic and restarts about every 33 seconds,
-sending one set of samples per restart. The uptime a container reads is the
-Docker VM's and keeps growing through it; every `ps` table it sends says the
-agent has run 32 seconds.
+Rejected: keeping `sys_monitor_agent`'s format beside this one — two
+interpreters and a store holding numbers that mean different things under
+similar names; checking a signature against the stored hash — the hash would
+become the secret, and it is stored in the clear.
 
 Known deviations:
 
-- **An agent that does not send `ps` restarts unnoticed** unless its host does.
-- **Its interface values are not read as counters for this.** A value is bytes
-  divided by an interval of 30 or 31 seconds, so an idle one goes down between
-  two packets; the first packet after a start is not divided at all.
+- **An agent reporting a host name another agent of the same key reports** is
+  one host: its series mix, and only the later process counts for restarts.
 - **Only agents are watched.** A database restarting behind a connection is not
   an item.
 
-Spec: [Dashboards](../decisions/2026-09-13-dashboards-design.md)
+Spec: [Monitor agent protocol](../decisions/2026-09-14-monitor-agent-protocol-design.md)

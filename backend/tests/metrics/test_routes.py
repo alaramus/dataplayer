@@ -17,8 +17,17 @@ from app.main import app
 from app.metrics import crud
 from app.metrics.dashboards import Dashboard
 from app.metrics.models import MetricsAgent, MetricsStoreSetting
-from app.metrics.packets import ProcessRow, ProcessSnapshot
-from app.metrics.store import MetricsStore, PointRow, RestartRow, SeriesKey, Source
+from app.metrics.protocol import HostDescription
+from app.metrics.store import (
+    AgentRunRow,
+    MetricsStore,
+    PointRow,
+    ProcessPart,
+    ProcessRow,
+    RestartRow,
+    SeriesKey,
+    Source,
+)
 from app.users import crud as user_crud
 from tests.metrics.conftest import refresh_rollups
 from tests.utils.database import working_postgres_options
@@ -292,12 +301,15 @@ async def test_process_tables_and_presets_are_read_through_the_owner_of_the_agen
     source = Source(kind="agent", id=agent_id)
     now = int(datetime.now(UTC).timestamp())
     rows = [
-        ProcessRow(pid=pid, ppid=1, user="root", command=f"worker {pid}", pcpu=float(cpu), pmem=float(10 - cpu), elapsed="01:00")
+        ProcessRow(
+            pid=pid, ppid=1, user="root", state="S", pcpu=float(cpu), pmem=float(10 - cpu),
+            rss=4096 * pid, started=now - 3600, name="worker", command=f"worker {pid}",
+        )
         for pid, cpu in ((10, 1), (11, 5), (12, 3))
     ]
-    await store.write_processes(source, ProcessSnapshot(host="only-ps", ts=now - 120, rows=rows[:1], skipped=0, truncated=0))
-    await store.write_processes(source, ProcessSnapshot(host="only-ps", ts=now - 30, rows=rows, skipped=0, truncated=0))
-    key = SeriesKey("web-01", "cpu", "uptime", "")
+    await store.write_processes(source, ProcessPart(host="only-ps", ts=now - 120, total=80, rows=rows[:1]))
+    await store.write_processes(source, ProcessPart(host="only-ps", ts=now - 30, total=81, rows=rows))
+    key = SeriesKey("web-01", "host", "uptime", "")
     await store.series_ids(source, [(key, "s", now)])
 
     catalog = (await client.get(f"{BASE}/catalog", headers=normal_user_token_headers)).json()
@@ -309,8 +321,13 @@ async def test_process_tables_and_presets_are_read_through_the_owner_of_the_agen
     query = {"agent_id": str(agent_id), "host": "only-ps", "sort": "pmem", "limit": 10}
     table = await client.get(f"{BASE}/processes", headers=normal_user_token_headers, params=query)
     assert table.status_code == 200, table.text
-    assert table.json()["ts"] == now - 30
+    assert (table.json()["ts"], table.json()["total"]) == (now - 30, 81)
     assert [row["pid"] for row in table.json()["rows"]] == [10, 12, 11]
+    first = table.json()["rows"][0]
+    assert (first["state"], first["rss_bytes"], first["name"], first["command"]) == ("S", 40960, "worker", "worker 10")
+    assert datetime.fromisoformat(first["started_at"]) == datetime.fromtimestamp(now - 3600, UTC)
+    empty = await client.get(f"{BASE}/processes", headers=normal_user_token_headers, params={**query, "host": "web-01"})
+    assert empty.json() == {"ts": None, "total": None, "rows": []}
     odd = await client.get(f"{BASE}/processes", headers=normal_user_token_headers, params={**query, "sort": "command"})
     assert odd.status_code == 422
     foreign = await client.get(f"{BASE}/processes", headers=stranger_headers, params=query)
@@ -444,8 +461,8 @@ async def test_hosts_that_keep_restarting_are_told_to_their_agent_s_owner_only(
     await _agent(client, stranger_headers, "theirs")
     now = int(datetime.now(UTC).timestamp())
     for i in range(4):
-        await store.write_restart(RestartRow(agent_id, "crash-probe", now - 33 * i, "agent", ("ps", "iftop")))
-    await store.write_restart(RestartRow(agent_id, "rebooted-once", now - 10, "uptime"))
+        await store.write_restart(RestartRow(agent_id, "crash-probe", now - 33 * i, "agent"))
+    await store.write_restart(RestartRow(agent_id, "rebooted-once", now - 10, "host"))
 
     answer = await client.get(f"{BASE}/restarts", headers=normal_user_token_headers)
     theirs = await client.get(f"{BASE}/restarts", headers=stranger_headers)
@@ -456,9 +473,46 @@ async def test_hosts_that_keep_restarting_are_told_to_their_agent_s_owner_only(
     assert host["agent_name"] == "crashing"
     assert host["count"] == 4
     assert host["cause"] == "agent"
-    assert host["runs_iftop"] is True
+    assert "runs_iftop" not in host
     assert answer.json()["window_seconds"] > 0
     assert theirs.json()["hosts"] == []
+
+
+async def test_the_hosts_of_an_agent_say_what_they_are_to_its_owner_only(
+    client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    normal_user_token_headers: dict[str, str],
+    stranger_headers: dict[str, str],
+    store_options: dict[str, Any],
+    store: MetricsStore,
+) -> None:
+    await _connect(client, superuser_token_headers, store_options)
+    agent_id = uuid.UUID((await _agent(client, normal_user_token_headers, "fleet"))["agent"]["id"])
+    await _agent(client, stranger_headers, "theirs")
+    now = int(datetime.now(UTC).timestamp())
+    described = HostDescription(
+        os="Ubuntu 24.04.1 LTS", kernel="6.8.0", arch="amd64", cpus=8, cpu_model="Xeon",
+        memory=16 * 1024**3, boot_time=now - 86400, collectors={"cpu": 15, "processes": 60},
+    )
+    await store.write_run(AgentRunRow(agent_id, "web-01", "a", "0.1.1", now - 600, "boot"), described, now - 590)
+    await store.write_run(AgentRunRow(agent_id, "new-01", "b", "0.1.1", now - 5, "boot"))
+    key = SeriesKey("web-01", "host", "uptime", "")
+    series_id = (await store.series_ids(Source("agent", agent_id), [(key, "s", now - 15)]))[key]
+    await store.write_points([PointRow(series_id, now - 15, 86385.0)])
+
+    answer = await client.get(f"{BASE}/hosts", headers=normal_user_token_headers)
+    theirs = await client.get(f"{BASE}/hosts", headers=stranger_headers)
+
+    assert answer.status_code == 200, answer.text
+    new, web = answer.json()
+    assert (new["host"], new["os"], new["last_seen"], new["collectors"]) == ("new-01", None, None, {})
+    assert (web["host"], web["agent_name"], web["agent_version"]) == ("web-01", "fleet", "0.1.1")
+    assert (web["os"], web["cpus"], web["memory_bytes"], web["collectors"]) == (
+        "Ubuntu 24.04.1 LTS", 8, 16 * 1024**3, {"cpu": 15, "processes": 60},
+    )
+    assert datetime.fromisoformat(web["booted_at"]) == datetime.fromtimestamp(now - 86400, UTC)
+    assert datetime.fromisoformat(web["last_seen"]) == datetime.fromtimestamp(now - 15, UTC)
+    assert theirs.json() == []
 
 
 async def test_removing_a_connected_store_drops_its_tables_and_takes_series_off_dashboards(

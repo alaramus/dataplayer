@@ -151,7 +151,7 @@ class Settings(BaseSettings):
     # container that is then thrown away is worse than a refusal (D87).
     SERVICE_STORAGE_VOLUME: str = ""
 
-    # Where the metrics process listens for agent packets (D127). The web
+    # Where the metrics process listens for agent datagrams (D127). The web
     # process never binds it.
     METRICS_UDP_HOST: str = "0.0.0.0"
     METRICS_UDP_PORT: int = 9999

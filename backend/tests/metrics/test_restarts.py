@@ -1,105 +1,83 @@
-"""A restart read from the data, and when restarts need a person (D130)."""
+"""Restarts from what an agent says of itself, and when they need a person (D130)."""
 
 import uuid
 
-from app.metrics.packets import ProcessRow, ProcessSnapshot, Sample
 from app.metrics.restarts import (
-    JITTER_SECONDS,
     REPEATED,
     WINDOW_SECONDS,
+    Restart,
     RestartWatch,
+    Run,
+    Seen,
+    known_runs,
     repeated,
 )
-from app.metrics.store import RestartRow
+from app.metrics.store import AgentRunRow, RestartRow
 
-HOST = ("agent", "dev-agent")
-T = 1_789_300_000
-AGENT = "./sys_monitor_agent 192.168.65.254 9999 30 --actions=ps:30,cpu:30,iftop:30 --apikey=K"
+HOST = ("agent", "web-01")
 
 
-def _uptime(ts: int, value: float) -> Sample:
-    return Sample("cpu", "uptime", "", "s", ts, value)
+def _run(instance: str, started: int, boot: str = "boot-1") -> Run:
+    return Run(instance=instance, version="0.1.1", started=started, boot=boot)
 
 
-def _table(ts: int, elapsed: str, command: str = AGENT) -> ProcessSnapshot:
-    rows = [
-        ProcessRow(1, 0, "root", command, 0.0, 0.0, elapsed),
-        ProcessRow(12, 1, "root", "/bin/sh ./run-iftop.sh", 0.0, 0.0, "59:59"),
-    ]
-    return ProcessSnapshot(host="dev-agent", ts=ts, rows=rows, skipped=0, truncated=0)
-
-
-def test_uptime_going_down_is_the_host_restarting_at_the_moment_it_booted() -> None:
+def test_the_first_process_of_a_host_is_new_and_no_restart() -> None:
     watch = RestartWatch()
 
-    assert watch.observe(HOST, [_uptime(T, 5000)]) is None
-    assert watch.observe(HOST, [_uptime(T + 30, 5030)]) is None
-    restart = watch.observe(HOST, [_uptime(T + 60, 12)])
-
-    assert restart is not None
-    assert (restart.ts, restart.cause) == (T + 48, "uptime")
+    assert watch.observe(HOST, _run("a", 100)) == Seen(current=True, new=True)
+    assert watch.observe(HOST, _run("a", 100)) == Seen(current=True, new=False)
 
 
-def test_the_agent_s_process_starting_later_is_the_agent_restarting() -> None:
-    # Measured on 2026-09-13: every table the crashing agent sent said it had
-    # run 32 seconds, 34 seconds after the one before.
+def test_a_new_instance_on_the_same_boot_is_the_agent_restarting_when_it_started() -> None:
     watch = RestartWatch()
+    watch.observe(HOST, _run("a", 100))
 
-    assert watch.observe_processes(HOST, _table(T, "00:32")) is None
-    restart = watch.observe_processes(HOST, _table(T + 34, "00:32"))
-
-    assert restart is not None
-    assert restart.cause == "agent"
-    assert restart.ts == T + 2
-    assert "iftop" in restart.actions
+    assert watch.observe(HOST, _run("b", 134)) == Seen(current=True, new=True, restart=Restart(134, "agent"))
 
 
-def test_an_agent_that_keeps_running_is_not_restarting_whatever_its_rounding() -> None:
+def test_a_new_boot_with_it_is_the_host_restarting() -> None:
     watch = RestartWatch()
-    watch.observe_processes(HOST, _table(T, "05:11"))
+    watch.observe(HOST, _run("a", 100))
 
-    for step in range(1, 6):
-        # A second either way, as `ps` and the packet's clock round.
-        elapsed = 311 + 30 * step + (JITTER_SECONDS - 1 if step % 2 else -1)
-        assert watch.observe_processes(HOST, _table(T + 30 * step, f"{elapsed // 60:02d}:{elapsed % 60:02d}")) is None
-    # A table without the agent in it says nothing.
-    assert watch.observe_processes(HOST, _table(T + 200, "00:01", command="nginx: worker")) is None
+    seen = watch.observe(HOST, _run("b", 5000, boot="boot-2"))
+
+    assert seen.restart == Restart(5000, "host")
 
 
-def test_a_reboot_seen_in_the_uptime_and_in_the_process_is_one_restart() -> None:
+def test_an_older_process_still_sending_is_neither_current_nor_a_restart() -> None:
     watch = RestartWatch()
-    watch.observe(HOST, [_uptime(T, 5000)])
-    watch.observe_processes(HOST, _table(T, "10:00"))
+    watch.observe(HOST, _run("new", 200))
 
-    first = watch.observe(HOST, [_uptime(T + 60, 20)])
-    second = watch.observe_processes(HOST, _table(T + 70, "00:28"))
-
-    assert first is not None
-    assert second is None
+    assert watch.observe(HOST, _run("old", 100)) == Seen(current=False, new=False)
+    # And it did not replace the newer one.
+    assert watch.observe(HOST, _run("new", 200)) == Seen(current=True, new=False)
 
 
-def test_hosts_are_watched_apart_and_old_packets_change_nothing() -> None:
+def test_hosts_are_watched_apart() -> None:
     watch = RestartWatch()
-    other = ("agent", "db-01")
-    watch.observe(HOST, [_uptime(T, 5000)])
-    watch.observe(other, [_uptime(T, 10)])
+    watch.observe(("agent", "web-01"), _run("a", 100))
 
-    assert watch.observe(other, [_uptime(T + 30, 40)]) is None
-    # Late, not lower: a packet older than the last one read is not a restart.
-    assert watch.observe(HOST, [_uptime(T - 30, 4970)]) is None
-    assert watch.observe(HOST, [_uptime(T + 30, 5030)]) is None
+    assert watch.observe(("agent", "db-01"), _run("b", 150)).restart is None
 
 
-def test_a_host_needs_a_person_once_it_restarted_again_and_again_within_the_window() -> None:
+def test_what_the_store_knew_is_not_taken_for_a_restart_after_this_process_starts_again() -> None:
     agent = uuid.uuid4()
-    now = T + WINDOW_SECONDS
-    crashing = [RestartRow(agent, "crash", now - 33 * i, "agent", ("ps", "iftop")) for i in range(REPEATED)]
-    once = [RestartRow(agent, "rebooted", now - 60, "uptime")]
-    long_ago = [RestartRow(agent, "old", now - WINDOW_SECONDS - 33 * i, "agent") for i in range(5)]
+    rows = [AgentRunRow(agent, "web-01", "a", "0.1.1", 100, "boot-1")]
+    watch = RestartWatch(known_runs(rows))
+
+    assert watch.observe((agent, "web-01"), _run("a", 100)) == Seen(current=True, new=False)
+    assert watch.observe((agent, "web-01"), _run("b", 300)).restart == Restart(300, "agent")
+
+
+def test_repeated_restarts_within_the_window_are_reported_per_host() -> None:
+    agent = uuid.uuid4()
+    now = 10_000
+    crashing = [RestartRow(agent, "web-01", now - 34 * i, "agent") for i in range(REPEATED)]
+    once = [RestartRow(agent, "db-01", now - 5, "host")]
+    long_ago = [RestartRow(agent, "old-01", now - WINDOW_SECONDS - 1 - i, "agent") for i in range(REPEATED)]
 
     (found,) = repeated([*crashing, *once, *long_ago], now)
 
-    assert (found.host, found.count, found.cause) == ("crash", REPEATED, "agent")
-    assert found.actions == ("ps", "iftop")
+    assert (found.host, found.count, found.cause) == ("web-01", REPEATED, "agent")
     assert found.last == now
-    assert found.first == now - 33 * (REPEATED - 1)
+    assert found.first == now - 34 * (REPEATED - 1)

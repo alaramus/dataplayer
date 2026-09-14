@@ -186,11 +186,30 @@ class HostRestarts(BaseModel):
     count: int
     first_at: datetime
     last_at: datetime
-    # "uptime": the host itself restarted. "agent": the agent's own process
-    # started again.
-    cause: Literal["uptime", "agent"]
-    # Whether the agent was told to run iftop, which 1.14.0 crashes on.
-    runs_iftop: bool
+    # "host": the host booted again. "agent": a new agent process on the same boot.
+    cause: Literal["agent", "host"]
+
+
+class AgentHost(BaseModel):
+    """A host one of the caller's agents reports, and what it is (D130)."""
+
+    agent_id: uuid.UUID
+    agent_name: str
+    host: str
+    agent_version: str
+    agent_started: datetime
+    # When a series of the host was last written. Null when none was.
+    last_seen: datetime | None = None
+    # The rest is null until the agent has sent what the host is.
+    os: str | None = None
+    kernel: str | None = None
+    arch: str | None = None
+    cpus: int | None = None
+    cpu_model: str | None = None
+    memory_bytes: int | None = None
+    booted_at: datetime | None = None
+    # Collector name to its interval in seconds.
+    collectors: dict[str, int] = PydanticField(default_factory=dict)
 
 
 class RestartsAnswer(BaseModel):
@@ -256,15 +275,24 @@ class ProcessInfo(BaseModel):
     pid: int
     ppid: int
     user: str
-    command: str
+    # One letter, as /proc says it: R, S, D, Z, T, I…
+    state: str
+    # Percent of one core over the agent's last interval; above 100 on several.
     pcpu: float
+    # Percent of the host's memory.
     pmem: float
-    elapsed: str
+    rss_bytes: int
+    started_at: datetime
+    # The executable's name; `command` is empty for a kernel thread.
+    name: str
+    command: str
 
 
 class ProcessTable(BaseModel):
     # Seconds; null when the host sent no table in the last hour.
     ts: int | None
+    # How many processes the host had; the rows are the busiest of them.
+    total: int | None = None
     rows: list[ProcessInfo]
 
 

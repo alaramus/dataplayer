@@ -378,6 +378,12 @@ said it had run 32 seconds, 34 seconds after the one before. That row's command
 line also carries `--actions=`, so the `iftop` hint is given exactly when the
 agent runs it.
 
+Replaced on 2026-09-14 by
+[the monitor agent protocol](2026-09-14-monitor-agent-protocol-design.md):
+`sys_monitor_agent` gave way to `dataplayer-monitor-agent`, whose datagrams are
+signed and say which process sent them, so nothing above is interpreted any
+more, a restart is a new agent process, and the key never travels.
+
 ## Slices
 
 | Slice | Contents |
@@ -412,5 +418,6 @@ route answers. DB2 is the first slice a person sees.
 
 - How a subscription names what it watches (DB3): an argument on the subscribe
   frame, or a topic per dashboard.
-- Whether the agent's `--securekey` authenticates packets. Not investigated.
+- Whether the agent's `--securekey` authenticates packets. Not investigated;
+  moot since the monitor agent protocol, whose datagrams are signed.
 - Whether agents should be shareable on their own, apart from dashboards.

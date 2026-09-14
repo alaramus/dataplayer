@@ -6,7 +6,7 @@
  *   up one second per second, so its line says nothing and its last value
  *   says everything.
  * - Everything else is one chart per (metric, unit): an axis has one scale, and
- *   a unit is not a subject — `memory` and `df` are both kilobytes.
+ *   a unit is not a subject — `memory` and `fs` are both bytes.
  * - Not per host: one metric of several hosts on one chart is the comparison
  *   ticking several is for.
  */
@@ -16,7 +16,7 @@ import type { HostRef, SeriesEntry } from "./catalog"
 
 export const MAX_SERIES_PER_WIDGET = 50
 
-const STATE_SERIES = new Set(["cpu/uptime"])
+const STATE_SERIES = new Set(["host/uptime"])
 
 export type WidgetDraft =
   | { type: "timeseries"; title: string; seriesIds: number[] }

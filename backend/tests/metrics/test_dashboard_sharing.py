@@ -15,8 +15,14 @@ from app.core.db import async_session_maker
 from app.metrics.access import live_series, readable_sources
 from app.metrics.dashboards import Dashboard
 from app.metrics.models import MetricsAgent, MetricsStoreSetting
-from app.metrics.packets import ProcessRow, ProcessSnapshot
-from app.metrics.store import MetricsStore, PointRow, SeriesKey, Source
+from app.metrics.store import (
+    MetricsStore,
+    PointRow,
+    ProcessPart,
+    ProcessRow,
+    SeriesKey,
+    Source,
+)
 from app.users import crud as user_crud
 from tests.utils.database import working_postgres_options
 from tests.utils.user import authentication_token_from_email
@@ -171,7 +177,7 @@ async def test_a_series_is_read_through_the_dashboard_it_is_on_and_no_other_way(
     await _grant(client, owner, dashboard["id"], reader, "read")
     await store.write_processes(
         Source("agent", agent_id),
-        ProcessSnapshot("web-01", NOW, [ProcessRow(1, 0, "root", "init", 0.1, 0.1, "01:00")], 0, 0),
+        ProcessPart("web-01", NOW, 90, [ProcessRow(1, 0, "root", "S", 0.1, 0.1, 4096, NOW - 60, "init", "init")]),
     )
 
     through = await client.post(f"{BASE}/history", headers=reader.headers, json=_history(on_it, dashboard["id"]))

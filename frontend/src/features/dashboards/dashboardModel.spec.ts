@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest"
 
-import { composeSnippet, lastHeardWording } from "./agentSnippet"
 import { MAX_WIDGETS, renamed, windowOf, withDrafts, withoutWidget } from "./dashboardModel"
 import type { Widget } from "./dashboardModel"
 
@@ -73,35 +72,5 @@ describe("the content of a dashboard", () => {
 
   it("asks for the range ending now", () => {
     expect(windowOf(900, 1_789_000_000_500)).toEqual({ start: 1_788_999_100, end: 1_789_000_000 })
-  })
-})
-
-describe("the Compose file of an agent", () => {
-  it("carries the key and the port, and no iftop", () => {
-    const snippet = composeSnippet({ key: "k3y", port: 9999, serverHost: "localhost", hostname: "web 01" })
-
-    expect(snippet).toContain("API_KEY: k3y")
-    expect(snippet).toContain('PORT: "9999"')
-    expect(snippet).toContain("hostname: web-01")
-    expect(snippet).toContain("# IP:")
-    expect(snippet).not.toContain("iftop")
-  })
-
-  it("names the server when the agent has to find it elsewhere", () => {
-    const snippet = composeSnippet({ key: "k", port: 9999, serverHost: "10.0.0.5", hostname: "db" })
-
-    expect(snippet).toContain("      IP: 10.0.0.5")
-  })
-})
-
-describe("when an agent was last heard from", () => {
-  const now = Date.parse("2026-09-13T07:30:00Z")
-
-  it("says never, seconds, minutes, hours and days", () => {
-    expect(lastHeardWording(null, now)).toBe("Never")
-    expect(lastHeardWording("2026-09-13T07:29:30Z", now)).toBe("30 s ago")
-    expect(lastHeardWording("2026-09-13T07:10:00Z", now)).toBe("20 min ago")
-    expect(lastHeardWording("2026-09-13T04:00:00Z", now)).toBe("3 h ago")
-    expect(lastHeardWording("2026-09-10T07:30:00Z", now)).toBe("3 d ago")
   })
 })

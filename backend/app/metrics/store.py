@@ -18,14 +18,15 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, create_async_en
 
 from app.metrics.history import TierName
 from app.metrics.migrations import ADVISORY_LOCK_KEY, MIGRATIONS, VERSION_TABLE
-from app.metrics.packets import ProcessRow, ProcessSnapshot, Sample
+from app.metrics.protocol import HostDescription
 
 CONNECT_TIMEOUT_SECONDS = 5
 
 ProcessSort = Literal["pcpu", "pmem", "pid"]
 
 _PROCESS_SELECT = """
-    SELECT pid, ppid, username, command, pcpu, pmem, elapsed FROM metric_process
+    SELECT total, pid, ppid, username, state, pcpu, pmem, rss, started, name, command
+    FROM metric_process
     WHERE source_id = :source AND host = :host AND ts = :at
 """
 
@@ -76,7 +77,8 @@ _BUCKET_QUERIES: dict[TierName, str] = {
 
 ROLLUP_VIEWS: tuple[str, ...] = ("metric_point_5m", "metric_point_1h")
 
-RestartCause = Literal["uptime", "agent"]
+# "agent": a new agent process on the same boot. "host": the host booted again.
+RestartCause = Literal["agent", "host"]
 
 
 class StoreUnavailable(Exception):
@@ -111,6 +113,16 @@ class StoredSeries:
 
 
 @dataclass(frozen=True, slots=True)
+class Sample:
+    metric: str
+    field: str
+    label: str
+    unit: str
+    ts: int
+    value: float
+
+
+@dataclass(frozen=True, slots=True)
 class PointRow:
     series_id: int
     ts: int
@@ -118,14 +130,66 @@ class PointRow:
 
 
 @dataclass(frozen=True, slots=True)
+class ProcessRow:
+    pid: int
+    ppid: int
+    user: str
+    state: str
+    pcpu: float
+    pmem: float
+    rss: int
+    started: int
+    name: str
+    command: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProcessPart:
+    """One datagram's share of a process table. The parts of one table share
+    their moment, so the table is every row written at it."""
+
+    host: str
+    ts: int
+    total: int
+    rows: Sequence[ProcessRow]
+
+
+@dataclass(frozen=True, slots=True)
+class LatestProcesses:
+    ts: int
+    total: int
+    rows: list[ProcessRow]
+
+
+@dataclass(frozen=True, slots=True)
 class RestartRow:
     source_id: uuid.UUID
     host: str
-    # When it restarted, not when that was noticed.
+    # When the new agent process started, not when that was noticed.
     ts: int
     cause: RestartCause
-    # What the agent was running, from its command line; empty when unknown.
-    actions: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class AgentRunRow:
+    """The newest agent process known to report a host."""
+
+    source_id: uuid.UUID
+    host: str
+    instance: str
+    version: str
+    started: int
+    boot: str
+
+
+@dataclass(frozen=True, slots=True)
+class HostRow:
+    run: AgentRunRow
+    # None until the agent sent what the host is.
+    info: HostDescription | None
+    info_at: datetime | None
+    # When a series of the host was last written; None when none was.
+    last_seen: datetime | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -295,39 +359,119 @@ class MetricsStore:
                 {"ids": list(last), "moments": [_moment(ts) for ts in last.values()]},
             )
 
-    async def write_processes(self, source: Source, snapshot: ProcessSnapshot) -> None:
-        if not snapshot.rows:
+    async def write_processes(self, source: Source, part: ProcessPart) -> None:
+        if not part.rows:
             return
-        rows = snapshot.rows
+        rows = part.rows
         async with self._engine.begin() as connection:
             await connection.execute(
                 text(
                     """
                     INSERT INTO metric_process
-                        (source_id, host, ts, pid, ppid, username, command,
-                         pcpu, pmem, elapsed)
+                        (source_id, host, ts, total, pid, ppid, username, state,
+                         pcpu, pmem, rss, started, name, command)
                     SELECT CAST(:source AS uuid), CAST(:host AS text),
-                           CAST(:moment AS timestamptz), * FROM unnest(
+                           CAST(:moment AS timestamptz), CAST(:total AS integer),
+                           * FROM unnest(
                         CAST(:pids AS integer[]), CAST(:ppids AS integer[]),
-                        CAST(:users AS text[]), CAST(:commands AS text[]),
+                        CAST(:users AS text[]), CAST(:states AS text[]),
                         CAST(:pcpus AS real[]), CAST(:pmems AS real[]),
-                        CAST(:elapsed AS text[])
+                        CAST(:rss AS bigint[]), CAST(:started AS timestamptz[]),
+                        CAST(:names AS text[]), CAST(:commands AS text[])
                     )
                     """
                 ),
                 {
                     "source": source.id,
-                    "host": snapshot.host,
-                    "moment": _moment(snapshot.ts),
+                    "host": part.host,
+                    "moment": _moment(part.ts),
+                    "total": part.total,
                     "pids": [row.pid for row in rows],
                     "ppids": [row.ppid for row in rows],
                     "users": [row.user for row in rows],
-                    "commands": [row.command for row in rows],
+                    "states": [row.state for row in rows],
                     "pcpus": [row.pcpu for row in rows],
                     "pmems": [row.pmem for row in rows],
-                    "elapsed": [row.elapsed for row in rows],
+                    "rss": [row.rss for row in rows],
+                    "started": [_moment(row.started) for row in rows],
+                    "names": [row.name for row in rows],
+                    "commands": [row.command for row in rows],
                 },
             )
+
+    async def write_run(
+        self, run: AgentRunRow, info: HostDescription | None = None, info_at: int = 0
+    ) -> None:
+        """Keep the newest agent process of a host, and what the host is when
+        that was sent. A description already kept stays when none is given."""
+        async with self._engine.begin() as connection:
+            await connection.execute(
+                text(
+                    """
+                    INSERT INTO metric_host
+                        (source_id, host, instance, agent_version, agent_started, boot,
+                         info, info_at)
+                    VALUES (:source, :host, :instance, :version, :started, :boot,
+                            CAST(:info AS jsonb), :info_at)
+                    ON CONFLICT (source_id, host) DO UPDATE SET
+                        instance = EXCLUDED.instance,
+                        agent_version = EXCLUDED.agent_version,
+                        agent_started = EXCLUDED.agent_started,
+                        boot = EXCLUDED.boot,
+                        info = coalesce(EXCLUDED.info, metric_host.info),
+                        info_at = coalesce(EXCLUDED.info_at, metric_host.info_at)
+                    """
+                ),
+                {
+                    "source": run.source_id,
+                    "host": run.host,
+                    "instance": run.instance,
+                    "version": run.version,
+                    "started": _moment(run.started),
+                    "boot": run.boot,
+                    "info": None if info is None else info.model_dump_json(),
+                    "info_at": None if info is None else _moment(info_at),
+                },
+            )
+
+    async def runs(self) -> list[AgentRunRow]:
+        """The newest agent process of every host of every agent."""
+        rows = await self._fetch(
+            "SELECT source_id, host, instance, agent_version, agent_started, boot FROM metric_host",
+            {},
+        )
+        return [_run(row) for row in rows]
+
+    async def hosts(self, sources: Sequence[uuid.UUID]) -> list[HostRow]:
+        """What the hosts of these agents are, and when each was last heard."""
+        if not sources:
+            return []
+        rows = await self._fetch(
+            """
+            SELECT h.source_id, h.host, h.instance, h.agent_version, h.agent_started, h.boot,
+                   h.info, h.info_at,
+                   (SELECT max(s.last_seen) FROM metric_series AS s
+                    WHERE s.source_kind = 'agent' AND s.source_id = h.source_id
+                      AND s.host = h.host) AS last_seen
+            FROM metric_host AS h
+            WHERE h.source_id = ANY(CAST(:sources AS uuid[]))
+            ORDER BY h.host
+            """,
+            {"sources": list(sources)},
+        )
+        return [
+            HostRow(
+                run=_run(row),
+                # Written by the collector from a checked body; read back as
+                # JSON, where a tuple or a number type is not kept.
+                info=None
+                if row["info"] is None
+                else HostDescription.model_validate(row["info"], strict=False),
+                info_at=row["info_at"],
+                last_seen=row["last_seen"],
+            )
+            for row in rows
+        ]
 
     async def catalog(self, sources: Sequence[uuid.UUID]) -> list[StoredSeries]:
         """Every series of the given sources, agents and connections alike."""
@@ -506,7 +650,7 @@ class MetricsStore:
 
     async def latest_processes(
         self, source_id: uuid.UUID, host: str, sort: ProcessSort, limit: int
-    ) -> tuple[int | None, list[ProcessRow]]:
+    ) -> LatestProcesses | None:
         """The newest process table of a host within the last hour."""
         parameters = {"source": source_id, "host": host}
         newest = await self._fetch(
@@ -519,23 +663,30 @@ class MetricsStore:
         )
         latest = newest[0]["latest"] if newest else None
         if latest is None:
-            return None, []
+            return None
         rows = await self._fetch(
             _PROCESS_QUERIES[sort],
             {**parameters, "at": latest, "limit": limit},
         )
-        return _seconds(latest), [
-            ProcessRow(
-                pid=int(row["pid"]),
-                ppid=int(row["ppid"]),
-                user=str(row["username"]),
-                command=str(row["command"]),
-                pcpu=float(row["pcpu"]),
-                pmem=float(row["pmem"]),
-                elapsed=str(row["elapsed"]),
-            )
-            for row in rows
-        ]
+        return LatestProcesses(
+            ts=_seconds(latest),
+            total=max((int(row["total"]) for row in rows), default=0),
+            rows=[
+                ProcessRow(
+                    pid=int(row["pid"]),
+                    ppid=int(row["ppid"]),
+                    user=str(row["username"]),
+                    state=str(row["state"]),
+                    pcpu=float(row["pcpu"]),
+                    pmem=float(row["pmem"]),
+                    rss=int(row["rss"]),
+                    started=_seconds(row["started"]),
+                    name=str(row["name"]),
+                    command=str(row["command"]),
+                )
+                for row in rows
+            ],
+        )
 
     async def purge(self, source: Source) -> None:
         """Every sample, rollup, snapshot and restart of a source. Its series go
@@ -572,6 +723,10 @@ class MetricsStore:
                     {"source": source.id},
                 )
                 await connection.execute(
+                    text("DELETE FROM metric_host WHERE source_id = :source"),
+                    {"source": source.id},
+                )
+                await connection.execute(
                     text(
                         "DELETE FROM metric_series "
                         "WHERE source_kind = :kind AND source_id = :source"
@@ -586,15 +741,14 @@ class MetricsStore:
             async with self._engine.begin() as connection:
                 await connection.execute(
                     text(
-                        "INSERT INTO metric_restart (source_id, host, ts, cause, actions) "
-                        "VALUES (:source, :host, :ts, :cause, :actions)"
+                        "INSERT INTO metric_restart (source_id, host, ts, cause) "
+                        "VALUES (:source, :host, :ts, :cause)"
                     ),
                     {
                         "source": restart.source_id,
                         "host": restart.host,
                         "ts": _moment(restart.ts),
                         "cause": restart.cause,
-                        "actions": ",".join(restart.actions),
                     },
                 )
         except (SQLAlchemyError, OSError) as failure:
@@ -608,7 +762,7 @@ class MetricsStore:
             return []
         rows = await self._fetch(
             """
-            SELECT source_id, host, ts, cause, actions FROM metric_restart
+            SELECT source_id, host, ts, cause FROM metric_restart
             WHERE source_id = ANY(CAST(:sources AS uuid[])) AND ts > :since
             ORDER BY ts
             """,
@@ -619,8 +773,7 @@ class MetricsStore:
                 source_id=row["source_id"],
                 host=str(row["host"]),
                 ts=_seconds(row["ts"]),
-                cause="uptime" if row["cause"] == "uptime" else "agent",
-                actions=tuple(name for name in str(row["actions"]).split(",") if name),
+                cause="host" if row["cause"] == "host" else "agent",
             )
             for row in rows
         ]
@@ -654,7 +807,7 @@ class MetricsStore:
         statements = (
             "DROP MATERIALIZED VIEW IF EXISTS metric_point_1h CASCADE",
             "DROP MATERIALIZED VIEW IF EXISTS metric_point_5m CASCADE",
-            "DROP TABLE IF EXISTS metric_restart, metric_process, metric_point, "
+            "DROP TABLE IF EXISTS metric_host, metric_restart, metric_process, metric_point, "
             "metric_series, metrics_schema_version CASCADE",
         )
         try:
@@ -703,6 +856,17 @@ async def _materialized(connection: AsyncConnection) -> list[str]:
     return [str(name) for name in rows.scalars()]
 
 
+def _run(row: Mapping[str, Any]) -> AgentRunRow:
+    return AgentRunRow(
+        source_id=row["source_id"],
+        host=str(row["host"]),
+        instance=str(row["instance"]),
+        version=str(row["agent_version"]),
+        started=_seconds(row["agent_started"]),
+        boot=str(row["boot"]),
+    )
+
+
 def _stored(row: Mapping[str, Any]) -> StoredSeries:
     return StoredSeries(
         id=int(row["id"]),
@@ -715,10 +879,3 @@ def _stored(row: Mapping[str, Any]) -> StoredSeries:
         first_seen=row["first_seen"],
         last_seen=row["last_seen"],
     )
-
-
-def samples_by_key(samples: Sequence[Sample], host: str) -> list[tuple[SeriesKey, str, int]]:
-    return [
-        (SeriesKey(host=host, metric=s.metric, field=s.field, label=s.label), s.unit, s.ts)
-        for s in samples
-    ]

@@ -11,7 +11,6 @@ const crashing: HostRestarts = {
   first_at: "2026-09-13T11:25:00Z",
   last_at: "2026-09-13T11:40:00Z",
   cause: "agent",
-  runs_iftop: true,
 }
 
 describe("a host that keeps restarting", () => {
@@ -19,19 +18,14 @@ describe("a host that keeps restarting", () => {
     const item = restartItem(crashing, 900, () => {})
 
     expect(item.title).toBe("crash-probe keeps restarting")
-    expect(item.detail).toContain("The agent office restarted 27 times in the last 15 minutes")
+    expect(item.detail).toBe("The agent office started again 27 times in the last 15 minutes; its log says why.")
     expect(item.at).toBe(Date.parse("2026-09-13T11:40:00Z"))
   })
 
-  it("points at the iftop crash only when the agent runs iftop", () => {
-    expect(restartItem(crashing, 900, () => {}).detail).toContain("take it out of ACTIONS")
-    expect(restartItem({ ...crashing, runs_iftop: false }, 900, () => {}).detail).not.toContain("iftop")
-  })
+  it("says the host itself booted when its boot changed with the agent", () => {
+    const detail = restartItem({ ...crashing, cause: "host" }, 900, () => {}).detail
 
-  it("says the host itself restarted when its uptime went down", () => {
-    const detail = restartItem({ ...crashing, cause: "uptime", runs_iftop: false }, 900, () => {}).detail
-
-    expect(detail).toBe("The host restarted 27 times in the last 15 minutes, by what office reports.")
+    expect(detail).toBe("The host booted 27 times in the last 15 minutes, by what office reports.")
   })
 
   it("opens the dashboards and cannot be waved away while it goes on", () => {

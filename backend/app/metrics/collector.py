@@ -1,30 +1,33 @@
-"""The metrics process: agent packets in, connections polled, samples into the store (D127).
+"""The metrics process: agent datagrams in, connections polled, samples into the store (D127).
 
-Run as `python -m app.metrics.collector`. One process: it holds the UDP port
-and the previous sample of every counter. It waits while no store is set up and
-starts over when the setting changes.
+Run as `python -m app.metrics.collector`. One process: it holds the UDP port,
+the keys agents sign with, what it accepted from each agent instance, and the
+previous reading of every connection counter. It waits while no store is set
+up and starts over when the setting changes.
 """
 
 import asyncio
 import logging
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, fields
 
+from cryptography.exceptions import InvalidTag
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
 from app.core.db import async_session_maker, loop_factory
-from app.metrics import crud, keys
-from app.metrics.counters import CounterState
+from app.metrics import crud, keys, protocol
 from app.metrics.holder import options_of
-from app.metrics.packets import process_snapshot_of, read_envelope, samples_of
 from app.metrics.poller import ConnectionPoller, poll_forever
-from app.metrics.restarts import Restart, RestartWatch
+from app.metrics.restarts import RestartWatch, Run, known_runs
 from app.metrics.store import (
+    AgentRunRow,
     MetricsStore,
     PointRow,
+    ProcessPart,
+    ProcessRow,
     RestartRow,
     SeriesKey,
     Source,
@@ -38,15 +41,16 @@ QUEUE_SIZE = 10_000
 BATCH_POINTS = 200
 BATCH_SECONDS = 1.0
 KEYS_REFRESH_SECONDS = 15.0
-# A packet under a key not known yet reads the keys again, at most this often:
-# an agent registered a moment ago should not wait a whole refresh. Short, or
-# the first packets of an agent registered just after a read are dropped; a
-# flood of unknown keys costs one small query a second at most.
+# A datagram under a key id not known yet reads the keys again, at most this
+# often: an agent registered a moment ago should not wait a whole refresh.
+# Short, or the first datagrams of an agent registered just after a read are
+# dropped; a flood of unknown ids costs one small query a second at most.
 MISS_REFRESH_SECONDS = 1.0
 SETTING_POLL_SECONDS = 5.0
 REPORT_SECONDS = 60.0
 
-AgentLookup = Callable[[str], Awaitable[uuid.UUID | None]]
+# The agents a key id may name, each with its key.
+KeyLookup = Callable[[str], Awaitable[Sequence[tuple[uuid.UUID, str]]]]
 
 
 @dataclass
@@ -54,9 +58,15 @@ class Counts:
     received: int = 0
     malformed: int = 0
     unknown_key: int = 0
+    bad_signature: int = 0
+    refused_body: int = 0
+    stale: int = 0
+    future: int = 0
+    replayed: int = 0
     queue_full: int = 0
     points: int = 0
-    snapshots: int = 0
+    process_parts: int = 0
+    hosts: int = 0
     failed_writes: int = 0
     no_store: int = 0
     restarts: int = 0
@@ -82,34 +92,59 @@ class Receiver(asyncio.DatagramProtocol):
 
 
 class AgentKeys:
-    """Which agent a key belongs to, read from the application database."""
+    """The keys agents sign with, by key id, read from the application database.
+
+    Held unsealed for the life of a store: a signature is checked with the key
+    itself, and every datagram is checked.
+    """
 
     def __init__(self) -> None:
-        self._by_fingerprint: dict[str, uuid.UUID] = {}
+        self._by_id: dict[str, list[tuple[uuid.UUID, str]]] = {}
+        self._unsealed: dict[str, str] = {}
         self._read_at = 0.0
 
     async def refresh(self) -> None:
         async with async_session_maker() as session:
-            self._by_fingerprint = await crud.key_fingerprints(session)
+            rows = await crud.agent_keys(session)
+        by_id: dict[str, list[tuple[uuid.UUID, str]]] = {}
+        unsealed: dict[str, str] = {}
+        for agent_id, fingerprint, sealed in rows:
+            key = self._unsealed.get(fingerprint)
+            if key is None:
+                try:
+                    key = keys.unseal(sealed)
+                except (InvalidTag, UnicodeDecodeError):
+                    logger.warning("The key of agent %s cannot be unsealed", agent_id)
+                    continue
+            unsealed[fingerprint] = key
+            by_id.setdefault(fingerprint[: keys.KEY_ID_LENGTH], []).append((agent_id, key))
+        self._by_id, self._unsealed = by_id, unsealed
         self._read_at = time.monotonic()
 
-    async def agent_for(self, key: str) -> uuid.UUID | None:
-        fingerprint = keys.fingerprint(key)
-        agent = self._by_fingerprint.get(fingerprint)
-        if agent is None and time.monotonic() - self._read_at > MISS_REFRESH_SECONDS:
+    async def agents_for(self, key_id: str) -> Sequence[tuple[uuid.UUID, str]]:
+        found = self._by_id.get(key_id)
+        if found is None and time.monotonic() - self._read_at > MISS_REFRESH_SECONDS:
             await self.refresh()
-            agent = self._by_fingerprint.get(fingerprint)
-        return agent
+            found = self._by_id.get(key_id)
+        return found or ()
 
 
 class Collector:
-    """Turns packets into rows. Holds counter state and known series ids."""
+    """Turns datagrams into rows. Holds what was accepted and known series ids."""
 
-    def __init__(self, store: MetricsStore, agent_for: AgentLookup, counts: Counts) -> None:
+    def __init__(
+        self,
+        store: MetricsStore,
+        agents_for: KeyLookup,
+        counts: Counts,
+        *,
+        clock: Callable[[], float] = time.time,
+    ) -> None:
         self._store = store
-        self._agent_for = agent_for
+        self._agents_for = agents_for
         self._counts = counts
-        self._counters = CounterState()
+        self._clock = clock
+        self._freshness = protocol.Freshness()
         self._restarts = RestartWatch()
         self._series: dict[tuple[uuid.UUID, SeriesKey], int] = {}
         self._pending: list[PointRow] = []
@@ -118,52 +153,81 @@ class Collector:
     def pending(self) -> int:
         return len(self._pending)
 
+    async def load(self) -> None:
+        """What the store knows of every host's agent process, so a restart of
+        this process is not taken for a restart of every agent."""
+        self._restarts = RestartWatch(known_runs(await self._store.runs()))
+
     async def handle(self, raw: bytes) -> None:
-        envelope = read_envelope(raw)
-        if envelope is None:
+        frame = protocol.frame_of(raw)
+        if frame is None:
             self._counts.malformed += 1
             return
-        agent_id = await self._agent_for(envelope.key)
-        if agent_id is None:
+        candidates = await self._agents_for(frame.key_id)
+        if not candidates:
             self._counts.unknown_key += 1
             return
-        source = Source(kind="agent", id=agent_id)
-        snapshot = process_snapshot_of(envelope)
-        if snapshot is not None:
-            await self._store.write_processes(source, snapshot)
-            self._counts.snapshots += 1
-            await self._restarted(
-                agent_id, envelope.host, self._restarts.observe_processes((agent_id, envelope.host), snapshot)
-            )
+        agent_id = next((agent for agent, key in candidates if protocol.signed_with(frame, key)), None)
+        if agent_id is None:
+            self._counts.bad_signature += 1
             return
-        measured = samples_of(envelope)
-        await self._restarted(agent_id, envelope.host, self._restarts.observe((agent_id, envelope.host), measured))
-        samples = self._counters.expand((agent_id, envelope.host), measured)
+        report = protocol.report_of(frame.body)
+        if report is None:
+            self._counts.refused_body += 1
+            return
+        refusal = self._freshness.check(
+            (agent_id, report.agent.instance), report.seq, report.time, int(self._clock())
+        )
+        if refusal is not None:
+            setattr(self._counts, refusal, getattr(self._counts, refusal) + 1)
+            return
+        await self._write(agent_id, report)
+
+    def forget_quiet(self) -> None:
+        self._freshness.forget_quiet(int(self._clock()))
+
+    async def _write(self, agent_id: uuid.UUID, report: protocol.Report) -> None:
+        host = report.host.name
+        run = Run(report.agent.instance, report.agent.version, report.agent.started, report.host.boot)
+        seen = self._restarts.observe((agent_id, host), run)
+        row = AgentRunRow(agent_id, host, run.instance, run.version, run.started, run.boot)
+        if isinstance(report, protocol.HostReport) and seen.current:
+            await self._store.write_run(row, report.info, report.time)
+            self._counts.hosts += 1
+        elif seen.new:
+            await self._store.write_run(row)
+        if seen.restart is not None:
+            await self._store.write_restart(RestartRow(agent_id, host, seen.restart.ts, seen.restart.cause))
+            self._counts.restarts += 1
+            logger.info("Host %s of agent %s restarted (%s)", host, agent_id, seen.restart.cause)
+        source = Source(kind="agent", id=agent_id)
+        if isinstance(report, protocol.ProcessesReport):
+            await self._store.write_processes(
+                source,
+                ProcessPart(
+                    host=host,
+                    ts=report.time,
+                    total=report.total,
+                    rows=[ProcessRow(*row) for row in report.rows],
+                ),
+            )
+            self._counts.process_parts += 1
+        elif isinstance(report, protocol.MetricsReport):
+            await self._points(agent_id, source, host, report)
+
+    async def _points(
+        self, agent_id: uuid.UUID, source: Source, host: str, report: protocol.MetricsReport
+    ) -> None:
         keyed = [
-            (SeriesKey(envelope.host, sample.metric, sample.field, sample.label), sample)
-            for sample in samples
+            (SeriesKey(host, metric, field, label), unit, value)
+            for metric, field, label, unit, value in report.samples
         ]
-        unknown = [
-            (key, sample.unit, sample.ts)
-            for key, sample in keyed
-            if (agent_id, key) not in self._series
-        ]
+        unknown = [(key, unit, report.time) for key, unit, _ in keyed if (agent_id, key) not in self._series]
         if unknown:
             for key, series_id in (await self._store.series_ids(source, unknown)).items():
                 self._series[(agent_id, key)] = series_id
-        for key, sample in keyed:
-            self._pending.append(
-                PointRow(
-                    series_id=self._series[(agent_id, key)], ts=sample.ts, value=sample.value
-                )
-            )
-
-    async def _restarted(self, agent_id: uuid.UUID, host: str, restart: Restart | None) -> None:
-        if restart is None:
-            return
-        await self._store.write_restart(RestartRow(agent_id, host, restart.ts, restart.cause, restart.actions))
-        self._counts.restarts += 1
-        logger.info("Host %s of agent %s restarted (%s)", host, agent_id, restart.cause)
+        for key, _, value in keyed:
+            self._pending.append(PointRow(series_id=self._series[(agent_id, key)], ts=report.time, value=value))
 
     def forget_series(self) -> None:
         """Resolve every series again. A purge in the web process deletes rows
@@ -189,7 +253,7 @@ async def _work(queue: asyncio.Queue[bytes], collector: Collector, counts: Count
             pass
         except (SQLAlchemyError, OSError, StoreUnavailable):
             counts.failed_writes += 1
-            logger.exception("A packet could not be stored")
+            logger.exception("A datagram could not be stored")
         if collector.pending >= BATCH_POINTS or time.monotonic() >= deadline:
             try:
                 await collector.flush()
@@ -203,6 +267,7 @@ async def _refresh(agent_keys: AgentKeys, collector: Collector) -> None:
     while True:
         await asyncio.sleep(KEYS_REFRESH_SECONDS)
         collector.forget_series()
+        collector.forget_quiet()
         try:
             await agent_keys.refresh()
         except (SQLAlchemyError, OSError):
@@ -225,7 +290,7 @@ async def _setting_changed(configured_at: object) -> None:
 
 
 async def _discard(queue: asyncio.Queue[bytes], counts: Counts) -> None:
-    """Take packets while there is no store to write them to, and count them."""
+    """Take datagrams while there is no store to write them to, and count them."""
     while True:
         await queue.get()
         counts.no_store += 1
@@ -262,7 +327,7 @@ async def serve() -> None:
     """Bind the port first and keep it for the life of the process.
 
     A published port nobody is listening on is not harmless: Docker Desktop
-    stopped forwarding an agent's packets to a container that bound its port
+    stopped forwarding an agent's datagrams to a container that bound its port
     only minutes later, and started again only when the container was
     recreated. So the socket is there from the start, and what arrives before
     a store exists is counted and dropped.
@@ -272,15 +337,15 @@ async def serve() -> None:
     queue: asyncio.Queue[bytes] = asyncio.Queue(maxsize=QUEUE_SIZE)
     receiver = Receiver(queue, counts)
 
-    def protocol(receiver: Receiver = receiver) -> Receiver:
+    def receiving(receiver: Receiver = receiver) -> Receiver:
         return receiver
 
     transport, _ = await loop.create_datagram_endpoint(
-        protocol,
+        receiving,
         local_addr=(settings.METRICS_UDP_HOST, settings.METRICS_UDP_PORT),
     )
     logger.info(
-        "Receiving agent packets on %s:%s/udp",
+        "Receiving agent datagrams on %s:%s/udp",
         settings.METRICS_UDP_HOST,
         settings.METRICS_UDP_PORT,
     )
@@ -289,8 +354,15 @@ async def serve() -> None:
         while True:
             store, configured_at = await _prepared_store(queue, counts)
             agent_keys = AgentKeys()
-            await agent_keys.refresh()
-            collector = Collector(store, agent_keys.agent_for, counts)
+            collector = Collector(store, agent_keys.agents_for, counts)
+            try:
+                await agent_keys.refresh()
+                await collector.load()
+            except (SQLAlchemyError, OSError, StoreUnavailable):
+                await store.aclose()
+                logger.exception("Agent keys or hosts could not be read; trying again")
+                await asyncio.sleep(SETTING_POLL_SECONDS)
+                continue
             poller = ConnectionPoller(store)
             tasks = [
                 asyncio.create_task(_work(queue, collector, counts)),

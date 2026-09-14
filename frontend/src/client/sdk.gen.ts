@@ -276,6 +276,8 @@ import type {
   metricsReadHistoryData,
   metricsReadHistoryErrors,
   metricsReadHistoryResponses,
+  metricsReadHostsData,
+  metricsReadHostsResponses,
   metricsReadPresetsData,
   metricsReadPresetsErrors,
   metricsReadPresetsResponses,
@@ -4315,6 +4317,22 @@ export class MetricsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/restarts",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Hosts
+   *
+   * The hosts the caller's agents report, with what each host is.
+   */
+  public static readHosts<ThrowOnError extends boolean = true>(
+    options?: Options<metricsReadHostsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<metricsReadHostsResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/metrics/hosts",
       ...options,
     })
   }

@@ -2,7 +2,7 @@
 
 A development tool, not part of the API. The agent in the `monitor-agent`
 Compose profile reports under METRICS_DEV_AGENT_KEY; this makes that key one an
-agent holds, so packets are accepted without a screen to issue a key (D128).
+agent holds, so its datagrams are accepted without a screen to issue a key (D128).
 Does nothing when the key is not set or already registered.
 
     python -m app.seed_metrics_agent

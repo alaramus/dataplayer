@@ -24,9 +24,9 @@ const CATALOG: MetricsCatalog = {
           last_seen: "2026-09-13T07:26:56Z",
           metrics: [
             {
-              metric: "cpu",
+              metric: "host",
               series: [
-                { id: 1, field: "cpu", label: "total", unit: "%", first_seen: "", last_seen: "" },
+                { id: 1, field: "processes", label: "", unit: "", first_seen: "", last_seen: "" },
                 { id: 2, field: "uptime", label: "", unit: "s", first_seen: "", last_seen: "" },
               ],
             },
@@ -41,7 +41,7 @@ describe("the catalog of what agents reported", () => {
   it("indexes every series with where it came from", () => {
     const index = indexCatalog(CATALOG)
 
-    expect(index.get(1)).toMatchObject({ host: "dev-agent", metric: "cpu", field: "cpu", label: "total", unit: "%" })
+    expect(index.get(1)).toMatchObject({ host: "dev-agent", metric: "host", field: "processes", label: "", unit: "" })
     expect(index.size).toBe(2)
     expect(indexCatalog(undefined).size).toBe(0)
   })
@@ -49,7 +49,7 @@ describe("the catalog of what agents reported", () => {
   it("names a series with its host only where hosts must be told apart", () => {
     const index = indexCatalog(CATALOG)
 
-    expect(seriesName(index.get(1)!, false)).toBe("cpu total")
+    expect(seriesName(index.get(1)!, false)).toBe("processes")
     expect(seriesName(index.get(2)!, true)).toBe("dev-agent · uptime")
   })
 
@@ -65,9 +65,9 @@ describe("the catalog of what agents reported", () => {
 
 describe("ticked series turned into widgets", () => {
   it("makes uptime a tile and the rest a chart per metric", () => {
-    const uptime = entry("web-01", "cpu", "uptime", "", "s")
-    const total = entry("web-01", "cpu", "cpu", "total", "%")
-    const core = entry("web-01", "cpu", "cpu", "cpu0", "%")
+    const uptime = entry("web-01", "host", "uptime", "", "s")
+    const total = entry("web-01", "cpu", "utilization", "total", "%")
+    const core = entry("web-01", "cpu", "utilization", "cpu0", "%")
 
     expect(draftsFor([uptime, total, core])).toEqual([
       { type: "stat", title: "web-01 · uptime", seriesId: uptime.id },
@@ -76,8 +76,8 @@ describe("ticked series turned into widgets", () => {
   })
 
   it("keeps one metric of several hosts on one chart", () => {
-    const a = entry("web-01", "memory", "MemFree", "", "kB")
-    const b = entry("db-01", "memory", "MemFree", "", "kB")
+    const a = entry("web-01", "memory", "available", "", "B")
+    const b = entry("db-01", "memory", "available", "", "B")
 
     expect(draftsFor([a, b])).toEqual([
       { type: "timeseries", title: "memory · 2 hosts", seriesIds: [a.id, b.id] },
@@ -85,19 +85,19 @@ describe("ticked series turned into widgets", () => {
   })
 
   it("splits a metric by unit and says so, and never mixes metrics that share one", () => {
-    const load = entry("h", "cpu", "loadavg", "1m", "")
-    const busy = entry("h", "cpu", "cpu", "total", "%")
-    const memory = entry("h", "memory", "MemFree", "", "kB")
-    const df = entry("h", "df", "Used", "/", "kB")
+    const load = entry("h", "cpu", "load1", "", "")
+    const busy = entry("h", "cpu", "utilization", "total", "%")
+    const memory = entry("h", "memory", "available", "", "B")
+    const used = entry("h", "fs", "used", "/", "B")
 
-    const titles = draftsFor([load, busy, memory, df]).map((draft) => draft.title)
+    const titles = draftsFor([load, busy, memory, used]).map((draft) => draft.title)
 
-    expect(titles).toEqual(["cpu · h", "cpu (%) · h", "memory · h", "df · h"])
+    expect(titles).toEqual(["cpu · h", "cpu (%) · h", "memory · h", "fs · h"])
   })
 
   it("never puts more series on a chart than the server accepts", () => {
     const many = Array.from({ length: MAX_SERIES_PER_WIDGET + 3 }, (_, i) =>
-      entry("h", "memory", `line${String(i)}`, "", "kB")
+      entry("h", "container", "cpu", `container${String(i)}`, "%")
     )
 
     const drafts = draftsFor(many)

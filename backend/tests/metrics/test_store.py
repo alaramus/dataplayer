@@ -9,10 +9,13 @@ from sqlalchemy import text
 
 from app.metrics.history import RAW, ROLLUPS
 from app.metrics.migrations import MIGRATIONS
-from app.metrics.packets import ProcessRow, ProcessSnapshot
+from app.metrics.protocol import HostDescription
 from app.metrics.store import (
+    AgentRunRow,
     MetricsStore,
     PointRow,
+    ProcessPart,
+    ProcessRow,
     RestartRow,
     SeriesKey,
     Source,
@@ -124,18 +127,63 @@ async def test_points_come_back_raw_and_bucketed(store: MetricsStore) -> None:
     assert int(series.last_seen.timestamp()) == START + 119 * 30
 
 
-async def test_a_process_snapshot_is_written(store: MetricsStore) -> None:
-    snapshot = ProcessSnapshot(
-        host="web-01",
-        ts=START,
-        rows=[ProcessRow(1, 0, "root", "init", 0.5, 0.1, "01:00")],
-        skipped=0,
-        truncated=0,
+async def test_the_newest_process_table_is_read_sorted_with_what_the_host_had(store: MetricsStore) -> None:
+    now = int(time.time())
+
+    def row(pid: int, cpu: float, memory: float) -> ProcessRow:
+        return ProcessRow(pid, 1, "root", "S", cpu, memory, 4096 * pid, now - 3600, "worker", f"worker {pid}")
+
+    await store.write_processes(AGENT, ProcessPart("web-01", now - 60, 90, [row(1, 99.0, 99.0)]))
+    await store.write_processes(AGENT, ProcessPart("web-01", now, 120, [row(2, 5.0, 1.0), row(3, 1.0, 7.5)]))
+    await store.write_processes(AGENT, ProcessPart("web-01", now, 120, [row(4, 3.0, 2.0)]))
+
+    by_memory = await store.latest_processes(AGENT.id, "web-01", "pmem", 2)
+
+    assert by_memory is not None
+    assert (by_memory.ts, by_memory.total) == (now, 120)
+    assert by_memory.rows == [row(3, 1.0, 7.5), row(4, 3.0, 2.0)]
+    assert await store.latest_processes(AGENT.id, "db-01", "pmem", 2) is None
+
+
+async def test_the_newest_agent_process_of_a_host_and_what_the_host_is_are_kept(store: MetricsStore) -> None:
+    description = HostDescription(
+        os="Debian 12", kernel="6.1.0", arch="arm64", cpus=4, cpu_model="Cortex-A72",
+        memory=8 * 1024**3, boot_time=START, collectors={"cpu": 15},
     )
+    first = AgentRunRow(AGENT.id, "web-01", "a", "0.1.1", START, "boot-1")
+    await store.write_run(first)
+    await store.write_run(first, description, START + 5)
+    later = AgentRunRow(AGENT.id, "web-01", "b", "0.1.2", START + 100, "boot-1")
+    await store.write_run(later)
 
-    await store.write_processes(AGENT, snapshot)
+    assert await store.runs() == [later]
+    (kept,) = await store.hosts([AGENT.id])
+    # A new process without a description keeps the one the host already had.
+    assert (kept.run, kept.info, kept.last_seen) == (later, description, None)
+    assert await store.hosts([uuid.uuid4()]) == []
 
-    assert await _scalar(store, "SELECT count(*) FROM metric_process") == 1
+
+async def test_migration_4_takes_what_agents_wrote_and_keeps_connections(store: MetricsStore) -> None:
+    connection_source = Source(kind="connector", id=uuid.uuid4())
+    key = SeriesKey("", "database", "size", "")
+    agent_key = SeriesKey("web-01", "cpu", "cpu", "total")
+    theirs = (await store.series_ids(connection_source, [(key, "B", START)]))[key]
+    old = (await store.series_ids(AGENT, [(agent_key, "%", START)]))[agent_key]
+    start = _hour_days_ago(3)
+    await store.write_points([PointRow(series, start + i * 60, 1.0) for series in (theirs, old) for i in range(120)])
+    await refresh_rollups(store)
+    await store.write_restart(RestartRow(AGENT.id, "web-01", start, "agent"))
+
+    async with store._engine.connect() as raw:
+        connection = await raw.execution_options(isolation_level="AUTOCOMMIT")
+        for statement in MIGRATIONS[3].statements:
+            await connection.execute(text(statement))
+
+    assert [s.id for s in await store.catalog([connection_source.id, AGENT.id])] == [theirs]
+    for count in ROLLUP_COUNTS.values():
+        assert await _scalar(store, count, {"id": old}) == 0
+        assert await _scalar(store, count, {"id": theirs}) > 0
+    assert await store.restarts_since([AGENT.id], start - 1) == []
 
 
 async def test_purging_a_source_takes_its_samples_and_leaves_the_rest(
@@ -229,6 +277,7 @@ async def test_purging_a_source_takes_its_rollups_and_restarts_too(store: Metric
     )
     await refresh_rollups(store)
     await store.write_restart(RestartRow(AGENT.id, "h", start, "agent"))
+    await store.write_run(AgentRunRow(AGENT.id, "h", "a", "0.1.1", start, "boot"))
 
     await store.purge(AGENT)
 
@@ -236,17 +285,22 @@ async def test_purging_a_source_takes_its_rollups_and_restarts_too(store: Metric
         assert await _scalar(store, count, {"id": mine}) == 0
         assert await _scalar(store, count, {"id": theirs}) > 0
     assert await store.restarts_since([AGENT.id], start - 1) == []
+    assert await store.runs() == []
 
 
 async def test_restarts_are_kept_and_read_back_by_source(store: MetricsStore) -> None:
     other = uuid.uuid4()
-    await store.write_restart(RestartRow(AGENT.id, "web-01", START, "uptime"))
-    await store.write_restart(RestartRow(AGENT.id, "web-01", START + 33, "agent", ("ps", "iftop")))
+    await store.write_restart(RestartRow(AGENT.id, "web-01", START, "host"))
+    await store.write_restart(RestartRow(AGENT.id, "web-01", START + 33, "agent"))
+    await store.write_restart(RestartRow(AGENT.id, "web-01", START + 900, "host"))
     await store.write_restart(RestartRow(other, "db-01", START + 40, "agent"))
 
     found = await store.restarts_since([AGENT.id], START)
 
-    assert found == [RestartRow(AGENT.id, "web-01", START + 33, "agent", ("ps", "iftop"))]
+    assert found == [
+        RestartRow(AGENT.id, "web-01", START + 33, "agent"),
+        RestartRow(AGENT.id, "web-01", START + 900, "host"),
+    ]
 
 
 async def test_what_the_store_takes_is_measured(store: MetricsStore) -> None:
@@ -266,6 +320,7 @@ async def test_dropping_the_schema_leaves_a_database_the_migrations_prepare_agai
     await store.drop_schema()
 
     assert await _scalar(store, "SELECT to_regclass('metric_point') IS NULL")
+    assert await _scalar(store, "SELECT to_regclass('metric_host') IS NULL")
     assert await _scalar(store, "SELECT to_regclass('metric_point_1h') IS NULL")
     assert await _scalar(store, "SELECT count(*) FROM timescaledb_information.jobs WHERE hypertable_name IS NOT NULL") == 0
 

@@ -73,21 +73,30 @@ services:
     ports:
       - "6379:6379"
 
-  # An agent reporting this machine to the metrics process, started with
-  # `docker compose --profile monitor-agent up -d monitor-agent`. It reports
+  # dataplayer-monitor-agent reporting the machine Docker runs on to the
+  # metrics process, started with
+  # `docker compose --profile monitor-agent up -d monitor-agent`. It signs
   # under METRICS_DEV_AGENT_KEY, which prestart registers for the first
-  # superuser. Without `iftop` among the actions: version 1.14.0 crashes on it
-  # in a container without traffic and restarts every half minute (D130). A
-  # fixed hostname, because the container id would be a new host on every
-  # recreation.
+  # superuser. It reads the host through read-only mounts and the host's
+  # process and network namespaces, so it reaches the metrics process at the
+  # port Compose publishes; `/:/host` is plain `ro`, as Docker Desktop refuses
+  # `rslave` (D130).
   monitor-agent:
-    image: daniylx/sys_monitor_agent:latest
+    image: alaramus/dataplayer-monitor-agent:latest
     profiles: ["monitor-agent"]
-    hostname: dev-agent
+    pid: host
+    network_mode: host
     environment:
-      API_KEY: ${METRICS_DEV_AGENT_KEY:-}
-      PORT: ${METRICS_UDP_PORT:-9999}
-      ACTIONS: "tcp:30,disk:30[/],ps:30,df:30[/],net:30,memory:30,cpu:30"
+      DPM_SERVER: 127.0.0.1:${METRICS_UDP_PORT:-9999}
+      DPM_KEY: ${METRICS_DEV_AGENT_KEY:-}
+      # Docker Desktop's VM calls itself `debuerreotype`.
+      DPM_HOSTNAME: dev-agent
+      DPM_PROC: /host/proc
+      DPM_SYS: /host/sys
+      DPM_ROOTFS: /host
+    volumes:
+      - /:/host:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped
 
   mailcatcher:

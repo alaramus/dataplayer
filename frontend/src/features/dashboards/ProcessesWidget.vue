@@ -2,12 +2,16 @@
 import { computed } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
-import { AppSelect, AppSpinner, AppTable } from "@/shared/ui"
+import { AppSelect, AppSpinner, AppTable, AppTooltip } from "@/shared/ui"
 import type { TableColumns } from "@/shared/ui"
+
+import type { ProcessInfo } from "@/client"
 
 import { useProcesses } from "./api"
 import { PROCESS_LIMITS, PROCESS_SORTS } from "./dashboardModel"
 import type { ProcessLimit, ProcessSort } from "./dashboardModel"
+import { commandWording, runningForWording, stateWording } from "./hostFacts"
+import { formatValue } from "./seriesFormat"
 
 /** The newest process table one host sent, sorted and cut the way it was asked. */
 const props = defineProps<{
@@ -33,16 +37,20 @@ const table = useProcesses(
 const columns: TableColumns = [
   { name: "pid", label: "PID", field: "pid", align: "right" },
   { name: "user", label: "User", field: "user", align: "left" },
+  { name: "state", label: "S", field: "state", align: "left" },
   { name: "pcpu", label: "%CPU", field: "pcpu", align: "right" },
   { name: "pmem", label: "%MEM", field: "pmem", align: "right" },
-  { name: "elapsed", label: "Elapsed", field: "elapsed", align: "left" },
-  { name: "command", label: "Command", field: "command", align: "left" },
+  { name: "rss", label: "Resident", field: (row: ProcessInfo) => formatValue(row.rss_bytes, "B"), align: "right" },
+  { name: "running", label: "Running for", field: (row: ProcessInfo) => runningForWording(row, table.dataUpdatedAt.value), align: "left" },
+  { name: "command", label: "Command", field: (row: ProcessInfo) => commandWording(row), align: "left" },
 ]
 
 const rows = computed(() => table.data.value?.rows ?? [])
 const taken = computed(() => {
-  const ts = table.data.value?.ts
-  return ts === null || ts === undefined ? null : new Date(ts * 1000).toLocaleTimeString()
+  const answer = table.data.value
+  if (answer?.ts === null || answer?.ts === undefined) return null
+  const at = `As of ${new Date(answer.ts * 1000).toLocaleTimeString()}`
+  return answer.total === null || answer.total === undefined ? at : `${at} · ${String(answer.total)} processes on the host`
 })
 const failure = computed(() =>
   table.isError.value ? messageOf(table.error.value, "The process table could not be read") : null
@@ -55,7 +63,7 @@ const failure = computed(() =>
     data-testid="processes-widget"
   >
     <div class="processes-widget__bar">
-      <span class="processes-widget__note">{{ taken ? `As of ${taken}` : "" }}</span>
+      <span class="processes-widget__note">{{ taken ?? "" }}</span>
       <AppSelect
         :model-value="sort"
         :options="PROCESS_SORTS"
@@ -100,7 +108,14 @@ const failure = computed(() =>
         compact
         sticky
         :paged="false"
-      />
+      >
+        <template #body-cell-state="cellProps">
+          <q-td :props="cellProps">
+            {{ cellProps.row.state }}
+            <AppTooltip>{{ stateWording(cellProps.row.state) }}</AppTooltip>
+          </q-td>
+        </template>
+      </AppTable>
     </div>
   </div>
 </template>

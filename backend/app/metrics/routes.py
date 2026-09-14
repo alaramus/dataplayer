@@ -33,6 +33,7 @@ from app.metrics.dashboards import public as dashboard_public
 from app.metrics.holder import StoreHolder, StoreHolderDep
 from app.metrics.models import (
     AgentCreate,
+    AgentHost,
     AgentKey,
     AgentPublic,
     AgentSources,
@@ -59,6 +60,7 @@ from app.metrics.models import (
 )
 from app.metrics.presets import AGENT_PRESETS, Preset, ResolvedPreset, resolve
 from app.metrics.store import (
+    HostRow,
     MetricsStore,
     ProcessSort,
     Source,
@@ -204,11 +206,29 @@ async def read_restarts(
             first_at=datetime.fromtimestamp(one.first, UTC),
             last_at=datetime.fromtimestamp(one.last, UTC),
             cause=one.cause,
-            runs_iftop="iftop" in one.actions,
         )
         for one in restarts.repeated(found, now)
     ]
     return answer
+
+
+@router.get("/hosts", response_model=list[AgentHost])
+async def read_hosts(
+    session: SessionDep, current_user: CurrentUser, holder: StoreHolderDep
+) -> Any:
+    """The hosts the caller's agents report, with what each host is."""
+    agents = {agent.id: agent for agent in await crud.agents_of(session, current_user.id)}
+    if not agents:
+        return []
+    store = await _store(session, holder)
+    try:
+        found = await store.hosts(list(agents))
+    except StoreUnavailable:
+        raise _unavailable() from None
+    return [
+        _host(row, agents[row.run.source_id].name)
+        for row in sorted(found, key=lambda one: (agents[one.run.source_id].name.lower(), one.run.host))
+    ]
 
 
 @router.get("/agents", response_model=list[AgentPublic])
@@ -257,7 +277,7 @@ async def read_agent_key(
 async def rotate_agent_key(
     session: SessionDep, current_user: CurrentUser, agent_id: uuid.UUID
 ) -> Any:
-    """Issue a new key. Packets under the old one are dropped from now on."""
+    """Issue a new key. Datagrams signed with the old one are dropped from now on."""
     agent = await _own_agent(session, agent_id, current_user.id)
     key = keys.issue()
     agent = await crud.rotate_key(session, agent, key)
@@ -390,22 +410,28 @@ async def read_processes(
         raise HTTPException(404, detail={"message": "No such agent"}) from None
     store = await _store(session, holder)
     try:
-        ts, rows = await store.latest_processes(agent_id, host, sort, limit)
+        latest = await store.latest_processes(agent_id, host, sort, limit)
     except StoreUnavailable:
         raise _unavailable() from None
+    if latest is None:
+        return ProcessTable(ts=None, rows=[])
     return ProcessTable(
-        ts=ts,
+        ts=latest.ts,
+        total=latest.total,
         rows=[
             ProcessInfo(
                 pid=row.pid,
                 ppid=row.ppid,
                 user=row.user,
-                command=row.command,
+                state=row.state,
                 pcpu=row.pcpu,
                 pmem=row.pmem,
-                elapsed=row.elapsed,
+                rss_bytes=row.rss,
+                started_at=datetime.fromtimestamp(row.started, UTC),
+                name=row.name,
+                command=row.command,
             )
-            for row in rows
+            for row in latest.rows
         ],
     )
 
@@ -747,6 +773,31 @@ def _public(agent: MetricsAgent, heard: dict[uuid.UUID, Any]) -> AgentPublic:
         created_at=agent.created_at,
         key_issued_at=agent.key_issued_at,
         last_heard_at=heard.get(agent.id),
+    )
+
+
+def _host(row: HostRow, agent_name: str) -> AgentHost:
+    host = AgentHost(
+        agent_id=row.run.source_id,
+        agent_name=agent_name,
+        host=row.run.host,
+        agent_version=row.run.version,
+        agent_started=datetime.fromtimestamp(row.run.started, UTC),
+        last_seen=row.last_seen,
+    )
+    if row.info is None:
+        return host
+    return host.model_copy(
+        update={
+            "os": row.info.os,
+            "kernel": row.info.kernel,
+            "arch": row.info.arch,
+            "cpus": row.info.cpus,
+            "cpu_model": row.info.cpu_model,
+            "memory_bytes": row.info.memory,
+            "booted_at": datetime.fromtimestamp(row.info.boot_time, UTC),
+            "collectors": dict(row.info.collectors),
+        }
     )
 
 

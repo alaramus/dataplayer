@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
-import type { AgentKey, AgentPublic, ConnectorReporting } from "@/client"
+import type { AgentHost, AgentKey, AgentPublic, ConnectorReporting } from "@/client"
 import { adapterIcon } from "@/features/connectors/adapters"
 import { messageOf } from "@/shared/api/errors"
 import { copyText } from "@/shared/clipboard"
@@ -22,12 +22,15 @@ import {
 import type { TableColumns } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
+import { hardwareWording, hostDetailWording, systemWording, upWording } from "./hostFacts"
+
 import { composeSnippet, lastHeardWording } from "./agentSnippet"
 import {
   readAgentKey,
   useAgents,
   useCreateAgent,
   useDeleteAgent,
+  useHosts,
   usePurgeAgent,
   useReporting,
   useRotateAgentKey,
@@ -36,9 +39,10 @@ import {
 
 /**
  * What reports metrics: the agents of the person looking — registering one
- * hands out the key it reports under, and the Compose file to start it with —
- * and the connections they may see whose type reports about itself, switched on
- * by their owners (D128).
+ * hands out the key it signs under, and the Compose file to start it with —,
+ * the hosts those agents report and what each is (D130), and the connections
+ * they may see whose type reports about itself, switched on by their owners
+ * (D128).
  */
 const open = defineModel<boolean>({ required: true })
 
@@ -49,6 +53,19 @@ const creating = useCreateAgent()
 const rotating = useRotateAgentKey()
 const deleting = useDeleteAgent()
 const purging = usePurgeAgent()
+const hosts = useHosts(open)
+
+// One agent key may report several hosts, and two agents one host name.
+const hostRows = computed(() => (hosts.data.value ?? []).map((host) => ({ ...host, key: `${host.agent_id}/${host.host}` })))
+
+const hostColumns: TableColumns = [
+  { name: "host", label: "Host", field: "host", align: "left" },
+  { name: "agent", label: "Agent", field: "agent_name", align: "left" },
+  { name: "system", label: "System", field: (row: AgentHost) => systemWording(row), align: "left" },
+  { name: "hardware", label: "Hardware", field: (row: AgentHost) => hardwareWording(row), align: "left" },
+  { name: "up", label: "Up for", field: "booted_at", align: "left" },
+  { name: "heard", label: "Last heard", field: "last_seen", align: "left" },
+]
 
 const reporting = useReporting(open)
 const updating = useUpdateReporting()
@@ -108,7 +125,7 @@ const snippet = computed(() => {
 
 function show(answer: AgentKey) {
   shown.value = answer
-  hostname.value = answer.agent.name
+  hostname.value = ""
 }
 
 async function register() {
@@ -133,7 +150,7 @@ async function showKey(agent: AgentPublic) {
 async function rotate(agent: AgentPublic) {
   const sure = await confirm({
     title: "Issue a new key?",
-    message: `Packets ${agent.name} sends under its current key will be dropped from now on.`,
+    message: `What ${agent.name} sends signed with its current key will be dropped from now on.`,
     confirmLabel: "Issue a new key",
   })
   if (!sure) return
@@ -162,7 +179,7 @@ async function purge(agent: AgentPublic) {
 async function remove(agent: AgentPublic) {
   const sure = await confirm({
     title: "Remove this agent?",
-    message: `Packets under its key will be dropped. What ${agent.name} already reported stays until it expires.`,
+    message: `What is sent signed with its key will be dropped. What ${agent.name} already reported stays until it expires.`,
     confirmLabel: "Remove",
     danger: true,
   })
@@ -261,6 +278,40 @@ async function copy(text: string, what: string) {
       divided
       gutter
     >
+      <span>Hosts</span>
+      <AppTable
+        :rows="hostRows"
+        :columns="hostColumns"
+        row-key="key"
+        :loading="hosts.isLoading.value"
+        empty-text="No agent has reported a host yet"
+        compact
+        :paged="false"
+        data-testid="hosts-table"
+      >
+        <template #body-cell-host="cellProps">
+          <q-td :props="cellProps">
+            {{ cellProps.row.host }}
+            <AppTooltip>{{ hostDetailWording(cellProps.row) }}</AppTooltip>
+          </q-td>
+        </template>
+        <template #body-cell-up="cellProps">
+          <q-td :props="cellProps">
+            {{ upWording(cellProps.row, now) }}
+          </q-td>
+        </template>
+        <template #body-cell-heard="cellProps">
+          <q-td :props="cellProps">
+            {{ lastHeardWording(cellProps.row.last_seen, now) }}
+          </q-td>
+        </template>
+      </AppTable>
+    </AppSection>
+
+    <AppSection
+      divided
+      gutter
+    >
       <span>Connections</span>
       <AppTable
         :rows="reporting.data.value ?? []"
@@ -332,7 +383,7 @@ async function copy(text: string, what: string) {
       <AppInput
         v-model="hostname"
         label="Host name it reports as"
-        hint="Fixed, so recreating the container is not a new host"
+        hint="Empty: the name the host has"
         compact
       />
       <div class="agents__snippet">

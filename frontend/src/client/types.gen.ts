@@ -351,6 +351,72 @@ export type AgentCreate = {
 }
 
 /**
+ * AgentHost
+ *
+ * A host one of the caller's agents reports, and what it is (D130).
+ */
+export type AgentHost = {
+  /**
+   * Agent Id
+   */
+  agent_id: string
+  /**
+   * Agent Name
+   */
+  agent_name: string
+  /**
+   * Host
+   */
+  host: string
+  /**
+   * Agent Version
+   */
+  agent_version: string
+  /**
+   * Agent Started
+   */
+  agent_started: string
+  /**
+   * Last Seen
+   */
+  last_seen?: string | null
+  /**
+   * Os
+   */
+  os?: string | null
+  /**
+   * Kernel
+   */
+  kernel?: string | null
+  /**
+   * Arch
+   */
+  arch?: string | null
+  /**
+   * Cpus
+   */
+  cpus?: number | null
+  /**
+   * Cpu Model
+   */
+  cpu_model?: string | null
+  /**
+   * Memory Bytes
+   */
+  memory_bytes?: number | null
+  /**
+   * Booted At
+   */
+  booted_at?: string | null
+  /**
+   * Collectors
+   */
+  collectors?: {
+    [key: string]: number
+  }
+}
+
+/**
  * AgentKey
  *
  * The key, for the agent's owner to put into the agent's configuration.
@@ -3948,11 +4014,7 @@ export type HostRestarts = {
   /**
    * Cause
    */
-  cause: "uptime" | "agent"
-  /**
-   * Runs Iftop
-   */
-  runs_iftop: boolean
+  cause: "agent" | "host"
 }
 
 /**
@@ -5771,9 +5833,9 @@ export type ProcessInfo = {
    */
   user: string
   /**
-   * Command
+   * State
    */
-  command: string
+  state: string
   /**
    * Pcpu
    */
@@ -5783,9 +5845,21 @@ export type ProcessInfo = {
    */
   pmem: number
   /**
-   * Elapsed
+   * Rss Bytes
    */
-  elapsed: string
+  rss_bytes: number
+  /**
+   * Started At
+   */
+  started_at: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Command
+   */
+  command: string
 }
 
 /**
@@ -5796,6 +5870,10 @@ export type ProcessTable = {
    * Ts
    */
   ts: number | null
+  /**
+   * Total
+   */
+  total?: number | null
   /**
    * Rows
    */
@@ -14691,6 +14769,24 @@ export type metricsReadRestartsResponses = {
 
 export type metricsReadRestartsResponse =
   metricsReadRestartsResponses[keyof metricsReadRestartsResponses]
+
+export type metricsReadHostsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/metrics/hosts"
+}
+
+export type metricsReadHostsResponses = {
+  /**
+   * Response Metrics-Read Hosts
+   *
+   * Successful Response
+   */
+  200: Array<AgentHost>
+}
+
+export type metricsReadHostsResponse = metricsReadHostsResponses[keyof metricsReadHostsResponses]
 
 export type metricsReadAgentsData = {
   body?: never

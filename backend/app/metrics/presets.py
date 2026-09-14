@@ -26,30 +26,26 @@ Recipe = MetricRecipe
 Preset = MetricPreset
 
 
-# A host `sys_monitor_agent` reports. No recipe spans units, so `cpu` is three
-# widgets; `/proc/meminfo` sends twenty lines and five of them answer whether a
-# box is short of memory; `iftop` is absent because the agent crashes on it
-# (D130).
+# A host `dataplayer-monitor-agent` reports, in the names of its PROTOCOL.md
+# (D130). No recipe spans units: an axis has one scale.
 LINUX_HOST = Preset(
     key="linux-host",
     name="Linux host",
-    description="CPU, memory, disk, network and the process table of one machine.",
+    description="CPU, memory, network, disks, file systems, connections, containers and the busiest processes of one machine.",
     recipes=(
-        Recipe("timeseries", "CPU per core", (0, 0, 8, 5), "cpu", ("cpu",)),
-        Recipe("stat", "Uptime", (8, 0, 4, 5), "cpu", ("uptime",)),
-        Recipe(
-            "timeseries",
-            "Memory",
-            (0, 5, 8, 5),
-            "memory",
-            ("MemTotal", "MemAvailable", "MemFree", "Cached", "Buffers"),
-        ),
-        Recipe("timeseries", "Load average", (8, 5, 4, 5), "cpu", ("loadavg",)),
-        Recipe("timeseries", "Network", (0, 10, 6, 5), "net", ("read_delta", "transfer_delta")),
-        Recipe("timeseries", "TCP sockets by state", (6, 10, 6, 5), "tcp", ("count",)),
-        Recipe("timeseries", "Disk space", (0, 15, 6, 5), "disk", ("total", "free")),
-        Recipe("timeseries", "Filesystems", (6, 15, 6, 5), "df", ("1K-blocks", "Used", "Available")),
-        Recipe("processes", "Top processes", (0, 20, 12, 8)),
+        Recipe("timeseries", "CPU by mode", (0, 0, 5, 5), "cpu", ("user", "system", "iowait", "steal")),
+        Recipe("timeseries", "CPU per core", (5, 0, 5, 5), "cpu", ("utilization",)),
+        Recipe("stat", "Uptime", (10, 0, 2, 5), "host", ("uptime",)),
+        Recipe("timeseries", "Memory", (0, 5, 5, 5), "memory", ("used", "available", "cached", "buffers")),
+        Recipe("timeseries", "Load average", (5, 5, 5, 5), "cpu", ("load1", "load5", "load15")),
+        Recipe("stat", "Memory in use", (10, 5, 2, 5), "memory", ("utilization",)),
+        Recipe("timeseries", "Network", (0, 10, 6, 5), "net", ("receive", "transmit")),
+        Recipe("timeseries", "Disk I/O", (6, 10, 6, 5), "disk", ("read", "write")),
+        Recipe("timeseries", "File systems in use", (0, 15, 6, 5), "fs", ("utilization",)),
+        Recipe("timeseries", "TCP connections by state", (6, 15, 6, 5), "tcp", ("connections",)),
+        Recipe("timeseries", "Containers: CPU", (0, 20, 6, 5), "container", ("cpu",)),
+        Recipe("timeseries", "Containers: memory", (6, 20, 6, 5), "container", ("memory",)),
+        Recipe("processes", "Top processes", (0, 25, 12, 8)),
     ),
 )
 

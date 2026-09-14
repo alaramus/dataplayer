@@ -1,8 +1,9 @@
-"""The key an agent reports under (D128).
+"""The key an agent signs under (D128, D130).
 
-Issued by the server: a UDP packet carries no other proof of who may write.
-Stored twice — hashed, because every packet is looked up by it, and encrypted,
-because its owner needs it again to configure an agent.
+Issued by the server: a UDP datagram carries no other proof of who may write.
+Stored twice — hashed, because a datagram names its key by the start of that
+hash, and encrypted, because a signature is checked with the key itself and
+its owner needs it again to configure an agent.
 """
 
 import hashlib
@@ -11,6 +12,8 @@ import secrets
 from app.core import crypto
 
 KEY_BYTES = 24
+# How much of the fingerprint a DPMA/1 datagram names its key by.
+KEY_ID_LENGTH = 16
 
 
 def issue() -> str:
@@ -21,6 +24,10 @@ def issue() -> str:
 def fingerprint(key: str) -> str:
     """The lookup form of a key. A plain hash suffices for a random token."""
     return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+
+def key_id(key: str) -> str:
+    return fingerprint(key)[:KEY_ID_LENGTH]
 
 
 def seal(key: str) -> bytes:

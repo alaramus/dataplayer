@@ -1,13 +1,12 @@
 /**
- * The Compose file an agent is started with, written for one key.
+ * The Compose file an agent is started with, written for one key (D128).
  *
- * `iftop` is left out: version 1.14.0 crashes on it in a container without
- * traffic and restarts every half minute (D130). The host name is fixed,
- * because a container id would be a new host, and new series, on every
- * recreation.
+ * The agent reads the host through read-only mounts and the host's process and
+ * network namespaces, so what it reports is the machine and not its own
+ * container. `/:/host` is plain `ro`: Docker Desktop refuses `rslave`.
  */
 
-export const AGENT_ACTIONS = "tcp:30,disk:30[/],ps:30,df:30[/],net:30,memory:30,cpu:30"
+export const AGENT_IMAGE = "alaramus/dataplayer-monitor-agent:latest"
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"])
 
@@ -16,27 +15,35 @@ export interface SnippetRequest {
   port: number
   /** The machine this server runs on, as the browser reaches it. */
   serverHost: string
-  /** What the agent's host is called in every chart. */
+  /** What the agent's host is called in every chart; empty for its own name. */
   hostname: string
 }
 
+function quoted(text: string): string {
+  return JSON.stringify(text)
+}
+
 export function composeSnippet(request: SnippetRequest): string {
-  const hostname = request.hostname.trim().replace(/[^A-Za-z0-9.-]+/g, "-") || "monitored-host"
-  // On the machine this server runs on, the agent finds it by itself.
-  const address = LOCAL_HOSTS.has(request.serverHost)
-    ? "      # IP: address of the DataPlayer server, when the agent runs elsewhere"
-    : `      IP: ${request.serverHost}`
+  const hostname = request.hostname.trim()
+  // With the host's network, the machine this server runs on is itself.
+  const server = LOCAL_HOSTS.has(request.serverHost) ? "127.0.0.1" : request.serverHost
   return [
     "services:",
-    "  sys_monitor_agent:",
-    "    image: daniylx/sys_monitor_agent:latest",
-    `    hostname: ${hostname}`,
-    "    environment:",
-    `      API_KEY: ${request.key}`,
-    `      PORT: "${String(request.port)}"`,
-    address,
-    `      ACTIONS: "${AGENT_ACTIONS}"`,
+    "  dpm-agent:",
+    `    image: ${AGENT_IMAGE}`,
     "    restart: unless-stopped",
+    "    pid: host",
+    "    network_mode: host",
+    "    environment:",
+    `      DPM_SERVER: ${quoted(`${server}:${String(request.port)}`)}`,
+    `      DPM_KEY: ${quoted(request.key)}`,
+    ...(hostname === "" ? [] : [`      DPM_HOSTNAME: ${quoted(hostname)}`]),
+    "      DPM_PROC: /host/proc",
+    "      DPM_SYS: /host/sys",
+    "      DPM_ROOTFS: /host",
+    "    volumes:",
+    "      - /:/host:ro",
+    "      - /var/run/docker.sock:/var/run/docker.sock:ro",
     "",
   ].join("\n")
 }

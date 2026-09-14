@@ -1,3 +1,4 @@
+import { createHash, createHmac, randomUUID } from "node:crypto"
 import dgram from "node:dgram"
 
 import { expect, test } from "@playwright/test"
@@ -10,9 +11,10 @@ import { openNode, pickSchema } from "./utils/catalog"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
 
 /**
- * Dashboards (D125–D130). The last scenario needs the metrics store set up on
+ * Dashboards (D125–D130). The agent scenarios need the metrics store set up on
  * the development stack and the metrics process listening on METRICS_UDP_PORT;
- * it registers an agent of its own and sends the packets itself.
+ * each registers an agent of its own and sends DPMA/1 datagrams itself, signed
+ * the way dataplayer-monitor-agent signs them.
  */
 
 const UDP_PORT = Number(process.env.METRICS_UDP_PORT ?? "9999")
@@ -25,15 +27,63 @@ async function storeIsReady(page: Page): Promise<boolean> {
   return rail.isVisible()
 }
 
-function send(packet: object): Promise<void> {
+function sendDatagram(datagram: Buffer): Promise<void> {
   return new Promise((resolve, reject) => {
     const socket = dgram.createSocket("udp4")
-    socket.send(Buffer.from(JSON.stringify(packet)), UDP_PORT, "127.0.0.1", (error) => {
+    socket.send(datagram, UDP_PORT, "127.0.0.1", (error) => {
       socket.close()
       if (error) reject(error)
       else resolve()
     })
   })
+}
+
+/** One agent process reporting one host: what every datagram's header names. */
+interface AgentRun {
+  key: string
+  host: string
+  instance: string
+  started: number
+  boot: string
+  seq: number
+}
+
+function seconds(): number {
+  return Math.floor(Date.now() / 1000)
+}
+
+function agentRun(key: string, host: string, started = seconds() - 600): AgentRun {
+  return { key, host, instance: randomUUID(), started, boot: randomUUID(), seq: 0 }
+}
+
+async function report(run: AgentRun, time: number, kind: "metrics" | "processes" | "host", fields: object): Promise<void> {
+  run.seq += 1
+  const body = Buffer.from(JSON.stringify({
+    v: 1,
+    agent: { version: "0.1.1", instance: run.instance, started: run.started },
+    host: { name: run.host, boot: run.boot },
+    seq: run.seq,
+    time,
+    kind,
+    ...fields,
+  }))
+  const kid = createHash("sha256").update(run.key).digest("hex").slice(0, 16)
+  const signature = createHmac("sha256", run.key).update(body).digest("base64url")
+  await sendDatagram(Buffer.concat([Buffer.from(`DPMA/1 ${kid} ${signature}\n`), body]))
+}
+
+/** CPU busy share, load and uptime: three charts' and a tile's worth. */
+function cpuSamples(uptime: number, busy = 10): { samples: unknown[][] } {
+  return {
+    samples: [
+      ["cpu", "utilization", "total", "%", busy],
+      ["cpu", "utilization", "cpu0", "%", busy / 2],
+      ["cpu", "load1", "", "", 0.1],
+      ["cpu", "load5", "", "", 0.2],
+      ["cpu", "load15", "", "", 0.3],
+      ["host", "uptime", "", "s", uptime],
+    ],
+  }
 }
 
 test("the dashboards cover the workspace, which is still where it was on the way back", async ({ page }) => {
@@ -102,18 +152,13 @@ test("a host's ready-made layout shows its processes, takes live points and open
   await page.getByTestId("agents-dialog").getByRole("button", { name: "Close", exact: true }).click()
   await page.waitForTimeout(1500)
 
-  const cpu = (ts: number, uptime: number) => ({
-    action: "monitor-cpu", appkey: key, host, time: String(ts),
-    data: { cpu: [10, 5, 15], uptime, loadavg: [0.1, 0.2, 0.3] },
-  })
-  const now = Math.floor(Date.now() / 1000)
-  for (const offset of [90, 60, 30]) await send(cpu(now - offset, 5000 - offset))
-  await send({
-    action: "monitor-ps", appkey: key, host, time: String(now),
-    data: [
-      { PCPU: "%CPU", PMEM: "%MEM", PID: "PID", PPID: "PPID", USER: "USER", ELAPSED: "ELAPSED", COMMAND: "COMMAND" },
-      { PCPU: "7.5", PMEM: "1.0", PID: "4242", PPID: "1", USER: "root", ELAPSED: "00:10", COMMAND: "e2e-worker" },
-    ],
+  const run = agentRun(key, host)
+  const now = seconds()
+  for (const offset of [90, 60, 30]) await report(run, now - offset, "metrics", cpuSamples(5000 - offset))
+  await report(run, now, "processes", {
+    total: 212,
+    part: [1, 1],
+    rows: [[4242, 1, "root", "R", 7.5, 1.0, 104857600, now - 600, "e2e-worker", "e2e-worker --serve"]],
   })
 
   await page.getByTestId("dashboard-new").click()
@@ -133,16 +178,19 @@ test("a host's ready-made layout shows its processes, takes live points and open
 
   await page.getByTestId("add-widgets-tree").getByText(host, { exact: true }).click()
   await expect(page.getByTestId("add-widgets-presets")).toContainText("Linux host for")
-  // A host that reports cpu and its processes fills four of the nine recipes.
-  await expect(page.getByTestId("add-widgets-presets")).toContainText("4 of 9 widgets")
+  // A host that reports its CPU, uptime and processes fills four recipes:
+  // per core, load, uptime and the process table.
+  await expect(page.getByTestId("add-widgets-presets")).toContainText("4 of 13 widgets")
   await page.getByTestId("add-preset-linux-host").click()
 
   await expect(page.getByTestId("widget")).toHaveCount(4)
-  await expect(page.getByTestId("processes-widget")).toContainText("e2e-worker")
+  await expect(page.getByTestId("processes-widget")).toContainText("e2e-worker --serve")
+  await expect(page.getByTestId("processes-widget")).toContainText("212 processes on the host")
+  await expect(page.getByTestId("processes-widget")).toContainText("100 MB")
   const uptime = page.getByTestId("stat-value")
   await expect(uptime).toHaveText("1 h 22 min")
 
-  await send(cpu(Math.floor(Date.now() / 1000), 5000 + 180))
+  await report(run, seconds(), "metrics", cpuSamples(5000 + 180))
   await expect(uptime).toHaveText("1 h 26 min", { timeout: 15_000 })
 
   const tile = page.getByTestId("widget").filter({ has: page.getByTestId("stat-value") })
@@ -213,7 +261,7 @@ test("a connection's owner switches its reporting on and its layout is drawn fro
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
-test("an agent's packets become a dashboard of widgets", async ({ page }) => {
+test("an agent's datagrams describe its host and become a dashboard of widgets", async ({ page }) => {
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
   const agentName = `e2e-agent-${Date.now()}`
@@ -224,23 +272,38 @@ test("an agent's packets become a dashboard of widgets", async ({ page }) => {
   await page.getByTestId("agent-register").click()
   const key = (await page.getByTestId("agent-key").innerText()).trim()
   expect(key.length).toBeGreaterThanOrEqual(32)
-  await expect(page.getByTestId("agent-snippet")).toContainText(`API_KEY: ${key}`)
-  await expect(page.getByTestId("agent-snippet")).not.toContainText("iftop")
-  await page.getByTestId("agents-dialog").getByRole("button", { name: "Close", exact: true }).click()
+  await expect(page.getByTestId("agent-snippet")).toContainText(`DPM_KEY: "${key}"`)
+  await expect(page.getByTestId("agent-snippet")).toContainText("image: alaramus/dataplayer-monitor-agent:latest")
 
-  // The metrics process reads keys again on an unknown one at most once a
-  // second; a packet later than that is accepted whenever the keys were read.
+  // The metrics process reads keys again on an unknown id at most once a
+  // second; a datagram later than that is accepted whenever the keys were read.
   await page.waitForTimeout(1500)
-  const now = Math.floor(Date.now() / 1000)
+  const run = agentRun(key, host)
+  const now = seconds()
   for (const offset of [120, 90, 60, 30, 0]) {
-    await send({
-      action: "monitor-cpu",
-      appkey: key,
-      host,
-      time: String(now - offset),
-      data: { cpu: [10 + offset / 10, 5, 15], uptime: 5000 - offset, loadavg: [0.1, 0.2, 0.3] },
-    })
+    await report(run, now - offset, "metrics", cpuSamples(5000 - offset, 10 + offset / 10))
   }
+  await report(run, now, "host", {
+    info: {
+      os: "Ubuntu 24.04.1 LTS", kernel: "6.8.0-45-generic", arch: "amd64", cpus: 8, cpu_model: "Intel(R) Xeon(R)",
+      memory: 16 * 1024 ** 3, boot_time: now - 5000, collectors: { cpu: 15, processes: 60 },
+    },
+  })
+
+  // What the host is, in the same window, once the datagram is written.
+  const hosts = page.getByTestId("hosts-table")
+  await expect(async () => {
+    await page.getByTestId("agents-dialog").getByRole("button", { name: "Close", exact: true }).click()
+    await page.getByTestId("agents-open").click()
+    await expect(hosts.getByRole("row", { name: new RegExp(host) })).toContainText("8 CPUs · 16 GB", { timeout: 2000 })
+  }).toPass({ timeout: 30_000 })
+  const described = hosts.getByRole("row", { name: new RegExp(host) })
+  await expect(described).toContainText("Ubuntu 24.04.1 LTS · amd64")
+  await expect(described).toContainText(agentName)
+  await described.getByText(host, { exact: true }).hover()
+  await expect(page.getByRole("tooltip")).toContainText("Agent 0.1.1, kernel 6.8.0-45-generic")
+  await expect(described).toContainText("1 h 23 min")
+  await page.getByTestId("agents-dialog").getByRole("button", { name: "Close", exact: true }).click()
 
   const dashboardName = `e2e-dashboard-${Date.now()}`
   await page.getByTestId("dashboard-new").click()
@@ -290,7 +353,7 @@ test("an agent's packets become a dashboard of widgets", async ({ page }) => {
   await expect(page.getByTestId("agents-table").getByText(agentName)).toHaveCount(0)
 })
 
-test("a host whose agent keeps restarting needs its owner, and the sheet names the iftop crash", async ({ page }) => {
+test("a host whose agent keeps starting again needs its owner", async ({ page }) => {
   test.setTimeout(90_000)
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
@@ -305,20 +368,13 @@ test("a host whose agent keeps restarting needs its owner, and the sheet names t
   await page.getByTestId("agents-dialog").getByRole("button", { name: "Close", exact: true }).click()
   await page.waitForTimeout(1500)
 
-  // What the crashing agent sent on 2026-09-13: every table says it has run
-  // 32 seconds, 34 seconds after the one before.
-  const now = Math.floor(Date.now() / 1000)
+  // An agent that crashes a couple of seconds after it starts, four times: a
+  // new process on the same boot each time, the first known, three restarts.
+  const now = seconds()
+  const boot = randomUUID()
   for (const ago of [102, 68, 34, 0]) {
-    await send({
-      action: "monitor-ps", appkey: key, host, time: String(now - ago),
-      data: [
-        { PCPU: "%CPU", PMEM: "%MEM", PID: "PID", PPID: "PPID", USER: "USER", ELAPSED: "ELAPSED", COMMAND: "COMMAND" },
-        {
-          PCPU: "0.0", PMEM: "0.0", PID: "1", PPID: "0", USER: "root", ELAPSED: "00:32",
-          COMMAND: "./sys_monitor_agent 192.168.65.254 9999 30 --actions=ps:30,cpu:30,iftop:30 --apikey=",
-        },
-      ],
-    })
+    const run = { ...agentRun(key, host, now - ago - 2), boot }
+    await report(run, now - ago, "metrics", cpuSamples(5000 - ago))
   }
 
   const item = page.getByTestId("attention-section").getByText(`${host} keeps restarting`)
@@ -328,8 +384,7 @@ test("a host whose agent keeps restarting needs its owner, and the sheet names t
     await expect(item).toBeVisible({ timeout: 2000 })
   }).toPass({ timeout: 30_000 })
   const row = page.locator("[data-testid^='attention-restarts:']").filter({ hasText: host })
-  await expect(row).toContainText(`The agent ${agentName} restarted 3 times in the last 15 minutes`)
-  await expect(row).toContainText("take it out of ACTIONS")
+  await expect(row).toContainText(`The agent ${agentName} started again 3 times in the last 15 minutes`)
 
   // From the data workspace, where the sheet is opened most of the time.
   await page.keyboard.press("Escape")
@@ -392,13 +447,9 @@ test("a dashboard shared with a colleague opens from its link, is edited once al
   const key = (await page.getByTestId("agent-key").innerText()).trim()
   await page.getByTestId("agents-dialog").getByRole("button", { name: "Close", exact: true }).click()
   await page.waitForTimeout(1500)
-  const now = Math.floor(Date.now() / 1000)
-  for (const offset of [90, 60, 30, 0]) {
-    await send({
-      action: "monitor-cpu", appkey: key, host, time: String(now - offset),
-      data: { cpu: [10, 5, 15], uptime: 5000 - offset, loadavg: [0.1, 0.2, 0.3] },
-    })
-  }
+  const run = agentRun(key, host)
+  const now = seconds()
+  for (const offset of [90, 60, 30, 0]) await report(run, now - offset, "metrics", cpuSamples(5000 - offset))
 
   await page.getByTestId("dashboard-new").click()
   await page.getByRole("button", { name: "Rename this dashboard" }).click()

@@ -109,7 +109,7 @@ async def store(store_options: dict[str, Any]) -> AsyncIterator[MetricsStore]:
     async with opened._engine.begin() as connection:
         await connection.execute(
             text(
-                "TRUNCATE metric_point, metric_process, metric_restart, metric_series "
+                "TRUNCATE metric_point, metric_process, metric_restart, metric_host, metric_series "
                 "RESTART IDENTITY"
             )
         )

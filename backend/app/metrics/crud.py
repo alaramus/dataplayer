@@ -88,10 +88,10 @@ async def agent_by_key(session: AsyncSession, key: str) -> MetricsAgent | None:
     return (await session.exec(statement)).first()
 
 
-async def key_fingerprints(session: AsyncSession) -> dict[str, uuid.UUID]:
-    """Every key the collector accepts, as fingerprint to agent."""
-    statement = select(MetricsAgent.key_fingerprint, MetricsAgent.id)
-    return dict((await session.exec(statement)).all())
+async def agent_keys(session: AsyncSession) -> list[tuple[uuid.UUID, str, bytes]]:
+    """Every key the collector accepts: agent, fingerprint, and the key sealed."""
+    statement = select(MetricsAgent.id, MetricsAgent.key_fingerprint, MetricsAgent.key_sealed)
+    return [(agent_id, fingerprint, sealed) for agent_id, fingerprint, sealed in (await session.exec(statement)).all()]
 
 
 async def rotate_key(session: AsyncSession, agent: MetricsAgent, key: str) -> MetricsAgent:

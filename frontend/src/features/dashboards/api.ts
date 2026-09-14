@@ -84,6 +84,18 @@ export function useAgents(enabled: MaybeRefOrGetter<boolean> = true) {
   })
 }
 
+export const hostsKey = ["metrics-hosts"] as const
+
+/** The hosts the person's agents report, and what each one is. */
+export function useHosts(enabled: MaybeRefOrGetter<boolean> = true) {
+  return useQuery({
+    queryKey: hostsKey,
+    queryFn: async () => (await MetricsService.readHosts()).data,
+    enabled: computed(() => toValue(enabled)),
+    refetchInterval: 30_000,
+  })
+}
+
 function useAgentMutation<Input, Output>(run: (input: Input) => Promise<Output>) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -91,6 +103,7 @@ function useAgentMutation<Input, Output>(run: (input: Input) => Promise<Output>)
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: agentsKey })
       await queryClient.invalidateQueries({ queryKey: metricsCatalogKey })
+      await queryClient.invalidateQueries({ queryKey: hostsKey })
     },
   })
 }
