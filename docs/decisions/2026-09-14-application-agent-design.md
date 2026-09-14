@@ -2,8 +2,8 @@
 
 Date: 2026-09-14. Decisions: D133 through D141, in [ai](../architecture/ai.md).
 
-Status: agreed in discussion with the user on 2026-09-14. AI1 implemented;
-AI2–AI6 pending. Slices below.
+Status: agreed in discussion with the user on 2026-09-14. AI1 and AI2
+implemented; AI3–AI6 pending. Slices below.
 
 ## Outcome
 
@@ -144,8 +144,9 @@ rights and through the same checks.
 - **What the interface cannot do, the agent cannot do.** When a request needs a
   missing capability, the capability is added to the source, with its command
   in the interface, and the agent reaches it through the registry. The first
-  instance is a file source action that creates a text file with given content
-  (AI2).
+  instance is a file source action that makes a file by name (AI2); what goes
+  into it is written through in-place editing (D48), which the interface
+  already has.
 - **The agent works with the connections the person added**, owned and
   granted, and with nothing else. "My folder" is a file connection. With none,
   the agent says so and offers to open the new-connection form; the person
@@ -426,15 +427,19 @@ Acceptance: a new and an existing connection have the flag off; the owner
 switches it on and off; a grantee's attempt is refused; the checkbox shows the
 state and is disabled for a grantee.
 
-### AI2 — a text file with content
+### AI2 — a new file by name
 
-A file source action that creates a text file with a name and content in a
-chosen folder: a taken name is refused as it is for upload, the name goes
-through D8's containment rule, and the result names the branch to re-read. A
-command in the catalog offers it.
+A file source action, **New file**, that asks for a name and nothing else, as
+an IDE does, and makes an empty file in the folder being looked at: a taken name
+is refused as it is for upload, the name goes through D8's containment rule, and
+the result names the branch to re-read. A command in the catalog offers it.
 
-Acceptance: a file is created with its content; a taken name, `..`, an absolute
-path and a drive-bearing name are refused; the catalog shows the new file.
+Corrected during implementation: the first version also took the file's
+content in the same form. The user wanted the IDE's gesture — a name, then the
+file — so content is written afterwards through in-place editing (D48).
+
+Acceptance: an empty file is created; a taken name, `..`, an absolute path and
+a drive-bearing name are refused; the catalog shows the new file.
 
 ### AI3 — the window, the settings and a chat without tools
 
@@ -506,3 +511,12 @@ servers not started), `mypy app`, `ruff check app tests`, `lint-imports`,
 `alembic check`, frontend `type-check`, `lint`, `test:unit`, the Playwright
 scenarios `connectors.spec.ts` and `sharing.spec.ts`, and `check-docs.sh`, all
 clean.
+
+AI2, on 2026-09-14, after the correction: `tests/adapters/test_file_actions.py`,
+`tests/connectors/test_action_routes.py` and `tests/adapters/test_routes.py`
+(133 passed), `mypy app`, `ruff check app tests`, `lint-imports`, frontend
+`type-check` and `lint`, the Playwright scenarios `files.spec.ts` and
+`actions.spec.ts`, and `check-docs.sh`, all clean. The name check and the
+exclusive creation were each broken once to see their tests fail. A trap found
+on the way: on Windows, creating a file over a folder of the same name raises
+`PermissionError` rather than `FileExistsError`.

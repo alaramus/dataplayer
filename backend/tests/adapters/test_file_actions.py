@@ -60,6 +60,7 @@ async def test_a_directory_admits_creating_uploading_renaming_and_deleting(
 
     assert names == {
         "create_folder",
+        "create_file",
         "connect_folder",
         "upload",
         "paste",
@@ -83,7 +84,7 @@ async def test_the_root_of_the_connector_cannot_be_renamed_or_deleted(
     """A question of state, not of kind: the root is an ordinary directory."""
     names = {action.name for action in await actions.available(None)}
 
-    assert names == {"create_folder", "upload", "paste"}
+    assert names == {"create_folder", "create_file", "upload", "paste"}
 
 
 async def test_the_whole_vocabulary_is_offered_whatever_the_node(
@@ -98,6 +99,7 @@ async def test_the_whole_vocabulary_is_offered_whatever_the_node(
 
     assert names == {
         "create_folder",
+        "create_file",
         "connect_folder",
         "upload",
         "paste",
@@ -116,6 +118,7 @@ async def test_each_action_says_whether_it_changes_the_node_or_its_contents(
 
     assert by_name == {
         "create_folder": "children",
+        "create_file": "children",
         "connect_folder": "node",
         "upload": "children",
         # Pasting puts something into a place, so the place is the subject.
@@ -180,6 +183,70 @@ async def test_a_folder_name_must_be_a_plain_name(
     """The same rule that judges a path segment, not a second one."""
     with pytest.raises(ValueError):
         await _run(actions, "create_folder", None, name=name)
+
+
+# --- create_file -------------------------------------------------------------
+
+
+async def test_creating_a_file_makes_an_empty_one(
+    actions: FileActions, root: Path
+) -> None:
+    result = await _run(actions, "create_file", "reports", name="example.txt")
+
+    assert (root / "reports" / "example.txt").read_bytes() == b""
+    assert result.message == "example.txt created"
+    assert result.reload_node_ids == ["reports"]
+
+
+async def test_creating_a_file_in_the_root_reloads_the_root(
+    actions: FileActions, root: Path
+) -> None:
+    result = await _run(actions, "create_file", None, name="todo.md")
+
+    assert (root / "todo.md").is_file()
+    assert result.reload_node_ids == [None]
+
+
+async def test_a_file_over_a_taken_name_is_refused(
+    actions: FileActions, root: Path
+) -> None:
+    """Not numbered like a folder: whoever named it refers to it by that name."""
+    with pytest.raises(ActionRefused) as caught:
+        await _run(actions, "create_file", None, name="notes.txt")
+
+    assert caught.value.reason == "conflict"
+    assert (root / "notes.txt").read_text(encoding="utf-8") == "first\n"
+    assert not (root / "notes (1).txt").exists()
+
+
+async def test_a_file_over_a_folder_name_is_refused(actions: FileActions) -> None:
+    with pytest.raises(ActionRefused) as caught:
+        await _run(actions, "create_file", None, name="reports")
+
+    assert caught.value.reason == "conflict"
+
+
+@pytest.mark.parametrize(
+    "name", ["..", "../evil.txt", "/etc/passwd", "C:evil.txt", "a/b.txt", ".", ""]
+)
+async def test_a_file_name_must_be_a_plain_name(
+    actions: FileActions, root: Path, name: str
+) -> None:
+    """The one containment rule, not a second one (D8)."""
+    with pytest.raises(ValueError):
+        await _run(actions, "create_file", None, name=name)
+
+    assert not (root.parent / "evil.txt").exists()
+
+
+async def test_a_file_needs_a_name(actions: FileActions) -> None:
+    with pytest.raises(ValueError):
+        await _run(actions, "create_file", None)
+
+
+async def test_a_file_cannot_be_created_inside_a_file(actions: FileActions) -> None:
+    with pytest.raises(ValueError):
+        await _run(actions, "create_file", "notes.txt", name="x.txt")
 
 
 # --- rename ------------------------------------------------------------------

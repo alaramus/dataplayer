@@ -65,6 +65,12 @@ class NameParams(BaseModel):
     _check = field_validator("name")(_plain_name)
 
 
+class FileNameParams(BaseModel):
+    name: str = Field(title="Name")
+
+    _check = field_validator("name")(_plain_name)
+
+
 class RenameParams(BaseModel):
     new_name: str = Field(
         title="New name", json_schema_extra={"x-ui-purpose": "node-name"}
@@ -228,6 +234,29 @@ class CreateFolder(_Bound, JsonAction[NameParams]):
         return ActionResult(
             message=f"Folder {target.name} created",
             reload_node_ids=[node_id or None],
+        )
+
+
+class CreateFile(_Bound, JsonAction[FileNameParams]):
+    """An empty file under the name typed, in the folder being looked at.
+
+    A taken name is refused rather than numbered, unlike a folder's: whoever
+    named the file — a person or the agent (D133) — refers to it by that name
+    next, and a quiet "notes (1).txt" would be another file than the one they
+    think they made.
+    """
+
+    name: ClassVar[str] = "create_file"
+    title: ClassVar[str] = "New file"
+    applies_to: ClassVar[frozenset[NodeKind]] = frozenset({"directory"})
+    acts_on: ClassVar[ActsOn] = "children"
+    params_model = FileNameParams
+
+    async def run(self, node_id: str | None, params: FileNameParams) -> ActionResult:
+        target = self._directory(node_id) / params.name
+        await to_thread.run_sync(partial(_make_file, target))
+        return ActionResult(
+            message=f"{target.name} created", reload_node_ids=[node_id or None]
         )
 
 
@@ -623,6 +652,22 @@ def _make_directory(target: Path) -> None:
         raise ActionRefused("conflict", f"{target.name} is already there") from None
 
 
+def _make_file(target: Path) -> None:
+    # Exclusive creation: a name taken by a file, a folder or a link — even one
+    # pointing nowhere — is refused by the call itself, with no gap after a check.
+    taken = ActionRefused("conflict", f"{target.name} is already there")
+    try:
+        target.touch(exist_ok=False)
+    except FileExistsError:
+        raise taken from None
+    except PermissionError:
+        # Windows answers a folder under the name with "access denied" rather
+        # than "exists"; Linux says exists.
+        if target.exists() or target.is_symlink():
+            raise taken from None
+        raise
+
+
 def _rename(path: Path, target: Path) -> None:
     if target.exists():
         raise ActionRefused("conflict", f"{target.name} is already there")
@@ -691,6 +736,7 @@ class FileActionType(ActionType, Protocol):
 # from `SecretStr` rather than from a register of names.
 FILE_ACTION_TYPES: tuple[FileActionType, ...] = (
     CreateFolder,
+    CreateFile,
     ConnectFolder,
     Upload,
     PasteHere,

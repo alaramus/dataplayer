@@ -53,7 +53,10 @@ guard.
   refused instead of quietly pointing the new connection at another folder.
 - Personal-file defaults are resolved by the source: a folder submitted unchanged
   becomes `new folder`, then `new folder (1)`. Deleting a directory removes its
-  contents after the action's one destructive confirmation. Upload first refuses
+  contents after the action's one destructive confirmation. **New file** asks
+  for a name and nothing else and makes an empty file in the folder being looked
+  at; a taken name is refused rather than numbered, because whoever named it — a
+  person or the agent (D133) — refers to it by that name next. Upload first refuses
   a taken name, then accepts an explicit retry to replace it or to publish the
   first free `name (n).ext` without overwriting a file that appeared meanwhile.
 

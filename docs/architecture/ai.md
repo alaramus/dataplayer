@@ -8,7 +8,7 @@ model provider, and before changing the chat window.
 Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141.
 
 **Implementation status:** agreed on 2026-09-14. AI1 — the third-party transfer
-flag — is implemented; AI2–AI6 are pending.
+flag — and AI2 — a new file by name — are implemented; AI3–AI6 are pending.
 
 ## What exists today
 
@@ -18,6 +18,11 @@ connection is created or changed by its owner only; a grantee receives it in
 the connection and is refused a change with 403. The connection window shows it
 as a switch on its permissions page, disabled for a grantee. Nothing reads it
 yet: the agent that will is AI4.
+
+The file source has `create_file`, **New file** in the catalog menu: a name and
+an empty file, the first capability added for the agent's sake and offered to
+people as well (D133). What goes into the file is written by in-place editing
+(D48).
 
 The agent itself does not exist. The legacy application's `ai_handler` and
 `ChatAI` were read as evidence; what is ported and what is not is listed in the

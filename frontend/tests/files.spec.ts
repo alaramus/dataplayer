@@ -406,6 +406,45 @@ test("opens a file as its own source and saves an edit back", async ({ page }) =
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
+test("makes a new file by its name and refuses the name twice", async ({ page }) => {
+  const name = `e2e-new-file-${Date.now()}`
+  const folder = `new-file-${Date.now()}`
+  await login(page)
+  await createFileConnector(page, name)
+  await openConnector(page, name)
+
+  // A folder of this run's own, so the samples other scenarios read stay.
+  await catalogAction(page, "create_folder")
+  await page.getByTestId("field-name").fill(folder)
+  await page.getByTestId("action-submit").click()
+  await openNode(page, folder)
+
+  // A name and nothing else, the way an IDE makes a file.
+  await catalogAction(page, "create_file")
+  await expect(page.getByTestId("action-dialog").getByRole("textbox")).toHaveCount(1)
+  await page.getByTestId("field-name").fill("example.txt")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, "example.txt")).toBeVisible()
+
+  // The file is referred to by the name it was given, so a second one under
+  // it is refused rather than quietly numbered.
+  await catalogAction(page, "create_file")
+  await page.getByTestId("field-name").fill("example.txt")
+  await page.getByTestId("action-submit").click()
+  await expect(page.getByTestId("action-error")).toContainText("already there")
+  await expect(catalogRow(page, "example (1).txt")).toHaveCount(0)
+  await page.getByTestId("action-dialog").getByRole("button", { name: "Cancel" }).click()
+
+  await page.getByTestId("catalog-home").click()
+  await catalogCheck(page, folder).click()
+  await catalogAction(page, "delete")
+  await page.getByTestId("action-submit").click()
+  await expect(catalogRow(page, folder)).toHaveCount(0)
+
+  await deleteConnector(page, name)
+  await expect(connectorRow(page, name)).toHaveCount(0)
+})
+
 test("opens a columnar file and a workbook sheet as datasets", async ({ page }) => {
   const name = `e2e-datasets-${Date.now()}`
   await login(page)

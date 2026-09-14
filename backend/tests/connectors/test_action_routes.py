@@ -301,6 +301,7 @@ async def test_a_directory_offers_the_actions_that_change_it(
     offered = {action["name"]: action for action in response.json()}
     assert _applicable(response) == {
         "create_folder",
+        "create_file",
         "connect_folder",
         "upload",
         "paste",
@@ -342,6 +343,7 @@ async def test_an_action_says_whether_it_changes_the_node_or_its_contents(
     scopes = {action["name"]: action["acts_on"] for action in response.json()}
     assert scopes == {
         "create_folder": "children",
+        "create_file": "children",
         "connect_folder": "node",
         "upload": "children",
         "paste": "children",
@@ -377,7 +379,7 @@ async def test_the_root_offers_no_way_to_remove_itself(
 
     response = await _offered(client, normal_user_token_headers, connector_id)
 
-    assert _applicable(response) == {"create_folder", "upload", "paste"}
+    assert _applicable(response) == {"create_folder", "create_file", "upload", "paste"}
 
 
 async def test_folder_draft_prepares_a_nested_root_without_saving_it(
@@ -504,6 +506,7 @@ async def test_what_does_not_apply_here_is_listed_and_marked(
     listed = {action["name"] for action in response.json()}
     assert listed == {
         "create_folder",
+        "create_file",
         "connect_folder",
         "upload",
         "paste",
@@ -680,6 +683,39 @@ async def test_a_folder_name_defaults_when_the_form_is_submitted_unchanged(
         params={"node_id": "reports"},
     )
     assert "new folder" in {node["name"] for node in catalog.json()}
+
+
+async def test_creating_a_file_shows_it_and_refuses_the_name_twice(
+    client: AsyncClient, normal_user_token_headers: dict[str, str], home: Path
+) -> None:
+    headers = normal_user_token_headers
+    connector_id = await _file_connector(client, headers)
+    name = f"example-{uuid.uuid4()}.txt"
+
+    created = await _run(
+        client, headers, connector_id, "create_file", "reports", name=name
+    )
+
+    assert created.status_code == 200
+    assert created.json()["reload_node_ids"] == ["reports"]
+    assert (home / "reports" / name).read_bytes() == b""
+    catalog = await client.get(
+        f"{BASE}/{connector_id}/catalog",
+        headers=headers,
+        params={"node_id": "reports"},
+    )
+    assert name in {node["name"] for node in catalog.json()}
+
+    again = await _run(
+        client, headers, connector_id, "create_file", "reports", name=name
+    )
+    assert again.status_code == 409
+
+    escaping = await _run(
+        client, headers, connector_id, "create_file", None, name="../outside.txt"
+    )
+    assert escaping.status_code == 422
+    assert not (home.parent / "outside.txt").exists()
 
 
 @pytest.mark.usefixtures("home")
