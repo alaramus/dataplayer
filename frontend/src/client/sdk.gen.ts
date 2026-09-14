@@ -11,6 +11,47 @@ import { client } from "./client.gen"
 import type {
   adaptersReadAdapterTypesData,
   adaptersReadAdapterTypesResponses,
+  aiCancelRunData,
+  aiCancelRunErrors,
+  aiCancelRunResponses,
+  aiCheckKeyData,
+  aiCheckKeyErrors,
+  aiCheckKeyResponses,
+  aiCreateConversationData,
+  aiCreateConversationResponses,
+  aiDeleteAllConversationsData,
+  aiDeleteAllConversationsResponses,
+  aiDeleteConversationData,
+  aiDeleteConversationErrors,
+  aiDeleteConversationResponses,
+  aiReadConversationData,
+  aiReadConversationErrors,
+  aiReadConversationResponses,
+  aiReadConversationsData,
+  aiReadConversationsErrors,
+  aiReadConversationsResponses,
+  aiReadModelsData,
+  aiReadModelsResponses,
+  aiReadRunData,
+  aiReadRunErrors,
+  aiReadRunResponses,
+  aiReadSettingsData,
+  aiReadSettingsResponses,
+  aiRemoveKeyData,
+  aiRemoveKeyErrors,
+  aiRemoveKeyResponses,
+  aiRenameConversationData,
+  aiRenameConversationErrors,
+  aiRenameConversationResponses,
+  aiSendMessageData,
+  aiSendMessageErrors,
+  aiSendMessageResponses,
+  aiUpdateSettingsData,
+  aiUpdateSettingsErrors,
+  aiUpdateSettingsResponses,
+  aiWriteKeyData,
+  aiWriteKeyErrors,
+  aiWriteKeyResponses,
   backupsBackUpData,
   backupsBackUpErrors,
   backupsBackUpResponses,
@@ -4791,6 +4832,280 @@ export class MetricsService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/metrics/dashboards/{dashboard_id}/grants/{user_id}",
+      ...options,
+    })
+  }
+}
+
+export class AiService {
+  /**
+   * Read Models
+   *
+   * Every model the list holds, and whether this person has a key for it (D140).
+   */
+  public static readModels<ThrowOnError extends boolean = true>(
+    options?: Options<aiReadModelsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<aiReadModelsResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/models",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Settings
+   */
+  public static readSettings<ThrowOnError extends boolean = true>(
+    options?: Options<aiReadSettingsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<aiReadSettingsResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/settings",
+      ...options,
+    })
+  }
+
+  /**
+   * Update Settings
+   */
+  public static updateSettings<ThrowOnError extends boolean = true>(
+    options: Options<aiUpdateSettingsData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      aiUpdateSettingsResponses,
+      aiUpdateSettingsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/settings",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Remove Key
+   */
+  public static removeKey<ThrowOnError extends boolean = true>(
+    options: Options<aiRemoveKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<aiRemoveKeyResponses, aiRemoveKeyErrors, ThrowOnError>(
+      {
+        responseType: "json",
+        security: [{ scheme: "bearer", type: "http" }],
+        url: "/api/v1/ai/keys/{provider}",
+        ...options,
+      }
+    )
+  }
+
+  /**
+   * Write Key
+   *
+   * Set or replace a key. What comes back says it is set, never what it is.
+   */
+  public static writeKey<ThrowOnError extends boolean = true>(
+    options: Options<aiWriteKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).put<aiWriteKeyResponses, aiWriteKeyErrors, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/keys/{provider}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Check Key
+   */
+  public static checkKey<ThrowOnError extends boolean = true>(
+    options: Options<aiCheckKeyData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<aiCheckKeyResponses, aiCheckKeyErrors, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/keys/{provider}/check",
+      ...options,
+    })
+  }
+
+  /**
+   * Delete All Conversations
+   *
+   * Every conversation of this person, permanently (D141).
+   */
+  public static deleteAllConversations<ThrowOnError extends boolean = true>(
+    options?: Options<aiDeleteAllConversationsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).delete<
+      aiDeleteAllConversationsResponses,
+      unknown,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/conversations",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Conversations
+   */
+  public static readConversations<ThrowOnError extends boolean = true>(
+    options?: Options<aiReadConversationsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<
+      aiReadConversationsResponses,
+      aiReadConversationsErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/conversations",
+      ...options,
+    })
+  }
+
+  /**
+   * Create Conversation
+   */
+  public static createConversation<ThrowOnError extends boolean = true>(
+    options?: Options<aiCreateConversationData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).post<aiCreateConversationResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/conversations",
+      ...options,
+    })
+  }
+
+  /**
+   * Delete Conversation
+   *
+   * Permanently. A running answer is stopped first (D141).
+   */
+  public static deleteConversation<ThrowOnError extends boolean = true>(
+    options: Options<aiDeleteConversationData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      aiDeleteConversationResponses,
+      aiDeleteConversationErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/conversations/{conversation_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Read Conversation
+   */
+  public static readConversation<ThrowOnError extends boolean = true>(
+    options: Options<aiReadConversationData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      aiReadConversationResponses,
+      aiReadConversationErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/conversations/{conversation_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Rename Conversation
+   *
+   * A name the person chose, which no title from the model replaces.
+   */
+  public static renameConversation<ThrowOnError extends boolean = true>(
+    options: Options<aiRenameConversationData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      aiRenameConversationResponses,
+      aiRenameConversationErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/conversations/{conversation_id}",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Send Message
+   *
+   * Say something; the answer is written by a task and heard on the socket (D137).
+   */
+  public static sendMessage<ThrowOnError extends boolean = true>(
+    options: Options<aiSendMessageData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      aiSendMessageResponses,
+      aiSendMessageErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/conversations/{conversation_id}/messages",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Run
+   *
+   * The authority on an answer, with its text so far while it is written.
+   */
+  public static readRun<ThrowOnError extends boolean = true>(
+    options: Options<aiReadRunData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<aiReadRunResponses, aiReadRunErrors, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/runs/{run_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Cancel Run
+   *
+   * Stop. What was already written stays in the conversation (D137).
+   */
+  public static cancelRun<ThrowOnError extends boolean = true>(
+    options: Options<aiCancelRunData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<aiCancelRunResponses, aiCancelRunErrors, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/runs/{run_id}/cancel",
       ...options,
     })
   }

@@ -2,8 +2,8 @@
 
 Date: 2026-09-14. Decisions: D133 through D141, in [ai](../architecture/ai.md).
 
-Status: agreed in discussion with the user on 2026-09-14. AI1 and AI2
-implemented; AI3–AI6 pending. Slices below.
+Status: agreed in discussion with the user on 2026-09-14. AI1, AI2 and AI3a
+implemented; AI3b and AI4–AI6 pending. Slices below.
 
 ## Outcome
 
@@ -486,6 +486,22 @@ encryption of content; `interrupted` after a restart; the tracing setting. The
 checkpointer under D139's conditions, with the transcript in this project's
 tables.
 
+Split during implementation into AI3a, the backend and its API, and AI3b, the
+window. Corrected during AI3a:
+
+- **LangGraph's `setup()` cannot run inside the application.** Its migrations
+  build indexes `CONCURRENTLY`, which waits for every open transaction; the test
+  process holds one, and the first run on an empty database hung. It runs in
+  `app.prepare_checkpoints`, from prestart and from CI after Alembic, which is
+  where D139 put it.
+- **The saver's `aprune` is not implemented** (3.1.2 raises
+  `NotImplementedError`), so pruning to the latest state is written against
+  LangGraph's tables in `checkpoints.keep_latest`, and tests notice when an
+  upgrade changes them.
+- **The tracing setting is left for the trial of Langfuse and LangSmith**:
+  LangSmith is switched on by its own environment variables, and Langfuse needs
+  a callback that nothing here would exercise yet.
+
 Acceptance: a broken models file fails a test and startup; a key is never
 returned; a stored model missing from the file asks for a choice; an answer
 streams and survives a reload; Stop cancels; a restart marks a running answer
@@ -558,3 +574,11 @@ AI2, on 2026-09-14, after the correction: `tests/adapters/test_file_actions.py`,
 exclusive creation were each broken once to see their tests fail. A trap found
 on the way: on Windows, creating a file over a folder of the same name raises
 `PermissionError` rather than `FileExistsError`.
+
+AI3a, on 2026-09-14: the full backend suite (2991 passed, 119 skipped for servers
+not started), of which `tests/ai` is 42, `mypy app`, `ruff check app tests`,
+`lint-imports` (eight contracts, two of them new), `alembic check`, the backend
+image started with prestart preparing LangGraph's tables, and `check-docs.sh`.
+Broken once each to see the check fail: encryption of the checkpointer, strict
+deserialization, pruning to the latest state, and LangChain imported outside
+the agent package.

@@ -9,8 +9,13 @@ from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
 
 from app.adapters.cache import DataCache, MemoryDataCache
+from app.adapters.postgres.checkpoint_pool import checkpoint_pool
 from app.adapters.redis.cache import RedisDataCache
 from app.adapters.resources import ResourceStore
+from app.ai.catalog import catalog
+from app.ai.checkpoints import checkpointer
+from app.ai.providers import ProviderChatModels
+from app.ai.runner import AgentRunner, settle_interrupted
 from app.api.main import api_router
 from app.core.config import settings
 from app.jobs.recovery import settle_stranded
@@ -112,21 +117,38 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     application.state.query_sessions = QuerySessions(
         idle_seconds=settings.QUERY_TRANSACTION_IDLE_SECONDS
     )
-    # Emptying query Trash is the one thing here that is not a resource: it is
-    # a timer, and it belongs to the application for the same reason a pool
-    # does — nothing else outlives a request.
-    try:
-        async with sweeping(application.state.query_sessions):
-            yield
-    finally:
-        await application.state.query_sessions.aclose()
-        await application.state.metrics_stores.aclose()
-        await application.state.job_runner.aclose()
-        await application.state.query_runner.aclose()
-        await application.state.query_results.aclose()
-        await application.state.topics.aclose()
-        await application.state.data_cache.aclose()
-        await application.state.resources.aclose()
+    # The agent's working state and the answers being written. The model list
+    # is read here, so a broken file stops the start rather than a chat (D140).
+    await settle_interrupted()
+    async with checkpoint_pool(
+        str(settings.DATABASE_URL), max_size=settings.AI_CHECKPOINT_POOL_SIZE
+    ) as pool:
+        application.state.agent_runner = AgentRunner(
+            checkpointer=checkpointer(pool),
+            chat_models=ProviderChatModels(),
+            topics=application.state.topics,
+            catalog=catalog(),
+        )
+        # Emptying query Trash is the one thing here that is not a resource: it
+        # is a timer, and it belongs to the application for the same reason a
+        # pool does — nothing else outlives a request.
+        try:
+            async with sweeping(application.state.query_sessions):
+                yield
+        finally:
+            await application.state.agent_runner.aclose()
+            await _close_the_rest(application)
+
+
+async def _close_the_rest(application: FastAPI) -> None:
+    await application.state.query_sessions.aclose()
+    await application.state.metrics_stores.aclose()
+    await application.state.job_runner.aclose()
+    await application.state.query_runner.aclose()
+    await application.state.query_results.aclose()
+    await application.state.topics.aclose()
+    await application.state.data_cache.aclose()
+    await application.state.resources.aclose()
 
 
 app = FastAPI(

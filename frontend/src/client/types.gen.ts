@@ -434,6 +434,48 @@ export type AgentKey = {
 }
 
 /**
+ * AgentModelPublic
+ */
+export type AgentModelPublic = {
+  /**
+   * Key
+   */
+  key: string
+  /**
+   * Provider
+   */
+  provider: "openai" | "anthropic" | "deepseek" | "gemini"
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Context Window
+   */
+  context_window: number
+  /**
+   * Max Output Tokens
+   */
+  max_output_tokens: number
+  /**
+   * Reasoning
+   */
+  reasoning: boolean
+  /**
+   * Image Input
+   */
+  image_input: boolean
+  /**
+   * Available
+   */
+  available: boolean
+}
+
+/**
  * AgentPublic
  */
 export type AgentPublic = {
@@ -460,6 +502,94 @@ export type AgentPublic = {
 }
 
 /**
+ * AgentRunPublic
+ */
+export type AgentRunPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Conversation Id
+   */
+  conversation_id: string
+  /**
+   * Status
+   */
+  status: "running" | "awaiting_answer" | "succeeded" | "failed" | "cancelled" | "interrupted"
+  /**
+   * Model Key
+   */
+  model_key: string
+  /**
+   * Error
+   */
+  error?: string | null
+  /**
+   * Input Tokens
+   */
+  input_tokens?: number
+  /**
+   * Output Tokens
+   */
+  output_tokens?: number
+  /**
+   * Created At
+   */
+  created_at?: string | null
+  /**
+   * Finished At
+   */
+  finished_at?: string | null
+  /**
+   * Steps
+   */
+  steps?: Array<AgentStepPublic>
+  /**
+   * Partial Answer
+   */
+  partial_answer?: string | null
+}
+
+/**
+ * AgentSettingsPublic
+ */
+export type AgentSettingsPublic = {
+  /**
+   * Model Key
+   */
+  model_key: string | null
+  /**
+   * Model Missing
+   */
+  model_missing: boolean
+  /**
+   * Allow All Changes
+   */
+  allow_all_changes: boolean
+  /**
+   * Keys
+   */
+  keys: Array<ProviderKeyState>
+}
+
+/**
+ * AgentSettingsUpdate
+ *
+ * What is being changed, and nothing about the rest.
+ */
+export type AgentSettingsUpdate = {
+  /**
+   * Model Key
+   */
+  model_key?: string | null
+  /**
+   * Allow All Changes
+   */
+  allow_all_changes?: boolean | null
+}
+
+/**
  * AgentSources
  */
 export type AgentSources = {
@@ -475,6 +605,40 @@ export type AgentSources = {
    * Hosts
    */
   hosts: Array<HostInfo>
+}
+
+/**
+ * AgentStepPublic
+ */
+export type AgentStepPublic = {
+  /**
+   * Ordinal
+   */
+  ordinal: number
+  /**
+   * Kind
+   */
+  kind: "thinking" | "tool"
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Status
+   */
+  status: "running" | "done" | "failed" | "cancelled"
+  /**
+   * Detail
+   */
+  detail?: string | null
+  /**
+   * Started At
+   */
+  started_at?: string | null
+  /**
+   * Finished At
+   */
+  finished_at?: string | null
 }
 
 /**
@@ -1957,6 +2121,122 @@ export type ContinuousAggregateFacts = {
    * Compression Enabled
    */
   compression_enabled: boolean
+}
+
+/**
+ * ConversationMessageCreate
+ */
+export type ConversationMessageCreate = {
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
+ * ConversationMessagePublic
+ */
+export type ConversationMessagePublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Role
+   */
+  role: "user" | "assistant"
+  /**
+   * Content
+   */
+  content: string
+  /**
+   * Run Id
+   */
+  run_id?: string | null
+  /**
+   * Created At
+   */
+  created_at?: string | null
+}
+
+/**
+ * ConversationPublic
+ */
+export type ConversationPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Title Is Custom
+   */
+  title_is_custom: boolean
+  /**
+   * Created At
+   */
+  created_at: string | null
+  /**
+   * Updated At
+   */
+  updated_at: string | null
+  /**
+   * Messages
+   */
+  messages: Array<ConversationMessagePublic>
+  /**
+   * Runs
+   */
+  runs: Array<AgentRunPublic>
+}
+
+/**
+ * ConversationRename
+ */
+export type ConversationRename = {
+  /**
+   * Title
+   */
+  title: string
+}
+
+/**
+ * ConversationSummary
+ */
+export type ConversationSummary = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Title
+   */
+  title: string
+  /**
+   * Updated At
+   */
+  updated_at: string | null
+  /**
+   * Active
+   */
+  active: boolean
+}
+
+/**
+ * ConversationsPublic
+ */
+export type ConversationsPublic = {
+  /**
+   * Data
+   */
+  data: Array<ConversationSummary>
+  /**
+   * Count
+   */
+  count: number
 }
 
 /**
@@ -5935,6 +6215,44 @@ export type ProcessesWidget = {
    * Limit
    */
   limit?: 10 | 20 | 50 | 100 | 200
+}
+
+/**
+ * ProviderKeyCheck
+ */
+export type ProviderKeyCheck = {
+  /**
+   * Ok
+   */
+  ok: boolean
+  /**
+   * Message
+   */
+  message: string
+}
+
+/**
+ * ProviderKeyState
+ */
+export type ProviderKeyState = {
+  /**
+   * Provider
+   */
+  provider: "openai" | "anthropic" | "deepseek" | "gemini"
+  /**
+   * Set
+   */
+  set: boolean
+}
+
+/**
+ * ProviderKeyWrite
+ */
+export type ProviderKeyWrite = {
+  /**
+   * Key
+   */
+  key: string
 }
 
 /**
@@ -15462,6 +15780,407 @@ export type metricsRevokeDashboardGrantResponses = {
 
 export type metricsRevokeDashboardGrantResponse =
   metricsRevokeDashboardGrantResponses[keyof metricsRevokeDashboardGrantResponses]
+
+export type aiReadModelsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ai/models"
+}
+
+export type aiReadModelsResponses = {
+  /**
+   * Response Ai-Read Models
+   *
+   * Successful Response
+   */
+  200: Array<AgentModelPublic>
+}
+
+export type aiReadModelsResponse = aiReadModelsResponses[keyof aiReadModelsResponses]
+
+export type aiReadSettingsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ai/settings"
+}
+
+export type aiReadSettingsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentSettingsPublic
+}
+
+export type aiReadSettingsResponse = aiReadSettingsResponses[keyof aiReadSettingsResponses]
+
+export type aiUpdateSettingsData = {
+  body: AgentSettingsUpdate
+  path?: never
+  query?: never
+  url: "/api/v1/ai/settings"
+}
+
+export type aiUpdateSettingsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiUpdateSettingsError = aiUpdateSettingsErrors[keyof aiUpdateSettingsErrors]
+
+export type aiUpdateSettingsResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentSettingsPublic
+}
+
+export type aiUpdateSettingsResponse = aiUpdateSettingsResponses[keyof aiUpdateSettingsResponses]
+
+export type aiRemoveKeyData = {
+  body?: never
+  path: {
+    /**
+     * Provider
+     */
+    provider: "openai" | "anthropic" | "deepseek" | "gemini"
+  }
+  query?: never
+  url: "/api/v1/ai/keys/{provider}"
+}
+
+export type aiRemoveKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiRemoveKeyError = aiRemoveKeyErrors[keyof aiRemoveKeyErrors]
+
+export type aiRemoveKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentSettingsPublic
+}
+
+export type aiRemoveKeyResponse = aiRemoveKeyResponses[keyof aiRemoveKeyResponses]
+
+export type aiWriteKeyData = {
+  body: ProviderKeyWrite
+  path: {
+    /**
+     * Provider
+     */
+    provider: "openai" | "anthropic" | "deepseek" | "gemini"
+  }
+  query?: never
+  url: "/api/v1/ai/keys/{provider}"
+}
+
+export type aiWriteKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiWriteKeyError = aiWriteKeyErrors[keyof aiWriteKeyErrors]
+
+export type aiWriteKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentSettingsPublic
+}
+
+export type aiWriteKeyResponse = aiWriteKeyResponses[keyof aiWriteKeyResponses]
+
+export type aiCheckKeyData = {
+  body?: never
+  path: {
+    /**
+     * Provider
+     */
+    provider: "openai" | "anthropic" | "deepseek" | "gemini"
+  }
+  query?: never
+  url: "/api/v1/ai/keys/{provider}/check"
+}
+
+export type aiCheckKeyErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiCheckKeyError = aiCheckKeyErrors[keyof aiCheckKeyErrors]
+
+export type aiCheckKeyResponses = {
+  /**
+   * Successful Response
+   */
+  200: ProviderKeyCheck
+}
+
+export type aiCheckKeyResponse = aiCheckKeyResponses[keyof aiCheckKeyResponses]
+
+export type aiDeleteAllConversationsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ai/conversations"
+}
+
+export type aiDeleteAllConversationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type aiDeleteAllConversationsResponse =
+  aiDeleteAllConversationsResponses[keyof aiDeleteAllConversationsResponses]
+
+export type aiReadConversationsData = {
+  body?: never
+  path?: never
+  query?: {
+    /**
+     * Skip
+     */
+    skip?: number
+    /**
+     * Limit
+     */
+    limit?: number
+  }
+  url: "/api/v1/ai/conversations"
+}
+
+export type aiReadConversationsErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiReadConversationsError = aiReadConversationsErrors[keyof aiReadConversationsErrors]
+
+export type aiReadConversationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ConversationsPublic
+}
+
+export type aiReadConversationsResponse =
+  aiReadConversationsResponses[keyof aiReadConversationsResponses]
+
+export type aiCreateConversationData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ai/conversations"
+}
+
+export type aiCreateConversationResponses = {
+  /**
+   * Successful Response
+   */
+  201: ConversationSummary
+}
+
+export type aiCreateConversationResponse =
+  aiCreateConversationResponses[keyof aiCreateConversationResponses]
+
+export type aiDeleteConversationData = {
+  body?: never
+  path: {
+    /**
+     * Conversation Id
+     */
+    conversation_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/conversations/{conversation_id}"
+}
+
+export type aiDeleteConversationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiDeleteConversationError = aiDeleteConversationErrors[keyof aiDeleteConversationErrors]
+
+export type aiDeleteConversationResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type aiDeleteConversationResponse =
+  aiDeleteConversationResponses[keyof aiDeleteConversationResponses]
+
+export type aiReadConversationData = {
+  body?: never
+  path: {
+    /**
+     * Conversation Id
+     */
+    conversation_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/conversations/{conversation_id}"
+}
+
+export type aiReadConversationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiReadConversationError = aiReadConversationErrors[keyof aiReadConversationErrors]
+
+export type aiReadConversationResponses = {
+  /**
+   * Successful Response
+   */
+  200: ConversationPublic
+}
+
+export type aiReadConversationResponse =
+  aiReadConversationResponses[keyof aiReadConversationResponses]
+
+export type aiRenameConversationData = {
+  body: ConversationRename
+  path: {
+    /**
+     * Conversation Id
+     */
+    conversation_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/conversations/{conversation_id}"
+}
+
+export type aiRenameConversationErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiRenameConversationError = aiRenameConversationErrors[keyof aiRenameConversationErrors]
+
+export type aiRenameConversationResponses = {
+  /**
+   * Successful Response
+   */
+  200: ConversationSummary
+}
+
+export type aiRenameConversationResponse =
+  aiRenameConversationResponses[keyof aiRenameConversationResponses]
+
+export type aiSendMessageData = {
+  body: ConversationMessageCreate
+  path: {
+    /**
+     * Conversation Id
+     */
+    conversation_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/conversations/{conversation_id}/messages"
+}
+
+export type aiSendMessageErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiSendMessageError = aiSendMessageErrors[keyof aiSendMessageErrors]
+
+export type aiSendMessageResponses = {
+  /**
+   * Successful Response
+   */
+  202: AgentRunPublic
+}
+
+export type aiSendMessageResponse = aiSendMessageResponses[keyof aiSendMessageResponses]
+
+export type aiReadRunData = {
+  body?: never
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/runs/{run_id}"
+}
+
+export type aiReadRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiReadRunError = aiReadRunErrors[keyof aiReadRunErrors]
+
+export type aiReadRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentRunPublic
+}
+
+export type aiReadRunResponse = aiReadRunResponses[keyof aiReadRunResponses]
+
+export type aiCancelRunData = {
+  body?: never
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/runs/{run_id}/cancel"
+}
+
+export type aiCancelRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiCancelRunError = aiCancelRunErrors[keyof aiCancelRunErrors]
+
+export type aiCancelRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentRunPublic
+}
+
+export type aiCancelRunResponse = aiCancelRunResponses[keyof aiCancelRunResponses]
 
 export type privateCreateUserData = {
   body: PrivateUserCreate

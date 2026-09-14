@@ -11,6 +11,7 @@ type = layers
 layers =
     app.api
     app.system
+    app.ai
     app.metrics
     app.shares
     app.queries
@@ -41,6 +42,7 @@ forbidden_modules =
     app.shares
     app.system
     app.metrics
+    app.ai
     app.api
 
 # psycopg_pool is named separately from psycopg: it is a different
@@ -64,6 +66,7 @@ source_modules =
     app.shares
     app.system
     app.metrics
+    app.ai
     app.api
     app.adapters.registry
     app.adapters.protocol
@@ -168,3 +171,63 @@ source_modules =
 forbidden_modules =
     app.adapters.redis.cache
     app.adapters.redis.cache_connection
+
+# The agent's framework stays inside the agent (D139): the rest of the
+# application sees its run, step and message models, never LangChain's, so an
+# upgrade of a framework that changes often has one package to change. Direct
+# imports only: reaching LangChain through app.ai is what the package is for,
+# and the layers keep everything below it from reaching app.ai at all.
+[importlinter:contract:agent-framework-is-contained]
+name = LangChain and LangGraph are imported only by the agent package
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.core
+    app.users
+    app.realtime
+    app.adapters
+    app.connectors
+    app.queries
+    app.services
+    app.source_operations
+    app.jobs
+    app.shares
+    app.system
+    app.metrics
+    app.api
+forbidden_modules =
+    langchain
+    langchain_core
+    langgraph
+    langchain_openai
+    langchain_anthropic
+    langchain_google_genai
+    langchain_deepseek
+
+# Inside the agent, a provider's SDK belongs to the module named after it, by
+# the rule that keeps psycopg in its adapter. Direct imports only: every module
+# reaches the providers through the factory in app.ai.providers.
+[importlinter:contract:provider-sdks-are-contained]
+name = provider SDKs are imported only by their provider modules
+type = forbidden
+allow_indirect_imports = True
+source_modules =
+    app.ai.catalog
+    app.ai.checkpoints
+    app.ai.content
+    app.ai.conversations
+    app.ai.models
+    app.ai.preferences
+    app.ai.prompts
+    app.ai.routes
+    app.ai.runner
+    app.ai.topic
+    app.ai.providers.failures
+forbidden_modules =
+    langchain_openai
+    langchain_anthropic
+    langchain_google_genai
+    langchain_deepseek
+    openai
+    anthropic
+    google

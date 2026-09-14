@@ -13,22 +13,27 @@ NONCE_SIZE = 12
 # one, and the two here protect different things (D63). There is no default,
 # for the reason an access level has none: what a caller is protecting is
 # exactly the thing it must not be able to leave unsaid.
-Purpose = Literal["connector", "query_content"]
+Purpose = Literal["connector", "query_content", "ai_content"]
 
 
-def _key(purpose: Purpose) -> bytes:
-    encoded = (
-        settings.CONNECTOR_SECRET_KEY
-        if purpose == "connector"
-        else settings.QUERY_CONTENT_KEY
-    )
+def key_of(purpose: Purpose) -> bytes:
+    """The raw key a purpose names.
+
+    Public for the one caller that encrypts with a library of its own: the
+    agent's checkpointer takes key bytes rather than a function (D139).
+    """
+    encoded = {
+        "connector": settings.CONNECTOR_SECRET_KEY,
+        "query_content": settings.QUERY_CONTENT_KEY,
+        "ai_content": settings.AI_CONTENT_KEY,
+    }[purpose]
     return base64.urlsafe_b64decode(encoded)
 
 
 def encrypt(plaintext: bytes, *, purpose: Purpose) -> bytes:
     """Encrypt data. Returns the nonce concatenated with the ciphertext."""
     nonce = os.urandom(NONCE_SIZE)
-    return nonce + AESGCM(_key(purpose)).encrypt(nonce, plaintext, None)
+    return nonce + AESGCM(key_of(purpose)).encrypt(nonce, plaintext, None)
 
 
 def decrypt(payload: bytes, *, purpose: Purpose) -> bytes:
@@ -38,4 +43,4 @@ def decrypt(payload: bytes, *, purpose: Purpose) -> bytes:
     with or was encrypted under a different key.
     """
     nonce, ciphertext = payload[:NONCE_SIZE], payload[NONCE_SIZE:]
-    return AESGCM(_key(purpose)).decrypt(nonce, ciphertext, None)
+    return AESGCM(key_of(purpose)).decrypt(nonce, ciphertext, None)

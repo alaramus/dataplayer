@@ -9,6 +9,7 @@ x-backend-environment: &backend-environment
   SECRET_KEY: ${SECRET_KEY:?Variable not set}
   CONNECTOR_SECRET_KEY: ${CONNECTOR_SECRET_KEY:?Variable not set}
   QUERY_CONTENT_KEY: ${QUERY_CONTENT_KEY:?Variable not set}
+  AI_CONTENT_KEY: ${AI_CONTENT_KEY:?Variable not set}
   FIRST_SUPERUSER: ${FIRST_SUPERUSER:?Variable not set}
   FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:?Variable not set}
   SMTP_HOST: ${SMTP_HOST}

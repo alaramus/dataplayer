@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 
 from app.adapters.routes import router as adapter_types_router
+from app.ai import topic as agent_topic
+from app.ai.routes import router as agent_router
 from app.connectors import health as connector_health
 from app.connectors.declared_routes import router as declared_references_router
 from app.connectors.routes import router as connectors_router
@@ -35,12 +37,14 @@ api_router.include_router(source_operations_router)
 api_router.include_router(shares_router)
 api_router.include_router(queries_router)
 api_router.include_router(metrics_router)
+api_router.include_router(agent_router)
 api_router.include_router(realtime_router)
 
 # Imported for its registration: the health topic is about connectors, so it
 # lives with them, and the socket learns of it here rather than knowing it.
 _ = connector_health.NAME
 _ = metrics_live.NAME
+_ = agent_topic.NAME
 
 
 if settings.FASTAPI_ENV == "development":

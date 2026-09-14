@@ -31,8 +31,8 @@ frontend/src/
 ```
 
 More topics followed, each beside what it announces: `queries/topic.py`
-(D64), `jobs/topic.py` (D81), `shares/topic.py` (D61) and `metrics/live.py`
-(D127).
+(D64), `jobs/topic.py` (D81), `shares/topic.py` (D61), `metrics/live.py`
+(D127) and `ai/topic.py` (D137).
 
 The frames are written out twice — Pydantic models on one side, a TypeScript
 union on the other — because OpenAPI 3.1 has no WebSocket channel, so

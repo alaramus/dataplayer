@@ -38,8 +38,26 @@ from app.jobs.models import Job  # noqa
 from app.services.models import ManagedService  # noqa
 from app.metrics.models import MetricsAgent, MetricsConnector, MetricsStoreSetting  # noqa
 from app.metrics.dashboards import Dashboard, DashboardGrant  # noqa
+from app.ai.models import (  # noqa
+    AgentPreferences,
+    AgentRun,
+    AgentStep,
+    Conversation,
+    ConversationMessage,
+    ProviderKey,
+)
+from app.ai.checkpoints import CHECKPOINT_TABLES  # noqa
 
 target_metadata = SQLModel.metadata
+
+
+def include_name(name, type_, parent_names):
+    """LangGraph creates and migrates its own tables at startup (D139).
+
+    Without this, autogenerate reads them as tables nobody declared and writes
+    their removal into the next revision.
+    """
+    return not (type_ == "table" and name in CHECKPOINT_TABLES)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -65,7 +83,11 @@ def run_migrations_offline():
     """
     url = get_url()
     context.configure(
-        url=url, target_metadata=target_metadata, literal_binds=True, compare_type=True
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        compare_type=True,
+        include_name=include_name,
     )
 
     with context.begin_transaction():
@@ -90,7 +112,10 @@ def run_migrations_online():
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata, compare_type=True
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            include_name=include_name,
         )
 
         with context.begin_transaction():

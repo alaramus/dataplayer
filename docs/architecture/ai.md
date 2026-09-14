@@ -8,7 +8,8 @@ model provider, and before changing the chat window.
 Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141.
 
 **Implementation status:** agreed on 2026-09-14. AI1 — the third-party transfer
-flag — and AI2 — a new file by name — are implemented; AI3–AI6 are pending.
+flag —, AI2 — a new file by name — and the backend half of AI3 are implemented;
+the chat window (the rest of AI3) and AI4–AI6 are pending.
 
 ## What exists today
 
@@ -24,9 +25,64 @@ an empty file, the first capability added for the agent's sake and offered to
 people as well (D133). What goes into the file is written by in-place editing
 (D48).
 
-The agent itself does not exist. The legacy application's `ai_handler` and
-`ChatAI` were read as evidence; what is ported and what is not is listed in the
-spec.
+The agent answers without tools, and only through the API so far: there is no
+window yet. A person stores a key per provider and chooses a model from
+`app/ai/models.json`; a message starts a run, whose Thinking step, reasoning and
+answer stream on the `ai.runs` topic and are written to the transcript when the
+answer ends. Stop keeps what was written, an answer is stopped after
+`AI_RUN_TIMEOUT_SECONDS`, and a restart marks a working answer `interrupted`.
+The first line of the first message is a conversation's title until the chosen
+model writes one, unless the person renamed it.
+
+```
+backend/app/ai/
+├── models.json      the curated models, validated at startup and in CI
+├── catalog.py       reading that file
+├── models.py        keys, choices and the transcript, and the API models
+├── content.py       the one place conversation text is sealed and opened
+├── preferences.py   keys set, removed and checked; the chosen model
+├── conversations.py the transcript's rows and what the API sends of them
+├── runner.py        an answer: recorded, streamed, settled, titled
+├── checkpoints.py   LangGraph's saver: encrypted, strict, kept to its latest state
+├── prompts.py       the system prompt and the title prompt
+├── providers/       one module per provider SDK, and what its errors mean
+├── topic.py         `ai.runs`
+└── routes.py        /ai
+backend/app/adapters/postgres/checkpoint_pool.py   the saver's psycopg pool
+backend/app/prepare_checkpoints.py                 LangGraph's tables, at prestart
+```
+
+```
+GET    /api/v1/ai/models
+GET    /api/v1/ai/settings
+PATCH  /api/v1/ai/settings
+PUT    /api/v1/ai/keys/{provider}
+DELETE /api/v1/ai/keys/{provider}
+POST   /api/v1/ai/keys/{provider}/check
+GET    /api/v1/ai/conversations
+POST   /api/v1/ai/conversations
+DELETE /api/v1/ai/conversations
+GET    /api/v1/ai/conversations/{conversation_id}
+PATCH  /api/v1/ai/conversations/{conversation_id}
+DELETE /api/v1/ai/conversations/{conversation_id}
+POST   /api/v1/ai/conversations/{conversation_id}/messages
+GET    /api/v1/ai/runs/{run_id}
+POST   /api/v1/ai/runs/{run_id}/cancel
+```
+
+Two traps found while building it, both in LangGraph's PostgreSQL saver:
+
+- **`setup()` builds its indexes `CONCURRENTLY`**, which waits for every open
+  transaction in the database. Inside the application or a test process, which
+  holds one, it waits for ever. It runs in `app.prepare_checkpoints`, from
+  prestart and from CI after Alembic, and nowhere else.
+- **`aprune` is declared and not implemented**: 3.1.2 raises
+  `NotImplementedError`. `checkpoints.keep_latest` deletes the older states
+  over LangGraph's own tables; a test that a conversation keeps one state, and
+  one that it still continues, notice when an upgrade changes them.
+
+The legacy application's `ai_handler` and `ChatAI` were read as evidence; what
+is ported and what is not is listed in the spec.
 
 ## D133. The agent is one more client of the application
 

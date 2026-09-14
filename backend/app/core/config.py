@@ -35,9 +35,15 @@ class Settings(BaseSettings):
     # independent of each other: the three protect different things and are
     # rotated by different procedures. See D63.
     QUERY_CONTENT_KEY: str
+    # Encrypts what is said in a conversation with the agent and the model's
+    # working state, for the reason query content has a key of its own (D141).
+    AI_CONTENT_KEY: str
 
     @field_validator(
-        "CONNECTOR_SECRET_KEY", "QUERY_CONTENT_KEY", "DATA_CACHE_SECRET_KEY"
+        "CONNECTOR_SECRET_KEY",
+        "QUERY_CONTENT_KEY",
+        "AI_CONTENT_KEY",
+        "DATA_CACHE_SECRET_KEY",
     )
     @classmethod
     def _validate_encryption_key(
@@ -220,6 +226,15 @@ class Settings(BaseSettings):
     # long ago each was last read.
     QUERY_RESULT_STORE_MAX_BYTES: int = 256 * 1024 * 1024
     QUERY_RESULT_TTL_SECONDS: float = 1800.0
+
+    # How long one answer of the agent may take before it is stopped (D137).
+    AI_RUN_TIMEOUT_SECONDS: float = 900.0
+    # The most one answer may write, whatever the model could produce: a
+    # runaway answer is paid for by whoever owns the key.
+    AI_MAX_OUTPUT_TOKENS: int = 16_000
+    # Connections the model's working state may hold in the application
+    # database (D139).
+    AI_CHECKPOINT_POOL_SIZE: int = 4
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

@@ -54,7 +54,7 @@ def test_one_key_cannot_read_what_the_other_wrote() -> None:
 
 
 @pytest.mark.parametrize(
-    "field", ["CONNECTOR_SECRET_KEY", "QUERY_CONTENT_KEY", "DATA_CACHE_SECRET_KEY"]
+    "field", ["CONNECTOR_SECRET_KEY", "QUERY_CONTENT_KEY", "AI_CONTENT_KEY", "DATA_CACHE_SECRET_KEY"]
 )
 def test_key_shorter_than_32_bytes_is_rejected(field: str) -> None:
     too_short = base64.urlsafe_b64encode(b"x" * 16).decode()
@@ -64,7 +64,7 @@ def test_key_shorter_than_32_bytes_is_rejected(field: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "field", ["CONNECTOR_SECRET_KEY", "QUERY_CONTENT_KEY", "DATA_CACHE_SECRET_KEY"]
+    "field", ["CONNECTOR_SECRET_KEY", "QUERY_CONTENT_KEY", "AI_CONTENT_KEY", "DATA_CACHE_SECRET_KEY"]
 )
 def test_key_that_is_not_base64_is_rejected(field: str) -> None:
     with pytest.raises(ValidationError, match="base64"):

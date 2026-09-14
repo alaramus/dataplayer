@@ -42,6 +42,7 @@ backend:
     # value standing in for both here would hide the day that stops being true.
     CONNECTOR_SECRET_KEY: AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=
     QUERY_CONTENT_KEY: ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8=
+    AI_CONTENT_KEY: QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8=
     FIRST_SUPERUSER: admin@example.com
     FIRST_SUPERUSER_PASSWORD: ci-superuser-password
     USER_STORAGE_ROOT: /tmp/users
@@ -80,6 +81,8 @@ backend:
     # which the test fixtures create themselves.
     - uv run python app/tests_pre_start.py
     - uv run alembic upgrade head
+    # LangGraph's tables for the agent, as prestart creates them (D139).
+    - uv run python -m app.prepare_checkpoints
     # And this is what scripts/prestart-dev.sh adds on top, minus the personal
     # storage, which the tests build for themselves in a temporary directory.
     # Everything the query capability is tested against — writing, DDL and a

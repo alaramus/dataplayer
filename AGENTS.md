@@ -307,6 +307,8 @@ a warmed dev server together.
   `docker compose up -d db backend` afterwards restores the superuser and
   development samples through prestart.
 - Alembic sees only models imported by `app/alembic/env.py`.
+- LangGraph's saver `setup()` builds indexes CONCURRENTLY and waits for ever in
+  a process holding a transaction; it runs only in `app.prepare_checkpoints`.
 - `bun run type-check` deliberately runs `vue-tsc` under Node in build mode;
   do not replace it with a direct Bun or `tsconfig.json` invocation.
 - Warm `bun run dev` before the full E2E suite and set
