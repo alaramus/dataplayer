@@ -408,6 +408,45 @@ test("a host whose agent keeps starting again needs its owner", async ({ page })
   }).toPass({ timeout: 20_000 })
 })
 
+test("the rail is dragged wider and narrower by the gap beside it, never past two fifths, and keeps its width", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await login(page)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  const space = page.getByTestId("dashboards-space")
+  const rail = page.getByTestId("dashboards-rail")
+  const gap = space.getByTestId("workspace-separator")
+  const widthOf = async () => Math.round((await rail.boundingBox())?.width ?? 0)
+  const spaceWidth = Math.round((await space.boundingBox())?.width ?? 0)
+
+  const drag = async (dx: number) => {
+    const box = await gap.boundingBox()
+    if (box === null) throw new Error("The gap beside the rail is not drawn")
+    const x = box.x + box.width / 2
+    const y = box.y + box.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + dx / 2, y, { steps: 5 })
+    await page.mouse.move(x + dx, y, { steps: 5 })
+    await page.mouse.up()
+  }
+
+  await drag(-2000)
+  const narrowest = await widthOf()
+  await drag(100)
+  expect(await widthOf()).toBe(narrowest + 100)
+
+  await drag(2000)
+  const widest = await widthOf()
+  expect(widest).toBeLessThanOrEqual(Math.floor(spaceWidth * 0.4))
+  expect(widest).toBeGreaterThan(Math.floor(spaceWidth * 0.4) - 5)
+
+  await drag(-150)
+  const chosen = await widthOf()
+  await page.reload()
+  await expect(rail).toBeVisible()
+  expect(await widthOf()).toBe(chosen)
+})
+
 test("a superuser reads what the metrics store keeps, and is warned before removing it", async ({ page }) => {
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")

@@ -108,7 +108,7 @@ frontend/src/
     │                             ticked series into widgets; the catalog as
     │                             index and tree; pure
     ├── seriesFormat.ts, chartOption.ts, statReading.ts, setupStage.ts,
-    │   agentSnippet.ts, storeFacts.ts, hostFacts.ts
+    │   agentSnippet.ts, storeFacts.ts, hostFacts.ts, railWidth.ts
     │                             what is drawn and said; pure
     ├── attention.ts              a host that keeps restarting, for the sheet
     ├── sharing.ts                what a standing allows, a dashboard's link; pure
@@ -201,7 +201,9 @@ header, a column brought back from the bar.
 
 Known deviations:
 
-- **The rail is a fixed 260 pixels** and cannot be resized or put aside.
+- **The rail is resized, not put aside.** The gap beside it drags it from
+  200 pixels to two fifths of the space, so the dashboard stays the wider
+  card; the width is kept per browser and a narrower window narrows it.
 - **A widget in a window is a copy** taken when it was opened, with the range
   and interval of that moment. Moving or removing it on the dashboard does not
   reach the window, a sort chosen in the window is not saved, and like every

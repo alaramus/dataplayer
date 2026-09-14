@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
 import { AppButton, AppEmptyState, AppIconButton, AppSpinner, AppTooltip, AppTree, useToast } from "@/shared/ui"
+import { WorkspaceSeparator } from "@/shared/workspace"
 
 import AgentsDialog from "./AgentsDialog.vue"
 import {
@@ -17,6 +18,7 @@ import {
 import { catalogTree, indexCatalog } from "./catalog"
 import DashboardView from "./DashboardView.vue"
 import { takeDashboardIntent } from "./intent"
+import { clampRailWidth, parseRailWidth } from "./railWidth"
 import { splitByOwner } from "./sharing"
 import StoreDialog from "./StoreDialog.vue"
 import StoreSetup from "./StoreSetup.vue"
@@ -97,10 +99,51 @@ async function createDashboard() {
 function afterDelete() {
   selectedId.value = null
 }
+
+const RAIL_WIDTH_KEY = "dataplayer-dashboards-rail"
+
+function storedRailWidth(): number {
+  try {
+    return parseRailWidth(localStorage.getItem(serverStorageKey(RAIL_WIDTH_KEY)))
+  } catch {
+    return parseRailWidth(null)
+  }
+}
+
+const spaceElement = ref<HTMLElement | null>(null)
+const spaceWidth = ref(0)
+const railWidth = ref(storedRailWidth())
+// Held to the space it is drawn in, so a window made narrower narrows the
+// rail too; what is stored is what was dragged to.
+const shownRailWidth = computed(() => clampRailWidth(railWidth.value, spaceWidth.value))
+
+const observer = new ResizeObserver((entries) => {
+  const entry = entries[0]
+  if (entry !== undefined) spaceWidth.value = entry.contentRect.width
+})
+onMounted(() => {
+  if (spaceElement.value !== null) observer.observe(spaceElement.value)
+})
+onBeforeUnmount(() => {
+  observer.disconnect()
+})
+
+function resizeRail(deltaPx: number) {
+  railWidth.value = clampRailWidth(shownRailWidth.value + deltaPx, spaceWidth.value)
+}
+
+watch(railWidth, (width) => {
+  try {
+    localStorage.setItem(serverStorageKey(RAIL_WIDTH_KEY), String(width))
+  } catch {
+    // Like the dashboard last open: a courtesy, not state.
+  }
+})
 </script>
 
 <template>
   <div
+    ref="spaceElement"
     class="dashboards"
     data-testid="dashboards-space"
   >
@@ -134,6 +177,7 @@ function afterDelete() {
     <template v-else>
       <aside
         class="dashboards__card dashboards__rail"
+        :style="{ flexBasis: `${String(shownRailWidth)}px` }"
         data-testid="dashboards-rail"
       >
         <div class="dashboards__heading">
@@ -225,6 +269,11 @@ function afterDelete() {
         </div>
       </aside>
 
+      <WorkspaceSeparator
+        direction="row"
+        @move="resizeRail"
+      />
+
       <section class="dashboards__card dashboards__card--main">
         <DashboardView
           v-if="current"
@@ -265,9 +314,10 @@ function afterDelete() {
 </template>
 
 <style scoped>
+/* No gap of its own: the separator between the two cards is that gap, and
+   the handle that resizes them, as it is between workspace columns (D12). */
 .dashboards {
   display: flex;
-  gap: var(--dp-workspace-inset);
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -288,7 +338,8 @@ function afterDelete() {
 }
 
 .dashboards__rail {
-  flex: 0 0 260px;
+  flex-grow: 0;
+  flex-shrink: 0;
 }
 
 .dashboards__card--main {
