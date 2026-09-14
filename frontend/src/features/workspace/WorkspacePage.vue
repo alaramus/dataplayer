@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, onMounted, provide, ref, watch } from "vue"
+import { computed, defineComponent, h, onMounted, provide, ref, watch } from "vue"
 
 import type { ConnectorDraft, ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
@@ -26,6 +26,7 @@ import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import CommandBar from "@/features/workspace/CommandBar.vue"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
 import AiWindow from "@/features/ai/AiWindow.vue"
+import { screenContexts } from "@/features/ai/context"
 import { rememberAiOpen, rememberedAiOpen } from "@/features/ai/state"
 import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
 import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
@@ -191,6 +192,10 @@ const windows = useWindowManager()
 const confirm = useConfirm()
 
 const AI_WINDOW_ID = "application-agent"
+const BoundAiWindow = defineComponent({
+  name: "BoundAiWindow",
+  setup: () => () => h(AiWindow, { contexts: screenContexts(workspace.panels.value) }),
+})
 
 function openAgent() {
   rememberAiOpen(true)
@@ -200,7 +205,7 @@ function openAgent() {
     size: { width: 960, height: 680 },
     minSize: { width: 520, height: 420 },
     autoFit: false,
-    component: AiWindow,
+    component: BoundAiWindow,
     onClosed: () => rememberAiOpen(false),
   })
 }

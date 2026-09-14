@@ -107,9 +107,13 @@ user, a home or a path root. Every call goes through the connection access
 funnel at the level the equivalent route requires (D33). What the interface
 cannot do the agent cannot do: a missing capability is added to the source with
 its command, and the agent reaches it through the registry. The agent works only
-with connections the person added and never creates or saves one. The last
-active workspace panel — connection, node, panel kind, never content — travels
-with each message as a removable chip, so "here" means something.
+with connections the person added and never creates or saves one. Opening the
+chat attaches nothing. A plus beside the composer lists the open workspace
+tabs, including tabs detached into floating windows; the person may attach up
+to five. Their connection, node and panel kind travel with the next message as
+removable chips, never their content. A successful send clears the selection
+so it cannot be sent twice by accident; a failed send keeps it. Switching tabs
+never changes the selection.
 
 Rejected: a built-in personal folder without a connection; every route
 addresses a connection by id.

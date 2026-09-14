@@ -250,10 +250,26 @@ class ConversationRename(BaseModel):
     title: str = PydanticField(min_length=1, max_length=MAX_TITLE_CHARS)
 
 
+class ScreenContext(BaseModel):
+    """One open workspace panel explicitly attached to the next message (D133)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    panel_id: str = PydanticField(min_length=1, max_length=2048)
+    label: str = PydanticField(min_length=1, max_length=300)
+    kind: Literal[
+        "catalog", "rows", "content", "structure", "summary", "record",
+        "chart", "queries", "query", "result", "relationships",
+    ]
+    connector_id: uuid.UUID | None = None
+    node_id: str | None = PydanticField(default=None, max_length=2048)
+
+
 class ConversationMessageCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str = PydanticField(min_length=1, max_length=MAX_MESSAGE_CHARS)
+    contexts: list[ScreenContext] = PydanticField(default_factory=list, max_length=5)
 
 
 class AgentStepPublic(BaseModel):

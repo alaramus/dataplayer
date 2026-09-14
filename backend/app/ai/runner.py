@@ -28,7 +28,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai import checkpoints, conversations, preferences
 from app.ai.catalog import ModelCatalog, ModelInfo, Provider
-from app.ai.models import AgentRun, Conversation, RunStatus, StepStatus
+from app.ai.models import AgentRun, Conversation, RunStatus, ScreenContext, StepStatus
 from app.ai.prompts import SYSTEM_PROMPT, TITLE_PROMPT
 from app.ai.providers import ChatModels
 from app.ai.topic import (
@@ -132,6 +132,7 @@ class AgentRunner:
         owner_id: uuid.UUID,
         conversation: Conversation,
         text: str,
+        contexts: list[ScreenContext],
     ) -> AgentRun:
         model = await preferences.chosen_model(session, owner_id, self._catalog)
         if model is None:
@@ -156,7 +157,9 @@ class AgentRunner:
             )
             await conversations.add_message(session, conversation.id, "user", text, run.id)
             task = asyncio.create_task(
-                self._carry_out(run.id, owner_id, conversation.id, model, key, text, first)
+                self._carry_out(
+                    run.id, owner_id, conversation.id, model, key, text, contexts, first
+                )
             )
             self._active[run.id] = _Active(
                 task=task, owner_id=owner_id, conversation_id=conversation.id
@@ -218,6 +221,7 @@ class AgentRunner:
         model: ModelInfo,
         key: str,
         text: str,
+        contexts: list[ScreenContext],
         first: bool,
     ) -> None:
         active = self._active[run_id]
@@ -241,7 +245,8 @@ class AgentRunner:
                         ),
                     )
                     await self._stream(
-                        run_id, owner_id, conversation_id, model, key, text,
+                        run_id, owner_id, conversation_id, model, key,
+                        message_with_context(text, contexts),
                         answer=active.answer, reasoning=reasoning, tokens=tokens,
                     )
                 except TimeoutError:
@@ -461,6 +466,19 @@ def clean_title(text: str) -> str:
     for _ in range(2):
         line = line.strip("#*_`\"'«» ").rstrip(".")
     return line[:TITLE_MAX_CHARS].strip()
+
+
+def message_with_context(text: str, contexts: list[ScreenContext]) -> str:
+    """Attach only the panel identities the person explicitly chose."""
+    if not contexts:
+        return text
+    lines = [
+        f"- {context.label}; kind={context.kind}; panel_id={context.panel_id}"
+        + (f"; connector_id={context.connector_id}" if context.connector_id else "")
+        + (f"; node_id={context.node_id}" if context.node_id else "")
+        for context in contexts
+    ]
+    return f"{text}\n\nSelected workspace tabs:\n" + "\n".join(lines)
 
 
 async def settle_interrupted() -> int:

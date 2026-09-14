@@ -2131,6 +2131,10 @@ export type ConversationMessageCreate = {
    * Text
    */
   text: string
+  /**
+   * Contexts
+   */
+  contexts?: Array<ScreenContext>
 }
 
 /**
@@ -8080,6 +8084,45 @@ export type SchemaNode = {
    * Frameworks
    */
   frameworks?: Array<DetectedFramework>
+}
+
+/**
+ * ScreenContext
+ *
+ * One open workspace panel explicitly attached to the next message (D133).
+ */
+export type ScreenContext = {
+  /**
+   * Panel Id
+   */
+  panel_id: string
+  /**
+   * Label
+   */
+  label: string
+  /**
+   * Kind
+   */
+  kind:
+    | "catalog"
+    | "rows"
+    | "content"
+    | "structure"
+    | "summary"
+    | "record"
+    | "chart"
+    | "queries"
+    | "query"
+    | "result"
+    | "relationships"
+  /**
+   * Connector Id
+   */
+  connector_id?: string | null
+  /**
+   * Node Id
+   */
+  node_id?: string | null
 }
 
 /**

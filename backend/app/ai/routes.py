@@ -202,7 +202,8 @@ async def send_message(
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     try:
         run = await runner.start(
-            session, owner_id=current_user.id, conversation=conversation, text=body.text
+            session, owner_id=current_user.id, conversation=conversation,
+            text=body.text, contexts=body.contexts,
         )
     except RunRefused as refused:
         raise HTTPException(

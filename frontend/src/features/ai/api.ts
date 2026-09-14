@@ -3,7 +3,7 @@ import { computed, toValue } from "vue"
 import type { MaybeRefOrGetter } from "vue"
 
 import { AiService } from "@/client"
-import type { AgentSettingsUpdate } from "@/client"
+import type { AgentSettingsUpdate, ScreenContext } from "@/client"
 
 export const aiModelsKey = ["ai", "models"] as const
 export const aiSettingsKey = ["ai", "settings"] as const
@@ -95,8 +95,8 @@ export function useDeleteAllAiConversations() {
 export function useSendAiMessage() {
   const invalidate = useConversationInvalidation()
   return useMutation({
-    mutationFn: async ({ id, text }: { id: string; text: string }) => (
-      await AiService.sendMessage({ path: { conversation_id: id }, body: { text } })
+    mutationFn: async ({ id, text, contexts }: { id: string; text: string; contexts: ScreenContext[] }) => (
+      await AiService.sendMessage({ path: { conversation_id: id }, body: { text, contexts } })
     ).data,
     onSuccess: (run) => invalidate(run.conversation_id),
   })

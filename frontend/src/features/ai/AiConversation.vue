@@ -1,20 +1,31 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
-import type { AgentRunPublic, ConversationMessagePublic } from "@/client"
+import type { AgentRunPublic, ConversationMessagePublic, ScreenContext } from "@/client"
 import { AppBanner, AppButton, AppIconButton, AppInput, AppSpinner, useToast } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
 import ChatMarkdown from "./ChatMarkdown.vue"
 import { plainSpeechText } from "./streaming"
 import { useAiConversation, useCancelAiRun, useSendAiMessage } from "./api"
+import AiContextDialog from "./AiContextDialog.vue"
 
-const props = defineProps<{ conversationId: string }>()
+const props = defineProps<{ conversationId: string; contexts: ScreenContext[] }>()
 const conversation = useAiConversation(() => props.conversationId)
 const send = useSendAiMessage()
 const cancel = useCancelAiRun()
 const toast = useToast()
 const draft = ref("")
+const contextDialogShown = ref(false)
+const selectedContextIds = ref<string[]>([])
+const selectedContexts = computed(() => selectedContextIds.value.flatMap((id) => {
+  const found = props.contexts.find((context) => context.panel_id === id)
+  return found === undefined ? [] : [found]
+}))
+watch(() => props.contexts.map((context) => context.panel_id), (openIds) => {
+  const open = new Set(openIds)
+  selectedContextIds.value = selectedContextIds.value.filter((id) => open.has(id))
+})
 const scroller = ref<HTMLElement | null>(null)
 const expandedSteps = ref(new Set<string>())
 const expandedReasoning = ref(new Set<string>())
@@ -53,7 +64,10 @@ async function submit() {
   const text = draft.value.trim()
   if (!canSend.value) return
   draft.value = ""
-  try { await send.mutateAsync({ id: props.conversationId, text }) }
+  try {
+    await send.mutateAsync({ id: props.conversationId, text, contexts: selectedContexts.value })
+    selectedContextIds.value = []
+  }
   catch (cause) { draft.value = text; toast.error(messageOf(cause, "The message could not be sent")) }
 }
 function onEditorKeydown(event: KeyboardEvent) {
@@ -136,10 +150,34 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
         </AppBanner>
       </div>
       <div class="ai-conversation__composer">
+        <div v-if="selectedContexts.length" class="ai-conversation__contexts" aria-label="Tabs attached to the next message">
+          <span v-for="context in selectedContexts" :key="context.panel_id" class="ai-context-chip">
+            {{ context.label }}
+            <AppIconButton
+              icon="close"
+              :tooltip="`Remove ${context.label}`"
+              compact
+              @click="selectedContextIds = selectedContextIds.filter((id) => id !== context.panel_id)"
+            />
+          </span>
+        </div>
+        <AppIconButton
+          icon="add"
+          tooltip="Attach workspace tabs"
+          data-testid="ai-attach-context"
+          :disable="activeRun !== null || contexts.length === 0"
+          @click="contextDialogShown = true"
+        />
         <AppInput v-model="draft" type="textarea" compact placeholder="Message the agent" aria-label="Message the agent" data-testid="ai-message-input" :disable="activeRun !== null" @keydown="onEditorKeydown" />
         <AppButton v-if="activeRun" variant="danger-quiet" icon="stop" label="Stop" :loading="cancel.isPending.value" data-testid="ai-stop" @click="stop" />
         <AppButton v-else icon="send" label="Send" :disable="!canSend" data-testid="ai-send" @click="submit" />
       </div>
+      <AiContextDialog
+        v-model="contextDialogShown"
+        :contexts="contexts"
+        :selected="selectedContextIds"
+        @apply="selectedContextIds = $event"
+      />
     </template>
   </div>
 </template>
@@ -159,6 +197,8 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
 .ai-step { display: grid; grid-template-columns: 1fr auto; gap: var(--dp-space-1) var(--dp-space-3); padding: var(--dp-space-1) 0; }
 .ai-step__reasoning { grid-column: 1 / -1; width: fit-content; text-decoration: underline; }
 .ai-step__detail { grid-column: 1 / -1; white-space: pre-wrap; color: var(--dp-text-strong); }
-.ai-conversation__composer { flex: none; display: flex; align-items: flex-end; gap: var(--dp-space-2); padding: var(--dp-space-3); border-top: 1px solid var(--dp-border); }
+.ai-conversation__composer { flex: none; display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--dp-space-2); padding: var(--dp-space-3); border-top: 1px solid var(--dp-border); }
+.ai-conversation__contexts { flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
+.ai-context-chip { display: inline-flex; align-items: center; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text-strong); }
 .ai-conversation__composer :deep(.q-field) { flex: 1; }
 </style>

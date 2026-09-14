@@ -1036,6 +1036,7 @@ export type {
   ScalarFilter,
   SchemaEffect,
   SchemaNode,
+  ScreenContext,
   SeriesHistory,
   SeriesInfo,
   ServerInfo,

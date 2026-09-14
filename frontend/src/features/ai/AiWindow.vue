@@ -12,6 +12,8 @@ import AiSettings from "./AiSettings.vue"
 import { aiConversationKey, aiConversationsKey, useAiConversations, useCreateAiConversation, useDeleteAiConversation, useDeleteAllAiConversations, useRenameAiConversation } from "./api"
 import { rememberAiConversation, rememberedAiConversation } from "./state"
 
+defineProps<{ contexts: import("@/client").ScreenContext[] }>()
+
 type AiEvent =
   | { kind: "run"; conversation_id: string; run_id: string; status: AgentRunPublic["status"]; error?: string | null }
   | { kind: "step"; conversation_id: string; run_id: string; step: AgentStepPublic }
@@ -118,7 +120,7 @@ onScopeDispose(stop)
     </aside>
     <main class="ai-window__main">
       <AiSettings v-if="settingsShown" />
-      <AiConversation v-else-if="selected" :conversation-id="selected" :key="selected" />
+      <AiConversation v-else-if="selected" :conversation-id="selected" :contexts="contexts" :key="selected" />
       <div v-else class="ai-window__welcome"><AppButton icon="add_comment" label="New chat" @click="makeConversation" /></div>
     </main>
   </div>

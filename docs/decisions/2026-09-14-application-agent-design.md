@@ -152,11 +152,14 @@ rights and through the same checks.
   the agent says so and offers to open the new-connection form; the person
   fills it in and saves it. The agent never creates or saves a connection, so a
   password never passes through a model.
-- **The screen is context.** With each message the client sends the last active
-  workspace panel before focus moved to the chat: connection id, node id and
-  panel kind, never content. It is shown above the input as a chip the person
-  can remove. "Here" and "this table" resolve to it. Access and D135 apply to it
-  as to any other reference.
+- **The screen is context only when explicitly attached.** Opening the chat
+  attaches nothing, and moving between tabs does not change the message. A plus
+  beside the composer lists every open workspace tab, including a tab detached
+  into a floating window; the person may select up to five. Connection id, node
+  id and panel kind travel as removable chips, never content. The selection is
+  cleared after a successful send and retained after a failed send, so the same
+  tabs are not sent with a later question by accident. "Here" and "this table"
+  resolve to the attached set. Access and D135 apply to each reference.
 
 Rejected: a built-in personal folder available without a connection. Every
 route addresses a connection by id, so it meant either a second addressing
