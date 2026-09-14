@@ -46,7 +46,13 @@ const emit = defineEmits<{
       data-testid="dashboard-new"
       @click="emit('create')"
     />
-    <q-separator class="rail-narrow__rule" />
+    <!-- A rule stands between two groups that both show something: with no
+         dashboards, or only shared ones, a rule on each side of nothing is
+         two lines in a row. -->
+    <q-separator
+      class="rail-narrow__rule"
+      data-testid="rail-narrow-rule"
+    />
 
     <div
       v-for="dashboard in own"
@@ -67,8 +73,9 @@ const emit = defineEmits<{
       />
     </div>
     <q-separator
-      v-if="shared.length > 0"
+      v-if="own.length > 0 && shared.length > 0"
       class="rail-narrow__rule"
+      data-testid="rail-narrow-rule"
     />
     <div
       v-for="dashboard in shared"
@@ -89,7 +96,11 @@ const emit = defineEmits<{
       />
     </div>
 
-    <q-separator class="rail-narrow__rule" />
+    <q-separator
+      v-if="own.length + shared.length > 0"
+      class="rail-narrow__rule"
+      data-testid="rail-narrow-rule"
+    />
     <AppIconButton
       icon="sensors"
       tooltip="Sources"
