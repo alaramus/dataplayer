@@ -90,8 +90,10 @@ Spec: [The application agent](../decisions/2026-09-14-application-agent-design.m
 ## D137. An answer is a run the server owns, and its steps are visible
 
 A run is a row before it is a task (D81), with closed states including
-`awaiting_answer`; a step is written before it is announced, a restart marks a
-live run `interrupted`, and Stop is a command. Limits: 50 tool calls, 15
+`awaiting_answer`; a step is written before it is announced, and Stop is a
+command. A pause outlives a restart: answering it afterwards continues the run
+from the model's saved state. A run that was working when the process stopped
+is `interrupted`, and nothing is replayed. Limits: 50 tool calls, 15
 minutes, one active run per conversation. The server words each step from a
 tool template; substeps come from real progress; model time is a Thinking step
 with the provider's reasoning as expandable text. A minimised window shows the
@@ -117,11 +119,20 @@ Spec: [The application agent](../decisions/2026-09-14-application-agent-design.m
 LangChain types stay in one backend package behind this project's run, step and
 message models, held by an import contract; each provider integration has its
 own module. The server decides per call whether a person is needed. Long
-conversations are summarised. A conversation is append-only, so one store holds
-the model's state. Tracing is a setting, off by default. Tests use a scripted
-fake model; real-provider tests skip without a key.
+conversations are summarised. Tracing is a setting, off by default. Tests use a
+scripted fake model; real-provider tests skip without a key.
 
-Rejected: an own loop, Deep Agents as the harness, Pydantic AI.
+Two stores with two roles: LangGraph's `AsyncPostgresSaver` holds the model's
+working state, and this project's encrypted tables hold the transcript a person
+reads, so an unreadable checkpoint after an upgrade loses no history. The saver
+is used as shipped: its pool is built in `adapters/postgres/` by the lifespan,
+`setup()` runs at prestart and `env.py` excludes its tables, its serializer
+encrypts under `AI_CONTENT_KEY` with a test that no plaintext reaches its
+columns, deserialization is strict, `durability="exit"` with older checkpoints
+pruned, and versions are pinned and upgraded deliberately.
+
+Rejected: an own loop, Deep Agents as the harness, Pydantic AI, a checkpointer
+of this project's own, no checkpointer, the transcript only in the checkpointer.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)
 
@@ -131,7 +142,8 @@ OpenAI, Anthropic, DeepSeek and Gemini. Models are a closed JSON list in the
 repository — context window, maximum output, reasoning, image input — changed
 with a release, validated at startup and in CI, served to the client through the
 API. A stored model missing from the file reads as none chosen. One key per
-provider per person, encrypted and never returned, with Check. The model is
+provider per person, encrypted under `CONNECTOR_SECRET_KEY` and never returned,
+with Check. The model is
 chosen in the agent settings only. Each provider's reasoning must be carried
 back inside a tool loop, and a test per provider proves it.
 
@@ -142,9 +154,9 @@ Spec: [The application agent](../decisions/2026-09-14-application-agent-design.m
 One floating window, opened by the first button at the right of the application
 header. Left column: New chat, history, Settings; settings replace the
 conversation on the right. Keys, Model and Confirmations live here, not on
-`/preferences`. Titles are automatic and renamable. A conversation is kept until
-deleted, one at a time or all at once, and its content is encrypted at rest with
-a key of its own. No editing, tags, rewind, branches or search; attachments
+`/preferences`. Titles are written by the chosen model and renamable. A conversation is
+kept until deleted, one at a time or all at once, and its content is encrypted
+at rest under `AI_CONTENT_KEY`. No editing, tags, rewind, branches or search; attachments
 later.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)

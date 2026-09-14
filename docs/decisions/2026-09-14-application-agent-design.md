@@ -272,7 +272,11 @@ more often; the user chose all changes in the chat.
 - **A step is written before it is announced** on the socket. The socket is a
   courtesy and the row the authority, so a reload restores the step line where
   it was.
-- A restart marks every non-terminal run `interrupted`; nothing is replayed.
+- **A pause outlives a restart.** A run awaiting an answer keeps
+  `awaiting_answer`: its pause is in the model's working state (D139), and
+  answering after the restart continues the run from the pause without calling
+  the model again for what was already done. A run that was working when the
+  process stopped is marked `interrupted`; nothing is replayed.
 - **Stop is a separate command.** The current step is marked cancelled; what was
   completed stays listed.
 - **Limits per run:** 50 tool calls, 15 minutes, one active run per
@@ -335,10 +339,34 @@ Markdown answer.
   not by a static list of tool names.
 - **A long conversation is summarised, not truncated**, so the connection and
   table discussed at its start are not forgotten.
-- A conversation is append-only — nothing is edited, rewound or branched — so
-  one store holds the state the model continues from, with a conversation row
-  and run rows beside it. Legacy's pair of stores kept in step by checkpoint
-  anchors is not repeated.
+- **Two stores with two roles.** LangGraph's own PostgreSQL checkpointer
+  (`AsyncPostgresSaver`) is the model's working state: the messages exactly as
+  providers returned them, the summary, a pause. The transcript a person reads
+  — messages, the final Markdown, steps, reasoning — is this project's
+  encrypted tables. A conversation only grows, so neither is kept in step with
+  the other; legacy's anchors and truncation for rewind are not needed. If an
+  upgrade leaves the working state unreadable, the transcript stays and the
+  conversation continues from it, without the detail of earlier tool results.
+- **The checkpointer is used as shipped, with these conditions:**
+  - its connection pool and the saver are built in `adapters/postgres/`, the
+    package allowed `psycopg`, by the application lifespan (D10), with the
+    connection settings LangGraph requires (`autocommit`, `dict_row`,
+    `prepare_threshold=0`); the agent package receives the saver and is added
+    to the driver contract;
+  - `setup()` runs at prestart; `env.py` excludes its tables so Alembic does not
+    read them as tables to drop;
+  - its serializer encrypts under `AI_CONTENT_KEY`, and a test writes a marker
+    string into a conversation and finds it in no column of LangGraph's tables,
+    because plain values of state are stored outside the serializer;
+  - deserialization is strict (`LANGGRAPH_STRICT_MSGPACK` or an explicit list
+    of modules): by default it rebuilds any Python type, which is code execution
+    for whoever can write to the table;
+  - `durability="exit"`: state is written when an answer ends or pauses, not
+    after every step, and older checkpoints of a conversation are pruned, since
+    nothing goes back to them;
+  - LangChain and LangGraph versions are pinned, upgraded in a commit of their
+    own after reading the changelog, and a test continues a conversation saved
+    before the upgrade.
 - **Tracing is a setting, off by default**, so that self-hosted Langfuse and
   LangSmith can be tried later through LangChain's standard callbacks.
   LangSmith sends traces, data included, to a cloud; it is tried on test data.
@@ -348,7 +376,13 @@ Markdown answer.
 
 Rejected: a loop of this project's own. The legacy code shows summarisation,
 confirmations and limits are thousands of lines, and they are what the
-middleware provides. Rejected: Deep Agents as the harness. Its filesystem, todo
+middleware provides. Rejected: a checkpointer of this project's own over its
+session and Alembic tables — it keeps every rule without an exception, but its
+interface would have to follow LangGraph's changes by hand, and LangChain
+changes often. Rejected: no checkpointer — confirmations and the summary would
+be written again beside the middleware, and a pause would not survive a
+restart. Rejected: the transcript only in the checkpointer — a change of its
+format would erase what a person keeps until they delete it. Rejected: Deep Agents as the harness. Its filesystem, todo
 list and sub-agents are the tools of a coding agent; the role its filesystem
 plays for a large result is played here by a D64 result snapshot. Rejected:
 Pydantic AI — stricter types and a smaller ecosystem; the user chose LangChain.
@@ -367,7 +401,8 @@ Pydantic AI — stricter types and a smaller ecosystem; the user chose LangChain
 - A stored choice no longer in the file reads as no model chosen, and the
   settings ask for one — the way a stored check interval nobody recognises
   reads as the default.
-- **A person stores one key per provider**, encrypted at rest and never
+- **A person stores one key per provider**, encrypted at rest under
+  `CONNECTOR_SECRET_KEY` — a credential like a connection's — and never
   returned. The settings know "set" or "not set" and offer Replace, Remove and
   Check. Check makes a small call that uses a tool, which also proves the model
   can call tools.
@@ -397,15 +432,15 @@ chosen, then reversed in favour of changing the list with a release.
 - **Settings**: Keys (per provider), Model, and Confirmations with "Allow all
   changes in every chat". The agent's settings live here, not on `/preferences`.
 - **A title is automatic and can be renamed.** The first line of the first
-  message becomes the title at once; after the first answer a title from the
-  model replaces it, unless the person renamed the conversation.
+  message becomes the title at once; after the first answer a title written by
+  the chosen model replaces it, unless the person renamed the conversation.
 - **A conversation is kept until its owner deletes it.** Delete per
   conversation; Delete all, with a confirmation. Deletion is permanent. Deleting
   a conversation with a running answer cancels the run first. Deleting a user
   deletes their conversations.
 - **Conversation content is encrypted at rest** — messages, reasoning and tool
-  results — with a required key of its own, and never written to logs, for the
-  reason D63 gives for query content.
+  results — with a required key of its own, `AI_CONTENT_KEY`, and never written
+  to logs, for the reason D63 gives for query content.
 - A reload reopens the window on the same conversation, and a running answer
   goes on showing its steps.
 - The window is a stable window (D132).
@@ -447,12 +482,17 @@ The models file and its validation; per-provider keys with Check; the model
 choice; the chat window and its button; conversations and runs (D137) with the
 Thinking step and reasoning; streamed Markdown (D138); Stop; the 15-minute
 limit; copy and listen; automatic title, rename, delete, delete all;
-encryption of content; `interrupted` after a restart; the tracing setting.
+encryption of content; `interrupted` after a restart; the tracing setting. The
+checkpointer under D139's conditions, with the transcript in this project's
+tables.
 
 Acceptance: a broken models file fails a test and startup; a key is never
 returned; a stored model missing from the file asks for a choice; an answer
 streams and survives a reload; Stop cancels; a restart marks a running answer
-interrupted; an open `echarts` fence does not render until it closes; a remote
+interrupted; a marker string written into a conversation appears in no column
+of the checkpointer's tables; deserialization refuses a type outside the
+allowed list; `alembic check` reports nothing with the checkpointer's tables
+present; an open `echarts` fence does not render until it closes; a remote
 image is not loaded; copy and listen work; a renamed conversation keeps its
 name after the first answer.
 
@@ -477,7 +517,8 @@ answers, D46's preview for a drop and DDL, the owner's `read_only` policy above
 every permission, Needs you while the window is minimised, a visible step for
 every change.
 
-Acceptance: a change asks; "this chat" stops asking in that conversation only;
+Acceptance: a change asks; a pending confirmation answered after the backend
+restarts continues the run; "this chat" stops asking in that conversation only;
 "every chat" stops asking everywhere and is revocable; a `read_only` connection
 is never written; a drop shows its preview; a failed statement commits nothing.
 
@@ -492,17 +533,14 @@ with facts from its start.
 
 ## Open points for implementation
 
-- **Where the model-side state is stored.** LangGraph's PostgreSQL checkpointer
-  imports `psycopg`, which the import contract keeps inside
-  `adapters/postgres/`. Either a checkpointer over the application's own
-  session, or a stated exception to the contract. The state is encrypted under
-  the conversation content key either way.
-- **Which key encrypts provider keys**, and the name of the conversation content
-  key. New settings go to `.env.example`.
+Settled on 2026-09-14 and folded into D137, D139, D140 and D141: where the
+model's state is stored, which keys encrypt provider keys and conversations, and
+which model writes a title.
+
+Still open:
+
 - The size bound of a tool result, and the step template of each tool.
 - Which workspace panel kinds provide screen context.
-- Which model writes a conversation's title: the chosen model or a cheaper one
-  of the same provider.
 
 ## Validation
 
