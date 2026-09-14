@@ -1,3 +1,6 @@
+import uuid
+
+from sqlalchemy import text
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -85,6 +88,29 @@ async def test_connectors_are_deleted_with_owner(db: AsyncSession) -> None:
 
     result = await db.exec(select(Connector).where(Connector.owner_id == user.id))
     assert result.all() == []
+
+
+async def test_a_row_that_names_no_transfer_answer_does_not_allow_it(
+    db: AsyncSession,
+) -> None:
+    """A connection that predates the flag reads as not allowed (D135).
+
+    Written the way rows were written before the column existed, naming none of
+    it, so what comes back is the database's default and not the model's.
+    """
+    user = await create_random_user(db)
+    connector_id = uuid.uuid4()
+    statement = text(
+        "INSERT INTO connector (id, name, adapter_type, config, secrets, owner_id)"
+        " VALUES (:id, 'predates the flag', 'postgres', '{}'::jsonb, '\\x00', :owner)"
+    ).bindparams(id=connector_id, owner=user.id)
+    await db.exec(statement)  # type: ignore[call-overload]
+    await db.commit()
+
+    stored = await db.get(Connector, connector_id)
+
+    assert stored is not None
+    assert stored.allow_third_party_transfer is False
 
 
 def test_public_model_has_no_secrets_field() -> None:

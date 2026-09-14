@@ -154,6 +154,41 @@ async def test_shared_connector_shows_the_owners_color_but_cannot_change_it(
     assert unchanged.json()["tab_color"] == "#246abc"
 
 
+async def test_a_grantee_is_told_the_transfer_answer_and_cannot_change_it(
+    client: AsyncClient,
+    normal_user_token_headers: dict[str, str],
+    colleague: tuple[User, dict[str, str]],
+) -> None:
+    """Otherwise whoever holds a grant decides the owner's data may leave (D135)."""
+    user, headers = colleague
+    connector_id = await _postgres_connector(client, normal_user_token_headers)
+    url = f"{BASE}/{connector_id}"
+    await _grant(client, normal_user_token_headers, connector_id, user, "structure")
+
+    shared = await client.get(url, headers=headers)
+    assert shared.status_code == 200
+    assert shared.json()["allow_third_party_transfer"] is False
+    refused = await client.patch(
+        url, headers=headers, json={"allow_third_party_transfer": True}
+    )
+    assert refused.status_code == 403
+    unchanged = await client.get(url, headers=headers)
+    assert unchanged.json()["allow_third_party_transfer"] is False
+
+    allowed = await client.patch(
+        url,
+        headers=normal_user_token_headers,
+        json={"allow_third_party_transfer": True},
+    )
+    assert allowed.status_code == 200
+    told = await client.get(url, headers=headers)
+    assert told.json()["allow_third_party_transfer"] is True
+    withdrawn = await client.patch(
+        url, headers=headers, json={"allow_third_party_transfer": False}
+    )
+    assert withdrawn.status_code == 403
+
+
 async def test_without_a_grant_the_connection_is_not_found(
     client: AsyncClient,
     normal_user_token_headers: dict[str, str],

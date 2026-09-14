@@ -142,6 +142,9 @@ function choosePolicy(value: unknown) {
     executionPolicy.value = value as ExecutionPolicy
   }
 }
+
+/** Whether data read through this connection may leave the server (D135). */
+const thirdPartyTransfer = ref(false)
 const nameError = ref("")
 const checkResult = ref<ConnectionCheckReport | null>(null)
 const connectionString = ref("")
@@ -178,6 +181,7 @@ function snapshot(): string {
     tabColor.value,
     enabled.value,
     executionPolicy.value,
+    thirdPartyTransfer.value,
     cacheWindow.value,
     ordered,
   ])
@@ -382,6 +386,7 @@ function load() {
     tabColor.value = props.connector.tab_color ?? null
     enabled.value = props.connector.enabled
     executionPolicy.value = props.connector.execution_policy
+    thirdPartyTransfer.value = props.connector.allow_third_party_transfer
     cacheWindow.value = props.connector.cache_ttl_seconds ?? null
     resetOptions(allFields.value, props.connector.config as Record<string, unknown>)
   } else {
@@ -391,6 +396,7 @@ function load() {
     tabColor.value = null
     enabled.value = true
     executionPolicy.value = "confirm_writes"
+    thirdPartyTransfer.value = false
     cacheWindow.value = null
     resetOptions(allFields.value, props.draft?.options)
   }
@@ -471,6 +477,7 @@ async function apply(): Promise<boolean> {
           tab_color: tabColor.value,
           enabled: enabled.value,
           execution_policy: executionPolicy.value,
+          allow_third_party_transfer: thirdPartyTransfer.value,
           // Always sent, null included: the server tells an omitted field
           // from an explicit null, and null is the answer that hands the
           // window back to the source (D105).
@@ -485,6 +492,7 @@ async function apply(): Promise<boolean> {
         adapter_type: typeName.value,
         options: filledOptions(),
         execution_policy: executionPolicy.value,
+        allow_third_party_transfer: thirdPartyTransfer.value,
         cache_ttl_seconds: cacheWindow.value,
       })
       // From here on this is that connection's window, so a second Apply
@@ -682,8 +690,7 @@ async function parseTyped(text: string) {
 
         <!-- Who may reach this connection and what may be done through it,
              away from how to reach it: beside the host and the port a policy
-             reads as a connection parameter, and it is not one — it governs
-             nothing but the statements somebody types into a console (D66).
+             reads as a connection parameter, and it is not one (D66, D135).
              Everything here is the owner's: a person given access does not
              widen their own. -->
         <div
@@ -711,6 +718,25 @@ async function parseTyped(text: string) {
                   : executionPolicy === "allow_writes"
                     ? "Writing is unlocked by choosing a writing mode."
                     : "Writing asks for the name of this connection first."
+              }}
+            </span>
+          </div>
+
+          <!-- Shown to a grantee too, unlike the policy above: whether what
+               they read here may be sent to an outside service is something
+               they act on, and learning it from a refusal is too late. -->
+          <div class="connector-window__policy">
+            <AppToggle
+              v-model="thirdPartyTransfer"
+              label="Allow sending data to third parties"
+              data-testid="connector-third-party"
+              :disable="readOnly"
+            />
+            <span class="connector-window__policy-note">
+              {{
+                thirdPartyTransfer
+                  ? "Data read through this connection may be sent to outside services, such as an AI model provider."
+                  : "Data read through this connection is never sent to outside services."
               }}
             </span>
           </div>

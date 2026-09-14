@@ -1658,6 +1658,10 @@ export type ConnectorCreate = {
    * Cache Ttl Seconds
    */
   cache_ttl_seconds?: number | null
+  /**
+   * Allow Third Party Transfer
+   */
+  allow_third_party_transfer?: boolean
 }
 
 /**
@@ -1724,6 +1728,10 @@ export type ConnectorPublic = {
    * Cache Ttl Seconds
    */
   cache_ttl_seconds?: number | null
+  /**
+   * Allow Third Party Transfer
+   */
+  allow_third_party_transfer: boolean
   /**
    * Owner Email
    */
@@ -1828,6 +1836,10 @@ export type ConnectorUpdate = {
    * Cache Ttl Seconds
    */
   cache_ttl_seconds?: number | null
+  /**
+   * Allow Third Party Transfer
+   */
+  allow_third_party_transfer?: boolean | null
 }
 
 /**

@@ -24,6 +24,7 @@ const list = (name: string): ConnectorsPublic => ({
       enabled: true,
       access: "own",
       execution_policy: "confirm_writes",
+      allow_third_party_transfer: false,
     },
   ],
 })

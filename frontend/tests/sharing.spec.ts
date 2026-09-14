@@ -71,6 +71,11 @@ test("a shared connection appears for the colleague and stays the owner's", asyn
   await openPermissions(page)
   await expect(page.getByTestId("connector-shared")).toContainText("Shared by")
   await expect(page.getByTestId("connector-policy")).toHaveCount(0)
+  // Whether what they read may leave the server is shown to them, and is the
+  // owner's to decide (D135).
+  await expect(page.getByTestId("connector-third-party")).toBeVisible()
+  await expect(page.getByTestId("connector-third-party")).not.toBeChecked()
+  await expect(page.getByTestId("connector-third-party")).toBeDisabled()
   await expect(page.getByTestId("share-connector")).toHaveCount(0)
   await page.getByTestId("cancel-connector").click()
 

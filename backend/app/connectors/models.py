@@ -53,6 +53,13 @@ class Connector(SQLModel, table=True):
     # seconds. Null is the window the source chooses for itself, which is what
     # every connection made before this column existed still means (D105).
     cache_ttl_seconds: int | None = Field(default=None, nullable=True)
+    # Whether data read through this connection may be sent outside the
+    # installation, to a model provider for one. The owner's answer above every
+    # grant, and no until they give it — for rows that predate the column too,
+    # hence the server default (D135).
+    allow_third_party_transfer: bool = Field(
+        default=False, sa_column_kwargs={"server_default": "false"}
+    )
     created_at: datetime | None = Field(
         default_factory=get_datetime_utc,
         sa_type=DateTime(timezone=True),  # type: ignore
@@ -75,6 +82,9 @@ class ConnectorCreate(SQLModel):
     # Omitted means the source's own freshness window, which is the answer for
     # every connection whose owner has no opinion about staleness (D105).
     cache_ttl_seconds: CacheWindow | None = None
+    # Decided with the connection for the reason the policy above is; the
+    # answer nobody gave is that nothing leaves (D135).
+    allow_third_party_transfer: bool = False
 
 
 class ConnectorUpdate(SQLModel):
@@ -88,6 +98,8 @@ class ConnectorUpdate(SQLModel):
     # An explicit null hands the window back to the source; an omitted field
     # keeps whatever the connection was told to do (D105).
     cache_ttl_seconds: CacheWindow | None = None
+    # The owner's alone, enforced by the route like the policy (D135).
+    allow_third_party_transfer: bool | None = None
 
 
 class ConnectorGrant(SQLModel, table=True):
@@ -136,6 +148,10 @@ class ConnectorPublic(SQLModel):
     # How long its answers may be kept, so a screen can say what it is showing
     # and how long a cached page of it may be (D105).
     cache_ttl_seconds: int | None = None
+    # Whether its data may leave the installation, sent to everyone who holds
+    # it: a grantee is told what the owner decided rather than finding out from
+    # a refusal (D135).
+    allow_third_party_transfer: bool
     # Whose it is, when it is not the caller's own. None for your own
     # connections, where naming the owner would only be your own address.
     owner_email: str | None = None

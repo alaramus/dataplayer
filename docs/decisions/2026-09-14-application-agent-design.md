@@ -2,9 +2,8 @@
 
 Date: 2026-09-14. Decisions: D133 through D141, in [ai](../architecture/ai.md).
 
-Status: agreed in discussion with the user on 2026-09-14; implementation
-pending. Slices AI1–AI6 below. This document records the design; no application
-code or validation is claimed by it.
+Status: agreed in discussion with the user on 2026-09-14. AI1 implemented;
+AI2–AI6 pending. Slices below.
 
 ## Outcome
 
@@ -502,4 +501,8 @@ with facts from its start.
 
 ## Validation
 
-Documentation only. No check was run for this document.
+AI1, on 2026-09-14: the full backend suite (2933 passed, 119 skipped for
+servers not started), `mypy app`, `ruff check app tests`, `lint-imports`,
+`alembic check`, frontend `type-check`, `lint`, `test:unit`, the Playwright
+scenarios `connectors.spec.ts` and `sharing.spec.ts`, and `check-docs.sh`, all
+clean.

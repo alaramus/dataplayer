@@ -7,13 +7,21 @@ model provider, and before changing the chat window.
 
 Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141.
 
-**Implementation status:** agreed on 2026-09-14; AI1–AI6 are pending. Nothing
-below exists in the code yet.
+**Implementation status:** agreed on 2026-09-14. AI1 — the third-party transfer
+flag — is implemented; AI2–AI6 are pending.
 
 ## What exists today
 
-Nothing of the agent. The legacy application's `ai_handler` and `ChatAI` were
-read as evidence; what is ported and what is not is listed in the spec.
+A connection carries `allow_third_party_transfer`, off by default and off for
+every connection that existed before it (`c4f82b6e1d39`). It is set when the
+connection is created or changed by its owner only; a grantee receives it in
+the connection and is refused a change with 403. The connection window shows it
+as a switch on its permissions page, disabled for a grantee. Nothing reads it
+yet: the agent that will is AI4.
+
+The agent itself does not exist. The legacy application's `ai_handler` and
+`ChatAI` were read as evidence; what is ported and what is not is listed in the
+spec.
 
 ## D133. The agent is one more client of the application
 

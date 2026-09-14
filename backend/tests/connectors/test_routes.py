@@ -134,6 +134,49 @@ async def test_execution_policy_is_decided_with_the_connection(
     assert refused.status_code == 422
 
 
+async def test_third_party_transfer_is_off_until_the_owner_allows_it(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    """Nothing read through a connection leaves unless its owner said so (D135)."""
+    headers = normal_user_token_headers
+    unstated = await client.post(
+        f"{BASE}/", headers=headers, json=_payload("transfer unstated")
+    )
+    assert unstated.status_code == 200
+    assert unstated.json()["allow_third_party_transfer"] is False
+
+    chosen = await client.post(
+        f"{BASE}/",
+        headers=headers,
+        json={**_payload("transfer chosen"), "allow_third_party_transfer": True},
+    )
+    assert chosen.status_code == 200
+    assert chosen.json()["allow_third_party_transfer"] is True
+
+    connector_id = unstated.json()["id"]
+    url = f"{BASE}/{connector_id}"
+    allowed = await client.patch(
+        url, headers=headers, json={"allow_third_party_transfer": True}
+    )
+    assert allowed.status_code == 200
+    assert allowed.json()["allow_third_party_transfer"] is True
+    listed = await client.get(f"{BASE}/", headers=headers)
+    assert next(
+        item for item in listed.json()["data"] if item["id"] == connector_id
+    )["allow_third_party_transfer"] is True
+
+    # A change that does not mention it leaves the answer where it was.
+    renamed = await client.patch(url, headers=headers, json={"name": "still allowed"})
+    assert renamed.json()["allow_third_party_transfer"] is True
+
+    withdrawn = await client.patch(
+        url, headers=headers, json={"allow_third_party_transfer": False}
+    )
+    assert withdrawn.status_code == 200
+    reread = await client.get(url, headers=headers)
+    assert reread.json()["allow_third_party_transfer"] is False
+
+
 async def test_stored_secrets_are_encrypted(
     client: AsyncClient, normal_user_token_headers: dict[str, str], db: AsyncSession
 ) -> None:

@@ -164,8 +164,16 @@ test("the window separates how to reach a connection from what may be done throu
   // Nothing to give away yet, so there is nobody to give it to.
   await expect(page.getByTestId("share-connector")).toHaveCount(0)
 
+  // Nothing read through a new connection leaves the server until its owner
+  // says so (D135).
+  const transfer = page.getByTestId("connector-third-party")
+  await expect(transfer).not.toBeChecked()
+  await expect(transfer).toBeEnabled()
+
   await page.getByTestId("connector-policy").click()
   await page.getByRole("option", { name: "Read only", exact: true }).click()
+  await transfer.click()
+  await expect(transfer).toBeChecked()
   await page.getByTestId("connector-tab-general").click()
   await expect(page.getByTestId("field-host")).toBeVisible()
   await page.getByTestId("connector-name").fill(name)
@@ -178,6 +186,7 @@ test("the window separates how to reach a connection from what may be done throu
   await editConnector(page, name)
   await openPermissions(page)
   await expect(page.getByTestId("connector-policy")).toContainText("Read only")
+  await expect(page.getByTestId("connector-third-party")).toBeChecked()
   await expect(page.getByTestId("share-connector")).toBeVisible()
 
   await page.getByRole("button", { name: "Cancel" }).click()

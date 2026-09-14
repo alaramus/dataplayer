@@ -522,6 +522,7 @@ async def create_connector(
         execution_policy=connector_in.execution_policy,
         tab_color=connector_in.tab_color,
         cache_ttl_seconds=connector_in.cache_ttl_seconds,
+        allow_third_party_transfer=connector_in.allow_third_party_transfer,
     )
     return await _public(session, connector, "own")
 
@@ -588,6 +589,10 @@ async def update_connector(
     if connector_in.execution_policy is not None:
         # Only reachable by the owner: this route asks for `own` above.
         connector.execution_policy = connector_in.execution_policy
+
+    if connector_in.allow_third_party_transfer is not None:
+        # The owner's alone for the same reason (D135).
+        connector.allow_third_party_transfer = connector_in.allow_third_party_transfer
 
     # An explicit null hands the window back to the source; an omitted field
     # leaves it alone. The same distinction `tab_color` makes above, for the
