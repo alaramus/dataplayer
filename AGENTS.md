@@ -49,6 +49,7 @@ legacy notes and stay unchanged.
 | A diagram of nodes and connections, in 2D or 3D | [graphs.md](docs/architecture/graphs.md) |
 | Metrics from agents and connections, their store, dashboards | [dashboards.md](docs/architecture/dashboards.md) |
 | Sockets, topics, server-pushed state | [realtime.md](docs/architecture/realtime.md) |
+| The agent, its tools, model providers, sending data to a third party | [ai.md](docs/architecture/ai.md) |
 | Any code | [ENGINEERING.md](ENGINEERING.md) |
 
 What is already done is recorded by the spec
@@ -197,6 +198,15 @@ files. IDs are stable because specs and commits refer to them.
 | D130 | [dashboards](docs/architecture/dashboards.md) |
 | D131 | [frontend](docs/architecture/frontend.md) |
 | D132 | [workspace](docs/architecture/workspace.md) |
+| D133 | [ai](docs/architecture/ai.md) |
+| D134 | [ai](docs/architecture/ai.md) |
+| D135 | [ai](docs/architecture/ai.md) |
+| D136 | [ai](docs/architecture/ai.md) |
+| D137 | [ai](docs/architecture/ai.md) |
+| D138 | [ai](docs/architecture/ai.md) |
+| D139 | [ai](docs/architecture/ai.md) |
+| D140 | [ai](docs/architecture/ai.md) |
+| D141 | [ai](docs/architecture/ai.md) |
 
 ## Working rules
 
