@@ -50,4 +50,14 @@ onDeactivated(() => {
   white-space: normal;
   word-break: break-word;
 }
+
+/* Trap: a tooltip that does not fit below its anchor — every one over the bar
+   at the foot of the screen — is flipped above it by Quasar and capped at the
+   height it measured, which is rounded. At a browser zoom that is not a whole
+   number the text is a fraction of a pixel taller than that, and Quasar's own
+   `overflow-y: auto` drew a scrollbar beside it. A tooltip is never scrolled:
+   the pointer cannot reach it. Two classes, to outweigh Quasar's one. */
+.q-tooltip.app-tooltip {
+  overflow: hidden;
+}
 </style>

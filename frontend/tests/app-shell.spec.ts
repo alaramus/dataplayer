@@ -46,3 +46,20 @@ test("the workspace meets the shell without an enclosing frame or inset", async 
     }
   }
 })
+
+test("a tooltip over the bar at the foot of the screen draws no scrollbar at a zoom that is not a whole number", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await login(page)
+  // Measured on 2026-09-14: at 110 % to 133 % Quasar capped the tooltip of
+  // Data at 43 px over 42 px of text, and a scrollbar showed.
+  for (const zoom of [1.1, 1.25]) {
+    await page.evaluate((value) => { document.documentElement.style.zoom = String(value) }, zoom)
+    await page.mouse.move(600, 300)
+    await page.getByTestId("space-data").hover()
+    const tip = page.locator(".app-tooltip")
+    await expect(tip).toContainText("Connections, catalogs")
+    await expect(tip).toHaveCSS("overflow-y", "hidden")
+    await page.mouse.move(600, 300)
+    await expect(tip).toBeHidden()
+  }
+})
