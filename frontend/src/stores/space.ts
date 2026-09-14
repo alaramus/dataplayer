@@ -4,18 +4,20 @@ import { ref } from "vue"
 import { serverStorageKey } from "@/shared/servers/context"
 
 /**
- * Which space fills the screen: the data workspace or the dashboards (D125).
+ * Which space fills the screen: Data, Dashboards or the application agent
+ * (D125, D141).
  *
  * Pinia, because the server knows nothing about it (D6). Remembered per
  * browser and per server, like the layout it stands beside.
  */
-export type Space = "data" | "dashboards"
+export type Space = "data" | "dashboards" | "ai"
 
 const KEY = "dataplayer-space"
 
 function stored(): Space {
   try {
-    return localStorage.getItem(serverStorageKey(KEY)) === "dashboards" ? "dashboards" : "data"
+    const value = localStorage.getItem(serverStorageKey(KEY))
+    return value === "dashboards" || value === "ai" ? value : "data"
   } catch {
     return "data"
   }

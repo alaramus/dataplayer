@@ -16,8 +16,9 @@ implemented.
 
 ## What exists today
 
-**Data | Dashboards** at the foot of the screen covers the workspace with the
-dashboards card. Before a store exists the card offers a superuser to start
+**Data | Dashboards | AI** at the foot of the screen chooses the application
+space (D141); Dashboards covers the workspace with its card. Before a store
+exists the card offers a superuser to start
 TimescaleDB or connect an existing one, and tells anybody else that an
 administrator sets it up. With a store it lists the person's dashboards and the
 sources their agents reported; a dashboard is a 12-column grid of charts and
@@ -177,8 +178,8 @@ which table history reads depends on how old a range is.
 
 ## D125. Dashboards are a space of their own
 
-A **Data | Dashboards** switch at the foot of the screen, before the library of
-queries, replaces the whole workspace with one dashboards card: dashboards and
+A **Data | Dashboards** choice at the foot of the screen, extended with AI by
+D141, replaces the whole workspace with one dashboards card: dashboards and
 sources on the left, a 12-column grid of widgets on the right.
 
 - The data workspace is hidden, not closed: panels, their state and an open

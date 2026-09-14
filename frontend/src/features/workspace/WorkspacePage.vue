@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, defineComponent, h, onMounted, provide, ref, watch } from "vue"
+import { computed, onMounted, provide, ref, watch } from "vue"
 
 import type { ConnectorDraft, ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
@@ -25,9 +25,8 @@ import { relationshipPanelId } from "@/features/relationships/model"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
 import CommandBar from "@/features/workspace/CommandBar.vue"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
-import AiWindow from "@/features/ai/AiWindow.vue"
+import AiSpace from "@/features/ai/AiSpace.vue"
 import { screenContexts } from "@/features/ai/context"
-import { rememberAiOpen, rememberedAiOpen } from "@/features/ai/state"
 import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
 import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
 import WorkspaceGroups from "@/features/workspace/WorkspaceGroups.vue"
@@ -78,7 +77,7 @@ import { serverStorageKey } from "@/shared/servers/context"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import { useSpaceStore } from "@/stores/space"
-import { AppIconButton, AppLayout, useConfirm, useToast } from "@/shared/ui"
+import { AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
 import {
   makeLeaf,
@@ -145,12 +144,13 @@ const workspace = useWorkspace<Panel>({
  * itself. See P7.
  */
 /**
- * Data or Dashboards (D125). Anything opened into the data workspace brings it
- * back, or opening a table while the dashboards cover it would do nothing
- * anybody could see.
+ * Data, Dashboards or AI (D125, D141). Anything opened into the data workspace
+ * brings it back, or opening a table while another space covers it would do
+ * nothing anybody could see.
  */
 const space = useSpaceStore()
 const dashboardsShown = computed(() => space.current === "dashboards")
+const aiShown = computed(() => space.current === "ai")
 
 function openPanel(panel: Panel) {
   space.show("data")
@@ -162,7 +162,7 @@ function openPanel(panel: Panel) {
 watch(
   () => [workspace.context.tree.value, workspace.panels.value.map((one) => one.id).join("\u0000")] as const,
   () => {
-    if (dashboardsShown.value) space.show("data")
+    if (space.current !== "data") space.show("data")
   }
 )
 
@@ -190,25 +190,6 @@ const openConnectors = computed(() => openConnectorIds(workspace.panels.value))
 const me = useCurrentUser()
 const windows = useWindowManager()
 const confirm = useConfirm()
-
-const AI_WINDOW_ID = "application-agent"
-const BoundAiWindow = defineComponent({
-  name: "BoundAiWindow",
-  setup: () => () => h(AiWindow, { contexts: screenContexts(workspace.panels.value) }),
-})
-
-function openAgent() {
-  rememberAiOpen(true)
-  windows.open({
-    id: AI_WINDOW_ID,
-    look: { title: "AI", icon: "auto_awesome" },
-    size: { width: 960, height: 680 },
-    minSize: { width: 520, height: 420 },
-    autoFit: false,
-    component: BoundAiWindow,
-    onClosed: () => rememberAiOpen(false),
-  })
-}
 
 // Panels say how they are re-read, and the button that asks stands in the
 // panel's own row of commands (D112). Provided here so that every panel of
@@ -504,7 +485,6 @@ function openShared(request: OpenSharedRequest) {
 // A link the landing screen has already resolved. Taken once, on the way in:
 // the workspace is where tabs live, and the landing screen has none.
 onMounted(() => {
-  if (rememberedAiOpen()) openAgent()
   const intent = takeShareIntent()
   if (intent === null) return
   openShared({
@@ -827,14 +807,6 @@ provide(workspaceActionsKey, {
 
 <template>
   <AppLayout fill>
-    <template #actions>
-      <AppIconButton
-        icon="auto_awesome"
-        tooltip="Open AI"
-        data-testid="open-ai"
-        @click="openAgent"
-      />
-    </template>
     <template #header-overlay>
       <WorkspaceDetachTarget :context="workspace.context" />
     </template>
@@ -863,10 +835,11 @@ provide(workspaceActionsKey, {
 
     <WorkspaceRoot
       :context="workspace.context"
-      :covered="dashboardsShown"
+      :covered="space.current !== 'data'"
     >
       <template #cover>
-        <DashboardsSpace />
+        <DashboardsSpace v-if="dashboardsShown" />
+        <AiSpace v-else-if="aiShown" :contexts="screenContexts(workspace.panels.value)" />
       </template>
     </WorkspaceRoot>
 

@@ -4,14 +4,16 @@ import { useSpaceStore } from "@/stores/space"
 import type { Space } from "@/stores/space"
 
 /**
- * Data or Dashboards, at the foot of the screen (D125). Two buttons rather than
- * one that changes its word: the way back is where the way there was.
+ * Data, Dashboards or AI, at the foot of the screen (D125, D141). Separate
+ * buttons rather than one that changes its word: the way back is where the way
+ * there was.
  */
 const space = useSpaceStore()
 
 const choices: { value: Space; label: string; icon: string; tooltip: string }[] = [
   { value: "data", label: "Data", icon: "table_chart", tooltip: "Connections, catalogs and the work opened from them" },
   { value: "dashboards", label: "Dashboards", icon: "dashboard", tooltip: "Metrics your agents report, drawn over time" },
+  { value: "ai", label: "AI", icon: "auto_awesome", tooltip: "Conversations with the application agent" },
 ]
 </script>
 

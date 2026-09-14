@@ -7,9 +7,13 @@ implemented; AI4–AI6 pending. AI3b validation is pending. Slices below.
 
 ## Outcome
 
-A person opens the agent from the first button at the right of the application
-header. One floating window holds it: New chat, the conversation history and the
-agent's settings on the left, the conversation on the right.
+A person opens the agent from `AI` beside `Data` and `Dashboards` in the space
+switch. The AI space holds New chat, the conversation history and the agent's
+settings on the left, and the conversation on the right. They are separate
+cards divided by the ordinary draggable workspace separator; the remembered,
+collapsible left card cannot occupy more than 40% of the space. AI covers the
+data workspace by the same contract as Dashboards: data panels remain mounted
+and detached panels remain visible.
 
 The person writes in their own words — "show me the tables in my connection
 'test'", "create a folder with a file example.txt in my files connection",
@@ -424,14 +428,15 @@ context window and OpenAI's list mixes embedding, speech and image models;
 editing the file from the application with an override path on the server —
 chosen, then reversed in favour of changing the list with a release.
 
-## D141. One chat window holds the conversations and the agent's settings
+## D141. One application space holds the conversations and the agent's settings
 
-- **The first button at the right of the application header** opens the chat
-  window, brings it forward, or restores it when minimised. There is one chat
-  window.
-- **Two columns.** The left one, collapsible, holds New chat, the conversation
-  history by last activity, and Settings at its foot. Settings open in the right
-  part of the window in place of the conversation, and the list stays.
+- **AI is the third application space**, selected beside Data and Dashboards at
+  the foot of the screen. There is no duplicate button in the application
+  header and no chat window.
+- **Two separate cards.** The left one, collapsible, resizable and capped at 40%
+  of the space, holds New chat, the conversation history by last activity, and
+  Settings at its foot. The ordinary workspace separator moves it. Settings
+  open in the right card in place of the conversation, and the list stays.
 - **Settings**: Keys (per provider), Model, and Confirmations with "Allow all
   changes in every chat". The agent's settings live here, not on `/preferences`.
 - **A title is automatic and can be renamed.** The first line of the first

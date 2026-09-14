@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, onScopeDispose, ref, watch } from "vue"
+import { computed, onBeforeUnmount, onMounted, onScopeDispose, ref, watch } from "vue"
 
 import type { AgentRunPublic, AgentStepPublic, ConversationPublic, ConversationsPublic } from "@/client"
 import { AppButton, AppIconButton, AppInput, AppSpinner, useConfirm, useToast } from "@/shared/ui"
 import { realtime } from "@/shared/realtime/client"
 import { messageOf } from "@/shared/api/errors"
+import { serverStorageKey } from "@/shared/servers/context"
+import { WorkspaceSeparator } from "@/shared/workspace"
+import {
+  clampRailWidth,
+  parseRailNarrow,
+  parseRailWidth,
+  RAIL_NARROW_PX,
+} from "@/shared/workspace/railWidth"
 
 import AiConversation from "./AiConversation.vue"
 import AiSettings from "./AiSettings.vue"
@@ -31,7 +39,35 @@ const confirm = useConfirm()
 const toast = useToast()
 const selected = ref<string | null>(rememberedAiConversation())
 const settingsShown = ref(false)
-const collapsed = ref(false)
+const RAIL_WIDTH_KEY = "dataplayer-ai-rail"
+const RAIL_NARROW_KEY = "dataplayer-ai-rail-narrow"
+function stored(key: string): string | null {
+  try { return localStorage.getItem(serverStorageKey(key)) } catch { return null }
+}
+function store(key: string, value: string) {
+  try { localStorage.setItem(serverStorageKey(key), value) } catch { /* Resizing still works. */ }
+}
+const spaceElement = ref<HTMLElement | null>(null)
+const spaceWidth = ref(0)
+const railWidth = ref(parseRailWidth(stored(RAIL_WIDTH_KEY)))
+const collapsed = ref(parseRailNarrow(stored(RAIL_NARROW_KEY)))
+const shownRailWidth = computed(() => collapsed.value
+  ? RAIL_NARROW_PX
+  : clampRailWidth(railWidth.value, spaceWidth.value))
+const observer = new ResizeObserver((entries) => {
+  const entry = entries[0]
+  if (entry !== undefined) spaceWidth.value = entry.contentRect.width
+})
+onMounted(() => { if (spaceElement.value !== null) observer.observe(spaceElement.value) })
+onBeforeUnmount(() => observer.disconnect())
+function resizeRail(deltaPx: number) {
+  if (!collapsed.value) railWidth.value = clampRailWidth(shownRailWidth.value + deltaPx, spaceWidth.value)
+}
+function pressGap() {
+  if (collapsed.value) collapsed.value = false
+}
+watch(railWidth, (width) => store(RAIL_WIDTH_KEY, String(width)))
+watch(collapsed, (narrow) => store(RAIL_NARROW_KEY, narrow ? "narrow" : "wide"))
 const renaming = ref<string | null>(null)
 const titleDraft = ref("")
 
@@ -94,8 +130,13 @@ onScopeDispose(stop)
 </script>
 
 <template>
-  <div class="ai-window" data-testid="ai-window-content">
-    <aside class="ai-window__rail" :class="{ 'ai-window__rail--collapsed': collapsed }">
+  <div ref="spaceElement" class="ai-space" data-testid="ai-space">
+    <aside
+      class="ai-window__card ai-window__rail"
+      :class="{ 'ai-window__rail--collapsed': collapsed }"
+      :style="{ flexBasis: `${String(shownRailWidth)}px` }"
+      data-testid="ai-rail"
+    >
       <div class="ai-window__rail-head">
         <AppButton v-if="!collapsed" variant="quiet" layout="navigation" icon="add_comment" label="New chat" data-testid="ai-new-chat" @click="makeConversation" />
         <AppIconButton v-else icon="add_comment" tooltip="New chat" data-testid="ai-new-chat" @click="makeConversation" />
@@ -118,7 +159,8 @@ onScopeDispose(stop)
         <AppButton v-if="!collapsed && conversations.length" variant="danger-quiet" size="sm" label="Delete all" data-testid="ai-delete-all" @click="removeAll" />
       </div>
     </aside>
-    <main class="ai-window__main">
+    <WorkspaceSeparator direction="row" @move="resizeRail" @toggle="pressGap" />
+    <main class="ai-window__card ai-window__main" data-testid="ai-conversation-card">
       <AiSettings v-if="settingsShown" />
       <AiConversation v-else-if="selected" :conversation-id="selected" :contexts="contexts" :key="selected" />
       <div v-else class="ai-window__welcome"><AppButton icon="add_comment" label="New chat" @click="makeConversation" /></div>
@@ -127,9 +169,10 @@ onScopeDispose(stop)
 </template>
 
 <style scoped>
-.ai-window { height: 100%; min-height: 0; display: flex; background: var(--dp-surface-raised); }
-.ai-window__rail { width: 260px; min-width: 180px; display: flex; flex-direction: column; border-right: 1px solid var(--dp-border); background: var(--dp-chrome-raised); }
-.ai-window__rail--collapsed { width: 48px; min-width: 48px; }
+.ai-space { width: 100%; height: 100%; min-height: 0; display: flex; overflow: hidden; }
+.ai-window__card { min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface); }
+.ai-window__rail { flex-grow: 0; flex-shrink: 0; display: flex; flex-direction: column; }
+.ai-window__rail--collapsed { min-width: 48px; }
 .ai-window__rail-head, .ai-window__rail-foot { flex: none; display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-2); }
 .ai-window__rail-head > :first-child, .ai-window__rail-foot > :first-child { flex: 1; }
 .ai-window__rail-foot { flex-direction: column; align-items: stretch; border-top: 1px solid var(--dp-border); }

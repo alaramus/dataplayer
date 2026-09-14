@@ -2,12 +2,17 @@ import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
 
-test("opens, restores and manages the application agent window", async ({ page }) => {
+test("opens, restores and manages the application agent space", async ({ page }) => {
   await login(page)
 
-  await expect(page.getByTestId("open-ai")).toBeVisible()
-  await page.getByTestId("open-ai").click()
-  await expect(page.getByTestId("window-application-agent")).toBeVisible()
+  await page.getByTestId("space-ai").click()
+  await expect(page.getByTestId("space-ai")).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByTestId("ai-space")).toBeVisible()
+  await expect(page.getByTestId("ai-space").getByTestId("workspace-separator")).toBeVisible()
+  await expect(page.getByTestId("ai-rail")).toBeVisible()
+  await expect(page.getByTestId("ai-conversation-card")).toBeVisible()
+  const railBackground = await page.getByTestId("ai-rail").evaluate((element) => getComputedStyle(element).backgroundColor)
+  await expect(page.getByTestId("ai-conversation-card")).toHaveCSS("background-color", railBackground)
 
   await page.getByTestId("ai-collapse-history").click()
   await expect(page.getByTestId("ai-history")).toHaveCount(0)
@@ -27,7 +32,13 @@ test("opens, restores and manages the application agent window", async ({ page }
   await expect(active).toContainText("Playwright agent chat")
 
   await page.reload()
-  await expect(page.getByTestId("window-application-agent")).toBeVisible()
+  await expect(page.getByTestId("space-ai")).toHaveAttribute("aria-pressed", "true")
+  await expect(page.getByTestId("ai-space")).toBeVisible()
+  await expect(page.getByTestId(`ai-chat-row-${conversationId ?? ""}`)).toHaveAttribute("data-active", "true")
+
+  await page.getByTestId("space-data").click()
+  await expect(page.getByTestId("ai-space")).toHaveCount(0)
+  await page.getByTestId("space-ai").click()
   await expect(page.getByTestId(`ai-chat-row-${conversationId ?? ""}`)).toHaveAttribute("data-active", "true")
 
   await page.getByTestId("ai-open-settings").click()

@@ -25,7 +25,7 @@ an empty file, the first capability added for the agent's sake and offered to
 people as well (D133). What goes into the file is written by in-place editing
 (D48).
 
-The agent answers without tools in one floating chat window. A person stores a
+The agent answers without tools in the AI application space. A person stores a
 key per provider and chooses a model from
 `app/ai/models.json`; a message starts a run, whose Thinking step, reasoning and
 answer stream on the `ai.runs` topic and are written to the transcript when the
@@ -59,13 +59,13 @@ backend/app/prepare_checkpoints.py                 LangGraph's tables, at presta
 
 ```
 frontend/src/features/ai/
-├── AiWindow.vue        the two columns, history and settings
+├── AiSpace.vue         the two columns, history and settings
 ├── AiConversation.vue  transcript, steps, Stop, copy and listen
 ├── AiSettings.vue      provider keys, model and confirmations
 ├── ChatMarkdown.vue    the D50 renderer in streaming mode
 ├── api.ts              vue-query ownership of server state
 ├── streaming.ts        open-fence protection and speech text
-└── state.ts            the window and selected-chat restoration
+└── state.ts            selected-chat restoration; the shared space store remembers AI
 ```
 
 ```
@@ -225,14 +225,17 @@ back inside a tool loop, and a test per provider proves it.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)
 
-## D141. One chat window holds the conversations and the agent's settings
+## D141. One application space holds the conversations and the agent's settings
 
-One floating window, opened by the first button at the right of the application
-header. Left column: New chat, history, Settings; settings replace the
-conversation on the right. Keys, Model and Confirmations live here, not on
+AI is the third application space beside Data and Dashboards, reached from the
+status-bar space switch. Data panels remain mounted,
+and detached panels remain visible, by the same covering contract as
+Dashboards. Left column: New chat, history, Settings; settings replace the
+conversation on the right. The two cards have the ordinary draggable workspace
+separator; the left card is remembered, collapsible and capped at 40% of the
+space. Keys, Model and Confirmations live here, not on
 `/preferences`. Titles are written by the chosen model and renamable. A conversation is
 kept until deleted, one at a time or all at once, and its content is encrypted
-at rest under `AI_CONTENT_KEY`. No editing, tags, rewind, branches or search; attachments
-later.
+at rest under `AI_CONTENT_KEY`. No editing, tags, rewind, branches or search.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)
