@@ -2,10 +2,21 @@
 import { computed } from "vue"
 
 import AppTooltip from "./AppTooltip.vue"
+import AppIconButton from "./AppIconButton.vue"
 
 export interface SelectOption {
   label: string
   value: string | number
+  /** A non-selectable heading separating related choices. */
+  group?: boolean
+  /** A quiet second line explaining a choice. */
+  description?: string
+  /** Meaning shown before the choice. */
+  icon?: string
+  /** An action belonging to this choice rather than selecting it. */
+  actionIcon?: string
+  actionLabel?: string
+  actionActive?: boolean
 }
 
 const props = withDefaults(
@@ -61,7 +72,10 @@ const props = withDefaults(
   }
 )
 
-const emit = defineEmits<{ "update:modelValue": [value: unknown] }>()
+const emit = defineEmits<{
+  "update:modelValue": [value: unknown]
+  "optionAction": [option: SelectOption]
+}>()
 
 // A caller passes either plain strings or {label, value} pairs, and the four
 // Quasar props that distinguish them are derived here rather than repeated at
@@ -115,6 +129,7 @@ const summary = computed(() => {
     :hint="hint"
     :option-value="labelled ? 'value' : undefined"
     :option-label="labelled ? 'label' : undefined"
+    :option-disable="labelled ? 'group' : undefined"
     :emit-value="labelled"
     :map-options="labelled"
     :loading="loading"
@@ -128,6 +143,31 @@ const summary = computed(() => {
     :error-message="error"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template
+      v-if="labelled && options.some((option) => typeof option === 'object' && (option.group || option.description || option.icon || option.actionIcon))"
+      #option="scope"
+    >
+      <q-item v-if="scope.opt.group" v-bind="scope.itemProps">
+        <q-item-section><q-item-label header>{{ scope.opt.label }}</q-item-label></q-item-section>
+      </q-item>
+      <q-item v-else v-bind="scope.itemProps">
+        <q-item-section v-if="scope.opt.icon" avatar>
+          <q-icon :name="scope.opt.icon" :color="scope.opt.actionActive ? 'positive' : undefined" />
+        </q-item-section>
+        <q-item-section>
+          <q-item-label>{{ scope.opt.label }}</q-item-label>
+          <q-item-label v-if="scope.opt.description" caption>{{ scope.opt.description }}</q-item-label>
+        </q-item-section>
+        <q-item-section v-if="scope.opt.actionIcon && scope.opt.actionLabel" side>
+          <AppIconButton
+            :icon="scope.opt.actionIcon"
+            :tooltip="scope.opt.actionLabel"
+            :active="scope.opt.actionActive"
+            @click.stop.prevent="emit('optionAction', scope.opt)"
+          />
+        </q-item-section>
+      </q-item>
+    </template>
     <!-- One line for several choices, where the field stands in a toolbar.
          See `summary` above. -->
     <template

@@ -1,5 +1,5 @@
 import { mount } from "@vue/test-utils"
-import { Quasar } from "quasar"
+import { QBtn, Quasar } from "quasar"
 import { describe, expect, it } from "vitest"
 
 import AppIconButton from "./AppIconButton.vue"
@@ -49,6 +49,15 @@ describe("AppIconButton", () => {
 
     expect(wrapper.get("button").attributes("data-testid")).toBe("remove")
     expect(wrapper.get(".q-icon").text()).toBe("delete")
+  })
+
+  it("shows an active state without the caller choosing a colour", () => {
+    const wrapper = mount(AppIconButton, {
+      global: { plugins: [Quasar] },
+      props: { icon: "key", tooltip: "Configured", active: true },
+    })
+
+    expect(wrapper.getComponent(QBtn).props("color")).toBe("positive")
   })
 
   it("requires a tooltip, because an icon names nothing on its own", () => {

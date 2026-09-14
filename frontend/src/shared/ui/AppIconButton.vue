@@ -14,6 +14,8 @@ const props = withDefaults(
     disable?: boolean
     /** A round trip is under way: the icon gives way to a spinner. */
     loading?: boolean
+    /** The command represents a configured or enabled state. */
+    active?: boolean
     /**
      * A button inside a cell rather than in a toolbar.
      *
@@ -23,7 +25,7 @@ const props = withDefaults(
      */
     compact?: boolean
   }>(),
-  { variant: "quiet", disable: false, loading: false, compact: false }
+  { variant: "quiet", disable: false, loading: false, active: false, compact: false }
 )
 
 const look = computed(() => buttonLook(props.variant))
@@ -55,7 +57,7 @@ defineOptions({ inheritAttrs: false })
       flat
       disable
       :size="compact ? 'xs' : undefined"
-      :color="look.color"
+      :color="active ? 'positive' : look.color"
       :icon="icon"
       :loading="loading"
     />
@@ -68,7 +70,7 @@ defineOptions({ inheritAttrs: false })
     dense
     flat
     :size="compact ? 'xs' : undefined"
-    :color="look.color"
+    :color="active ? 'positive' : look.color"
     :icon="icon"
     :loading="loading"
   >

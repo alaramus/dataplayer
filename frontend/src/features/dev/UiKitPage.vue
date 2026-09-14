@@ -82,6 +82,7 @@ const secret = ref("")
 const tabColor = ref<string | null>(null)
 const broken = ref<number | null>(null)
 const choice = ref<string | null>("postgres")
+const groupedChoice = ref<string | null>("claude")
 const plain = ref("prefer")
 const several = ref<string[]>(["public"])
 const flag = ref(true)
@@ -220,6 +221,11 @@ function removeSavedEntry(name: string) {
           <AppIconButton
             icon="edit"
             tooltip="Edit"
+          />
+          <AppIconButton
+            icon="key"
+            tooltip="Configured"
+            active
           />
           <AppIconButton
             icon="delete"
@@ -364,6 +370,17 @@ function removeSavedEntry(name: string) {
             { label: 'PostgreSQL', value: 'postgres' },
             { label: 'Files', value: 'file' },
           ]"
+        />
+        <AppSelect
+          v-model="groupedChoice"
+          label="Grouped choices with actions"
+          :options="[
+            { label: 'Anthropic', value: 'provider:anthropic', group: true },
+            { label: 'Claude', value: 'claude', description: 'API key set', actionIcon: 'key', actionLabel: 'Manage Anthropic API key', actionActive: true },
+            { label: 'OpenAI', value: 'provider:openai', group: true },
+            { label: 'GPT', value: 'gpt', description: 'API key required', actionIcon: 'key_off', actionLabel: 'Manage OpenAI API key' },
+          ]"
+          @option-action="toast.info($event.actionLabel ?? 'Option action')"
         />
         <AppSelect
           v-model="plain"

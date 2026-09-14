@@ -37,6 +37,17 @@ describe("AppSelect", () => {
     expect(select.props("emitValue")).toBe(false)
   })
 
+  it("treats group headings as non-selectable options", () => {
+    const select = mountSelect({
+      options: [
+        { label: "Anthropic", value: "provider:anthropic", group: true },
+        { label: "Claude", value: "claude", description: "API key required" },
+      ],
+    }).getComponent(QSelect)
+
+    expect(select.props("optionDisable")).toBe("group")
+  })
+
   it("shows the selected string option", () => {
     expect(mountSelect({ modelValue: "prefer", options: ["disable", "prefer"] }).text()).toContain(
       "prefer"

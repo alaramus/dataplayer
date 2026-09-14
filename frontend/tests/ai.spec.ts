@@ -35,6 +35,14 @@ test("opens, restores and manages the application agent window", async ({ page }
   await expect(page.getByTestId("ai-model")).toBeVisible()
   await expect(page.getByTestId("ai-allow-all")).toBeVisible()
 
+  await page.getByTestId("ai-model").click()
+  const providerKey = page.getByRole("button", { name: /Manage .* API key/ }).first()
+  await expect(providerKey).toBeVisible()
+  await providerKey.click()
+  await expect(page.getByTestId("ai-key-dialog")).toBeVisible()
+  await expect(page.getByTestId("ai-provider-key")).toBeVisible()
+  await page.getByTestId("ai-key-dialog").getByRole("button", { name: "Close" }).click()
+
   const row = page.getByTestId(`ai-chat-row-${conversationId ?? ""}`)
   await row.getByRole("button", { name: "Delete chat" }).click()
   await page.getByRole("dialog", { name: "Delete chat?" }).getByRole("button", { name: "Delete" }).click()

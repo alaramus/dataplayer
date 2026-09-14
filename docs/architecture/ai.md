@@ -34,6 +34,11 @@ answer ends. Stop keeps what was written, an answer is stopped after
 The first line of the first message is a conversation's title until the chosen
 model writes one, unless the person renamed it.
 
+The model selector groups models by provider. Every model row shows whether
+that provider's one key is configured; its key button opens the same provider
+key window, so setting an Anthropic key, for example, enables every Anthropic
+model rather than attaching a secret to one model.
+
 ```
 backend/app/ai/
 ├── models.json      the curated models, validated at startup and in CI
