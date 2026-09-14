@@ -19,7 +19,7 @@
   --dp-status-height: 24px;
   --dp-tab-strip-height: 32px;
   --dp-toolbar-height: 40px;
-  --dp-workspace-inset: 6px;
+  --dp-workspace-inset: 4px;
   --dp-shell-side-width: clamp(8px, 1vw, 16px);
   /* Both edges of a workspace card together. They are laid out like anything
      else in the row, so a section that is not drawn stops costing them, and
