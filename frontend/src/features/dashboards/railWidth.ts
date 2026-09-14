@@ -7,6 +7,9 @@
  * both cannot hold.
  */
 
+// The width a pushed-aside workspace column keeps (D12).
+export { COLLAPSED_PX as RAIL_NARROW_PX } from "@/shared/workspace/model"
+
 export const RAIL_DEFAULT_PX = 260
 export const RAIL_MIN_PX = 200
 export const RAIL_MAX_SHARE = 0.4
@@ -14,6 +17,11 @@ export const RAIL_MAX_SHARE = 0.4
 export function clampRailWidth(width: number, spaceWidth: number): number {
   const ceiling = Math.max(RAIL_MIN_PX, Math.floor(spaceWidth * RAIL_MAX_SHARE))
   return Math.round(Math.min(Math.max(width, RAIL_MIN_PX), ceiling))
+}
+
+/** Whether the rail was left pushed aside. Anything else stored reads as not. */
+export function parseRailNarrow(stored: string | null): boolean {
+  return stored === "narrow"
 }
 
 /** A stored width, or the default for anything that is not one. */

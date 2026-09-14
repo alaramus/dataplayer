@@ -18,7 +18,8 @@ import {
 import { catalogTree, indexCatalog } from "./catalog"
 import DashboardView from "./DashboardView.vue"
 import { takeDashboardIntent } from "./intent"
-import { clampRailWidth, parseRailWidth } from "./railWidth"
+import DashboardsRailNarrow from "./DashboardsRailNarrow.vue"
+import { clampRailWidth, parseRailNarrow, parseRailWidth, RAIL_NARROW_PX } from "./railWidth"
 import { splitByOwner } from "./sharing"
 import StoreDialog from "./StoreDialog.vue"
 import StoreSetup from "./StoreSetup.vue"
@@ -101,21 +102,34 @@ function afterDelete() {
 }
 
 const RAIL_WIDTH_KEY = "dataplayer-dashboards-rail"
+const RAIL_NARROW_KEY = "dataplayer-dashboards-rail-narrow"
 
-function storedRailWidth(): number {
+function stored(key: string): string | null {
   try {
-    return parseRailWidth(localStorage.getItem(serverStorageKey(RAIL_WIDTH_KEY)))
+    return localStorage.getItem(serverStorageKey(key))
   } catch {
-    return parseRailWidth(null)
+    return null
+  }
+}
+
+function store(key: string, value: string) {
+  try {
+    localStorage.setItem(serverStorageKey(key), value)
+  } catch {
+    // Like the dashboard last open: a courtesy, not state.
   }
 }
 
 const spaceElement = ref<HTMLElement | null>(null)
 const spaceWidth = ref(0)
-const railWidth = ref(storedRailWidth())
+const railWidth = ref(parseRailWidth(stored(RAIL_WIDTH_KEY)))
+const railNarrow = ref(parseRailNarrow(stored(RAIL_NARROW_KEY)))
 // Held to the space it is drawn in, so a window made narrower narrows the
-// rail too; what is stored is what was dragged to.
-const shownRailWidth = computed(() => clampRailWidth(railWidth.value, spaceWidth.value))
+// rail too; what is stored is what was dragged to. Pushed aside, it keeps that
+// width for when it comes back.
+const shownRailWidth = computed(() =>
+  railNarrow.value ? RAIL_NARROW_PX : clampRailWidth(railWidth.value, spaceWidth.value)
+)
 
 const observer = new ResizeObserver((entries) => {
   const entry = entries[0]
@@ -129,15 +143,21 @@ onBeforeUnmount(() => {
 })
 
 function resizeRail(deltaPx: number) {
+  if (railNarrow.value) return
   railWidth.value = clampRailWidth(shownRailWidth.value + deltaPx, spaceWidth.value)
 }
 
+// A press on the gap beside a pushed-aside rail brings it back, as the
+// border of a collapsed workspace column does.
+function pressGap() {
+  if (railNarrow.value) railNarrow.value = false
+}
+
 watch(railWidth, (width) => {
-  try {
-    localStorage.setItem(serverStorageKey(RAIL_WIDTH_KEY), String(width))
-  } catch {
-    // Like the dashboard last open: a courtesy, not state.
-  }
+  store(RAIL_WIDTH_KEY, String(width))
+})
+watch(railNarrow, (narrow) => {
+  store(RAIL_NARROW_KEY, narrow ? "narrow" : "wide")
 })
 </script>
 
@@ -180,98 +200,122 @@ watch(railWidth, (width) => {
         :style="{ flexBasis: `${String(shownRailWidth)}px` }"
         data-testid="dashboards-rail"
       >
-        <div class="dashboards__heading">
-          <span>Dashboards</span>
-          <AppButton
-            variant="quiet"
-            size="sm"
-            icon="add"
-            label="New"
-            :loading="creating.isPending.value"
-            data-testid="dashboard-new"
-            @click="createDashboard"
-          />
-        </div>
-        <div class="dashboards__list">
-          <AppButton
-            v-for="dashboard in listed.own"
-            :key="dashboard.id"
-            :variant="dashboard.id === current?.id ? 'secondary' : 'quiet'"
-            layout="navigation"
-            size="sm"
-            icon="dashboard"
-            :label="dashboard.name"
-            :data-testid="`dashboard-${dashboard.name}`"
-            @click="selectedId = dashboard.id"
-          />
-        </div>
-
-        <template v-if="listed.shared.length > 0">
-          <div class="dashboards__heading dashboards__heading--divided">
-            <span>Shared with you</span>
+        <DashboardsRailNarrow
+          v-if="railNarrow"
+          :own="listed.own"
+          :shared="listed.shared"
+          :current-id="current?.id ?? null"
+          :may-set-up="status.data.value?.may_set_up === true"
+          :creating="creating.isPending.value"
+          @expand="railNarrow = false"
+          @create="createDashboard"
+          @select="(id) => (selectedId = id)"
+          @sources="agentsOpen = true"
+          @store="storeOpen = true"
+        />
+        <template v-else>
+          <div class="dashboards__heading">
+            <span>Dashboards</span>
+            <span class="dashboards__actions">
+              <AppButton
+                variant="quiet"
+                size="sm"
+                icon="add"
+                label="New"
+                :loading="creating.isPending.value"
+                data-testid="dashboard-new"
+                @click="createDashboard"
+              />
+              <AppIconButton
+                icon="chevron_left"
+                tooltip="Hide"
+                data-testid="dashboards-collapse"
+                @click="railNarrow = true"
+              />
+            </span>
           </div>
-          <div
-            class="dashboards__list"
-            data-testid="dashboards-shared"
-          >
+          <div class="dashboards__list">
             <AppButton
-              v-for="dashboard in listed.shared"
+              v-for="dashboard in listed.own"
               :key="dashboard.id"
               :variant="dashboard.id === current?.id ? 'secondary' : 'quiet'"
               layout="navigation"
               size="sm"
-              icon="group"
+              icon="dashboard"
               :label="dashboard.name"
               :data-testid="`dashboard-${dashboard.name}`"
               @click="selectedId = dashboard.id"
+            />
+          </div>
+
+          <template v-if="listed.shared.length > 0">
+            <div class="dashboards__heading dashboards__heading--divided">
+              <span>Shared with you</span>
+            </div>
+            <div
+              class="dashboards__list"
+              data-testid="dashboards-shared"
             >
-              <AppTooltip>Shared by {{ dashboard.owner ?? "somebody" }}</AppTooltip>
-            </AppButton>
+              <AppButton
+                v-for="dashboard in listed.shared"
+                :key="dashboard.id"
+                :variant="dashboard.id === current?.id ? 'secondary' : 'quiet'"
+                layout="navigation"
+                size="sm"
+                icon="group"
+                :label="dashboard.name"
+                :data-testid="`dashboard-${dashboard.name}`"
+                @click="selectedId = dashboard.id"
+              >
+                <AppTooltip>Shared by {{ dashboard.owner ?? "somebody" }}</AppTooltip>
+              </AppButton>
+            </div>
+          </template>
+
+          <div class="dashboards__heading dashboards__heading--divided">
+            <span>Sources</span>
+            <span>
+              <AppIconButton
+                v-if="status.data.value?.may_set_up"
+                icon="storage"
+                tooltip="The metrics store"
+                data-testid="store-open"
+                @click="storeOpen = true"
+              />
+              <AppButton
+                variant="quiet"
+                size="sm"
+                icon="sensors"
+                label="Sources"
+                data-testid="agents-open"
+                @click="agentsOpen = true"
+              />
+            </span>
+          </div>
+          <div class="dashboards__sources">
+            <AppEmptyState
+              v-if="sources.length === 0"
+              text="Nothing reports yet"
+            />
+            <AppTree
+              v-else
+              v-model:expanded="sourcesExpanded"
+              :nodes="sources"
+              :selected="null"
+              node-key="key"
+            >
+              <template #default-header="{ node }">
+                <span>{{ node.label }}</span>
+              </template>
+            </AppTree>
           </div>
         </template>
-
-        <div class="dashboards__heading dashboards__heading--divided">
-          <span>Sources</span>
-          <span>
-            <AppIconButton
-              v-if="status.data.value?.may_set_up"
-              icon="storage"
-              tooltip="The metrics store"
-              data-testid="store-open"
-              @click="storeOpen = true"
-            />
-            <AppButton
-              variant="quiet"
-              size="sm"
-              icon="sensors"
-              label="Sources"
-              data-testid="agents-open"
-              @click="agentsOpen = true"
-            />
-          </span>
-        </div>
-        <div class="dashboards__sources">
-          <AppEmptyState
-            v-if="sources.length === 0"
-            text="Nothing reports yet"
-          />
-          <AppTree
-            v-else
-            v-model:expanded="sourcesExpanded"
-            :nodes="sources"
-            :selected="null"
-            node-key="key"
-          >
-            <template #default-header="{ node }">
-              <span>{{ node.label }}</span>
-            </template>
-          </AppTree>
-        </div>
       </aside>
 
       <WorkspaceSeparator
         direction="row"
         @move="resizeRail"
+        @toggle="pressGap"
       />
 
       <section class="dashboards__card dashboards__card--main">
@@ -353,6 +397,11 @@ watch(railWidth, (width) => {
   min-height: var(--dp-tab-strip-height);
   padding: 0 var(--dp-space-1) 0 var(--dp-space-2);
   color: var(--dp-text-muted);
+}
+
+.dashboards__actions {
+  display: flex;
+  align-items: center;
 }
 
 .dashboards__heading--divided {

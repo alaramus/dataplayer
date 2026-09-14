@@ -120,6 +120,7 @@ frontend/src/
     ├── WidgetBody.vue            the widget of a type, on the grid or in a window
     ├── TimeseriesWidget.vue, StatWidget.vue, ProcessesWidget.vue, SeriesChart.vue
     ├── WidgetWindow.vue          one widget in a floating window
+    ├── DashboardsRailNarrow.vue  the rail pushed aside to its icons
     ├── AddWidgetsDialog.vue, AgentsDialog.vue, StoreDialog.vue
     ├── DashboardShareDialog.vue  who may see a dashboard, and its link
     ├── DashboardLinkPage.vue     the /dashboards/:id address
@@ -201,9 +202,13 @@ header, a column brought back from the bar.
 
 Known deviations:
 
-- **The rail is resized, not put aside.** The gap beside it drags it from
-  200 pixels to two fifths of the space, so the dashboard stays the wider
-  card; the width is kept per browser and a narrower window narrows it.
+- **The rail is resized and pushed aside the way a workspace column is, but
+  it is not a section of the workspace.** The gap beside it drags it from 200
+  pixels to two fifths of the space, so the dashboard stays the wider card; its
+  chevron narrows it to forty pixels of icons — the dashboards, New, Sources
+  and the store — and the chevron or a press on the gap brings it back. Width
+  and state are kept per browser, and a narrower window narrows it. It cannot
+  be put on the bar or moved to the other side.
 - **A widget in a window is a copy** taken when it was opened, with the range
   and interval of that moment. Moving or removing it on the dashboard does not
   reach the window, a sort chosen in the window is not saved, and like every

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { clampRailWidth, parseRailWidth, RAIL_DEFAULT_PX, RAIL_MIN_PX } from "./railWidth"
+import { clampRailWidth, parseRailNarrow, parseRailWidth, RAIL_DEFAULT_PX, RAIL_MIN_PX } from "./railWidth"
 
 describe("the width of the dashboards rail", () => {
   it("keeps a width that fits", () => {
@@ -24,5 +24,11 @@ describe("the width of the dashboards rail", () => {
     expect(parseRailWidth(null)).toBe(RAIL_DEFAULT_PX)
     expect(parseRailWidth("wide")).toBe(RAIL_DEFAULT_PX)
     expect(parseRailWidth("-5")).toBe(RAIL_DEFAULT_PX)
+  })
+
+  it("is pushed aside only when that is what was stored", () => {
+    expect(parseRailNarrow("narrow")).toBe(true)
+    expect(parseRailNarrow("wide")).toBe(false)
+    expect(parseRailNarrow(null)).toBe(false)
   })
 })

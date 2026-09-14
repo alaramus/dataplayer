@@ -447,6 +447,43 @@ test("the rail is dragged wider and narrower by the gap beside it, never past tw
   expect(await widthOf()).toBe(chosen)
 })
 
+test("the rail is pushed aside to its icons and brought back by its chevron or its gap, and stays as it was left", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await login(page)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  const rail = page.getByTestId("dashboards-rail")
+  const wide = Math.round((await rail.boundingBox())?.width ?? 0)
+  const dashboardName = `e2e-narrow-${Date.now()}`
+  await page.getByTestId("dashboard-new").click()
+  await page.getByRole("button", { name: "Rename this dashboard" }).click()
+  await page.getByTestId("dashboard-rename-input").fill(dashboardName)
+  await page.getByTestId("dashboard-rename-input").press("Enter")
+  await expect(page.getByTestId(`dashboard-${dashboardName}`)).toBeVisible()
+
+  await page.getByTestId("dashboards-collapse").click()
+  await expect(page.getByTestId("dashboards-rail-narrow")).toBeVisible()
+  expect(Math.round((await rail.boundingBox())?.width ?? 0)).toBe(40)
+  // What the wide rail offers is still there, as icons.
+  await expect(page.getByTestId(`dashboard-narrow-${dashboardName}`)).toBeVisible()
+  await expect(page.getByTestId("agents-open")).toBeVisible()
+  await page.reload()
+  await expect(page.getByTestId("dashboards-rail-narrow")).toBeVisible()
+
+  await page.getByTestId("dashboards-expand").click()
+  await expect(page.getByTestId("dashboards-rail-narrow")).toHaveCount(0)
+  expect(Math.round((await rail.boundingBox())?.width ?? 0)).toBe(wide)
+
+  // A press on the gap beside the narrow rail brings it back too.
+  await page.getByTestId("dashboards-collapse").click()
+  await page.getByTestId("dashboards-space").getByTestId("workspace-separator").click()
+  await expect(page.getByTestId(`dashboard-${dashboardName}`)).toBeVisible()
+
+  await page.getByTestId(`dashboard-${dashboardName}`).click()
+  await page.getByRole("button", { name: "Delete this dashboard" }).click()
+  await page.getByTestId("confirm-accept").click()
+  await expect(page.getByTestId(`dashboard-${dashboardName}`)).toHaveCount(0)
+})
+
 test("a superuser reads what the metrics store keeps, and is warned before removing it", async ({ page }) => {
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
