@@ -4440,7 +4440,7 @@ export class MetricsService {
   /**
    * Rotate Agent Key
    *
-   * Issue a new key. Packets under the old one are dropped from now on.
+   * Issue a new key. Datagrams signed with the old one are dropped from now on.
    */
   public static rotateAgentKey<ThrowOnError extends boolean = true>(
     options: Options<metricsRotateAgentKeyData, ThrowOnError>

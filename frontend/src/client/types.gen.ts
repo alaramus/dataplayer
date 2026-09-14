@@ -2110,6 +2110,10 @@ export type DashboardPublic = {
    */
   name: string
   /**
+   * Color
+   */
+  color?: string | null
+  /**
    * Version
    */
   version: number
@@ -2154,6 +2158,10 @@ export type DashboardSave = {
    * Name
    */
   name: string
+  /**
+   * Color
+   */
+  color?: string | null
   /**
    * Version
    */

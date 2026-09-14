@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
 import { AppButton, AppEmptyState, AppIconButton, AppSpinner, AppTooltip, AppTree, useToast } from "@/shared/ui"
+import { panelColorStyle } from "@/shared/ui/panelColor"
 import { WorkspaceSeparator } from "@/shared/workspace"
 
 import AgentsDialog from "./AgentsDialog.vue"
@@ -19,6 +20,7 @@ import { catalogTree, indexCatalog } from "./catalog"
 import DashboardView from "./DashboardView.vue"
 import { takeDashboardIntent } from "./intent"
 import DashboardsRailNarrow from "./DashboardsRailNarrow.vue"
+import { railEntry } from "./railEntry"
 import { clampRailWidth, parseRailNarrow, parseRailWidth, RAIL_NARROW_PX } from "./railWidth"
 import { splitByOwner } from "./sharing"
 import StoreDialog from "./StoreDialog.vue"
@@ -238,7 +240,12 @@ watch(railNarrow, (narrow) => {
             <AppButton
               v-for="dashboard in listed.own"
               :key="dashboard.id"
-              :variant="dashboard.id === current?.id ? 'secondary' : 'quiet'"
+              :variant="railEntry(dashboard.color, dashboard.id === current?.id).variant"
+              :class="{
+                'dashboards__entry--tinted': railEntry(dashboard.color, dashboard.id === current?.id).tinted,
+                'dashboards__entry--filled': railEntry(dashboard.color, dashboard.id === current?.id).filled,
+              }"
+              :style="panelColorStyle(dashboard.color)"
               layout="navigation"
               size="sm"
               icon="dashboard"
@@ -259,7 +266,12 @@ watch(railNarrow, (narrow) => {
               <AppButton
                 v-for="dashboard in listed.shared"
                 :key="dashboard.id"
-                :variant="dashboard.id === current?.id ? 'secondary' : 'quiet'"
+                :variant="railEntry(dashboard.color, dashboard.id === current?.id).variant"
+                :class="{
+                  'dashboards__entry--tinted': railEntry(dashboard.color, dashboard.id === current?.id).tinted,
+                  'dashboards__entry--filled': railEntry(dashboard.color, dashboard.id === current?.id).filled,
+                }"
+                :style="panelColorStyle(dashboard.color)"
                 layout="navigation"
                 size="sm"
                 icon="group"
@@ -402,6 +414,16 @@ watch(railNarrow, (narrow) => {
 .dashboards__actions {
   display: flex;
   align-items: center;
+}
+
+/* A dashboard's own colour, as a connection's row carries it (railEntry.ts). */
+.dashboards__entry--tinted {
+  background: var(--dp-panel-quiet);
+}
+
+.dashboards__entry--filled {
+  background: var(--dp-panel-background);
+  color: var(--dp-panel-foreground);
 }
 
 .dashboards__heading--divided {

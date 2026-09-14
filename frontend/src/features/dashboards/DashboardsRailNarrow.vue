@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { DashboardPublic } from "@/client"
 import { AppIconButton } from "@/shared/ui"
+import { panelColorStyle } from "@/shared/ui/panelColor"
+
+import { railEntry } from "./railEntry"
 
 /**
  * The dashboards rail pushed aside to forty pixels, the way the column of
@@ -49,7 +52,12 @@ const emit = defineEmits<{
       v-for="dashboard in own"
       :key="dashboard.id"
       class="rail-narrow__slot"
-      :class="{ 'rail-narrow__slot--selected': dashboard.id === currentId }"
+      :class="{
+        'rail-narrow__slot--selected': railEntry(dashboard.color, dashboard.id === currentId).variant === 'secondary',
+        'rail-narrow__slot--tinted': railEntry(dashboard.color, dashboard.id === currentId).tinted,
+        'rail-narrow__slot--filled': railEntry(dashboard.color, dashboard.id === currentId).filled,
+      }"
+      :style="panelColorStyle(dashboard.color)"
     >
       <AppIconButton
         icon="dashboard"
@@ -66,7 +74,12 @@ const emit = defineEmits<{
       v-for="dashboard in shared"
       :key="dashboard.id"
       class="rail-narrow__slot"
-      :class="{ 'rail-narrow__slot--selected': dashboard.id === currentId }"
+      :class="{
+        'rail-narrow__slot--selected': railEntry(dashboard.color, dashboard.id === currentId).variant === 'secondary',
+        'rail-narrow__slot--tinted': railEntry(dashboard.color, dashboard.id === currentId).tinted,
+        'rail-narrow__slot--filled': railEntry(dashboard.color, dashboard.id === currentId).filled,
+      }"
+      :style="panelColorStyle(dashboard.color)"
     >
       <AppIconButton
         icon="group"
@@ -121,5 +134,15 @@ const emit = defineEmits<{
    connections draws, is the colour of the card itself in the dark theme. */
 .rail-narrow__slot--selected {
   color: var(--dp-action-secondary);
+}
+
+/* A dashboard's own colour, as in the wide rail (railEntry.ts). */
+.rail-narrow__slot--tinted {
+  background: var(--dp-panel-quiet);
+}
+
+.rail-narrow__slot--filled {
+  background: var(--dp-panel-background);
+  color: var(--dp-panel-foreground);
 }
 </style>

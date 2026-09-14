@@ -5,7 +5,8 @@ import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } 
 
 import type { DashboardPublic, MetricsCatalog } from "@/client"
 import { messageOf } from "@/shared/api/errors"
-import { AppButton, AppIconButton, AppInput, AppSelect, useConfirm, useToast } from "@/shared/ui"
+import { AppButton, AppColorPicker, AppIconButton, AppInput, AppSelect, useConfirm, useToast } from "@/shared/ui"
+import { panelColorStyle } from "@/shared/ui/panelColor"
 import { useWindowManager, WindowDialog } from "@/shared/windows"
 
 import AddWidgetsDialog from "./AddWidgetsDialog.vue"
@@ -60,6 +61,7 @@ const deleting = useDeleteDashboard()
 const windows = useWindowManager()
 
 const name = ref(props.dashboard.name)
+const color = ref<string | null>(props.dashboard.color ?? null)
 const version = ref(props.dashboard.version)
 const widgets = ref<Widget[]>([...(props.dashboard.widgets ?? [])])
 const range = ref<RangeSeconds>(props.dashboard.options?.range_seconds ?? 900)
@@ -93,6 +95,7 @@ async function save() {
       id: props.dashboard.id,
       body: {
         name: name.value,
+        color: color.value,
         version: version.value,
         options: { range_seconds: range.value, refresh_seconds: refresh.value },
         widgets: widgets.value,
@@ -115,6 +118,7 @@ watch(
   (next) => {
     if (next === version.value || pending) return
     name.value = props.dashboard.name
+    color.value = props.dashboard.color ?? null
     version.value = next
     widgets.value = [...(props.dashboard.widgets ?? [])]
     range.value = props.dashboard.options?.range_seconds ?? 900
@@ -199,6 +203,11 @@ function chooseRefresh(value: unknown) {
   schedule()
 }
 
+function chooseColor(value: string | null) {
+  color.value = value
+  schedule()
+}
+
 function startRename() {
   renameDraft.value = name.value
   renameOpen.value = true
@@ -250,6 +259,8 @@ onBeforeUnmount(() => {
     <div class="dashboard-view__toolbar">
       <span
         class="dashboard-view__name"
+        :class="{ 'dashboard-view__name--colored': color !== null }"
+        :style="panelColorStyle(color)"
         data-testid="dashboard-name"
       >{{ name }}</span>
       <span
@@ -262,6 +273,13 @@ onBeforeUnmount(() => {
         icon="edit"
         tooltip="Rename this dashboard"
         @click="startRename"
+      />
+      <AppColorPicker
+        v-if="editable"
+        :model-value="color"
+        label="Dashboard color"
+        data-testid="dashboard-color"
+        @update:model-value="chooseColor"
       />
       <AppIconButton
         icon="share"
@@ -414,6 +432,15 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Filled as a connection's tab is with its colour, and written in the colour
+   that stays readable on it. */
+.dashboard-view__name--colored {
+  padding: 0 var(--dp-space-2);
+  border-radius: var(--dp-radius-control);
+  background: var(--dp-panel-background);
+  color: var(--dp-panel-foreground);
 }
 
 .dashboard-view__shared {

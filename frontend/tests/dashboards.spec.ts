@@ -489,6 +489,62 @@ test("the rail is pushed aside to its icons and brought back by its chevron or i
   await expect(page.getByTestId(`dashboard-${dashboardName}`)).toHaveCount(0)
 })
 
+test("a dashboard takes a colour of its own, which the rail and its name carry, wide and narrow", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await login(page)
+  test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
+  const stamp = Date.now()
+  const coloured = `e2e-coloured-${stamp}`
+  const plain = `e2e-plain-${stamp}`
+  const create = async (name: string) => {
+    await page.getByTestId("dashboard-new").click()
+    await page.getByRole("button", { name: "Rename this dashboard" }).click()
+    await page.getByTestId("dashboard-rename-input").fill(name)
+    await page.getByTestId("dashboard-rename-input").press("Enter")
+    await expect(page.getByTestId(`dashboard-${name}`)).toBeVisible()
+  }
+  const blue = "rgb(36, 106, 188)"
+
+  await create(coloured)
+  await page.getByTestId("dashboard-color").click()
+  const picker = page.getByRole("dialog", { name: "Dashboard color", exact: true })
+  await picker.getByRole("textbox").fill("#246abc")
+  await page.keyboard.press("Escape")
+  await expect(picker).toBeHidden()
+  await expect(page.getByTestId("dashboard-name")).toHaveCSS("background-color", blue)
+  await expect(page.getByTestId("dashboard-name")).toHaveCSS("color", "rgb(255, 255, 255)")
+  // Open, the rail fills its entry with it, once the save has gone.
+  await expect(page.getByTestId(`dashboard-${coloured}`)).toHaveCSS("background-color", blue, { timeout: 5000 })
+
+  await page.reload()
+  await page.getByTestId(`dashboard-${coloured}`).click()
+  await expect(page.getByTestId("dashboard-name")).toHaveCSS("background-color", blue)
+
+  // Another open, the coloured one is washed in its colour instead.
+  await create(plain)
+  await expect(page.getByTestId(`dashboard-${coloured}`)).toHaveCSS("background-color", "rgba(36, 106, 188, 0.28)")
+  await expect(page.getByTestId("dashboard-name")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+
+  await page.getByTestId("dashboards-collapse").click()
+  await expect(page.getByTestId(`dashboard-narrow-${coloured}`).locator("xpath=..")).toHaveCSS("background-color", "rgba(36, 106, 188, 0.28)")
+  await page.getByTestId(`dashboard-narrow-${coloured}`).click()
+  await expect(page.getByTestId(`dashboard-narrow-${coloured}`).locator("xpath=..")).toHaveCSS("background-color", blue)
+  await page.getByTestId("dashboards-expand").click()
+
+  // Reset, it is an ordinary dashboard again.
+  await page.getByTestId("dashboard-color").click()
+  await picker.getByRole("button", { name: "Reset color", exact: true }).click()
+  await expect(page.getByTestId("dashboard-name")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+  await expect(page.getByTestId(`dashboard-${coloured}`)).toHaveCSS("background-color", "rgba(0, 0, 0, 0)", { timeout: 5000 })
+
+  for (const name of [coloured, plain]) {
+    await page.getByTestId(`dashboard-${name}`).click()
+    await page.getByRole("button", { name: "Delete this dashboard" }).click()
+    await page.getByTestId("confirm-accept").click()
+    await expect(page.getByTestId(`dashboard-${name}`)).toHaveCount(0)
+  }
+})
+
 test("a superuser reads what the metrics store keeps, and is warned before removing it", async ({ page }) => {
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")

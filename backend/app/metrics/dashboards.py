@@ -15,6 +15,7 @@ from pydantic import Field as PydanticField
 from sqlalchemy import JSON, Column, DateTime, Index, String
 from sqlmodel import Field, SQLModel
 
+from app.connectors.models import TabColor
 from app.core.access import Access
 from app.core.schemas import get_datetime_utc
 from app.metrics.models import ProcessLimit
@@ -127,6 +128,8 @@ class Dashboard(SQLModel, table=True):
         foreign_key="user.id", nullable=False, ondelete="CASCADE", index=True
     )
     name: str = Field(max_length=MAX_NAME)
+    # #RRGGBB, as a connection's tab colour is, or none.
+    color: str | None = Field(default=None, max_length=7)
     content: dict[str, Any] = Field(sa_column=Column(JSON, nullable=False))
     # Raised by every save. A save naming an older version is refused, so two
     # tabs editing one dashboard do not silently undo each other.
@@ -185,12 +188,15 @@ class DashboardCreate(_Strict):
 
 class DashboardSave(DashboardContent):
     name: str = PydanticField(min_length=1, max_length=MAX_NAME)
+    # Replaced with the rest: a save that leaves it out takes the colour away.
+    color: TabColor | None = None
     version: int = PydanticField(ge=1)
 
 
 class DashboardPublic(DashboardContent):
     id: uuid.UUID
     name: str
+    color: str | None = None
     version: int
     updated_at: datetime
     # The stored content could not be read and is shown empty.
@@ -212,6 +218,7 @@ def public(dashboard: Dashboard, access: Access = "own", owner: str | None = Non
     return DashboardPublic(
         id=dashboard.id,
         name=dashboard.name,
+        color=dashboard.color,
         version=dashboard.version,
         updated_at=dashboard.updated_at,
         options=content.options,

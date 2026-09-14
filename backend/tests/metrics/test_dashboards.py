@@ -92,6 +92,28 @@ async def test_saving_replaces_the_whole_and_raises_the_version(
     assert stale.status_code == 409
 
 
+async def test_a_colour_is_saved_with_the_rest_and_taken_away_by_a_save_without_one(
+    client: AsyncClient, normal_user_token_headers: dict[str, str]
+) -> None:
+    created = await _create(client, normal_user_token_headers)
+    url = f"{BASE}/dashboards/{created['id']}"
+    body = {"name": "Hosts", "version": 1, "widgets": []}
+
+    assert created["color"] is None
+    coloured = await client.put(url, headers=normal_user_token_headers, json={**body, "color": "#1E88E5"})
+    assert coloured.status_code == 200, coloured.text
+    assert coloured.json()["color"] == "#1E88E5"
+    listed = (await client.get(f"{BASE}/dashboards", headers=normal_user_token_headers)).json()
+    assert [one["color"] for one in listed] == ["#1E88E5"]
+
+    for wrong in ("blue", "#12345", "#1234567", "#GGGGGG"):
+        refused = await client.put(url, headers=normal_user_token_headers, json={**body, "version": 2, "color": wrong})
+        assert refused.status_code == 422, wrong
+
+    cleared = await client.put(url, headers=normal_user_token_headers, json={**body, "version": 2})
+    assert cleared.json()["color"] is None
+
+
 async def test_what_the_grid_cannot_hold_is_refused(
     client: AsyncClient, normal_user_token_headers: dict[str, str]
 ) -> None:

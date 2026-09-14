@@ -108,7 +108,7 @@ frontend/src/
     │                             ticked series into widgets; the catalog as
     │                             index and tree; pure
     ├── seriesFormat.ts, chartOption.ts, statReading.ts, setupStage.ts,
-    │   agentSnippet.ts, storeFacts.ts, hostFacts.ts, railWidth.ts
+    │   agentSnippet.ts, storeFacts.ts, hostFacts.ts, railWidth.ts, railEntry.ts
     │                             what is drawn and said; pure
     ├── attention.ts              a host that keeps restarting, for the sheet
     ├── sharing.ts                what a standing allows, a dashboard's link; pure
@@ -427,6 +427,11 @@ names. Limits: 12 columns, 20 widgets, 200 series per history request, titles of
   uses, so the layout is not compacted in two places. Layouts are declared per
   kind of source: agents have *Linux host*, and a connection's type declares
   its own through `SupportsMetrics`.
+- **A dashboard may carry a colour**, `#RRGGBB` as a connection's tab colour
+  is, chosen by whoever may change its name and saved with the rest. The rail
+  washes a dashboard in it and fills the open one, wide and narrow, and the name
+  at the head of the dashboard is filled with it; one without a colour is
+  marked open in blue, as before.
 - **A dashboard is shared by a grant**, a row per person, on D33's scale:
   `read` sees it, `write` changes what is on it, its name and options; ownership
   is a column, and grants, deleting and sharing are the owner's. No standing

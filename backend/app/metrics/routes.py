@@ -638,6 +638,7 @@ async def save_dashboard(
             raise _unavailable() from None
     content = DashboardContent(options=body.options, widgets=body.widgets)
     dashboard.name = body.name
+    dashboard.color = body.color
     dashboard.content = content.model_dump(mode="json")
     dashboard.version += 1
     dashboard.updated_at = datetime.now(UTC)
