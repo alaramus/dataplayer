@@ -1,5 +1,4 @@
 """The application reads exposed to the model, through the same adapters as UI (D133-D135)."""
-"""The application reads exposed to the model, through the same adapters as UI (D133-D135)."""
 
 import asyncio
 import json
