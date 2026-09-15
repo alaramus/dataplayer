@@ -20,12 +20,18 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId("ai-open-settings")).toHaveAttribute("aria-label", "Settings")
   await page.getByTestId("ai-collapse-history").click()
 
-  await page.getByTestId("ai-new-chat").click()
   const active = page.locator('[data-testid^="ai-chat-row-"][data-active="true"]')
-  await expect(active).toBeVisible()
+  const previousId = (await active.count()) > 0 ? await active.getAttribute("data-testid") : null
+  await page.getByTestId("ai-new-chat").click()
+  // Creating a chat is a round trip: the previous row stays active until the new one
+  // arrives, so wait for the switch instead of reading whichever row is active
+  // immediately after the click.
+  if (previousId === null) await expect(active).toBeVisible()
+  else await expect(active).not.toHaveAttribute("data-testid", previousId)
   const conversationId = (await active.getAttribute("data-testid"))?.replace("ai-chat-row-", "")
   expect(conversationId).toBeTruthy()
 
+  await active.hover()
   await active.getByRole("button", { name: "Rename chat" }).click()
   await active.getByRole("textbox", { name: "Chat title" }).fill("Playwright agent chat")
   await active.getByRole("textbox", { name: "Chat title" }).press("Enter")
@@ -55,6 +61,7 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.getByTestId("ai-key-dialog").getByRole("button", { name: "Close" }).click()
 
   const row = page.getByTestId(`ai-chat-row-${conversationId ?? ""}`)
+  await row.hover()
   await row.getByRole("button", { name: "Delete chat" }).click()
   await page.getByRole("dialog", { name: "Delete chat?" }).getByRole("button", { name: "Delete" }).click()
   await expect(row).toHaveCount(0)

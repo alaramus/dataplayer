@@ -78,6 +78,10 @@ const conversations = computed(() => list.data.value?.data ?? [])
 
 watch(conversations, (rows) => {
   if (selected.value !== null && rows.some((row) => row.id === selected.value)) return
+  // Trap: the list is empty while it loads; falling back to the first row then drops the
+  // remembered selection and erases it from storage, so restore after reload lands on
+  // whatever row the server lists first.
+  if (list.isPending.value) return
   selected.value = rows[0]?.id ?? null
 }, { immediate: true })
 watch(selected, (id) => rememberAiConversation(id))
@@ -291,7 +295,8 @@ onScopeDispose(stop)
 .ai-window__chat--active { background: var(--dp-active); }
 .ai-window__chat > :first-child { flex: 1; min-width: 0; }
 .ai-window__chat-actions { display: none; flex: none; }
-.ai-window__chat:hover .ai-window__chat-actions, .ai-window__chat:focus-within .ai-window__chat-actions { display: flex; }
+/* Trap: display:none drops the buttons from the accessibility tree, so without :hover neither keyboard focus nor getByRole reaches them. The active row stays exposed. */
+.ai-window__chat--active .ai-window__chat-actions, .ai-window__chat:hover .ai-window__chat-actions, .ai-window__chat:focus-within .ai-window__chat-actions { display: flex; }
 .ai-window__main { flex: 1; min-width: 0; min-height: 0; }
 .ai-window__welcome { height: 100%; display: grid; place-items: center; }
 </style>

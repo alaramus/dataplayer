@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, useTemplateRef } from "vue"
+import type { QSelect } from "quasar"
 
 import AppTooltip from "./AppTooltip.vue"
 import AppIconButton from "./AppIconButton.vue"
@@ -77,6 +78,16 @@ const emit = defineEmits<{
   "optionAction": [option: SelectOption]
 }>()
 
+const field = useTemplateRef<QSelect>("field")
+
+// The click never reaches the field's own handler, so the popup would stay
+// open over whatever the action shows — a key window, here. The action takes
+// over the interaction, and the menu it came from goes away.
+function act(option: SelectOption) {
+  field.value?.hidePopup()
+  emit("optionAction", option)
+}
+
 // A caller passes either plain strings or {label, value} pairs, and the four
 // Quasar props that distinguish them are derived here rather than repeated at
 // every call site.
@@ -121,6 +132,7 @@ const summary = computed(() => {
 
 <template>
   <q-select
+    ref="field"
     class="app-select"
     :class="{ 'app-select--compact': compact }"
     :model-value="modelValue"
@@ -187,7 +199,7 @@ const summary = computed(() => {
             :icon="scope.opt.actionIcon"
             :tooltip="scope.opt.actionLabel"
             :active="scope.opt.actionActive"
-            @click.stop.prevent="emit('optionAction', scope.opt)"
+            @click.stop.prevent="act(scope.opt)"
           />
         </q-item-section>
       </q-item>
