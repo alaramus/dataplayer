@@ -147,18 +147,42 @@ const summary = computed(() => {
       v-if="labelled && options.some((option) => typeof option === 'object' && (option.group || option.description || option.icon || option.actionIcon))"
       #option="scope"
     >
-      <q-item v-if="scope.opt.group" v-bind="scope.itemProps">
-        <q-item-section><q-item-label header>{{ scope.opt.label }}</q-item-label></q-item-section>
+      <q-item
+        v-if="scope.opt.group"
+        v-bind="scope.itemProps"
+      >
+        <q-item-section>
+          <q-item-label header>
+            {{ scope.opt.label }}
+          </q-item-label>
+        </q-item-section>
       </q-item>
-      <q-item v-else v-bind="scope.itemProps">
-        <q-item-section v-if="scope.opt.icon" avatar>
-          <q-icon :name="scope.opt.icon" :color="scope.opt.actionActive ? 'positive' : undefined" />
+      <q-item
+        v-else
+        v-bind="scope.itemProps"
+      >
+        <q-item-section
+          v-if="scope.opt.icon"
+          avatar
+        >
+          <q-icon
+            :name="scope.opt.icon"
+            :color="scope.opt.actionActive ? 'positive' : undefined"
+          />
         </q-item-section>
         <q-item-section>
           <q-item-label>{{ scope.opt.label }}</q-item-label>
-          <q-item-label v-if="scope.opt.description" caption>{{ scope.opt.description }}</q-item-label>
+          <q-item-label
+            v-if="scope.opt.description"
+            caption
+          >
+            {{ scope.opt.description }}
+          </q-item-label>
         </q-item-section>
-        <q-item-section v-if="scope.opt.actionIcon && scope.opt.actionLabel" side>
+        <q-item-section
+          v-if="scope.opt.actionIcon && scope.opt.actionLabel"
+          side
+        >
           <AppIconButton
             :icon="scope.opt.actionIcon"
             :tooltip="scope.opt.actionLabel"

@@ -93,7 +93,11 @@ async function clear() {
         data-testid="ai-key-check"
         @click="check"
       />
-      <AppButton variant="quiet" label="Close" @click="emit('update:modelValue', false)" />
+      <AppButton
+        variant="quiet"
+        label="Close"
+        @click="emit('update:modelValue', false)"
+      />
       <AppButton
         label="Save"
         :disable="!draft.trim()"

@@ -43,7 +43,10 @@ function apply() {
     icon="attach_file"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <div v-if="contexts.length" class="ai-context-dialog__list">
+    <div
+      v-if="contexts.length"
+      class="ai-context-dialog__list"
+    >
       <AppCheckbox
         v-for="context in contexts"
         :key="context.panel_id"
@@ -53,10 +56,22 @@ function apply() {
         @update:model-value="toggle(context.panel_id, $event)"
       />
     </div>
-    <div v-else class="ai-context-dialog__empty">There are no open workspace tabs.</div>
+    <div
+      v-else
+      class="ai-context-dialog__empty"
+    >
+      There are no open workspace tabs.
+    </div>
     <template #actions>
-      <AppButton variant="quiet" label="Cancel" @click="emit('update:modelValue', false)" />
-      <AppButton label="Done" @click="apply" />
+      <AppButton
+        variant="quiet"
+        label="Cancel"
+        @click="emit('update:modelValue', false)"
+      />
+      <AppButton
+        label="Done"
+        @click="apply"
+      />
     </template>
   </WindowDialog>
 </template>

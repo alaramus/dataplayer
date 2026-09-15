@@ -137,7 +137,11 @@ onScopeDispose(stop)
 </script>
 
 <template>
-  <div ref="spaceElement" class="ai-space" data-testid="ai-space">
+  <div
+    ref="spaceElement"
+    class="ai-space"
+    data-testid="ai-space"
+  >
     <aside
       class="ai-window__card ai-window__rail"
       :class="{ 'ai-window__rail--collapsed': collapsed }"
@@ -145,32 +149,130 @@ onScopeDispose(stop)
       data-testid="ai-rail"
     >
       <div class="ai-window__rail-head">
-        <AppButton v-if="!collapsed" variant="quiet" layout="navigation" icon="add_comment" label="New chat" data-testid="ai-new-chat" @click="makeConversation" />
-        <AppIconButton v-else icon="add_comment" tooltip="New chat" data-testid="ai-new-chat" @click="makeConversation" />
-        <AppIconButton :icon="collapsed ? 'chevron_right' : 'chevron_left'" :tooltip="collapsed ? 'Show chat history' : 'Hide chat history'" data-testid="ai-collapse-history" @click="collapsed = !collapsed" />
+        <AppButton
+          v-if="!collapsed"
+          variant="quiet"
+          layout="navigation"
+          icon="add_comment"
+          label="New chat"
+          data-testid="ai-new-chat"
+          @click="makeConversation"
+        />
+        <AppIconButton
+          v-else
+          icon="add_comment"
+          tooltip="New chat"
+          data-testid="ai-new-chat"
+          @click="makeConversation"
+        />
+        <AppIconButton
+          :icon="collapsed ? 'chevron_right' : 'chevron_left'"
+          :tooltip="collapsed ? 'Show chat history' : 'Hide chat history'"
+          data-testid="ai-collapse-history"
+          @click="collapsed = !collapsed"
+        />
       </div>
-      <div v-if="!collapsed" class="ai-window__history" aria-label="Chat history" data-testid="ai-history">
+      <div
+        v-if="!collapsed"
+        class="ai-window__history"
+        aria-label="Chat history"
+        data-testid="ai-history"
+      >
         <AppSpinner v-if="list.isPending.value" />
-        <div v-for="chat in conversations" :key="chat.id" class="ai-window__chat" :class="{ 'ai-window__chat--active': selected === chat.id && !settingsShown }" :data-testid="`ai-chat-row-${chat.id}`" :data-active="selected === chat.id && !settingsShown ? 'true' : 'false'">
-          <AppInput v-if="renaming === chat.id" v-model="titleDraft" compact aria-label="Chat title" @keyup.enter="finishRename" @blur="finishRename" />
-          <AppButton v-else variant="quiet" layout="navigation" :label="chat.title" :data-testid="`ai-chat-${chat.id}`" @click="select(chat.id)" />
+        <div
+          v-for="chat in conversations"
+          :key="chat.id"
+          class="ai-window__chat"
+          :class="{ 'ai-window__chat--active': selected === chat.id && !settingsShown }"
+          :data-testid="`ai-chat-row-${chat.id}`"
+          :data-active="selected === chat.id && !settingsShown ? 'true' : 'false'"
+        >
+          <AppInput
+            v-if="renaming === chat.id"
+            v-model="titleDraft"
+            compact
+            aria-label="Chat title"
+            @keyup.enter="finishRename"
+            @blur="finishRename"
+          />
+          <AppButton
+            v-else
+            variant="quiet"
+            layout="navigation"
+            :label="chat.title"
+            :data-testid="`ai-chat-${chat.id}`"
+            @click="select(chat.id)"
+          />
           <span class="ai-window__chat-actions">
-            <AppIconButton icon="edit" tooltip="Rename chat" compact @click="beginRename(chat.id, chat.title)" />
-            <AppIconButton icon="delete" tooltip="Delete chat" variant="danger-quiet" compact @click="remove(chat.id, chat.title)" />
+            <AppIconButton
+              icon="edit"
+              tooltip="Rename chat"
+              compact
+              @click="beginRename(chat.id, chat.title)"
+            />
+            <AppIconButton
+              icon="delete"
+              tooltip="Delete chat"
+              variant="danger-quiet"
+              compact
+              @click="remove(chat.id, chat.title)"
+            />
           </span>
         </div>
       </div>
       <div class="ai-window__rail-foot">
-        <AppButton v-if="!collapsed" variant="quiet" layout="navigation" icon="settings" label="Settings" data-testid="ai-open-settings" @click="settingsShown = true" />
-        <AppIconButton v-else icon="settings" tooltip="Settings" data-testid="ai-open-settings" @click="settingsShown = true" />
-        <AppButton v-if="!collapsed && conversations.length" variant="danger-quiet" size="sm" label="Delete all" data-testid="ai-delete-all" @click="removeAll" />
+        <AppButton
+          v-if="!collapsed"
+          variant="quiet"
+          layout="navigation"
+          icon="settings"
+          label="Settings"
+          data-testid="ai-open-settings"
+          @click="settingsShown = true"
+        />
+        <AppIconButton
+          v-else
+          icon="settings"
+          tooltip="Settings"
+          data-testid="ai-open-settings"
+          @click="settingsShown = true"
+        />
+        <AppButton
+          v-if="!collapsed && conversations.length"
+          variant="danger-quiet"
+          size="sm"
+          label="Delete all"
+          data-testid="ai-delete-all"
+          @click="removeAll"
+        />
       </div>
     </aside>
-    <WorkspaceSeparator direction="row" @move="resizeRail" @toggle="pressGap" />
-    <main class="ai-window__card ai-window__main" data-testid="ai-conversation-card">
+    <WorkspaceSeparator
+      direction="row"
+      @move="resizeRail"
+      @toggle="pressGap"
+    />
+    <main
+      class="ai-window__card ai-window__main"
+      data-testid="ai-conversation-card"
+    >
       <AiSettings v-if="settingsShown" />
-      <AiConversation v-else-if="selected" :conversation-id="selected" :contexts="contexts" :key="selected" />
-      <div v-else class="ai-window__welcome"><AppButton icon="add_comment" label="New chat" @click="makeConversation" /></div>
+      <AiConversation
+        v-else-if="selected"
+        :key="selected"
+        :conversation-id="selected"
+        :contexts="contexts"
+      />
+      <div
+        v-else
+        class="ai-window__welcome"
+      >
+        <AppButton
+          icon="add_comment"
+          label="New chat"
+          @click="makeConversation"
+        />
+      </div>
     </main>
   </div>
 </template>

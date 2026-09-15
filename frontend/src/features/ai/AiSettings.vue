@@ -46,14 +46,27 @@ async function setAllowAll(value: boolean) {
 </script>
 
 <template>
-  <div class="ai-settings" data-testid="ai-settings">
+  <div
+    class="ai-settings"
+    data-testid="ai-settings"
+  >
     <h2>Settings</h2>
     <AppSpinner v-if="settings.isPending.value || models.isPending.value" />
-    <AppBanner v-else-if="settings.isError.value || models.isError.value" tone="error">Agent settings could not be loaded.</AppBanner>
+    <AppBanner
+      v-else-if="settings.isError.value || models.isError.value"
+      tone="error"
+    >
+      Agent settings could not be loaded.
+    </AppBanner>
     <template v-else>
       <AppSection gutter>
         <h3>Model</h3>
-        <AppBanner v-if="settings.data.value?.model_missing" tone="warning">The saved model is no longer available. Choose another one.</AppBanner>
+        <AppBanner
+          v-if="settings.data.value?.model_missing"
+          tone="warning"
+        >
+          The saved model is no longer available. Choose another one.
+        </AppBanner>
         <AppSelect
           :model-value="modelValue"
           :options="modelOptions"
@@ -74,9 +87,17 @@ async function setAllowAll(value: boolean) {
           </template>
         </AppSelect>
       </AppSection>
-      <AppSection divided gutter>
+      <AppSection
+        divided
+        gutter
+      >
         <h3>Confirmations</h3>
-        <AppToggle :model-value="allowAll" label="Allow all changes in every chat" data-testid="ai-allow-all" @update:model-value="setAllowAll" />
+        <AppToggle
+          :model-value="allowAll"
+          label="Allow all changes in every chat"
+          data-testid="ai-allow-all"
+          @update:model-value="setAllowAll"
+        />
       </AppSection>
     </template>
     <AiKeyDialog

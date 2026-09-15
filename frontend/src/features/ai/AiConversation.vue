@@ -114,51 +114,164 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
 <template>
   <div class="ai-conversation">
     <AppSpinner v-if="conversation.isPending.value" />
-    <AppBanner v-else-if="conversation.isError.value" tone="error">This conversation could not be loaded.</AppBanner>
+    <AppBanner
+      v-else-if="conversation.isError.value"
+      tone="error"
+    >
+      This conversation could not be loaded.
+    </AppBanner>
     <template v-else>
-      <div ref="scroller" class="ai-conversation__messages" data-testid="ai-messages">
-        <div v-if="!conversation.data.value?.messages.length && !activeRun" class="ai-conversation__empty">
-          <q-icon name="auto_awesome" size="32px" />
+      <div
+        ref="scroller"
+        class="ai-conversation__messages"
+        data-testid="ai-messages"
+      >
+        <div
+          v-if="!conversation.data.value?.messages.length && !activeRun"
+          class="ai-conversation__empty"
+        >
+          <q-icon
+            name="auto_awesome"
+            size="32px"
+          />
           <span>What would you like to know?</span>
         </div>
-        <article v-for="message in conversation.data.value?.messages ?? []" :key="message.id" class="ai-message" :class="`ai-message--${message.role}`">
-          <div v-if="message.role === 'assistant' && runFor(message)" class="ai-steps">
-            <button type="button" class="ai-steps__summary" :aria-expanded="expandedSteps.has(runFor(message)!.id)" @click="toggle(expandedSteps, runFor(message)!.id)">
+        <article
+          v-for="message in conversation.data.value?.messages ?? []"
+          :key="message.id"
+          class="ai-message"
+          :class="`ai-message--${message.role}`"
+        >
+          <div
+            v-if="message.role === 'assistant' && runFor(message)"
+            class="ai-steps"
+          >
+            <button
+              type="button"
+              class="ai-steps__summary"
+              :aria-expanded="expandedSteps.has(runFor(message)!.id)"
+              @click="toggle(expandedSteps, runFor(message)!.id)"
+            >
               <q-icon :name="expandedSteps.has(runFor(message)!.id) ? 'expand_more' : 'chevron_right'" />
               {{ stepSummary(runFor(message)!) }}
             </button>
-            <div v-if="expandedSteps.has(runFor(message)!.id)" class="ai-steps__list">
-              <div v-for="step in runFor(message)!.steps ?? []" :key="step.ordinal" class="ai-step">
+            <div
+              v-if="expandedSteps.has(runFor(message)!.id)"
+              class="ai-steps__list"
+            >
+              <div
+                v-for="step in runFor(message)!.steps ?? []"
+                :key="step.ordinal"
+                class="ai-step"
+              >
                 <span>{{ step.title }}</span><span>{{ step.status }}</span>
-                <button v-if="step.kind === 'thinking' && step.detail" type="button" class="ai-step__reasoning" @click="toggle(expandedReasoning, `${runFor(message)!.id}:${String(step.ordinal)}`)">Thinking</button>
-                <div v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${runFor(message)!.id}:${String(step.ordinal)}`)" class="ai-step__detail">{{ step.detail }}</div>
-                <div v-for="(substep, index) in step.substeps ?? []" :key="`${String(index)}:${substep}`" class="ai-step__detail">{{ substep }}</div>
+                <button
+                  v-if="step.kind === 'thinking' && step.detail"
+                  type="button"
+                  class="ai-step__reasoning"
+                  @click="toggle(expandedReasoning, `${runFor(message)!.id}:${String(step.ordinal)}`)"
+                >
+                  Thinking
+                </button>
+                <div
+                  v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${runFor(message)!.id}:${String(step.ordinal)}`)"
+                  class="ai-step__detail"
+                >
+                  {{ step.detail }}
+                </div>
+                <div
+                  v-for="(substep, index) in step.substeps ?? []"
+                  :key="`${String(index)}:${substep}`"
+                  class="ai-step__detail"
+                >
+                  {{ substep }}
+                </div>
               </div>
             </div>
           </div>
-          <div v-if="message.role === 'user'" class="ai-message__user">{{ message.content }}</div>
-          <ChatMarkdown v-else :text="message.content" />
-          <div v-if="message.role === 'assistant'" class="ai-message__actions">
-            <AppIconButton icon="content_copy" tooltip="Copy answer" @click="copy(message.content)" />
-            <AppIconButton icon="volume_up" tooltip="Listen to answer" @click="listen(message.content)" />
+          <div
+            v-if="message.role === 'user'"
+            class="ai-message__user"
+          >
+            {{ message.content }}
+          </div>
+          <ChatMarkdown
+            v-else
+            :text="message.content"
+          />
+          <div
+            v-if="message.role === 'assistant'"
+            class="ai-message__actions"
+          >
+            <AppIconButton
+              icon="content_copy"
+              tooltip="Copy answer"
+              @click="copy(message.content)"
+            />
+            <AppIconButton
+              icon="volume_up"
+              tooltip="Listen to answer"
+              @click="listen(message.content)"
+            />
           </div>
         </article>
-        <article v-if="activeRun" class="ai-message ai-message--assistant" data-testid="ai-streaming-answer">
+        <article
+          v-if="activeRun"
+          class="ai-message ai-message--assistant"
+          data-testid="ai-streaming-answer"
+        >
           <div class="ai-steps">
-            <button type="button" class="ai-steps__summary" :aria-expanded="expandedSteps.has(activeRun.id)" @click="toggle(expandedSteps, activeRun.id)">
+            <button
+              type="button"
+              class="ai-steps__summary"
+              :aria-expanded="expandedSteps.has(activeRun.id)"
+              @click="toggle(expandedSteps, activeRun.id)"
+            >
               <q-icon :name="expandedSteps.has(activeRun.id) ? 'expand_more' : 'chevron_right'" />{{ stepSummary(activeRun) }}
             </button>
-            <div v-if="expandedSteps.has(activeRun.id)" class="ai-steps__list">
-              <div v-for="step in activeRun.steps ?? []" :key="step.ordinal" class="ai-step">
+            <div
+              v-if="expandedSteps.has(activeRun.id)"
+              class="ai-steps__list"
+            >
+              <div
+                v-for="step in activeRun.steps ?? []"
+                :key="step.ordinal"
+                class="ai-step"
+              >
                 <span>{{ step.title }}</span><span>{{ step.status }}</span>
-                <button v-if="step.kind === 'thinking' && step.detail" type="button" class="ai-step__reasoning" @click="toggle(expandedReasoning, `${activeRun.id}:${String(step.ordinal)}`)">Thinking</button>
-                <div v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${activeRun.id}:${String(step.ordinal)}`)" class="ai-step__detail">{{ step.detail }}</div>
-                <div v-for="(substep, index) in step.substeps ?? []" :key="`${String(index)}:${substep}`" class="ai-step__detail">{{ substep }}</div>
+                <button
+                  v-if="step.kind === 'thinking' && step.detail"
+                  type="button"
+                  class="ai-step__reasoning"
+                  @click="toggle(expandedReasoning, `${activeRun.id}:${String(step.ordinal)}`)"
+                >
+                  Thinking
+                </button>
+                <div
+                  v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${activeRun.id}:${String(step.ordinal)}`)"
+                  class="ai-step__detail"
+                >
+                  {{ step.detail }}
+                </div>
+                <div
+                  v-for="(substep, index) in step.substeps ?? []"
+                  :key="`${String(index)}:${substep}`"
+                  class="ai-step__detail"
+                >
+                  {{ substep }}
+                </div>
               </div>
             </div>
           </div>
-          <ChatMarkdown v-if="activeRun.partial_answer" :text="activeRun.partial_answer" />
-          <div v-if="activeRun.question" class="ai-question" data-testid="ai-question">
+          <ChatMarkdown
+            v-if="activeRun.partial_answer"
+            :text="activeRun.partial_answer"
+          />
+          <div
+            v-if="activeRun.question"
+            class="ai-question"
+            data-testid="ai-question"
+          >
             <div>{{ activeRun.question.question }}</div>
             <div class="ai-question__choices">
               <AppButton
@@ -171,13 +284,26 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
             </div>
           </div>
         </article>
-        <AppBanner v-for="run in unrepresentedRuns" :key="run.id" :tone="run.status === 'cancelled' ? 'info' : 'warning'" data-testid="ai-run-ended">
+        <AppBanner
+          v-for="run in unrepresentedRuns"
+          :key="run.id"
+          :tone="run.status === 'cancelled' ? 'info' : 'warning'"
+          data-testid="ai-run-ended"
+        >
           {{ run.error || (run.status === "cancelled" ? "The answer was stopped." : `The answer was ${run.status}.`) }}
         </AppBanner>
       </div>
       <div class="ai-conversation__composer">
-        <div v-if="selectedContexts.length" class="ai-conversation__contexts" aria-label="Tabs attached to the next message">
-          <span v-for="context in selectedContexts" :key="context.panel_id" class="ai-context-chip">
+        <div
+          v-if="selectedContexts.length"
+          class="ai-conversation__contexts"
+          aria-label="Tabs attached to the next message"
+        >
+          <span
+            v-for="context in selectedContexts"
+            :key="context.panel_id"
+            class="ai-context-chip"
+          >
             {{ context.label }}
             <AppIconButton
               icon="close"
@@ -194,9 +320,33 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
           :disable="activeRun !== null || contexts.length === 0"
           @click="contextDialogShown = true"
         />
-        <AppInput v-model="draft" type="textarea" compact placeholder="Message the agent" aria-label="Message the agent" data-testid="ai-message-input" :disable="activeRun !== null" @keydown="onEditorKeydown" />
-        <AppButton v-if="activeRun" variant="danger-quiet" icon="stop" label="Stop" :loading="cancel.isPending.value" data-testid="ai-stop" @click="stop" />
-        <AppButton v-else icon="send" label="Send" :disable="!canSend" data-testid="ai-send" @click="submit" />
+        <AppInput
+          v-model="draft"
+          type="textarea"
+          compact
+          placeholder="Message the agent"
+          aria-label="Message the agent"
+          data-testid="ai-message-input"
+          :disable="activeRun !== null"
+          @keydown="onEditorKeydown"
+        />
+        <AppButton
+          v-if="activeRun"
+          variant="danger-quiet"
+          icon="stop"
+          label="Stop"
+          :loading="cancel.isPending.value"
+          data-testid="ai-stop"
+          @click="stop"
+        />
+        <AppButton
+          v-else
+          icon="send"
+          label="Send"
+          :disable="!canSend"
+          data-testid="ai-send"
+          @click="submit"
+        />
       </div>
       <AiContextDialog
         v-model="contextDialogShown"
