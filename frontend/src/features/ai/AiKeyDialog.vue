@@ -38,7 +38,8 @@ async function check() {
   checking.value = true
   try {
     const result = await checkAiKey(props.provider)
-    result.ok ? toast.success(result.message) : toast.error(result.message)
+    if (result.ok) toast.success(result.message)
+    else toast.error(result.message)
   } catch (cause) { toast.error(messageOf(cause, "The key could not be checked")) }
   finally { checking.value = false }
 }

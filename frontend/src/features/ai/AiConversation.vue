@@ -57,7 +57,8 @@ function stepSummary(run: AgentRunPublic): string {
 }
 function toggle(set: Set<string>, id: string) {
   const next = new Set(set)
-  next.has(id) ? next.delete(id) : next.add(id)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
   if (set === expandedSteps.value) expandedSteps.value = next
   else expandedReasoning.value = next
 }

@@ -35,7 +35,7 @@ from app.ai.topic import StepChanged
 from app.connectors import access, crud
 from app.connectors.action_lookup import acting_or_501, available_or_422
 from app.connectors.models import Connector
-from app.core.access import at_least
+from app.core.access import Access, at_least
 from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
 from app.queries.execution import admit, limits
@@ -160,7 +160,7 @@ class ToolRuntime:
 
     async def connector(
         self, session: AsyncSession, user: User, connector_id: uuid.UUID
-    ) -> tuple[Connector, Any] | dict[str, Any]:
+    ) -> tuple[Connector, Any, Access] | dict[str, Any]:
         connector, held = await access.resolve(
             session, connector_id, user, requires="read"
         )
@@ -483,7 +483,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             }
         return await runtime.invoke("Waiting for your answer", prepare)
 
-    definitions = [
+    definitions: list[tuple[Callable[..., Awaitable[str]], str, str]] = [
         (list_connections, "list_connections", "List every connection visible to the current person, including transfer policy."),
         (browse_catalog, "browse_catalog", "List one level of a connection catalog. Use opaque ids exactly as returned."),
         (describe_node, "describe_node", "Describe a node's columns, constraints, indexes and summary where supported."),
