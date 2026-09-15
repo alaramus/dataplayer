@@ -128,6 +128,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             chat_models=ProviderChatModels(),
             topics=application.state.topics,
             catalog=catalog(),
+            resources=application.state.resources,
         )
         # Emptying query Trash is the one thing here that is not a resource: it
         # is a timer, and it belongs to the application for the same reason a

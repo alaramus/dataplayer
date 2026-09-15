@@ -11,7 +11,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.ai.models import AgentStepPublic, RunStatus
+from app.ai.models import AgentStepPublic, OpenIntent, RunStatus
 from app.realtime.topics import Subscriber, TopicSet, UnknownTopic, register
 
 NAME = "ai.runs"
@@ -55,7 +55,15 @@ class TitleChanged(BaseModel):
     title: str
 
 
-AgentEvent = RunChanged | StepChanged | AnswerDelta | ReasoningDelta | TitleChanged
+class WorkspaceOpened(BaseModel):
+    kind: Literal["open"] = "open"
+    conversation_id: uuid.UUID
+    intent: OpenIntent
+
+
+AgentEvent = (
+    RunChanged | StepChanged | AnswerDelta | ReasoningDelta | TitleChanged | WorkspaceOpened
+)
 
 
 class AgentTopic:

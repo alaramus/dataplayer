@@ -12,7 +12,7 @@ under `ai_content` (D141). A provider key is a credential and is stored under
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, SecretStr
 from pydantic import Field as PydanticField
@@ -265,11 +265,43 @@ class ScreenContext(BaseModel):
     node_id: str | None = PydanticField(default=None, max_length=2048)
 
 
+class OpenIntent(BaseModel):
+    """One server-validated request to open ordinary Data workspace UI."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    connector_id: uuid.UUID
+    connector_name: str
+    adapter_type: str
+    node_id: str | None = None
+    title: str | None = None
+    view: Literal["catalog", "preferred", "rows", "structure", "summary"] = "preferred"
+    describable: bool = False
+    representations: list[dict[str, Any]] = PydanticField(default_factory=list)
+
+
 class ConversationMessageCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str = PydanticField(min_length=1, max_length=MAX_MESSAGE_CHARS)
     contexts: list[ScreenContext] = PydanticField(default_factory=list, max_length=5)
+
+
+class AgentQuestion(BaseModel):
+    """One resumable choice requested by a tool, independent of LangGraph's format."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["ask_user", "allow_transfer"]
+    question: str = PydanticField(min_length=1, max_length=1000)
+    choices: list[str] = PydanticField(min_length=1, max_length=20)
+    connector_id: uuid.UUID | None = None
+
+
+class AgentAnswer(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    answer: str = PydanticField(min_length=1, max_length=1000)
 
 
 class AgentStepPublic(BaseModel):
@@ -278,6 +310,7 @@ class AgentStepPublic(BaseModel):
     title: str
     status: StepStatus
     detail: str | None = None
+    substeps: list[str] = PydanticField(default_factory=list)
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
@@ -296,6 +329,7 @@ class AgentRunPublic(BaseModel):
     # What has been written so far while the answer is being written, so a
     # page opened mid-answer shows it. Nothing once the answer is a message.
     partial_answer: str | None = None
+    question: AgentQuestion | None = None
 
 
 class ConversationMessagePublic(BaseModel):

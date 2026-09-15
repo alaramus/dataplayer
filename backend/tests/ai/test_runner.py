@@ -5,7 +5,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai import conversations
 from app.ai.models import AgentRun, AgentStep
-from app.ai.runner import clean_title, model_chunk, split_text
+from app.ai.runner import clean_title, is_interrupted, model_chunk, split_text
 from tests.utils.user import create_random_user
 
 
@@ -45,6 +45,10 @@ def test_only_the_models_own_pieces_are_the_answer() -> None:
     assert model_chunk({"type": "messages", "data": (chunk, {"langgraph_node": "tools"})}) is None
     assert model_chunk({"type": "updates", "data": {"model": {}}}) is None
     assert model_chunk("not an item") is None
+    assert is_interrupted(
+        {"type": "updates", "data": {"__interrupt__": ({"value": "choose"},)}}
+    )
+    assert not is_interrupted({"type": "updates", "data": {"model": {}}})
 
 
 def test_text_and_reasoning_are_told_apart() -> None:

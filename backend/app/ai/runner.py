@@ -24,13 +24,22 @@ from langchain_core.messages import (
 )
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.types import Command
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters.resources import ResourceStore
 from app.ai import checkpoints, conversations, preferences
 from app.ai.catalog import ModelCatalog, ModelInfo, Provider
 from app.ai.models import AgentRun, Conversation, RunStatus, ScreenContext, StepStatus
 from app.ai.prompts import SYSTEM_PROMPT, TITLE_PROMPT
 from app.ai.providers import ChatModels
+from app.ai.tools import (
+    LIMIT_MESSAGE,
+    ToolLimitReached,
+    ToolRuntime,
+    build_tools,
+    transfer_policy,
+)
 from app.ai.topic import (
     AgentEvent,
     AnswerDelta,
@@ -38,6 +47,7 @@ from app.ai.topic import (
     RunChanged,
     StepChanged,
     TitleChanged,
+    WorkspaceOpened,
     announce,
 )
 from app.core.config import settings
@@ -69,6 +79,10 @@ class RunRefused(Exception):
         super().__init__(message)
         self.status_code = status_code
         self.message = message
+
+
+class RunPaused(Exception):
+    """LangGraph persisted a question and stopped before the next model call."""
 
 
 @dataclass
@@ -114,11 +128,13 @@ class AgentRunner:
         chat_models: ChatModels,
         topics: TopicSet,
         catalog: ModelCatalog,
+        resources: ResourceStore,
     ) -> None:
         self.chat_models = chat_models
         self._checkpointer = checkpointer
         self._topics = topics
         self._catalog = catalog
+        self._resources = resources
         self._active: dict[uuid.UUID, _Active] = {}
         self._lock = asyncio.Lock()
 
@@ -185,6 +201,82 @@ class AgentRunner:
         await asyncio.wait({active.task})
         return True
 
+    async def cancel_pause(self, session: AsyncSession, run: AgentRun) -> bool:
+        if run.status != "awaiting_answer":
+            return False
+        pending = await conversations.running_tool_step(session, run.id)
+        if pending is not None:
+            await conversations.finish_step(
+                session, run.id, pending.ordinal, status="cancelled"
+            )
+        await conversations.finish_step(session, run.id, 0, status="cancelled")
+        await checkpoints.keep_latest(session, str(run.conversation_id))
+        await conversations.finish_run(session, run.id, status="cancelled")
+        await self._say(
+            run.owner_id,
+            RunChanged(
+                conversation_id=run.conversation_id,
+                run_id=run.id,
+                status="cancelled",
+            ),
+        )
+        return True
+
+    async def resume(
+        self, session: AsyncSession, *, run: AgentRun, answer: str
+    ) -> AgentRun:
+        if run.status != "awaiting_answer":
+            raise RunRefused(409, "This answer is not waiting for a response")
+        pending = await conversations.pending_question(session, run.id)
+        if pending is None or answer not in pending.choices:
+            raise RunRefused(422, "Choose one of the answers offered")
+        model = self._catalog.find(run.model_key)
+        if model is None:
+            raise RunRefused(409, "Choose a model in the agent settings first")
+        key = await preferences.key_for(session, run.owner_id, model.provider)
+        if key is None:
+            raise RunRefused(
+                409,
+                f"Add a key for {PROVIDER_TITLES[model.provider]} in the agent settings first",
+            )
+        conversation = await session.get(Conversation, run.conversation_id)
+        first = (
+            conversation is not None
+            and not conversation.title_is_custom
+            and not await conversations.has_answer(session, run.conversation_id)
+        )
+        question = await conversations.user_message_for_run(session, run.id)
+        reasoning = await conversations.step_detail(session, run.id, 0)
+        async with self._lock:
+            if run.id in self._active:
+                raise RunRefused(409, "This answer is already being continued")
+            await conversations.set_run_status(session, run.id, "running")
+            task = asyncio.create_task(
+                self._carry_out(
+                    run.id,
+                    run.owner_id,
+                    run.conversation_id,
+                    model,
+                    key,
+                    question,
+                    [],
+                    first,
+                    resume_answer=answer,
+                    reasoning_seed=reasoning,
+                    initial_tokens=(run.input_tokens, run.output_tokens),
+                )
+            )
+            self._active[run.id] = _Active(
+                task=task, owner_id=run.owner_id, conversation_id=run.conversation_id
+            )
+        await self._say(
+            run.owner_id,
+            RunChanged(
+                conversation_id=run.conversation_id, run_id=run.id, status="running"
+            ),
+        )
+        return run
+
     async def forget(self, conversation_ids: list[uuid.UUID]) -> None:
         """Stop what is being written in these conversations and drop their state.
 
@@ -223,36 +315,49 @@ class AgentRunner:
         text: str,
         contexts: list[ScreenContext],
         first: bool,
+        resume_answer: str | None = None,
+        reasoning_seed: str = "",
+        initial_tokens: tuple[int, int] = (0, 0),
     ) -> None:
         active = self._active[run_id]
-        reasoning: list[str] = []
-        tokens = [0, 0]
+        reasoning: list[str] = [reasoning_seed] if reasoning_seed else []
+        tokens = [initial_tokens[0], initial_tokens[1]]
         status: RunStatus = "succeeded"
         error: str | None = None
         answer = ""
         try:
             async with async_session_maker() as session:
                 try:
-                    step = await conversations.start_step(
-                        session, run_id, 0, "thinking", THINKING
-                    )
-                    await self._say(
-                        owner_id,
-                        StepChanged(
-                            conversation_id=conversation_id,
-                            run_id=run_id,
-                            step=conversations.step_public(step, with_detail=False),
-                        ),
-                    )
+                    if resume_answer is None:
+                        step = await conversations.start_step(
+                            session, run_id, 0, "thinking", THINKING
+                        )
+                        await self._say(
+                            owner_id,
+                            StepChanged(
+                                conversation_id=conversation_id,
+                                run_id=run_id,
+                                step=conversations.step_public(step, with_detail=False),
+                            ),
+                        )
                     await self._stream(
                         run_id, owner_id, conversation_id, model, key,
-                        message_with_context(text, contexts),
+                        (
+                            Command(resume=resume_answer)
+                            if resume_answer is not None
+                            else HumanMessage(message_with_context(text, contexts))
+                        ),
                         answer=active.answer, reasoning=reasoning, tokens=tokens,
                     )
+                except RunPaused:
+                    status = "awaiting_answer"
                 except TimeoutError:
                     status = "failed"
                     minutes = round(settings.AI_RUN_TIMEOUT_SECONDS / 60)
                     error = f"The answer took longer than {minutes} minutes and was stopped"
+                except ToolLimitReached:
+                    status = "failed"
+                    error = LIMIT_MESSAGE
                 except asyncio.CancelledError:
                     if not active.stopping:
                         raise
@@ -266,11 +371,32 @@ class AgentRunner:
                     status = "failed"
                     error = self.chat_models.sentence(model, failure)
                 answer = "".join(active.answer)
-                await self._settle(
-                    session, run_id, owner_id, conversation_id,
-                    status=status, error=error, answer=answer,
-                    reasoning="".join(reasoning), tokens=tokens,
-                )
+                if status == "awaiting_answer":
+                    await conversations.set_step_detail(
+                        session, run_id, 0, "".join(reasoning)
+                    )
+                    await checkpoints.keep_latest(session, str(conversation_id))
+                    await conversations.set_run_status(
+                        session,
+                        run_id,
+                        status,
+                        input_tokens=tokens[0],
+                        output_tokens=tokens[1],
+                    )
+                    await self._say(
+                        owner_id,
+                        RunChanged(
+                            conversation_id=conversation_id,
+                            run_id=run_id,
+                            status=status,
+                        ),
+                    )
+                else:
+                    await self._settle(
+                        session, run_id, owner_id, conversation_id,
+                        status=status, error=error, answer=answer,
+                        reasoning="".join(reasoning), tokens=tokens,
+                    )
         finally:
             async with self._lock:
                 self._active.pop(run_id, None)
@@ -284,7 +410,7 @@ class AgentRunner:
         conversation_id: uuid.UUID,
         model: ModelInfo,
         key: str,
-        text: str,
+        input_value: HumanMessage | Command[Any],
         *,
         answer: list[str],
         reasoning: list[str],
@@ -295,8 +421,27 @@ class AgentRunner:
             key,
             max_output_tokens=min(model.max_output_tokens, settings.AI_MAX_OUTPUT_TOKENS),
         )
+        async with async_session_maker() as session:
+            calls = await conversations.last_step_ordinal(session, run_id)
+        runtime = ToolRuntime(
+            run_id=run_id,
+            owner_id=owner_id,
+            conversation_id=conversation_id,
+            resources=self._resources,
+            say=self._say,
+            opened=lambda user_id, intent: self._say(
+                user_id,
+                WorkspaceOpened(conversation_id=conversation_id, intent=intent),
+            ),
+            calls=calls,
+            resume_ordinal=(calls if isinstance(input_value, Command) else None),
+        )
         agent = create_agent(
-            chat, tools=[], system_prompt=SYSTEM_PROMPT, checkpointer=self._checkpointer
+            chat,
+            tools=build_tools(runtime),
+            system_prompt=SYSTEM_PROMPT,
+            checkpointer=self._checkpointer,
+            middleware=[transfer_policy(runtime)],
         )
         config: RunnableConfig = {"configurable": {"thread_id": str(conversation_id)}}
         deltas = _Deltas()
@@ -304,12 +449,15 @@ class AgentRunner:
             # Written when the answer ends or pauses, not after every step: the
             # older states are pruned anyway (D139).
             async for item in agent.astream(
-                {"messages": [HumanMessage(text)]},
+                input_value if isinstance(input_value, Command) else {"messages": [input_value]},
                 config,
-                stream_mode="messages",
+                stream_mode=["messages", "updates"],
                 durability="exit",
                 version="v2",
             ):
+                if is_interrupted(item):
+                    await self._flush(run_id, owner_id, conversation_id, deltas)
+                    raise RunPaused
                 chunk = model_chunk(item)
                 if chunk is None:
                     continue
@@ -439,6 +587,13 @@ def model_chunk(item: object) -> AIMessageChunk | None:
     if not isinstance(metadata, dict) or metadata.get("langgraph_node") != "model":
         return None
     return chunk if isinstance(chunk, AIMessageChunk) else None
+
+
+def is_interrupted(item: object) -> bool:
+    if not isinstance(item, dict) or item.get("type") != "updates":
+        return False
+    data = item.get("data")
+    return isinstance(data, dict) and bool(data.get("__interrupt__"))
 
 
 def split_text(message: BaseMessage) -> tuple[str, str]:

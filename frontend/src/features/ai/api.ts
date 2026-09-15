@@ -113,6 +113,17 @@ export function useCancelAiRun() {
   })
 }
 
+export function useAnswerAiRun() {
+  const invalidate = useConversationInvalidation()
+  return useMutation({
+    mutationFn: async ({ id, conversationId, answer }: { id: string; conversationId: string; answer: string }) => {
+      const run = (await AiService.answerRun({ path: { run_id: id }, body: { answer } })).data
+      return { run, conversationId }
+    },
+    onSuccess: ({ conversationId }) => invalidate(conversationId),
+  })
+}
+
 export function useUpdateAiSettings() {
   const queryClient = useQueryClient()
   return useMutation({

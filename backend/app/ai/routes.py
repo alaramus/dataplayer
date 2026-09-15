@@ -9,6 +9,7 @@ from app.ai import conversations, preferences
 from app.ai.catalog import Provider, catalog
 from app.ai.models import (
     TERMINAL,
+    AgentAnswer,
     AgentModelPublic,
     AgentRun,
     AgentRunPublic,
@@ -235,6 +236,26 @@ async def read_run(
     )
 
 
+@router.post("/runs/{run_id}/answer", response_model=AgentRunPublic)
+async def answer_run(
+    session: SessionDep,
+    current_user: CurrentUser,
+    runner: AgentRunnerDep,
+    run_id: uuid.UUID,
+    body: AgentAnswer,
+) -> Any:
+    """Continue the exact tool call held in LangGraph's persisted pause."""
+    run = await _owned_run(session, run_id, current_user.id)
+    try:
+        await runner.resume(session, run=run, answer=body.answer)
+    except RunRefused as refused:
+        raise HTTPException(
+            status_code=refused.status_code, detail={"message": refused.message}
+        )
+    await session.refresh(run)
+    return await conversations.run_public(session, run, partial_answer="")
+
+
 @router.post("/runs/{run_id}/cancel", response_model=AgentRunPublic)
 async def cancel_run(
     session: SessionDep,
@@ -245,6 +266,9 @@ async def cancel_run(
     """Stop. What was already written stays in the conversation (D137)."""
     run = await _owned_run(session, run_id, current_user.id)
     if run.status in TERMINAL:
+        return await conversations.run_public(session, run)
+    if await runner.cancel_pause(session, run):
+        await session.refresh(run)
         return await conversations.run_public(session, run)
     if not await runner.cancel(run_id):
         raise HTTPException(

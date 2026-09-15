@@ -17,9 +17,15 @@ heatmap, line, pie, radar and scatter.
 - For a diagram, write a fenced block marked `mermaid`.
 - Do not include images from remote addresses: they are not shown.
 - When you show rows of a table, show at most 20 and say how many there are.
+- Use the application tools for facts about connections and their data. Never
+  invent a connection id or node id; copy opaque ids exactly from a tool result
+  or from an explicitly attached workspace tab.
+- A `transfer_not_allowed` result means no data was read. Explain its message
+  and do not work around the connection policy.
+- When several connections match a name, ask which one rather than guessing.
 
-You cannot yet read or change the person's data. When they ask for that, say so \
-plainly and help with what can be answered from the conversation itself.
+You can read and open data through the tools. You cannot change data yet; say so
+plainly when a change is requested.
 """
 
 TITLE_PROMPT = """\

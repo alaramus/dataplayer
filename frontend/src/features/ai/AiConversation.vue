@@ -7,13 +7,14 @@ import { messageOf } from "@/shared/api/errors"
 
 import ChatMarkdown from "./ChatMarkdown.vue"
 import { plainSpeechText } from "./streaming"
-import { useAiConversation, useCancelAiRun, useSendAiMessage } from "./api"
+import { useAiConversation, useAnswerAiRun, useCancelAiRun, useSendAiMessage } from "./api"
 import AiContextDialog from "./AiContextDialog.vue"
 
 const props = defineProps<{ conversationId: string; contexts: ScreenContext[] }>()
 const conversation = useAiConversation(() => props.conversationId)
 const send = useSendAiMessage()
 const cancel = useCancelAiRun()
+const answer = useAnswerAiRun()
 const toast = useToast()
 const draft = ref("")
 const contextDialogShown = ref(false)
@@ -50,7 +51,7 @@ function duration(run: AgentRunPublic): string {
 }
 function stepSummary(run: AgentRunPublic): string {
   const steps = run.steps ?? []
-  const current = steps.find((step) => step.status === "running")
+  const current = [...steps].reverse().find((step) => step.status === "running")
   if (current) return `${current.title} · ${duration(run)}`
   return `${String(steps.length)} ${steps.length === 1 ? "step" : "steps"}${duration(run) ? ` · ${duration(run)}` : ""}`
 }
@@ -79,6 +80,17 @@ async function stop() {
   if (!activeRun.value) return
   try { await cancel.mutateAsync({ id: activeRun.value.id, conversationId: props.conversationId }) }
   catch (cause) { toast.error(messageOf(cause, "The answer could not be stopped")) }
+}
+async function answerQuestion(choice: string) {
+  if (!activeRun.value?.question) return
+  try {
+    await answer.mutateAsync({
+      id: activeRun.value.id,
+      conversationId: props.conversationId,
+      answer: choice,
+    })
+  }
+  catch (cause) { toast.error(messageOf(cause, "The answer could not be continued")) }
 }
 async function copy(text: string) {
   try { await navigator.clipboard.writeText(text); toast.success("Answer copied") }
@@ -118,8 +130,9 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
             <div v-if="expandedSteps.has(runFor(message)!.id)" class="ai-steps__list">
               <div v-for="step in runFor(message)!.steps ?? []" :key="step.ordinal" class="ai-step">
                 <span>{{ step.title }}</span><span>{{ step.status }}</span>
-                <button v-if="step.detail" type="button" class="ai-step__reasoning" @click="toggle(expandedReasoning, `${runFor(message)!.id}:${String(step.ordinal)}`)">Thinking</button>
-                <div v-if="step.detail && expandedReasoning.has(`${runFor(message)!.id}:${String(step.ordinal)}`)" class="ai-step__detail">{{ step.detail }}</div>
+                <button v-if="step.kind === 'thinking' && step.detail" type="button" class="ai-step__reasoning" @click="toggle(expandedReasoning, `${runFor(message)!.id}:${String(step.ordinal)}`)">Thinking</button>
+                <div v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${runFor(message)!.id}:${String(step.ordinal)}`)" class="ai-step__detail">{{ step.detail }}</div>
+                <div v-for="(substep, index) in step.substeps ?? []" :key="`${String(index)}:${substep}`" class="ai-step__detail">{{ substep }}</div>
               </div>
             </div>
           </div>
@@ -138,12 +151,25 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
             <div v-if="expandedSteps.has(activeRun.id)" class="ai-steps__list">
               <div v-for="step in activeRun.steps ?? []" :key="step.ordinal" class="ai-step">
                 <span>{{ step.title }}</span><span>{{ step.status }}</span>
-                <button v-if="step.detail" type="button" class="ai-step__reasoning" @click="toggle(expandedReasoning, `${activeRun.id}:${String(step.ordinal)}`)">Thinking</button>
-                <div v-if="step.detail && expandedReasoning.has(`${activeRun.id}:${String(step.ordinal)}`)" class="ai-step__detail">{{ step.detail }}</div>
+                <button v-if="step.kind === 'thinking' && step.detail" type="button" class="ai-step__reasoning" @click="toggle(expandedReasoning, `${activeRun.id}:${String(step.ordinal)}`)">Thinking</button>
+                <div v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${activeRun.id}:${String(step.ordinal)}`)" class="ai-step__detail">{{ step.detail }}</div>
+                <div v-for="(substep, index) in step.substeps ?? []" :key="`${String(index)}:${substep}`" class="ai-step__detail">{{ substep }}</div>
               </div>
             </div>
           </div>
           <ChatMarkdown v-if="activeRun.partial_answer" :text="activeRun.partial_answer" />
+          <div v-if="activeRun.question" class="ai-question" data-testid="ai-question">
+            <div>{{ activeRun.question.question }}</div>
+            <div class="ai-question__choices">
+              <AppButton
+                v-for="choice in activeRun.question.choices"
+                :key="choice"
+                :label="choice"
+                :disable="answer.isPending.value"
+                @click="answerQuestion(choice)"
+              />
+            </div>
+          </div>
         </article>
         <AppBanner v-for="run in unrepresentedRuns" :key="run.id" :tone="run.status === 'cancelled' ? 'info' : 'warning'" data-testid="ai-run-ended">
           {{ run.error || (run.status === "cancelled" ? "The answer was stopped." : `The answer was ${run.status}.`) }}
@@ -197,6 +223,8 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
 .ai-step { display: grid; grid-template-columns: 1fr auto; gap: var(--dp-space-1) var(--dp-space-3); padding: var(--dp-space-1) 0; }
 .ai-step__reasoning { grid-column: 1 / -1; width: fit-content; text-decoration: underline; }
 .ai-step__detail { grid-column: 1 / -1; white-space: pre-wrap; color: var(--dp-text-strong); }
+.ai-question { display: grid; gap: var(--dp-space-2); padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface); }
+.ai-question__choices { display: flex; flex-wrap: wrap; gap: var(--dp-space-2); }
 .ai-conversation__composer { flex: none; display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--dp-space-2); padding: var(--dp-space-3); border-top: 1px solid var(--dp-border); }
 .ai-conversation__contexts { flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
 .ai-context-chip { display: inline-flex; align-items: center; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text-strong); }

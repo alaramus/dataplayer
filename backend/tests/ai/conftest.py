@@ -7,6 +7,7 @@ and can be held mid-answer, or fail the way a provider fails.
 """
 
 import asyncio
+import json
 import time
 import uuid
 from collections.abc import AsyncGenerator, AsyncIterator, Sequence
@@ -114,6 +115,22 @@ class ScriptedChatModel(BaseChatModel):
         **kwargs: Any,
     ) -> AsyncIterator[ChatGenerationChunk]:
         turn = self.script.next(messages)
+        if turn.tool_calls:
+            yield ChatGenerationChunk(
+                message=AIMessageChunk(
+                    content=[],
+                    tool_call_chunks=[
+                        {
+                            "name": call["name"],
+                            "args": json.dumps(call["args"]),
+                            "id": call["id"],
+                            "index": index,
+                            "type": "tool_call_chunk",
+                        }
+                        for index, call in enumerate(turn.tool_calls)
+                    ],
+                )
+            )
         for number, piece in enumerate(turn.pieces):
             last = number == len(turn.pieces) - 1
             usage = (

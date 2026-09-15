@@ -197,6 +197,83 @@ async def test_stop_keeps_what_was_written(
     assert (last["role"], last["content"]) == ("assistant", "Half of")
 
 
+async def test_a_tool_question_pauses_and_the_answer_resumes_the_same_run(
+    client: AsyncClient, headers: dict[str, str], script: Script
+) -> None:
+    script.turns += [
+        Turn(
+            tool_calls=[
+                {
+                    "name": "ask_user",
+                    "args": {"question": "Which orders?", "choices": ["Open", "Archived"]},
+                    "id": "question-1",
+                    "type": "tool_call",
+                }
+            ]
+        ),
+        Turn(pieces=[text("I used Open orders.")]),
+    ]
+    conversation_id = await new_conversation(client, headers)
+    run = await send(client, headers, conversation_id, "Open orders")
+
+    deadline = time.monotonic() + 10
+    while True:
+        paused = (await client.get(f"{AI}/runs/{run['id']}", headers=headers)).json()
+        if paused["status"] == "awaiting_answer":
+            break
+        if time.monotonic() > deadline:
+            raise AssertionError(f"run did not pause: {paused}")
+        await asyncio.sleep(0.02)
+
+    assert paused["question"] == {
+        "kind": "ask_user",
+        "question": "Which orders?",
+        "choices": ["Open", "Archived"],
+        "connector_id": None,
+    }
+    refused = await client.post(
+        f"{AI}/runs/{run['id']}/answer", headers=headers, json={"answer": "Something else"}
+    )
+    assert refused.status_code == 422
+    continued = await client.post(
+        f"{AI}/runs/{run['id']}/answer", headers=headers, json={"answer": "Open"}
+    )
+    assert continued.status_code == 200
+    finished = await settled(client, headers, run["id"])
+    assert finished["status"] == "succeeded"
+
+
+async def test_a_read_tool_runs_inside_the_answer_and_has_a_server_named_step(
+    client: AsyncClient, headers: dict[str, str], script: Script
+) -> None:
+    script.turns += [
+        Turn(
+            tool_calls=[
+                {
+                    "name": "list_connections",
+                    "args": {},
+                    "id": "connections-1",
+                    "type": "tool_call",
+                }
+            ]
+        ),
+        Turn(pieces=[text("I listed the available connections.")]),
+    ]
+    conversation_id = await new_conversation(client, headers)
+    await client.patch(
+        f"{AI}/conversations/{conversation_id}", headers=headers, json={"title": "Connections"}
+    )
+
+    run = await send(client, headers, conversation_id, "Show my connections")
+    finished = await settled(client, headers, run["id"])
+
+    assert finished["status"] == "succeeded"
+    assert [(step["title"], step["status"]) for step in finished["steps"]] == [
+        ("Thinking", "done"),
+        ("Listing connections", "done"),
+    ]
+
+
 async def test_a_provider_failure_is_a_sentence_and_nothing_of_the_providers_text(
     client: AsyncClient, headers: dict[str, str], script: Script
 ) -> None:
@@ -290,9 +367,10 @@ async def test_somebody_elses_conversation_is_not_found(
         await client.patch(f"{AI}/conversations/{conversation_id}", headers=stranger, json={"title": "x"}),
         await client.delete(f"{AI}/conversations/{conversation_id}", headers=stranger),
         await client.post(f"{AI}/conversations/{conversation_id}/messages", headers=stranger, json={"text": "x"}),
+        await client.post(f"{AI}/runs/{uuid.uuid4()}/answer", headers=stranger, json={"answer": "x"}),
     ]
 
-    assert [response.status_code for response in responses] == [404, 404, 404, 404]
+    assert [response.status_code for response in responses] == [404, 404, 404, 404, 404]
 
 
 async def test_what_is_said_is_stored_encrypted(

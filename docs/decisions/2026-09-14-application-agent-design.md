@@ -561,10 +561,12 @@ Settled on 2026-09-14 and folded into D137, D139, D140 and D141: where the
 model's state is stored, which keys encrypt provider keys and conversations, and
 which model writes a title.
 
-Still open:
-
-- The size bound of a tool result, and the step template of each tool.
-- Which workspace panel kinds provide screen context.
+Settled during AI4: a tool result is at most 64 KiB and 20 rows, and names
+truncation explicitly. Step templates are `Listing connections`, `Browsing
+catalog in …`, `Describing …`, `Reading rows from …`, `Running query on …`,
+`Opening …`, and `Waiting for your answer`. Every ordinary open workspace panel
+whose identity can be represented by `ScreenContext` may be attached explicitly;
+opening the AI space attaches none automatically.
 
 ## Validation
 

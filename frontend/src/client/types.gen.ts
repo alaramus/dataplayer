@@ -341,6 +341,16 @@ export type AddColumnRequest = {
 }
 
 /**
+ * AgentAnswer
+ */
+export type AgentAnswer = {
+  /**
+   * Answer
+   */
+  answer: string
+}
+
+/**
  * AgentCreate
  */
 export type AgentCreate = {
@@ -502,6 +512,30 @@ export type AgentPublic = {
 }
 
 /**
+ * AgentQuestion
+ *
+ * One resumable choice requested by a tool, independent of LangGraph's format.
+ */
+export type AgentQuestion = {
+  /**
+   * Kind
+   */
+  kind: "ask_user" | "allow_transfer"
+  /**
+   * Question
+   */
+  question: string
+  /**
+   * Choices
+   */
+  choices: Array<string>
+  /**
+   * Connector Id
+   */
+  connector_id?: string | null
+}
+
+/**
  * AgentRunPublic
  */
 export type AgentRunPublic = {
@@ -549,6 +583,7 @@ export type AgentRunPublic = {
    * Partial Answer
    */
   partial_answer?: string | null
+  question?: AgentQuestion | null
 }
 
 /**
@@ -631,6 +666,10 @@ export type AgentStepPublic = {
    * Detail
    */
   detail?: string | null
+  /**
+   * Substeps
+   */
+  substeps?: Array<string>
   /**
    * Started At
    */
@@ -16194,6 +16233,36 @@ export type aiReadRunResponses = {
 }
 
 export type aiReadRunResponse = aiReadRunResponses[keyof aiReadRunResponses]
+
+export type aiAnswerRunData = {
+  body: AgentAnswer
+  path: {
+    /**
+     * Run Id
+     */
+    run_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/runs/{run_id}/answer"
+}
+
+export type aiAnswerRunErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiAnswerRunError = aiAnswerRunErrors[keyof aiAnswerRunErrors]
+
+export type aiAnswerRunResponses = {
+  /**
+   * Successful Response
+   */
+  200: AgentRunPublic
+}
+
+export type aiAnswerRunResponse = aiAnswerRunResponses[keyof aiAnswerRunResponses]
 
 export type aiCancelRunData = {
   body?: never

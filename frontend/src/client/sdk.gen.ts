@@ -11,6 +11,9 @@ import { client } from "./client.gen"
 import type {
   adaptersReadAdapterTypesData,
   adaptersReadAdapterTypesResponses,
+  aiAnswerRunData,
+  aiAnswerRunErrors,
+  aiAnswerRunResponses,
   aiCancelRunData,
   aiCancelRunErrors,
   aiCancelRunResponses,
@@ -5091,6 +5094,26 @@ export class AiService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/runs/{run_id}",
       ...options,
+    })
+  }
+
+  /**
+   * Answer Run
+   *
+   * Continue the exact tool call held in LangGraph's persisted pause.
+   */
+  public static answerRun<ThrowOnError extends boolean = true>(
+    options: Options<aiAnswerRunData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<aiAnswerRunResponses, aiAnswerRunErrors, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/runs/{run_id}/answer",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 

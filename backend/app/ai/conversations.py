@@ -5,6 +5,7 @@ sends. Somebody else's conversation is not found rather than refused, the rule
 connections and jobs follow (D33, D81).
 """
 
+import json
 import uuid
 from datetime import UTC, datetime
 
@@ -16,6 +17,7 @@ from app.ai.content import opened, sealed
 from app.ai.models import (
     MAX_TITLE_CHARS,
     TERMINAL,
+    AgentQuestion,
     AgentRun,
     AgentRunPublic,
     AgentStep,
@@ -194,6 +196,18 @@ async def has_answer(session: AsyncSession, conversation_id: uuid.UUID) -> bool:
     ).first() is not None
 
 
+async def user_message_for_run(session: AsyncSession, run_id: uuid.UUID) -> str:
+    message = (
+        await session.exec(
+            select(ConversationMessage).where(
+                ConversationMessage.run_id == run_id,
+                ConversationMessage.role == "user",
+            )
+        )
+    ).first()
+    return opened(message.content) if message is not None else ""
+
+
 async def record_run(
     session: AsyncSession,
     *,
@@ -242,6 +256,39 @@ async def start_step(
     return step
 
 
+async def running_tool_step(
+    session: AsyncSession, run_id: uuid.UUID
+) -> AgentStep | None:
+    return (
+        await session.exec(
+            select(AgentStep)
+            .where(
+                AgentStep.run_id == run_id,
+                AgentStep.kind == "tool",
+                AgentStep.status == "running",
+            )
+            .order_by(col(AgentStep.ordinal).desc())
+            .limit(1)
+        )
+    ).first()
+
+
+async def last_step_ordinal(session: AsyncSession, run_id: uuid.UUID) -> int:
+    value = (
+        await session.exec(select(func.max(AgentStep.ordinal)).where(AgentStep.run_id == run_id))
+    ).one()
+    return int(value or 0)
+
+
+async def pending_question(
+    session: AsyncSession, run_id: uuid.UUID
+) -> AgentQuestion | None:
+    step = await running_tool_step(session, run_id)
+    if step is None or not step.detail:
+        return None
+    return AgentQuestion.model_validate_json(opened(step.detail))
+
+
 async def finish_step(
     session: AsyncSession,
     run_id: uuid.UUID,
@@ -262,13 +309,65 @@ async def finish_step(
     return step
 
 
+async def set_step_detail(
+    session: AsyncSession, run_id: uuid.UUID, ordinal: int, detail: str
+) -> AgentStep | None:
+    step = await session.get(AgentStep, (run_id, ordinal))
+    if step is None:
+        return None
+    step.detail = sealed(detail)
+    session.add(step)
+    await session.commit()
+    return step
+
+
+async def set_run_status(
+    session: AsyncSession,
+    run_id: uuid.UUID,
+    status: RunStatus,
+    *,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+) -> AgentRun | None:
+    run = await session.get(AgentRun, run_id)
+    if run is None:
+        return None
+    run.status = status
+    run.finished_at = None
+    if input_tokens is not None:
+        run.input_tokens = input_tokens
+    if output_tokens is not None:
+        run.output_tokens = output_tokens
+    session.add(run)
+    await session.commit()
+    return run
+
+
+async def step_detail(
+    session: AsyncSession, run_id: uuid.UUID, ordinal: int
+) -> str:
+    step = await session.get(AgentStep, (run_id, ordinal))
+    return opened(step.detail) if step is not None and step.detail else ""
+
+
 def step_public(step: AgentStep, *, with_detail: bool = True) -> AgentStepPublic:
+    stored = opened(step.detail) if with_detail and step.detail else None
+    detail = stored if step.kind == "thinking" else None
+    substeps: list[str] = []
+    if step.kind == "tool" and stored:
+        try:
+            value = json.loads(stored)
+            if isinstance(value, dict) and isinstance(value.get("substeps"), list):
+                substeps = [str(item) for item in value["substeps"]]
+        except json.JSONDecodeError:
+            pass
     return AgentStepPublic(
         ordinal=step.ordinal,
         kind=step.kind,  # type: ignore[arg-type]  # the column holds the union
         title=step.title,
         status=step.status,  # type: ignore[arg-type]  # the column holds the union
-        detail=opened(step.detail) if with_detail and step.detail else None,
+        detail=detail,
+        substeps=substeps,
         started_at=step.started_at,
         finished_at=step.finished_at,
     )
@@ -284,6 +383,9 @@ async def run_public(
             .order_by(col(AgentStep.ordinal))
         )
     ).all()
+    question = None
+    if run.status == "awaiting_answer":
+        question = await pending_question(session, run.id)
     return AgentRunPublic(
         id=run.id,
         conversation_id=run.conversation_id,
@@ -296,6 +398,7 @@ async def run_public(
         finished_at=run.finished_at,
         steps=[step_public(step) for step in steps],
         partial_answer=None if run.status in TERMINAL else partial_answer,
+        question=question,
     )
 
 

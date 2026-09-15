@@ -27,6 +27,7 @@ import CommandBar from "@/features/workspace/CommandBar.vue"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
 import AiSpace from "@/features/ai/AiSpace.vue"
 import { screenContexts } from "@/features/ai/context"
+import type { AiOpenIntent } from "@/features/ai/context"
 import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
 import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
 import WorkspaceGroups from "@/features/workspace/WorkspaceGroups.vue"
@@ -431,6 +432,50 @@ function openCatalog(connector: ConnectorPublic) {
     title: connector.name,
     adapterType: connector.adapter_type,
   })
+}
+
+function openFromAgent(intent: AiOpenIntent) {
+  const connector = (connectors.data.value?.data ?? []).find(
+    (candidate) => candidate.id === intent.connector_id
+  )
+  if (connector === undefined) {
+    toast.info("That connection is no longer available")
+    return
+  }
+  if (intent.node_id == null || intent.view === "catalog") {
+    openCatalog(connector)
+    return
+  }
+  const common = {
+    connectorId: connector.id,
+    nodeId: intent.node_id,
+    title: intent.title ?? intent.node_id,
+    connectorName: connector.name,
+    adapterType: connector.adapter_type,
+  }
+  if (intent.view === "structure") {
+    openPanel({ id: structurePanelId(connector.id, intent.node_id), kind: "structure", ...common })
+  } else if (intent.view === "summary") {
+    openPanel({ id: summaryPanelId(connector.id, intent.node_id), kind: "summary", ...common })
+  } else if (intent.view === "preferred" && intent.representations.length > 0) {
+    const preferred = intent.representations[0]
+    if (preferred?.kind === "table") {
+      openPanel({
+        id: rowsPanelId(connector.id, intent.node_id), kind: "rows", ...common,
+        describable: intent.describable, representations: intent.representations,
+      })
+    } else if (preferred !== undefined) {
+      openPanel({
+        id: contentPanelId(connector.id, intent.node_id, preferred.kind), kind: "content",
+        ...common, representation: preferred.kind,
+      })
+    }
+  } else {
+    openPanel({
+      id: rowsPanelId(connector.id, intent.node_id), kind: "rows", ...common,
+      describable: intent.describable, representations: intent.representations,
+    })
+  }
 }
 
 /**
@@ -839,7 +884,11 @@ provide(workspaceActionsKey, {
     >
       <template #cover>
         <DashboardsSpace v-if="dashboardsShown" />
-        <AiSpace v-else-if="aiShown" :contexts="screenContexts(workspace.panels.value)" />
+        <AiSpace
+          v-else-if="aiShown"
+          :contexts="screenContexts(workspace.panels.value)"
+          @open="openFromAgent"
+        />
       </template>
     </WorkspaceRoot>
 

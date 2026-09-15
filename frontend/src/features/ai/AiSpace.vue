@@ -19,8 +19,10 @@ import AiConversation from "./AiConversation.vue"
 import AiSettings from "./AiSettings.vue"
 import { aiConversationKey, aiConversationsKey, useAiConversations, useCreateAiConversation, useDeleteAiConversation, useDeleteAllAiConversations, useRenameAiConversation } from "./api"
 import { rememberAiConversation, rememberedAiConversation } from "./state"
+import type { AiOpenIntent } from "./context"
 
 defineProps<{ contexts: import("@/client").ScreenContext[] }>()
+const emit = defineEmits<{ open: [intent: AiOpenIntent] }>()
 
 type AiEvent =
   | { kind: "run"; conversation_id: string; run_id: string; status: AgentRunPublic["status"]; error?: string | null }
@@ -28,6 +30,7 @@ type AiEvent =
   | { kind: "answer"; conversation_id: string; run_id: string; text: string }
   | { kind: "reasoning"; conversation_id: string; run_id: string; ordinal: number; text: string }
   | { kind: "title"; conversation_id: string; title: string }
+  | { kind: "open"; conversation_id: string; intent: AiOpenIntent }
 
 const list = useAiConversations()
 const createConversation = useCreateAiConversation()
@@ -120,9 +123,13 @@ const stop = realtime().subscribe("ai.runs", (payload) => {
   else if (event.kind === "reasoning") updateRun(event.conversation_id, event.run_id, (run) => ({ ...run, steps: (run.steps ?? []).map((step) => step.ordinal === event.ordinal ? { ...step, detail: `${step.detail ?? ""}${event.text}` } : step) }))
   else if (event.kind === "run") {
     updateRun(event.conversation_id, event.run_id, (run) => ({ ...run, status: event.status, error: event.error }))
-    if (!["running", "awaiting_answer"].includes(event.status)) void queryClient.invalidateQueries({ queryKey: aiConversationKey(event.conversation_id) })
+    if (event.status === "awaiting_answer" || !["running", "awaiting_answer"].includes(event.status)) {
+      void queryClient.invalidateQueries({ queryKey: aiConversationKey(event.conversation_id) })
+    }
   } else if (event.kind === "title") {
     queryClient.setQueryData<ConversationsPublic>(aiConversationsKey, (current) => current === undefined ? current : { ...current, data: current.data.map((row) => row.id === event.conversation_id ? { ...row, title: event.title } : row) })
+  } else if (event.kind === "open") {
+    emit("open", event.intent)
   }
   void queryClient.invalidateQueries({ queryKey: aiConversationsKey })
 })

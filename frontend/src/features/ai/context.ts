@@ -1,4 +1,4 @@
-import type { ScreenContext } from "@/client"
+import type { NodeRepresentation, ScreenContext } from "@/client"
 import { lookOf } from "@/features/workspace/panels"
 import type { Panel } from "@/features/workspace/panels"
 
@@ -14,6 +14,17 @@ const KIND_LABELS: Record<ScreenContext["kind"], string> = {
   query: "Query",
   result: "Result",
   relationships: "Relationships",
+}
+
+export interface AiOpenIntent {
+  connector_id: string
+  connector_name: string
+  adapter_type: string
+  node_id?: string | null
+  title?: string | null
+  view: "catalog" | "preferred" | "rows" | "structure" | "summary"
+  describable: boolean
+  representations: NodeRepresentation[]
 }
 
 /** Open workspace tabs which can be explicitly attached to one message. */

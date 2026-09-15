@@ -128,7 +128,8 @@ Actions come from the registry with their parameter schema and are validated by
 the action's own model, so a new source type or action needs no agent code. A
 tool calls the service layer in process, not the HTTP API. A name is not an
 identity: several matches become a question, never a guess. Results are bounded
-and failures are the route's safe sentence (D2c). `open_in_workspace` is a
+to 64 KiB and 20 rows, with an explicit truncation marker, and failures are the
+route's safe sentence (D2c). `open_in_workspace` is a
 closed set of intents checked on the server; asked to open, the agent opens.
 
 Rejected: a hand-written tool per operation found by vector search, and an MCP
@@ -171,7 +172,9 @@ command. A pause outlives a restart: answering it afterwards continues the run
 from the model's saved state. A run that was working when the process stopped
 is `interrupted`, and nothing is replayed. Limits: 50 tool calls, 15
 minutes, one active run per conversation. The server words each step from a
-tool template; substeps come from real progress; model time is a Thinking step
+tool template (`Listing connections`, `Browsing catalog in …`, `Describing …`,
+`Reading rows from …`, `Running query on …`, `Opening …`, and
+`Waiting for your answer`); substeps come from real progress; model time is a Thinking step
 with the provider's reasoning as expandable text. A minimised window shows the
 run in Working (D95) and a question in Needs you (D113). Tokens and duration are
 recorded per step.
