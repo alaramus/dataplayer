@@ -1,6 +1,6 @@
-import { mount } from "@vue/test-utils"
+import { flushPromises, mount } from "@vue/test-utils"
 import { QSelect, Quasar } from "quasar"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import AppSelect from "./AppSelect.vue"
 
@@ -127,5 +127,40 @@ describe("AppSelect", () => {
     expect(wrapper.get('[data-testid="field-action"]').element.parentElement?.classList).toContain(
       "q-field__after"
     )
+  })
+
+  // The click never reaches the field's own handler, so without an explicit
+  // close the popup stays open over whatever the action shows.
+  it("closes the popup when an option action takes over", async () => {
+    const option = {
+      label: "Claude",
+      value: "claude",
+      actionIcon: "key",
+      actionLabel: "Manage Anthropic API key",
+    }
+    const wrapper = mount(AppSelect, {
+      attachTo: document.body,
+      global: { plugins: [Quasar] },
+      props: { modelValue: null, options: [option] },
+    })
+    const field = wrapper.getComponent(QSelect).vm as unknown as {
+      showPopup: () => void
+      hidePopup: () => void
+    }
+    const hide = vi.spyOn(field, "hidePopup")
+    field.showPopup()
+
+    // The popup positions itself on an animation frame, which promises alone
+    // do not flush.
+    await vi.waitFor(() => {
+      expect(document.body.querySelector('button[aria-label="Manage Anthropic API key"]')).not.toBeNull()
+    })
+    const action = document.body.querySelector('button[aria-label="Manage Anthropic API key"]')
+    action?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    await flushPromises()
+
+    expect(wrapper.emitted("optionAction")).toEqual([[option]])
+    expect(hide).toHaveBeenCalled()
+    wrapper.unmount()
   })
 })
