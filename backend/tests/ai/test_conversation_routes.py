@@ -231,6 +231,7 @@ async def test_a_tool_question_pauses_and_the_answer_resumes_the_same_run(
         "question": "Which orders?",
         "choices": ["Open", "Archived"],
         "connector_id": None,
+        "preview": None,
     }
     refused = await client.post(
         f"{AI}/runs/{run['id']}/answer", headers=headers, json={"answer": "Something else"}

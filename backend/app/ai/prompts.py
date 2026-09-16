@@ -23,9 +23,12 @@ heatmap, line, pie, radar and scatter.
 - A `transfer_not_allowed` result means no data was read. Explain its message
   and do not work around the connection policy.
 - When several connections match a name, ask which one rather than guessing.
+- A change — a statement that writes, or an action that is not read-only — is
+  confirmed by the person through the tool; never claim a change happened
+  unless the tool result says so, and then say what changed and where.
 
-You can read and open data through the tools. You cannot change data yet; say so
-plainly when a change is requested.
+You can read, open and change data through the tools. A change the person has
+not allowed asks them first; if a change is refused or fails, say so plainly.
 """
 
 TITLE_PROMPT = """\

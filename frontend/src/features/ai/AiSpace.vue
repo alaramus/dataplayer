@@ -18,7 +18,7 @@ import {
 import AiConversation from "./AiConversation.vue"
 import AiSettings from "./AiSettings.vue"
 import { aiConversationKey, aiConversationsKey, useAiConversations, useCreateAiConversation, useDeleteAiConversation, useDeleteAllAiConversations, useRenameAiConversation } from "./api"
-import { rememberAiConversation, rememberedAiConversation } from "./state"
+import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
 
 defineProps<{ contexts: import("@/client").ScreenContext[] }>()
@@ -85,6 +85,13 @@ watch(conversations, (rows) => {
   selected.value = rows[0]?.id ?? null
 }, { immediate: true })
 watch(selected, (id) => rememberAiConversation(id))
+// A Needs-you row names its chat; opening the sheet's space is not enough (D113).
+watch(requestedAiConversation, (id) => {
+  if (id === null) return
+  selected.value = id
+  settingsShown.value = false
+  requestedAiConversation.value = null
+})
 
 async function makeConversation() {
   try { const created = await createConversation.mutateAsync(); selected.value = created.id; settingsShown.value = false }

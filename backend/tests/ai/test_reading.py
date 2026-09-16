@@ -289,6 +289,7 @@ async def test_the_owner_allows_transfer_from_the_refused_step(
         "question": f'Allow third-party transfer for "{name}" so the agent can read it?',
         "choices": ["Allow", "Not now"],
         "connector_id": connector_id,
+        "preview": None,
     }
     continued = await client.post(
         f"{AI}/runs/{run['id']}/answer", headers=headers, json={"answer": "Allow"}
@@ -465,10 +466,16 @@ async def test_a_query_reads_and_each_statement_is_a_substep(
     assert query_step["substeps"] == ["Statement 1 · succeeded · 1 rows"]
 
 
-async def test_a_changing_query_is_refused_with_the_read_sentence(
+async def test_a_read_only_connection_is_never_written(
     client: AsyncClient, headers: dict[str, str], script: Script
 ) -> None:
     connector_id = await postgres_connector(client, headers, transfer=True)
+    refused = await client.patch(
+        f"{CONNECTORS}/{connector_id}",
+        headers=headers,
+        json={"execution_policy": "read_only"},
+    )
+    assert refused.status_code == 200, refused.text
     script.turns += [
         Turn(
             tool_calls=[
@@ -479,7 +486,7 @@ async def test_a_changing_query_is_refused_with_the_read_sentence(
                 )
             ]
         ),
-        Turn(pieces=[text("I cannot change data yet.")]),
+        Turn(pieces=[text("The owner allows reading only.")]),
     ]
     conversation_id = await new_conversation(client, headers)
     await rename(client, headers, conversation_id)
@@ -487,11 +494,10 @@ async def test_a_changing_query_is_refused_with_the_read_sentence(
     run = await send(client, headers, conversation_id, "delete everything")
     finished = await settled(client, headers, run["id"])
 
+    # The owner's policy answers without asking anybody (D66, D136).
     assert finished["status"] == "succeeded"
     [refusal] = tool_results(script, 1)
-    assert refusal["error"] == "Statement 1 is a dml statement, and this run is a read"
-    query_step = next(step for step in finished["steps"] if step["kind"] == "tool")
-    assert query_step["status"] == "failed"
+    assert refusal["error"] == "The owner of this connection allows reading only"
 
 
 async def test_describing_a_node_gives_its_model(

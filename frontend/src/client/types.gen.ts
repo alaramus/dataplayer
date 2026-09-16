@@ -520,7 +520,7 @@ export type AgentQuestion = {
   /**
    * Kind
    */
-  kind: "ask_user" | "allow_transfer"
+  kind: "ask_user" | "allow_transfer" | "confirm_change"
   /**
    * Question
    */
@@ -533,6 +533,7 @@ export type AgentQuestion = {
    * Connector Id
    */
   connector_id?: string | null
+  preview?: ChangePreview | null
 }
 
 /**
@@ -1287,6 +1288,25 @@ export type CellsUpdated = {
    * Rows
    */
   rows: Array<UpdatedRow>
+}
+
+/**
+ * ChangePreview
+ *
+ * What a change would do, shown in its confirmation card (D46, D136).
+ *
+ * A sentence plus a line per thing that would happen, in the source's own
+ * words — a rehearsal's outcome per statement, or an action's own preview.
+ */
+export type ChangePreview = {
+  /**
+   * Summary
+   */
+  summary: string
+  /**
+   * Lines
+   */
+  lines?: Array<string>
 }
 
 /**
@@ -2266,6 +2286,10 @@ export type ConversationSummary = {
    * Active
    */
   active: boolean
+  /**
+   * Waiting
+   */
+  waiting: boolean
 }
 
 /**

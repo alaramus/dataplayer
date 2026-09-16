@@ -161,6 +161,7 @@ export type {
   CellEdit,
   CellsRejected,
   CellsUpdated,
+  ChangePreview,
   CheckConstraint,
   ChosenPassword,
   ChosenPasswordWritable,

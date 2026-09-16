@@ -92,6 +92,16 @@ async def list_for_owner(
             )
         ).all()
     )
+    waiting = set(
+        (
+            await session.exec(
+                select(AgentRun.conversation_id).where(
+                    col(AgentRun.conversation_id).in_([row.id for row in rows]),
+                    col(AgentRun.status) == "awaiting_answer",
+                )
+            )
+        ).all()
+    )
     return ConversationsPublic(
         data=[
             ConversationSummary(
@@ -99,6 +109,7 @@ async def list_for_owner(
                 title=opened(row.title),
                 updated_at=row.updated_at,
                 active=row.id in active,
+                waiting=row.id in waiting,
             )
             for row in rows
         ],

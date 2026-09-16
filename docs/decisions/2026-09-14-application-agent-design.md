@@ -2,8 +2,8 @@
 
 Date: 2026-09-14. Decisions: D133 through D141, in [ai](../architecture/ai.md).
 
-Status: agreed in discussion with the user on 2026-09-14. AI1, AI2, AI3 and AI4
-implemented; AI5–AI6 pending. AI3b validation is pending. Slices below.
+Status: agreed in discussion with the user on 2026-09-14. AI1, AI2, AI3, AI4
+and AI5 implemented; AI6 pending. AI3b validation is pending. Slices below.
 
 ## Outcome
 
@@ -580,7 +580,8 @@ which model writes a title.
 Settled during AI4: a tool result is at most 64 KiB and 20 rows, and names
 truncation explicitly. Step templates are `Listing connections`, `Browsing
 catalog in …`, `Describing …`, `Reading rows from …`, `Running query on …`,
-`Opening …`, and `Waiting for your answer`. Every ordinary open workspace panel
+`Opening …`, and `Waiting for your answer`, with `Running action "…" on …`
+added in AI5. Every ordinary open workspace panel
 whose identity can be represented by `ScreenContext` may be attached explicitly;
 opening the AI space attaches none automatically.
 
@@ -615,3 +616,14 @@ to end through the API with the scripted model over a real connection — `mypy
 app`, `ruff check app tests`, `lint-imports`, frontend `type-check`, `lint` and
 `test:unit` (1721 passed), and `check-docs.sh`, all clean. Each correction
 above was first seen red, then green.
+
+AI5, on 2026-09-16: the full backend suite (3022 passed, 119 skipped for
+servers not started), of which `tests/ai` is 73 — the change acceptances end to
+end: the card asks with its three answers and its rehearsal preview, once
+stores nothing, this chat is stored on the conversation and covers only it,
+every chat is stored on the person and revocable from settings, a pending
+confirmation survives the startup sweep and continues the run, a failed
+statement commits nothing, a read grant is refused in D66's sentence, and a
+destructive action previews and drops — `mypy app`, `ruff check app tests`,
+`lint-imports`, frontend `type-check`, `lint` and `test:unit` (1724 passed),
+and `check-docs.sh`, all clean.

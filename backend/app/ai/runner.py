@@ -27,6 +27,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.types import Command
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.adapters.cache import DataCache
 from app.adapters.resources import ResourceStore
 from app.ai import checkpoints, conversations, preferences
 from app.ai.catalog import ModelCatalog, ModelInfo, Provider
@@ -129,12 +130,14 @@ class AgentRunner:
         topics: TopicSet,
         catalog: ModelCatalog,
         resources: ResourceStore,
+        data_cache: DataCache,
     ) -> None:
         self.chat_models = chat_models
         self._checkpointer = checkpointer
         self._topics = topics
         self._catalog = catalog
         self._resources = resources
+        self._data_cache = data_cache
         self._active: dict[uuid.UUID, _Active] = {}
         self._lock = asyncio.Lock()
 
@@ -432,6 +435,7 @@ class AgentRunner:
             owner_id=owner_id,
             conversation_id=conversation_id,
             resources=self._resources,
+            data_cache=self._data_cache,
             say=self._say,
             opened=lambda user_id, intent: self._say(
                 user_id,

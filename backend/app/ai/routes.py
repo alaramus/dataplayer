@@ -114,6 +114,7 @@ async def create_conversation(session: SessionDep, current_user: CurrentUser) ->
         title="New chat",
         updated_at=conversation.updated_at,
         active=False,
+        waiting=False,
     )
 
 
@@ -159,9 +160,13 @@ async def rename_conversation(
     if conversation is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     renamed = await conversations.rename(session, conversation, body.title.strip())
-    active = await conversations.active_run(session, conversation_id) is not None
+    current = await conversations.active_run(session, conversation_id)
     return ConversationSummary(
-        id=renamed.id, title=body.title.strip(), updated_at=renamed.updated_at, active=active
+        id=renamed.id,
+        title=body.title.strip(),
+        updated_at=renamed.updated_at,
+        active=current is not None,
+        waiting=current is not None and current.status == "awaiting_answer",
     )
 
 

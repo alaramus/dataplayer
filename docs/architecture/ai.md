@@ -8,8 +8,8 @@ model provider, and before changing the chat window.
 Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141.
 
 **Implementation status:** agreed on 2026-09-14. AI1 — the third-party transfer
-flag —, AI2 — a new file by name —, AI3 and AI4 are implemented; validation of
-the chat window and AI5–AI6 are pending.
+flag —, AI2 — a new file by name —, AI3, AI4 and AI5 are implemented; validation
+of the chat window and AI6 are pending.
 
 ## What exists today
 
@@ -27,7 +27,7 @@ people as well (D133). What goes into the file is written by in-place editing
 
 The agent answers in the AI application space, reading through the tools of
 D134: `list_connections`, `browse_catalog`, `describe_node`, `read_rows`,
-`run_query` (read-only), `list_actions`, `open_in_workspace` and `ask_user`.
+`run_query`, `list_actions`, `run_action`, `open_in_workspace` and `ask_user`.
 Every tool call goes through the connection access funnel as the person who
 owns the conversation, and the transfer flag is checked before every call: a
 connection that does not allow transfer answers with a `transfer_not_allowed`
@@ -35,7 +35,20 @@ marker, the owner is offered Allow from that step, and a grantee is told to ask
 the owner. Results of a connection whose flag was switched off are withheld
 from later context — a refusal itself never is, since it carries no data and
 the agent needs it to say why it stopped. Results are bounded to 64 KiB and 20
-rows, and a run stops after 50 tool calls with its own sentence. A person
+rows, and a run stops after 50 tool calls with its own sentence.
+
+A change asks first (D136): a `run_query` whose script changes data and a
+`run_action` above reading pause the run on a confirmation card with Allow
+once, Allow all changes in this chat and Allow all changes in every chat, the
+second stored on the conversation, the third on the person's settings and
+revocable there. The card carries a preview — a drop and every DDL statement
+rehearsed in a rolled-back transaction, an action's own preview where it has
+one. A `read_only` connection is refused before anybody is asked, in D66's
+sentence, and so is a level the person does not hold. Confirmed SQL runs as one
+transaction that commits only when every statement succeeded, and a visible
+step records it, one substep per statement. A paused run keeps its question
+across a restart, and while it waits the conversation is flagged `waiting`,
+which the Needs-you sheet lists with a button that opens that chat. A person
 stores a
 key per provider and chooses a model from
 `app/ai/models.json`; a message starts a run, whose Thinking step, reasoning and
@@ -64,7 +77,7 @@ backend/app/ai/
 ├── runner.py        an answer: recorded, streamed, settled, titled
 ├── checkpoints.py   LangGraph's saver: encrypted, strict, kept to its latest state
 ├── prompts.py       the system prompt and the title prompt
-├── tools.py         the reading tools, the transfer policy and the call limit
+├── tools.py         the tools, the transfer policy, the change gate and the call limit
 ├── providers/       one module per provider SDK, and what its errors mean
 ├── topic.py         `ai.runs`
 └── routes.py        /ai
@@ -75,14 +88,15 @@ backend/app/prepare_checkpoints.py                 LangGraph's tables, at presta
 ```
 frontend/src/features/ai/
 ├── AiSpace.vue         the two columns, history and settings
-├── AiConversation.vue  transcript, steps, Stop, copy, listen and the context chips
+├── AiConversation.vue  transcript, steps, the confirmation card, Stop, copy, listen and the context chips
 ├── AiContextDialog.vue the open tabs a message may carry
 ├── AiSettings.vue      provider keys, model and confirmations
 ├── ChatMarkdown.vue    the D50 renderer in streaming mode
+├── attention.ts        a waiting conversation as a Needs-you item (D113)
 ├── api.ts              vue-query ownership of server state
 ├── context.ts          which open panels a chip may name, and the open intent
 ├── streaming.ts        open-fence protection and speech text
-└── state.ts            selected-chat restoration; the shared space store remembers AI
+└── state.ts            selected-chat restoration and a chat requested from outside; the shared space store remembers AI
 ```
 
 ```
@@ -193,7 +207,8 @@ from the model's saved state. A run that was working when the process stopped
 is `interrupted`, and nothing is replayed. Limits: 50 tool calls, 15
 minutes, one active run per conversation. The server words each step from a
 tool template (`Listing connections`, `Browsing catalog in …`, `Describing …`,
-`Reading rows from …`, `Running query on …`, `Opening …`, and
+`Reading rows from …`, `Running query on …`, `Running action "…" on …`,
+`Opening …`, and
 `Waiting for your answer`); substeps come from real progress; model time is a Thinking step
 with the provider's reasoning as expandable text. A minimised window shows the
 run in Working (D95) and a question in Needs you (D113). Tokens and duration are

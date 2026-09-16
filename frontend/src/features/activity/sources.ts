@@ -2,6 +2,7 @@ import { computed, ref } from "vue"
 import type { ComputedRef, Ref } from "vue"
 
 import type { JobPublic } from "@/client"
+import { useAiAttention } from "@/features/ai/attention"
 import { useHealthAttention } from "@/features/connectors/attention"
 import { useRestartAttention } from "@/features/dashboards/attention"
 import { useAccessAttention } from "@/features/shares/attention"
@@ -39,6 +40,7 @@ export function useAttention(
     }),
     useHealthAttention(handlers.openConnection),
     useRestartAttention(),
+    useAiAttention(),
   ]
   return computed(() => ranked(sources.flatMap((source) => source.value)))
 }

@@ -129,6 +129,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
             topics=application.state.topics,
             catalog=catalog(),
             resources=application.state.resources,
+            data_cache=application.state.data_cache,
         )
         # Emptying query Trash is the one thing here that is not a resource: it
         # is a timer, and it belongs to the application for the same reason a

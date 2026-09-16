@@ -274,6 +274,22 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
             data-testid="ai-question"
           >
             <div>{{ activeRun.question.question }}</div>
+            <div
+              v-if="activeRun.question.kind === 'confirm_change' && activeRun.question.preview"
+              class="ai-question__preview"
+              data-testid="ai-question-preview"
+            >
+              <div class="ai-question__preview-summary">
+                {{ activeRun.question.preview.summary }}
+              </div>
+              <div
+                v-for="(line, index) in activeRun.question.preview.lines ?? []"
+                :key="`${String(index)}:${line}`"
+                class="ai-question__preview-line"
+              >
+                {{ line }}
+              </div>
+            </div>
             <div class="ai-question__choices">
               <AppButton
                 v-for="choice in activeRun.question.choices"
@@ -376,6 +392,9 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
 .ai-step__detail { grid-column: 1 / -1; white-space: pre-wrap; color: var(--dp-text-strong); }
 .ai-question { display: grid; gap: var(--dp-space-2); padding: var(--dp-space-3); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface); }
 .ai-question__choices { display: flex; flex-wrap: wrap; gap: var(--dp-space-2); }
+.ai-question__preview { display: grid; gap: var(--dp-space-1); padding: var(--dp-space-2) 0 0; font-size: 12px; color: var(--dp-text-muted); }
+.ai-question__preview-summary { color: var(--dp-text-strong); }
+.ai-question__preview-line { white-space: pre-wrap; }
 .ai-conversation__composer { flex: none; display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--dp-space-2); padding: var(--dp-space-3); border-top: 1px solid var(--dp-border); }
 .ai-conversation__contexts { flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
 .ai-context-chip { display: inline-flex; align-items: center; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text-strong); }

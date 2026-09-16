@@ -100,6 +100,7 @@ ignore = [
 "tests/queries/test_write_routes.py" = ["S608"]
 "tests/queries/test_ddl_routes.py" = ["S608"]
 "tests/adapters/test_file_query.py" = ["S608"]
+"tests/ai/test_changes.py" = ["S608"]
 
 [tool.ruff.lint.pyupgrade]
 # Preserve types, even if a file imports `from __future__ import annotations`.

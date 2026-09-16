@@ -76,6 +76,7 @@ async def test_the_fifty_first_tool_call_is_refused_before_work_starts() -> None
         owner_id=uuid.uuid4(),
         conversation_id=uuid.uuid4(),
         resources=MagicMock(),
+        data_cache=MagicMock(),
         say=ignored,
         opened=ignored,
         calls=MAX_TOOL_CALLS,

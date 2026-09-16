@@ -237,6 +237,8 @@ class ConversationSummary(BaseModel):
     updated_at: datetime | None
     # Whether an answer is being written or waits for a person now.
     active: bool
+    # A run is paused on a question or a confirmation: Needs you (D113, D136).
+    waiting: bool
 
 
 class ConversationsPublic(BaseModel):
@@ -287,15 +289,30 @@ class ConversationMessageCreate(BaseModel):
     contexts: list[ScreenContext] = PydanticField(default_factory=list, max_length=5)
 
 
+class ChangePreview(BaseModel):
+    """What a change would do, shown in its confirmation card (D46, D136).
+
+    A sentence plus a line per thing that would happen, in the source's own
+    words — a rehearsal's outcome per statement, or an action's own preview.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str
+    lines: list[str] = PydanticField(default_factory=list, max_length=50)
+
+
 class AgentQuestion(BaseModel):
     """One resumable choice requested by a tool, independent of LangGraph's format."""
 
     model_config = ConfigDict(extra="forbid")
 
-    kind: Literal["ask_user", "allow_transfer"]
+    kind: Literal["ask_user", "allow_transfer", "confirm_change"]
     question: str = PydanticField(min_length=1, max_length=1000)
     choices: list[str] = PydanticField(min_length=1, max_length=20)
     connector_id: uuid.UUID | None = None
+    # What the change would do, when the question is a confirmation (D46).
+    preview: ChangePreview | None = None
 
 
 class AgentAnswer(BaseModel):
