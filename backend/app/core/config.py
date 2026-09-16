@@ -232,6 +232,12 @@ class Settings(BaseSettings):
     # The most one answer may write, whatever the model could produce: a
     # runaway answer is paid for by whoever owns the key.
     AI_MAX_OUTPUT_TOKENS: int = 16_000
+    # Older turns are summarised when a conversation nears the chosen model's
+    # context window — this fraction of it (D139). The window itself comes from
+    # the curated models file (D140).
+    AI_SUMMARY_TRIGGER_FRACTION: float = 0.8
+    # Newest messages kept verbatim when older turns are summarised.
+    AI_SUMMARY_KEEP_MESSAGES: int = 20
     # Connections the model's working state may hold in the application
     # database (D139).
     AI_CHECKPOINT_POOL_SIZE: int = 4

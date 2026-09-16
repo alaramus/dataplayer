@@ -8,8 +8,8 @@ model provider, and before changing the chat window.
 Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141.
 
 **Implementation status:** agreed on 2026-09-14. AI1 — the third-party transfer
-flag —, AI2 — a new file by name —, AI3, AI4 and AI5 are implemented; validation
-of the chat window and AI6 are pending.
+flag —, AI2 — a new file by name —, AI3, AI4, AI5 and AI6 are implemented;
+validation of the chat window is pending.
 
 ## What exists today
 
@@ -54,7 +54,12 @@ key per provider and chooses a model from
 `app/ai/models.json`; a message starts a run, whose Thinking step, reasoning and
 answer stream on the `ai.runs` topic and are written to the transcript when the
 answer ends. Tool steps are named by the server (`Browsing catalog in …`,
-`Reading rows from …`), with a query's statements as substeps. Stop keeps what
+`Reading rows from …`), with a query's statements as substeps. A conversation
+that nears the chosen model's context window — `AI_SUMMARY_TRIGGER_FRACTION` of
+the window from `app/ai/models.json` — is summarised by the same model before
+the next answer: older turns become a summary in the working state while the
+newest messages stay verbatim (`AI_SUMMARY_KEEP_MESSAGES`), and the transcript
+a person reads is never rewritten. Stop keeps what
 was written, an answer is stopped after
 `AI_RUN_TIMEOUT_SECONDS`, and a restart marks a working answer `interrupted`.
 The first line of the first message is a conversation's title until the chosen
@@ -233,7 +238,10 @@ Spec: [The application agent](../decisions/2026-09-14-application-agent-design.m
 LangChain types stay in one backend package behind this project's run, step and
 message models, held by an import contract; each provider integration has its
 own module. The server decides per call whether a person is needed. Long
-conversations are summarised. Tracing is a setting, off by default. Tests use a
+conversations are summarised: the trigger is a fraction of the model's window
+from D140's file as an absolute token count, because no provider profile can be
+trusted to know it, and the summary is written by the same model and key the
+conversation uses. Tracing is a setting, off by default. Tests use a
 scripted fake model; real-provider tests skip without a key.
 
 Two stores with two roles: LangGraph's `AsyncPostgresSaver` holds the model's

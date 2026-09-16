@@ -2,8 +2,8 @@
 
 Date: 2026-09-14. Decisions: D133 through D141, in [ai](../architecture/ai.md).
 
-Status: agreed in discussion with the user on 2026-09-14. AI1, AI2, AI3, AI4
-and AI5 implemented; AI6 pending. AI3b validation is pending. Slices below.
+Status: agreed in discussion with the user on 2026-09-14. AI1, AI2, AI3, AI4,
+AI5 and AI6 implemented. AI3b validation is pending. Slices below.
 
 ## Outcome
 
@@ -571,6 +571,14 @@ before AI5.
 Acceptance: a conversation longer than the context window goes on answering
 with facts from its start.
 
+Settled during AI6: the trigger is an absolute token count computed from the
+window in D140's file (`AI_SUMMARY_TRIGGER_FRACTION` of it, 0.8 by default),
+not LangChain's fractional trigger, because that one asks the provider's
+profile for the window and neither the scripted model nor every real one knows
+it. The newest `AI_SUMMARY_KEEP_MESSAGES` (20 by default) stay verbatim; the
+same model and key write the summary, and the transcript a person reads is
+never rewritten.
+
 ## Open points for implementation
 
 Settled on 2026-09-14 and folded into D137, D139, D140 and D141: where the
@@ -627,3 +635,11 @@ statement commits nothing, a read grant is refused in D66's sentence, and a
 destructive action previews and drops — `mypy app`, `ruff check app tests`,
 `lint-imports`, frontend `type-check`, `lint` and `test:unit` (1724 passed),
 and `check-docs.sh`, all clean.
+
+AI6, on 2026-09-16: the full backend suite (3024 passed, 119 skipped for
+servers not started), of which `tests/ai` is 75 — a conversation past the
+window is summarised and answers with facts from its start, the summary is
+what the next answer starts from, the transcript a person reads is untouched,
+and a short conversation is never summarised — `mypy app`, `ruff check app
+tests`, `lint-imports`, and `check-docs.sh`, all clean. No frontend changed.
+The acceptance was first seen red without the middleware, then green.

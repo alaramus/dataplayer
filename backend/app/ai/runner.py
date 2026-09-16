@@ -16,6 +16,7 @@ from typing import Annotated, Any, cast
 
 from fastapi import Depends, Request
 from langchain.agents import create_agent
+from langchain.agents.middleware import SummarizationMiddleware
 from langchain_core.messages import (
     AIMessageChunk,
     BaseMessage,
@@ -449,7 +450,27 @@ class AgentRunner:
             tools=build_tools(runtime),
             system_prompt=SYSTEM_PROMPT,
             checkpointer=self._checkpointer,
-            middleware=[transfer_policy(runtime)],
+            middleware=[
+                transfer_policy(runtime),
+                # Approaching the chosen model's window, older turns become a
+                # summary the same model writes — never a truncation (D139).
+                # The window is this project's curated file (D140): an absolute
+                # threshold, since no provider profile can be trusted to know it.
+                SummarizationMiddleware(
+                    chat,
+                    trigger=(
+                        "tokens",
+                        max(
+                            1,
+                            round(
+                                model.context_window
+                                * settings.AI_SUMMARY_TRIGGER_FRACTION
+                            ),
+                        ),
+                    ),
+                    keep=("messages", settings.AI_SUMMARY_KEEP_MESSAGES),
+                ),
+            ],
         )
         config: RunnableConfig = {"configurable": {"thread_id": str(conversation_id)}}
         deltas = _Deltas()
