@@ -9,7 +9,6 @@ Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141.
 
 **Implementation status:** agreed on 2026-09-14. AI1 — the third-party transfer
 flag —, AI2 — a new file by name —, AI3, AI4, AI5 and AI6 are implemented;
-validation of the chat window is pending.
 
 ## What exists today
 
