@@ -51,6 +51,22 @@ def test_a_connector_result_can_be_identified_before_reuse() -> None:
     assert connector_id_from_result("not json") is None
 
 
+def test_a_refusal_names_a_connection_but_is_never_withheld() -> None:
+    connector = Connector(
+        id=uuid.uuid4(),
+        name="Accounts",
+        adapter_type="postgres",
+        config={},
+        secrets=b"",
+        owner_id=uuid.uuid4(),
+    )
+
+    refusal = transfer_refusal(connector, "read")
+
+    assert refusal["connector_id"] == str(connector.id)
+    assert connector_id_from_result(json.dumps(refusal)) is None
+
+
 async def test_the_fifty_first_tool_call_is_refused_before_work_starts() -> None:
     async def ignored(*_args: object) -> None:
         return None

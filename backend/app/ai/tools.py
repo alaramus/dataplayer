@@ -37,6 +37,7 @@ from app.connectors.models import Connector
 from app.core.access import Access, at_least
 from app.core.db import async_session_maker
 from app.core.schemas import get_datetime_utc
+from app.queries.execution import RunRefused as QueryRefused
 from app.queries.execution import admit, limits
 from app.users.models import User
 
@@ -110,7 +111,7 @@ class ToolRuntime:
                     result: Any = {"error": "user_not_available"}
                 else:
                     result = await operation(session, user)
-            except (HTTPException, AdapterError, ValueError) as failure:
+            except (HTTPException, AdapterError, QueryRefused, ValueError) as failure:
                 status = "failed"
                 result = {"error": safe_error(failure)}
             finally:
@@ -194,8 +195,14 @@ class ToolRuntime:
 def safe_error(failure: Exception) -> str:
     if isinstance(failure, HTTPException):
         detail = failure.detail
-        return detail if isinstance(detail, str) else "The operation was refused"
+        if isinstance(detail, str):
+            return detail
+        if isinstance(detail, dict) and isinstance(detail.get("message"), str):
+            return str(detail["message"])
+        return "The operation was refused"
     if isinstance(failure, AdapterError):
+        return failure.message
+    if isinstance(failure, QueryRefused):
         return failure.message
     return str(failure)
 
@@ -233,7 +240,11 @@ def bounded_json(value: Any) -> str:
 
 
 def connector_id_from_result(content: object) -> uuid.UUID | None:
-    """Find the connection named by one of our tool results, if it names one."""
+    """Find the connection whose data one of our tool results carries, if any.
+
+    A refusal names the connection but holds nothing of it, and it must reach
+    the model as it is: withheld, the agent could not even say why it stopped.
+    """
     if not isinstance(content, str):
         return None
     try:
@@ -241,6 +252,8 @@ def connector_id_from_result(content: object) -> uuid.UUID | None:
     except (json.JSONDecodeError, TypeError):
         return None
     if not isinstance(value, dict) or not isinstance(value.get("connector_id"), str):
+        return None
+    if value.get("error") == TRANSFER_MARKER:
         return None
     try:
         return uuid.UUID(value["connector_id"])

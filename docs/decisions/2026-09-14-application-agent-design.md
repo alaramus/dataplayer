@@ -2,8 +2,8 @@
 
 Date: 2026-09-14. Decisions: D133 through D141, in [ai](../architecture/ai.md).
 
-Status: agreed in discussion with the user on 2026-09-14. AI1, AI2 and AI3
-implemented; AI4–AI6 pending. AI3b validation is pending. Slices below.
+Status: agreed in discussion with the user on 2026-09-14. AI1, AI2, AI3 and AI4
+implemented; AI5–AI6 pending. AI3b validation is pending. Slices below.
 
 ## Outcome
 
@@ -534,6 +534,22 @@ connection's earlier results from the next context; the tool-call limit stops a
 run with its sentence; the agent does not read a connection the person has no
 grant for.
 
+Corrected during AI4, each caught by its acceptance test:
+
+- **A refused statement escaped the step.** `run_query` admits reads only, and
+  its refusal (`queries.execution.RunRefused`) was not among the failures a
+  tool step settles, so a refused run left its step open and ended the answer
+  as a model failure. The step now ends failed with the source's own sentence
+  as the tool's result.
+- **The transfer policy withheld the refusal itself.** A
+  `transfer_not_allowed` result names its connection, so withholding by
+  connection id replaced it too, and the agent could not say why it stopped.
+  Only results that carry a connection's data are withheld; a refusal always
+  reaches the model.
+- **A named conversation paid for a title it discarded.** The title was written
+  by the model and then refused by the storage rule; a conversation whose owner
+  named it now never spends the call.
+
 ### AI5 — changes
 
 `run_action` and SQL changes under D136: the confirmation card with its three
@@ -592,3 +608,10 @@ image started with prestart preparing LangGraph's tables, and `check-docs.sh`.
 Broken once each to see the check fail: encryption of the checkpointer, strict
 deserialization, pruning to the latest state, and LangChain imported outside
 the agent package.
+
+AI4, on 2026-09-16: the full backend suite (3014 passed, 119 skipped for
+servers not started), of which `tests/ai` is 65 — the reading acceptances end
+to end through the API with the scripted model over a real connection — `mypy
+app`, `ruff check app tests`, `lint-imports`, frontend `type-check`, `lint` and
+`test:unit` (1721 passed), and `check-docs.sh`, all clean. Each correction
+above was first seen red, then green.

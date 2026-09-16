@@ -8,8 +8,8 @@ model provider, and before changing the chat window.
 Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141.
 
 **Implementation status:** agreed on 2026-09-14. AI1 — the third-party transfer
-flag —, AI2 — a new file by name — and AI3 are implemented; validation of the
-chat window and AI4–AI6 are pending.
+flag —, AI2 — a new file by name —, AI3 and AI4 are implemented; validation of
+the chat window and AI5–AI6 are pending.
 
 ## What exists today
 
@@ -17,22 +17,36 @@ A connection carries `allow_third_party_transfer`, off by default and off for
 every connection that existed before it (`c4f82b6e1d39`). It is set when the
 connection is created or changed by its owner only; a grantee receives it in
 the connection and is refused a change with 403. The connection window shows it
-as a switch on its permissions page, disabled for a grantee. Nothing reads it
-yet: the agent that will is AI4.
+as a switch on its permissions page, disabled for a grantee. The agent's tools
+check it before every call (D135).
 
 The file source has `create_file`, **New file** in the catalog menu: a name and
 an empty file, the first capability added for the agent's sake and offered to
 people as well (D133). What goes into the file is written by in-place editing
 (D48).
 
-The agent answers without tools in the AI application space. A person stores a
+The agent answers in the AI application space, reading through the tools of
+D134: `list_connections`, `browse_catalog`, `describe_node`, `read_rows`,
+`run_query` (read-only), `list_actions`, `open_in_workspace` and `ask_user`.
+Every tool call goes through the connection access funnel as the person who
+owns the conversation, and the transfer flag is checked before every call: a
+connection that does not allow transfer answers with a `transfer_not_allowed`
+marker, the owner is offered Allow from that step, and a grantee is told to ask
+the owner. Results of a connection whose flag was switched off are withheld
+from later context — a refusal itself never is, since it carries no data and
+the agent needs it to say why it stopped. Results are bounded to 64 KiB and 20
+rows, and a run stops after 50 tool calls with its own sentence. A person
+stores a
 key per provider and chooses a model from
 `app/ai/models.json`; a message starts a run, whose Thinking step, reasoning and
 answer stream on the `ai.runs` topic and are written to the transcript when the
-answer ends. Stop keeps what was written, an answer is stopped after
+answer ends. Tool steps are named by the server (`Browsing catalog in …`,
+`Reading rows from …`), with a query's statements as substeps. Stop keeps what
+was written, an answer is stopped after
 `AI_RUN_TIMEOUT_SECONDS`, and a restart marks a working answer `interrupted`.
 The first line of the first message is a conversation's title until the chosen
-model writes one, unless the person renamed it.
+model writes one, unless the person renamed it — a named conversation never
+spends a model call on a title.
 
 The model selector groups models by provider. Every model row shows whether
 that provider's one key is configured; its key button opens the same provider
@@ -50,6 +64,7 @@ backend/app/ai/
 ├── runner.py        an answer: recorded, streamed, settled, titled
 ├── checkpoints.py   LangGraph's saver: encrypted, strict, kept to its latest state
 ├── prompts.py       the system prompt and the title prompt
+├── tools.py         the reading tools, the transfer policy and the call limit
 ├── providers/       one module per provider SDK, and what its errors mean
 ├── topic.py         `ai.runs`
 └── routes.py        /ai
@@ -60,10 +75,12 @@ backend/app/prepare_checkpoints.py                 LangGraph's tables, at presta
 ```
 frontend/src/features/ai/
 ├── AiSpace.vue         the two columns, history and settings
-├── AiConversation.vue  transcript, steps, Stop, copy and listen
+├── AiConversation.vue  transcript, steps, Stop, copy, listen and the context chips
+├── AiContextDialog.vue the open tabs a message may carry
 ├── AiSettings.vue      provider keys, model and confirmations
 ├── ChatMarkdown.vue    the D50 renderer in streaming mode
 ├── api.ts              vue-query ownership of server state
+├── context.ts          which open panels a chip may name, and the open intent
 ├── streaming.ts        open-fence protection and speech text
 └── state.ts            selected-chat restoration; the shared space store remembers AI
 ```
@@ -83,6 +100,7 @@ PATCH  /api/v1/ai/conversations/{conversation_id}
 DELETE /api/v1/ai/conversations/{conversation_id}
 POST   /api/v1/ai/conversations/{conversation_id}/messages
 GET    /api/v1/ai/runs/{run_id}
+POST   /api/v1/ai/runs/{run_id}/answer
 POST   /api/v1/ai/runs/{run_id}/cancel
 ```
 
@@ -145,7 +163,9 @@ flag. It is checked before every tool call; every tool, changes included, is
 refused on a connection that does not allow transfer, which the agent still sees
 by name and type with a marker. The owner may Allow from the refused step.
 Tool results are stored with their connection, and results of a connection that
-no longer allows transfer are withheld from later context. There is no
+no longer allows transfer are withheld from later context; a refusal names the
+connection but carries nothing of it, so it is never withheld — it is how the
+agent says why it stopped. There is no
 user-level flag.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)

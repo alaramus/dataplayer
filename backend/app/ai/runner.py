@@ -164,7 +164,11 @@ class AgentRunner:
             # otherwise both find the conversation idle.
             if await conversations.active_run(session, conversation.id) is not None:
                 raise RunRefused(409, "This conversation is already being answered")
-            first = not await conversations.has_answer(session, conversation.id)
+            # A conversation the person named never asks the model for a title.
+            first = (
+                not conversation.title_is_custom
+                and not await conversations.has_answer(session, conversation.id)
+            )
             run = await conversations.record_run(
                 session,
                 conversation_id=conversation.id,
@@ -180,7 +184,7 @@ class AgentRunner:
             self._active[run.id] = _Active(
                 task=task, owner_id=owner_id, conversation_id=conversation.id
             )
-        if first and not conversation.title_is_custom:
+        if first:
             title = conversations.first_line_title(text)
             if await conversations.retitle(session, conversation.id, title):
                 await self._say(owner_id, TitleChanged(conversation_id=conversation.id, title=title))
