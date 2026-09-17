@@ -711,20 +711,27 @@ test("pushing the column of sources aside takes away the name and nothing else",
   // read while the column is still wide is a race, and this assertion was
   // already at the end of the test doing nothing for it.
   await expect(page.getByTestId("connector-list")).toHaveCount(0)
+  // The strip stands down with its chevron: only the rail remains.
+  await expect(page.getByTestId("workspace-collapse-sources")).toHaveCount(0)
 
   const plusNarrow = await box(page.getByTestId("add-connector"))
   const iconNarrow = await box(page.getByTestId(`connector-rail-${name}`))
   const dotNarrow = await box(page.getByTestId(`connector-state-${name}`))
 
-  // Everything stayed where it was; only the name is gone. Two pixels of
-  // tolerance, because one layout centres in forty pixels and the other pads
-  // by eight.
+  // The same column: x is what it was, and the row moved up as one by the
+  // stood-down strip, so the gaps between plus, icon and dot are unchanged.
+  // Only the name is gone. Two pixels of tolerance, because one layout
+  // centres in forty pixels and the other pads by eight.
   expect(Math.abs(plusNarrow.x - plusWide.x)).toBeLessThan(3)
-  expect(Math.abs(plusNarrow.y - plusWide.y)).toBeLessThan(3)
   expect(Math.abs(iconNarrow.x - iconWide.x)).toBeLessThan(3)
-  expect(Math.abs(iconNarrow.y - iconWide.y)).toBeLessThan(3)
   expect(Math.abs(dotNarrow.x - dotWide.x)).toBeLessThan(3)
-  expect(Math.abs(dotNarrow.y - dotWide.y)).toBeLessThan(3)
+  expect(plusNarrow.y).toBeLessThan(plusWide.y)
+  expect(
+    Math.abs((iconNarrow.y - plusNarrow.y) - (iconWide.y - plusWide.y))
+  ).toBeLessThan(3)
+  expect(
+    Math.abs((dotNarrow.y - iconNarrow.y) - (dotWide.y - iconWide.y))
+  ).toBeLessThan(3)
 
   await page.getByTestId("app-toggle-first-panel").click()
   await deleteConnector(page, name)
