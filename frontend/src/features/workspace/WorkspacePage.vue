@@ -881,12 +881,17 @@ provide(workspaceActionsKey, {
 <template>
   <AppLayout fill>
     <template #header-start>
-      <AppIconButton
-        :icon="firstPanelCollapsed ? 'chevron_right' : 'chevron_left'"
-        :tooltip="firstPanelCollapsed ? 'Show first panel' : 'Hide first panel'"
-        data-testid="app-toggle-first-panel"
-        @click="toggleFirstPanel"
-      />
+      <!-- On the axis of the left rail buttons below: a 36 px box pulled
+           back over the toolbar padding, so the button stands where the
+           rail's own buttons stand. -->
+      <span class="workspace-header-collapse">
+        <AppIconButton
+          icon="img:/icons/panel-left.svg"
+          :tooltip="firstPanelCollapsed ? 'Show first panel' : 'Hide first panel'"
+          data-testid="app-toggle-first-panel"
+          @click="toggleFirstPanel"
+        />
+      </span>
     </template>
     <template #header-overlay>
       <WorkspaceDetachTarget :context="workspace.context" />
@@ -1010,6 +1015,21 @@ provide(workspaceActionsKey, {
   align-items: center;
 }
 .workspace-footer-server :deep(.q-btn) {
+  min-width: 32px;
+  min-height: 32px;
+}
+/* The header button stands on the axis of the left rail buttons below: a
+   36 px box pulled back over the toolbar padding, the way the footer server
+   icon keeps the rail's 2 px edge padding and 32 px button. */
+.workspace-header-collapse {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  margin-left: calc(-1 * var(--dp-space-3));
+}
+.workspace-header-collapse :deep(.q-btn) {
   min-width: 32px;
   min-height: 32px;
 }

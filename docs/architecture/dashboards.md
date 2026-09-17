@@ -205,9 +205,9 @@ Known deviations:
 
 - **The rail is resized and pushed aside the way a workspace column is, but
   it is not a section of the workspace.** The gap beside it drags it from 200
-  pixels to two fifths of the space, so the dashboard stays the wider card; its
-  chevron narrows it to forty pixels of icons — the dashboards, New, Sources
-  and the store — and the chevron or a press on the gap brings it back. Width
+  pixels to two fifths of the space, so the dashboard stays the wider card; the
+  header button narrows it to forty pixels of icons — the dashboards, New, Sources
+  and the store — and the header button or a press on the gap brings it back. Width
   and state are kept per browser, and a narrower window narrows it. It cannot
   be put on the bar or moved to the other side.
 - **A widget in a window is a copy** taken when it was opened, with the range

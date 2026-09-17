@@ -167,6 +167,7 @@ onScopeDispose(stop)
       data-testid="ai-rail"
     >
       <div class="ai-window__rail-head">
+        <!-- The header button collapses this rail; no chevron of its own. -->
         <AppButton
           v-if="!collapsed"
           variant="quiet"
@@ -182,12 +183,6 @@ onScopeDispose(stop)
           tooltip="New chat"
           data-testid="ai-new-chat"
           @click="makeConversation"
-        />
-        <AppIconButton
-          :icon="collapsed ? 'chevron_right' : 'chevron_left'"
-          :tooltip="collapsed ? 'Show chat history' : 'Hide chat history'"
-          data-testid="ai-collapse-history"
-          @click="collapsed = !collapsed"
         />
       </div>
       <div

@@ -216,7 +216,6 @@ defineExpose({
           :current-id="current?.id ?? null"
           :may-set-up="status.data.value?.may_set_up === true"
           :creating="creating.isPending.value"
-          @expand="railNarrow = false"
           @create="createDashboard"
           @select="(id) => (selectedId = id)"
           @sources="agentsOpen = true"
@@ -226,6 +225,7 @@ defineExpose({
           <div class="dashboards__heading">
             <span>Dashboards</span>
             <span class="dashboards__actions">
+              <!-- The header button collapses this rail; no chevron of its own. -->
               <AppButton
                 variant="quiet"
                 size="sm"
@@ -234,12 +234,6 @@ defineExpose({
                 :loading="creating.isPending.value"
                 data-testid="dashboard-new"
                 @click="createDashboard"
-              />
-              <AppIconButton
-                icon="chevron_left"
-                tooltip="Hide"
-                data-testid="dashboards-collapse"
-                @click="railNarrow = true"
               />
             </span>
           </div>

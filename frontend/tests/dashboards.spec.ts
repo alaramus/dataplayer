@@ -447,7 +447,7 @@ test("the rail is dragged wider and narrower by the gap beside it, never past tw
   expect(await widthOf()).toBe(chosen)
 })
 
-test("the rail is pushed aside to its icons and brought back by its chevron or its gap, and stays as it was left", async ({ page }) => {
+test("the rail is pushed aside to its icons and brought back by the header button or its gap, and stays as it was left", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await login(page)
   test.skip(!(await storeIsReady(page)), "The metrics store is not set up on this stack")
@@ -462,7 +462,7 @@ test("the rail is pushed aside to its icons and brought back by its chevron or i
   const colorOf = (testId: string) => page.getByTestId(testId).evaluate((element) => getComputedStyle(element).color)
   const openColor = await colorOf(`dashboard-${dashboardName}`)
 
-  await page.getByTestId("dashboards-collapse").click()
+  await page.getByTestId("app-toggle-first-panel").click()
   await expect(page.getByTestId("dashboards-rail-narrow")).toBeVisible()
   expect(Math.round((await rail.boundingBox())?.width ?? 0)).toBe(40)
   // What the wide rail offers is still there, as icons, and the open
@@ -474,12 +474,12 @@ test("the rail is pushed aside to its icons and brought back by its chevron or i
   await page.reload()
   await expect(page.getByTestId("dashboards-rail-narrow")).toBeVisible()
 
-  await page.getByTestId("dashboards-expand").click()
+  await page.getByTestId("app-toggle-first-panel").click()
   await expect(page.getByTestId("dashboards-rail-narrow")).toHaveCount(0)
   expect(Math.round((await rail.boundingBox())?.width ?? 0)).toBe(wide)
 
   // A press on the gap beside the narrow rail brings it back too.
-  await page.getByTestId("dashboards-collapse").click()
+  await page.getByTestId("app-toggle-first-panel").click()
   await page.getByTestId("dashboards-space").getByTestId("workspace-separator").click()
   await expect(page.getByTestId(`dashboard-${dashboardName}`)).toBeVisible()
 
@@ -525,11 +525,11 @@ test("a dashboard takes a colour of its own, which the rail and its name carry, 
   await expect(page.getByTestId(`dashboard-${coloured}`)).toHaveCSS("background-color", "rgba(36, 106, 188, 0.28)")
   await expect(page.getByTestId("dashboard-name")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
 
-  await page.getByTestId("dashboards-collapse").click()
+  await page.getByTestId("app-toggle-first-panel").click()
   await expect(page.getByTestId(`dashboard-narrow-${coloured}`).locator("xpath=..")).toHaveCSS("background-color", "rgba(36, 106, 188, 0.28)")
   await page.getByTestId(`dashboard-narrow-${coloured}`).click()
   await expect(page.getByTestId(`dashboard-narrow-${coloured}`).locator("xpath=..")).toHaveCSS("background-color", blue)
-  await page.getByTestId("dashboards-expand").click()
+  await page.getByTestId("app-toggle-first-panel").click()
 
   // Reset, it is an ordinary dashboard again.
   await page.getByTestId("dashboard-color").click()

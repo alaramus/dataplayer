@@ -14,11 +14,11 @@ test("opens, restores and manages the application agent space", async ({ page })
   const railBackground = await page.getByTestId("ai-rail").evaluate((element) => getComputedStyle(element).backgroundColor)
   await expect(page.getByTestId("ai-conversation-card")).toHaveCSS("background-color", railBackground)
 
-  await page.getByTestId("ai-collapse-history").click()
+  await page.getByTestId("app-toggle-first-panel").click()
   await expect(page.getByTestId("ai-history")).toHaveCount(0)
   await expect(page.getByTestId("ai-new-chat")).toHaveAttribute("aria-label", "New chat")
   await expect(page.getByTestId("ai-open-settings")).toHaveAttribute("aria-label", "Settings")
-  await page.getByTestId("ai-collapse-history").click()
+  await page.getByTestId("app-toggle-first-panel").click()
 
   const active = page.locator('[data-testid^="ai-chat-row-"][data-active="true"]')
   const previousId = (await active.count()) > 0 ? await active.getAttribute("data-testid") : null

@@ -20,7 +20,6 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  expand: []
   create: []
   select: [dashboardId: string]
   sources: []
@@ -33,12 +32,7 @@ const emit = defineEmits<{
     class="rail-narrow"
     data-testid="dashboards-rail-narrow"
   >
-    <AppIconButton
-      icon="chevron_right"
-      tooltip="Show Dashboards"
-      data-testid="dashboards-expand"
-      @click="emit('expand')"
-    />
+    <!-- The header button brings the wide rail back; no chevron of its own. -->
     <AppIconButton
       icon="add"
       tooltip="New dashboard"
