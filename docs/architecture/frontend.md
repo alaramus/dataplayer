@@ -268,7 +268,8 @@ chrome background, including the gaps between workspace panels. The header
 carries no application name: it opens with the page's own leading control —
 on the workspace, one button that collapses the first panel of the space
 being shown (the leftmost data column, the dashboards rail, or the
-chat-history rail), each of which owns its collapsed state. Workspace
+chat-history rail), each of which owns its collapsed state. That first
+section keeps no chevron of its own; the rest keep theirs. Workspace
 panels meet the shell directly with their own rounded corners: no enclosing
 border or outer padding surrounds the collection. Ordinary pages retain a
 rounded surface and document scrolling; filling workspaces scroll internally.

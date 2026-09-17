@@ -50,6 +50,8 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
     closeOthers: async () => undefined,
     focus: () => undefined,
     toggleCollapse: () => undefined,
+    firstLeafId: ref(null),
+    hideFirstCollapse: false,
     putAside: () => undefined,
     bringBack: () => undefined,
     resize: () => undefined,
@@ -262,6 +264,41 @@ describe("a section", () => {
     const wrapper = mountLeaf(contextFor({ sectionLookOf: () => null }))
     expect(wrapper.find('[data-testid="workspace-aside-a"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="workspace-collapse-a"]').exists()).toBe(true)
+  })
+
+  it("stands the first section's chevron down where the feature owns it", () => {
+    // The application header collapses the first column; a second button for
+    // the same gesture would only double it. Other sections keep theirs.
+    const owned = mountLeaf(contextFor({
+      collapsedOf: () => Rail,
+      hideFirstCollapse: true,
+      firstLeafId: ref("a"),
+    }))
+    expect(owned.find('[data-testid="workspace-collapse-a"]').exists()).toBe(false)
+    const other = mountLeaf(contextFor({
+      collapsedOf: () => Rail,
+      hideFirstCollapse: true,
+      firstLeafId: ref("elsewhere"),
+    }))
+    expect(other.find('[data-testid="workspace-collapse-a"]').exists()).toBe(true)
+  })
+
+  it("leaves only the rail standing under a collapsed first section", () => {
+    const wrapper = mount(LeafWithPanels, {
+      props: { leaf: { ...makeLeaf("a", ["p1"]), collapsed: true }, collapsible: true },
+      global: {
+        plugins: [Quasar],
+        provide: {
+          [workspaceKey as symbol]: contextFor({
+            collapsedOf: () => Rail,
+            hideFirstCollapse: true,
+            firstLeafId: ref("a"),
+          }),
+        },
+      },
+    })
+    expect(wrapper.findAll(".rail")).toHaveLength(1)
+    expect(wrapper.find(".workspace-leaf__strip").exists()).toBe(false)
   })
 
   it("hides the body of a collapsed section but keeps the strip", () => {

@@ -177,7 +177,12 @@ const handle = computed<"collapse" | "aside" | "none">(() => {
   if (!props.collapsible) return "none"
   const panel = active.value
   if (panel === null) return "none"
-  if (workspace.collapsedOf(panel) !== null) return "collapse"
+  if (workspace.collapsedOf(panel) !== null) {
+    // The feature's chrome owns the first section's chevron (the application
+    // header): a second button for the same gesture would only double it.
+    if (workspace.hideFirstCollapse && workspace.firstLeafId.value === props.leaf.id) return "none"
+    return "collapse"
+  }
   return workspace.sectionLookOf(props.leaf.accepts ?? null) === null ? "collapse" : "aside"
 })
 
@@ -224,13 +229,16 @@ const overlayStyle = computed((): CSSProperties => {
     @pointerleave="zone = null; insertion = null"
   >
     <div
+      v-if="!leaf.collapsed || handle !== 'none'"
       ref="stripElement"
       class="workspace-leaf__strip"
     >
       <!-- A collapsed section is twenty-eight pixels wide, and a tab strip
            with `overflow: hidden` would push the handle that brings it back
            off the end of it. So a collapsed section shows the handle and
-           nothing else. See the spec, S11. -->
+           nothing else. See the spec, S11. Where the feature owns that
+           handle itself, the strip stands down wholly and only the rail
+           below remains. -->
       <div
         v-if="!leaf.collapsed"
         class="workspace-leaf__tabs"

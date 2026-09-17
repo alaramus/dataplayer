@@ -107,6 +107,14 @@ export interface WorkspaceContext {
   closeOthers: (leafId: NodeId) => Promise<void>
   focus: (leafId: NodeId) => void
   toggleCollapse: (leafId: NodeId) => void
+  /** The first section in tree order, whose chevron the feature may own. */
+  firstLeafId: Ref<NodeId | null>
+  /**
+   * Whether that chevron stays off: the feature's own chrome collapses the
+   * first section, so the strip keeps its tabs and offers no second button
+   * for the same gesture.
+   */
+  hideFirstCollapse: boolean
   /** Put a section on the bar, keeping everything in it. */
   putAside: (leafId: NodeId) => void
   /** Bring one back, into the column it was in. */

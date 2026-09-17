@@ -124,6 +124,9 @@ const workspace = useWorkspace<Panel>({
   empty: emptyOf,
   collapsed: collapsedOf,
   sectionLook,
+  // The header button collapses the first column; its strip keeps no chevron
+  // of its own.
+  hideFirstCollapse: true,
   // The one thing a tab's icon still does, and the only kind that offers it:
   // the connection behind a catalog is not reachable from the catalog's own
   // row of commands, while everything a panel offers about the node it shows

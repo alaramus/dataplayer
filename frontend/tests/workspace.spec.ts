@@ -706,7 +706,7 @@ test("pushing the column of sources aside takes away the name and nothing else",
   expect(dotWide.x).toBeGreaterThan(iconWide.x)
   expect(dotWide.x + dotWide.width).toBeLessThan(iconWide.x + iconWide.width + 2)
 
-  await page.getByTestId("workspace-collapse-sources").click()
+  await page.getByTestId("app-toggle-first-panel").click()
   // Wait for the collapse to have happened before measuring anything: a box
   // read while the column is still wide is a race, and this assertion was
   // already at the end of the test doing nothing for it.
@@ -726,7 +726,7 @@ test("pushing the column of sources aside takes away the name and nothing else",
   expect(Math.abs(dotNarrow.x - dotWide.x)).toBeLessThan(3)
   expect(Math.abs(dotNarrow.y - dotWide.y)).toBeLessThan(3)
 
-  await page.getByTestId("workspace-collapse-sources").click()
+  await page.getByTestId("app-toggle-first-panel").click()
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
@@ -737,7 +737,7 @@ test("a pushed-aside column of sources still opens one of them", async ({ page }
   await freshLayout(page)
   await createPostgresConnector(page, name)
 
-  await page.getByTestId("workspace-collapse-sources").click()
+  await page.getByTestId("app-toggle-first-panel").click()
   expect((await page.getByTestId("workspace-leaf-sources").boundingBox())?.width ?? 0)
     .toBeLessThan(48)
 
@@ -759,7 +759,7 @@ test("a pushed-aside column of sources still opens one of them", async ({ page }
   await closeWindowDialog(page, "adapter-catalog")
   await expect(page.getByTestId("adapter-catalog")).toHaveCount(0)
 
-  await page.getByTestId("workspace-collapse-sources").click()
+  await page.getByTestId("app-toggle-first-panel").click()
   await deleteConnector(page, name)
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
@@ -813,9 +813,9 @@ test("every column goes away and comes back, and none of them scrolls the page",
   const inner = await rows.evaluate((el) => el.scrollHeight > el.clientHeight)
   expect(inner).toBe(true)
 
-  // The connections narrow to a strip of their own icons, and the handle that
-  // brings them back is never pushed off the end of it.
-  const narrow = page.getByTestId("workspace-collapse-sources")
+  // The connections narrow to a strip of their own icons; the header button
+  // brings them back, the strip keeping no chevron of its own.
+  const narrow = page.getByTestId("app-toggle-first-panel")
   await narrow.click()
   expect((await page.getByTestId("workspace-leaf-sources").boundingBox())?.width ?? 0)
     .toBeLessThan(48)

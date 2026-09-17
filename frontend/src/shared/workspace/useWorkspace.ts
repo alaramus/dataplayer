@@ -74,6 +74,13 @@ export interface WorkspaceOptions<P extends { id: string }> {
    * what that costs belongs to the feature. Nothing said means yes.
    */
   beforeClose?: (panelId: PanelId) => Promise<boolean> | boolean
+  /**
+   * Whether the first section keeps no collapse chevron of its own: the
+   * feature's own chrome — the application header — collapses it, so a
+   * second button for the same gesture would only double it. Off unless
+   * asked: the demo and the tests keep the handle.
+   */
+  hideFirstCollapse?: boolean
 }
 
 /** How an opened panel treats the ones already there. */
@@ -381,6 +388,8 @@ export function useWorkspace<P extends { id: string }>(
       focusedLeaf.value = leafId
       focusedDetached.value = null
     },
+    firstLeafId: computed(() => leavesOf(tree.value)[0]?.id ?? null),
+    hideFirstCollapse: options.hideFirstCollapse === true,
     toggleCollapse: (leafId) => {
       // A workspace of one section has nothing to collapse against, and
       // WorkspaceNode does not offer the handle there either.
