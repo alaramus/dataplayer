@@ -243,6 +243,10 @@ async def test_update_password_me(
     user_db = (await db.exec(user_query)).first()
     assert user_db
     assert user_db.email == settings.FIRST_SUPERUSER
+    # Refresh rather than trusting the select: this session is shared by the
+    # whole run and never expires rows, so an unrelated traceback the
+    # collector has not reached yet can leave a stale copy behind.
+    await db.refresh(user_db)
     verified, _ = verify_password(new_password, user_db.hashed_password)
     assert verified
 
