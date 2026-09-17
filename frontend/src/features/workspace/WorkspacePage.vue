@@ -886,7 +886,7 @@ provide(workspaceActionsKey, {
            rail's own buttons stand. -->
       <span class="workspace-header-collapse">
         <AppIconButton
-          icon="img:/icons/panel-left.svg"
+          :icon="firstPanelCollapsed ? 'chevron_right' : 'chevron_left'"
           :tooltip="firstPanelCollapsed ? 'Show first panel' : 'Hide first panel'"
           data-testid="app-toggle-first-panel"
           @click="toggleFirstPanel"
