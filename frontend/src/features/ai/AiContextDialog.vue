@@ -60,7 +60,7 @@ function apply() {
       v-else
       class="ai-context-dialog__empty"
     >
-      There are no open workspace tabs.
+      There are no attachable workspace tabs.
     </div>
     <template #actions>
       <AppButton

@@ -27,10 +27,24 @@ export interface AiOpenIntent {
   representations: NodeRepresentation[]
 }
 
+/**
+ * Tabs whose content never reaches the model, so offering them invites the
+ * model to pretend it saw them. An attached tab travels as one line of
+ * identities — label, kind, connection, node — never its content, and no
+ * tool reads the query library, a console's SQL or a captured result: the
+ * `queries` tab names nothing at all, while `query` and `result` name at
+ * most a connection the catalog already names better.
+ */
+const UNATTACHABLE: ReadonlySet<ScreenContext["kind"]> = new Set([
+  "queries",
+  "query",
+  "result",
+])
+
 /** Open workspace tabs which can be explicitly attached to one message. */
 export function screenContexts(panels: readonly Panel[]): ScreenContext[] {
   return panels.flatMap((panel) => {
-    if (panel.kind === "connectors") return []
+    if (panel.kind === "connectors" || UNATTACHABLE.has(panel.kind)) return []
     const connectorId = "connectorId" in panel ? panel.connectorId : undefined
     const nodeId = "nodeId" in panel
       ? panel.nodeId

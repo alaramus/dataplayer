@@ -145,8 +145,12 @@ cannot do the agent cannot do: a missing capability is added to the source with
 its command, and the agent reaches it through the registry. The agent works only
 with connections the person added and never creates or saves one. Opening the
 chat attaches nothing. A plus beside the composer lists the open workspace
-tabs, including tabs detached into floating windows; the person may attach up
-to five. Their connection, node and panel kind travel with the next message as
+tabs that name a connection or node the tools can act on — catalogs, rows,
+content, structure, summaries, records, charts and relationships — including
+tabs detached into floating windows; the person may attach up
+to five. The query library, consoles and captured results are not listed:
+their content never travels and no tool reads it, so listing them would
+invite the model to claim it saw them. Their connection, node and panel kind travel with the next message as
 removable chips, never their content. A successful send clears the selection
 so it cannot be sent twice by accident; a failed send keeps it. Switching tabs
 never changes the selection.
