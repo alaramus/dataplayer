@@ -71,6 +71,13 @@ function pressGap() {
 }
 watch(railWidth, (width) => store(RAIL_WIDTH_KEY, String(width)))
 watch(collapsed, (narrow) => store(RAIL_NARROW_KEY, narrow ? "narrow" : "wide"))
+
+// The header button collapses the first panel of the space being shown
+// through one shape; here that is the chat-history rail.
+defineExpose({
+  toggleFirstPanel: () => { collapsed.value = !collapsed.value },
+  firstPanelCollapsed: computed(() => collapsed.value),
+})
 const renaming = ref<string | null>(null)
 const titleDraft = ref("")
 

@@ -161,6 +161,13 @@ watch(railWidth, (width) => {
 watch(railNarrow, (narrow) => {
   store(RAIL_NARROW_KEY, narrow ? "narrow" : "wide")
 })
+
+// The header button collapses the first panel of the space being shown
+// through one shape; here that is the dashboards rail.
+defineExpose({
+  toggleFirstPanel: () => { railNarrow.value = !railNarrow.value },
+  firstPanelCollapsed: computed(() => railNarrow.value),
+})
 </script>
 
 <template>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
 import { computed, onMounted, provide, ref, watch } from "vue"
+import type { Ref } from "vue"
 
 import type { ConnectorDraft, ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
@@ -76,9 +77,10 @@ import { serverStorageKey } from "@/shared/servers/context"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import { useSpaceStore } from "@/stores/space"
-import { AppLayout, useConfirm, useToast } from "@/shared/ui"
+import { AppIconButton, AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
 import {
+  leavesOf,
   makeLeaf,
   makeSplit,
   useWorkspace,
@@ -150,6 +152,34 @@ const workspace = useWorkspace<Panel>({
 const space = useSpaceStore()
 const dashboardsShown = computed(() => space.current === "dashboards")
 const aiShown = computed(() => space.current === "ai")
+
+/**
+ * The header button collapses the first panel of the space being shown: the
+ * leftmost data column, the dashboards rail, or the chat-history rail. Each
+ * space owns its collapsed state; the header only asks through one shape.
+ */
+interface FirstPanelControl {
+  toggleFirstPanel: () => void
+  firstPanelCollapsed: boolean
+}
+const dashboardsSpace = ref<FirstPanelControl | null>(null)
+const aiSpace = ref<FirstPanelControl | null>(null)
+function spaceControlRef(control: Ref<FirstPanelControl | null>) {
+  return (instance: unknown) => { control.value = instance as FirstPanelControl | null }
+}
+const dashboardsSpaceRef = spaceControlRef(dashboardsSpace)
+const aiSpaceRef = spaceControlRef(aiSpace)
+const firstDataLeaf = computed(() => leavesOf(workspace.context.tree.value)[0] ?? null)
+const firstPanelCollapsed = computed(() => {
+  if (aiShown.value) return aiSpace.value?.firstPanelCollapsed ?? false
+  if (dashboardsShown.value) return dashboardsSpace.value?.firstPanelCollapsed ?? false
+  return firstDataLeaf.value?.collapsed ?? false
+})
+function toggleFirstPanel() {
+  if (aiShown.value) { aiSpace.value?.toggleFirstPanel(); return }
+  if (dashboardsShown.value) { dashboardsSpace.value?.toggleFirstPanel(); return }
+  if (firstDataLeaf.value !== null) workspace.context.toggleCollapse(firstDataLeaf.value.id)
+}
 
 function openPanel(panel: Panel) {
   space.show("data")
@@ -850,6 +880,14 @@ provide(workspaceActionsKey, {
 
 <template>
   <AppLayout fill>
+    <template #header-start>
+      <AppIconButton
+        :icon="firstPanelCollapsed ? 'chevron_right' : 'chevron_left'"
+        :tooltip="firstPanelCollapsed ? 'Show first panel' : 'Hide first panel'"
+        data-testid="app-toggle-first-panel"
+        @click="toggleFirstPanel"
+      />
+    </template>
     <template #header-overlay>
       <WorkspaceDetachTarget :context="workspace.context" />
     </template>
@@ -896,9 +934,10 @@ provide(workspaceActionsKey, {
           :covered="space.current !== 'data'"
         >
           <template #cover>
-            <DashboardsSpace v-if="dashboardsShown" />
+            <DashboardsSpace v-if="dashboardsShown" :ref="dashboardsSpaceRef" />
             <AiSpace
               v-else-if="aiShown"
+              :ref="aiSpaceRef"
               :contexts="screenContexts(workspace.panels.value)"
               @open="openFromAgent"
             />

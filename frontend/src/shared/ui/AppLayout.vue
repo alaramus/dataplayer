@@ -10,7 +10,6 @@ import { closeRealtime } from "@/shared/realtime/client"
 import WindowTaskbar from "@/shared/windows/WindowTaskbar.vue"
 import { windowsApiKey } from "@/shared/windows/useWindows"
 import { useAuthStore } from "@/stores/auth"
-import { useThemeStore } from "@/stores/theme"
 
 import AppButton from "./AppButton.vue"
 import AppFullscreenToggle from "./AppFullscreenToggle.vue"
@@ -22,7 +21,6 @@ defineProps<{ fill?: boolean }>()
 
 const auth = useAuthStore()
 const me = useCurrentUser()
-const theme = useThemeStore()
 const router = useRouter()
 const queryClient = useQueryClient()
 const windows = inject(windowsApiKey, undefined)
@@ -95,18 +93,13 @@ async function logout() {
       data-testid="app-header"
     >
       <q-toolbar class="app-layout__toolbar">
-        <!-- The name on the left; the fullscreen toggle and the user menu on
-             the right. Workspace commands live on the side tool rails, and
-             the theme switch in the user preferences. -->
+        <!-- Whatever the page puts first — on the workspace, the button that
+             collapses the first panel of the space being shown. The fullscreen
+             toggle and the user menu on the right. Workspace commands live on
+             the side tool rails, and the theme switch in the user
+             preferences. -->
         <q-toolbar-title class="app-layout__title">
-          <img
-            :src="theme.dark ? '/icons/logodpW.svg' : '/icons/logodp.svg'"
-            alt=""
-            width="16"
-            height="16"
-            class="app-layout__logo"
-          >
-          <span>DataPlayer</span>
+          <slot name="header-start" />
         </q-toolbar-title>
         <q-space />
         <AppFullscreenToggle />
@@ -218,11 +211,6 @@ async function logout() {
   font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.01em;
-}
-
-.app-layout__logo {
-  flex: none;
-  object-fit: contain;
 }
 
 /* The status bar starts and ends set off the edges the way the user menu is
