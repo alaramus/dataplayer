@@ -377,7 +377,9 @@ function openListed(group: TabGroup) {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 4px 2px;
+  /* No top padding: a 32 px button then stands level with the 32 px tab strip
+     of the cards beside it instead of starting a block below them. */
+  padding: 0 2px 4px;
   overflow: visible;
   background: transparent;
 }
@@ -402,6 +404,12 @@ function openListed(group: TabGroup) {
   padding: 4px 0;
   border-top: 2px solid transparent;
   user-select: none;
+}
+/* The topmost block keeps no top padding either, for the same level stand —
+   including the 2 px its drop-indicator border always reserves. */
+.tool-rail__block:first-child {
+  padding-top: 0;
+  margin-top: -2px;
 }
 /* The grouping frame lives only on blocks of several buttons: a lone
    button is framed by the button itself. */
