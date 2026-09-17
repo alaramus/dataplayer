@@ -101,9 +101,9 @@ async function answerQuestion(choice: string) {
   }
   catch (cause) { toast.error(messageOf(cause, "The answer could not be continued")) }
 }
-async function copy(text: string) {
-  try { await navigator.clipboard.writeText(text); toast.success("Answer copied") }
-  catch { toast.error("The answer could not be copied") }
+async function copy(text: string, what: string) {
+  try { await navigator.clipboard.writeText(text); toast.success(`${what} copied`) }
+  catch { toast.error(`The ${what.toLowerCase()} could not be copied`) }
 }
 function listen(text: string) {
   window.speechSynthesis.cancel()
@@ -217,17 +217,16 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
             {{ errorOf(message) }}
           </AppBanner>
           <div
-            v-if="message.role === 'assistant'"
             class="ai-message__actions"
           >
             <AppIconButton
               icon="content_copy"
-              tooltip="Copy answer"
-              @click="copy(message.content)"
+              :tooltip="message.role === 'user' ? 'Copy message' : 'Copy answer'"
+              @click="copy(message.content, message.role === 'user' ? 'Message' : 'Answer')"
             />
             <AppIconButton
               icon="volume_up"
-              tooltip="Listen to answer"
+              :tooltip="message.role === 'user' ? 'Listen to message' : 'Listen to answer'"
               @click="listen(message.content)"
             />
           </div>
@@ -396,7 +395,7 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
 .ai-conversation__messages { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-4); }
 .ai-conversation__empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
 .ai-message { margin: 0 0 var(--dp-space-4); }
-.ai-message--user { display: flex; justify-content: flex-end; }
+.ai-message--user { display: flex; flex-direction: column; align-items: flex-end; }
 .ai-message__user { max-width: 78%; padding: var(--dp-space-2) var(--dp-space-3); white-space: pre-wrap; background: var(--dp-active); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
 .ai-message__actions { display: flex; gap: var(--dp-space-1); margin-top: var(--dp-space-1); }
 .ai-message__error { margin-top: var(--dp-space-2); }
