@@ -212,7 +212,9 @@ onScopeDispose(stop)
             v-else
             variant="quiet"
             layout="navigation"
+            class="ai-window__chat-title"
             :label="chat.title"
+            :title="chat.title"
             :data-testid="`ai-chat-${chat.id}`"
             @click="select(chat.id)"
           />
@@ -303,6 +305,9 @@ onScopeDispose(stop)
 .ai-window__chat { display: flex; align-items: center; border-radius: var(--dp-radius-control); }
 .ai-window__chat--active { background: var(--dp-active); }
 .ai-window__chat > :first-child { flex: 1; min-width: 0; }
+/* A generated title is a sentence; the row gets one line of it, the rest is
+   on the button's tooltip. */
+.ai-window__chat-title :deep(.q-btn__content) { display: block; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .ai-window__chat-actions { display: none; flex: none; }
 /* Trap: display:none drops the buttons from the accessibility tree, so without :hover neither keyboard focus nor getByRole reaches them. The active row stays exposed. */
 .ai-window__chat--active .ai-window__chat-actions, .ai-window__chat:hover .ai-window__chat-actions, .ai-window__chat:focus-within .ai-window__chat-actions { display: flex; }
