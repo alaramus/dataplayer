@@ -296,11 +296,13 @@ onScopeDispose(stop)
 .ai-space { width: 100%; height: 100%; min-height: 0; display: flex; overflow: hidden; }
 .ai-window__card { min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface); }
 .ai-window__rail { flex-grow: 0; flex-shrink: 0; display: flex; flex-direction: column; }
-.ai-window__rail--collapsed { min-width: 48px; }
 .ai-window__rail-head, .ai-window__rail-foot { flex: none; display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-2); }
 .ai-window__rail-head > :first-child, .ai-window__rail-foot > :first-child { flex: 1; }
 .ai-window__rail-foot { flex-direction: column; align-items: stretch; border-top: 1px solid var(--dp-border); }
 .ai-window__rail--collapsed .ai-window__rail-head { flex-direction: column; }
+/* The collapsed rail takes the same forty pixels a collapsed workspace column
+   or the dashboards rail does; the wide rail's padding would push past it. */
+.ai-window__rail--collapsed .ai-window__rail-head, .ai-window__rail--collapsed .ai-window__rail-foot { align-items: center; padding-right: 0; padding-left: 0; }
 .ai-window__history { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-1); }
 .ai-window__chat { display: flex; align-items: center; border-radius: var(--dp-radius-control); }
 .ai-window__chat--active { background: var(--dp-active); }
