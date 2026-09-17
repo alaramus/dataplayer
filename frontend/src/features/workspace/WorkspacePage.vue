@@ -1010,12 +1010,16 @@ provide(workspaceActionsKey, {
   flex-direction: column;
   min-height: 0;
 }
-/* The server icon stands at the very left of the footer, on the same axis
-   as the left rail buttons: same 2px edge padding, same 32px button. */
+/* The server icon stands on the axis of the rail buttons below and of the
+   header button above: a 36 px box pulled back over the status padding, the
+   button centred in it whatever its own width is. */
 .workspace-footer-server {
   flex: none;
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 36px;
+  margin-left: calc(-1 * var(--dp-space-2));
 }
 .workspace-footer-server :deep(.q-btn) {
   min-width: 32px;

@@ -212,8 +212,10 @@ async function logout() {
   font-weight: 500;
   letter-spacing: 0.01em;
   /* No Quasar's own side padding: a page aligns its leading control with
-     the rails below pixel for pixel. */
+     the rails below pixel for pixel. Clipping off too: a control pulled
+     back over the toolbar padding would otherwise be cut at this box. */
   padding: 0;
+  overflow: visible;
 }
 
 /* The status bar starts and ends set off the edges the way the user menu is
