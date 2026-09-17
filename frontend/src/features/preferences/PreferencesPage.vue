@@ -12,8 +12,10 @@ import {
   AppPageHeader,
   AppSelect,
   AppSpinner,
+  AppThemeToggle,
   useToast,
 } from "@/shared/ui"
+import { useThemeStore } from "@/stores/theme"
 
 /**
  * What this account chose for itself.
@@ -32,6 +34,8 @@ const router = useRouter()
 const toast = useToast()
 const preferences = usePreferences()
 const save = useUpdatePreferences()
+// The theme switch lives here, next to the account, rather than in the header.
+const theme = useThemeStore()
 
 const intervals = checkIntervalOptions()
 // Whatever the server says it is, and nothing while it has not said: a
@@ -75,6 +79,19 @@ async function chooseInterval(value: unknown) {
       class="preferences"
       data-testid="preferences"
     >
+      <section class="preferences__row">
+        <div class="preferences__what">
+          <span class="preferences__title">Appearance</span>
+          <span class="preferences__summary">
+            Light or dark theme for the whole application. Until one is chosen,
+            the system's preference answers.
+          </span>
+        </div>
+        <div class="preferences__theme">
+          <AppThemeToggle />
+          <span>{{ theme.dark ? "Dark" : "Light" }}</span>
+        </div>
+      </section>
       <section class="preferences__row">
         <div class="preferences__what">
           <span class="preferences__title">Check that connections are reachable</span>
@@ -128,6 +145,11 @@ async function chooseInterval(value: unknown) {
 }
 .preferences__title {
   font-weight: 500;
+}
+.preferences__theme {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .preferences__summary {
   color: var(--dp-text-muted);

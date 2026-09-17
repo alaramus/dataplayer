@@ -11,6 +11,7 @@ import {
 } from "./utils/catalog"
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { chooseTheme } from "./utils/theme"
 import { connectorRow, deleteConnector, openConnector } from "./utils/workspace"
 import { toast } from "./utils/notices"
 
@@ -516,8 +517,7 @@ test("keeps the grid legible in the dark theme", async ({ page }) => {
   await pickSchema(page, "demo_lab")
   await openNode(page, "projects")
 
-  await page.getByTestId("theme-toggle").click()
-  await expect(page.locator("body.body--dark")).toHaveCount(1)
+  await chooseTheme(page, "dark")
   await expect(page.getByTestId("grid-header")).toBeVisible()
   await expect(page.getByTestId("grid-cell-0-name")).toBeVisible()
   await page.screenshot({ path: "test-results/grid-dark.png", fullPage: true })

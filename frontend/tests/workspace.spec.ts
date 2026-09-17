@@ -4,6 +4,7 @@ import type { Locator, Page } from "@playwright/test"
 
 import { createFileConnector, createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { chooseTheme } from "./utils/theme"
 import { openNode, pickSchema, pinColumn } from "./utils/catalog"
 import {
   catalogTab,
@@ -18,9 +19,7 @@ import {
 test("detaches through the header, keeps the grid page and dark surface and returns the tab", async ({ page }) => {
   const name = `e2e-detached-${Date.now()}`
   await login(page)
-  const theme = page.getByTestId("theme-toggle")
-  if (await theme.getAttribute("data-theme") === "light") await theme.click()
-  await expect(theme).toHaveAttribute("data-theme", "dark")
+  await chooseTheme(page, "dark")
   await createPostgresConnector(page, name)
   await openConnector(page, name)
   await pickSchema(page, "pg_catalog")

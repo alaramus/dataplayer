@@ -57,8 +57,16 @@ test("a chosen theme outlives a reload and outranks the system", async ({ page }
   await expect(dark(page)).toHaveCount(1)
 
   const wasDark = await panelColour(page)
-  await page.getByTestId("theme-toggle").click()
+  // The switch lives in Preferences, next to the account, not in the header.
+  await page.getByTestId("user-menu").click()
+  await page.getByTestId("menu-item-preferences").click()
+  await page.waitForURL("/preferences")
+  const toggle = page.getByTestId("theme-toggle")
+  await expect(toggle).toHaveAttribute("data-theme", "dark")
+  await toggle.click()
   await expect(dark(page)).toHaveCount(0)
+  await page.getByTestId("back-to-workspace").click()
+  await page.waitForURL("/")
 
   const wasLight = await panelColour(page)
   expect(wasLight).not.toBe(wasDark)
@@ -70,8 +78,13 @@ test("a chosen theme outlives a reload and outranks the system", async ({ page }
   expect(await panelColour(page)).toBe(wasLight)
 
   // And back, so neither direction is the one that happens to work.
-  await page.getByTestId("theme-toggle").click()
+  await page.getByTestId("user-menu").click()
+  await page.getByTestId("menu-item-preferences").click()
+  await page.waitForURL("/preferences")
+  await toggle.click()
   await expect(dark(page)).toHaveCount(1)
+  await page.getByTestId("back-to-workspace").click()
+  await page.waitForURL("/")
   await page.reload()
   await expect(dark(page)).toHaveCount(1)
   expect(await panelColour(page)).toBe(wasDark)

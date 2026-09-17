@@ -25,6 +25,9 @@ const command = computed(() =>
   servicesCommand({ count: (services.data.value ?? []).length, working: working.value })
 )
 const open = ref(false)
+
+/** Icon-only rendering for the side tool rails. */
+withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
 </script>
 
 <template>
@@ -36,7 +39,7 @@ const open = ref(false)
       variant="quiet"
       size="sm"
       :icon="command.icon"
-      :label="command.label"
+      :label="iconOnly ? undefined : command.label"
       :disable="!command.enabled"
       data-testid="command-services"
       @click="open = true"

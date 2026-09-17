@@ -19,6 +19,9 @@ import { AppButton, AppTooltip } from "@/shared/ui"
  * the commands want; each tooltip names it where a button leaves doubt (D69).
  */
 const workspace = useWorkspaceActions()
+
+/** Icon-only rendering for the side tool rails. */
+withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
 const connectors = useConnectors()
 
 const connector = computed(() => {
@@ -67,7 +70,7 @@ const library = computed(() =>
         variant="quiet"
         size="sm"
         :icon="library.icon"
-        :label="library.label"
+        :label="iconOnly ? undefined : library.label"
         data-testid="command-queries"
         @click="workspace.openQueries(workspace.activeConnectorId.value)"
       />

@@ -5,7 +5,7 @@ import { login } from "./utils/login"
 test("flat actions remain readable on the kit surface in both themes", async ({ page }) => {
   await login(page)
   await page.goto("/ui-kit")
-  const toggle = page.getByRole("toolbar").getByTestId("theme-toggle")
+  const toggle = page.getByTestId("theme-toggle")
 
   for (const theme of ["light", "dark"]) {
     if (await toggle.getAttribute("data-theme") !== theme) await toggle.click()

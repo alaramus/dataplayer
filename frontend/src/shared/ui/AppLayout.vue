@@ -6,7 +6,6 @@ import { useRouter } from "vue-router"
 import ToastHost from "@/shared/notifications/ToastHost.vue"
 import { resetNotices } from "@/shared/notifications/notices"
 import { useCurrentUser } from "@/shared/auth/currentUser"
-import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
 import { closeRealtime } from "@/shared/realtime/client"
 import WindowTaskbar from "@/shared/windows/WindowTaskbar.vue"
 import { windowsApiKey } from "@/shared/windows/useWindows"
@@ -17,7 +16,6 @@ import AppButton from "./AppButton.vue"
 import AppFullscreenToggle from "./AppFullscreenToggle.vue"
 import AppMenu from "./AppMenu.vue"
 import type { MenuItem } from "./AppMenu.vue"
-import AppThemeToggle from "./AppThemeToggle.vue"
 import AppTooltip from "./AppTooltip.vue"
 
 defineProps<{ fill?: boolean }>()
@@ -97,10 +95,10 @@ async function logout() {
       data-testid="app-header"
     >
       <q-toolbar class="app-layout__toolbar">
-        <q-toolbar-title
-          class="app-layout__title"
-          :class="{ 'app-layout__title--compact': $slots['workspace-tools'] }"
-        >
+        <!-- The name on the left; the fullscreen toggle and the user menu on
+             the right. Workspace commands live on the side tool rails, and
+             the theme switch in the user preferences. -->
+        <q-toolbar-title class="app-layout__title">
           <img
             :src="theme.dark ? '/icons/logodpW.svg' : '/icons/logodp.svg'"
             alt=""
@@ -110,11 +108,8 @@ async function logout() {
           >
           <span>DataPlayer</span>
         </q-toolbar-title>
-        <slot name="workspace-tools" />
-        <!-- Page actions precede the view controls and the account menu. -->
-        <slot name="actions" />
+        <q-space />
         <AppFullscreenToggle />
-        <AppThemeToggle />
         <AppButton
           variant="quiet"
           size="sm"
@@ -149,8 +144,9 @@ async function logout() {
       </q-page>
     </q-page-container>
 
-    <!-- One row: the status commands and the open windows, the way a desktop
-         puts its taskbar beside the rest of its bar rather than under it. -->
+    <!-- One row for what is open: the sections put aside, then the windows,
+         the way a desktop puts its taskbar beside the rest of its bar rather
+         than under it. -->
     <q-footer
       class="app-layout__footer"
       data-testid="app-footer"
@@ -159,12 +155,10 @@ async function logout() {
         ref="footer"
         class="app-layout__status"
       >
-        <ServerSwitcher />
         <slot name="status" />
-        <!-- After the commands: the bar reads as what this screen can do, then
-             what is open on it, the way a desktop puts its taskbar after its
-             start button. It takes the room left over, so a row of windows
-             scrolls rather than pushing the end of the bar off screen. -->
+        <!-- After the status commands: what is open on this screen. It takes
+             the room left over, so a row of windows scrolls rather than
+             pushing the end of the bar off screen. -->
         <WindowTaskbar
           v-if="windows"
           :context="windows.context"
@@ -189,6 +183,13 @@ async function logout() {
 
 .app-layout__body {
   margin-inline: var(--dp-shell-side-width);
+}
+
+/* A filling page goes edge to edge: the side rails stand flush against the
+   window instead of being pulled past the page bounds (which the page below
+   clips). */
+.app-layout--fill .app-layout__body {
+  margin-inline: 0;
 }
 
 .app-layout__page {
@@ -219,23 +220,20 @@ async function logout() {
   letter-spacing: 0.01em;
 }
 
-.app-layout__title--compact {
-  flex: none;
-}
-
 .app-layout__logo {
   flex: none;
   object-fit: contain;
 }
 
-/* Shorter than the toolbar above it: it is a line, not a second header. */
+/* The status bar starts and ends set off the edges the way the user menu is
+   in the header; the window tabs then start in line with the first card. */
 .app-layout__status {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
   min-height: var(--dp-status-height);
-  padding: 0 var(--dp-space-3);
+  padding: 0 var(--dp-space-2);
   font-size: 12px;
 }
 

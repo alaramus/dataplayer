@@ -18,6 +18,10 @@ import { WindowDialog } from "@/shared/windows"
 import { useServersStore } from "@/stores/servers"
 
 const servers = useServersStore()
+
+/** Icon-only rendering for the footer, in line with the rail buttons. */
+withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
+
 const cache = useQueryClient()
 const route = useRoute()
 const open = ref(false)
@@ -111,7 +115,10 @@ function remove(profile: ServerProfile) {
     data-testid="server-switcher"
     @click="open = true; editing = false; error = ''; notice = ''"
   >
-    <span class="server-switcher__name">{{ servers.active.name }}</span>
+    <span
+      v-if="!iconOnly"
+      class="server-switcher__name"
+    >{{ servers.active.name }}</span>
     <AppTooltip>{{ servers.active.url }}</AppTooltip>
   </AppButton>
   <WindowDialog

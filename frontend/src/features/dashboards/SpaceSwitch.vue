@@ -10,6 +10,9 @@ import type { Space } from "@/stores/space"
  */
 const space = useSpaceStore()
 
+/** Icon-only rendering for the side tool rails. */
+withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
+
 const choices: { value: Space; label: string; icon: string; tooltip: string }[] = [
   { value: "data", label: "Data", icon: "table_chart", tooltip: "Connections, catalogs and the work opened from them" },
   { value: "dashboards", label: "Dashboards", icon: "dashboard", tooltip: "Metrics your agents report, drawn over time" },
@@ -32,7 +35,7 @@ const choices: { value: Space; label: string; icon: string; tooltip: string }[] 
         :variant="space.current === choice.value ? 'secondary' : 'quiet'"
         size="sm"
         :icon="choice.icon"
-        :label="choice.label"
+        :label="iconOnly ? undefined : choice.label"
         :aria-pressed="space.current === choice.value"
         :data-testid="`space-${choice.value}`"
         @click="space.show(choice.value)"

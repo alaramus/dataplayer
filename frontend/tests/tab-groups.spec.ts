@@ -6,6 +6,17 @@ import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
 import { deleteConnector, openConnector, rowsTabs } from "./utils/workspace"
 
+/** The saved groups stand behind the one list button on a tool rail. */
+async function openGroups(page: Page) {
+  await page.getByTestId("open-tab-groups").click()
+  await expect(page.getByRole("menu", { name: "Saved tab groups", exact: true })).toBeVisible()
+}
+
+async function closeGroups(page: Page) {
+  await page.keyboard.press("Escape")
+  await expect(page.getByRole("menu", { name: "Saved tab groups", exact: true })).toHaveCount(0)
+}
+
 async function saveGroup(page: Page, name: string, offered?: string) {
   await page.getByTestId("save-tab-group").click()
   // What the dialog opens on, when the caller cares: a name nobody has to
@@ -13,7 +24,21 @@ async function saveGroup(page: Page, name: string, offered?: string) {
   if (offered !== undefined) await expect(page.getByTestId("tab-group-name")).toHaveValue(offered)
   await page.getByTestId("tab-group-name").fill(name)
   await page.getByTestId("confirm-tab-group-name").click()
+  await openGroups(page)
   await expect(page.getByRole("button", { name: `Open group ${name}`, exact: true })).toBeVisible()
+  await closeGroups(page)
+}
+
+/** Opening a group closes the list, so every opening starts by opening it. */
+async function openGroup(page: Page, name: string) {
+  await openGroups(page)
+  await page.getByRole("button", { name: `Open group ${name}`, exact: true }).click()
+}
+
+async function manageGroup(page: Page, name: string, action: string) {
+  await openGroups(page)
+  await page.getByRole("button", { name: `Manage group ${name}`, exact: true }).click()
+  await page.getByTestId(`menu-item-${action}`).click()
 }
 
 test("saves column layouts, replaces tabs, remembers the warning and manages multiple groups", async ({ page }) => {
@@ -24,6 +49,14 @@ test("saves column layouts, replaces tabs, remembers the warning and manages mul
   test.setTimeout(90_000)
   const connection = `e2e-groups-${Date.now()}`
   await login(page)
+
+  // The list button always stands; with nothing saved yet it says so.
+  await openGroups(page)
+  await expect(page.getByRole("menu", { name: "Saved tab groups", exact: true })).toContainText(
+    "No saved groups yet"
+  )
+  await closeGroups(page)
+
   await createPostgresConnector(page, connection)
   await openConnector(page, connection)
   await pickSchema(page, "pg_catalog")
@@ -48,23 +81,23 @@ test("saves column layouts, replaces tabs, remembers the warning and manages mul
   await classTab.locator('[data-testid^="workspace-close-"]').click()
   await openNode(page, "pg_type")
   await saveGroup(page, "Types")
+  await openGroups(page)
   await expect(page.getByTestId("open-tab-group")).toHaveCount(2)
-  const catalogGroup = page.getByRole("button", { name: "Open group Catalog tables", exact: true })
-  const typesGroup = page.getByRole("button", { name: "Open group Types", exact: true })
+  await closeGroups(page)
   const warning = page.getByRole("dialog", { name: "Replace current tabs?", exact: true })
 
-  await catalogGroup.click()
+  await openGroup(page, "Catalog tables")
   await expect(warning).toContainText("Tabs outside the group will disappear.")
   await warning.getByTestId("confirm-remember").click()
   await warning.getByTestId("confirm-cancel").click()
   await expect(rowsTabs(page)).toHaveCount(1)
   await expect(rowsTabs(page)).toContainText("pg_type")
-  await catalogGroup.click()
+  await openGroup(page, "Catalog tables")
   await expect(warning).toBeVisible()
   await warning.getByRole("button", { name: "Close window", exact: true }).click()
   await expect(rowsTabs(page)).toContainText("pg_type")
 
-  await catalogGroup.click()
+  await openGroup(page, "Catalog tables")
   await warning.getByTestId("confirm-remember").click()
   await warning.getByTestId("confirm-accept").click()
   await expect(columns).toHaveCount(4)
@@ -73,35 +106,42 @@ test("saves column layouts, replaces tabs, remembers the warning and manages mul
   const restoredWidths = await columns.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().width))
   restoredWidths.forEach((width, index) => expect(Math.abs(width - widths[index]!)).toBeLessThan(3))
 
-  await typesGroup.click()
+  await openGroup(page, "Types")
   await expect(rowsTabs(page)).toHaveCount(1)
   await expect(rowsTabs(page)).toContainText("pg_type")
   await expect(warning).toHaveCount(0)
   await page.reload()
+  await openGroups(page)
   await expect(page.getByTestId("open-tab-group")).toHaveCount(2)
-  await catalogGroup.click()
+  await closeGroups(page)
+  await openGroup(page, "Catalog tables")
   await expect(namespaceTab).toBeVisible()
   await expect(warning).toHaveCount(0)
 
-  await page.getByRole("button", { name: "Manage group Catalog tables", exact: true }).click()
-  await page.getByTestId("menu-item-rename-group").click()
+  await manageGroup(page, "Catalog tables", "rename-group")
   await page.getByTestId("tab-group-name").fill("Reference tables")
   await page.getByTestId("confirm-tab-group-name").click()
   await namespaceTab.locator('[data-testid^="workspace-close-"]').click()
-  await page.getByRole("button", { name: "Manage group Reference tables", exact: true }).click()
-  await page.getByTestId("menu-item-update-group").click()
-  await typesGroup.click()
+  await manageGroup(page, "Reference tables", "update-group")
+  await openGroup(page, "Types")
   await expect(rowsTabs(page)).toContainText("pg_type")
-  await page.getByRole("button", { name: "Open group Reference tables", exact: true }).click()
+  await openGroup(page, "Reference tables")
   await expect(rowsTabs(page)).toHaveCount(1)
   await expect(classTab).toBeVisible()
 
   for (const name of ["Reference tables", "Types"]) {
-    await page.getByRole("button", { name: `Manage group ${name}`, exact: true }).click()
-    await page.getByTestId("menu-item-delete-group").click()
+    await manageGroup(page, name, "delete-group")
     await page.getByTestId("confirm-accept").click()
+    await openGroups(page)
     await expect(page.getByRole("button", { name: `Open group ${name}`, exact: true })).toHaveCount(0)
+    await closeGroups(page)
   }
+  // Emptied, the list says so again rather than vanishing.
+  await openGroups(page)
+  await expect(page.getByRole("menu", { name: "Saved tab groups", exact: true })).toContainText(
+    "No saved groups yet"
+  )
+  await closeGroups(page)
   await expect(classTab).toBeVisible()
   await deleteConnector(page, connection)
 })

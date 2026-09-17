@@ -4,12 +4,12 @@ import { computed, onMounted, provide, ref, watch } from "vue"
 
 import type { ConnectorDraft, ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
+import ServerSwitcher from "@/features/servers/ServerSwitcher.vue"
 import { adapterIcon } from "@/features/connectors/adapters"
 import { connectorWindow, connectorWindowId, draftWindowId } from "@/features/connectors/windows"
 import { connectorsKey, useConnectors } from "@/features/connectors/api"
 import { useConnectorHealth } from "@/features/connectors/health"
 import ServiceCredentialsDialog from "@/features/services/ServiceCredentialsDialog.vue"
-import ServicesCommand from "@/features/services/ServicesCommand.vue"
 import StartServiceDialog from "@/features/services/StartServiceDialog.vue"
 import { useRequestService, useServices } from "@/features/services/api"
 import type { StartRequest } from "@/features/services/starts"
@@ -23,14 +23,12 @@ import { PERMISSIONS_PAGE } from "@/features/connectors/windowPages"
 import { chartViewKey } from "@/features/charts/view"
 import { relationshipPanelId } from "@/features/relationships/model"
 import { activeCatalogPanel } from "@/features/workspace/activeCatalog"
-import CommandBar from "@/features/workspace/CommandBar.vue"
 import ActivityIndicator from "@/features/activity/ActivityIndicator.vue"
 import AiSpace from "@/features/ai/AiSpace.vue"
 import { screenContexts } from "@/features/ai/context"
 import type { AiOpenIntent } from "@/features/ai/context"
 import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
-import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
-import WorkspaceGroups from "@/features/workspace/WorkspaceGroups.vue"
+import WorkspaceToolRail from "@/features/workspace/WorkspaceToolRail.vue"
 import {
   catalogPanelId,
   chartPanelId,
@@ -855,42 +853,73 @@ provide(workspaceActionsKey, {
     <template #header-overlay>
       <WorkspaceDetachTarget :context="workspace.context" />
     </template>
-    <template #workspace-tools>
-      <WorkspaceGroups
-        v-if="me.data.value"
-        :key="me.data.value.id"
-        :user-id="me.data.value.id"
-        :workspace="workspace"
-      />
-    </template>
     <template #status>
-      <SpaceSwitch />
-      <ServicesCommand />
-      <CommandBar />
+      <!-- The icon-only server at the very left edge, on the same axis as
+           the left rail buttons; activity icon-only at the end, on the axis
+           of the right rail buttons. -->
+      <span class="workspace-footer-server">
+        <ServerSwitcher icon-only />
+      </span>
       <!-- Beside the windows on the same bar: a column put aside and a window
            put aside are the same fact about the screen (D69). -->
       <WorkspaceTaskbar :context="workspace.context" />
     </template>
     <template #status-end>
       <ActivityIndicator
+        icon-only
         @answer-access="answerRequestsFor"
         @open-connection="editConnector"
       />
     </template>
 
-    <WorkspaceRoot
-      :context="workspace.context"
-      :covered="space.current !== 'data'"
-    >
-      <template #cover>
-        <DashboardsSpace v-if="dashboardsShown" />
-        <AiSpace
-          v-else-if="aiShown"
-          :contexts="screenContexts(workspace.panels.value)"
-          @open="openFromAgent"
+    <!-- PyCharm-like side rails flank the sections — two equal halves a
+         side, four rails. The blocks are icon-only and draggable within and
+         across all of them. -->
+    <div class="workspace-shell">
+      <div class="workspace-shell__side">
+        <WorkspaceToolRail
+          v-if="me.data.value"
+          zone="left-top"
+          :workspace="workspace"
+          :user-id="me.data.value.id"
         />
-      </template>
-    </WorkspaceRoot>
+        <WorkspaceToolRail
+          v-if="me.data.value"
+          zone="left-bottom"
+          :workspace="workspace"
+          :user-id="me.data.value.id"
+        />
+      </div>
+      <div class="workspace-shell__center">
+        <WorkspaceRoot
+          :context="workspace.context"
+          :covered="space.current !== 'data'"
+        >
+          <template #cover>
+            <DashboardsSpace v-if="dashboardsShown" />
+            <AiSpace
+              v-else-if="aiShown"
+              :contexts="screenContexts(workspace.panels.value)"
+              @open="openFromAgent"
+            />
+          </template>
+        </WorkspaceRoot>
+      </div>
+      <div class="workspace-shell__side">
+        <WorkspaceToolRail
+          v-if="me.data.value"
+          zone="right-top"
+          :workspace="workspace"
+          :user-id="me.data.value.id"
+        />
+        <WorkspaceToolRail
+          v-if="me.data.value"
+          zone="right-bottom"
+          :workspace="workspace"
+          :user-id="me.data.value.id"
+        />
+      </div>
+    </div>
 
     <AdapterCatalogDialog
       v-model="catalogOpen"
@@ -911,3 +940,38 @@ provide(workspaceActionsKey, {
     />
   </AppLayout>
 </template>
+
+<style scoped>
+/* The rails are the side panels — the fill layout already goes edge to edge,
+   so they stand flush against the window edges. */
+.workspace-shell {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.workspace-shell__center {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+/* One side column: its two rails split it into equal halves. */
+.workspace-shell__side {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+/* The server icon stands at the very left of the footer, on the same axis
+   as the left rail buttons: same 2px edge padding, same 32px button. */
+.workspace-footer-server {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+.workspace-footer-server :deep(.q-btn) {
+  min-width: 32px;
+  min-height: 32px;
+}
+</style>

@@ -4,6 +4,7 @@ import type { Locator, Page } from "@playwright/test"
 import { catalogAction, catalogCheck, pickSchema, showNoSchemas } from "./utils/catalog"
 import { createPostgresConnector } from "./utils/connectors"
 import { login } from "./utils/login"
+import { chooseTheme } from "./utils/theme"
 import { deleteConnector, openConnector, rowsTabs } from "./utils/workspace"
 
 /**
@@ -115,12 +116,14 @@ test("draws the checked tables, the keys between them and what they point at", a
   const painted = page
     .getByTestId(ORGANIZATION_EDGE)
     .locator('xpath=./preceding-sibling::*[local-name()="path"]')
-  const theme = page.getByTestId("theme-toggle")
-  if ((await theme.getAttribute("data-theme")) === "dark") await theme.click()
-  await expect(theme).toHaveAttribute("data-theme", "light")
+  // The switch lives in Preferences; choosing from here is the same choice
+  // written a start earlier. The layout is restored across the reload, so
+  // the diagram is asked again once it has redrawn.
+  await chooseTheme(page, "light")
+  await expect(page.getByTestId(PROJECTS)).toBeVisible()
   await expect(painted).toHaveCSS("stroke", "rgb(115, 134, 158)")
-  await theme.click()
-  await expect(theme).toHaveAttribute("data-theme", "dark")
+  await chooseTheme(page, "dark")
+  await expect(page.getByTestId(PROJECTS)).toBeVisible()
   await expect(painted).toHaveCSS("stroke", "rgb(132, 153, 182)")
 
   // A field is what an edge attaches to, so it is a thing to select, and what

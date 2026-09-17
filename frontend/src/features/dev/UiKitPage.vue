@@ -17,6 +17,7 @@ import {
   AppMenu,
   AppNumberInput,
   AppPageHeader,
+  AppPopup,
   AppProgress,
   AppCheckbox,
   AppCopyButton,
@@ -50,6 +51,7 @@ const MENU_ITEMS: MenuItem[] = [
   { name: "delete", label: "Delete", icon: "delete", danger: true },
 ]
 const menuOpen = ref(false)
+const popupOpen = ref(false)
 const savedHistoryOpen = ref(false)
 const searchText = ref("")
 const savedEntries = ref<MenuItem[]>([
@@ -250,6 +252,19 @@ function removeSavedEntry(name: string) {
               :items="MENU_ITEMS"
               @select="toast.success(`chose ${$event}`)"
             />
+          </AppButton>
+          <AppButton
+            variant="secondary"
+            label="Popup panel"
+            icon="dashboard"
+            aria-haspopup="dialog"
+            :aria-expanded="popupOpen"
+          >
+            <AppPopup v-model="popupOpen">
+              <div class="q-pa-sm">
+                A popup holds whatever is not a menu of actions.
+              </div>
+            </AppPopup>
           </AppButton>
           <span class="text-caption text-grey">
             hover for tooltips

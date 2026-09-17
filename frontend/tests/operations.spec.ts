@@ -26,9 +26,11 @@ test("shows server progress in the footer, opens the sheet on demand and cancels
   })
   await login(page)
   const indicator = page.getByTestId("activity-indicator")
-  await expect(indicator).toContainText("Start service")
-  await expect(indicator.locator('[role="progressbar"]')).toBeVisible()
-  await expect(indicator.locator('[role="progressbar"]')).not.toHaveAttribute("aria-valuenow")
+  // Icon-only: no caption or progress bar on the button itself. The waiting
+  // count stands beside the icon, and hovering names the running step.
+  await expect(indicator.getByTestId("activity-count")).toHaveText("1")
+  await indicator.hover()
+  await expect(page.locator(".app-tooltip")).toContainText("pulling the image (1 of 6)")
   await expect(page.getByTestId("activity-panel")).toHaveCount(0)
   const footerBox = await page.getByTestId("app-footer").boundingBox()
   const buttonBox = await indicator.boundingBox()
@@ -52,13 +54,17 @@ test("shows server progress in the footer, opens the sheet on demand and cancels
   await indicator.click()
   await expect(sheet).toHaveCount(0)
   expect(cancelled).toBe(0)
-  await expect(indicator.locator('[role="progressbar"]')).toBeVisible()
+  await expect(indicator.getByTestId("activity-count")).toHaveText("1")
 
   await indicator.click()
   await sheet.getByRole("button", { name: "Cancel job", exact: true }).click()
   await expect(sheet).toContainText("Stopped before it finished")
   expect(cancelled).toBe(1)
-  await expect(indicator.locator('[role="progressbar"]')).toHaveCount(0)
+  // Nothing runs any more, so the button stops naming the step: only the
+  // standing offer to show the activity is left hovering it.
+  await indicator.hover()
+  await expect(page.locator(".app-tooltip")).toContainText("Show activity")
+  await expect(page.locator(".app-tooltip")).not.toContainText("pulling the image")
   await page.reload()
   await expect(page.getByTestId("activity-panel")).toHaveCount(0)
   await indicator.click()

@@ -1,47 +1,62 @@
 import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
+import { chooseTheme } from "./utils/theme"
 
 test("the workspace meets the shell without an enclosing frame or inset", async ({ page }) => {
   await login(page)
   const content = page.getByTestId("app-page")
   const header = page.getByTestId("app-header")
   const footer = page.getByTestId("app-footer")
-  const toggle = page.getByTestId("theme-toggle")
 
   for (const width of [1280, 768]) {
     await page.setViewportSize({ width, height: 800 })
-    for (const theme of ["light", "dark"]) {
-      if (await toggle.getAttribute("data-theme") !== theme) await toggle.click()
-      await expect(toggle).toHaveAttribute("data-theme", theme)
+    for (const theme of ["light", "dark"] as const) {
+      await chooseTheme(page, theme)
       const chrome = await header.evaluate((node) => getComputedStyle(node).backgroundColor)
       await expect(footer).toHaveCSS("background-color", chrome)
       await expect(content).toHaveCSS("border-top-width", "0px")
       await expect(content).toHaveCSS("border-top-left-radius", "0px")
       await expect(content).toHaveCSS("background-color", chrome)
 
+      // The filling page goes edge to edge: the side rails stand flush
+      // against the window, and the sections take everything between them.
       await expect.poll(async () => {
         const bodyBox = await content.boundingBox()
         const headerBox = await header.boundingBox()
         const footerBox = await footer.boundingBox()
         const workspaceBox = await page.getByTestId("workspace").boundingBox()
-        if (!bodyBox || !headerBox || !footerBox || !workspaceBox) return false
-        return bodyBox.x >= 8
-          && Math.abs(workspaceBox.x - bodyBox.x) < 1
+        const rails: Record<string, { x: number; y: number; width: number; height: number } | null> = {}
+        for (const zone of ["left-top", "left-bottom", "right-top", "right-bottom"]) {
+          rails[zone] = await page.getByTestId(`tool-rail-${zone}`).boundingBox()
+        }
+        const leftTop = rails["left-top"]
+        const leftBottom = rails["left-bottom"]
+        const rightTop = rails["right-top"]
+        const rightBottom = rails["right-bottom"]
+        if (!bodyBox || !headerBox || !footerBox || !workspaceBox
+          || !leftTop || !leftBottom || !rightTop || !rightBottom) return false
+        const leftEdge = Math.max(leftTop.x + leftTop.width, leftBottom.x + leftBottom.width)
+        const rightEdge = Math.min(rightTop.x, rightBottom.x)
+        return Math.abs(bodyBox.x) < 1
+          && Math.abs(bodyBox.width - width) < 1
+          && Math.abs(workspaceBox.x - leftEdge) < 1
+          && Math.abs(workspaceBox.x + workspaceBox.width - rightEdge) < 1
           && Math.abs(workspaceBox.y - bodyBox.y) < 1
-          && Math.abs(workspaceBox.width - bodyBox.width) < 1
           && Math.abs(workspaceBox.height - bodyBox.height) < 1
-          && Math.abs(bodyBox.x - (width - bodyBox.x - bodyBox.width)) < 1
           && Math.abs(bodyBox.y - headerBox.y - headerBox.height) < 1
           && Math.abs(bodyBox.y + bodyBox.height - footerBox.y) < 1
+          && Math.abs(leftTop.height - leftBottom.height) < 2
+          && Math.abs(rightTop.height - rightBottom.height) < 2
       }).toBe(true)
 
-      const rail = await content.evaluate((node) => {
-        const bounds = node.getBoundingClientRect()
-        const element = document.elementFromPoint(bounds.left / 2, bounds.top + bounds.height / 2)
-        return element ? getComputedStyle(element).backgroundColor : null
-      })
-      expect(rail).toBe(chrome)
+      // The four tool rails flank the sections: two equal halves a side,
+      // transparent, the chrome showing through.
+      for (const zone of ["left-top", "left-bottom", "right-top", "right-bottom"]) {
+        const rail = page.getByTestId(`tool-rail-${zone}`)
+        await expect(rail).toBeVisible()
+        await expect(rail).toHaveCSS("background-color", "rgba(0, 0, 0, 0)")
+      }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
     }
   }

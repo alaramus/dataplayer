@@ -28,6 +28,12 @@ async function choose(page: Page, name: string) {
   await page.getByTestId("server-profile").filter({ hasText: name }).getByRole("button", { name: "Connect", exact: true }).click()
 }
 
+/** The footer shows the server as one icon; hovering it names the address. */
+async function expectServer(page: Page, url: string) {
+  await page.getByTestId("server-switcher").hover()
+  await expect(page.locator(".app-tooltip")).toContainText(url)
+}
+
 test("switching isolates authentication and leaves another browser tab on its server", async ({ page, context }) => {
   const requests: SentRequest[] = []
   await fakeServers(context, requests)
@@ -39,7 +45,7 @@ test("switching isolates authentication and leaves another browser tab on its se
     localStorage.setItem("access_token", "alpha-token")
   }, { profiles, alpha })
   await page.goto("/?server=" + encodeURIComponent(alpha))
-  await expect(page.getByTestId("server-switcher")).toContainText("Alpha")
+  await expectServer(page, alpha)
   const other = await context.newPage()
   await other.goto("/?server=" + encodeURIComponent(alpha))
   await expect(other.getByTestId("user-menu")).toBeVisible()
@@ -47,7 +53,7 @@ test("switching isolates authentication and leaves another browser tab on its se
   await choose(page, "Beta")
   await expect(page.getByTestId("login-email")).toBeVisible()
   await expect(page.getByTestId("server-switcher")).toContainText("Beta")
-  await expect(other.getByTestId("server-switcher")).toContainText("Alpha")
+  await expectServer(other, alpha)
   await expect(other.getByTestId("user-menu")).toBeVisible()
 
   await page.getByTestId("login-email").fill("test@example.com")
@@ -55,7 +61,7 @@ test("switching isolates authentication and leaves another browser tab on its se
   await page.getByTestId("login-submit").click()
   await expect(page.getByTestId("user-menu")).toBeVisible()
   await page.reload()
-  await expect(page.getByTestId("server-switcher")).toContainText("Beta")
+  await expectServer(page, beta)
   await expect(page.getByTestId("user-menu")).toBeVisible()
   expect(requests.some((request) => request.url === alpha + "/api/v1/users/me" && request.authorization === "Bearer alpha-token")).toBe(true)
   expect(requests.some((request) => request.url === beta + "/api/v1/users/me" && request.authorization === "Bearer beta-token")).toBe(true)

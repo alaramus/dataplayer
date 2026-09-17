@@ -30,6 +30,9 @@ const emit = defineEmits<{
   openConnection: [connectorId: string]
 }>()
 
+/** Icon-only rendering for the footer, in line with the rail buttons. */
+withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
+
 const jobs = useJobs()
 const queryClient = useQueryClient()
 const services = useServices()
@@ -142,6 +145,7 @@ function clearFinished() {
     variant="quiet"
     size="sm"
     class="activity-indicator"
+    :class="{ 'activity-indicator--icon-only': iconOnly }"
     aria-label="Show activity"
     :aria-expanded="log.open.value"
     data-testid="activity-indicator"
@@ -150,7 +154,7 @@ function clearFinished() {
     <span class="activity-indicator__content">
       <span class="activity-indicator__caption">
         <q-icon :name="icon" />
-        <span>{{ caption }}</span>
+        <span v-if="!iconOnly">{{ caption }}</span>
         <span
           v-if="count > 0"
           class="activity-indicator__count"
@@ -158,7 +162,7 @@ function clearFinished() {
         >{{ count }}</span>
       </span>
       <AppProgress
-        v-if="current"
+        v-if="current && !iconOnly"
         class="activity-indicator__progress"
         :label="current.label"
         :value="current.progress"
@@ -190,6 +194,11 @@ function clearFinished() {
 <style scoped>
 .activity-indicator { position: relative; min-width: 110px; max-width: min(320px, 35vw); }
 .activity-indicator__content { display: flex; flex-direction: column; min-width: 0; width: 100%; }
+/* Icon-only: the same 32px target as the rail buttons, icon plus the
+   waiting count, no caption or progress bar. */
+.activity-indicator--icon-only { min-width: 32px; max-width: none; min-height: 32px; }
+.activity-indicator--icon-only .activity-indicator__content { width: auto; }
+.activity-indicator--icon-only .q-icon { font-size: 20px; }
 .activity-indicator__caption { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .activity-indicator__caption > span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* Overlaid: in flow it adds its height to the button and the footer grows (D113). */
