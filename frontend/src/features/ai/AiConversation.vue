@@ -391,7 +391,7 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
 </template>
 
 <style scoped>
-.ai-conversation { height: 100%; min-height: 0; display: flex; flex-direction: column; }
+.ai-conversation { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .ai-conversation__messages { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-4); }
 .ai-conversation__empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
 .ai-message { margin: 0 0 var(--dp-space-4); }

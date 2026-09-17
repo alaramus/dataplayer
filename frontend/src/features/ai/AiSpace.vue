@@ -82,6 +82,7 @@ const renaming = ref<string | null>(null)
 const titleDraft = ref("")
 
 const conversations = computed(() => list.data.value?.data ?? [])
+const selectedChat = computed(() => conversations.value.find((chat) => chat.id === selected.value) ?? null)
 
 watch(conversations, (rows) => {
   if (selected.value !== null && rows.some((row) => row.id === selected.value)) return
@@ -109,7 +110,9 @@ function beginRename(id: string, title: string) { renaming.value = id; titleDraf
 async function finishRename() {
   const id = renaming.value
   const title = titleDraft.value.trim()
-  if (!id || !title) return
+  if (id === null) return
+  // An emptied field is a cancelled rename, not a chat called nothing.
+  if (!title) { renaming.value = null; return }
   try { await renameConversation.mutateAsync({ id, title }); renaming.value = null }
   catch (cause) { toast.error(messageOf(cause, "The chat could not be renamed")) }
 }
@@ -200,16 +203,7 @@ onScopeDispose(stop)
           :data-testid="`ai-chat-row-${chat.id}`"
           :data-active="selected === chat.id && !settingsShown ? 'true' : 'false'"
         >
-          <AppInput
-            v-if="renaming === chat.id"
-            v-model="titleDraft"
-            compact
-            aria-label="Chat title"
-            @keyup.enter="finishRename"
-            @blur="finishRename"
-          />
           <AppButton
-            v-else
             variant="quiet"
             layout="navigation"
             class="ai-window__chat-title"
@@ -219,12 +213,6 @@ onScopeDispose(stop)
             @click="select(chat.id)"
           />
           <span class="ai-window__chat-actions">
-            <AppIconButton
-              icon="edit"
-              tooltip="Rename chat"
-              compact
-              @click="beginRename(chat.id, chat.title)"
-            />
             <AppIconButton
               icon="delete"
               tooltip="Delete chat"
@@ -271,6 +259,33 @@ onScopeDispose(stop)
       class="ai-window__card ai-window__main"
       data-testid="ai-conversation-card"
     >
+      <!-- The open chat is named where the eye already is; pressing the name
+           is how a chat is renamed. -->
+      <div
+        v-if="selectedChat !== null && !settingsShown"
+        class="ai-window__head"
+      >
+        <AppInput
+          v-if="renaming === selectedChat.id"
+          v-model="titleDraft"
+          compact
+          aria-label="Chat title"
+          data-testid="ai-rename-input"
+          @keyup.enter="finishRename"
+          @keyup.escape="renaming = null"
+          @blur="finishRename"
+        />
+        <button
+          v-else
+          type="button"
+          class="ai-window__head-title"
+          :title="`Rename “${selectedChat.title}”`"
+          data-testid="ai-chat-heading"
+          @click="beginRename(selectedChat.id, selectedChat.title)"
+        >
+          {{ selectedChat.title }}
+        </button>
+      </div>
       <AiSettings v-if="settingsShown" />
       <AiConversation
         v-else-if="selected"
@@ -313,6 +328,9 @@ onScopeDispose(stop)
 .ai-window__chat-actions { display: none; flex: none; }
 /* Trap: display:none drops the buttons from the accessibility tree, so without :hover neither keyboard focus nor getByRole reaches them. The active row stays exposed. */
 .ai-window__chat--active .ai-window__chat-actions, .ai-window__chat:hover .ai-window__chat-actions, .ai-window__chat:focus-within .ai-window__chat-actions { display: flex; }
-.ai-window__main { flex: 1; min-width: 0; min-height: 0; }
-.ai-window__welcome { height: 100%; display: grid; place-items: center; }
+.ai-window__main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.ai-window__head { flex: none; display: flex; align-items: center; min-height: var(--dp-tab-strip-height); padding: 0 var(--dp-space-3); border-bottom: 1px solid var(--dp-border-faint); }
+.ai-window__head > :first-child { flex: 1; min-width: 0; }
+.ai-window__head-title { max-width: 100%; overflow: hidden; border: 0; padding: 0; background: transparent; color: var(--dp-text-strong); font: inherit; font-weight: 600; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: text; }
+.ai-window__welcome { flex: 1; display: grid; place-items: center; }
 </style>
