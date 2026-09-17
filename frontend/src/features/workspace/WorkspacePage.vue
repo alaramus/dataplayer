@@ -946,7 +946,10 @@ provide(workspaceActionsKey, {
           :covered="space.current !== 'data'"
         >
           <template #cover>
-            <DashboardsSpace v-if="dashboardsShown" :ref="dashboardsSpaceRef" />
+            <DashboardsSpace
+              v-if="dashboardsShown"
+              :ref="dashboardsSpaceRef"
+            />
             <AiSpace
               v-else-if="aiShown"
               :ref="aiSpaceRef"

@@ -53,6 +53,8 @@ function contextFor(): WorkspaceContext {
     closeOthers: async () => undefined,
     focus: () => undefined,
     toggleCollapse: () => undefined,
+    firstLeafId: ref(null),
+    hideFirstCollapse: false,
     putAside: () => undefined,
     bringBack: () => undefined,
     resize: () => undefined,
