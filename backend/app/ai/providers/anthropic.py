@@ -8,7 +8,7 @@ from langchain_core.language_models import BaseChatModel
 from pydantic import SecretStr
 
 from app.ai.catalog import ModelInfo
-from app.ai.providers.failures import FailureKind, by_status
+from app.ai.providers.failures import FailureKind, from_parts
 
 # Haiku 4.5 still takes a thinking budget; every later model thinks adaptively
 # and refuses a budget with 400.
@@ -34,7 +34,9 @@ class AnthropicModels:
 
     def failure(self, error: BaseException) -> FailureKind | None:
         if isinstance(error, anthropic.APIStatusError):
-            return by_status(error.status_code)
+            return from_parts(
+                getattr(error, "status_code", None), getattr(error, "body", None)
+            )
         if isinstance(error, anthropic.APIConnectionError):
             return "unavailable"
         return None

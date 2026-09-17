@@ -43,6 +43,14 @@ const canSend = computed(() => draft.value.trim().length > 0 && activeRun.value 
 function runFor(message: ConversationMessagePublic): AgentRunPublic | undefined {
   return message.run_id ? runs.value.get(message.run_id) : undefined
 }
+/** A failed run's sentence, shown with the answer it managed — a run that
+ * streamed half an answer before failing is represented by that message and
+ * never reaches the banners below, so without this nothing says it failed. */
+function errorOf(message: ConversationMessagePublic): string | null {
+  const run = runFor(message)
+  if (run === undefined || run.status !== "failed") return null
+  return run.error ?? "The answer failed."
+}
 function duration(run: AgentRunPublic): string {
   if (!run.created_at) return ""
   const end = run.finished_at ? new Date(run.finished_at).getTime() : Date.now()
@@ -200,6 +208,14 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
             v-else
             :text="message.content"
           />
+          <AppBanner
+            v-if="message.role === 'assistant' && errorOf(message)"
+            tone="warning"
+            class="ai-message__error"
+            data-testid="ai-message-error"
+          >
+            {{ errorOf(message) }}
+          </AppBanner>
           <div
             v-if="message.role === 'assistant'"
             class="ai-message__actions"
@@ -383,6 +399,7 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
 .ai-message--user { display: flex; justify-content: flex-end; }
 .ai-message__user { max-width: 78%; padding: var(--dp-space-2) var(--dp-space-3); white-space: pre-wrap; background: var(--dp-active); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); }
 .ai-message__actions { display: flex; gap: var(--dp-space-1); margin-top: var(--dp-space-1); }
+.ai-message__error { margin-top: var(--dp-space-2); }
 .ai-steps { margin-bottom: var(--dp-space-2); color: var(--dp-text-muted); font-size: 12px; }
 .ai-steps__summary, .ai-step__reasoning { border: 0; padding: 0; background: transparent; color: inherit; cursor: pointer; }
 .ai-steps__summary { display: flex; align-items: center; gap: var(--dp-space-1); }

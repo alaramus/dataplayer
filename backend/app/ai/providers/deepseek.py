@@ -6,7 +6,7 @@ from langchain_deepseek import ChatDeepSeek
 from pydantic import SecretStr
 
 from app.ai.catalog import ModelInfo
-from app.ai.providers.failures import FailureKind, by_status
+from app.ai.providers.failures import FailureKind, from_parts
 
 
 class DeepSeekModels:
@@ -24,7 +24,9 @@ class DeepSeekModels:
 
     def failure(self, error: BaseException) -> FailureKind | None:
         if isinstance(error, openai.APIStatusError):
-            return by_status(error.status_code)
+            return from_parts(
+                error.status_code, getattr(error, "body", None), getattr(error, "message", None)
+            )
         if isinstance(error, openai.APIConnectionError):
             return "unavailable"
         return None

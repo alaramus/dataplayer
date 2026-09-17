@@ -6,7 +6,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import SecretStr
 
 from app.ai.catalog import ModelInfo
-from app.ai.providers.failures import FailureKind, by_status
+from app.ai.providers.failures import FailureKind, from_parts
 
 
 class GeminiModels:
@@ -25,5 +25,9 @@ class GeminiModels:
 
     def failure(self, error: BaseException) -> FailureKind | None:
         if isinstance(error, errors.APIError):
-            return by_status(error.code)
+            return from_parts(
+                getattr(error, "code", None),
+                getattr(error, "details", None),
+                getattr(error, "message", None),
+            )
         return None
