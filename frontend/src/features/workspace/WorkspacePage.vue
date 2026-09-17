@@ -911,11 +911,15 @@ provide(workspaceActionsKey, {
       <WorkspaceTaskbar :context="workspace.context" />
     </template>
     <template #status-end>
-      <ActivityIndicator
-        icon-only
-        @answer-access="answerRequestsFor"
-        @open-connection="editConnector"
-      />
+      <!-- On the axis of the right rail buttons above, mirroring the server
+           icon on the left. -->
+      <span class="workspace-footer-end">
+        <ActivityIndicator
+          icon-only
+          @answer-access="answerRequestsFor"
+          @open-connection="editConnector"
+        />
+      </span>
     </template>
 
     <!-- PyCharm-like side rails flank the sections — two equal halves a
@@ -1039,5 +1043,14 @@ provide(workspaceActionsKey, {
 .workspace-header-collapse :deep(.q-btn) {
   min-width: 32px;
   min-height: 32px;
+}
+/* The right end of the footer, on the same axis: a 36 px box pulled back
+   over the status padding, the indicator centred in it. */
+.workspace-footer-end {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  margin-right: calc(-1 * var(--dp-space-2));
 }
 </style>

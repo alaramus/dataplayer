@@ -103,24 +103,28 @@ async function logout() {
         </q-toolbar-title>
         <q-space />
         <AppFullscreenToggle />
-        <AppButton
-          variant="quiet"
-          size="sm"
-          icon="account_circle"
-          aria-label="User menu"
-          aria-haspopup="menu"
-          :aria-expanded="userMenuOpen"
-          data-testid="user-menu"
-        >
-          <AppTooltip>User menu</AppTooltip>
-          <AppMenu
-            v-model="userMenuOpen"
-            :items="userMenuItems"
-            anchor="bottom right"
-            self="top right"
-            @select="selectUserAction"
-          />
-        </AppButton>
+        <!-- On the axis of the right rail buttons below: a 36 px box pulled
+             back over the toolbar padding, the button centred in it. -->
+        <span class="app-layout__edge">
+          <AppButton
+            variant="quiet"
+            size="sm"
+            icon="account_circle"
+            aria-label="User menu"
+            aria-haspopup="menu"
+            :aria-expanded="userMenuOpen"
+            data-testid="user-menu"
+          >
+            <AppTooltip>User menu</AppTooltip>
+            <AppMenu
+              v-model="userMenuOpen"
+              :items="userMenuItems"
+              anchor="bottom right"
+              self="top right"
+              @select="selectUserAction"
+            />
+          </AppButton>
+        </span>
       </q-toolbar>
       <slot name="header-overlay" />
     </q-header>
@@ -202,6 +206,17 @@ async function logout() {
 .app-layout__toolbar {
   min-height: var(--dp-header-height);
   padding: 0 var(--dp-space-2) 0 var(--dp-space-3);
+}
+
+/* The last control stands on the axis of the right rail buttons, mirroring
+   the leading one on the left. */
+.app-layout__edge {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  margin-right: calc(-1 * var(--dp-space-2));
 }
 
 .app-layout__title {
