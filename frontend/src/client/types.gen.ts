@@ -2243,6 +2243,10 @@ export type ConversationPublic = {
    */
   model_key?: string | null
   /**
+   * Change Policy
+   */
+  change_policy?: "read_only" | "ask" | "allow"
+  /**
    * Created At
    */
   created_at: string | null
@@ -2296,6 +2300,10 @@ export type ConversationSummary = {
    * Model Key
    */
   model_key?: string | null
+  /**
+   * Change Policy
+   */
+  change_policy?: "read_only" | "ask" | "allow"
 }
 
 /**
@@ -2323,6 +2331,10 @@ export type ConversationUpdate = {
    * Model Key
    */
   model_key?: string | null
+  /**
+   * Change Policy
+   */
+  change_policy?: "read_only" | "ask" | "allow" | null
 }
 
 /**

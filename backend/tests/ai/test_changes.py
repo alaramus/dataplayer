@@ -16,7 +16,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai import conversations
 from app.ai.models import AgentPreferences, Conversation
-from app.ai.tools import ALLOW_ALL, ALLOW_CHAT, ALLOW_ONCE, CHANGE_CHOICES
+from app.ai.tools import (
+    ALLOW_ALL,
+    ALLOW_CHAT,
+    ALLOW_ONCE,
+    CHANGE_CHOICES,
+    READ_ONLY_CHAT,
+)
 from app.core.config import settings
 from tests.ai.conftest import (
     AI,
@@ -99,11 +105,47 @@ async def test_a_change_asks_and_allow_once_runs_it(
         assert await probe_scalar(f"SELECT count(*) FROM {table}") == 1
         # Once keeps nothing: the conversation still asks next time (D136).
         conversation = await db.get(Conversation, uuid.UUID(conversation_id))
-        assert conversation is not None and conversation.allow_all_changes is False
+        assert conversation is not None and conversation.change_policy == "ask"
         [result] = tool_results(script, 1)
         assert result["mode"] == "auto_commit"
         query_step = next(step for step in finished["steps"] if step["kind"] == "tool")
         assert query_step["substeps"] == ["Statement 1 · succeeded · 1 affected"]
+    finally:
+        await probe_execute(f"DROP TABLE IF EXISTS {table}")
+
+
+async def test_a_read_only_chat_refuses_a_change_without_asking(
+    client: AsyncClient, headers: dict[str, str], script: Script, db: AsyncSession
+) -> None:
+    """The narrow end of the three: not even the person is asked (D136)."""
+    connector_id = await postgres_connector(client, headers, transfer=True)
+    table = f"ai_probe_{uuid.uuid4().hex[:12]}"
+    await probe_execute(f"CREATE TABLE {table} (id integer)")
+    insert = f"INSERT INTO {table} (id) VALUES (1)"
+    script.turns += [
+        Turn(tool_calls=[call("run_query", {"connector_id": connector_id, "sql": insert}, "c1")]),
+        Turn(pieces=[text("I may not change anything here.")]),
+    ]
+    conversation_id = await new_conversation(client, headers)
+    await rename(client, headers, conversation_id)
+    # Allowed everywhere, and refused here anyway: the chat is the narrower rule.
+    await client.patch(f"{AI}/settings", headers=headers, json={"allow_all_changes": True})
+    await client.patch(
+        f"{AI}/conversations/{conversation_id}",
+        headers=headers,
+        json={"change_policy": "read_only"},
+    )
+    try:
+        run = await send(client, headers, conversation_id, "add a row")
+        finished = await settled(client, headers, run["id"])
+
+        assert finished["status"] == "succeeded"
+        assert finished["question"] is None
+        [result] = tool_results(script, 1)
+        assert result == {"error": READ_ONLY_CHAT}
+        assert await probe_scalar(f"SELECT count(*) FROM {table}") == 0
+        conversation = await db.get(Conversation, uuid.UUID(conversation_id))
+        assert conversation is not None and conversation.change_policy == "read_only"
     finally:
         await probe_execute(f"DROP TABLE IF EXISTS {table}")
 
@@ -200,7 +242,7 @@ async def test_allow_all_in_this_chat_covers_only_this_chat(
         await settled(client, headers, run["id"])
 
         conversation = await db.get(Conversation, uuid.UUID(conversation_id))
-        assert conversation is not None and conversation.allow_all_changes is True
+        assert conversation is not None and conversation.change_policy == "allow"
 
         second = await send(client, headers, conversation_id, "add another")
         finished = await settled(client, headers, second["id"])

@@ -77,6 +77,11 @@ ALLOW_ONCE = "Allow once"
 ALLOW_CHAT = "Allow all changes in this chat"
 ALLOW_ALL = "Allow all changes in every chat"
 CHANGE_CHOICES = [ALLOW_ONCE, ALLOW_CHAT, ALLOW_ALL]
+# What a read-only conversation answers instead of asking. It says what to
+# do about it, because the agent has no way to change it itself.
+READ_ONLY_CHAT = (
+    "This chat may only read. Allow changes in it to make this one."
+)
 
 
 class ToolLimitReached(Exception):
@@ -183,8 +188,13 @@ class ToolRuntime:
         connector: Connector,
         question: str,
         preview: ChangePreview | None = None,
-    ) -> None:
-        """Ask before a change, unless a lasting answer already covers it (D136).
+    ) -> str | None:
+        """Ask before a change, unless the conversation already answers (D136).
+
+        A sentence comes back where the change may not happen at all, for the
+        caller to hand the model in place of the result; `None` means go ahead.
+        A read-only conversation is the narrow end and stands above what the
+        person allowed in general, so it is answered before anybody is asked.
 
         The three answers differ only in what they store: once keeps nothing,
         this chat is remembered on the conversation, every chat on the person.
@@ -192,11 +202,16 @@ class ToolRuntime:
         later calls in the same process read before asking again.
         """
         conversation = await session.get(Conversation, self.conversation_id)
-        if conversation is not None and conversation.allow_all_changes:
-            return
+        policy = conversations.policy_of(
+            conversation.change_policy if conversation is not None else "ask"
+        )
+        if policy == "read_only":
+            return READ_ONLY_CHAT
+        if policy == "allow":
+            return None
         stored = await session.get(AgentPreferences, self.owner_id)
         if stored is not None and stored.allow_all_changes:
-            return
+            return None
         answer = await self.pause(
             AgentQuestion(
                 kind="confirm_change",
@@ -207,7 +222,7 @@ class ToolRuntime:
             )
         )
         if answer == ALLOW_CHAT and conversation is not None:
-            conversation.allow_all_changes = True
+            conversation.change_policy = "allow"
             conversation.updated_at = get_datetime_utc()
             session.add(conversation)
             await session.commit()
@@ -217,6 +232,7 @@ class ToolRuntime:
             stored.allow_all_changes = True
             session.add(stored)
             await session.commit()
+        return None
 
     async def connection_label(self, connector_id: str) -> str:
         """Use a visible name in the server-authored step without trusting the model."""
@@ -592,7 +608,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             request = QueryRequest(text=sql, mode=mode, limits=bounds)
             if changing:
                 preview = await change_preview(adapter, prepared, request)
-                await runtime.confirm_change(
+                refused = await runtime.confirm_change(
                     session,
                     connector=connector,
                     question=(
@@ -602,6 +618,8 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                     ),
                     preview=preview,
                 )
+                if refused is not None:
+                    return {"error": refused}
             execution = adapter.open_query(request)
             statements: list[dict[str, Any]] = []
             async for event in execution.events():
@@ -647,12 +665,14 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 if isinstance(action, Previews):
                     shown = await perform(lambda: action.preview(node_id, arguments))
                     preview = ChangePreview(summary=shown.summary, lines=shown.items)
-                await runtime.confirm_change(
+                refused = await runtime.confirm_change(
                     session,
                     connector=connector,
                     question=f'Run "{action.title}" on "{connector.name}"?',
                     preview=preview,
                 )
+                if refused is not None:
+                    return {"error": refused}
             result = await perform(lambda: action.perform(node_id, arguments))
             await runtime.data_cache.invalidate_connector(connector.id)
             return {

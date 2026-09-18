@@ -18,6 +18,7 @@ from app.ai.models import (
     MAX_TITLE_CHARS,
     TERMINAL,
     AgentQuestion,
+    ChangePolicy,
     AgentRun,
     AgentRunPublic,
     AgentStep,
@@ -46,6 +47,21 @@ def first_line_title(text: str) -> str:
     return line[:MAX_TITLE_CHARS] or "New chat"
 
 
+def policy_of(value: str) -> ChangePolicy:
+    """The stored text as the closed set it is (D136).
+
+    Written by hand rather than cast: a column holding a policy some later
+    release stopped offering reads as the one every conversation starts with,
+    which is the careful end, instead of reaching the browser as a value
+    nothing there knows.
+    """
+    if value == "read_only":
+        return "read_only"
+    if value == "allow":
+        return "allow"
+    return "ask"
+
+
 def summary_of(
     conversation: Conversation, *, active: bool, waiting: bool
 ) -> ConversationSummary:
@@ -59,6 +75,7 @@ def summary_of(
         pinned=conversation.pinned,
         archived=conversation.archived,
         model_key=conversation.model_key,
+        change_policy=policy_of(conversation.change_policy),
     )
 
 
@@ -149,6 +166,7 @@ async def change(
     pinned: bool | None = None,
     archived: bool | None = None,
     model_key: str | None = None,
+    change_policy: ChangePolicy | None = None,
 ) -> Conversation:
     """Apply what was asked and leave the rest alone.
 
@@ -164,6 +182,8 @@ async def change(
         conversation.archived = archived
     if model_key is not None:
         conversation.model_key = model_key
+    if change_policy is not None:
+        conversation.change_policy = change_policy
     session.add(conversation)
     await session.commit()
     await session.refresh(conversation)
@@ -485,6 +505,7 @@ async def conversation_public(
         title=opened(conversation.title),
         title_is_custom=conversation.title_is_custom,
         model_key=conversation.model_key,
+        change_policy=policy_of(conversation.change_policy),
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
         messages=[

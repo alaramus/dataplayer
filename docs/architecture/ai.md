@@ -40,7 +40,9 @@ A change asks first (D136): a `run_query` whose script changes data and a
 `run_action` above reading pause the run on a confirmation card with Allow
 once, Allow all changes in this chat and Allow all changes in every chat, the
 second stored on the conversation, the third on the person's settings and
-revocable there. The card carries a preview — a drop and every DDL statement
+revocable there. The chat's composer holds the same policy as a choice of three
+— read only, ask, allow — and a read-only chat answers the tool with a sentence
+instead of pausing, whatever the person allowed in general. The card carries a preview — a drop and every DDL statement
 rehearsed in a rolled-back transaction, an action's own preview where it has
 one. A `read_only` connection is refused before anybody is asked, in D66's
 sentence, and so is a level the person does not hold. Confirmed SQL runs as one
@@ -194,8 +196,12 @@ Spec: [The application agent](../decisions/2026-09-14-application-agent-design.m
 
 ## D136. Reading is free; a change asks, and the answer can last
 
-Every change asks, with Allow once, Allow all changes in this chat (stored on
-the conversation) and Allow all changes in every chat (a revocable setting).
+A conversation carries one of three policies, chosen in its own composer: read
+only, ask, or allow. Ask is where every conversation starts, and it asks with
+Allow once, Allow all changes in this chat (which sets the conversation to
+allow) and Allow all changes in every chat (a revocable setting). Read only is
+the narrow end: the change is refused before anybody is asked, and it stands
+above what the person allowed in general, because the narrower rule wins.
 Nothing is decided in the browser, and no permission exceeds the owner's policy:
 a `read_only` connection (D66) is never written. An unasked change is still a
 visible step. SQL reads follow D62; SQL changes run after confirmation as one

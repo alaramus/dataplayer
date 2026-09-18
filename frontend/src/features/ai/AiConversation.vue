@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
-import type { AgentRunPublic, ConversationMessagePublic, ScreenContext } from "@/client"
+import type { AgentRunPublic, ConversationMessagePublic, ConversationUpdate, ScreenContext } from "@/client"
 import { AppBanner, AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, useToast } from "@/shared/ui"
+import type { SelectOption } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
 import ChatMarkdown from "./ChatMarkdown.vue"
@@ -52,6 +53,19 @@ const unrepresentedRuns = computed(() => {
 })
 const canSend = computed(() => draft.value.trim().length > 0 && activeRun.value === null && !send.isPending.value)
 const modelOptions = computed(() => groupedModelOptions(models.data.value ?? [], settings.data.value?.keys ?? []))
+// What the agent may do to data from this chat (D136). Read only is the narrow
+// end and stands above what the settings allow in general.
+const policyOptions: SelectOption[] = [
+  { label: "Read only", value: "read_only", icon: "visibility", description: "Nothing is changed from this chat" },
+  { label: "Ask before changes", value: "ask", icon: "help_outline", description: "Every change is confirmed first" },
+  { label: "Allow changes", value: "allow", icon: "edit", description: "Changes in this chat run without asking" },
+]
+const changePolicy = computed(() => conversation.data.value?.change_policy ?? "ask")
+async function choosePolicy(value: unknown) {
+  if (typeof value !== "string" || value === changePolicy.value) return
+  try { await updateConversation.mutateAsync({ id: props.conversationId, change_policy: value as ConversationUpdate["change_policy"] }) }
+  catch (cause) { toast.error(messageOf(cause, "The permission could not be changed")) }
+}
 // What this chat is answered with: its own model, or the one the settings
 // chose for every chat that has not said otherwise.
 const chatModel = computed(() => conversation.data.value?.model_key ?? settings.data.value?.model_key ?? null)
@@ -387,6 +401,16 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
             @click="contextDialogShown = true"
           />
           <AppSelect
+            class="ai-conversation__policy"
+            compact
+            :model-value="changePolicy"
+            :options="policyOptions"
+            :disable="activeRun !== null"
+            label="Changes"
+            data-testid="ai-chat-policy"
+            @update:model-value="choosePolicy"
+          />
+          <AppSelect
             class="ai-conversation__model"
             compact
             :model-value="chatModel"
@@ -454,7 +478,7 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
 .ai-conversation__gap { flex: 1; }
 /* Wide enough for a model's name and no wider: the row it stands in belongs
    to the send button at its end. */
-.ai-conversation__model { flex: 0 1 220px; min-width: 120px; }
+.ai-conversation__model, .ai-conversation__policy { flex: 0 1 200px; min-width: 120px; }
 .ai-context-chip { display: inline-flex; align-items: center; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text-strong); }
 /* The box is one line until there is more to hold, and stops at eight of them
    rather than pushing the transcript off the card. A grown field scrolls; the

@@ -178,6 +178,7 @@ async def update_conversation(
         pinned=body.pinned,
         archived=body.archived,
         model_key=body.model_key,
+        change_policy=body.change_policy,
     )
     current = await conversations.active_run(session, conversation_id)
     return conversations.summary_of(

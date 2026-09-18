@@ -35,6 +35,11 @@ RunStatus = Literal[
 
 TERMINAL: frozenset[str] = frozenset({"succeeded", "failed", "cancelled", "interrupted"})
 
+# What the agent may do to data in one conversation (D136). Read only is the
+# narrow end and wins over anything the person allowed in general; ask is where
+# a conversation starts.
+ChangePolicy = Literal["read_only", "ask", "allow"]
+
 StepKind = Literal["thinking", "tool"]
 StepStatus = Literal["running", "done", "failed", "cancelled"]
 Role = Literal["user", "assistant"]
@@ -94,9 +99,11 @@ class Conversation(SQLModel, table=True):
     title_is_custom: bool = Field(
         default=False, sa_column_kwargs={"server_default": "false"}
     )
-    # Every change in this conversation proceeds without asking (D136, AI5).
-    allow_all_changes: bool = Field(
-        default=False, sa_column_kwargs={"server_default": "false"}
+    # What may be changed from this conversation, and whether it is asked
+    # about first (D136, AI5). Text rather than an enum column: a policy added
+    # later is a release, not a migration of the column's type.
+    change_policy: str = Field(
+        default="ask", max_length=16, sa_column_kwargs={"server_default": "ask"}
     )
     # Above the rest of the history, whatever it was last said in (D141).
     pinned: bool = Field(
@@ -265,6 +272,7 @@ class ConversationSummary(BaseModel):
     # What this conversation names for itself, not what it will be answered
     # with: empty means the model chosen in the settings.
     model_key: str | None = None
+    change_policy: ChangePolicy = "ask"
 
 
 class ConversationsPublic(BaseModel):
@@ -289,6 +297,7 @@ class ConversationUpdate(BaseModel):
     # A model of the catalog, for this conversation alone. Empty leaves
     # whatever it had; there is no command that takes a chosen model away.
     model_key: str | None = PydanticField(default=None, max_length=160)
+    change_policy: ChangePolicy | None = None
 
 
 class ScreenContext(BaseModel):
@@ -401,6 +410,7 @@ class ConversationPublic(BaseModel):
     title: str
     title_is_custom: bool
     model_key: str | None = None
+    change_policy: ChangePolicy = "ask"
     created_at: datetime | None
     updated_at: datetime | None
     messages: list[ConversationMessagePublic]

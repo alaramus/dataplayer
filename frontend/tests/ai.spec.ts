@@ -63,6 +63,12 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.reload()
   await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Opus 5")
 
+  // What the agent may change belongs to the chat too, and read only is the
+  // narrow end of the three.
+  await page.getByTestId("ai-chat-policy").click()
+  await page.getByRole("option", { name: /Read only/ }).click()
+  await expect(page.getByTestId("ai-chat-policy")).toContainText("Read only")
+
   await page.reload()
   await expect(page.getByTestId("space-ai")).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByTestId("ai-space")).toBeVisible()
