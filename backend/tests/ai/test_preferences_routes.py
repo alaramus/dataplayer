@@ -160,6 +160,28 @@ async def test_a_refused_key_is_said_in_the_applications_words(
     assert KEY not in response.text
 
 
+async def test_a_typed_key_is_checked_without_being_stored(
+    client: AsyncClient, db: AsyncSession, script: Script
+) -> None:
+    """Somebody with no key at all can find out whether the one they hold works."""
+    headers = await authentication_token_from_email(
+        client=client, email=random_email(), db=db
+    )
+    script.turns.append(
+        Turn(tool_calls=[{"name": "ping", "args": {}, "id": str(uuid.uuid4())}])
+    )
+
+    response = await client.post(
+        f"{AI}/keys/anthropic/check", headers=headers, json={"key": KEY}
+    )
+    settings = (await client.get(f"{AI}/settings", headers=headers)).json()
+
+    assert response.json()["ok"] is True
+    assert script.built[-1][1] == KEY
+    # Checked and forgotten: the provider still has no key of this person's.
+    assert [one for one in settings["keys"] if one["set"]] == []
+
+
 async def test_checking_without_a_key_calls_nobody(
     client: AsyncClient, db: AsyncSession, script: Script
 ) -> None:

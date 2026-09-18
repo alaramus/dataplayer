@@ -21,6 +21,7 @@ from app.ai.models import (
     ConversationsPublic,
     ConversationSummary,
     ProviderKeyCheck,
+    ProviderKeyTry,
     ProviderKeyWrite,
 )
 from app.ai.runner import AgentRunnerDep, RunRefused
@@ -84,9 +85,17 @@ async def check_key(
     current_user: CurrentUser,
     runner: AgentRunnerDep,
     provider: Provider,
+    body: ProviderKeyTry | None = None,
 ) -> Any:
+    """The key being typed, or the stored one. A check stores nothing (D140)."""
+    candidate = body.key.get_secret_value() if body is not None and body.key else None
     return await preferences.check_key(
-        session, current_user.id, provider, catalog(), runner.chat_models
+        session,
+        current_user.id,
+        provider,
+        catalog(),
+        runner.chat_models,
+        candidate=candidate,
     )
 
 

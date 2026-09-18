@@ -6334,6 +6334,18 @@ export type ProviderKeyState = {
 }
 
 /**
+ * ProviderKeyTry
+ *
+ * A key to check without keeping it. Nothing is stored by a check.
+ */
+export type ProviderKeyTry = {
+  /**
+   * Key
+   */
+  key?: null
+}
+
+/**
  * ProviderKeyWrite
  */
 export type ProviderKeyWrite = {
@@ -10400,6 +10412,18 @@ export type ChosenStartWritable = {
    * Sample Data
    */
   sample_data?: boolean
+}
+
+/**
+ * ProviderKeyTry
+ *
+ * A key to check without keeping it. Nothing is stored by a check.
+ */
+export type ProviderKeyTryWritable = {
+  /**
+   * Key
+   */
+  key?: string | null
 }
 
 /**
@@ -16028,7 +16052,10 @@ export type aiWriteKeyResponses = {
 export type aiWriteKeyResponse = aiWriteKeyResponses[keyof aiWriteKeyResponses]
 
 export type aiCheckKeyData = {
-  body?: never
+  /**
+   * Body
+   */
+  body?: ProviderKeyTryWritable | null
   path: {
     /**
      * Provider

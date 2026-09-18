@@ -174,6 +174,15 @@ export function useRemoveAiKey() {
   })
 }
 
-export async function checkAiKey(provider: "openai" | "anthropic" | "deepseek" | "gemini") {
-  return (await AiService.checkKey({ path: { provider } })).data
+/**
+ * Whether a key works, before anybody decides to keep it.
+ *
+ * The key typed into the form is sent for the check and stored by nothing; an
+ * empty one asks about the key already saved for that provider.
+ */
+export async function checkAiKey(
+  provider: "openai" | "anthropic" | "deepseek" | "gemini",
+  key: string | null = null
+) {
+  return (await AiService.checkKey({ path: { provider }, body: { key } })).data
 }

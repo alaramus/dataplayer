@@ -235,6 +235,14 @@ class ProviderKeyWrite(BaseModel):
     key: SecretStr = PydanticField(min_length=1, max_length=1024)
 
 
+class ProviderKeyTry(BaseModel):
+    """A key to check without keeping it. Nothing is stored by a check."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    key: SecretStr | None = PydanticField(default=None, max_length=1024)
+
+
 class ProviderKeyCheck(BaseModel):
     ok: bool
     message: str

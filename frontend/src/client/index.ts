@@ -832,6 +832,8 @@ export type {
   ProcessTable,
   ProviderKeyCheck,
   ProviderKeyState,
+  ProviderKeyTry,
+  ProviderKeyTryWritable,
   ProviderKeyWrite,
   queriesCancelRunData,
   queriesCancelRunError,

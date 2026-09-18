@@ -37,7 +37,9 @@ async function save() {
 async function check() {
   checking.value = true
   try {
-    const result = await checkAiKey(props.provider)
+    // A key is checked as typed. Saving first and checking afterwards left a
+    // wrong key stored for every model of the provider until it was cleared.
+    const result = await checkAiKey(props.provider, draft.value.trim() || null)
     if (result.ok) toast.success(result.message)
     else toast.error(result.message)
   } catch (cause) { toast.error(messageOf(cause, "The key could not be checked")) }
@@ -53,7 +55,7 @@ async function clear() {
   <WindowDialog
     :model-value="modelValue"
     title="AI API key"
-    :subtitle="`This key is shared by every ${providerLabel} model.`"
+    :subtitle="`This key is shared by every ${providerLabel} model. Check works before saving.`"
     size="md"
     data-testid="ai-key-dialog"
     @update:model-value="emit('update:modelValue', $event)"
@@ -89,7 +91,7 @@ async function clear() {
       <AppButton
         variant="quiet"
         label="Check"
-        :disable="!keySet"
+        :disable="!keySet && !draft.trim()"
         :loading="checking"
         data-testid="ai-key-check"
         @click="check"

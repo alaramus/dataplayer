@@ -154,13 +154,18 @@ async def check_key(
     provider: Provider,
     models: ModelCatalog,
     chat_models: ChatModels,
+    candidate: str | None = None,
 ) -> ProviderKeyCheck:
     """A small call that uses a tool, which also proves the model can call one.
 
     The model is the one chosen when it belongs to this provider, otherwise
     the first the list has for it.
+
+    A key typed into the form is checked as it stands, before anybody decides
+    to keep it; nothing is written either way. Without one the stored key is
+    checked.
     """
-    key = await key_for(session, user_id, provider)
+    key = candidate if candidate is not None else await key_for(session, user_id, provider)
     if key is None:
         return ProviderKeyCheck(ok=False, message="No key is set for this provider")
     chosen = await chosen_model(session, user_id, models)

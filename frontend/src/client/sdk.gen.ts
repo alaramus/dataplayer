@@ -4931,6 +4931,8 @@ export class AiService {
 
   /**
    * Check Key
+   *
+   * The key being typed, or the stored one. A check stores nothing (D140).
    */
   public static checkKey<ThrowOnError extends boolean = true>(
     options: Options<aiCheckKeyData, ThrowOnError>
@@ -4940,6 +4942,10 @@ export class AiService {
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/keys/{provider}/check",
       ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
     })
   }
 
