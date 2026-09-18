@@ -29,6 +29,7 @@ import AiSpace from "@/features/ai/AiSpace.vue"
 import { screenContexts } from "@/features/ai/context"
 import type { AiOpenIntent } from "@/features/ai/context"
 import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
+import WorkspaceBottomPanel from "@/features/workspace/WorkspaceBottomPanel.vue"
 import WorkspaceToolRail from "@/features/workspace/WorkspaceToolRail.vue"
 import { useTabGroups } from "@/features/workspace/useTabGroups"
 import {
@@ -983,23 +984,28 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
         />
       </div>
       <div class="workspace-shell__center">
-        <WorkspaceRoot
-          :context="workspace.context"
-          :covered="space.current !== 'data'"
-        >
-          <template #cover>
-            <DashboardsSpace
-              v-if="space.current === 'dashboards'"
-              ref="dashboards-cover"
-            />
-            <AiSpace
-              v-else-if="space.current === 'ai'"
-              ref="ai-cover"
-              :contexts="screenContexts(workspace.panels.value)"
-              @open="openFromAgent"
-            />
-          </template>
-        </WorkspaceRoot>
+        <div class="workspace-shell__spaces">
+          <WorkspaceRoot
+            :context="workspace.context"
+            :covered="space.current !== 'data'"
+          >
+            <template #cover>
+              <DashboardsSpace
+                v-if="space.current === 'dashboards'"
+                ref="dashboards-cover"
+              />
+              <AiSpace
+                v-else-if="space.current === 'ai'"
+                ref="ai-cover"
+                :contexts="screenContexts(workspace.panels.value)"
+                @open="openFromAgent"
+              />
+            </template>
+          </WorkspaceRoot>
+        </div>
+        <!-- Under every space, not inside one: a tool at the foot of the
+             screen stays where it is while the spaces change above it (D143). -->
+        <WorkspaceBottomPanel />
       </div>
       <div class="workspace-shell__side">
         <WorkspaceToolRail
@@ -1045,6 +1051,13 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
   min-width: 0;
 }
 .workspace-shell__center {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.workspace-shell__spaces {
   display: flex;
   flex: 1;
   min-width: 0;

@@ -81,11 +81,13 @@ export function servicesCommand(state: ServicesState): ConnectionCommand {
     }
   }
   if (state.count === 0) {
+    // Pressable all the same: the panel it opens says there is nothing, and
+    // that is an answer as well (D143).
     return {
       name: "services",
       label: "Services",
       icon: "dns",
-      enabled: false,
+      enabled: true,
       tooltip: "This server is not running anything for you",
     }
   }

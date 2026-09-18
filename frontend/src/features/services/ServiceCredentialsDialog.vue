@@ -16,7 +16,7 @@ import { WindowDialog } from "@/shared/windows"
  *
  * One window in two situations, separated by the password. Opened by itself
  * the moment a service becomes usable, it hands the password over once, which
- * is what the warning above it is for. Opened later from the services window
+ * is what the warning above it is for. Opened later from the list of services
  * it shows the address and the names and no secret, which is what makes that
  * one askable as often as anybody likes.
  */

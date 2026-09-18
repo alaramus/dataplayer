@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test"
 
 import { login } from "./utils/login"
-import { closeWindowDialog, connectorRow } from "./utils/workspace"
+import { connectorRow } from "./utils/workspace"
 
 /**
  * A database somebody asked this server to start.
@@ -60,10 +60,9 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
 
   // The catalog closes and the work is watched from the bar at the foot of the
   // screen: a step the server named, never a percentage this side invented
-  // (D81). The window is where the services are, and the button is where they
-  // are said to exist (D69).
+  // (D81). The panel at the foot of the screen is where the services are, and
+  // the button is where they are said to exist (D69, D143).
   const openServices = page.getByTestId("command-services")
-  await expect(openServices).toBeEnabled({ timeout: 30_000 })
   await openServices.click()
   const services = page.getByTestId("managed-services")
   await expect(services).toBeVisible()
@@ -88,12 +87,14 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   )
   await page.getByTestId("credentials-done").click()
 
-  // Opening it reads the catalog of the database that was just made.
-  await closeWindowDialog(page, "services-dialog")
+  // Opening it reads the catalog of the database that was just made. The panel
+  // is put away first, from its own head, to be asked for again below.
+  await page.getByTestId("bottom-panel-hide").click()
+  await expect(services).toHaveCount(0)
   await connectorRow(page, SERVICE_NAME).click()
   await expect(page.getByTestId("catalog-list")).toContainText("System")
 
-  // The same window again, as often as it is asked — and without the password
+  // The same list again, as often as it is asked — and without the password
   // this time: an address is not a secret, and that is what makes it something
   // a person can be told twice (D89).
   await openServices.click()

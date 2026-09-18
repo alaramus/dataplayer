@@ -37,10 +37,12 @@ describe("what the bar says about the library of queries", () => {
 })
 
 describe("what the bar says about the services this server runs", () => {
-  it("is not pressable while there is nothing to open", () => {
+  it("opens even while nothing is running, and says so", () => {
+    // The panel it opens says there is nothing, which is an answer too; a
+    // greyed-out button left the question of where services live unanswered.
     const command = servicesCommand({ count: 0, working: null })
 
-    expect(command.enabled).toBe(false)
+    expect(command.enabled).toBe(true)
     expect(command.tooltip).toBe("This server is not running anything for you")
   })
 

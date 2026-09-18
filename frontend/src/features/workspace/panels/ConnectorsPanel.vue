@@ -53,8 +53,8 @@ const rows = computed(() => connectors.data.value?.data ?? [])
     <div class="connectors-panel__body">
       <!-- Services used to stand above this list. They are a person's rather
            than a connection's, and this column is where every connection
-           goes, so they moved into a window the bar at the foot of the screen
-           opens (D69). -->
+           goes, so they moved into the panel at the foot of the screen
+           (D143). -->
       <ConnectorList
         :rows="rows"
         :loading="connectors.isLoading.value"

@@ -53,7 +53,8 @@ library, services, saving and opening tab groups — as icon-only blocks, and a
 block is dragged to another place in its rail or onto another rail. Where each
 stands is kept per browser; a block the stored arrangement does not name takes
 its home, or its place beside the block it belongs with. The blocks are one
-registry, `toolBlocks.ts`: a new one is an entry there and nothing else.
+registry, `toolBlocks.ts`: a new one is an entry there and nothing else. The
+Services block switches a tool in the panel at the foot of the screen (D143).
 
 A connection is edited in a floating window, and several are open at once.
 The same application-level host owns every transient form and question:
@@ -370,9 +371,10 @@ Consequences:
 - **What is about the machine stands at the other end of the bar.** The
   services this server runs belong to the person rather than to whatever is
   open, so the button that opens them sits apart from the commands of the
-  connection. It is greyed out while there is nothing to open, and while a job
-  is working it says the step: once the window that asked for a service has
-  closed, this is the only place a start is visible.
+  connection. It opens them in the panel at the foot of the screen (D143),
+  empty or not, and while a job is working it says the step: once the window
+  that asked for a service has closed, this is the only place a start is
+  visible.
 
 Known deviations:
 
@@ -589,3 +591,25 @@ has no reload button at all — the button is inside the panel, and showing the
 tab is what reads it.
 
 Spec: [The commands of a panel belong to the panel](../decisions/2026-09-05-panel-commands-design.md)
+
+## D143. What is watched beside the work opens in a card at the foot of the screen
+
+Some tools are watched while working rather than worked in: what the server
+runs, and terminals next. A window covers the work and has to be moved off it,
+and a column is a role panels are dragged to. So, as in an IDE, they open in
+one card along the foot of the screen, between the rails and under whichever
+space is shown.
+
+Consequences:
+
+- **One tool at a time, switched by its rail button.** Pressing it shows the
+  tool, replacing another; pressing it again hides the panel, as does the
+  button in the card's head. The rail button is drawn pressed meanwhile.
+- **The button is always pressable.** An empty tool says it is empty; a
+  greyed-out Services button left nobody able to learn where services live.
+- **The height is dragged by the gap above**, like a column's width, and kept
+  per browser with the open tool. The columns keep 160 px whatever was stored.
+- **The tools are one registry**, `bottomTools.ts`; the state is `bottomPanel.ts`,
+  pure, and `useBottomPanel`, shared by the button and the card.
+
+Spec: [The panel at the foot of the workspace](../decisions/2026-09-18-bottom-panel-design.md)

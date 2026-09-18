@@ -27,9 +27,10 @@ import type { Tone } from "@/shared/ui"
  * the connection beside it is how that database is used.
  *
  * The only place a service's life can be ended, taking the volume and
- * therefore the data with it. It lives in a window rather than above the
- * connections: a service is looked at while something is being done to it and
- * not otherwise, and that column is where every connection goes (D69).
+ * therefore the data with it. It is a tool of the panel at the foot of the
+ * workspace rather than a strip above the connections: a service is looked at
+ * while something is being done to it and not otherwise, and that column is
+ * where every connection goes (D143).
  */
 const services = useServices()
 const removeService = useDeleteService()
@@ -176,8 +177,8 @@ async function forget(service: ServicePublic) {
       <div class="starting__what">
         <span class="starting__name">{{ service.connector_name }}</span>
         <!-- Everything the server knows about it, which is the reason this is
-             a window rather than a strip in a column: what it is, what runs
-             it, and when it was made. -->
+             a panel of its own rather than a strip in a column: what it is,
+             what runs it, and when it was made. -->
         <span class="starting__facts">
           {{ service.title }} · {{ service.container_name }} · {{ madeOn(service) }}
         </span>
