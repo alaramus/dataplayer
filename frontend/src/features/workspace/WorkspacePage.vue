@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, onMounted, provide, ref, watch } from "vue"
-import type { Ref } from "vue"
+import { computed, onMounted, provide, ref, useTemplateRef, watch } from "vue"
+import type { ShallowRef } from "vue"
 
 import type { ConnectorDraft, ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
 import AdapterCatalogDialog from "@/features/connectors/AdapterCatalogDialog.vue"
@@ -79,6 +79,7 @@ import { serverStorageKey } from "@/shared/servers/context"
 import { useServerLeaveGuard } from "@/shared/servers/leaving"
 import { useCurrentUser } from "@/shared/auth/currentUser"
 import { useSpaceStore } from "@/stores/space"
+import type { Space } from "@/stores/space"
 import { AppIconButton, AppLayout, useConfirm, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
 import {
@@ -155,35 +156,34 @@ const workspace = useWorkspace<Panel>({
  * nothing anybody could see.
  */
 const space = useSpaceStore()
-const dashboardsShown = computed(() => space.current === "dashboards")
-const aiShown = computed(() => space.current === "ai")
 
 /**
  * The header button collapses the first panel of the space being shown: the
- * leftmost data column, the dashboards rail, or the chat-history rail. Each
- * space owns its collapsed state; the header only asks through one shape.
+ * leftmost data column, or the rail of the space covering the data. Each
+ * space owns its collapsed state and exposes it through this one shape.
+ *
+ * The record names every space but Data, so a new one cannot arrive without
+ * saying what its header button collapses; and each entry is the component's
+ * own typed instance, so one that stops exposing the shape fails to compile.
  */
 interface FirstPanelControl {
   toggleFirstPanel: () => void
   firstPanelCollapsed: boolean
 }
-const dashboardsSpace = ref<FirstPanelControl | null>(null)
-const aiSpace = ref<FirstPanelControl | null>(null)
-function spaceControlRef(control: Ref<FirstPanelControl | null>) {
-  return (instance: unknown) => { control.value = instance as FirstPanelControl | null }
+const covers: Record<Exclude<Space, "data">, Readonly<ShallowRef<FirstPanelControl | null>>> = {
+  dashboards: useTemplateRef<InstanceType<typeof DashboardsSpace>>("dashboards-cover"),
+  ai: useTemplateRef<InstanceType<typeof AiSpace>>("ai-cover"),
 }
-const dashboardsSpaceRef = spaceControlRef(dashboardsSpace)
-const aiSpaceRef = spaceControlRef(aiSpace)
+const cover = computed(() => (space.current === "data" ? null : covers[space.current].value))
 const firstDataLeaf = computed(() => leavesOf(workspace.context.tree.value)[0] ?? null)
-const firstPanelCollapsed = computed(() => {
-  if (aiShown.value) return aiSpace.value?.firstPanelCollapsed ?? false
-  if (dashboardsShown.value) return dashboardsSpace.value?.firstPanelCollapsed ?? false
-  return firstDataLeaf.value?.collapsed ?? false
-})
+const firstPanelCollapsed = computed(() =>
+  space.current === "data"
+    ? firstDataLeaf.value?.collapsed ?? false
+    : cover.value?.firstPanelCollapsed ?? false
+)
 function toggleFirstPanel() {
-  if (aiShown.value) { aiSpace.value?.toggleFirstPanel(); return }
-  if (dashboardsShown.value) { dashboardsSpace.value?.toggleFirstPanel(); return }
-  if (firstDataLeaf.value !== null) workspace.context.toggleCollapse(firstDataLeaf.value.id)
+  if (space.current !== "data") cover.value?.toggleFirstPanel()
+  else if (firstDataLeaf.value !== null) workspace.context.toggleCollapse(firstDataLeaf.value.id)
 }
 
 function openPanel(panel: Panel) {
@@ -945,12 +945,12 @@ function openFromAgent(intent: AiOpenIntent) {
         >
           <template #cover>
             <DashboardsSpace
-              v-if="dashboardsShown"
-              :ref="dashboardsSpaceRef"
+              v-if="space.current === 'dashboards'"
+              ref="dashboards-cover"
             />
             <AiSpace
-              v-else-if="aiShown"
-              :ref="aiSpaceRef"
+              v-else-if="space.current === 'ai'"
+              ref="ai-cover"
               :contexts="screenContexts(workspace.panels.value)"
               @open="openFromAgent"
             />

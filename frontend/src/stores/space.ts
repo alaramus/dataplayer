@@ -10,14 +10,15 @@ import { serverStorageKey } from "@/shared/servers/context"
  * Pinia, because the server knows nothing about it (D6). Remembered per
  * browser and per server, like the layout it stands beside.
  */
-export type Space = "data" | "dashboards" | "ai"
+export const SPACES = ["data", "dashboards", "ai"] as const
+export type Space = (typeof SPACES)[number]
 
 const KEY = "dataplayer-space"
 
 function stored(): Space {
   try {
     const value = localStorage.getItem(serverStorageKey(KEY))
-    return value === "dashboards" || value === "ai" ? value : "data"
+    return SPACES.find((space) => space === value) ?? "data"
   } catch {
     return "data"
   }
