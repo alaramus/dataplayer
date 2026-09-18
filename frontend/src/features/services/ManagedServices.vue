@@ -8,9 +8,12 @@ import {
   useCancelJob,
   useDeleteService,
   useRetryService,
+  useServiceCommand,
   useServices,
 } from "@/features/services/api"
 import { isWorking, progressOf } from "@/features/services/jobs"
+import { lifecycleCommand } from "@/features/services/lifecycle"
+import type { LifecycleCommand } from "@/features/services/lifecycle"
 import { messageOf } from "@/shared/api/errors"
 import {
   AppBadge,
@@ -35,6 +38,7 @@ import type { Tone } from "@/shared/ui"
 const services = useServices()
 const removeService = useDeleteService()
 const retryService = useRetryService()
+const serviceCommand = useServiceCommand()
 const cancelJob = useCancelJob()
 const toast = useToast()
 const reading = ref<ServicePublic | null>(null)
@@ -100,13 +104,34 @@ async function retry(service: ServicePublic) {
   }
 }
 
-async function stop(service: ServicePublic) {
+const FAILURE: Record<LifecycleCommand, string> = {
+  start: "It could not be started",
+  stop: "It could not be stopped",
+}
+
+async function carryOut(service: ServicePublic, command: LifecycleCommand) {
+  try {
+    await serviceCommand.mutateAsync({ serviceId: service.id, command })
+  } catch (cause) {
+    toast.error(messageOf(cause, FAILURE[command]))
+  }
+}
+
+/** Between the click and the job the list is read back with, for this row. */
+function asking(service: ServicePublic): boolean {
+  return (
+    serviceCommand.isPending.value &&
+    serviceCommand.variables.value?.serviceId === service.id
+  )
+}
+
+async function cancel(service: ServicePublic) {
   if (!service.job) return
   try {
     await cancelJob.mutateAsync(service.job.id)
-    toast.info("Stopping")
+    toast.info("Cancelling")
   } catch (cause) {
-    toast.error(messageOf(cause, "It could not be stopped"))
+    toast.error(messageOf(cause, "It could not be cancelled"))
   }
 }
 
@@ -190,12 +215,30 @@ async function forget(service: ServicePublic) {
         :label="connection(service)"
         :tone="tone(service)"
       />
+      <!-- Cancels the job, not the service, so it must not look like the stop
+           that takes its place once the job is over. -->
       <AppIconButton
         v-if="isWorking(service.job)"
-        icon="stop_circle"
-        tooltip="Stop what is happening"
+        icon="cancel"
+        tooltip="Cancel what is happening"
+        :data-testid="`cancel-service-${service.id}`"
+        @click="cancel(service)"
+      />
+      <AppIconButton
+        v-else-if="lifecycleCommand(service) === 'stop'"
+        icon="stop"
+        tooltip="Stop it; what is stored in it stays"
+        :loading="asking(service)"
         :data-testid="`stop-service-${service.id}`"
-        @click="stop(service)"
+        @click="carryOut(service, 'stop')"
+      />
+      <AppIconButton
+        v-else-if="lifecycleCommand(service) === 'start'"
+        icon="play_arrow"
+        tooltip="Start it"
+        :loading="asking(service)"
+        :data-testid="`start-service-${service.id}`"
+        @click="carryOut(service, 'start')"
       />
       <AppIconButton
         v-if="canRetry(service)"

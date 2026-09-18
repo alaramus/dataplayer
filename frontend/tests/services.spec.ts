@@ -108,6 +108,20 @@ test("starts a PostgreSQL of its own and receives a connection to it", async ({
   await expect(details.getByTestId("credential-url")).toBeVisible()
   await page.getByTestId("credentials-done").click()
 
+  // Stopped and started again from its row, keeping the connection: the
+  // offer follows the container, so each press turns the button over.
+  await row.locator('[data-testid^="stop-service-"]').click()
+  await expect(row.locator('[data-testid^="start-service-"]')).toBeVisible({
+    timeout: 30_000,
+  })
+  await expect(row).toContainText("stopped")
+  await row.locator('[data-testid^="start-service-"]').click()
+  await expect(row.locator('[data-testid^="stop-service-"]')).toBeVisible({
+    timeout: 30_000,
+  })
+  await expect(row).toContainText("running")
+  await expect(connectorRow(page, SERVICE_NAME)).toBeVisible()
+
   // Removing the service takes the container and its data, and the connection
   // it made when that is ticked as well — which it is by default, because a
   // connection to a database that no longer exists works for nobody.

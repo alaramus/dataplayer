@@ -220,12 +220,16 @@ becoming a second kind of connection with rules of its own.
 - **A service and its connection are both shown, because both are true.** The
   connection is how a database is used; the service is the container it lives
   in, and its row is the only place its life can be ended.
+- **A service can be stopped and started again from its row**, keeping its
+  data. Which of the two is offered is read off what the runtime reports, not
+  off the row ([D84](#d84-what-goes-wrong-is-a-state-somebody-can-act-on)), and
+  neither is offered to a creation that never became a connection, whose way
+  forward is retry.
 
 Known deviations:
 
-- **A service cannot be stopped or started from the screen.** The routes are
-  there and the jobs work; removal, retry, stopping a job and reading its
-  output are drawn, and the two lifecycle commands are not.
+- **Restart is not drawn.** The route and the job work; a stop and a start
+  do the same in two presses.
 - **Nothing bounds how long a create may hold a job.** How many services a
   person may hold and what each may take of the machine are answered by
   [D86](#d86-running-containers-is-the-machines-power-bounded-by-what-this-application-will-ask-for).

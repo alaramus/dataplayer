@@ -6,6 +6,7 @@ import { BackupsService, JobsService, ServicesService } from "@/client"
 import type { RestoreRequest, ServiceRequestWritable } from "@/client"
 import { connectorsKey } from "@/features/connectors/api"
 import { jobsKey } from "@/features/activity/api"
+import type { LifecycleCommand } from "@/features/services/lifecycle"
 
 /**
  * Services this server runs, and what may be asked of it.
@@ -96,6 +97,25 @@ export function useRetryService() {
           path: { service_id: serviceId },
         })
       ).data,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: jobsKey })
+      await queryClient.invalidateQueries({ queryKey: servicesKey })
+    },
+  })
+}
+
+/** Stop a service or start it again; what is stored in it stays either way. */
+export function useServiceCommand() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (asked: { serviceId: string; command: LifecycleCommand }) => {
+      const path = { service_id: asked.serviceId }
+      const answer =
+        asked.command === "start"
+          ? await ServicesService.startService({ path })
+          : await ServicesService.stopService({ path })
+      return answer.data
+    },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: jobsKey })
       await queryClient.invalidateQueries({ queryKey: servicesKey })
