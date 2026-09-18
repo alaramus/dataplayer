@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { computed } from "vue"
+
 import type { DashboardPublic } from "@/client"
 import { AppIconButton } from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 
 import { railEntry } from "./railEntry"
+import { railRules } from "./railRules"
 
 /**
  * The dashboards rail pushed aside to forty pixels, the way the column of
@@ -11,13 +14,15 @@ import { railEntry } from "./railEntry"
  * and what the wide rail can start — a new dashboard, the Sources window, the
  * store — is still one press away.
  */
-defineProps<{
+const props = defineProps<{
   own: readonly DashboardPublic[]
   shared: readonly DashboardPublic[]
   currentId: string | null
   maySetUp: boolean
   creating: boolean
 }>()
+
+const rules = computed(() => railRules(props.own.length, props.shared.length))
 
 const emit = defineEmits<{
   create: []
@@ -40,9 +45,8 @@ const emit = defineEmits<{
       data-testid="dashboard-new"
       @click="emit('create')"
     />
-    <!-- A rule stands between two groups that both show something: with no
-         dashboards, or only shared ones, a rule on each side of nothing is
-         two lines in a row. -->
+    <!-- Under the plus always: it has no head to stand under. Between the
+         groups, only where both show something (railRules). -->
     <q-separator
       class="rail-narrow__rule"
       data-testid="rail-narrow-rule"
@@ -67,7 +71,7 @@ const emit = defineEmits<{
       />
     </div>
     <q-separator
-      v-if="own.length > 0 && shared.length > 0"
+      v-if="rules.beforeShared"
       class="rail-narrow__rule"
       data-testid="rail-narrow-rule"
     />
@@ -91,7 +95,7 @@ const emit = defineEmits<{
     </div>
 
     <q-separator
-      v-if="own.length + shared.length > 0"
+      v-if="rules.beforeSources"
       class="rail-narrow__rule"
       data-testid="rail-narrow-rule"
     />

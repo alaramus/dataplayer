@@ -32,6 +32,7 @@ import DashboardView from "./DashboardView.vue"
 import { takeDashboardIntent } from "./intent"
 import DashboardsRailNarrow from "./DashboardsRailNarrow.vue"
 import { railEntry } from "./railEntry"
+import { railRules } from "./railRules"
 import { splitByOwner } from "./sharing"
 import StoreDialog from "./StoreDialog.vue"
 import StoreSetup from "./StoreSetup.vue"
@@ -74,6 +75,7 @@ const current = computed(() => {
   return list.find((one) => one.id === selectedId.value) ?? list[0] ?? null
 })
 const listed = computed(() => splitByOwner(dashboards.data.value ?? []))
+const rules = computed(() => railRules(listed.value.own.length, listed.value.shared.length))
 
 // Said once, when the list first arrives: the same words for a dashboard that
 // is gone and one nobody shared, as the server gives (D33).
@@ -213,7 +215,13 @@ defineExpose({
               />
             </template>
           </AppCardHead>
-          <div class="dashboards__list">
+          <!-- Absent rather than empty, or its padding stood as a gap under the
+               head. A line stands only between groups that both show
+               something (railRules). -->
+          <div
+            v-if="listed.own.length > 0"
+            class="dashboards__list"
+          >
             <AppButton
               v-for="dashboard in listed.own"
               :key="dashboard.id"
@@ -233,7 +241,10 @@ defineExpose({
           </div>
 
           <template v-if="listed.shared.length > 0">
-            <div class="dashboards__heading dashboards__heading--divided">
+            <div
+              class="dashboards__heading"
+              :class="{ 'dashboards__heading--divided': rules.beforeShared }"
+            >
               <span>Shared with you</span>
             </div>
             <div
@@ -261,7 +272,10 @@ defineExpose({
             </div>
           </template>
 
-          <div class="dashboards__heading dashboards__heading--divided">
+          <div
+            class="dashboards__heading"
+            :class="{ 'dashboards__heading--divided': rules.beforeSources }"
+          >
             <span>Sources</span>
             <span>
               <AppIconButton
