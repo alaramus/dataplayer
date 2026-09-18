@@ -355,6 +355,7 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
         <AppInput
           v-model="draft"
           type="textarea"
+          grow
           compact
           placeholder="Message the agent"
           aria-label="Message the agent"
@@ -415,4 +416,9 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
 .ai-conversation__contexts { flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
 .ai-context-chip { display: inline-flex; align-items: center; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text-strong); }
 .ai-conversation__composer :deep(.q-field) { flex: 1; }
+/* The box is one line until there is more to hold, and stops at eight of them
+   rather than pushing the transcript off the card. A grown field scrolls; the
+   corner grip is gone with it, because a hand-dragged height had no floor and
+   no ceiling and was forgotten on every chat switch. */
+.ai-conversation__composer :deep(textarea) { max-height: 8lh; }
 </style>

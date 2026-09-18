@@ -42,6 +42,14 @@ describe("AppInput", () => {
     expect(mountInput().get("input").attributes("data-testid")).toBe("field-host")
   })
 
+  // A growing box is also the one without a corner grip: Quasar turns both off
+  // through this class, and a unit test cannot read the stylesheet that does.
+  it("marks a growing textarea so it follows its text", () => {
+    const wrapper = mountInput({ type: "textarea", grow: true })
+    expect(wrapper.get(".q-field").classes()).toContain("q-textarea--autogrow")
+    wrapper.unmount()
+  })
+
   it("renders a secret as a password input", () => {
     expect(mountInput({ type: "password" }).get("input").attributes("type")).toBe("password")
   })

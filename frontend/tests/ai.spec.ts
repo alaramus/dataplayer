@@ -46,6 +46,15 @@ test("opens, restores and manages the application agent space", async ({ page })
   expect((await head.boundingBox())?.height).toBe(closed)
   await expect(active).toContainText("Playwright agent chat")
 
+  // The composer follows what is typed and then stops: no corner grip to drag,
+  // and a long draft never squeezes the transcript off the card.
+  const composer = page.getByTestId("ai-message-input")
+  await expect(composer).toHaveCSS("resize", "none")
+  await composer.fill("word ".repeat(400))
+  expect((await composer.boundingBox())?.height).toBeLessThanOrEqual(150)
+  await expect(page.getByTestId("ai-messages")).toBeVisible()
+  await composer.fill("")
+
   await page.reload()
   await expect(page.getByTestId("space-ai")).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByTestId("ai-space")).toBeVisible()

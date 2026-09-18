@@ -48,6 +48,14 @@ withDefaults(
     /** Offer a cross that empties the field. A search is the reason it exists:
         a query with no way back is a query the user has to erase by hand. */
     clearable?: boolean
+    /**
+     * A `textarea` that follows what is typed instead of standing at a fixed
+     * number of rows, and without the corner grip a plain one carries.
+     *
+     * It grows without end, so a caller puts it somewhere with a ceiling: a
+     * `max-height` on the field's own textarea, or a box that bounds it.
+     */
+    grow?: boolean
 
   }>(),
   {
@@ -60,6 +68,7 @@ withDefaults(
     disable: false,
     compact: false,
     clearable: false,
+    grow: false,
   }
 )
 
@@ -90,6 +99,7 @@ function report(value: string | number | null) {
     :placeholder="placeholder"
     :stack-label="persistentLabel || Boolean(placeholder)"
     :dense="compact"
+    :autogrow="grow"
     :borderless="compact"
     :hide-bottom-space="compact && !error"
     :disable="disable"
