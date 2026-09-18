@@ -9,6 +9,7 @@ import {
   AppCardHead,
   AppIconButton,
   AppInput,
+  AppSection,
   AppSpinner,
   useConfirm,
   useToast,
@@ -460,15 +461,17 @@ onScopeDispose(stop)
       size="sm"
       data-testid="ai-project-dialog"
     >
-      <AppInput
-        ref="projectField"
-        v-model="projectDraft"
-        label="Name"
-        autofocus
-        data-testid="ai-project-name"
-        @focus="selectProjectName"
-        @keyup.enter="saveProject"
-      />
+      <AppSection gutter>
+        <AppInput
+          ref="projectField"
+          v-model="projectDraft"
+          label="Name"
+          autofocus
+          data-testid="ai-project-name"
+          @focus="selectProjectName"
+          @keyup.enter="saveProject"
+        />
+      </AppSection>
       <template #actions>
         <AppButton
           variant="quiet"
