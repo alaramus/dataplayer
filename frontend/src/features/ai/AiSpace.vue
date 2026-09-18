@@ -34,6 +34,7 @@ import {
   useRenameAiProject,
   useUpdateAiConversation,
 } from "./api"
+import { freshProjectName } from "./projectName"
 import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
 
@@ -118,8 +119,14 @@ function toggleProject(id: string) {
 function beginProjectFor(chatId: string | null) {
   renamingProject.value = null
   projectFor.value = chatId
-  projectDraft.value = ""
+  projectDraft.value = freshProjectName(projects.value.map((project) => project.name))
   projectDialogShown.value = true
+}
+/** The name in the field is selected as it gets focus, so typing replaces it. */
+const projectField = ref<InstanceType<typeof AppInput> | null>(null)
+function selectProjectName() {
+  const input = (projectField.value?.$el as HTMLElement | undefined)?.querySelector("input")
+  input?.select()
 }
 function beginProjectRename(id: string, name: string) {
   renamingProject.value = id
@@ -454,9 +461,12 @@ onScopeDispose(stop)
       data-testid="ai-project-dialog"
     >
       <AppInput
+        ref="projectField"
         v-model="projectDraft"
         label="Name"
+        autofocus
         data-testid="ai-project-name"
+        @focus="selectProjectName"
         @keyup.enter="saveProject"
       />
       <template #actions>

@@ -168,6 +168,9 @@ test("opens, restores and manages the application agent space", async ({ page })
   // A project is a folder and nothing else: the chat moves into it, hides with
   // it, and outlives it.
   await page.getByTestId("ai-new-project").click()
+  // Offered a name, focused, so Create alone makes a project.
+  await expect(page.getByTestId("ai-project-name")).toHaveValue(/^New project( \d+)?$/)
+  await expect(page.getByTestId("ai-project-name")).toBeFocused()
   await page.getByTestId("ai-project-name").fill("Playwright project")
   await page.getByTestId("ai-project-save").click()
   const toggle = page
