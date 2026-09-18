@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, onMounted, provide, ref, useTemplateRef, watch } from "vue"
+import { computed, nextTick, onMounted, provide, ref, useTemplateRef, watch } from "vue"
 import type { ShallowRef } from "vue"
 
 import type { ConnectorDraft, ConnectorPublic, NodeReplacement, ServiceTemplateInfo } from "@/client"
@@ -153,7 +153,8 @@ const workspace = useWorkspace<Panel>({
 /**
  * Data, Dashboards or AI (D125, D141). Anything opened into the data workspace
  * brings it back, or opening a table while another space covers it would do
- * nothing anybody could see.
+ * nothing anybody could see — except what the agent opens, which floats over
+ * the space instead (`agentFloats`).
  */
 const space = useSpaceStore()
 
@@ -186,9 +187,44 @@ function toggleFirstPanel() {
   else if (firstDataLeaf.value !== null) workspace.context.toggleCollapse(firstDataLeaf.value.id)
 }
 
+/**
+ * What the agent opens while another space is shown floats over that space in
+ * a window of its own (D93, D141) instead of calling Data forward: the chat
+ * stays in front, and the window can be docked from Data later. Set only for
+ * the length of one `openFromAgent` call, which opens synchronously.
+ */
+let agentFloats = false
+// Set while a panel is lifted into a window: opening it and lifting it out
+// changes the layout, and that change must not call Data forward (below).
+let lifting = false
+
 function openPanel(panel: Panel) {
+  if (agentFloats) {
+    floatPanel(panel)
+    return
+  }
   space.show("data")
   workspace.open(panel)
+}
+
+/**
+ * The panel in a window: opened and lifted out, or, already open in a column,
+ * lifted out of it — docking it again puts it back where it was. A window
+ * already holding it comes forward. One that cannot float is shown in Data.
+ */
+function floatPanel(panel: Panel) {
+  const context = workspace.context
+  if (context.detached.value.some((one) => one.panelId === panel.id)) {
+    context.activate(panel.id)
+    return
+  }
+  lifting = true
+  workspace.open(panel)
+  if (context.canDetach(panel.id)) context.detach(panel.id)
+  else space.show("data")
+  // Released after the watchers have run. Asked for before the layout
+  // changed, the tick came ahead of them and they saw nothing set.
+  void nextTick(() => { lifting = false })
 }
 
 // The same rule for what reaches the layout by another way: a saved tab group
@@ -196,7 +232,7 @@ function openPanel(panel: Panel) {
 watch(
   () => [workspace.context.tree.value, workspace.panels.value.map((one) => one.id).join("\u0000")] as const,
   () => {
-    if (space.current !== "data") space.show("data")
+    if (!lifting && space.current !== "data") space.show("data")
   }
 )
 
@@ -852,7 +888,8 @@ provide(workspaceActionsKey, actions)
  * What the agent asked to open, through the same ways in the catalog uses, so
  * the tab it opens is the tab the person would have got by hand — a document
  * with its table and source views, a sheet with its workbook. A copy of those
- * ways had already lost both.
+ * ways had already lost both. With the chat shown, it opens in a window over
+ * the chat rather than in Data.
  */
 function openFromAgent(intent: AiOpenIntent) {
   const connector = (connectors.data.value?.data ?? []).find(
@@ -862,6 +899,15 @@ function openFromAgent(intent: AiOpenIntent) {
     toast.info("That connection is no longer available")
     return
   }
+  agentFloats = space.current !== "data"
+  try {
+    openIntent(connector, intent)
+  } finally {
+    agentFloats = false
+  }
+}
+
+function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
   if (intent.node_id == null || intent.view === "catalog") {
     openCatalog(connector)
     return

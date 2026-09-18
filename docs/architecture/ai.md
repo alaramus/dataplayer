@@ -187,6 +187,11 @@ identity: several matches become a question, never a guess. Results are bounded
 to 64 KiB and 20 rows, with an explicit truncation marker, and failures are the
 route's safe sentence (D2c). `open_in_workspace` is a
 closed set of intents checked on the server; asked to open, the agent opens.
+What it opens while another space is shown floats over that space in a window
+of its own (D93) instead of calling Data forward, so the chat stays in front;
+a tab already open in a column is lifted into the window, and docking it from
+Data puts it back where it was. Only a panel that cannot float opens in
+Data.
 
 Rejected: a hand-written tool per operation found by vector search, and an MCP
 process between the agent and the backend.
