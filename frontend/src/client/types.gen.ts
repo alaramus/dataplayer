@@ -456,6 +456,10 @@ export type AgentModelPublic = {
    */
   provider: "openai" | "anthropic" | "deepseek" | "gemini"
   /**
+   * Provider Label
+   */
+  provider_label: string
+  /**
    * Id
    */
   id: string

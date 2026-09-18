@@ -6,7 +6,7 @@ import type { SelectOption } from "@/shared/ui"
 
 import AiKeyDialog from "./AiKeyDialog.vue"
 import { useAiModels, useAiSettings } from "./api"
-import { groupedModelOptions, providers } from "./modelOptions"
+import { groupedModelOptions, providerLabel } from "./modelOptions"
 import type { ModelOption, Provider } from "./modelOptions"
 
 /**
@@ -52,9 +52,9 @@ const selectedModel = computed(
 const selectedKeySet = computed(() =>
   selectedModel.value ? keySet(selectedModel.value.provider) : false
 )
-const dialogProvider = computed(
-  () => providers.find((one) => one.id === keyProvider.value) ?? null
-)
+const dialogProvider = computed(() => keyProvider.value === null
+  ? null
+  : { id: keyProvider.value, label: providerLabel(models.data.value ?? [], keyProvider.value) })
 
 function manageKey(provider: Provider) {
   keyProvider.value = provider

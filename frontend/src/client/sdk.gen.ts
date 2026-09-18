@@ -5135,7 +5135,7 @@ export class AiService {
   /**
    * Update Conversation
    *
-   * Its name, its pin, or whether it is in the archive.
+   * Its name, pin, archive, model, policy or project; a model is also the person's.
    */
   public static updateConversation<ThrowOnError extends boolean = true>(
     options: Options<aiUpdateConversationData, ThrowOnError>

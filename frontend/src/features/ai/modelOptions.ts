@@ -4,41 +4,44 @@ import type { SelectOption } from "@/shared/ui"
 export type Provider = ProviderKeyState["provider"]
 export type ModelOption = SelectOption & { provider?: Provider }
 
-export const providers: { id: Provider; label: string }[] = [
-  { id: "openai", label: "OpenAI" },
-  { id: "anthropic", label: "Anthropic" },
-  { id: "deepseek", label: "DeepSeek" },
-  { id: "gemini", label: "Gemini" },
-]
+/** What the server calls a provider, from the models it sent. */
+export function providerLabel(models: readonly AgentModelPublic[], provider: Provider): string {
+  return models.find((model) => model.provider === provider)?.provider_label ?? provider
+}
 
 /**
+ * The models under their providers, in the order and by the names the server
+ * sends.
+ *
+ * The client keeps no list of providers: it had one, and the models of a
+ * provider added on the server but not to that list never reached the screen.
  * One provider key changes the state shown beside every model in its group.
  *
  * `keyInField` also draws that state after the chosen model's name; a caller
  * with a key button beside the field says it there instead.
  */
 export function groupedModelOptions(
-  models: AgentModelPublic[],
-  keys: ProviderKeyState[],
+  models: readonly AgentModelPublic[],
+  keys: readonly ProviderKeyState[],
   { keyInField = true }: { keyInField?: boolean } = {}
 ): ModelOption[] {
   const set = new Set(keys.filter((key) => key.set).map((key) => key.provider))
-  return providers.flatMap((provider) => {
-    const keyIsSet = set.has(provider.id)
+  const order = [...new Set(models.map((model) => model.provider))]
+  return order.flatMap((provider) => {
+    const keyIsSet = set.has(provider)
+    const label = providerLabel(models, provider)
     const choices: ModelOption[] = models
-      .filter((model) => model.provider === provider.id)
+      .filter((model) => model.provider === provider)
       .map((model) => ({
         label: model.name,
         value: model.key,
-        provider: provider.id,
+        provider,
         description: keyIsSet ? "API key set" : "API key required",
         actionIcon: keyIsSet ? "key" : "key_off",
-        actionLabel: `Manage ${provider.label} API key`,
+        actionLabel: `Manage ${label} API key`,
         actionActive: keyIsSet,
         ...(keyInField ? { stateIcon: keyIsSet ? "key" : "key_off", stateActive: keyIsSet } : {}),
       }))
-    return choices.length === 0
-      ? []
-      : [{ label: provider.label, value: `provider:${provider.id}`, group: true }, ...choices]
+    return [{ label, value: `provider:${provider}`, group: true }, ...choices]
   })
 }

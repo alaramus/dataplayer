@@ -234,6 +234,9 @@ class AgentStep(SQLModel, table=True):
 class AgentModelPublic(BaseModel):
     key: str
     provider: Provider
+    # How the provider is named on screen: the client groups by what it is
+    # sent, and knows no provider of its own.
+    provider_label: str
     id: str
     name: str
     context_window: int

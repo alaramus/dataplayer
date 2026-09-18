@@ -12,7 +12,7 @@ from langchain_core.tools import tool
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.ai.catalog import PROVIDERS, ModelCatalog, ModelInfo, Provider
+from app.ai.catalog import PROVIDER_TITLES, PROVIDERS, ModelCatalog, ModelInfo, Provider
 from app.ai.models import (
     AgentModelPublic,
     AgentPreferences,
@@ -161,6 +161,7 @@ async def models_for(
         AgentModelPublic(
             key=model.key,
             provider=model.provider,
+            provider_label=PROVIDER_TITLES[model.provider],
             id=model.id,
             name=model.name,
             context_window=model.context_window,
@@ -169,7 +170,9 @@ async def models_for(
             image_input=model.image_input,
             available=model.provider in keys,
         )
-        for model in models.models
+        # Grouped by provider in the order the providers are listed, the file's
+        # own order within each: the client draws the groups as they arrive.
+        for model in sorted(models.models, key=lambda one: PROVIDERS.index(one.provider))
     ]
 
 

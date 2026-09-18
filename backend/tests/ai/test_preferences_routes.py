@@ -5,6 +5,7 @@ import uuid
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.ai.catalog import PROVIDERS
 from app.ai.models import AgentPreferences, ProviderKey
 from tests.ai.conftest import (
     AI,
@@ -76,6 +77,14 @@ async def test_models_are_offered_by_whether_their_provider_has_a_key(
 
     assert not any(model["available"] for model in before)
     assert {model["provider"] for model in after if model["available"]} == {"openai"}
+    # Every model says what its provider is called, and they arrive grouped in
+    # the order of the providers: the client has no list and draws them so.
+    assert {(model["provider"], model["provider_label"]) for model in after} >= {
+        ("openai", "OpenAI"),
+        ("anthropic", "Anthropic"),
+    }
+    providers = [model["provider"] for model in after]
+    assert providers == sorted(providers, key=PROVIDERS.index)
 
 
 async def test_a_model_is_chosen_only_from_the_list(

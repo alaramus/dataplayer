@@ -2,12 +2,12 @@
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 from pydantic import ValidationError
 
-from app.ai.catalog import CATALOG_FILE, catalog, read
+from app.ai.catalog import CATALOG_FILE, PROVIDER_TITLES, Provider, catalog, read
 
 ENTRY: dict[str, Any] = {
     "provider": "openai",
@@ -24,6 +24,11 @@ def _write(tmp_path: Path, entries: list[dict[str, Any]]) -> Path:
     path = tmp_path / "models.json"
     path.write_text(json.dumps(entries), encoding="utf-8")
     return path
+
+
+def test_every_provider_is_named() -> None:
+    """A provider without a name would reach the screen as its bare id."""
+    assert set(PROVIDER_TITLES) == set(get_args(Provider))
 
 
 def test_the_shipped_list_is_valid_and_covers_every_provider() -> None:

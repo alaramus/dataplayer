@@ -31,7 +31,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.adapters.cache import DataCache
 from app.adapters.resources import ResourceStore
 from app.ai import checkpoints, conversations, preferences
-from app.ai.catalog import ModelCatalog, ModelInfo, Provider
+from app.ai.catalog import PROVIDER_TITLES, ModelCatalog, ModelInfo
 from app.ai.models import AgentRun, Conversation, RunStatus, ScreenContext, StepStatus
 from app.ai.prompts import SYSTEM_PROMPT, TITLE_PROMPT
 from app.ai.providers import ChatModels
@@ -59,12 +59,6 @@ from app.realtime.topics import TopicSet
 logger = logging.getLogger(__name__)
 
 THINKING = "Thinking"
-PROVIDER_TITLES: dict[Provider, str] = {
-    "openai": "OpenAI",
-    "anthropic": "Anthropic",
-    "deepseek": "DeepSeek",
-    "gemini": "Gemini",
-}
 # How often streamed text is sent: a frame per token is a frame per few
 # milliseconds, and the window redraws no faster than this anyway.
 DELTA_INTERVAL_SECONDS = 0.05

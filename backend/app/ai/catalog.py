@@ -14,7 +14,18 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
 Provider = Literal["openai", "anthropic", "deepseek", "gemini"]
 
-PROVIDERS: tuple[Provider, ...] = ("openai", "anthropic", "deepseek", "gemini")
+# How each provider is named wherever a person reads it: the settings, the
+# list of models, a message asking for its key. The one copy — the client is
+# sent it with every model rather than keeping a list of its own, which
+# dropped the models of any provider it had not heard of.
+PROVIDER_TITLES: dict[Provider, str] = {
+    "openai": "OpenAI",
+    "anthropic": "Anthropic",
+    "deepseek": "DeepSeek",
+    "gemini": "Gemini",
+}
+
+PROVIDERS: tuple[Provider, ...] = tuple(PROVIDER_TITLES)
 
 CATALOG_FILE = Path(__file__).with_name("models.json")
 
