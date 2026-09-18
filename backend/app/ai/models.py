@@ -12,13 +12,14 @@ under `ai_content` (D141). A provider key is a credential and is stored under
 
 import uuid
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, SecretStr
 from pydantic import Field as PydanticField
 from sqlalchemy import Column, DateTime, Index, LargeBinary
 from sqlmodel import Field, SQLModel
 
+from app.adapters.content import NodeRepresentation
 from app.ai.catalog import Provider
 from app.core.schemas import get_datetime_utc
 
@@ -376,7 +377,7 @@ class OpenIntent(BaseModel):
     title: str | None = None
     view: Literal["catalog", "preferred", "rows", "structure", "summary"] = "preferred"
     describable: bool = False
-    representations: list[dict[str, Any]] = PydanticField(default_factory=list)
+    representations: list[NodeRepresentation] = PydanticField(default_factory=list)
 
 
 class ConversationMessageCreate(BaseModel):

@@ -5,6 +5,8 @@ import type { MaybeRefOrGetter } from "vue"
 import { AiService } from "@/client"
 import type { AgentSettingsUpdate, ConversationUpdate, ScreenContext } from "@/client"
 
+import type { Provider } from "./modelOptions"
+
 export const aiModelsKey = ["ai", "models"] as const
 export const aiSettingsKey = ["ai", "settings"] as const
 export const aiConversationsKey = ["ai", "conversations"] as const
@@ -200,7 +202,7 @@ export function useUpdateAiSettings() {
 export function useWriteAiKey() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ provider, key }: { provider: "openai" | "anthropic" | "deepseek" | "gemini"; key: string }) => (
+    mutationFn: async ({ provider, key }: { provider: Provider; key: string }) => (
       await AiService.writeKey({ path: { provider }, body: { key } })
     ).data,
     onSuccess: (settings) => {
@@ -213,7 +215,7 @@ export function useWriteAiKey() {
 export function useRemoveAiKey() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (provider: "openai" | "anthropic" | "deepseek" | "gemini") => (
+    mutationFn: async (provider: Provider) => (
       await AiService.removeKey({ path: { provider } })
     ).data,
     onSuccess: (settings) => {
@@ -230,7 +232,7 @@ export function useRemoveAiKey() {
  * empty one asks about the key already saved for that provider.
  */
 export async function checkAiKey(
-  provider: "openai" | "anthropic" | "deepseek" | "gemini",
+  provider: Provider,
   key: string | null = null
 ) {
   return (await AiService.checkKey({ path: { provider }, body: { key } })).data

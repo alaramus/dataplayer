@@ -70,7 +70,7 @@ from app.users.models import User
 MAX_ROWS = 20
 MAX_RESULT_BYTES = 64 * 1024
 MAX_TOOL_CALLS = 50
-LIMIT_MESSAGE = "This answer stopped after 50 tool calls. Ask a narrower question."
+LIMIT_MESSAGE = f"This answer stopped after {MAX_TOOL_CALLS} tool calls. Ask a narrower question."
 TRANSFER_MARKER = "transfer_not_allowed"
 WITHHELD_RESULT = "[removed: connection no longer allows third-party transfer]"
 ALLOW_ONCE = "Allow once"
@@ -566,10 +566,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
                 title=node.name if node is not None else title,
                 view=view,
                 describable=node.describable if node is not None else False,
-                representations=(
-                    [one.model_dump(mode="json") for one in node.representations]
-                    if node is not None else []
-                ),
+                representations=list(node.representations) if node is not None else [],
             )
             await runtime.opened(runtime.owner_id, intent)
             return {
@@ -728,7 +725,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
         (list_connections, "list_connections", "List every connection visible to the current person, including transfer policy."),
         (browse_catalog, "browse_catalog", "List one level of a connection catalog. Use opaque ids exactly as returned."),
         (describe_node, "describe_node", "Describe a node's columns, constraints, indexes and summary where supported."),
-        (read_rows, "read_rows", "Read at most 20 rows from one opaque node id."),
+        (read_rows, "read_rows", f"Read at most {MAX_ROWS} rows from one opaque node id."),
         (run_query, "run_query", "Run a query. Reads are free; statements that change data ask the person first and run as one committed transaction."),
         (list_actions, "list_actions", "List source-declared actions and their parameter schemas without running them."),
         (run_action, "run_action", "Run one source-declared action with validated parameters. A change asks the person first."),
