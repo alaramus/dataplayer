@@ -13,6 +13,7 @@ import {
   useUpdateAiConversation,
   useUpdateAiSettings,
 } from "./api"
+
 const settings = useAiSettings()
 const update = useUpdateAiSettings()
 const archive = useArchivedAiConversations()
@@ -56,9 +57,9 @@ async function removeAll() {
     data-testid="ai-settings"
   >
     <h2>Settings</h2>
-    <AppSpinner v-if="settings.isPending.value || models.isPending.value" />
+    <AppSpinner v-if="settings.isPending.value" />
     <AppBanner
-      v-else-if="settings.isError.value || models.isError.value"
+      v-else-if="settings.isError.value"
       tone="error"
     >
       Agent settings could not be loaded.
