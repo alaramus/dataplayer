@@ -42,7 +42,9 @@ const keyDialogOpen = ref(false)
 const keySet = (provider: Provider) =>
   settings.data.value?.keys.find((one) => one.provider === provider)?.set ?? false
 const options = computed<ModelOption[]>(() =>
-  groupedModelOptions(models.data.value ?? [], settings.data.value?.keys ?? [])
+  groupedModelOptions(models.data.value ?? [], settings.data.value?.keys ?? [], {
+    keyInField: !props.keyButton,
+  })
 )
 const selectedModel = computed(
   () => (models.data.value ?? []).find((one) => one.key === props.modelValue) ?? null

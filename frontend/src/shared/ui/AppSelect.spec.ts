@@ -129,6 +129,21 @@ describe("AppSelect", () => {
     )
   })
 
+  it("draws the state of the one chosen option after its name", () => {
+    const options = [
+      { label: "Claude", value: "claude", description: "API key set", stateIcon: "key", stateActive: true },
+      { label: "GPT", value: "gpt", description: "API key required", stateIcon: "key_off" },
+    ]
+    const chosen = mountSelect({ modelValue: "claude", options })
+    expect(chosen.get(".app-select__chosen-label").text()).toBe("Claude")
+    expect(chosen.get(".app-select__state").text()).toBe("key")
+    expect(chosen.get(".app-select__state").classes()).toContain("app-select__state--on")
+
+    const unset = mountSelect({ modelValue: "gpt", options })
+    expect(unset.get(".app-select__state").text()).toBe("key_off")
+    expect(unset.get(".app-select__state").classes()).not.toContain("app-select__state--on")
+  })
+
   // The click never reaches the field's own handler, so without an explicit
   // close the popup stays open over whatever the action shows.
   it("closes the popup when an option action takes over", async () => {

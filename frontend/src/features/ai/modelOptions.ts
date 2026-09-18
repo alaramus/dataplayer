@@ -11,10 +11,16 @@ export const providers: { id: Provider; label: string }[] = [
   { id: "gemini", label: "Gemini" },
 ]
 
-/** One provider key changes the state shown beside every model in its group. */
+/**
+ * One provider key changes the state shown beside every model in its group.
+ *
+ * `keyInField` also draws that state after the chosen model's name; a caller
+ * with a key button beside the field says it there instead.
+ */
 export function groupedModelOptions(
   models: AgentModelPublic[],
-  keys: ProviderKeyState[]
+  keys: ProviderKeyState[],
+  { keyInField = true }: { keyInField?: boolean } = {}
 ): ModelOption[] {
   const set = new Set(keys.filter((key) => key.set).map((key) => key.provider))
   return providers.flatMap((provider) => {
@@ -29,6 +35,7 @@ export function groupedModelOptions(
         actionIcon: keyIsSet ? "key" : "key_off",
         actionLabel: `Manage ${provider.label} API key`,
         actionActive: keyIsSet,
+        ...(keyInField ? { stateIcon: keyIsSet ? "key" : "key_off", stateActive: keyIsSet } : {}),
       }))
     return choices.length === 0
       ? []

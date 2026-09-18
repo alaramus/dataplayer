@@ -391,9 +391,9 @@ function removeSavedEntry(name: string) {
           label="Grouped choices with actions"
           :options="[
             { label: 'Anthropic', value: 'provider:anthropic', group: true },
-            { label: 'Claude', value: 'claude', description: 'API key set', actionIcon: 'key', actionLabel: 'Manage Anthropic API key', actionActive: true },
+            { label: 'Claude', value: 'claude', description: 'API key set', actionIcon: 'key', actionLabel: 'Manage Anthropic API key', actionActive: true, stateIcon: 'key', stateActive: true },
             { label: 'OpenAI', value: 'provider:openai', group: true },
-            { label: 'GPT', value: 'gpt', description: 'API key required', actionIcon: 'key_off', actionLabel: 'Manage OpenAI API key' },
+            { label: 'GPT', value: 'gpt', description: 'API key required', actionIcon: 'key_off', actionLabel: 'Manage OpenAI API key', stateIcon: 'key_off' },
           ]"
           @option-action="toast.info($event.actionLabel ?? 'Option action')"
         />

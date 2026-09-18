@@ -22,5 +22,12 @@ describe("grouped model choices", () => {
     expect(options).toHaveLength(2)
     expect(options.every((option) => option.actionIcon === "key")).toBe(true)
     expect(options.every((option) => option.description === "API key set")).toBe(true)
+    expect(options.every((option) => option.stateIcon === "key" && option.stateActive)).toBe(true)
+  })
+
+  it("leaves the key out of the field where a button beside it says so", () => {
+    const options = groupedModelOptions(models, [], { keyInField: false })
+    expect(options.some((option) => option.stateIcon !== undefined)).toBe(false)
+    expect(options.filter((option) => !option.group).every((option) => option.actionIcon === "key_off")).toBe(true)
   })
 })

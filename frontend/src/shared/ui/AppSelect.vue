@@ -18,6 +18,14 @@ export interface SelectOption {
   actionIcon?: string
   actionLabel?: string
   actionActive?: boolean
+  /**
+   * A state the choice is in, drawn after its name in the field once it is
+   * chosen: the list says it in the description, and the field shows only
+   * the name. The icon is a mark, not a command; the description is its
+   * tooltip.
+   */
+  stateIcon?: string
+  stateActive?: boolean
 }
 
 const props = withDefaults(
@@ -101,6 +109,15 @@ function labelOf(value: unknown): string {
   }
   return String(value)
 }
+
+/** The one option a single field holds, when it is one of the labelled ones. */
+const single = computed(() =>
+  props.multiple
+    ? undefined
+    : props.options.find(
+      (option): option is SelectOption => typeof option === "object" && option.value === props.modelValue
+    )
+)
 
 /** What is ticked, in the words the field would have drawn on its chips. */
 const chosen = computed(() =>
@@ -218,6 +235,22 @@ const summary = computed(() => {
         <AppTooltip v-if="chosen.length > 1">{{ chosen.join(", ") }}</AppTooltip>
       </span>
     </template>
+    <template
+      v-else-if="single?.stateIcon"
+      #selected
+    >
+      <span class="app-select__chosen">
+        <span class="app-select__chosen-label">{{ single.label }}</span>
+        <q-icon
+          :name="single.stateIcon"
+          class="app-select__state"
+          :class="{ 'app-select__state--on': single.stateActive }"
+          size="16px"
+        >
+          <AppTooltip v-if="single.description">{{ single.description }}</AppTooltip>
+        </q-icon>
+      </span>
+    </template>
 
     <!-- Keep companion actions in the field's 56px marginal area, above the
          separately reserved error-message line. AppInput exposes the same
@@ -240,6 +273,19 @@ const summary = computed(() => {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.app-select__chosen {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--dp-space-1);
+  min-width: 0;
+}
+.app-select__chosen-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app-select__state { flex: none; color: var(--dp-text-muted); }
+.app-select__state--on { color: var(--q-positive); }
 .app-select--compact :deep(.q-field__native) {
   flex-wrap: nowrap;
   overflow: hidden;
