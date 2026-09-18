@@ -1,28 +1,20 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
-import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
-import ServicesCommand from "@/features/services/ServicesCommand.vue"
-import { AppButton, AppInput, AppMenu, AppPopup, AppTooltip, useToast } from "@/shared/ui"
-import { WindowDialog } from "@/shared/windows"
-
-import CommandBar from "./CommandBar.vue"
-import { GROUPS_LIST, GROUPS_SAVE, useToolRails } from "./toolRails"
+import { TOOL_BLOCKS } from "./toolBlocks"
+import type { RailContext, ToolBlock } from "./toolBlocks"
 import type { ToolRailZone } from "./toolRails"
-import { groupNameProblem, suggestedGroupName } from "./groups"
-import type { TabGroup } from "./groups"
 import type { TabGroupLibrary } from "./useTabGroups"
+import { useToolRails } from "./useToolRails"
 
 /**
- * One vertical PyCharm-like tool rail: a half of one side of the workspace.
+ * One vertical tool rail: a half of one side of the workspace (workspace.md,
+ * Tool rails).
  *
- * Icon-only blocks, slightly thinner than the header, draggable within the
- * rail and across to the other three via native HTML drag and drop. The
- * order lives in `toolRails` and survives reloads through localStorage.
- *
- * The saved tab groups are exploded: the save button and the list button are
- * blocks of their own rather than one combined chunk, so each drags on its
- * own.
+ * Draws whichever blocks of `TOOL_BLOCKS` stand on it, icon-only, and moves
+ * them within it and across to the other three by native drag and drop. What
+ * a block is and what it needs is the registry's; a rail knows its zone and
+ * the few things every block may ask of it.
  */
 const props = defineProps<{
   zone: ToolRailZone
@@ -31,16 +23,21 @@ const props = defineProps<{
 }>()
 
 const rails = useToolRails()
-const blocks = computed(() => rails.blocksOf(props.zone).value)
+const registry = new Map(TOOL_BLOCKS.map((block) => [block.id, block]))
+const blocks = computed<ToolBlock[]>(() =>
+  rails.arrangement.value[props.zone].flatMap((id) => registry.get(id) ?? [])
+)
+const context = computed<RailContext>(() => ({
+  groups: props.groups,
+  side: props.zone.startsWith("left") ? "left" : "right",
+}))
 const overIndex = ref<number | null>(null)
-const onLeft = computed(() => props.zone.startsWith("left"))
 const ZONE_TITLES: Record<ToolRailZone, string> = {
   "left-top": "Top left tools",
   "left-bottom": "Bottom left tools",
   "right-top": "Top right tools",
   "right-bottom": "Bottom right tools",
 }
-const zoneTitle = computed(() => ZONE_TITLES[props.zone])
 
 const MIME = "application/x-dataplayer-tool"
 
@@ -53,16 +50,16 @@ function onDragStart(event: DragEvent, id: string) {
 }
 
 function takeId(event: DragEvent): string {
-  return event.dataTransfer?.getData(MIME) || event.dataTransfer?.getData("text/plain") || ""
+  const id = event.dataTransfer?.getData(MIME) || event.dataTransfer?.getData("text/plain") || ""
+  return registry.has(id) ? id : ""
 }
 
-function onItemDrop(event: DragEvent, index: number) {
+function onBlockDrop(event: DragEvent, before: string) {
   event.preventDefault()
   event.stopPropagation()
   overIndex.value = null
   const id = takeId(event)
-  if (id === "") return
-  rails.placeBlock(id, props.zone, index)
+  if (id !== "") rails.place(id, props.zone, before)
 }
 
 function onRailDrop(event: DragEvent) {
@@ -70,76 +67,7 @@ function onRailDrop(event: DragEvent) {
   event.preventDefault()
   overIndex.value = null
   const id = takeId(event)
-  if (id === "") return
-  rails.placeBlock(id, props.zone, blocks.value.length)
-}
-
-const toast = useToast()
-const groupList = computed(() => props.groups.groups.value)
-const busy = computed(() => props.groups.busy.value)
-const hasGroups = computed(() => groupList.value.length > 0)
-
-/** Framed as one group only when the block holds several buttons. */
-function isGrouped(id: string): boolean {
-  return id === "spaces"
-}
-
-/** The saved-groups list: open beside the button, away from the screen edge. */
-const listOpen = ref(false)
-const menuAnchor = computed(() => (onLeft.value ? "top right" : "top left"))
-const menuSelf = computed(() => (onLeft.value ? "top left" : "top right"))
-
-const editingId = ref<string | null>(null)
-const saving = ref(false)
-const name = ref("")
-const problem = computed(() => groupNameProblem(name.value, groupList.value, editingId.value ?? undefined))
-
-function askSave() {
-  name.value = suggestedGroupName(groupList.value)
-  editingId.value = null
-  saving.value = true
-}
-
-function askRename(group: TabGroup) {
-  name.value = group.name
-  editingId.value = group.id
-  saving.value = false
-}
-
-function saveName() {
-  if (problem.value) return
-  if (editingId.value !== null) {
-    if (props.groups.rename(editingId.value, name.value)) {
-      editingId.value = null
-      saving.value = false
-    }
-    return
-  }
-  if (props.groups.save(name.value)) saving.value = false
-}
-
-function closeDialog() {
-  editingId.value = null
-  saving.value = false
-}
-
-const menuItems = [
-  { name: "update-group", label: "Update from current layout", icon: "save" },
-  { name: "rename-group", label: "Rename", icon: "edit" },
-  { name: "delete-group", label: "Delete", icon: "delete", danger: true },
-]
-
-function select(action: string, group: TabGroup) {
-  listOpen.value = false
-  if (busy.value) return
-  if (action === "rename-group") askRename(group)
-  if (action === "delete-group") void props.groups.remove(group)
-  if (action === "update-group" && props.groups.update(group.id)) toast.success(`Updated "${group.name}".`)
-}
-
-function openListed(group: TabGroup) {
-  listOpen.value = false
-  void props.groups.open(group)
+  if (id !== "") rails.place(id, props.zone, null)
 }
 </script>
 
@@ -151,194 +79,38 @@ function openListed(group: TabGroup) {
       'tool-rail--tail': overIndex === blocks.length,
     }"
     :data-testid="`tool-rail-${zone}`"
-    :aria-label="zoneTitle"
+    :aria-label="ZONE_TITLES[zone]"
     @dragover.prevent="overIndex = blocks.length"
     @dragleave="overIndex = null"
     @drop="onRailDrop"
   >
     <div
-      v-for="(id, index) in blocks"
-      :key="id"
+      v-for="(block, index) in blocks"
+      :key="block.id"
       class="tool-rail__block"
       :class="{
         'tool-rail__block--over': overIndex === index,
-        'tool-rail__block--grouped': isGrouped(id),
+        'tool-rail__block--framed': block.framed,
       }"
-      :data-testid="`tool-block-${id}`"
+      :data-testid="`tool-block-${block.id}`"
       @dragend="overIndex = null"
       @dragover.prevent.stop="overIndex = index"
-      @drop="onItemDrop($event, index)"
+      @drop="onBlockDrop($event, block.id)"
     >
-      <!-- The block drags by holding its buttons, PyCharm-style — the browser
-           only starts the drag past its own threshold, so plain clicks still
-           fire on the buttons. -->
+      <!-- The block drags by holding its buttons — the browser only starts
+           the drag past its own threshold, so plain clicks still fire on the
+           buttons. -->
       <div
         class="tool-rail__content"
         draggable="true"
-        @dragstart="onDragStart($event, id)"
+        @dragstart="onDragStart($event, block.id)"
       >
-        <SpaceSwitch
-          v-if="id === 'spaces'"
-          icon-only
+        <component
+          :is="block.component"
+          v-bind="block.props(context)"
         />
-        <CommandBar
-          v-else-if="id === 'queries'"
-          icon-only
-        />
-        <ServicesCommand
-          v-else-if="id === 'services'"
-          icon-only
-        />
-        <!-- Two separate blocks: the save button, and the saved-groups list
-             button beside it. The list button always stands; with no groups
-             yet its menu says so. -->
-        <template v-else-if="id === GROUPS_SAVE">
-          <AppButton
-            variant="quiet"
-            size="sm"
-            icon="bookmark_add"
-            aria-label="Save group"
-            :disable="busy"
-            data-testid="save-tab-group"
-            @click="askSave"
-          >
-            <AppTooltip>Save group</AppTooltip>
-          </AppButton>
-          <WindowDialog
-            :model-value="saving"
-            title="Save tab group"
-            size="sm"
-            data-testid="tab-group-name-dialog"
-            @update:model-value="closeDialog"
-          >
-            <div class="tool-rail__form">
-              <AppInput
-                v-model="name"
-                label="Group name"
-                :error="name.length > 0 ? problem : ''"
-                autofocus
-                maxlength="80"
-                data-testid="tab-group-name"
-                @keydown.enter.prevent="saveName"
-              />
-            </div>
-            <template #actions>
-              <AppButton
-                variant="quiet"
-                label="Cancel"
-                @click="closeDialog"
-              />
-              <AppButton
-                label="Save"
-                :disable="Boolean(problem) || busy"
-                data-testid="confirm-tab-group-name"
-                @click="saveName"
-              />
-            </template>
-          </WindowDialog>
-        </template>
-        <template v-else-if="id === GROUPS_LIST">
-          <!-- No click handler: the popup opens on anchor clicks by itself
-               (the same way the manage menus do), and a manual toggle on
-               top of it opens and instantly closes the list. v-model stays
-               for closing it from the code. The popup lives inside the
-               button so neighbours do not toggle it. -->
-          <AppButton
-            variant="quiet"
-            size="sm"
-            icon="bookmarks"
-            aria-label="Saved tab groups"
-            aria-haspopup="menu"
-            :aria-expanded="listOpen"
-            :disable="busy"
-            data-testid="open-tab-groups"
-          >
-            <AppTooltip>Saved tab groups</AppTooltip>
-            <AppPopup
-              v-model="listOpen"
-              :anchor="menuAnchor"
-              :self="menuSelf"
-            >
-              <div
-                class="group-list"
-                role="menu"
-                aria-label="Saved tab groups"
-              >
-                <div
-                  v-if="!hasGroups"
-                  class="group-list__empty"
-                >
-                  No saved groups yet
-                </div>
-                <div
-                  v-for="group in groupList"
-                  :key="group.id"
-                  class="group-list__row"
-                >
-                  <AppButton
-                    variant="quiet"
-                    size="sm"
-                    icon="view_column"
-                    :label="group.name"
-                    :aria-label="`Open group ${group.name}`"
-                    :disable="busy"
-                    class="group-list__open"
-                    data-testid="open-tab-group"
-                    @click="openListed(group)"
-                  />
-                  <AppButton
-                    variant="quiet"
-                    size="sm"
-                    icon="more_vert"
-                    :aria-label="`Manage group ${group.name}`"
-                    :disable="busy"
-                    data-testid="manage-tab-group"
-                  >
-                    <AppTooltip>Manage group</AppTooltip>
-                    <AppMenu
-                      :items="menuItems"
-                      @select="select($event, group)"
-                    />
-                  </AppButton>
-                </div>
-              </div>
-            </AppPopup>
-          </AppButton>
-        </template>
       </div>
     </div>
-    <WindowDialog
-      :model-value="editingId !== null"
-      title="Rename tab group"
-      size="sm"
-      data-testid="tab-group-name-dialog"
-      @update:model-value="closeDialog"
-    >
-      <div class="tool-rail__form">
-        <AppInput
-          v-model="name"
-          label="Group name"
-          :error="name.length > 0 ? problem : ''"
-          autofocus
-          maxlength="80"
-          data-testid="tab-group-name"
-          @keydown.enter.prevent="saveName"
-        />
-      </div>
-      <template #actions>
-        <AppButton
-          variant="quiet"
-          label="Cancel"
-          @click="closeDialog"
-        />
-        <AppButton
-          label="Save"
-          :disable="Boolean(problem) || busy"
-          data-testid="confirm-tab-group-name"
-          @click="saveName"
-        />
-      </template>
-    </WindowDialog>
   </div>
 </template>
 
@@ -390,11 +162,11 @@ function openListed(group: TabGroup) {
 }
 /* The grouping frame lives only on blocks of several buttons: a lone
    button is framed by the button itself. */
-.tool-rail__block--grouped {
+.tool-rail__block--framed {
   border-radius: 8px;
 }
-.tool-rail__block--grouped:hover {
-  background: var(--dp-panel-quiet, var(--dp-panel-plain-quiet));
+.tool-rail__block--framed:hover {
+  background: var(--dp-panel-plain-quiet);
 }
 .tool-rail__block--over {
   border-top-color: var(--dp-action-secondary);
@@ -428,37 +200,5 @@ function openListed(group: TabGroup) {
 .tool-rail__content :deep(.command-bar),
 .tool-rail__content :deep(.services-command) {
   justify-content: center;
-}
-.tool-rail__form {
-  padding: var(--dp-space-3);
-}
-/* The saved groups dropping out of the list button: one row per group, the
-   name opening it and horizontal dots managing it. */
-.group-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 220px;
-  max-width: 320px;
-  padding: 4px;
-}
-.group-list__row {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-.group-list__open {
-  flex: 1;
-  min-width: 0;
-  justify-content: flex-start;
-}
-.group-list__open :deep(.q-btn__content) {
-  min-width: 0;
-}
-.group-list__empty {
-  padding: 8px 12px;
-  color: var(--dp-text-muted);
-  font-size: 12px;
-  white-space: nowrap;
 }
 </style>

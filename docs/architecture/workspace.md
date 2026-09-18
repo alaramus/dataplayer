@@ -47,6 +47,14 @@ the pointer, joins the tabs of another column by being dropped on their head, an
 divides a column by being dropped in its body. It can only be taken to a column
 that takes its kind.
 
+**Tool rails.** Four narrow rails flank the columns, a top and a bottom half
+of each side. They hold what hangs off no panel — the space switch, the query
+library, services, saving and opening tab groups — as icon-only blocks, and a
+block is dragged to another place in its rail or onto another rail. Where each
+stands is kept per browser; a block the stored arrangement does not name takes
+its home, or its place beside the block it belongs with. The blocks are one
+registry, `toolBlocks.ts`: a new one is an entry there and nothing else.
+
 A connection is edited in a floating window, and several are open at once.
 The same application-level host owns every transient form and question:
 catalog actions, row and column editing, full cell values, the download form,
@@ -82,7 +90,8 @@ frontend/src/shared/
 frontend/src/features/workspace/
               the panels, the registry that names them and the role that puts
               each in one of the three columns; the scene that stands in the
-              empty one, and scene.ts and activeCatalog.ts, which are pure
+              empty one, and scene.ts, activeCatalog.ts and toolRails.ts,
+              which are pure
 ```
 
 ## D12. The screen is a workspace of sections, and the engine knows nothing about the application
@@ -511,8 +520,8 @@ Spec: [Detaching a tab into a floating window](../decisions/2026-09-04-detached-
 ## D94. Named tab groups restore a saved workspace layout
 
 A group is an explicitly saved copy of the layout and panel descriptors:
-sections, sizes, collapsed states, tab order and active tabs. Its button lives
-in the application header. Opening or closing tabs afterwards does not change
+sections, sizes, collapsed states, tab order and active tabs. Saving one and
+the list of saved ones are two blocks on the tool rails. Opening or closing tabs afterwards does not change
 the group; Update from current layout replaces its saved copy. Groups can be
 renamed and deleted, and are stored per signed-in user in this browser's
 localStorage. They contain no fetched rows or editor text and do not copy

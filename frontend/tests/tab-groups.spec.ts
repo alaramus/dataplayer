@@ -118,6 +118,8 @@ test("saves column layouts, replaces tabs, remembers the warning and manages mul
   await expect(rowsTabs(page)).toContainText("pg_type")
   await expect(warning).toHaveCount(0)
   await page.reload()
+  // Where the list was carried is kept, like the groups themselves.
+  await expect(page.getByTestId("tool-rail-left-bottom").getByTestId("open-tab-groups")).toBeVisible()
   await openGroups(page)
   await expect(page.getByTestId("open-tab-group")).toHaveCount(2)
   await closeGroups(page)

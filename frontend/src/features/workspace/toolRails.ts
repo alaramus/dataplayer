@@ -1,150 +1,108 @@
-import { ref } from "vue"
-import type { Ref } from "vue"
-
 /**
- * Which tool blocks live on which side rail.
+ * Where the blocks of the side tool rails stand (workspace.md, Tool rails).
  *
- * PyCharm-style: every block is icon-only and can be dragged within its rail
- * or across to any other one. Each side is split into top and bottom halves,
- * so there are four rails. The arrangement is kept in localStorage so a
- * reload keeps the layout the user arranged.
+ * Four rails, a top and a bottom half of each side; every block stands on
+ * exactly one of them, in the order somebody dragged it into. Plain functions,
+ * so what a stored arrangement comes to is tested without a browser; the
+ * blocks themselves are in `toolBlocks`, the state and its storage in
+ * `useToolRails`.
  */
 export type ToolRailZone = "left-top" | "left-bottom" | "right-top" | "right-bottom"
 
-const ZONES: readonly ToolRailZone[] = ["left-top", "left-bottom", "right-top", "right-bottom"]
+export const ZONES: readonly ToolRailZone[] = ["left-top", "left-bottom", "right-top", "right-bottom"]
+
+/** What the arrangement needs to know about a block. */
+export interface BlockSeat {
+  id: string
+  /** Where it stands until somebody moves it. */
+  home: ToolRailZone
+  /**
+   * The block it belongs next to. When a stored arrangement lacks this one —
+   * it is newer than the arrangement — it joins that block wherever it was
+   * put, rather than its home across the screen from it.
+   */
+  beside?: string
+}
+
+export type Arrangement = Record<ToolRailZone, string[]>
+
+function empty(): Arrangement {
+  return { "left-top": [], "left-bottom": [], "right-top": [], "right-bottom": [] }
+}
+
+function zoneOf(arrangement: Arrangement, id: string): ToolRailZone | undefined {
+  return ZONES.find((zone) => arrangement[zone].includes(id))
+}
+
+export function defaultArrangement(blocks: readonly BlockSeat[]): Arrangement {
+  const arrangement = empty()
+  for (const block of blocks) arrangement[block.home].push(block.id)
+  return arrangement
+}
 
 /**
- * Static blocks plus the groups section: the save button and the saved-groups
- * list button are blocks of their own, so each drags separately.
+ * A stored arrangement, made whole: what is not a block any more is dropped,
+ * a block named twice keeps its first place, and a block it does not name
+ * takes the seat it would have had. Anything unreadable is the default.
  */
-export const STATIC_BLOCKS = ["spaces", "queries", "services"] as const
-export const GROUPS_SAVE = "groups-save"
-export const GROUPS_LIST = "groups-list"
-function isKnown(id: string): boolean {
-  return (STATIC_BLOCKS as readonly string[]).includes(id) || id === GROUPS_SAVE || id === GROUPS_LIST
-}
-
-const STORAGE_KEY = "dataplayer-tool-rails"
-
-const DEFAULTS: Record<ToolRailZone, readonly string[]> = {
-  "left-top": [...STATIC_BLOCKS.slice(0, 2)],
-  "left-bottom": [...STATIC_BLOCKS.slice(2)],
-  "right-top": [GROUPS_SAVE, GROUPS_LIST],
-  "right-bottom": [],
-}
-
-/** Stored ids, minus what is not a block, with every block kept once. */
-function clean(list: unknown): string[] {
-  if (!Array.isArray(list)) return []
-  const seen = new Set<string>()
-  const out: string[] = []
-  for (const raw of list) {
-    const id = String(raw)
-    if (!isKnown(id) || seen.has(id)) continue
-    seen.add(id)
-    out.push(id)
-  }
-  return out
-}
-
-type Zones = Record<ToolRailZone, string[]>
-
-function read(): Zones {
-  const fresh = (): Zones => ({
-    "left-top": [...DEFAULTS["left-top"]],
-    "left-bottom": [...DEFAULTS["left-bottom"]],
-    "right-top": [...DEFAULTS["right-top"]],
-    "right-bottom": [...DEFAULTS["right-bottom"]],
-  })
+export function readArrangement(raw: string | null, blocks: readonly BlockSeat[]): Arrangement {
+  let parsed: unknown = null
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw !== null) {
-      const parsed = JSON.parse(raw) as Record<string, unknown>
-      const zones = fresh()
-      for (const zone of ZONES) zones[zone] = clean(parsed[zone])
-      // A block the store does not place would be lost to the user: anything
-      // missing takes its default seat, with the groups list beside the save
-      // button wherever that stands.
-      const placed = new Set(ZONES.flatMap((zone) => zones[zone]))
-      for (const id of STATIC_BLOCKS) {
-        if (!placed.has(id)) {
-          zones["left-top"].push(id)
-          placed.add(id)
-        }
-      }
-      for (const id of [GROUPS_SAVE, GROUPS_LIST]) {
-        if (placed.has(id)) continue
-        const host: ToolRailZone =
-          ZONES.find((zone) => zones[zone].includes(GROUPS_SAVE)) ?? "right-top"
-        if (id === GROUPS_LIST) {
-          const at = zones[host].indexOf(GROUPS_SAVE)
-          zones[host].splice(at < 0 ? zones[host].length : at + 1, 0, id)
-        } else {
-          zones[host].push(id)
-        }
-        placed.add(id)
-      }
-      return zones
-    }
+    parsed = raw === null ? null : JSON.parse(raw)
   } catch {
-    // An arrangement that cannot be read falls back to the default one.
+    parsed = null
   }
-  return fresh()
-}
-
-const stored = read()
-const rails: Record<ToolRailZone, Ref<string[]>> = {
-  "left-top": ref<string[]>(stored["left-top"]),
-  "left-bottom": ref<string[]>(stored["left-bottom"]),
-  "right-top": ref<string[]>(stored["right-top"]),
-  "right-bottom": ref<string[]>(stored["right-bottom"]),
-}
-
-function persist() {
-  try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        "left-top": rails["left-top"].value,
-        "left-bottom": rails["left-bottom"].value,
-        "right-top": rails["right-top"].value,
-        "right-bottom": rails["right-bottom"].value,
-      })
-    )
-  } catch {
-    // Losing the arrangement to a full or blocked storage loses nothing else.
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return defaultArrangement(blocks)
   }
-}
-
-/** A zone always holds a rail: the record is built with every zone. */
-function railOf(zone: ToolRailZone) {
-  const found = rails[zone]
-  if (found === undefined) throw new Error(`Unknown tool rail: ${zone}`)
-  return found
-}
-
-export function useToolRails() {
-  function placeBlock(id: string, zone: ToolRailZone, index: number) {
-    for (const other of ZONES) {
-      if (other === zone) continue
-      const rail = railOf(other)
-      rail.value = rail.value.filter((block) => block !== id)
+  const stored = parsed as Record<string, unknown>
+  const known = new Set(blocks.map((block) => block.id))
+  const placed = new Set<string>()
+  const arrangement = empty()
+  for (const zone of ZONES) {
+    const list = stored[zone]
+    if (!Array.isArray(list)) continue
+    for (const entry of list) {
+      const id = String(entry)
+      if (!known.has(id) || placed.has(id)) continue
+      placed.add(id)
+      arrangement[zone].push(id)
     }
-    const current = railOf(zone)
-    const without = current.value.filter((block) => block !== id)
-    const clamped = Math.max(0, Math.min(index, without.length))
-    current.value = [...without.slice(0, clamped), id, ...without.slice(clamped)]
-    persist()
   }
+  for (const block of blocks) {
+    if (placed.has(block.id)) continue
+    const neighbour = block.beside === undefined ? undefined : zoneOf(arrangement, block.beside)
+    if (neighbour === undefined || block.beside === undefined) {
+      arrangement[block.home].push(block.id)
+    } else {
+      const list = arrangement[neighbour]
+      list.splice(list.indexOf(block.beside) + 1, 0, block.id)
+    }
+    placed.add(block.id)
+  }
+  return arrangement
+}
 
-  function resetRails() {
-    for (const zone of ZONES) railOf(zone).value = [...DEFAULTS[zone]]
-    persist()
-  }
-
-  return {
-    blocksOf: railOf,
-    placeBlock,
-    resetRails,
-  }
+/**
+ * The arrangement with one block moved: before `before` in `zone`, or at the
+ * end of it when `before` is null.
+ *
+ * Named by the block it lands before rather than by an index. An index into
+ * the list the block is still standing in pointed one place too far whenever
+ * a block was dragged down its own rail.
+ */
+export function moveBlock(
+  arrangement: Arrangement,
+  id: string,
+  zone: ToolRailZone,
+  before: string | null
+): Arrangement {
+  if (before === id) return arrangement
+  const next = empty()
+  for (const other of ZONES) next[other] = arrangement[other].filter((block) => block !== id)
+  const target = next[zone]
+  const at = before === null ? -1 : target.indexOf(before)
+  if (at < 0) target.push(id)
+  else target.splice(at, 0, id)
+  return next
 }
