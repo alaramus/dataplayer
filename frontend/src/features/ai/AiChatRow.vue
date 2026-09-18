@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue"
+import { computed, ref } from "vue"
 
 import type { ChatProjectPublic, ConversationSummary } from "@/client"
 import { AppButton, AppIconButton, AppMenu } from "@/shared/ui"
@@ -17,6 +17,9 @@ const emit = defineEmits<{
   move: [projectId: string | null]
   newProject: []
 }>()
+
+// The buttons are revealed by the pointer, which leaves the row for the menu.
+const moving = ref(false)
 
 const NEW_PROJECT = "new-project"
 const NO_PROJECT = "no-project"
@@ -41,7 +44,7 @@ function pick(name: string) {
 <template>
   <div
     class="ai-chat-row"
-    :class="{ 'ai-chat-row--active': active }"
+    :class="{ 'ai-chat-row--active': active, 'ai-chat-row--menu': moving }"
     :data-testid="`ai-chat-row-${chat.id}`"
     :data-active="active ? 'true' : 'false'"
   >
@@ -71,6 +74,7 @@ function pick(name: string) {
           :data-testid="`ai-move-${chat.id}`"
         />
         <AppMenu
+          v-model="moving"
           :items="moves"
           @select="pick"
         />
@@ -97,7 +101,10 @@ function pick(name: string) {
 /* Pointed at, or reached by keyboard, and nothing else: the row of a selected
    chat carries no buttons either.
    Trap: display:none drops the buttons from the accessibility tree, so the
-   :focus-within half is what keeps them reachable without a mouse at all. */
+   keyboard half is what keeps them reachable without a mouse at all. It is
+   :focus-visible and not :focus-within, because a clicked title keeps focus
+   and held the buttons out after the pointer had left. */
 .ai-chat-row:hover .ai-chat-row__actions,
-.ai-chat-row:focus-within .ai-chat-row__actions { display: flex; }
+.ai-chat-row:has(:focus-visible) .ai-chat-row__actions,
+.ai-chat-row--menu .ai-chat-row__actions { display: flex; }
 </style>

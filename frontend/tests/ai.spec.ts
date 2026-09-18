@@ -115,6 +115,10 @@ test("opens, restores and manages the application agent space", async ({ page })
   // row; it is deleted only from the archive, in the settings.
   const id = conversationId ?? ""
   const row = page.getByTestId(`ai-chat-row-${id}`)
+  // Its buttons are the pointer's: a chat clicked and left carries none.
+  await page.getByTestId(`ai-chat-${id}`).click()
+  await page.getByTestId("ai-messages").hover()
+  await expect(page.getByTestId(`ai-pin-${id}`)).toBeHidden()
   await row.hover()
   await page.getByTestId(`ai-pin-${id}`).click()
   await expect(page.locator('[data-testid^="ai-chat-row-"]').first()).toHaveAttribute(
