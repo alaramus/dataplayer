@@ -264,6 +264,7 @@ onScopeDispose(stop)
       <div
         v-if="selectedChat !== null && !settingsShown"
         class="ai-window__head"
+        data-testid="ai-chat-head"
       >
         <AppInput
           v-if="renaming === selectedChat.id"
@@ -329,7 +330,14 @@ onScopeDispose(stop)
 /* Trap: display:none drops the buttons from the accessibility tree, so without :hover neither keyboard focus nor getByRole reaches them. The active row stays exposed. */
 .ai-window__chat--active .ai-window__chat-actions, .ai-window__chat:hover .ai-window__chat-actions, .ai-window__chat:focus-within .ai-window__chat-actions { display: flex; }
 .ai-window__main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-.ai-window__head { flex: none; display: flex; align-items: center; min-height: var(--dp-tab-strip-height); padding: 0 var(--dp-space-3); border-bottom: 1px solid var(--dp-border-faint); }
+.ai-window__head { flex: none; display: flex; align-items: center; height: var(--dp-tab-strip-height); padding: 0 var(--dp-space-3); border-bottom: 1px solid var(--dp-border-faint); }
+/* Trap: a dense Quasar field's control is 40px, taller than this strip, so
+   pressing the name grew the header by eight pixels and pushed the whole
+   conversation down. The field takes the strip's height and the heading's
+   type, so renaming moves nothing. */
+.ai-window__head :deep(.q-field) { font-size: inherit; }
+.ai-window__head :deep(.q-field__control) { height: var(--dp-tab-strip-height); }
+.ai-window__head :deep(.q-field__native) { padding: 0; font-weight: 600; line-height: var(--dp-tab-strip-height); }
 .ai-window__head > :first-child { flex: 1; min-width: 0; }
 .ai-window__head-title { max-width: 100%; overflow: hidden; border: 0; padding: 0; background: transparent; color: var(--dp-text-strong); font: inherit; font-weight: 600; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: text; }
 .ai-window__welcome { flex: 1; display: grid; place-items: center; }

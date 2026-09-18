@@ -31,10 +31,19 @@ test("opens, restores and manages the application agent space", async ({ page })
   const conversationId = (await active.getAttribute("data-testid"))?.replace("ai-chat-row-", "")
   expect(conversationId).toBeTruthy()
 
-  await active.hover()
-  await active.getByRole("button", { name: "Rename chat" }).click()
-  await active.getByRole("textbox", { name: "Chat title" }).fill("Playwright agent chat")
-  await active.getByRole("textbox", { name: "Chat title" }).press("Enter")
+  // The open chat is named above the conversation, and pressing the name is how
+  // it is renamed. The strip keeps its height while it holds the field, or the
+  // whole conversation jumps down the moment somebody presses the name.
+  const head = page.getByTestId("ai-chat-head")
+  const closed = (await head.boundingBox())?.height
+  await page.getByTestId("ai-chat-heading").click()
+  const field = page.getByTestId("ai-rename-input")
+  await expect(field).toBeVisible()
+  expect((await head.boundingBox())?.height).toBe(closed)
+  await field.fill("Playwright agent chat")
+  await field.press("Enter")
+  await expect(page.getByTestId("ai-chat-heading")).toHaveText("Playwright agent chat")
+  expect((await head.boundingBox())?.height).toBe(closed)
   await expect(active).toContainText("Playwright agent chat")
 
   await page.reload()
