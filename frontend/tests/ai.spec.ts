@@ -102,6 +102,15 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId("ai-provider-key")).toBeVisible()
   await page.getByTestId("ai-key-dialog").getByRole("button", { name: "Close" }).click()
 
+  // The entry is a switch: pressing it again comes back to the chat it left.
+  await expect(page.getByTestId("ai-open-settings")).toHaveAttribute("aria-pressed", "true")
+  await page.getByTestId("ai-open-settings").click()
+  await expect(page.getByTestId("ai-settings")).toHaveCount(0)
+  await expect(page.getByTestId("ai-messages")).toBeVisible()
+  await expect(page.getByTestId(`ai-chat-row-${conversationId ?? ""}`)).toHaveAttribute(
+    "data-active", "true"
+  )
+
   // A chat is pinned above the rest and archived out of the history from its
   // row; it is deleted only from the archive, in the settings.
   const id = conversationId ?? ""

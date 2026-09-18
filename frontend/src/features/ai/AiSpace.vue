@@ -190,6 +190,10 @@ watch(requestedAiConversation, (id) => {
   requestedAiConversation.value = null
 })
 
+// Settings cover the conversation rather than replacing it: pressing the entry
+// again puts back the chat that was open, which is still the selected one.
+function toggleSettings() { settingsShown.value = !settingsShown.value }
+
 async function makeConversation() {
   try { const created = await createConversation.mutateAsync(); selected.value = created.id; settingsShown.value = false }
   catch (cause) { toast.error(messageOf(cause, "A new chat could not be created")) }
@@ -367,15 +371,17 @@ onScopeDispose(stop)
           layout="navigation"
           icon="settings"
           label="Settings"
+          :aria-pressed="settingsShown"
           data-testid="ai-open-settings"
-          @click="settingsShown = true"
+          @click="toggleSettings"
         />
         <AppIconButton
           v-else
           icon="settings"
           tooltip="Settings"
+          :aria-pressed="settingsShown"
           data-testid="ai-open-settings"
-          @click="settingsShown = true"
+          @click="toggleSettings"
         />
       </div>
     </aside>
@@ -470,6 +476,8 @@ onScopeDispose(stop)
 .ai-window__rail-head, .ai-window__rail-foot { flex: none; display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-2); }
 .ai-window__rail-head > :first-child, .ai-window__rail-foot > :first-child { flex: 1; }
 .ai-window__rail-foot { flex-direction: column; align-items: stretch; border-top: 1px solid var(--dp-border); }
+/* The entry says it is the screen being shown, the way a chat row does. */
+.ai-window__rail-foot :deep(.q-btn[aria-pressed="true"]) { background: var(--dp-active); }
 .ai-window__rail--collapsed .ai-window__rail-head { flex-direction: column; }
 /* The collapsed rail takes the same forty pixels a collapsed workspace column
    or the dashboards rail does; the wide rail's padding would push past it. */
