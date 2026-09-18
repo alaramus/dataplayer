@@ -8,7 +8,11 @@ function result(transcript: string, isFinal: boolean): RecognitionResult {
 }
 
 function event(...results: RecognitionResult[]): RecognitionEvent {
-  return { resultIndex: 0, results: { length: results.length, ...results } }
+  // Built by hand rather than spread: spreading an array into an object gives
+  // its length as well, and the list already says how long it is.
+  const list: RecognitionEvent["results"] = { length: results.length }
+  results.forEach((result, index) => { list[index] = result })
+  return { resultIndex: 0, results: list }
 }
 
 function fake(): Recognition {
