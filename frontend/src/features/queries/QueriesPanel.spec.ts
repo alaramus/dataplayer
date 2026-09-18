@@ -72,6 +72,11 @@ function mountPanel() {
 
 beforeEach(() => {
   vi.restoreAllMocks()
+  // The library shows the runs of its queries; none of these tests is about
+  // runs, so there are none rather than a request to the network.
+  vi.spyOn(QueriesService, "listRuns").mockResolvedValue({
+    data: { data: [], count: 0 },
+  } as never)
   workspace.openQueryDocument.mockReset()
   queriesTarget.value = null
 })

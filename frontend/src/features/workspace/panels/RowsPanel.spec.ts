@@ -4,7 +4,7 @@ import { Quasar } from "quasar"
 import { defineComponent, ref } from "vue"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { ConnectorsService } from "@/client"
+import { ConnectorsService, QueriesService } from "@/client"
 import { createReloadRegistry, provideReloadRegistry } from "@/features/workspace/reloadable"
 import { workspaceActionsKey } from "@/features/workspace/state"
 
@@ -72,6 +72,9 @@ const Host = defineComponent({
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // A rows tab asks what its connection's console can do, for its query
+  // commands; none of these tests is about that, and the server is not there.
+  vi.spyOn(QueriesService, "readProfile").mockRejectedValue(new Error("Network Error"))
 })
 
 const SHEETS = [

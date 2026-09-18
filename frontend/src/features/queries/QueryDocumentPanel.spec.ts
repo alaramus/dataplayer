@@ -103,6 +103,15 @@ beforeEach(() => {
   vi.spyOn(ConnectorsService, "readConnectors").mockResolvedValue({
     data: { data: [], count: 0 },
   } as never)
+  // What the console asks about its connection and its text as it opens and
+  // is typed in — the dialect, the names to complete, whether writing is
+  // unlocked, the statements. None of these tests is about that, so the
+  // server is simply not there, as it was when these went to the network.
+  const offline = new Error("Network Error")
+  vi.spyOn(QueriesService, "readProfile").mockRejectedValue(offline)
+  vi.spyOn(QueriesService, "readMetadata").mockRejectedValue(offline)
+  vi.spyOn(QueriesService, "readUnlock").mockRejectedValue(offline)
+  vi.spyOn(QueriesService, "prepareText").mockRejectedValue(offline)
   vi.useFakeTimers()
   sessionStorage.clear()
   workspace.openQueryDocument.mockReset()

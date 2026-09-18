@@ -5,7 +5,7 @@ import { createPinia } from "pinia"
 import { Dialog, Notify, Quasar } from "quasar"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import { ConnectorsService } from "@/client"
+import { AdaptersService, ConnectorsService } from "@/client"
 import type { FetchColumn, FetchResult } from "@/client"
 import { AppSelect } from "@/shared/ui"
 import { AppIconButton, AppInput } from "@/shared/ui"
@@ -120,6 +120,12 @@ beforeEach(() => {
   vi.spyOn(ConnectorsService, "readActions").mockResolvedValue({
     data: [],
   } as never)
+  // The new-table window lists where a table can go: the connections and the
+  // types they are of. The one test about it names its own.
+  vi.spyOn(ConnectorsService, "readConnectors").mockResolvedValue({
+    data: { data: [], count: 0 },
+  } as never)
+  vi.spyOn(AdaptersService, "readAdapterTypes").mockResolvedValue({ data: [] } as never)
 })
 
 describe("the basic data grid", () => {
