@@ -121,8 +121,8 @@ function rename() {
     </AppPopup>
   </AppButton>
   <TabGroupNameDialog
-    :model-value="renaming !== null"
     v-model:name="name"
+    :model-value="renaming !== null"
     title="Rename tab group"
     :problem="problem"
     :busy="busy"
