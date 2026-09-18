@@ -3,7 +3,17 @@ import { computed, ref, watch } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
-import { AppButton, AppEmptyState, AppIconButton, AppSpinner, AppTooltip, AppTree, useToast } from "@/shared/ui"
+import {
+  AppButton,
+  AppCardFrame,
+  AppCardHead,
+  AppEmptyState,
+  AppIconButton,
+  AppSpinner,
+  AppTooltip,
+  AppTree,
+  useToast,
+} from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 import { WorkspaceSeparator } from "@/shared/workspace"
 import { useSideRail } from "@/shared/workspace/useSideRail"
@@ -128,36 +138,51 @@ defineExpose({
     class="dashboards"
     data-testid="dashboards-space"
   >
-    <div
+    <!-- Every card has its head, whatever state it is in: a card without one
+         is what made this space look like a different application. -->
+    <AppCardFrame
       v-if="status.isPending.value"
-      class="dashboards__card dashboards__card--main dashboards__center"
+      tag="section"
+      class="dashboards__main"
     >
-      <AppSpinner />
-    </div>
+      <AppCardHead title="Dashboards" />
+      <div class="dashboards__center">
+        <AppSpinner />
+      </div>
+    </AppCardFrame>
 
-    <div
+    <AppCardFrame
       v-else-if="status.isError.value"
-      class="dashboards__card dashboards__card--main dashboards__center"
+      tag="section"
+      class="dashboards__main"
     >
-      <AppEmptyState
-        icon="error_outline"
-        :text="messageOf(status.error.value, 'Dashboards could not be read')"
-      />
-    </div>
+      <AppCardHead title="Dashboards" />
+      <div class="dashboards__center">
+        <AppEmptyState
+          icon="error_outline"
+          :text="messageOf(status.error.value, 'Dashboards could not be read')"
+        />
+      </div>
+    </AppCardFrame>
 
-    <div
+    <AppCardFrame
       v-else-if="status.data.value && !ready"
-      class="dashboards__card dashboards__card--main"
+      tag="section"
+      class="dashboards__main"
     >
-      <StoreSetup
-        :status="status.data.value"
-        @retry="status.refetch()"
-      />
-    </div>
+      <AppCardHead title="Dashboards" />
+      <div class="dashboards__scroll">
+        <StoreSetup
+          :status="status.data.value"
+          @retry="status.refetch()"
+        />
+      </div>
+    </AppCardFrame>
 
     <template v-else>
-      <aside
-        class="dashboards__card dashboards__rail"
+      <AppCardFrame
+        tag="aside"
+        class="dashboards__rail"
         :style="{ flexBasis: `${String(shownRailWidth)}px` }"
         data-testid="dashboards-rail"
       >
@@ -174,9 +199,8 @@ defineExpose({
           @store="storeOpen = true"
         />
         <template v-else>
-          <div class="dashboards__heading">
-            <span>Dashboards</span>
-            <span class="dashboards__actions">
+          <AppCardHead title="Dashboards">
+            <template #actions>
               <!-- The header button collapses this rail; no chevron of its own. -->
               <AppButton
                 variant="quiet"
@@ -187,8 +211,8 @@ defineExpose({
                 data-testid="dashboard-new"
                 @click="createDashboard"
               />
-            </span>
-          </div>
+            </template>
+          </AppCardHead>
           <div class="dashboards__list">
             <AppButton
               v-for="dashboard in listed.own"
@@ -275,7 +299,7 @@ defineExpose({
             </AppTree>
           </div>
         </template>
-      </aside>
+      </AppCardFrame>
 
       <WorkspaceSeparator
         direction="row"
@@ -283,7 +307,10 @@ defineExpose({
         @toggle="pressGap"
       />
 
-      <section class="dashboards__card dashboards__card--main">
+      <AppCardFrame
+        tag="section"
+        class="dashboards__main"
+      >
         <DashboardView
           v-if="current"
           :key="current.id"
@@ -293,25 +320,29 @@ defineExpose({
           @agents="agentsOpen = true"
           @deleted="afterDelete"
         />
-        <div
-          v-else-if="dashboards.isPending.value"
-          class="dashboards__center"
-        >
-          <AppSpinner />
-        </div>
-        <div
-          v-else
-          class="dashboards__center dashboards__center--stacked"
-        >
-          <span>No dashboards yet.</span>
-          <AppButton
-            icon="add"
-            label="Create a dashboard"
-            data-testid="dashboard-create-first"
-            @click="createDashboard"
-          />
-        </div>
-      </section>
+        <template v-else>
+          <!-- Empty, as an empty column of Data keeps its strip. -->
+          <AppCardHead />
+          <div
+            v-if="dashboards.isPending.value"
+            class="dashboards__center"
+          >
+            <AppSpinner />
+          </div>
+          <div
+            v-else
+            class="dashboards__center dashboards__center--stacked"
+          >
+            <span>No dashboards yet.</span>
+            <AppButton
+              icon="add"
+              label="Create a dashboard"
+              data-testid="dashboard-create-first"
+              @click="createDashboard"
+            />
+          </div>
+        </template>
+      </AppCardFrame>
     </template>
 
     <AgentsDialog v-model="agentsOpen" />
@@ -333,28 +364,22 @@ defineExpose({
   box-sizing: border-box;
 }
 
-/* The same card a workspace section is (D12). */
-.dashboards__card {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  box-sizing: border-box;
-  border: 1px solid var(--dp-border);
-  border-radius: var(--dp-radius-panel);
-  background: var(--dp-surface);
-}
-
 .dashboards__rail {
   flex-grow: 0;
   flex-shrink: 0;
 }
 
-.dashboards__card--main {
+.dashboards__main {
   flex: 1;
 }
 
+.dashboards__scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* A group inside the rail, under the card's own head. */
 .dashboards__heading {
   display: flex;
   align-items: center;
@@ -362,11 +387,6 @@ defineExpose({
   min-height: var(--dp-tab-strip-height);
   padding: 0 var(--dp-space-1) 0 var(--dp-space-2);
   color: var(--dp-text-muted);
-}
-
-.dashboards__actions {
-  display: flex;
-  align-items: center;
 }
 
 /* A dashboard's own colour, as a connection's row carries it (railEntry.ts). */
@@ -399,10 +419,11 @@ defineExpose({
 }
 
 .dashboards__center {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
   color: var(--dp-text-muted);
 }
 

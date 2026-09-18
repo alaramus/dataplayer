@@ -7,6 +7,8 @@ import {
   AppBanner,
   AppButton,
   AppCard,
+  AppCardFrame,
+  AppCardHead,
   AppColorPicker,
   AppEmptyState,
   AppFileInput,
@@ -492,6 +494,31 @@ function removeSavedEntry(name: string) {
           A footer is AppActions; inside a dialog it is the actions slot.
         </span>
       </AppActions>
+    </AppCard>
+
+    <AppCard
+      size="lg"
+      title="Cards"
+      class="q-mb-md"
+    >
+      <AppSection>
+        <AppCardFrame
+          tag="section"
+        >
+          <AppCardHead title="A card">
+            <template #actions>
+              <AppIconButton
+                icon="add"
+                tooltip="Add"
+              />
+            </template>
+          </AppCardHead>
+          <AppSection>
+            A card of the working screens and its head: a Data section, a dashboard and a chat
+            all stand in one.
+          </AppSection>
+        </AppCardFrame>
+      </AppSection>
     </AppCard>
 
     <AppCard

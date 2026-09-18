@@ -56,7 +56,6 @@ async function removeAll() {
     class="ai-settings"
     data-testid="ai-settings"
   >
-    <h2>Settings</h2>
     <AppSpinner v-if="settings.isPending.value" />
     <AppBanner
       v-else-if="settings.isError.value"
@@ -150,9 +149,9 @@ async function removeAll() {
 </template>
 
 <style scoped>
-.ai-settings { height: 100%; overflow: auto; }
-.ai-settings h2, .ai-settings h3 { margin: 0; font-size: 16px; font-weight: 500; }
-.ai-settings h3 { font-size: 14px; }
+/* Under the card's head, which names it. */
+.ai-settings { flex: 1; min-height: 0; overflow: auto; }
+.ai-settings h3 { margin: 0; font-size: 14px; font-weight: 500; }
 .ai-archived { display: flex; align-items: center; gap: var(--dp-space-1); }
 .ai-archived__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

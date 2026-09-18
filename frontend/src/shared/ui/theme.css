@@ -36,6 +36,8 @@
   --dp-surface-raised: #fff;
   --dp-chrome: #eef0f3;
   --dp-chrome-raised: #f7f8fa;
+  /* The head of every card, a Data section's tab strip included. */
+  --dp-card-head: var(--dp-chrome-raised);
 
   /* What a tab or a marked row of connections is filled with when nobody
      chose a colour for the connection. The plain half of the colour that
@@ -161,9 +163,11 @@ body.body--dark {
   --dp-surface-raised: #1d1d1d;
   --dp-chrome: #1e1f22;
   --dp-chrome-raised: #2b2d30;
+  --dp-card-head: var(--dp-chrome-raised);
   /* Written again rather than inherited: a custom property is substituted
      where it is *declared*, and these values are declared on `body`, so a
-     lone :root declaration would hand the dark theme the light grey. */
+     lone :root declaration would hand the dark theme the light grey. The
+     same holds for --dp-card-head above. */
   --dp-panel-plain: var(--dp-chrome);
   --dp-panel-plain-quiet: color-mix(in srgb, var(--dp-panel-plain) 50%, var(--dp-surface));
 

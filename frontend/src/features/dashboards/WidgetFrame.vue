@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref } from "vue"
 
-import { AppIconButton, AppInput } from "@/shared/ui"
+import { AppCardFrame, AppCardHead, AppIconButton, AppInput } from "@/shared/ui"
 
 import { MAX_TITLE } from "./dashboardModel"
 
@@ -57,11 +57,11 @@ function onHeaderPointerDown(event: PointerEvent) {
 </script>
 
 <template>
-  <div
+  <AppCardFrame
     class="widget-frame"
     data-testid="widget"
   >
-    <div
+    <AppCardHead
       class="widget-frame__header"
       @pointerdown="onHeaderPointerDown"
       @dblclick="startRename"
@@ -103,7 +103,7 @@ function onHeaderPointerDown(event: PointerEvent) {
         data-testid="widget-remove"
         @click="emit('remove')"
       />
-    </div>
+    </AppCardHead>
     <div class="widget-frame__body">
       <div
         v-if="error"
@@ -119,29 +119,17 @@ function onHeaderPointerDown(event: PointerEvent) {
       title="Drag to resize"
       @pointerdown.stop="emit('grabResize', $event)"
     />
-  </div>
+  </AppCardFrame>
 </template>
 
 <style scoped>
+/* A card like any other (AppCardFrame), with the head it is dragged by. */
 .widget-frame {
   position: relative;
-  display: flex;
-  flex-direction: column;
   height: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--dp-border);
-  border-radius: var(--dp-radius-panel);
-  background: var(--dp-surface);
-  overflow: hidden;
 }
 
 .widget-frame__header {
-  display: flex;
-  align-items: center;
-  gap: var(--dp-space-1);
-  min-height: var(--dp-tab-strip-height);
-  padding: 0 var(--dp-space-1) 0 var(--dp-space-2);
-  border-bottom: 1px solid var(--dp-border-faint);
   cursor: grab;
   user-select: none;
   touch-action: none;

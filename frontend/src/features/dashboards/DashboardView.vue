@@ -5,7 +5,16 @@ import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } 
 
 import type { DashboardPublic, MetricsCatalog } from "@/client"
 import { messageOf } from "@/shared/api/errors"
-import { AppButton, AppColorPicker, AppIconButton, AppInput, AppSelect, useConfirm, useToast } from "@/shared/ui"
+import {
+  AppButton,
+  AppCardHead,
+  AppColorPicker,
+  AppIconButton,
+  AppInput,
+  AppSelect,
+  useConfirm,
+  useToast,
+} from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 import { useWindowManager, WindowDialog } from "@/shared/windows"
 
@@ -256,7 +265,7 @@ onBeforeUnmount(() => {
     class="dashboard-view"
     data-testid="dashboard-view"
   >
-    <div class="dashboard-view__toolbar">
+    <AppCardHead>
       <span
         class="dashboard-view__name"
         :class="{ 'dashboard-view__name--colored': color !== null }"
@@ -321,7 +330,7 @@ onBeforeUnmount(() => {
         data-testid="dashboard-add"
         @click="addOpen = true"
       />
-    </div>
+    </AppCardHead>
 
     <div class="dashboard-view__body">
       <div
@@ -416,15 +425,6 @@ onBeforeUnmount(() => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-}
-
-.dashboard-view__toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--dp-space-2);
-  min-height: var(--dp-toolbar-height);
-  padding: 0 var(--dp-space-2);
-  border-bottom: 1px solid var(--dp-border-faint);
 }
 
 .dashboard-view__name {

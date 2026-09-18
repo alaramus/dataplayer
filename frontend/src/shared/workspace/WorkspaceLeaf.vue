@@ -421,7 +421,8 @@ const overlayStyle = computed((): CSSProperties => {
 <style scoped>
 /* A card: its own ground, its own edge, its own corners. What separates two
    of them is the space between, which is also what is dragged to resize
-   them — see WorkspaceSeparator. */
+   them — see WorkspaceSeparator. The same frame as AppCardFrame, written out
+   here because this root carries the drag handlers and is measured. */
 .workspace-leaf {
   position: relative;
   display: flex;
@@ -440,8 +441,9 @@ const overlayStyle = computed((): CSSProperties => {
   align-items: flex-start;
   gap: 2px;
   padding: 2px var(--dp-space-1);
+  /* The head every card has (AppCardHead). */
   border-bottom: 1px solid var(--dp-border);
-  background: var(--dp-chrome-raised);
+  background: var(--dp-card-head);
   /* The head of a column is one height whatever stands in it: a column with a
      tab beside one with only its handles put the line under them at two
      different heights, which reads as a broken layout rather than as an empty

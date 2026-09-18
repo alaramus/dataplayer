@@ -137,6 +137,12 @@ Consequences:
   line reserved for a validation message. `AppSelect` clips its append area so
   the rotating arrow cannot widen a scrollable toolbar; its teleported options
   stay outside the clip.
+- **A card is one look.** A Data section, the dashboards rail and dashboard,
+  a widget, the chats and a chat are `AppCardFrame` with an `AppCardHead`:
+  one frame, and a head of the tab strip's height on `--dp-card-head` in
+  every state, empty or loading included. Collapsed rails have none, as a
+  collapsed Data column has none. `WorkspaceLeaf` draws the same frame and
+  head from the same tokens, because its root is the engine's.
 - **Button layout belongs to the kit.** `toolbar` keeps an icon and label on one
   line, `navigation` aligns an entry to the left, and `AppTree` owns the full-row
   selection mark. Screens size fields through their own classes on kit

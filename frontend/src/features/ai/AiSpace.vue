@@ -3,7 +3,16 @@ import { useQueryClient } from "@tanstack/vue-query"
 import { computed, onScopeDispose, ref, watch } from "vue"
 
 import type { AgentRunPublic, AgentStepPublic, ConversationPublic, ConversationsPublic } from "@/client"
-import { AppButton, AppIconButton, AppInput, AppSpinner, useConfirm, useToast } from "@/shared/ui"
+import {
+  AppButton,
+  AppCardFrame,
+  AppCardHead,
+  AppIconButton,
+  AppInput,
+  AppSpinner,
+  useConfirm,
+  useToast,
+} from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 import { realtime } from "@/shared/realtime/client"
 import { messageOf } from "@/shared/api/errors"
@@ -240,25 +249,41 @@ onScopeDispose(stop)
     class="ai-space"
     data-testid="ai-space"
   >
-    <aside
-      class="ai-window__card ai-window__rail"
+    <AppCardFrame
+      tag="aside"
+      class="ai-window__rail"
       :class="{ 'ai-window__rail--collapsed': collapsed }"
       :style="{ flexBasis: `${String(shownRailWidth)}px` }"
       data-testid="ai-rail"
     >
-      <div class="ai-window__rail-head">
-        <!-- The header button collapses this rail; no chevron of its own. -->
-        <AppButton
-          v-if="!collapsed"
-          variant="quiet"
-          layout="navigation"
-          icon="add_comment"
-          label="New chat"
-          data-testid="ai-new-chat"
-          @click="makeConversation"
-        />
+      <!-- The header button collapses this rail; no chevron of its own.
+           Collapsed, it has no head, as a collapsed column of Data has none. -->
+      <AppCardHead
+        v-if="!collapsed"
+        title="Chats"
+      >
+        <template #actions>
+          <AppButton
+            variant="quiet"
+            size="sm"
+            icon="add_comment"
+            label="New chat"
+            data-testid="ai-new-chat"
+            @click="makeConversation"
+          />
+          <AppIconButton
+            icon="create_new_folder"
+            tooltip="New project"
+            data-testid="ai-new-project"
+            @click="beginProjectFor(null)"
+          />
+        </template>
+      </AppCardHead>
+      <div
+        v-else
+        class="ai-window__rail-head"
+      >
         <AppIconButton
-          v-else
           icon="add_comment"
           tooltip="New chat"
           data-testid="ai-new-chat"
@@ -360,20 +385,25 @@ onScopeDispose(stop)
           @click="toggleSettings"
         />
       </div>
-    </aside>
+    </AppCardFrame>
     <WorkspaceSeparator
       direction="row"
       @move="resizeRail"
       @toggle="pressGap"
     />
-    <main
-      class="ai-window__card ai-window__main"
+    <AppCardFrame
+      tag="main"
+      class="ai-window__main"
       data-testid="ai-conversation-card"
     >
+      <AppCardHead
+        v-if="settingsShown"
+        title="Settings"
+      />
       <!-- The open chat is named where the eye already is; pressing the name
            is how a chat is renamed. -->
-      <div
-        v-if="selectedChat !== null && !settingsShown"
+      <AppCardHead
+        v-else-if="selectedChat !== null"
         class="ai-window__head"
         data-testid="ai-chat-head"
       >
@@ -397,7 +427,8 @@ onScopeDispose(stop)
         >
           {{ selectedChat.title }}
         </button>
-      </div>
+      </AppCardHead>
+      <AppCardHead v-else />
       <AiSettings v-if="settingsShown" />
       <AiConversation
         v-else-if="selected"
@@ -415,7 +446,7 @@ onScopeDispose(stop)
           @click="makeConversation"
         />
       </div>
-    </main>
+    </AppCardFrame>
     <WindowDialog
       v-model="projectDialogShown"
       :title="renamingProject === null ? 'New project' : 'Rename project'"
@@ -447,8 +478,7 @@ onScopeDispose(stop)
 
 <style scoped>
 .ai-space { width: 100%; height: 100%; min-height: 0; display: flex; overflow: hidden; }
-.ai-window__card { min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--dp-border); border-radius: var(--dp-radius-panel); background: var(--dp-surface); }
-.ai-window__rail { flex-grow: 0; flex-shrink: 0; display: flex; flex-direction: column; }
+.ai-window__rail { flex-grow: 0; flex-shrink: 0; }
 .ai-window__rail-head, .ai-window__rail-foot { flex: none; display: flex; align-items: center; gap: var(--dp-space-1); padding: var(--dp-space-2); }
 .ai-window__rail-head > :first-child, .ai-window__rail-foot > :first-child { flex: 1; }
 .ai-window__rail-foot { flex-direction: column; align-items: stretch; border-top: 1px solid var(--dp-border); }
@@ -468,16 +498,12 @@ onScopeDispose(stop)
 /* The chats of a folder are stepped in under its name, which is the whole way
    a reader sees what is in it. */
 .ai-window__project-chats { padding-left: var(--dp-space-3); }
-.ai-window__main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-.ai-window__head { flex: none; display: flex; align-items: center; height: var(--dp-tab-strip-height); padding: 0 var(--dp-space-3); border-bottom: 1px solid var(--dp-border-faint); }
-/* Trap: a dense Quasar field's control is 40px, taller than this strip, so
-   pressing the name grew the header by eight pixels and pushed the whole
-   conversation down. The field takes the strip's height and the heading's
-   type, so renaming moves nothing. */
+.ai-window__main { flex: 1; }
+/* The field takes the heading's type, so renaming moves nothing; its height
+   is the head's own (AppCardHead). */
 .ai-window__head :deep(.q-field) { font-size: inherit; }
-.ai-window__head :deep(.q-field__control) { height: var(--dp-tab-strip-height); }
-.ai-window__head :deep(.q-field__native) { padding: 0; font-weight: 600; line-height: var(--dp-tab-strip-height); }
+.ai-window__head :deep(.q-field__native) { font-weight: 500; }
 .ai-window__head > :first-child { flex: 1; min-width: 0; }
-.ai-window__head-title { max-width: 100%; overflow: hidden; border: 0; padding: 0; background: transparent; color: var(--dp-text-strong); font: inherit; font-weight: 600; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: text; }
+.ai-window__head-title { max-width: 100%; overflow: hidden; border: 0; padding: 0; background: transparent; color: var(--dp-text-strong); font: inherit; font-weight: 500; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: text; }
 .ai-window__welcome { flex: 1; display: grid; place-items: center; }
 </style>
