@@ -45,6 +45,7 @@ from app.ai.models import (  # noqa
     ChatProject,
     Conversation,
     ConversationMessage,
+    MessageAttachment,
     ProviderKey,
 )
 from app.ai.checkpoints import CHECKPOINT_TABLES  # noqa

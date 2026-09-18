@@ -5,7 +5,7 @@ it may do, how it asks, how an answer runs and is shown, and which models it
 uses. Read this before adding a tool, before sending a connection's data to a
 model provider, and before changing the chat window.
 
-Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141.
+Decisions here: D133, D134, D135, D136, D137, D138, D139, D140, D141, D142.
 
 **Implementation status:** agreed on 2026-09-14. AI1 — the third-party transfer
 flag —, AI2 — a new file by name —, AI3, AI4, AI5 and AI6 are implemented.
@@ -80,6 +80,7 @@ backend/app/ai/
 ├── catalog.py       reading that file
 ├── models.py        keys, choices and the transcript, and the API models
 ├── content.py       the one place conversation text is sealed and opened
+├── attachments.py   files sent with a message: what is taken, what the model is given
 ├── preferences.py   keys set, removed and checked; the chosen model
 ├── conversations.py the transcript's rows and what the API sends of them
 ├── runner.py        an answer: recorded, streamed, settled, titled
@@ -99,10 +100,13 @@ frontend/src/features/ai/
 ├── AiChatRow.vue       one chat in the history: pin, project, archive
 ├── AiConversation.vue  transcript, steps, the confirmation card, Stop, copy, listen, the context chips and the composer's own model
 ├── AiContextDialog.vue the open tabs a message may carry
+├── AiFileChip.vue      one file of a message, before and after it is sent
+├── AiMessageFiles.vue  the files a sent message carried, read with the person's token
 ├── AiSettings.vue      provider keys, model, confirmations and the archive
 ├── ChatMarkdown.vue    the D50 renderer in streaming mode
 ├── attention.ts        a waiting conversation as a Needs-you item (D113)
 ├── api.ts              vue-query ownership of server state
+├── attachments.ts      which picked files join a message, by the server's rules
 ├── context.ts          which open panels a chip may name, and the open intent
 ├── dictation.ts        the browser's recogniser behind the composer's microphone
 ├── outline.ts          the questions of a conversation, and which one is being read
@@ -161,7 +165,8 @@ content, structure, summaries, records, charts and relationships — including
 tabs detached into floating windows; the person may attach up
 to five. The query library, consoles and captured results are not listed:
 their content never travels and no tool reads it, so listing them would
-invite the model to claim it saw them. Their connection, node and panel kind travel with the next message as
+invite the model to claim it saw them. A file from the computer is the other
+thing the plus offers, and its content does travel (D142). Their connection, node and panel kind travel with the next message as
 removable chips, never their content. A successful send clears the selection
 so it cannot be sent twice by accident; a failed send keeps it. Switching tabs
 never changes the selection.
@@ -323,5 +328,33 @@ conversation or deletes it, one at a time or all at once, which is the only
 place anything is deleted. A pin survives archiving, so a restored conversation
 comes back where it was. Content is encrypted at rest under `AI_CONTENT_KEY`.
 No editing, tags, rewind, branches or search.
+
+Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)
+
+## D142. A message may carry the person's own files
+
+The plus beside the composer offers the open tabs (D133) and files from the
+computer: text and images, nothing else. A file is an image when its first
+bytes are PNG, JPEG, WebP or GIF, whatever it is named or typed as, and text
+when it reads as UTF-8 without a NUL; anything else is refused in a sentence
+before a run exists. A message carries at most five files, an image up to
+5 MB, text up to 256 KB, 10 MB together; the settings API sends these numbers,
+the composer checks them before sending and the server again when it is sent.
+Images are offered only to a model whose entry in D140's file reads them; an
+image already attached when the model changes holds the message back until it
+goes. A message may be a file alone, and then names the chat.
+
+Unlike a tab, a file's content travels to the provider: text inside the
+message, fenced and named, an image as the standard image block, and both stay
+in the model's working state for later turns like the rest of the message. A
+file is part of its message: stored with it in one commit, its name and bytes
+sealed under `AI_CONTENT_KEY`, listed in the transcript without reading its
+bytes, served only to the conversation's owner — an image as the type its bytes
+showed, anything else as plain text — and deleted with the message. The
+message travels as a form: its text, its tabs as one JSON field, its files.
+
+Rejected: uploading a file before the message is sent, which leaves files
+nobody sent to be swept; PDF and Office documents, drag and drop and pasting,
+in this first version.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)

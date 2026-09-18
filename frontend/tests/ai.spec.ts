@@ -70,6 +70,38 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId("ai-key-dialog")).toBeVisible()
   await page.getByTestId("ai-key-dialog").getByRole("button", { name: "Close" }).click()
 
+  // Files travel with a message beside the tabs (D142). An image shows itself,
+  // and one the chosen model cannot read holds the message back until it goes.
+  await page.getByTestId("ai-attach").click()
+  await expect(page.getByTestId("menu-item-files")).toBeVisible()
+  await page.keyboard.press("Escape")
+  await page.getByTestId("ai-file-input").setInputFiles([
+    { name: "notes.md", mimeType: "text/markdown", buffer: Buffer.from("Order 42 shipped late.\n") },
+    {
+      name: "dot.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        "base64"
+      ),
+    },
+  ])
+  const files = page.getByTestId("ai-file-chip")
+  await expect(files).toHaveCount(2)
+  await expect(files.nth(1).locator("img")).toBeVisible()
+  await expect(page.getByTestId("ai-send")).toBeEnabled()
+  await page.getByTestId("ai-chat-model").click()
+  await page.getByRole("option", { name: /DeepSeek V4 Flash/ }).click()
+  await expect(files.nth(1)).toContainText("DeepSeek V4 Flash does not read images")
+  await expect(page.getByTestId("ai-send")).toBeDisabled()
+  await page.getByRole("button", { name: "Remove dot.png" }).click()
+  await expect(page.getByTestId("ai-send")).toBeEnabled()
+  await page.getByRole("button", { name: "Remove notes.md" }).click()
+  await expect(files).toHaveCount(0)
+  await page.getByTestId("ai-chat-model").click()
+  await page.getByRole("option", { name: /Claude Opus 5/ }).click()
+  await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Opus 5")
+
   // What the agent may change belongs to the chat too, and read only is the
   // narrow end of the three.
   await page.getByTestId("ai-chat-policy").click()

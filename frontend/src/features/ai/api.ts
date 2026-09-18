@@ -162,11 +162,30 @@ export function useDeleteAiProject() {
 export function useSendAiMessage() {
   const invalidate = useConversationInvalidation()
   return useMutation({
-    mutationFn: async ({ id, text, contexts }: { id: string; text: string; contexts: ScreenContext[] }) => (
-      await AiService.sendMessage({ path: { conversation_id: id }, body: { text, contexts } })
+    mutationFn: async ({ id, text, contexts, files }: {
+      id: string
+      text: string
+      contexts: ScreenContext[]
+      files: File[]
+    }) => (
+      // A form, for the files; the tabs are a JSON field of it (D142).
+      await AiService.sendMessage({
+        path: { conversation_id: id },
+        body: { text, contexts: JSON.stringify(contexts), files },
+      })
     ).data,
     onSuccess: (run) => invalidate(run.conversation_id),
   })
+}
+
+/** A file sent with a message, as the bytes it was sent as. */
+export async function fetchAiAttachment(conversationId: string, attachmentId: string): Promise<Blob> {
+  return (
+    await AiService.readAttachment({
+      path: { conversation_id: conversationId, attachment_id: attachmentId },
+      responseType: "blob",
+    })
+  ).data as Blob
 }
 
 export function useCancelAiRun() {

@@ -611,6 +611,7 @@ export type AgentSettingsPublic = {
    * Keys
    */
   keys: Array<ProviderKeyState>
+  attachments: AttachmentRules
 }
 
 /**
@@ -854,6 +855,35 @@ export type ArrivingReferencesRequest = {
 }
 
 /**
+ * AttachmentRules
+ *
+ * What one message may carry (D142): the composer checks before sending,
+ * the server when it is sent, and both read these numbers from here.
+ */
+export type AttachmentRules = {
+  /**
+   * Max Files
+   */
+  max_files: number
+  /**
+   * Max Image Bytes
+   */
+  max_image_bytes: number
+  /**
+   * Max Text Bytes
+   */
+  max_text_bytes: number
+  /**
+   * Max Total Bytes
+   */
+  max_total_bytes: number
+  /**
+   * Image Types
+   */
+  image_types: Array<string>
+}
+
+/**
  * AudioContent
  *
  * Verified facts about one sound file, and where its bytes are read.
@@ -992,6 +1022,24 @@ export type BackupRequest = {
    * Connector Id
    */
   connector_id: string
+}
+
+/**
+ * Body_ai-send_message
+ */
+export type Body_ai_send_message = {
+  /**
+   * Text
+   */
+  text?: string
+  /**
+   * Contexts
+   */
+  contexts?: string | null
+  /**
+   * Files
+   */
+  files?: Array<Blob | File> | null
 }
 
 /**
@@ -2225,20 +2273,6 @@ export type ContinuousAggregateFacts = {
 }
 
 /**
- * ConversationMessageCreate
- */
-export type ConversationMessageCreate = {
-  /**
-   * Text
-   */
-  text: string
-  /**
-   * Contexts
-   */
-  contexts?: Array<ScreenContext>
-}
-
-/**
  * ConversationMessagePublic
  */
 export type ConversationMessagePublic = {
@@ -2254,6 +2288,10 @@ export type ConversationMessagePublic = {
    * Content
    */
   content: string
+  /**
+   * Attachments
+   */
+  attachments?: Array<MessageAttachmentPublic>
   /**
    * Run Id
    */
@@ -5361,6 +5399,32 @@ export type Message = {
 }
 
 /**
+ * MessageAttachmentPublic
+ */
+export type MessageAttachmentPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Kind
+   */
+  kind: "text" | "image"
+  /**
+   * Media Type
+   */
+  media_type: string
+  /**
+   * Size
+   */
+  size: number
+}
+
+/**
  * MetricInfo
  */
 export type MetricInfo = {
@@ -8294,6 +8358,17 @@ export type ScreenContext = {
    */
   node_id?: string | null
 }
+
+/**
+ * ScreenContexts
+ *
+ * The tabs of one message as the form field that carries them (D142).
+ *
+ * A model around the list rather than the list itself: FastAPI reads a form
+ * field typed as a list by collecting every value of that name, and handed
+ * JSON's validator a list where it expects the string it was sent.
+ */
+export type ScreenContexts = Array<ScreenContext>
 
 /**
  * SeriesHistory
@@ -16426,7 +16501,7 @@ export type aiUpdateConversationResponse =
   aiUpdateConversationResponses[keyof aiUpdateConversationResponses]
 
 export type aiSendMessageData = {
-  body: ConversationMessageCreate
+  body?: Body_ai_send_message
   path: {
     /**
      * Conversation Id
@@ -16454,6 +16529,40 @@ export type aiSendMessageResponses = {
 }
 
 export type aiSendMessageResponse = aiSendMessageResponses[keyof aiSendMessageResponses]
+
+export type aiReadAttachmentData = {
+  body?: never
+  path: {
+    /**
+     * Conversation Id
+     */
+    conversation_id: string
+    /**
+     * Attachment Id
+     */
+    attachment_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/conversations/{conversation_id}/attachments/{attachment_id}"
+}
+
+export type aiReadAttachmentErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiReadAttachmentError = aiReadAttachmentErrors[keyof aiReadAttachmentErrors]
+
+export type aiReadAttachmentResponses = {
+  /**
+   * Successful Response
+   */
+  200: Blob | File
+}
+
+export type aiReadAttachmentResponse = aiReadAttachmentResponses[keyof aiReadAttachmentResponses]
 
 export type aiReadRunData = {
   body?: never

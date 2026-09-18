@@ -7,13 +7,17 @@ connections and jobs follow (D33, D81).
 
 import json
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
+from typing import cast
 
 from sqlalchemy import func
+from sqlalchemy.orm import QueryableAttribute, defer
 from sqlmodel import col, delete, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.ai.content import opened, sealed
+from app.ai.attachments import NewAttachment
+from app.ai.content import opened, sealed, sealed_bytes
 from app.ai.models import (
     MAX_TITLE_CHARS,
     TERMINAL,
@@ -32,6 +36,8 @@ from app.ai.models import (
     ConversationPublic,
     ConversationsPublic,
     ConversationSummary,
+    MessageAttachment,
+    MessageAttachmentPublic,
     Role,
     RunStatus,
     StepKind,
@@ -302,11 +308,25 @@ async def add_message(
     role: Role,
     text: str,
     run_id: uuid.UUID | None,
+    attachments: Sequence[NewAttachment] = (),
 ) -> ConversationMessage:
     message = ConversationMessage(
         conversation_id=conversation_id, role=role, content=sealed(text), run_id=run_id
     )
     session.add(message)
+    # In the message's own commit: a message is never seen without its files.
+    for ordinal, one in enumerate(attachments):
+        session.add(
+            MessageAttachment(
+                message_id=message.id,
+                ordinal=ordinal,
+                kind=one.kind,
+                media_type=one.media_type,
+                size=len(one.content),
+                name=sealed(one.name),
+                content=sealed_bytes(one.content),
+            )
+        )
     await session.exec(
         update(Conversation)
         .where(col(Conversation.id) == conversation_id)
@@ -314,6 +334,60 @@ async def add_message(
     )
     await session.commit()
     return message
+
+
+async def attachments_of(
+    session: AsyncSession, message_ids: Sequence[uuid.UUID]
+) -> dict[uuid.UUID, list[MessageAttachmentPublic]]:
+    """What each message carried, without reading a byte of it (D142)."""
+    if not message_ids:
+        return {}
+    rows = (
+        await session.exec(
+            select(MessageAttachment)
+            .where(col(MessageAttachment.message_id).in_(message_ids))
+            .order_by(col(MessageAttachment.ordinal))
+            # SQLModel types the attribute as the value it holds; on the class it
+            # is the column, which is what defer takes.
+            .options(defer(cast("QueryableAttribute[bytes]", MessageAttachment.content)))
+        )
+    ).all()
+    found: dict[uuid.UUID, list[MessageAttachmentPublic]] = {}
+    for row in rows:
+        found.setdefault(row.message_id, []).append(
+            MessageAttachmentPublic(
+                id=row.id,
+                name=opened(row.name),
+                kind="image" if row.kind == "image" else "text",
+                media_type=row.media_type,
+                size=row.size,
+            )
+        )
+    return found
+
+
+async def attachment_for_owner(
+    session: AsyncSession,
+    conversation_id: uuid.UUID,
+    attachment_id: uuid.UUID,
+    owner_id: uuid.UUID,
+) -> MessageAttachment | None:
+    """One file of somebody's own conversation; anybody else's is not found."""
+    return (
+        await session.exec(
+            select(MessageAttachment)
+            .join(
+                ConversationMessage,
+                col(ConversationMessage.id) == col(MessageAttachment.message_id),
+            )
+            .join(Conversation, col(Conversation.id) == col(ConversationMessage.conversation_id))
+            .where(
+                MessageAttachment.id == attachment_id,
+                Conversation.id == conversation_id,
+                Conversation.owner_id == owner_id,
+            )
+        )
+    ).first()
 
 
 async def active_run(
@@ -586,6 +660,7 @@ async def conversation_public(
             .order_by(col(ConversationMessage.created_at))
         )
     ).all()
+    carried = await attachments_of(session, [message.id for message in messages])
     runs = (
         await session.exec(
             select(AgentRun)
@@ -607,6 +682,7 @@ async def conversation_public(
                 id=message.id,
                 role=message.role,  # type: ignore[arg-type]  # the column holds the union
                 content=opened(message.content),
+                attachments=carried.get(message.id, []),
                 run_id=message.run_id,
                 created_at=message.created_at,
             )

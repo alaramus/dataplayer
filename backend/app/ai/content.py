@@ -9,3 +9,12 @@ def sealed(text: str) -> bytes:
 
 def opened(payload: bytes) -> str:
     return crypto.decrypt(payload, purpose="ai_content").decode()
+
+
+def sealed_bytes(data: bytes) -> bytes:
+    """A file sent with a message, under the same key as its text (D142)."""
+    return crypto.encrypt(data, purpose="ai_content")
+
+
+def opened_bytes(payload: bytes) -> bytes:
+    return crypto.decrypt(payload, purpose="ai_content")

@@ -2,16 +2,19 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
 import type { AgentRunPublic, ConversationMessagePublic, ConversationUpdate, ScreenContext } from "@/client"
-import { AppBanner, AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, useToast } from "@/shared/ui"
-import type { SelectOption } from "@/shared/ui"
+import { AppBanner, AppButton, AppIconButton, AppInput, AppMenu, AppSelect, AppSpinner, useToast } from "@/shared/ui"
+import type { MenuItem, SelectOption } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
 import ChatMarkdown from "./ChatMarkdown.vue"
+import { acceptFor, admit, kindOf } from "./attachments"
+import type { AttachmentKind } from "./attachments"
 import { useDictation } from "./dictation"
 import { markAt, outlineMarks } from "./outline"
 import { plainSpeechText } from "./streaming"
 import {
   useAiConversation,
+  useAiModels,
   useAiSettings,
   useAnswerAiRun,
   useCancelAiRun,
@@ -20,11 +23,14 @@ import {
   useUpdateAiSettings,
 } from "./api"
 import AiContextDialog from "./AiContextDialog.vue"
+import AiFileChip from "./AiFileChip.vue"
+import AiMessageFiles from "./AiMessageFiles.vue"
 import AiModelSelect from "./AiModelSelect.vue"
 
 const props = defineProps<{ conversationId: string; contexts: ScreenContext[] }>()
 const conversation = useAiConversation(() => props.conversationId)
 const settings = useAiSettings()
+const models = useAiModels()
 const updateConversation = useUpdateAiConversation()
 const updateSettings = useUpdateAiSettings()
 const send = useSendAiMessage()
@@ -53,7 +59,71 @@ const unrepresentedRuns = computed(() => {
   const represented = new Set((conversation.data.value?.messages ?? []).flatMap((message) => message.run_id ? [message.run_id] : []))
   return (conversation.data.value?.runs ?? []).filter((run) => !represented.has(run.id) && !["running", "awaiting_answer", "succeeded"].includes(run.status))
 })
-const canSend = computed(() => draft.value.trim().length > 0 && activeRun.value === null && !send.isPending.value)
+
+// Files for the next message (D142): kept here until it is sent, each with an
+// address of this page to draw or open it from, released when it goes.
+interface PendingFile { id: string; file: File; kind: AttachmentKind; address: string }
+const pending = ref<PendingFile[]>([])
+const picker = ref<HTMLInputElement | null>(null)
+const rules = computed(() => settings.data.value?.attachments ?? null)
+const currentModel = computed(() => (models.data.value ?? []).find((one) => one.key === chatModel.value) ?? null)
+const readsImages = computed(() => currentModel.value?.image_input ?? false)
+// An image picked for one model stays when another is chosen; the message
+// then waits for a model that reads it, or for the image to go.
+const imageProblem = computed(() =>
+  readsImages.value ? "" : `${currentModel.value?.name ?? "This model"} does not read images`
+)
+const blocked = computed(() => pending.value.some((one) => one.kind === "image") && imageProblem.value !== "")
+const attachItems = computed<MenuItem[]>(() => [
+  {
+    name: "tabs",
+    label: "Workspace tabs…",
+    icon: "tab",
+    disable: props.contexts.length === 0,
+    ...(props.contexts.length === 0 ? { hint: "No open tab names a connection or a node" } : {}),
+  },
+  { name: "files", label: "Files from computer…", icon: "attach_file", disable: rules.value === null },
+])
+function chooseAttachment(name: string) {
+  if (name === "tabs") contextDialogShown.value = true
+  if (name === "files") picker.value?.click()
+}
+function pickFiles(event: Event) {
+  const input = event.target as HTMLInputElement
+  const picked = [...(input.files ?? [])]
+  // Emptied, so the same file can be picked again after it was removed.
+  input.value = ""
+  const given = rules.value
+  if (given === null) return
+  const { taken, refused } = admit(
+    picked,
+    pending.value.map((one) => one.file),
+    given,
+    { name: currentModel.value?.name ?? "This model", readsImages: readsImages.value }
+  )
+  pending.value = [...pending.value, ...taken.map((file) => ({
+    id: crypto.randomUUID(),
+    file,
+    kind: kindOf(file, given),
+    address: URL.createObjectURL(file),
+  }))]
+  if (refused.length) toast.error(refused.join(". "))
+}
+function removeFile(id: string) {
+  const gone = pending.value.find((one) => one.id === id)
+  if (gone) URL.revokeObjectURL(gone.address)
+  pending.value = pending.value.filter((one) => one.id !== id)
+}
+function openFile(address: string) {
+  window.open(address, "_blank", "noopener")
+}
+
+const canSend = computed(() =>
+  (draft.value.trim().length > 0 || pending.value.length > 0)
+  && !blocked.value
+  && activeRun.value === null
+  && !send.isPending.value
+)
 // What the agent may do to data from this chat (D136). Read only is the narrow
 // end and stands above what the settings allow in general. The fourth choice
 // is not this chat's: it is the settings' own switch, offered where changes
@@ -156,8 +226,15 @@ async function submit() {
   draft.value = ""
   dictation.stop()
   try {
-    await send.mutateAsync({ id: props.conversationId, text, contexts: selectedContexts.value })
+    await send.mutateAsync({
+      id: props.conversationId,
+      text,
+      contexts: selectedContexts.value,
+      files: pending.value.map((one) => one.file),
+    })
     selectedContextIds.value = []
+    for (const one of pending.value) URL.revokeObjectURL(one.address)
+    pending.value = []
   }
   catch (cause) { draft.value = text; toast.error(messageOf(cause, "The message could not be sent")) }
 }
@@ -220,6 +297,7 @@ watch(() => conversation.data.value, async () => {
 onBeforeUnmount(() => {
   if (speech) window.speechSynthesis.cancel()
   dictation.stop()
+  for (const one of pending.value) URL.revokeObjectURL(one.address)
 })
 </script>
 
@@ -322,14 +400,19 @@ onBeforeUnmount(() => {
                 </div>
               </div>
             </div>
+            <AiMessageFiles
+              v-if="message.role === 'user' && message.attachments?.length"
+              :conversation-id="conversationId"
+              :files="message.attachments"
+            />
             <div
-              v-if="message.role === 'user'"
+              v-if="message.role === 'user' && message.content"
               class="ai-message__user"
             >
               {{ message.content }}
             </div>
             <ChatMarkdown
-              v-else
+              v-else-if="message.role !== 'user'"
               :text="message.content"
             />
             <AppBanner
@@ -470,6 +553,24 @@ onBeforeUnmount(() => {
             />
           </span>
         </div>
+        <div
+          v-if="pending.length"
+          class="ai-conversation__contexts"
+          aria-label="Files attached to the next message"
+        >
+          <AiFileChip
+            v-for="one in pending"
+            :key="one.id"
+            :name="one.file.name"
+            :size="one.file.size"
+            :kind="one.kind"
+            :thumbnail="one.address"
+            :problem="one.kind === 'image' ? imageProblem : ''"
+            removable
+            @open="openFile(one.address)"
+            @remove="removeFile(one.id)"
+          />
+        </div>
         <AppInput
           v-model="draft"
           type="textarea"
@@ -483,13 +584,30 @@ onBeforeUnmount(() => {
         />
         <!-- What the next message is sent with, under the message itself. -->
         <div class="ai-conversation__tools">
-          <AppIconButton
-            icon="add"
-            tooltip="Attach workspace tabs"
-            data-testid="ai-attach-context"
-            :disable="activeRun !== null || contexts.length === 0"
-            @click="contextDialogShown = true"
-          />
+          <!-- The menu hangs off the span: the button alone would give it no
+               element to open from while it is disabled. -->
+          <span>
+            <AppIconButton
+              icon="add"
+              tooltip="Attach tabs or files"
+              data-testid="ai-attach"
+              :disable="activeRun !== null"
+            />
+            <AppMenu
+              v-if="activeRun === null"
+              :items="attachItems"
+              @select="chooseAttachment"
+            />
+          </span>
+          <input
+            ref="picker"
+            type="file"
+            multiple
+            class="ai-conversation__picker"
+            :accept="rules ? acceptFor(rules, readsImages) : undefined"
+            data-testid="ai-file-input"
+            @change="pickFiles"
+          >
           <AppSelect
             class="ai-conversation__policy"
             compact
@@ -580,6 +698,7 @@ onBeforeUnmount(() => {
 .ai-question__preview-line { white-space: pre-wrap; }
 .ai-conversation__composer { flex: none; display: flex; flex-direction: column; gap: var(--dp-space-2); padding: var(--dp-space-3); border-top: 1px solid var(--dp-border); }
 .ai-conversation__contexts { display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
+.ai-conversation__picker { display: none; }
 .ai-conversation__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dp-space-2); }
 .ai-conversation__gap { flex: 1; }
 /* Wide enough for a model's name and no wider: the row it stands in belongs

@@ -212,7 +212,7 @@ async def send(
     response = await client.post(
         f"{AI}/conversations/{conversation_id}/messages",
         headers=headers,
-        json={"text": message},
+        data={"text": message},
     )
     assert response.status_code == 202, response.text
     body: dict[str, Any] = response.json()

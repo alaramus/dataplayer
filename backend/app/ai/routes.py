@@ -3,10 +3,21 @@
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Response,
+    UploadFile,
+    status,
+)
+from pydantic import Json, ValidationError
 
-from app.ai import conversations, preferences
+from app.ai import attachments, conversations, preferences
 from app.ai.catalog import Provider, catalog
+from app.ai.content import opened, opened_bytes
 from app.ai.models import (
     TERMINAL,
     AgentAnswer,
@@ -26,8 +37,10 @@ from app.ai.models import (
     ProviderKeyCheck,
     ProviderKeyTry,
     ProviderKeyWrite,
+    ScreenContexts,
 )
 from app.ai.runner import AgentRunnerDep, RunRefused
+from app.connectors.content_tickets import content_disposition
 from app.core.db import SessionDep
 from app.core.schemas import Message
 from app.users.deps import CurrentUser
@@ -279,24 +292,82 @@ async def send_message(
     current_user: CurrentUser,
     runner: AgentRunnerDep,
     conversation_id: uuid.UUID,
-    body: ConversationMessageCreate,
+    text: Annotated[str, Form()] = "",
+    contexts: Annotated[Json[ScreenContexts] | None, Form()] = None,
+    files: Annotated[list[UploadFile] | None, File()] = None,
 ) -> Any:
-    """Say something; the answer is written by a task and heard on the socket (D137)."""
+    """Say something, with files if any; the answer is written by a task and
+    heard on the socket (D137, D142).
+
+    A form rather than JSON, for the files. The attached tabs are a field of it
+    holding their JSON list, the way an action's parameters travel beside its
+    file; typed as JSON of ScreenContext rather than as a bare string, so the
+    schema still names the type the client builds them with.
+    """
     conversation = await conversations.get_for_owner(
         session, conversation_id, current_user.id
     )
     if conversation is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
     try:
+        body = ConversationMessageCreate(
+            text=text, contexts=contexts.root if contexts is not None else []
+        )
+    except ValidationError as refused:
+        raise HTTPException(
+            status_code=422,
+            detail={"message": "The message or the tabs attached to it could not be read"},
+        ) from refused
+    try:
+        attached = await attachments.read_uploads(files or [])
+    except attachments.AttachmentRefused as refused:
+        raise HTTPException(status_code=422, detail={"message": refused.message}) from refused
+    if not body.text.strip() and not attached:
+        raise HTTPException(
+            status_code=422, detail={"message": "Write a message or attach a file"}
+        )
+    try:
         run = await runner.start(
             session, owner_id=current_user.id, conversation=conversation,
-            text=body.text, contexts=body.contexts,
+            text=body.text, contexts=body.contexts, attachments=attached,
         )
     except RunRefused as refused:
         raise HTTPException(
             status_code=refused.status_code, detail={"message": refused.message}
         )
     return await conversations.run_public(session, run, partial_answer="")
+
+
+@router.get(
+    "/conversations/{conversation_id}/attachments/{attachment_id}",
+    response_class=Response,
+    responses={200: {"content": {"application/octet-stream": {}}}},
+)
+async def read_attachment(
+    session: SessionDep,
+    current_user: CurrentUser,
+    conversation_id: uuid.UUID,
+    attachment_id: uuid.UUID,
+) -> Response:
+    """A file sent with a message, as it was sent (D142).
+
+    Served as what it was taken for, never as what its name says: an image by
+    the type its bytes showed, anything else as plain text.
+    """
+    found = await conversations.attachment_for_owner(
+        session, conversation_id, attachment_id, current_user.id
+    )
+    if found is None:
+        raise HTTPException(status_code=404, detail={"message": "No such file"})
+    return Response(
+        content=opened_bytes(found.content),
+        media_type=found.media_type if found.kind == "image" else "text/plain; charset=utf-8",
+        headers={
+            "Content-Disposition": content_disposition(opened(found.name), inline=True),
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, no-store",
+        },
+    )
 
 
 async def _owned_run(

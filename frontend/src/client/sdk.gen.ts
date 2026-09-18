@@ -33,6 +33,9 @@ import type {
   aiDeleteProjectData,
   aiDeleteProjectErrors,
   aiDeleteProjectResponses,
+  aiReadAttachmentData,
+  aiReadAttachmentErrors,
+  aiReadAttachmentResponses,
   aiReadConversationData,
   aiReadConversationErrors,
   aiReadConversationResponses,
@@ -5159,7 +5162,13 @@ export class AiService {
   /**
    * Send Message
    *
-   * Say something; the answer is written by a task and heard on the socket (D137).
+   * Say something, with files if any; the answer is written by a task and
+   * heard on the socket (D137, D142).
+   *
+   * A form rather than JSON, for the files. The attached tabs are a field of it
+   * holding their JSON list, the way an action's parameters travel beside its
+   * file; typed as JSON of ScreenContext rather than as a bare string, so the
+   * schema still names the type the client builds them with.
    */
   public static sendMessage<ThrowOnError extends boolean = true>(
     options: Options<aiSendMessageData, ThrowOnError>
@@ -5169,14 +5178,38 @@ export class AiService {
       aiSendMessageErrors,
       ThrowOnError
     >({
+      ...formDataBodySerializer,
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/conversations/{conversation_id}/messages",
       ...options,
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": null,
         ...options.headers,
       },
+    })
+  }
+
+  /**
+   * Read Attachment
+   *
+   * A file sent with a message, as it was sent (D142).
+   *
+   * Served as what it was taken for, never as what its name says: an image by
+   * the type its bytes showed, anything else as plain text.
+   */
+  public static readAttachment<ThrowOnError extends boolean = true>(
+    options: Options<aiReadAttachmentData, ThrowOnError>
+  ) {
+    return (options.client ?? client).get<
+      aiReadAttachmentResponses,
+      aiReadAttachmentErrors,
+      ThrowOnError
+    >({
+      responseType: "blob",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/conversations/{conversation_id}/attachments/{attachment_id}",
+      ...options,
     })
   }
 

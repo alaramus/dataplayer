@@ -12,6 +12,7 @@ from langchain_core.tools import tool
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.ai.attachments import RULES as ATTACHMENT_RULES
 from app.ai.catalog import PROVIDER_TITLES, PROVIDERS, ModelCatalog, ModelInfo, Provider
 from app.ai.models import (
     AgentModelPublic,
@@ -90,6 +91,7 @@ async def settings_of(
         model_missing=stored.model_key is not None and chosen is None,
         allow_all_changes=stored.allow_all_changes,
         keys=[ProviderKeyState(provider=p, set=p in keys) for p in PROVIDERS],
+        attachments=ATTACHMENT_RULES,
     )
 
 

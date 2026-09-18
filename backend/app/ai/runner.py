@@ -10,7 +10,7 @@ import asyncio
 import logging
 import time
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Annotated, Any, cast
 
@@ -31,6 +31,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.adapters.cache import DataCache
 from app.adapters.resources import ResourceStore
 from app.ai import checkpoints, conversations, preferences
+from app.ai.attachments import NewAttachment, model_content
 from app.ai.catalog import PROVIDER_TITLES, ModelCatalog, ModelInfo
 from app.ai.models import AgentRun, Conversation, RunStatus, ScreenContext, StepStatus
 from app.ai.prompts import SYSTEM_PROMPT, TITLE_PROMPT
@@ -147,12 +148,17 @@ class AgentRunner:
         conversation: Conversation,
         text: str,
         contexts: list[ScreenContext],
+        attachments: Sequence[NewAttachment] = (),
     ) -> AgentRun:
         model = await preferences.model_for(
             session, owner_id, conversation, self._catalog
         )
         if model is None:
             raise RunRefused(409, "Choose a model in the agent settings first")
+        # The composer offers images only to a model that reads them (D142);
+        # this is the same rule for a client that did not ask first.
+        if any(one.kind == "image" for one in attachments) and not model.image_input:
+            raise RunRefused(422, f"{model.name} does not read images; choose a model that does")
         key = await preferences.key_for(session, owner_id, model.provider)
         if key is None:
             raise RunRefused(
@@ -175,17 +181,23 @@ class AgentRunner:
                 owner_id=owner_id,
                 model_key=model.key,
             )
-            await conversations.add_message(session, conversation.id, "user", text, run.id)
+            await conversations.add_message(
+                session, conversation.id, "user", text, run.id, attachments
+            )
             task = asyncio.create_task(
                 self._carry_out(
-                    run.id, owner_id, conversation.id, model, key, text, contexts, first
+                    run.id, owner_id, conversation.id, model, key, text, contexts, first,
+                    attachments=attachments,
                 )
             )
             self._active[run.id] = _Active(
                 task=task, owner_id=owner_id, conversation_id=conversation.id
             )
         if first:
-            title = conversations.first_line_title(text)
+            # A photo sent alone names the chat after itself.
+            title = conversations.first_line_title(
+                text if text.strip() or not attachments else attachments[0].name
+            )
             if await conversations.retitle(session, conversation.id, title):
                 await self._say(owner_id, TitleChanged(conversation_id=conversation.id, title=title))
         await self._say(
@@ -322,6 +334,7 @@ class AgentRunner:
         resume_answer: str | None = None,
         reasoning_seed: str = "",
         initial_tokens: tuple[int, int] = (0, 0),
+        attachments: Sequence[NewAttachment] = (),
     ) -> None:
         active = self._active[run_id]
         reasoning: list[str] = [reasoning_seed] if reasoning_seed else []
@@ -349,7 +362,11 @@ class AgentRunner:
                         (
                             Command(resume=resume_answer)
                             if resume_answer is not None
-                            else HumanMessage(message_with_context(text, contexts))
+                            else HumanMessage(
+                                content=model_content(
+                                    message_with_context(text, contexts), attachments
+                                )
+                            )
                         ),
                         answer=active.answer, reasoning=reasoning, tokens=tokens,
                     )

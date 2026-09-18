@@ -452,8 +452,41 @@ chosen, then reversed in favour of changing the list with a release.
 - A reload reopens the window on the same conversation, and a running answer
   goes on showing its steps.
 - The window is a stable window (D132).
-- Not in the window: editing a message, tags, rewind, branches, search, and —
-  until later — attachments.
+- Not in the window: editing a message, tags, rewind, branches, search.
+  Attachments came later, with D142.
+
+## D142. A message may carry the person's own files
+
+Asked for on 2026-09-18: the plus of the composer attached only workspace tabs,
+and people wanted to send a document or a photo of their own.
+
+- **Text and images only, at first.** Text is anything that reads as UTF-8;
+  an image is PNG, JPEG, WebP or GIF. PDF was offered and left out — DeepSeek
+  does not read it, and the three providers that do each take it differently —
+  and Office documents would need text extracted on the server.
+- **Told by the bytes, not the name.** The server sniffs an image's signature
+  and decodes text strictly; the type a browser reports is used only by the
+  composer, to refuse early what the server would refuse anyway.
+- **Part of the message.** A file is stored with its message in the same
+  commit, sealed like the text, shown in the transcript — an image as itself,
+  text by its name — and deleted with it. The model sees it in later turns too,
+  because it is in the working state like the rest of the message. The other
+  two options were keeping a copy in the person's folder as well, and sending a
+  file once and keeping only its name.
+- **Images only where they are read.** The models file already says which
+  models take images (D140). The picker offers images only to those; an image
+  attached before the model was changed marks itself and disables Send. The
+  server refuses an image to any other model in the same words.
+- **The plus is a menu.** "Workspace tabs…" and "Files from computer…". Drag
+  and drop and pasting from the clipboard were offered and left for later.
+- **One form, no uploads ahead.** Text, tabs and files are one multipart
+  request, so a message and its files exist together or not at all; a separate
+  upload route would have left files that were never sent. The tabs travel as
+  one JSON field typed by a root model, because FastAPI reads a form field
+  typed as a list by collecting every value of that name.
+- **Bounded.** Five files, 5 MB an image (the strictest provider's limit), 256
+  KB of text, 10 MB together. The settings API sends the numbers, so the
+  composer never keeps its own copy.
 
 ## Slices
 
@@ -578,6 +611,17 @@ profile for the window and neither the scripted model nor every real one knows
 it. The newest `AI_SUMMARY_KEEP_MESSAGES` (20 by default) stay verbatim; the
 same model and key write the summary, and the transcript a person reads is
 never rewritten.
+
+### AI7 — files in a message
+
+D142: the plus as a menu, the picker, the chips, the form, the table of files,
+the route that serves one, the model's image and text blocks.
+
+Acceptance: a text file and an image reach the model and stay in the
+transcript; somebody else's file is not found; an image is refused to a model
+that does not read it, before and after sending; a file that is neither text
+nor an image, a sixth file and an empty message are refused before a run
+exists.
 
 ## Open points for implementation
 

@@ -172,7 +172,7 @@ async def test_a_second_message_waits_for_the_first_answer(
     run = await send(client, headers, conversation_id, "first")
 
     refused = await client.post(
-        f"{AI}/conversations/{conversation_id}/messages", headers=headers, json={"text": "second"}
+        f"{AI}/conversations/{conversation_id}/messages", headers=headers, data={"text": "second"}
     )
 
     assert refused.status_code == 409
@@ -353,11 +353,11 @@ async def test_a_message_needs_a_model_and_its_key(
     conversation_id = await new_conversation(client, person)
 
     no_model = await client.post(
-        f"{AI}/conversations/{conversation_id}/messages", headers=person, json={"text": "hi"}
+        f"{AI}/conversations/{conversation_id}/messages", headers=person, data={"text": "hi"}
     )
     await client.patch(f"{AI}/settings", headers=person, json={"model_key": "openai:gpt-5.6-luna"})
     no_key = await client.post(
-        f"{AI}/conversations/{conversation_id}/messages", headers=person, json={"text": "hi"}
+        f"{AI}/conversations/{conversation_id}/messages", headers=person, data={"text": "hi"}
     )
 
     assert no_model.status_code == 409
@@ -406,7 +406,7 @@ async def test_somebody_elses_conversation_is_not_found(
         await client.get(f"{AI}/conversations/{conversation_id}", headers=stranger),
         await client.patch(f"{AI}/conversations/{conversation_id}", headers=stranger, json={"title": "x"}),
         await client.delete(f"{AI}/conversations/{conversation_id}", headers=stranger),
-        await client.post(f"{AI}/conversations/{conversation_id}/messages", headers=stranger, json={"text": "x"}),
+        await client.post(f"{AI}/conversations/{conversation_id}/messages", headers=stranger, data={"text": "x"}),
         await client.post(f"{AI}/runs/{uuid.uuid4()}/answer", headers=stranger, json={"answer": "x"}),
     ]
 

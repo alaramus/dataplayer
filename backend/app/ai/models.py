@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, SecretStr
+from pydantic import BaseModel, ConfigDict, RootModel, SecretStr
 from pydantic import Field as PydanticField
 from sqlalchemy import Column, DateTime, Index, LargeBinary
 from sqlmodel import Field, SQLModel
@@ -204,6 +204,29 @@ class ConversationMessage(SQLModel, table=True):
     )
 
 
+AttachmentKind = Literal["text", "image"]
+
+
+class MessageAttachment(SQLModel, table=True):
+    """A file the person sent with a message, kept with it (D142).
+
+    Its name and its bytes are the person's, so both are sealed the way the
+    message text is (D141); what kind of file it is and its size are not, so
+    a transcript is listed without opening any of them.
+    """
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    message_id: uuid.UUID = Field(
+        foreign_key="conversationmessage.id", nullable=False, ondelete="CASCADE", index=True
+    )
+    ordinal: int
+    kind: str = Field(max_length=8)
+    media_type: str = Field(max_length=64)
+    size: int
+    name: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
+    content: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
+
+
 class AgentStep(SQLModel, table=True):
     """What a run is doing, in the words the server chose (D137)."""
 
@@ -254,6 +277,17 @@ class ProviderKeyState(BaseModel):
     set: bool
 
 
+class AttachmentRules(BaseModel):
+    """What one message may carry (D142): the composer checks before sending,
+    the server when it is sent, and both read these numbers from here."""
+
+    max_files: int
+    max_image_bytes: int
+    max_text_bytes: int
+    max_total_bytes: int
+    image_types: list[str]
+
+
 class AgentSettingsPublic(BaseModel):
     model_key: str | None
     # A stored choice the catalog no longer lists. The settings ask for a new
@@ -261,6 +295,7 @@ class AgentSettingsPublic(BaseModel):
     model_missing: bool
     allow_all_changes: bool
     keys: list[ProviderKeyState]
+    attachments: AttachmentRules
 
 
 class AgentSettingsUpdate(BaseModel):
@@ -368,6 +403,15 @@ class ScreenContext(BaseModel):
     node_id: str | None = PydanticField(default=None, max_length=2048)
 
 
+class ScreenContexts(RootModel[list[ScreenContext]]):
+    """The tabs of one message as the form field that carries them (D142).
+
+    A model around the list rather than the list itself: FastAPI reads a form
+    field typed as a list by collecting every value of that name, and handed
+    JSON's validator a list where it expects the string it was sent.
+    """
+
+
 class OpenIntent(BaseModel):
     """One server-validated request to open ordinary Data workspace UI."""
 
@@ -384,9 +428,15 @@ class OpenIntent(BaseModel):
 
 
 class ConversationMessageCreate(BaseModel):
+    """The form fields of a message; its files travel beside them (D142).
+
+    Text may be empty when a file is sent — a photo alone is a question too —
+    and the route refuses a message with neither.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    text: str = PydanticField(min_length=1, max_length=MAX_MESSAGE_CHARS)
+    text: str = PydanticField(default="", max_length=MAX_MESSAGE_CHARS)
     contexts: list[ScreenContext] = PydanticField(default_factory=list, max_length=5)
 
 
@@ -450,10 +500,19 @@ class AgentRunPublic(BaseModel):
     question: AgentQuestion | None = None
 
 
+class MessageAttachmentPublic(BaseModel):
+    id: uuid.UUID
+    name: str
+    kind: AttachmentKind
+    media_type: str
+    size: int
+
+
 class ConversationMessagePublic(BaseModel):
     id: uuid.UUID
     role: Role
     content: str
+    attachments: list[MessageAttachmentPublic] = PydanticField(default_factory=list)
     run_id: uuid.UUID | None = None
     created_at: datetime | None = None
 
