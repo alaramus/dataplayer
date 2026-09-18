@@ -102,6 +102,7 @@ frontend/src/features/ai/
 ├── api.ts              vue-query ownership of server state
 ├── context.ts          which open panels a chip may name, and the open intent
 ├── dictation.ts        the browser's recogniser behind the composer's microphone
+├── outline.ts          the questions of a conversation, and which one is being read
 ├── streaming.ts        open-fence protection and speech text
 └── state.ts            selected-chat restoration and a chat requested from outside; the shared space store remembers AI
 ```
@@ -293,7 +294,9 @@ AI is the third application space beside Data and Dashboards, reached from the
 status-bar space switch. Data panels remain mounted,
 and detached panels remain visible, by the same covering contract as
 Dashboards. Left column: New chat, history, Settings; settings replace the
-conversation on the right. The two cards have the ordinary draggable workspace
+conversation on the right. Down the left edge of a conversation with more than
+one question is its contents: a mark per question, named by its first line,
+which scrolls to it, and the one being read is drawn apart from the rest. The two cards have the ordinary draggable workspace
 separator; the left card is remembered, collapsible and capped at 40% of the
 space. Keys, Model, Confirmations and the archive live here, not on
 `/preferences`. Titles are written by the chosen model and renamed by pressing

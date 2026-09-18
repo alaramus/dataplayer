@@ -8,6 +8,7 @@ import { messageOf } from "@/shared/api/errors"
 
 import ChatMarkdown from "./ChatMarkdown.vue"
 import { useDictation } from "./dictation"
+import { markAt, outlineMarks } from "./outline"
 import { plainSpeechText } from "./streaming"
 import {
   useAiConversation,
@@ -74,6 +75,30 @@ async function chooseModel(value: unknown) {
   if (typeof value !== "string" || value === chatModel.value) return
   try { await updateConversation.mutateAsync({ id: props.conversationId, model_key: value }) }
   catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }
+}
+
+// The contents of the conversation, down the edge of it: one mark per
+// question, and the one being read is the last one above the top of the view.
+const marks = computed(() => outlineMarks(conversation.data.value?.messages ?? []))
+const currentMark = ref<string | null>(null)
+function messageElement(id: string): HTMLElement | null {
+  return scroller.value?.querySelector<HTMLElement>(`[data-message="${id}"]`) ?? null
+}
+function trackOutline() {
+  const root = scroller.value
+  if (root === null) return
+  const offsets = marks.value.flatMap((mark) => {
+    const element = messageElement(mark.id)
+    return element === null ? [] : [{ id: mark.id, top: element.offsetTop }]
+  })
+  currentMark.value = markAt(offsets, root.scrollTop)
+}
+function goToMark(id: string) {
+  const root = scroller.value
+  const target = messageElement(id)
+  if (root === null || target === null) return
+  root.scrollTo({ top: Math.max(0, target.offsetTop - 8), behavior: "smooth" })
+  currentMark.value = id
 }
 
 function runFor(message: ConversationMessagePublic): AgentRunPublic | undefined {
@@ -171,6 +196,7 @@ function listen(text: string) {
 watch(() => conversation.data.value, async () => {
   await nextTick()
   if (scroller.value) scroller.value.scrollTop = scroller.value.scrollHeight
+  trackOutline()
 }, { deep: true })
 onBeforeUnmount(() => {
   if (speech) window.speechSynthesis.cancel()
@@ -188,200 +214,222 @@ onBeforeUnmount(() => {
       This conversation could not be loaded.
     </AppBanner>
     <template v-else>
-      <div
-        ref="scroller"
-        class="ai-conversation__messages"
-        data-testid="ai-messages"
-      >
+      <div class="ai-conversation__body">
+        <nav
+          v-if="marks.length > 1"
+          class="ai-outline"
+          aria-label="What was asked in this chat"
+          data-testid="ai-outline"
+        >
+          <button
+            v-for="mark in marks"
+            :key="mark.id"
+            type="button"
+            class="ai-outline__mark"
+            :class="{ 'ai-outline__mark--current': mark.id === currentMark }"
+            :title="mark.label"
+            :aria-label="mark.label"
+            :data-testid="`ai-outline-${mark.id}`"
+            @click="goToMark(mark.id)"
+          />
+        </nav>
         <div
-          v-if="!conversation.data.value?.messages.length && !activeRun"
-          class="ai-conversation__empty"
-        >
-          <q-icon
-            name="auto_awesome"
-            size="32px"
-          />
-          <span>What would you like to know?</span>
-        </div>
-        <article
-          v-for="message in conversation.data.value?.messages ?? []"
-          :key="message.id"
-          class="ai-message"
-          :class="`ai-message--${message.role}`"
+          ref="scroller"
+          class="ai-conversation__messages"
+          data-testid="ai-messages"
+          @scroll="trackOutline"
         >
           <div
-            v-if="message.role === 'assistant' && runFor(message)"
-            class="ai-steps"
+            v-if="!conversation.data.value?.messages.length && !activeRun"
+            class="ai-conversation__empty"
           >
-            <button
-              type="button"
-              class="ai-steps__summary"
-              :aria-expanded="expandedSteps.has(runFor(message)!.id)"
-              @click="toggle(expandedSteps, runFor(message)!.id)"
-            >
-              <q-icon :name="expandedSteps.has(runFor(message)!.id) ? 'expand_more' : 'chevron_right'" />
-              {{ stepSummary(runFor(message)!) }}
-            </button>
-            <div
-              v-if="expandedSteps.has(runFor(message)!.id)"
-              class="ai-steps__list"
-            >
-              <div
-                v-for="step in runFor(message)!.steps ?? []"
-                :key="step.ordinal"
-                class="ai-step"
-              >
-                <span>{{ step.title }}</span><span>{{ step.status }}</span>
-                <button
-                  v-if="step.kind === 'thinking' && step.detail"
-                  type="button"
-                  class="ai-step__reasoning"
-                  @click="toggle(expandedReasoning, `${runFor(message)!.id}:${String(step.ordinal)}`)"
-                >
-                  Thinking
-                </button>
-                <div
-                  v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${runFor(message)!.id}:${String(step.ordinal)}`)"
-                  class="ai-step__detail"
-                >
-                  {{ step.detail }}
-                </div>
-                <div
-                  v-for="(substep, index) in step.substeps ?? []"
-                  :key="`${String(index)}:${substep}`"
-                  class="ai-step__detail"
-                >
-                  {{ substep }}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div
-            v-if="message.role === 'user'"
-            class="ai-message__user"
-          >
-            {{ message.content }}
-          </div>
-          <ChatMarkdown
-            v-else
-            :text="message.content"
-          />
-          <AppBanner
-            v-if="message.role === 'assistant' && errorOf(message)"
-            tone="warning"
-            class="ai-message__error"
-            data-testid="ai-message-error"
-          >
-            {{ errorOf(message) }}
-          </AppBanner>
-          <div
-            class="ai-message__actions"
-          >
-            <AppIconButton
-              icon="content_copy"
-              :tooltip="message.role === 'user' ? 'Copy message' : 'Copy answer'"
-              @click="copy(message.content, message.role === 'user' ? 'Message' : 'Answer')"
+            <q-icon
+              name="auto_awesome"
+              size="32px"
             />
-            <AppIconButton
-              icon="volume_up"
-              :tooltip="message.role === 'user' ? 'Listen to message' : 'Listen to answer'"
-              @click="listen(message.content)"
-            />
+            <span>What would you like to know?</span>
           </div>
-        </article>
-        <article
-          v-if="activeRun"
-          class="ai-message ai-message--assistant"
-          data-testid="ai-streaming-answer"
-        >
-          <div class="ai-steps">
-            <button
-              type="button"
-              class="ai-steps__summary"
-              :aria-expanded="expandedSteps.has(activeRun.id)"
-              @click="toggle(expandedSteps, activeRun.id)"
-            >
-              <q-icon :name="expandedSteps.has(activeRun.id) ? 'expand_more' : 'chevron_right'" />{{ stepSummary(activeRun) }}
-            </button>
-            <div
-              v-if="expandedSteps.has(activeRun.id)"
-              class="ai-steps__list"
-            >
-              <div
-                v-for="step in activeRun.steps ?? []"
-                :key="step.ordinal"
-                class="ai-step"
-              >
-                <span>{{ step.title }}</span><span>{{ step.status }}</span>
-                <button
-                  v-if="step.kind === 'thinking' && step.detail"
-                  type="button"
-                  class="ai-step__reasoning"
-                  @click="toggle(expandedReasoning, `${activeRun.id}:${String(step.ordinal)}`)"
-                >
-                  Thinking
-                </button>
-                <div
-                  v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${activeRun.id}:${String(step.ordinal)}`)"
-                  class="ai-step__detail"
-                >
-                  {{ step.detail }}
-                </div>
-                <div
-                  v-for="(substep, index) in step.substeps ?? []"
-                  :key="`${String(index)}:${substep}`"
-                  class="ai-step__detail"
-                >
-                  {{ substep }}
-                </div>
-              </div>
-            </div>
-          </div>
-          <ChatMarkdown
-            v-if="activeRun.partial_answer"
-            :text="activeRun.partial_answer"
-          />
-          <div
-            v-if="activeRun.question"
-            class="ai-question"
-            data-testid="ai-question"
+          <article
+            v-for="message in conversation.data.value?.messages ?? []"
+            :key="message.id"
+            class="ai-message"
+            :class="`ai-message--${message.role}`"
+            :data-message="message.id"
           >
-            <div>{{ activeRun.question.question }}</div>
             <div
-              v-if="activeRun.question.kind === 'confirm_change' && activeRun.question.preview"
-              class="ai-question__preview"
-              data-testid="ai-question-preview"
+              v-if="message.role === 'assistant' && runFor(message)"
+              class="ai-steps"
             >
-              <div class="ai-question__preview-summary">
-                {{ activeRun.question.preview.summary }}
-              </div>
-              <div
-                v-for="(line, index) in activeRun.question.preview.lines ?? []"
-                :key="`${String(index)}:${line}`"
-                class="ai-question__preview-line"
+              <button
+                type="button"
+                class="ai-steps__summary"
+                :aria-expanded="expandedSteps.has(runFor(message)!.id)"
+                @click="toggle(expandedSteps, runFor(message)!.id)"
               >
-                {{ line }}
+                <q-icon :name="expandedSteps.has(runFor(message)!.id) ? 'expand_more' : 'chevron_right'" />
+                {{ stepSummary(runFor(message)!) }}
+              </button>
+              <div
+                v-if="expandedSteps.has(runFor(message)!.id)"
+                class="ai-steps__list"
+              >
+                <div
+                  v-for="step in runFor(message)!.steps ?? []"
+                  :key="step.ordinal"
+                  class="ai-step"
+                >
+                  <span>{{ step.title }}</span><span>{{ step.status }}</span>
+                  <button
+                    v-if="step.kind === 'thinking' && step.detail"
+                    type="button"
+                    class="ai-step__reasoning"
+                    @click="toggle(expandedReasoning, `${runFor(message)!.id}:${String(step.ordinal)}`)"
+                  >
+                    Thinking
+                  </button>
+                  <div
+                    v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${runFor(message)!.id}:${String(step.ordinal)}`)"
+                    class="ai-step__detail"
+                  >
+                    {{ step.detail }}
+                  </div>
+                  <div
+                    v-for="(substep, index) in step.substeps ?? []"
+                    :key="`${String(index)}:${substep}`"
+                    class="ai-step__detail"
+                  >
+                    {{ substep }}
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="ai-question__choices">
-              <AppButton
-                v-for="choice in activeRun.question.choices"
-                :key="choice"
-                :label="choice"
-                :disable="answer.isPending.value"
-                @click="answerQuestion(choice)"
+            <div
+              v-if="message.role === 'user'"
+              class="ai-message__user"
+            >
+              {{ message.content }}
+            </div>
+            <ChatMarkdown
+              v-else
+              :text="message.content"
+            />
+            <AppBanner
+              v-if="message.role === 'assistant' && errorOf(message)"
+              tone="warning"
+              class="ai-message__error"
+              data-testid="ai-message-error"
+            >
+              {{ errorOf(message) }}
+            </AppBanner>
+            <div
+              class="ai-message__actions"
+            >
+              <AppIconButton
+                icon="content_copy"
+                :tooltip="message.role === 'user' ? 'Copy message' : 'Copy answer'"
+                @click="copy(message.content, message.role === 'user' ? 'Message' : 'Answer')"
+              />
+              <AppIconButton
+                icon="volume_up"
+                :tooltip="message.role === 'user' ? 'Listen to message' : 'Listen to answer'"
+                @click="listen(message.content)"
               />
             </div>
-          </div>
-        </article>
-        <AppBanner
-          v-for="run in unrepresentedRuns"
-          :key="run.id"
-          :tone="run.status === 'cancelled' ? 'info' : 'warning'"
-          data-testid="ai-run-ended"
-        >
-          {{ run.error || (run.status === "cancelled" ? "The answer was stopped." : `The answer was ${run.status}.`) }}
-        </AppBanner>
+          </article>
+          <article
+            v-if="activeRun"
+            class="ai-message ai-message--assistant"
+            data-testid="ai-streaming-answer"
+          >
+            <div class="ai-steps">
+              <button
+                type="button"
+                class="ai-steps__summary"
+                :aria-expanded="expandedSteps.has(activeRun.id)"
+                @click="toggle(expandedSteps, activeRun.id)"
+              >
+                <q-icon :name="expandedSteps.has(activeRun.id) ? 'expand_more' : 'chevron_right'" />{{ stepSummary(activeRun) }}
+              </button>
+              <div
+                v-if="expandedSteps.has(activeRun.id)"
+                class="ai-steps__list"
+              >
+                <div
+                  v-for="step in activeRun.steps ?? []"
+                  :key="step.ordinal"
+                  class="ai-step"
+                >
+                  <span>{{ step.title }}</span><span>{{ step.status }}</span>
+                  <button
+                    v-if="step.kind === 'thinking' && step.detail"
+                    type="button"
+                    class="ai-step__reasoning"
+                    @click="toggle(expandedReasoning, `${activeRun.id}:${String(step.ordinal)}`)"
+                  >
+                    Thinking
+                  </button>
+                  <div
+                    v-if="step.kind === 'thinking' && step.detail && expandedReasoning.has(`${activeRun.id}:${String(step.ordinal)}`)"
+                    class="ai-step__detail"
+                  >
+                    {{ step.detail }}
+                  </div>
+                  <div
+                    v-for="(substep, index) in step.substeps ?? []"
+                    :key="`${String(index)}:${substep}`"
+                    class="ai-step__detail"
+                  >
+                    {{ substep }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <ChatMarkdown
+              v-if="activeRun.partial_answer"
+              :text="activeRun.partial_answer"
+            />
+            <div
+              v-if="activeRun.question"
+              class="ai-question"
+              data-testid="ai-question"
+            >
+              <div>{{ activeRun.question.question }}</div>
+              <div
+                v-if="activeRun.question.kind === 'confirm_change' && activeRun.question.preview"
+                class="ai-question__preview"
+                data-testid="ai-question-preview"
+              >
+                <div class="ai-question__preview-summary">
+                  {{ activeRun.question.preview.summary }}
+                </div>
+                <div
+                  v-for="(line, index) in activeRun.question.preview.lines ?? []"
+                  :key="`${String(index)}:${line}`"
+                  class="ai-question__preview-line"
+                >
+                  {{ line }}
+                </div>
+              </div>
+              <div class="ai-question__choices">
+                <AppButton
+                  v-for="choice in activeRun.question.choices"
+                  :key="choice"
+                  :label="choice"
+                  :disable="answer.isPending.value"
+                  @click="answerQuestion(choice)"
+                />
+              </div>
+            </div>
+          </article>
+          <AppBanner
+            v-for="run in unrepresentedRuns"
+            :key="run.id"
+            :tone="run.status === 'cancelled' ? 'info' : 'warning'"
+            data-testid="ai-run-ended"
+          >
+            {{ run.error || (run.status === "cancelled" ? "The answer was stopped." : `The answer was ${run.status}.`) }}
+          </AppBanner>
+        </div>
       </div>
       <div class="ai-conversation__composer">
         <div
@@ -486,7 +534,16 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .ai-conversation { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.ai-conversation__messages { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-4); }
+.ai-conversation__body { flex: 1; min-height: 0; display: flex; }
+/* The messages hold the marks' coordinates: offsetTop is measured against this
+   box, so it has to be the one they are positioned in. */
+.ai-conversation__messages { position: relative; flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-4); }
+.ai-outline { flex: none; display: flex; flex-direction: column; justify-content: center; gap: var(--dp-space-1); padding: var(--dp-space-2) var(--dp-space-1); overflow: hidden; }
+/* The mark is two pixels of ink in a target a finger can hit. */
+.ai-outline__mark { display: grid; place-items: center; width: 20px; height: 12px; border: 0; padding: 0; background: transparent; cursor: pointer; }
+.ai-outline__mark::before { content: ""; width: 12px; height: 2px; border-radius: 1px; background: var(--dp-border-strong); transition: width 120ms ease, background-color 120ms ease; }
+.ai-outline__mark:hover::before { background: var(--dp-text-muted); }
+.ai-outline__mark--current::before { width: 16px; background: var(--dp-text-strong); }
 .ai-conversation__empty { height: 100%; display: grid; place-content: center; justify-items: center; gap: var(--dp-space-2); color: var(--dp-text-muted); }
 .ai-message { margin: 0 0 var(--dp-space-4); }
 .ai-message--user { display: flex; flex-direction: column; align-items: flex-end; }
