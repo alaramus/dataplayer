@@ -74,6 +74,19 @@ const collapsedBody = computed(() =>
   active.value === null ? null : workspace.collapsedOf(active.value)
 )
 
+/**
+ * What stands in the head instead of the tabs, where the feature offers it.
+ *
+ * Only while the section holds that one panel: a second one would need a tab
+ * to be chosen by, and the head would then be one panel's row sitting over
+ * another's body.
+ */
+const head = computed(() =>
+  props.leaf.collapsed || props.leaf.panels.length !== 1 || active.value === null
+    ? null
+    : workspace.headOf(active.value)
+)
+
 /** A cross closes one tab; this closes the rest. */
 const closableOthers = computed(
   () =>
@@ -232,7 +245,13 @@ const overlayStyle = computed((): CSSProperties => {
       v-if="!leaf.collapsed || handle !== 'none'"
       ref="stripElement"
       class="workspace-leaf__strip"
+      :class="{ 'workspace-leaf__strip--head': head !== null }"
     >
+      <component
+        :is="head"
+        v-if="head !== null"
+        class="workspace-leaf__head"
+      />
       <!-- A collapsed section is twenty-eight pixels wide, and a tab strip
            with `overflow: hidden` would push the handle that brings it back
            off the end of it. So a collapsed section shows the handle and
@@ -240,7 +259,7 @@ const overlayStyle = computed((): CSSProperties => {
            handle itself, the strip stands down wholly and only the rail
            below remains. -->
       <div
-        v-if="!leaf.collapsed"
+        v-else-if="!leaf.collapsed"
         class="workspace-leaf__tabs"
       >
         <template
@@ -450,6 +469,20 @@ const overlayStyle = computed((): CSSProperties => {
      one. A floor and not a fixed height, because tabs still wrap onto a
      second line. */
   min-height: var(--dp-tab-strip-height);
+}
+/* A height and not a floor, as in AppCardHead: a dense button is 32px, and
+   grown around one with the padding a tab has, this head stood lower than the
+   one in the column beside it. */
+.workspace-leaf__strip--head {
+  align-items: center;
+  box-sizing: border-box;
+  height: var(--dp-tab-strip-height);
+  padding-top: 0;
+  padding-bottom: 0;
+}
+.workspace-leaf__head {
+  flex: 1;
+  min-width: 0;
 }
 /* Tabs wrap onto a second line rather than running off the end of the strip:
    a tab that cannot be seen cannot be reached, and a section is only ever as

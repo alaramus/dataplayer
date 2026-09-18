@@ -4,7 +4,7 @@ import { computed } from "vue"
 import ConnectorIcon from "@/features/connectors/ConnectorIcon.vue"
 import { useConnectors } from "@/features/connectors/api"
 import { useWorkspaceActions } from "@/features/workspace/state"
-import { AppIconButton } from "@/shared/ui"
+import { AppCardHead, AppIconButton } from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 
 /**
@@ -26,16 +26,19 @@ const rows = computed(() => connectors.data.value?.data ?? [])
     class="connector-rail"
     data-testid="connector-rail"
   >
-    <!-- The same test id the wide panel carries, because it is the same
-         action: the strip and the panel stand under v-if/v-else in the
-         section and never exist at the same time. -->
-    <AppIconButton
-      icon="add"
-      tooltip="New connection"
-      data-testid="add-connector"
-      @click="workspace.editConnector(null)"
-    />
-    <q-separator class="connector-rail__rule" />
+    <!-- In a head of its own, as the wide column has one: the section stands
+         its strip down while collapsed, and the plus keeps its place.
+
+         The same test id the wide head carries, because it is the same
+         action: the two never exist at the same time. -->
+    <AppCardHead class="connector-rail__head">
+      <AppIconButton
+        icon="add"
+        tooltip="New connection"
+        data-testid="add-connector"
+        @click="workspace.editConnector(null)"
+      />
+    </AppCardHead>
 
     <div
       v-for="connector in rows"
@@ -65,15 +68,16 @@ const rows = computed(() => connectors.data.value?.data ?? [])
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2px 0;
+  padding-bottom: 2px;
 }
-/* A hairline under the plus: making a connection and reaching one already
-   made are two different things. It stretches to whatever width the column
-   has, which is how the wide list draws the same rule without a second
-   declaration of it. */
-.connector-rail__rule {
+/* Centred rather than padded like a head with a title: forty pixels centre a
+   thirty-two pixel button exactly where the wide head's padding puts it. The
+   four pixels under it are the ones the wide list leaves. */
+.connector-rail .connector-rail__head {
   align-self: stretch;
-  margin: 2px 8px 4px;
+  justify-content: center;
+  margin-bottom: 4px;
+  padding: 0;
 }
 .connector-rail__slot {
   position: relative;

@@ -53,6 +53,15 @@ export interface WorkspaceOptions<P extends { id: string }> {
    */
   collapsed?: (panel: P) => Component | null
   /**
+   * What a section holding only this panel shows in its head instead of the
+   * tab: for a panel that is alone in its column by design, where the tab
+   * named the column and could be carried nowhere, so the row is worth more
+   * as the panel's own commands.
+   *
+   * Same requirement as `component`.
+   */
+  head?: (panel: P) => Component | null
+  /**
    * What a whole section is called, by the role it accepts.
    *
    * The one thing the engine needs in words about a role, and only because a
@@ -365,6 +374,10 @@ export function useWorkspace<P extends { id: string }>(
     collapsedOf: (panelId) => {
       const panel = panelOf(panelId)
       return panel === undefined ? null : (options.collapsed?.(panel) ?? null)
+    },
+    headOf: (panelId) => {
+      const panel = panelOf(panelId)
+      return panel === undefined ? null : (options.head?.(panel) ?? null)
     },
     activate,
     canDetach,

@@ -377,9 +377,10 @@ Known deviations:
 - **Every row mounts its copy button.** The list is not virtualised, so five
   thousand tables mount five thousand buttons and tooltips; virtualising is the
   answer when the list gets it.
-- **The two states of the connections column agree by arithmetic.** The wide list
-  pads four pixels because that centres a 32-pixel button in a 40-pixel strip; a
-  scenario measures both and fails when they drift.
+- **The two states of the connections column agree by arithmetic.** The wide head
+  pads four pixels because that centres a 32-pixel button in a 40-pixel strip,
+  and both leave four under the head; a scenario measures both and fails when
+  they drift.
 - **A row of the connections list carries four marks**: the icon, the name, the
   state dot and the open highlight. With several catalogs open the column gets
   busy, and nobody has measured it.

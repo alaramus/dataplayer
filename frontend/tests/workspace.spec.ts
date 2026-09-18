@@ -282,7 +282,10 @@ test("a signed in user lands on the columns that have something in them", async 
   // and a screen of blank columns looks broken rather than empty. See P4.
   await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(2)
   await expect(page.getByTestId("workspace-leaf-navigate")).toHaveCount(0)
-  await expect(page.getByTestId("workspace-tab-connectors")).toBeVisible()
+  // The column of connections is headed by its commands, not by a tab naming
+  // it: it holds nothing else, so there is nothing to pick between.
+  await expect(page.getByTestId("connectors-head")).toBeVisible()
+  await expect(page.getByTestId("workspace-tab-connectors")).toHaveCount(0)
   await expect(page.getByTestId("connector-list")).toBeVisible()
 
   // The right-hand column is always there, and what stands in it says what to
@@ -619,30 +622,33 @@ test("a tab is carried out of its strip and dropped on another one", async ({ pa
   await expect(connectorRow(page, name)).toHaveCount(0)
 })
 
-test("the tab of connections cannot be taken to another column", async ({ page }) => {
+test("the column of connections takes no other tab", async ({ page }) => {
   const name = `e2e-drag-${Date.now()}`
   await login(page)
   await freshLayout(page)
   await createPostgresConnector(page, name)
   await openConnector(page, name)
 
-  const tab = page.getByTestId("workspace-tab-connectors")
-  const work = page.getByTestId("workspace-leaf-work")
+  // The connections have no tab to carry anywhere, so the refusal is asked
+  // the other way round: a catalog dragged onto their column.
+  const tab = catalogTab(page)
+  const sources = page.getByTestId("workspace-leaf-sources")
   const from = await tab.boundingBox()
-  const onto = await work.boundingBox()
+  const onto = await sources.boundingBox()
   if (from === null || onto === null) throw new Error("the tab or the column has no box")
 
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
   await page.mouse.down()
   await page.mouse.move(onto.x + onto.width / 2, onto.y + onto.height / 2, { steps: 12 })
   // Nothing is offered, so nothing is promised before the button comes up.
-  await expect(work.locator(".workspace-leaf__zone")).toHaveCSS("display", "none")
+  await expect(sources.locator(".workspace-leaf__zone")).toHaveCSS("display", "none")
   await page.mouse.up()
 
   // Still where it was, and the screen is still three columns. See P1 and P3.
   await expect(
-    page.getByTestId("workspace-leaf-sources").getByTestId("workspace-tab-connectors")
+    page.getByTestId("workspace-leaf-navigate").locator('[data-testid^="workspace-tab-catalog:"]')
   ).toBeVisible()
+  await expect(sources.getByTestId("connectors-head")).toBeVisible()
   await expect(page.locator('[data-testid^="workspace-leaf-"]')).toHaveCount(3)
 
   await deleteConnector(page, name)
@@ -718,14 +724,13 @@ test("pushing the column of sources aside takes away the name and nothing else",
   const iconNarrow = await box(page.getByTestId(`connector-rail-${name}`))
   const dotNarrow = await box(page.getByTestId(`connector-state-${name}`))
 
-  // The same column: x is what it was, and the row moved up as one by the
-  // stood-down strip, so the gaps between plus, icon and dot are unchanged.
-  // Only the name is gone. Two pixels of tolerance, because one layout
-  // centres in forty pixels and the other pads by eight.
+  // The same column: the plus stays in a head of the same height, so nothing
+  // moves at all and only the name is gone. Two pixels of tolerance, because
+  // one layout centres in forty pixels and the other pads by eight.
   expect(Math.abs(plusNarrow.x - plusWide.x)).toBeLessThan(3)
   expect(Math.abs(iconNarrow.x - iconWide.x)).toBeLessThan(3)
   expect(Math.abs(dotNarrow.x - dotWide.x)).toBeLessThan(3)
-  expect(plusNarrow.y).toBeLessThan(plusWide.y)
+  expect(Math.abs(plusNarrow.y - plusWide.y)).toBeLessThan(3)
   expect(
     Math.abs((iconNarrow.y - plusNarrow.y) - (iconWide.y - plusWide.y))
   ).toBeLessThan(3)

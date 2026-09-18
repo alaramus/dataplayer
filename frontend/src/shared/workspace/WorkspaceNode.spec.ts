@@ -42,6 +42,7 @@ function contextFor(): WorkspaceContext {
     emptyOf: (accepts) => (accepts === "work" ? Hint : null),
     admissionOf: () => ({ accepts: true, remaining: 1 }),
     collapsedOf: () => null,
+    headOf: () => null,
     sectionLookOf: () => ({ title: "Section", icon: "square" }),
     aside: ref([]),
     activate: () => undefined,

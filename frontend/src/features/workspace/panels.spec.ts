@@ -9,6 +9,7 @@ import {
   componentOf,
   contentPanelId,
   emptyOf,
+  headOf,
   kindOf,
   lookOf,
   openConnectorIds,
@@ -376,6 +377,18 @@ describe("the panel registry", () => {
        be a different component each time. */
     expect(collapsedOf(samples.connectors)).toBe(collapsedOf(samples.connectors))
   })
+
+  it("heads the column of connections with its commands instead of a tab", () => {
+    expect(headOf(samples.connectors)).not.toBeNull()
+    expect(headOf(samples.connectors)).toBe(headOf(samples.connectors))
+  })
+
+  it.each(["catalog", "rows", "queries", "query"] as PanelKind[])(
+    "keeps the tab of %s, which shares its column",
+    (kind) => {
+      expect(headOf(samples[kind])).toBeNull()
+    }
+  )
 
   it("names the connections that have a catalog open", () => {
     // The list shows two states now: open, and the one being looked at. See P7.

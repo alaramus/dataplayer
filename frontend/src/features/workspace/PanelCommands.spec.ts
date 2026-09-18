@@ -48,6 +48,7 @@ function contextFor(
     emptyOf: () => null,
     admissionOf: () => ({ accepts: true, remaining: 1 }),
     collapsedOf: () => null,
+    headOf: () => null,
     sectionLookOf: () => null,
     aside: ref([]),
     activate: () => undefined,

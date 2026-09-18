@@ -242,8 +242,11 @@ test("a tab is legible in the dark theme", async ({ page }) => {
 
   // A native <button> takes its colour from the browser, which is black, and
   // `font: inherit` does not carry colour with it — so the tab strip went
-  // black on near-black while every unit test stayed green.
-  const tab = page.getByTestId("workspace-tab-connectors")
+  // black on near-black while every unit test stayed green. The library of
+  // queries, because it belongs to no connection and so has no colour of its
+  // own; the connections have a head rather than a tab.
+  await page.getByTestId("command-queries").click()
+  const tab = page.getByTestId("workspace-tab-queries")
   await expect(tab).toBeVisible()
   expect(await tab.evaluate((node) => getComputedStyle(node).color)).toBe("rgb(255, 255, 255)")
 })

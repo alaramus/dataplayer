@@ -15,6 +15,7 @@ import WorkspacePanels from "./WorkspacePanels.vue"
 const Stub = defineComponent({ setup: () => () => h("div", { class: "stub" }, "panel body") })
 const Hint = defineComponent({ setup: () => () => h("div", { class: "hint" }, "pick a source") })
 const Rail = defineComponent({ setup: () => () => h("div", { class: "rail" }, "icons") })
+const Head = defineComponent({ setup: () => () => h("div", { class: "head" }, "commands") })
 
 const LeafWithPanels = defineComponent({
   props: { leaf: { type: Object as PropType<LeafNode>, required: true }, collapsible: Boolean },
@@ -39,6 +40,7 @@ function contextFor(overrides: Partial<WorkspaceContext> = {}): WorkspaceContext
     emptyOf: () => Hint,
     admissionOf: () => ({ accepts: true, remaining: 1 }),
     collapsedOf: () => null,
+    headOf: () => null,
     sectionLookOf: () => ({ title: "Section", icon: "square" }),
     aside: ref([]),
     activate: () => undefined,
@@ -299,6 +301,25 @@ describe("a section", () => {
     })
     expect(wrapper.findAll(".rail")).toHaveLength(1)
     expect(wrapper.find(".workspace-leaf__strip").exists()).toBe(false)
+  })
+
+  it("draws the feature's head instead of the tab of a panel alone in its section", () => {
+    const wrapper = mount(LeafWithPanels, {
+      props: { leaf: makeLeaf("a", ["p1"]), collapsible: true },
+      global: {
+        plugins: [Quasar],
+        provide: { [workspaceKey as symbol]: contextFor({ headOf: () => Head }) },
+      },
+    })
+    expect(wrapper.findAll(".head")).toHaveLength(1)
+    expect(wrapper.find('[data-testid="workspace-tab-p1"]').exists()).toBe(false)
+    expect(wrapper.findAll(".stub")).toHaveLength(1)
+  })
+
+  it("keeps the tabs while the section holds more than that panel", () => {
+    const wrapper = mountLeaf(contextFor({ headOf: () => Head }))
+    expect(wrapper.find(".head").exists()).toBe(false)
+    expect(wrapper.find('[data-testid="workspace-tab-p1"]').exists()).toBe(true)
   })
 
   it("hides the body of a collapsed section but keeps the strip", () => {

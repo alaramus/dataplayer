@@ -14,6 +14,7 @@ import QueryDocumentPanelView from "@/features/queries/QueryDocumentPanel.vue"
 import QueryResultPanelView from "@/features/queries/ResultPanel.vue"
 import CatalogPanelView from "@/features/workspace/panels/CatalogPanel.vue"
 import ConnectorRailView from "@/features/workspace/panels/ConnectorRail.vue"
+import ConnectorsHeadView from "@/features/workspace/panels/ConnectorsHead.vue"
 import ConnectorsPanelView from "@/features/workspace/panels/ConnectorsPanel.vue"
 import RowsPanelView from "@/features/workspace/panels/RowsPanel.vue"
 import RecordPanelView from "@/features/workspace/panels/RecordPanel.vue"
@@ -381,6 +382,17 @@ export function sectionLook(accepts: string | null): { title: string; icon: stri
  */
 export function collapsedOf(panel: Panel): Component | null {
   return panel.kind === "connectors" ? ConnectorRailView : null
+}
+
+/**
+ * What the head of a column holding only this panel shows instead of its tab.
+ *
+ * Only the connections: their column takes nothing else, and the panel can be
+ * neither closed nor carried, so its tab named the column and did nothing.
+ * Every other kind shares a column and needs a tab to be picked by.
+ */
+export function headOf(panel: Panel): Component | null {
+  return panel.kind === "connectors" ? ConnectorsHeadView : null
 }
 
 /**

@@ -50,7 +50,7 @@ test("re-reads the list of connections without opening anything", async ({ page 
     (request) =>
       request.url().includes("/api/v1/connectors/") && request.method() === "GET"
   )
-  await page.getByTestId("connectors-panel").getByTestId("panel-reload").click()
+  await page.getByTestId("connectors-head").getByTestId("panel-reload").click()
   await reread
 
   await expect(page.getByTestId(`connector-${name}`)).toBeVisible()

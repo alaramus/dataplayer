@@ -9,8 +9,9 @@ import type { Page } from "@playwright/test"
  * from the server, so a catalog or a data tab is addressed by the prefix
  * `panels.ts` gives it.
  */
-export function connectionsTab(page: Page) {
-  return page.getByTestId("workspace-tab-connectors")
+/** Their column has a head of commands rather than a tab. */
+export function connectionsHead(page: Page) {
+  return page.getByTestId("connectors-head")
 }
 
 export function catalogTab(page: Page) {

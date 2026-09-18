@@ -17,7 +17,7 @@ import { toast } from "./utils/notices"
 import {
   catalogTabIcon,
   connectorRow,
-  connectionsTab,
+  connectionsHead,
   deleteConnector,
   openConnector,
 } from "./utils/workspace"
@@ -199,7 +199,7 @@ test("keeps filter history per connector and remembers deletions after reload", 
   await filter.press("Enter")
   await filter.fill("connector")
   // Leaving the field remembers ordinary filtering too, without Enter.
-  await connectionsTab(page).click()
+  await connectionsHead(page).click()
   await filter.click()
   await expect(history).toBeVisible()
   await expect(filter).toBeFocused()
@@ -224,7 +224,7 @@ test("keeps filter history per connector and remembers deletions after reload", 
   await expect(history).toHaveCount(0)
   await filter.click()
   await expect(history).toBeVisible()
-  await connectionsTab(page).click()
+  await connectionsHead(page).click()
   await expect(history).toHaveCount(0)
 
   await openConnector(page, second)

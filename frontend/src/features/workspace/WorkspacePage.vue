@@ -39,6 +39,7 @@ import {
   componentOf,
   contentPanelId,
   emptyOf,
+  headOf,
   lookOf,
   openConnectorIds,
   panelSchema,
@@ -127,6 +128,7 @@ const workspace = useWorkspace<Panel>({
   component: componentOf,
   empty: emptyOf,
   collapsed: collapsedOf,
+  head: headOf,
   sectionLook,
   // The header button collapses the first column; its strip keeps no chevron
   // of its own.

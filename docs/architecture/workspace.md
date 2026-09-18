@@ -174,6 +174,14 @@ Consequences:
   what stands in an empty one; only the connections answer, with their icons and
   their state dots. Closing every tab but the active one is the engine's too — it
   is a layout operation — and it leaves a panel the feature says has no cross.
+- **A panel alone in its column by design may take the head instead of a tab.**
+  The engine asks the feature what a section holding only that panel shows in
+  its head, the way it asks what stands in a narrow one; only the connections
+  answer, with making one on the left and re-reading the list at the end. Their
+  column takes no other role and the panel can be neither closed nor carried,
+  so the tab named the column and gave nothing to press. The rail of the
+  collapsed column wears the same head, so pushing it aside still moves
+  nothing.
 - **A column with nothing worth that width leaves the screen instead.** The
   answer to the question above is also which of two gestures the head of a
   section offers: something worth forty pixels narrows to them, and nothing

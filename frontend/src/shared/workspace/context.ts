@@ -71,6 +71,11 @@ export interface WorkspaceContext {
   /** What a collapsed section shows instead of its panel. Null: just a handle. */
   collapsedOf: (panelId: PanelId) => Component | null
   /**
+   * What a section holding only this panel shows in its head instead of the
+   * tab. Null: the tab.
+   */
+  headOf: (panelId: PanelId) => Component | null
+  /**
    * What a whole section is called, keyed by the role it accepts.
    *
    * Only needed once a section can be off the screen: something has to name it
