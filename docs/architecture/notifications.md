@@ -58,8 +58,9 @@ Consequences:
   everything is a badge people stop reading — which is the failure mode of
   every notification centre that has one.
 - **The button says the most urgent true thing.** Idle, it is a bell and a
-  count. While work is running it is the current step and its progress, which
-  is what it already was and the reason it earns its place in a status bar.
+  count, red when something waits for an answer. While work is running the
+  current step and its progress stand beside the bell, which is the reason it
+  earns its place in a status bar; the bell keeps its seat on the rail axis.
 - **The sheet leads to the answer; it does not hold it.** A request for access
   is answered in the connection's own window, beside the grants, because that
   is where the rule about answering lives (D61) — the sheet opens it. A second

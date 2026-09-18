@@ -947,8 +947,7 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
     </template>
     <template #status>
       <!-- The icon-only server at the very left edge, on the same axis as
-           the left rail buttons; activity icon-only at the end, on the axis
-           of the right rail buttons. -->
+           the left rail buttons. -->
       <span class="workspace-footer-server">
         <ServerSwitcher icon-only />
       </span>
@@ -957,11 +956,10 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
       <WorkspaceTaskbar :context="workspace.context" />
     </template>
     <template #status-end>
-      <!-- On the axis of the right rail buttons above, mirroring the server
-           icon on the left. -->
+      <!-- The bell on the axis of the right rail buttons above, mirroring the
+           server icon on the left; what is running reads leftwards from it. -->
       <span class="workspace-footer-end">
         <ActivityIndicator
-          icon-only
           @answer-access="answerRequestsFor"
           @open-connection="editConnector"
         />
@@ -1089,13 +1087,13 @@ function openIntent(connector: ConnectorPublic, intent: AiOpenIntent) {
   min-width: 32px;
   min-height: 32px;
 }
-/* The right end of the footer, on the same axis: a 36 px box pulled back
-   over the status padding, the indicator centred in it. */
+/* The right end of the footer, on the same axis: pulled back over the status
+   padding, with the 32 px bell 2 px off the edge as if centred in a 36 px box.
+   A running step stands before it and takes whatever width it needs. */
 .workspace-footer-end {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 36px;
+  padding-right: 2px;
   margin-right: calc(-1 * var(--dp-space-2));
 }
 </style>

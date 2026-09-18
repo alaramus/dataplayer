@@ -7,7 +7,7 @@ import { backupsKey, servicesKey, useCancelJob, useServices } from "@/features/s
 import { messageOf } from "@/shared/api/errors"
 import { notices } from "@/shared/notifications"
 import { isActive, useOperations } from "@/shared/operations"
-import { AppButton, AppProgress, AppTooltip, useToast } from "@/shared/ui"
+import { AppBadge, AppButton, AppProgress, AppTooltip, useToast } from "@/shared/ui"
 import { useWindowManager } from "@/shared/windows"
 import ActivityPanel from "./ActivityPanel.vue"
 import { useJobs } from "./api"
@@ -17,21 +17,19 @@ import { useAttention } from "./sources"
 import { sourceDataKeys, touchedSources } from "./sourceOperations"
 
 /**
- * The one control at the end of the status bar, and the sheet it opens (D113).
+ * The bell at the end of the status bar, and the sheet it opens (D113).
  *
- * It says the most urgent true thing: the step of what is running, if anything
- * is, and otherwise a bell and how much is waiting. The count is what is
- * waiting and what is working, never how much has been said — a badge that
- * counts every "Copied" is a badge nobody reads.
+ * It says the most urgent true thing: while something runs, its step and
+ * progress stand beside the bell, and the bell carries how much is waiting.
+ * The count is what is waiting and what is working, never how much has been
+ * said — a badge that counts every "Copied" is a badge nobody reads. Red when
+ * somebody has to answer, blue when things are only running.
  */
 const emit = defineEmits<{
   /** Show the connection's permissions page, where a request is answered. */
   answerAccess: [connectorId: string]
   openConnection: [connectorId: string]
 }>()
-
-/** Icon-only rendering for the footer, in line with the rail buttons. */
-withDefaults(defineProps<{ iconOnly?: boolean }>(), { iconOnly: false })
 
 const jobs = useJobs()
 const queryClient = useQueryClient()
@@ -104,15 +102,15 @@ const activeCount = computed(() => operations.items.value.filter(isActive).lengt
 /** What the button marks: what is waiting, and what is running. Not the log. */
 const count = computed(() => attention.value.length + activeCount.value)
 const current = computed(() => foreground(rows.value))
-const caption = computed(() => {
-  if (current.value) return current.value.label
-  if (jobs.isError.value) return "Activity unavailable"
-  return "Activity"
-})
+// The bell stays a bell while work runs: the step beside it says that.
 const icon = computed(() => {
   if (jobs.isError.value) return "sync_problem"
-  if (current.value) return current.value.paused ? "pause" : "pending_actions"
   return attention.value.length > 0 ? "notifications_active" : "notifications"
+})
+const tooltip = computed(() => {
+  if (jobs.isError.value) return "Activity unavailable. Show activity"
+  if (current.value) return `${current.value.status}: ${current.value.detail}. Show activity`
+  return "Show activity"
 })
 const error = computed(() => jobs.isError.value
   ? messageOf(jobs.error.value, "Server processes could not be refreshed. Last known state is shown.") : "")
@@ -141,36 +139,48 @@ function clearFinished() {
 </script>
 
 <template>
-  <AppButton
-    variant="quiet"
-    size="sm"
-    class="activity-indicator"
-    :class="{ 'activity-indicator--icon-only': iconOnly }"
-    aria-label="Show activity"
-    :aria-expanded="log.open.value"
-    data-testid="activity-indicator"
-    @click="log.setOpen(!log.open.value)"
-  >
-    <span class="activity-indicator__content">
-      <span class="activity-indicator__caption">
-        <q-icon :name="icon" />
-        <span v-if="!iconOnly">{{ caption }}</span>
-        <span
-          v-if="count > 0"
-          class="activity-indicator__count"
-          data-testid="activity-count"
-        >{{ count }}</span>
-      </span>
+  <!-- The step grows leftwards from the bell, so the bell itself stays on
+       the axis of the right rail buttons. -->
+  <span class="activity-indicator-bar">
+    <AppButton
+      v-if="current"
+      variant="quiet"
+      size="sm"
+      class="activity-indicator__running"
+      :aria-expanded="log.open.value"
+      data-testid="activity-progress"
+      @click="log.setOpen(!log.open.value)"
+    >
+      <span class="activity-indicator__step">{{ current.label }}</span>
       <AppProgress
-        v-if="current && !iconOnly"
         class="activity-indicator__progress"
         :label="current.label"
         :value="current.progress"
         :paused="current.paused"
       />
-    </span>
-    <AppTooltip>{{ current ? `${current.status}: ${current.detail}. ` : '' }}Show activity</AppTooltip>
-  </AppButton>
+      <AppTooltip>{{ current.status }}: {{ current.detail }}. Show activity</AppTooltip>
+    </AppButton>
+    <AppButton
+      variant="quiet"
+      size="sm"
+      class="activity-indicator"
+      :class="{ 'activity-indicator--error': jobs.isError.value }"
+      aria-label="Show activity"
+      :aria-expanded="log.open.value"
+      data-testid="activity-indicator"
+      @click="log.setOpen(!log.open.value)"
+    >
+      <q-icon :name="icon" />
+      <AppBadge
+        v-if="count > 0"
+        class="activity-indicator__count"
+        :label="String(count)"
+        :tone="attention.length > 0 ? 'error' : 'info'"
+        data-testid="activity-count"
+      />
+      <AppTooltip>{{ tooltip }}</AppTooltip>
+    </AppButton>
+  </span>
 
   <ActivityPanel
     v-if="log.open.value"
@@ -192,26 +202,30 @@ function clearFinished() {
 </template>
 
 <style scoped>
-.activity-indicator { position: relative; min-width: 110px; max-width: min(320px, 35vw); }
-.activity-indicator__content { display: flex; flex-direction: column; min-width: 0; width: 100%; }
-/* Icon-only: the same 32px target as the rail buttons, icon plus the
-   waiting count, no caption or progress bar. */
-.activity-indicator--icon-only { min-width: 32px; max-width: none; min-height: 32px; }
-.activity-indicator--icon-only .activity-indicator__content { width: auto; }
-.activity-indicator--icon-only .q-icon { font-size: 20px; }
-.activity-indicator__caption { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.activity-indicator__caption > span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Overlaid: in flow it adds its height to the button and the footer grows (D113). */
-.activity-indicator__progress { position: absolute; left: 8px; right: 8px; bottom: 3px; width: auto; }
+.activity-indicator-bar { display: flex; align-items: center; gap: var(--dp-space-1); min-width: 0; }
+/* The same 32px target as the rail buttons; the count hangs off the bell's
+   corner rather than widening it, which would push the bell off the axis. */
+.activity-indicator { position: relative; min-width: 32px; min-height: 32px; }
+.activity-indicator .q-icon { font-size: 20px; }
+.activity-indicator--error .q-icon { color: var(--dp-content-error); }
 .activity-indicator__count {
-  flex: none;
+  position: absolute;
+  top: 1px;
+  right: 0;
   min-width: 16px;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: var(--dp-border-strong);
-  color: var(--dp-text-strong);
+  padding: 1px 4px;
   font-size: 10px;
-  line-height: 16px;
-  text-align: center;
+  line-height: 12px;
+  justify-content: center;
 }
+.activity-indicator__running { position: relative; min-width: 110px; max-width: min(260px, 30vw); }
+.activity-indicator__step {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+/* Overlaid: in flow it adds its height to the button and the footer grows (D113). */
+.activity-indicator__progress { position: absolute; left: 8px; right: 8px; bottom: 2px; width: auto; }
 </style>

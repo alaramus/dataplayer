@@ -138,8 +138,8 @@ test("a chunk job is reviewed, accepted, followed and explained again after a re
 
     const indicator = page.getByTestId("activity-indicator")
     const sheet = page.getByTestId("activity-panel")
-    // Icon-only: the button carries the waiting count and names the step on
-    // hover; the job's title lives in the sheet it opens.
+    // The bell carries the waiting count and names the step on hover; the
+    // job's title lives in the sheet it opens.
     await expect(indicator.getByTestId("activity-count")).toHaveText("1")
     await indicator.hover()
     await expect(page.locator(".app-tooltip")).toContainText("carrying out the reviewed plan (2 of 3)")
