@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQueryClient } from "@tanstack/vue-query"
-import { computed, onBeforeUnmount, onMounted, onScopeDispose, ref, watch } from "vue"
+import { computed, onScopeDispose, ref, watch } from "vue"
 
 import type { AgentRunPublic, AgentStepPublic, ConversationPublic, ConversationsPublic } from "@/client"
 import { AppButton, AppIconButton, AppInput, AppSpinner, useConfirm, useToast } from "@/shared/ui"
@@ -9,12 +9,7 @@ import { realtime } from "@/shared/realtime/client"
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
 import { WorkspaceSeparator } from "@/shared/workspace"
-import {
-  clampRailWidth,
-  parseRailNarrow,
-  parseRailWidth,
-  RAIL_NARROW_PX,
-} from "@/shared/workspace/railWidth"
+import { useSideRail } from "@/shared/workspace/useSideRail"
 
 import AiChatRow from "./AiChatRow.vue"
 import AiConversation from "./AiConversation.vue"
@@ -56,35 +51,16 @@ const confirm = useConfirm()
 const toast = useToast()
 const selected = ref<string | null>(rememberedAiConversation())
 const settingsShown = ref(false)
-const RAIL_WIDTH_KEY = "dataplayer-ai-rail"
-const RAIL_NARROW_KEY = "dataplayer-ai-rail-narrow"
-function stored(key: string): string | null {
-  try { return localStorage.getItem(serverStorageKey(key)) } catch { return null }
-}
-function store(key: string, value: string) {
-  try { localStorage.setItem(serverStorageKey(key), value) } catch { /* Resizing still works. */ }
-}
 const spaceElement = ref<HTMLElement | null>(null)
-const spaceWidth = ref(0)
-const railWidth = ref(parseRailWidth(stored(RAIL_WIDTH_KEY)))
-const collapsed = ref(parseRailNarrow(stored(RAIL_NARROW_KEY)))
-const shownRailWidth = computed(() => collapsed.value
-  ? RAIL_NARROW_PX
-  : clampRailWidth(railWidth.value, spaceWidth.value))
-const observer = new ResizeObserver((entries) => {
-  const entry = entries[0]
-  if (entry !== undefined) spaceWidth.value = entry.contentRect.width
+const {
+  narrow: collapsed,
+  shownWidth: shownRailWidth,
+  resize: resizeRail,
+  pressGap,
+} = useSideRail(spaceElement, {
+  width: serverStorageKey("dataplayer-ai-rail"),
+  narrow: serverStorageKey("dataplayer-ai-rail-narrow"),
 })
-onMounted(() => { if (spaceElement.value !== null) observer.observe(spaceElement.value) })
-onBeforeUnmount(() => observer.disconnect())
-function resizeRail(deltaPx: number) {
-  if (!collapsed.value) railWidth.value = clampRailWidth(shownRailWidth.value + deltaPx, spaceWidth.value)
-}
-function pressGap() {
-  if (collapsed.value) collapsed.value = false
-}
-watch(railWidth, (width) => store(RAIL_WIDTH_KEY, String(width)))
-watch(collapsed, (narrow) => store(RAIL_NARROW_KEY, narrow ? "narrow" : "wide"))
 
 // The header button collapses the first panel of the space being shown
 // through one shape; here that is the chat-history rail.

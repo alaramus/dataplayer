@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
 
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
 import { AppButton, AppEmptyState, AppIconButton, AppSpinner, AppTooltip, AppTree, useToast } from "@/shared/ui"
 import { panelColorStyle } from "@/shared/ui/panelColor"
 import { WorkspaceSeparator } from "@/shared/workspace"
+import { useSideRail } from "@/shared/workspace/useSideRail"
 
 import AgentsDialog from "./AgentsDialog.vue"
 import {
@@ -21,7 +22,6 @@ import DashboardView from "./DashboardView.vue"
 import { takeDashboardIntent } from "./intent"
 import DashboardsRailNarrow from "./DashboardsRailNarrow.vue"
 import { railEntry } from "./railEntry"
-import { clampRailWidth, parseRailNarrow, parseRailWidth, RAIL_NARROW_PX } from "./railWidth"
 import { splitByOwner } from "./sharing"
 import StoreDialog from "./StoreDialog.vue"
 import StoreSetup from "./StoreSetup.vue"
@@ -103,63 +103,15 @@ function afterDelete() {
   selectedId.value = null
 }
 
-const RAIL_WIDTH_KEY = "dataplayer-dashboards-rail"
-const RAIL_NARROW_KEY = "dataplayer-dashboards-rail-narrow"
-
-function stored(key: string): string | null {
-  try {
-    return localStorage.getItem(serverStorageKey(key))
-  } catch {
-    return null
-  }
-}
-
-function store(key: string, value: string) {
-  try {
-    localStorage.setItem(serverStorageKey(key), value)
-  } catch {
-    // Like the dashboard last open: a courtesy, not state.
-  }
-}
-
 const spaceElement = ref<HTMLElement | null>(null)
-const spaceWidth = ref(0)
-const railWidth = ref(parseRailWidth(stored(RAIL_WIDTH_KEY)))
-const railNarrow = ref(parseRailNarrow(stored(RAIL_NARROW_KEY)))
-// Held to the space it is drawn in, so a window made narrower narrows the
-// rail too; what is stored is what was dragged to. Pushed aside, it keeps that
-// width for when it comes back.
-const shownRailWidth = computed(() =>
-  railNarrow.value ? RAIL_NARROW_PX : clampRailWidth(railWidth.value, spaceWidth.value)
-)
-
-const observer = new ResizeObserver((entries) => {
-  const entry = entries[0]
-  if (entry !== undefined) spaceWidth.value = entry.contentRect.width
-})
-onMounted(() => {
-  if (spaceElement.value !== null) observer.observe(spaceElement.value)
-})
-onBeforeUnmount(() => {
-  observer.disconnect()
-})
-
-function resizeRail(deltaPx: number) {
-  if (railNarrow.value) return
-  railWidth.value = clampRailWidth(shownRailWidth.value + deltaPx, spaceWidth.value)
-}
-
-// A press on the gap beside a pushed-aside rail brings it back, as the
-// border of a collapsed workspace column does.
-function pressGap() {
-  if (railNarrow.value) railNarrow.value = false
-}
-
-watch(railWidth, (width) => {
-  store(RAIL_WIDTH_KEY, String(width))
-})
-watch(railNarrow, (narrow) => {
-  store(RAIL_NARROW_KEY, narrow ? "narrow" : "wide")
+const {
+  narrow: railNarrow,
+  shownWidth: shownRailWidth,
+  resize: resizeRail,
+  pressGap,
+} = useSideRail(spaceElement, {
+  width: serverStorageKey("dataplayer-dashboards-rail"),
+  narrow: serverStorageKey("dataplayer-dashboards-rail-narrow"),
 })
 
 // The header button collapses the first panel of the space being shown
