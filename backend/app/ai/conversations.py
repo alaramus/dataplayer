@@ -453,6 +453,34 @@ async def finish_step(
     return step
 
 
+async def close_running_steps(
+    session: AsyncSession, run_id: uuid.UUID, *, status: StepStatus
+) -> list[AgentStep]:
+    """The tool steps an ended run left open, ended with it (D137).
+
+    A Stop, a timeout or a failure can cut a tool off mid-call, and the tool
+    never reaches the line that finishes its step; nothing else would.
+    """
+    steps = (
+        await session.exec(
+            select(AgentStep).where(
+                AgentStep.run_id == run_id,
+                AgentStep.kind == "tool",
+                AgentStep.status == "running",
+            )
+        )
+    ).all()
+    if not steps:
+        return []
+    moment = get_datetime_utc()
+    for step in steps:
+        step.status = status
+        step.finished_at = moment
+        session.add(step)
+    await session.commit()
+    return list(steps)
+
+
 async def set_step_detail(
     session: AsyncSession, run_id: uuid.UUID, ordinal: int, detail: str
 ) -> AgentStep | None:

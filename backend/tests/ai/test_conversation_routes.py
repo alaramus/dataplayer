@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import text as sql
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.ai import tools
 from app.ai.models import Conversation
 from app.ai.topic import NAME, AgentTopic, AnswerDelta, RunChanged
 from app.core.config import settings
@@ -178,6 +179,42 @@ async def test_a_second_message_waits_for_the_first_answer(
     assert refused.json()["detail"]["message"] == "This conversation is already being answered"
     gate.set()
     await settled(client, headers, run["id"])
+
+
+async def test_stop_during_a_tool_leaves_no_step_running(
+    client: AsyncClient,
+    headers: dict[str, str],
+    script: Script,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A tool cut off by Stop ends with the run instead of running for good."""
+    entered = asyncio.Event()
+    never = asyncio.Event()
+
+    async def hang(*_args: object, **_kwargs: object) -> tuple[list[object], int]:
+        entered.set()
+        await never.wait()
+        return [], 0
+
+    monkeypatch.setattr(tools.crud, "list_for", hang)
+    script.turns.append(
+        Turn(
+            tool_calls=[
+                {"name": "list_connections", "args": {}, "id": "c1", "type": "tool_call"}
+            ]
+        )
+    )
+    conversation_id = await new_conversation(client, headers)
+    run = await send(client, headers, conversation_id, "Which connections?")
+    await asyncio.wait_for(entered.wait(), timeout=10)
+
+    stopped = await client.post(f"{AI}/runs/{run['id']}/cancel", headers=headers)
+
+    assert stopped.json()["status"] == "cancelled"
+    assert [(step["kind"], step["status"]) for step in stopped.json()["steps"]] == [
+        ("thinking", "cancelled"),
+        ("tool", "cancelled"),
+    ]
 
 
 async def test_stop_keeps_what_was_written(

@@ -544,6 +544,17 @@ class AgentRunner:
         step_status: StepStatus = (
             "done" if status == "succeeded" else "cancelled" if status == "cancelled" else "failed"
         )
+        for cut in await conversations.close_running_steps(
+            session, run_id, status=step_status
+        ):
+            await self._say(
+                owner_id,
+                StepChanged(
+                    conversation_id=conversation_id,
+                    run_id=run_id,
+                    step=conversations.step_public(cut, with_detail=False),
+                ),
+            )
         step = await conversations.finish_step(
             session, run_id, 0, status=step_status, detail=reasoning
         )
