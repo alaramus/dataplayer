@@ -101,3 +101,5 @@ export function useTabGroups(
 
   return { groups, busy, save, rename, update, remove, open }
 }
+
+export type TabGroupLibrary = ReturnType<typeof useTabGroups>

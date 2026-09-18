@@ -3,8 +3,7 @@ import { computed, ref } from "vue"
 
 import SpaceSwitch from "@/features/dashboards/SpaceSwitch.vue"
 import ServicesCommand from "@/features/services/ServicesCommand.vue"
-import { AppButton, AppInput, AppMenu, AppPopup, AppTooltip, useConfirm, useToast } from "@/shared/ui"
-import type { WorkspaceApi } from "@/shared/workspace"
+import { AppButton, AppInput, AppMenu, AppPopup, AppTooltip, useToast } from "@/shared/ui"
 import { WindowDialog } from "@/shared/windows"
 
 import CommandBar from "./CommandBar.vue"
@@ -12,8 +11,7 @@ import { GROUPS_LIST, GROUPS_SAVE, useToolRails } from "./toolRails"
 import type { ToolRailZone } from "./toolRails"
 import { groupNameProblem, suggestedGroupName } from "./groups"
 import type { TabGroup } from "./groups"
-import type { Panel } from "./panels"
-import { useTabGroups } from "./useTabGroups"
+import type { TabGroupLibrary } from "./useTabGroups"
 
 /**
  * One vertical PyCharm-like tool rail: a half of one side of the workspace.
@@ -28,8 +26,8 @@ import { useTabGroups } from "./useTabGroups"
  */
 const props = defineProps<{
   zone: ToolRailZone
-  workspace: WorkspaceApi<Panel>
-  userId: string
+  /** The one library of saved groups every rail shares; see WorkspacePage. */
+  groups: TabGroupLibrary
 }>()
 
 const rails = useToolRails()
@@ -76,30 +74,9 @@ function onRailDrop(event: DragEvent) {
   rails.placeBlock(id, props.zone, blocks.value.length)
 }
 
-/**
- * One group library for all four rails: separate instances would each keep
- * their own copy of the list and disagree after a rename until a reload.
- * Bound to the user and the workspace it was made with, so a sign-in as
- * somebody else or a remounted page starts a fresh library rather than
- * acting on a dead workspace.
- */
-type GroupLibrary = ReturnType<typeof useTabGroups>
-let shared: { userId: string; workspace: WorkspaceApi<Panel>; library: GroupLibrary } | null = null
-function useSharedGroups(): GroupLibrary {
-  if (shared === null || shared.userId !== props.userId || shared.workspace !== props.workspace) {
-    shared = {
-      userId: props.userId,
-      workspace: props.workspace,
-      library: useTabGroups(props.userId, props.workspace, useConfirm(), useToast()),
-    }
-  }
-  return shared.library
-}
-
-const library = useSharedGroups()
 const toast = useToast()
-const groupList = computed(() => library.groups.value)
-const busy = computed(() => library.busy.value)
+const groupList = computed(() => props.groups.groups.value)
+const busy = computed(() => props.groups.busy.value)
 const hasGroups = computed(() => groupList.value.length > 0)
 
 /** Framed as one group only when the block holds several buttons. */
@@ -132,13 +109,13 @@ function askRename(group: TabGroup) {
 function saveName() {
   if (problem.value) return
   if (editingId.value !== null) {
-    if (library.rename(editingId.value, name.value)) {
+    if (props.groups.rename(editingId.value, name.value)) {
       editingId.value = null
       saving.value = false
     }
     return
   }
-  if (library.save(name.value)) saving.value = false
+  if (props.groups.save(name.value)) saving.value = false
 }
 
 function closeDialog() {
@@ -156,13 +133,13 @@ function select(action: string, group: TabGroup) {
   listOpen.value = false
   if (busy.value) return
   if (action === "rename-group") askRename(group)
-  if (action === "delete-group") void library.remove(group)
-  if (action === "update-group" && library.update(group.id)) toast.success(`Updated "${group.name}".`)
+  if (action === "delete-group") void props.groups.remove(group)
+  if (action === "update-group" && props.groups.update(group.id)) toast.success(`Updated "${group.name}".`)
 }
 
 function openListed(group: TabGroup) {
   listOpen.value = false
-  void library.open(group)
+  void props.groups.open(group)
 }
 </script>
 

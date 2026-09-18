@@ -50,6 +50,13 @@ test("saves column layouts, replaces tabs, remembers the warning and manages mul
   const connection = `e2e-groups-${Date.now()}`
   await login(page)
 
+  // The list is carried to another rail than the save button. Each rail once
+  // kept its own copy of the groups, and the two buttons then disagreed: a
+  // group saved on one side never showed in the list on the other.
+  await page.getByTestId("tool-block-groups-list").dragTo(page.getByTestId("tool-rail-left-bottom"))
+  await expect(page.getByTestId("tool-rail-left-bottom").getByTestId("open-tab-groups")).toBeVisible()
+  await expect(page.getByTestId("tool-rail-right-top").getByTestId("save-tab-group")).toBeVisible()
+
   // The list button always stands; with nothing saved yet it says so.
   await openGroups(page)
   await expect(page.getByRole("menu", { name: "Saved tab groups", exact: true })).toContainText(

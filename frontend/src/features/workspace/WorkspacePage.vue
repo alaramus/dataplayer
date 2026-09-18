@@ -30,6 +30,7 @@ import { screenContexts } from "@/features/ai/context"
 import type { AiOpenIntent } from "@/features/ai/context"
 import DashboardsSpace from "@/features/dashboards/DashboardsSpace.vue"
 import WorkspaceToolRail from "@/features/workspace/WorkspaceToolRail.vue"
+import { useTabGroups } from "@/features/workspace/useTabGroups"
 import {
   catalogPanelId,
   chartPanelId,
@@ -252,6 +253,15 @@ const sharedTarget = ref<SharedTarget | null>(null)
 const queriesTarget = ref<string | null>(null)
 const toast = useToast()
 const queryClient = useQueryClient()
+
+// One library of saved tab groups for the four rails. Each rail used to make
+// its own, and a save button and a list standing on different rails then
+// wrote their stale copies over each other. Made again only for another
+// person, not for every refetch of the same one.
+const meId = computed(() => me.data.value?.id ?? null)
+const tabGroups = computed(() =>
+  meId.value === null ? null : useTabGroups(meId.value, workspace, confirm, toast)
+)
 
 // The state of every connection, pushed while this screen is open. Called
 // here and nowhere else: the server probes only while somebody is watching,
@@ -928,16 +938,14 @@ provide(workspaceActionsKey, {
     <div class="workspace-shell">
       <div class="workspace-shell__side">
         <WorkspaceToolRail
-          v-if="me.data.value"
+          v-if="tabGroups"
           zone="left-top"
-          :workspace="workspace"
-          :user-id="me.data.value.id"
+          :groups="tabGroups"
         />
         <WorkspaceToolRail
-          v-if="me.data.value"
+          v-if="tabGroups"
           zone="left-bottom"
-          :workspace="workspace"
-          :user-id="me.data.value.id"
+          :groups="tabGroups"
         />
       </div>
       <div class="workspace-shell__center">
@@ -961,16 +969,14 @@ provide(workspaceActionsKey, {
       </div>
       <div class="workspace-shell__side">
         <WorkspaceToolRail
-          v-if="me.data.value"
+          v-if="tabGroups"
           zone="right-top"
-          :workspace="workspace"
-          :user-id="me.data.value.id"
+          :groups="tabGroups"
         />
         <WorkspaceToolRail
-          v-if="me.data.value"
+          v-if="tabGroups"
           zone="right-bottom"
-          :workspace="workspace"
-          :user-id="me.data.value.id"
+          :groups="tabGroups"
         />
       </div>
     </div>
