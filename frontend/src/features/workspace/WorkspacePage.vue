@@ -72,6 +72,7 @@ import type {
   OpenSummaryRequest,
   RevealTarget,
   SharedTarget,
+  WorkspaceActions,
 } from "@/features/workspace/state"
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
@@ -475,50 +476,6 @@ function openCatalog(connector: ConnectorPublic) {
   })
 }
 
-function openFromAgent(intent: AiOpenIntent) {
-  const connector = (connectors.data.value?.data ?? []).find(
-    (candidate) => candidate.id === intent.connector_id
-  )
-  if (connector === undefined) {
-    toast.info("That connection is no longer available")
-    return
-  }
-  if (intent.node_id == null || intent.view === "catalog") {
-    openCatalog(connector)
-    return
-  }
-  const common = {
-    connectorId: connector.id,
-    nodeId: intent.node_id,
-    title: intent.title ?? intent.node_id,
-    connectorName: connector.name,
-    adapterType: connector.adapter_type,
-  }
-  if (intent.view === "structure") {
-    openPanel({ id: structurePanelId(connector.id, intent.node_id), kind: "structure", ...common })
-  } else if (intent.view === "summary") {
-    openPanel({ id: summaryPanelId(connector.id, intent.node_id), kind: "summary", ...common })
-  } else if (intent.view === "preferred" && intent.representations.length > 0) {
-    const preferred = intent.representations[0]
-    if (preferred?.kind === "table") {
-      openPanel({
-        id: rowsPanelId(connector.id, intent.node_id), kind: "rows", ...common,
-        describable: intent.describable, representations: intent.representations,
-      })
-    } else if (preferred !== undefined) {
-      openPanel({
-        id: contentPanelId(connector.id, intent.node_id, preferred.kind), kind: "content",
-        ...common, representation: preferred.kind,
-      })
-    }
-  } else {
-    openPanel({
-      id: rowsPanelId(connector.id, intent.node_id), kind: "rows", ...common,
-      describable: intent.describable, representations: intent.representations,
-    })
-  }
-}
-
 /**
  * Show the catalog of a connection and point at one node in it.
  *
@@ -645,7 +602,7 @@ function replaceNode(connectorId: string, replacement: NodeReplacement) {
   }
 }
 
-provide(workspaceActionsKey, {
+const actions: WorkspaceActions = {
   activeConnectorId,
   openConnectorIds: openConnectors,
   openCatalog,
@@ -888,7 +845,40 @@ provide(workspaceActionsKey, {
   createConnector: (draft: ConnectorDraft) => {
     openConnectorWindow(null, draft.adapter_type, undefined, draft)
   },
-})
+}
+provide(workspaceActionsKey, actions)
+
+/**
+ * What the agent asked to open, through the same ways in the catalog uses, so
+ * the tab it opens is the tab the person would have got by hand — a document
+ * with its table and source views, a sheet with its workbook. A copy of those
+ * ways had already lost both.
+ */
+function openFromAgent(intent: AiOpenIntent) {
+  const connector = (connectors.data.value?.data ?? []).find(
+    (candidate) => candidate.id === intent.connector_id
+  )
+  if (connector === undefined) {
+    toast.info("That connection is no longer available")
+    return
+  }
+  if (intent.node_id == null || intent.view === "catalog") {
+    openCatalog(connector)
+    return
+  }
+  const node = {
+    connectorId: connector.id,
+    nodeId: intent.node_id,
+    title: intent.title ?? intent.node_id,
+    connectorName: connector.name,
+    adapterType: connector.adapter_type,
+  }
+  const described = { ...node, describable: intent.describable, representations: intent.representations }
+  if (intent.view === "structure") actions.openStructure(node)
+  else if (intent.view === "summary") actions.openSummary(node)
+  else if (intent.view === "preferred" && intent.representations.length > 0) actions.openRepresentation(described)
+  else actions.openRows(described)
+}
 </script>
 
 <template>
