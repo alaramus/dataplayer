@@ -68,6 +68,10 @@ from app.queries.unlocks import NEEDED
 from app.users.models import User
 
 MAX_ROWS = 20
+# Nodes of one catalog level a call returns. A level is read whole from the
+# source, and a schema of thousands of tables sent at once only reached the
+# model as the truncated preview of its first bytes.
+MAX_NODES = 100
 MAX_RESULT_BYTES = 64 * 1024
 MAX_TOOL_CALLS = 50
 LIMIT_MESSAGE = f"This answer stopped after {MAX_TOOL_CALLS} tool calls. Ask a narrower question."
@@ -476,7 +480,9 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             }
         return await runtime.invoke("Listing connections", read)
 
-    async def browse_catalog(connector_id: str, node_id: str | None = None) -> str:
+    async def browse_catalog(
+        connector_id: str, node_id: str | None = None, offset: int = 0
+    ) -> str:
         async def read(session: AsyncSession, user: User) -> Any:
             resolved = await runtime.connector(session, user, uuid.UUID(connector_id))
             if isinstance(resolved, dict):
@@ -485,12 +491,16 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
             if not isinstance(adapter, SupportsCatalog):
                 return {"error": "This connection has no catalog"}
             nodes = await adapter.list_children(node_id)
+            start = max(0, offset)
+            page = nodes[start : start + MAX_NODES]
             return {
                 "connector": connector.name,
                 "connector_id": str(connector.id),
                 "parent_node_id": node_id,
-                "nodes": [node.model_dump(mode="json") for node in nodes],
+                "offset": start,
+                "nodes": [node.model_dump(mode="json") for node in page],
                 "total": len(nodes),
+                "has_more": start + len(page) < len(nodes),
             }
         label = await runtime.connection_label(connector_id)
         return await runtime.invoke(f'Browsing catalog in "{label}"', read)
@@ -723,7 +733,7 @@ def build_tools(runtime: ToolRuntime) -> list[BaseTool]:
 
     definitions: list[tuple[Callable[..., Awaitable[str]], str, str]] = [
         (list_connections, "list_connections", "List every connection visible to the current person, including transfer policy."),
-        (browse_catalog, "browse_catalog", "List one level of a connection catalog. Use opaque ids exactly as returned."),
+        (browse_catalog, "browse_catalog", f"List one level of a connection catalog, at most {MAX_NODES} nodes from offset. Use opaque ids exactly as returned."),
         (describe_node, "describe_node", "Describe a node's columns, constraints, indexes and summary where supported."),
         (read_rows, "read_rows", f"Read at most {MAX_ROWS} rows from one opaque node id."),
         (run_query, "run_query", "Run a query. Reads are free; statements that change data ask the person first and run as one committed transaction."),

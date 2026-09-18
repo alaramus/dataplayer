@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.ai.prompts import SYSTEM_PROMPT
-from app.ai.tools import LIMIT_MESSAGE, WITHHELD_RESULT
+from app.ai.tools import LIMIT_MESSAGE, MAX_NODES, WITHHELD_RESULT
 from app.ai.topic import NAME, AgentTopic, WorkspaceOpened
 from app.core.config import settings
 from app.main import app
@@ -134,6 +134,32 @@ async def test_the_agent_lists_the_tables_of_a_named_connection(
     assert any(node["id"] == "public" for node in root["nodes"])
     relations = tool_results(script, 3)[-1]
     assert any(node["id"].startswith("public.") for node in relations["nodes"])
+
+
+async def test_a_large_catalog_level_is_read_a_page_at_a_time(
+    client: AsyncClient, headers: dict[str, str], script: Script
+) -> None:
+    """pg_catalog always holds more relations than one page, so paging is real."""
+    connector_id = await postgres_connector(client, headers, transfer=True, name="system")
+    level = {"connector_id": connector_id, "node_id": "pg_catalog"}
+    script.turns += [
+        Turn(tool_calls=[call("browse_catalog", level, "c1")]),
+        Turn(tool_calls=[call("browse_catalog", {**level, "offset": MAX_NODES}, "c2")]),
+        Turn(pieces=[text("Read both pages.")]),
+    ]
+    conversation_id = await new_conversation(client, headers)
+    await rename(client, headers, conversation_id)
+
+    run = await send(client, headers, conversation_id, "what is in pg_catalog")
+    await settled(client, headers, run["id"])
+
+    first = tool_results(script, 1)[-1]
+    second = tool_results(script, 2)[-1]
+    assert first["total"] > MAX_NODES
+    assert (len(first["nodes"]), first["offset"], first["has_more"]) == (MAX_NODES, 0, True)
+    assert second["offset"] == MAX_NODES
+    assert len(second["nodes"]) == min(MAX_NODES, first["total"] - MAX_NODES)
+    assert not {node["id"] for node in first["nodes"]} & {node["id"] for node in second["nodes"]}
 
 
 async def test_two_connections_with_one_name_become_a_question_not_a_guess(

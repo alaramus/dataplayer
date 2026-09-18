@@ -33,8 +33,9 @@ connection that does not allow transfer answers with a `transfer_not_allowed`
 marker, the owner is offered Allow from that step, and a grantee is told to ask
 the owner. Results of a connection whose flag was switched off are withheld
 from later context — a refusal itself never is, since it carries no data and
-the agent needs it to say why it stopped. Results are bounded to 64 KiB and 20
-rows, and a run stops after 50 tool calls with its own sentence.
+the agent needs it to say why it stopped. Results are bounded to 64 KiB, 20
+rows and 100 nodes of a catalog level a call, read on from an offset, and a run
+stops after 50 tool calls with its own sentence.
 
 A change asks first (D136): a `run_query` whose script changes data and a
 `run_action` above reading pause the run on a confirmation card with Allow
