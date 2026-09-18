@@ -1,37 +1,45 @@
 import { defineStore } from "pinia"
 import { Dark } from "quasar"
-import { ref } from "vue"
+import { computed, ref, watch } from "vue"
 
 export const THEME_KEY = "dataplayer-theme"
 
 /**
- * Light or dark. Pinia, because the server knows nothing about it (D6). Two
- * states and not three: "as the system says" is what answers before anything
- * is chosen, and offering it back would be a state whose only job is to return
- * to the default.
+ * Light, dark, or whatever the system says. Pinia, because the server knows
+ * nothing about it (D6). System is the default and a choice of its own: a
+ * person who picked Light can go back to following the machine, whose theme
+ * may change at sunset while the page stays open.
  *
  * The one place that names Quasar's Dark plugin. It puts `body--dark` on the
  * document and `shared/ui/theme.css` hangs every colour of ours off the same
  * class, so the kit and the screens turn over on one event rather than two.
  */
+export type ThemeMode = "light" | "dark" | "system"
 
-/** What the browser was told to prefer, asked only when nothing was chosen. */
+const QUERY = "(prefers-color-scheme: dark)"
+
+/** What the browser was told to prefer. */
 export function systemPrefersDark(): boolean {
-  return (
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches
-  )
+  return typeof window.matchMedia === "function" && window.matchMedia(QUERY).matches
 }
 
-function chosen(): boolean | null {
+function chosen(): ThemeMode {
   const found = localStorage.getItem(THEME_KEY)
-  if (found === "dark") return true
-  if (found === "light") return false
-  return null
+  return found === "dark" || found === "light" ? found : "system"
 }
 
 export const useThemeStore = defineStore("theme", () => {
-  const dark = ref(chosen() ?? systemPrefersDark())
+  const mode = ref<ThemeMode>(chosen())
+  const systemDark = ref(systemPrefersDark())
+  const dark = computed(() => (mode.value === "system" ? systemDark.value : mode.value === "dark"))
+
+  // Listened to for the life of the page, whatever is chosen: switching to
+  // System later must find the answer current, not the one read at start.
+  if (typeof window.matchMedia === "function") {
+    window.matchMedia(QUERY).addEventListener("change", (event) => {
+      systemDark.value = event.matches
+    })
+  }
 
   /**
    * Put the current choice on the document.
@@ -43,16 +51,19 @@ export const useThemeStore = defineStore("theme", () => {
   function apply() {
     Dark.set(dark.value)
   }
+  watch(dark, apply, { flush: "sync" })
 
-  function set(value: boolean) {
-    dark.value = value
-    localStorage.setItem(THEME_KEY, value ? "dark" : "light")
-    apply()
+  function set(value: ThemeMode) {
+    mode.value = value
+    // Nothing stored is System, so an old browser and a new choice agree.
+    if (value === "system") localStorage.removeItem(THEME_KEY)
+    else localStorage.setItem(THEME_KEY, value)
   }
 
+  /** The other of the two themes, chosen outright, whatever answered before. */
   function toggle() {
-    set(!dark.value)
+    set(dark.value ? "light" : "dark")
   }
 
-  return { dark, apply, set, toggle }
+  return { mode, dark, apply, set, toggle }
 })

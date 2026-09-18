@@ -3,17 +3,28 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { THEME_KEY, useThemeStore } from "./theme"
 
-/** What the browser would answer if nobody had chosen. */
+/**
+ * What the browser would answer, and a way to change its mind the way the
+ * operating system does at sunset.
+ */
 function systemSays(dark: boolean) {
+  const listeners: ((event: { matches: boolean }) => void)[] = []
   vi.stubGlobal(
     "matchMedia",
     vi.fn((query: string) => ({
       matches: dark && query.includes("dark"),
       media: query,
-      addEventListener: vi.fn(),
+      addEventListener: (_: string, listener: (event: { matches: boolean }) => void) => {
+        listeners.push(listener)
+      },
       removeEventListener: vi.fn(),
     }))
   )
+  return {
+    turns: (next: boolean) => {
+      for (const listener of listeners) listener({ matches: next })
+    },
+  }
 }
 
 describe("theme store", () => {
@@ -27,10 +38,13 @@ describe("theme store", () => {
     vi.unstubAllGlobals()
   })
 
-  it("asks the system when nothing has been chosen yet", () => {
+  it("follows the system when nothing has been chosen yet", () => {
     systemSays(true)
 
-    expect(useThemeStore().dark).toBe(true)
+    const theme = useThemeStore()
+
+    expect(theme.mode).toBe("system")
+    expect(theme.dark).toBe(true)
   })
 
   it("takes light from the system just as readily", () => {
@@ -43,17 +57,55 @@ describe("theme store", () => {
     systemSays(true)
     localStorage.setItem(THEME_KEY, "light")
 
-    expect(useThemeStore().dark).toBe(false)
+    const theme = useThemeStore()
+
+    expect(theme.mode).toBe("light")
+    expect(theme.dark).toBe(false)
   })
 
   it("keeps the choice, so a reload finds it again", () => {
     systemSays(false)
     const theme = useThemeStore()
 
-    theme.toggle()
+    theme.set("dark")
 
     expect(theme.dark).toBe(true)
     expect(localStorage.getItem(THEME_KEY)).toBe("dark")
+  })
+
+  it("goes back to the system by forgetting the choice", () => {
+    systemSays(true)
+    localStorage.setItem(THEME_KEY, "light")
+    const theme = useThemeStore()
+
+    theme.set("system")
+
+    expect(theme.dark).toBe(true)
+    expect(localStorage.getItem(THEME_KEY)).toBeNull()
+  })
+
+  it("turns over with the system while the system is followed", () => {
+    const system = systemSays(false)
+    const theme = useThemeStore()
+    theme.apply()
+
+    system.turns(true)
+
+    expect(theme.dark).toBe(true)
+    expect(document.body.classList.contains("body--dark")).toBe(true)
+  })
+
+  it("stays where it was put when the system turns over", () => {
+    const system = systemSays(false)
+    const theme = useThemeStore()
+    theme.set("light")
+
+    system.turns(true)
+    expect(theme.dark).toBe(false)
+
+    // And the answer is current when the system is followed again.
+    theme.set("system")
+    expect(theme.dark).toBe(true)
   })
 
   it("puts the choice on the body, which is what every colour keys off", () => {

@@ -177,8 +177,9 @@ Known deviations:
   passing `color="purple"` to the Quasar component underneath; only review does.
 - **`AppTree` wraps `q-tree`.** Its node and lazy-load types are read off
   Quasar's props, so replacing the tree would change what a screen passes it.
-- **The theme is chosen once per browser.** The system preference is read only
-  while nothing is stored, and the choice does not follow a user elsewhere.
+- **The theme is chosen once per browser.** Light, Dark or System; System is
+  what nothing stored means and follows the operating system as it changes.
+  The choice does not follow a user elsewhere.
 - **The dark palette was picked by eye**, against Quasar's dark colours; nothing
   measures contrast against WCAG.
 

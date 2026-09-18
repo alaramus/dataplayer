@@ -12,10 +12,11 @@ import {
   AppPageHeader,
   AppSelect,
   AppSpinner,
-  AppThemeToggle,
   useToast,
 } from "@/shared/ui"
+import type { SelectOption } from "@/shared/ui"
 import { useThemeStore } from "@/stores/theme"
+import type { ThemeMode } from "@/stores/theme"
 
 /**
  * What this account chose for itself.
@@ -34,8 +35,14 @@ const router = useRouter()
 const toast = useToast()
 const preferences = usePreferences()
 const save = useUpdatePreferences()
-// The theme switch lives here, next to the account, rather than in the header.
+// The theme lives here, next to the account, rather than in the header. Kept
+// in this browser rather than on the server (D6), so it is not saved above.
 const theme = useThemeStore()
+const themes: SelectOption[] = [
+  { label: "Light", value: "light" },
+  { label: "Dark", value: "dark" },
+  { label: "System", value: "system", description: "Follows the operating system, as it changes" },
+]
 
 const intervals = checkIntervalOptions()
 // Whatever the server says it is, and nothing while it has not said: a
@@ -83,14 +90,18 @@ async function chooseInterval(value: unknown) {
         <div class="preferences__what">
           <span class="preferences__title">Appearance</span>
           <span class="preferences__summary">
-            Light or dark theme for the whole application. Until one is chosen,
-            the system's preference answers.
+            Light or dark theme for the whole application, or the one the
+            operating system is using. Kept in this browser.
           </span>
         </div>
-        <div class="preferences__theme">
-          <AppThemeToggle />
-          <span>{{ theme.dark ? "Dark" : "Light" }}</span>
-        </div>
+        <AppSelect
+          class="preferences__control"
+          :model-value="theme.mode"
+          :options="themes"
+          aria-label="Theme"
+          data-testid="preference-theme"
+          @update:model-value="theme.set($event as ThemeMode)"
+        />
       </section>
       <section class="preferences__row">
         <div class="preferences__what">
@@ -145,11 +156,6 @@ async function chooseInterval(value: unknown) {
 }
 .preferences__title {
   font-weight: 500;
-}
-.preferences__theme {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 .preferences__summary {
   color: var(--dp-text-muted);

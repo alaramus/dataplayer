@@ -45,28 +45,36 @@ test("takes the theme from the system until somebody chooses", async ({ page }) 
   await expect(dark(page)).toHaveCount(0)
 })
 
+/** Choose a theme where it is chosen: Preferences, next to the account. */
+async function choose(page: Page, theme: "Light" | "Dark" | "System") {
+  await page.getByTestId("user-menu").click()
+  await page.getByTestId("menu-item-preferences").click()
+  await page.waitForURL("/preferences")
+  await page.getByTestId("preference-theme").click()
+  await page.getByRole("option", { name: theme }).click()
+  await expect(page.getByTestId("preference-theme")).toContainText(theme)
+}
+
+async function backToWorkspace(page: Page) {
+  await page.getByTestId("back-to-workspace").click()
+  await page.waitForURL("/")
+}
+
 test("a chosen theme outlives a reload and outranks the system", async ({ page }) => {
   await login(page)
 
   // The system says dark, so choosing light is a choice that has to survive
-  // being asked again — and the store asks the system only when nothing has
-  // been chosen.
+  // being asked again — and the store asks the system only while System is
+  // what is chosen.
   await page.emulateMedia({ colorScheme: "dark" })
   await forget(page)
   await page.reload()
   await expect(dark(page)).toHaveCount(1)
 
   const wasDark = await panelColour(page)
-  // The switch lives in Preferences, next to the account, not in the header.
-  await page.getByTestId("user-menu").click()
-  await page.getByTestId("menu-item-preferences").click()
-  await page.waitForURL("/preferences")
-  const toggle = page.getByTestId("theme-toggle")
-  await expect(toggle).toHaveAttribute("data-theme", "dark")
-  await toggle.click()
+  await choose(page, "Light")
   await expect(dark(page)).toHaveCount(0)
-  await page.getByTestId("back-to-workspace").click()
-  await page.waitForURL("/")
+  await backToWorkspace(page)
 
   const wasLight = await panelColour(page)
   expect(wasLight).not.toBe(wasDark)
@@ -78,16 +86,31 @@ test("a chosen theme outlives a reload and outranks the system", async ({ page }
   expect(await panelColour(page)).toBe(wasLight)
 
   // And back, so neither direction is the one that happens to work.
-  await page.getByTestId("user-menu").click()
-  await page.getByTestId("menu-item-preferences").click()
-  await page.waitForURL("/preferences")
-  await toggle.click()
+  await choose(page, "Dark")
   await expect(dark(page)).toHaveCount(1)
-  await page.getByTestId("back-to-workspace").click()
-  await page.waitForURL("/")
+  await backToWorkspace(page)
   await page.reload()
   await expect(dark(page)).toHaveCount(1)
   expect(await panelColour(page)).toBe(wasDark)
+})
+
+test("System follows the operating system while the page is open", async ({ page }) => {
+  await login(page)
+  await page.emulateMedia({ colorScheme: "light" })
+  await forget(page)
+  await page.reload()
+
+  await choose(page, "Dark")
+  await expect(dark(page)).toHaveCount(1)
+
+  // Chosen back, the answer is the system's — and it keeps being the
+  // system's when that changes without a reload.
+  await choose(page, "System")
+  await expect(dark(page)).toHaveCount(0)
+  await page.emulateMedia({ colorScheme: "dark" })
+  await expect(dark(page)).toHaveCount(1)
+  await page.emulateMedia({ colorScheme: "light" })
+  await expect(dark(page)).toHaveCount(0)
 })
 
 test("a column of the workspace is one colour, grid included", async ({ page }) => {
