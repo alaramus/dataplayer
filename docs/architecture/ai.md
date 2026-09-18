@@ -94,7 +94,7 @@ frontend/src/features/ai/
 ├── AiSpace.vue         the two columns, history and settings
 ├── AiConversation.vue  transcript, steps, the confirmation card, Stop, copy, listen and the context chips
 ├── AiContextDialog.vue the open tabs a message may carry
-├── AiSettings.vue      provider keys, model and confirmations
+├── AiSettings.vue      provider keys, model, confirmations and the archive
 ├── ChatMarkdown.vue    the D50 renderer in streaming mode
 ├── attention.ts        a waiting conversation as a Needs-you item (D113)
 ├── api.ts              vue-query ownership of server state
@@ -112,7 +112,7 @@ DELETE /api/v1/ai/keys/{provider}
 POST   /api/v1/ai/keys/{provider}/check
 GET    /api/v1/ai/conversations
 POST   /api/v1/ai/conversations
-DELETE /api/v1/ai/conversations
+DELETE /api/v1/ai/conversations/archived
 GET    /api/v1/ai/conversations/{conversation_id}
 PATCH  /api/v1/ai/conversations/{conversation_id}
 DELETE /api/v1/ai/conversations/{conversation_id}
@@ -282,9 +282,14 @@ and detached panels remain visible, by the same covering contract as
 Dashboards. Left column: New chat, history, Settings; settings replace the
 conversation on the right. The two cards have the ordinary draggable workspace
 separator; the left card is remembered, collapsible and capped at 40% of the
-space. Keys, Model and Confirmations live here, not on
-`/preferences`. Titles are written by the chosen model and renamable. A conversation is
-kept until deleted, one at a time or all at once, and its content is encrypted
-at rest under `AI_CONTENT_KEY`. No editing, tags, rewind, branches or search.
+space. Keys, Model, Confirmations and the archive live here, not on
+`/preferences`. Titles are written by the chosen model and renamed by pressing
+the name above the conversation. A row of the history is pinned, which keeps it
+above the rest, or archived, which takes it out of the history without losing
+it. Nothing is deleted from a row: the archive in the settings restores a
+conversation or deletes it, one at a time or all at once, which is the only
+place anything is deleted. A pin survives archiving, so a restored conversation
+comes back where it was. Content is encrypted at rest under `AI_CONTENT_KEY`.
+No editing, tags, rewind, branches or search.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)

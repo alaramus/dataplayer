@@ -17,7 +17,7 @@ from app.ai.models import (
     AgentSettingsUpdate,
     ConversationMessageCreate,
     ConversationPublic,
-    ConversationRename,
+    ConversationUpdate,
     ConversationsPublic,
     ConversationSummary,
     ProviderKeyCheck,
@@ -96,9 +96,11 @@ async def read_conversations(
     current_user: CurrentUser,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    archived: bool = False,
 ) -> Any:
+    """The history, pinned first; or the archive, which the settings show."""
     return await conversations.list_for_owner(
-        session, current_user.id, skip=skip, limit=limit
+        session, current_user.id, skip=skip, limit=limit, archived=archived
     )
 
 
@@ -109,21 +111,17 @@ async def read_conversations(
 )
 async def create_conversation(session: SessionDep, current_user: CurrentUser) -> Any:
     conversation = await conversations.create(session, current_user.id)
-    return ConversationSummary(
-        id=conversation.id,
-        title="New chat",
-        updated_at=conversation.updated_at,
-        active=False,
-        waiting=False,
-    )
+    return conversations.summary_of(conversation, active=False, waiting=False)
 
 
-@router.delete("/conversations", response_model=Message)
-async def delete_all_conversations(
+# Before the route addressed by id, which would otherwise answer 422 for this
+# path rather than letting it through.
+@router.delete("/conversations/archived", response_model=Message)
+async def delete_archived_conversations(
     session: SessionDep, current_user: CurrentUser, runner: AgentRunnerDep
 ) -> Any:
-    """Every conversation of this person, permanently (D141)."""
-    ids = await conversations.ids_for_owner(session, current_user.id)
+    """Empty the archive, permanently. Nothing in the history is touched (D141)."""
+    ids = await conversations.archived_ids_for_owner(session, current_user.id)
     await runner.forget(ids)
     await conversations.delete_rows(session, ids)
     return Message(message=f"{len(ids)} conversations deleted")
@@ -147,24 +145,25 @@ async def read_conversation(
 
 
 @router.patch("/conversations/{conversation_id}", response_model=ConversationSummary)
-async def rename_conversation(
+async def update_conversation(
     session: SessionDep,
     current_user: CurrentUser,
     conversation_id: uuid.UUID,
-    body: ConversationRename,
+    body: ConversationUpdate,
 ) -> Any:
-    """A name the person chose, which no title from the model replaces."""
+    """Its name, its pin, or whether it is in the archive."""
     conversation = await conversations.get_for_owner(
         session, conversation_id, current_user.id
     )
     if conversation is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
-    renamed = await conversations.rename(session, conversation, body.title.strip())
+    title = body.title.strip() if body.title is not None else None
+    changed = await conversations.change(
+        session, conversation, title=title, pinned=body.pinned, archived=body.archived
+    )
     current = await conversations.active_run(session, conversation_id)
-    return ConversationSummary(
-        id=renamed.id,
-        title=body.title.strip(),
-        updated_at=renamed.updated_at,
+    return conversations.summary_of(
+        changed,
         active=current is not None,
         waiting=current is not None and current.status == "awaiting_answer",
     )

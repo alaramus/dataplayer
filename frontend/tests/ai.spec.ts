@@ -78,9 +78,29 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId("ai-provider-key")).toBeVisible()
   await page.getByTestId("ai-key-dialog").getByRole("button", { name: "Close" }).click()
 
-  const row = page.getByTestId(`ai-chat-row-${conversationId ?? ""}`)
+  // A chat is pinned above the rest and archived out of the history from its
+  // row; it is deleted only from the archive, in the settings.
+  const id = conversationId ?? ""
+  const row = page.getByTestId(`ai-chat-row-${id}`)
   await row.hover()
-  await row.getByRole("button", { name: "Delete chat" }).click()
-  await page.getByRole("dialog", { name: "Delete chat?" }).getByRole("button", { name: "Delete" }).click()
+  await page.getByTestId(`ai-pin-${id}`).click()
+  await expect(page.locator('[data-testid^="ai-chat-row-"]').first()).toHaveAttribute(
+    "data-testid", `ai-chat-row-${id}`
+  )
+  await page.getByTestId(`ai-archive-${id}`).click()
   await expect(row).toHaveCount(0)
+
+  await page.getByTestId("ai-open-settings").click()
+  const archived = page.getByTestId(`ai-archived-${id}`)
+  await expect(archived).toContainText("Playwright agent chat")
+  await page.getByTestId(`ai-restore-${id}`).click()
+  await expect(archived).toHaveCount(0)
+  await expect(row).toBeVisible()
+
+  // Still pinned, so its row shows its buttons without being pointed at.
+  await page.getByTestId(`ai-archive-${id}`).click()
+  await expect(archived).toBeVisible()
+  await page.getByTestId(`ai-delete-${id}`).click()
+  await page.getByRole("dialog", { name: "Delete chat?" }).getByRole("button", { name: "Delete" }).click()
+  await expect(archived).toHaveCount(0)
 })

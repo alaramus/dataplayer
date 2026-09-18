@@ -46,6 +46,21 @@ def first_line_title(text: str) -> str:
     return line[:MAX_TITLE_CHARS] or "New chat"
 
 
+def summary_of(
+    conversation: Conversation, *, active: bool, waiting: bool
+) -> ConversationSummary:
+    """One row of the history: the one place a stored conversation becomes one."""
+    return ConversationSummary(
+        id=conversation.id,
+        title=opened(conversation.title),
+        updated_at=conversation.updated_at,
+        active=active,
+        waiting=waiting,
+        pinned=conversation.pinned,
+        archived=conversation.archived,
+    )
+
+
 async def create(
     session: AsyncSession, owner_id: uuid.UUID, title: str = "New chat"
 ) -> Conversation:
@@ -66,18 +81,32 @@ async def get_for_owner(
 
 
 async def list_for_owner(
-    session: AsyncSession, owner_id: uuid.UUID, *, skip: int, limit: int
+    session: AsyncSession,
+    owner_id: uuid.UUID,
+    *,
+    skip: int,
+    limit: int,
+    archived: bool = False,
 ) -> ConversationsPublic:
+    """The history, or the archive: one list or the other, never both (D141)."""
     count = (
         await session.exec(
-            select(func.count()).select_from(Conversation).where(Conversation.owner_id == owner_id)
+            select(func.count())
+            .select_from(Conversation)
+            .where(
+                Conversation.owner_id == owner_id,
+                col(Conversation.archived).is_(archived),
+            )
         )
     ).one()
     rows = (
         await session.exec(
             select(Conversation)
-            .where(Conversation.owner_id == owner_id)
-            .order_by(col(Conversation.updated_at).desc())
+            .where(
+                Conversation.owner_id == owner_id,
+                col(Conversation.archived).is_(archived),
+            )
+            .order_by(col(Conversation.pinned).desc(), col(Conversation.updated_at).desc())
             .offset(skip)
             .limit(limit)
         )
@@ -104,24 +133,33 @@ async def list_for_owner(
     )
     return ConversationsPublic(
         data=[
-            ConversationSummary(
-                id=row.id,
-                title=opened(row.title),
-                updated_at=row.updated_at,
-                active=row.id in active,
-                waiting=row.id in waiting,
-            )
+            summary_of(row, active=row.id in active, waiting=row.id in waiting)
             for row in rows
         ],
         count=count,
     )
 
 
-async def rename(
-    session: AsyncSession, conversation: Conversation, title: str
+async def change(
+    session: AsyncSession,
+    conversation: Conversation,
+    *,
+    title: str | None = None,
+    pinned: bool | None = None,
+    archived: bool | None = None,
 ) -> Conversation:
-    conversation.title = sealed(title)
-    conversation.title_is_custom = True
+    """Apply what was asked and leave the rest alone.
+
+    A pin survives archiving: a conversation restored from the archive comes
+    back where it was, not at the bottom of the history.
+    """
+    if title is not None:
+        conversation.title = sealed(title)
+        conversation.title_is_custom = True
+    if pinned is not None:
+        conversation.pinned = pinned
+    if archived is not None:
+        conversation.archived = archived
     session.add(conversation)
     await session.commit()
     await session.refresh(conversation)
@@ -144,11 +182,16 @@ async def retitle(
     return bool(result.rowcount)
 
 
-async def ids_for_owner(session: AsyncSession, owner_id: uuid.UUID) -> list[uuid.UUID]:
+async def archived_ids_for_owner(
+    session: AsyncSession, owner_id: uuid.UUID
+) -> list[uuid.UUID]:
     return list(
         (
             await session.exec(
-                select(Conversation.id).where(Conversation.owner_id == owner_id)
+                select(Conversation.id).where(
+                    Conversation.owner_id == owner_id,
+                    col(Conversation.archived).is_(True),
+                )
             )
         ).all()
     )

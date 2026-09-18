@@ -423,22 +423,78 @@ async def test_deleting_a_conversation_takes_its_answers_and_state_with_it(
     assert left == 0
 
 
-async def test_deleting_all_conversations_leaves_none(
+async def test_a_pinned_conversation_stands_above_a_newer_one(
+    client: AsyncClient, headers: dict[str, str]
+) -> None:
+    older = await new_conversation(client, headers)
+    newer = await new_conversation(client, headers)
+
+    pinned = await client.patch(
+        f"{AI}/conversations/{older}", headers=headers, json={"pinned": True}
+    )
+    listed = (await client.get(f"{AI}/conversations", headers=headers)).json()
+
+    assert pinned.status_code == 200
+    assert pinned.json()["pinned"] is True
+    assert [row["id"] for row in listed["data"]] == [older, newer]
+
+
+async def test_an_archived_conversation_leaves_the_history_and_comes_back(
+    client: AsyncClient, headers: dict[str, str]
+) -> None:
+    kept = await new_conversation(client, headers)
+    filed = await new_conversation(client, headers)
+    await client.patch(
+        f"{AI}/conversations/{filed}", headers=headers, json={"pinned": True}
+    )
+
+    await client.patch(
+        f"{AI}/conversations/{filed}", headers=headers, json={"archived": True}
+    )
+    history = (await client.get(f"{AI}/conversations", headers=headers)).json()
+    archive = (
+        await client.get(f"{AI}/conversations", headers=headers, params={"archived": True})
+    ).json()
+
+    assert [row["id"] for row in history["data"]] == [kept]
+    assert history["count"] == 1
+    assert [(row["id"], row["archived"]) for row in archive["data"]] == [(filed, True)]
+    # The conversation itself is still there to read, and still pinned, so
+    # restoring it puts it back where it was rather than at the bottom.
+    assert (await client.get(f"{AI}/conversations/{filed}", headers=headers)).status_code == 200
+
+    restored = await client.patch(
+        f"{AI}/conversations/{filed}", headers=headers, json={"archived": False}
+    )
+    history = (await client.get(f"{AI}/conversations", headers=headers)).json()
+
+    assert restored.status_code == 200
+    assert [row["id"] for row in history["data"]] == [filed, kept]
+    assert (
+        await client.get(f"{AI}/conversations", headers=headers, params={"archived": True})
+    ).json() == {"data": [], "count": 0}
+
+
+async def test_emptying_the_archive_leaves_the_history_alone(
     client: AsyncClient, headers: dict[str, str], db: AsyncSession
 ) -> None:
-    for _ in range(2):
-        await new_conversation(client, headers)
+    kept = await new_conversation(client, headers)
+    filed = await new_conversation(client, headers)
+    await client.patch(
+        f"{AI}/conversations/{filed}", headers=headers, json={"archived": True}
+    )
 
-    response = await client.delete(f"{AI}/conversations", headers=headers)
+    response = await client.delete(f"{AI}/conversations/archived", headers=headers)
     listed = (await client.get(f"{AI}/conversations", headers=headers)).json()
     rows = (
         await db.exec(  # type: ignore[call-overload]  # a raw statement, as the migration tests run
-            sql("SELECT count(*) FROM conversationmessage m JOIN conversation c ON c.id = m.conversation_id WHERE c.owner_id = :owner").bindparams(
+            sql("SELECT count(*) FROM conversation WHERE owner_id = :owner").bindparams(
                 owner=await user_id_of(client, headers)
             )
         )
     ).scalar_one()
 
     assert response.status_code == 200
-    assert listed == {"data": [], "count": 0}
-    assert rows == 0
+    assert [row["id"] for row in listed["data"]] == [kept]
+    assert rows == 1
+    assert (await client.get(f"{AI}/conversations/{filed}", headers=headers)).status_code == 404

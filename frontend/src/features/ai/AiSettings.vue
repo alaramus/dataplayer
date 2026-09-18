@@ -1,18 +1,31 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
 
-import { AppBanner, AppIconButton, AppSection, AppSelect, AppSpinner, AppToggle, useToast } from "@/shared/ui"
+import { AppBanner, AppButton, AppEmptyState, AppIconButton, AppSection, AppSelect, AppSpinner, AppToggle, useConfirm, useToast } from "@/shared/ui"
 import type { SelectOption } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
 import AiKeyDialog from "./AiKeyDialog.vue"
-import { useAiModels, useAiSettings, useUpdateAiSettings } from "./api"
+import {
+  useAiModels,
+  useAiSettings,
+  useArchivedAiConversations,
+  useDeleteAiConversation,
+  useDeleteArchivedAiConversations,
+  useUpdateAiConversation,
+  useUpdateAiSettings,
+} from "./api"
 import { groupedModelOptions, providers } from "./modelOptions"
 import type { ModelOption, Provider } from "./modelOptions"
 
 const settings = useAiSettings()
 const models = useAiModels()
 const update = useUpdateAiSettings()
+const archive = useArchivedAiConversations()
+const updateConversation = useUpdateAiConversation()
+const deleteConversation = useDeleteAiConversation()
+const deleteArchived = useDeleteArchivedAiConversations()
+const confirm = useConfirm()
 const toast = useToast()
 const keyProvider = ref<Provider | null>(null)
 const keyDialogOpen = ref(false)
@@ -26,6 +39,7 @@ const allowAll = computed(() => settings.data.value?.allow_all_changes ?? false)
 const selectedModel = computed(() => (models.data.value ?? []).find((one) => one.key === modelValue.value) ?? null)
 const selectedKeySet = computed(() => selectedModel.value ? keySet(selectedModel.value.provider) : false)
 const selectedProvider = computed(() => providers.find((one) => one.id === keyProvider.value) ?? null)
+const archived = computed(() => archive.data.value?.data ?? [])
 
 function manageKey(provider: Provider) { keyProvider.value = provider; keyDialogOpen.value = true }
 function manageOptionKey(option: SelectOption) {
@@ -42,6 +56,21 @@ async function chooseModel(value: unknown) {
 async function setAllowAll(value: boolean) {
   try { await update.mutateAsync({ allow_all_changes: value }) }
   catch (cause) { toast.error(messageOf(cause, "The confirmation setting could not be changed")) }
+}
+async function restore(id: string) {
+  try { await updateConversation.mutateAsync({ id, archived: false }); toast.success("Chat restored") }
+  catch (cause) { toast.error(messageOf(cause, "The chat could not be restored")) }
+}
+async function remove(id: string, title: string) {
+  if (!(await confirm({ title: "Delete chat?", message: `“${title}” will be permanently deleted.`, confirmLabel: "Delete", danger: true }))) return
+  try { await deleteConversation.mutateAsync(id) }
+  catch (cause) { toast.error(messageOf(cause, "The chat could not be deleted")) }
+}
+async function removeAll() {
+  const count = archived.value.length
+  if (!(await confirm({ title: "Empty the archive?", message: `${String(count)} ${count === 1 ? "chat" : "chats"} will be permanently deleted.`, confirmLabel: "Delete all", danger: true }))) return
+  try { await deleteArchived.mutateAsync() }
+  catch (cause) { toast.error(messageOf(cause, "The chats could not be deleted")) }
 }
 </script>
 
@@ -99,6 +128,59 @@ async function setAllowAll(value: boolean) {
           @update:model-value="setAllowAll"
         />
       </AppSection>
+      <AppSection
+        divided
+        gutter
+      >
+        <h3>Archive</h3>
+        <AppSpinner v-if="archive.isPending.value" />
+        <AppBanner
+          v-else-if="archive.isError.value"
+          tone="error"
+        >
+          The archive could not be loaded.
+        </AppBanner>
+        <AppEmptyState
+          v-else-if="!archived.length"
+          icon="archive"
+          text="Chats you archive are kept here until you delete them."
+        />
+        <template v-else>
+          <div
+            v-for="chat in archived"
+            :key="chat.id"
+            class="ai-archived"
+            :data-testid="`ai-archived-${chat.id}`"
+          >
+            <span
+              class="ai-archived__title"
+              :title="chat.title"
+            >{{ chat.title }}</span>
+            <AppIconButton
+              icon="unarchive"
+              tooltip="Restore chat"
+              compact
+              :data-testid="`ai-restore-${chat.id}`"
+              @click="restore(chat.id)"
+            />
+            <AppIconButton
+              icon="delete"
+              tooltip="Delete chat"
+              variant="danger-quiet"
+              compact
+              :data-testid="`ai-delete-${chat.id}`"
+              @click="remove(chat.id, chat.title)"
+            />
+          </div>
+          <AppButton
+            variant="danger-quiet"
+            size="sm"
+            label="Delete all"
+            data-testid="ai-delete-all"
+            @click="removeAll"
+          />
+        </template>
+      </AppSection>
     </template>
     <AiKeyDialog
       v-if="selectedProvider"
@@ -114,4 +196,6 @@ async function setAllowAll(value: boolean) {
 .ai-settings { height: 100%; overflow: auto; }
 .ai-settings h2, .ai-settings h3 { margin: 0; font-size: 16px; font-weight: 500; }
 .ai-settings h3 { font-size: 14px; }
+.ai-archived { display: flex; align-items: center; gap: var(--dp-space-1); }
+.ai-archived__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

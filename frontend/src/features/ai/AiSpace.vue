@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/vue-query"
 import { computed, onBeforeUnmount, onMounted, onScopeDispose, ref, watch } from "vue"
 
 import type { AgentRunPublic, AgentStepPublic, ConversationPublic, ConversationsPublic } from "@/client"
-import { AppButton, AppIconButton, AppInput, AppSpinner, useConfirm, useToast } from "@/shared/ui"
+import { AppButton, AppIconButton, AppInput, AppSpinner, useToast } from "@/shared/ui"
 import { realtime } from "@/shared/realtime/client"
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
@@ -17,7 +17,7 @@ import {
 
 import AiConversation from "./AiConversation.vue"
 import AiSettings from "./AiSettings.vue"
-import { aiConversationKey, aiConversationsKey, useAiConversations, useCreateAiConversation, useDeleteAiConversation, useDeleteAllAiConversations, useRenameAiConversation } from "./api"
+import { aiConversationKey, aiConversationsKey, useAiConversations, useCreateAiConversation, useUpdateAiConversation } from "./api"
 import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
 
@@ -34,11 +34,8 @@ type AiEvent =
 
 const list = useAiConversations()
 const createConversation = useCreateAiConversation()
-const renameConversation = useRenameAiConversation()
-const deleteConversation = useDeleteAiConversation()
-const deleteAll = useDeleteAllAiConversations()
+const updateConversation = useUpdateAiConversation()
 const queryClient = useQueryClient()
-const confirm = useConfirm()
 const toast = useToast()
 const selected = ref<string | null>(rememberedAiConversation())
 const settingsShown = ref(false)
@@ -113,18 +110,26 @@ async function finishRename() {
   if (id === null) return
   // An emptied field is a cancelled rename, not a chat called nothing.
   if (!title) { renaming.value = null; return }
-  try { await renameConversation.mutateAsync({ id, title }); renaming.value = null }
+  try { await updateConversation.mutateAsync({ id, title }); renaming.value = null }
   catch (cause) { toast.error(messageOf(cause, "The chat could not be renamed")) }
 }
-async function remove(id: string, title: string) {
-  if (!(await confirm({ title: "Delete chat?", message: `“${title}” will be permanently deleted.`, confirmLabel: "Delete", danger: true }))) return
-  try { await deleteConversation.mutateAsync(id); if (selected.value === id) selected.value = null }
-  catch (cause) { toast.error(messageOf(cause, "The chat could not be deleted")) }
+async function setPinned(id: string, pinned: boolean) {
+  try { await updateConversation.mutateAsync({ id, pinned }) }
+  catch (cause) { toast.error(messageOf(cause, pinned ? "The chat could not be pinned" : "The chat could not be unpinned")) }
 }
-async function removeAll() {
-  if (!(await confirm({ title: "Delete all chats?", message: "Every conversation will be permanently deleted.", confirmLabel: "Delete all", danger: true }))) return
-  try { await deleteAll.mutateAsync(); selected.value = null }
-  catch (cause) { toast.error(messageOf(cause, "The chats could not be deleted")) }
+// Archiving is not deleting: it is offered without a confirmation and taken
+// back from the message it leaves. What is in the archive is deleted in the
+// settings, which is the only place that can (D141).
+async function archive(id: string) {
+  try {
+    await updateConversation.mutateAsync({ id, archived: true })
+    toast.offer("Chat archived", { label: "Undo", onClick: () => { void restore(id) } })
+  }
+  catch (cause) { toast.error(messageOf(cause, "The chat could not be archived")) }
+}
+async function restore(id: string) {
+  try { await updateConversation.mutateAsync({ id, archived: false }); selected.value = id }
+  catch (cause) { toast.error(messageOf(cause, "The chat could not be restored")) }
 }
 
 function eventOf(payload: unknown): AiEvent | null {
@@ -199,7 +204,7 @@ onScopeDispose(stop)
           v-for="chat in conversations"
           :key="chat.id"
           class="ai-window__chat"
-          :class="{ 'ai-window__chat--active': selected === chat.id && !settingsShown }"
+          :class="{ 'ai-window__chat--active': selected === chat.id && !settingsShown, 'ai-window__chat--pinned': chat.pinned }"
           :data-testid="`ai-chat-row-${chat.id}`"
           :data-active="selected === chat.id && !settingsShown ? 'true' : 'false'"
         >
@@ -214,11 +219,19 @@ onScopeDispose(stop)
           />
           <span class="ai-window__chat-actions">
             <AppIconButton
-              icon="delete"
-              tooltip="Delete chat"
-              variant="danger-quiet"
+              icon="push_pin"
+              :tooltip="chat.pinned ? 'Unpin chat' : 'Pin chat'"
+              :active="chat.pinned"
               compact
-              @click="remove(chat.id, chat.title)"
+              :data-testid="`ai-pin-${chat.id}`"
+              @click="setPinned(chat.id, !chat.pinned)"
+            />
+            <AppIconButton
+              icon="archive"
+              tooltip="Archive chat"
+              compact
+              :data-testid="`ai-archive-${chat.id}`"
+              @click="archive(chat.id)"
             />
           </span>
         </div>
@@ -239,14 +252,6 @@ onScopeDispose(stop)
           tooltip="Settings"
           data-testid="ai-open-settings"
           @click="settingsShown = true"
-        />
-        <AppButton
-          v-if="!collapsed && conversations.length"
-          variant="danger-quiet"
-          size="sm"
-          label="Delete all"
-          data-testid="ai-delete-all"
-          @click="removeAll"
         />
       </div>
     </aside>
@@ -328,7 +333,9 @@ onScopeDispose(stop)
 .ai-window__chat-title :deep(.q-btn__content) { display: block; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .ai-window__chat-actions { display: none; flex: none; }
 /* Trap: display:none drops the buttons from the accessibility tree, so without :hover neither keyboard focus nor getByRole reaches them. The active row stays exposed. */
-.ai-window__chat--active .ai-window__chat-actions, .ai-window__chat:hover .ai-window__chat-actions, .ai-window__chat:focus-within .ai-window__chat-actions { display: flex; }
+/* A pinned row wears its pin whether or not anybody is pointing at it: the
+   reason it stands above the others is the answer to why it is up there. */
+.ai-window__chat--active .ai-window__chat-actions, .ai-window__chat--pinned .ai-window__chat-actions, .ai-window__chat:hover .ai-window__chat-actions, .ai-window__chat:focus-within .ai-window__chat-actions { display: flex; }
 .ai-window__main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .ai-window__head { flex: none; display: flex; align-items: center; height: var(--dp-tab-strip-height); padding: 0 var(--dp-space-3); border-bottom: 1px solid var(--dp-border-faint); }
 /* Trap: a dense Quasar field's control is 40px, taller than this strip, so

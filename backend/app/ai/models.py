@@ -98,6 +98,15 @@ class Conversation(SQLModel, table=True):
     allow_all_changes: bool = Field(
         default=False, sa_column_kwargs={"server_default": "false"}
     )
+    # Above the rest of the history, whatever it was last said in (D141).
+    pinned: bool = Field(
+        default=False, sa_column_kwargs={"server_default": "false"}
+    )
+    # Out of the history without being lost. An archived conversation is
+    # restored or deleted in the agent's settings and nowhere else (D141).
+    archived: bool = Field(
+        default=False, sa_column_kwargs={"server_default": "false"}
+    )
     created_at: datetime | None = Field(
         default_factory=_timestamp,
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
@@ -239,6 +248,8 @@ class ConversationSummary(BaseModel):
     active: bool
     # A run is paused on a question or a confirmation: Needs you (D113, D136).
     waiting: bool
+    pinned: bool = False
+    archived: bool = False
 
 
 class ConversationsPublic(BaseModel):
@@ -246,10 +257,20 @@ class ConversationsPublic(BaseModel):
     count: int
 
 
-class ConversationRename(BaseModel):
+class ConversationUpdate(BaseModel):
+    """What is being changed about one conversation, and nothing about the rest.
+
+    A title given here is the person's own and no title from the model replaces
+    it afterwards.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    title: str = PydanticField(min_length=1, max_length=MAX_TITLE_CHARS)
+    title: str | None = PydanticField(
+        default=None, min_length=1, max_length=MAX_TITLE_CHARS
+    )
+    pinned: bool | None = None
+    archived: bool | None = None
 
 
 class ScreenContext(BaseModel):

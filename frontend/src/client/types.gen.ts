@@ -2257,16 +2257,6 @@ export type ConversationPublic = {
 }
 
 /**
- * ConversationRename
- */
-export type ConversationRename = {
-  /**
-   * Title
-   */
-  title: string
-}
-
-/**
  * ConversationSummary
  */
 export type ConversationSummary = {
@@ -2290,6 +2280,37 @@ export type ConversationSummary = {
    * Waiting
    */
   waiting: boolean
+  /**
+   * Pinned
+   */
+  pinned?: boolean
+  /**
+   * Archived
+   */
+  archived?: boolean
+}
+
+/**
+ * ConversationUpdate
+ *
+ * What is being changed about one conversation, and nothing about the rest.
+ *
+ * A title given here is the person's own and no title from the model replaces
+ * it afterwards.
+ */
+export type ConversationUpdate = {
+  /**
+   * Title
+   */
+  title?: string | null
+  /**
+   * Pinned
+   */
+  pinned?: boolean | null
+  /**
+   * Archived
+   */
+  archived?: boolean | null
 }
 
 /**
@@ -16036,23 +16057,6 @@ export type aiCheckKeyResponses = {
 
 export type aiCheckKeyResponse = aiCheckKeyResponses[keyof aiCheckKeyResponses]
 
-export type aiDeleteAllConversationsData = {
-  body?: never
-  path?: never
-  query?: never
-  url: "/api/v1/ai/conversations"
-}
-
-export type aiDeleteAllConversationsResponses = {
-  /**
-   * Successful Response
-   */
-  200: Message
-}
-
-export type aiDeleteAllConversationsResponse =
-  aiDeleteAllConversationsResponses[keyof aiDeleteAllConversationsResponses]
-
 export type aiReadConversationsData = {
   body?: never
   path?: never
@@ -16065,6 +16069,10 @@ export type aiReadConversationsData = {
      * Limit
      */
     limit?: number
+    /**
+     * Archived
+     */
+    archived?: boolean
   }
   url: "/api/v1/ai/conversations"
 }
@@ -16104,6 +16112,23 @@ export type aiCreateConversationResponses = {
 
 export type aiCreateConversationResponse =
   aiCreateConversationResponses[keyof aiCreateConversationResponses]
+
+export type aiDeleteArchivedConversationsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ai/conversations/archived"
+}
+
+export type aiDeleteArchivedConversationsResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type aiDeleteArchivedConversationsResponse =
+  aiDeleteArchivedConversationsResponses[keyof aiDeleteArchivedConversationsResponses]
 
 export type aiDeleteConversationData = {
   body?: never
@@ -16167,8 +16192,8 @@ export type aiReadConversationResponses = {
 export type aiReadConversationResponse =
   aiReadConversationResponses[keyof aiReadConversationResponses]
 
-export type aiRenameConversationData = {
-  body: ConversationRename
+export type aiUpdateConversationData = {
+  body: ConversationUpdate
   path: {
     /**
      * Conversation Id
@@ -16179,24 +16204,24 @@ export type aiRenameConversationData = {
   url: "/api/v1/ai/conversations/{conversation_id}"
 }
 
-export type aiRenameConversationErrors = {
+export type aiUpdateConversationErrors = {
   /**
    * Validation Error
    */
   422: HTTPValidationError
 }
 
-export type aiRenameConversationError = aiRenameConversationErrors[keyof aiRenameConversationErrors]
+export type aiUpdateConversationError = aiUpdateConversationErrors[keyof aiUpdateConversationErrors]
 
-export type aiRenameConversationResponses = {
+export type aiUpdateConversationResponses = {
   /**
    * Successful Response
    */
   200: ConversationSummary
 }
 
-export type aiRenameConversationResponse =
-  aiRenameConversationResponses[keyof aiRenameConversationResponses]
+export type aiUpdateConversationResponse =
+  aiUpdateConversationResponses[keyof aiUpdateConversationResponses]
 
 export type aiSendMessageData = {
   body: ConversationMessageCreate

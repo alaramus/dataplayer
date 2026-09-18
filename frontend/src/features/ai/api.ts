@@ -3,11 +3,12 @@ import { computed, toValue } from "vue"
 import type { MaybeRefOrGetter } from "vue"
 
 import { AiService } from "@/client"
-import type { AgentSettingsUpdate, ScreenContext } from "@/client"
+import type { AgentSettingsUpdate, ConversationUpdate, ScreenContext } from "@/client"
 
 export const aiModelsKey = ["ai", "models"] as const
 export const aiSettingsKey = ["ai", "settings"] as const
 export const aiConversationsKey = ["ai", "conversations"] as const
+export const aiArchivedConversationsKey = ["ai", "archived-conversations"] as const
 export const aiConversationKey = (id: string) => ["ai", "conversations", id] as const
 
 export function useAiModels() {
@@ -32,6 +33,16 @@ export function useAiConversations() {
   })
 }
 
+/** What the history does not show. Only the settings ask for it. */
+export function useArchivedAiConversations() {
+  return useQuery({
+    queryKey: aiArchivedConversationsKey,
+    queryFn: async () => (
+      await AiService.readConversations({ query: { archived: true } })
+    ).data,
+  })
+}
+
 export function useAiConversation(id: MaybeRefOrGetter<string | null>) {
   const current = computed(() => toValue(id))
   return useQuery({
@@ -46,8 +57,11 @@ export function useAiConversation(id: MaybeRefOrGetter<string | null>) {
 
 function useConversationInvalidation() {
   const queryClient = useQueryClient()
+  // Both lists, always: archiving moves a row from one to the other, and a
+  // stale archive is how a restored chat appears in two places at once.
   return async (id?: string) => {
     await queryClient.invalidateQueries({ queryKey: aiConversationsKey })
+    await queryClient.invalidateQueries({ queryKey: aiArchivedConversationsKey })
     if (id !== undefined) await queryClient.invalidateQueries({ queryKey: aiConversationKey(id) })
   }
 }
@@ -60,13 +74,13 @@ export function useCreateAiConversation() {
   })
 }
 
-export function useRenameAiConversation() {
+export function useUpdateAiConversation() {
   const invalidate = useConversationInvalidation()
   return useMutation({
-    mutationFn: async ({ id, title }: { id: string; title: string }) => (
-      await AiService.renameConversation({ path: { conversation_id: id }, body: { title } })
+    mutationFn: async ({ id, ...change }: { id: string } & ConversationUpdate) => (
+      await AiService.updateConversation({ path: { conversation_id: id }, body: change })
     ).data,
-    onSuccess: (renamed) => invalidate(renamed.id),
+    onSuccess: (changed) => invalidate(changed.id),
   })
 }
 
@@ -81,13 +95,15 @@ export function useDeleteAiConversation() {
   })
 }
 
-export function useDeleteAllAiConversations() {
+export function useDeleteArchivedAiConversations() {
   const queryClient = useQueryClient()
+  const invalidate = useConversationInvalidation()
   return useMutation({
-    mutationFn: async () => { await AiService.deleteAllConversations() },
+    mutationFn: async () => { await AiService.deleteArchivedConversations() },
     onSuccess: async () => {
-      queryClient.removeQueries({ queryKey: ["ai", "conversations"] })
-      await queryClient.invalidateQueries({ queryKey: aiConversationsKey })
+      // Every conversation page cached under a now deleted id goes with them.
+      queryClient.removeQueries({ queryKey: aiConversationsKey })
+      await invalidate()
     },
   })
 }

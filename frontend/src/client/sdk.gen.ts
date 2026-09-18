@@ -22,8 +22,8 @@ import type {
   aiCheckKeyResponses,
   aiCreateConversationData,
   aiCreateConversationResponses,
-  aiDeleteAllConversationsData,
-  aiDeleteAllConversationsResponses,
+  aiDeleteArchivedConversationsData,
+  aiDeleteArchivedConversationsResponses,
   aiDeleteConversationData,
   aiDeleteConversationErrors,
   aiDeleteConversationResponses,
@@ -43,12 +43,12 @@ import type {
   aiRemoveKeyData,
   aiRemoveKeyErrors,
   aiRemoveKeyResponses,
-  aiRenameConversationData,
-  aiRenameConversationErrors,
-  aiRenameConversationResponses,
   aiSendMessageData,
   aiSendMessageErrors,
   aiSendMessageResponses,
+  aiUpdateConversationData,
+  aiUpdateConversationErrors,
+  aiUpdateConversationResponses,
   aiUpdateSettingsData,
   aiUpdateSettingsErrors,
   aiUpdateSettingsResponses,
@@ -4944,27 +4944,9 @@ export class AiService {
   }
 
   /**
-   * Delete All Conversations
-   *
-   * Every conversation of this person, permanently (D141).
-   */
-  public static deleteAllConversations<ThrowOnError extends boolean = true>(
-    options?: Options<aiDeleteAllConversationsData, ThrowOnError>
-  ) {
-    return (options?.client ?? client).delete<
-      aiDeleteAllConversationsResponses,
-      unknown,
-      ThrowOnError
-    >({
-      responseType: "json",
-      security: [{ scheme: "bearer", type: "http" }],
-      url: "/api/v1/ai/conversations",
-      ...options,
-    })
-  }
-
-  /**
    * Read Conversations
+   *
+   * The history, pinned first; or the archive, which the settings show.
    */
   public static readConversations<ThrowOnError extends boolean = true>(
     options?: Options<aiReadConversationsData, ThrowOnError>
@@ -4991,6 +4973,26 @@ export class AiService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/conversations",
+      ...options,
+    })
+  }
+
+  /**
+   * Delete Archived Conversations
+   *
+   * Empty the archive, permanently. Nothing in the history is touched (D141).
+   */
+  public static deleteArchivedConversations<ThrowOnError extends boolean = true>(
+    options?: Options<aiDeleteArchivedConversationsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).delete<
+      aiDeleteArchivedConversationsResponses,
+      unknown,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/conversations/archived",
       ...options,
     })
   }
@@ -5034,16 +5036,16 @@ export class AiService {
   }
 
   /**
-   * Rename Conversation
+   * Update Conversation
    *
-   * A name the person chose, which no title from the model replaces.
+   * Its name, its pin, or whether it is in the archive.
    */
-  public static renameConversation<ThrowOnError extends boolean = true>(
-    options: Options<aiRenameConversationData, ThrowOnError>
+  public static updateConversation<ThrowOnError extends boolean = true>(
+    options: Options<aiUpdateConversationData, ThrowOnError>
   ) {
     return (options.client ?? client).patch<
-      aiRenameConversationResponses,
-      aiRenameConversationErrors,
+      aiUpdateConversationResponses,
+      aiUpdateConversationErrors,
       ThrowOnError
     >({
       responseType: "json",
