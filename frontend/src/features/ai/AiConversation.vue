@@ -87,7 +87,8 @@ async function choosePolicy(value: unknown) {
   catch (cause) { toast.error(messageOf(cause, "The permission could not be changed")) }
 }
 // What this chat is answered with: its own model, or the one the settings
-// chose for every chat that has not said otherwise.
+// chose for every chat that has not said otherwise. Choosing here is also
+// choosing for the next chat; the server keeps both (D140).
 const chatModel = computed(() => conversation.data.value?.model_key ?? settings.data.value?.model_key ?? null)
 async function chooseModel(value: string) {
   if (value === chatModel.value) return

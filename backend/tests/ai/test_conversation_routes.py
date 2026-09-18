@@ -427,7 +427,7 @@ async def test_deleting_a_conversation_takes_its_answers_and_state_with_it(
 async def test_a_conversation_is_answered_with_the_model_it_names(
     client: AsyncClient, headers: dict[str, str], script: Script
 ) -> None:
-    """The settings choose for every chat; a chat may choose for itself (D140)."""
+    """A chat chooses for itself, and its choice is what the next chat starts with (D140)."""
     other = "anthropic:claude-opus-5"
     script.turns += [Turn(pieces=[text("Answered")]), Turn(pieces=[text("A title")])]
     conversation_id = await new_conversation(client, headers)
@@ -441,8 +441,9 @@ async def test_a_conversation_is_answered_with_the_model_it_names(
     assert chosen.json()["model_key"] == other
     assert script.built[0][:2] == (other, KEY)
     assert run["model_key"] == other
-    # The person's own choice is untouched: it is what the next new chat starts with.
-    assert (await client.get(f"{AI}/settings", headers=headers)).json()["model_key"] == MODEL_KEY
+    # The settings follow the chat: the last model chosen anywhere is the one a
+    # new chat starts with.
+    assert (await client.get(f"{AI}/settings", headers=headers)).json()["model_key"] == other
 
 
 async def test_a_model_the_list_does_not_have_is_refused(
@@ -458,6 +459,7 @@ async def test_a_model_the_list_does_not_have_is_refused(
     assert (
         await client.get(f"{AI}/conversations/{conversation_id}", headers=headers)
     ).json()["model_key"] is None
+    assert (await client.get(f"{AI}/settings", headers=headers)).json()["model_key"] == MODEL_KEY
 
 
 async def test_a_folder_holds_conversations_and_outlives_none_of_them(

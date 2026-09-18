@@ -210,7 +210,7 @@ async def update_conversation(
     conversation_id: uuid.UUID,
     body: ConversationUpdate,
 ) -> Any:
-    """Its name, its pin, or whether it is in the archive."""
+    """Its name, pin, archive, model, policy or project; a model is also the person's."""
     conversation = await conversations.get_for_owner(
         session, conversation_id, current_user.id
     )
@@ -230,6 +230,8 @@ async def update_conversation(
         if project is None:
             raise HTTPException(status_code=404, detail=NO_PROJECT)
     title = body.title.strip() if body.title is not None else None
+    if body.model_key is not None:
+        await preferences.remember_model(session, current_user.id, body.model_key)
     changed = await conversations.change(
         session,
         conversation,

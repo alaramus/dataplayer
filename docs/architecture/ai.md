@@ -291,8 +291,10 @@ provider per person, encrypted under `CONNECTOR_SECRET_KEY` and never returned,
 with Check, which answers for a key as it is typed as well as for the stored
 one and keeps neither. A conversation is held with the model it names, chosen
 in its own composer; the settings choose what a new conversation starts with,
-and a conversation naming a model the list no longer has falls back to that
-choice rather than refusing to answer. Each provider's reasoning must be
+and a model chosen in a composer becomes that choice as well, in the same
+commit, so the last model picked anywhere is the next chat's. A conversation
+naming a model the list no longer has falls back to the settings' choice
+rather than refusing to answer. Each provider's reasoning must be
 carried back inside a tool loop, and a test per provider proves it.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)

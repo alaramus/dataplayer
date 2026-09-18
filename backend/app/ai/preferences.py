@@ -117,6 +117,19 @@ async def update_settings(
     return await settings_of(session, user_id, models)
 
 
+async def remember_model(
+    session: AsyncSession, user_id: uuid.UUID, model_key: str
+) -> None:
+    """A model chosen in a chat is what the next chat starts with too (D140).
+
+    Staged and not committed: the conversation's own change commits both, so
+    the chat and the settings never disagree about the last model chosen.
+    """
+    stored = await _stored(session, user_id)
+    stored.model_key = model_key
+    session.add(stored)
+
+
 async def chosen_model(
     session: AsyncSession, user_id: uuid.UUID, models: ModelCatalog
 ) -> ModelInfo | None:

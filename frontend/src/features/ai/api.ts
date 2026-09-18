@@ -76,12 +76,17 @@ export function useCreateAiConversation() {
 }
 
 export function useUpdateAiConversation() {
+  const queryClient = useQueryClient()
   const invalidate = useConversationInvalidation()
   return useMutation({
     mutationFn: async ({ id, ...change }: { id: string } & ConversationUpdate) => (
       await AiService.updateConversation({ path: { conversation_id: id }, body: change })
     ).data,
-    onSuccess: (changed) => invalidate(changed.id),
+    onSuccess: async (changed, change) => {
+      // The server keeps a chat's model as the person's choice as well (D140).
+      if (change.model_key) await queryClient.invalidateQueries({ queryKey: aiSettingsKey })
+      await invalidate(changed.id)
+    },
   })
 }
 
