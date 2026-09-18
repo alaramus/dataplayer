@@ -104,6 +104,34 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.locator('[data-testid^="ai-chat-row-"]').first()).toHaveAttribute(
     "data-testid", `ai-chat-row-${id}`
   )
+  // A project is a folder and nothing else: the chat moves into it, hides with
+  // it, and outlives it.
+  await page.getByTestId("ai-new-project").click()
+  await page.getByTestId("ai-project-name").fill("Playwright project")
+  await page.getByTestId("ai-project-save").click()
+  const toggle = page
+    .locator('[data-testid^="ai-project-toggle-"]')
+    .filter({ hasText: "Playwright project" })
+  await expect(toggle).toBeVisible()
+  const projectId = ((await toggle.getAttribute("data-testid")) ?? "").replace(
+    "ai-project-toggle-", ""
+  )
+
+  await page.getByTestId(`ai-move-${id}`).click()
+  await page.locator('[data-testid^="menu-item-"]').filter({ hasText: "Playwright project" }).click()
+  await expect(page.getByTestId(`ai-project-${projectId}`).getByTestId(`ai-chat-row-${id}`)).toBeVisible()
+
+  await toggle.click()
+  await expect(row).toHaveCount(0)
+  await toggle.click()
+  await expect(row).toBeVisible()
+
+  await toggle.hover()
+  await page.getByTestId(`ai-project-delete-${projectId}`).click()
+  await page.getByRole("dialog", { name: "Delete project?" }).getByRole("button", { name: "Delete" }).click()
+  await expect(toggle).toHaveCount(0)
+  await expect(row).toBeVisible()
+
   await page.getByTestId(`ai-archive-${id}`).click()
   await expect(row).toHaveCount(0)
 

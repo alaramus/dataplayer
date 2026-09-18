@@ -22,11 +22,17 @@ import type {
   aiCheckKeyResponses,
   aiCreateConversationData,
   aiCreateConversationResponses,
+  aiCreateProjectData,
+  aiCreateProjectErrors,
+  aiCreateProjectResponses,
   aiDeleteArchivedConversationsData,
   aiDeleteArchivedConversationsResponses,
   aiDeleteConversationData,
   aiDeleteConversationErrors,
   aiDeleteConversationResponses,
+  aiDeleteProjectData,
+  aiDeleteProjectErrors,
+  aiDeleteProjectResponses,
   aiReadConversationData,
   aiReadConversationErrors,
   aiReadConversationResponses,
@@ -35,6 +41,8 @@ import type {
   aiReadConversationsResponses,
   aiReadModelsData,
   aiReadModelsResponses,
+  aiReadProjectsData,
+  aiReadProjectsResponses,
   aiReadRunData,
   aiReadRunErrors,
   aiReadRunResponses,
@@ -43,6 +51,9 @@ import type {
   aiRemoveKeyData,
   aiRemoveKeyErrors,
   aiRemoveKeyResponses,
+  aiRenameProjectData,
+  aiRenameProjectErrors,
+  aiRenameProjectResponses,
   aiSendMessageData,
   aiSendMessageErrors,
   aiSendMessageResponses,
@@ -4941,6 +4952,86 @@ export class AiService {
       responseType: "json",
       security: [{ scheme: "bearer", type: "http" }],
       url: "/api/v1/ai/keys/{provider}/check",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Read Projects
+   *
+   * The folders a person sorted their conversations into (D141).
+   */
+  public static readProjects<ThrowOnError extends boolean = true>(
+    options?: Options<aiReadProjectsData, ThrowOnError>
+  ) {
+    return (options?.client ?? client).get<aiReadProjectsResponses, unknown, ThrowOnError>({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/projects",
+      ...options,
+    })
+  }
+
+  /**
+   * Create Project
+   */
+  public static createProject<ThrowOnError extends boolean = true>(
+    options: Options<aiCreateProjectData, ThrowOnError>
+  ) {
+    return (options.client ?? client).post<
+      aiCreateProjectResponses,
+      aiCreateProjectErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/projects",
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers,
+      },
+    })
+  }
+
+  /**
+   * Delete Project
+   *
+   * The folder only. Every conversation in it stays, out of any folder.
+   */
+  public static deleteProject<ThrowOnError extends boolean = true>(
+    options: Options<aiDeleteProjectData, ThrowOnError>
+  ) {
+    return (options.client ?? client).delete<
+      aiDeleteProjectResponses,
+      aiDeleteProjectErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/projects/{project_id}",
+      ...options,
+    })
+  }
+
+  /**
+   * Rename Project
+   */
+  public static renameProject<ThrowOnError extends boolean = true>(
+    options: Options<aiRenameProjectData, ThrowOnError>
+  ) {
+    return (options.client ?? client).patch<
+      aiRenameProjectResponses,
+      aiRenameProjectErrors,
+      ThrowOnError
+    >({
+      responseType: "json",
+      security: [{ scheme: "bearer", type: "http" }],
+      url: "/api/v1/ai/projects/{project_id}",
       ...options,
       headers: {
         "Content-Type": "application/json",

@@ -42,6 +42,7 @@ from app.ai.models import (  # noqa
     AgentPreferences,
     AgentRun,
     AgentStep,
+    ChatProject,
     Conversation,
     ConversationMessage,
     ProviderKey,

@@ -10,6 +10,7 @@ export const aiSettingsKey = ["ai", "settings"] as const
 export const aiConversationsKey = ["ai", "conversations"] as const
 export const aiArchivedConversationsKey = ["ai", "archived-conversations"] as const
 export const aiConversationKey = (id: string) => ["ai", "conversations", id] as const
+export const aiProjectsKey = ["ai", "projects"] as const
 
 export function useAiModels() {
   return useQuery({
@@ -103,6 +104,49 @@ export function useDeleteArchivedAiConversations() {
     onSuccess: async () => {
       // Every conversation page cached under a now deleted id goes with them.
       queryClient.removeQueries({ queryKey: aiConversationsKey })
+      await invalidate()
+    },
+  })
+}
+
+export function useAiProjects() {
+  return useQuery({
+    queryKey: aiProjectsKey,
+    queryFn: async () => (await AiService.readProjects()).data,
+  })
+}
+
+export function useCreateAiProject() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (name: string) => (
+      await AiService.createProject({ body: { name } })
+    ).data,
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: aiProjectsKey }) },
+  })
+}
+
+export function useRenameAiProject() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => (
+      await AiService.renameProject({ path: { project_id: id }, body: { name } })
+    ).data,
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: aiProjectsKey }) },
+  })
+}
+
+export function useDeleteAiProject() {
+  const queryClient = useQueryClient()
+  const invalidate = useConversationInvalidation()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await AiService.deleteProject({ path: { project_id: id } })
+      return id
+    },
+    // The chats it held are still there and now belong to no folder.
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: aiProjectsKey })
       await invalidate()
     },
   })

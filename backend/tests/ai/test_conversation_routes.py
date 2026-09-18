@@ -460,6 +460,79 @@ async def test_a_model_the_list_does_not_have_is_refused(
     ).json()["model_key"] is None
 
 
+async def test_a_folder_holds_conversations_and_outlives_none_of_them(
+    client: AsyncClient, headers: dict[str, str]
+) -> None:
+    """A project is a folder: deleting it leaves what it held (D141)."""
+    conversation_id = await new_conversation(client, headers)
+    created = await client.post(f"{AI}/projects", headers=headers, json={"name": "Work"})
+    project_id = created.json()["id"]
+
+    moved = await client.patch(
+        f"{AI}/conversations/{conversation_id}",
+        headers=headers,
+        json={"project_id": project_id},
+    )
+    listed = (await client.get(f"{AI}/projects", headers=headers)).json()
+    history = (await client.get(f"{AI}/conversations", headers=headers)).json()
+
+    assert created.status_code == 201
+    assert moved.json()["project_id"] == project_id
+    assert listed == {"data": [{"id": project_id, "name": "Work"}], "count": 1}
+    assert [row["project_id"] for row in history["data"]] == [project_id]
+
+    renamed = await client.patch(
+        f"{AI}/projects/{project_id}", headers=headers, json={"name": "Weekday work"}
+    )
+    assert renamed.json()["name"] == "Weekday work"
+
+    # Out of the folder while the folder still exists: `null` is a move too.
+    taken_out = await client.patch(
+        f"{AI}/conversations/{conversation_id}", headers=headers, json={"project_id": None}
+    )
+    assert taken_out.json()["project_id"] is None
+
+    await client.patch(
+        f"{AI}/conversations/{conversation_id}",
+        headers=headers,
+        json={"project_id": project_id},
+    )
+    deleted = await client.delete(f"{AI}/projects/{project_id}", headers=headers)
+    left = (await client.get(f"{AI}/conversations/{conversation_id}", headers=headers))
+
+    assert deleted.status_code == 200
+    assert left.status_code == 200
+    assert (await client.get(f"{AI}/projects", headers=headers)).json()["count"] == 0
+    assert (await client.get(f"{AI}/conversations", headers=headers)).json()["data"][0][
+        "project_id"
+    ] is None
+
+
+async def test_somebody_elses_folder_is_not_found(
+    client: AsyncClient, headers: dict[str, str], db: AsyncSession
+) -> None:
+    conversation_id = await new_conversation(client, headers)
+    stranger = await authentication_token_from_email(
+        client=client, email=random_email(), db=db
+    )
+    theirs = (
+        await client.post(f"{AI}/projects", headers=stranger, json={"name": "Theirs"})
+    ).json()["id"]
+
+    responses = [
+        await client.patch(
+            f"{AI}/conversations/{conversation_id}",
+            headers=headers,
+            json={"project_id": theirs},
+        ),
+        await client.patch(f"{AI}/projects/{theirs}", headers=headers, json={"name": "Mine"}),
+        await client.delete(f"{AI}/projects/{theirs}", headers=headers),
+    ]
+
+    assert [response.status_code for response in responses] == [404, 404, 404]
+    assert (await client.get(f"{AI}/projects", headers=stranger)).json()["count"] == 1
+
+
 async def test_a_pinned_conversation_stands_above_a_newer_one(
     client: AsyncClient, headers: dict[str, str]
 ) -> None:

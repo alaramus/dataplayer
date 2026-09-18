@@ -18,11 +18,14 @@ from app.ai.models import (
     MAX_TITLE_CHARS,
     TERMINAL,
     AgentQuestion,
-    ChangePolicy,
     AgentRun,
     AgentRunPublic,
     AgentStep,
     AgentStepPublic,
+    ChangePolicy,
+    ChatProject,
+    ChatProjectPublic,
+    ChatProjectsPublic,
     Conversation,
     ConversationMessage,
     ConversationMessagePublic,
@@ -76,6 +79,7 @@ def summary_of(
         archived=conversation.archived,
         model_key=conversation.model_key,
         change_policy=policy_of(conversation.change_policy),
+        project_id=conversation.project_id,
     )
 
 
@@ -167,6 +171,8 @@ async def change(
     archived: bool | None = None,
     model_key: str | None = None,
     change_policy: ChangePolicy | None = None,
+    project_id: uuid.UUID | None = None,
+    move: bool = False,
 ) -> Conversation:
     """Apply what was asked and leave the rest alone.
 
@@ -184,6 +190,10 @@ async def change(
         conversation.model_key = model_key
     if change_policy is not None:
         conversation.change_policy = change_policy
+    # Said apart from the value: taking a conversation out of every folder is a
+    # move, and it is `None` like leaving the folder alone would be.
+    if move:
+        conversation.project_id = project_id
     session.add(conversation)
     await session.commit()
     await session.refresh(conversation)
@@ -204,6 +214,62 @@ async def retitle(
     )
     await session.commit()
     return bool(result.rowcount)
+
+
+async def projects_for_owner(
+    session: AsyncSession, owner_id: uuid.UUID
+) -> ChatProjectsPublic:
+    rows = (
+        await session.exec(
+            select(ChatProject)
+            .where(ChatProject.owner_id == owner_id)
+            .order_by(col(ChatProject.created_at))
+        )
+    ).all()
+    data = [
+        ChatProjectPublic(id=row.id, name=opened(row.name)) for row in rows
+    ]
+    return ChatProjectsPublic(data=data, count=len(data))
+
+
+async def create_project(
+    session: AsyncSession, owner_id: uuid.UUID, name: str
+) -> ChatProject:
+    project = ChatProject(owner_id=owner_id, name=sealed(name))
+    session.add(project)
+    await session.commit()
+    await session.refresh(project)
+    return project
+
+
+async def project_for_owner(
+    session: AsyncSession, project_id: uuid.UUID, owner_id: uuid.UUID
+) -> ChatProject | None:
+    project = await session.get(ChatProject, project_id)
+    if project is None or project.owner_id != owner_id:
+        return None
+    return project
+
+
+async def rename_project(
+    session: AsyncSession, project: ChatProject, name: str
+) -> ChatProject:
+    project.name = sealed(name)
+    session.add(project)
+    await session.commit()
+    await session.refresh(project)
+    return project
+
+
+async def delete_project(session: AsyncSession, project: ChatProject) -> None:
+    """The folder goes; every conversation in it stays, out of any folder."""
+    await session.exec(
+        update(Conversation)
+        .where(col(Conversation.project_id) == project.id)
+        .values(project_id=None)
+    )
+    await session.delete(project)
+    await session.commit()
 
 
 async def archived_ids_for_owner(

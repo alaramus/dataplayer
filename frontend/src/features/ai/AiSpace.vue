@@ -3,7 +3,8 @@ import { useQueryClient } from "@tanstack/vue-query"
 import { computed, onBeforeUnmount, onMounted, onScopeDispose, ref, watch } from "vue"
 
 import type { AgentRunPublic, AgentStepPublic, ConversationPublic, ConversationsPublic } from "@/client"
-import { AppButton, AppIconButton, AppInput, AppSpinner, useToast } from "@/shared/ui"
+import { AppButton, AppIconButton, AppInput, AppSpinner, useConfirm, useToast } from "@/shared/ui"
+import { WindowDialog } from "@/shared/windows"
 import { realtime } from "@/shared/realtime/client"
 import { messageOf } from "@/shared/api/errors"
 import { serverStorageKey } from "@/shared/servers/context"
@@ -15,9 +16,20 @@ import {
   RAIL_NARROW_PX,
 } from "@/shared/workspace/railWidth"
 
+import AiChatRow from "./AiChatRow.vue"
 import AiConversation from "./AiConversation.vue"
 import AiSettings from "./AiSettings.vue"
-import { aiConversationKey, aiConversationsKey, useAiConversations, useCreateAiConversation, useUpdateAiConversation } from "./api"
+import {
+  aiConversationKey,
+  aiConversationsKey,
+  useAiConversations,
+  useAiProjects,
+  useCreateAiConversation,
+  useCreateAiProject,
+  useDeleteAiProject,
+  useRenameAiProject,
+  useUpdateAiConversation,
+} from "./api"
 import { rememberAiConversation, rememberedAiConversation, requestedAiConversation } from "./state"
 import type { AiOpenIntent } from "./context"
 
@@ -33,9 +45,14 @@ type AiEvent =
   | { kind: "open"; conversation_id: string; intent: AiOpenIntent }
 
 const list = useAiConversations()
+const projectList = useAiProjects()
 const createConversation = useCreateAiConversation()
 const updateConversation = useUpdateAiConversation()
+const createProject = useCreateAiProject()
+const renameProject = useRenameAiProject()
+const deleteProject = useDeleteAiProject()
 const queryClient = useQueryClient()
+const confirm = useConfirm()
 const toast = useToast()
 const selected = ref<string | null>(rememberedAiConversation())
 const settingsShown = ref(false)
@@ -80,6 +97,81 @@ const titleDraft = ref("")
 
 const conversations = computed(() => list.data.value?.data ?? [])
 const selectedChat = computed(() => conversations.value.find((chat) => chat.id === selected.value) ?? null)
+const projects = computed(() => projectList.data.value?.data ?? [])
+const closedProjects = ref(new Set<string>())
+const projectDialogShown = ref(false)
+const projectDraft = ref("")
+// Which project the dialog is renaming, or the chat a new one is being made
+// for — the two things the one dialog is opened for.
+const renamingProject = ref<string | null>(null)
+const projectFor = ref<string | null>(null)
+
+/**
+ * The history as it is drawn: every folder in turn, then what is in no folder.
+ *
+ * A folder stays on screen while it is empty, or making one for a chat that is
+ * not in it yet would make it disappear before it could be used.
+ */
+const grouped = computed(() => {
+  const groups = projects.value.map((project) => ({
+    id: project.id as string | null,
+    name: project.name,
+    chats: conversations.value.filter((chat) => chat.project_id === project.id),
+  }))
+  return [
+    ...groups,
+    { id: null, name: "", chats: conversations.value.filter((chat) => !chat.project_id) },
+  ].filter((group) => group.id !== null || group.chats.length > 0)
+})
+
+function toggleProject(id: string) {
+  const next = new Set(closedProjects.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  closedProjects.value = next
+}
+function beginProjectFor(chatId: string | null) {
+  renamingProject.value = null
+  projectFor.value = chatId
+  projectDraft.value = ""
+  projectDialogShown.value = true
+}
+function beginProjectRename(id: string, name: string) {
+  renamingProject.value = id
+  projectFor.value = null
+  projectDraft.value = name
+  projectDialogShown.value = true
+}
+async function saveProject() {
+  const name = projectDraft.value.trim()
+  if (!name) return
+  const renaming = renamingProject.value
+  try {
+    if (renaming !== null) {
+      await renameProject.mutateAsync({ id: renaming, name })
+    } else {
+      const made = await createProject.mutateAsync(name)
+      // A folder made from a chat's own menu is made to put that chat in.
+      if (projectFor.value !== null) await moveChat(projectFor.value, made.id)
+    }
+    projectDialogShown.value = false
+  }
+  catch (cause) { toast.error(messageOf(cause, "The project could not be saved")) }
+}
+async function removeProject(id: string, name: string) {
+  if (!(await confirm({
+    title: "Delete project?",
+    message: `“${name}” will be deleted. The chats in it are kept.`,
+    confirmLabel: "Delete",
+    danger: true,
+  }))) return
+  try { await deleteProject.mutateAsync(id) }
+  catch (cause) { toast.error(messageOf(cause, "The project could not be deleted")) }
+}
+async function moveChat(id: string, projectId: string | null) {
+  try { await updateConversation.mutateAsync({ id, project_id: projectId }) }
+  catch (cause) { toast.error(messageOf(cause, "The chat could not be moved")) }
+}
 
 watch(conversations, (rows) => {
   if (selected.value !== null && rows.some((row) => row.id === selected.value)) return
@@ -192,6 +284,12 @@ onScopeDispose(stop)
           data-testid="ai-new-chat"
           @click="makeConversation"
         />
+        <AppIconButton
+          icon="create_new_folder"
+          tooltip="New project"
+          data-testid="ai-new-project"
+          @click="beginProjectFor(null)"
+        />
       </div>
       <div
         v-if="!collapsed"
@@ -201,39 +299,65 @@ onScopeDispose(stop)
       >
         <AppSpinner v-if="list.isPending.value" />
         <div
-          v-for="chat in conversations"
-          :key="chat.id"
-          class="ai-window__chat"
-          :class="{ 'ai-window__chat--active': selected === chat.id && !settingsShown, 'ai-window__chat--pinned': chat.pinned }"
-          :data-testid="`ai-chat-row-${chat.id}`"
-          :data-active="selected === chat.id && !settingsShown ? 'true' : 'false'"
+          v-for="group in grouped"
+          :key="group.id ?? 'loose'"
+          class="ai-window__group"
+          :data-testid="group.id ? `ai-project-${group.id}` : 'ai-loose-chats'"
         >
-          <AppButton
-            variant="quiet"
-            layout="navigation"
-            class="ai-window__chat-title"
-            :label="chat.title"
-            :title="chat.title"
-            :data-testid="`ai-chat-${chat.id}`"
-            @click="select(chat.id)"
-          />
-          <span class="ai-window__chat-actions">
-            <AppIconButton
-              icon="push_pin"
-              :tooltip="chat.pinned ? 'Unpin chat' : 'Pin chat'"
-              :active="chat.pinned"
-              compact
-              :data-testid="`ai-pin-${chat.id}`"
-              @click="setPinned(chat.id, !chat.pinned)"
+          <div
+            v-if="group.id !== null"
+            class="ai-window__project"
+          >
+            <button
+              type="button"
+              class="ai-window__project-name"
+              :aria-expanded="!closedProjects.has(group.id)"
+              :title="group.name"
+              :data-testid="`ai-project-toggle-${group.id}`"
+              @click="toggleProject(group.id)"
+            >
+              <q-icon
+                :name="closedProjects.has(group.id) ? 'chevron_right' : 'expand_more'"
+                size="16px"
+              />
+              <span class="ai-window__project-title">{{ group.name }}</span>
+              <span class="ai-window__project-count">{{ group.chats.length }}</span>
+            </button>
+            <span class="ai-window__project-actions">
+              <AppIconButton
+                icon="edit"
+                tooltip="Rename project"
+                compact
+                :data-testid="`ai-project-rename-${group.id}`"
+                @click="beginProjectRename(group.id, group.name)"
+              />
+              <AppIconButton
+                icon="delete"
+                tooltip="Delete project"
+                variant="danger-quiet"
+                compact
+                :data-testid="`ai-project-delete-${group.id}`"
+                @click="removeProject(group.id, group.name)"
+              />
+            </span>
+          </div>
+          <div
+            v-if="group.id === null || !closedProjects.has(group.id)"
+            :class="{ 'ai-window__project-chats': group.id !== null }"
+          >
+            <AiChatRow
+              v-for="chat in group.chats"
+              :key="chat.id"
+              :chat="chat"
+              :active="selected === chat.id && !settingsShown"
+              :projects="projects"
+              @select="select(chat.id)"
+              @pin="setPinned(chat.id, $event)"
+              @archive="archive(chat.id)"
+              @move="moveChat(chat.id, $event)"
+              @new-project="beginProjectFor(chat.id)"
             />
-            <AppIconButton
-              icon="archive"
-              tooltip="Archive chat"
-              compact
-              :data-testid="`ai-archive-${chat.id}`"
-              @click="archive(chat.id)"
-            />
-          </span>
+          </div>
         </div>
       </div>
       <div class="ai-window__rail-foot">
@@ -310,6 +434,32 @@ onScopeDispose(stop)
         />
       </div>
     </main>
+    <WindowDialog
+      v-model="projectDialogShown"
+      :title="renamingProject === null ? 'New project' : 'Rename project'"
+      size="sm"
+      data-testid="ai-project-dialog"
+    >
+      <AppInput
+        v-model="projectDraft"
+        label="Name"
+        data-testid="ai-project-name"
+        @keyup.enter="saveProject"
+      />
+      <template #actions>
+        <AppButton
+          variant="quiet"
+          label="Cancel"
+          @click="projectDialogShown = false"
+        />
+        <AppButton
+          :label="renamingProject === null ? 'Create' : 'Rename'"
+          :disable="!projectDraft.trim()"
+          data-testid="ai-project-save"
+          @click="saveProject"
+        />
+      </template>
+    </WindowDialog>
   </div>
 </template>
 
@@ -325,17 +475,15 @@ onScopeDispose(stop)
    or the dashboards rail does; the wide rail's padding would push past it. */
 .ai-window__rail--collapsed .ai-window__rail-head, .ai-window__rail--collapsed .ai-window__rail-foot { align-items: center; padding-right: 0; padding-left: 0; }
 .ai-window__history { flex: 1; min-height: 0; overflow: auto; padding: var(--dp-space-1); }
-.ai-window__chat { display: flex; align-items: center; border-radius: var(--dp-radius-control); }
-.ai-window__chat--active { background: var(--dp-active); }
-.ai-window__chat > :first-child { flex: 1; min-width: 0; }
-/* A generated title is a sentence; the row gets one line of it, the rest is
-   on the button's tooltip. */
-.ai-window__chat-title :deep(.q-btn__content) { display: block; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
-.ai-window__chat-actions { display: none; flex: none; }
-/* Trap: display:none drops the buttons from the accessibility tree, so without :hover neither keyboard focus nor getByRole reaches them. The active row stays exposed. */
-/* A pinned row wears its pin whether or not anybody is pointing at it: the
-   reason it stands above the others is the answer to why it is up there. */
-.ai-window__chat--active .ai-window__chat-actions, .ai-window__chat--pinned .ai-window__chat-actions, .ai-window__chat:hover .ai-window__chat-actions, .ai-window__chat:focus-within .ai-window__chat-actions { display: flex; }
+.ai-window__project { display: flex; align-items: center; }
+.ai-window__project-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--dp-space-1); border: 0; padding: var(--dp-space-1); background: transparent; color: var(--dp-text-muted); font: inherit; font-weight: 600; cursor: pointer; }
+.ai-window__project-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-window__project-count { flex: none; color: var(--dp-text-faint); font-weight: 400; }
+.ai-window__project-actions { display: none; flex: none; }
+.ai-window__project:hover .ai-window__project-actions, .ai-window__project:focus-within .ai-window__project-actions { display: flex; }
+/* The chats of a folder are stepped in under its name, which is the whole way
+   a reader sees what is in it. */
+.ai-window__project-chats { padding-left: var(--dp-space-3); }
 .ai-window__main { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 .ai-window__head { flex: none; display: flex; align-items: center; height: var(--dp-tab-strip-height); padding: 0 var(--dp-space-3); border-bottom: 1px solid var(--dp-border-faint); }
 /* Trap: a dense Quasar field's control is 40px, taller than this strip, so

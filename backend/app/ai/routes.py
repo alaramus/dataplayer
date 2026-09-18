@@ -15,6 +15,9 @@ from app.ai.models import (
     AgentRunPublic,
     AgentSettingsPublic,
     AgentSettingsUpdate,
+    ChatProjectPublic,
+    ChatProjectsPublic,
+    ChatProjectWrite,
     ConversationMessageCreate,
     ConversationPublic,
     ConversationUpdate,
@@ -99,6 +102,53 @@ async def check_key(
     )
 
 
+NO_PROJECT = {"message": "No such project"}
+
+
+@router.get("/projects", response_model=ChatProjectsPublic)
+async def read_projects(session: SessionDep, current_user: CurrentUser) -> Any:
+    """The folders a person sorted their conversations into (D141)."""
+    return await conversations.projects_for_owner(session, current_user.id)
+
+
+@router.post(
+    "/projects", response_model=ChatProjectPublic, status_code=status.HTTP_201_CREATED
+)
+async def create_project(
+    session: SessionDep, current_user: CurrentUser, body: ChatProjectWrite
+) -> Any:
+    project = await conversations.create_project(
+        session, current_user.id, body.name.strip()
+    )
+    return ChatProjectPublic(id=project.id, name=body.name.strip())
+
+
+@router.patch("/projects/{project_id}", response_model=ChatProjectPublic)
+async def rename_project(
+    session: SessionDep,
+    current_user: CurrentUser,
+    project_id: uuid.UUID,
+    body: ChatProjectWrite,
+) -> Any:
+    project = await conversations.project_for_owner(session, project_id, current_user.id)
+    if project is None:
+        raise HTTPException(status_code=404, detail=NO_PROJECT)
+    renamed = await conversations.rename_project(session, project, body.name.strip())
+    return ChatProjectPublic(id=renamed.id, name=body.name.strip())
+
+
+@router.delete("/projects/{project_id}", response_model=Message)
+async def delete_project(
+    session: SessionDep, current_user: CurrentUser, project_id: uuid.UUID
+) -> Any:
+    """The folder only. Every conversation in it stays, out of any folder."""
+    project = await conversations.project_for_owner(session, project_id, current_user.id)
+    if project is None:
+        raise HTTPException(status_code=404, detail=NO_PROJECT)
+    await conversations.delete_project(session, project)
+    return Message(message="Project deleted")
+
+
 @router.get("/conversations", response_model=ConversationsPublic)
 async def read_conversations(
     session: SessionDep,
@@ -170,6 +220,15 @@ async def update_conversation(
         raise HTTPException(
             status_code=422, detail={"message": "That model is not in the list"}
         )
+    # A folder is named as sent, so that `null` can take a conversation out of
+    # one; somebody else's folder is not found, like everything else here.
+    move = "project_id" in body.model_fields_set
+    if move and body.project_id is not None:
+        project = await conversations.project_for_owner(
+            session, body.project_id, current_user.id
+        )
+        if project is None:
+            raise HTTPException(status_code=404, detail=NO_PROJECT)
     title = body.title.strip() if body.title is not None else None
     changed = await conversations.change(
         session,
@@ -179,6 +238,8 @@ async def update_conversation(
         archived=body.archived,
         model_key=body.model_key,
         change_policy=body.change_policy,
+        project_id=body.project_id,
+        move=move,
     )
     current = await conversations.active_run(session, conversation_id)
     return conversations.summary_of(

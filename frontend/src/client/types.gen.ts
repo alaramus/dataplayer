@@ -1310,6 +1310,44 @@ export type ChangePreview = {
 }
 
 /**
+ * ChatProjectPublic
+ */
+export type ChatProjectPublic = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * ChatProjectWrite
+ */
+export type ChatProjectWrite = {
+  /**
+   * Name
+   */
+  name: string
+}
+
+/**
+ * ChatProjectsPublic
+ */
+export type ChatProjectsPublic = {
+  /**
+   * Data
+   */
+  data: Array<ChatProjectPublic>
+  /**
+   * Count
+   */
+  count: number
+}
+
+/**
  * CheckConstraint
  */
 export type CheckConstraint = {
@@ -2304,6 +2342,10 @@ export type ConversationSummary = {
    * Change Policy
    */
   change_policy?: "read_only" | "ask" | "allow"
+  /**
+   * Project Id
+   */
+  project_id?: string | null
 }
 
 /**
@@ -2335,6 +2377,10 @@ export type ConversationUpdate = {
    * Change Policy
    */
   change_policy?: "read_only" | "ask" | "allow" | null
+  /**
+   * Project Id
+   */
+  project_id?: string | null
 }
 
 /**
@@ -16107,6 +16153,107 @@ export type aiCheckKeyResponses = {
 }
 
 export type aiCheckKeyResponse = aiCheckKeyResponses[keyof aiCheckKeyResponses]
+
+export type aiReadProjectsData = {
+  body?: never
+  path?: never
+  query?: never
+  url: "/api/v1/ai/projects"
+}
+
+export type aiReadProjectsResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatProjectsPublic
+}
+
+export type aiReadProjectsResponse = aiReadProjectsResponses[keyof aiReadProjectsResponses]
+
+export type aiCreateProjectData = {
+  body: ChatProjectWrite
+  path?: never
+  query?: never
+  url: "/api/v1/ai/projects"
+}
+
+export type aiCreateProjectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiCreateProjectError = aiCreateProjectErrors[keyof aiCreateProjectErrors]
+
+export type aiCreateProjectResponses = {
+  /**
+   * Successful Response
+   */
+  201: ChatProjectPublic
+}
+
+export type aiCreateProjectResponse = aiCreateProjectResponses[keyof aiCreateProjectResponses]
+
+export type aiDeleteProjectData = {
+  body?: never
+  path: {
+    /**
+     * Project Id
+     */
+    project_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/projects/{project_id}"
+}
+
+export type aiDeleteProjectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiDeleteProjectError = aiDeleteProjectErrors[keyof aiDeleteProjectErrors]
+
+export type aiDeleteProjectResponses = {
+  /**
+   * Successful Response
+   */
+  200: Message
+}
+
+export type aiDeleteProjectResponse = aiDeleteProjectResponses[keyof aiDeleteProjectResponses]
+
+export type aiRenameProjectData = {
+  body: ChatProjectWrite
+  path: {
+    /**
+     * Project Id
+     */
+    project_id: string
+  }
+  query?: never
+  url: "/api/v1/ai/projects/{project_id}"
+}
+
+export type aiRenameProjectErrors = {
+  /**
+   * Validation Error
+   */
+  422: HTTPValidationError
+}
+
+export type aiRenameProjectError = aiRenameProjectErrors[keyof aiRenameProjectErrors]
+
+export type aiRenameProjectResponses = {
+  /**
+   * Successful Response
+   */
+  200: ChatProjectPublic
+}
+
+export type aiRenameProjectResponse = aiRenameProjectResponses[keyof aiRenameProjectResponses]
 
 export type aiReadConversationsData = {
   body?: never

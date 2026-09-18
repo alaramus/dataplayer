@@ -46,6 +46,7 @@ Role = Literal["user", "assistant"]
 
 MAX_MESSAGE_CHARS = 100_000
 MAX_TITLE_CHARS = 200
+MAX_PROJECT_CHARS = 120
 
 
 def _timestamp() -> datetime | None:
@@ -79,6 +80,28 @@ class AgentPreferences(SQLModel, table=True):
     # the owner of each connection allows (D136).
     allow_all_changes: bool = Field(
         default=False, sa_column_kwargs={"server_default": "false"}
+    )
+
+
+class ChatProject(SQLModel, table=True):
+    """A folder of conversations, and nothing more (D141).
+
+    It carries no instructions and no connections of its own: what it is for is
+    finding a conversation again, and a folder that quietly changed how the
+    agent answers would be a second place to look for that.
+    """
+
+    __table_args__ = (Index("ix_chatproject_owner", "owner_id"),)
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE"
+    )
+    # Encrypted like everything else a person writes here (D141).
+    name: bytes = Field(sa_column=Column(LargeBinary, nullable=False))
+    created_at: datetime | None = Field(
+        default_factory=_timestamp,
+        sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
     )
 
 
@@ -118,6 +141,11 @@ class Conversation(SQLModel, table=True):
     # itself. Empty means the one chosen in the settings, and so does a key the
     # list no longer has (D140).
     model_key: str | None = Field(default=None, max_length=160)
+    # The folder it was put in, if any. Deleting the folder empties this rather
+    # than taking the conversation with it.
+    project_id: uuid.UUID | None = Field(
+        default=None, foreign_key="chatproject.id", ondelete="SET NULL", index=True
+    )
     created_at: datetime | None = Field(
         default_factory=_timestamp,
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
@@ -273,6 +301,23 @@ class ConversationSummary(BaseModel):
     # with: empty means the model chosen in the settings.
     model_key: str | None = None
     change_policy: ChangePolicy = "ask"
+    project_id: uuid.UUID | None = None
+
+
+class ChatProjectPublic(BaseModel):
+    id: uuid.UUID
+    name: str
+
+
+class ChatProjectsPublic(BaseModel):
+    data: list[ChatProjectPublic]
+    count: int
+
+
+class ChatProjectWrite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = PydanticField(min_length=1, max_length=MAX_PROJECT_CHARS)
 
 
 class ConversationsPublic(BaseModel):
@@ -298,6 +343,10 @@ class ConversationUpdate(BaseModel):
     # whatever it had; there is no command that takes a chosen model away.
     model_key: str | None = PydanticField(default=None, max_length=160)
     change_policy: ChangePolicy | None = None
+    # The folder, or `null` for none. Unlike the fields above it, this one is
+    # read as sent rather than as set: taking a conversation out of a folder is
+    # a change like any other, and `null` has to be able to say it.
+    project_id: uuid.UUID | None = None
 
 
 class ScreenContext(BaseModel):

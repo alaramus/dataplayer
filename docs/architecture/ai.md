@@ -93,7 +93,8 @@ backend/app/prepare_checkpoints.py                 LangGraph's tables, at presta
 
 ```
 frontend/src/features/ai/
-├── AiSpace.vue         the two columns, history and settings
+├── AiSpace.vue         the two columns, history, projects and settings
+├── AiChatRow.vue       one chat in the history: pin, project, archive
 ├── AiConversation.vue  transcript, steps, the confirmation card, Stop, copy, listen, the context chips and the composer's own model
 ├── AiContextDialog.vue the open tabs a message may carry
 ├── AiSettings.vue      provider keys, model, confirmations and the archive
@@ -114,6 +115,10 @@ PATCH  /api/v1/ai/settings
 PUT    /api/v1/ai/keys/{provider}
 DELETE /api/v1/ai/keys/{provider}
 POST   /api/v1/ai/keys/{provider}/check
+GET    /api/v1/ai/projects
+POST   /api/v1/ai/projects
+PATCH  /api/v1/ai/projects/{project_id}
+DELETE /api/v1/ai/projects/{project_id}
 GET    /api/v1/ai/conversations
 POST   /api/v1/ai/conversations
 DELETE /api/v1/ai/conversations/archived
@@ -302,7 +307,11 @@ space. Keys, Model, Confirmations and the archive live here, not on
 `/preferences`. Titles are written by the chosen model and renamed by pressing
 the name above the conversation. A row of the history is pinned, which keeps it
 above the rest, or archived, which takes it out of the history without losing
-it. Nothing is deleted from a row: the archive in the settings restores a
+it, or moved into a project — a folder of conversations and nothing more,
+created, renamed, collapsed and deleted in the history itself. A project
+carries no instructions and no connections of its own, because a folder that
+quietly changed how the agent answers would be a second place to look for that;
+deleting one keeps every conversation it held, out of any folder. Nothing is deleted from a row: the archive in the settings restores a
 conversation or deletes it, one at a time or all at once, which is the only
 place anything is deleted. A pin survives archiving, so a restored conversation
 comes back where it was. Content is encrypted at rest under `AI_CONTENT_KEY`.
