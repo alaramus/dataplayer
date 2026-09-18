@@ -41,7 +41,7 @@ function pick(name: string) {
 <template>
   <div
     class="ai-chat-row"
-    :class="{ 'ai-chat-row--active': active, 'ai-chat-row--pinned': chat.pinned }"
+    :class="{ 'ai-chat-row--active': active }"
     :data-testid="`ai-chat-row-${chat.id}`"
     :data-active="active ? 'true' : 'false'"
   >
@@ -94,11 +94,10 @@ function pick(name: string) {
    on the button's tooltip. */
 .ai-chat-row__title :deep(.q-btn__content) { display: block; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
 .ai-chat-row__actions { display: none; flex: none; }
-/* Trap: display:none drops the buttons from the accessibility tree, so without
-   :hover neither keyboard focus nor getByRole reaches them. The active row and
-   a pinned one stay exposed — the pin is the answer to why it is up there. */
-.ai-chat-row--active .ai-chat-row__actions,
-.ai-chat-row--pinned .ai-chat-row__actions,
+/* Pointed at, or reached by keyboard, and nothing else: the row of a selected
+   chat carries no buttons either.
+   Trap: display:none drops the buttons from the accessibility tree, so the
+   :focus-within half is what keeps them reachable without a mouse at all. */
 .ai-chat-row:hover .ai-chat-row__actions,
 .ai-chat-row:focus-within .ai-chat-row__actions { display: flex; }
 </style>

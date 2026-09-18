@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from "vue"
+import { computed } from "vue"
 
-import { AppBanner, AppButton, AppEmptyState, AppIconButton, AppSection, AppSelect, AppSpinner, AppToggle, useConfirm, useToast } from "@/shared/ui"
-import type { SelectOption } from "@/shared/ui"
+import { AppBanner, AppButton, AppEmptyState, AppIconButton, AppSection, AppSpinner, AppToggle, useConfirm, useToast } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
-import AiKeyDialog from "./AiKeyDialog.vue"
+import AiModelSelect from "./AiModelSelect.vue"
 import {
-  useAiModels,
   useAiSettings,
   useArchivedAiConversations,
   useDeleteAiConversation,
@@ -15,11 +13,7 @@ import {
   useUpdateAiConversation,
   useUpdateAiSettings,
 } from "./api"
-import { groupedModelOptions, providers } from "./modelOptions"
-import type { ModelOption, Provider } from "./modelOptions"
-
 const settings = useAiSettings()
-const models = useAiModels()
 const update = useUpdateAiSettings()
 const archive = useArchivedAiConversations()
 const updateConversation = useUpdateAiConversation()
@@ -27,30 +21,12 @@ const deleteConversation = useDeleteAiConversation()
 const deleteArchived = useDeleteArchivedAiConversations()
 const confirm = useConfirm()
 const toast = useToast()
-const keyProvider = ref<Provider | null>(null)
-const keyDialogOpen = ref(false)
-const keySet = (provider: Provider) => settings.data.value?.keys.find((one) => one.provider === provider)?.set ?? false
-
-const modelOptions = computed<ModelOption[]>(() => groupedModelOptions(
-  models.data.value ?? [], settings.data.value?.keys ?? []
-))
 const modelValue = computed(() => settings.data.value?.model_key ?? null)
 const allowAll = computed(() => settings.data.value?.allow_all_changes ?? false)
-const selectedModel = computed(() => (models.data.value ?? []).find((one) => one.key === modelValue.value) ?? null)
-const selectedKeySet = computed(() => selectedModel.value ? keySet(selectedModel.value.provider) : false)
-const selectedProvider = computed(() => providers.find((one) => one.id === keyProvider.value) ?? null)
 const archived = computed(() => archive.data.value?.data ?? [])
 
-function manageKey(provider: Provider) { keyProvider.value = provider; keyDialogOpen.value = true }
-function manageOptionKey(option: SelectOption) {
-  const provider = (option as ModelOption).provider
-  if (provider) manageKey(provider)
-}
-function manageSelectedKey() {
-  if (selectedModel.value) manageKey(selectedModel.value.provider)
-}
-async function chooseModel(value: unknown) {
-  try { await update.mutateAsync({ model_key: typeof value === "string" ? value : null }) }
+async function chooseModel(value: string) {
+  try { await update.mutateAsync({ model_key: value }) }
   catch (cause) { toast.error(messageOf(cause, "The model could not be selected")) }
 }
 async function setAllowAll(value: boolean) {
@@ -96,25 +72,12 @@ async function removeAll() {
         >
           The saved model is no longer available. Choose another one.
         </AppBanner>
-        <AppSelect
+        <AiModelSelect
           :model-value="modelValue"
-          :options="modelOptions"
-          label="Model"
+          key-button
           data-testid="ai-model"
           @update:model-value="chooseModel"
-          @option-action="manageOptionKey"
-        >
-          <template #after>
-            <AppIconButton
-              :icon="selectedKeySet ? 'key' : 'key_off'"
-              :active="selectedKeySet"
-              tooltip="Manage the selected model provider key"
-              :disable="modelValue === null"
-              data-testid="ai-selected-model-key"
-              @click="manageSelectedKey"
-            />
-          </template>
-        </AppSelect>
+        />
       </AppSection>
       <AppSection
         divided
@@ -182,13 +145,6 @@ async function removeAll() {
         </template>
       </AppSection>
     </template>
-    <AiKeyDialog
-      v-if="selectedProvider"
-      v-model="keyDialogOpen"
-      :provider="selectedProvider.id"
-      :provider-label="selectedProvider.label"
-      :key-set="keySet(selectedProvider.id)"
-    />
   </div>
 </template>
 

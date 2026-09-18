@@ -63,6 +63,13 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.reload()
   await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Opus 5")
 
+  // The key beside a model offered in the chat opens the same key window the
+  // settings do; it used to do nothing at all there.
+  await page.getByTestId("ai-chat-model").click()
+  await page.getByRole("button", { name: /Manage .* API key/ }).first().click()
+  await expect(page.getByTestId("ai-key-dialog")).toBeVisible()
+  await page.getByTestId("ai-key-dialog").getByRole("button", { name: "Close" }).click()
+
   // What the agent may change belongs to the chat too, and read only is the
   // narrow end of the three.
   await page.getByTestId("ai-chat-policy").click()
@@ -117,6 +124,7 @@ test("opens, restores and manages the application agent space", async ({ page })
     "ai-project-toggle-", ""
   )
 
+  await row.hover()
   await page.getByTestId(`ai-move-${id}`).click()
   await page.locator('[data-testid^="menu-item-"]').filter({ hasText: "Playwright project" }).click()
   await expect(page.getByTestId(`ai-project-${projectId}`).getByTestId(`ai-chat-row-${id}`)).toBeVisible()
@@ -132,6 +140,7 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(toggle).toHaveCount(0)
   await expect(row).toBeVisible()
 
+  await row.hover()
   await page.getByTestId(`ai-archive-${id}`).click()
   await expect(row).toHaveCount(0)
 
@@ -142,7 +151,7 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(archived).toHaveCount(0)
   await expect(row).toBeVisible()
 
-  // Still pinned, so its row shows its buttons without being pointed at.
+  await row.hover()
   await page.getByTestId(`ai-archive-${id}`).click()
   await expect(archived).toBeVisible()
   await page.getByTestId(`ai-delete-${id}`).click()

@@ -12,19 +12,17 @@ import { markAt, outlineMarks } from "./outline"
 import { plainSpeechText } from "./streaming"
 import {
   useAiConversation,
-  useAiModels,
   useAiSettings,
   useAnswerAiRun,
   useCancelAiRun,
   useSendAiMessage,
   useUpdateAiConversation,
 } from "./api"
-import { groupedModelOptions } from "./modelOptions"
 import AiContextDialog from "./AiContextDialog.vue"
+import AiModelSelect from "./AiModelSelect.vue"
 
 const props = defineProps<{ conversationId: string; contexts: ScreenContext[] }>()
 const conversation = useAiConversation(() => props.conversationId)
-const models = useAiModels()
 const settings = useAiSettings()
 const updateConversation = useUpdateAiConversation()
 const send = useSendAiMessage()
@@ -54,7 +52,6 @@ const unrepresentedRuns = computed(() => {
   return (conversation.data.value?.runs ?? []).filter((run) => !represented.has(run.id) && !["running", "awaiting_answer", "succeeded"].includes(run.status))
 })
 const canSend = computed(() => draft.value.trim().length > 0 && activeRun.value === null && !send.isPending.value)
-const modelOptions = computed(() => groupedModelOptions(models.data.value ?? [], settings.data.value?.keys ?? []))
 // What the agent may do to data from this chat (D136). Read only is the narrow
 // end and stands above what the settings allow in general.
 const policyOptions: SelectOption[] = [
@@ -71,8 +68,8 @@ async function choosePolicy(value: unknown) {
 // What this chat is answered with: its own model, or the one the settings
 // chose for every chat that has not said otherwise.
 const chatModel = computed(() => conversation.data.value?.model_key ?? settings.data.value?.model_key ?? null)
-async function chooseModel(value: unknown) {
-  if (typeof value !== "string" || value === chatModel.value) return
+async function chooseModel(value: string) {
+  if (value === chatModel.value) return
   try { await updateConversation.mutateAsync({ id: props.conversationId, model_key: value }) }
   catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }
 }
@@ -481,14 +478,11 @@ onBeforeUnmount(() => {
             data-testid="ai-chat-policy"
             @update:model-value="choosePolicy"
           />
-          <AppSelect
+          <AiModelSelect
             class="ai-conversation__model"
             compact
             :model-value="chatModel"
-            :options="modelOptions"
-            :loading="models.isPending.value"
             :disable="activeRun !== null"
-            label="Model"
             data-testid="ai-chat-model"
             @update:model-value="chooseModel"
           />
