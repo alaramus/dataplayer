@@ -18,6 +18,7 @@ from app.main import app
 from tests.ai.conftest import (
     AI,
     KEY,
+    MODEL_KEY,
     ProviderRefusedKey,
     Script,
     Turn,
@@ -421,6 +422,42 @@ async def test_deleting_a_conversation_takes_its_answers_and_state_with_it(
         )
     ).scalar_one()
     assert left == 0
+
+
+async def test_a_conversation_is_answered_with_the_model_it_names(
+    client: AsyncClient, headers: dict[str, str], script: Script
+) -> None:
+    """The settings choose for every chat; a chat may choose for itself (D140)."""
+    other = "anthropic:claude-opus-5"
+    script.turns += [Turn(pieces=[text("Answered")]), Turn(pieces=[text("A title")])]
+    conversation_id = await new_conversation(client, headers)
+
+    chosen = await client.patch(
+        f"{AI}/conversations/{conversation_id}", headers=headers, json={"model_key": other}
+    )
+    run = await send(client, headers, conversation_id, "Question")
+    await settled(client, headers, run["id"])
+
+    assert chosen.json()["model_key"] == other
+    assert script.built[0][:2] == (other, KEY)
+    assert run["model_key"] == other
+    # The person's own choice is untouched: it is what the next new chat starts with.
+    assert (await client.get(f"{AI}/settings", headers=headers)).json()["model_key"] == MODEL_KEY
+
+
+async def test_a_model_the_list_does_not_have_is_refused(
+    client: AsyncClient, headers: dict[str, str]
+) -> None:
+    conversation_id = await new_conversation(client, headers)
+
+    response = await client.patch(
+        f"{AI}/conversations/{conversation_id}", headers=headers, json={"model_key": "anthropic:made-up"}
+    )
+
+    assert response.status_code == 422
+    assert (
+        await client.get(f"{AI}/conversations/{conversation_id}", headers=headers)
+    ).json()["model_key"] is None
 
 
 async def test_a_pinned_conversation_stands_above_a_newer_one(

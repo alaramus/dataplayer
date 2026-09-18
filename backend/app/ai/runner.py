@@ -154,7 +154,9 @@ class AgentRunner:
         text: str,
         contexts: list[ScreenContext],
     ) -> AgentRun:
-        model = await preferences.chosen_model(session, owner_id, self._catalog)
+        model = await preferences.model_for(
+            session, owner_id, conversation, self._catalog
+        )
         if model is None:
             raise RunRefused(409, "Choose a model in the agent settings first")
         key = await preferences.key_for(session, owner_id, model.provider)

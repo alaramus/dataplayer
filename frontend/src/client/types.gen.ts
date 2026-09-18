@@ -2239,6 +2239,10 @@ export type ConversationPublic = {
    */
   title_is_custom: boolean
   /**
+   * Model Key
+   */
+  model_key?: string | null
+  /**
    * Created At
    */
   created_at: string | null
@@ -2288,6 +2292,10 @@ export type ConversationSummary = {
    * Archived
    */
   archived?: boolean
+  /**
+   * Model Key
+   */
+  model_key?: string | null
 }
 
 /**
@@ -2311,6 +2319,10 @@ export type ConversationUpdate = {
    * Archived
    */
   archived?: boolean | null
+  /**
+   * Model Key
+   */
+  model_key?: string | null
 }
 
 /**

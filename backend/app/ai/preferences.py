@@ -18,6 +18,7 @@ from app.ai.models import (
     AgentPreferences,
     AgentSettingsPublic,
     AgentSettingsUpdate,
+    Conversation,
     ProviderKey,
     ProviderKeyCheck,
     ProviderKeyState,
@@ -120,6 +121,23 @@ async def chosen_model(
     session: AsyncSession, user_id: uuid.UUID, models: ModelCatalog
 ) -> ModelInfo | None:
     return models.find((await _stored(session, user_id)).model_key)
+
+
+async def model_for(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    conversation: Conversation,
+    models: ModelCatalog,
+) -> ModelInfo | None:
+    """The model a conversation is answered with (D140).
+
+    Its own when it names one; otherwise the person's choice. A conversation
+    naming a model the list no longer has falls back the same way a stored
+    choice does, rather than refusing to answer at all.
+    """
+    return models.find(conversation.model_key) or await chosen_model(
+        session, user_id, models
+    )
 
 
 async def models_for(

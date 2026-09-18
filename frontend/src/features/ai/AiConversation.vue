@@ -2,16 +2,28 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
 import type { AgentRunPublic, ConversationMessagePublic, ScreenContext } from "@/client"
-import { AppBanner, AppButton, AppIconButton, AppInput, AppSpinner, useToast } from "@/shared/ui"
+import { AppBanner, AppButton, AppIconButton, AppInput, AppSelect, AppSpinner, useToast } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
 import ChatMarkdown from "./ChatMarkdown.vue"
 import { plainSpeechText } from "./streaming"
-import { useAiConversation, useAnswerAiRun, useCancelAiRun, useSendAiMessage } from "./api"
+import {
+  useAiConversation,
+  useAiModels,
+  useAiSettings,
+  useAnswerAiRun,
+  useCancelAiRun,
+  useSendAiMessage,
+  useUpdateAiConversation,
+} from "./api"
+import { groupedModelOptions } from "./modelOptions"
 import AiContextDialog from "./AiContextDialog.vue"
 
 const props = defineProps<{ conversationId: string; contexts: ScreenContext[] }>()
 const conversation = useAiConversation(() => props.conversationId)
+const models = useAiModels()
+const settings = useAiSettings()
+const updateConversation = useUpdateAiConversation()
 const send = useSendAiMessage()
 const cancel = useCancelAiRun()
 const answer = useAnswerAiRun()
@@ -39,6 +51,15 @@ const unrepresentedRuns = computed(() => {
   return (conversation.data.value?.runs ?? []).filter((run) => !represented.has(run.id) && !["running", "awaiting_answer", "succeeded"].includes(run.status))
 })
 const canSend = computed(() => draft.value.trim().length > 0 && activeRun.value === null && !send.isPending.value)
+const modelOptions = computed(() => groupedModelOptions(models.data.value ?? [], settings.data.value?.keys ?? []))
+// What this chat is answered with: its own model, or the one the settings
+// chose for every chat that has not said otherwise.
+const chatModel = computed(() => conversation.data.value?.model_key ?? settings.data.value?.model_key ?? null)
+async function chooseModel(value: unknown) {
+  if (typeof value !== "string" || value === chatModel.value) return
+  try { await updateConversation.mutateAsync({ id: props.conversationId, model_key: value }) }
+  catch (cause) { toast.error(messageOf(cause, "The model could not be chosen")) }
+}
 
 function runFor(message: ConversationMessagePublic): AgentRunPublic | undefined {
   return message.run_id ? runs.value.get(message.run_id) : undefined
@@ -345,13 +366,6 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
             />
           </span>
         </div>
-        <AppIconButton
-          icon="add"
-          tooltip="Attach workspace tabs"
-          data-testid="ai-attach-context"
-          :disable="activeRun !== null || contexts.length === 0"
-          @click="contextDialogShown = true"
-        />
         <AppInput
           v-model="draft"
           type="textarea"
@@ -363,23 +377,45 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
           :disable="activeRun !== null"
           @keydown="onEditorKeydown"
         />
-        <AppButton
-          v-if="activeRun"
-          variant="danger-quiet"
-          icon="stop"
-          label="Stop"
-          :loading="cancel.isPending.value"
-          data-testid="ai-stop"
-          @click="stop"
-        />
-        <AppButton
-          v-else
-          icon="send"
-          label="Send"
-          :disable="!canSend"
-          data-testid="ai-send"
-          @click="submit"
-        />
+        <!-- What the next message is sent with, under the message itself. -->
+        <div class="ai-conversation__tools">
+          <AppIconButton
+            icon="add"
+            tooltip="Attach workspace tabs"
+            data-testid="ai-attach-context"
+            :disable="activeRun !== null || contexts.length === 0"
+            @click="contextDialogShown = true"
+          />
+          <AppSelect
+            class="ai-conversation__model"
+            compact
+            :model-value="chatModel"
+            :options="modelOptions"
+            :loading="models.isPending.value"
+            :disable="activeRun !== null"
+            label="Model"
+            data-testid="ai-chat-model"
+            @update:model-value="chooseModel"
+          />
+          <span class="ai-conversation__gap" />
+          <AppButton
+            v-if="activeRun"
+            variant="danger-quiet"
+            icon="stop"
+            label="Stop"
+            :loading="cancel.isPending.value"
+            data-testid="ai-stop"
+            @click="stop"
+          />
+          <AppButton
+            v-else
+            icon="send"
+            label="Send"
+            :disable="!canSend"
+            data-testid="ai-send"
+            @click="submit"
+          />
+        </div>
       </div>
       <AiContextDialog
         v-model="contextDialogShown"
@@ -412,10 +448,14 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
 .ai-question__preview { display: grid; gap: var(--dp-space-1); padding: var(--dp-space-2) 0 0; font-size: 12px; color: var(--dp-text-muted); }
 .ai-question__preview-summary { color: var(--dp-text-strong); }
 .ai-question__preview-line { white-space: pre-wrap; }
-.ai-conversation__composer { flex: none; display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--dp-space-2); padding: var(--dp-space-3); border-top: 1px solid var(--dp-border); }
-.ai-conversation__contexts { flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
+.ai-conversation__composer { flex: none; display: flex; flex-direction: column; gap: var(--dp-space-2); padding: var(--dp-space-3); border-top: 1px solid var(--dp-border); }
+.ai-conversation__contexts { display: flex; flex-wrap: wrap; gap: var(--dp-space-1); }
+.ai-conversation__tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--dp-space-2); }
+.ai-conversation__gap { flex: 1; }
+/* Wide enough for a model's name and no wider: the row it stands in belongs
+   to the send button at its end. */
+.ai-conversation__model { flex: 0 1 220px; min-width: 120px; }
 .ai-context-chip { display: inline-flex; align-items: center; gap: var(--dp-space-1); padding-left: var(--dp-space-2); border: 1px solid var(--dp-border); border-radius: var(--dp-radius-control); background: var(--dp-surface); color: var(--dp-text-strong); }
-.ai-conversation__composer :deep(.q-field) { flex: 1; }
 /* The box is one line until there is more to hold, and stops at eight of them
    rather than pushing the transcript off the card. A grown field scrolls; the
    corner grip is gone with it, because a hand-dragged height had no floor and

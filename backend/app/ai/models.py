@@ -107,6 +107,10 @@ class Conversation(SQLModel, table=True):
     archived: bool = Field(
         default=False, sa_column_kwargs={"server_default": "false"}
     )
+    # The model this conversation is held with, chosen in the conversation
+    # itself. Empty means the one chosen in the settings, and so does a key the
+    # list no longer has (D140).
+    model_key: str | None = Field(default=None, max_length=160)
     created_at: datetime | None = Field(
         default_factory=_timestamp,
         sa_type=DateTime(timezone=True),  # type: ignore[call-overload]
@@ -258,6 +262,9 @@ class ConversationSummary(BaseModel):
     waiting: bool
     pinned: bool = False
     archived: bool = False
+    # What this conversation names for itself, not what it will be answered
+    # with: empty means the model chosen in the settings.
+    model_key: str | None = None
 
 
 class ConversationsPublic(BaseModel):
@@ -279,6 +286,9 @@ class ConversationUpdate(BaseModel):
     )
     pinned: bool | None = None
     archived: bool | None = None
+    # A model of the catalog, for this conversation alone. Empty leaves
+    # whatever it had; there is no command that takes a chosen model away.
+    model_key: str | None = PydanticField(default=None, max_length=160)
 
 
 class ScreenContext(BaseModel):
@@ -390,6 +400,7 @@ class ConversationPublic(BaseModel):
     id: uuid.UUID
     title: str
     title_is_custom: bool
+    model_key: str | None = None
     created_at: datetime | None
     updated_at: datetime | None
     messages: list[ConversationMessagePublic]

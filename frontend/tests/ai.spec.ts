@@ -55,6 +55,14 @@ test("opens, restores and manages the application agent space", async ({ page })
   await expect(page.getByTestId("ai-messages")).toBeVisible()
   await composer.fill("")
 
+  // The model is chosen in the chat itself and stays with it; the settings
+  // choose only what a new chat starts with.
+  await page.getByTestId("ai-chat-model").click()
+  await page.getByRole("option", { name: /Claude Opus 5/ }).click()
+  await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Opus 5")
+  await page.reload()
+  await expect(page.getByTestId("ai-chat-model")).toContainText("Claude Opus 5")
+
   await page.reload()
   await expect(page.getByTestId("space-ai")).toHaveAttribute("aria-pressed", "true")
   await expect(page.getByTestId("ai-space")).toBeVisible()

@@ -48,9 +48,9 @@ transaction that commits only when every statement succeeded, and a visible
 step records it, one substep per statement. A paused run keeps its question
 across a restart, and while it waits the conversation is flagged `waiting`,
 which the Needs-you sheet lists with a button that opens that chat. A person
-stores a
-key per provider and chooses a model from
-`app/ai/models.json`; a message starts a run, whose Thinking step, reasoning and
+stores a key per provider and chooses a model from `app/ai/models.json` in the
+chat it is for, the settings holding what a new chat starts with; a message
+starts a run, whose Thinking step, reasoning and
 answer stream on the `ai.runs` topic and are written to the transcript when the
 answer ends. Tool steps are named by the server (`Browsing catalog in …`,
 `Reading rows from …`), with a query's statements as substeps. A conversation
@@ -92,7 +92,7 @@ backend/app/prepare_checkpoints.py                 LangGraph's tables, at presta
 ```
 frontend/src/features/ai/
 ├── AiSpace.vue         the two columns, history and settings
-├── AiConversation.vue  transcript, steps, the confirmation card, Stop, copy, listen and the context chips
+├── AiConversation.vue  transcript, steps, the confirmation card, Stop, copy, listen, the context chips and the composer's own model
 ├── AiContextDialog.vue the open tabs a message may carry
 ├── AiSettings.vue      provider keys, model, confirmations and the archive
 ├── ChatMarkdown.vue    the D50 renderer in streaming mode
@@ -268,9 +268,12 @@ repository — context window, maximum output, reasoning, image input — change
 with a release, validated at startup and in CI, served to the client through the
 API. A stored model missing from the file reads as none chosen. One key per
 provider per person, encrypted under `CONNECTOR_SECRET_KEY` and never returned,
-with Check. The model is
-chosen in the agent settings only. Each provider's reasoning must be carried
-back inside a tool loop, and a test per provider proves it.
+with Check, which answers for a key as it is typed as well as for the stored
+one and keeps neither. A conversation is held with the model it names, chosen
+in its own composer; the settings choose what a new conversation starts with,
+and a conversation naming a model the list no longer has falls back to that
+choice rather than refusing to answer. Each provider's reasoning must be
+carried back inside a tool loop, and a test per provider proves it.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)
 

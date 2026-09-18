@@ -58,6 +58,7 @@ def summary_of(
         waiting=waiting,
         pinned=conversation.pinned,
         archived=conversation.archived,
+        model_key=conversation.model_key,
     )
 
 
@@ -147,6 +148,7 @@ async def change(
     title: str | None = None,
     pinned: bool | None = None,
     archived: bool | None = None,
+    model_key: str | None = None,
 ) -> Conversation:
     """Apply what was asked and leave the rest alone.
 
@@ -160,6 +162,8 @@ async def change(
         conversation.pinned = pinned
     if archived is not None:
         conversation.archived = archived
+    if model_key is not None:
+        conversation.model_key = model_key
     session.add(conversation)
     await session.commit()
     await session.refresh(conversation)
@@ -480,6 +484,7 @@ async def conversation_public(
         id=conversation.id,
         title=opened(conversation.title),
         title_is_custom=conversation.title_is_custom,
+        model_key=conversation.model_key,
         created_at=conversation.created_at,
         updated_at=conversation.updated_at,
         messages=[

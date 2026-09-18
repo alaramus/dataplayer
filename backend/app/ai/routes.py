@@ -166,9 +166,18 @@ async def update_conversation(
     )
     if conversation is None:
         raise HTTPException(status_code=404, detail=NOT_FOUND)
+    if body.model_key is not None and catalog().find(body.model_key) is None:
+        raise HTTPException(
+            status_code=422, detail={"message": "That model is not in the list"}
+        )
     title = body.title.strip() if body.title is not None else None
     changed = await conversations.change(
-        session, conversation, title=title, pinned=body.pinned, archived=body.archived
+        session,
+        conversation,
+        title=title,
+        pinned=body.pinned,
+        archived=body.archived,
+        model_key=body.model_key,
     )
     current = await conversations.active_run(session, conversation_id)
     return conversations.summary_of(
