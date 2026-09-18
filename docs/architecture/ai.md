@@ -41,7 +41,8 @@ A change asks first (D136): a `run_query` whose script changes data and a
 once, Allow all changes in this chat and Allow all changes in every chat, the
 second stored on the conversation, the third on the person's settings and
 revocable there. The chat's composer holds the same policy as a choice of three
-— read only, ask, allow — and a read-only chat answers the tool with a sentence
+— read only, ask, allow — and offers the person's every-chat switch as a
+fourth, in the caution colour; a read-only chat answers the tool with a sentence
 instead of pausing, whatever the person allowed in general. The card carries a preview — a drop and every DDL statement
 rehearsed in a rolled-back transaction, an action's own preview where it has
 one. A `read_only` connection is refused before anybody is asked, in D66's
@@ -209,6 +210,9 @@ Allow once, Allow all changes in this chat (which sets the conversation to
 allow) and Allow all changes in every chat (a revocable setting). Read only is
 the narrow end: the change is refused before anybody is asked, and it stands
 above what the person allowed in general, because the narrower rule wins.
+The composer also offers "every chat" itself: it is the settings' switch, not a
+fourth policy, so choosing it in a read-only chat sets that chat to ask, and
+choosing ask or allow while it is on turns it off.
 Nothing is decided in the browser, and no permission exceeds the owner's policy:
 a `read_only` connection (D66) is never written. An unasked change is still a
 visible step. SQL reads follow D62; SQL changes run after confirmation as one

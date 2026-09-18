@@ -75,6 +75,11 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.getByTestId("ai-chat-policy").click()
   await page.getByRole("option", { name: /Read only/ }).click()
   await expect(page.getByTestId("ai-chat-policy")).toContainText("Read only")
+  // The settings' switch for every chat is offered there too, and choosing it
+  // is turning that switch on.
+  await page.getByTestId("ai-chat-policy").click()
+  await page.getByRole("option", { name: /Allow all changes in every chat/ }).click()
+  await expect(page.getByTestId("ai-chat-policy")).toContainText("Allow all changes in every chat")
   // Speaking the message is offered beside it; whether this browser can listen
   // is its own answer, and the tooltip carries it either way.
   await expect(page.getByTestId("ai-dictate")).toBeVisible()
@@ -92,7 +97,9 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.getByTestId("ai-open-settings").click()
   await expect(page.getByTestId("ai-settings")).toBeVisible()
   await expect(page.getByTestId("ai-model")).toBeVisible()
-  await expect(page.getByTestId("ai-allow-all")).toBeVisible()
+  await expect(page.getByTestId("ai-allow-all")).toHaveAttribute("aria-checked", "true")
+  await page.getByTestId("ai-allow-all").click()
+  await expect(page.getByTestId("ai-allow-all")).toHaveAttribute("aria-checked", "false")
 
   await page.getByTestId("ai-model").click()
   const providerKey = page.getByRole("button", { name: /Manage .* API key/ }).first()
@@ -107,6 +114,8 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.getByTestId("ai-open-settings").click()
   await expect(page.getByTestId("ai-settings")).toHaveCount(0)
   await expect(page.getByTestId("ai-messages")).toBeVisible()
+  // Read only gave way when every chat was allowed from here.
+  await expect(page.getByTestId("ai-chat-policy")).toContainText("Ask before changes")
   await expect(page.getByTestId(`ai-chat-row-${conversationId ?? ""}`)).toHaveAttribute(
     "data-active", "true"
   )

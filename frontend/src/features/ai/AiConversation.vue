@@ -17,6 +17,7 @@ import {
   useCancelAiRun,
   useSendAiMessage,
   useUpdateAiConversation,
+  useUpdateAiSettings,
 } from "./api"
 import AiContextDialog from "./AiContextDialog.vue"
 import AiModelSelect from "./AiModelSelect.vue"
@@ -25,6 +26,7 @@ const props = defineProps<{ conversationId: string; contexts: ScreenContext[] }>
 const conversation = useAiConversation(() => props.conversationId)
 const settings = useAiSettings()
 const updateConversation = useUpdateAiConversation()
+const updateSettings = useUpdateAiSettings()
 const send = useSendAiMessage()
 const cancel = useCancelAiRun()
 const answer = useAnswerAiRun()
@@ -53,16 +55,35 @@ const unrepresentedRuns = computed(() => {
 })
 const canSend = computed(() => draft.value.trim().length > 0 && activeRun.value === null && !send.isPending.value)
 // What the agent may do to data from this chat (D136). Read only is the narrow
-// end and stands above what the settings allow in general.
+// end and stands above what the settings allow in general. The fourth choice
+// is not this chat's: it is the settings' own switch, offered where changes
+// are decided, and it holds in every chat that is not read only.
+const EVERY_CHAT = "every"
 const policyOptions: SelectOption[] = [
   { label: "Read only", value: "read_only", icon: "visibility", description: "Nothing is changed from this chat" },
   { label: "Ask before changes", value: "ask", icon: "help_outline", description: "Every change is confirmed first" },
   { label: "Allow changes", value: "allow", icon: "edit", description: "Changes in this chat run without asking" },
+  { label: "Allow all changes in every chat", value: EVERY_CHAT, icon: "done_all", description: "Changes in every chat run without asking", tone: "warning" },
 ]
 const changePolicy = computed(() => conversation.data.value?.change_policy ?? "ask")
+const allowAll = computed(() => settings.data.value?.allow_all_changes ?? false)
+const shownPolicy = computed(() =>
+  allowAll.value && changePolicy.value !== "read_only" ? EVERY_CHAT : changePolicy.value
+)
 async function choosePolicy(value: unknown) {
-  if (typeof value !== "string" || value === changePolicy.value) return
-  try { await updateConversation.mutateAsync({ id: props.conversationId, change_policy: value as ConversationUpdate["change_policy"] }) }
+  if (typeof value !== "string" || value === shownPolicy.value) return
+  try {
+    if (value === EVERY_CHAT) {
+      // Read only would still stand above it here, and this chat is where it
+      // was asked for.
+      if (changePolicy.value === "read_only") await updateConversation.mutateAsync({ id: props.conversationId, change_policy: "ask" })
+      await updateSettings.mutateAsync({ allow_all_changes: true })
+      return
+    }
+    if (value !== changePolicy.value) await updateConversation.mutateAsync({ id: props.conversationId, change_policy: value as ConversationUpdate["change_policy"] })
+    // Asking, or allowing here alone, cannot hold while every chat is allowed.
+    if (value !== "read_only" && allowAll.value) await updateSettings.mutateAsync({ allow_all_changes: false })
+  }
   catch (cause) { toast.error(messageOf(cause, "The permission could not be changed")) }
 }
 // What this chat is answered with: its own model, or the one the settings
@@ -471,7 +492,7 @@ onBeforeUnmount(() => {
           <AppSelect
             class="ai-conversation__policy"
             compact
-            :model-value="changePolicy"
+            :model-value="shownPolicy"
             :options="policyOptions"
             :disable="activeRun !== null"
             label="Changes"

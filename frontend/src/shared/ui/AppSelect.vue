@@ -26,6 +26,11 @@ export interface SelectOption {
    */
   stateIcon?: string
   stateActive?: boolean
+  /**
+   * A choice out of the ordinary, in the caution colour: in the list, and in
+   * the field while it is the one chosen.
+   */
+  tone?: "warning"
 }
 
 const props = withDefaults(
@@ -173,7 +178,7 @@ const summary = computed(() => {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <template
-      v-if="labelled && options.some((option) => typeof option === 'object' && (option.group || option.description || option.icon || option.actionIcon))"
+      v-if="labelled && options.some((option) => typeof option === 'object' && (option.group || option.description || option.icon || option.actionIcon || option.tone))"
       #option="scope"
     >
       <q-item
@@ -189,6 +194,7 @@ const summary = computed(() => {
       <q-item
         v-else
         v-bind="scope.itemProps"
+        :class="{ 'app-select__option--warning': scope.opt.tone === 'warning' }"
       >
         <q-item-section
           v-if="scope.opt.icon"
@@ -236,12 +242,16 @@ const summary = computed(() => {
       </span>
     </template>
     <template
-      v-else-if="single?.stateIcon"
+      v-else-if="single?.stateIcon || single?.tone"
       #selected
     >
-      <span class="app-select__chosen">
+      <span
+        class="app-select__chosen"
+        :class="{ 'app-select__chosen--warning': single.tone === 'warning' }"
+      >
         <span class="app-select__chosen-label">{{ single.label }}</span>
         <q-icon
+          v-if="single.stateIcon"
           :name="single.stateIcon"
           class="app-select__state"
           :class="{ 'app-select__state--on': single.stateActive }"
@@ -279,6 +289,8 @@ const summary = computed(() => {
   gap: var(--dp-space-1);
   min-width: 0;
 }
+.app-select__chosen--warning,
+.app-select__option--warning { color: var(--dp-callout-caution); }
 .app-select__chosen-label {
   overflow: hidden;
   text-overflow: ellipsis;
