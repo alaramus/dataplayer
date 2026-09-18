@@ -1,13 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue"
 
-import AgentBlock from "@/features/content/markdown/AgentBlock.vue"
-import CodeFence from "@/features/content/markdown/CodeFence.vue"
-import DeferredBlock from "@/features/content/markdown/DeferredBlock.vue"
-import EchartsBlock from "@/features/content/markdown/EchartsBlock.vue"
-import MermaidBlock from "@/features/content/markdown/MermaidBlock.vue"
-import SvgBlock from "@/features/content/markdown/SvgBlock.vue"
 import { renderProse } from "@/features/content/markdown/render"
+import RichBlock from "@/features/content/markdown/RichBlock.vue"
 
 import { splitStreamingDocument } from "./streaming"
 
@@ -31,25 +26,6 @@ const blocks = computed(() => splitStreamingDocument(props.text).map((block) =>
         class="chat-markdown__prose"
         v-html="block.html"
       />
-      <DeferredBlock v-else-if="block.type === 'mermaid'">
-        <MermaidBlock :code="block.code" />
-      </DeferredBlock>
-      <DeferredBlock v-else-if="block.type === 'echarts'">
-        <EchartsBlock :code="block.code" />
-      </DeferredBlock>
-      <DeferredBlock v-else-if="block.type === 'svg'">
-        <SvgBlock :code="block.code" />
-      </DeferredBlock>
-      <CodeFence
-        v-else-if="block.type === 'code'"
-        :language="block.language"
-        :code="block.code"
-      />
-      <AgentBlock
-        v-else-if="block.type === 'agent'"
-        :kind="block.kind"
-        :code="block.code"
-      />
       <div
         v-else-if="block.type === 'pending-fence'"
         class="chat-markdown__pending"
@@ -57,12 +33,10 @@ const blocks = computed(() => splitStreamingDocument(props.text).map((block) =>
       >
         Waiting for the {{ block.language || "code" }} block…
       </div>
-      <div
+      <RichBlock
         v-else
-        class="chat-markdown__pending"
-      >
-        This block is too large to render.
-      </div>
+        :block="block"
+      />
     </template>
   </div>
 </template>

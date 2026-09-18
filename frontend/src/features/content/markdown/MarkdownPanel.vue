@@ -1,16 +1,15 @@
 <script setup lang="ts">
 /** A bounded Markdown document, rendered, navigated and exported in-browser. */
 import "katex/dist/katex.min.css"
-import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, ref, watch } from "vue"
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue"
 
 import type { ContentRequest } from "@/client"
 import { client } from "@/client/client.gen"
 import { useCatalogLoader, useNodePathLoader } from "@/features/catalog/api"
 import { useContent, useContentLoader } from "@/features/content/api"
-import AgentBlock from "@/features/content/markdown/AgentBlock.vue"
-import DeferredBlock from "@/features/content/markdown/DeferredBlock.vue"
 import { splitDocument } from "@/features/content/markdown/blocks"
-import type { DocumentBlock } from "@/features/content/markdown/blocks"
+import type { DocumentBlock, RichDocumentBlock } from "@/features/content/markdown/blocks"
+import RichBlock from "@/features/content/markdown/RichBlock.vue"
 import {
   createHtmlFileName,
   createRenderedHtml,
@@ -35,15 +34,6 @@ import {
   useToast,
 } from "@/shared/ui"
 import type { MenuItem } from "@/shared/ui"
-
-const CodeFence = defineAsyncComponent(() => import("@/features/content/markdown/CodeFence.vue"))
-const EchartsBlock = defineAsyncComponent(
-  () => import("@/features/content/markdown/EchartsBlock.vue")
-)
-const MermaidBlock = defineAsyncComponent(
-  () => import("@/features/content/markdown/MermaidBlock.vue")
-)
-const SvgBlock = defineAsyncComponent(() => import("@/features/content/markdown/SvgBlock.vue"))
 
 const props = defineProps<{
   panelId: string
@@ -110,7 +100,7 @@ const outline = computed(() =>
 )
 const headings = computed(() => outline.value.headings)
 
-type RenderedBlock = Exclude<DocumentBlock, { type: "prose" }> | { type: "prose"; html: string }
+type RenderedBlock = RichDocumentBlock | { type: "prose"; html: string }
 
 const blocks = computed<RenderedBlock[]>(() => {
   let proseIndex = 0
@@ -675,45 +665,11 @@ onBeforeUnmount(() => {
               class="markdown-panel__prose"
               v-html="block.html"
             />
-            <DeferredBlock
-              v-else-if="block.type === 'mermaid'"
-              :eager="exporting"
-            >
-              <MermaidBlock :code="block.code" />
-            </DeferredBlock>
-            <DeferredBlock
-              v-else-if="block.type === 'echarts'"
-              :eager="exporting"
-            >
-              <EchartsBlock :code="block.code" />
-            </DeferredBlock>
-            <DeferredBlock
-              v-else-if="block.type === 'svg'"
-              :eager="exporting"
-            >
-              <SvgBlock :code="block.code" />
-            </DeferredBlock>
-            <DeferredBlock
-              v-else-if="block.type === 'code'"
-              :eager="exporting"
-            >
-              <CodeFence
-                :language="block.language"
-                :code="block.code"
-              />
-            </DeferredBlock>
-            <AgentBlock
-              v-else-if="block.type === 'agent'"
-              :kind="block.kind"
-              :code="block.code"
-            />
-            <p
+            <RichBlock
               v-else
-              class="markdown-panel__oversized"
-              data-testid="markdown-oversized"
-            >
-              This {{ block.language }} block is too large to draw.
-            </p>
+              :block="block"
+              :eager="exporting"
+            />
           </template>
         </article>
       </div>
@@ -816,11 +772,6 @@ onBeforeUnmount(() => {
   color: var(--dp-text-strong);
   font-size: 13px;
   line-height: 1.6;
-}
-.markdown-panel__oversized {
-  margin: 12px 0;
-  color: var(--dp-text-muted);
-  font-size: 12px;
 }
 .markdown-panel__prose :deep(h1),
 .markdown-panel__prose :deep(h2),

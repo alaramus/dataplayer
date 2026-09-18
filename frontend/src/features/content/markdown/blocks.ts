@@ -22,6 +22,9 @@ export type DocumentBlock =
   | { type: "agent"; kind: AgentKind; code: string }
   | { type: "oversized"; language: string }
 
+/** Every block but prose: what `RichBlock` draws. */
+export type RichDocumentBlock = Exclude<DocumentBlock, { type: "prose" }>
+
 const FENCE_OPEN = /^ {0,3}(`{3,})(.*)$/
 const FENCE_CLOSE = /^ {0,3}(`{3,})\s*$/
 
