@@ -68,6 +68,9 @@ test("opens, restores and manages the application agent space", async ({ page })
   await page.getByTestId("ai-chat-policy").click()
   await page.getByRole("option", { name: /Read only/ }).click()
   await expect(page.getByTestId("ai-chat-policy")).toContainText("Read only")
+  // Speaking the message is offered beside it; whether this browser can listen
+  // is its own answer, and the tooltip carries it either way.
+  await expect(page.getByTestId("ai-dictate")).toBeVisible()
 
   await page.reload()
   await expect(page.getByTestId("space-ai")).toHaveAttribute("aria-pressed", "true")

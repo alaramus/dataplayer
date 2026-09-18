@@ -101,6 +101,7 @@ frontend/src/features/ai/
 ├── attention.ts        a waiting conversation as a Needs-you item (D113)
 ├── api.ts              vue-query ownership of server state
 ├── context.ts          which open panels a chip may name, and the open intent
+├── dictation.ts        the browser's recogniser behind the composer's microphone
 ├── streaming.ts        open-fence protection and speech text
 └── state.ts            selected-chat restoration and a chat requested from outside; the shared space store remembers AI
 ```
@@ -237,7 +238,10 @@ final, an open fence waits until it closes, re-rendering is throttled. Remote
 resources stay blocked with no unblock, because injected data could turn an
 image address into a leak. Relative links do nothing. At most 20 rows appear in
 an answer, then the agent offers to open them. Copy gives raw Markdown; Listen
-uses the browser's speech synthesis on plain text.
+uses the browser's speech synthesis on plain text, and the composer borrows the
+other half of the same browser: its microphone dictates into the message in the
+browser's own language, keeping what was already typed in front of what is
+heard. A browser with no recogniser says so on a microphone that stays off.
 
 Spec: [The application agent](../decisions/2026-09-14-application-agent-design.md)
 

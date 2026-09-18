@@ -7,6 +7,7 @@ import type { SelectOption } from "@/shared/ui"
 import { messageOf } from "@/shared/api/errors"
 
 import ChatMarkdown from "./ChatMarkdown.vue"
+import { useDictation } from "./dictation"
 import { plainSpeechText } from "./streaming"
 import {
   useAiConversation,
@@ -109,6 +110,7 @@ async function submit() {
   const text = draft.value.trim()
   if (!canSend.value) return
   draft.value = ""
+  dictation.stop()
   try {
     await send.mutateAsync({ id: props.conversationId, text, contexts: selectedContexts.value })
     selectedContextIds.value = []
@@ -136,6 +138,24 @@ async function answerQuestion(choice: string) {
   }
   catch (cause) { toast.error(messageOf(cause, "The answer could not be continued")) }
 }
+// What was typed before the microphone was pressed. Everything heard is kept
+// beside it, so speaking adds to a half-written message instead of erasing it.
+const spokenInto = ref("")
+const dictation = useDictation(
+  (heard) => { draft.value = `${spokenInto.value}${heard}` },
+  (reason) => {
+    toast.error(reason === "not-allowed"
+      ? "The microphone is not allowed for this page"
+      : "Dictation stopped")
+  }
+)
+function dictate() {
+  if (!dictation.listening.value) {
+    const typed = draft.value.trimEnd()
+    spokenInto.value = typed ? `${typed} ` : ""
+  }
+  dictation.toggle()
+}
 async function copy(text: string, what: string) {
   try { await navigator.clipboard.writeText(text); toast.success(`${what} copied`) }
   catch { toast.error(`The ${what.toLowerCase()} could not be copied`) }
@@ -152,7 +172,10 @@ watch(() => conversation.data.value, async () => {
   await nextTick()
   if (scroller.value) scroller.value.scrollTop = scroller.value.scrollHeight
 }, { deep: true })
-onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
+onBeforeUnmount(() => {
+  if (speech) window.speechSynthesis.cancel()
+  dictation.stop()
+})
 </script>
 
 <template>
@@ -420,6 +443,16 @@ onBeforeUnmount(() => { if (speech) window.speechSynthesis.cancel() })
             label="Model"
             data-testid="ai-chat-model"
             @update:model-value="chooseModel"
+          />
+          <AppIconButton
+            :icon="dictation.listening.value ? 'mic' : 'mic_none'"
+            :active="dictation.listening.value"
+            :tooltip="!dictation.supported
+              ? 'This browser cannot listen'
+              : dictation.listening.value ? 'Stop dictating' : 'Dictate the message'"
+            :disable="!dictation.supported || activeRun !== null"
+            data-testid="ai-dictate"
+            @click="dictate"
           />
           <span class="ai-conversation__gap" />
           <AppButton
